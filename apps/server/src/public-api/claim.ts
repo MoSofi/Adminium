@@ -29,7 +29,9 @@ import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
-import type { RecordFilter } from '../crud/filters.js';
+import { compileFilter, type RecordFilter } from '../crud/filters.js';
+import type { SnapshotView } from '../crud/identifiers.js';
+import type { Dialect } from '@adminium/engine';
 import type { CompiledResource, CompiledScope } from './scope.js';
 
 /** What a session is: one column pinned to one value, on one resource. */
@@ -69,12 +71,72 @@ export function parseGrant(json: string): ClaimGrant | null {
 }
 
 /**
+ * The digits of a phone number, as dialled at home: the punctuation and
+ * spaces go, a `00` international prefix reads as `+`, and a national trunk
+ * `0` ("07700 900123") is dropped.
+ */
+export function phoneDigits(value: unknown): string {
+  const text = String(value ?? '').trim();
+  const digits = text.replace(/\D+/g, '');
+  if (text.startsWith('+')) return digits;
+  if (digits.startsWith('00')) return digits.slice(2);
+  return digits.startsWith('0') ? digits.slice(1) : digits;
+}
+
+/**
+ * The same number, however it was typed (55 DP24): "(415) 555-0166" is
+ * "+1 415 555 0166", and "07700 900123" is "+44 7700 900123". The WHOLE number
+ * has to agree — never a last-four match — with room only for the country
+ * code a guest leaves off: one to three digits in front of at least seven.
+ */
+export function samePhone(stored: unknown, supplied: unknown): boolean {
+  const a = phoneDigits(stored);
+  const b = phoneDigits(supplied);
+  if (a.length < 7 || b.length < 7) return false;
+  if (a === b) return true;
+  const [long, short] = a.length > b.length ? [a, b] : [b, a];
+  const extra = long.length - short.length;
+  return extra >= 1 && extra <= 3 && long.endsWith(short);
+}
+
+/**
+ * A code as the column's `code` rule writes it (55 F15): upper case, read as
+ * Crockford — O is 0, I and L are 1 — with spaces gone and the prefix put back
+ * the way the rule spells it, so "mr 4829", "MR4829" and "4829" are MR-4829.
+ */
+export function normaliseCode(value: unknown, rule: { prefix?: string; length: number }): string {
+  const prefix = (rule.prefix ?? '').toUpperCase();
+  let text = String(value ?? '')
+    .toUpperCase()
+    .replace(/\s+/g, '');
+  const bare = prefix.replace(/[^A-Z0-9]/g, '');
+  if (prefix !== '' && !text.startsWith(prefix)) {
+    const body = text.replace(/[^A-Z0-9]/g, '');
+    text = prefix + (body.startsWith(bare) ? body.slice(bare.length) : body);
+  }
+  const head = text.slice(0, prefix.length);
+  const tail = text
+    .slice(prefix.length)
+    .replace(/[^A-Z0-9]/g, '')
+    .replace(/O/g, '0')
+    .replace(/[IL]/g, '1');
+  return head + tail;
+}
+
+/**
  * Resolve a claim against the database.
  *
  * `match` values are compared with EQUALITY ONLY, against exactly the columns
  * the scope declared. No `like`, no ranges, no partial matches — a claim is an
  * identity check, and every operator the filter grammar offers is a way to turn
  * one into a search.
+ *
+ * Two kinds of column are compared by what they MEAN rather than by their
+ * bytes, because a guest types them from memory: a column with a `code` rule
+ * (its value normalised as the rule writes codes, then equality), and a
+ * `phone` column (the whole number, however punctuated — `samePhone`). A phone
+ * column is compared after the others have found the row, so it never becomes
+ * a search: a claim whose every factor is a phone number keeps plain equality.
  *
  * Returns the grant on exactly one match, and `null` on anything else.
  */
@@ -85,6 +147,9 @@ export async function resolveClaim(opts: {
   scope: CompiledScope;
   /** Caller-supplied `{ column: value }`. */
   match: Record<string, unknown>;
+  /** What the endpoint's mandatory filter is compiled against. */
+  view: SnapshotView;
+  dialect: Dialect;
 }): Promise<ClaimGrant | null> {
   const { db, table, resource, scope, match } = opts;
   const claim = scope.claim;
@@ -103,17 +168,39 @@ export async function resolveClaim(opts: {
   if (declared.length !== supplied.length) return null;
   if (declared.some((c, i) => c !== supplied[i])) return null;
 
+  const ruleOf = (column: string) => table.table.columns.find((c) => c.name === column);
+  const phones = declared.filter((column) => ruleOf(column)?.validation?.format === 'phone');
+  const byPhone = phones.length < declared.length ? phones : [];
+
   let query = db.selectFrom(table.id).selectAll();
   for (const column of declared) {
     // Resolved against the snapshot, so the identifier reaching SQL is the
     // snapshot's own — never the caller's string.
     if (!table.columns.has(column)) return null;
-    query = query.where(db.dynamic.ref(column), '=', match[column] as never);
+    if (byPhone.includes(column)) continue;
+    const code = ruleOf(column)?.code;
+    const value = code === undefined ? match[column] : normaliseCode(match[column], code);
+    query = query.where(db.dynamic.ref(column), '=', value as never);
+  }
+
+  /*
+   * THE ENDPOINT'S OWN FILTER, TOO. A claim looked rows up by
+   * its match columns alone, so a row the endpoint's mandatory predicate hides
+   * from every read — a cancelled booking, another venue's order — could still
+   * be claimed, and the session then read it through the claim. ANDed here
+   * exactly as the list path ANDs it (`crud/list.ts`).
+   */
+  const mandatory = resource.mandatory;
+  if (mandatory !== null) {
+    const ctx = { view: opts.view, table, canReadPii: true, dynamic: db.dynamic, dialect: opts.dialect };
+    query = query.where((eb) => compileFilter(eb as never, ctx, mandatory));
   }
 
   // Two rows is a failed identity check, not an ambiguous one. Fetching a
-  // third would tell us nothing more, so the limit is 2.
-  const rows = (await query.limit(2).execute()) as Record<string, unknown>[];
+  // third would tell us nothing more, so the limit is 2 — or, when a phone
+  // number is still to be compared, enough rows that the one it names is there.
+  const fetched = (await query.limit(byPhone.length === 0 ? 2 : 50).execute()) as Record<string, unknown>[];
+  const rows = fetched.filter((row) => byPhone.every((column) => samePhone(row[column], match[column])));
   if (rows.length !== 1) return null;
 
   const row = rows[0] as Record<string, unknown>;

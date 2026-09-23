@@ -191,6 +191,10 @@ const resourceSchema = z
       .optional(),
     response: z.object({ shape: z.enum(PUBLIC_RESPONSE_SHAPES) }).strict().optional(),
     count: z.enum(PUBLIC_COUNT_MODES).default('none'),
+    /** `availability`: free or full per slot, from the table's booking limit; never a row. */
+    kind: z.enum(['records', 'availability']).optional(),
+    /** The email sent when a guest creates a row (see the endpoint's `confirm`). */
+    confirm: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 
@@ -320,6 +324,10 @@ export interface CompiledResource {
   response: { shape: PublicResponseShape };
   /** `none` is the whole vocabulary (see `PUBLIC_COUNT_MODES`). */
   count: 'none';
+  /** `availability` answers free or full per slot and never a row. */
+  kind: 'records' | 'availability';
+  /** The confirmation a guest's create sends, or null. */
+  confirm: Record<string, unknown> | null;
 }
 
 export interface CompiledScope {
@@ -818,6 +826,8 @@ export function compileScope(
       rate: r.rate === undefined ? null : { max: r.rate.max, windowMs: r.rate.windowMs },
       response: { shape: r.response?.shape ?? 'wrapped' },
       count: r.count,
+      kind: r.kind ?? 'records',
+      confirm: r.confirm ?? null,
     });
   }
 
@@ -899,6 +909,7 @@ function projectResource(r: CompiledResource): {
    * version: `version` is the constant 1.
    */
   response: { shape: PublicResponseShape };
+  kind?: 'availability';
 } {
   // Copied, not aliased: this object is serialized straight onto the wire, and
   // handing out the compiled scope's own arrays would let a serializer or a
@@ -912,5 +923,6 @@ function projectResource(r: CompiledResource): {
     writable: [...r.writable],
     limit: r.limit,
     response: { shape: r.response.shape },
+    ...(r.kind === 'availability' ? { kind: 'availability' as const } : {}),
   };
 }

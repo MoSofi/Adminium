@@ -73,7 +73,7 @@ declare module 'fastify' {
      * process and whose substitute gate is a loopback socket peer plus
      * `system:settings:manage`.
      */
-    csrf?: 'exempt';
+    csrf?: 'exempt' | 'form';
   }
 }
 

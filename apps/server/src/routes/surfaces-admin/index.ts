@@ -26,7 +26,6 @@ import {
   connectionTenantConfig,
   publicKeysRepo,
   settingsRepo,
-  surfaceInstanceSlug,
   userPrefsRepo,
   type MetaDb,
 } from '@adminium/meta';
@@ -37,12 +36,18 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { normalizeHost } from '../../security/csrf.js';
 import { resolveLabel } from '../../cli/surfaces-root.js';
 import {
+  validateDomainEntries,
+  validateInstanceEntries,
+  type DomainIssue,
+} from '../../surfaces/validate.js';
+import {
   appNameOf,
   appNameOverrideOf,
   instancesOf,
   staffConnectionOf,
   staffPlacementOf,
   type SurfaceSettings,
+  NO_SURFACE_SETTINGS,
 } from '../../surfaces/settings.js';
 import {
   surfaceNameBody,
@@ -57,39 +62,11 @@ import {
   surfacePlacementParams,
   surfacePlacementReply,
   surfacesListReply,
-  type SurfaceDomainTargetDto,
   type SurfaceSummaryDto,
 } from './schema.js';
 
 export interface SurfacesAdminRoutesDeps {
   meta: MetaDb;
-}
-
-interface DomainIssue {
-  path: string;
-  message: string;
-  code: string;
-}
-
-/**
- * A mapped host is a hostname with an optional port — never a URL. Validated
- * by round-tripping through `new URL('http://' + host)`: whatever survives
- * with its host intact and nothing else attached is servable; everything else
- * (schemes, paths, credentials, spaces) is named back to the operator.
- */
-function hostIssueFor(host: string): string | null {
-  if (host.includes('/') || host.includes('@') || host.includes('#') || host.includes('?')) {
-    return 'must be a bare hostname (with an optional port), not a URL';
-  }
-  try {
-    const url = new URL(`http://${host}`);
-    if (normalizeHost(url.host) !== normalizeHost(host)) {
-      return 'must be a bare hostname (with an optional port)';
-    }
-  } catch {
-    return 'is not a valid hostname';
-  }
-  return null;
 }
 
 export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPluginAsyncZod {
@@ -98,7 +75,7 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
 
   return async (app) => {
     const readSettings = async (): Promise<SurfaceSettings> =>
-      (await app.surfaceSettings?.read()) ?? { apps: {}, domains: {} };
+      (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
 
     app.get(
       '/surfaces',
@@ -347,51 +324,10 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
       async (request) => {
         const issues: DomainIssue[] = [];
         const normalized: Record<string, { slug: string; connectionId: string }[]> = {};
-
         for (const [appKey, list] of Object.entries(request.body.instances)) {
-          if (!app.surfaces.some((s) => s.appKey === appKey)) {
-            issues.push({
-              path: appKey,
-              message: `"${appKey}" is not a surface this instance serves.`,
-              code: 'unknown_surface',
-            });
-            continue;
-          }
-          const seen = new Set<string>();
-          const rows: { slug: string; connectionId: string }[] = [];
-          for (const entry of list) {
-            const slug = surfaceInstanceSlug.safeParse(entry.slug);
-            if (!slug.success) {
-              issues.push({
-                path: `${appKey}.${entry.slug}`,
-                message: `"${entry.slug}" ${slug.error.issues[0]?.message ?? 'is not a valid slug'}.`,
-                code: 'invalid_slug',
-              });
-              continue;
-            }
-            if (seen.has(slug.data)) {
-              issues.push({
-                path: `${appKey}.${entry.slug}`,
-                message: `"${entry.slug}" is listed twice for this app.`,
-                code: 'duplicate_slug',
-              });
-              continue;
-            }
-            // Validated here, not at read time: a mount pointed at a connection
-            // that does not exist fails exactly like one pointed at nothing, and
-            // the operator would debug the app instead of the setting.
-            if ((await connectionTenantConfig(deps.meta, entry.connectionId)) === null) {
-              issues.push({
-                path: `${appKey}.${entry.slug}`,
-                message: `"${entry.slug}" points at a connection that does not exist.`,
-                code: 'unknown_connection',
-              });
-              continue;
-            }
-            seen.add(slug.data);
-            rows.push({ slug: slug.data, connectionId: entry.connectionId });
-          }
-          if (rows.length > 0) normalized[appKey] = rows;
+          const checked = await validateInstanceEntries(appKey, list, { surfaces: app.surfaces, meta: deps.meta });
+          issues.push(...checked.issues);
+          if (checked.rows.length > 0) normalized[appKey] = checked.rows;
         }
 
         if (issues.length > 0) {
@@ -433,70 +369,14 @@ export function surfacesAdminRoutes(deps: SurfacesAdminRoutesDeps): FastifyPlugi
         schema: { body: surfaceDomainsBody, response: { 200: surfaceDomainsReply } },
       },
       async (request) => {
-        const issues: DomainIssue[] = [];
-        const normalized: Record<string, SurfaceDomainTargetDto> = {};
-        const requestHost = normalizeHost(request.host);
         // Read once, up front: an instance named by a host is validated against
         // the instances that actually exist.
         const declared = await readSettings();
-
-        for (const [host, target] of Object.entries(request.body.domains)) {
-          const hostIssue = hostIssueFor(host);
-          if (hostIssue !== null) {
-            issues.push({ path: host, message: `"${host}" ${hostIssue}.`, code: 'invalid_host' });
-            continue;
-          }
-          const key = normalizeHost(host);
-          if (key in normalized) {
-            issues.push({
-              path: host,
-              message: `"${host}" duplicates another entry once normalized ("${key}").`,
-              code: 'duplicate_host',
-            });
-            continue;
-          }
-          if (requestHost !== '' && key === requestHost) {
-            issues.push({
-              path: host,
-              message: `"${host}" is the host you are using to reach Studio — mapping it would take this dashboard away from you.`,
-              code: 'request_host',
-            });
-            continue;
-          }
-          const exists = app.surfaces.some(
-            (surface) => surface.appKey === target.appKey && surface.side === target.side,
-          );
-          if (!exists) {
-            issues.push({
-              path: host,
-              message: `No ${target.side} surface is discovered for app "${target.appKey}".`,
-              code: 'unknown_surface',
-            });
-            continue;
-          }
-          /*
-           * An instance named here must EXIST. A host pointed at a slug nobody
-           * declared would serve the app's own database while the operator
-           * believes it is serving another business's — the one failure this
-           * whole mapping exists to make impossible.
-           */
-          if (
-            target.instance !== undefined &&
-            !instancesOf(declared, target.appKey).some((i) => i.slug === target.instance)
-          ) {
-            issues.push({
-              path: host,
-              message: `"${target.appKey}" has no instance "${target.instance}".`,
-              code: 'unknown_instance',
-            });
-            continue;
-          }
-          normalized[key] = {
-            appKey: target.appKey,
-            side: target.side,
-            ...(target.instance === undefined ? {} : { instance: target.instance }),
-          };
-        }
+        const { normalized, issues } = validateDomainEntries(request.body.domains, {
+          requestHost: normalizeHost(request.host),
+          surfaces: app.surfaces,
+          settings: declared,
+        });
 
         if (issues.length > 0) {
           throw new ValidationFailedError('The domain map did not validate.', { issues });

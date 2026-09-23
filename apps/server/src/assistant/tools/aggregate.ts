@@ -15,6 +15,7 @@
  * than aggregating personal data behind a total.
  */
 
+import { connectionTenantConfig } from '@adminium/meta';
 import { queryDescriptorSchema } from '@adminium/engine/config';
 
 import { AppError } from '../../errors.js';
@@ -99,6 +100,7 @@ export const aggregateTool: AssistantTool = {
         // masked column, which is the refusal this argument buys.
         canReadPii: false,
         dialect,
+        timezone: (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? undefined,
       });
       const rows = (await compiled.query.execute()) as Row[];
       const priorRows = compiled.prior === null ? undefined : ((await compiled.prior.execute()) as Row[]);

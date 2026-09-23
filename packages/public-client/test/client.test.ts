@@ -15,6 +15,7 @@ import {
   formatTenantMoney,
   isCanonicalTimeZone,
   toTenantDay,
+  fromTenantLocal,
   toTenantMinutes,
 } from '../src/index.js';
 
@@ -164,6 +165,19 @@ describe('errors carry the code, not the prose', () => {
       expect(e.code).toBe('PUBLIC_NETWORK_UNAVAILABLE');
       expect(e.isTransient).toBe(true);
     });
+    expect.assertions(2);
+  });
+
+  it('knows a full time from a busy one, and only the busy one is worth trying again', async () => {
+    for (const [code, transient] of [
+      ['PUBLIC_SLOT_FULL', false],
+      ['PUBLIC_SLOT_BUSY', true],
+    ] as const) {
+      const client = make(() => err(409, code));
+      await client.list('menu').catch((e: PublicApiError) => {
+        expect([e.code, e.isTransient]).toEqual([code, transient]);
+      });
+    }
     expect.assertions(2);
   });
 
@@ -448,5 +462,40 @@ describe('get, replace, remove and batch', () => {
     expect(await client.list('menu')).toEqual({ data: [{ id: 9, data: 'x' }] });
 
     expect(calls.some((c) => c.url.endsWith('/config'))).toBe(false);
+  });
+});
+
+describe('fromTenantLocal', () => {
+  it('names the instant of a wall time on the tenant clock, round-tripping the readers', () => {
+    const iso = fromTenantLocal('2026-09-25', 19 * 60, 'Europe/London');
+    expect(iso).toBe('2026-09-25T18:00:00.000Z');
+    expect([toTenantDay(iso, 'Europe/London'), toTenantMinutes(iso, 'Europe/London')]).toEqual(['2026-09-25', 19 * 60]);
+    expect(fromTenantLocal('2026-01-15', 19 * 60, 'Europe/London')).toBe('2026-01-15T19:00:00.000Z');
+    expect(fromTenantLocal('2026-09-25', 0, 'Asia/Tokyo')).toBe('2026-09-24T15:00:00.000Z');
+  });
+
+  it('reads a skipped spring hour as the hour after, and a doubled autumn hour as the first', () => {
+    // Europe/Berlin: 2026-03-29 02:00 → 03:00; 2026-10-25 03:00 → 02:00.
+    expect(fromTenantLocal('2026-03-29', 2 * 60 + 30, 'Europe/Berlin')).toBe('2026-03-29T01:30:00.000Z');
+    expect(fromTenantLocal('2026-10-25', 2 * 60 + 30, 'Europe/Berlin')).toBe('2026-10-25T00:30:00.000Z');
+  });
+});
+
+describe('availability', () => {
+  it('asks for a day and a party, and hands back the times as the server answered', async () => {
+    let asked = '';
+    const client = createPublicClient({
+      baseUrl: 'https://x',
+      publishableKey: 'adm_pub_k',
+      fetch: stub((url) => {
+        asked = url;
+        return { data: [{ time: '19:00', state: 'free' }, { time: '19:30', state: 'full' }] };
+      }).fetch,
+    })!;
+    expect(await client.availability('pos_reservations_availability', '2026-09-25', 4)).toEqual([
+      { time: '19:00', state: 'free' },
+      { time: '19:30', state: 'full' },
+    ]);
+    expect(asked).toBe('https://x/api/v1/public/availability/pos_reservations_availability?date=2026-09-25&party=4');
   });
 });

@@ -133,6 +133,16 @@ describe('with no hooks', () => {
     expect(sink.queries).toEqual([]);
   });
 
+  it('binds a boolean an UPDATE sets as 1 or 0 on SQLite, as an INSERT always has', async () => {
+    // A ticket put on hold is `{held: true}`: better-sqlite3 refuses a boolean bind.
+    const writes = createWriteService();
+    const outcome = await writes.update({ target, pk: { id: 1 }, values: { shipped: true }, context, announce: async () => {} });
+    expect(outcome.count).toBe(1);
+    expect(rows().find((row) => row['id'] === 1)?.['shipped']).toBe(1);
+    await writes.update({ target, pk: { id: 1 }, values: { shipped: false }, context, announce: async () => {} });
+    expect(rows().find((row) => row['id'] === 1)?.['shipped']).toBe(0);
+  });
+
   it('turns a failed statement into the caller’s error, and leaves other errors alone', async () => {
     const writes = createWriteService();
     const mapError = (): never => {
@@ -469,17 +479,17 @@ describe('the column rules inside the write path', () => {
     expect(stored['qty']).toBe(9);
   });
 
-  it('brands the very same object when the table has no rules', () => {
+  it('brands the very same object when the table has no rules', async () => {
     const writes = createWriteService();
     const values: Row = { qty: 1 };
-    const { rows: checked, issues } = writes.check('create', target, context, [values]);
+    const { rows: checked, issues } = await writes.check('create', target, context, [values]);
     expect(checked[0]).toBe(values);
     expect(issues[0]).toBeNull();
   });
 
-  it('reports a refused row rather than throwing, so a bulk caller decides', () => {
+  it('reports a refused row rather than throwing, so a bulk caller decides', async () => {
     const writes = createWriteService();
-    const { rows: checked, issues } = writes.check('create', moodTarget(target), context, [
+    const { rows: checked, issues } = await writes.check('create', moodTarget(target), context, [
       { mood: 'wibble' },
       { mood: 'calm' },
     ]);
@@ -522,8 +532,8 @@ describe('the column rules inside the write path', () => {
      */
     const values: Row = { id: 99, qty: 1 };
     // @ts-expect-error a Row is not a CheckedRow: only check() and uncheckedForUndo() make one
-    await insertRows(db, table, [values]);
+    await insertRows(db, 'sqlite', table, [values]);
     // The one named escape compiles, and says why in its name.
-    await expect(insertRows(db, table, uncheckedForUndo([{ id: 98, qty: 1 }]))).resolves.toBeUndefined();
+    await expect(insertRows(db, 'sqlite', table, uncheckedForUndo([{ id: 98, qty: 1 }]))).resolves.toBeUndefined();
   });
 });

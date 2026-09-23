@@ -44,6 +44,7 @@ interface Harness {
   meta: MetaDb;
   manager: ConnectionManager;
   superAdmin: User;
+  tenantChanged: string[];
 }
 
 function asUser(user: User): Record<string, string> {
@@ -67,6 +68,7 @@ async function buildHarness(): Promise<Harness> {
   await roles.assignToUser(superAdmin.id, role.id);
 
   const manager = new ConnectionManager({ meta, crypto: dsnCryptoFromSecret(TEST_SECRET) });
+  const tenantChanged: string[] = [];
 
   const app = await buildServer({ env: makeEnv(), logger: false });
   app.addHook('onRequest', async (request) => {
@@ -83,13 +85,13 @@ async function buildHarness(): Promise<Harness> {
   await app.register(rbacPlugin, { meta });
   await app.register(
     async (api) => {
-      await api.register(connectionsRoutes({ manager, meta }));
+      await api.register(connectionsRoutes({ manager, meta, onTenantChanged: (id) => tenantChanged.push(id) }));
     },
     { prefix: '/api/v1' },
   );
   await app.ready();
 
-  return { app, meta, manager, superAdmin };
+  return { app, meta, manager, superAdmin, tenantChanged };
 }
 
 describe('pausing a connection', () => {
@@ -123,6 +125,15 @@ describe('pausing a connection', () => {
       payload: body,
     });
   }
+
+  it('tells the public API when the zone or currency changes — and only then', async () => {
+    const id = await makeConnection();
+    expect((await patch(id, { name: 'Renamed' })).statusCode).toBe(200);
+    expect(t.tenantChanged).toEqual([]);
+    expect((await patch(id, { timezone: 'America/New_York' })).statusCode).toBe(200);
+    expect((await patch(id, { currency: 'EUR' })).statusCode).toBe(200);
+    expect(t.tenantChanged).toEqual([id, id]);
+  });
 
   it('flips `disabled`, releases the pool, and preserves the failing health reading', async () => {
     const id = await makeConnection();

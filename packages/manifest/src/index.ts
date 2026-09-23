@@ -42,6 +42,19 @@ export {
   publisherSchema,
   i18nMessageSchema,
   compareSemver,
+  defaultIssue,
+  MAX_TEXT_LENGTH,
+  MAX_TABLE_NAME,
+  prefixFor,
+  appReferenceIssues,
+  columnRulesSchema,
+  capacitySchema,
+  navGroupSchema,
+  publicAccessSchema,
+  sampleDataSchema,
+  labelsSchema,
+  type ColumnRules,
+  type PublicAccess,
   type Manifest,
   type AppManifest,
   type AddOnManifest,
@@ -73,3 +86,28 @@ export {
   type ExistingColumnView,
   type TableAction,
 } from './plan.js';
+
+export {
+  IDENTIFIER_LIMIT,
+  ROLE_SLUG_LIMIT,
+  type PlanContext,
+  type TableChoice,
+  type TableClass,
+  type TableOffer,
+  type PlanEdit,
+  type InstallTablePlan,
+  type TableAction as ContextTableAction,
+} from './plan-context.js';
+
+export {
+  SAMPLE_FORMAT,
+  isoDurationMs,
+  sampleBundleIssues,
+  sampleBundleSchema,
+  sampleDirective,
+  sampleRowSchema,
+  sampleValueSchema,
+  type SampleBundle,
+  type SampleIssue,
+  type SampleValue,
+} from './sample.js';

@@ -219,6 +219,8 @@ const columnFactSchema = z.object({
       maxLength: z.number().optional(),
     })
     .optional(),
+  /** What a person calls each of an enum's values. */
+  enumLabels: z.record(z.string(), z.string()).optional(),
 });
 
 /**
@@ -285,7 +287,11 @@ export const pageReply = z.object({
    */
   columnFacts: z
     .object({
-      table: z.object({ labelSingular: z.string().nullable() }),
+      table: z.object({
+        labelSingular: z.string().nullable(),
+        /** What a person calls the table as a whole ("Categories"), when it has a name. */
+        labelPlural: z.string().nullable(),
+      }),
       /** Link relations this table can write through (a field of chips). */
       relations: z
         .array(

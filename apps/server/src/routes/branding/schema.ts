@@ -11,6 +11,14 @@ export const brandingView = z.object({
   appName: z.string(),
   logoUrl: z.string().nullable(),
   showVersion: z.boolean(),
+  /**
+   * On an address mapped to an app's staff screens: which app, what it is
+   * called, and the venue's own name (null while the workspace keeps the
+   * default) — so its sign-in page is the venue's, not Adminium's. Read from
+   * the surface settings alone; nothing touches a source database before
+   * sign-in.
+   */
+  surface: z.object({ appKey: z.string(), appName: z.string(), name: z.string().nullable() }).optional(),
 });
 export type BrandingViewSchema = z.infer<typeof brandingView>;
 

@@ -238,6 +238,9 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
+                  },
+                  "remember": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -2097,6 +2100,16 @@
                                               "type": "null"
                                             }
                                           ]
+                                        },
+                                        "appKey": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -2109,7 +2122,8 @@
                                         "connectionId",
                                         "connectionName",
                                         "currency",
-                                        "sourceTable"
+                                        "sourceTable",
+                                        "appKey"
                                       ],
                                       "additionalProperties": false
                                     }
@@ -2380,6 +2394,16 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "appKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -2392,7 +2416,8 @@
                               "connectionId",
                               "connectionName",
                               "currency",
-                              "sourceTable"
+                              "sourceTable",
+                              "appKey"
                             ],
                             "additionalProperties": false
                           }
@@ -2466,6 +2491,16 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "appKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -2478,7 +2513,410 @@
                               "connectionId",
                               "connectionName",
                               "currency",
-                              "sourceTable"
+                              "sourceTable",
+                              "appKey"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "unavailableApps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appKey": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "app-disabled",
+                                  "side-off",
+                                  "external"
+                                ]
+                              },
+                              "href": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "appKey",
+                              "label",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "appSections": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appKey": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "groups": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "key": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "pageId": {
+                                            "type": "string"
+                                          },
+                                          "slug": {
+                                            "type": "string"
+                                          },
+                                          "labelKey": {
+                                            "type": "string"
+                                          },
+                                          "fallback": {
+                                            "type": "string"
+                                          },
+                                          "icon": {
+                                            "type": "string"
+                                          },
+                                          "badge": {
+                                            "type": "string",
+                                            "enum": [
+                                              "unread-count",
+                                              "pending-count"
+                                            ]
+                                          },
+                                          "order": {
+                                            "type": "number"
+                                          },
+                                          "connectionId": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "connectionName": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "currency": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "sourceTable": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "appKey": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "pageId",
+                                          "slug",
+                                          "labelKey",
+                                          "fallback",
+                                          "icon",
+                                          "order",
+                                          "connectionId",
+                                          "connectionName",
+                                          "currency",
+                                          "sourceTable",
+                                          "appKey"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "label",
+                                    "items"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "staff": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "placement": {
+                                            "type": "string",
+                                            "enum": [
+                                              "internal"
+                                            ]
+                                          },
+                                          "items": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "path": {
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "icon": {
+                                                  "type": "string"
+                                                },
+                                                "persona": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "path",
+                                                "label"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "placement",
+                                          "items"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "placement": {
+                                            "type": "string",
+                                            "enum": [
+                                              "external"
+                                            ]
+                                          },
+                                          "url": {
+                                            "type": "string"
+                                          },
+                                          "items": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "path": {
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "icon": {
+                                                  "type": "string"
+                                                },
+                                                "persona": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "path",
+                                                "label"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          "instances": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "slug": {
+                                                  "type": "string"
+                                                },
+                                                "url": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "slug",
+                                                "url"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "placement",
+                                          "url",
+                                          "items",
+                                          "instances"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "appKey",
+                              "label",
+                              "version",
+                              "groups",
+                              "staff"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "disabledAppPages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "pageId": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "labelKey": {
+                                "type": "string"
+                              },
+                              "fallback": {
+                                "type": "string"
+                              },
+                              "icon": {
+                                "type": "string"
+                              },
+                              "badge": {
+                                "type": "string",
+                                "enum": [
+                                  "unread-count",
+                                  "pending-count"
+                                ]
+                              },
+                              "order": {
+                                "type": "number"
+                              },
+                              "connectionId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "connectionName": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "currency": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "sourceTable": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "appKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "pageId",
+                              "slug",
+                              "labelKey",
+                              "fallback",
+                              "icon",
+                              "order",
+                              "connectionId",
+                              "connectionName",
+                              "currency",
+                              "sourceTable",
+                              "appKey"
                             ],
                             "additionalProperties": false
                           }
@@ -2702,7 +3140,10 @@
                         "hostedApps",
                         "addOnNav",
                         "hiddenPages",
-                        "pausedPages"
+                        "pausedPages",
+                        "unavailableApps",
+                        "appSections",
+                        "disabledAppPages"
                       ],
                       "additionalProperties": false
                     }
@@ -8648,6 +9089,15 @@
                             },
                             "diagramLayout": {
                               "type": "number"
+                            },
+                            "endpoints": {
+                              "type": "number"
+                            },
+                            "scopes": {
+                              "type": "number"
+                            },
+                            "appTables": {
+                              "type": "number"
                             }
                           },
                           "required": [
@@ -8655,7 +9105,10 @@
                             "grants",
                             "overrides",
                             "includedTables",
-                            "diagramLayout"
+                            "diagramLayout",
+                            "endpoints",
+                            "scopes",
+                            "appTables"
                           ],
                           "additionalProperties": false
                         },
@@ -62790,10 +63243,21 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "labelPlural": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
                           "required": [
-                            "labelSingular"
+                            "labelSingular",
+                            "labelPlural"
                           ],
                           "additionalProperties": false
                         },
@@ -62971,6 +63435,15 @@
                                         }
                                       },
                                       "additionalProperties": false
+                                    },
+                                    "enumLabels": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "string"
+                                      }
                                     }
                                   },
                                   "required": [
@@ -63121,6 +63594,15 @@
                                   }
                                 },
                                 "additionalProperties": false
+                              },
+                              "enumLabels": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
                               }
                             },
                             "required": [
@@ -63579,6 +64061,14 @@
                         "config"
                       ]
                     }
+                  },
+                  "toolbar": {
+                    "type": "object",
+                    "properties": {
+                      "day": {
+                        "type": "boolean"
+                      }
+                    }
                   }
                 },
                 "required": [
@@ -63671,6 +64161,15 @@
                                 ],
                                 "additionalProperties": false
                               }
+                            },
+                            "toolbar": {
+                              "type": "object",
+                              "properties": {
+                                "day": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -66598,6 +67097,18 @@
                           "compareToPrior": {
                             "default": false,
                             "type": "boolean"
+                          },
+                          "calendar": {
+                            "type": "boolean"
+                          },
+                          "offset": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 400
+                          },
+                          "param": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z][a-zA-Z0-9_.]{0,63}$"
                           }
                         },
                         "required": [
@@ -66904,6 +67415,18 @@
                                 "compareToPrior": {
                                   "default": false,
                                   "type": "boolean"
+                                },
+                                "calendar": {
+                                  "type": "boolean"
+                                },
+                                "offset": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 400
+                                },
+                                "param": {
+                                  "type": "string",
+                                  "pattern": "^[a-zA-Z][a-zA-Z0-9_.]{0,63}$"
                                 }
                               },
                               "required": [
@@ -68084,6 +68607,33 @@
                         },
                         "showVersion": {
                           "type": "boolean"
+                        },
+                        "surface": {
+                          "type": "object",
+                          "properties": {
+                            "appKey": {
+                              "type": "string"
+                            },
+                            "appName": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "appKey",
+                            "appName",
+                            "name"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -68163,6 +68713,33 @@
                         },
                         "showVersion": {
                           "type": "boolean"
+                        },
+                        "surface": {
+                          "type": "object",
+                          "properties": {
+                            "appKey": {
+                              "type": "string"
+                            },
+                            "appName": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "appKey",
+                            "appName",
+                            "name"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -68210,6 +68787,33 @@
                         },
                         "showVersion": {
                           "type": "boolean"
+                        },
+                        "surface": {
+                          "type": "object",
+                          "properties": {
+                            "appKey": {
+                              "type": "string"
+                            },
+                            "appName": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "appKey",
+                            "appName",
+                            "name"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -75286,6 +75890,14 @@
                         "config"
                       ]
                     }
+                  },
+                  "toolbar": {
+                    "type": "object",
+                    "properties": {
+                      "day": {
+                        "type": "boolean"
+                      }
+                    }
                   }
                 },
                 "required": [
@@ -75378,6 +75990,15 @@
                                 ],
                                 "additionalProperties": false
                               }
+                            },
+                            "toolbar": {
+                              "type": "object",
+                              "properties": {
+                                "day": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "additionalProperties": false
                             }
                           },
                           "required": [
@@ -78943,6 +79564,17 @@
                                 },
                                 "navAvailable": {
                                   "type": "boolean"
+                                },
+                                "openUrl": {
+                                  "type": "string"
+                                },
+                                "state": {
+                                  "type": "string",
+                                  "enum": [
+                                    "on",
+                                    "off",
+                                    "disabled"
+                                  ]
                                 }
                               },
                               "required": [
@@ -78955,6 +79587,31 @@
                           },
                           "missing": {
                             "type": "boolean"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "installing",
+                              "installed",
+                              "disabled",
+                              "error"
+                            ]
+                          },
+                          "oldTableNames": {
+                            "type": "object",
+                            "properties": {
+                              "prefix": {
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "prefix",
+                              "count"
+                            ],
+                            "additionalProperties": false
                           },
                           "pages": {
                             "type": "object",
@@ -79006,6 +79663,122 @@
                               "recomposed",
                               "kept",
                               "warnings"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "rules": {
+                            "type": "object",
+                            "properties": {
+                              "written": {
+                                "type": "number"
+                              },
+                              "removed": {
+                                "type": "number"
+                              },
+                              "lists": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "skipped": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "table": {
+                                      "type": "string"
+                                    },
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "op": {
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "table",
+                                    "column",
+                                    "op",
+                                    "reason"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "written",
+                              "removed",
+                              "lists",
+                              "skipped"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "roles": {
+                            "type": "object",
+                            "properties": {
+                              "created": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "seeded": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "created",
+                              "seeded"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "publicAccess": {
+                            "type": "object",
+                            "properties": {
+                              "endpoints": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "keyId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "skipped": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ref": {
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ref",
+                                    "reason"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "endpoints",
+                              "keyId",
+                              "skipped"
                             ],
                             "additionalProperties": false
                           }
@@ -79449,6 +80222,70 @@
                   "connectionId": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "choices": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "reuse"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "share"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "rename-existing"
+                              ]
+                            },
+                            "to": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "to"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "altPrefix": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 40
                   }
                 },
                 "required": [
@@ -79778,6 +80615,277 @@
                             "blocked"
                           ],
                           "additionalProperties": false
+                        },
+                        "checksum": {
+                          "type": "string"
+                        },
+                        "tables": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "class": {
+                                "type": "string",
+                                "enum": [
+                                  "new",
+                                  "own-leftover",
+                                  "shared",
+                                  "taken"
+                                ]
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "create",
+                                  "reuse",
+                                  "share",
+                                  "rename-existing",
+                                  "undecided"
+                                ]
+                              },
+                              "offers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "reuse",
+                                    "share",
+                                    "rename-existing",
+                                    "alt-prefix"
+                                  ]
+                                }
+                              },
+                              "reuseRefusal": {
+                                "type": "string"
+                              },
+                              "renameExistingTo": {
+                                "type": "string"
+                              },
+                              "sharedWith": {
+                                "type": "string"
+                              },
+                              "adopted": {
+                                "type": "boolean",
+                                "enum": [
+                                  true
+                                ]
+                              },
+                              "edits": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "add-column",
+                                        "widen",
+                                        "set-identity",
+                                        "enum-values"
+                                      ]
+                                    },
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "from": {
+                                      "type": "string"
+                                    },
+                                    "to": {
+                                      "type": "string"
+                                    },
+                                    "values": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "column"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "blocked": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "reason"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ref": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ref",
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "table",
+                              "class",
+                              "action",
+                              "offers",
+                              "edits",
+                              "blocked",
+                              "columns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "names": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "sampleData": {
+                          "type": "boolean"
+                        },
+                        "publicAccess": {
+                          "type": "object",
+                          "properties": {
+                            "endpoints": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "methods": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "select": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "writable": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "claim": {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "records",
+                                      "availability"
+                                    ]
+                                  },
+                                  "confirms": {
+                                    "type": "boolean"
+                                  },
+                                  "pending": {
+                                    "type": "boolean"
+                                  },
+                                  "issues": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "ref",
+                                  "table",
+                                  "methods",
+                                  "select",
+                                  "writable",
+                                  "claim",
+                                  "kind",
+                                  "confirms",
+                                  "pending",
+                                  "issues"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "warnings": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "canGrant": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "endpoints",
+                            "warnings",
+                            "canGrant"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -79791,7 +80899,8 @@
                         "problems",
                         "requiresSchemaChange",
                         "pageWarnings",
-                        "missingColumnsEdit"
+                        "missingColumnsEdit",
+                        "checksum"
                       ],
                       "additionalProperties": false
                     }
@@ -79828,6 +80937,78 @@
                   "connectionId": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "planChecksum": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "publicAccess": {
+                    "type": "boolean"
+                  },
+                  "choices": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "additionalProperties": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "reuse"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "share"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "action"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "action": {
+                              "type": "string",
+                              "enum": [
+                                "rename-existing"
+                              ]
+                            },
+                            "to": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            }
+                          },
+                          "required": [
+                            "action",
+                            "to"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "altPrefix": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 40
                   }
                 },
                 "required": [
@@ -79908,6 +81089,17 @@
                           },
                           "navAvailable": {
                             "type": "boolean"
+                          },
+                          "openUrl": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "on",
+                              "off",
+                              "disabled"
+                            ]
                           }
                         },
                         "required": [
@@ -79920,6 +81112,31 @@
                     },
                     "missing": {
                       "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "installing",
+                        "installed",
+                        "disabled",
+                        "error"
+                      ]
+                    },
+                    "oldTableNames": {
+                      "type": "object",
+                      "properties": {
+                        "prefix": {
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "prefix",
+                        "count"
+                      ],
+                      "additionalProperties": false
                     },
                     "pages": {
                       "type": "object",
@@ -79973,6 +81190,122 @@
                         "warnings"
                       ],
                       "additionalProperties": false
+                    },
+                    "rules": {
+                      "type": "object",
+                      "properties": {
+                        "written": {
+                          "type": "number"
+                        },
+                        "removed": {
+                          "type": "number"
+                        },
+                        "lists": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "skipped": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "op": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "column",
+                              "op",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "written",
+                        "removed",
+                        "lists",
+                        "skipped"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "roles": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "seeded": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "created",
+                        "seeded"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "endpoints": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "keyId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "skipped": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "endpoints",
+                        "keyId",
+                        "skipped"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -79994,6 +81327,89 @@
     },
     "/api/v1/apps/{key}/update": {
       "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "planChecksum": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "choices": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]*$"
+                        },
+                        "additionalProperties": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "reuse"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "action"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "share"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "action"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "action": {
+                                  "type": "string",
+                                  "enum": [
+                                    "rename-existing"
+                                  ]
+                                },
+                                "to": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64
+                                }
+                              },
+                              "required": [
+                                "action",
+                                "to"
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -80078,6 +81494,17 @@
                               },
                               "navAvailable": {
                                 "type": "boolean"
+                              },
+                              "openUrl": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "on",
+                                  "off",
+                                  "disabled"
+                                ]
                               }
                             },
                             "required": [
@@ -80090,6 +81517,31 @@
                         },
                         "missing": {
                           "type": "boolean"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "installing",
+                            "installed",
+                            "disabled",
+                            "error"
+                          ]
+                        },
+                        "oldTableNames": {
+                          "type": "object",
+                          "properties": {
+                            "prefix": {
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "prefix",
+                            "count"
+                          ],
+                          "additionalProperties": false
                         },
                         "pages": {
                           "type": "object",
@@ -80143,6 +81595,122 @@
                             "warnings"
                           ],
                           "additionalProperties": false
+                        },
+                        "rules": {
+                          "type": "object",
+                          "properties": {
+                            "written": {
+                              "type": "number"
+                            },
+                            "removed": {
+                              "type": "number"
+                            },
+                            "lists": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "skipped": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "table": {
+                                    "type": "string"
+                                  },
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "op": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "table",
+                                  "column",
+                                  "op",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "written",
+                            "removed",
+                            "lists",
+                            "skipped"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "roles": {
+                          "type": "object",
+                          "properties": {
+                            "created": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "seeded": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "created",
+                            "seeded"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "publicAccess": {
+                          "type": "object",
+                          "properties": {
+                            "endpoints": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "keyId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "skipped": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "reason": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ref",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "endpoints",
+                            "keyId",
+                            "skipped"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -80174,6 +81742,1718 @@
                     "from",
                     "to",
                     "pruned"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/sample-data": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "offered": {
+                      "type": "boolean"
+                    },
+                    "loaded": {
+                      "type": "boolean"
+                    },
+                    "total": {
+                      "type": "number"
+                    },
+                    "addedAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "available": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "number"
+                            },
+                            "tables": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "ref",
+                                  "count"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "assets": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "tables",
+                            "assets"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "offered",
+                    "loaded",
+                    "total",
+                    "addedAt",
+                    "tables",
+                    "available"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jobId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/sample-data/remove-plan": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "kept": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "title": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "usedBy": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "label",
+                          "title",
+                          "usedBy"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "changed": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "title": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "label",
+                          "title",
+                          "columns"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "tables",
+                    "kept",
+                    "changed",
+                    "total"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/sample-data/remove": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "keepChanged": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "number"
+                    },
+                    "kept": {
+                      "type": "number"
+                    },
+                    "byTable": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "required": [
+                    "removed",
+                    "kept",
+                    "byTable"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/uninstall-plan": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "pages": {
+                      "type": "object",
+                      "properties": {
+                        "removed": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slug": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "slug",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "kept": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slug": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "slug",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "removed",
+                        "kept"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "keys": {
+                      "type": "number"
+                    },
+                    "endpoints": {
+                      "type": "number"
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "members": {
+                            "type": "number"
+                          },
+                          "apiKeys": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "members",
+                          "apiKeys"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string"
+                          },
+                          "droppable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "table",
+                          "droppable"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "hosts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "rules": {
+                      "type": "number"
+                    },
+                    "canDropTables": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "pages",
+                    "keys",
+                    "endpoints",
+                    "roles",
+                    "tables",
+                    "hosts",
+                    "rules",
+                    "canDropTables"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/settings": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "placement": {
+                      "type": "string",
+                      "enum": [
+                        "internal",
+                        "external"
+                      ]
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "off": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "staff",
+                          "customer"
+                        ]
+                      }
+                    },
+                    "values": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "domains": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "staff",
+                              "customer"
+                            ]
+                          },
+                          "instance": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "side"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "declared": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "string",
+                              "number",
+                              "boolean",
+                              "enum",
+                              "file",
+                              "json"
+                            ]
+                          },
+                          "enum": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "min": {
+                            "type": "number"
+                          },
+                          "max": {
+                            "type": "number"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "help": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "placement",
+                    "connectionId",
+                    "off",
+                    "values",
+                    "domains",
+                    "declared"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "placement": {
+                    "type": "string",
+                    "enum": [
+                      "internal",
+                      "external"
+                    ]
+                  },
+                  "connectionId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "off": {
+                    "maxItems": 2,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "staff",
+                        "customer"
+                      ]
+                    }
+                  },
+                  "values": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "placement": {
+                      "type": "string",
+                      "enum": [
+                        "internal",
+                        "external"
+                      ]
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "off": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "staff",
+                          "customer"
+                        ]
+                      }
+                    },
+                    "values": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "domains": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "staff",
+                              "customer"
+                            ]
+                          },
+                          "instance": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "side"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "declared": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "string",
+                              "number",
+                              "boolean",
+                              "enum",
+                              "file",
+                              "json"
+                            ]
+                          },
+                          "enum": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "min": {
+                            "type": "number"
+                          },
+                          "max": {
+                            "type": "number"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "help": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "type"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "placement",
+                    "connectionId",
+                    "off",
+                    "values",
+                    "domains",
+                    "declared"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/overview": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "connection": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "engine": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "engine"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "table": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "app",
+                              "sample-ledger"
+                            ]
+                          },
+                          "rows": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "table",
+                          "state",
+                          "role",
+                          "rows"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "activity": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "at": {
+                            "type": "number"
+                          },
+                          "actor": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "action",
+                          "at",
+                          "actor"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "connection",
+                    "tables",
+                    "activity"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/disable": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "installing",
+                        "installed",
+                        "disabled",
+                        "error"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/enable": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "installing",
+                        "installed",
+                        "disabled",
+                        "error"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/domains": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "domains": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "side": {
+                          "type": "string",
+                          "enum": [
+                            "staff",
+                            "customer"
+                          ]
+                        },
+                        "instance": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 40
+                        }
+                      },
+                      "required": [
+                        "side"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "domains"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "domains": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "staff",
+                              "customer"
+                            ]
+                          },
+                          "instance": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 40
+                          }
+                        },
+                        "required": [
+                          "side"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "domains"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/instances": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instances": {
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string"
+                        },
+                        "connectionId": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "connectionId"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "instances"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "instances": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "connectionId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "connectionId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "instances"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/rename-tables/plan": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "prefix": {
+                      "type": "string"
+                    },
+                    "connectionId": {
+                      "type": "string"
+                    },
+                    "tables": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "from": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "from",
+                          "to"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "plan": {
+                      "type": "object",
+                      "properties": {
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "hazard": {
+                                "type": "string"
+                              },
+                              "requiresSuperAdmin": {
+                                "type": "boolean"
+                              },
+                              "summary": {
+                                "type": "string"
+                              },
+                              "rationale": {
+                                "type": "string"
+                              },
+                              "consequences": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string"
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    },
+                                    "refs": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "message",
+                                    "refs"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "dependsOn": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "outsideTransaction": {
+                                "type": "boolean"
+                              },
+                              "refusal": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "sql": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "kind",
+                              "table",
+                              "column",
+                              "hazard",
+                              "requiresSuperAdmin",
+                              "summary",
+                              "rationale",
+                              "consequences",
+                              "dependsOn",
+                              "outsideTransaction",
+                              "refusal",
+                              "sql"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "refusals": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "column": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "message",
+                              "table",
+                              "column"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "ceilings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "number"
+                              },
+                              "capped": {
+                                "type": "boolean"
+                              },
+                              "acknowledged": {
+                                "type": "boolean"
+                              },
+                              "openable": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "rows",
+                              "capped",
+                              "acknowledged",
+                              "openable"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "message": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "message",
+                              "table"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "hazard": {
+                          "type": "string"
+                        },
+                        "requiresSuperAdmin": {
+                          "type": "boolean"
+                        },
+                        "checksum": {
+                          "type": "string"
+                        },
+                        "unfinished": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "startedAt": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "startedAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "steps",
+                        "refusals",
+                        "ceilings",
+                        "warnings",
+                        "hazard",
+                        "requiresSuperAdmin",
+                        "checksum",
+                        "unfinished"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "prefix",
+                    "connectionId",
+                    "tables",
+                    "plan"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{key}/rename-tables": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "checksum": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "checksum"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "prefix": {
+                      "type": "string"
+                    },
+                    "renamed": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ref": {
+                            "type": "string"
+                          },
+                          "from": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ref",
+                          "from",
+                          "to"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "changeId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "prefix",
+                    "renamed",
+                    "changeId"
                   ],
                   "additionalProperties": false
                 }
@@ -80240,6 +83520,32 @@
     },
     "/api/v1/apps/{key}": {
       "delete": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "dropTables": {
+                        "type": "boolean"
+                      },
+                      "confirmKey": {
+                        "type": "string",
+                        "maxLength": 64
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -80265,6 +83571,58 @@
                     },
                     "uninstalled": {
                       "type": "boolean"
+                    },
+                    "removed": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "number"
+                        },
+                        "keys": {
+                          "type": "number"
+                        },
+                        "endpoints": {
+                          "type": "number"
+                        },
+                        "roles": {
+                          "type": "number"
+                        },
+                        "rules": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "pages",
+                        "keys",
+                        "endpoints",
+                        "roles"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "kept": {
+                      "type": "object",
+                      "properties": {
+                        "pages": {
+                          "type": "number"
+                        },
+                        "tables": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "pages",
+                        "tables"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "dropped": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
                   "required": [
@@ -88773,6 +92131,12 @@
                                   "shape"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "availability"
+                                ]
                               }
                             },
                             "required": [
@@ -89315,6 +92679,277 @@
                         "type": "string"
                       },
                       "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/availability/{ref}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "date",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "in": "query",
+            "name": "party",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "ref",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "time": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "free",
+                              "full"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "time",
+                          "state"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [

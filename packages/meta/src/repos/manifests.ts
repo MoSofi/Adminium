@@ -70,7 +70,17 @@ export interface InstallManifestInput {
   installedBy?: string | null;
   /** Host `manifest_key`s to attach on install. */
   attachTo?: readonly string[];
+  /**
+   * `installed` (the default) or `installing` — an app install writes its row
+   * FIRST, as `installing`, and flips it last. An `installing` row
+   * is never served.
+   */
+  status?: ManifestStatus;
 }
+
+/** `installing` → `installed` ⇄ `disabled`; `error` is kept for a broken row. */
+export const MANIFEST_STATUSES = ['installing', 'installed', 'disabled', 'error'] as const;
+export type ManifestStatus = (typeof MANIFEST_STATUSES)[number];
 
 /** The decrypted credential envelope, as the connect routes hand it over. */
 export interface CredentialEnvelope {
@@ -119,7 +129,7 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
         manifest: packJson(input.document),
         licenseKeyEncrypted: null,
         connectionId: input.connectionId ?? null,
-        status: 'installed',
+        status: input.status ?? 'installed',
         kind: input.kind,
         // No copy is held until one has actually been uploaded, which happens
         // after this row exists. `setPackageCopy` writes both then.
@@ -199,6 +209,11 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     },
 
     /** Upgrade in place: a new version and document over the same row. */
+    /** Move a row along its life. */
+    async setStatus(id: string, status: ManifestStatus, at: number = Date.now()): Promise<void> {
+      await db.updateTable('adminium_manifests').set({ status, updatedAt: at }).where('id', '=', id).execute();
+    },
+
     async setVersion(
       id: string,
       input: { version: string; document: unknown },

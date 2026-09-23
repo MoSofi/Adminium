@@ -36,6 +36,11 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.options',
   'column.required',
   'column.validation',
+  'column.copy',
+  'column.sequence',
+  'column.code',
+  'column.rollup',
+  'column.venueLocal',
 ]);
 
 export interface SchemaOverride {
@@ -45,7 +50,7 @@ export interface SchemaOverride {
   tableName: string;
   columnName: string | null;
   value: Record<string, unknown>;
-  origin: 'user' | 'llm' | 'auto';
+  origin: 'user' | 'llm' | 'auto' | 'app';
   llmRunId: string | null;
   status: 'active' | 'disabled';
   /** Model confidence for `llm` rows (0008); null for the rest. */
@@ -62,7 +67,7 @@ export interface CreateOverrideInput {
   tableName: string;
   columnName?: string | null | undefined;
   value: unknown;
-  origin?: 'user' | 'llm' | 'auto' | undefined;
+  origin?: 'user' | 'llm' | 'auto' | 'app' | undefined;
   llmRunId?: string | null | undefined;
   status?: 'active' | 'disabled' | undefined;
   createdBy?: string | null | undefined;
@@ -87,7 +92,7 @@ function decode(row: Selectable<AdminiumSchemaOverridesTable>): SchemaOverride {
     tableName: row.tableName,
     columnName: row.columnName,
     value: readJson<Record<string, unknown>>(row.value),
-    origin: row.origin as 'user' | 'llm' | 'auto',
+    origin: row.origin as 'user' | 'llm' | 'auto' | 'app',
     llmRunId: row.llmRunId,
     status: row.status as 'active' | 'disabled',
     confidence: row.confidence ?? null,

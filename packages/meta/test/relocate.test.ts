@@ -19,12 +19,14 @@ import {
   assertMetaStoreEmpty,
   parkAdminiumTables,
   probeAdminiumTables,
+  appTablesRepo,
   connectionsRepo,
   copyMetaStore,
   countMetaRows,
   createFirstSuperAdmin,
   firstRun,
   newId,
+  manifestsRepo,
   pagesRepo,
   publicApiStateRepo,
   publicEndpointsRepo,
@@ -122,6 +124,26 @@ async function seed(meta: MetaDb) {
   });
   await publicRequestStatsRepo(meta).add({ keyId, ref: 'users', bucket: 1_800_000_000_000, requests: 3, errors: 0 });
   await publicApiStateRepo(meta).bump();
+
+  // Wave 0039: an installed app's table record, pointing at the manifest row
+  // (SET NULL) and the connection (CASCADE) — both copied before it.
+  const installedApp = await manifestsRepo(meta, crypto).install({
+    manifestKey: 'pos',
+    version: '0.2.0',
+    kind: 'app',
+    source: 'file',
+    document: { key: 'pos' },
+    connectionId: connection.id,
+  });
+  await appTablesRepo(meta).record({
+    appKey: 'pos',
+    manifestId: installedApp.row.id,
+    connectionId: connection.id,
+    ref: 'tickets',
+    tableName: 'pos_tickets',
+    owned: true,
+    state: 'created',
+  });
 
   return { user, connection, page };
 }

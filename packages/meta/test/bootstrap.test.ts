@@ -99,14 +99,18 @@ for (const dialect of TEST_DIALECTS) {
       expect(await data(admin!.id)).toEqual({
         'page:*': { view: true, edit: true },
         'table:*/*': { read: true, create: true, update: true, delete: true, export: true, import: true },
+        // Every installed app's staff screens, as before the grant existed.
+        'app:*': { staff: true },
       });
       expect(await data(editor!.id)).toEqual({
         'page:*': { view: true, edit: false },
         'table:*/*': { read: true, create: true, update: true, delete: false, export: false, import: false },
+        'app:*': { staff: true },
       });
       expect(await data(viewer!.id)).toEqual({
         'page:*': { view: true, edit: false },
         'table:*/*': { read: true, create: false, update: false, delete: false, export: false, import: false },
+        'app:*': { staff: true },
       });
       // Editor and viewer still hold no system key.
       expect((await permissions.listForRole(editor!.id)).filter((g) => g.resourceKind === 'system')).toHaveLength(0);
@@ -282,6 +286,7 @@ for (const dialect of TEST_DIALECTS) {
       const expected = BUILTIN_ROLES.flatMap((role) => [
         ...role.systemActions.map((action) => `${role.slug}:${action}`),
         ...(role.dataGrants === undefined ? [] : [`${role.slug}:page:*`, `${role.slug}:table:*/*`]),
+        ...(role.dataGrants?.apps === undefined ? [] : [`${role.slug}:app:*`]),
       ]).sort();
       expect(ledger).toEqual(expected);
       expect(new Set(ledger).size).toBe(ledger.length);

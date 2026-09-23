@@ -31,6 +31,7 @@ import {
   type MetaDb,
   type Role,
   type User,
+  manifestsRepo,
 } from '@adminium/meta';
 
 /** `adminium_connections` rows are FK targets here; the DSN is never read. */
@@ -897,22 +898,29 @@ describe('page lifecycle routes', () => {
       expect(await permissionsRepo(t.meta).listForResource('page', id)).toEqual([]);
     });
 
-    it('refuses to delete a manifest-installed page', async () => {
+    async function manifestPage(slug: string, manifestId: string) {
       const page = await pagesRepo(t.meta).create({
         connectionId: null,
-        slug: 'addon-page',
+        slug,
         type: 'page-crud',
         title: 'Add-on',
         navGroup: 'library',
         config: { v: 1 },
         origin: 'manifest',
       });
-      await t.meta.db
-        .updateTable('adminium_pages')
-        .set({ manifestId: 'mf_1' })
-        .where('id', '=', page.id)
-        .execute();
+      await t.meta.db.updateTable('adminium_pages').set({ manifestId }).where('id', '=', page.id).execute();
+      return page;
+    }
 
+    it('refuses to delete a page an installed manifest owns', async () => {
+      const installed = await manifestsRepo(t.meta, { encrypt: (v) => v, decrypt: (v) => v }).install({
+        manifestKey: 'clinic',
+        version: '1.0.0',
+        kind: 'app',
+        source: 'file',
+        document: {},
+      });
+      const page = await manifestPage('addon-page', installed.row.id);
       const res = await t.app.inject({
         method: 'DELETE',
         url: `/api/v1/pages/${page.id}`,
@@ -920,6 +928,19 @@ describe('page lifecycle routes', () => {
       });
       expect(res.statusCode).toBe(409);
       expect(await pagesRepo(t.meta).findById(page.id)).not.toBeNull();
+    });
+
+    it('deletes a page left behind by a manifest that is gone', async () => {
+      // An uninstall from before pages were released kept this one, naming a
+      // row that no longer exists; nothing else could ever remove it.
+      const page = await manifestPage('orphan-page', 'mf_gone');
+      const res = await t.app.inject({
+        method: 'DELETE',
+        url: `/api/v1/pages/${page.id}`,
+        headers: asUser(t.superAdmin),
+      });
+      expect(res.statusCode, res.body).toBe(200);
+      expect(await pagesRepo(t.meta).findById(page.id)).toBeNull();
     });
   });
 

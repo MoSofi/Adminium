@@ -99,7 +99,7 @@ export const uiStateSchema = z.record(z.string(), z.unknown());
 
 // --- rbac --------------------------------------------------------------
 
-export const resourceKindSchema = z.enum(['table', 'page', 'system']);
+export const resourceKindSchema = z.enum(['table', 'page', 'system', 'app']);
 export type ResourceKind = z.infer<typeof resourceKindSchema>;
 
 export const tableActionsSchema = z.object({
@@ -118,13 +118,19 @@ export const pageActionsSchema = z.object({
 });
 export type PageActions = z.infer<typeof pageActionsSchema>;
 
+/** An installed app (resource_ref is its key, or `*` for every app): its staff screens. */
+export const appActionsSchema = z.object({
+  staff: z.boolean(),
+});
+export type AppActions = z.infer<typeof appActionsSchema>;
+
 /** resource_ref IS the action; the value is a single grant. */
 export const systemActionsSchema = z.object({
   allowed: z.boolean(),
 });
 export type SystemActions = z.infer<typeof systemActionsSchema>;
 
-export type PermissionActions = TableActions | PageActions | SystemActions;
+export type PermissionActions = TableActions | PageActions | SystemActions | AppActions;
 
 /** v1 closed set of system action keys, extended per milestone. */
 export const SYSTEM_ACTION_KEYS = [
@@ -254,6 +260,8 @@ export function permissionActionsSchemaFor(kind: ResourceKind): z.ZodType<Permis
       return pageActionsSchema;
     case 'system':
       return systemActionsSchema;
+    case 'app':
+      return appActionsSchema;
   }
 }
 
@@ -332,6 +340,23 @@ export type ConnectionSettings = z.infer<typeof connectionSettingsSchema>;
 
 const toneSchema = z.string();
 
+/**
+ * A label as a person reads it: one string, or one per locale (`{en_US: …,
+ * de_DE: …}`) for an app that ships its tables' names in every language it
+ * speaks. The read path resolves either (`effective-schema.ts`).
+ */
+const labelTextSchema = z.union([
+  z.string().min(1),
+  z
+    .record(localeSchema, z.string().min(1).max(256))
+    .refine((labels) => Object.keys(labels).length > 0, 'a label needs at least one locale'),
+]);
+
+/** A number the rule states, or the column of a one-row settings table (its id in the snapshot). */
+const capacitySetting = z.object({ table: z.string().min(1).max(256), column: z.string().min(1).max(128) });
+const capacityNumber = z.union([z.number().int().nonnegative(), capacitySetting]);
+const capacityTime = z.union([z.string().regex(/^\d{2}:\d{2}$/), capacitySetting]);
+
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
@@ -340,14 +365,14 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('table.label'),
     value: z.object({
-      label: z.string().min(1),
-      labelPlural: z.string().optional(),
+      label: labelTextSchema,
+      labelPlural: z.union([z.string(), labelTextSchema]).optional(),
       icon: z.string().optional(),
     }),
   }),
   z.object({ op: z.literal('table.exclude'), value: z.object({ excluded: z.boolean() }) }),
   z.object({ op: z.literal('table.keyField'), value: z.object({ column: z.string() }) }),
-  z.object({ op: z.literal('column.label'), value: z.object({ label: z.string().min(1) }) }),
+  z.object({ op: z.literal('column.label'), value: z.object({ label: labelTextSchema }) }),
   z.object({
     op: z.literal('column.semanticType'),
     value: z.object({ semanticType: z.string(), currency: z.string().optional() }),
@@ -432,6 +457,77 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       maxLength: z.number().int().positive().optional(),
     }),
   }),
+  /*
+   * ─── The columns Adminium DECIDES ────────────────────────────────────────
+   *
+   * Filled by the write path whoever writes — a till, a guest, an import — so
+   * a browser never picks a price, a running number or a code. A public
+   * endpoint may not list one as writable.
+   */
+  z.object({
+    op: z.literal('column.copy'),
+    value: z.object({
+      /** This table's foreign-key column. */
+      via: z.string().min(1).max(128),
+      /** The column of the row it points at. */
+      from: z.string().min(1).max(128),
+      /** `default`: a value the writer sends wins. `always`: it never does. */
+      mode: z.enum(['default', 'always']).optional(),
+    }),
+  }),
+  z.object({
+    op: z.literal('column.sequence'),
+    value: z.object({ start: z.number().int().min(1).optional() }),
+  }),
+  z.object({
+    op: z.literal('column.code'),
+    value: z.object({
+      prefix: z
+        .string()
+        .regex(/^[A-Z][A-Z0-9]{0,5}-?$/)
+        .optional(),
+      length: z.number().int().min(4).max(12),
+    }),
+  }),
+  /*
+   * A wall time with no zone, read on the venue's clock: a booking's "7 pm"
+   * typed at a till or sent by a guest is 7 pm where the venue is. Only on a
+   * column that says so — never applied globally, so no install shifts.
+   */
+  z.object({ op: z.literal('column.venueLocal'), value: z.object({ venueLocal: z.literal(true) }) }),
+  z.object({
+    op: z.literal('column.rollup'),
+    value: z.object({
+      /** The child table (its id in the snapshot), its link back, what to add up. */
+      from: z.string().min(1).max(256),
+      via: z.string().min(1).max(128),
+      sum: z.string().min(1).max(128),
+      /** Multiplied into `sum` per child row, e.g. a quantity. */
+      times: z.string().min(1).max(128).optional(),
+      /** A child row whose column holds a value is left out, e.g. a voided line. */
+      unlessSet: z.string().min(1).max(128).optional(),
+    }),
+  }),
+  /*
+   * The booking guard: how much of a slot the table's rows may take. A number
+   * here is fixed; `{table, column}` reads the one row of a settings table at
+   * write time, so a venue changes its capacity without a new release.
+   */
+  z.object({
+    op: z.literal('table.capacity'),
+    value: z.object({
+      slot: z.string().min(1).max(128),
+      amount: z.string().min(1).max(128),
+      perSlot: capacityNumber,
+      countWhere: z.object({ column: z.string().min(1).max(128), values: z.array(z.string().min(1)).min(1) }).optional(),
+      slotMinutes: capacityNumber,
+      windowDays: capacityNumber.optional(),
+      opens: capacityTime.optional(),
+      closes: capacityTime.optional(),
+      resource: z.string().min(1).max(128).optional(),
+      cancelHours: capacityNumber.optional(),
+    }),
+  }),
   z.object({
     op: z.literal('relation.add'),
     value: z.object({
@@ -464,7 +560,12 @@ export type OverrideOp = OverridePatch['op'];
  * Stored in a `varchar(6)` column (0003), which is why this is `auto` and not
  * the spec's longer word.
  */
-export const overrideOriginSchema = z.enum(['user', 'llm', 'auto']);
+/**
+ * Who wrote a rule. `app`: an installed app's manifest, recorded
+ * with a value hash so the app's update and uninstall touch only rules nobody
+ * has changed. Fits the `varchar(6)` column.
+ */
+export const overrideOriginSchema = z.enum(['user', 'llm', 'auto', 'app']);
 export const overrideStatusSchema = z.enum(['active', 'disabled']);
 
 // --- pages -----------------------------------------------------------

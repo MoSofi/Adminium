@@ -37,6 +37,19 @@ export const publicListQuery = z.object({
 });
 export type PublicListQuery = z.infer<typeof publicListQuery>;
 
+/** A day on the venue's calendar and the party asking. */
+export const publicAvailabilityQuery = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    party: z.coerce.number().int().min(1).max(1000),
+  })
+  .strict();
+
+/** Each slot of the day, free or full, and nothing more. */
+export const publicAvailabilityReply = z.object({
+  data: z.array(z.object({ time: z.string(), state: z.enum(['free', 'full']) })),
+});
+
 export const publicRefParams = z.object({
   ref: z.string().min(1).max(64),
 });
@@ -80,6 +93,8 @@ export const publicConfigReply = z.object({
         limit: z.number().int(),
         /** How a list of this ref answers. */
         response: z.object({ shape: z.enum(PUBLIC_RESPONSE_SHAPES) }),
+        /** Present on an availability ref: ask `/availability/<ref>`, never `/records`. */
+        kind: z.literal('availability').optional(),
       }),
     ),
   }),
@@ -178,7 +193,23 @@ export const PUBLIC_ERROR_CODES = [
    * for people: it is the project's own text, passed through unchanged.
    */
   'PUBLIC_WRITE_REJECTED',
+  /**
+   * The time a booking asks for has no room left (409), or another guest is
+   * booking it this instant (`BUSY`, try again). Says no more than that
+   * time's availability does.
+   */
+  'PUBLIC_SLOT_FULL',
+  'PUBLIC_SLOT_BUSY',
+  /** A guest cancelling closer to the time than the venue allows online (409). */
+  'PUBLIC_TOO_LATE',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
+  /**
+   * The app that made this key at install is switched off (503), or its
+   * customer side is. Nothing is wrong with the key or the request; it
+   * answers again once the app is switched back on.
+   */
+  'APP_DISABLED',
+  'SURFACE_OFF',
 ] as const;
 export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
 

@@ -16,6 +16,7 @@
  * `llm.provider` in Settings → AI, the same check `resolveProviderClient`
  * makes before a direct run.
  */
+import { bcp47, pickLabel } from '../../i18n/bcp47.js';
 import type { FastifyRequest } from 'fastify';
 import {
   pagesRepo,
@@ -32,28 +33,33 @@ import {
 import { DEFAULT_NAV_GROUP } from '@adminium/add-on-contracts';
 import { addOnManifestSchema } from '@adminium/manifest';
 
+import { screensOnlyError } from '../../apps/screens-only.js';
 import { UnauthorizedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { toUserView } from '../auth/handlers.js';
 import { APP_VERSION } from '../../version.js';
-import { resolveLabel, type HostedSurface } from '../../cli/surfaces-root.js';
+import { resolveLabel, SURFACES_URL_ROOT, type HostedSurface } from '../../cli/surfaces-root.js';
 import {
   appNameOf,
+  availabilityOf,
   instancesOf,
   staffPlacementOf,
   type SurfaceSettings,
+  NO_SURFACE_SETTINGS,
 } from '../../surfaces/settings.js';
 import {
   NAV_GROUP_KEYS,
   type BootstrapAddOnGroup,
   type BootstrapAddOnNav,
   type BootstrapAddOnPage,
+  type BootstrapAppSection,
   type BootstrapHostedApp,
   type BootstrapNavItem,
   type BootstrapNavTree,
   type BootstrapReply,
+  type BootstrapUnavailableApp,
   type NavGroupKey,
 } from './schema.js';
 
@@ -133,20 +139,51 @@ export interface NavConnection {
   currency: string | null;
 }
 
+/**
+ * The title a page is listed under: a manifest page's translation into the
+ * reader's language while the operator has not renamed it, else
+ * the stored title.
+ */
+export function navTitleOf(row: Pick<PageNavRow, 'title' | 'manifestTitle'>, locale: string): string {
+  const manifest = row.manifestTitle;
+  if (manifest === null || manifest === undefined || row.title !== manifest.from) return row.title;
+  return manifest.titles[bcp47(locale)] ?? languageMatch(manifest.titles, locale) ?? row.title;
+}
+
+/** Another region of the reader's language, when their exact tag is absent. */
+function languageMatch(titles: Readonly<Record<string, string>>, locale: string): string | undefined {
+  const language = bcp47(locale).split('-')[0]!.toLowerCase();
+  for (const [tag, text] of Object.entries(titles)) {
+    if (tag.split('-')[0]!.toLowerCase() === language) return text;
+  }
+  return undefined;
+}
+
 export function buildNavTree(
   rows: readonly PageNavRow[],
   connections: ReadonlyMap<string, NavConnection> = new Map(),
   pausedConnectionIds: ReadonlySet<string> = new Set(),
+  /** The reader's locale, either spelling; picks a manifest page's translated title. */
+  locale: string = 'en-US',
+  /** Keys of apps an operator switched off. */
+  disabledApps: ReadonlySet<string> = new Set(),
+  /** Keys of the installed, switched-on apps: their pages go to their own sections. */
+  sectionApps: ReadonlySet<string> = new Set(),
 ): {
   nav: BootstrapNavTree;
   hidden: BootstrapNavItem[];
   paused: BootstrapNavItem[];
+  disabledApp: BootstrapNavItem[];
+  /** App key → its pages, each with the group its manifest named (null: none). */
+  appItems: Map<string, { group: string | null; item: BootstrapNavItem }[]>;
   configVersion: number;
 } {
   let configVersion = 0;
   const buckets = new Map<NavGroupKey, BootstrapNavItem[]>();
   const hidden: BootstrapNavItem[] = [];
   const paused: BootstrapNavItem[] = [];
+  const disabledApp: BootstrapNavItem[] = [];
+  const appItems = new Map<string, { group: string | null; item: BootstrapNavItem }[]>();
 
   for (const row of rows) {
     // Every page row advances the config stamp, nav-visible or not.
@@ -156,7 +193,7 @@ export function buildNavTree(
       pageId: row.id,
       slug: row.slug,
       labelKey: `nav.${row.slug}`,
-      fallback: row.title,
+      fallback: navTitleOf(row, locale),
       icon: row.icon ?? 'file',
       order: row.navOrder,
       connectionId: row.connectionId,
@@ -164,10 +201,24 @@ export function buildNavTree(
         row.connectionId === null ? null : (connections.get(row.connectionId)?.name ?? null),
       currency: row.connectionId === null ? null : (connections.get(row.connectionId)?.currency ?? null),
       sourceTable: row.sourceTable,
+      appKey: row.appKey ?? null,
     };
+    // A switched-off app's pages are off too, whatever their connection.
+    if (row.appKey != null && disabledApps.has(row.appKey)) {
+      disabledApp.push(item);
+      continue;
+    }
     // The pause outranks the group: a paused page is not hidden, it is off.
     if (row.connectionId !== null && pausedConnectionIds.has(row.connectionId)) {
       paused.push(item);
+      continue;
+    }
+    // An installed app's page lives in the app's own section, wherever its
+    // row was filed — an operator's edit included.
+    if (row.appKey != null && sectionApps.has(row.appKey)) {
+      const list = appItems.get(row.appKey) ?? [];
+      list.push({ group: row.appGroup ?? null, item });
+      appItems.set(row.appKey, list);
       continue;
     }
     const group = (NAV_GROUP_KEYS as readonly string[]).includes(row.navGroup ?? '')
@@ -190,8 +241,106 @@ export function buildNavTree(
   });
   hidden.sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug));
   paused.sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug));
+  disabledApp.sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug));
 
-  return { nav: { groups }, hidden, paused, configVersion };
+  return { nav: { groups }, hidden, paused, disabledApp, appItems, configVersion };
+}
+
+/** An installed app, as its section needs it. */
+export interface SectionApp {
+  key: string;
+  version: string;
+  /** The manifest's own name. */
+  name: string;
+  navGroups: readonly { key: string; label: Readonly<Record<string, string>>; order: number }[];
+}
+
+/**
+ * Each installed app's own section: its pages under its manifest's groups
+ * (the ungrouped ones — its Overview — first, with no heading), and its staff
+ * screens. Those are the hosted section's rows when the staff side lives in
+ * the dashboard, or a link to where it opens on its own. An app with neither
+ * pages nor staff screens has no section.
+ */
+export function buildAppSections(input: {
+  apps: readonly SectionApp[];
+  appItems: ReadonlyMap<string, readonly { group: string | null; item: BootstrapNavItem }[]>;
+  hosted: readonly BootstrapHostedApp[];
+  surfaces: readonly HostedSurface[];
+  settings: SurfaceSettings;
+  locale: string;
+  /** `https:` or `http:`, for a mapped staff domain. */
+  protocol: string;
+  /** The apps whose staff screens this reader may open (`app:<key>:staff`); absent, all. */
+  mayOpenStaff?: ReadonlySet<string> | undefined;
+}): BootstrapAppSection[] {
+  const out: BootstrapAppSection[] = [];
+  for (const app of input.apps) {
+    const pages = [...(input.appItems.get(app.key) ?? [])].sort(
+      (a, b) => a.item.order - b.item.order || a.item.slug.localeCompare(b.item.slug),
+    );
+    const declared = [...app.navGroups].sort((a, b) => a.order - b.order);
+    const known = new Set(declared.map((group) => group.key));
+    const groups: BootstrapAppSection['groups'] = [];
+    const loose = pages.filter((page) => page.group === null || !known.has(page.group)).map((page) => page.item);
+    if (loose.length > 0) groups.push({ key: '', label: null, items: loose });
+    for (const group of declared) {
+      const items = pages.filter((page) => page.group === group.key).map((page) => page.item);
+      if (items.length > 0) groups.push({ key: group.key, label: pickLabel(group.label, input.locale) ?? group.key, items });
+    }
+
+    const hosted = input.hosted.find((entry) => entry.appKey === app.key && entry.instance === undefined);
+    let staff: BootstrapAppSection['staff'] = null;
+    const mayOpen = input.mayOpenStaff === undefined || input.mayOpenStaff.has(app.key);
+    if (!mayOpen) {
+      // No staff entry for someone who may not open the screens.
+    } else if (hosted !== undefined) {
+      staff = { placement: 'internal', items: hosted.items };
+    } else {
+      const surface = input.surfaces.find((entry) => entry.appKey === app.key && entry.side === 'staff');
+      if (
+        surface !== undefined &&
+        staffPlacementOf(input.settings, app.key) === 'external' &&
+        availabilityOf(input.settings, app.key, 'staff') === 'ok'
+      ) {
+        const hostOf = (instance: string | undefined): string | undefined =>
+          Object.entries(input.settings.domains).find(
+            ([, target]) => target.appKey === app.key && target.side === 'staff' && target.instance === instance,
+          )?.[0];
+        const host = hostOf(undefined);
+        staff = {
+          placement: 'external',
+          url: host === undefined ? `${surface.prefix}/` : `${input.protocol}://${host}/`,
+          // Named for the palette, which opens each one at the app's address.
+          items: (surface.manifest?.nav ?? []).map((item) => ({
+            id: item.id,
+            path: item.path,
+            label: resolveLabel(item.labels, input.locale),
+            ...(item.icon === undefined ? {} : { icon: item.icon }),
+            ...(item.persona === undefined ? {} : { persona: item.persona }),
+          })),
+          // An extra instance opens on its own address too: its host, else
+          // the slugged mount `parseInstancePath` reads.
+          instances: instancesOf(input.settings, app.key).map((instance) => {
+            const own = hostOf(instance.slug);
+            return {
+              slug: instance.slug,
+              url: own === undefined ? `${SURFACES_URL_ROOT}/${app.key}/${instance.slug}/staff/` : `${input.protocol}://${own}/`,
+            };
+          }),
+        };
+      }
+    }
+    if (groups.length === 0 && staff === null) continue;
+    out.push({
+      appKey: app.key,
+      label: hosted?.label ?? appNameOf(input.settings, app.key, app.name),
+      version: app.version,
+      groups,
+      staff,
+    });
+  }
+  return out;
 }
 
 /**
@@ -223,6 +372,8 @@ export function buildHostedApps(
   for (const surface of surfaces) {
     if (surface.side !== 'staff') continue;
     if (staffPlacementOf(settings, surface.appKey) !== 'internal') continue;
+    // Switched off, whole or staff side: no section. `unavailableApps` says why.
+    if (availabilityOf(settings, surface.appKey, 'staff') !== 'ok') continue;
     const manifest = surface.manifest;
     if (manifest === null || manifest.nav.length === 0) continue;
     const items = manifest.nav.map((item) => ({
@@ -251,6 +402,34 @@ export function buildHostedApps(
         items,
       });
     }
+  }
+  return out;
+}
+
+/**
+ * The installed apps whose staff screens the dashboard does not carry, and
+ * why — so `/a/<key>` can say "switched off" or "opens on its own" instead of
+ * a 404 that explains nothing. A staff surface only: a customer side is never
+ * in the operator's dashboard.
+ */
+export function buildUnavailableApps(
+  surfaces: readonly HostedSurface[],
+  settings: SurfaceSettings,
+  locale: string,
+): BootstrapUnavailableApp[] {
+  const out: BootstrapUnavailableApp[] = [];
+  for (const surface of surfaces) {
+    if (surface.side !== 'staff') continue;
+    const availability = availabilityOf(settings, surface.appKey, 'staff');
+    const external = staffPlacementOf(settings, surface.appKey) === 'external';
+    if (availability === 'ok' && !external) continue;
+    const own = surface.manifest === null ? '' : resolveLabel(surface.manifest.appLabels, locale);
+    const label = appNameOf(settings, surface.appKey, own === '' ? null : own);
+    out.push(
+      availability === 'ok'
+        ? { appKey: surface.appKey, label, reason: 'external', href: `${surface.prefix}/` }
+        : { appKey: surface.appKey, label, reason: availability },
+    );
   }
   return out;
 }
@@ -342,11 +521,19 @@ export async function bootstrapHandler(
    */
   const hasSurfaces = request.server.hasDecorator('surfaces');
   const surfaceSettings = hasSurfaces ? request.server.surfaceSettings : null;
+
+  // Someone whose every role opens only an app's screens is sent there instead.
+  if (request.server.hasDecorator('rbac') && request.apiKeyPrincipal == null) {
+    const set = await request.server.rbac.resolve(request);
+    if (set.screensOnly !== null) {
+      throw screensOnlyError((await surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS, set.screensOnly, request);
+    }
+  }
   // The project folder, when the server runs one. Same request-time read, for
   // the same reason: this route is registered before it exists.
   const projectClient = request.server.hasDecorator('projectClient') ? request.server.projectClient : null;
 
-  const [roles, prefs, pageRows, connectionRows, llmProvider, assistantName, placements, project, addOns] =
+  const [roles, prefs, pageRows, connectionRows, llmProvider, assistantName, placements, project, addOns, appRows] =
     await Promise.all([
     rolesRepo(ctx.meta).rolesForUser(user.id),
     userPrefsRepo(ctx.meta).resolve(user.id),
@@ -368,7 +555,7 @@ export async function bootstrapHandler(
     // that may open it: the value is an instance's own naming, and the
     // branch would save one settings read out of the eight above.
     settingsRepo(ctx.meta).get('assistant.name'),
-    surfaceSettings?.read() ?? Promise.resolve({ apps: {}, domains: {} } as SurfaceSettings),
+    surfaceSettings?.read() ?? Promise.resolve(NO_SURFACE_SETTINGS),
     projectClient?.bootstrap() ?? Promise.resolve(null),
     /*
      * Read straight off the tables rather than through `manifestsRepo`, which
@@ -385,6 +572,14 @@ export async function bootstrapHandler(
       .where('m.kind', '=', 'add-on')
       .where('m.status', '=', 'installed')
       .orderBy('m.manifestKey', 'asc')
+      .execute(),
+    // The installed apps, switched on: each gets its own section.
+    ctx.meta.db
+      .selectFrom('adminium_manifests')
+      .select(['manifestKey', 'version', 'manifest'])
+      .where('kind', '=', 'app')
+      .where('status', '=', 'installed')
+      .orderBy('manifestKey', 'asc')
       .execute(),
   ]);
 
@@ -410,11 +605,43 @@ export async function bootstrapHandler(
   // configVersion must track ALL rows (a permission change is not a config
   // change, and a hidden page's regeneration still bumps the stamp).
   const { configVersion } = buildNavTree(pageRows);
-  const { nav, hidden, paused } = buildNavTree(
+  const disabledApps = new Set(
+    Object.entries(placements.statuses)
+      .filter(([, status]) => status === 'disabled')
+      .map(([key]) => key),
+  );
+  const sectionApps: SectionApp[] = appRows.map((row) => {
+    const document = readJson<{ name?: unknown; navGroups?: unknown }>(row.manifest) ?? {};
+    const navGroups = Array.isArray(document.navGroups)
+      ? (document.navGroups as SectionApp['navGroups'][number][]).filter(
+          (group) => typeof group?.key === 'string' && typeof group.label === 'object' && group.label !== null,
+        )
+      : [];
+    return {
+      key: row.manifestKey,
+      version: row.version,
+      name: typeof document.name === 'string' ? document.name : row.manifestKey,
+      navGroups,
+    };
+  });
+  const { nav, hidden, paused, disabledApp, appItems } = buildNavTree(
     visibleRows,
     new Map(connectionRows.map((row) => [row.id, { name: row.name, currency: row.currency }])),
     pausedConnectionIds,
+    prefs.locale,
+    disabledApps,
+    new Set(sectionApps.map((app) => app.key)),
   );
+  /*
+   * Whose staff screens this reader may open: without `app:<key>:staff`, an
+   * app contributes no staff rows and no "open" link, only its pages.
+   */
+  const everyHosted = hasSurfaces ? buildHostedApps(request.server.surfaces, placements, prefs.locale) : [];
+  const mayOpenStaff = new Set<string>();
+  for (const key of new Set([...everyHosted.map((entry) => entry.appKey), ...sectionApps.map((entry) => entry.key)])) {
+    if (typeof request.can !== 'function' || (await request.can(`app:${key}:staff`))) mayOpenStaff.add(key);
+  }
+  const hostedApps = everyHosted.filter((entry) => mayOpenStaff.has(entry.appKey));
 
   return {
     data: {
@@ -437,12 +664,24 @@ export async function bootstrapHandler(
         name: assistantName,
       },
       csrfToken: csrfTokenFor(ctx, request),
-      hostedApps: hasSurfaces
-        ? buildHostedApps(request.server.surfaces, placements, prefs.locale)
-        : [],
+      hostedApps,
       addOnNav: buildAddOnNav(addOns.map((row) => ({ document: readJson(row.manifest) }))),
       hiddenPages: hidden,
       pausedPages: paused,
+      unavailableApps: hasSurfaces
+        ? buildUnavailableApps(request.server.surfaces, placements, prefs.locale)
+        : [],
+      disabledAppPages: disabledApp,
+      appSections: buildAppSections({
+        apps: sectionApps,
+        appItems,
+        hosted: hostedApps,
+        surfaces: hasSurfaces ? request.server.surfaces : [],
+        settings: placements,
+        locale: prefs.locale,
+        protocol: request.protocol,
+        mayOpenStaff,
+      }),
       ...(project === null ? {} : { project }),
     },
   };

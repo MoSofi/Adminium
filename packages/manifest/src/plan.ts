@@ -48,104 +48,30 @@
  * half-installed add-on with no rollback.
  */
 
+import { planWithContext } from './plan-context.js';
+import type {
+  InstallPlan,
+  PlanContext,
+  PlannedColumn,
+  PlannedReference,
+  PlannedTable,
+  PlanProblem,
+  SchemaModelView,
+} from './plan-model.js';
+import { typeConflict } from './plan-types.js';
 import type { Manifest, RequiredColumn, RequiredTable } from './schema.js';
 
-/** The existing database, as much of it as planning needs. */
-export interface SchemaModelView {
-  /** Every table name that already exists, however it got there. */
-  tables: readonly {
-    ref: string;
-    columns: readonly ExistingColumnView[];
-  }[];
-}
+export type {
+  ExistingColumnView,
+  InstallPlan,
+  PlannedColumn,
+  PlannedReference,
+  PlannedTable,
+  PlanProblem,
+  SchemaModelView,
+  TableAction,
+} from './plan-model.js';
 
-/**
- * One existing column. Only `ref` is required; the rest is what the database
- * reports, and a caller that does not know it leaves it out. A column that
- * says nothing is never treated as required.
- */
-export interface ExistingColumnView {
-  ref: string;
-  nullable?: boolean;
-  /** The database fills it when an insert leaves it out (a default, a sequence). */
-  hasDefault?: boolean;
-  isPrimaryKey?: boolean;
-  isGenerated?: boolean;
-}
-
-/** What will happen to one table. */
-export type TableAction = 'create' | 'reuse';
-
-export interface PlannedColumn {
-  ref: string;
-  type: string;
-  /** Absent from an existing table, so the install would have to add it. */
-  missing: boolean;
-}
-
-export interface PlannedTable {
-  ref: string;
-  action: TableAction;
-  columns: PlannedColumn[];
-  /**
-   * Only on `reuse`: columns the manifest requires that the existing table does
-   * not have. A non-empty list is a PARTIAL MATCH — the table is there but does
-   * not carry what the add-on needs, which is a different situation from either
-   * "create it" or "it fits", and the operator should be told which.
-   */
-  missingColumns: string[];
-}
-
-/** Where one declared foreign key ends up pointing. */
-export interface PlannedReference {
-  fromTable: string;
-  fromColumn: string;
-  to: string;
-  /**
-   * `internal` — the target is another table in this manifest.
-   * `host` — the target already exists in the database (the add-on attaching to
-   *   the host's data, which is the intended shape).
-   * `unresolved` — the target exists nowhere, and the plan is not installable.
-   */
-  resolution: 'internal' | 'host' | 'unresolved';
-}
-
-/** A reason the plan cannot be applied, phrased for a person. */
-export interface PlanProblem {
-  code: 'UNRESOLVED_REFERENCE' | 'COLUMN_TYPE_CONFLICT' | 'RESERVED_TABLE' | 'FOREIGN_TABLE';
-  message: string;
-  table: string;
-  column?: string;
-}
-
-export interface InstallPlan {
-  /**
-   * The manifest key this plan is for.
-   *
-   * Named `addOnKey` because add-ons were the only caller when it was written,
-   * and left named that because the wire DTOs each route builds are where a
-   * reader meets it — `routes/apps` spells it `key` on its own reply. Renaming
-   * it here would churn three call sites and a shipped dialog for a field only
-   * the server reads.
-   */
-  addOnKey: string;
-  version: string;
-  /** Tables to create, in declaration order (targets before dependents). */
-  create: PlannedTable[];
-  /** Tables that already exist and will be reused rather than created. */
-  reuse: PlannedTable[];
-  references: PlannedReference[];
-  problems: PlanProblem[];
-  /**
-   * `true` when there is nothing standing in the way. A plan with problems is
-   * still RETURNED — the consent dialog has to be able to show WHY an add-on
-   * cannot be installed here, and an exception would leave it with nothing to
-   * render.
-   */
-  installable: boolean;
-  /** No `requiredSchema` at all: install touches no data source. */
-  touchesData: boolean;
-}
 
 /**
  * Table names an add-on may never claim, whatever its manifest says.
@@ -180,7 +106,17 @@ function planColumns(
  * an "add-on" cannot be installed while looking at an app's install dialog is
  * the kind of small wrongness that makes someone distrust the whole screen.
  */
-export function planInstall(manifest: Manifest, model: SchemaModelView): InstallPlan {
+export function planInstall(
+  manifest: Manifest,
+  model: SchemaModelView,
+  /**
+   * What the server knows about this connection (prefix, the table record,
+   * other apps, the operator's answers). Absent — every add-on, and any older
+   * caller — the plan is exactly what it always was.
+   */
+  context?: PlanContext,
+): InstallPlan {
+  if (context !== undefined) return planWithContext(manifest, model, context);
   const required = manifest.requiredSchema?.tables ?? [];
   const noun = manifest.kind === 'app' ? 'app' : 'add-on';
   const existingByRef = new Map(model.tables.map((t) => [t.ref, t]));
@@ -251,6 +187,44 @@ export function planInstall(manifest: Manifest, model: SchemaModelView): Install
             `it requires ${list}, which the app never writes, so every row the app saves ` +
             `there would be refused. It may belong to another app. Rename or remove that ` +
             `table, or install against a different database.`,
+        });
+      }
+    }
+
+    /*
+     * EVERY REFUSAL ON THE CHECK STEP.
+     *
+     * A reused table missing columns the app writes, and a column that exists
+     * with a type the app's values do not fit, used to plan as "installable" —
+     * the wizard showed "reuse" with Install enabled, and the install then
+     * refused with a bare error naming no table (the owner's own install hit
+     * exactly that). They are problems now, so the check step names the table
+     * and Install stays disabled until it is resolved.
+     */
+    // Apps only, like FOREIGN_TABLE below: an add-on reuses its HOST's tables,
+    // and keeps its own refusal for a host missing columns.
+    if (existing !== undefined && manifest.kind === 'app' && missingColumns.length > 0) {
+      const list = missingColumns.map((ref) => `"${ref}"`).join(', ');
+      problems.push({
+        code: 'COLUMNS_REQUIRED',
+        table: table.ref,
+        column: missingColumns[0]!,
+        message:
+          `This database already has a "${table.ref}" table, and it is missing ${list}, which ` +
+          `this ${noun} writes. Add ${missingColumns.length === 1 ? 'it' : 'them'} to the table, ` +
+          `or install against a different database.`,
+      });
+    }
+    if (existing !== undefined && manifest.kind === 'app') {
+      for (const column of table.columns) {
+        const have = existing.columns.find((c) => c.ref === column.ref);
+        const conflict = have === undefined ? null : typeConflict(column, have, model.dialect);
+        if (conflict === null) continue;
+        problems.push({
+          code: 'COLUMN_TYPE_CONFLICT',
+          table: table.ref,
+          column: column.ref,
+          message: `"${table.ref}.${column.ref}" already exists as ${conflict}, which cannot hold the ${column.type} values this ${noun} stores in it.`,
         });
       }
     }

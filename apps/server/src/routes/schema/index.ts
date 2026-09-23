@@ -24,11 +24,12 @@ import {
   snapshotsRepo,
   validateOverrideInput,
   type MetaDb,
+  type SchemaOverride,
   type SchemaSnapshot,
 } from '@adminium/meta';
 
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
-import { columnRuleIssue } from '../../connections/column-rules-validation.js';
+import { capacityRuleIssue, columnRuleIssue } from '../../connections/column-rules-validation.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
@@ -270,7 +271,12 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.default' ||
           item.op === 'column.options' ||
           item.op === 'column.required' ||
-          item.op === 'column.validation'
+          item.op === 'column.validation' ||
+          item.op === 'column.copy' ||
+          item.op === 'column.sequence' ||
+          item.op === 'column.code' ||
+          item.op === 'column.rollup' ||
+          item.op === 'column.venueLocal'
         ) {
           const column = table.columns.find((c) => c.name === item.columnName);
           // `columnName` was proved above; this is for the type checker.
@@ -284,6 +290,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
               });
             }
           }
+        }
+        if (item.op === 'table.capacity') {
+          const issue = capacityRuleIssue(item.value, table, model);
+          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'relation.add') {
           const target = tables.get(String(item.value.toTable));
@@ -318,15 +328,39 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       }
 
       const before = await overrides.listForConnection(connectionId);
+      /*
+       * WHERE EACH RULE CAME FROM SURVIVES A SAVE.
+       *
+       * This is a full replace: every row is deleted and the body re-inserted.
+       * The body's `origin` was accepted and then dropped, so saving any rule
+       * rewrote every LLM proposal, every auto rule and every rule an app wrote
+       * into the operator's own — and an app's uninstall could no longer tell
+       * its rules from the operator's. The origin (and the run that proposed
+       * it) is kept from the STORED row the item matches, by op, table and
+       * column. It is never taken from the client: a client-sent `app` would
+       * let anyone with this permission mark a rule for an app's uninstall to
+       * delete. A rule with no stored twin is the operator's.
+       */
+      const provenance = new Map<string, { origin: SchemaOverride['origin']; llmRunId: string | null }[]>();
+      for (const row of before) {
+        const key = `${row.op}|${row.tableName}|${row.columnName ?? ''}`;
+        const queue = provenance.get(key) ?? [];
+        queue.push({ origin: row.origin, llmRunId: row.llmRunId });
+        provenance.set(key, queue);
+      }
       const rows = await overrides.replaceForConnection(
         connectionId,
-        body.overrides.map((item) => ({
-          op: item.op,
-          tableName: item.tableName,
-          columnName: item.columnName ?? null,
-          value: item.value,
-          ...(item.status !== undefined ? { status: item.status } : {}),
-        })),
+        body.overrides.map((item) => {
+          const kept = provenance.get(`${item.op}|${item.tableName}|${item.columnName ?? ''}`)?.shift();
+          return {
+            op: item.op,
+            tableName: item.tableName,
+            columnName: item.columnName ?? null,
+            value: item.value,
+            ...(item.status !== undefined ? { status: item.status } : {}),
+            ...(kept === undefined ? {} : { origin: kept.origin, llmRunId: kept.llmRunId }),
+          };
+        }),
       );
       await app.rbac.audit(request, {
         category: 'schema',

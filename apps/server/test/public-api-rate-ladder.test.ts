@@ -43,7 +43,9 @@ import { generatePublicSessionToken, generatePublishableKey } from '../src/publi
 import {
   PUBLIC_FAILED_RESOLUTION,
   PUBLIC_FLOOD_GUARD,
+  PUBLIC_KEY_LIMITS,
   PUBLIC_LIMITS,
+  createPublicRateLimiter,
   floodKeyFor,
   rateAddress,
   rateKeyFor,
@@ -297,4 +299,46 @@ describe('a verified session keeps its own allowance', () => {
     // ...and the real session is on its own rung.
     expect((await read(app, { token, session })).statusCode).toBe(200);
   }, 60_000);
+});
+
+describe('the whole key', () => {
+  it('trips across many addresses, each inside its own allowance', async () => {
+    const { app, token } = await serving();
+    const addresses = PUBLIC_KEY_LIMITS.read.max / READ_MAX;
+    for (let n = 1; n <= addresses; n += 1) {
+      for (let attempt = 1; attempt <= READ_MAX; attempt += 1) {
+        const res = await read(app, { token, from: `198.51.100.${String(n)}` });
+        expect(res.statusCode, `address ${String(n)}, attempt ${String(attempt)}`).toBe(200);
+      }
+    }
+    // A fresh address, a fresh per-visitor allowance: the key as a whole is spent.
+    const limited = await read(app, { token, from: '203.0.113.50' });
+    expect(limited.statusCode).toBe(429);
+    expect(codeOf(limited)).toBe('PUBLIC_RATE_LIMITED');
+  }, 120_000);
+
+  it('counts claims on the stricter write rung', async () => {
+    const { app, token } = await serving();
+    const addresses = PUBLIC_KEY_LIMITS.write.max / CLAIM_MAX;
+    for (let n = 1; n <= addresses; n += 1) {
+      for (let attempt = 1; attempt <= CLAIM_MAX; attempt += 1) {
+        expect((await claim(app, { token, from: `198.51.100.${String(n)}` })).statusCode).toBe(403);
+      }
+    }
+    expect((await claim(app, { token, from: '203.0.113.50' })).statusCode).toBe(429);
+    // Reads are their own rung.
+    expect((await read(app, { token, from: '203.0.113.50' })).statusCode).toBe(200);
+  }, 120_000);
+
+  it('adds nothing for a refused request, and reopens with its window', () => {
+    let at = 1_000;
+    const limiter = createPublicRateLimiter(() => at);
+    expect(limiter.hitKey('pbk_1', 'write', 59).allowed).toBe(true);
+    expect(limiter.hitKey('pbk_1', 'write', 2).allowed).toBe(false);
+    expect(limiter.hitKey('pbk_1', 'write').allowed).toBe(true);
+    expect(limiter.hitKey('pbk_1', 'write').allowed).toBe(false);
+    expect(limiter.hitKey('pbk_2', 'write').allowed).toBe(true);
+    at += PUBLIC_KEY_LIMITS.write.windowMs;
+    expect(limiter.hitKey('pbk_1', 'write').allowed).toBe(true);
+  });
 });

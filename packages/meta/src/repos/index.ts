@@ -36,6 +36,7 @@ export * from './i18n-version.js';
 export * from './locales.js';
 export * from './translations.js';
 export * from './manifests.js';
+export * from './app-tables.js';
 export * from './automations.js';
 export * from './automation-runs.js';
 export * from './document-sequences.js';

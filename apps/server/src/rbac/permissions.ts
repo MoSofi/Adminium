@@ -90,13 +90,16 @@ export const PERMISSIONS = {
 export type ParsedGrant =
   | { kind: 'system'; area: string; verb: string }
   | { kind: 'table'; connectionId: string; table: string; action: TableAction | '*' }
-  | { kind: 'page'; pageId: string; action: PageAction | '*' };
+  | { kind: 'page'; pageId: string; action: PageAction | '*' }
+  /** `app:<key>:staff` — an installed app's staff screens; `app:*:staff` is every app's. */
+  | { kind: 'app'; appKey: string; action: 'staff' };
 
 /** A concrete (wildcard-free) permission, as passed to `can()`/`require()`. */
 export type ParsedPermission =
   | { kind: 'system'; area: string; verb: string }
   | { kind: 'table'; connectionId: string; table: string; action: TableAction }
-  | { kind: 'page'; pageId: string; action: PageAction };
+  | { kind: 'page'; pageId: string; action: PageAction }
+  | { kind: 'app'; appKey: string; action: 'staff' };
 
 const SYSTEM_KEY_SET: ReadonlySet<string> = new Set(SYSTEM_ACTION_KEYS);
 const TABLE_ACTION_SET: ReadonlySet<string> = new Set(TABLE_ACTIONS);
@@ -137,6 +140,12 @@ export function parseGrant(input: string): ParsedGrant | null {
     return { kind: 'page', pageId, action: action as PageAction | '*' };
   }
 
+  if (kind === 'app' && segments.length === 3) {
+    const [, appKey, action] = segments as [string, string, string];
+    if (!validSegment(appKey) || action !== 'staff') return null;
+    return { kind: 'app', appKey, action: 'staff' };
+  }
+
   return null;
 }
 
@@ -151,6 +160,10 @@ export function parsePermission(input: string): ParsedPermission | null {
   if (parsed.kind === 'page') {
     if (parsed.pageId === '*' || parsed.action === '*') return null;
     return parsed as ParsedPermission;
+  }
+  if (parsed.kind === 'app') {
+    if (parsed.appKey === '*') return null;
+    return parsed;
   }
   return parsed;
 }
@@ -180,6 +193,10 @@ export function grantMatches(grant: string, required: string): boolean {
     case 'page': {
       const gp = g as Extract<ParsedGrant, { kind: 'page' }>;
       return segmentMatches(gp.pageId, r.pageId) && segmentMatches(gp.action, r.action);
+    }
+    case 'app': {
+      const ga = g as Extract<ParsedGrant, { kind: 'app' }>;
+      return segmentMatches(ga.appKey, r.appKey);
     }
   }
 }
@@ -234,6 +251,10 @@ export function grantsFromMatrixRows(rows: readonly RolePermission[]): string[] 
       }
       continue;
     }
+    if (row.resourceKind === 'app') {
+      if ((row.actions as { staff?: boolean }).staff === true) grants.push(`app:${row.resourceRef}:staff`);
+      continue;
+    }
     const actions = row.actions as PageActions;
     for (const action of PAGE_ACTIONS) {
       if (actions[action] === true) grants.push(`page:${row.resourceRef}:${action}`);
@@ -268,6 +289,7 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
   const tableRows = new Map<string, TableActions>();
   const pageRows = new Map<string, PageActions>();
   const systemRefs = new Set<string>();
+  const appRefs = new Set<string>();
 
   for (const grant of grants) {
     const parsed = parseGrant(grant);
@@ -277,6 +299,10 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
     }
     if (parsed.kind === 'system') {
       systemRefs.add(`${parsed.area}.${parsed.verb}`);
+      continue;
+    }
+    if (parsed.kind === 'app') {
+      appRefs.add(parsed.appKey);
       continue;
     }
     if (parsed.kind === 'table') {
@@ -304,5 +330,6 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
   for (const ref of systemRefs) rows.push({ resourceKind: 'system', resourceRef: ref, actions: { allowed: true } });
   for (const [ref, actions] of tableRows) rows.push({ resourceKind: 'table', resourceRef: ref, actions });
   for (const [ref, actions] of pageRows) rows.push({ resourceKind: 'page', resourceRef: ref, actions });
+  for (const ref of appRefs) rows.push({ resourceKind: 'app', resourceRef: ref, actions: { staff: true } });
   return { rows, invalid };
 }

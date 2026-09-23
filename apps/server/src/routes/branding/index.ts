@@ -24,9 +24,14 @@
  */
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { filesRepo, newId, settingsRepo, type MetaDb } from '@adminium/meta';
+import { filesRepo, newId, readJson, settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { BRANDING_UPDATED, logoUrlFor, readBranding, resolveLogoFile } from '../../branding/service.js';
+import { normalizeHost } from '../../security/csrf.js';
+import { appNameOf, domainMappingFor } from '../../surfaces/settings.js';
+
+/** The workspace's name until an operator gives it one; not a venue's. */
+const DEFAULT_WORKSPACE_NAME = 'Adminium';
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
 import type { FileStore } from '../../files/store.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
@@ -100,9 +105,36 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
       return true;
     }
 
-    app.get('/branding', { schema: { response: { 200: brandingReply } } }, async () =>
-      ({ data: await readBranding(meta) }),
-    );
+    app.get('/branding', { schema: { response: { 200: brandingReply } } }, async (request) => {
+      const data = await readBranding(meta);
+      const surface = await staffSurfaceOf(request, data.appName);
+      return { data: surface === null ? data : { ...data, surface } };
+    });
+
+    /** The app whose staff screens this address serves, or null for every other host. */
+    async function staffSurfaceOf(
+      request: FastifyRequest,
+      workspaceName: string,
+    ): Promise<{ appKey: string; appName: string; name: string | null } | null> {
+      const cache = request.server.hasDecorator('surfaceSettings') ? request.server.surfaceSettings : null;
+      if (cache === null || cache === undefined) return null;
+      const settings = await cache.read();
+      const mapping = domainMappingFor(settings, request.host, normalizeHost);
+      if (mapping === null || mapping.side !== 'staff') return null;
+      const row = await meta.db
+        .selectFrom('adminium_manifests')
+        .select(['manifest'])
+        .where('kind', '=', 'app')
+        .where('manifestKey', '=', mapping.appKey)
+        .executeTakeFirst();
+      const document = row === undefined ? null : readJson<{ name?: unknown }>(row.manifest);
+      const own = typeof document?.name === 'string' ? document.name : null;
+      return {
+        appKey: mapping.appKey,
+        appName: appNameOf(settings, mapping.appKey, own),
+        name: workspaceName === DEFAULT_WORKSPACE_NAME ? null : workspaceName,
+      };
+    }
 
     app.get('/branding/logo', { schema: { querystring: brandingLogoQuery } }, async (request, reply) => {
       const file = await resolveLogoFile(meta);

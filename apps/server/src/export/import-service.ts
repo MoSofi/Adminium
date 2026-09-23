@@ -383,6 +383,10 @@ export const importZip: ImportZip = async (opts) => {
             isBuiltin: bool(opts.meta, role.isBuiltin),
             createdAt: at,
             updatedAt: at,
+            // An imported role is never an app's: an app role belongs to one
+            // install on one server, and its app arrives only by installing it.
+            appKey: null,
+            screensOnly: bool(opts.meta, false),
           })
           .execute();
       }

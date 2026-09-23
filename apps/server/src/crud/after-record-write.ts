@@ -150,6 +150,29 @@ export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEv
 }
 
 /**
+ * Announce a row a parent's write changed alongside it — an order's lines
+ * posted with the order. The same cache drop and the same two frames a
+ * row's own write sends, so a screen watching the child table (a kitchen
+ * watching lines) sees it; no second audit row (the parent's covers the
+ * change) and no rule run.
+ */
+export function publishChildWrite(
+  app: FastifyInstance,
+  input: { connectionId: string; table: ResolvedTable; action: RecordWriteAction; pk: Row; row: Row | null },
+): void {
+  invalidateWidgetData(app, input.connectionId, input.table.id);
+  if (!app.hasDecorator('realtime')) return;
+  app.realtime.publish(`table:${input.connectionId}:${input.table.id}`, `record.${input.action}`, { pk: input.pk });
+  publishWidgetDataStream(app.realtime, {
+    connectionId: input.connectionId,
+    table: input.table,
+    type: `record.${input.action}`,
+    pk: input.pk,
+    row: input.row,
+  });
+}
+
+/**
  * The full downstream of a single-row write: widget-data cache drop, audit,
  * file reconcile, cache fan-out, live stream, rule engine — in that order,
  * and the order matters.

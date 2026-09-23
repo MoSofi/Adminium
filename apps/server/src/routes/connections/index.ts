@@ -56,6 +56,12 @@ export const CONNECTION_AVAILABILITY_CHANGED = 'connection.availability.changed'
 export interface ConnectionsRoutesDeps {
   manager: ConnectionManager;
   meta: MetaDb;
+  /**
+   * The connection's zone or currency changed. The public API's keys carry
+   * them in their compiled scope (cached ≤ 30 s): a guest booking "7 PM" on
+   * the old clock until then is a booking at the wrong time.
+   */
+  onTenantChanged?: ((connectionId: string) => void) | undefined;
 }
 
 function testReply(summary: ConnectionTestSummary): ConnectionTestReply {
@@ -317,6 +323,9 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           ...(request.body.timezone !== undefined ? { timezone: request.body.timezone } : {}),
           ...(request.body.currency !== undefined ? { currency: request.body.currency } : {}),
         });
+        if (request.body.timezone !== undefined || request.body.currency !== undefined) {
+          deps.onTenantChanged?.(connection.id);
+        }
         // A pause-only PATCH is already audited above under its own action;
         // adding a second `connection.update` row for it would report an edit
         // that did not happen and bury the one that did.

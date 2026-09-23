@@ -200,6 +200,198 @@ export const COLUMN_SEMANTICS = [
 /** Structural role markers. */
 export const COLUMN_ROLES = ['pk', 'created_at', 'updated_at'] as const;
 
+/** A snake_case identifier: a table or column ref. */
+const refSchema = z.string().regex(/^[a-z][a-z0-9_]*$/, 'must be a snake_case identifier');
+
+/** A BCP 47 tag, the way every label map in a manifest is keyed (`de-DE`). */
+const bcp47TagSchema = z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, 'keyed by BCP 47 tag');
+
+/** A label in several languages. US English is the one every reader falls back to. */
+export const labelsSchema = z
+  .record(bcp47TagSchema, z.string().min(1).max(120))
+  .refine((labels) => labels['en-US'] !== undefined, { message: 'labels must include en-US' });
+
+/** A text that is either one string, or the same text in several languages. */
+const textOrLabels = z.union([z.string().min(1).max(256), labelsSchema]);
+
+/**
+ * A number the manifest states, or one the app's own settings row holds — so
+ * a venue can change its capacity without a new release. `{table, column}`
+ * reads the one row of that (one-row) table at write time.
+ */
+const numberOrSetting = z.union([
+  z.number().int().nonnegative(),
+  z.object({ table: refSchema, column: refSchema }).strict(),
+]);
+
+/**
+ * The rules an app asks Adminium to keep on a column (written as column-rule
+ * overrides at install). The first five are the rules an operator can set in
+ * the column inspector; the rest are the ones Adminium DECIDES for a public
+ * write, so a browser never picks a price, a number or a code:
+ *
+ *  - `copy`: take the value from the linked row (`via` is this table's
+ *    foreign-key column, `from` a column of the row it points at).
+ *  - `sequence`: the next number in this column's own counter.
+ *  - `code`: a short random code (Crockford base 32), unique in the column.
+ *  - `rollup`: a total over child rows, kept in step as they change.
+ *  - `venueLocal`: a wall time with no zone is read in the venue's zone.
+ *  - `personal`: whether the column is personal data, overriding the guess
+ *    Adminium makes from its name.
+ */
+export const columnRulesSchema = z
+  .object({
+    options: z
+      .union([
+        z.object({ list: z.string().min(1).max(120) }).strict(),
+        z
+          .object({
+            values: z
+              .array(
+                z
+                  .object({ value: z.string().min(1).max(256), label: textOrLabels.optional(), tone: z.string().max(32).optional() })
+                  .strict(),
+              )
+              .min(1)
+              .max(500),
+          })
+          .strict(),
+      ])
+      .optional(),
+    enumLabels: z
+      .object({
+        labels: z.record(z.string().min(1), textOrLabels),
+        tones: z.record(z.string().min(1), z.string().max(32)).optional(),
+      })
+      .strict()
+      .optional(),
+    required: z.literal(true).optional(),
+    validation: z
+      .object({
+        format: z.enum(['email', 'url', 'phone']).optional(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+        minLength: z.number().int().nonnegative().optional(),
+        maxLength: z.number().int().positive().optional(),
+      })
+      .strict()
+      .optional(),
+    copy: z
+      .object({ via: refSchema, from: refSchema, mode: z.enum(['default', 'always']).optional() })
+      .strict()
+      .optional(),
+    sequence: z.object({ start: z.number().int().min(1).optional() }).strict().optional(),
+    code: z
+      .object({
+        prefix: z.string().regex(/^[A-Z][A-Z0-9]{0,5}-?$/, 'an upper-case prefix, e.g. MR-').optional(),
+        length: z.number().int().min(4).max(12),
+      })
+      .strict()
+      .optional(),
+    rollup: z
+      .object({
+        /** The child table, its foreign key back to this row, and what to add up. */
+        from: refSchema,
+        via: refSchema,
+        sum: refSchema,
+        /** Multiplied into `sum` per child row, e.g. `qty`. */
+        times: refSchema.optional(),
+        /** A child row whose column holds a value is left out — a voided line (`voided_at`). */
+        unlessSet: refSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    venueLocal: z.literal(true).optional(),
+    /**
+     * Whether the column holds personal data, when the app knows better than
+     * a guess from its name: a venue's own `phone` and `address` are a
+     * business's, and its guest page may show them. The operator can still
+     * mark it otherwise.
+     */
+    personal: z.boolean().optional(),
+  })
+  .strict();
+export type ColumnRules = z.infer<typeof columnRulesSchema>;
+
+/**
+ * A limit on how much of a slot rows may take — the booking guard. Only rows
+ * whose `countWhere` column holds one of its values count (a cancelled booking
+ * holds no seats).
+ */
+export const capacitySchema = z
+  .object({
+    slot: refSchema,
+    amount: refSchema,
+    perSlot: numberOrSetting,
+    countWhere: z.object({ column: refSchema, values: z.array(z.string().min(1)).min(1) }).strict().optional(),
+    slotMinutes: numberOrSetting,
+    windowDays: numberOrSetting.optional(),
+    opens: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.object({ table: refSchema, column: refSchema }).strict()]).optional(),
+    closes: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.object({ table: refSchema, column: refSchema }).strict()]).optional(),
+    /** A table, a room: the limit applies per value of this column too. */
+    resource: refSchema.optional(),
+    /**
+     * How many hours before its time a guest may still cancel through the
+     * public API; later, only the venue can. Staff are never held to it.
+     */
+    cancelHours: numberOrSetting.optional(),
+  })
+  .strict();
+
+/** The longest `maxLength` a text column may ask for (see `maxLength` below). */
+export const MAX_TEXT_LENGTH = 1000;
+
+/**
+ * Why a column's `default` cannot be created, or `null` when it can.
+ *
+ * The rules are the ones every one of the three databases can honour with the
+ * same meaning, so a manifest that validates installs the same everywhere:
+ *
+ *  - `now` only on a `timestamptz`, and a timestamp takes nothing else. A
+ *    literal timestamp default is a fixed moment, which is never what a
+ *    manifest author means.
+ *  - `text` needs `maxLength`: MySQL gives an unbounded TEXT column no literal
+ *    default, and a manifest must not install on two engines and fail on the
+ *    third.
+ *  - `json`, `blob`, `date`, keys and foreign keys take none.
+ *  - an enum's default is one of its values, a number is a number, a boolean a
+ *    boolean.
+ */
+export function defaultIssue(c: {
+  type: string;
+  role?: string | undefined;
+  enum?: readonly string[] | undefined;
+  maxLength?: number | undefined;
+  default?: string | number | boolean | undefined;
+}): string | null {
+  const value = c.default;
+  if (value === undefined) return null;
+  if (c.role === 'pk') return 'a primary key takes no default; an int key numbers itself';
+  switch (c.type) {
+    case 'timestamptz':
+      return value === 'now' ? null : 'a timestamptz default must be "now"';
+    case 'text':
+      if (typeof value !== 'string') return 'a text default must be a string';
+      if (c.maxLength === undefined) return 'a text default needs maxLength (MySQL gives TEXT no default)';
+      return value.length <= c.maxLength ? null : 'the default is longer than maxLength';
+    case 'enum':
+      return typeof value === 'string' && (c.enum ?? []).includes(value)
+        ? null
+        : 'an enum default must be one of its values';
+    case 'int':
+    case 'bigint':
+      return typeof value === 'number' && Number.isInteger(value) ? null : 'an integer default must be a whole number';
+    case 'decimal':
+    case 'money':
+    case 'float':
+      return typeof value === 'number' ? null : 'a numeric default must be a number';
+    case 'bool':
+      return typeof value === 'boolean' ? null : 'a bool default must be true or false';
+    default:
+      return `a ${c.type} column takes no default`;
+  }
+}
+
 export const requiredColumnSchema = z
   .object({
     ref: z.string().regex(/^[a-z][a-z0-9_]*$/, 'column ref must be a snake_case identifier'),
@@ -210,6 +402,33 @@ export const requiredColumnSchema = z
     // enum values when `type: 'enum'`; fk target ref when `type: 'fk'`.
     enum: z.array(z.string().min(1)).optional(),
     references: z.string().optional(),
+    /**
+     * The value the DATABASE fills when an insert leaves the column out. A
+     * literal of the column's own type, or the string `now` on a
+     * `timestamptz` column. Without one, a NOT NULL column refuses every insert
+     * that omits it — which is every insert an operator makes from a form that
+     * does not show that column.
+     *
+     * Additive and optional: an older server refuses a manifest carrying it
+     * (every block is `.strict()`), so an app that uses it raises
+     * `minAdminiumVersion` to the release that reads it.
+     */
+    default: z.union([z.string(), z.number().finite(), z.boolean()]).optional(),
+    /**
+     * `text` only: a `varchar(n)` instead of unbounded `text`. Short text is
+     * what a form, a unique index and MySQL's key limit all want. At most 1000
+     * characters — MySQL counts four bytes per character against one 65,535-byte
+     * row, so a few long columns would refuse the table.
+     */
+    maxLength: z.number().int().min(1).max(MAX_TEXT_LENGTH).optional(),
+    /** Rules Adminium keeps on the column once installed (see `columnRulesSchema`). */
+    rules: columnRulesSchema.optional(),
+    /**
+     * What a person calls the column — a form's field, a list's heading — in
+     * every language the app speaks. Installed as the column's label, which
+     * the operator can rename like any other.
+     */
+    label: textOrLabels.optional(),
   })
   .strict()
   .refine((c) => c.type !== 'enum' || (c.enum !== undefined && c.enum.length > 0), {
@@ -219,22 +438,60 @@ export const requiredColumnSchema = z
   .refine((c) => c.type !== 'fk' || c.references !== undefined, {
     message: 'a fk column must name its references target',
     path: ['references'],
+  })
+  .refine((c) => c.maxLength === undefined || c.type === 'text', {
+    message: 'maxLength applies to a text column only',
+    path: ['maxLength'],
+  })
+  .superRefine((c, ctx) => {
+    const issue = defaultIssue(c);
+    if (issue !== null) ctx.addIssue({ code: 'custom', message: issue, path: ['default'] });
   });
 
 export const requiredTableSchema = z
   .object({
     ref: z.string().regex(/^[a-z][a-z0-9_]*$/, 'table ref must be a snake_case identifier'),
     columns: z.array(requiredColumnSchema).min(1),
+    /**
+     * A shape other apps may share, `<name>@<version>` (`menu@1`). Two apps
+     * that declare the same shape can use one table between them.
+     */
+    shape: z.string().regex(/^[a-z][a-z0-9-]*@\d+$/, 'a shape is <name>@<version>').optional(),
+    capacity: capacitySchema.optional(),
+    /**
+     * What a person calls ONE row ("Category") and the table ("Categories"),
+     * in every language the app speaks: a form's title and button, a page's
+     * empty state, a link's field. Installed as the table's label. Without
+     * them Adminium names the table from its real name (`pos_menu_categories`).
+     */
+    label: textOrLabels.optional(),
+    labelPlural: textOrLabels.optional(),
+    /** The column that names a row wherever another table links to it (a category's `name`). */
+    keyField: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a column ref').optional(),
   })
   .strict()
   .refine(
     (t) => new Set(t.columns.map((c) => c.ref)).size === t.columns.length,
     { message: 'duplicate column ref in table', path: ['columns'] },
-  );
+  )
+  .refine((t) => t.keyField === undefined || t.columns.some((c) => c.ref === t.keyField), {
+    message: 'keyField must name one of the table’s columns',
+    path: ['keyField'],
+  })
+  .refine((t) => t.labelPlural === undefined || t.label !== undefined, {
+    message: 'labelPlural needs a label',
+    path: ['labelPlural'],
+  });
 
 export const requiredSchemaSchema = z
   .object({
     tables: z.array(requiredTableSchema).min(1),
+    /**
+     * Adminium names every table `<app key>_<ref>` (`pos_tickets`), and tells
+     * the app the real names at boot. Opt-in, because an app built before it
+     * hard-codes its table names. Apps only: an add-on uses its host's tables.
+     */
+    prefixed: z.literal(true).optional(),
   })
   .strict()
   .refine((s) => new Set(s.tables.map((t) => t.ref)).size === s.tables.length, {
@@ -261,6 +518,14 @@ export const pageSchema = z
     // page-local table ref → requiredSchema table ref (resolved at install).
     bindings: z.record(z.string(), z.string()).optional(),
     config: z.record(z.string(), z.unknown()).optional(),
+    /**
+     * The page's title in other languages, keyed by BCP 47 tag (`de-DE`)
+     *. `title.fallback` stays the English; the sidebar shows the
+     * operator's language until the operator renames the page.
+     */
+    titles: z
+      .record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, 'titles are keyed by BCP 47 tag'), z.string().min(1).max(120))
+      .optional(),
   })
   .strict();
 
@@ -273,6 +538,8 @@ export const roleSchema = z
     cloneFrom: z.string().optional(),
     // grant strings validated against the RBAC grammar at install time.
     permissions: z.array(z.string().min(1)).optional(),
+    /** Opens the app's own screens and never the dashboard (a till cashier). */
+    screensOnly: z.boolean().optional(),
   })
   .strict();
 
@@ -389,6 +656,103 @@ export const frontendSchema = z
      * permanently uncheckable.
      */
     routes: z.record(z.string(), z.string()).optional(),
+    /**
+     * Where a STAFF side opens by default: inside the dashboard, or on its own
+     * address (a till). The operator can change it; absent means inside.
+     */
+    placement: z.enum(['internal', 'external']).optional(),
+    /** Whether the side starts switched on. Absent means on. */
+    enabled: z.boolean().optional(),
+  })
+  .strict();
+
+// ── the app's sidebar, public access and sample data ─────────────────────────
+
+/** A heading in the app's own sidebar section; pages name it in `nav.group`. */
+/**
+ * A list of answers the app ships, for a column's `options: {list}`. Installed
+ * as the option list `<appKey>-<name>`, which the operator can then edit like
+ * any other; a list of that key they already made is left alone.
+ */
+export const optionListSchema = z
+  .object({
+    label: textOrLabels,
+    values: z
+      .array(
+        z
+          .object({ value: z.string().min(1).max(256), label: textOrLabels.optional(), tone: z.string().max(32).optional() })
+          .strict(),
+      )
+      .min(1)
+      .max(500),
+  })
+  .strict();
+
+export const navGroupSchema = z
+  .object({
+    key: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a nav group key is kebab-case'),
+    label: labelsSchema,
+    order: z.number().int(),
+  })
+  .strict();
+
+/**
+ * What the app's public screens may do with one table, through the one
+ * browser key the install creates. `GET` reads, `POST` creates; `PATCH` only
+ * behind a claim (a guest changing their own booking), on a narrow writable
+ * list. `availability` answers free or full per slot and never a row.
+ */
+export const publicAccessSchema = z
+  .object({
+    table: refSchema,
+    kind: z.enum(['records', 'availability']).optional(),
+    methods: z.array(z.enum(['GET', 'POST', 'PATCH'])).min(1),
+    select: z.array(refSchema).optional(),
+    writable: z.array(refSchema).optional(),
+    filters: z
+      .array(
+        z
+          .object({
+            column: refSchema,
+            op: z.enum(['eq', 'neq', 'in', 'gte', 'lte']),
+            value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
+          })
+          .strict(),
+      )
+      .optional(),
+    /** Values the server writes, whatever the browser sends (`status: confirmed`). */
+    defaults: z.record(refSchema, z.union([z.string(), z.number(), z.boolean()])).optional(),
+    /** Proving you know a row's details, e.g. `{match: [code, mobile]}`. */
+    claim: z.object({ match: z.array(refSchema).min(1).max(3) }).strict().optional(),
+    /**
+     * The confirmation Adminium emails when a guest creates a row here: the
+     * column holding their address, the columns the email shows, the app's
+     * one-row venue table, and the path under the guest side that manages it.
+     */
+    confirm: z
+      .object({
+        template: z.enum(['booking-confirmation']),
+        to: refSchema,
+        code: refSchema.optional(),
+        when: refSchema.optional(),
+        party: refSchema.optional(),
+        name: refSchema.optional(),
+        venue: z
+          .object({ table: refSchema, name: refSchema.optional(), address: refSchema.optional(), phone: refSchema.optional() })
+          .strict()
+          .optional(),
+        link: z.string().max(200).optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type PublicAccess = z.infer<typeof publicAccessSchema>;
+
+/** The bundled sample data file, inside the package's `seeds/` folder. */
+export const sampleDataSchema = z
+  .object({
+    file: z.string().regex(/^seeds\/[a-z0-9][a-z0-9._-]*\.json$/, 'a file in seeds/, ending .json'),
   })
   .strict();
 
@@ -449,6 +813,158 @@ const SIDES_MESSAGE = {
   path: ['frontends'] as const,
 };
 
+/** The prefix Adminium gives an app's tables: its key, `-` as `_`, then `_`. */
+export function prefixFor(appKey: string): string {
+  return `${appKey.replace(/-/g, '_')}_`;
+}
+
+/** The longest real table name every engine accepts (Postgres: 63 bytes). */
+export const MAX_TABLE_NAME = 63;
+
+/**
+ * Every name a manifest's own blocks use must name something the manifest
+ * declares: a rule's columns, a capacity's columns, a public table and the
+ * columns it reads and writes. Checked here so an app's CI refuses a typo long
+ * before an operator's install would.
+ */
+export function appReferenceIssues(m: {
+  key: string;
+  requiredSchema: { tables: readonly RequiredTableShape[]; prefixed?: true | undefined };
+  publicAccess?: readonly PublicAccess[] | undefined;
+  optionLists?: Readonly<Record<string, unknown>> | undefined;
+}): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  const tables = new Map(m.requiredSchema.tables.map((t) => [t.ref, t]));
+  const has = (table: string, column: string): boolean =>
+    tables.get(table)?.columns.some((c) => c.ref === column) ?? false;
+
+  m.requiredSchema.tables.forEach((table, t) => {
+    const at = (...rest: (string | number)[]) => ['requiredSchema', 'tables', t, ...rest];
+    if (m.requiredSchema.prefixed === true && prefixFor(m.key).length + table.ref.length > MAX_TABLE_NAME) {
+      out.push({ path: at('ref'), message: `"${prefixFor(m.key)}${table.ref}" is longer than ${String(MAX_TABLE_NAME)} characters` });
+    }
+    table.columns.forEach((column, c) => {
+      const rules = column.rules;
+      if (rules === undefined) return;
+      const here = (...rest: string[]) => at('columns', c, 'rules', ...rest);
+      // A list the app ships, or one Adminium has built in; nothing else exists
+      // on every install.
+      if (rules.options !== undefined && 'list' in rules.options) {
+        const list = rules.options.list;
+        if (!list.startsWith('builtin:') && m.optionLists?.[list] === undefined) {
+          out.push({ path: here('options', 'list'), message: `"${list}" is not one of the app's option lists` });
+        }
+      }
+      if (rules.copy !== undefined) {
+        const via = table.columns.find((x) => x.ref === rules.copy!.via);
+        if (via?.type !== 'fk' || via.references === undefined) {
+          out.push({ path: here('copy', 'via'), message: `"${rules.copy.via}" is not a foreign key of "${table.ref}"` });
+        } else if (!has(via.references, rules.copy.from)) {
+          out.push({ path: here('copy', 'from'), message: `"${via.references}" has no column "${rules.copy.from}"` });
+        }
+      }
+      if (rules.rollup !== undefined) {
+        const r = rules.rollup;
+        const child = tables.get(r.from);
+        const via = child?.columns.find((x) => x.ref === r.via);
+        if (child === undefined) {
+          out.push({ path: here('rollup', 'from'), message: `"${r.from}" is not a table of this app` });
+        } else if (via?.type !== 'fk' || via.references !== table.ref) {
+          out.push({ path: here('rollup', 'via'), message: `"${r.from}.${r.via}" does not point at "${table.ref}"` });
+        } else {
+          for (const name of [r.sum, ...(r.times === undefined ? [] : [r.times]), ...(r.unlessSet === undefined ? [] : [r.unlessSet])]) {
+            if (!has(r.from, name)) out.push({ path: here('rollup'), message: `"${r.from}" has no column "${name}"` });
+          }
+        }
+      }
+      if ((rules.sequence !== undefined || rules.code !== undefined) && column.role === 'pk') {
+        out.push({ path: here(), message: 'a primary key numbers itself; it takes no sequence or code rule' });
+      }
+    });
+    const cap = table.capacity;
+    if (cap !== undefined) {
+      for (const [name, value] of [['slot', cap.slot], ['amount', cap.amount], ['resource', cap.resource], ['countWhere', cap.countWhere?.column]] as const) {
+        if (value !== undefined && !has(table.ref, value)) {
+          out.push({ path: at('capacity', name), message: `"${table.ref}" has no column "${value}"` });
+        }
+      }
+      for (const [name, value] of Object.entries(cap)) {
+        if (typeof value === 'object' && value !== null && 'table' in value && 'column' in value) {
+          const setting = value as { table: string; column: string };
+          if (!has(setting.table, setting.column)) {
+            out.push({ path: at('capacity', name), message: `"${setting.table}" has no column "${setting.column}"` });
+          }
+        }
+      }
+    }
+  });
+
+  (m.publicAccess ?? []).forEach((entry, i) => {
+    const at = (...rest: (string | number)[]) => ['publicAccess', i, ...rest];
+    const table = tables.get(entry.table);
+    if (table === undefined) {
+      out.push({ path: at('table'), message: `"${entry.table}" is not a table of this app` });
+      return;
+    }
+    for (const list of ['select', 'writable'] as const) {
+      for (const column of entry[list] ?? []) {
+        if (!has(entry.table, column)) out.push({ path: at(list), message: `"${entry.table}" has no column "${column}"` });
+      }
+    }
+    for (const column of [...(entry.claim?.match ?? []), ...(entry.filters ?? []).map((f) => f.column), ...Object.keys(entry.defaults ?? {})]) {
+      if (!has(entry.table, column)) out.push({ path: at(), message: `"${entry.table}" has no column "${column}"` });
+    }
+    // A change to an existing row, from a browser, only behind a claim: the
+    // guest reaches their own row and nothing else.
+    if (entry.methods.includes('PATCH') && entry.claim === undefined) {
+      out.push({ path: at('methods'), message: 'PATCH is allowed only with a claim' });
+    }
+    // Nothing a server decides may be written by a browser.
+    for (const column of entry.writable ?? []) {
+      const rules = table.columns.find((c) => c.ref === column)?.rules;
+      if (rules?.copy !== undefined || rules?.sequence !== undefined || rules?.code !== undefined || rules?.rollup !== undefined) {
+        out.push({ path: at('writable'), message: `"${column}" is decided by Adminium and cannot be written publicly` });
+      }
+    }
+    if (entry.confirm !== undefined) {
+      const c = entry.confirm;
+      for (const [name, column] of [['to', c.to], ['code', c.code], ['when', c.when], ['party', c.party], ['name', c.name]] as const) {
+        if (column !== undefined && !has(entry.table, column)) out.push({ path: at('confirm', name), message: `"${entry.table}" has no column "${column}"` });
+      }
+      if (!entry.methods.includes('POST')) out.push({ path: at('confirm'), message: 'a confirmation is sent on a create, and this entry creates nothing' });
+      if (c.venue !== undefined) {
+        if (!tables.has(c.venue.table)) {
+          out.push({ path: at('confirm', 'venue', 'table'), message: `"${c.venue.table}" is not a table of this app` });
+        } else {
+          for (const [name, column] of [['name', c.venue.name], ['address', c.venue.address], ['phone', c.venue.phone]] as const) {
+            if (column !== undefined && !has(c.venue.table, column)) {
+              out.push({ path: at('confirm', 'venue', name), message: `"${c.venue.table}" has no column "${column}"` });
+            }
+          }
+        }
+      }
+    }
+    if (entry.kind === 'availability') {
+      if (table.capacity === undefined) out.push({ path: at('kind'), message: `"${entry.table}" declares no capacity to answer from` });
+      if (entry.methods.some((method) => method !== 'GET')) out.push({ path: at('methods'), message: 'availability is read-only' });
+    }
+  });
+  return out;
+}
+
+/** What `appReferenceIssues` reads of a table. */
+interface RequiredTableShape {
+  ref: string;
+  columns: readonly {
+    ref: string;
+    type: string;
+    role?: string | undefined;
+    references?: string | undefined;
+    rules?: ColumnRules | undefined;
+  }[];
+  capacity?: z.infer<typeof capacitySchema> | undefined;
+}
+
 export const appManifestSchema = z
   .object({
     kind: z.literal('app'),
@@ -472,11 +988,21 @@ export const appManifestSchema = z
      * required-singular shape however their `requiredSchema` was repaired.
      */
     frontends: z.array(frontendSchema).min(1),
+    navGroups: z.array(navGroupSchema).max(12).optional(),
+    /** Keyed by a kebab-case name; a column names one with `options: {list: name}`. */
+    optionLists: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/, 'a list name is kebab-case'), optionListSchema).optional(),
+    publicAccess: z.array(publicAccessSchema).max(32).optional(),
+    sampleData: sampleDataSchema.optional(),
   })
   .strict()
   .refine(capabilitiesNotContradictory, { ...CAPS_MESSAGE, path: [...CAPS_MESSAGE.path] })
   .refine(compatibilityWindowOrdered, { ...WINDOW_MESSAGE, path: [...WINDOW_MESSAGE.path] })
-  .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] });
+  .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] })
+  .superRefine((m, ctx) => {
+    for (const issue of appReferenceIssues(m)) {
+      ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    }
+  });
 
 /**
  * `pages`, `roles` and `frontends` are absent from this branch on purpose, and
@@ -510,7 +1036,11 @@ export const addOnManifestSchema = z
   })
   .strict()
   .refine(capabilitiesNotContradictory, { ...CAPS_MESSAGE, path: [...CAPS_MESSAGE.path] })
-  .refine(compatibilityWindowOrdered, { ...WINDOW_MESSAGE, path: [...WINDOW_MESSAGE.path] });
+  .refine(compatibilityWindowOrdered, { ...WINDOW_MESSAGE, path: [...WINDOW_MESSAGE.path] })
+  .refine((m) => m.requiredSchema?.prefixed !== true, {
+    message: 'an add-on uses its host app\'s tables, so its own cannot be prefixed',
+    path: ['requiredSchema', 'prefixed'],
+  });
 
 /**
  * The envelope. A document with no `kind` is treated as an app before the union

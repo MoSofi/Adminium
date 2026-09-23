@@ -21,7 +21,7 @@ import {
   resolveLabel,
   type HostedSurface,
 } from '../src/cli/surfaces-root.js';
-import { buildHostedApps } from '../src/routes/bootstrap/handlers.js';
+import { buildAppSections, buildHostedApps } from '../src/routes/bootstrap/handlers.js';
 import { makeEnv } from './helpers.js';
 
 const DASH_HTML = '<!doctype html><html><body data-app="dashboard"></body></html>';
@@ -241,6 +241,10 @@ describe('surface.json — the build-emitted nav contract', () => {
     // A locale the app does not ship must not render blank.
     expect(resolveLabel(labels, 'cs-CZ')).toBe('Home');
     expect(resolveLabel({ 'cs-CZ': 'Přehled' }, 'de-DE')).toBe('Přehled');
+    // The spelling a user's preference is actually stored in:
+    // it missed every key and fell back to English for every reader.
+    expect(resolveLabel(labels, 'de_DE')).toBe('Start');
+    expect(resolveLabel(labels, 'de_AT')).toBe('Start');
   });
 
   it('is discovered and attached, and is null when absent', async () => {
@@ -266,7 +270,7 @@ describe('bootstrap hostedApps', () => {
     appLabels: { 'en-US': 'Outline', 'de-DE': 'Kontur' },
     nav: [{ id: 'home', path: 'home', labels: { 'en-US': 'Home', 'de-DE': 'Start' } }],
   };
-  const NONE = { apps: {}, domains: {} };
+  const NONE = { apps: {}, domains: {}, statuses: {} };
 
   it('blends a staff surface by DEFAULT — external is the opt-out', () => {
     // D9: hosted is the normal case and the whole point of the wave is that
@@ -288,7 +292,7 @@ describe('bootstrap hostedApps', () => {
      * One string for every locale, unlike the app's own labels: an operator
      * types one business name, and translating it is not Adminium's to do.
      */
-    const settings = { apps: { clients: { name: 'Acme Client Hub' } }, domains: {} };
+    const settings = { apps: { clients: { name: 'Acme Client Hub' } }, domains: {}, statuses: {} };
     expect(buildHostedApps([staffSurface(MANIFEST)], settings, 'en-US')[0]?.label).toBe(
       'Acme Client Hub',
     );
@@ -324,6 +328,7 @@ describe('bootstrap hostedApps', () => {
         },
       },
       domains: {},
+      statuses: {},
     };
     const apps = buildHostedApps([staffSurface(MANIFEST)], settings, 'en-US');
     expect(apps.map((a) => [a.appKey, a.instance, a.label])).toEqual([
@@ -337,7 +342,7 @@ describe('bootstrap hostedApps', () => {
   });
 
   it('drops an app the operator placed externally', () => {
-    const settings = { apps: { clients: { staff: 'external' as const } }, domains: {} };
+    const settings = { apps: { clients: { staff: 'external' as const } }, domains: {}, statuses: {} };
     expect(buildHostedApps([staffSurface(MANIFEST)], settings, 'en-US')).toEqual([]);
   });
 
@@ -352,6 +357,113 @@ describe('bootstrap hostedApps', () => {
     // heading with nothing under it would be a dead end in the rail.
     expect(buildHostedApps([staffSurface(null)], NONE, 'en-US')).toEqual([]);
     expect(buildHostedApps([staffSurface({ ...MANIFEST, nav: [] })], NONE, 'en-US')).toEqual([]);
+  });
+
+  it('folds an app’s staff screens into its own section, under the app’s name', () => {
+    const hosted = buildHostedApps([staffSurface(MANIFEST)], NONE, 'de-DE');
+    const sections = buildAppSections({
+      apps: [{ key: 'clients', version: '2.0.0', name: 'Clients', navGroups: [] }],
+      appItems: new Map(),
+      hosted,
+      surfaces: [staffSurface(MANIFEST)],
+      settings: NONE,
+      locale: 'de-DE',
+      protocol: 'https',
+    });
+    expect(sections).toEqual([
+      {
+        appKey: 'clients',
+        label: 'Kontur',
+        version: '2.0.0',
+        groups: [],
+        staff: { placement: 'internal', items: [{ id: 'home', path: 'home', label: 'Start' }] },
+      },
+    ]);
+    // With no pages and no staff screens there is no section to draw.
+    expect(
+      buildAppSections({
+        apps: [{ key: 'clients', version: '2.0.0', name: 'Clients', navGroups: [] }],
+        appItems: new Map(),
+        hosted: [],
+        surfaces: [],
+        settings: NONE,
+        locale: 'en-US',
+        protocol: 'https',
+      }),
+    ).toEqual([]);
+  });
+
+  it('offers no staff entry to someone who may not open the staff screens', () => {
+    const [section] = buildAppSections({
+      apps: [{ key: 'clients', version: '2.0.0', name: 'Clients', navGroups: [] }],
+      appItems: new Map([['clients', [{ group: null, item: { pageId: 'p', slug: 'clients-home', labelKey: 'nav.clients-home', fallback: 'Home', icon: 'house', order: 0, connectionId: null, connectionName: null, currency: null, sourceTable: null, appKey: 'clients' } }]]]),
+      hosted: buildHostedApps([staffSurface(MANIFEST)], NONE, 'en-US'),
+      surfaces: [staffSurface(MANIFEST)],
+      settings: NONE,
+      locale: 'en-US',
+      protocol: 'https',
+      mayOpenStaff: new Set(),
+    });
+    // The pages stay; the screens do not.
+    expect(section?.groups[0]?.items.map((item) => item.slug)).toEqual(['clients-home']);
+    expect(section?.staff).toBeNull();
+  });
+
+  it('links a staff side on a mapped domain to that domain', () => {
+    const settings = {
+      apps: { clients: { staff: 'external' as const } },
+      domains: { 'till.example.test': { appKey: 'clients', side: 'staff' as const } },
+      statuses: {},
+    };
+    const [section] = buildAppSections({
+      apps: [{ key: 'clients', version: '2.0.0', name: 'Clients', navGroups: [] }],
+      appItems: new Map(),
+      hosted: buildHostedApps([staffSurface(MANIFEST)], settings, 'en-US'),
+      surfaces: [staffSurface(MANIFEST)],
+      settings,
+      locale: 'en-US',
+      protocol: 'https',
+    });
+    expect(section?.staff).toEqual({
+      placement: 'external',
+      url: 'https://till.example.test/',
+      items: [{ id: 'home', path: 'home', label: 'Home' }],
+      instances: [],
+    });
+  });
+
+  it('names an external app’s screens, and links each extra instance to its own address', () => {
+    const settings = {
+      apps: {
+        clients: {
+          staff: 'external' as const,
+          instances: [
+            { slug: 'terrace', connectionId: 'conn_b' },
+            { slug: 'harbour', connectionId: 'conn_c' },
+          ],
+        },
+      },
+      domains: { 'harbour.example.test': { appKey: 'clients', side: 'staff' as const, instance: 'harbour' } },
+      statuses: {},
+    };
+    const [section] = buildAppSections({
+      apps: [{ key: 'clients', version: '2.0.0', name: 'Clients', navGroups: [] }],
+      appItems: new Map(),
+      hosted: buildHostedApps([staffSurface(MANIFEST)], settings, 'de-DE'),
+      surfaces: [staffSurface(MANIFEST)],
+      settings,
+      locale: 'de-DE',
+      protocol: 'https',
+    });
+    expect(section?.staff).toEqual({
+      placement: 'external',
+      url: '/apps/clients/staff/',
+      items: [{ id: 'home', path: 'home', label: 'Start' }],
+      instances: [
+        { slug: 'terrace', url: '/apps/clients/terrace/staff/' },
+        { slug: 'harbour', url: 'https://harbour.example.test/' },
+      ],
+    });
   });
 });
 

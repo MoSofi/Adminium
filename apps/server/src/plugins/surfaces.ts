@@ -50,21 +50,75 @@ import fastifyStatic from '@fastify/static';
 import fp from 'fastify-plugin';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
+import { BUILTIN_LOCALE_IDS, type LocaleId } from '@adminium/i18n';
+import { createServerI18n } from '@adminium/i18n/server';
+import {
+  addOnSettingsRepo,
+  appTablesRepo,
+  connectionTenantConfig,
+  publicKeysRepo,
+  readJson,
+  sessionsRepo,
+  settingsRepo,
+  type DsnCrypto,
+  type MetaDb,
+} from '@adminium/meta';
+
+import type { Manifest } from '@adminium/manifest';
 
 import type { InstalledApps } from '../apps/installed.js';
-import type { HostedSurface, SurfaceSide } from '../cli/surfaces-root.js';
-import { AppError, NotFoundError } from '../errors.js';
+import { settingValuesWithDefaults } from '../apps/settings-values.js';
+import { auditAuth } from '../auth/audit.js';
+import { clearSessionCookie } from '../auth/sessions.js';
+import { resolveLabel, type HostedSurface, type SurfaceSide } from '../cli/surfaces-root.js';
+import { AppError, AppUnavailableError, ForbiddenError, NotFoundError } from '../errors.js';
+import { bcp47 } from '../i18n/bcp47.js';
+import { loadOverrideMap, recipientLocale } from '../i18n/server-i18n.js';
 import { openPublishableKey } from '../public-api/keys.js';
-import { normalizeHost } from '../security/csrf.js';
+import { CSRF_FORM_FIELD, normalizeHost } from '../security/csrf.js';
 import {
+  appNameOf,
   appNameOverrideOf,
+  availabilityOf,
   connectionForMount,
   type SurfaceSettings,
   createSurfaceSettings,
   domainMappingFor,
   type SurfaceSettingsCache,
+  NO_SURFACE_SETTINGS,
 } from '../surfaces/settings.js';
+import { renderNotFoundPage, renderUnavailablePage } from '../surfaces/unavailable-page.js';
+
+/** Where the script-free "not available" page's Sign out posts. */
+export const SURFACE_SIGN_OUT_PATH = '/surface-sign-out';
+
+/** The registry default for `branding.appName`: a workspace that never named itself. */
+const DEFAULT_WORKSPACE_NAME = 'Adminium';
+
+/**
+ * The best of the built-in locales for an `Accept-Language` header: an exact
+ * tag, then the same language in another region, in the reader's order of
+ * preference. Null when none fits.
+ */
+export function negotiateLocale(header: string | undefined): LocaleId | null {
+  const wanted = (header ?? '')
+    .split(',')
+    .map((part) => {
+      const [tag = '', ...params] = part.trim().split(';');
+      const q = params.map((p) => p.trim()).find((p) => p.startsWith('q='));
+      return { tag: tag.trim().toLowerCase(), q: q === undefined ? 1 : Number(q.slice(2)) };
+    })
+    .filter((entry) => entry.tag !== '' && entry.tag !== '*' && Number.isFinite(entry.q) && entry.q > 0)
+    .sort((a, b) => b.q - a.q);
+  for (const { tag } of wanted) {
+    const exact = BUILTIN_LOCALE_IDS.find((id) => bcp47(id).toLowerCase() === tag);
+    if (exact !== undefined) return exact;
+    const language = tag.split('-')[0];
+    const near = BUILTIN_LOCALE_IDS.find((id) => bcp47(id).toLowerCase().split('-')[0] === language);
+    if (near !== undefined) return near;
+  }
+  return null;
+}
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -156,14 +210,49 @@ export const RESERVED_AUTH_PATHS = ['/login', '/otp', '/forgot', '/reset'] as co
  * (surface builds use an absolute `/apps/<key>/<side>/` base), so the
  * pass-through shadows nothing.
  */
-export function isHostReservedPath(path: string): boolean {
+export function isHostReservedPath(path: string, side: SurfaceSide = 'staff'): boolean {
   if (path === '/api' || path.startsWith('/api/')) return true;
   if (path === '/apps' || path.startsWith('/apps/')) return true;
+  // A CUSTOMER host serves no part of the dashboard: not its
+  // sign-in pages, not its bundle, not its WebSocket. Those paths are refused
+  // outright by the lockdown hook below rather than passed through.
+  if (side === 'customer') return false;
   if (path === '/assets' || path.startsWith('/assets/')) return true;
+  // The dashboard's WebSocket. Unreserved, the serve hook answered the
+  // upgrade GET with the surface's index.html.
+  if (path === '/ws' || path.startsWith('/ws/')) return true;
   for (const reserved of RESERVED_AUTH_PATHS) {
     if (path === reserved || path.startsWith(`${reserved}/`)) return true;
   }
   return false;
+}
+
+/** Dashboard paths a customer host refuses, whatever the method. */
+const CUSTOMER_REFUSED_PATHS = [...RESERVED_AUTH_PATHS, '/assets', '/ws'] as const;
+
+/** The anonymous public API — the one part of `/api` a customer host serves. */
+const PUBLIC_API_PREFIX = '/api/v1/public/';
+
+/**
+ * What a CUSTOMER-mapped host may serve beyond its own root-served surface:
+ * the public API, and that app's own customer mount
+ * (`/apps/<key>/customer/…` or an instance's `/apps/<key>/<slug>/customer/…`),
+ * which is where its bundle's absolute asset URLs point. Everything else under
+ * `/api` or `/apps` is another app's or the admin panel's, and answers 404.
+ */
+export function customerHostAllows(path: string, appKey: string): boolean {
+  if (path.startsWith(PUBLIC_API_PREFIX)) return true;
+  if (path === '/api' || path.startsWith('/api/')) return false;
+  if (path === '/apps' || path.startsWith('/apps/')) {
+    const own = parseSurfacePath(path);
+    if (own !== null) return own.appKey === appKey && own.side === 'customer';
+    const instance = parseInstancePath(path);
+    return instance !== null && instance.appKey === appKey && instance.side === 'customer';
+  }
+  for (const refused of CUSTOMER_REFUSED_PATHS) {
+    if (path === refused || path.startsWith(`${refused}/`)) return false;
+  }
+  return true;
 }
 
 /**
@@ -177,6 +266,70 @@ function isDocumentNavigation(request: FastifyRequest): boolean {
   if (typeof mode === 'string') return mode === 'navigate';
   const accept = request.headers.accept;
   return typeof accept === 'string' && accept.includes('text/html');
+}
+
+/** Row 15, "Address not found": the reader's language, else the workspace's. */
+async function sendNotFoundPage(meta: MetaDb, request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const locale: LocaleId =
+    negotiateLocale(request.headers['accept-language']) ?? ((await recipientLocale(meta, null)) as LocaleId);
+  const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
+  const html = renderNotFoundPage({
+    lang: bcp47(locale),
+    t: (key, fallback, args) => i18n.t(key, { defaultValue: fallback, ...args }),
+  });
+  await reply
+    .code(404)
+    .header('content-type', 'text/html; charset=utf-8')
+    .header('cache-control', 'no-store')
+    .header('x-robots-tag', 'noindex')
+    .send(html);
+}
+
+/**
+ * The "not available" page, in the reader's language: a signed-in person's
+ * own (their choice, else the workspace's — what their dashboard shows them);
+ * a signed-out reader's browser's, else the workspace's.
+ */
+async function sendUnavailablePage(
+  meta: MetaDb,
+  surface: HostedSurface,
+  reason: 'app-disabled' | 'side-off' | 'no-access',
+  settings: SurfaceSettings,
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const user = request.user;
+  const session = request.session;
+  const signedIn = surface.side === 'staff' && user !== null && session !== null;
+  const locale: LocaleId = signedIn
+    ? ((await recipientLocale(meta, user.id)) as LocaleId)
+    : (negotiateLocale(request.headers['accept-language']) ??
+      ((await recipientLocale(meta, null)) as LocaleId));
+  const i18n = await createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
+  const workspace = await settingsRepo(meta).get('branding.appName');
+  const ownLabel = surface.manifest === null ? '' : resolveLabel(surface.manifest.appLabels, locale);
+  const html = renderUnavailablePage({
+    side: surface.side,
+    reason,
+    appName: appNameOf(settings, surface.appKey, ownLabel === '' ? null : ownLabel),
+    venueName: workspace === DEFAULT_WORKSPACE_NAME ? null : workspace,
+    user: signedIn ? { name: user.name, email: user.email } : null,
+    // Without the core plugin (a bare harness) there is no token to mint, and
+    // a form that would be refused is worse than none.
+    signOut:
+      signedIn && request.server.hasDecorator('csrfTokenFor')
+        ? { action: SURFACE_SIGN_OUT_PATH, field: CSRF_FORM_FIELD, token: request.server.csrfTokenFor(session.id) }
+        : null,
+    lang: bcp47(locale),
+    t: (key, fallback, args) => i18n.t(key, { defaultValue: fallback, ...args }),
+  });
+  await reply
+    // Switched off is the app's state (503); no access is this person's (403).
+    .code(reason === 'no-access' ? 403 : 503)
+    .header('cache-control', 'no-store')
+    .header('x-robots-tag', 'noindex')
+    .type('text/html; charset=utf-8')
+    .send(html);
 }
 
 /** The path half of a request URL — a query string must not defeat matching. */
@@ -248,6 +401,17 @@ function surfaceFileFor(root: string, path: string): string | null {
   }
 }
 
+/** The connection an installed app's manifest row records, or null. */
+async function installConnectionOf(meta: MetaDb, appKey: string): Promise<string | null> {
+  const row = await meta.db
+    .selectFrom('adminium_manifests')
+    .select('connectionId')
+    .where('manifestKey', '=', appKey)
+    .where('kind', '=', 'app')
+    .executeTakeFirst();
+  return row?.connectionId ?? null;
+}
+
 export const surfacesPlugin = fp<SurfacesPluginOptions>(
   async (app, opts) => {
     const surfaces = opts.surfaces ?? [];
@@ -279,6 +443,30 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       'surfaceSettings',
       opts.metaDb === undefined ? null : createSurfaceSettings({ meta: opts.metaDb }),
     );
+    /*
+     * Sign out from the script-free "not available" page: a plain form post,
+     * so its token rides in the body (`config.csrf: 'form'` — both CSRF legs
+     * still apply). Then to the sign-in page, which is where anyone on a shared
+     * tablet wants to be next.
+     */
+    const meta = opts.metaDb;
+    if (meta !== undefined) {
+      app.post(
+        SURFACE_SIGN_OUT_PATH,
+        // A form target, not an API: nothing to describe in the OpenAPI document.
+        { config: { csrf: 'form' }, schema: { hide: true } },
+        async (request, reply) => {
+          const { user, session } = request;
+          if (user !== null && session !== null) {
+            await sessionsRepo(meta).revoke(session.id);
+            clearSessionCookie(reply, request);
+            await auditAuth(meta, request, { action: 'logout', actorId: user.id, actorLabel: user.name });
+          }
+          return reply.redirect('/login', 303);
+        },
+      );
+    }
+
     app.decorate('surfaceForUrl', (url: string): HostedSurface | null => {
       const path = pathOf(url);
       for (const surface of allSurfaces()) {
@@ -318,8 +506,46 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         request: FastifyRequest,
         reply: FastifyReply,
       ): Promise<boolean> => {
+        /*
+         * SWITCHED OFF comes first, for both sides and before sign-in: an app
+         * the operator disabled, or a side they switched off, is not served to
+         * anyone. A page load gets the script-free "not available" page; any
+         * other request the coded 503.
+         */
+        const cache = app.surfaceSettings;
+        if (cache !== null) {
+          const settings = await cache.read();
+          const availability = availabilityOf(settings, surface.appKey, surface.side);
+          if (availability !== 'ok') {
+            if (isDocumentNavigation(request) && opts.metaDb !== undefined) {
+              await sendUnavailablePage(opts.metaDb, surface, availability, settings, request, reply);
+              return true;
+            }
+            throw new AppUnavailableError(surface.appKey, availability, surface.side);
+          }
+        }
         if (surface.side !== 'staff') return false;
-        if (request.user !== null && request.session !== null) return false;
+        if (request.user !== null && request.session !== null) {
+          /*
+           * Signed in is not enough: opening an app's staff screens is a
+           * grant of its own (`app:<key>:staff`), which every role that could
+           * open them before the grant existed was given.
+           */
+          if (typeof request.can === 'function' && !(await request.can(`app:${surface.appKey}:staff`))) {
+            // A page load gets the card that says so, with who is signed in
+            // and a way to sign out; anything else the coded answer.
+            if (isDocumentNavigation(request) && opts.metaDb !== undefined) {
+              const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
+              await sendUnavailablePage(opts.metaDb, surface, 'no-access', settings, request, reply);
+              return true;
+            }
+            throw new ForbiddenError('This account cannot open this app’s staff screens.', 'FORBIDDEN', {
+              reason: 'NO_STAFF_ACCESS',
+              appKey: surface.appKey,
+            });
+          }
+          return false;
+        }
         if (isDocumentNavigation(request)) {
           await reply.redirect(`/login?next=${encodeURIComponent(request.url)}`, 302);
           return true;
@@ -357,6 +583,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       appKey: string,
       side: SurfaceSide,
       slug: string | null,
+      request: FastifyRequest,
     ): Promise<Record<string, unknown> | null> {
       const connectionId = connectionForMount(settings, appKey, slug);
       /*
@@ -375,7 +602,54 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
        * new one after an upgrade.
        */
       const appName = appNameOverrideOf(settings, appKey);
-      if (side === 'staff') return { connectionId, appName };
+      if (side === 'staff') {
+        /*
+         * The install's own connection when the operator never chose one. An
+         * app installed from Studio records the database it was installed
+         * into on its manifest row, but the staff config read only the surface
+         * settings, so a fresh install's till booted with no connection and
+         * asked the operator to pick the one it had just been installed into.
+         */
+        const fallback =
+          connectionId === null && slug === null && opts.metaDb !== undefined
+            ? await installConnectionOf(opts.metaDb, appKey)
+            : null;
+        const tables = await tablesOf(connectionId ?? fallback, appKey);
+        const values = await settingsOf(appKey);
+        /*
+         * WHO IS SIGNED IN, and the token their writes carry: with these and
+         * the tables above, the staff screens need neither the dashboard's
+         * bootstrap nor its connections list — which a screens-only person may
+         * not read, and which needs a permission a cashier does not hold.
+         */
+        const user = request.user;
+        const session = request.session;
+        const signedIn =
+          user === null || session === null
+            ? {}
+            : {
+                user: { id: user.id, name: user.name, email: user.email },
+                ...(request.server.hasDecorator('csrfTokenFor') ? { csrfToken: request.server.csrfTokenFor(session.id) } : {}),
+              };
+        /*
+         * THE VENUE'S CLOCK AND MONEY, which the screens used to learn from
+         * the dashboard's connections list — a list a screens-only cashier may
+         * not read. The same four facts that list carries, nothing more.
+         */
+        const bound = connectionId ?? fallback;
+        const venue = bound === null || opts.metaDb === undefined ? null : await connectionTenantConfig(opts.metaDb, bound);
+        return {
+          connectionId: bound,
+          appName,
+          ...(tables === null ? {} : { tables }),
+          ...(values === null ? {} : { settings: values }),
+          ...(venue === null
+            ? {}
+            : { timezone: venue.timezone, timezoneSource: venue.timezoneSource, currency: venue.currency }),
+          serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ...signedIn,
+        };
+      }
       const metaDb = opts.metaDb;
       const crypto = opts.crypto;
       if (metaDb === undefined || crypto === undefined) return null;
@@ -392,18 +666,122 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           ...(slug === null ? {} : { instance: slug }),
         });
       }
+      const tables = await tablesOf(
+        connectionId ?? (slug === null ? await installConnectionOf(metaDb, appKey) : null),
+        appKey,
+      );
+      const values = await settingsOf(appKey);
       return {
         baseUrl: '',
         publishableKey: openPublishableKey(crypto, key.tokenEncrypted),
         appName,
+        ...(tables === null ? {} : { tables }),
+        ...(values === null ? {} : { settings: values }),
       };
     }
+
+    /**
+     * The app's own declared settings (a business type), with their defaults,
+     * for both sides — the same values the settings page shows. Null for an
+     * app that declares none, so its document is exactly what it always was.
+     * A secret is never here: it is never stored in this table at all.
+     */
+    async function settingsOf(appKey: string): Promise<Record<string, unknown> | null> {
+      if (opts.metaDb === undefined) return null;
+      const row = await opts.metaDb.db
+        .selectFrom('adminium_manifests')
+        .select('manifest')
+        .where('manifestKey', '=', appKey)
+        .where('kind', '=', 'app')
+        .executeTakeFirst();
+      if (row === undefined) return null;
+      const declared = (readJson<Manifest | null>(row.manifest)?.settings ?? []).filter((s) => s.secret !== true);
+      if (declared.length === 0) return null;
+      return settingValuesWithDefaults(declared, await addOnSettingsRepo(opts.metaDb).valuesFor(appKey));
+    }
+
+    /**
+     * Short name → real table, for an app whose tables Adminium named (a
+     * prefix, or a rename). The app reads it at boot instead of the names it
+     * was built with. Null when nothing is recorded, so an app installed
+     * before the record gets exactly the document it always got.
+     */
+    async function tablesOf(connectionId: string | null, appKey: string): Promise<Record<string, string> | null> {
+      if (connectionId === null || opts.metaDb === undefined) return null;
+      const names = await appTablesRepo(opts.metaDb).realNames(connectionId, appKey);
+      return Object.keys(names).length === 0 ? null : names;
+    }
+
+    /*
+     * THE MAPPED-HOST LOCKDOWN, for every method and ahead of
+     * the serve hook below.
+     *
+     * A customer's domain is the shop's own address. It used to serve the
+     * admin sign-in pages and pass all of `/api/*`, so a customer could reach
+     * the admin panel's login — and every admin route — on the shop's domain.
+     * Now it serves the public API and that app's customer surface, and every
+     * other path is a 404.
+     *
+     * A mapping to a surface this server does not serve (a deleted app, a
+     * renamed one) used to fall back to the dashboard; it now answers 503, so
+     * an operator's shop domain never shows the admin panel by accident.
+     *
+     * A mapped STAFF host keeps the dashboard's sign-in pages (that is how the
+     * till signs in), and a bare `/login` there carries `next=/` so signing in
+     * lands back on the till, not on a dashboard route painted over its URL.
+     */
+    app.addHook('onRequest', async (request, reply) => {
+      const cache = app.surfaceSettings;
+      if (cache === null) return;
+      const known = allSurfaces();
+      const settings = await cache.read();
+      const mapping = domainMappingFor(settings, request.host, normalizeHost);
+      if (mapping === null) {
+        // The address of an app that was uninstalled: its DNS still points here.
+        const host = request.host === undefined ? '' : normalizeHost(request.host);
+        const retired = Object.entries(settings.retired ?? {}).find(([mapped]) => normalizeHost(mapped) === host)?.[1];
+        if (retired !== undefined) {
+          throw new AppError(503, 'SURFACE_UNAVAILABLE', 'This address is set up for an app this server does not serve right now.', {
+            appKey: retired.appKey,
+            side: retired.side,
+          });
+        }
+        return;
+      }
+      const surface = known.find((s) => s.appKey === mapping.appKey && s.side === mapping.side);
+      const path = pathOf(request.url);
+      if (surface === undefined) {
+        throw new AppError(
+          503,
+          'SURFACE_UNAVAILABLE',
+          'This address is set up for an app this server does not serve right now.',
+          { appKey: mapping.appKey, side: mapping.side },
+        );
+      }
+      if (mapping.side === 'customer') {
+        if (!customerHostAllows(path, mapping.appKey)) {
+          // A guest's browser gets the venue's plain page; an API call, the JSON envelope.
+          if (isDocumentNavigation(request) && !path.startsWith('/api/') && opts.metaDb !== undefined) {
+            return sendNotFoundPage(opts.metaDb, request, reply);
+          }
+          throw new NotFoundError('Nothing is served at this address.');
+        }
+        return;
+      }
+      if (path === '/login' && request.method === 'GET') {
+        const query = new URLSearchParams(request.url.split('?')[1] ?? '');
+        if (!query.has('next') && !query.has('returnTo')) {
+          return reply.redirect('/login?next=%2F', 302);
+        }
+      }
+    });
 
     app.addHook('onRequest', async (request, reply) => {
       if (request.method !== 'GET' && request.method !== 'HEAD') return;
       const path = pathOf(request.url);
-      if (isHostReservedPath(path)) return;
-      const surface = await app.surfaceForHost(request);
+      const hostSurface = await app.surfaceForHost(request);
+      if (isHostReservedPath(path, hostSurface?.side ?? 'staff')) return;
+      const surface = hostSurface;
       if (surface === null) return;
       if (await app.surfaceGate(surface, request, reply)) return reply;
       /*
@@ -412,13 +790,14 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
        * the mapping — so this is the only place that answer can come from.
        */
       if (path === '/surface-config.json') {
-        const settings = (await app.surfaceSettings?.read()) ?? { apps: {}, domains: {} };
+        const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
         const mapping = domainMappingFor(settings, request.host, normalizeHost);
         const doc = await configFor(
           settings,
           surface.appKey,
           surface.side,
           mapping?.instance ?? null,
+          request,
         );
         if (doc !== null) {
           void reply.header('cache-control', 'no-store');
@@ -458,7 +837,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       );
       if (surface === undefined) return;
 
-      const settings = (await app.surfaceSettings?.read()) ?? { apps: {}, domains: {} };
+      const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
       const connectionId = connectionForMount(settings, parsed.appKey, parsed.slug);
       // An unknown slug is NOT this hook's request. Falling through leaves the
       // dashboard's own 404 to answer, which is what any other unknown path gets.
@@ -468,7 +847,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
 
       if (parsed.rest === 'surface-config.json') {
         void reply.header('cache-control', 'no-store');
-        const doc = await configFor(settings, parsed.appKey, parsed.side, parsed.slug);
+        const doc = await configFor(settings, parsed.appKey, parsed.side, parsed.slug, request);
         if (doc !== null) return reply.send(doc);
         return;
       }
@@ -541,8 +920,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
 
         if (parsed.rest === 'surface-config.json') {
           void reply.header('cache-control', 'no-store');
-          const settings = (await app.surfaceSettings?.read()) ?? { apps: {}, domains: {} };
-          const doc = await configFor(settings, parsed.appKey, parsed.side, null);
+          const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
+          const doc = await configFor(settings, parsed.appKey, parsed.side, null, request);
           if (doc !== null) return reply.send(doc);
           return;
         }
@@ -594,9 +973,9 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
          * missing-key case throws from inside, as it always did.
          */
         if (surface.side === 'staff' || (metaDb !== undefined && crypto !== undefined)) {
-          scope.get(`${surface.prefix}/surface-config.json`, async (_request, reply) => {
-            const settings = (await app.surfaceSettings?.read()) ?? { apps: {}, domains: {} };
-            const doc = await configFor(settings, surface.appKey, surface.side, null);
+          scope.get(`${surface.prefix}/surface-config.json`, async (request, reply) => {
+            const settings = (await app.surfaceSettings?.read()) ?? NO_SURFACE_SETTINGS;
+            const doc = await configFor(settings, surface.appKey, surface.side, null, request);
             if (doc === null) throw new NotFoundError('This surface has no configuration.', {
               appKey: surface.appKey,
             });

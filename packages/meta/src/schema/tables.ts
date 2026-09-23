@@ -103,6 +103,12 @@ export interface AdminiumSessionsTable {
   ip: string | null;
   userAgent: string | null;
   revokedAt: Ts | null;
+  /**
+   * "Keep me signed in" (wave 0041): true ⇒ the cookie carries `Max-Age`,
+   * false ⇒ a browser-session cookie. 2FA challenge rows carry it through to
+   * the session they become.
+   */
+  persistent: BoolColumn;
 }
 
 /** password-reset + invite-activation tokens. */
@@ -131,6 +137,10 @@ export interface AdminiumRolesTable {
   isBuiltin: BoolColumn;
   createdAt: Ts;
   updatedAt: Ts;
+  /** The app whose manifest created this role (wave 0039); null for every other role. */
+  appKey: string | null;
+  /** Opens the app's own screens and never the dashboard (wave 0039). */
+  screensOnly: BoolColumn;
 }
 
 /** per-table / per-page / system permission matrix. */
@@ -1129,6 +1139,8 @@ export interface AdminiumPublicKeysTable {
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
+  /** The app key that created it at install (wave 0039); null when an operator did. */
+  managedBy: string | null;
 }
 
 /**
@@ -1164,6 +1176,35 @@ export interface AdminiumPublicEndpointsTable {
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
+  /** The app key that created it at install (wave 0039); null when an operator did. */
+  managedBy: string | null;
+}
+
+/**
+ * One table an installed app uses on one connection (wave 0039): its short
+ * name, the real table it resolved to, and whether this install created it.
+ */
+export interface AdminiumAppTablesTable {
+  id: Id;
+  appKey: string;
+  /** SET NULL on uninstall; a reinstall re-attaches by `appKey`. */
+  manifestId: Id | null;
+  connectionId: Id;
+  ref: string;
+  tableName: string;
+  schemaName: string | null;
+  owned: BoolColumn;
+  /** `pending | created | adopted | shared | released | dropped`. */
+  state: string;
+  /** `app | sample-ledger`. */
+  role: string;
+  prefix: string | null;
+  shape: string | null;
+  /** JSON array of the column rules the installer wrote. */
+  rules: JsonColumn | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+  releasedAt: Ts | null;
 }
 
 /** Hourly request counts per key and ref (wave 0038). No foreign key, by design. */
@@ -1339,6 +1380,7 @@ export interface MetaDB {
   adminium_webhook_deliveries: AdminiumWebhookDeliveriesTable;
   adminium_feature_flags: AdminiumFeatureFlagsTable;
   adminium_manifests: AdminiumManifestsTable;
+  adminium_app_tables: AdminiumAppTablesTable;
   adminium_manifest_attachments: AdminiumManifestAttachmentsTable;
   adminium_add_on_credentials: AdminiumAddOnCredentialsTable;
   adminium_changelog_seen: AdminiumChangelogSeenTable;
@@ -1400,6 +1442,7 @@ export const META_TABLE_NAMES = [
   'adminium_webhook_deliveries',
   'adminium_feature_flags',
   'adminium_manifests',
+  'adminium_app_tables',
   'adminium_manifest_attachments',
   'adminium_add_on_credentials',
   'adminium_changelog_seen',

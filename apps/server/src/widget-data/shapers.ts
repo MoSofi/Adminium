@@ -24,6 +24,7 @@
 import type { ResolvedColumn } from '../crud/identifiers.js';
 import { applyLookupMask } from '../crud/lookups.js';
 import { maskRows, type Row } from '../crud/mask.js';
+import { wallTimeToInstant } from '../crud/venue-time.js';
 import { widgetDataChannel } from '../realtime/hub.js';
 import {
   COL_ALIAS,
@@ -167,6 +168,8 @@ export interface ShapedCalendarEvents {
 
 export interface ColumnMeta {
   name: string;
+  /** The column's own name for a person (a rename, or its app's), when it has one. */
+  label?: string;
   logicalType: string;
   nullable: boolean;
   isPrimaryKey: boolean;
@@ -476,12 +479,45 @@ export interface ShapeInput {
 }
 
 function columnMetaOf(compiled: CompiledWidgetQuery): ColumnMeta[] {
-  return compiled.selectedColumns.map((column) => ({
-    name: column.name,
-    logicalType: column.logicalType,
-    nullable: column.nullable,
-    isPrimaryKey: column.isPrimaryKey,
+  const labels = new Map<string, string>();
+  for (const column of compiled.table.table?.columns ?? []) {
+    const label = (column as { label?: string }).label;
+    if (label !== undefined) labels.set(column.name, label);
+  }
+  const selected: ColumnMeta[] = compiled.selectedColumns.map((column) => {
+    const label = labels.get(column.name);
+    return {
+      name: column.name,
+      ...(label === undefined ? {} : { label }),
+      logicalType: column.logicalType,
+      nullable: column.nullable,
+      isPrimaryKey: column.isPrimaryKey,
+    };
+  });
+  // A looked-up value is a column of the answer too — "On shift" names the person.
+  const looked: ColumnMeta[] = compiled.lookups.map((lookup) => ({
+    name: lookup.alias,
+    logicalType: lookup.target.logicalType,
+    nullable: true,
+    isPrimaryKey: false,
   }));
+  return [...selected, ...looked];
+}
+
+/**
+ * Buckets the compiler cut on the venue's clock arrive as its wall-clock text;
+ * each becomes the instant it names there, so every case below reads an
+ * instant as it always has.
+ */
+function venueBuckets(compiled: CompiledWidgetQuery, rows: Row[]): Row[] {
+  const zone = compiled.bucketZone;
+  const alias = compiled.bucketAlias ?? compiled.ohlcScan?.bucketAlias ?? null;
+  if (zone === null || alias === null) return rows;
+  return rows.map((row) => {
+    const value = row[alias];
+    const instant = typeof value === 'string' ? wallTimeToInstant(value, zone) : null;
+    return instant === null ? row : { ...row, [alias]: instant.toISOString() };
+  });
 }
 
 export function shapeRows(input: ShapeInput): ShapedPayload {
@@ -489,11 +525,10 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
   // Engines without a percentile function return the raw value column instead
   // of aggregates; folding here means every case below is dialect-blind.
   const scan = compiled.percentileScan ?? null;
-  const rows = scan === null ? input.rows : foldPercentileScan(scan, input.rows);
-  const priorRows =
-    input.priorRows === undefined || scan === null
-      ? input.priorRows
-      : foldPercentileScan(scan, input.priorRows);
+  const zoned = venueBuckets(compiled, input.rows);
+  const rows = scan === null ? zoned : foldPercentileScan(scan, zoned);
+  const priorZoned = input.priorRows === undefined ? undefined : venueBuckets(compiled, input.priorRows);
+  const priorRows = priorZoned === undefined || scan === null ? priorZoned : foldPercentileScan(scan, priorZoned);
 
   switch (compiled.shape) {
     case 'single-metric':

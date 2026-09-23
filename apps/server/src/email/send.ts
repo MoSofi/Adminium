@@ -121,6 +121,8 @@ export const NOTIFICATION_EMAIL_TEMPLATE_KEY = 'notification';
  * that gate cannot see.
  */
 export const DOCUMENT_READY_TEMPLATE_KEY = 'document-ready';
+/** A guest's booking through an app's public page (`public-api/confirm.ts`). */
+export const BOOKING_CONFIRMATION_TEMPLATE_KEY = 'booking-confirmation';
 
 /**
  * Inline last resort for the `notification` key, used ONLY when no row exists

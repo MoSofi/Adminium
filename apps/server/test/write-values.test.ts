@@ -87,3 +87,18 @@ describe('normalizeWriteValue — naive timestamp wall-clock round-trip', () => 
     expect(normalizeWriteValue(naive, 'not-a-timestamp')).toBe('not-a-timestamp');
   });
 });
+
+describe('wallTimesAsInstants', () => {
+  it('spells a SQLite wall time as the instant it denotes, on the server’s clock; leaves the rest', async () => {
+    const { wallTimesAsInstants } = await import('../src/crud/instants.js');
+    const columns = new Map([
+      ['starts_at', { logicalType: 'timestamp' as const }],
+      ['name', { logicalType: 'text' as const }],
+    ]);
+    const wall = '2026-09-25 01:00:00';
+    const local = new Date(2026, 8, 25, 1, 0, 0).toISOString();
+    expect(wallTimesAsInstants({ starts_at: wall, name: '2026-09-25 01:00:00' }, columns, 'sqlite')).toEqual({ starts_at: local, name: wall });
+    expect(wallTimesAsInstants({ starts_at: wall }, columns, 'postgres')).toEqual({ starts_at: wall });
+    expect(wallTimesAsInstants({ starts_at: '2026-09-24T23:00:00.000Z' }, columns, 'sqlite')).toEqual({ starts_at: '2026-09-24T23:00:00.000Z' });
+  });
+});

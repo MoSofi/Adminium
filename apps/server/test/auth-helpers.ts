@@ -5,6 +5,7 @@
  * a seeded first super admin, and cookie plumbing around `app.inject`.
  */
 import BetterSqlite3 from 'better-sqlite3';
+import * as OTPAuth from 'otpauth';
 import { expect } from 'vitest';
 import {
   createFirstSuperAdmin,
@@ -74,16 +75,54 @@ export function sessionCookie(setCookie: string | string[] | undefined): string 
   return pair ?? '';
 }
 
-/** POST /auth/login and return the response plus the session cookie pair. */
+/**
+ * POST /auth/login and return the response plus the session cookie pair.
+ * `extra` rides along in the body (e.g. `{ remember: false }`).
+ */
 export async function login(
   app: AdminiumServer,
   email: string = ADMIN_EMAIL,
   password: string = ADMIN_PASSWORD,
+  extra: Record<string, unknown> = {},
 ) {
   const res = await app.inject({
     method: 'POST',
     url: '/api/v1/auth/login',
-    payload: { email, password },
+    payload: { email, password, ...extra },
   });
   return { res, cookie: res.statusCode === 200 ? sessionCookie(res.headers['set-cookie']) : null };
+}
+
+export function totpCode(secretBase32: string): string {
+  return new OTPAuth.TOTP({
+    algorithm: 'SHA1',
+    digits: 6,
+    period: 30,
+    secret: OTPAuth.Secret.fromBase32(secretBase32),
+  }).generate();
+}
+
+/** enroll + activate for the signed-in admin; returns secret + recovery codes. */
+export async function enable2fa(app: AdminiumServer, cookie: string) {
+  const enroll = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/2fa/enroll',
+    headers: { cookie },
+  });
+  expect(enroll.statusCode).toBe(200);
+  const { secret, otpauthUrl } = (enroll.json() as { data: { secret: string; otpauthUrl: string } })
+    .data;
+  expect(otpauthUrl).toMatch(/^otpauth:\/\/totp\//);
+  expect(otpauthUrl).toContain('Adminium');
+
+  const activate = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/2fa/activate',
+    headers: { cookie },
+    payload: { code: totpCode(secret) },
+  });
+  expect(activate.statusCode).toBe(200);
+  const { recoveryCodes } = (activate.json() as { data: { recoveryCodes: string[] } }).data;
+  expect(recoveryCodes).toHaveLength(10);
+  return { secret, recoveryCodes };
 }

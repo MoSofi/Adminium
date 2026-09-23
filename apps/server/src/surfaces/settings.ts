@@ -15,8 +15,13 @@
  * in-flight de-duplication so a cold cache under load issues one query rather
  * than one per concurrent request.
  *
- * ── FAIL OPEN, NOT CLOSED — the opposite of the public gate ────────────────
- * When the read throws, this answers "no mappings, no placements". That reads
+ * ── THE LAST GOOD VALUE, THEN FAIL OPEN ────────────────────────────────────
+ * When a refresh throws, the last value that was read is kept and served — a
+ * blip in the meta store must not switch a disabled app back on, nor drop a
+ * mapped domain back to the dashboard. The failure itself is not cached, so the
+ * next read tries again at once.
+ *
+ * With no value ever read, it answers "no mappings, no placements". That reads
  * like failing closed and is worth naming as the deliberate opposite of
  * `enabled.ts`: there, guessing wrong publishes a database; here, guessing
  * wrong takes the DASHBOARD away from an operator on a host they can still
@@ -24,7 +29,7 @@
  * instance was in before anyone attached a domain, and is always recoverable.
  */
 
-import { settingsRepo, type MetaDb } from '@adminium/meta';
+import { settingsRepo, type ManifestStatus, type MetaDb } from '@adminium/meta';
 
 import type { SurfaceSide } from '../cli/surfaces-root.js';
 
@@ -47,12 +52,25 @@ export interface SurfaceSettings {
       connectionId?: string | undefined;
       /** Extra tenants of the same app, each at `/apps/<key>/<slug>/<side>/`. */
       instances?: { slug: string; connectionId: string }[] | undefined;
+      /** Sides switched off: not served, and their pages say "not available". */
+      off?: SurfaceSide[] | undefined;
     }
   >;
   domains: Record<string, DomainMapping>;
+  /** Hosts an uninstalled app was mapped to: 503, never the dashboard (see the registry). */
+  retired?: Record<string, { appKey: string; side: SurfaceSide }> | undefined;
+  /** Each installed app's status, by key. An app with no row is not installed. */
+  statuses: Record<string, ManifestStatus>;
 }
 
-const EMPTY: SurfaceSettings = { apps: {}, domains: {} };
+/** No placements, no mappings, no statuses: a boot with no meta store, or none read yet. */
+export const NO_SURFACE_SETTINGS: SurfaceSettings = { apps: {}, domains: {}, statuses: {} };
+const EMPTY = NO_SURFACE_SETTINGS;
+
+/** A stored status, narrowed; anything unrecognised reads as `error`. */
+function statusFrom(value: string): ManifestStatus {
+  return value === 'installing' || value === 'installed' || value === 'disabled' ? value : 'error';
+}
 
 export interface SurfaceSettingsCache {
   read: () => Promise<SurfaceSettings>;
@@ -75,6 +93,8 @@ export function createSurfaceSettings(opts: SurfaceSettingsOptions): SurfaceSett
   const settings = settingsRepo(opts.meta);
 
   let value: SurfaceSettings | null = null;
+  /** The last refresh that succeeded, kept through a failed one. */
+  let lastGood: SurfaceSettings | null = null;
   let expiresAt = 0;
   let inFlight: Promise<SurfaceSettings> | null = null;
 
@@ -83,23 +103,35 @@ export function createSurfaceSettings(opts: SurfaceSettingsOptions): SurfaceSett
       // Both keys in one refresh: they are read together by every consumer and
       // two independent TTLs would let the placement and the domain map
       // disagree for a few seconds after a save that changed both.
-      const [apps, domains] = await Promise.all([
+      // The app statuses ride the same refresh: the gate reads all three
+      // together, and a disabled app must stop answering on the same save.
+      const [apps, domains, retired, rows] = await Promise.all([
         settings.get('surfaces.apps'),
         settings.get('surfaces.domains'),
+        settings.get('surfaces.retiredHosts'),
+        opts.meta.db
+          .selectFrom('adminium_manifests')
+          .select(['manifestKey', 'status'])
+          .where('kind', '=', 'app')
+          .execute(),
       ]);
       const next: SurfaceSettings = {
         apps: apps ?? {},
         domains: domains ?? {},
+        retired: retired ?? {},
+        statuses: Object.fromEntries(rows.map((row) => [row.manifestKey, statusFrom(row.status)])),
       };
       value = next;
+      lastGood = next;
       expiresAt = now() + ttl;
       return next;
     } catch {
       // Do not cache the failure: a transient blip must not keep a mapped
-      // domain dark for the whole TTL after the store recovers.
+      // domain dark for the whole TTL after the store recovers. Serve the
+      // last good value meanwhile, so a disabled app stays disabled.
       value = null;
       expiresAt = 0;
-      return EMPTY;
+      return lastGood ?? EMPTY;
     } finally {
       inFlight = null;
     }
@@ -185,6 +217,31 @@ export function appNameOf(
   return ownLabel !== null && ownLabel !== '' ? ownLabel : appKey;
 }
 
+/** Is one side of an app switched off by the operator? */
+export function sideOffOf(settings: SurfaceSettings, appKey: string, side: SurfaceSide): boolean {
+  return settings.apps[appKey]?.off?.includes(side) ?? false;
+}
+
+/**
+ * Whether one side of an app may answer, and why not.
+ *
+ * `app-disabled` wins over `side-off`: a disabled app is off everywhere, and
+ * the page should say so rather than name one side. An app the store does not
+ * list (a directory surface, or a boot with no meta store) is `ok` — it is not
+ * this switch's to turn off.
+ */
+export type SurfaceAvailability = 'ok' | 'app-disabled' | 'side-off';
+
+export function availabilityOf(
+  settings: SurfaceSettings,
+  appKey: string,
+  side: SurfaceSide,
+): SurfaceAvailability {
+  if (settings.statuses[appKey] === 'disabled') return 'app-disabled';
+  if (sideOffOf(settings, appKey, side)) return 'side-off';
+  return 'ok';
+}
+
 /** Extra instances declared for an app, in declaration order. Never null. */
 export function instancesOf(
   settings: SurfaceSettings,
@@ -267,6 +324,14 @@ export async function forgetAppSurfaceSettings(
       Object.entries(domains).filter(([, target]) => target.appKey !== appKey),
     );
     await settings.set('surfaces.domains', kept, { updatedBy });
+    // Their DNS still points here: they answer 503, not the dashboard, until mapped again.
+    const retired = await settings.get('surfaces.retiredHosts');
+    const more = Object.fromEntries(
+      Object.entries(domains)
+        .filter(([, target]) => target.appKey === appKey)
+        .map(([host, target]) => [host, { appKey, side: target.side }]),
+    );
+    await settings.set('surfaces.retiredHosts', { ...retired, ...more }, { updatedBy });
   }
 
   return { removedHosts, removedPlacement };

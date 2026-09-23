@@ -24,6 +24,13 @@ export type OkReply = z.infer<typeof okReply>;
 export const authLoginBody = z.object({
   email: z.string().trim().min(3).max(320),
   password: z.string().min(1).max(200),
+  /**
+   * "Keep me signed in". `false` gives a browser-session cookie (no
+   * `Max-Age`), dropped when the browser closes; `true` or absent gives the
+   * long-lived cookie every client got before the field existed. A 2FA
+   * challenge carries it through to /auth/2fa/verify, so it is sent once.
+   */
+  remember: z.boolean().optional(),
 });
 export type AuthLoginBody = z.infer<typeof authLoginBody>;
 

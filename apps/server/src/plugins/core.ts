@@ -122,6 +122,7 @@ import {
   allowedOriginHosts,
   checkCsrf,
   csrfSigningKey,
+  issueCsrfToken,
   type CsrfDeps,
 } from '../security/csrf.js';
 
@@ -585,6 +586,7 @@ export const corePlugin = fp<CorePluginOptions>(
       allowedOrigins: allowedOriginHosts(origins),
     };
     app.decorate('csrfOrigins', csrf.allowedOrigins);
+    app.decorate('csrfTokenFor', (sessionId: string) => issueCsrfToken(csrf.key, sessionId));
     app.addHook('preValidation', async (request) => {
       const failure = checkCsrf(request, csrf);
       if (failure === null) return;

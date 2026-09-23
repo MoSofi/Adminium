@@ -10,7 +10,7 @@ import type { Selectable } from 'kysely';
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
 import type { AdminiumSessionsTable } from '../schema/tables.js';
-import { DAY_MS } from './util.js';
+import { DAY_MS, writeBool } from './util.js';
 
 /** `last_seen_at` updates are throttled to at most one per this interval. */
 export const SESSION_TOUCH_INTERVAL_MS = 60_000;
@@ -23,6 +23,8 @@ export interface CreateSessionInput {
   expiresAt: number;
   ip?: string | null;
   userAgent?: string | null;
+  /** "Keep me signed in" — decides the cookie's `Max-Age`. Default true. */
+  persistent?: boolean;
 }
 
 export function sessionsRepo(meta: MetaDb) {
@@ -39,6 +41,7 @@ export function sessionsRepo(meta: MetaDb) {
         ip: input.ip ?? null,
         userAgent: input.userAgent ?? null,
         revokedAt: null,
+        persistent: writeBool(meta, input.persistent ?? true),
       };
       await db.insertInto('adminium_sessions').values(row).execute();
       return row;

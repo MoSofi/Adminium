@@ -9,6 +9,8 @@
  */
 import { z } from 'zod';
 
+import { planReply } from '../schema-ddl/schema.js';
+
 /**
  * `@adminium/manifest`'s identity grammar, restated.
  *
@@ -66,10 +68,29 @@ export const stagedAppReply = z.object({
  * only connection" on an instance that later grows a second one would silently
  * start planning against a different database than the operator meant.
  */
+/**
+ * The operator's answers on the check step: what to do with each table whose
+ * name is taken (by its short name), and a different prefix for the whole app.
+ */
+export const installAnswers = {
+  choices: z
+    .record(
+      z.string().regex(/^[a-z][a-z0-9_]*$/),
+      z.discriminatedUnion('action', [
+        z.object({ action: z.literal('reuse') }),
+        z.object({ action: z.literal('share') }),
+        z.object({ action: z.literal('rename-existing'), to: z.string().min(1).max(64) }),
+      ]),
+    )
+    .optional(),
+  altPrefix: z.string().min(2).max(40).optional(),
+};
+
 export const planAppBody = z.object({
   key: appKey,
   version: z.string().min(1).max(64),
   connectionId: z.string().min(1),
+  ...installAnswers,
 });
 
 /**
@@ -160,6 +181,78 @@ export const appInstallPlanDto = z.object({
       }),
     ),
   }),
+  /**
+   * The plan's identity: a hash of what it would do and of the
+   * live tables it was made from. The install sends it back, and a database
+   * that changed in between answers 409 `SCHEMA_DRIFT` instead of doing
+   * something the operator never saw.
+   */
+  checksum: z.string(),
+  /**
+   * Each table's class, action, what the check step offers, and the safe edits
+   * a reused table needs. Absent for an add-on.
+   */
+  tables: z
+    .array(
+      z.object({
+        ref: z.string(),
+        table: z.string(),
+        class: z.enum(['new', 'own-leftover', 'shared', 'taken']),
+        action: z.enum(['create', 'reuse', 'share', 'rename-existing', 'undecided']),
+        offers: z.array(z.enum(['reuse', 'share', 'rename-existing', 'alt-prefix'])),
+        reuseRefusal: z.string().optional(),
+        renameExistingTo: z.string().optional(),
+        sharedWith: z.string().optional(),
+        /** From an earlier install that used the table it found rather than making it. */
+        adopted: z.literal(true).optional(),
+        edits: z.array(
+          z.object({
+            kind: z.enum(['add-column', 'widen', 'set-identity', 'enum-values']),
+            column: z.string(),
+            from: z.string().optional(),
+            to: z.string().optional(),
+            values: z.array(z.string()).optional(),
+          }),
+        ),
+        blocked: z.array(z.object({ column: z.string(), reason: z.string() })),
+        /** The columns the app declares for it. */
+        columns: z.array(z.object({ ref: z.string(), type: z.string() })),
+      }),
+    )
+    .optional(),
+  /** Short name → real table. */
+  names: z.record(z.string(), z.string()).optional(),
+  /** The app ships sample data, which can be added once it is installed. */
+  sampleData: z.boolean().optional(),
+  /**
+   * What the app's guests could do through the public API, as it asks, for
+   * the check step to show and the installer to allow or not. Absent for an
+   * app asking for none.
+   */
+  publicAccess: z
+    .object({
+      endpoints: z.array(
+        z.object({
+          ref: z.string(),
+          table: z.string(),
+          methods: z.array(z.string()),
+          select: z.array(z.string()),
+          writable: z.array(z.string()),
+          claim: z.array(z.string()).nullable(),
+          /** `availability` answers free or full per slot, never a row. */
+          kind: z.enum(['records', 'availability']),
+          /** A guest's create here is confirmed by email. */
+          confirms: z.boolean(),
+          /** Answered by a later release: listed, not made now. */
+          pending: z.boolean(),
+          issues: z.array(z.string()),
+        }),
+      ),
+      warnings: z.array(z.object({ code: z.string(), message: z.string() })),
+      /** Making the app's key needs `system:api-keys:manage`. */
+      canGrant: z.boolean(),
+    })
+    .optional(),
 });
 
 export const appInstallPlanReply = z.object({ plan: appInstallPlanDto });
@@ -181,6 +274,19 @@ export const installAppBody = z.object({
    * later manifest version permitting no tables does not need a wire change.
    */
   connectionId: z.string().min(1).optional(),
+  /**
+   * The `checksum` of the plan the operator reviewed. When present, the install
+   * re-plans from the live database and refuses with 409 `SCHEMA_DRIFT` if the
+   * plan came out different. Optional so a scripted install that never showed
+   * anyone a plan keeps working.
+   */
+  planChecksum: z.string().min(1).max(128).optional(),
+  /**
+   * The check step's "Allow this public access". Absent means allowed — the
+   * box starts ticked — for an app that asks for any.
+   */
+  publicAccess: z.boolean().optional(),
+  ...installAnswers,
 });
 
 /** One side of an installed app, as the operator's list shows it. */
@@ -194,6 +300,13 @@ const installedSide = z.object({
    * section.
    */
   navAvailable: z.boolean(),
+  /**
+   * Where this side opens: its mapped host when it has one, else its prefix.
+   * Absent from an older server.
+   */
+  openUrl: z.string().optional(),
+  /** `on`, switched `off` by the operator, or the whole app `disabled`. */
+  state: z.enum(['on', 'off', 'disabled']).optional(),
 });
 
 /** What the install actually did to the database, for the receipt. */
@@ -220,6 +333,18 @@ export const installedAppReply = z.object({
    */
   missing: z.boolean(),
   /**
+   * The row's status. `installing` is an install that
+   * stopped part way: not served, and finished by installing again. Absent
+   * from an older server.
+   */
+  status: z.enum(['installing', 'installed', 'disabled', 'error']).optional(),
+  /**
+   * Set when the app is prefixed now and this install's tables still carry
+   * the plain names they were made or found with: the prefix they would get,
+   * and how many. The page offers the rename. Absent otherwise.
+   */
+  oldTableNames: z.object({ prefix: z.string(), count: z.number() }).optional(),
+  /**
    * The manifest's pages, as install/update just wrote them. Absent on the
    * list route and for an app declaring none. `warnings` never mean the call
    * failed: a page that could not be bound was created empty, and shows the
@@ -231,6 +356,30 @@ export const installedAppReply = z.object({
       recomposed: z.array(z.string()),
       kept: z.array(z.string()),
       warnings: z.array(z.object({ page: z.string(), reason: z.string(), message: z.string() })),
+    })
+    .optional(),
+  /**
+   * The column rules and option lists the manifest asked for, as install or
+   * update just wrote them. A skipped rule is one the operator already keeps,
+   * or one the database cannot. Absent where pages are.
+   */
+  rules: z
+    .object({
+      written: z.number(),
+      removed: z.number(),
+      lists: z.array(z.string()),
+      skipped: z.array(z.object({ table: z.string(), column: z.string(), op: z.string(), reason: z.string() })),
+    })
+    .optional(),
+  /** The manifest's roles made now, and the grants given now (each once). Absent where pages are. */
+  roles: z.object({ created: z.array(z.string()), seeded: z.number() }).optional(),
+  /** The public endpoints the manifest asked for, saved now, and the guests' key if one was made now. */
+  publicAccess: z
+    .object({
+      endpoints: z.array(z.string()),
+      keyId: z.string().nullable(),
+      /** An update's change the app's own key may not take; the endpoint stays as it was. */
+      skipped: z.array(z.object({ ref: z.string(), reason: z.string() })),
     })
     .optional(),
 });
@@ -347,6 +496,175 @@ export const downloadAppBody = z.object({
   version: z.string().min(1).max(64),
 });
 
+/**
+ * An update may carry the check's answers for a new version's tables, and the
+ * checksum of the plan the operator saw. No body updates as before.
+ */
+export const updateAppBody = z
+  .object({
+    planChecksum: z.string().min(1).max(128).optional(),
+    choices: installAnswers.choices,
+  })
+  // A POST with no body at all arrives as null.
+  .nullish();
+
+/** One table the rename to the app's prefix would move. */
+const prefixRename = z.object({ ref: z.string(), from: z.string(), to: z.string() });
+
+/**
+ * What renaming an install's tables to the app's prefix would do: EVERY table
+ * that carries a plain name, and the schema editor's own plan for the renames.
+ */
+export const renameTablesPlanReply = z.object({
+  prefix: z.string(),
+  connectionId: z.string(),
+  tables: z.array(prefixRename),
+  plan: planReply,
+});
+
+export const renameTablesBody = z.object({
+  /** The `plan.checksum` the operator reviewed; a database that moved answers SCHEMA_DRIFT. */
+  checksum: z.string().min(1).max(128),
+});
+
+export const renameTablesReply = z.object({
+  prefix: z.string(),
+  renamed: z.array(prefixRename),
+  changeId: z.string(),
+});
+
+// ── One app's own settings page ─────────────────────────────────────────────
+
+const appSide = z.enum(['staff', 'customer']);
+
+/**
+ * Change one app's settings. Every field is optional and only what is sent
+ * changes: its display name (null = the app's own), where its staff screens
+ * live, the connection its staff side reads (null = infer), which sides are
+ * switched off, and the values of the settings its manifest declares.
+ */
+export const appSettingsBody = z
+  .object({
+    name: z.string().trim().min(1).max(60).nullable().optional(),
+    placement: z.enum(['internal', 'external']).optional(),
+    connectionId: z.string().min(1).nullable().optional(),
+    off: z.array(appSide).max(2).optional(),
+    values: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
+export const appSettingsReply = z.object({
+  key: appKey,
+  /** The operator's own name, or null for the app's. */
+  name: z.string().nullable(),
+  placement: z.enum(['internal', 'external']),
+  connectionId: z.string().nullable(),
+  off: z.array(appSide),
+  /** Every declared, non-secret setting, with its default where none was saved. */
+  values: z.record(z.string(), z.unknown()),
+  /** This app's mapped hosts. */
+  domains: z.record(z.string(), z.object({ side: appSide, instance: z.string().optional() })),
+  /** What each of those settings is, so a page can draw its control. Secrets never appear. */
+  declared: z.array(
+    z.object({
+      key: z.string(),
+      type: z.enum(['string', 'number', 'boolean', 'enum', 'file', 'json']),
+      enum: z.array(z.string()).optional(),
+      min: z.number().optional(),
+      max: z.number().optional(),
+      /** The manifest's English label and help. */
+      label: z.string().optional(),
+      help: z.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * What one app's settings page shows beside its settings: the connection it
+ * reads, every table it uses (with the snapshot's row estimate, never a live
+ * count), and its recent activity from the audit log.
+ */
+export const appOverviewReply = z.object({
+  key: appKey,
+  connection: z.object({ id: z.string(), name: z.string(), engine: z.string() }).nullable(),
+  tables: z.array(
+    z.object({
+      ref: z.string(),
+      table: z.string(),
+      state: z.string(),
+      /** `sample-ledger`: Adminium's list of the sample rows it added, made on the first add. */
+      role: z.enum(['app', 'sample-ledger']),
+      /** The last introspection's estimate; null when it has none. */
+      rows: z.number().nullable(),
+    }),
+  ),
+  activity: z.array(
+    z.object({ action: z.string(), at: z.number(), actor: z.string() }),
+  ),
+});
+
+export const appStatusReply = z.object({
+  key: appKey,
+  status: z.enum(['installing', 'installed', 'disabled', 'error']),
+});
+
+const appDomainTarget = z.object({ side: appSide, instance: z.string().min(1).max(40).optional() });
+
+/** This app's hosts, all of them: the ones left out are unmapped. Other apps' hosts are untouched. */
+export const appDomainsBody = z.object({ domains: z.record(z.string(), appDomainTarget) }).strict();
+export const appDomainsReply = z.object({ domains: z.record(z.string(), appDomainTarget) });
+
+/** This app's extra instances, all of them. */
+export const appInstancesBody = z
+  .object({ instances: z.array(z.object({ slug: z.string(), connectionId: z.string().min(1) })).max(32) })
+  .strict();
+export const appInstancesReply = z.object({
+  instances: z.array(z.object({ slug: z.string(), connectionId: z.string() })),
+});
+
+// ── Sample data ─────────────────────────────────────────────────────────────
+
+const tableCount = z.object({ ref: z.string(), count: z.number() });
+
+export const sampleStatusReply = z.object({
+  /** The app ships a sample bundle. */
+  offered: z.boolean(),
+  loaded: z.boolean(),
+  total: z.number(),
+  /** When it was added (epoch ms), or null. */
+  addedAt: z.number().nullable(),
+  tables: z.array(tableCount),
+  /** What an add would write, when the app offers sample data and none is loaded. */
+  available: z.object({ total: z.number(), tables: z.array(tableCount), assets: z.number() }).nullable(),
+});
+
+export const sampleRemovePlanReply = z.object({
+  tables: z.array(tableCount),
+  /** Sample rows your own records still use: kept. */
+  kept: z.array(
+    z.object({
+      ref: z.string(),
+      label: z.string().nullable(),
+      /** What the record is called now (its label column), when it has one. */
+      title: z.string().nullable(),
+      usedBy: z.number(),
+    }),
+  ),
+  /** Sample rows changed since they were added, and which columns. */
+  changed: z.array(
+    z.object({ ref: z.string(), label: z.string().nullable(), title: z.string().nullable(), columns: z.array(z.string()) }),
+  ),
+  total: z.number(),
+});
+
+export const sampleRemoveBody = z.object({ keepChanged: z.boolean().default(true) }).strict();
+
+export const sampleRemoveReply = z.object({
+  removed: z.number(),
+  kept: z.number(),
+  byTable: z.record(z.string(), z.number()),
+});
+
 /** An update's receipt (48 G8-D6). */
 export const updateAppReply = z.object({
   app: installedAppReply,
@@ -367,7 +685,52 @@ export const discardStagedAppReply = z.object({
   discarded: z.boolean(),
 });
 
+/**
+ * What uninstalling would remove and keep, for the dialog to say before
+ * anything happens. Deleting a role takes its members' membership and its
+ * `adm_sk_` keys with it (hard-deleted, not revoked), so both are counted.
+ */
+export const uninstallPlanReply = z.object({
+  key: appKey,
+  pages: z.object({
+    /** Untouched since install: deleted with their grants. */
+    removed: z.array(z.object({ slug: z.string(), title: z.string() })),
+    /** Edited by someone: kept as ordinary pages. */
+    kept: z.array(z.object({ slug: z.string(), title: z.string() })),
+  }),
+  keys: z.number(),
+  endpoints: z.number(),
+  roles: z.array(z.object({ slug: z.string(), name: z.string(), members: z.number(), apiKeys: z.number() })),
+  tables: z.array(
+    z.object({
+      table: z.string(),
+      /** Made by this app and named by nothing else: the one kind the option may drop. */
+      droppable: z.boolean(),
+    }),
+  ),
+  hosts: z.array(z.string()),
+  /** Column rules the app wrote that are still as it wrote them: taken back. */
+  rules: z.number(),
+  /** Discarding data is Super Admin's alone; the dialog offers the drop only when this is true. */
+  canDropTables: z.boolean(),
+});
+
+/** Uninstall. Dropping the app's own tables needs the app's key typed back. */
+export const uninstallAppBody = z
+  .object({
+    dropTables: z.boolean().optional(),
+    confirmKey: z.string().max(64).optional(),
+  })
+  .nullish();
+
 export const uninstallAppReply = z.object({
   key: appKey,
   uninstalled: z.boolean(),
+  /** What went. Absent from an older server. */
+  removed: z
+    .object({ pages: z.number(), keys: z.number(), endpoints: z.number(), roles: z.number(), rules: z.number().optional() })
+    .optional(),
+  /** What stayed: pages someone edited, and every table not dropped. */
+  kept: z.object({ pages: z.number(), tables: z.array(z.string()) }).optional(),
+  dropped: z.array(z.string()).optional(),
 });

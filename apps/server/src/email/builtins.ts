@@ -76,6 +76,8 @@ export interface BuiltinEmailTemplate {
   /** Admin-facing label in the templates list — localized like everything else. */
   name: string;
   subject: string;
+  /** The line a mail client shows beside the subject; none when absent. */
+  preheader?: string;
   blocks: EmailTemplateBlock[];
   /** The fixed footer. */
   footer: string;
@@ -110,6 +112,12 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    * `document.rendered`, and the i18n keys really are `email.documentReady.*`.
    */
   'document-ready',
+  /*
+   * A guest's booking, made through an app's public page. The page is static
+   * and has no server of its own, so the confirmation can only come from
+   * here; any app whose guests book, order or buy reuses it.
+   */
+  'booking-confirmation',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -138,6 +146,7 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    * with no document on it.
    */
   'document-ready': ['appName', 'kind', 'number', 'business', 'documentUrl', 'documentFileId'],
+  'booking-confirmation': ['appName', 'venue', 'name', 'code', 'when', 'party', 'manageUrl', 'cancelHours', 'address', 'phone'],
 };
 
 /**
@@ -161,6 +170,14 @@ const VAR = {
   business: '{{business}}',
   documentUrl: '{{documentUrl}}',
   documentFileId: '{{documentFileId}}',
+  venue: '{{venue}}',
+  code: '{{code}}',
+  when: '{{when}}',
+  party: '{{party}}',
+  manageUrl: '{{manageUrl}}',
+  cancelHours: '{{cancelHours}}',
+  address: '{{address}}',
+  phone: '{{phone}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -367,6 +384,64 @@ function documentReadyTemplate(t: Translate): BuiltinEmailTemplate {
 }
 
 /**
+ * A guest's booking: the code to show on arrival, when, for how many, and
+ * the way back to change it. Subject and preheader say the essentials so an
+ * inbox list alone is enough.
+ */
+function bookingConfirmationTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'booking-confirmation',
+    name: t('email:bookingConfirmation.name', { defaultValue: 'Booking confirmation' }),
+    subject: t('email:bookingConfirmation.subject', { venue: VAR.venue, defaultValue: 'Your table at {venue} is booked' }),
+    preheader: t('email:bookingConfirmation.preheader', {
+      code: VAR.code,
+      when: VAR.when,
+      party: VAR.party,
+      defaultValue: 'Booking {code} · {when} · party of {party}',
+    }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:bookingConfirmation.heading', { defaultValue: 'Your table is booked' })),
+      paragraph(
+        'intro',
+        t('email:bookingConfirmation.intro', {
+          venue: VAR.venue,
+          defaultValue: 'We’re holding a table for you at {venue}. Show this code when you arrive.',
+        }),
+      ),
+      { block: 'email.box', id: 'code', data: { label: t('email:bookingConfirmation.codeLabel', { defaultValue: 'Booking code' }), value: VAR.code } },
+      {
+        block: 'email.list',
+        id: 'details',
+        data: {
+          items: [
+            t('email:bookingConfirmation.when', { when: VAR.when, defaultValue: 'When: {when}' }),
+            t('email:bookingConfirmation.party', { party: VAR.party, defaultValue: 'Party: {party}' }),
+            t('email:bookingConfirmation.guest', { name: VAR.name, defaultValue: 'Name: {name}' }),
+          ],
+        },
+      },
+      button(t('email:bookingConfirmation.action', { defaultValue: 'Manage your booking' }), VAR.manageUrl),
+      paragraph(
+        'cancel',
+        t('email:bookingConfirmation.cancel', {
+          cancelHours: VAR.cancelHours,
+          defaultValue: 'You can cancel online up to {cancelHours} hours before.',
+        }),
+      ),
+    ],
+    // Transactional, like a receipt: the venue's address and phone, not an
+    // unsubscribe line.
+    footer: t('email:bookingConfirmation.footer', {
+      venue: VAR.venue,
+      address: VAR.address,
+      phone: VAR.phone,
+      defaultValue: '{venue} · {address} · {phone}',
+    }),
+  };
+}
+
+/**
  * Every built-in, rendered through one recipient-locale translator. Exported
  * for the seed and for tests that need the exact bytes without a database.
  */
@@ -376,6 +451,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     userInviteTemplate(t),
     notificationTemplate(t),
     documentReadyTemplate(t),
+    bookingConfirmationTemplate(t),
   ];
 }
 
@@ -388,6 +464,7 @@ function sameContent(row: EmailTemplate, def: BuiltinEmailTemplate): boolean {
   return (
     row.name === def.name &&
     row.subject === def.subject &&
+    row.preheader === (def.preheader ?? '') &&
     row.footer === def.footer &&
     row.category === def.category &&
     JSON.stringify(row.blocks) === JSON.stringify(def.blocks) &&
@@ -423,6 +500,7 @@ export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.
         {
           name: def.name,
           subject: def.subject,
+          ...(def.preheader === undefined ? {} : { preheader: def.preheader }),
           blocks: def.blocks,
           footer: def.footer,
           category: def.category,
@@ -471,7 +549,7 @@ export async function resetBuiltinEmailTemplate(
       blocks: def.blocks,
       footer: def.footer,
       category: def.category,
-      preheader: '',
+      preheader: def.preheader ?? '',
       brand: null,
       attachments: def.attachments ?? [],
       starter: null,

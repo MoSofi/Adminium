@@ -24,7 +24,9 @@ import { compileScope, type CompiledResource } from '../src/public-api/scope.js'
 import {
   claimPredicateFor,
   combinePredicates,
+  normaliseCode,
   parseGrant,
+  samePhone,
   type PublicSessionContext,
 } from '../src/public-api/claim.js';
 
@@ -204,7 +206,7 @@ describe('resolveClaim — every failure is the same failure', () => {
   // which are the ones that decide whether the endpoint is an oracle.
   const run = async (match: Record<string, unknown>) => {
     const { resolveClaim } = await import('../src/public-api/claim.js');
-    return resolveClaim({ db, table: view.table('public.orders'), resource: res('orders'), scope, match });
+    return resolveClaim({ db, table: view.table('public.orders'), resource: res('orders'), scope, match, view, dialect: 'sqlite' });
   };
 
   it('refuses a MISSING factor', async () => {
@@ -241,6 +243,8 @@ describe('resolveClaim — every failure is the same failure', () => {
         resource: noClaim.byRef.get('orders') as CompiledResource,
         scope: noClaim,
         match: { ref: 'x' },
+        view,
+        dialect: 'sqlite',
       }),
     ).toBeNull();
   });
@@ -256,5 +260,35 @@ describe('parseGrant', () => {
     expect(parseGrant('not json')).toBeNull();
     expect(parseGrant('{"ref":"orders"}')).toBeNull();
     expect(parseGrant('null')).toBeNull();
+  });
+});
+
+describe('a guest types a code and a number from memory (55 DP24, F15)', () => {
+  it('reads the whole phone number, however it is punctuated', () => {
+    expect(samePhone('+1 415 555 0166', '(415) 555-0166')).toBe(true);
+    expect(samePhone('+1 415 555 0166', '4155550166')).toBe(true);
+    expect(samePhone('+44 7700 900123', '07700 900123')).toBe(true);
+    expect(samePhone('+44 7700 900123', '0044 7700 900123')).toBe(true);
+    expect(samePhone('07700900001', '07700 900 001')).toBe(true);
+  });
+
+  it('never matches on part of it — the comp’s last four digits are not enough', () => {
+    expect(samePhone('+1 415 555 0166', '0166')).toBe(false);
+    expect(samePhone('+1 415 555 0166', '555 0166')).toBe(false);
+    expect(samePhone('+1 415 555 0166', '+1 415 555 0167')).toBe(false);
+    // Four digits of "country code" in front is not a country code.
+    expect(samePhone('+1234 415 555 0166', '415 555 0166')).toBe(false);
+    expect(samePhone(null, '4155550166')).toBe(false);
+  });
+
+  it('reads a code as its rule writes it', () => {
+    const rule = { prefix: 'MR-', length: 4 };
+    expect(normaliseCode('mr-4829', rule)).toBe('MR-4829');
+    expect(normaliseCode('MR 4829', rule)).toBe('MR-4829');
+    expect(normaliseCode('mr4829', rule)).toBe('MR-4829');
+    expect(normaliseCode('4829', rule)).toBe('MR-4829');
+    expect(normaliseCode(' mr-7q2k ', rule)).toBe('MR-7Q2K');
+    // Crockford: O is 0, I and L are 1.
+    expect(normaliseCode('MR-O1LI', rule)).toBe('MR-0111');
   });
 });

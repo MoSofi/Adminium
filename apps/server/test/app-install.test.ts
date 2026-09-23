@@ -18,11 +18,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { gzipSync } from 'fflate';
 import { Kysely, SqliteDialect } from 'kysely';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  appTablesRepo,
   auditRepo,
   connectionsRepo,
   createSqliteMetaDb,
@@ -40,54 +40,17 @@ import { createInstalledApps, surfacesOfInstalled, type InstalledApps } from '..
 import { createAppStore, type AppStore } from '../src/apps/store.js';
 import type { AppSchemaTarget } from '../src/apps/schema-target.js';
 import { seedBundledPackages, sha512Integrity } from '../src/add-ons/store.js';
-import { applyInstall, type ExistingTable } from '../src/add-ons/install-ddl.js';
+import { AddOnInstallError, applyInstall, type ExistingTable } from '../src/add-ons/install-ddl.js';
 import { AppError, errorEnvelope, UnauthorizedError } from '../src/errors.js';
 import { appRoutes } from '../src/routes/apps/index.js';
+import { packageTarball } from './app-bundle-helpers.js';
+import type { EditBody } from '../src/schema-ddl/programmatic.js';
+
+/** Every schema edit the installer asked the (fake) target to make. */
+const editCalls: EditBody[] = [];
+/** What the fake target's edits are planned against. */
+const EMPTY_MODEL = { tables: [], relations: [], enums: [] } as never;
 import { makeEnv } from './helpers.js';
-
-const BLOCK = 512;
-
-function put(b: Uint8Array, at: number, len: number, v: string): void {
-  b.set(Buffer.from(v, 'latin1').subarray(0, len), at);
-}
-
-/** A real npm-shaped tarball, so the store's own hardening runs. */
-function packageTarball(files: Record<string, string>): Uint8Array {
-  const members: Uint8Array[] = [];
-  for (const [path, content] of Object.entries(files)) {
-    const body = Buffer.from(content, 'utf8');
-    const header = new Uint8Array(BLOCK);
-    put(header, 0, 100, `package/${path}`);
-    put(header, 100, 8, '0000644\0');
-    put(header, 124, 12, `${body.length.toString(8).padStart(11, '0')}\0`);
-    put(header, 136, 12, '00000000000\0');
-    put(header, 156, 1, '0');
-    put(header, 257, 6, 'ustar\0');
-    put(header, 263, 2, '00');
-    header.set(Buffer.from('        ', 'latin1'), 148);
-    let sum = 0;
-    for (let i = 0; i < BLOCK; i += 1) sum += header[i] ?? 0;
-    put(header, 148, 8, `${sum.toString(8).padStart(6, '0')}\0 `);
-
-    const padding = (BLOCK - (body.length % BLOCK)) % BLOCK;
-    const member = new Uint8Array(BLOCK + body.length + padding);
-    member.set(header, 0);
-    member.set(body, BLOCK);
-    members.push(member);
-  }
-  members.push(new Uint8Array(BLOCK * 2));
-  const total = members.reduce((n, m) => n + m.length, 0);
-  const flat = new Uint8Array(total);
-  let offset = 0;
-  for (const member of members) {
-    flat.set(member, offset);
-    offset += member.length;
-  }
-  // `mtime: 0` leaves the gzip header's timestamp at zero, as `npm pack` does.
-  // fflate's default is the current second, so the same files packed a second
-  // apart would hash differently.
-  return gzipSync(flat, { mtime: 0 });
-}
 
 /**
  * A manifest that actually validates.
@@ -166,6 +129,10 @@ let directoryKeys: string[] = [];
 /** The operator's database, as far as these tests are concerned. */
 let sourceDb: Kysely<Record<string, Record<string, unknown>>>;
 let existingTables: ExistingTable[] = [];
+/** Every table-name set a plan asked the live database for. */
+let readNames: Set<string>[] = [];
+/** When set, the fake target fails right after creating this table (once). */
+let failAfterTable: string | null = null;
 /**
  * A REAL connection row, not a made-up id.
  *
@@ -187,11 +154,13 @@ beforeEach(async () => {
     store,
     list: async () =>
       (await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v })
-        .list('app')).map((m) => ({ key: m.row.manifestKey, version: m.row.version })),
+        .list('app')).map((m) => ({ key: m.row.manifestKey, version: m.row.version, status: m.row.status })),
   });
   anonymous = false;
   directoryKeys = [];
   existingTables = [];
+  readNames = [];
+  failAfterTable = null;
   CONNECTION = (
     await connectionsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).create({
       name: 'Practice',
@@ -259,14 +228,33 @@ async function buildApp(serverVersion = '0.3.0') {
        * "the table was created" assertion into a claim about a claim.
        */
       schemaTarget: {
-        read: async () => existingTables.map((table) => ({ ...table, columns: [...table.columns] })),
-        apply: async (plan, manifest) =>
+        read: async (_connectionId, names) => {
+          readNames.push(new Set(names));
+          return {
+            tables: existingTables.map((table) => ({ ...table, columns: [...table.columns] })),
+            dialect: 'sqlite' as const,
+          };
+        },
+        edit: async (_connectionId, build) => {
+          editCalls.push(build(EMPTY_MODEL));
+          return { changeId: 'chg_test', status: 'applied' } as never;
+        },
+        planEdit: () => Promise.reject(new Error('no schema editor in this suite')),
+        apply: async (plan, manifest, _connectionId, _existing, onCreated) =>
           applyInstall({
             plan,
             tables: manifest.requiredSchema?.tables ?? [],
             db: sourceDb,
             dialect: 'sqlite',
             existing: existingTables,
+            onCreated: async (ref) => {
+              await onCreated?.(ref);
+              // Fault injection: the database gives out after this table.
+              if (failAfterTable === ref) {
+                failAfterTable = null;
+                throw new AddOnInstallError('DDL_FAILED', 'the connection dropped', 'visits');
+              }
+            },
           }),
       } satisfies AppSchemaTarget,
     }),
@@ -326,6 +314,28 @@ describe('uploading a surface bundle', () => {
     await app.close();
   });
 
+  it('opens the staff screens where the manifest asks, unless the operator already chose', async () => {
+    const app = await buildApp();
+    const manifest = manifestFor('sample-desk');
+    manifest['frontends'] = [
+      { side: 'staff', kind: 'spa', entry: 'index.html', placement: 'external' },
+      { side: 'customer', kind: 'spa', entry: 'index.html' },
+    ];
+    await upload(app, 'sample-desk', { ...bundleFor('sample-desk'), 'manifest.json': JSON.stringify(manifest) });
+    const payload = { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION };
+    expect((await app.inject({ method: 'POST', url: '/apps/install', payload })).statusCode).toBe(200);
+    expect((await settingsRepo(meta).get('surfaces.apps'))['sample-desk']?.staff).toBe('external');
+
+    // The operator moves it back in; a reinstall leaves their choice alone.
+    await settingsRepo(meta).set('surfaces.apps', { 'sample-desk': { staff: 'internal' } });
+    expect((await app.inject({ method: 'DELETE', url: '/apps/sample-desk' })).statusCode).toBe(200);
+    await settingsRepo(meta).set('surfaces.apps', { 'sample-desk': { staff: 'internal' } });
+    await upload(app, 'sample-desk', { ...bundleFor('sample-desk'), 'manifest.json': JSON.stringify(manifest) });
+    expect((await app.inject({ method: 'POST', url: '/apps/install', payload })).statusCode).toBe(200);
+    expect((await settingsRepo(meta).get('surfaces.apps'))['sample-desk']?.staff).toBe('internal');
+    await app.close();
+  });
+
   it('refuses a bundle that needs a newer Adminium, and stages nothing', async () => {
     /*
      * `/apps/download` has checked the declared minimum since the app feed
@@ -365,6 +375,27 @@ describe('uploading a surface bundle', () => {
         }),
       ]),
     );
+    await app.close();
+  });
+
+  it('names the Adminium it needs, not "not valid", when a newer manifest uses fields this server lacks', async () => {
+    const app = await buildApp('0.2.9');
+    const newer = {
+      ...manifestFor('sample-desk'),
+      compatibility: { minAdminiumVersion: '0.4.0', engines: ['sqlite'] },
+      // A field a later release adds; every block here is strict.
+      fieldFromTheFuture: { enabled: true },
+    };
+    const res = await upload(app, 'sample-desk', { ...bundleFor('sample-desk'), 'manifest.json': JSON.stringify(newer) });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.message).toContain('needs Adminium 0.4.0 or later; this server is 0.2.9');
+    expect(res.json().error.details).toMatchObject({ reason: 'REQUIRES_NEWER_ADMINIUM' });
+
+    // The same unknown field on a manifest this server CAN take is plainly invalid.
+    const broken = { ...newer, compatibility: { minAdminiumVersion: '0.1.0', engines: ['sqlite'] } };
+    const res2 = await upload(app, 'sample-desk', { ...bundleFor('sample-desk'), 'manifest.json': JSON.stringify(broken) });
+    expect(res2.statusCode).toBe(422);
+    expect(res2.json().error.message).toContain('is not valid');
     await app.close();
   });
 
@@ -566,6 +597,30 @@ describe('installing a staged bundle', () => {
     await app.close();
   });
 
+  it('uninstall still completes when the files cannot be removed, and says so in the audit', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk');
+    await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    const spy = vi.spyOn(store, 'removeKey').mockRejectedValueOnce(new Error('EBUSY'));
+    const res = await app.inject({ method: 'DELETE', url: '/apps/sample-desk' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ key: 'sample-desk', uninstalled: true, dropped: [] });
+    expect(installed.current()).toHaveLength(0);
+    const [entry] = await meta.db
+      .selectFrom('adminium_audit_log')
+      .select(['changes'])
+      .where('action', '=', 'app.uninstalled')
+      .execute();
+    const changes = typeof entry?.changes === 'string' ? JSON.parse(entry.changes) : entry?.changes;
+    expect(changes).toMatchObject({ after: { key: 'sample-desk', filesRemoved: false } });
+    spy.mockRestore();
+    await app.close();
+  });
+
   it("uninstall forgets the app's placement and domains, and nothing else's", async () => {
     // Left behind, a host mapped to a key nothing serves makes the domains
     // editor refuse EVERY later save — including the one mapping that host to
@@ -757,15 +812,27 @@ describe('the install plan', () => {
     await app.close();
   });
 
-  it('reports a table it would reuse rather than create', async () => {
+  it('asks what to do with a table that is already there, and reuses it when told to', async () => {
     const app = await buildApp();
     await upload(app, 'sample-desk');
     existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id' }, { ref: 'name' }] }];
 
-    const res = await app.inject({
+    // The name is taken and nothing records it as this app's: the check step asks.
+    const asked = await app.inject({
       method: 'POST',
       url: '/apps/plan',
       payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    expect(asked.json().plan).toMatchObject({
+      installable: false,
+      problems: [expect.objectContaining({ code: 'TABLE_TAKEN', table: 'clinicians' })],
+      tables: [expect.objectContaining({ ref: 'clinicians', class: 'taken', action: 'undecided' })],
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION, choices: { clinicians: { action: 'reuse' } } },
     });
     expect(res.json().plan).toMatchObject({
       installable: true,
@@ -773,6 +840,151 @@ describe('the install plan', () => {
       create: [],
       reuse: [{ ref: 'clinicians', missingColumns: [] }],
     });
+    await app.close();
+  });
+
+  it('refuses a page whose form or layout names what the app never declared', async () => {
+    const app = await buildApp();
+    const manifest = manifestFor('sample-desk');
+    manifest['pages'] = [
+      {
+        ref: 'sample-clinicians',
+        template: 'page-crud',
+        title: { key: 'mft.sample.page.clinicians', fallback: 'Clinicians' },
+        nav: { group: 'manage', icon: 'users', order: 1 },
+        bindings: { rows: 'clinicians' },
+        config: { form: { v: 2, sections: [{ id: 'who', fields: [{ column: 'name' }, { column: 'grade' }] }] } },
+      },
+      {
+        ref: 'sample-overview',
+        template: 'page-dashboard',
+        title: { key: 'mft.sample.page.overview', fallback: 'Overview' },
+        nav: { group: 'manage', icon: 'gauge', order: 0 },
+        config: {
+          layout: {
+            version: 1,
+            items: [{ i: 'k', widget: 'kpi-stat', x: 0, y: 0, w: 3, h: 2, config: { query: { source: { name: 'invoices' }, shape: 'scalar' } } }],
+          },
+        },
+      },
+    ];
+    await upload(app, 'sample-desk', { ...bundleFor('sample-desk'), 'manifest.json': JSON.stringify(manifest) });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    const plan = res.json().plan;
+    expect(plan.installable).toBe(false);
+    expect(plan.problems.filter((p: { code: string }) => p.code === 'PAGE_FORM_INVALID')).toEqual([
+      { code: 'PAGE_FORM_INVALID', table: 'sample-clinicians', message: 'The page "sample-clinicians": "clinicians" has no column "grade".' },
+      {
+        code: 'PAGE_FORM_INVALID',
+        table: 'sample-overview',
+        message: 'The page "sample-overview": its layout reads "invoices", which is not a table of the app.',
+      },
+    ]);
+    await app.close();
+  });
+
+  it('refuses a role that would hand out the console', async () => {
+    const app = await buildApp();
+    const manifest = manifestFor('sample-desk');
+    manifest['roles'] = [{ key: 'desk', name: 'Desk', permissions: ['table:@clinicians:read', 'system:users:manage'] }];
+    await upload(app, 'sample-desk', { ...bundleFor('sample-desk'), 'manifest.json': JSON.stringify(manifest) });
+    const plan = (
+      await app.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION } })
+    ).json().plan;
+    expect(plan.installable).toBe(false);
+    expect(plan.problems).toContainEqual({
+      code: 'ROLE_INVALID',
+      table: 'desk',
+      message: 'The role "desk": "system:users:manage" gives a console permission, which an app cannot.',
+    });
+    await app.close();
+  });
+
+  it('reads only the tables the manifest names, and its foreign keys point at', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk', bundleFor('sample-desk', {}, FK_TABLES));
+    await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    expect(readNames.at(-1)).toEqual(new Set(['clinicians', 'visits', 'patients']));
+    await app.close();
+  });
+
+  it('refuses an install whose database changed since the reviewed plan (SCHEMA_DRIFT)', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk');
+    const planned = await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    const checksum = planned.json().plan.checksum as string;
+    expect(checksum).toMatch(/^[0-9a-f]{64}$/);
+
+    // Somebody creates the table between the check and the click.
+    existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id' }, { ref: 'name' }] }];
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION, planChecksum: checksum },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('SCHEMA_DRIFT');
+    expect(installed.current()).toHaveLength(0);
+
+    // The re-checked plan — now asking about the table that appeared — installs.
+    const again = await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION, choices: { clinicians: { action: 'reuse' } } },
+    });
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: {
+        key: 'sample-desk',
+        version: '1.0.0',
+        connectionId: CONNECTION,
+        planChecksum: again.json().plan.checksum,
+        choices: { clinicians: { action: 'reuse' } },
+      },
+    });
+    expect(ok.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("refuses on the check step a page slug another app holds here (no takeover)", async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk');
+    const first = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    expect(first.statusCode).toBe(200);
+
+    // A different app declaring the same page, on the same database.
+    existingTables = [];
+    await upload(app, 'other-desk');
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/plan',
+      payload: { key: 'other-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    const plan = res.json().plan;
+    expect(plan.installable).toBe(false);
+    expect(plan.problems).toContainEqual(
+      expect.objectContaining({ code: 'PAGE_SLUG_TAKEN', table: 'sample-dashboard' }),
+    );
+    expect(plan.problems.find((p: { code: string }) => p.code === 'PAGE_SLUG_TAKEN').message).toContain(
+      '"sample-desk"',
+    );
     await app.close();
   });
 
@@ -795,6 +1007,75 @@ describe('the install plan', () => {
      */
     expect(plan.problems[0].message).toContain('this app does not create');
     expect(plan.problems[0].message).not.toContain('add-on');
+    await app.close();
+  });
+});
+
+describe('an install that stops part way', () => {
+  const TWO = [
+    { ref: 'clinicians', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text' }] },
+    {
+      ref: 'visits',
+      columns: [
+        { ref: 'id', type: 'int', role: 'pk' },
+        { ref: 'clinician_id', type: 'fk', references: 'clinicians' },
+      ],
+    },
+  ];
+
+  it('says where it stopped, serves nothing, and finishes when posted again', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk', bundleFor('sample-desk', {}, TWO));
+    failAfterTable = 'clinicians';
+
+    const body = { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION };
+    const res = await app.inject({ method: 'POST', url: '/apps/install', payload: body });
+    expect(res.statusCode).toBe(409);
+    const error = res.json().error;
+    expect(error.code).toBe('APP_INSTALL_INCOMPLETE');
+    expect(error.details).toMatchObject({ stage: 'tables', table: 'visits', created: ['clinicians'], pending: ['visits'] });
+    expect(error.message).toContain('Install it again');
+
+    // Recorded, audited, and not served.
+    const row = await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('sample-desk');
+    expect(row?.row.status).toBe('installing');
+    expect(installed.current()).toHaveLength(0);
+    const audit = await meta.db
+      .selectFrom('adminium_audit_log')
+      .select(['action'])
+      .where('action', '=', 'app.install-failed')
+      .execute();
+    expect(audit).toHaveLength(1);
+
+    // The same POST resumes: the first table is found, still this app's own.
+    existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id', isPrimaryKey: true }, { ref: 'name' }] }];
+    const again = await app.inject({ method: 'POST', url: '/apps/install', payload: body });
+    expect(again.statusCode).toBe(200);
+    const done = await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).findByKey('sample-desk');
+    expect(done?.row.status).toBe('installed');
+    expect(done?.row.id).toBe(row?.row.id);
+    expect(installed.current().map((s) => s.appKey)).toContain('sample-desk');
+
+    const records = await appTablesRepo(meta).forInstall(CONNECTION, 'sample-desk');
+    expect(records.map((r) => [r.ref, r.state, r.owned])).toEqual([
+      ['clinicians', 'created', true],
+      ['visits', 'created', true],
+    ]);
+    await app.close();
+  });
+
+  it('records a table it found as adopted, never as its own', async () => {
+    const app = await buildApp();
+    await upload(app, 'sample-desk');
+    existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id' }, { ref: 'name' }] }];
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION, choices: { clinicians: { action: 'reuse' } } },
+    });
+    expect(res.statusCode).toBe(200);
+    const [record] = await appTablesRepo(meta).forInstall(CONNECTION, 'sample-desk');
+    expect(record).toMatchObject({ ref: 'clinicians', state: 'adopted', owned: false });
     await app.close();
   });
 });
@@ -840,49 +1121,59 @@ describe('installing creates the tables', () => {
     await app.close();
   });
 
-  it('reuses a table that is already there without touching it', async () => {
+  it('reuses a table that is already there, when told to, without touching it', async () => {
     const app = await buildApp();
     await upload(app, 'sample-desk');
     existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id' }, { ref: 'name' }] }];
+    editCalls.length = 0;
 
     const res = await app.inject({
       method: 'POST',
       url: '/apps/install',
-      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION, choices: { clinicians: { action: 'reuse' } } },
     });
+    expect(editCalls).toEqual([]);
     expect(res.statusCode).toBe(200);
     expect(res.json().schema).toEqual({ created: [], reused: ['clinicians'] });
     await app.close();
   });
 
-  it('refuses to alter a table the operator already owns', async () => {
+  it('asks first, then adapts a reused table by adding the column it lacks (nullable)', async () => {
     const app = await buildApp();
     await upload(app, 'sample-desk');
     // The table exists, but without the column the app needs.
     existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id' }] }];
+    editCalls.length = 0;
 
-    const res = await app.inject({
+    const unanswered = await app.inject({
       method: 'POST',
       url: '/apps/install',
       payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
     });
-    expect(res.statusCode).toBe(422);
-    expect(res.json().error.details).toMatchObject({
-      reason: 'COLUMNS_REQUIRED',
-      tables: [{ ref: 'clinicians', missingColumns: ['name'] }],
-      // …and it is no longer a dead end: the refusal carries the
-      // columns as an edit the update screen offers to run through the schema
-      // doors. Always nullable — the table has rows.
-      edit: {
-        addColumns: [
-          { table: 'clinicians', column: { name: 'name', logicalType: 'text', nullable: true } },
-        ],
-        values: [],
-        blocked: [],
-      },
-    });
+    expect(unanswered.statusCode).toBe(422);
+    expect(unanswered.json().error.details.problems).toEqual([
+      expect.objectContaining({ code: 'TABLE_TAKEN', table: 'clinicians' }),
+    ]);
     // Nothing half-done: no row, and the app is not being served.
     expect(installed.current()).toHaveLength(0);
+    expect(editCalls).toEqual([]);
+
+    // "Use it and keep its data": the missing column is added through the
+    // schema editor's own door — always nullable, because the table has rows.
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION, choices: { clinicians: { action: 'reuse' } } },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(editCalls).toEqual([
+      {
+        addColumns: [
+          { table: 'clinicians', column: expect.objectContaining({ name: 'name', logicalType: 'text', nullable: true }) },
+        ],
+        alterColumns: [],
+      },
+    ]);
     await app.close();
   });
 
@@ -905,7 +1196,7 @@ describe('installing creates the tables', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/apps/plan',
-      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION, choices: { clinicians: { action: 'reuse' } } },
     });
     expect(res.statusCode, res.body).toBe(200);
     const edit = res.json().plan.missingColumnsEdit;
@@ -1191,5 +1482,179 @@ describe('the bundled app set (47 step 4)', () => {
     });
     await app.close();
     await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('one app’s own settings', () => {
+  const WITH_SETTINGS = {
+    'manifest.json': JSON.stringify({
+      ...manifestFor('sample-desk'),
+      settings: [
+        { key: 'business_type', type: 'enum', enum: ['restaurant', 'retail'], default: 'restaurant' },
+        { key: 'tables', type: 'number', min: 1, max: 200 },
+      ],
+    }),
+  };
+
+  async function installedApp() {
+    const app = await buildApp();
+    await upload(app, 'sample-desk', bundleFor('sample-desk', WITH_SETTINGS));
+    const res = await app.inject({
+      method: 'POST',
+      url: '/apps/install',
+      payload: { key: 'sample-desk', version: '1.0.0', connectionId: CONNECTION },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    return app;
+  }
+
+  it('reads with defaults, writes only what was sent, and checks values against the manifest', async () => {
+    const app = await installedApp();
+    const read = await app.inject({ method: 'GET', url: '/apps/sample-desk/settings' });
+    expect(read.json()).toEqual({
+      key: 'sample-desk',
+      name: null,
+      placement: 'internal',
+      connectionId: null,
+      off: [],
+      values: { business_type: 'restaurant', tables: null },
+      domains: {},
+      declared: [
+        { key: 'business_type', type: 'enum', enum: ['restaurant', 'retail'] },
+        { key: 'tables', type: 'number', min: 1, max: 200 },
+      ],
+    });
+
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: '/apps/sample-desk/settings',
+      payload: { name: 'Till', off: ['customer'], values: { business_type: 'retail', tables: 12 } },
+    });
+    expect(patched.statusCode, patched.body).toBe(200);
+    expect(patched.json()).toMatchObject({ name: 'Till', placement: 'internal', off: ['customer'] });
+    expect(patched.json().values).toEqual({ business_type: 'retail', tables: 12 });
+    expect(await settingsRepo(meta).get('surfaces.apps')).toEqual({ 'sample-desk': { name: 'Till', off: ['customer'] } });
+
+    // Only what was sent moves.
+    await app.inject({ method: 'PATCH', url: '/apps/sample-desk/settings', payload: { placement: 'external' } });
+    expect(await settingsRepo(meta).get('surfaces.apps')).toEqual({
+      'sample-desk': { name: 'Till', off: ['customer'], staff: 'external' },
+    });
+
+    for (const values of [{ business_type: 'cinema' }, { tables: 0 }, { tables: 'many' }]) {
+      const bad = await app.inject({ method: 'PATCH', url: '/apps/sample-desk/settings', payload: { values } });
+      expect(bad.statusCode, JSON.stringify(values)).toBe(422);
+    }
+    const noConnection = await app.inject({
+      method: 'PATCH',
+      url: '/apps/sample-desk/settings',
+      payload: { connectionId: 'con_nope' },
+    });
+    expect(noConnection.statusCode).toBe(422);
+
+    // Null goes back to the default.
+    const cleared = await app.inject({
+      method: 'PATCH',
+      url: '/apps/sample-desk/settings',
+      payload: { name: null, off: [], values: { business_type: null } },
+    });
+    expect(cleared.json()).toMatchObject({ name: null, off: [], values: { business_type: 'restaurant', tables: 12 } });
+    await app.close();
+  });
+
+  it('switches the app off and on, and says so in the list', async () => {
+    const app = await installedApp();
+    const off = await app.inject({ method: 'POST', url: '/apps/sample-desk/disable' });
+    expect(off.json()).toEqual({ key: 'sample-desk', status: 'disabled' });
+    const list = (await app.inject({ method: 'GET', url: '/apps' })).json();
+    expect(list.apps[0].status).toBe('disabled');
+    expect(list.apps[0].sides.map((s: { state: string }) => s.state)).toEqual(['disabled', 'disabled']);
+    // Switched off, not removed: its files still serve the "not available" answer.
+    expect(installed.current().map((s) => s.appKey)).toContain('sample-desk');
+
+    // Asking twice is not an error.
+    expect((await app.inject({ method: 'POST', url: '/apps/sample-desk/disable' })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url: '/apps/sample-desk/enable' })).json().status).toBe('installed');
+    const back = (await app.inject({ method: 'GET', url: '/apps' })).json();
+    expect(back.apps[0].sides.map((s: { state: string; openUrl: string }) => [s.state, s.openUrl])).toEqual([
+      ['on', '/apps/sample-desk/staff/'],
+      ['on', '/apps/sample-desk/customer/'],
+    ]);
+    await app.close();
+  });
+
+  it('refuses a switch on an install that stopped part way', async () => {
+    const app = await installedApp();
+    const row = (await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).list('app'))[0]!;
+    await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).setStatus(row.row.id, 'installing');
+    expect((await app.inject({ method: 'POST', url: '/apps/sample-desk/disable' })).statusCode).toBe(409);
+    expect((await app.inject({ method: 'POST', url: '/apps/sample-desk/enable' })).statusCode).toBe(409);
+    await app.close();
+  });
+
+  it('maps this app’s hosts and leaves every other app’s alone', async () => {
+    const app = await installedApp();
+    await settingsRepo(meta).set('surfaces.domains', { 'other.example.test': { appKey: 'other', side: 'customer' } });
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/apps/sample-desk/domains',
+      payload: { domains: { 'Shop.Example.Test': { side: 'customer' } } },
+    });
+    expect(put.statusCode, put.body).toBe(200);
+    expect(put.json()).toEqual({ domains: { 'shop.example.test': { side: 'customer' } } });
+    expect(await settingsRepo(meta).get('surfaces.domains')).toEqual({
+      'other.example.test': { appKey: 'other', side: 'customer' },
+      'shop.example.test': { appKey: 'sample-desk', side: 'customer' },
+    });
+
+    const taken = await app.inject({
+      method: 'PUT',
+      url: '/apps/sample-desk/domains',
+      payload: { domains: { 'other.example.test': { side: 'customer' } } },
+    });
+    expect(taken.statusCode).toBe(422);
+    expect(taken.body).toContain('host_taken');
+
+    // An empty list unmaps this app's hosts, and only them.
+    await app.inject({ method: 'PUT', url: '/apps/sample-desk/domains', payload: { domains: {} } });
+    expect(await settingsRepo(meta).get('surfaces.domains')).toEqual({
+      'other.example.test': { appKey: 'other', side: 'customer' },
+    });
+    await app.close();
+  });
+
+  it('shows the app’s tables and its own activity, newest first', async () => {
+    const app = await installedApp();
+    await app.inject({ method: 'POST', url: '/apps/sample-desk/disable' });
+    const overview = (await app.inject({ method: 'GET', url: '/apps/sample-desk/overview' })).json();
+    expect(overview.connection).toMatchObject({ id: CONNECTION });
+    expect(overview.tables.map((t: { ref: string; table: string }) => [t.ref, t.table])).toEqual([
+      ['clinicians', 'clinicians'],
+    ]);
+    expect(overview.activity.map((a: { action: string }) => a.action)).toEqual([
+      'app.disabled',
+      'app.installed',
+      'app.staged',
+    ]);
+    await app.close();
+  });
+
+  it('keeps an instance a host still opens', async () => {
+    const app = await installedApp();
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/apps/sample-desk/instances',
+      payload: { instances: [{ slug: 'north', connectionId: CONNECTION }] },
+    });
+    expect(put.statusCode, put.body).toBe(200);
+    await app.inject({
+      method: 'PUT',
+      url: '/apps/sample-desk/domains',
+      payload: { domains: { 'north.example.test': { side: 'customer', instance: 'north' } } },
+    });
+    const drop = await app.inject({ method: 'PUT', url: '/apps/sample-desk/instances', payload: { instances: [] } });
+    expect(drop.statusCode).toBe(422);
+    expect(drop.body).toContain('instance_in_use');
+    await app.close();
   });
 });

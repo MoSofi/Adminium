@@ -46,7 +46,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
 
-import type { ColumnValidation, EffectiveColumn } from '../connections/effective-schema.js';
+import type { ColumnValidation, EffectiveColumn, TableCapacityRule } from '../connections/effective-schema.js';
 import { isNowType, renderNow } from './instants.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
@@ -118,9 +118,68 @@ export interface ColumnCheck {
   validation?: ColumnValidation;
 }
 
+/** `column.copy`, resolved against the snapshot: where the value comes from. */
+export interface ColumnCopy {
+  column: string;
+  /** This table's foreign-key column. */
+  via: string;
+  /** The linked table and the column `via` matches. */
+  toTable: string;
+  toColumn: string;
+  /** The linked table's column to copy. */
+  from: string;
+  mode: 'default' | 'always';
+}
+
+/** `column.sequence`. */
+export interface ColumnSequence {
+  column: string;
+  logicalType: LogicalType;
+  start: number;
+}
+
+/** `column.code`. */
+export interface ColumnCode {
+  column: string;
+  prefix: string;
+  length: number;
+}
+
+/** A parent's total this table's rows feed (`column.rollup` on the parent). */
+export interface RollupInto {
+  /** The parent table's id, and its single-column key. */
+  parent: string;
+  parentKey: string;
+  /** The parent's total column. */
+  column: string;
+  /** This table's column linking to the parent. */
+  via: string;
+  sum: string;
+  times?: string;
+  /** Child rows whose column holds a value are left out of the total. */
+  unlessSet?: string;
+  /** Decimal places the total keeps. */
+  scale: number;
+}
+
 export interface TableRules {
   fills: ColumnFill[];
   checks: ColumnCheck[];
+  /** The columns Adminium decides; absent on a table with none. */
+  copies?: ColumnCopy[];
+  sequences?: ColumnSequence[];
+  codes?: ColumnCode[];
+  /** Parent totals kept in step when this table's rows change. */
+  rollupsInto?: RollupInto[];
+  /** The booking guard on this table. */
+  capacity?: TableCapacityRule;
+  /** Columns whose zone-less wall times are read on the venue's clock. */
+  venueLocal?: string[];
+}
+
+/** Whether any column of the table is decided by Adminium (copied, numbered, coded). */
+export function hasDecided(rules: TableRules | null): boolean {
+  return (rules?.copies?.length ?? 0) + (rules?.sequences?.length ?? 0) + (rules?.codes?.length ?? 0) > 0;
 }
 
 export interface FillContext {
@@ -225,12 +284,43 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const enums: readonly EnumDef[] = target.view?.model?.enums ?? [];
   const fills: ColumnFill[] = [];
   const checks: ColumnCheck[] = [];
+  const copies: ColumnCopy[] = [];
+  const sequences: ColumnSequence[] = [];
+  const codes: ColumnCode[] = [];
+  const venueLocal: string[] = [];
   for (const column of columns) {
+    if (column.venueLocal === true) venueLocal.push(column.name);
     // A secret column is refused by the write path long before this, and a
     // fill that named one would be a way to write it sideways.
     if (target.table.columns.get(column.name)?.secret === true) continue;
     const fill = explicitFillFor(column) ?? implicitFillFor(column);
     if (fill !== null) fills.push(fill);
+    if (column.copy !== undefined) {
+      // Through a relation the snapshot still has; one it lost copies nothing.
+      const relation = target.view?.model?.relations.find(
+        (r) =>
+          r.through === null &&
+          r.from.tableId === target.table.id &&
+          r.from.columns.length === 1 &&
+          r.from.columns[0] === column.copy?.via,
+      );
+      if (relation !== undefined) {
+        copies.push({
+          column: column.name,
+          via: column.copy.via,
+          toTable: relation.to.tableId,
+          toColumn: relation.to.columns[0] as string,
+          from: column.copy.from,
+          mode: column.copy.mode ?? 'default',
+        });
+      }
+    }
+    if (column.sequence !== undefined) {
+      sequences.push({ column: column.name, logicalType: column.logicalType, start: column.sequence.start ?? 1 });
+    }
+    if (column.code !== undefined) {
+      codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length });
+    }
     const values = enumValuesOf(column, enums);
     /*
      * The answers this column accepts, from the rule.
@@ -265,7 +355,43 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       checks.push(check);
     }
   }
-  const rules = fills.length === 0 && checks.length === 0 ? null : { fills, checks };
+  // The totals this table's rows feed, read off the parents that name it.
+  const rollupsInto: RollupInto[] = [];
+  for (const parent of target.view?.model?.tables ?? []) {
+    if (parent.primaryKey.length !== 1) continue;
+    for (const column of parent.columns as EffectiveColumn[]) {
+      const rollup = column.rollup;
+      if (rollup === undefined || rollup.from !== target.table.id) continue;
+      rollupsInto.push({
+        parent: parent.id,
+        parentKey: parent.primaryKey[0] as string,
+        column: column.name,
+        via: rollup.via,
+        sum: rollup.sum,
+        ...(rollup.times === undefined ? {} : { times: rollup.times }),
+        ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
+        scale: column.numericScale ?? 2,
+      });
+    }
+  }
+  const capacity = target.table.table?.capacity;
+  const decided = copies.length + sequences.length + codes.length > 0;
+  const rules =
+    fills.length === 0 &&
+    checks.length === 0 &&
+    !decided &&
+    rollupsInto.length === 0 &&
+    capacity === undefined &&
+    venueLocal.length === 0
+      ? null
+      : {
+          fills,
+          checks,
+          ...(decided ? { copies, sequences, codes } : {}),
+          ...(rollupsInto.length === 0 ? {} : { rollupsInto }),
+          ...(capacity === undefined ? {} : { capacity }),
+          ...(venueLocal.length === 0 ? {} : { venueLocal }),
+        };
   CACHE.set(target.table, rules);
   return rules;
 }
@@ -369,8 +495,12 @@ function jsonIssue(value: unknown): FieldIssue | null {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** Digits, spaces and the punctuation a written phone number uses. */
-const PHONE = /^\+?[0-9][0-9\s().-]{4,}$/;
+/**
+ * Digits, spaces and the punctuation a written phone number uses — including
+ * an area code in brackets at the START, "(415) 555-0132", the usual way to
+ * write a North American number (it was refused there, and only there).
+ */
+const PHONE = /^\+?\(?[0-9][0-9\s().-]{4,}$/;
 
 /**
  * The rules an ADMIN typed (D26). Never a classifier's guess: enforcing a
@@ -458,7 +588,14 @@ export function checkRow(
     issues ??= {};
     issues[column] ??= issue;
   };
-  const filled = new Set(rules.fills.filter((f) => f.kind !== 'none').map((f) => f.column));
+  // What Adminium decides is filled as surely as a default: a running
+  // number is claimed only after this check, so it is absent here.
+  const filled = new Set([
+    ...rules.fills.filter((f) => f.kind !== 'none').map((f) => f.column),
+    ...(rules.copies ?? []).map((c) => c.column),
+    ...(rules.sequences ?? []).map((c) => c.column),
+    ...(rules.codes ?? []).map((c) => c.column),
+  ]);
   for (const check of rules.checks) {
     const supplied = Object.prototype.hasOwnProperty.call(values, check.column);
     /*

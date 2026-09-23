@@ -36,6 +36,7 @@ import {
 import { renderEmail } from '../src/email/render.js';
 import {
   DOCUMENT_READY_TEMPLATE_KEY,
+  BOOKING_CONFIRMATION_TEMPLATE_KEY,
   NOTIFICATION_EMAIL_TEMPLATE_KEY,
   PASSWORD_RESET_TEMPLATE_KEY,
   USER_INVITE_TEMPLATE_KEY,
@@ -435,6 +436,7 @@ describe('built-in coverage', () => {
         USER_INVITE_TEMPLATE_KEY,
         NOTIFICATION_EMAIL_TEMPLATE_KEY,
         DOCUMENT_READY_TEMPLATE_KEY,
+        BOOKING_CONFIRMATION_TEMPLATE_KEY,
       ].sort(),
     );
     expect(builtins().map((tpl) => tpl.key).sort()).toEqual([...BUILTIN_EMAIL_TEMPLATE_KEYS].sort());

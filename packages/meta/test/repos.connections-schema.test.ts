@@ -458,6 +458,36 @@ for (const dialect of TEST_DIALECTS) {
         expect((await overrides.listForConnection(conn.id)).length).toBe(3);
       });
 
+      it('keeps a label in several languages, and refuses an empty map or a bad locale', async () => {
+        const connections = connectionsRepo(meta(), testCrypto);
+        const overrides = overridesRepo(meta());
+        const conn = await connections.create({ name: 'prod', engine: 'postgres', introspectDsn: 'postgres://a@h/d' });
+        const table = await overrides.create({
+          connectionId: conn.id,
+          op: 'table.label',
+          tableName: 't',
+          value: { label: { en_US: 'Category', de_DE: 'Kategorie' }, labelPlural: { en_US: 'Categories', de_DE: 'Kategorien' } },
+          origin: 'app',
+        });
+        const column = await overrides.create({
+          connectionId: conn.id,
+          op: 'column.label',
+          tableName: 't',
+          columnName: 'c',
+          value: { label: { en_US: 'Icon', de_DE: 'Symbol' } },
+          origin: 'app',
+        });
+        const [readTable, readColumn] = await overrides.listForConnection(conn.id);
+        expect(readTable?.value).toEqual(table.value);
+        expect(readColumn?.value).toEqual(column.value);
+        await expect(
+          overrides.create({ connectionId: conn.id, op: 'table.label', tableName: 't', value: { label: {} } }),
+        ).rejects.toThrow(MetaValidationError);
+        await expect(
+          overrides.create({ connectionId: conn.id, op: 'column.label', tableName: 't', columnName: 'c', value: { label: { 'de-DE': 'Symbol' } } }),
+        ).rejects.toThrow(MetaValidationError);
+      });
+
       it('replaceForConnection is transactional PUT; setStatus toggles without deleting', async () => {
         const connections = connectionsRepo(meta(), testCrypto);
         const overrides = overridesRepo(meta());

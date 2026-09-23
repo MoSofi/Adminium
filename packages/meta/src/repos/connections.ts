@@ -206,13 +206,15 @@ function decode(row: Selectable<AdminiumConnectionsTable>): Connection {
 export async function connectionTenantConfig(
   meta: MetaDb,
   connectionId: string,
-): Promise<{ timezone: string | null; currency: string | null } | null> {
+): Promise<{ timezone: string | null; timezoneSource: string | null; currency: string | null } | null> {
   const row = await meta.db
     .selectFrom('adminium_connections')
-    .select(['timezone', 'currency'])
+    .select(['timezone', 'timezoneSource', 'currency'])
     .where('id', '=', connectionId)
     .executeTakeFirst();
-  return row === undefined ? null : { timezone: row.timezone, currency: row.currency };
+  return row === undefined
+    ? null
+    : { timezone: row.timezone, timezoneSource: row.timezoneSource ?? null, currency: row.currency };
 }
 
 export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {

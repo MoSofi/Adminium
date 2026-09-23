@@ -40,6 +40,7 @@ import {
   firstRun,
   publicKeysRepo,
   publicScopesRepo,
+  publicSessionsRepo,
   settingsRepo,
   type MetaDb,
 } from '@adminium/meta';
@@ -51,7 +52,7 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
-import { generatePublishableKey } from '../src/public-api/keys.js';
+import { generatePublicSessionToken, generatePublishableKey } from '../src/public-api/keys.js';
 import { isPublicNamespacePath, PUBLIC_NAMESPACE_PREFIX } from '../src/routes/public/index.js';
 import { concreteUrl, makeEnv, routeTable, TEST_SECRET } from './helpers.js';
 
@@ -203,6 +204,12 @@ async function sweepWithToken(
   app: ComposedServer['app'],
   token: string,
   extraHeaders: Record<string, string> = {},
+  /**
+   * What the keyed call of each pair carries INSTEAD of `Authorization:
+   * Bearer <token>` — the claim-session sweep presents the session in its own
+   * header.
+   */
+  keyedHeaders?: Record<string, string>,
 ): Promise<string[]> {
   /*
    * The route tree as the SERVER sees it. `printRoutes` is the registration
@@ -272,7 +279,7 @@ async function sweepWithToken(
       url: concreteUrl(url, PROBE),
       remoteAddress,
       ...body,
-      headers: { ...extraHeaders, ...(body.headers ?? {}), authorization: `Bearer ${token}` },
+      headers: { ...extraHeaders, ...(body.headers ?? {}), ...(keyedHeaders ?? { authorization: `Bearer ${token}` }) },
     });
     const without = await app.inject({
       method: method as 'GET',
@@ -337,6 +344,48 @@ describe('Publishable keys are inert outside /api/v1/public', () => {
     const acted = await sweepWithToken(composed.app, await liveKey(composed.app, meta, 'server'));
     expect(acted, `an adm_srv_ token CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
   }, 60_000);
+
+  it('a claim session (`adm_pubs_`) is refused by every registered route, as its header or as a Bearer', async () => {
+    /*
+     * The pass a customer holds after a claim — and, from the Event ticketing
+     * round, after signing in. It must buy nothing outside the
+     * public namespace, whichever way it is presented. It was missing from
+     * this sweep entirely.
+     *
+     * Each presentation gets its OWN composed server: the sweep reuses source
+     * addresses, and the auth limiter's buckets would otherwise carry over
+     * from the first sweep into the second and differ within a pair.
+     */
+    for (const presentation of ['header', 'bearer'] as const) {
+      const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+      await firstRun(meta);
+      const composed = await composeWidest(meta);
+      open = {
+        close: async () => {
+          await composed.app.close();
+          await meta.db.destroy();
+        },
+      };
+      const key = await liveKey(composed.app, meta);
+      const [row] = await meta.db.selectFrom('adminium_public_keys').select('id').execute();
+      const session = generatePublicSessionToken();
+      await publicSessionsRepo(meta).create({
+        keyId: row!.id,
+        tokenHash: session.tokenHash,
+        grants: JSON.stringify({ ref: 'menu', column: 'id', value: 1 }),
+        expiresAt: Date.now() + 3_600_000,
+      });
+      expect(session.token.startsWith('adm_pubs_')).toBe(true);
+
+      const acted =
+        presentation === 'header'
+          ? await sweepWithToken(composed.app, key, {}, { 'x-adminium-public-session': session.token })
+          : await sweepWithToken(composed.app, session.token);
+      expect(acted, `a claim session (${presentation}) CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
+      await open.close();
+      open = undefined;
+    }
+  }, 120_000);
 
   it('is still inert with `self` set and same-origin provenance', async () => {
     /*

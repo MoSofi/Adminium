@@ -22,6 +22,7 @@ import {
   usersRepo,
   writeBool,
   type MetaDb,
+  type Session,
   type User,
 } from '@adminium/meta';
 
@@ -45,6 +46,7 @@ import {
   createSession,
   hashToken,
   isChallengeSession,
+  isPersistentSession,
   mintToken,
   setSessionCookie,
 } from '../../auth/sessions.js';
@@ -166,11 +168,11 @@ async function learnPublicOrigin(request: FastifyRequest, ctx: AuthContext, user
 }
 
 /** The authenticated user/session, guaranteed by the requireAuth preHandler. */
-function principal(request: FastifyRequest): { user: User; sessionId: string } {
+function principal(request: FastifyRequest): { user: User; session: Session; sessionId: string } {
   if (request.user === null || request.session === null) {
     throw new UnauthorizedError('UNAUTHENTICATED');
   }
-  return { user: request.user, sessionId: request.session.id };
+  return { user: request.user, session: request.session, sessionId: request.session.id };
 }
 
 export async function loginHandler(
@@ -207,7 +209,9 @@ export async function loginHandler(
   }
 
   if (activeUser.totpEnabled) {
-    const challenge = await createChallenge(ctx.meta, activeUser.id, requestMeta(request), now);
+    const challenge = await createChallenge(ctx.meta, activeUser.id, requestMeta(request), now, {
+      persistent: body.remember,
+    });
     await auditAuth(ctx.meta, request, {
       action: '2fa_challenge',
       actorId: activeUser.id,
@@ -217,9 +221,11 @@ export async function loginHandler(
     return { data: { twoFactorRequired: true, challengeToken: challenge.token } };
   }
 
-  const { token } = await createSession(ctx.meta, activeUser.id, requestMeta(request), now);
+  const minted = await createSession(ctx.meta, activeUser.id, requestMeta(request), now, {
+    persistent: body.remember,
+  });
   await users.recordLogin(activeUser.id, now);
-  setSessionCookie(reply, token, request);
+  setSessionCookie(reply, minted, request);
   await auditAuth(ctx.meta, request, {
     action: 'login',
     actorId: activeUser.id,
@@ -275,10 +281,13 @@ export async function verify2faHandler(
     throw invalidCredentials('Invalid authentication code.');
   }
 
-  // Fresh token on successful 2FA verify — fixation defense.
-  const { token } = await createSession(ctx.meta, user.id, requestMeta(request), now);
+  // Fresh token on successful 2FA verify — fixation defense. The checkbox was
+  // answered at /auth/login; the challenge row kept it.
+  const minted = await createSession(ctx.meta, user.id, requestMeta(request), now, {
+    persistent: isPersistentSession(challenge),
+  });
   await users.recordLogin(user.id, now);
-  setSessionCookie(reply, token, request);
+  setSessionCookie(reply, minted, request);
   await auditAuth(ctx.meta, request, { action: 'login', actorId: user.id, actorLabel: user.name });
   await learnPublicOrigin(request, ctx, user);
   const fresh = (await users.findById(user.id)) ?? user;
@@ -488,7 +497,7 @@ export async function changePasswordHandler(
   body: AuthPasswordChangeBody,
 ): Promise<OkReply> {
   const now = Date.now();
-  const { user } = principal(request);
+  const { user, session } = principal(request);
   if (
     user.passwordHash === null ||
     !(await verifyPassword(user.passwordHash, body.currentPassword))
@@ -499,8 +508,13 @@ export async function changePasswordHandler(
 
   await usersRepo(ctx.meta).updatePassword(user.id, await hashPassword(body.newPassword), now);
   await sessionsRepo(ctx.meta).revokeAllForUser(user.id, now);
-  const { token } = await createSession(ctx.meta, user.id, requestMeta(request), now);
-  setSessionCookie(reply, token, request);
+  // The replacement keeps the "Keep me signed in" answer of the session it
+  // replaces: a password change must not turn a browser-session cookie on a
+  // shared computer into a 30-day one.
+  const minted = await createSession(ctx.meta, user.id, requestMeta(request), now, {
+    persistent: isPersistentSession(session),
+  });
+  setSessionCookie(reply, minted, request);
   await auditAuth(ctx.meta, request, {
     action: 'password_changed',
     actorId: user.id,

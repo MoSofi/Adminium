@@ -53,6 +53,7 @@ import {
   afterRecordWrite,
   emitRecordEvent,
   invalidateWidgetData,
+  publishChildWrite,
   type RecordWriteAction,
 } from '../../crud/after-record-write.js';
 import type { FileReconciler } from '../../files/reconcile.js';
@@ -92,6 +93,7 @@ import {
   type WriteTarget,
   type WrittenRow,
 } from '../../crud/write-service.js';
+import { writeStores } from '../../crud/write-stores.js';
 import {
   dataRecordParams,
   dataTableParams,
@@ -217,7 +219,7 @@ export { insertRow } from '../../crud/write-service.js';
 export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
   const { manager, meta } = deps;
   const undoStore = deps.undoStore ?? new UndoStore();
-  const writes = deps.writes ?? createWriteService();
+  const writes = deps.writes ?? createWriteService(writeStores(meta));
   const snapshots = snapshotsRepo(meta);
   const overrides = overridesRepo(meta);
   const lists = optionListsRepo(meta);
@@ -473,6 +475,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       hooked: boolean;
     }
 
+    /** A child row a parent's write changed, announced once the transaction commits. */
+    interface ChildEvent {
+      table: ResolvedTable;
+      action: 'create' | 'update' | 'delete';
+      pk: Row;
+      row: Row | null;
+    }
+
     /** The link table as a write target — same connection, same transaction. */
     function linkTargetOf(ctx: DataContext, link: ResolvedLink, db: Kysely<SourceDatabase>): WriteTarget {
       return {
@@ -630,10 +640,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       requested: RequestedChildren,
       parentKey: unknown,
       context: WriteContext,
-      options: { existing?: Row[] | undefined } = {},
+      options: {
+        existing?: Row[] | undefined;
+        /** Each child row this write changed, to announce once it commits. */
+        events?: ChildEvent[] | undefined;
+      } = {},
     ): Promise<UndoChildren> {
       const { child } = requested;
       const target = childTargetOf(ctx, child, db);
+      const keyOf = (row: Row) => Object.fromEntries(child.child.primaryKey.map((name) => [name, row[name]]));
+      // What the children moved: a parent's total over them is settled inside
+      // the same transaction, as a child written on its own would be.
+      const settled: { action: 'create' | 'update' | 'delete'; record: Row; before: Row | null }[] = [];
       const existing = options.existing ?? (await currentChildren(db, child, parentKey));
       const diff: ChildDiff = diffChildRows(child.child.primaryKey, existing, requested.rows);
 
@@ -672,7 +690,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             return mapDbError(error, child.child);
           }
         })();
-        undo.added.push(Object.fromEntries(child.child.primaryKey.map((name) => [name, written[name]])));
+        undo.added.push(keyOf(written));
+        settled.push({ action: 'create', record: written, before: null });
+        options.events?.push({ table: child.child, action: 'create', pk: keyOf(written), row: written });
       }
 
       for (const change of diff.changed) {
@@ -690,11 +710,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           });
         }
         try {
-          await updateRows(db, child.child, prepared.values, change.key);
+          await updateRows(db, ctx.dialect, child.child, prepared.values, change.key);
         } catch (error) {
           mapDbError(error, child.child);
         }
         if (before !== undefined) undo.changed.push({ key: change.key, before });
+        const after = (await fetchByPk(db, child.child, change.key)) ?? null;
+        if (after !== null) settled.push({ action: 'update', record: after, before: before ?? null });
+        options.events?.push({ table: child.child, action: 'update', pk: change.key, row: after });
       }
 
       for (const key of diff.removed) {
@@ -702,7 +725,15 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           child.child.primaryKey.every((name) => String(row[name]) === String(key[name])),
         );
         await deleteRows(db, child.child, key);
-        if (before !== undefined) undo.removed.push(before);
+        if (before !== undefined) {
+          undo.removed.push(before);
+          settled.push({ action: 'delete', record: before, before: null });
+        }
+        options.events?.push({ table: child.child, action: 'delete', pk: key, row: before ?? null });
+      }
+      for (const action of ['create', 'update', 'delete'] as const) {
+        const rows = settled.filter((row) => row.action === action);
+        if (rows.length > 0) await writes.settle(action, target, rows);
       }
       return undo;
     }
@@ -1089,7 +1120,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (!sameKeys(now, links.after)) conflict();
         const { add, remove } = diffLinks(now, wanted);
         for (const key of add) {
-          await insertRows(db, link.linkTable, uncheckedForUndo([linkRowValues(link, ownKey, key)]));
+          await insertRows(db, target.dialect, link.linkTable, uncheckedForUndo([linkRowValues(link, ownKey, key)]));
         }
         for (const key of remove) {
           await deleteRows(db, link.linkTable, linkRowValues(link, ownKey, key));
@@ -1122,10 +1153,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await deleteRows(db, child, key);
         }
         for (const row of children.removed) {
-          await insertRows(db, child, uncheckedForUndo([row]));
+          await insertRows(db, target.dialect, child, uncheckedForUndo([row]));
         }
         for (const change of children.changed) {
-          await updateRows(db, child, uncheckedForUndo([change.before])[0]!, change.key);
+          await updateRows(db, target.dialect, child, uncheckedForUndo([change.before])[0]!, change.key);
         }
       }
     }
@@ -1152,7 +1183,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           for (const [i, before] of entry.before.entries()) {
             const existing = await fetchByPk(tdb, table, pkOf(before));
             if (existing !== undefined) conflict();
-            await insertRows(tdb, table, [prepared[i]?.values ?? uncheckedForUndo([before])[0]!]);
+            await insertRows(tdb, target.dialect, table, [prepared[i]?.values ?? uncheckedForUndo([before])[0]!]);
             restored.push(pkLabel(table, pkOf(before)));
             written.push({ pk: pkOf(before), before: null, record: null });
           }
@@ -1169,7 +1200,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             const restoreValues =
               prepared[i]?.values ??
               uncheckedForUndo([Object.fromEntries(compareColumns.map((c) => [c, before[c]]))])[0]!;
-            await updateRows(tdb, table, restoreValues, pk);
+            await updateRows(tdb, target.dialect, table, restoreValues, pk);
             await undoLinks(tdb, target, entry, before, conflict);
             await undoChildren(tdb, target, entry);
             restored.push(pkLabel(table, pk));
@@ -1267,7 +1298,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 beforeImages.push(before);
                 events.push({ pk, before, after: null });
               } else {
-                await updateRows(tdb, ctx.table, prepared[i]!.values, pk);
+                await updateRows(tdb, ctx.dialect, ctx.table, prepared[i]!.values, pk);
                 const after = await fetchByPk(tdb, ctx.table, pk);
                 beforeImages.push(before);
                 if (after !== undefined) afterImages.push(after);
@@ -1663,6 +1694,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
 
         const written: { relationId: string; before: string[]; after: string[] }[] = [];
         const childWrites: UndoChildren[] = [];
+        const childEvents: ChildEvent[] = [];
         const inserted = await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           const row = await (async () => {
@@ -1685,15 +1717,21 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             childWrites.push(
               await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context, {
                 existing: [],
+                events: childEvents,
               }),
             );
           }
-          return row;
+          // The record as its children left it: a total over them has moved,
+          // and the undo compares against this row, not the one inserted.
+          if (children.length === 0) return row;
+          const key = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
+          return (await fetchByPk(tdb, ctx.table, key)) ?? row;
         });
 
         const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
         undoToken = issueUndo(request, ctx, 'create', [], [inserted], [], [], written, childWrites);
         await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, inserted);
+        for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('create', ctx.target, context, [{ record: inserted, before: null }]);
         return reply.status(201).send({ data: maskRow(inserted, ctx.table, ctx.unmasked), undoToken });
@@ -1753,11 +1791,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // it, so the links follow the value that is being WRITTEN.
         const written: UndoLinks[] = [];
         const childWrites: UndoChildren[] = [];
+        const childEvents: ChildEvent[] = [];
         const after = await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           if (Object.keys(prepared.values).length > 0) {
             try {
-              await updateRows(tdb, ctx.table, prepared.values, pk);
+              await updateRows(tdb, ctx.dialect, ctx.table, prepared.values, pk);
             } catch (error) {
               mapDbError(error, ctx.table);
             }
@@ -1771,10 +1810,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             // are really there — the same rule links follow, for the same
             // reason: what was there when the dialog opened is not evidence.
             childWrites.push(
-              await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context),
+              await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context, {
+                events: childEvents,
+              }),
             );
           }
-          return row;
+          // As its children left it (a total over them has moved).
+          return children.length === 0 ? row : ((await fetchByPk(tdb, ctx.table, pk)) ?? row);
         });
 
         undoToken = issueUndo(
@@ -1789,6 +1831,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           childWrites,
         );
         await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+        for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
         return { data: maskRow(after, ctx.table, ctx.unmasked), undoToken };

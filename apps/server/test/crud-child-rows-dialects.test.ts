@@ -21,6 +21,9 @@ import { join } from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { overridesRepo } from '@adminium/meta';
+
+import type { RealtimeHub } from '../src/realtime/hub.js';
 import {
   asUser,
   buildDataTestApp,
@@ -31,6 +34,14 @@ import {
   type DataTestContext,
 } from './connections-helpers.js';
 
+/** Every frame the data routes published, across the suites (each reads its own connection's). */
+const published: { channel: string; type: string; payload: { pk?: Record<string, unknown> | null } }[] = [];
+const hub = {
+  publish: (channel: string, type: string, payload: { pk?: Record<string, unknown> | null }) => {
+    published.push({ channel, type, payload });
+  },
+} as unknown as RealtimeHub;
+
 interface Mutation {
   data: Record<string, unknown>;
   undoToken: string | null;
@@ -38,28 +49,31 @@ interface Mutation {
 
 const DDL = {
   sqlite: [
-    `CREATE TABLE invoices (id INTEGER PRIMARY KEY AUTOINCREMENT, who VARCHAR(40) NOT NULL)`,
+    `CREATE TABLE invoices (id INTEGER PRIMARY KEY AUTOINCREMENT, who VARCHAR(40) NOT NULL, total DECIMAL(12,2))`,
     `CREATE TABLE invoice_lines (
        id INTEGER PRIMARY KEY AUTOINCREMENT,
        invoice_id INTEGER NOT NULL REFERENCES invoices(id),
        item VARCHAR(40) NOT NULL,
-       qty INTEGER NOT NULL DEFAULT 1)`,
+       qty INTEGER NOT NULL DEFAULT 1,
+       voided_at VARCHAR(40))`,
   ],
   postgres: [
-    `CREATE TABLE invoices (id serial PRIMARY KEY, who varchar(40) NOT NULL)`,
+    `CREATE TABLE invoices (id serial PRIMARY KEY, who varchar(40) NOT NULL, total numeric(12,2))`,
     `CREATE TABLE invoice_lines (
        id serial PRIMARY KEY,
        invoice_id integer NOT NULL REFERENCES invoices(id),
        item varchar(40) NOT NULL,
-       qty integer NOT NULL DEFAULT 1)`,
+       qty integer NOT NULL DEFAULT 1,
+       voided_at varchar(40))`,
   ],
   mysql: [
-    `CREATE TABLE invoices (id INT AUTO_INCREMENT PRIMARY KEY, who VARCHAR(40) NOT NULL)`,
+    `CREATE TABLE invoices (id INT AUTO_INCREMENT PRIMARY KEY, who VARCHAR(40) NOT NULL, total DECIMAL(12,2))`,
     `CREATE TABLE invoice_lines (
        id INT AUTO_INCREMENT PRIMARY KEY,
        invoice_id INT NOT NULL,
        item VARCHAR(40) NOT NULL,
        qty INT NOT NULL DEFAULT 1,
+       voided_at VARCHAR(40),
        FOREIGN KEY (invoice_id) REFERENCES invoices(id))`,
   ],
 } as const;
@@ -158,6 +172,63 @@ function suite(label: string, ready: boolean, setUp: () => Promise<Engine>, tear
       // The foreign key is the PARENT's business: the request never named it
       // and every row carries it.
       expect(lines.every((row) => String(row['invoice_id']) === String(id))).toBe(true);
+    });
+
+    it('announces each line a save changed, and keeps the invoice total in step with them', async () => {
+      const lineTable = `${e.lines.includes('.') ? '' : 'main.'}${e.lines}`;
+      const invoiceTable = `${e.invoices.includes('.') ? '' : 'main.'}${e.invoices}`;
+      await overridesRepo(e.t.meta).create({
+        connectionId: e.connId,
+        op: 'column.rollup',
+        tableName: invoiceTable,
+        columnName: 'total',
+        // A voided line adds nothing, as a till's voided line must not.
+        value: { from: lineTable, via: 'invoice_id', sum: 'qty', unlessSet: 'voided_at' },
+      });
+      const lineFrames = () =>
+        published.filter((frame) => frame.channel === `widget-data:${e.connId}:${lineTable}`).map((frame) => frame.type);
+      const totalOf = async (id: unknown) => {
+        const reply = await e.t.app.inject({
+          method: 'GET',
+          url: `/api/v1/data/${e.connId}/${e.invoices}/${String(id)}`,
+          headers: asUser(e.t.users.admin),
+        });
+        return Number(reply.json<{ data: Record<string, unknown> }>().data['total']);
+      };
+
+      const seen = lineFrames().length;
+      const created = await post({
+        values: { who: 'Kitchen' },
+        children: { [relation]: [{ values: { item: 'Soup', qty: 2 } }, { values: { item: 'Bread', qty: 1 } }] },
+      });
+      expect(created.statusCode, created.body).toBe(201);
+      const id = created.json<Mutation>().data['id'];
+      // One frame per line on the lines' own channel: what a kitchen watches.
+      expect(lineFrames().slice(seen)).toEqual(['record.create', 'record.create']);
+      expect(await totalOf(id)).toBe(3);
+
+      const [soup] = await linesOf(id);
+      const saved = await patch(id, {
+        values: { who: 'Kitchen' },
+        children: { [relation]: [{ key: { id: soup?.['id'] }, values: { item: 'Soup', qty: 5 } }] },
+      });
+      expect(saved.statusCode, saved.body).toBe(200);
+      expect(lineFrames().slice(seen + 2)).toEqual(['record.update', 'record.delete']);
+      expect(await totalOf(id)).toBe(5);
+
+      // Voiding the line takes it out of the total; a new voided line never enters it.
+      const voided = await patch(id, {
+        values: { who: 'Kitchen' },
+        children: {
+          [relation]: [
+            { key: { id: soup?.['id'] }, values: { item: 'Soup', qty: 5, voided_at: '2026-09-23 12:00' } },
+            { values: { item: 'Tea', qty: 2 } },
+            { values: { item: 'Spilled', qty: 7, voided_at: '2026-09-23 12:05' } },
+          ],
+        },
+      });
+      expect(voided.statusCode, voided.body).toBe(200);
+      expect(await totalOf(id)).toBe(2);
     });
 
     it('fills a child column from its own default, not from the field', async () => {
@@ -315,7 +386,7 @@ async function grantAll(t: DataTestContext, connId: string): Promise<void> {
       db.exec('PRAGMA foreign_keys = ON');
       for (const statement of DDL.sqlite) db.exec(statement);
       db.close();
-      t = await buildDataTestApp();
+      t = await buildDataTestApp({ realtime: hub });
       const connId = await createConnectionViaApi(t, `sqlite:${file}`, 'billing', 'sqlite');
       await introspectViaApi(t, connId);
       await grantAll(t, connId);
@@ -342,7 +413,7 @@ async function grantAll(t: DataTestContext, connId: string): Promise<void> {
       made = true;
       for (const statement of DDL.postgres) psql(database, statement);
       const user = process.env.PGUSER ?? process.env.USER ?? 'postgres';
-      t = await buildDataTestApp();
+      t = await buildDataTestApp({ realtime: hub });
       const connId = await createConnectionViaApi(
         t,
         `postgres://${user}@127.0.0.1:5432/${database}`,
@@ -378,7 +449,7 @@ const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
       await admin.query(`CREATE DATABASE \`${database}\``);
       await admin.query(`USE \`${database}\``);
       for (const statement of DDL.mysql) await admin.query(statement);
-      t = await buildDataTestApp();
+      t = await buildDataTestApp({ realtime: hub });
       const connId = await createConnectionViaApi(t, `${MYSQL_URL as string}/${database}`, 'billing', 'mysql');
       await introspectViaApi(t, connId);
       await grantAll(t, connId);

@@ -235,25 +235,38 @@ function compileILike(eb: Eb, dialect: Dialect, ref: Ref, pattern: string): Expr
   return eb(eb.fn('lower', [ref]), 'like', eb.fn<string>('lower', [eb.val(pattern)]));
 }
 
+/**
+ * A value as the engine binds it. A descriptor carries JSON, so a boolean
+ * filter arrives as `true`/`false` — which better-sqlite3 refuses to bind at
+ * all ("can only bind numbers, strings, …"); SQLite keeps booleans as 1 and
+ * 0, as every write to it does (`bindValue` in the write service).
+ */
+function bindable(ctx: CompileFilterContext, value: unknown): unknown {
+  if (ctx.dialect !== 'sqlite') return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  return Array.isArray(value) ? value.map((item) => (typeof item === 'boolean' ? (item ? 1 : 0) : item)) : value;
+}
+
 function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCondition): Expression<SqlBool> {
   // Masked columns are rejected in `where` for non-PII readers.
   const column = ctx.view.readableColumn(ctx.table, condition.column, ctx.canReadPii);
   const ref = ctx.dynamic.ref(column.name);
+  const value = () => bindable(ctx, requireValue(condition));
   switch (condition.op) {
     case 'eq':
-      return eb(ref, '=', requireValue(condition));
+      return eb(ref, '=', value());
     case 'neq':
-      return eb(ref, '!=', requireValue(condition));
+      return eb(ref, '!=', value());
     case 'gt':
-      return eb(ref, '>', requireValue(condition));
+      return eb(ref, '>', value());
     case 'gte':
-      return eb(ref, '>=', requireValue(condition));
+      return eb(ref, '>=', value());
     case 'lt':
-      return eb(ref, '<', requireValue(condition));
+      return eb(ref, '<', value());
     case 'lte':
-      return eb(ref, '<=', requireValue(condition));
+      return eb(ref, '<=', value());
     case 'in': {
-      const value = requireValue(condition);
+      const value = bindable(ctx, requireValue(condition));
       if (!Array.isArray(value) || value.length > MAX_IN_VALUES) {
         throw new ValidationFailedError('`in` takes an array of at most 200 values.', {
           column: condition.column,
@@ -271,7 +284,7 @@ function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCo
     case 'not_null':
       return eb(ref, 'is not', null);
     case 'between': {
-      const value = requireValue(condition);
+      const value = bindable(ctx, requireValue(condition));
       if (!Array.isArray(value) || value.length !== 2) {
         throw new ValidationFailedError('`between` takes a [low, high] pair.', {
           column: condition.column,

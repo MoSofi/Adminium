@@ -3,15 +3,16 @@
  * 2FA lifecycle: enroll → activate → login step-up → verify (TOTP and
  * recovery code, single-use), plus disable with password.
  */
-import * as OTPAuth from 'otpauth';
 import { afterEach, describe, expect, it } from 'vitest';
 import { auditRepo } from '@adminium/meta';
 
 import {
   ADMIN_PASSWORD,
   buildAuthApp,
+  enable2fa,
   login,
   sessionCookie,
+  totpCode,
   type AuthTestApp,
 } from './auth-helpers.js';
 
@@ -21,40 +22,6 @@ afterEach(async () => {
   await fixture?.destroy();
   fixture = undefined;
 });
-
-function totpCode(secretBase32: string): string {
-  return new OTPAuth.TOTP({
-    algorithm: 'SHA1',
-    digits: 6,
-    period: 30,
-    secret: OTPAuth.Secret.fromBase32(secretBase32),
-  }).generate();
-}
-
-/** enroll + activate for the signed-in admin; returns secret + recovery codes. */
-async function enable2fa(app: AuthTestApp['app'], cookie: string) {
-  const enroll = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/2fa/enroll',
-    headers: { cookie },
-  });
-  expect(enroll.statusCode).toBe(200);
-  const { secret, otpauthUrl } = (enroll.json() as { data: { secret: string; otpauthUrl: string } })
-    .data;
-  expect(otpauthUrl).toMatch(/^otpauth:\/\/totp\//);
-  expect(otpauthUrl).toContain('Adminium');
-
-  const activate = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/2fa/activate',
-    headers: { cookie },
-    payload: { code: totpCode(secret) },
-  });
-  expect(activate.statusCode).toBe(200);
-  const { recoveryCodes } = (activate.json() as { data: { recoveryCodes: string[] } }).data;
-  expect(recoveryCodes).toHaveLength(10);
-  return { secret, recoveryCodes };
-}
 
 describe('2FA enroll → activate → step-up login → verify', () => {
   it('requires a code after enabling 2FA and promotes the challenge to a session', async () => {

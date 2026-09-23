@@ -90,6 +90,8 @@ export const ID_PREFIXES = {
   // with the manifest they hang off would make a stray id look valid.
   mat: 'adminium_manifest_attachments',
   aoc: 'adminium_add_on_credentials',
+  /** One table an installed app uses (wave 0039). */
+  atb: 'adminium_app_tables',
   loc: 'adminium_locales',
   trn: 'adminium_translations',
   // The public surface. `pbk` is deliberately not `key`: a publishable key is

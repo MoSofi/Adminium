@@ -22,7 +22,7 @@ import { applyClassification, parseDatabaseModel, type Dialect } from '@adminium
 import { builtinOptionValues } from '@adminium/engine/config';
 
 import { applyOverrides } from '../src/connections/effective-schema.js';
-import { columnRuleIssue } from '../src/connections/column-rules-validation.js';
+import { capacityRuleIssue, columnRuleIssue } from '../src/connections/column-rules-validation.js';
 import { SnapshotView, type ResolvedTable } from '../src/crud/identifiers.js';
 import { checkRow, fillRow, tableRulesFor } from '../src/crud/column-rules.js';
 import type { WriteActor } from '../src/crud/write-service.js';
@@ -307,6 +307,16 @@ describe('column.validation — only what an admin typed', () => {
     expect(checkRow(guessed, 'create', { email: 'not-an-email' }, { dialect: 'postgres' })).toBeNull();
   });
 
+  it('takes a phone number the ways people write one, and refuses what is not one', () => {
+    const rules = t({ format: 'phone' });
+    for (const phone of ['(415) 555-0132', '+1 415 555 0166', '415.555.0132', '+44 (0)20 7946 0958', '07946 0958']) {
+      expect(checkRow(rules, 'create', { full_name: phone }, { dialect: 'postgres' }), phone).toBeNull();
+    }
+    for (const junk of ['call me', '(415', '++1 415 555', '555-']) {
+      expect(checkRow(rules, 'create', { full_name: junk }, { dialect: 'postgres' }), junk).toEqual({ full_name: { code: 'format' } });
+    }
+  });
+
   it('checks bounds on a number, including one that arrived as a string', () => {
     const rules = t({ min: 0, max: 120 }, { name: 'age', logicalType: 'integer', nullable: true });
     expect(checkRow(rules, 'create', { age: '-1' }, { dialect: 'postgres' })).toEqual({
@@ -416,5 +426,117 @@ describe('a rule the engine could not keep is refused at the door', () => {
       /needs a number column/,
     );
     expect(columnRuleIssue('column.validation', { format: 'email' }, column('full_name'), model)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// the columns Adminium decides
+// ---------------------------------------------------------------------------
+
+describe('a copy, a running number or a code the column cannot keep is refused at the door', () => {
+  const model = applyClassification(
+    parseDatabaseModel({
+      dialect: 'postgres',
+      name: 'cafe',
+      defaultSchema: 'public',
+      schemas: ['public'],
+      enums: [],
+      tables: [
+        {
+          schema: 'public',
+          name: 'items',
+          primaryKey: ['id'],
+          columns: [KEY, { name: 'price', logicalType: 'decimal', nullable: true }],
+        },
+        {
+          schema: 'public',
+          name: 'lines',
+          primaryKey: ['id'],
+          columns: [
+            KEY,
+            { name: 'item_id', logicalType: 'integer', nullable: true },
+            { name: 'unit_price', logicalType: 'decimal', nullable: true },
+            { name: 'code', logicalType: 'varchar', nullable: true, maxLength: 6 },
+            { name: 'paid', logicalType: 'boolean', nullable: true },
+            { name: 'at', logicalType: 'timestamptz', nullable: true },
+          ],
+        },
+      ],
+      relations: [
+        {
+          id: 'rel_lines_items',
+          kind: 'declared-fk',
+          cardinality: 'one-to-many',
+          from: { tableId: 'public.lines', columns: ['item_id'] },
+          to: { tableId: 'public.items', columns: ['id'] },
+        },
+      ],
+    }),
+  );
+  const column = (name: string) => model.tables[1]!.columns.find((c) => c.name === name)!;
+
+  it('copies only through a real link, from a column that exists', () => {
+    expect(columnRuleIssue('column.copy', { via: 'item_id', from: 'price' }, column('unit_price'), model)).toBeNull();
+    expect(columnRuleIssue('column.copy', { via: 'paid', from: 'price' }, column('unit_price'), model)).toMatch(
+      /does not link this table/,
+    );
+    expect(columnRuleIssue('column.copy', { via: 'item_id', from: 'cost' }, column('unit_price'), model)).toMatch(
+      /has no column "cost"/,
+    );
+  });
+
+  it('numbers a number or a text column, never the key', () => {
+    expect(columnRuleIssue('column.sequence', {}, column('unit_price'), model)).toBeNull();
+    expect(columnRuleIssue('column.sequence', {}, column('id'), model)).toMatch(/numbers itself/);
+    expect(columnRuleIssue('column.sequence', {}, column('paid'), model)).toMatch(/number or text column/);
+  });
+
+  it('totals a number column from a child that links back, over its number columns', () => {
+    const items = model.tables[0]!;
+    const price = items.columns.find((c) => c.name === 'price')!;
+    expect(
+      columnRuleIssue('column.rollup', { from: 'public.lines', via: 'item_id', sum: 'unit_price' }, price, model),
+    ).toBeNull();
+    expect(columnRuleIssue('column.rollup', { from: 'public.lines', via: 'code', sum: 'unit_price' }, price, model)).toMatch(
+      /does not link lines back/,
+    );
+    expect(columnRuleIssue('column.rollup', { from: 'public.lines', via: 'item_id', sum: 'code' }, price, model)).toMatch(
+      /not a number/,
+    );
+    expect(columnRuleIssue('column.rollup', { from: 'public.nope', via: 'item_id', sum: 'x' }, price, model)).toMatch(
+      /no table/,
+    );
+    // Leaving out a voided row names a column the child has.
+    expect(
+      columnRuleIssue('column.rollup', { from: 'public.lines', via: 'item_id', sum: 'unit_price', unlessSet: 'code' }, price, model),
+    ).toBeNull();
+    expect(
+      columnRuleIssue('column.rollup', { from: 'public.lines', via: 'item_id', sum: 'unit_price', unlessSet: 'voided_at' }, price, model),
+    ).toMatch(/lines has no column "voided_at"/);
+  });
+
+  it('guards a slot with the table’s own columns and settings that exist', () => {
+    const lines = model.tables[1]!;
+    const base = { slot: 'code', amount: 'unit_price', perSlot: 6, slotMinutes: 30 };
+    expect(capacityRuleIssue(base, lines, model)).toBeNull();
+    expect(capacityRuleIssue({ ...base, perSlot: { table: 'public.items', column: 'price' } }, lines, model)).toBeNull();
+    expect(capacityRuleIssue({ ...base, amount: 'code' }, lines, model)).toMatch(/not a number/);
+    expect(capacityRuleIssue({ ...base, slot: 'when' }, lines, model)).toMatch(/no column "when"/);
+    expect(capacityRuleIssue({ ...base, perSlot: { table: 'public.items', column: 'covers' } }, lines, model)).toMatch(
+      /no column "covers"/,
+    );
+  });
+
+  it('reads the venue clock only on a date-and-time column', () => {
+    expect(columnRuleIssue('column.venueLocal', { venueLocal: true }, column('at'), model)).toBeNull();
+    expect(columnRuleIssue('column.venueLocal', { venueLocal: true }, column('code'), model)).toMatch(/date-and-time column/);
+  });
+
+  it('codes a text column wide enough for the code', () => {
+    expect(columnRuleIssue('column.code', { length: 6 }, column('code'), model)).toBeNull();
+    expect(columnRuleIssue('column.code', { prefix: 'MR-', length: 4 }, column('code'), model)).toMatch(
+      /holds 6 characters; this code needs 7/,
+    );
+    expect(columnRuleIssue('column.code', { length: 4 }, column('unit_price'), model)).toMatch(/needs a text column/);
   });
 });

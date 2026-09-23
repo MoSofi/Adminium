@@ -23,6 +23,9 @@ export type ErrorCode =
   | 'CONFLICT'
   | 'UNIQUE_VIOLATION'
   | 'FK_VIOLATION'
+  | 'CAPACITY_FULL'
+  | 'CAPACITY_BUSY'
+  | 'CAPACITY_TOO_LATE'
   | 'PAYLOAD_TOO_LARGE'
   | 'UNKNOWN_IDENTIFIER'
   | 'RATE_LIMITED'
@@ -131,7 +134,9 @@ export class ForbiddenError extends AppError {
       | 'COLUMN_FORBIDDEN'
       | 'PAGE_FORBIDDEN'
       | 'CSRF_FAILED'
-      | 'READ_ONLY_MODE' = 'FORBIDDEN',
+      | 'READ_ONLY_MODE'
+      // Someone whose every role opens only an app's own screens.
+      | 'APP_SCREENS_ONLY' = 'FORBIDDEN',
     details?: unknown,
   ) {
     super(403, code, message, details);
@@ -148,6 +153,12 @@ export class ConflictError extends AppError {
       | 'CONFLICT'
       | 'UNIQUE_VIOLATION'
       | 'FK_VIOLATION'
+      // The booking guard: the slot has no room for this row, or another
+      // writer held it for longer than a writer waits.
+      | 'CAPACITY_FULL'
+      | 'CAPACITY_BUSY'
+      // A guest cancelling through the public API inside the venue's window.
+      | 'CAPACITY_TOO_LATE'
       // The plan was built against a schema that has since moved — either the
       // snapshot (another admin applied a plan) or the database itself
       // (somebody ran DDL outside Adminium). Both mean the same thing to the
@@ -158,7 +169,10 @@ export class ConflictError extends AppError {
       | 'PUBLIC_KEYS_LIVE'
       // A key create named a generated endpoint that is no longer what the
       // page showed; `details.refs` names them.
-      | 'PUBLIC_ENDPOINT_CHANGED' = 'CONFLICT',
+      | 'PUBLIC_ENDPOINT_CHANGED'
+      // An app install stopped part way; `details` says at which
+      // stage and which tables exist. POSTing the same install resumes it.
+      | 'APP_INSTALL_INCOMPLETE' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);
@@ -184,6 +198,28 @@ export class ConnectionDisabledError extends AppError {
         ? 'This connection is paused. Resume it in Studio → Data connections to load data again.'
         : `The connection “${connectionName}” is paused. Resume it in Studio → Data connections to load data again.`,
       { connectionId },
+    );
+  }
+}
+
+/**
+ * 503 — an installed app is switched off by an operator: the whole app
+ * (`APP_DISABLED`) or one of its sides (`SURFACE_OFF`).
+ *
+ * Nothing is broken and nothing was deleted, so, like a paused connection, no
+ * `Retry-After`: the answer changes when a person switches it back on.
+ */
+export class AppUnavailableError extends AppError {
+  override readonly name = 'AppUnavailableError';
+
+  constructor(appKey: string, reason: 'app-disabled' | 'side-off', side: 'staff' | 'customer') {
+    super(
+      503,
+      reason === 'app-disabled' ? 'APP_DISABLED' : 'SURFACE_OFF',
+      reason === 'app-disabled'
+        ? `The app "${appKey}" is switched off. Switch it on again in Studio → Apps.`
+        : `The ${side} screens of "${appKey}" are switched off. Switch them on again in Studio → Apps.`,
+      { appKey, side },
     );
   }
 }

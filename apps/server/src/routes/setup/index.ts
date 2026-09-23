@@ -146,11 +146,11 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
         // Land the wizard signed in — re-typing the credentials you just chose
         // is friction with no security value (you proved nothing by knowing it).
         const userAgent = request.headers['user-agent'];
-        const { token, session } = await createSession(ctx().meta, user.id, {
+        const minted = await createSession(ctx().meta, user.id, {
           ip: request.ip,
           userAgent: typeof userAgent === 'string' ? userAgent.slice(0, 300) : null,
         });
-        setSessionCookie(reply, token, request);
+        setSessionCookie(reply, minted, request);
 
         // The first moment this instance can learn where links in email should
         // point (security/public-origin.ts). Unauthenticated, but whoever
@@ -166,7 +166,7 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
             user: toUserView(user),
             // The -item-4 token for the session this reply just minted. See
             // `setupSuperAdminReply` for why it cannot wait for `/bootstrap`.
-            csrfToken: issueCsrfToken(csrfSigningKey(ctx().env.ADMINIUM_SECRET), session.id),
+            csrfToken: issueCsrfToken(csrfSigningKey(ctx().env.ADMINIUM_SECRET), minted.session.id),
           },
         };
       },

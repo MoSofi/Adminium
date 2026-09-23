@@ -36,8 +36,9 @@ import {
 } from '@adminium/meta';
 
 import { SELF_ORIGIN_SENTINEL, type Env } from '../../config/env.js';
-import { ConnectionDisabledError } from '../../errors.js';
+import { AppError, ConnectionDisabledError } from '../../errors.js';
 import { isSameOriginRequest } from '../../security/csrf.js';
+import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { runList } from '../../crud/list.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
@@ -63,8 +64,13 @@ import { generatePublicSessionToken, hashPublishableKey, keyKindOf } from '../..
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { maskRows, type Row } from '../../crud/mask.js';
+import { wallTimesAsInstants } from '../../crud/instants.js';
+import { slotAvailability } from '../../crud/capacity-guard.js';
+import { sendConfirmation } from '../../public-api/confirm.js';
+import { publicConfirmSchema } from '../../public-api/endpoint.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
+  GuardedBatchError,
   HookRejectedError,
   createWriteService,
   insertRow,
@@ -74,6 +80,7 @@ import {
   type WriteContext,
   type WriteTarget,
 } from '../../crud/write-service.js';
+import { writeStores } from '../../crud/write-stores.js';
 import { audited } from '../../audit/coverage.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
@@ -84,6 +91,8 @@ import {
   publicClaimReply,
   publicConfigReply,
   publicErrorReply,
+  publicAvailabilityQuery,
+  publicAvailabilityReply,
   publicListQuery,
   publicListShapes,
   publicRecordParams,
@@ -141,7 +150,33 @@ export interface PublicRoutesDeps {
 /** A failed statement on this surface; answered without naming the constraint. */
 class PublicWriteRefused extends Error {}
 
-const refuseWrite = (): never => {
+/**
+ * The one refusal a guest is told apart: the time they picked has no room
+ * (or is held by another writer this instant). It says no more than the
+ * availability of that time already does.
+ */
+class PublicSlotRefused extends Error {
+  constructor(readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE') {
+    super(
+      code === 'PUBLIC_SLOT_BUSY'
+        ? 'That time is busy. Try again in a moment.'
+        : code === 'PUBLIC_TOO_LATE'
+          ? 'It is too late to cancel online.'
+          : 'That time is full.',
+    );
+  }
+}
+
+/** The booking guard's refusals a guest is told, by the code they are told. */
+const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
+  CAPACITY_FULL: 'PUBLIC_SLOT_FULL',
+  CAPACITY_BUSY: 'PUBLIC_SLOT_BUSY',
+  CAPACITY_TOO_LATE: 'PUBLIC_TOO_LATE',
+};
+
+const refuseWrite = (error?: unknown): never => {
+  const told = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
+  if (told !== undefined) throw new PublicSlotRefused(told);
   throw new PublicWriteRefused();
 };
 
@@ -243,7 +278,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const keys = publicKeysRepo(meta);
   const sessions = publicSessionsRepo(meta);
   const audit = auditRepo(meta);
-  const writes = deps.writes ?? createWriteService();
+  const writes = deps.writes ?? createWriteService(writeStores(meta));
 
   /** A public write is anonymous: the key is the only name it has. */
   const publicWriteContext = (request: FastifyRequest, keyId: string): WriteContext => ({
@@ -447,6 +482,27 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     }
 
     /*
+     * AN APP'S OWN KEY STOPS WITH THE APP. A key an app made at install
+     * answers only while that app is on and its customer side is not switched
+     * off. Checked per request against the placement cache, not in the key
+     * cache: switching the app off takes effect in seconds, not at the key's
+     * TTL. An operator's own key is never touched by this.
+     */
+    if (key.managedBy !== null && request.server.surfaceSettings != null) {
+      const settings = await request.server.surfaceSettings.read();
+      const availability = availabilityOf(settings, key.managedBy, 'customer');
+      if (availability !== 'ok') {
+        fail(
+          reply,
+          503,
+          availability === 'app-disabled' ? 'APP_DISABLED' : 'SURFACE_OFF',
+          'This app is switched off right now.',
+        );
+        return null;
+      }
+    }
+
+    /*
      * The session, if one was presented. A bad or expired token is simply NO
      * session — never an error. Saying "your session expired" to an anonymous
      * caller distinguishes "this token was once real" from "this token is
@@ -495,6 +551,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     } else if (!admit(reply, limiter.hit(limit, counted))) {
       return null;
     }
+    // Every visitor together, on a key anyone can copy out of a page. By
+    // request: a batch's rows are the endpoint's own limit to count.
+    if (key.kind === 'browser' && !admit(reply, limiter.hitKey(key.keyId, limit === 'public-read' ? 'read' : 'write'))) {
+      return null;
+    }
     if (session !== null && sessionTouches.due(session.id)) void sessions.touch(session.id);
 
     return { key, session };
@@ -521,7 +582,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * runs its own equality-only query against exactly the declared columns and
      * returns a grant or null, never a row.
      */
-    opts: { bypassClaimGate?: boolean } = {},
+    opts: { bypassClaimGate?: boolean; kind?: 'records' | 'availability' } = {},
   ) => {
     const resource = ok.key.scope.byRef.get(ref);
     /*
@@ -531,7 +592,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * real one — which together are a status-code oracle this surface must not
      * inherit.
      */
-    if (resource === undefined || !resource.actions.has(action)) {
+    // An availability endpoint answers free or full at its own route and is
+    // no resource of rows anywhere else — its table's bookings stay put.
+    if (resource === undefined || !resource.actions.has(action) || resource.kind !== (opts.kind ?? 'records')) {
       fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
       return null;
     }
@@ -811,6 +874,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
 
         await touchKey(ok.key.keyId);
+        // Instants a caller elsewhere can read (SQLite keeps the server's wall clock).
+        result.data = result.data.map((row) => wallTimesAsInstants(row, table.columns, dialect));
         /*
          * THE RESPONSE SHAPE — the list route only. `wrapped`
          * is what every published client reads. `array` is the bare rows, the
@@ -836,6 +901,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     );
 
     app.options('/public/records/:ref/:id', { schema: { hide: true } }, preflight);
+    app.options('/public/availability/:ref', { schema: { hide: true } }, preflight);
 
     /*
      * ONE ROW BY KEY. `GET` grants it together with the list, and it
@@ -850,6 +916,59 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * the claim, and no such row are one 404 — indistinguishable, so a caller
      * fishing for what exists learns nothing from the difference.
      */
+    /*
+     * Free or full, per slot of a day, for a party — the booking page's one
+     * question. Computed from the table's booking limit, with the same sum
+     * the write path adds up; no row, name or count is in the answer. A
+     * claimed guest's own booking is not counted against them.
+     */
+    app.get(
+      '/public/availability/:ref',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          params: publicRefParams,
+          querystring: publicAvailabilityQuery,
+          response: {
+            200: publicAvailabilityReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'read', { kind: 'availability' });
+        if (found === null) return reply;
+        const rule = found.table.table.capacity;
+        if (rule === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const target = {
+          connectionId: ok.key.connectionId,
+          table: found.table,
+          db: found.db,
+          dialect: found.dialect,
+          timezone: ok.key.scope.timezone,
+        };
+        // The booking this guest has claimed, when it is in the same table.
+        let own: Row | null = null;
+        const grant = ok.session?.grant;
+        if (grant !== undefined && ok.key.scope.byRef.get(grant.ref)?.table === found.table.id) {
+          own =
+            ((await found.db
+              .selectFrom(found.table.id)
+              .selectAll()
+              .where((eb) => eb(found.db.dynamic.ref(grant.column), '=', grant.value))
+              .executeTakeFirst()) as Row | undefined) ?? null;
+        }
+        const slots = await slotAvailability(rule, target, request.query.date, request.query.party, own);
+        return reply.send({ data: slots });
+      },
+    );
+
     app.get(
       '/public/records/:ref/:id',
       {
@@ -898,7 +1017,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (row === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
 
         await touchKey(ok.key.keyId);
-        return reply.send({ data: row });
+        return reply.send({ data: wallTimesAsInstants(row, found.table.columns, found.dialect) });
       },
     );
 
@@ -946,6 +1065,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           table: found.table,
           db: found.db,
           dialect: found.dialect,
+          // The venue's clock is the key's scope's, as for every public date.
+          timezone: ok.key.scope.timezone,
         };
         let inserted: Row;
         try {
@@ -1016,15 +1137,32 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           throw error;
+        }
+
+        // The guest's confirmation, when the endpoint sends one. Queued, never
+        // awaited on SMTP, and never a reason to fail the booking just made.
+        const confirm = found.resource.confirm === null ? null : publicConfirmSchema.safeParse(found.resource.confirm);
+        if (confirm?.success === true) {
+          await sendConfirmation({
+            meta,
+            request,
+            confirm: confirm.data,
+            row: inserted,
+            db: found.db,
+            table: found.table,
+            timezone: ok.key.scope.timezone,
+            appKey: ok.key.managedBy,
+          });
         }
 
         // Only the exposed columns come back — a create must not return more
         // than a read of the same row would.
         const projected: Record<string, unknown> = {};
         for (const column of found.resource.expose) projected[column] = inserted[column];
-        return reply.status(201).send({ data: projected });
+        return reply.status(201).send({ data: wallTimesAsInstants(projected, found.table.columns, found.dialect) });
       },
     );
 
@@ -1105,6 +1243,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           table: found.table,
           db: found.db,
           dialect: found.dialect,
+          // The venue's clock is the key's scope's, as for every public date.
+          timezone: ok.key.scope.timezone,
         };
         const updatedRef: RecordRef = {
           connectionId: ok.key.connectionId,
@@ -1174,6 +1314,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           throw error;
         }
@@ -1186,7 +1327,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
         const projected: Record<string, unknown> = {};
         for (const column of found.resource.expose) projected[column] = outcome.after?.[column];
-        return reply.send({ data: projected });
+        return reply.send({ data: wallTimesAsInstants(projected, found.table.columns, found.dialect) });
       };
 
     app.patch(
@@ -1296,6 +1437,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           table: found.table,
           db: found.db,
           dialect: found.dialect,
+          // The venue's clock is the key's scope's, as for every public date.
+          timezone: ok.key.scope.timezone,
         };
         const deletedRef: RecordRef = {
           connectionId: ok.key.connectionId,
@@ -1357,6 +1500,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           throw error;
         }
@@ -1459,6 +1603,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           table,
           db: found.db,
           dialect: found.dialect,
+          timezone: ok.key.scope.timezone,
         };
         const context = publicWriteContext(request, ok.key.keyId);
 
@@ -1488,6 +1633,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           preparedUpdates = await writes.beforeEach('update', target, context, planned);
         } catch (error) {
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          // A table whose rows each hold a time slot takes them one at a time.
+          if (error instanceof GuardedBatchError) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
         for (const [i, row] of preparedInserts.entries()) {
@@ -1508,7 +1655,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const updated: { pk: Row; after: Row | null }[] = [];
             for (const [i, row] of preparedUpdates.entries()) {
               const pk = (updates[i] as { pk: Row }).pk;
-              const count = await updateRows(tdb, table, row.values, pk, inScope);
+              const count = await updateRows(tdb, found.dialect, table, row.values, pk, inScope);
               if (count !== 1) throw new PublicWriteRefused();
               updated.push({ pk, after: null });
             }
@@ -1616,6 +1763,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           resource: found.resource,
           scope: ok.key.scope,
           match: request.body.match,
+          view: found.view,
+          dialect: found.dialect,
         });
         // ONE code for no match, several matches, a missing factor and an extra
         // one. Anything finer turns a two-factor check into two one-factor ones.

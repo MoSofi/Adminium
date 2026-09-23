@@ -46,6 +46,12 @@ import { createAppStore, type AppStore } from '../src/apps/store.js';
 import { AppError, errorEnvelope } from '../src/errors.js';
 import { APP_CATALOG_REFRESH_KIND, APP_DOWNLOAD_KIND } from '../src/jobs/app-acquire.js';
 import { appRoutes } from '../src/routes/apps/index.js';
+import type { EditBody } from '../src/schema-ddl/programmatic.js';
+
+/** Every schema edit the installer asked the (fake) target to make. */
+const editCalls: EditBody[] = [];
+/** What the fake target's edits are planned against. */
+const EMPTY_MODEL = { tables: [], relations: [], enums: [] } as never;
 
 const BLOCK = 512;
 
@@ -244,7 +250,15 @@ async function buildApp(serverVersion = '0.2.9') {
       credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v },
       directoryKeys: () => [],
       schemaTarget: {
-        read: async () => existingTables.map((table) => ({ ...table, columns: [...table.columns] })),
+        read: async () => ({
+          tables: existingTables.map((table) => ({ ...table, columns: [...table.columns] })),
+          dialect: 'sqlite' as const,
+        }),
+        edit: async (_connectionId, build) => {
+          editCalls.push(build(EMPTY_MODEL));
+          return { changeId: 'chg_test', status: 'applied' } as never;
+        },
+        planEdit: () => Promise.reject(new Error('no schema editor in this suite')),
         apply: async (plan, manifest) =>
           applyInstall({
             plan,
@@ -607,26 +621,27 @@ describe('POST /apps/:key/update', () => {
     await app.close();
   });
 
-  it('refuses an update that needs columns an existing table lacks, and changes nothing', async () => {
+  it("adds a column the new version needs to the app's own table, through the schema editor", async () => {
     const app = await buildApp();
     await upload(app, 'sample-desk', '1.0.0');
     await install(app, 'sample-desk', '1.0.0');
     existingTables = [{ ref: 'clinicians', columns: [{ ref: 'id' }, { ref: 'name' }] }];
+    editCalls.length = 0;
 
     const wider: Table = { ...CLINICIANS, columns: [...CLINICIANS.columns, { ref: 'email', type: 'text' }] };
     await upload(app, 'sample-desk', '1.1.0', [wider]);
     const res = await app.inject({ method: 'POST', url: '/apps/sample-desk/update' });
-    expect(res.statusCode).toBe(422);
-    expect(res.json().error.details).toMatchObject({
-      reason: 'COLUMNS_REQUIRED',
-      tables: [{ ref: 'clinicians', missingColumns: ['email'] }],
-    });
-
-    const [row0] = await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).list('app');
-    expect(row0?.row.version).toBe('1.0.0');
-    // Nothing pruned: the running version is still on disk.
-    expect(await store.versions('sample-desk')).toEqual(['1.1.0', '1.0.0']);
-    expect((await appAudit()).map((r) => r.action)).not.toContain('app.updated');
+    expect(res.statusCode, res.body).toBe(200);
+    // The table is this app's own (recorded at install), so the update adapts
+    // it — one nullable column — rather than stopping.
+    expect(editCalls).toEqual([
+      {
+        addColumns: [{ table: 'clinicians', column: expect.objectContaining({ name: 'email', nullable: true }) }],
+        alterColumns: [],
+      },
+    ]);
+    const [row] = await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).list('app');
+    expect(row?.row.version).toBe('1.1.0');
     await app.close();
   });
 

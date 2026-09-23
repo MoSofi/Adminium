@@ -11,11 +11,16 @@
  * and persisted as `expires_at`. 2FA login challenges reuse the same table
  * with an `admc_` token prefix and a 5-minute TTL — the prefix guarantees a
  * challenge token can never authenticate as a session.
+ *
+ * "Keep me signed in" is the row's `persistent` flag, and it decides only the
+ * cookie: `Max-Age` when ticked, a browser-session cookie when not. The row
+ * expires on the same schedule either way. A challenge carries the flag to
+ * the session it becomes, and a re-minted session inherits it.
  */
 import { createHash, randomBytes } from 'node:crypto';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { sessionsRepo, settingsRepo, type MetaDb, type Session } from '@adminium/meta';
+import { readBool, sessionsRepo, settingsRepo, type MetaDb, type Session } from '@adminium/meta';
 
 export const SESSION_COOKIE = 'adminium_session';
 
@@ -52,6 +57,15 @@ export interface MintedSession {
   session: Session;
 }
 
+export interface MintOptions {
+  /**
+   * "Keep me signed in". Default true — the behaviour of every client that
+   * never asked, and of the sign-ins that have no checkbox (first-run setup,
+   * the desktop shell).
+   */
+  persistent?: boolean | undefined;
+}
+
 const HOUR_MS = 3_600_000;
 
 /**
@@ -75,12 +89,12 @@ export async function createSession(
   userId: string,
   reqMeta: RequestMeta = {},
   at: number = Date.now(),
-  absoluteDeadline?: number,
+  options: MintOptions & { absoluteDeadline?: number | undefined } = {},
 ): Promise<MintedSession> {
   const token = mintToken(SESSION_TOKEN_PREFIX);
   const expiresAt = Math.min(
     at + (await sessionAbsoluteTtlMs(meta)),
-    absoluteDeadline ?? Number.MAX_SAFE_INTEGER,
+    options.absoluteDeadline ?? Number.MAX_SAFE_INTEGER,
   );
   const session = await sessionsRepo(meta).create(
     {
@@ -89,6 +103,7 @@ export async function createSession(
       expiresAt,
       ip: reqMeta.ip ?? null,
       userAgent: reqMeta.userAgent ?? null,
+      persistent: options.persistent ?? true,
     },
     at,
   );
@@ -124,9 +139,15 @@ export async function resolveSessionByToken(
   return { state: 'active', session };
 }
 
+/** The row's "Keep me signed in" answer — challenge rows included. */
+export function isPersistentSession(session: Session): boolean {
+  return readBool(session.persistent);
+}
+
 /**
  * Privilege-boundary rotation hook: revokes the old row and mints a fresh
- * token for the same user, keeping the original absolute deadline. Call on
+ * token for the same user, keeping the original absolute deadline and the
+ * "Keep me signed in" answer. Call on
  * login step-ups, role changes, and password changes that keep the current
  * session alive.
  */
@@ -137,15 +158,22 @@ export async function rotateSession(
   at: number = Date.now(),
 ): Promise<MintedSession> {
   await sessionsRepo(meta).revoke(session.id, at);
-  return createSession(meta, session.userId, reqMeta, at, session.expiresAt);
+  return createSession(meta, session.userId, reqMeta, at, {
+    absoluteDeadline: session.expiresAt,
+    persistent: isPersistentSession(session),
+  });
 }
 
-/** Mints a 5-minute single-use 2FA challenge row (`admc_` prefix). */
+/**
+ * Mints a 5-minute single-use 2FA challenge row (`admc_` prefix). `persistent`
+ * is stored on it so /auth/2fa/verify can honour the checkbox it never saw.
+ */
 export async function createChallenge(
   meta: MetaDb,
   userId: string,
   reqMeta: RequestMeta = {},
   at: number = Date.now(),
+  options: MintOptions = {},
 ): Promise<MintedSession> {
   const token = mintToken(CHALLENGE_TOKEN_PREFIX);
   const session = await sessionsRepo(meta).create(
@@ -155,6 +183,7 @@ export async function createChallenge(
       expiresAt: at + CHALLENGE_TTL_MS,
       ip: reqMeta.ip ?? null,
       userAgent: reqMeta.userAgent ?? null,
+      persistent: options.persistent ?? true,
     },
     at,
   );
@@ -203,20 +232,24 @@ export function isSecureRequest(request: FastifyRequest): boolean {
  * shorter: the row's `expires_at` is the authority, and a cookie that outlives
  * it resolves to `expired` — "your session has expired" — instead of silently
  * vanishing into "you were never signed in".
+ *
+ * A non-persistent session ("Keep me signed in" unticked) gets no `maxAge`
+ * and no `expires` at all: a browser-session cookie, dropped when the browser
+ * closes. Browsers that restore the last session may keep it, which is why
+ * the row's own expiry still applies.
  */
-export function sessionCookieOptions(secure: boolean) {
-  return {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    signed: true,
-    secure,
-    maxAge: Math.floor(SESSION_ABSOLUTE_TTL_MS / 1000),
-  } as const;
+export function sessionCookieOptions(secure: boolean, persistent = true) {
+  const base = { path: '/', httpOnly: true, sameSite: 'lax', signed: true, secure } as const;
+  return persistent ? { ...base, maxAge: Math.floor(SESSION_ABSOLUTE_TTL_MS / 1000) } : base;
 }
 
-export function setSessionCookie(reply: FastifyReply, token: string, request: FastifyRequest): void {
-  void reply.setCookie(SESSION_COOKIE, token, sessionCookieOptions(isSecureRequest(request)));
+/** Sets the cookie for a freshly minted session; its row decides persistence. */
+export function setSessionCookie(reply: FastifyReply, minted: MintedSession, request: FastifyRequest): void {
+  void reply.setCookie(
+    SESSION_COOKIE,
+    minted.token,
+    sessionCookieOptions(isSecureRequest(request), isPersistentSession(minted.session)),
+  );
 }
 
 export function clearSessionCookie(reply: FastifyReply, request: FastifyRequest): void {

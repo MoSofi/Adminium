@@ -59,6 +59,7 @@ import {
   EndpointChanged,
   KeyCreateRefused,
   PublicApiContended,
+  type EndpointService,
 } from '../../public-api/endpoint-service.js';
 import { createPublicViews, type PublicViews } from '../../public-api/runtime.js';
 import { registerEndpointRoutes } from './endpoints.js';
@@ -98,6 +99,8 @@ export interface PublicAdminRoutesDeps {
   onChange?: (() => void) | undefined;
   /** The schema views the public routes read; built here when absent (route tests). */
   views?: PublicViews | undefined;
+  /** The endpoint service, shared with the app installer; built here when absent (route tests). */
+  service?: EndpointService | undefined;
 }
 
 function scopeToDto(row: PublicScope, keyCount: number): PublicScopeDto {
@@ -167,12 +170,14 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
   const views = deps.views ?? createPublicViews(meta);
   const tenantConfigOf = async (connectionId: string) =>
     (await connectionTenantConfig(meta, connectionId)) ?? undefined;
-  const service = createEndpointService({
-    meta,
-    viewFor: views.viewFor,
-    tenantConfigOf,
-    invalidate: (keyId) => deps.invalidateResolver?.(keyId),
-  });
+  const service =
+    deps.service ??
+    createEndpointService({
+      meta,
+      viewFor: views.viewFor,
+      tenantConfigOf,
+      invalidate: (keyId) => deps.invalidateResolver?.(keyId),
+    });
 
   /*
    * Every change to what a key may do advances the shared revision, so other

@@ -12,7 +12,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { rolesRepo, usersRepo } from '@adminium/meta';
+import { overridesRepo, rolesRepo, usersRepo } from '@adminium/meta';
 
 import { ENC_TOKEN_PREFIX } from '../src/config/secrets.js';
 import { providerFromModule } from '../src/connections/register-adapters.js';
@@ -294,6 +294,57 @@ describe.skipIf(!AVAILABLE)('connections manager (live PG)', () => {
     )!;
     expect(rawCustomers.label).toBeUndefined();
     expect((raw.json() as { appliedOverrides: number }).appliedOverrides).toBe(0);
+  });
+
+  it('a save keeps where each rule came from, and never takes an origin from the client', async () => {
+    const id = (await t.manager.connections.list())[0]!.id;
+    const repo = overridesRepo(t.meta);
+    const stored = await repo.listForConnection(id);
+    // The introspection proposed the phone mask itself, and the earlier save
+    // in this file (which included it) kept it the engine's.
+    const auto = stored.find((o) => o.op === 'column.pii' && o.columnName === 'phone');
+    expect(auto?.origin).toBe('auto');
+    await repo.create({
+      connectionId: id,
+      op: 'column.label',
+      tableName: 'public.customers',
+      columnName: 'city',
+      value: { label: 'Town' },
+      origin: 'llm',
+      llmRunId: 'llm_run_1',
+    });
+    await repo.create({
+      connectionId: id,
+      op: 'column.hidden',
+      tableName: 'public.customers',
+      columnName: 'region',
+      value: { hidden: true },
+      origin: 'app',
+    });
+
+    const put = await t.app.inject({
+      method: 'PUT',
+      url: `/api/v1/connections/${id}/overrides`,
+      headers: asUser(t.users.admin),
+      payload: {
+        overrides: [
+          { op: 'column.pii', tableName: 'public.customers', columnName: 'phone', value: { masked: true, kind: 'phone' } },
+          // The operator edits the LLM's label: still the LLM's proposal, now edited.
+          { op: 'column.label', tableName: 'public.customers', columnName: 'city', value: { label: 'Town or city' } },
+          { op: 'column.hidden', tableName: 'public.customers', columnName: 'region', value: { hidden: true } },
+          // A NEW rule the client claims is an app's: it is the operator's.
+          { op: 'table.label', tableName: 'public.customers', value: { label: 'Customer' }, origin: 'app' },
+        ],
+      },
+    });
+    expect(put.statusCode).toBe(200);
+    const after = await repo.listForConnection(id);
+    const origin = (op: string, column: string | null) =>
+      after.find((o) => o.op === op && o.columnName === column);
+    expect(origin('column.pii', 'phone')?.origin).toBe('auto');
+    expect(origin('column.label', 'city')).toMatchObject({ origin: 'llm', llmRunId: 'llm_run_1' });
+    expect(origin('column.hidden', 'region')?.origin).toBe('app');
+    expect(origin('table.label', null)?.origin).toBe('user');
   });
 
   it('unmasking PII via remap requires super-admin (security review 2026-07-23)', async () => {

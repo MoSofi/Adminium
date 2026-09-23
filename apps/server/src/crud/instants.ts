@@ -98,3 +98,36 @@ export function renderNow(
       return null;
   }
 }
+
+/** A wall time as SQLite hands one back: `2026-09-24 19:00:00`, maybe with milliseconds. */
+const WALL = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3})\d*)?)?$/;
+
+/**
+ * A row read from a SQLite source for somebody who is not this server — the
+ * public API's caller, a browser anywhere — with each naive timestamp spelled
+ * as the instant it denotes.
+ *
+ * SQLite has no zone, and what Adminium keeps in its timestamp columns is the
+ * SERVER's wall clock (the header). A caller in another zone reading
+ * `2026-09-25 01:00:00` has no way to know which instant that is, and reads it
+ * as their own: a 7 PM booking in New York, served from Berlin, came back to a
+ * guest as noon. Postgres and MySQL already answer with instants.
+ */
+export function wallTimesAsInstants<T extends Record<string, unknown>>(
+  row: T,
+  columns: ReadonlyMap<string, { readonly logicalType: LogicalType }>,
+  dialect: Dialect,
+): T {
+  if (dialect !== 'sqlite') return row;
+  let out: Record<string, unknown> | null = null;
+  for (const [name, value] of Object.entries(row)) {
+    if (typeof value !== 'string' || columns.get(name)?.logicalType !== 'timestamp') continue;
+    const m = WALL.exec(value);
+    if (m === null) continue;
+    const at = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] ?? 0), Number((m[7] ?? '0').padEnd(3, '0')));
+    if (Number.isNaN(at.getTime())) continue;
+    out ??= { ...row };
+    out[name] = at.toISOString();
+  }
+  return (out ?? row) as T;
+}

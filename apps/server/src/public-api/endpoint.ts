@@ -131,6 +131,28 @@ const identitySchema = z
   })
   .strict();
 
+/** A confirmation emailed on a guest's create (`definition.confirm`). */
+export const publicConfirmSchema = z
+  .object({
+    template: z.enum(['booking-confirmation']),
+    /** The column holding the guest's email address. */
+    to: columnSchema,
+    code: columnSchema.optional(),
+    when: columnSchema.optional(),
+    party: columnSchema.optional(),
+    name: columnSchema.optional(),
+    /** The one-row table holding the venue's name, address and phone. */
+    venue: z
+      .object({ table: z.string().min(1).max(256), name: columnSchema.optional(), address: columnSchema.optional(), phone: columnSchema.optional() })
+      .strict()
+      .optional(),
+    /** Where "Manage your booking" leads, under the app's guest side: `manage?code={code}`. */
+    link: z.string().max(200).optional(),
+  })
+  .strict();
+
+export type PublicConfirm = z.infer<typeof publicConfirmSchema>;
+
 export const publicEndpointDefinitionSchema = z
   .object({
     path: z.string().min(2).max(REF_MAX + 1),
@@ -169,6 +191,17 @@ export const publicEndpointDefinitionSchema = z
      * granted, with no audit row, hook or event for them.
      */
     allow_cascade: z.boolean().optional(),
+    /**
+     * `availability`: the endpoint answers "free or full" for each time slot
+     * of a day, from the table's booking limit — never a row. GET only.
+     */
+    kind: z.enum(['records', 'availability']).optional(),
+    /**
+     * A confirmation Adminium emails when a guest creates a row here — the
+     * page is static and has no server to send one. Each field names the
+     * column the email reads; `venue` names a one-row settings table.
+     */
+    confirm: publicConfirmSchema.optional(),
   })
   .strict();
 
@@ -234,6 +267,8 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   }
   if (def.sensitive !== undefined) out['sensitive'] = def.sensitive;
   if (def.allow_cascade !== undefined) out['allow_cascade'] = def.allow_cascade;
+  if (def.kind !== undefined) out['kind'] = def.kind;
+  if (def.confirm !== undefined) out['confirm'] = { ...def.confirm };
   return out;
 }
 
@@ -301,6 +336,11 @@ function serverOwned(column: EffectiveColumn): boolean {
   return column.isGenerated || column.default?.kind === 'autoincrement';
 }
 
+/** A copied value, a running number, a code or a total: the write path fills it, never a caller. */
+function decidedByAdminium(column: EffectiveColumn): boolean {
+  return column.copy !== undefined || column.sequence !== undefined || column.code !== undefined || column.rollup !== undefined;
+}
+
 /**
  * Columns a PUBLIC caller may not even be offered: secret ones are invisible
  * everywhere (`SnapshotView.column`), so they are treated as absent.
@@ -345,7 +385,7 @@ function defaultWritable(def: PublicEndpointDefinition, table: ResolvedTable | n
   const out = new Set(def.select);
   if (table !== null) {
     for (const pk of table.primaryKey) out.delete(pk);
-    for (const column of table.table.columns) if (serverOwned(column)) out.delete(column.name);
+    for (const column of table.table.columns) if (serverOwned(column) || decidedByAdminium(column)) out.delete(column.name);
   }
   for (const f of def.filters) out.delete(f.column);
   if (def.claim?.column !== undefined) out.delete(def.claim.column);
@@ -413,6 +453,8 @@ export function definitionToResource(
     count: 'none',
   };
   if (claim !== undefined) resource.claim = claim;
+  if (def.kind === 'availability') resource.kind = 'availability';
+  if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
   return resource;
 }
 
@@ -533,6 +575,38 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
    */
   if (methods.size === 0) return issues;
 
+  if (def.confirm !== undefined) {
+    // Every column the confirmation reads is one of this table's, or of its venue's.
+    const own = new Set(table.columns.keys());
+    const { to, code, when, party, name } = def.confirm;
+    for (const column of [to, code, when, party, name]) {
+      if (column !== undefined && !own.has(column)) push('ENDPOINT_CONFIRM_UNKNOWN_COLUMN', `"${column}" is not a column of ${def.source}`, column);
+    }
+    if (!def.methods.includes('POST')) push('ENDPOINT_CONFIRM_NO_CREATE', 'a confirmation is sent when a row is created, and this endpoint creates none');
+    const venue = def.confirm.venue;
+    if (venue !== undefined) {
+      const settings = view === null ? null : sourceTable(view as SnapshotView, venue.table);
+      if (settings === null) {
+        push('ENDPOINT_CONFIRM_UNKNOWN_COLUMN', `${venue.table} is not a table of this connection`);
+      } else {
+        for (const column of [venue.name, venue.address, venue.phone]) {
+          if (column !== undefined && !settings.columns.has(column)) push('ENDPOINT_CONFIRM_UNKNOWN_COLUMN', `"${column}" is not a column of ${venue.table}`, column);
+        }
+      }
+    }
+  }
+
+  if (def.kind === 'availability') {
+    // Free or full, per slot, and nothing else: a read of the booking limit.
+    const capacity = table.table.capacity;
+    if ([...methods].some((m) => m !== 'GET')) push('ENDPOINT_AVAILABILITY_READ_ONLY', 'availability answers GET only');
+    if (capacity === undefined) {
+      push('ENDPOINT_AVAILABILITY_NO_LIMIT', `${def.source} has no booking limit to answer availability from`);
+    } else if (capacity.resource !== undefined) {
+      push('ENDPOINT_AVAILABILITY_PER_RESOURCE', 'availability for a limit per table or room is not offered yet');
+    }
+  }
+
   const visible = visibleColumns(table);
   for (const column of def.select) {
     if (!visible.has(column)) {
@@ -564,6 +638,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     def.writable ?? definitionToResource(ref, def, def.methods, table).writable;
   const pk = new Set(table.primaryKey);
   const owned = new Set(table.table.columns.filter(serverOwned).map((c) => c.name));
+  const decided = new Set(table.table.columns.filter(decidedByAdminium).map((c) => c.name));
   if (def.methods.some((m) => WRITING_METHODS.has(m))) {
     for (const column of writable) {
       if (pk.has(column) || owned.has(column)) {
@@ -572,6 +647,9 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
           `"${column}" is ${pk.has(column) ? 'the primary key' : 'filled by the database'} and cannot be writable`,
           column,
         );
+      } else if (decided.has(column)) {
+        // A guest never picks a price, a number or a code.
+        push('ENDPOINT_WRITABLE_DECIDED', `"${column}" is decided by Adminium and cannot be writable`, column);
       }
     }
   }

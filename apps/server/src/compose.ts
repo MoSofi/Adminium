@@ -38,6 +38,7 @@ import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   documentProfilesRepo,
   addOnSettingsRepo,
+  connectionTenantConfig,
   auditRepo,
   automationRunsRepo,
   DAY_MS,
@@ -113,6 +114,7 @@ import { FILES_DIR } from './files/drivers/local.js';
 import { storageCryptoFromSecret } from './files/crypto.js';
 import { createSpool } from './files/spool.js';
 import { createFileStore } from './files/store.js';
+import { registerSampleDataHandler, type SampleDataDeps } from './apps/sample-data.js';
 import {
   enqueueCatalogRefresh,
   registerAddOnAcquireHandlers,
@@ -146,6 +148,8 @@ import { resolveProviderClient } from './routes/llm/config-service.js';
 import { assistantRoutes } from './routes/assistant/index.js';
 import type { RunService } from './llm/run-service.js';
 import { rbacPlugin } from './plugins/rbac.js';
+import { NO_SURFACE_SETTINGS } from './surfaces/settings.js';
+import { allowedForScreensOnly, appConnections, screensOnlyError } from './apps/screens-only.js';
 import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
 import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
@@ -204,6 +208,8 @@ import { appRoutes } from './routes/apps/index.js';
 import { surfacesAdminRoutes } from './routes/surfaces-admin/index.js';
 import { createApiCatalogue, metaCatalogueSource } from './public-api/catalogue.js';
 import { createPublicApiGate } from './public-api/enabled.js';
+import { createEndpointService } from './public-api/endpoint-service.js';
+import { writeStores } from './crud/write-stores.js';
 import { createPublicResolver, createPublicViews, createRevisionWatch } from './public-api/runtime.js';
 import { createRequestStats } from './public-api/stats.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
@@ -481,6 +487,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       (await appManifests.list('app')).map((installed) => ({
         key: installed.row.manifestKey,
         version: installed.row.version,
+        status: installed.row.status,
       })),
   });
 
@@ -495,6 +502,22 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   });
 
   await app.register(rbacPlugin, { meta });
+
+  /*
+   * SCREENS-ONLY PEOPLE (a till's cashier) reach the API for what their app's
+   * screens need and nothing else. Here, straight after the rbac plugin and
+   * before any route scope below exists, so it reaches every one of them; the
+   * bootstrap, registered earlier, refuses them itself.
+   */
+  app.addHook('preHandler', async (request) => {
+    if (!request.url.startsWith('/api/') || request.user == null || request.apiKeyPrincipal != null) return;
+    const set = await app.rbac.resolve(request);
+    if (set.screensOnly === null) return;
+    const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
+    const connections = await appConnections(meta, settings, set.screensOnly);
+    if (allowedForScreensOnly(request.method, request.url, connections)) return;
+    throw screensOnlyError(settings, set.screensOnly, request);
+  });
 
   // EMAIL (v1 SMTP wave). Two boot-time facts, both cheap:
   //
@@ -610,6 +633,27 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   } catch (error) {
     app.log.warn({ err: error }, 'could not seed the storage destination from the environment');
   }
+  /*
+   * Sample data reaches the operator's database, the app store and the Files
+   * library, and tells open dashboards when it lands. The Files library's store
+   * is created just below, so it is read lazily.
+   */
+  const sampleDataDeps: SampleDataDeps = {
+    meta,
+    manager,
+    store: appStore,
+    get files() {
+      return storage;
+    },
+    publish: async (connectionId) => {
+      if (app.hasDecorator('realtime')) {
+        app.realtime.publish('config-changed', 'config-changed', {
+          connectionId,
+          configVersion: await pagesRepo(meta).configVersion(),
+        });
+      }
+    },
+  };
   const storage = createFileStore({
     spool: createSpool({ dataDir: env.ADMINIUM_DATA_DIR }),
     destinations: destinationResolver,
@@ -736,7 +780,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const widgetDataCache = new WidgetDataCache();
   app.decorate('widgetDataCache', widgetDataCache);
-  const recordWrites = createWriteService(hookRunner === null ? {} : { hooks: () => hookRunner });
+  const recordWrites = createWriteService({
+    ...(hookRunner === null ? {} : { hooks: () => hookRunner }),
+    // A running number counts in the meta store; a venue's clock is its connection's.
+    ...writeStores(meta),
+  });
   const projectActions =
     projectCode === null
       ? null
@@ -1155,6 +1203,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const publicViews = createPublicViews(meta);
   const publicResolver = createPublicResolver(meta, publicViews);
+  // Saving endpoints and making keys: one service for the API keys page and
+  // the app installer, so both check against the same views.
+  const endpointService = createEndpointService({
+    meta,
+    viewFor: publicViews.viewFor,
+    tenantConfigOf: async (connectionId) => (await connectionTenantConfig(meta, connectionId)) ?? undefined,
+    invalidate: (keyId) => {
+      publicResolver.invalidate(keyId);
+    },
+  });
   /*
    * What `/api-docs` lists. Memoized for ≤ 30 s and emptied by the
    * same events that empty the key cache, since both answer "what may a key
@@ -1273,7 +1331,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           }),
         );
       }
-      await api.register(connectionsRoutes({ manager, meta }));
+      await api.register(
+        connectionsRoutes({
+          manager,
+          meta,
+          // Every key's compiled scope carries the connection's zone and currency.
+          onTenantChanged: () => {
+            publicResolver.invalidate();
+            apiCatalogue.invalidate();
+          },
+        }),
+      );
       await api.register(schemaRoutes({ manager, meta }));
       // The answers a column accepts, named once. Registered
       // beside the schema routes because a list and the rule that names it are
@@ -1422,6 +1490,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // The same schema cache the public routes read, so an endpoint is
           // checked against exactly what a request will run against.
           views: publicViews,
+          service: endpointService,
         }),
       );
       // Hosted app surfaces: placement + domain attachment. Registered
@@ -1457,8 +1526,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // Where an installed app's tables are planned and created.
           // The same shared core the add-on target runs, given the connection
           // the operator picked instead of one inferred from a host.
-          schemaTarget: createAppSchemaTarget({ meta, manager }),
+          schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
           catalog: appCatalog,
+          sampleData: sampleDataDeps,
+          // What an app's guests may call: endpoints and a browser key made
+          // through the same service the API keys page saves with.
+          publicAccess: {
+            service: endpointService,
+            viewFor: publicViews.viewFor,
+            crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
+            origins: env.ADMINIUM_PUBLIC_API_ORIGINS ?? [],
+            onChange: () => {
+              apiCatalogue.invalidate();
+            },
+            invalidateKey: (keyId) => {
+              publicResolver.invalidate(keyId);
+            },
+          },
         }),
       );
       // The add-on runtime. Registered unconditionally: an instance with no
@@ -1610,6 +1694,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // App acquisition (b G8-D3/D5): the add-on jobs' twins, behind the app
   // catalog's own switch and cached in the app store.
   registerAppAcquireHandlers(jobs.registry, { meta, store: appStore, catalog: appCatalog });
+  // An app's sample data is added by a job (its rows and images in one go).
+  registerSampleDataHandler(jobs.registry, sampleDataDeps);
   jobs.scheduler.registerSchedule(
     APP_CATALOG_REFRESH_SCHEDULE_NAME,
     APP_CATALOG_REFRESH_CRON,

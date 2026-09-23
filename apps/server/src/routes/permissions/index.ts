@@ -78,7 +78,7 @@ const SYSTEM_PERMISSION_META: Record<
   // server half in this process, which is closer to "start a job" than
   // to "change a setting" — exists precisely to stop it riding on
   // `settings.manage`.
-  'manifests.manage': { label: 'Install and connect add-ons', category: 'operations' },
+  'manifests.manage': { label: 'Install and manage apps and add-ons', category: 'operations' },
   // `files.manage` is `data` — it is about other people's records'
   // attachments, beside the exports/imports rows it mirrors. `storage.manage`
   // is `workspace`: it configures where the whole instance writes bytes and

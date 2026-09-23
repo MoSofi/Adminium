@@ -500,6 +500,24 @@ for (const dialect of TEST_DIALECTS) {
       expect(shownNav['hidden']).toBeUndefined();
     });
 
+    it('an installed app’s page keeps its own group inside the app’s section', async () => {
+      const repo = pagesRepo(meta());
+      const envelope = {
+        v: 1,
+        kind: 'page',
+        id: 'page_menu',
+        title: { key: 'nav.menu', fallback: 'Menu' },
+        nav: { group: 'manage', icon: 'list', order: 1 },
+        config: {},
+      };
+      await repo.create({ id: 'page_menu', slug: 'pos-menu', type: 'page-crud', title: 'Menu', navGroup: 'app', config: envelope, origin: 'manifest' });
+      await repo.updateMeta('page_menu', { navOrder: 4 }, { at: 2_000 });
+      const row = await repo.findById('page_menu');
+      expect(row?.navGroup).toBe('app');
+      // The row says "the app's section"; the document still says where in it.
+      expect((row?.config as { nav: Record<string, unknown> }).nav).toMatchObject({ group: 'manage', order: 4 });
+    });
+
     it('updateMeta honours If-Match and reports a stale revision as a conflict', async () => {
       const repo = pagesRepo(meta());
       const page = await repo.create({

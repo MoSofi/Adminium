@@ -55,6 +55,8 @@ function resource(over: Partial<CompiledResource> = {}): CompiledResource {
     rate: null,
     response: { shape: 'wrapped' },
     count: 'none',
+    kind: 'records',
+    confirm: null,
     ...over,
   };
 }

@@ -84,6 +84,13 @@
  * schedule break without the marker. Its substitute control is stronger than a
  * token anyway — the route requires a LOOPBACK SOCKET PEER plus
  * `system:settings:manage` (routes/desktop/index.ts gates 2 and 3).
+ *
+ * `config.csrf: 'form'` is NOT an exemption: both legs still run, and only
+ * where leg B's token is read from changes — the body's `csrf` field instead
+ * of the header. It is for the script-free pages the server renders itself
+ * (an app switched off), whose Sign out is a plain form post that cannot set
+ * a header. The page carries the same session-bound token the bootstrap hands
+ * the dashboard.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
@@ -115,6 +122,12 @@ declare module 'fastify' {
      * reads it so the WS upgrade and the HTTP hook agree on one allowlist.
      */
     csrfOrigins: ReadonlySet<string>;
+    /**
+     * The session-bound token for one session id, for a page the SERVER
+     * renders with a form in it (a `config.csrf: 'form'` target). Decorated by
+     * `corePlugin`, from the same key the check uses.
+     */
+    csrfTokenFor: (sessionId: string) => string;
   }
 }
 
@@ -307,9 +320,27 @@ export function checkCsrf(request: FastifyRequest, deps: CsrfDeps): CsrfFailure 
   if (verdict === 'foreign') return 'foreign-origin';
   if (!hasBrowserProvenance(request)) return null;
 
-  const presented = request.headers[CSRF_HEADER];
+  const presented =
+    request.routeOptions.config?.csrf === 'form' ? formToken(request.body) : request.headers[CSRF_HEADER];
   if (typeof presented !== 'string' || presented.length === 0) return 'token-missing';
   return tokensMatch(presented, issueCsrfToken(deps.key, sessionId)) ? null : 'token-mismatch';
+}
+
+/** The form field a script-free page posts its token in. */
+export const CSRF_FORM_FIELD = 'csrf';
+
+/**
+ * The token from a `config.csrf: 'form'` route's body.
+ *
+ * A page that runs no script cannot set a header, so the SAME session-bound
+ * token rides in the body instead — both legs still apply, only where leg B
+ * is read from changes. `text/plain` is the one form encoding this server
+ * parses (no formbody plugin), so the body is `csrf=<token>` plus a line end.
+ */
+function formToken(body: unknown): string | undefined {
+  if (typeof body !== 'string') return undefined;
+  const match = new RegExp(`^${CSRF_FORM_FIELD}=([A-Za-z0-9_-]+)\\s*$`).exec(body);
+  return match?.[1];
 }
 
 /** Length-safe constant-time compare (`timingSafeEqual` throws on a mismatch). */

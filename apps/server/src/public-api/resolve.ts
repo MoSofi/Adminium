@@ -40,6 +40,8 @@ export interface ResolvedKey {
   scope: CompiledScope;
   /** Per-key origin narrowing; empty means "no narrowing beyond the env list". */
   origins: readonly string[];
+  /** The app that made this key at install, or null for an operator's own. */
+  managedBy: string | null;
 }
 
 export interface PublicKeyRow {
@@ -53,6 +55,8 @@ export interface PublicKeyRow {
   revokedAt: number | null;
   /** Absent on rows written before server keys existed: those are browser keys. */
   kind?: string;
+  /** Absent on rows written before apps made their own keys. */
+  managedBy?: string | null;
 }
 
 export interface PublicScopeRow {
@@ -215,6 +219,7 @@ export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
       side: matched.side,
       scope,
       origins,
+      managedBy: matched.managedBy ?? null,
     };
     if (started === generation) {
       // Never cached past the key's own expiry: a key must stop at

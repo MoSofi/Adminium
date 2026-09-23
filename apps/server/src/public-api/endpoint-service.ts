@@ -33,6 +33,7 @@
 
 import {
   newId,
+  overridesRepo,
   publicApiStateRepo,
   publicEndpointsRepo,
   publicKeysRepo,
@@ -67,6 +68,7 @@ import {
   type PublicEndpointDefinition,
   type PublicMethod,
 } from './endpoint.js';
+import { DECIDED_COLUMN_OPS, managedEditIssues, managedGrantIssues } from './managed-key.js';
 import { compileScope, type InheritedTenantConfig, type PublicScopeDocument, type ScopeIssue } from './scope.js';
 
 /* ------------------------------------------------------------------ errors */
@@ -184,6 +186,8 @@ interface AffectedKey {
   ref: KeyRef;
   kind: PublicKeyKind;
   appKey: string | null;
+  /** The installed app that made the key: held to the safe list. */
+  managedBy: string | null;
   access: Record<string, PublicMethod[]>;
   storedDocument: unknown;
 }
@@ -195,6 +199,8 @@ export interface SaveEndpointInput {
   /** Used only when the save creates the row. */
   origin?: 'generated' | 'custom';
   actorId?: string | null;
+  /** The installed app the endpoint belongs to; set only when the save creates the row. */
+  managedBy?: string | null;
 }
 
 export interface SaveCheck {
@@ -237,6 +243,8 @@ export interface CreateKeyInput {
   actorId?: string | null;
   /** `browser` (default) or `server`. The caller generated the matching secret. */
   kind?: PublicKeyKind;
+  /** The installed app that made the key, which alone may take it back. */
+  managedBy?: string | null;
 }
 
 export function createEndpointService(deps: EndpointServiceDeps) {
@@ -260,11 +268,22 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         ref: { id: row.id, name: row.name, prefix: row.prefix, scopeId: row.scopeId },
         kind: row.kind === 'server' ? 'server' : 'browser',
         appKey: row.appKey,
+        managedBy: row.managedBy,
         access,
         storedDocument,
       });
     }
     return out;
+  }
+
+  /** The columns of `source` Adminium decides (copied, coded, numbered, totalled). */
+  async function decidedColumns(connectionId: string, source: string): Promise<Set<string>> {
+    const rows = await overridesRepo(meta).listForConnection(connectionId);
+    return new Set(
+      rows
+        .filter((o) => o.status === 'active' && o.tableName === source && DECIDED_COLUMN_OPS.includes(o.op))
+        .flatMap((o) => (o.columnName === null ? [] : [o.columnName])),
+    );
   }
 
   /** Everything a save would do, computed without writing anything. */
@@ -287,6 +306,9 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     const affected = await affectedKeys(connectionId, existing?.id ?? null, ref, at);
     const appBound = affected.some((k) => k.appKey !== null && hasOwn(k.access, endpointId));
     const own = endpointIssues(definition, { ref, view, grantedToAppBoundKey: appBound });
+    const managed = affected.filter((k) => k.managedBy !== null && hasOwn(k.access, endpointId));
+    const priorDefinition = existing === null ? null : parseDefinition(existing.definition);
+    const decided = managed.length === 0 ? new Set<string>() : await decidedColumns(connectionId, definition.source);
 
     const introduced: ScopeIssue[] = [];
     const breaking: KeyRef[] = [];
@@ -306,9 +328,19 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         continue;
       }
       if (newIssues.length > 0) stillBroken.push(key.ref);
-      if (key.kind === 'browser') {
-        const gains = wideningOf(key.storedDocument, next.document);
-        if (gains.length > 0) widened.push({ ...key.ref, gains });
+      const gains = key.kind === 'browser' ? wideningOf(key.storedDocument, next.document) : [];
+      if (gains.length > 0) widened.push({ ...key.ref, gains });
+      if (managed.includes(key)) {
+        const held = (key.access[endpointId] ?? []).filter((m) => definition.methods.includes(m));
+        const unsafe = [
+          ...managedGrantIssues(ref, definition, held, decided),
+          ...managedEditIssues(ref, priorDefinition?.ok === true ? priorDefinition.definition : null, definition, gains),
+        ];
+        if (unsafe.length > 0) {
+          introduced.push(...unsafe);
+          breaking.push(key.ref);
+          continue;
+        }
       }
       writes.push({ key, document: next.document });
     }
@@ -349,6 +381,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
               origin: input.origin ?? 'custom',
               definition: text,
               createdBy: input.actorId ?? null,
+              managedBy: input.managedBy ?? null,
             },
             at,
             trx,
@@ -482,6 +515,11 @@ export function createEndpointService(deps: EndpointServiceDeps) {
           const hashed = grant.selectHash !== undefined && grant.selectHash !== selectHash(endpoint.definition);
           if (shown || hashed) changed.push(grant.ref);
         }
+        // An app's own key: only what the safe list allows.
+        if (input.managedBy !== undefined && input.managedBy !== null) {
+          const decided = await decidedColumns(connectionId, endpoint.definition.source);
+          issues.push(...managedGrantIssues(grant.ref, endpoint.definition, methods, decided));
+        }
         const offered = new Set(endpoint.definition.methods);
         for (const m of methods) {
           if (!offered.has(m)) {
@@ -574,6 +612,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
             kind,
             ...(input.appKey === undefined || input.appKey === null ? {} : { appKey: input.appKey }),
             ...(input.origins === undefined ? {} : { origins: input.origins }),
+            ...(input.managedBy === undefined || input.managedBy === null ? {} : { managedBy: input.managedBy }),
             createdBy: input.actorId ?? null,
             expiresAt: input.expiresAt ?? null,
           },

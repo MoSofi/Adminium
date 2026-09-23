@@ -67,6 +67,8 @@ export const bootstrapNavItem = z.object({
    *  client's (connectionId, table) → slug map so record pages can cross-link
    *  related rows. Null for source-less pages. */
   sourceTable: z.string().nullable(),
+  /** The installed app whose page this is; null for everyone else's pages. */
+  appKey: z.string().nullable(),
 });
 export type BootstrapNavItem = z.infer<typeof bootstrapNavItem>;
 
@@ -171,6 +173,49 @@ export const bootstrapHostedApp = z.object({
   items: z.array(bootstrapHostedNavItem),
 });
 export type BootstrapHostedApp = z.infer<typeof bootstrapHostedApp>;
+
+/**
+ * An installed app's own sidebar section: its pages, under the groups its
+ * manifest names, and its staff screens — inside the dashboard, or a link to
+ * where they open on their own. Labels arrive resolved to the reader's
+ * language, like the hosted sections'.
+ */
+export const bootstrapAppSection = z.object({
+  appKey: z.string(),
+  label: z.string(),
+  version: z.string(),
+  /** The first group has no heading when it holds the app's ungrouped pages (its Overview). */
+  groups: z.array(z.object({ key: z.string(), label: z.string().nullable(), items: z.array(bootstrapNavItem) })),
+  staff: z
+    .union([
+      z.object({ placement: z.literal('internal'), items: z.array(bootstrapHostedNavItem) }),
+      z.object({
+        placement: z.literal('external'),
+        url: z.string(),
+        /** The screens, each opened at `url` + its path — for the palette. */
+        items: z.array(bootstrapHostedNavItem),
+        /** Each extra instance's own address: its mapped host, else its slugged mount. */
+        instances: z.array(z.object({ slug: z.string(), url: z.string() })),
+      }),
+    ])
+    .nullable(),
+});
+export type BootstrapAppSection = z.infer<typeof bootstrapAppSection>;
+
+/**
+ * An installed app whose staff screens this dashboard does not carry right
+ * now, and why: the app is switched off, its staff side is, or the operator
+ * placed it on its own address (`href`). The app's own URL then shows this
+ * reason instead of a page that does not exist.
+ */
+export const bootstrapUnavailableApp = z.object({
+  appKey: z.string(),
+  label: z.string(),
+  reason: z.enum(['app-disabled', 'side-off', 'external']),
+  /** Where it opens on its own, for `external`. */
+  href: z.string().optional(),
+});
+export type BootstrapUnavailableApp = z.infer<typeof bootstrapUnavailableApp>;
 
 /** One built project file. */
 const projectClientFile = z.object({
@@ -312,6 +357,16 @@ export const bootstrapReply = z.object({
      * on a 404 that explains nothing.
      */
     pausedPages: z.array(bootstrapNavItem),
+    /** See {@link bootstrapUnavailableApp}. */
+    unavailableApps: z.array(bootstrapUnavailableApp),
+    /** One section per installed, switched-on app with pages or staff screens. */
+    appSections: z.array(bootstrapAppSection),
+    /**
+     * Pages of an app that is switched off. Like `pausedPages`: in no sidebar
+     * and enumerable by nothing, listed only so a bookmark lands on "this app
+     * is switched off" rather than on a 404.
+     */
+    disabledAppPages: z.array(bootstrapNavItem),
     /** Only on a server that runs a project folder (`adminium start` in a project, `adminium dev`). */
     project: bootstrapProject.optional(),
   }),

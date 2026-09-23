@@ -353,3 +353,94 @@ describe('planInstall: the plan is always returned', () => {
     expect(planInstall(DESIGN_STUDIO, m)).toEqual(planInstall(DESIGN_STUDIO, m));
   });
 });
+
+describe('planInstall: every refusal is on the check step', () => {
+  const APP = {
+    ...addOn('pos', {
+      tables: [
+        {
+          ref: 'menu_items',
+          columns: [
+            { ref: 'id', type: 'int', role: 'pk' },
+            { ref: 'name', type: 'text', maxLength: 80 },
+            { ref: 'price', type: 'money' },
+            { ref: 'available', type: 'bool' },
+            { ref: 'tags', type: 'json', nullable: true },
+          ],
+        },
+      ],
+    }),
+    kind: 'app',
+  } as unknown as Manifest;
+
+  const table = (
+    columns: { ref: string; logicalType?: string; maxLength?: number | null }[],
+    dialect?: SchemaModelView['dialect'],
+  ): SchemaModelView => ({ dialect, tables: [{ ref: 'menu_items', columns }] });
+
+  const full = [
+    { ref: 'id', logicalType: 'integer' },
+    { ref: 'name', logicalType: 'varchar', maxLength: 80 },
+    { ref: 'price', logicalType: 'decimal' },
+    { ref: 'available', logicalType: 'boolean' },
+    { ref: 'tags', logicalType: 'json' },
+  ];
+
+  it('refuses a reused table missing columns the app writes, naming them', () => {
+    const plan = planInstall(APP, table(full.filter((c) => c.ref !== 'price' && c.ref !== 'tags')));
+    expect(plan.installable).toBe(false);
+    expect(plan.problems).toEqual([
+      expect.objectContaining({ code: 'COLUMNS_REQUIRED', table: 'menu_items', column: 'price' }),
+    ]);
+    expect(plan.problems[0]?.message).toContain('"price", "tags"');
+    // The partial match is still reported the old way, for the update screen's offer.
+    expect(plan.reuse[0]?.missingColumns).toEqual(['price', 'tags']);
+  });
+
+  it('refuses a column whose type cannot hold what the app stores', () => {
+    const plan = planInstall(
+      APP,
+      table(full.map((c) => (c.ref === 'price' ? { ref: 'price', logicalType: 'text' } : c)), 'postgres'),
+    );
+    expect(plan.installable).toBe(false);
+    expect(plan.problems).toEqual([
+      expect.objectContaining({ code: 'COLUMN_TYPE_CONFLICT', table: 'menu_items', column: 'price' }),
+    ]);
+    expect(plan.problems[0]?.message).toContain('already exists as text');
+  });
+
+  it('refuses a varchar narrower than the width the app declares', () => {
+    const plan = planInstall(
+      APP,
+      table(full.map((c) => (c.ref === 'name' ? { ref: 'name', logicalType: 'varchar', maxLength: 20 } : c))),
+    );
+    expect(plan.problems[0]).toMatchObject({ code: 'COLUMN_TYPE_CONFLICT', column: 'name' });
+    expect(plan.problems[0]?.message).toContain('varchar(20)');
+  });
+
+  it("accepts what SQLite reports for the installer's own columns, and only on SQLite", () => {
+    const sqliteShaped = full.map((c) =>
+      c.ref === 'price'
+        ? { ref: 'price', logicalType: 'float' }
+        : c.ref === 'available'
+          ? { ref: 'available', logicalType: 'integer' }
+          : c.ref === 'tags'
+            ? { ref: 'tags', logicalType: 'text' }
+            : c,
+    );
+    expect(planInstall(APP, table(sqliteShaped, 'sqlite')).installable).toBe(true);
+    expect(planInstall(APP, table(sqliteShaped, 'postgres')).problems.map((p) => p.column)).toEqual([
+      'price',
+      'available',
+      'tags',
+    ]);
+  });
+
+  it('judges nothing it cannot see: no logical type, or an unknown one', () => {
+    const plan = planInstall(
+      APP,
+      table(full.map((c) => (c.ref === 'price' ? { ref: 'price' } : c.ref === 'tags' ? { ref: 'tags', logicalType: 'unknown' } : c))),
+    );
+    expect(plan.installable).toBe(true);
+  });
+});

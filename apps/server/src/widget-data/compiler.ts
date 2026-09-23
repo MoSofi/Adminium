@@ -58,6 +58,8 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { compileFilter, type CompileFilterContext, type FilterCondition } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
+import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
+import { normalizeWriteValue } from '../crud/write-values.js';
 
 /** Hard row cap on any compiled query (guardrails). */
 export const WIDGET_LIMIT_MAX = 1000;
@@ -177,6 +179,12 @@ export interface CompileWidgetQueryOptions {
   /** Injectable clock for `window` bounds (tests). */
   now?: (() => Date) | undefined;
   /**
+   * The venue's time zone (the connection's). A calendar `window` counts its
+   * days from the venue's midnight, and hour and day buckets are the venue's
+   * hours and days. Absent: UTC, as before.
+   */
+  timezone?: string | undefined;
+  /**
    * The descriptor's `lookups`, already resolved by the caller — resolution
    * needs the per-table read check, which is a request-scoped question the
    * compiler does not ask. Refused ones compile to nothing and are nulled by
@@ -247,6 +255,11 @@ export interface CompiledWidgetQuery {
   ohlcScan: OhlcScan | null;
   /** Effective LIMIT after the hard cap. */
   limit: number;
+  /**
+   * Set when buckets are the venue's wall clock (`YYYY-MM-DD HH:MM:SS` text):
+   * the shaper reads each one as the instant it names in this zone.
+   */
+  bucketZone: string | null;
 }
 
 /** Resolve the descriptor's source against the snapshot (422 on unknown). */
@@ -297,7 +310,145 @@ export function windowBounds(
   return { start, end, priorStart: shift(start, last), priorEnd: start };
 }
 
+/** A naive `YYYY-MM-DD HH:MM` wall clock, as a Date whose UTC fields hold it. */
+const naive = (day: string, minute: number) => new Date(Date.parse(`${day}T00:00:00Z`) + minute * 60_000);
+const spellNaive = (date: Date) => `${date.toISOString().slice(0, 10)} ${date.toISOString().slice(11, 16)}`;
+
+/** Move a naive wall clock by whole periods. */
+function shiftPeriods(date: Date, unit: BucketUnit, steps: number): Date {
+  const d = new Date(date.getTime());
+  switch (unit) {
+    case 'hour':
+      d.setUTCHours(d.getUTCHours() + steps);
+      break;
+    case 'day':
+      d.setUTCDate(d.getUTCDate() + steps);
+      break;
+    case 'week':
+      d.setUTCDate(d.getUTCDate() + steps * 7);
+      break;
+    case 'month':
+      d.setUTCMonth(d.getUTCMonth() + steps);
+      break;
+    case 'quarter':
+      d.setUTCMonth(d.getUTCMonth() + steps * 3);
+      break;
+    case 'year':
+      d.setUTCFullYear(d.getUTCFullYear() + steps);
+      break;
+  }
+  return d;
+}
+
+/**
+ * Whole periods on the venue's clock: the current one and the `last − 1`
+ * before it, moved back `offset` periods — today, yesterday, this week (from
+ * Monday), this month. Each boundary is the venue's own midnight (or hour),
+ * turned into the instant it names there, so a day that changes the clocks
+ * is 23 or 25 hours long, as the venue lived it.
+ */
+export function calendarBounds(
+  last: number,
+  unit: BucketUnit,
+  offset: number,
+  now: Date,
+  timezone: string,
+): { start: Date; end: Date; priorStart: Date; priorEnd: Date } {
+  const clock = venueClock(now, timezone);
+  const today = naive(clock.day, 0);
+  let current: Date;
+  switch (unit) {
+    case 'hour':
+      current = naive(clock.day, Math.floor(clock.minute / 60) * 60);
+      break;
+    case 'day':
+      current = today;
+      break;
+    case 'week':
+      // Monday, as `date_trunc('week', …)` and the other two engines count.
+      current = shiftPeriods(today, 'day', -((today.getUTCDay() + 6) % 7));
+      break;
+    case 'month':
+      current = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+      break;
+    case 'quarter':
+      current = new Date(Date.UTC(today.getUTCFullYear(), Math.floor(today.getUTCMonth() / 3) * 3, 1));
+      break;
+    case 'year':
+      current = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
+      break;
+  }
+  const at = (wall: Date) => wallTimeToInstant(spellNaive(wall), timezone) ?? wall;
+  const endWall = shiftPeriods(current, unit, 1 - offset);
+  const startWall = shiftPeriods(current, unit, -(offset + last - 1));
+  return {
+    start: at(startWall),
+    end: at(endWall),
+    priorStart: at(shiftPeriods(startWall, unit, -last)),
+    priorEnd: at(startWall),
+  };
+}
+
+/**
+ * The calendar window a page's day control names: `today`, `yesterday`,
+ * `week` (from Monday), or a `YYYY-MM-DD` day on the venue's calendar, never
+ * one still to come.
+ */
+export function dayWindow(value: unknown, now: Date, timezone: string): { last: number; unit: BucketUnit; offset: number } {
+  if (value === 'today') return { last: 1, unit: 'day', offset: 0 };
+  if (value === 'yesterday') return { last: 1, unit: 'day', offset: 1 };
+  if (value === 'week') return { last: 1, unit: 'week', offset: 0 };
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const back = Math.round((Date.parse(`${venueClock(now, timezone).day}T00:00:00Z`) - Date.parse(`${value}T00:00:00Z`)) / 86_400_000);
+    if (Number.isFinite(back) && back >= 0 && back <= 400) return { last: 1, unit: 'day', offset: back };
+  }
+  return reject('The day asked for is not one this page can show.', { day: value });
+}
+
+/** How far a zone's clock is ahead of UTC at `instant`, in minutes. */
+function offsetMinutes(instant: Date, timezone: string): number {
+  const clock = venueClock(instant, timezone);
+  return Math.round((naive(clock.day, clock.minute).getTime() - Math.floor(instant.getTime() / 60_000) * 60_000) / 60_000);
+}
+
+/** This process's own zone: what a zone-less timestamp column holds (`crud/write-values.ts`). */
+const serverZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 type Ref = ReturnType<DynamicModule<SourceDatabase>['ref']>;
+
+/**
+ * An hour or day bucket on the venue's clock, as `YYYY-MM-DD HH:MM:SS` text,
+ * per dialect. Postgres converts every row exactly (`AT TIME ZONE`); MySQL
+ * and SQLite, which may not know zone names, move by the venue's offset at
+ * `at` — exact except across a clock change inside the window. SQLite keeps
+ * text, so a value written with a zone and one without are moved apart.
+ */
+function venueBucketExpr(
+  dialect: Dialect,
+  ref: Ref,
+  column: ResolvedColumn,
+  unit: 'hour' | 'day',
+  timezone: string,
+  at: Date,
+): RawBuilder<unknown> {
+  const venue = offsetMinutes(at, timezone);
+  const server = offsetMinutes(at, serverZone());
+  const pgFormat = unit === 'hour' ? 'YYYY-MM-DD HH24:00:00' : 'YYYY-MM-DD 00:00:00';
+  const format = unit === 'hour' ? '%Y-%m-%d %H:00:00' : '%Y-%m-%d 00:00:00';
+  switch (dialect) {
+    case 'mysql':
+      return sql`date_format(date_add(${ref}, interval ${sql.lit(venue - server)} minute), ${sql.lit(format)})`;
+    case 'sqlite':
+      return sql`strftime(${sql.lit(format)}, ${ref}, case when ${ref} like '%Z' or ${ref} like '%+__:__' then ${sql.lit(`${String(venue)} minutes`)} else ${sql.lit(`${String(venue - server)} minutes`)} end)`;
+    default: {
+      const wall =
+        column.logicalType === 'timestamp'
+          ? sql`((${ref} at time zone ${sql.lit(serverZone())}) at time zone ${sql.lit(timezone)})`
+          : sql`(${ref} at time zone ${sql.lit(timezone)})`;
+      return sql`to_char(date_trunc(${sql.lit(unit)}, ${wall}), ${sql.lit(pgFormat)})`;
+    }
+  }
+}
 
 /**
  * Time-bucket expression, compiled per dialect. Every bucket evaluates to the
@@ -676,10 +827,33 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     descriptor.window === undefined
       ? null
       : view.readableColumn(table, descriptor.window.column, canReadPii);
+  const zone = opts.timezone ?? 'UTC';
+  // A window that follows the page's day control takes the day it names.
+  const followed = descriptor.window?.param === undefined ? undefined : params[descriptor.window.param];
+  const span =
+    descriptor.window === undefined || followed === undefined
+      ? descriptor.window
+      : { ...descriptor.window, ...dayWindow(followed, now(), zone), calendar: true };
+  const calendar = span?.calendar === true;
   const bounds =
-    descriptor.window === undefined
+    span === undefined
       ? null
-      : windowBounds(descriptor.window.last, descriptor.window.unit, now());
+      : calendar
+        ? calendarBounds(span.last, span.unit, span.offset ?? 0, now(), zone)
+        : windowBounds(span.last, span.unit, now());
+  /*
+   * A calendar window's bounds are spelled as the column keeps them: a date
+   * column takes the venue's days, and a zone-less timestamp this server's
+   * wall clock — what every write to it stores (`crud/write-values.ts`). A
+   * rolling window keeps its UTC spelling, as it always has (exact where the
+   * server runs on UTC, as the shipped image does).
+   */
+  const boundOf = (instant: Date): unknown => {
+    if (!calendar || windowColumn === null) return windowBoundValue(instant, dialect);
+    if (windowColumn.logicalType === 'date') return venueClock(instant, zone).day;
+    if (windowColumn.logicalType === 'timestamp') return normalizeWriteValue(windowColumn, instant.toISOString());
+    return windowBoundValue(instant, dialect);
+  };
 
   const applyWhere = (qb: Qb, window: { start: Date; end: Date } | null): Qb => {
     let out = qb;
@@ -688,9 +862,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     }
     if (window !== null && windowColumn !== null) {
       const ref = dynamic.ref(windowColumn.name);
-      out = out
-        .where((eb) => eb(ref, '>=', windowBoundValue(window.start, dialect)))
-        .where((eb) => eb(ref, '<', windowBoundValue(window.end, dialect)));
+      out = out.where((eb) => eb(ref, '>=', boundOf(window.start))).where((eb) => eb(ref, '<', boundOf(window.end)));
     }
     return out;
   };
@@ -756,6 +928,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   // `__group` then `__col`, positionally — the descriptor caps `groupBy` at 2.
   const groupAliases = [GROUP_ALIAS, COL_ALIAS];
 
+  let bucketZone: string | null = null;
   const build = (window: { start: Date; end: Date } | null): Qb => {
     let qb = applyWhere(db.selectFrom(table.id) as unknown as Qb, window);
 
@@ -786,7 +959,17 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       (shape === 'timeseries' || shape === 'multi-timeseries' || ohlcColumn !== null)
     ) {
       const bucketColumn = view.readableColumn(table, descriptor.bucket.column, canReadPii);
-      const bucket = bucketExpr(dialect, dynamic.ref(bucketColumn.name), descriptor.bucket.unit);
+      // A week asked for by the day control is drawn in days, not 168 hours.
+      const unit = descriptor.bucket.unit === 'hour' && span?.unit === 'week' && followed !== undefined ? 'day' : descriptor.bucket.unit;
+      // The venue's hours and days, where the venue is not on UTC.
+      bucketZone =
+        opts.timezone !== undefined && opts.timezone !== 'UTC' && (unit === 'hour' || unit === 'day') && bucketColumn.logicalType !== 'date'
+          ? opts.timezone
+          : null;
+      const bucket =
+        bucketZone === null
+          ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit)
+          : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as 'hour' | 'day', bucketZone, bounds?.start ?? now());
       qb = qb.select(bucket.as(BUCKET_ALIAS));
       if (ohlcColumn !== null) {
         // Candles are folded in process, so the ONE thing SQL must guarantee is
@@ -888,5 +1071,6 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     selectedColumns,
     lookups,
     limit,
+    bucketZone,
   };
 }

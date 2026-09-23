@@ -17,7 +17,7 @@
 
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { overridesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, overridesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 import type { QueryDescriptor } from '@adminium/engine/config';
 
@@ -120,6 +120,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
             });
 
       const { db, dialect } = await manager.data(connectionId);
+      // The venue's clock: where "today" starts, and whose hours a chart shows.
+      const timezone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? undefined;
       const compiled = compileWidgetQuery({
         db,
         view,
@@ -129,6 +131,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         dialect,
         now: deps.now,
         lookups,
+        timezone,
       });
 
       const startedAt = Date.now();

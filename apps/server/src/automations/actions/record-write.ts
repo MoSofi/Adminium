@@ -30,7 +30,7 @@
  */
 
 import type { Kysely } from 'kysely';
-import type { AutomationAction, AutomationWriteValue, RecordRef } from '@adminium/meta';
+import { type AutomationAction, type AutomationWriteValue, type RecordRef } from '@adminium/meta';
 
 import type { SourceDatabase } from '../../connections/manager.js';
 import { afterRecordWrite } from '../../crud/after-record-write.js';
@@ -45,6 +45,7 @@ import {
   type WriteContext,
   type WriteTarget,
 } from '../../crud/write-service.js';
+import { writeStores } from '../../crud/write-stores.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
@@ -102,10 +103,8 @@ export function resolveValues(
 }
 
 /** The service a run writes through; one without hooks in unit tests of one step. */
-const NO_HOOK_WRITES = createWriteService();
-
 function writesOf(ctx: ActionContext): RecordWriteService {
-  return ctx.writes ?? NO_HOOK_WRITES;
+  return ctx.writes ?? createWriteService(writeStores(ctx.meta));
 }
 
 /** A rule's write is one hop deeper than the event that started the run. */

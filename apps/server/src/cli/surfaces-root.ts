@@ -24,6 +24,7 @@
  * API-only boot — never a crash.
  */
 
+import { pickLabel } from '../i18n/bcp47.js';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -145,9 +146,15 @@ export function parseSurfaceManifest(raw: string): SurfaceManifest | null {
   return { v: SURFACE_JSON_VERSION, appLabels, nav };
 }
 
-/** The one label to show, for a locale, with the en-US fallback D7 requires. */
+/**
+ * The one label to show, for a locale, with the en-US fallback D7 requires.
+ *
+ * `locale` may be either spelling. A user's preference is stored as `de_DE`
+ * and a `surface.json` is keyed `de-DE`; looking one up with the other missed
+ * every time, so every hosted-app label came out in English.
+ */
 export function resolveLabel(labels: Record<string, string>, locale: string): string {
-  return labels[locale] ?? labels['en-US'] ?? Object.values(labels)[0] ?? '';
+  return pickLabel(labels, locale) ?? '';
 }
 
 /** Root of the hosted-surface URL space. Free of any dashboard route. */

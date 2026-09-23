@@ -38,6 +38,12 @@ import {
   writeBool,
 } from './util.js';
 
+/**
+ * The row group of an installed app's pages: its own sidebar section. The
+ * manifest's group within the section stays in the document's `nav.group`.
+ */
+export const APP_NAV_GROUP = 'app';
+
 /** `project`: a hand-written page of the project folder the server runs. */
 export const PAGE_ORIGINS = ['generated', 'user', 'manifest', 'system', 'llm', 'project'] as const;
 export type PageOrigin = (typeof PAGE_ORIGINS)[number];
@@ -83,9 +89,66 @@ export interface PageNavRow {
    * degrades a link, never the nav.
    */
   sourceTable: string | null;
+  /**
+   * A manifest page's translated titles and the English it was installed with
+   *. The sidebar shows the reader's language while the stored
+   * title still equals `from`; once the operator renames the page, theirs wins.
+   */
+  manifestTitle?: { from: string; titles: Record<string, string> } | null;
+  /** The app a manifest page belongs to (the envelope's `app`), or null. */
+  appKey?: string | null;
+  /** An app page's group within the app's sidebar section (the envelope's `nav.group`). */
+  appGroup?: string | null;
+}
+
+/** The envelope's `app`, tolerantly — nav must never throw. */
+/** An installed app's page: the group its manifest gave it within the app's section. */
+function appGroupOf(config: unknown): string | null {
+  try {
+    const parsed: unknown = typeof config === 'string' ? JSON.parse(config) : config;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const envelope = parsed as { app?: unknown; nav?: { group?: unknown } };
+    if (typeof envelope.app !== 'string') return null;
+    return typeof envelope.nav?.group === 'string' ? envelope.nav.group : null;
+  } catch {
+    return null;
+  }
+}
+
+function appKeyOf(config: unknown): string | null {
+  try {
+    const parsed: unknown = typeof config === 'string' ? JSON.parse(config) : config;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const app = (parsed as { app?: unknown }).app;
+    return typeof app === 'string' ? app : null;
+  } catch {
+    return null;
+  }
 }
 
 /** `source.table` off a stored envelope, tolerantly — nav must never throw. */
+/**
+ * A manifest page's title translations and the English they came with
+ *, or null for every other page.
+ */
+function manifestTitleOf(config: unknown): { from: string; titles: Record<string, string> } | null {
+  try {
+    const parsed: unknown = typeof config === 'string' ? JSON.parse(config) : config;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const title = (parsed as { title?: unknown }).title;
+    if (typeof title !== 'object' || title === null) return null;
+    const { from, titles } = title as { from?: unknown; titles?: unknown };
+    if (typeof from !== 'string' || typeof titles !== 'object' || titles === null) return null;
+    const out: Record<string, string> = {};
+    for (const [tag, text] of Object.entries(titles as Record<string, unknown>)) {
+      if (typeof text === 'string') out[tag] = text;
+    }
+    return { from, titles: out };
+  } catch {
+    return null;
+  }
+}
+
 function sourceTableOf(config: unknown): string | null {
   try {
     const parsed: unknown = typeof config === 'string' ? JSON.parse(config) : config;
@@ -306,6 +369,10 @@ function mergeEnvelopeMeta(
      */
     if (next.navGroup === null) {
       navOut['hidden'] = true;
+    } else if (next.navGroup === APP_NAV_GROUP) {
+      // An installed app's page: the row says "the app's section", and the
+      // document keeps the group the manifest gave it within that section.
+      delete navOut['hidden'];
     } else {
       navOut['group'] = next.navGroup;
       delete navOut['hidden'];
@@ -850,6 +917,31 @@ export function pagesRepo(meta: MetaDb) {
      * polymorphic `adminium_role_permissions.resource_ref` column that no FK
      * can reach (see `permissionsRepo.revokeAllForResource`).
      */
+    /** Every page an installed manifest row wrote, by its id. */
+    async listByManifest(manifestId: string): Promise<Page[]> {
+      const rows = await db
+        .selectFrom('adminium_pages')
+        .selectAll()
+        .where('manifestId', '=', manifestId)
+        .orderBy('slug', 'asc')
+        .execute();
+      return rows.map(decode);
+    },
+
+    /**
+     * Hand a manifest's page over to the operator: it becomes an ordinary page
+     * (origin `user`, no manifest), so the app's uninstall leaves it where it
+     * is and nothing later treats it as the app's.
+     */
+    async releaseFromManifest(pageId: string, at: number = Date.now()): Promise<boolean> {
+      const result = await db
+        .updateTable('adminium_pages')
+        .set({ origin: 'user', manifestId: null, updatedAt: at } as never)
+        .where('id', '=', pageId)
+        .executeTakeFirst();
+      return affected(result.numUpdatedRows) > 0;
+    },
+
     async delete(pageId: string): Promise<boolean> {
       const result = await db
         .deleteFrom('adminium_pages')
@@ -990,7 +1082,13 @@ export function pagesRepo(meta: MetaDb) {
         .selectFrom('adminium_pages')
         .select(['id', 'connectionId', 'slug', 'title', 'icon', 'navGroup', 'navOrder', 'isEnabled', 'updatedAt', 'config'])
         .execute();
-      return rows.map(({ config, ...row }) => ({ ...row, sourceTable: sourceTableOf(config) }));
+      return rows.map(({ config, ...row }) => ({
+        ...row,
+        sourceTable: sourceTableOf(config),
+        manifestTitle: manifestTitleOf(config),
+        appKey: appKeyOf(config),
+        appGroup: appGroupOf(config),
+      }));
     },
 
     /** Generated-page counts per connection (connections-hub cards). */

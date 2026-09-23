@@ -222,6 +222,9 @@ export const applyReply = z.object({
       overrides: z.number(),
       includedTables: z.number(),
       diagramLayout: z.number(),
+      endpoints: z.number(),
+      scopes: z.number(),
+      appTables: z.number(),
     })
     .nullable(),
   /**

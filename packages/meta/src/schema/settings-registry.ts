@@ -312,6 +312,8 @@ export const SETTINGS_REGISTRY = {
         name?: string | undefined;
         connectionId?: string | undefined;
         instances?: { slug: string; connectionId: string }[] | undefined;
+        /** Sides switched off: not served, and their pages say "not available". */
+        off?: ('staff' | 'customer')[] | undefined;
       }
     >
   >(
@@ -334,10 +336,19 @@ export const SETTINGS_REGISTRY = {
             { message: 'instance slugs must be unique within an app' },
           )
           .optional(),
+        /*
+         * In the zod schema AND the type above: the repo parses on read and
+         * write, and a key only the type knows is stripped without a word.
+         */
+        off: z
+          .array(z.enum(['staff', 'customer']))
+          .max(2)
+          .refine((list) => new Set(list).size === list.length, { message: 'each side once' })
+          .optional(),
       }),
     ),
     {},
-    'Per-app surface placement, display name, connection binding and extra instances',
+    'Per-app surface placement, display name, connection binding, extra instances and switched-off sides',
   ),
   'surfaces.domains': def<
     Record<string, { appKey: string; side: 'staff' | 'customer'; instance?: string | undefined }>
@@ -359,6 +370,17 @@ export const SETTINGS_REGISTRY = {
     ),
     {},
     'Host → app surface mapping; the operator points DNS and their proxy at this instance',
+  ),
+  /*
+   * Hosts an UNINSTALLED app was mapped to. Uninstall takes the mapping away
+   * (a stale one refuses every later domains save), but the DNS still points
+   * here: without this, the shop's own address fell through to the admin
+   * panel's sign-in. A retired host answers 503 until it is mapped again.
+   */
+  'surfaces.retiredHosts': def<Record<string, { appKey: string; side: 'staff' | 'customer' }>>(
+    z.record(z.string(), z.object({ appKey: z.string().min(1), side: z.enum(['staff', 'customer']) })),
+    {},
+    'Hosts of an uninstalled app: they answer 503, never the dashboard, until mapped again',
   ),
   'auth.passwordMinLength': def(z.number().int().min(8).max(128), 10, 'Minimum password length', P),
   'email.smtp': def<z.infer<typeof smtpSchema>>(smtpSchema, null, 'SMTP transport; email features degrade gracefully when unset', { secret: true, portable: true }),
@@ -587,6 +609,12 @@ export const SETTINGS_REGISTRY = {
    * with no system grants at all.
    */
   'system.seededRoleGrants': def<string[]>(z.array(z.string()), [], 'Built-in (role, system key) pairs the seed has already granted once'),
+  /**
+   * `<role slug>|<placeholder>` pairs an app's install has already granted
+   * once: an update seeds only what a new version adds, so an operator's
+   * narrowing of an app role survives it.
+   */
+  'system.seededAppRoleGrants': def<string[]>(z.array(z.string()), [], 'App role (role, grant) pairs an install has already granted once'),
   'system.sourceConnectionId': def<string | null>(z.string().nullable(), null, 'Connection id the first-boot source seed created'),
   'system.sourceSeededAt': def<number | null>(z.number().nullable(), null, 'First-boot source-connection seed claim, healthy probes only (epoch ms)'),
   /**

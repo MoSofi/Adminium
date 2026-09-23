@@ -39,6 +39,49 @@ export interface ColumnFillRule {
   onUpdate?: boolean;
 }
 
+/** `column.copy`: the value comes from the row `via` points at. */
+export interface ColumnCopyRule {
+  via: string;
+  from: string;
+  mode?: 'default' | 'always';
+}
+
+/** `column.code`: a short random code, Crockford base 32. */
+export interface ColumnCodeRule {
+  prefix?: string;
+  length: number;
+}
+
+/** `column.rollup`: this column is the total of its child rows. */
+export interface ColumnRollupRule {
+  /** The child table's id in the snapshot. */
+  from: string;
+  /** The child's column linking back to this row. */
+  via: string;
+  sum: string;
+  times?: string;
+  /** A child row whose column holds a value is left out (a voided line). */
+  unlessSet?: string;
+}
+
+/** A number or a time the rule states, or a settings table's column read at write time. */
+export type CapacitySetting = { table: string; column: string };
+
+/** `table.capacity`: how much of a slot the table's rows may take. */
+export interface TableCapacityRule {
+  slot: string;
+  amount: string;
+  perSlot: number | CapacitySetting;
+  countWhere?: { column: string; values: string[] };
+  slotMinutes: number | CapacitySetting;
+  windowDays?: number | CapacitySetting;
+  opens?: string | CapacitySetting;
+  closes?: string | CapacitySetting;
+  resource?: string;
+  /** Hours before its time a guest may still cancel through the public API. */
+  cancelHours?: number | CapacitySetting;
+}
+
 /** `column.validation`: the checks an admin asked for, beyond the column's type. */
 export interface ColumnValidation {
   format?: 'email' | 'url' | 'phone';
@@ -69,6 +112,18 @@ export interface EffectiveColumn extends ColumnModel {
   /** An admin's `column.required`. The column's own NOT NULL is separate. */
   requiredByRule?: boolean;
   validation?: ColumnValidation;
+  /*
+   * ─── Decided by Adminium ────────────────────────────────────────────────
+   *
+   * Filled on every write whoever writes, and never publicly writable.
+   */
+  copy?: ColumnCopyRule;
+  /** `column.sequence`: the next number in this column's own counter. */
+  sequence?: { start?: number };
+  code?: ColumnCodeRule;
+  rollup?: ColumnRollupRule;
+  /** `column.venueLocal`: a wall time with no zone is read on the venue's clock. */
+  venueLocal?: boolean;
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -78,6 +133,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   icon?: string;
   excluded?: boolean;
   keyField?: string;
+  /** The booking guard (`table.capacity`). */
+  capacity?: TableCapacityRule;
 }
 
 export interface EffectiveRelation extends Relation {
@@ -364,6 +421,38 @@ export function applyCompositionOverrides(
 }
 
 /**
+ * The tables' and columns' own names — renames, and the names an app installed
+ * — laid onto a model a page is composed from, so its headings, titles and
+ * counts read "Reservations" and "Party size", not `pos_reservations` and
+ * `party_size`.
+ *
+ * Resolved exactly as a reader's model resolves them ({@link applyOverrides},
+ * provenance user > llm), in the connection's default locale: a stored page
+ * holds one language.
+ */
+export function withEffectiveLabels(model: DatabaseModel, overrides: readonly SchemaOverride[]): DatabaseModel {
+  const effective = new Map(applyOverrides(model, overrides).tables.map((table) => [table.id, table]));
+  return {
+    ...model,
+    tables: model.tables.map((table) => {
+      const named = effective.get(tableId(table));
+      if (named === undefined) return table;
+      const labels = new Map(named.columns.flatMap((column) => (column.label === undefined ? [] : [[column.name, column.label] as const])));
+      // A composed title names the table as a collection: its plural, where it has one.
+      const title = named.labelPlural ?? named.label;
+      return {
+        ...table,
+        ...(title === undefined ? {} : { label: title }),
+        columns: table.columns.map((column) => {
+          const label = labels.get(column.name);
+          return label === undefined ? column : { ...column, label };
+        }),
+      };
+    }),
+  };
+}
+
+/**
  * Fold the `relation.add` / `relation.remove` ops of a set of active
  * overrides onto a relation list, in created_at order (later-row-wins, so
  * add-then-remove and remove-then-add both mean what they read like).
@@ -497,6 +586,20 @@ export function applyOverrides(
         if (table !== undefined) table.keyField = value.column as string;
         break;
       }
+      case 'table.capacity': {
+        if (table !== undefined) table.capacity = value as unknown as TableCapacityRule;
+        break;
+      }
+      case 'column.venueLocal': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.venueLocal = value.venueLocal === true;
+        break;
+      }
+      case 'column.rollup': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.rollup = value as unknown as ColumnRollupRule;
+        break;
+      }
       case 'column.label': {
         const column = columnOf(table, row.columnName);
         if (column === undefined) break;
@@ -561,6 +664,21 @@ export function applyOverrides(
       case 'column.validation': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.validation = value as unknown as ColumnValidation;
+        break;
+      }
+      case 'column.copy': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.copy = value as unknown as ColumnCopyRule;
+        break;
+      }
+      case 'column.sequence': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.sequence = value as { start?: number };
+        break;
+      }
+      case 'column.code': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.code = value as unknown as ColumnCodeRule;
         break;
       }
       case 'llm.label': {

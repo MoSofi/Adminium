@@ -147,6 +147,35 @@ describe('parseGrant / parsePermission', () => {
   });
 });
 
+describe('the app staff grant', () => {
+  it('parses one app’s staff screens, and every app’s, and nothing else', () => {
+    expect(parseGrant('app:pos:staff')).toEqual({ kind: 'app', appKey: 'pos', action: 'staff' });
+    expect(parseGrant('app:*:staff')).toEqual({ kind: 'app', appKey: '*', action: 'staff' });
+    expect(parseGrant('app:pos:view')).toBeNull();
+    expect(parseGrant('app:pos')).toBeNull();
+    // A check names one app.
+    expect(parsePermission('app:*:staff')).toBeNull();
+    expect(parsePermission('app:pos:staff')).toEqual({ kind: 'app', appKey: 'pos', action: 'staff' });
+  });
+
+  it('matches one app, or every app through the wildcard', () => {
+    expect(isGranted(new Set(['app:pos:staff']), 'app:pos:staff')).toBe(true);
+    expect(isGranted(new Set(['app:pos:staff']), 'app:booking:staff')).toBe(false);
+    expect(isGranted(new Set(['app:*:staff']), 'app:booking:staff')).toBe(true);
+  });
+
+  it('round-trips through matrix rows', () => {
+    const { rows, invalid } = matrixRowsFromGrants(['app:pos:staff', 'app:*:staff', 'app:pos:staff']);
+    expect(invalid).toEqual([]);
+    expect(rows).toEqual([
+      { resourceKind: 'app', resourceRef: 'pos', actions: { staff: true } },
+      { resourceKind: 'app', resourceRef: '*', actions: { staff: true } },
+    ]);
+    const back = grantsFromMatrixRows(rows.map((row, i) => ({ id: `p${String(i)}`, roleId: 'r', ...row })) as never);
+    expect(back).toEqual(['app:pos:staff', 'app:*:staff']);
+  });
+});
+
 describe('grantMatches / isGranted', () => {
   it('matches wildcard table grants segment-wise', () => {
     expect(grantMatches('table:*:*:read', 'table:conn_1:public.orders:read')).toBe(true);

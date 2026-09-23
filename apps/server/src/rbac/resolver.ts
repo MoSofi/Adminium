@@ -18,10 +18,40 @@ export interface PermissionSet {
   superAdmin: boolean;
   grants: ReadonlySet<string>;
   roleIds: readonly string[];
+  /**
+   * The apps whose screens are ALL this person may open — every role they
+   * hold is screens-only (a till's cashier) — or null for everyone who may
+   * use the dashboard: Super Admin, and anyone with one ordinary role.
+   */
+  screensOnly: readonly string[] | null;
 }
 
 export function emptyPermissionSet(): PermissionSet {
-  return { superAdmin: false, grants: new Set(), roleIds: [] };
+  return { superAdmin: false, grants: new Set(), roleIds: [], screensOnly: null };
+}
+
+/** The app keys of a role list that is screens-only through and through, or null. */
+export function screensOnlyApps(roles: readonly Role[]): string[] | null {
+  if (roles.length === 0 || roles.some((role) => role.slug === SUPER_ADMIN_SLUG || !role.screensOnly)) return null;
+  return [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))];
+}
+
+/**
+ * The app keys among these roles whose app is switched off. An app's roles
+ * are suspended with it: they grant nothing until it is switched back on, and
+ * nothing about them is deleted.
+ */
+async function suspendedApps(meta: MetaDb, roles: readonly Role[]): Promise<ReadonlySet<string>> {
+  const keys = [...new Set(roles.flatMap((role) => (role.appKey === null ? [] : [role.appKey])))];
+  if (keys.length === 0) return new Set();
+  const rows = await meta.db
+    .selectFrom('adminium_manifests')
+    .select('manifestKey')
+    .where('kind', '=', 'app')
+    .where('status', '=', 'disabled')
+    .where('manifestKey', 'in', keys)
+    .execute();
+  return new Set(rows.map((row) => row.manifestKey));
 }
 
 /** Union the grant strings of a concrete role list. */
@@ -30,13 +60,15 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
   const permissions = permissionsRepo(meta);
   const grants = new Set<string>();
   if (!superAdmin) {
+    const suspended = await suspendedApps(meta, roles);
     for (const role of roles) {
+      if (role.appKey !== null && suspended.has(role.appKey)) continue;
       for (const grant of grantsFromMatrixRows(await permissions.listForRole(role.id))) {
         grants.add(grant);
       }
     }
   }
-  return { superAdmin, grants, roleIds: roles.map((role) => role.id) };
+  return { superAdmin, grants, roleIds: roles.map((role) => role.id), screensOnly: screensOnlyApps(roles) };
 }
 
 /**

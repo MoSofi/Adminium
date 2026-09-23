@@ -503,12 +503,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     // this handler by any path an onRequest hook did not cover still cannot
     // fall through to the dashboard's index on a host the operator pointed at
     // an app.
-    if (!isApi && isDocument && !isHostReservedPath(request.url.split('?')[0] ?? request.url)) {
-      const mapped = await app.surfaceForHost(request);
-      if (mapped !== null) {
-        if (await app.surfaceGate(mapped, request, reply)) return reply;
-        return reply.sendFile('index.html', mapped.root);
-      }
+    const mapped = isApi || !isDocument ? null : await app.surfaceForHost(request);
+    if (mapped !== null && !isHostReservedPath(request.url.split('?')[0] ?? request.url, mapped.side)) {
+      if (await app.surfaceGate(mapped, request, reply)) return reply;
+      return reply.sendFile('index.html', mapped.root);
     }
 
     // A deep link INTO a hosted surface falls back to that surface's own

@@ -178,7 +178,7 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
 
         const now = Date.now();
         const userAgent = request.headers['user-agent'];
-        const { token } = await createSession(
+        const minted = await createSession(
           meta,
           user.id,
           {
@@ -188,7 +188,7 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
           now,
         );
         await usersRepo(meta).recordLogin(user.id, now);
-        setSessionCookie(reply, token, request);
+        setSessionCookie(reply, minted, request);
         // The same `login` action `/auth/login` writes — this IS a login, and an
         // audit reader asking "when did this account sign in?" must not have to
         // know the desktop shell exists to get the right answer. The mechanism is

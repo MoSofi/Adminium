@@ -34,6 +34,7 @@
  * refetch the nav instead of holding a stale sidebar until reload.
  */
 
+import { seedPageGrants } from '../../pages/page-grants.js';
 import {
   composeRequestedPage,
   fittingTables,
@@ -56,6 +57,7 @@ import {
   pagesRepo,
   permissionsRepo,
   snapshotsRepo,
+  userPrefsRepo,
   viewsRepo,
   type MetaDb,
   type Page,
@@ -551,37 +553,6 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       return orders.length === 0 ? 0 : Math.max(...orders) + 1;
     }
 
-    /**
-     * Give a new page the access list its siblings already have.
-     *
-     * Nothing in this product has ever written a `page:` grant — not the
-     * generator, not the LLM apply path — so on most installs there are no
-     * sibling grants and this is a no-op, exactly matching how a *generated*
-     * page behaves. Where an admin HAS hand-built a matrix via
-     * `PUT /roles/:id/permissions`, a page created next to those pages
-     * inherits their audience instead of silently vanishing from every
-     * non-super-admin's sidebar.
-     *
-     * Union rather than intersection, and view-only: a role that can see any
-     * page in this connection can see the new one; edit rights on the stored
-     * document stay something an admin grants deliberately.
-     */
-    async function seedPageGrants(page: Page): Promise<void> {
-      const siblings = (await pages.listAll()).filter(
-        (row) => row.id !== page.id && row.connectionId === page.connectionId,
-      );
-      if (siblings.length === 0) return;
-      const roleIds = new Set<string>();
-      for (const sibling of siblings) {
-        for (const grant of await permissions.listForResource('page', sibling.id)) {
-          if ((grant.actions as { view?: boolean }).view === true) roleIds.add(grant.roleId);
-        }
-      }
-      for (const roleId of roleIds) {
-        await permissions.grant(roleId, 'page', page.id, { view: true, edit: false });
-      }
-    }
-
     app.get(
       '/pages/:pageId',
       {
@@ -661,8 +632,10 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
          * and regeneration will not touch an edited page; these do not. Absent
          * means "not computed" and the client keeps using the stored spec.
          */
+        // Read in the person's own language, where the app's labels have one.
+        const reader = request.user === null || request.user === undefined ? undefined : (await userPrefsRepo(deps.meta).resolve(request.user.id)).locale;
         const columnFacts =
-          source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table);
+          source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table, reader);
         const facts = columnFacts === null ? {} : { columnFacts };
 
         // Layout resolution: a per-user override wins over the shared
@@ -986,7 +959,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           app.rbac.now(),
         );
 
-        await seedPageGrants(page);
+        await seedPageGrants(deps.meta, page);
 
         await app.rbac.audit(request, {
           category: 'settings',
@@ -1271,12 +1244,23 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const page = await pages.findById(pageId);
         if (page === null) throw new NotFoundError(`page ${pageId} does not exist`);
 
-        // A manifest-installed page belongs to its add-on's lifecycle: the
-        // installer created it and an uninstall is what removes it. Deleting
-        // it here would leave the manifest believing it is still installed.
-        if (page.manifestId !== null) {
+        // A manifest-installed page belongs to its add-on's or app's
+        // lifecycle: the installer created it and an uninstall is what removes
+        // it. Deleting it here would leave the manifest believing it is still
+        // installed. A page whose manifest row is GONE is an orphan of an
+        // uninstall that predates releasing pages, and nothing else can ever
+        // remove it — so that one may go.
+        const owner =
+          page.manifestId === null
+            ? undefined
+            : await deps.meta.db
+                .selectFrom('adminium_manifests')
+                .select('id')
+                .where('id', '=', page.manifestId)
+                .executeTakeFirst();
+        if (owner !== undefined) {
           throw new ConflictError(
-            'This page was installed by an add-on. Uninstall the add-on to remove it.',
+            'This page was installed by an app or add-on. Uninstall it to remove the page.',
             'CONFLICT',
             { pageId, manifestId: page.manifestId },
           );

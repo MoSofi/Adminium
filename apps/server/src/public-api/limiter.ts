@@ -37,9 +37,24 @@
  * The key-and-address rung is the working one. Keying on the key alone would
  * let one abuser exhaust every visitor's allowance; keying on IP alone
  * collapses under NAT and behind a proxy. The pair costs one more map entry
- * and is the only combination that degrades sensibly under both. There is no
- * key-wide rung. (The flood guard IS keyed on the address alone, which is why
- * its ceiling sits above everything one address can spend after resolution.)
+ * and is the only combination that degrades sensibly under both. (The flood
+ * guard IS keyed on the address alone, which is why its ceiling sits above
+ * everything one address can spend after resolution.)
+ *
+ * ── THE WHOLE-KEY RUNG ─────────────────────────────────────────────────────
+ * A browser key sits in a page anyone can read, so the per-visitor rungs
+ * alone let many addresses together spend without bound: a thousand
+ * addresses booking a venue's every slot in a minute each stay inside their
+ * own allowance. After the per-visitor rung passes, a browser key's request
+ * also counts on the key alone —
+ *
+ *     pubkey:<keyId>:read    600 a minute
+ *     pubkey:<keyId>:write    60 a minute (claims count here: each is a guess)
+ *
+ * — the write rung a tenth of the read one, since a busy page reads far more
+ * than it writes. A server key is one backend, whose endpoint rate is already
+ * key-wide. It counts requests, not rows: a batch's rows are its endpoint's
+ * own limit to count. Like that limit, a refused request adds nothing.
  *
  * ── AN ENDPOINT'S OWN LIMIT ────────────────────────────────────────────────
  * A resource that states a `rate` (every endpoint made in the builder does)
@@ -108,6 +123,19 @@ export type PublicLimit = keyof typeof PUBLIC_LIMITS;
  */
 export const PUBLIC_FLOOD_GUARD = { max: 300, windowMs: 60_000 } as const;
 
+/** The whole-key rung for a browser key: every visitor together. */
+export const PUBLIC_KEY_LIMITS = {
+  read: { max: 600, windowMs: 60_000 },
+  write: { max: 60, windowMs: 60_000 },
+} as const;
+
+export type PublicKeySide = keyof typeof PUBLIC_KEY_LIMITS;
+
+/** The whole-key counter identity. */
+export function keyRateKeyFor(keyId: string, side: PublicKeySide): string {
+  return `pubkey:${keyId}:${side}`;
+}
+
 /** Failed key resolutions one address may cause in a window. */
 export const PUBLIC_FAILED_RESOLUTION = { max: 30, windowMs: 60_000 } as const;
 
@@ -142,6 +170,8 @@ export interface PublicRateLimiter {
   hit: (limit: PublicLimit, identity: RateIdentity) => RateDecision;
   /** An endpoint's own `rate`, instead of the class bucket. `cost` defaults to 1. */
   hitEndpoint: (identity: EndpointRateIdentity, rate: { max: number; windowMs: number }, cost?: number) => RateDecision;
+  /** A browser key's whole-key rung, after the per-visitor one. `cost` defaults to 1. */
+  hitKey: (keyId: string, side: PublicKeySide, cost?: number) => RateDecision;
   /** Whether this address has used up its failed resolutions; counts nothing. */
   resolutionBlocked: (ip: string) => RateDecision | null;
   /** One more failed resolution from this address. */
@@ -311,6 +341,9 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     },
     hitEndpoint(identity, rate, cost = 1) {
       return decide(endpointWindows, endpointRateKeyFor(identity), rate, cost, true);
+    },
+    hitKey(keyId, side, cost = 1) {
+      return decide(windows, keyRateKeyFor(keyId, side), PUBLIC_KEY_LIMITS[side], cost, true);
     },
     resolutionBlocked(ip) {
       const decision = decide(windows, failKey(ip), PUBLIC_FAILED_RESOLUTION, 1, false);

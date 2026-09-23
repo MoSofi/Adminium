@@ -19,6 +19,7 @@ import {
 } from '@adminium/engine';
 import { pageEnvelopeSchema, type PageEnvelope } from '@adminium/engine/config';
 import {
+  appTablesRepo,
   overridesRepo,
   pagesRepo,
   snapshotsRepo,
@@ -239,10 +240,19 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   // can now emit a different set of pages than before, which is the point, but
   // it is why the overlay is applied here rather than hidden inside
   // `parseDatabaseModel`.
-  const model = filterModelToIncludedTables(
+  const included = filterModelToIncludedTables(
     applyCompositionOverrides(accepted.model, overrides),
     connection.settings.includedTables,
   );
+  // An app's sample-data ledger is Adminium's own bookkeeping in the
+  // operator's database: never a page.
+  const ledgers = new Set(
+    (await appTablesRepo(meta).forConnection(connectionId))
+      .filter((record) => record.role === 'sample-ledger')
+      .map((record) => record.tableName),
+  );
+  const model =
+    ledgers.size === 0 ? included : { ...included, tables: included.tables.filter((table) => !ledgers.has(table.name)) };
 
   // Overlay effective table labels (user `table.label` > accepted `llm.label`,
   // provenance) onto the parsed model BEFORE generation, so every

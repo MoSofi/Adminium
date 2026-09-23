@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, beforeAll, afterAll, describe, expect, it } from 'vitest';
-import { publicKeysRepo, publicScopesRepo, connectionsRepo, settingsRepo } from '@adminium/meta';
+import { appTablesRepo, publicKeysRepo, publicScopesRepo, connectionsRepo, settingsRepo } from '@adminium/meta';
 
 import type { AdminiumServer } from '../src/app.js';
 import { discoverSurfaces, type HostedSurface } from '../src/cli/surfaces-root.js';
@@ -28,8 +28,20 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { isHostReservedPath, RESERVED_AUTH_PATHS } from '../src/plugins/surfaces.js';
 import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
 import type { DomainMapping } from '../src/surfaces/settings.js';
-import { buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
+import { ADMIN_EMAIL, ADMIN_NAME, buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
+
+/** Who the staff config says is signed in: the test's admin, and their write token. */
+const SIGNED_IN = {
+  user: { id: expect.any(String) as unknown as string, name: ADMIN_NAME, email: ADMIN_EMAIL },
+  csrfToken: expect.any(String) as unknown as string,
+};
+
+/** The server's own zone, which every staff config names. */
+const SERVER_CLOCK = { serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+
+/** The venue's clock and money for a connection made with no zone of its own: the host's, and no currency. */
+const HOST_VENUE = { timezone: SERVER_CLOCK.serverTimezone, timezoneSource: 'host', currency: null, ...SERVER_CLOCK };
 
 const DASH_HTML = '<!doctype html><html><body data-app="dashboard"></body></html>';
 const STAFF_HTML = '<!doctype html><html><body data-app="clients-staff"></body></html>';
@@ -124,13 +136,41 @@ describe('mapped CUSTOMER host (D3)', () => {
     expect((await get(app, '/settings/team', CUSTOMER_HOST, NAVIGATE)).body).not.toContain(
       'data-app="dashboard"',
     );
-    // … but the reserved set still serves it: login page + its own bundle.
-    expect((await get(app, '/login', CUSTOMER_HOST, NAVIGATE)).body).toContain('data-app="dashboard"');
-    expect((await get(app, '/assets/app.js', CUSTOMER_HOST)).body).toContain('const dashboard');
-    // /api/* is untouched — host-agnostic, as today.
-    const api = await get(app, '/api/v1/nope', CUSTOMER_HOST);
-    expect(api.statusCode).toBe(404);
-    expect(api.headers['content-type']).toContain('application/json');
+    // FLIPPED ON PURPOSE: a customer's domain serves no part of
+    // the admin panel — not its sign-in pages, not its bundle, not its API.
+    for (const path of ['/login', '/otp', '/forgot', '/reset', '/assets/app.js', '/ws']) {
+      const res = await get(app, path, CUSTOMER_HOST, NAVIGATE);
+      expect(res.statusCode, path).toBe(404);
+      expect(res.body, path).not.toContain('data-app="dashboard"');
+    }
+    // A guest's page load gets the venue's plain "Page not found" (App Address
+    // Pages, row 15), in the browser's language; a script's call, the envelope.
+    const page = await get(app, '/login', CUSTOMER_HOST, NAVIGATE);
+    expect(page.headers['content-type']).toContain('text/html');
+    expect(page.body).toContain('Page not found');
+    expect(page.body).not.toContain('Nothing is served at this address');
+    const arabic = await get(app, '/login', CUSTOMER_HOST, { ...NAVIGATE, 'accept-language': 'ar-EG,ar;q=0.9' });
+    expect(arabic.statusCode).toBe(404);
+    expect(arabic.body).toMatch(/<html lang="ar[^"]*" dir="rtl">/);
+    expect(arabic.body).not.toContain('Page not found');
+    const scripted = await get(app, '/login', CUSTOMER_HOST, { accept: 'application/json' });
+    expect(scripted.statusCode).toBe(404);
+    expect(scripted.headers['content-type']).toContain('application/json');
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      headers: { host: CUSTOMER_HOST },
+      payload: { email: 'ava@example.com', password: 'correct-horse-battery-staple' },
+    });
+    expect(login.statusCode).toBe(404);
+    // The public API is the one part of /api it serves; another app's mount is not its own.
+    expect((await get(app, '/api/v1/bootstrap', CUSTOMER_HOST)).statusCode).toBe(404);
+    expect((await get(app, '/apps/other/customer/x.js', CUSTOMER_HOST)).statusCode).toBe(404);
+    expect((await get(app, '/apps/clients/staff/', CUSTOMER_HOST)).statusCode).toBe(404);
+    const publicApi = await get(app, '/api/v1/public/nope', CUSTOMER_HOST);
+    expect(publicApi.statusCode).toBe(404);
+    expect(publicApi.headers['content-type']).toContain('application/json');
+    expect(publicApi.body).not.toContain('Nothing is served at this address');
   });
 
   it('a non-GET verb keeps its normal meaning on a mapped host', async () => {
@@ -150,12 +190,32 @@ describe('mapped CUSTOMER host (D3)', () => {
     expect((await get(app, '/', `${CUSTOMER_HOST}:8443`)).body).toContain('data-app="dashboard"');
   });
 
-  it('a mapping to an undiscovered surface is inert, never an error', async () => {
+  it('a mapping to a surface this server does not serve answers 503, never the dashboard', async () => {
+    // FLIPPED ON PURPOSE: it used to fall back to the dashboard,
+    // which put the admin panel on a shop's own domain.
     const { app } = await build();
     await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'ghost', side: 'customer' } });
     const res = await get(app, '/', CUSTOMER_HOST);
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toContain('data-app="dashboard"');
+    expect(res.statusCode).toBe(503);
+    expect(res.body).not.toContain('data-app="dashboard"');
+    expect(res.json().error.code).toBe('SURFACE_UNAVAILABLE');
+  });
+});
+
+describe('the address of an uninstalled app (D40)', () => {
+  it('answers 503 — never the admin panel', async () => {
+    const { app } = await build();
+    await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
+    // Uninstall takes the mapping away; the shop's DNS still points here.
+    const { forgetAppSurfaceSettings } = await import('../src/surfaces/settings.js');
+    expect((await forgetAppSurfaceSettings(t!.meta, 'clients', null)).removedHosts).toEqual([CUSTOMER_HOST]);
+    app.surfaceSettings?.invalidate();
+    const page = await get(app, '/', CUSTOMER_HOST, NAVIGATE);
+    expect(page.statusCode).toBe(503);
+    expect(page.body).not.toContain('data-app="dashboard"');
+    expect((await get(app, '/login', CUSTOMER_HOST, NAVIGATE)).statusCode).toBe(503);
+    // An address nobody ever mapped is the dashboard, as before.
+    expect((await get(app, '/login', 'elsewhere.test', NAVIGATE)).body).toContain('data-app="dashboard"');
   });
 });
 
@@ -168,7 +228,16 @@ describe('mapped STAFF host (D4) — sign-in on the mapped host', () => {
     const anon = await get(app, '/schedule', STAFF_HOST, NAVIGATE);
     expect(anon.statusCode).toBe(302);
     expect(anon.headers['location']).toBe('/login?next=%2Fschedule');
-    expect((await get(app, '/login', STAFF_HOST, NAVIGATE)).body).toContain('data-app="dashboard"');
+    expect((await get(app, '/login?next=%2Fschedule', STAFF_HOST, NAVIGATE)).body).toContain(
+      'data-app="dashboard"',
+    );
+    // A bare /login on the till's address carries next=/, so signing in lands
+    // back on the till with a full load, not on a dashboard route.
+    const bare = await get(app, '/login', STAFF_HOST, NAVIGATE);
+    expect(bare.statusCode).toBe(302);
+    expect(bare.headers['location']).toBe('/login?next=%2F');
+    // The dashboard's WebSocket path is the dashboard's, not the surface's.
+    expect((await get(app, '/ws', STAFF_HOST, NAVIGATE)).body).not.toContain('clients-staff');
 
     // An anonymous fetch gets the coded envelope, not a redirect.
     const fetchRes = await get(app, '/schedule', STAFF_HOST, {
@@ -343,7 +412,61 @@ describe('surface-config.json (D10)', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.body).not.toContain('adm_pub_');
-    expect(res.json()).toEqual({ connectionId: null, appName: null });
+    expect(res.json()).toEqual({ connectionId: null, appName: null, ...SIGNED_IN, ...SERVER_CLOCK });
+  });
+
+  it("falls back to the connection the app was INSTALLED into", async () => {
+    const { app } = await build();
+    const crypto = dsnCryptoFromSecret(makeEnv().ADMINIUM_SECRET);
+    const installedInto = await connectionsRepo(t!.meta, crypto).create({
+      name: 'cafe',
+      engine: 'postgres',
+      introspectDsn: 'postgres://ro:s@db/cafe',
+    });
+    // Installed from Studio: the row remembers the database; no placement was ever saved.
+    await t!.meta.db
+      .insertInto('adminium_manifests')
+      .values({
+        id: 'mft_clients',
+        manifestKey: 'clients',
+        version: '1.0.0',
+        source: 'file',
+        manifest: '{}',
+        licenseKeyEncrypted: null,
+        connectionId: installedInto.id,
+        status: 'installed',
+        kind: 'app',
+        packageIntegrity: null,
+        packageFileId: null,
+        installedBy: null,
+        installedAt: 0,
+        updatedAt: 0,
+      } as never)
+      .execute();
+    const { cookie } = await login(app);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/apps/clients/staff/surface-config.json',
+      headers: { cookie: cookie ?? '' },
+    });
+    expect(res.json()).toEqual({ connectionId: installedInto.id, appName: null, ...SIGNED_IN, ...HOST_VENUE });
+
+    // Once the install records its tables under real names, the app is told them.
+    await appTablesRepo(t!.meta).record({
+      appKey: 'clients',
+      manifestId: 'mft_clients',
+      connectionId: installedInto.id,
+      ref: 'invoices',
+      tableName: 'clients_invoices',
+      owned: true,
+      state: 'created',
+    });
+    const named = await app.inject({
+      method: 'GET',
+      url: '/apps/clients/staff/surface-config.json',
+      headers: { cookie: cookie ?? '' },
+    });
+    expect(named.json()).toEqual({ connectionId: installedInto.id, appName: null, tables: { invoices: 'clients_invoices' }, ...SIGNED_IN, ...HOST_VENUE });
   });
 
   it('serves an INSTANCE its own connection, at /apps/<key>/<slug>/<side>/', async () => {
@@ -375,14 +498,14 @@ describe('surface-config.json (D10)', () => {
       url: '/apps/clients/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(rootRes.json()).toEqual({ connectionId: root.id, appName: null });
+    expect(rootRes.json()).toEqual({ connectionId: root.id, appName: null, ...SIGNED_IN, ...HOST_VENUE });
 
     const instRes = await app.inject({
       method: 'GET',
       url: '/apps/clients/berlin/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(instRes.json()).toEqual({ connectionId: berlin.id, appName: null });
+    expect(instRes.json()).toEqual({ connectionId: berlin.id, appName: null, ...SIGNED_IN, ...HOST_VENUE });
 
     // The instance serves the app itself, from the SAME bundle on disk.
     const page = await app.inject({
@@ -421,7 +544,7 @@ describe('surface-config.json (D10)', () => {
       url: '/surface-config.json',
       headers: { host: 'berlin.example.test', cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: berlin.id, appName: null });
+    expect(res.json()).toEqual({ connectionId: berlin.id, appName: null, ...SIGNED_IN, ...HOST_VENUE });
   });
 
   it('an UNMAPPED-to-instance host keeps serving the app\'s own connection', async () => {
@@ -441,7 +564,7 @@ describe('surface-config.json (D10)', () => {
       url: '/surface-config.json',
       headers: { host: 'plain.example.test', cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: own.id, appName: null });
+    expect(res.json()).toEqual({ connectionId: own.id, appName: null, ...SIGNED_IN, ...HOST_VENUE });
   });
 
   it('serves a CUSTOMER instance the key bound to its own connection', async () => {
@@ -565,7 +688,7 @@ describe('surface-config.json (D10)', () => {
       url: '/apps/clients/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: conn.id, appName: null });
+    expect(res.json()).toEqual({ connectionId: conn.id, appName: null, ...SIGNED_IN, ...HOST_VENUE });
     expect(res.headers['cache-control']).toBe('no-store');
   });
 
@@ -590,7 +713,7 @@ describe('surface-config.json (D10)', () => {
       url: '/apps/clients/staff/surface-config.json',
       headers: { cookie: cookie ?? '' },
     });
-    expect(res.json()).toEqual({ connectionId: null, appName: 'Acme Client Hub' });
+    expect(res.json()).toEqual({ connectionId: null, appName: 'Acme Client Hub', ...SIGNED_IN, ...SERVER_CLOCK });
   });
 
   it('serves a null name when the operator has set none', async () => {

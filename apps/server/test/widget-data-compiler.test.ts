@@ -70,7 +70,7 @@ const model = {
         { name: 'order_id', logicalType: 'integer', nullable: false, isPrimaryKey: true, semantics: null },
         { name: 'customer_id', logicalType: 'varchar', nullable: true, isPrimaryKey: false, semantics: null },
         { name: 'order_date', logicalType: 'timestamp', nullable: true, isPrimaryKey: false, semantics: null },
-        { name: 'freight', logicalType: 'decimal', nullable: true, isPrimaryKey: false, semantics: null },
+        { name: 'freight', label: 'Shipping cost', logicalType: 'decimal', nullable: true, isPrimaryKey: false, semantics: null },
         {
           name: 'ship_phone',
           logicalType: 'varchar',
@@ -232,6 +232,12 @@ describe('widget-data compiler — SQL', () => {
     expect(compiled.count).not.toBeNull();
     expect(compiled.count!.compile().sql).toContain('count(*)');
     expect(compiled.selectedColumns.map((c) => c.name)).toEqual(['order_id', 'customer_id']);
+  });
+
+  it('record-list names each column it can the way a person does', () => {
+    const compiled = compile({ shape: 'record-list', select: ['order_id', 'freight'], limit: 5 });
+    const shaped = shapeRows({ compiled, rows: [{ order_id: 1, freight: 2 }], canReadPii: false }) as { columns: { name: string; label?: string }[] };
+    expect(shaped.columns.map((c) => [c.name, c.label])).toEqual([['order_id', undefined], ['freight', 'Shipping cost']]);
   });
 });
 

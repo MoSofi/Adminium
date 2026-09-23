@@ -18,6 +18,10 @@ export interface Role {
   isBuiltin: boolean;
   createdAt: number;
   updatedAt: number;
+  /** The app whose manifest created this role; null for every other role. */
+  appKey: string | null;
+  /** Opens the app's own screens and never the dashboard. */
+  screensOnly: boolean;
 }
 
 export interface CreateRoleInput {
@@ -25,6 +29,8 @@ export interface CreateRoleInput {
   name: string;
   description?: string | null;
   isBuiltin?: boolean;
+  appKey?: string | null;
+  screensOnly?: boolean;
 }
 
 function mapRole(row: Selectable<AdminiumRolesTable>): Role {
@@ -36,6 +42,8 @@ function mapRole(row: Selectable<AdminiumRolesTable>): Role {
     isBuiltin: readBool(row.isBuiltin),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    appKey: row.appKey ?? null,
+    screensOnly: readBool(row.screensOnly ?? false),
   };
 }
 
@@ -51,6 +59,8 @@ export function rolesRepo(meta: MetaDb) {
         isBuiltin: writeBool(meta, input.isBuiltin ?? false),
         createdAt: at,
         updatedAt: at,
+        appKey: input.appKey ?? null,
+        screensOnly: writeBool(meta, input.screensOnly ?? false),
       };
       await db.insertInto('adminium_roles').values(row).execute();
       return mapRole(row as Selectable<AdminiumRolesTable>);

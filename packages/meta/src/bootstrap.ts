@@ -13,7 +13,9 @@ import type { MetaDb } from './connect.js';
 import { applyMigrations } from './migrator.js';
 import {
   SYSTEM_ACTION_KEYS,
+  type AppActions,
   type PageActions,
+  type PermissionActions,
   type SystemActionKey,
   type TableActions,
 } from './schema/json-payloads.js';
@@ -37,12 +39,14 @@ export interface BuiltinRoleDef {
    * them in Team → Roles keeps the narrowing across restarts and upgrades.
    * Absent on super-admin, which bypasses every check anyway.
    */
-  dataGrants?: { pages: PageActions; tables: TableActions };
+  dataGrants?: { pages: PageActions; tables: TableActions; apps?: AppActions };
 }
 
 /** The `resource_ref` of the every-page and every-table wildcard rows. */
 export const ALL_PAGES_REF = '*';
 export const ALL_TABLES_REF = '*/*';
+/** The every-app row: every installed app's staff screens. */
+export const ALL_APPS_REF = '*';
 
 /**
  * The four built-in roles. Super-admin gets every system action (the RBAC
@@ -94,6 +98,7 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     dataGrants: {
       pages: { view: true, edit: true },
       tables: { read: true, create: true, update: true, delete: true, export: true, import: true },
+      apps: { staff: true },
     },
     // `schema.ddl` is deliberately ABSENT:
     // the built-in Admin manages connections and labels, and writing DDL to
@@ -123,6 +128,7 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     dataGrants: {
       pages: { view: true, edit: false },
       tables: { read: true, create: true, update: true, delete: false, export: false, import: false },
+      apps: { staff: true },
     },
   },
   {
@@ -133,6 +139,7 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     dataGrants: {
       pages: { view: true, edit: false },
       tables: { read: true, create: false, update: false, delete: false, export: false, import: false },
+      apps: { staff: true },
     },
   },
 ];
@@ -209,9 +216,11 @@ export async function seedBuiltinRoles(meta: MetaDb, at: number = Date.now()): P
       seeded.add(pair);
     }
     if (def.dataGrants !== undefined) {
-      const rows = [
-        { kind: 'page' as const, ref: ALL_PAGES_REF, actions: def.dataGrants.pages },
-        { kind: 'table' as const, ref: ALL_TABLES_REF, actions: def.dataGrants.tables },
+      const rows: { kind: 'page' | 'table' | 'app'; ref: string; actions: PermissionActions }[] = [
+        { kind: 'page', ref: ALL_PAGES_REF, actions: def.dataGrants.pages },
+        { kind: 'table', ref: ALL_TABLES_REF, actions: def.dataGrants.tables },
+        // Every app's staff screens, as every signed-in role could before the grant existed.
+        ...(def.dataGrants.apps === undefined ? [] : [{ kind: 'app' as const, ref: ALL_APPS_REF, actions: def.dataGrants.apps }]),
       ];
       for (const row of rows) {
         // `<role>:<kind>:<ref>` — a system key never holds a colon, so these

@@ -19,6 +19,14 @@
  * a page nobody edited is recomposed for the new version, and a page someone
  * edited is left exactly as they left it. Uninstall does not touch pages.
  *
+ * ─── Where they live ──────────────────────────────────────────────────────
+ *
+ * In the app's own sidebar section: the row's group is `app`, and the group
+ * the manifest names (`manage`, `records`) is kept in the document's
+ * `nav.group`, where the section reads it. A page's form and an Overview's
+ * layout come from the manifest, bound to the real tables
+ * (`manifest-page-config.ts`), and are part of what the stamp covers.
+ *
  * ─── What never blocks an install ─────────────────────────────────────────
  *
  * A page that cannot be built — no binding, a table that cannot back its
@@ -32,7 +40,6 @@
 
 import {
   composeRequestedPage,
-  hashEnvelope,
   isKnownPageTemplate,
   isTableBoundTemplate,
   pageSourceTable,
@@ -43,7 +50,11 @@ import type { Manifest } from '@adminium/manifest';
 import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 
-import { applyCompositionOverrides } from '../connections/effective-schema.js';
+import { bindForm, bindLayout } from './manifest-page-config.js';
+import { applyCompositionOverrides, applyOverrides, withEffectiveLabels } from '../connections/effective-schema.js';
+import { SnapshotView } from '../crud/identifiers.js';
+import { isUntouched, stamped } from '../pages/generated-stamp.js';
+import { seedPageGrants } from '../pages/page-grants.js';
 import { buildUserPageEnvelope } from '../routes/pages/envelope.js';
 
 type NavGroup = (typeof BUILTIN_NAV_GROUP_KEYS)[number];
@@ -55,7 +66,10 @@ export interface ManifestPageSkip {
     | 'PAGE_SLUG_TAKEN'
     | 'PAGE_UNBOUND'
     | 'PAGE_BINDING_UNKNOWN'
-    | 'PAGE_UNFIT';
+    | 'PAGE_UNFIT'
+    // Created, without the form or layout the manifest gave it.
+    | 'PAGE_FORM_INVALID'
+    | 'PAGE_LAYOUT_INVALID';
   message: string;
 }
 
@@ -81,13 +95,18 @@ export interface MaterialiseInput {
   manifestRowId: string;
   connectionId: string | null;
   createdBy: string | null;
+  /**
+   * Short name → real table, for an app whose tables are prefixed or recorded
+   * under other names. A page binds the manifest's short name; the snapshot
+   * knows only real ones. Absent, the two are the same.
+   */
+  names?: Readonly<Record<string, string>> | undefined;
 }
 
 /**
- * The sidebar group a page lands in. A manifest may name any string, but only
- * the built-in groups render — anything else is filed as HIDDEN by the nav
- * builder — so a group the sidebar does not have falls back to where that
- * template's pages go when Adminium generates them.
+ * The built-in group a page's composition is made with. The page itself lives
+ * in the app's section (`app`); this only feeds the generator, which composes
+ * for one of the five groups.
  */
 function navGroupFor(requested: string, template: string): NavGroup {
   if ((BUILTIN_NAV_GROUP_KEYS as readonly string[]).includes(requested)) return requested as NavGroup;
@@ -99,29 +118,68 @@ function navGroupFor(requested: string, template: string): NavGroup {
   return 'library';
 }
 
-async function compositionModel(meta: MetaDb, connectionId: string): Promise<DatabaseModel | null> {
+async function compositionModel(
+  meta: MetaDb,
+  connectionId: string,
+): Promise<{ model: DatabaseModel; view: SnapshotView } | null> {
   const snapshot = await snapshotsRepo(meta).latest(connectionId);
   if (snapshot === null) return null;
   const overrides = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
-  return applyCompositionOverrides(parseDatabaseModel(snapshot.schema), overrides);
+  const base = parseDatabaseModel(snapshot.schema);
+  return {
+    // Named as the app and the operator name its tables and columns.
+    model: withEffectiveLabels(applyCompositionOverrides(base, overrides), overrides),
+    // What a form's relations are read through, as the data routes read them.
+    view: new SnapshotView(connectionId, applyOverrides(base, overrides)),
+  };
 }
 
-/** A stored document's own stamp still matches it: nobody has edited it. */
-function untouched(config: unknown): boolean {
-  if (typeof config !== 'object' || config === null) return false;
-  const body = (config as Record<string, unknown>)['config'];
-  const stamp =
-    typeof body === 'object' && body !== null
-      ? (body as Record<string, unknown>)['generatedHash']
-      : undefined;
-  return typeof stamp === 'string' && stamp === hashEnvelope(config as Record<string, unknown>);
+/** Every manifest row's id → its app key; a page's `manifestId` names one of these, or nothing. */
+async function pageOwners(meta: MetaDb): Promise<Map<string, string>> {
+  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey']).execute();
+  return new Map(rows.map((row) => [row.id, row.manifestKey]));
 }
 
-function stamped(envelope: Record<string, unknown>): Record<string, unknown> {
-  const body = { ...(envelope['config'] as Record<string, unknown>) };
-  delete body['generatedHash'];
-  const plain = { ...envelope, config: body };
-  return { ...plain, config: { ...body, generatedHash: hashEnvelope(plain) } };
+/**
+ * Whether a page holding a slug is this app's to rebuild.
+ *
+ * It must be a manifest page, and belong to this app: named by this install's
+ * row, or by another row of the same app key, or — for a page an earlier
+ * uninstall orphaned (its row is gone) — stamped with this app's key. An
+ * orphan written before pages carried the key is taken to be this app's: its
+ * slug came from this app's manifest in the first place.
+ *
+ * Before this, ANY manifest page with the slug was rebuilt, so installing a
+ * second app with a page called `payments` took over the first app's.
+ */
+export function isThisAppsPage(
+  holder: { origin: string; manifestId: string | null; config?: unknown },
+  appKey: string,
+  manifestRowId: string,
+  owners: ReadonlyMap<string, string>,
+): boolean {
+  if (holder.origin !== 'manifest') return false;
+  if (holder.manifestId === manifestRowId) return true;
+  const owner = holder.manifestId === null ? undefined : owners.get(holder.manifestId);
+  if (owner !== undefined) return owner === appKey;
+  const stamped = envelopeAppKey(holder.config);
+  return stamped === null || stamped === appKey;
+}
+
+/** The app key a page's envelope carries, or null for a page written before it did. */
+export function envelopeAppKey(config: unknown): string | null {
+  const parsed: unknown = typeof config === 'string' ? safeParse(config) : config;
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  const app = (parsed as Record<string, unknown>)['app'];
+  return typeof app === 'string' ? app : null;
+}
+
+function safeParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 export async function materialiseManifestPages(input: MaterialiseInput): Promise<MaterialiseResult> {
@@ -133,8 +191,11 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
   const declared = manifest.kind === 'app' ? (manifest.pages ?? []) : [];
   if (declared.length === 0) return result;
 
-  const model = connectionId === null ? null : await compositionModel(meta, connectionId);
+  const composed = connectionId === null ? null : await compositionModel(meta, connectionId);
+  const model = composed?.model ?? null;
+  const names = input.names ?? {};
   const all = await pages.listAll();
+  const owners = await pageOwners(meta);
 
   for (const page of declared) {
     const template = page.template;
@@ -149,9 +210,20 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
     }
 
     const slug = page.ref;
-    const holder = all.find((row) => row.slug === slug);
-    if (holder !== undefined && holder.origin !== 'manifest') {
-      // Somebody else's page. Never clobbered; the app's page is just not built.
+    // Slugs are unique per CONNECTION, so that is where a clash can be.
+    const holder = all.find((row) => row.slug === slug && row.connectionId === connectionId);
+    // An orphan's envelope says whose it was; nothing else does.
+    const orphan =
+      holder !== undefined && holder.origin === 'manifest' && !owners.has(holder.manifestId ?? '')
+        ? await pages.findById(holder.id)
+        : null;
+    if (
+      holder !== undefined &&
+      !isThisAppsPage({ ...holder, config: orphan?.config }, manifest.key, input.manifestRowId, owners)
+    ) {
+      // Somebody else's page — the operator's, or another app's. Never
+      // clobbered; the app's page is just not built.
+      // The install check refuses another app's page before it gets here.
       result.warnings.push({
         page: page.ref,
         reason: 'PAGE_SLUG_TAKEN',
@@ -161,11 +233,14 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
     }
 
     const navGroup = navGroupFor(page.nav.group, template);
+    // The app's section, whatever the manifest calls the group within it.
+    const rowGroup = manifest.kind === 'app' ? 'app' : navGroup;
     const title = page.title.fallback;
     const id = holder?.id ?? newId('page');
 
     // The table this page reads, as the snapshot names it.
-    const tableRef = bound ? pageSourceTable(page) : null;
+    const shortRef = bound ? pageSourceTable(page) : null;
+    const tableRef = shortRef === null ? null : (input.names?.[shortRef] ?? shortRef);
     const tableId =
       tableRef === null || model === null
         ? null
@@ -200,14 +275,7 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
           message: `"${tableRef as string}" cannot back ${template}: ${built.reason}`,
         });
       } else {
-        const composedTitle = built.envelope['title'];
-        envelope = {
-          ...built.envelope,
-          title:
-            typeof composedTitle === 'object' && composedTitle !== null
-              ? { ...(composedTitle as Record<string, unknown>), fallback: title }
-              : { key: `nav.${slug}`, fallback: title },
-        };
+        envelope = { ...built.envelope };
       }
     }
     envelope ??= buildUserPageEnvelope({
@@ -221,6 +289,42 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       connectionId,
       table: null,
     });
+    // The form and the layout the manifest wrote, bound to the real tables.
+    const own = (envelope['config'] ?? {}) as Record<string, unknown>;
+    const form = page.config?.['form'];
+    if (form !== undefined && composed !== null && tableId !== null) {
+      const bound = bindForm(form, composed.view, composed.view.table(tableId), names);
+      if ('problem' in bound) {
+        result.warnings.push({ page: page.ref, reason: 'PAGE_FORM_INVALID', message: `${bound.problem}, so it has the form Adminium makes` });
+      } else {
+        envelope = { ...envelope, config: { ...own, form: bound.form } };
+      }
+    }
+    const layout = page.config?.['layout'];
+    if (template === 'page-dashboard' && layout !== undefined && connectionId !== null && model !== null) {
+      const bound = bindLayout(layout, connectionId, model, names);
+      if ('problem' in bound) {
+        result.warnings.push({ page: page.ref, reason: 'PAGE_LAYOUT_INVALID', message: `${bound.problem}, so it was created empty` });
+      } else {
+        envelope = { ...envelope, config: { ...own, layout: bound.layout } };
+      }
+    }
+    // The manifest's own title: its key, its English, its translations
+    //, and `from` — the English it came with, so the sidebar can
+    // tell a page the operator renamed (its title no longer matches) and stop
+    // translating it. Its group within the app's section is the manifest's.
+    const nav = (envelope['nav'] ?? {}) as Record<string, unknown>;
+    envelope = {
+      ...envelope,
+      app: manifest.key,
+      nav: { ...nav, group: page.nav.group },
+      title: {
+        key: page.title.key,
+        fallback: title,
+        from: title,
+        ...(page.titles === undefined ? {} : { titles: { ...page.titles } }),
+      },
+    };
     const document = stamped(envelope);
 
     if (holder === undefined) {
@@ -231,13 +335,15 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         type: template,
         title,
         icon: page.nav.icon,
-        navGroup,
+        navGroup: rowGroup,
         navOrder: page.nav.order,
         config: document,
         origin: 'manifest',
         manifestId: input.manifestRowId,
         createdBy: input.createdBy,
       });
+      // The audience its sibling pages already have.
+      await seedPageGrants(meta, { id, connectionId });
       result.created.push(slug);
       continue;
     }
@@ -250,11 +356,11 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
       .set({ manifestId: input.manifestRowId } as never)
       .where('id', '=', holder.id)
       .execute();
-    if (stored === null || !untouched(stored.config)) {
+    if (stored === null || !isUntouched(stored.config)) {
       result.kept.push(slug);
       continue;
     }
-    await pages.replaceConfig(holder.id, document, { title, navGroup, icon: page.nav.icon });
+    await pages.replaceConfig(holder.id, document, { title, navGroup: rowGroup, icon: page.nav.icon });
     result.recomposed.push(slug);
   }
   return result;

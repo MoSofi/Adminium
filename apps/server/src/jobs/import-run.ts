@@ -46,6 +46,7 @@ import {
   type WriteContext,
   type WriteTarget,
 } from '../crud/write-service.js';
+import { writeStores } from '../crud/write-stores.js';
 import { coerceCell } from '../data-io/coerce.js';
 import { EXPORT_BOM, createCsvParser, serializeCsvRow } from '../data-io/csv.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
@@ -79,6 +80,13 @@ export interface ImportRunDeps {
   writes?: RecordWriteService | undefined;
   now?: (() => number) | undefined;
 }
+
+
+/**
+ * An import brings in history: yesterday's bookings are not new ones for a
+ * booking limit to judge, and a table that has one takes its rows here.
+ */
+const HISTORY = { capacity: 'unchecked' } as const;
 
 export function registerImportRunHandler(registry: JobRegistry, deps: ImportRunDeps): void {
   const now = deps.now ?? Date.now;
@@ -168,7 +176,7 @@ async function runImport(
   const upload = await files.findById(row.fileId);
   if (upload === null) throw new Error(`import-run: upload file row missing: ${row.fileId}`);
   const { db, dialect } = await deps.manager.data(row.connectionId);
-  const writes = deps.writes ?? createWriteService();
+  const writes = deps.writes ?? createWriteService(writeStores(deps.meta));
   const writeTarget: WriteTarget = { connectionId: row.connectionId, view, table, db, dialect };
   const context: WriteContext = {
     origin: 'import',
@@ -236,7 +244,7 @@ async function runImport(
        * imports. `check()` is the fill and the check without the hooks, and
        * the branded rows it returns are the only thing `insertRows` accepts.
        */
-      const checked = writes.check('create', writeTarget, context, chunk.map((item) => item.values));
+      const checked = await writes.check('create', writeTarget, context, chunk.map((item) => item.values), HISTORY);
       const good: { item: (typeof chunk)[number]; values: CheckedRow }[] = [];
       for (const [i, item] of chunk.entries()) {
         const values = checked.rows[i];
@@ -254,11 +262,18 @@ async function runImport(
         await db.transaction().execute(async (trx) => {
           await insertRows(
             trx as unknown as Kysely<SourceDatabase>,
+            dialect,
             table,
             good.map((entry) => entry.values),
           );
         });
         inserted += good.length;
+        // The parent totals these rows feed; no hook step ran to settle them.
+        await writes.settle(
+          'create',
+          writeTarget,
+          good.map((entry) => ({ record: entry.values, before: null })),
+        );
       } catch {
         // Isolate the offending row(s): replay the chunk row-by-row.
         for (const entry of good) await writeOne(entry.item, false);
@@ -323,15 +338,19 @@ async function runImport(
             .executeTakeFirst();
           if (existing !== undefined) {
             const before = existing as Row;
-            const [prepared] = await writes.beforeEach('update', writeTarget, context, [
-              { values: item.values, record: before },
-            ]);
+            const [prepared] = await writes.beforeEach(
+              'update',
+              writeTarget,
+              context,
+              [{ values: item.values, record: before }],
+              HISTORY,
+            );
             if (prepared === undefined) return;
             if (prepared.issues !== null) {
               refuseRow(item, prepared.issues);
               return;
             }
-            await updateRows(db, table, prepared.values, match);
+            await updateRows(db, dialect, table, prepared.values, match);
             updated += 1;
             await afterImportWrite('update', match, before);
             return;
@@ -344,20 +363,21 @@ async function runImport(
             .limit(1)
             .executeTakeFirst();
           if (existing !== undefined) {
-            const checked = writes.check('update', writeTarget, context, [item.values]);
+            const checked = await writes.check('update', writeTarget, context, [item.values], HISTORY);
             const values = checked.rows[0];
             if (values === null || values === undefined) {
               refuseRow(item, checked.issues[0] ?? null);
               return;
             }
-            await updateRows(db, table, values, match);
+            await updateRows(db, dialect, table, values, match);
             updated += 1;
+            await writes.settle('update', writeTarget, [{ record: { ...values, ...match }, before: null }]);
             return;
           }
         }
       }
       if (hooked.create) {
-        const [prepared] = await writes.beforeEach('create', writeTarget, context, [{ values: item.values }]);
+        const [prepared] = await writes.beforeEach('create', writeTarget, context, [{ values: item.values }], HISTORY);
         if (prepared === undefined) return;
         if (prepared.issues !== null) {
           refuseRow(item, prepared.issues);
@@ -368,14 +388,15 @@ async function runImport(
         await writes.afterEach('create', writeTarget, context, [{ record: stored, before: null }]);
         return;
       }
-      const checked = writes.check('create', writeTarget, context, [item.values]);
+      const checked = await writes.check('create', writeTarget, context, [item.values], HISTORY);
       const values = checked.rows[0];
       if (values === null || values === undefined) {
         refuseRow(item, checked.issues[0] ?? null);
         return;
       }
-      await insertRows(db, table, [values]);
+      await insertRows(db, dialect, table, [values]);
       inserted += 1;
+      await writes.settle('create', writeTarget, [{ record: values, before: null }]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (!skipInvalid) fail(`row ${item.rowNumber}: ${message}`);

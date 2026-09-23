@@ -52,6 +52,8 @@ import type { AppStore } from './store.js';
 export interface InstalledAppRef {
   key: string;
   version: string;
+  /** The manifest row's status; an `installing` row is not served. Absent = installed. */
+  status?: string;
 }
 
 /**
@@ -149,6 +151,12 @@ export function createInstalledApps(deps: {
        */
       const seen = new Set<string>();
       for (const row of rows) {
+        /*
+         * An install still in progress is NOT served: its row
+         * is written first, before its tables and pages exist, and serving it
+         * then would hand out a surface for a half-installed app.
+         */
+        if (row.status === 'installing') continue;
         const own = surfacesOfInstalled(deps.store, row);
         /*
          * Asked of the STORE, not of `own`, and of the row's own identity

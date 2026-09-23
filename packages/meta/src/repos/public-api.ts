@@ -260,6 +260,8 @@ export interface CreatePublicKeyInput {
   access?: Record<string, readonly string[]> | null;
   /** `browser` (default) | `server`. */
   kind?: string;
+  /** The app key that creates it at install; absent for an operator's key. */
+  managedBy?: string | null;
   createdBy?: string | null;
   expiresAt?: number | null;
 }
@@ -286,6 +288,7 @@ export function publicKeysRepo(meta: MetaDb) {
         createdBy: input.createdBy ?? null,
         createdAt: at,
         updatedAt: at,
+        managedBy: input.managedBy ?? null,
       };
       await on.insertInto('adminium_public_keys').values(row).execute();
       return row;

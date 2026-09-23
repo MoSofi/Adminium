@@ -65,7 +65,7 @@ export interface MissingColumnsEdit {
   }[];
 }
 
-function offered(column: RequiredColumn): Omit<OfferedColumn, 'name'> | null {
+export function offered(column: RequiredColumn): Omit<OfferedColumn, 'name'> | null {
   const base = {
     nullable: true as const,
     default: null,
@@ -76,7 +76,10 @@ function offered(column: RequiredColumn): Omit<OfferedColumn, 'name'> | null {
   };
   switch (column.type) {
     case 'text':
-      return { ...base, logicalType: 'text' };
+      // The installer's own type: a declared `maxLength` is a `varchar(n)`.
+      return column.maxLength === undefined
+        ? { ...base, logicalType: 'text' }
+        : { ...base, logicalType: 'varchar', maxLength: column.maxLength };
     case 'int':
       return { ...base, logicalType: 'integer' };
     case 'bigint':

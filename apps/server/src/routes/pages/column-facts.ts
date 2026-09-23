@@ -61,6 +61,8 @@ export interface ColumnFact {
   options?: { list: string } | { values: ColumnOptionItem[] };
   /** The rules an admin typed, so the dialog can check them before sending. */
   validation?: ColumnValidation;
+  /** What a person calls each of an enum's values ("Pick one" for `radio`). */
+  enumLabels?: Record<string, string>;
 }
 
 /** A relation the form can offer as a field of chips. */
@@ -91,7 +93,7 @@ export interface ChildFact {
 }
 
 export interface ColumnFactsBlock {
-  table: { labelSingular: string | null };
+  table: { labelSingular: string | null; labelPlural: string | null };
   columns: ColumnFact[];
   /**
    * The link relations this table can write through.
@@ -155,8 +157,19 @@ function blockFor(
     // expression — is never asked for, and neither is one Adminium fills.
     const filledBy =
       fill.filledBy ?? (column.default !== null || column.isGenerated ? 'database' : null);
+    // The column's own name for a person — the operator's rename, or the one
+    // its app installed in the reader's language — over the humanized one.
+    const label = (column as { label?: string }).label;
+    // A reference names its table as a person does ("Categories"), where it has a name.
+    const target = spec.fk === undefined ? undefined : view.model.tables.find((t) => t.id === spec.fk?.table);
+    const targetName = target === undefined ? undefined : (target.labelPlural ?? target.label);
+    const named = {
+      ...spec,
+      ...(label === undefined ? {} : { label }),
+      ...(spec.fk === undefined || targetName === undefined ? {} : { fk: { ...spec.fk, label: targetName } }),
+    };
     columns.push({
-      spec: spec as unknown as Record<string, unknown>,
+      spec: named as unknown as Record<string, unknown>,
       ordinal: column.ordinal,
       writable: !column.isGenerated,
       filledBy,
@@ -173,6 +186,7 @@ function blockFor(
         (!column.nullable || column.requiredByRule === true),
       ...(column.options === undefined ? {} : { options: column.options }),
       ...(column.validation === undefined ? {} : { validation: column.validation }),
+      ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
     });
   }
   columns.sort((a, b) => a.ordinal - b.ordinal);
@@ -206,7 +220,12 @@ function blockFor(
           foreignColumn: child.foreignColumn,
           columns: columnsOf(view, child.child),
         }));
-  return { table: { labelSingular: table.table.label ?? null }, columns, relations, children };
+  return {
+    table: { labelSingular: table.table.label ?? null, labelPlural: table.table.labelPlural ?? table.table.label ?? null },
+    columns,
+    relations,
+    children,
+  };
 }
 
 /**
@@ -220,20 +239,30 @@ export async function columnFactsFor(
   meta: MetaDb,
   connectionId: string,
   tableName: string,
+  /**
+   * The reader's locale (`de_DE`): a label an app ships in every language it
+   * speaks is read in theirs. Absent, labels resolve to en_US.
+   */
+  locale?: string,
 ): Promise<ColumnFactsBlock | null> {
   const snapshot = await snapshotsRepo(meta).latest(connectionId);
   if (snapshot === null) return null;
   const active = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
   const last = active.at(-1);
   const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}`;
-  let entry = CACHE.get(connectionId);
+  // One view per locale: the labels in it are resolved for that reader.
+  const cacheKey = `${connectionId}\u0000${locale ?? ''}`;
+  let entry = CACHE.get(cacheKey);
   if (entry === undefined || entry.stamp !== stamp) {
     entry = {
       stamp,
-      view: new SnapshotView(connectionId, applyOverrides(snapshot.schema as DatabaseModel, active)),
+      view: new SnapshotView(
+        connectionId,
+        applyOverrides(snapshot.schema as DatabaseModel, active, locale === undefined ? {} : { defaultLocale: locale }),
+      ),
       facts: new Map(),
     };
-    CACHE.set(connectionId, entry);
+    CACHE.set(cacheKey, entry);
   }
   const cached = entry.facts.get(tableName);
   if (cached !== undefined) return cached;

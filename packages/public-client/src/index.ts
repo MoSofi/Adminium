@@ -51,7 +51,22 @@ export const PUBLIC_ERROR_CODES = [
    * code, `message` here is meant for people: it is the project's own text.
    */
   'PUBLIC_WRITE_REJECTED',
+  /**
+   * The time a booking asks for has no room left, or another guest is booking
+   * it this instant (`BUSY`: try again in a moment).
+   */
+  'PUBLIC_SLOT_FULL',
+  'PUBLIC_SLOT_BUSY',
+  /** Too close to the time to cancel online; the venue still can. */
+  'PUBLIC_TOO_LATE',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
+  /**
+   * The app that made this key at install is switched off (503), or its
+   * customer side is. Nothing is wrong with the key or the request; it
+   * answers again once the app is switched back on.
+   */
+  'APP_DISABLED',
+  'SURFACE_OFF',
   /** Not from the server: the network never answered. */
   'PUBLIC_NETWORK_UNAVAILABLE',
 ] as const;
@@ -88,6 +103,7 @@ export class PublicApiError extends Error {
   get isTransient(): boolean {
     return (
       this.code === 'PUBLIC_RATE_LIMITED' ||
+      this.code === 'PUBLIC_SLOT_BUSY' ||
       this.code === 'PUBLIC_UPSTREAM_UNAVAILABLE' ||
       this.code === 'PUBLIC_NETWORK_UNAVAILABLE'
     );
@@ -246,6 +262,13 @@ export interface PublicDocuments {
 
 const SESSION_HEADER = 'x-adminium-public-session';
 
+/** One time of a day, as an availability ref answers it. */
+export interface SlotAvailability {
+  /** `HH:mm` on the tenant's clock; {@link fromTenantLocal} turns it into the instant to book. */
+  time: string;
+  state: 'free' | 'full';
+}
+
 export interface PublicClient {
   /** The scope, fetched once and cached. */
   config: () => Promise<PublicConfig>;
@@ -265,6 +288,12 @@ export interface PublicClient {
    * its primary key is inserted; a row with its whole key updates that row.
    */
   batch: (ref: string, rows: Row[]) => Promise<{ count: number }>;
+  /**
+   * Which of a day's times have room for a party, from an availability ref:
+   * `HH:mm` on the tenant's clock, free or full, and nothing more. A claimed
+   * visitor's own booking is not counted against them.
+   */
+  availability: (ref: string, day: string, party: number, signal?: AbortSignal) => Promise<SlotAvailability[]>;
   /** Identify the visitor. Returns false when the details did not match. */
   claim: (match: Record<string, unknown>) => Promise<boolean>;
   signOut: () => Promise<void>;
@@ -408,6 +437,14 @@ export function createPublicClient(
       if (options?.signal !== undefined) init.signal = options.signal;
       const reply = await send<unknown>(`/api/v1/public/records/${ref}${encode(options)}`, init);
       return asListResult<T>(reply.body, reply.headers);
+    },
+
+    async availability(ref: string, day: string, party: number, signal?: AbortSignal) {
+      const init: RequestInit = {};
+      if (signal !== undefined) init.signal = signal;
+      const query = new URLSearchParams({ date: day, party: String(party) });
+      const out = await request<{ data: SlotAvailability[] }>(`/api/v1/public/availability/${ref}?${query.toString()}`, init);
+      return out.data;
     },
 
     async get<T = Row>(ref: string, id: string, signal?: AbortSignal) {
@@ -602,6 +639,34 @@ export function toTenantMinutes(iso: string, timezone: string): number {
   const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
   // `en-GB` renders midnight as 24 in some ICU versions; normalise it.
   return (hour % 24) * 60 + minute;
+}
+
+/**
+ * The instant a tenant-local wall time names, as an ISO string — the inverse
+ * of {@link toTenantDay} and {@link toTenantMinutes}. A guest picks "7 pm on
+ * Friday" on the venue's calendar; this is what the API is sent, whatever
+ * zone the guest's own device is in.
+ *
+ * A time the clocks skip in spring reads as the hour after; one they pass
+ * twice in autumn, as the first.
+ */
+export function fromTenantLocal(day: string, minutes: number, timezone: string): string {
+  const naive = Date.parse(`${day}T00:00:00Z`) + Math.round(minutes) * 60_000;
+  const offsetAt = (instant: number): number => {
+    const localDay = toTenantDay(new Date(instant).toISOString(), timezone);
+    const localMinutes = toTenantMinutes(new Date(instant).toISOString(), timezone);
+    return (Date.parse(`${localDay}T00:00:00Z`) + localMinutes * 60_000 - Math.floor(instant / 60_000) * 60_000) / 60_000;
+  };
+  // The offsets either side of the day: equal on most days; across a clock
+  // change, each names one reading of the wall time.
+  const readings = [naive - offsetAt(naive - 43_200_000) * 60_000, naive - offsetAt(naive + 43_200_000) * 60_000];
+  const exact = readings.filter(
+    (instant) =>
+      toTenantDay(new Date(instant).toISOString(), timezone) === day &&
+      toTenantMinutes(new Date(instant).toISOString(), timezone) === Math.round(minutes),
+  );
+  // Twice in autumn: the first. Never in spring: the earlier offset, an hour on.
+  return new Date(exact.length > 0 ? Math.min(...exact) : readings[0]!).toISOString();
 }
 
 /**

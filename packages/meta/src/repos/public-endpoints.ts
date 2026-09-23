@@ -38,6 +38,8 @@ export interface CreatePublicEndpointInput {
   /** The definition exactly as it will be shown back — stored as text. */
   definition: string;
   createdBy?: string | null;
+  /** The app key that creates it at install; absent for an operator's endpoint. */
+  managedBy?: string | null;
 }
 
 export function publicEndpointsRepo(meta: MetaDb) {
@@ -53,6 +55,7 @@ export function publicEndpointsRepo(meta: MetaDb) {
         createdBy: input.createdBy ?? null,
         createdAt: at,
         updatedAt: at,
+        managedBy: input.managedBy ?? null,
       };
       await on.insertInto('adminium_public_endpoints').values(row).execute();
       return row;
