@@ -1,5 +1,70 @@
 # @adminium/manifest
 
+## 0.3.0-rc.4
+
+### Patch Changes
+
+- ab31a89: **Apps can ask for public access for their guests, and staff sign in on the app's own address.**
+  
+  At install you see — and may untick — what an app's guests will be able to do (allowing it needs
+  **Manage API keys**): which tables
+  they read or write, through which methods and fields. Adminium makes the app its own browser
+  key and endpoints; the key cannot be widened to unsafe methods. Availability endpoints answer
+  "free" or "full" per time and nothing more; two guests booking the last seats at once get one
+  confirmation and one "full". A guest finds their own booking by its code and mobile number (the
+  number compared by its digits, however it was typed). Public replies give times as instants, so
+  a guest in another time zone sees the venue's time. `@adminium/public-client` gains
+  `availability()`, `fromTenantLocal()` and the new error codes (`PUBLIC_SLOT_FULL`,
+  `PUBLIC_SLOT_BUSY`, `PUBLIC_TOO_LATE`, `APP_DISABLED`, `SURFACE_OFF`).
+  
+  On a domain mapped to an app's staff screens, the sign-in page is the venue's: its name and the
+  app's, and "Opening <app>…" while the app loads. A first visit in a right-to-left language is laid
+  out right to left before anyone signs in.
+- a795485: **An app update can add a link to a table it already has.**
+  
+  A new version of an app that adds an optional link column to one of its existing tables (an order
+  pointing at a customer, say) used to be refused with "cannot be added to a table that already
+  exists". It now installs: the column is added empty and linked to its table, on SQLite, PostgreSQL
+  and MySQL alike, and on SQLite without copying the table. A link every row must have is still
+  refused before anything changes, because the rows already there would have nothing to point at.
+- ab31a89: **Installing an app checks every table first, and never writes anything you have not seen.**
+  
+  Before **Install**, the new **Check the tables** step lists each table the app needs: **New**,
+  **Yours from an earlier install**, **Shared with another app** or **Name taken**. For a taken
+  name you choose: use the table as it is (offered only when it is safe — a table with a required
+  column the app never fills cannot be reused, and the page says why), rename the existing table
+  out of the way (Adminium repairs its own pages, grants, label overrides and public endpoints
+  that named it), or give the whole app a different prefix. Apps that ask for it get their tables
+  under their own prefix (`pos_menu_items`), so another app's plain `payments` is never in the way.
+  
+  An install that stops part way answers `409 APP_INSTALL_INCOMPLETE` naming the stage and the
+  tables already made; nothing is removed, and **Try again** finishes from where it stopped.
+  Updating runs the same check for new tables and keeps the names an install already has; an
+  update that cannot run lists every reason. An install made before its app used a prefix is
+  offered **Rename to <prefix>…**, which previews every table and then renames them, with pages,
+  grants, overrides and endpoints following.
+  
+  Uninstalling keeps your data unless a Super Admin ticks **Also delete its tables and data** and
+  types the app's key; only tables the app created and no other app uses are dropped. Pages you
+  edited stay as ordinary pages, the app's key is revoked at once, and a domain that pointed at the
+  app answers `503 SURFACE_UNAVAILABLE` until you map it again. A reinstall recognises the tables
+  it left.
+- ab31a89: **App manifests can name their tables and columns in every language, and dashboards gain a day control.**
+  
+  A manifest's tables take `label`, `labelPlural` and `keyField`, its columns a `label`, and enum
+  columns a label per value — plain text or a map keyed by language. Forms, grids, filters and
+  dashboard cards use them, in the viewer's language.
+  
+  A dashboard page can show **Today / Yesterday / This week / Pick a day**; every card reads the
+  chosen day on the venue's clock, and hourly bars are labelled by hour. `SegmentedControl` takes
+  an `itemClassName`.
+  
+  Fixes: SQLite boolean updates, a SQLite `now` default on the server's wall clock, SQLite schema
+  edits after another program changed the database, a public key's scope refreshing when the
+  connection's time zone or currency changes, and a revoked key no longer answering after an
+  uninstall.
+- @adminium/add-on-contracts@0.3.0-rc.4
+
 ## 0.3.0-rc.3
 
 ### Patch Changes

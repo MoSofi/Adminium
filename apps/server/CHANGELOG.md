@@ -1,5 +1,149 @@
 # @adminium/server
 
+## 0.3.0-rc.4
+
+### Patch Changes
+
+- ab31a89: **Apps can ask for public access for their guests, and staff sign in on the app's own address.**
+  
+  At install you see — and may untick — what an app's guests will be able to do (allowing it needs
+  **Manage API keys**): which tables
+  they read or write, through which methods and fields. Adminium makes the app its own browser
+  key and endpoints; the key cannot be widened to unsafe methods. Availability endpoints answer
+  "free" or "full" per time and nothing more; two guests booking the last seats at once get one
+  confirmation and one "full". A guest finds their own booking by its code and mobile number (the
+  number compared by its digits, however it was typed). Public replies give times as instants, so
+  a guest in another time zone sees the venue's time. `@adminium/public-client` gains
+  `availability()`, `fromTenantLocal()` and the new error codes (`PUBLIC_SLOT_FULL`,
+  `PUBLIC_SLOT_BUSY`, `PUBLIC_TOO_LATE`, `APP_DISABLED`, `SURFACE_OFF`).
+  
+  On a domain mapped to an app's staff screens, the sign-in page is the venue's: its name and the
+  app's, and "Opening <app>…" while the app loads. A first visit in a right-to-left language is laid
+  out right to left before anyone signs in.
+- ab31a89: **Apps can ship sample data you add and remove in one step.**
+  
+  An app that ships sample data offers it on its settings page (and, unticked, when you install
+  it). Adding works after your own records: a code or sequence number your table already holds is
+  left for the app's own rules to fill. While it is loaded, the app's pages say so. Removing it
+  lists the sample rows you changed or that other records use and keeps them by default — kept
+  rows become yours — and removes the rest; afterwards you can add it again. Images go to the
+  Files library.
+- ab31a89: **Each installed app has its own settings page, sidebar section and place in the command palette.**
+  
+  **Studio → Hosted apps → <app>** shows the app's sets of screens — staff and customer, each
+  switched on or off, and whether the staff screens live inside the dashboard or on their own
+  address — with their addresses and domains; its business type; and **Disable**, **Update** and
+  **Uninstall**. Disabling hides the app everywhere and stops its endpoints without deleting
+  anything. Extra instances — the same app on another database, at `/apps/<key>/<slug>/staff/` —
+  are set on **Hosted apps**.
+  
+  The app's pages sit in its own sidebar section under its name and version. The command palette
+  finds the app's pages and its staff screens — also those of an app that opens on its own
+  address, and each extra instance — and opens them where they live.
+  
+  A customer domain serves only the app's own pages and `/api/v1/public/*`. A browser that asks it
+  for anything else gets a plain "Page not found" page in the reader's language (API calls keep
+  the JSON envelope); a switched-off side gets "not available" (503); someone signed in without
+  access to the staff screens gets "This account can't open <app>" with a sign-out.
+- a795485: **A choice column an app update adds keeps its list of allowed values.**
+  
+  When a new version of an app added a choice column (a pickup stage, say) to a table the app already
+  had, the column arrived as plain text and accepted any value. Adminium now keeps the app's list for
+  it, so a value that is not on the list is refused on every write, as it is for a column the install
+  created.
+- a795485: **An app update can add a link to a table it already has.**
+  
+  A new version of an app that adds an optional link column to one of its existing tables (an order
+  pointing at a customer, say) used to be refused with "cannot be added to a table that already
+  exists". It now installs: the column is added empty and linked to its table, on SQLite, PostgreSQL
+  and MySQL alike, and on SQLite without copying the table. A link every row must have is still
+  refused before anything changes, because the rows already there would have nothing to point at.
+- ab31a89: **Installing an app checks every table first, and never writes anything you have not seen.**
+  
+  Before **Install**, the new **Check the tables** step lists each table the app needs: **New**,
+  **Yours from an earlier install**, **Shared with another app** or **Name taken**. For a taken
+  name you choose: use the table as it is (offered only when it is safe — a table with a required
+  column the app never fills cannot be reused, and the page says why), rename the existing table
+  out of the way (Adminium repairs its own pages, grants, label overrides and public endpoints
+  that named it), or give the whole app a different prefix. Apps that ask for it get their tables
+  under their own prefix (`pos_menu_items`), so another app's plain `payments` is never in the way.
+  
+  An install that stops part way answers `409 APP_INSTALL_INCOMPLETE` naming the stage and the
+  tables already made; nothing is removed, and **Try again** finishes from where it stopped.
+  Updating runs the same check for new tables and keeps the names an install already has; an
+  update that cannot run lists every reason. An install made before its app used a prefix is
+  offered **Rename to <prefix>…**, which previews every table and then renames them, with pages,
+  grants, overrides and endpoints following.
+  
+  Uninstalling keeps your data unless a Super Admin ticks **Also delete its tables and data** and
+  types the app's key; only tables the app created and no other app uses are dropped. Pages you
+  edited stay as ordinary pages, the app's key is revoked at once, and a domain that pointed at the
+  app answers `503 SURFACE_UNAVAILABLE` until you map it again. A reinstall recognises the tables
+  it left.
+- a795485: **An app update that adds a choice to a column keeps the column's list of allowed values.**
+  
+  On PostgreSQL and MySQL, an update adding a value (a new payment method, say) removed the column's
+  check and never put it back, so any value was accepted afterwards, while the change was recorded as
+  applied. The check is now replaced with the full new list. A schema change whose statement cannot be
+  built now fails instead of being recorded as applied.
+- ab31a89: **"Keep me signed in" now does what it says.**
+  
+  The box on the sign-in page, and **Keep me signed in on this tablet** on an app's
+  staff address, was collected and never sent: every sign-in got the same 30-day
+  cookie whatever it said. The box now starts ticked, as the designs draw it.
+  Ticked, the session survives closing the browser, as before. Unticked, the
+  session cookie has no `Max-Age`, so the browser drops it when it closes.
+  
+  `POST /api/v1/auth/login` takes an optional `remember` boolean. `false` gives
+  the browser-session cookie; `true` or leaving it out gives the long-lived
+  cookie, so API clients that never send it are unaffected. The answer is given
+  once: a two-factor sign-in carries it through `/auth/2fa/verify`, and changing
+  your password keeps it, so an unticked sign-in on a shared computer is never
+  turned into a 30-day one.
+  
+  Only the cookie changes. The session still ends after 7 days without use or at
+  the workspace's session limit either way, and a browser that restores its last
+  tabs may bring back an unticked session too.
+  
+  Meta migration `0041_session_persistent` adds `adminium_sessions.persistent`
+  (default true, so every existing session stays long-lived).
+- ab31a89: **App manifests can name their tables and columns in every language, and dashboards gain a day control.**
+  
+  A manifest's tables take `label`, `labelPlural` and `keyField`, its columns a `label`, and enum
+  columns a label per value — plain text or a map keyed by language. Forms, grids, filters and
+  dashboard cards use them, in the viewer's language.
+  
+  A dashboard page can show **Today / Yesterday / This week / Pick a day**; every card reads the
+  chosen day on the venue's clock, and hourly bars are labelled by hour. `SegmentedControl` takes
+  an `itemClassName`.
+  
+  Fixes: SQLite boolean updates, a SQLite `now` default on the server's wall clock, SQLite schema
+  edits after another program changed the database, a public key's scope refreshing when the
+  connection's time zone or currency changes, and a revoked key no longer answering after an
+  uninstall.
+- ab31a89: **A phone number written as `(415) 555-0132` passes a phone-format rule.**
+  
+  A column set to accept phone numbers refused one that starts with an area code in brackets, the
+  usual way to write a North American number. It is accepted now, like `+1 415 555 0132` always was.
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [a795485]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [a795485]
+  - @adminium/manifest@0.3.0-rc.4
+  - @adminium/i18n@0.3.0-rc.4
+  - @adminium/engine@0.3.0-rc.4
+  - @adminium/meta@0.3.0-rc.4
+  - @adminium/adapter-mysql@0.3.0-rc.4
+  - @adminium/adapter-postgres@0.3.0-rc.4
+  - @adminium/adapter-sqlite@0.3.0-rc.4
+  - @adminium/llm@0.3.0-rc.4
+  - @adminium/schema-import@0.3.0-rc.4
+  - @adminium/add-on-contracts@0.3.0-rc.4
+
 ## 0.3.0-rc.3
 
 ### Patch Changes

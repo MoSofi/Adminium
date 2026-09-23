@@ -1,5 +1,7 @@
 # @adminium/tokens
 
+## 0.3.0-rc.4
+
 ## 0.3.0-rc.3
 
 ### Patch Changes

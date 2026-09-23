@@ -1,5 +1,42 @@
 # @adminium/ui
 
+## 0.3.0-rc.4
+
+### Patch Changes
+
+- ab31a89: **Each installed app has its own settings page, sidebar section and place in the command palette.**
+  
+  **Studio → Hosted apps → <app>** shows the app's sets of screens — staff and customer, each
+  switched on or off, and whether the staff screens live inside the dashboard or on their own
+  address — with their addresses and domains; its business type; and **Disable**, **Update** and
+  **Uninstall**. Disabling hides the app everywhere and stops its endpoints without deleting
+  anything. Extra instances — the same app on another database, at `/apps/<key>/<slug>/staff/` —
+  are set on **Hosted apps**.
+  
+  The app's pages sit in its own sidebar section under its name and version. The command palette
+  finds the app's pages and its staff screens — also those of an app that opens on its own
+  address, and each extra instance — and opens them where they live.
+  
+  A customer domain serves only the app's own pages and `/api/v1/public/*`. A browser that asks it
+  for anything else gets a plain "Page not found" page in the reader's language (API calls keep
+  the JSON envelope); a switched-off side gets "not available" (503); someone signed in without
+  access to the staff screens gets "This account can't open <app>" with a sign-out.
+- ab31a89: **App manifests can name their tables and columns in every language, and dashboards gain a day control.**
+  
+  A manifest's tables take `label`, `labelPlural` and `keyField`, its columns a `label`, and enum
+  columns a label per value — plain text or a map keyed by language. Forms, grids, filters and
+  dashboard cards use them, in the viewer's language.
+  
+  A dashboard page can show **Today / Yesterday / This week / Pick a day**; every card reads the
+  chosen day on the venue's clock, and hourly bars are labelled by hour. `SegmentedControl` takes
+  an `itemClassName`.
+  
+  Fixes: SQLite boolean updates, a SQLite `now` default on the server's wall clock, SQLite schema
+  edits after another program changed the database, a public key's scope refreshing when the
+  connection's time zone or currency changes, and a revoked key no longer answering after an
+  uninstall.
+- @adminium/tokens@0.3.0-rc.4
+
 ## 0.3.0-rc.3
 
 ### Patch Changes

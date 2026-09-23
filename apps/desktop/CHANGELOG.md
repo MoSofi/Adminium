@@ -1,5 +1,25 @@
 # @adminium/desktop
 
+## 0.3.0-rc.4
+
+### Patch Changes
+
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [a795485]
+- Updated dependencies [a795485]
+- Updated dependencies [ab31a89]
+- Updated dependencies [a795485]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [a795485]
+- Updated dependencies [ab31a89]
+  - @adminium/server@0.3.0-rc.4
+  - @adminium/adapter-mysql@0.3.0-rc.4
+  - @adminium/adapter-postgres@0.3.0-rc.4
+  - @adminium/adapter-sqlite@0.3.0-rc.4
+
 ## 0.3.0-rc.3
 
 ### Patch Changes
