@@ -74,6 +74,19 @@ export const queryDescriptorSchema = z.object({
       last: z.number().int().min(1),
       unit: bucketUnitSchema,
       compareToPrior: z.boolean().default(false), // fills MetricDelta.prior / Timeseries.compare
+      /**
+       * Whole periods on the venue's clock instead of a span ending now:
+       * `{ last: 1, unit: 'day', calendar: true }` is today from the venue's
+       * midnight, and `offset: 1` moves it back one period — yesterday.
+       */
+      calendar: z.boolean().optional(),
+      offset: z.number().int().min(0).max(400).optional(),
+      /**
+       * Follow the page's day control: a param holding `today`, `yesterday`,
+       * `week` or a `YYYY-MM-DD` day replaces `last`/`unit`/`offset` with that
+       * calendar window, and a `week` turns hour buckets into days.
+       */
+      param: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_.]{0,63}$/).optional(),
     })
     .optional(),
   orderBy: z

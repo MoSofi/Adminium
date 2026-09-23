@@ -26,7 +26,7 @@
  * replace, so writing every column on every save would rewrite — and
  * audit-log — matrices nobody edited. `changedRoleIds` decides what ships.
  */
-import { useMutation, useQueries, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
@@ -48,12 +48,14 @@ import {
   type PermissionGrant,
 } from '@adminium/ui';
 
+import { appSectionsOf, bootstrapQuery, hostedAppsOf } from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import {
   DATA_ACCESS_GRANTS,
   ROLES_QUERY_KEY,
+  appStaffRows,
   SUPER_ADMIN_SLUG,
   catalogPermissions,
   changedRoleIds,
@@ -135,7 +137,7 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
     case 'system:jobs:manage':
       return t('roles.permission.jobsManage', 'Start and cancel background jobs');
     case 'system:manifests:manage':
-      return t('roles.permission.manifestsManage', 'Install and connect add-ons');
+      return t('roles.permission.manifestsManage', 'Install and manage apps and add-ons');
     case 'system:files:manage':
       return t('roles.permission.filesManage', 'Manage everyone’s files');
     case 'system:storage:manage':
@@ -211,13 +213,31 @@ export function RolesPage(): ReactNode {
    * anything at all, and until these rows existed no screen could grant it —
    * a built-in role's access could only be changed through the API.
    */
+  // The installed apps, named as the sidebar names them.
+  const { data: bootstrap } = useQuery(bootstrapQuery());
+  const installedApps = useMemo(() => {
+    if (bootstrap === undefined) return [];
+    const byKey = new Map<string, string>();
+    for (const app of hostedAppsOf(bootstrap)) if (app.instance === undefined) byKey.set(app.appKey, app.label);
+    for (const section of appSectionsOf(bootstrap)) byKey.set(section.appKey, section.label);
+    return [...byKey].map(([key, label]) => ({ key, label }));
+  }, [bootstrap]);
   const permissions = useMemo(() => {
     const dataCategory = t('roles.category.records', 'Pages & records');
+    const appCategory = t('roles.category.apps', 'Apps');
     return [
       ...DATA_ACCESS_GRANTS.map((key) => ({ key, label: dataAccessLabel(key), category: dataCategory })),
+      ...appStaffRows(installedApps, baseline).map((row) => ({
+        key: row.key,
+        label:
+          row.app === null
+            ? t('roles.apps.every', 'Open every app’s staff screens')
+            : t('roles.apps.one', 'Open {app}’s staff screens', { app: row.app.label }),
+        category: appCategory,
+      })),
       ...matrixRows(catalogPermissions(catalog), permissionLabel, (entry) => categoryLabel(entry.category)),
     ];
-  }, [catalog]);
+  }, [catalog, installedApps, baseline]);
   const narrowGrants = useMemo(() => narrowDataGrantCount(baseline), [baseline]);
   const changed = useMemo(() => changedRoleIds(grants, baseline), [grants, baseline]);
   const pending = useMemo(() => pendingChangeCount(grants, baseline), [grants, baseline]);

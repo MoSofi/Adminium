@@ -70,14 +70,33 @@ export function ChartLineAreaWidget({ config, data }: WidgetProps<ChartLineAreaC
 // --- chart-bar ---------------------------------------------------------------
 
 /** `timeseries` or `categorical` → BarChart categories + one series. */
+/**
+ * Hour buckets are labelled by their hour ("10 AM"), with the day when they
+ * span more than one; everything else by its day. Labelled by day, a day's
+ * hourly bars all read "Sep 22" and the chart drew them as ONE bar.
+ *
+ * On this device's clock: a widget is given no zone. The server cuts the
+ * buckets on the venue's clock (widget-data), so at the venue the two agree.
+ */
+function bucketLabels(points: readonly { t: string }[], unit: string | undefined, locale: string | undefined): string[] {
+  const at = points.map((point) => Date.parse(point.t));
+  const hourly = unit === 'hour' && at.every((t, i) => i === 0 || t - at[i - 1]! < 86_400_000);
+  if (!hourly) return points.map((point) => formatShortDate(new Date(point.t)));
+  const spansDays = at.length > 1 && at[at.length - 1]! - at[0]! >= 86_400_000;
+  const format = new Intl.DateTimeFormat(locale, spansDays ? { month: 'short', day: 'numeric', hour: 'numeric' } : { hour: 'numeric' });
+  return at.map((t) => format.format(new Date(t)));
+}
+
 export function barInputsOf(
   data: unknown,
   seriesName: string,
+  /** The binding's bucket unit and the page's locale, when the card has them. */
+  opts: { unit?: string | undefined; locale?: string | undefined } = {},
 ): { categories: string[]; series: BarSeries[] } | null {
   const ts = asTimeseries(data);
   if (ts !== null && ts.points.length > 0) {
     return {
-      categories: ts.points.map((point) => formatShortDate(new Date(point.t))),
+      categories: bucketLabels(ts.points, opts.unit, opts.locale),
       series: [{ name: seriesName, values: timeseriesValues(ts) }],
     };
   }
@@ -93,7 +112,10 @@ export function barInputsOf(
 
 export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
   const t = useMaybeT();
-  const inputs = barInputsOf(data, config.title ?? 'Value');
+  const inputs = barInputsOf(data, config.title ?? 'Value', {
+    unit: (config as { binding?: { bucket?: { unit?: string } } }).binding?.bucket?.unit,
+    locale: config.format?.locale,
+  });
   if (inputs === null) return <BadShape />;
   return (
     <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-bar">

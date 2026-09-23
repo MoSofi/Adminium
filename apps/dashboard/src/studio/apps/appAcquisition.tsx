@@ -36,8 +36,8 @@
  * which names it.
  */
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader, MonoText } from '@adminium/ui';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert, Button, Modal, ModalBody, ModalFooter, ModalHeader, MonoText, Spinner } from '@adminium/ui';
 import { ArrowUpCircle } from 'lucide-react';
 
 import { ApiError } from '../../app/api.js';
@@ -54,9 +54,12 @@ import {
   updateApp,
   type AppInstallPlan,
   type CatalogApp,
+  type InstallAnswers,
   type InstalledApp,
+  type PlannedAppTable,
 } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
+import { CheckHint, TableCheck, type TakenPick } from './InstallCheck.js';
 
 /** Which card an action belongs to, so its answer renders beside it. */
 export type AcquisitionOrigin = 'shelf' | 'installed';
@@ -78,6 +81,21 @@ interface UpdateConsent {
   key: string;
   to: string;
   plan: AppInstallPlan;
+  /** Where the app's tables live, for re-checking with the operator's answers. */
+  connectionId?: string;
+}
+
+/** What the operator checked before an update: that plan's checksum, and their answers. */
+export interface UpdateChecked {
+  planChecksum?: string;
+  choices?: InstallAnswers['choices'];
+}
+
+/** Whether a new version's check has anything to show or ask. */
+function checkAsks(tables: readonly PlannedAppTable[]): boolean {
+  return tables.some(
+    (table) => table.class === 'new' || table.class === 'taken' || table.edits.length > 0,
+  );
 }
 
 /** An update waiting on columns the operator has been asked to add. */
@@ -90,13 +108,23 @@ function messageOf(caught: unknown): string {
   const message = caught instanceof Error ? caught.message : String(caught);
   if (caught instanceof ApiError) {
     const details = caught.details as
-      | { reason?: unknown; tables?: { ref: string; missingColumns: string[] }[] }
+      | {
+          reason?: unknown;
+          tables?: { ref: string; missingColumns: string[] }[];
+          problems?: { message?: unknown }[];
+        }
       | undefined;
     if (details?.reason === 'COLUMNS_REQUIRED' && Array.isArray(details.tables)) {
       const tables = details.tables
         .map((table) => `${table.ref} (${table.missingColumns.join(', ')})`)
         .join('; ');
       return `${message} ${t('studio:hostedApps.update.missingColumns', 'Missing: {tables}.', { tables })}`;
+    }
+    // A refused plan names each reason; the headline alone ("cannot be
+    // updated on this database") leaves the operator nothing to act on.
+    if (details?.reason === 'PLAN_REFUSED' && Array.isArray(details.problems)) {
+      const reasons = details.problems.flatMap((problem) => (typeof problem.message === 'string' ? [problem.message] : []));
+      if (reasons.length > 0) return `${message} ${reasons.join(' ')}`;
     }
   }
   return message;
@@ -154,8 +182,8 @@ export function useAppAcquisition() {
     });
   };
 
-  const applyUpdate = async (key: string): Promise<void> => {
-    const result = await updateApp(key);
+  const applyUpdate = async (key: string, checked?: UpdateChecked): Promise<void> => {
+    const result = await updateApp(key, checked);
     setNotice(
       t('studio:hostedApps.update.done', '{app} updated to v{version}', {
         app: key,
@@ -212,13 +240,32 @@ export function useAppAcquisition() {
         }
         if (app.connectionId !== null) {
           const { plan } = await planApp({ key: app.key, version: to, connectionId: app.connectionId });
+          /*
+           * A server that checks with the install's context: the new version's
+           * tables are shown the way the install wizard shows them, and a new
+           * table whose name is taken is asked about. A plan refused for any
+           * other reason is sent anyway, so the refusal on the page is the
+           * server's.
+           */
+          if (plan.tables !== undefined) {
+            const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
+            if (checkAsks(plan.tables) && (plan.installable || askable)) {
+              setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
+              return;
+            }
+            await applyUpdate(app.key, plan.checksum === undefined ? undefined : { planChecksum: plan.checksum });
+            return;
+          }
           const short = plan.reuse.some((table) => table.missingColumns.length > 0);
           const edit = plan.missingColumnsEdit;
           // Offered only when EVERY missing column can be added this way; a
           // blocked one (a foreign key) means the update would still refuse,
           // and the server's refusal names it better than a half-offer would.
+          // Missing columns are a problem of their own (COLUMNS_REQUIRED) and
+          // the one this offer resolves; any OTHER problem still refuses.
+          const onlyMissing = plan.problems.every((problem) => problem.code === 'COLUMNS_REQUIRED');
           if (
-            plan.installable &&
+            onlyMissing &&
             short &&
             edit !== undefined &&
             edit.blocked.length === 0 &&
@@ -236,11 +283,11 @@ export function useAppAcquisition() {
         await applyUpdate(app.key);
       }, 'installed'),
 
-    confirmUpdate: (): Promise<void> => {
+    confirmUpdate: (checked?: UpdateChecked): Promise<void> => {
       const pending = consent;
       setConsent(null);
       if (pending === null) return Promise.resolve();
-      return attempt(() => applyUpdate(pending.key), 'installed');
+      return attempt(() => applyUpdate(pending.key, checked), 'installed');
     },
 
     /** The downloaded version stays on disk, and the list keeps offering it. */
@@ -316,6 +363,9 @@ export function AppAcquisitionAlerts({
 export function UpdateConsentDialog({ state }: { state: AppAcquisition }) {
   const consent = state.consent;
   if (consent === null) return null;
+  if (consent.plan.tables !== undefined && consent.connectionId !== undefined) {
+    return <UpdateCheckDialog state={state} consent={{ ...consent, connectionId: consent.connectionId }} />;
+  }
   return (
     <Modal
       open
@@ -360,6 +410,137 @@ export function UpdateConsentDialog({ state }: { state: AppAcquisition }) {
         <Button disabled={state.busy} onClick={() => void state.confirmUpdate()}>
           {t('studio:hostedApps.update.confirm', 'Update')}
         </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+/**
+ * A new version's tables, checked the way the install wizard checks them: what
+ * it creates, what it takes back, the safe edits, and the one question — a new
+ * table whose name somebody else holds. The update sends the answers and the
+ * checksum of the check it showed.
+ */
+function UpdateCheckDialog({
+  state,
+  consent,
+}: {
+  state: AppAcquisition;
+  consent: UpdateConsent & { connectionId: string };
+}) {
+  const [plan, setPlan] = useState(consent.plan);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [picks, setPicks] = useState<Record<string, TakenPick>>({});
+  const [renameTo, setRenameTo] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState<InstallAnswers['choices']>(undefined);
+
+  const choicesOf = (
+    nextPicks: Record<string, TakenPick>,
+    nextRename: Record<string, string>,
+  ): InstallAnswers['choices'] => {
+    const choices: NonNullable<InstallAnswers['choices']> = {};
+    for (const ref of Object.keys(nextPicks).sort()) {
+      if (nextPicks[ref] === 'reuse') choices[ref] = { action: 'reuse' };
+      if (nextPicks[ref] === 'rename-existing') choices[ref] = { action: 'rename-existing', to: nextRename[ref] ?? '' };
+    }
+    return Object.keys(choices).length === 0 ? undefined : choices;
+  };
+  const choices = choicesOf(picks, renameTo);
+  const dirty = JSON.stringify(choices ?? null) !== JSON.stringify(checked ?? null);
+
+  const recheck = useMutation({
+    mutationFn: (next: InstallAnswers['choices']) =>
+      planApp({
+        key: consent.key,
+        version: consent.to,
+        connectionId: consent.connectionId,
+        ...(next === undefined ? {} : { choices: next }),
+      }),
+    onSuccess: (reply, next) => {
+      setPlan(reply.plan);
+      setChecked(next);
+    },
+  });
+
+  const tables = plan.tables ?? [];
+  return (
+    <Modal
+      open
+      onOpenChange={(next) => {
+        if (!next) state.cancelUpdate();
+      }}
+    >
+      <ModalHeader
+        icon={<ArrowUpCircle />}
+        title={t('studio:hostedApps.update.title', 'Update {app} to v{version}', {
+          app: consent.key,
+          version: consent.to,
+        })}
+        subtitle={t('studio:hostedApps.update.checkSubtitle', 'Check the tables this version uses.')}
+        closeLabel={t('studio:hostedApps.update.close', 'Close')}
+      />
+      <ModalBody>
+        <div className="flex flex-col gap-3">
+          {recheck.error === null ? null : (
+            <Alert tone="danger" title={t('studio:hostedApps.error', 'Something went wrong')}>
+              {recheck.error.message}
+            </Alert>
+          )}
+          <TableCheck
+            plan={{ ...plan, tables }}
+            appName={consent.key}
+            connectionName=""
+            heading={false}
+            allowAltPrefix={false}
+            open={open}
+            onToggle={(ref) => setOpen((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
+            picks={picks}
+            onPick={(ref, pick) => {
+              const table = tables.find((candidate) => candidate.ref === ref);
+              const nextPicks = { ...picks, [ref]: pick };
+              const nextRename =
+                pick === 'rename-existing' && renameTo[ref] === undefined && table !== undefined
+                  ? { ...renameTo, [ref]: table.renameExistingTo ?? `${table.table}_old` }
+                  : renameTo;
+              setPicks(nextPicks);
+              setRenameTo(nextRename);
+              recheck.mutate(choicesOf(nextPicks, nextRename));
+            }}
+            renameTo={renameTo}
+            onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
+            prefix=""
+            onPrefix={() => undefined}
+            altPrefixInUse={null}
+            onUsualPrefix={() => undefined}
+            busy={recheck.isPending || state.busy}
+          />
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <span className="me-auto">
+          <CheckHint plan={plan} picks={picks} dirty={dirty} forUpdate />
+        </span>
+        <Button variant="ghost" onClick={state.cancelUpdate}>
+          {t('studio:hostedApps.update.cancel', 'Cancel')}
+        </Button>
+        {dirty ? (
+          <Button disabled={recheck.isPending} onClick={() => recheck.mutate(choices)}>
+            {recheck.isPending ? <Spinner size="sm" /> : null}
+            {t('studio:hostedApps.install.check.again', 'Check again')}
+          </Button>
+        ) : (
+          <Button
+            disabled={state.busy || recheck.isPending || !plan.installable}
+            onClick={() =>
+              void state.confirmUpdate({
+                ...(plan.checksum === undefined ? {} : { planChecksum: plan.checksum }),
+                ...(checked === undefined ? {} : { choices: checked }),
+              })
+            }
+          >
+            {t('studio:hostedApps.update.confirm', 'Update')}
+          </Button>
+        )}
       </ModalFooter>
     </Modal>
   );

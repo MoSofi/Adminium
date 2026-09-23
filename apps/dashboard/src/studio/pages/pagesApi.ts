@@ -26,6 +26,9 @@ export function isNavGroup(value: string | null): value is NavGroup {
   return value !== null && (NAV_GROUPS as readonly string[]).includes(value);
 }
 
+/** The row group of an installed app's pages: its own sidebar section. */
+export const APP_NAV_GROUP = 'app';
+
 /**
  * How a page came to exist. It is not cosmetic — it decides what the manager
  * may offer:
@@ -242,6 +245,8 @@ export function slugifyInput(raw: string): string {
 export interface GroupedPages {
   groups: { key: NavGroup; pages: PageSummaryDto[] }[];
   ungrouped: PageSummaryDto[];
+  /** Installed apps' pages, which live in each app's own section. */
+  apps: PageSummaryDto[];
 }
 
 export function groupPages(pages: readonly PageSummaryDto[]): GroupedPages {
@@ -252,9 +257,12 @@ export function groupPages(pages: readonly PageSummaryDto[]): GroupedPages {
       .sort((a, b) => a.navOrder - b.navOrder || a.slug.localeCompare(b.slug)),
   }));
   const ungrouped = pages
-    .filter((page) => !isNavGroup(page.navGroup))
+    .filter((page) => !isNavGroup(page.navGroup) && page.navGroup !== APP_NAV_GROUP)
     .sort((a, b) => a.slug.localeCompare(b.slug));
-  return { groups, ungrouped };
+  const apps = pages
+    .filter((page) => page.navGroup === APP_NAV_GROUP)
+    .sort((a, b) => a.navOrder - b.navOrder || a.slug.localeCompare(b.slug));
+  return { groups, ungrouped, apps };
 }
 
 /**

@@ -628,9 +628,15 @@ export default {
         "pageWarnings": "此應用程式的部分頁面將在沒有資料表的情況下建立"
       },
       "done": {
-        "title": "已安裝",
         "body": "{key} 已開始提供服務。請在下方選擇其員工端的顯示位置。",
-        "schema": "已建立資料表：{created} · 沿用：{reused}"
+        "titleApp": "{app} 已安裝",
+        "tablesCreated": "在 {connection} 中建立的資料表",
+        "tablesKept": "依原樣使用的資料表",
+        "pages": "已產生的頁面",
+        "sampleNotAdded": "未新增",
+        "sampleAdding": "正在新增…",
+        "sampleAdded": "已新增",
+        "sampleLater": "你可以稍後在應用程式頁面中新增。"
       },
       "cancel": "取消",
       "back": "上一步",
@@ -651,6 +657,68 @@ export default {
       "uploaded": {
         "hint": "讀取自你上傳的安裝包中的 manifest.json。在你確認結構計畫之前不會建立任何東西。",
         "replace": "上傳其他安裝包"
+      },
+      "check": {
+        "title": "檢查資料表",
+        "hint": "{app} 將在 {connection} 中建立這些資料表。按下「安裝」之前不會有任何變更。",
+        "summaryNew": "{count} 個新資料表",
+        "summaryEarlier": "{count} 個來自先前的安裝",
+        "summaryShared": "{count} 個與其他應用程式共用",
+        "summaryTaken": "{count, plural, other {# 個名稱已被使用}}",
+        "altPrefixInUse": "已使用前綴 {prefix} 檢查。",
+        "usualPrefix": "使用一般前綴",
+        "badgeNew": "新建",
+        "badgeEarlier": "先前安裝留下的",
+        "badgeShared": "與 {app} 共用",
+        "badgeTaken": "名稱已被使用",
+        "columns": "{count, plural, other {# 欄}}",
+        "keep": "使用它並保留其資料",
+        "sharedNote": "{app} 也在使用此資料表。兩個應用程式會繼續讀寫相同的資料列。",
+        "earlierNote": "Adminium 在先前安裝 {app} 時建立了此資料表。",
+        "createPreview": "建立預覽",
+        "addsColumns": "{count, plural, other {新增 # 欄：}}",
+        "widens": "將 {column} 從 {from} 加寬為 {to}。",
+        "setIdentity": "{column} 會自動為新資料列編號。",
+        "enumValues": "{column} 也接受 {values}。",
+        "noLoss": "不會移除任何欄位，也不會遺失任何資料。",
+        "reuseNote": "應用程式會讀寫既有的資料列。",
+        "renameTitle": "重新命名既有資料表以騰出名稱",
+        "renameNote": "將為應用程式建立新的 {table}。",
+        "renameField": "既有資料表的新名稱",
+        "renameFieldNote": "Adminium 會修復指向舊名稱的自有頁面與規則。",
+        "prefixTitle": "為此應用程式使用不同的前綴",
+        "prefixNote": "一次套用到應用程式的所有資料表。",
+        "prefixField": "前綴",
+        "prefixFieldNote": "{count, plural, other {將重新檢查全部 # 個資料表。}}",
+        "takenIntro": "{table} 已存在，且是手動建立的。請選擇如何處理。",
+        "takenIntroShort": "如何處理 {table}",
+        "pickFirst": "安裝前請選擇如何處理 {table}。",
+        "checkFirst": "安裝前請重新檢查資料表。",
+        "nothingYet": "按下「安裝」之前不會有任何變更。",
+        "again": "重新檢查",
+        "adoptedNote": "先前安裝的 {app} 依原樣使用了此資料表。"
+      },
+      "running": {
+        "title": "正在安裝 {app}",
+        "hint": "正在寫入 {connection}。",
+        "tables": "資料表",
+        "pages": "頁面"
+      },
+      "stopped": {
+        "failed": "失敗",
+        "notStarted": "未開始",
+        "atTables": "建立資料表失敗，之後的步驟皆未執行。",
+        "atIntrospect": "資料表已建立。重新讀取失敗，之後的步驟皆未執行。",
+        "atPages": "資料表已建立。建立頁面失敗，之後的步驟皆未執行。",
+        "atFinish": "資料表與頁面已建立。完成安裝失敗。",
+        "title": "安裝中途停止",
+        "created": "已建立 {count} 個",
+        "made": "已建立",
+        "said": "資料庫回傳的訊息",
+        "saidAbout": "資料庫關於 {table} 回傳的訊息",
+        "resume": "沒有移除任何內容。重試會從停止的地方繼續。",
+        "retry": "重試",
+        "back": "返回結構計畫"
       }
     },
     "installed": {
@@ -659,11 +727,6 @@ export default {
       "emptyTitle": "尚未安裝任何應用程式",
       "emptyBody": "上傳已建置的介面包即可安裝。在這裡安裝的應用程式會立即提供服務——與指向目錄的做法不同，不需重新啟動。",
       "uninstall": "解除安裝",
-      "confirmTitle": "要解除安裝這個應用程式嗎？",
-      "confirmBody": "它的介面會停止提供服務，安裝包也會刪除。它在你資料庫中建立的資料表不會受到影響。",
-      "confirmPrompt": "輸入 {key} 以確認",
-      "confirmCancel": "取消",
-      "confirmClose": "關閉",
       "stagedTitle": "已上傳但未安裝",
       "stagedHint": "捨棄你決定不用的那一個，或再次上傳相同識別碼以取代它。",
       "discard": "捨棄",
@@ -675,7 +738,10 @@ export default {
       "missingBody": "它的檔案不在此伺服器上，因此無法提供服務。請重新安裝相同版本，或將其解除安裝。",
       "update": "更新",
       "discardFailed": "未捨棄該上傳",
-      "uninstallFailed": "未解除安裝該應用程式"
+      "renamed": "資料表已重新命名為 {prefix}…",
+      "oldNames": "此安裝使用的是舊的資料表名稱。",
+      "oldNamesWhy": "這些資料表建立於前綴功能之前。",
+      "renameTo": "重新命名為 {prefix}…"
     },
     "instances": {
       "add": "新增執行個體",
@@ -726,7 +792,11 @@ export default {
       "confirm": "更新",
       "close": "關閉",
       "done": "{app} 已更新至 v{version}",
-      "missingColumns": "缺少：{tables}。"
+      "missingColumns": "缺少：{tables}。",
+      "checkSubtitle": "檢查此版本使用的資料表。",
+      "pickFirst": "更新前請選擇如何處理 {table}。",
+      "checkFirst": "更新前請重新檢查資料表。",
+      "nothingYet": "按下「更新」之前不會有任何變更。"
     },
     "veto": {
       "title": "此部署無法線上瀏覽",
@@ -741,6 +811,18 @@ export default {
       "failed": "無法新增這些欄位",
       "valuesFailed": "欄位已新增，但無法記錄其允許的值",
       "confirm": "新增欄位並更新"
+    },
+    "rename": {
+      "title": "將資料表重新命名為 {prefix}…",
+      "subtitle": "{count, plural, other {{connection} 中的 # 個資料表}}",
+      "close": "關閉",
+      "body": "此安裝早於前綴功能。重新命名會為每個資料表加上應用程式的前綴，讓 {app} 能辨識自己的資料表。",
+      "planFailed": "無法規劃重新命名",
+      "refused": "這些資料表無法在此重新命名",
+      "failed": "資料表未重新命名",
+      "repair": "Adminium 也會更新指向舊名稱的自有頁面與規則。",
+      "cancel": "取消",
+      "confirm": "重新命名資料表"
     }
   },
   "hub": {
@@ -1295,7 +1377,8 @@ export default {
       "visible": "在側邊欄中顯示",
       "visibleHint": "隱藏的頁面仍可透過網址存取，只要對方有連結。",
       "width": "內容寬度",
-      "widthHint": "在大螢幕上，頁面內容欄最多可以有多寬。"
+      "widthHint": "在大螢幕上，頁面內容欄最多可以有多寬。",
+      "groupApp": "在所屬應用程式的專屬區段中"
     },
     "filters": {
       "add": "新增篩選",
@@ -1556,6 +1639,10 @@ export default {
       "ungrouped": {
         "body": "這些頁面可透過網址存取，但不會出現在側邊欄中。請逐一開啟並選擇群組。",
         "title": "有些頁面不屬於任何側邊欄群組"
+      },
+      "apps": {
+        "title": "在已安裝應用程式的區段中",
+        "body": "每個應用程式都把自己的頁面放在側邊欄中的專屬區段。"
       }
     },
     "status": {
@@ -1839,7 +1926,20 @@ export default {
       "optionsPickList": "選擇一份清單…",
       "optionsSource": "允許的值",
       "optionsSourceHelp": "清單在 Studio 中寫一次，指向它的每個欄位都能使用。",
-      "optionsValues": "這些值"
+      "optionsValues": "這些值",
+      "decided": {
+        "title": "由 Adminium 決定",
+        "help": "Adminium 會在每次寫入時填入此欄，公開端點永遠不能讓訪客設定它。",
+        "copy": "從 {via} 指向的列的 {from} 複製",
+        "copyAlways": "一律如此，無論寫入者提供什麼",
+        "copyDefault": "除非寫入者提供了值",
+        "sequence": "依序的下一個編號，從 {start} 開始",
+        "code": "類似 {example} 的隨機代碼",
+        "remove": "移除此規則",
+        "rollup": "{from} 中其各列 {sum} 的合計",
+        "rollupTimes": "{from} 中其各列 {sum} × {times} 的合計"
+      },
+      "venueLocal": "在此寫入的不帶時區的時間即為場所的當地時間。"
     },
     "saveFailed": "儲存失敗：{message}",
     "subtitle": "{tables} 個資料表 · 已套用 {applied} 項覆寫",
@@ -2755,5 +2855,169 @@ export default {
     "subtitle": "管理對工作區的程式化存取",
     "summary": "{endpoints, plural, other {# 個端點}} · {methods, plural, other {# 個方法}}",
     "title": "API 金鑰與權杖"
+  },
+  "surfacePages": {
+    "guest": {
+      "title": "{app} 暫時無法使用。",
+      "body": "請稍後再試。"
+    },
+    "staff": {
+      "appOff": "{app} 目前已關閉。",
+      "sideOff": "{app} 的員工畫面已關閉。",
+      "advice": "請你的經理在 {app} → 設定 中開啟。",
+      "signOut": "登出",
+      "noAccess": "此帳號無法開啟 {app}。",
+      "noAccessAdvice": "請你的主管為你指派可以開啟 {app} 的角色。"
+    },
+    "notFound": {
+      "title": "找不到頁面",
+      "body": "此網址沒有內容。請檢查連結後再試一次。"
+    }
+  },
+  "appSettings": {
+    "notInstalled": "此應用程式未安裝",
+    "backToApps": "返回應用程式",
+    "statusDisabled": "已停用",
+    "statusUpdate": "有可用更新 · {version}",
+    "statusActive": "正常運作",
+    "version": "版本 {version} · 由 {publisher} 提供",
+    "open": "開啟應用程式",
+    "upToDate": "已是最新",
+    "update": "更新",
+    "saveFailed": "變更未儲存",
+    "screens": "畫面組",
+    "sideStaff": "員工畫面",
+    "sideCustomer": "客戶畫面",
+    "sideAppOff": "整個應用程式已關閉。",
+    "staffOnHelp": "你的團隊使用自己的帳號在此登入。",
+    "customerOnHelp": "客戶使用這些頁面。它們是公開的。",
+    "staffOffHelp": "這些畫面不再提供。沒有刪除任何內容。",
+    "customerOffHelp": "客戶會看到「暫不可用」。沒有刪除任何內容。",
+    "sideSwitch": "{side}，開啟或關閉",
+    "on": "開啟",
+    "off": "關閉",
+    "whereItLives": "所在位置",
+    "ownAddress": "使用獨立位址",
+    "insideDashboard": "在儀表板內",
+    "copyAddress": "複製位址",
+    "copied": "已複製",
+    "copy": "複製",
+    "addDomain": "新增網域",
+    "preview": "預覽",
+    "domainField": "網域",
+    "addDomainSave": "新增",
+    "data": "資料",
+    "noTables": "此應用程式不使用任何資料表。",
+    "rows": "{count, plural, other {# 列}}",
+    "activity": {
+      "staged": "由 {actor} 上傳",
+      "installed": "由 {actor} 安裝",
+      "updated": "由 {actor} 更新",
+      "disabled": "由 {actor} 關閉",
+      "enabled": "由 {actor} 開啟",
+      "settings": "由 {actor} 變更設定",
+      "domains": "由 {actor} 變更網域",
+      "instances": "由 {actor} 變更執行個體",
+      "renamed": "由 {actor} 重新命名資料表",
+      "title": "動態",
+      "none": "目前沒有。",
+      "sampleAdded": "由 {actor} 新增範例資料",
+      "sampleRemoved": "由 {actor} 移除範例資料"
+    },
+    "danger": "危險操作",
+    "disabledNote": "應用程式已關閉。啟用後將完全恢復原樣。",
+    "disableNote": "在所有地方隱藏此應用程式並停止其端點。不會刪除任何內容。",
+    "enable": "啟用",
+    "disable": "停用",
+    "uninstallNote": "刪除應用程式的檔案和頁面。保留資料表和資料。",
+    "uninstall": "解除安裝",
+    "disableTitle": "停用 {app}？",
+    "close": "關閉",
+    "nothingDeleted": "不會刪除任何內容。",
+    "enableBrings": "啟用後將完全恢復原樣。",
+    "cancel": "取消",
+    "disableLine1": "其選單區域對所有人隱藏。",
+    "disableLine2": "其畫面和自有端點停止回應。",
+    "disableLine3": "資料表、記錄和設定保持不變。",
+    "crumb": "應用程式",
+    "sampleLedger": "Adminium 的範例記錄清單"
+  },
+  "uninstall": {
+    "files": "應用程式的檔案",
+    "pages": "{count, plural, other {# 個頁面}}",
+    "keys": "{count, plural, other {其 # 個瀏覽器金鑰}}",
+    "settings": "其設定",
+    "hosts": "{count, plural, other {其 # 個網域}}",
+    "tables": "{count, plural, other {# 個資料表及其全部記錄}}",
+    "editedPages": "你編輯過的頁面會保留為一般頁面",
+    "audit": "其在稽核記錄中的項目",
+    "title": "解除安裝 {app}？",
+    "close": "關閉",
+    "planFailed": "無法讀取將被移除的內容",
+    "removed": "移除",
+    "kept": "保留",
+    "roleCascade": "移除此角色會將其從 {members, plural, other {# 人}} 身上撤下，並刪除綁定到它的 {keys, plural, other {# 個 API 金鑰}}。這些金鑰會立即失效。",
+    "dropTitle": "同時刪除其資料表和資料",
+    "dropBody": "{count, plural, other {刪除它建立的 # 個資料表及其全部記錄。}}此操作無法復原。",
+    "typeKey": "輸入應用程式的鍵 {key} 以確認。",
+    "failed": "應用程式未解除安裝",
+    "cancel": "取消",
+    "confirmDrop": "解除安裝並刪除資料",
+    "confirm": "解除安裝",
+    "rules": "{count, plural, other {它的 # 條欄位規則}}"
+  },
+  "sampleData": {
+    "title": "範例資料",
+    "add": "新增範例資料",
+    "installNote": "在應用程式的資料表中加入一些範例記錄，方便你試用。可以一鍵移除。",
+    "remove": "移除範例資料",
+    "keptNotice": "{count, plural, other {保留了 # 筆範例記錄：你自己的記錄在使用它們，或你修改過它們。}}",
+    "notLoaded": "未載入",
+    "loadedCount": "已載入 · {count, plural, other {# 筆記錄}}",
+    "loaded": "已載入 · {count, plural, other {# 筆記錄}} · {date}",
+    "addSubtitle": "加入 {connection}",
+    "close": "關閉",
+    "addBodyNoConnection": "在應用程式的資料表中加入一些範例記錄。不會變動其他任何內容。",
+    "addBody": "在應用程式的資料表中加入一些範例記錄。{connection} 中的其他內容不會變動。",
+    "images": "圖片，加入檔案",
+    "total": "合計",
+    "records": "{count, plural, other {# 筆記錄}}",
+    "none": "此應用程式沒有附帶範例資料",
+    "adding": "正在新增範例資料",
+    "addFailed": "範例資料未新增",
+    "addFailedBody": "範例資料未新增。沒有寫入任何內容。",
+    "cancel": "取消",
+    "removeSubtitle": "{count, plural, other {{date} 新增的 # 筆記錄}}",
+    "removeBody": "Adminium 記錄了它新增的每一筆記錄，因此只會移除這些記錄。",
+    "planFailed": "無法讀取將要移除的內容",
+    "removes": "將移除",
+    "kept": "將保留",
+    "usedBy": "{count, plural, other {被你自己的 # 筆記錄使用}}",
+    "keepChanged": "保留我修改過的記錄",
+    "changedList": "{count, plural, other {你編輯過的 # 筆範例記錄：{names}。}}",
+    "removeFailed": "範例資料未移除",
+    "removeConfirm": "移除",
+    "banner": "範例資料已載入",
+    "bannerRemove": "移除"
+  },
+  "appPublicAccess": {
+    "title": "公開存取",
+    "intro": "此應用程式的客戶畫面需要：",
+    "availability": "讀取 {table} 的空閒或已滿時段",
+    "claim": "依 {fields} 查詢自己的 {table}",
+    "create": "新增至 {table}",
+    "update": "變更 {table}",
+    "read": "讀取 {table}",
+    "later": "將於日後版本提供",
+    "allow": "允許此公開存取",
+    "helper": "之後可以在 API 金鑰頁面縮小範圍。",
+    "cannotGrant": "只有可管理 API 金鑰的人才能允許，因此此應用程式會在沒有它的情況下安裝。",
+    "warning": {
+      "apiOff": "公開 API 已關閉，在開啟之前這些都不會回應。",
+      "originSelf": "允許的來源不包含「self」，因此此應用程式在這台伺服器上的頁面無法呼叫它。",
+      "timeZone": "此資料庫未設定時區，而公開 API 需要時區來處理日期與時間。",
+      "noEmail": "尚未設定電子郵件，因此不會向客人寄送確認。"
+    },
+    "createConfirmed": "新增至 {table}，並收到確認郵件"
   }
 } as const;

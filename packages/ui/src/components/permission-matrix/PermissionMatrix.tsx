@@ -13,6 +13,7 @@ import type { ToggleMatrixCellState, ToggleMatrixGroup } from '../toggle-matrix/
  * system:<area>:<verb>                    // closed set, e.g. system:roles:manage
  * table:<connectionId>:<table>:<action>   // read|create|update|delete|export|import
  * page:<pageId>:<view|edit>
+ * app:<appKey>:staff                      // an installed app's staff screens
  * ```
  *
  * `*` may stand in for any single `table:`/`page:` segment in *stored*
@@ -22,7 +23,8 @@ export type TableGrantAction = 'read' | 'create' | 'update' | 'delete' | 'export
 export type SystemGrant = `system:${string}:${string}`;
 export type TableGrant = `table:${string}:${string}:${TableGrantAction | '*'}`;
 export type PageGrant = `page:${string}:${'view' | 'edit' | '*'}`;
-export type PermissionGrant = SystemGrant | TableGrant | PageGrant;
+export type AppGrant = `app:${string}:staff`;
+export type PermissionGrant = SystemGrant | TableGrant | PageGrant | AppGrant;
 
 export interface PermissionMatrixRole {
   /** Server role id (`RoleDto.id`) — echoed in `onChange`. */

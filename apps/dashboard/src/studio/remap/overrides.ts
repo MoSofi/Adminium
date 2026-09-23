@@ -30,10 +30,10 @@ export const RELATION_OP_CARDINALITIES = [
 export type RelationOpCardinality = (typeof RELATION_OP_CARDINALITIES)[number];
 
 export type RemapOverride =
-  | { op: 'table.label'; tableName: string; value: { label: string; labelPlural?: string; icon?: string } }
+  | { op: 'table.label'; tableName: string; value: { label: LabelText; labelPlural?: LabelText; icon?: string } }
   | { op: 'table.exclude'; tableName: string; value: { excluded: boolean } }
   | { op: 'table.keyField'; tableName: string; value: { column: string } }
-  | { op: 'column.label'; tableName: string; columnName: string; value: { label: string } }
+  | { op: 'column.label'; tableName: string; columnName: string; value: { label: LabelText } }
   | {
       op: 'column.semanticType';
       tableName: string;
@@ -87,6 +87,28 @@ export type RemapOverride =
         maxLength?: number;
       };
     }
+  /*
+   * ─── The columns Adminium DECIDES ────────────────────────────────────────
+   * Filled by the write path whoever writes; never publicly writable.
+   */
+  | {
+      op: 'column.copy';
+      tableName: string;
+      columnName: string;
+      value: { via: string; from: string; mode?: 'default' | 'always' };
+    }
+  | { op: 'column.sequence'; tableName: string; columnName: string; value: { start?: number } }
+  | { op: 'column.code'; tableName: string; columnName: string; value: { prefix?: string; length: number } }
+  | {
+      op: 'column.rollup';
+      tableName: string;
+      columnName: string;
+      value: { from: string; via: string; sum: string; times?: string };
+    }
+  /** A zone-less wall time is the venue's. */
+  | { op: 'column.venueLocal'; tableName: string; columnName: string; value: { venueLocal: true } }
+  /** The booking guard, one per table. Kept whole through a save; not edited here. */
+  | { op: 'table.capacity'; tableName: string; value: Record<string, unknown> }
   | {
       op: 'relation.add';
       tableName: string;
@@ -96,6 +118,19 @@ export type RemapOverride =
   | { op: 'relation.label'; tableName: string; value: { fromColumn: string; label: string } };
 
 export type RemapOverrideOp = RemapOverride['op'];
+
+/**
+ * A label as the store keeps it: one string, or one per locale (`{en_US: …}`)
+ * when an app installed its names in every language it speaks.
+ */
+export type LabelText = string | Readonly<Record<string, string>>;
+
+/** A stored label as the person editing it reads it: theirs, else English, else any. */
+export function labelText(label: LabelText | undefined, locale: string): string {
+  if (label === undefined) return '';
+  if (typeof label === 'string') return label;
+  return label[locale] ?? label['en_US'] ?? Object.values(label)[0] ?? '';
+}
 
 /** Ops that carry `columnName` in the PUT item (all others send none). */
 export const COLUMN_OPS: ReadonlySet<string> = new Set([
@@ -108,6 +143,11 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.options',
   'column.required',
   'column.validation',
+  'column.copy',
+  'column.sequence',
+  'column.code',
+  'column.rollup',
+  'column.venueLocal',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

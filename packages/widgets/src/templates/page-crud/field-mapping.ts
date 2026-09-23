@@ -45,6 +45,8 @@ export interface ColumnFact {
    * reader's language, and a country's name is `Intl.DisplayNames`'s to give.
    */
   options?: { list: string } | { values: readonly ControlOption[] } | undefined;
+  /** What a person calls each of the column's enum values — the app's, or the operator's. */
+  enumLabels?: Readonly<Record<string, string>> | undefined;
 }
 
 /** Resolves a list key into the answers it holds, in the reader's language. */
@@ -71,6 +73,7 @@ export function optionsForColumn(
   }
   return (column.enumValues ?? []).map((value) => ({
     value,
+    ...(fact?.enumLabels?.[value] === undefined ? {} : { label: fact.enumLabels[value] }),
     ...(column.enumTones?.[value] === undefined ? {} : { tone: column.enumTones[value] }),
   }));
 }
@@ -184,7 +187,7 @@ export function isRequired(column: GridColumnSpec, fact?: ColumnFact | undefined
 
 /** Mono type tag next to the label (`varchar`, `enum`, `→ team_members`). */
 export function fieldTypeTag(column: GridColumnSpec): string {
-  if (column.fk !== undefined) return `→ ${column.fk.table}`;
+  if (column.fk !== undefined) return `→ ${column.fk.label ?? column.fk.table}`;
   if (column.logicalType === 'enum' || (column.enumValues?.length ?? 0) > 0) return 'enum';
   return column.logicalType;
 }

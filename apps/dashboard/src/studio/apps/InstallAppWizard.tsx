@@ -46,7 +46,7 @@
  *  wizard on it. "Install an app" is the upload tile. A source step here would
  *  be a second copy of the shelf, asking a question the click already answered.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -66,16 +66,21 @@ import {
   type Step,
 } from '@adminium/ui';
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   Database,
+  ExternalLink,
   FileUp,
   GitCompareArrows,
+  LayoutPanelLeft,
   Package,
-  PartyPopper,
+  RotateCcw,
+  Sprout,
   Table2,
 } from 'lucide-react';
 
+import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
 import {
@@ -87,12 +92,51 @@ import {
   sha512Of,
   uploadApp,
   type AppInstallPlan,
+  type InstallAnswers,
+  type InstallStoppedDetails,
   type InstalledAppResult,
+  type PlannedAppTable,
   type StagedApp,
 } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
+import {
+  CheckHint,
+  InstallStopped,
+  Installing,
+  TableCheck,
+  isCardProblem,
+  prefixOf,
+  suggestedPrefix,
+  type TakenPick,
+} from './InstallCheck.js';
+import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
+import { SampleInstallCard, runSampleAdd } from './SampleData.js';
 
 type StepId = 'bundle' | 'database' | 'plan' | 'done';
+
+/** The answers the pickers describe, in a stable key order so two can be compared. */
+function answersOf(
+  picks: Record<string, TakenPick>,
+  renameTo: Record<string, string>,
+  prefix: string,
+): InstallAnswers {
+  const choices: NonNullable<InstallAnswers['choices']> = {};
+  let altPrefix: string | undefined;
+  for (const ref of Object.keys(picks).sort()) {
+    const pick = picks[ref];
+    if (pick === 'reuse') choices[ref] = { action: 'reuse' };
+    else if (pick === 'rename-existing') choices[ref] = { action: 'rename-existing', to: renameTo[ref] ?? '' };
+    else if (pick === 'alt-prefix') altPrefix = prefix;
+  }
+  return {
+    ...(Object.keys(choices).length === 0 ? {} : { choices }),
+    ...(altPrefix === undefined ? {} : { altPrefix }),
+  };
+}
+
+function hasTables(plan: AppInstallPlan): plan is AppInstallPlan & { tables: PlannedAppTable[] } {
+  return plan.tables !== undefined;
+}
 
 const STEP_IDS: readonly StepId[] = ['bundle', 'database', 'plan', 'done'];
 
@@ -158,6 +202,24 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   const [plan, setPlan] = useState<AppInstallPlan | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [result, setResult] = useState<InstalledAppResult | null>(null);
+  /*
+   * The check step's answers. `checked` is what the plan on screen was made
+   * with, and so what the install sends: a pick, a name or a prefix that has
+   * not been checked yet changes what the install would do, and Install waits.
+   */
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  const [picks, setPicks] = useState<Record<string, TakenPick>>({});
+  const [renameTo, setRenameTo] = useState<Record<string, string>>({});
+  const [prefix, setPrefix] = useState('');
+  const [checked, setChecked] = useState<InstallAnswers>({});
+  const [stopped, setStopped] = useState<InstallStoppedDetails | null>(null);
+  // Unticked by default; added once the install is done, as its own job.
+  const [addSample, setAddSample] = useState(false);
+  // Ticked by default: the app's customer screens need it to work.
+  const [allowPublic, setAllowPublic] = useState(true);
+  const answers = answersOf(picks, renameTo, prefix);
+  const dirty = JSON.stringify(answers) !== JSON.stringify(checked);
+  const connectionName = connections.find((connection) => connection.id === connectionId)?.name ?? '';
 
   const stepIndex = STEP_IDS.indexOf(step);
   const steps: Step[] = [
@@ -199,36 +261,97 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   });
 
   const preview = useMutation({
-    mutationFn: () => {
+    mutationFn: (with_: InstallAnswers) => {
       if (staged === null) throw new Error('no bundle');
-      return planApp({ key: staged.key, version: staged.version, connectionId });
+      return planApp({ key: staged.key, version: staged.version, connectionId, ...with_ });
     },
-    onSuccess: ({ plan: next }) => {
+    onSuccess: ({ plan: next }, with_) => {
       setPlan(next);
+      setChecked(with_);
       setError(null);
       setStep('plan');
     },
     onError: (cause: Error) => setError(cause.message),
   });
 
+  /** The sample data, after the install: the app has to be there first. */
+  const sample = useMutation({
+    mutationFn: (key: string) => runSampleAdd(key, () => undefined),
+  });
+
   const install = useMutation({
     mutationFn: () => {
       if (staged === null) throw new Error('no bundle');
-      return installApp({ key: staged.key, version: staged.version, connectionId });
+      return installApp({
+        key: staged.key,
+        version: staged.version,
+        connectionId,
+        // The plan on screen. A database that changed since answers
+        // SCHEMA_DRIFT, and the check is re-run below rather than installing
+        // something nobody reviewed.
+        ...(plan?.checksum === undefined ? {} : { planChecksum: plan.checksum }),
+        ...(plan?.publicAccess === undefined
+          ? {}
+          : { publicAccess: allowPublic && !publicAccessBlocked(plan.publicAccess) }),
+        ...checked,
+      });
     },
     onSuccess: async (next) => {
       setResult(next);
       setError(null);
+      setStopped(null);
       setStep('done');
+      if (addSample && plan?.sampleData === true) sample.mutate(next.key);
       // Both lists change: the app is installed, and it is now a surface.
       await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
       await queryClient.invalidateQueries({ queryKey: SURFACES_QUERY_KEY });
       await queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
     },
-    onError: (cause: Error) => setError(cause.message),
+    onError: (cause: Error) => {
+      // Stopped part way: the tables it made are recorded, and the same
+      // request finishes from there. Its own screen says so.
+      if (cause instanceof ApiError && cause.code === 'APP_INSTALL_INCOMPLETE') {
+        const details = (cause.details ?? {}) as Partial<InstallStoppedDetails>;
+        setStopped({
+          stage: details.stage ?? 'tables',
+          table: details.table ?? null,
+          created: details.created ?? [],
+          pending: details.pending ?? [],
+          cause: details.cause ?? cause.message,
+        });
+        setError(null);
+        return;
+      }
+      setError(cause.message);
+      // The check is stale, so show the fresh one in its place.
+      // Re-run, then say why the check changed: the re-plan's own success would
+      // otherwise clear the message the moment the new check arrived.
+      if (cause instanceof ApiError && cause.code === 'SCHEMA_DRIFT') {
+        preview.mutate(checked, { onSuccess: () => setError(cause.message) });
+      }
+    },
   });
 
+  /** Pick what to do with a taken table. A pick with nothing to type re-checks at once. */
+  const onPick = (ref: string, pick: TakenPick) => {
+    const table = plan?.tables?.find((candidate) => candidate.ref === ref);
+    const nextPicks = { ...picks, [ref]: pick };
+    const nextRename =
+      pick === 'rename-existing' && renameTo[ref] === undefined && table !== undefined
+        ? { ...renameTo, [ref]: table.renameExistingTo ?? `${table.table}_old` }
+        : renameTo;
+    const nextPrefix =
+      pick === 'alt-prefix' && prefix === '' && table !== undefined && staged !== null
+        ? suggestedPrefix(staged.key, prefixOf(table))
+        : prefix;
+    setPicks(nextPicks);
+    setRenameTo(nextRename);
+    setPrefix(nextPrefix);
+    if (pick !== 'alt-prefix') preview.mutate(answersOf(nextPicks, nextRename, nextPrefix));
+  };
+
   const busy = upload.isPending || preview.isPending || install.isPending;
+  const checking = step === 'plan' && plan !== null && hasTables(plan);
 
   return (
     <section className="flex min-h-full flex-col gap-6">
@@ -446,7 +569,60 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
         </div>
       ) : null}
 
-      {step === 'plan' && plan !== null ? (
+      {checking && install.isPending ? (
+        <Installing appName={staged?.name ?? ''} connectionName={connectionName} />
+      ) : null}
+
+      {checking && !install.isPending && stopped !== null ? (
+        <InstallStopped
+          details={stopped}
+          busy={busy}
+          onRetry={() => install.mutate()}
+          onBack={() => {
+            // The tables it made are there now, so the check is made again.
+            setStopped(null);
+            preview.mutate(checked);
+          }}
+        />
+      ) : null}
+
+      {checking && !install.isPending && stopped === null && plan !== null && hasTables(plan) ? (
+        <div className="flex flex-col gap-4">
+          <PlanAlerts plan={plan} />
+          <TableCheck
+            plan={plan}
+            appName={staged?.name ?? ''}
+            connectionName={connectionName}
+            open={openRows}
+            onToggle={(ref) => setOpenRows((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
+            picks={picks}
+            onPick={onPick}
+            renameTo={renameTo}
+            onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
+            prefix={prefix}
+            onPrefix={setPrefix}
+            altPrefixInUse={checked.altPrefix ?? null}
+            onUsualPrefix={() => {
+              const nextPicks = Object.fromEntries(
+                Object.entries(picks).filter(([, pick]) => pick !== 'alt-prefix'),
+              );
+              setPicks(nextPicks);
+              preview.mutate(answersOf(nextPicks, renameTo, prefix));
+            }}
+            busy={busy}
+          />
+          {plan.publicAccess !== undefined || plan.sampleData === true ? (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
+              {plan.publicAccess === undefined ? null : (
+                <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
+              )}
+              {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} /> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {step === 'plan' && plan !== null && !hasTables(plan) ? (
         <div className="flex flex-col gap-4">
           <div>
             <h2 className="text-base font-bold tracking-tight">
@@ -460,40 +636,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             </p>
           </div>
 
-          {plan.problems.length === 0 ? null : (
-            <Alert
-              tone="danger"
-              title={t('studio:hostedApps.install.plan.refused', 'This app cannot be installed here')}
-            >
-              <ul className="list-disc ps-5">
-                {plan.problems.map((problem) => (
-                  <li key={`${problem.table}.${problem.column ?? ''}${problem.code}`}>
-                    {problem.message}
-                  </li>
-                ))}
-              </ul>
-            </Alert>
-          )}
-
-          {/* Not a refusal: the app installs, and these pages arrive empty,
-              each showing the "this page has no table" notice that leads to
-              the fix. Said here so it is not a surprise afterwards. */}
-          {(plan.pageWarnings ?? []).length === 0 ? null : (
-            <Alert
-              tone="warn"
-              data-testid="app-install-page-warnings"
-              title={t(
-                'studio:hostedApps.install.plan.pageWarnings',
-                'Some of this app’s pages will arrive without a table',
-              )}
-            >
-              <ul className="list-disc ps-5">
-                {(plan.pageWarnings ?? []).map((warning) => (
-                  <li key={`${warning.page}:${warning.code}`}>{warning.message}</li>
-                ))}
-              </ul>
-            </Alert>
-          )}
+          <PlanAlerts plan={plan} />
 
           <div className="flex flex-col gap-3">
             {[
@@ -568,49 +711,96 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
       ) : null}
 
       {step === 'done' && result !== null ? (
-        <div className="flex flex-col items-center gap-2 py-6 text-center">
-          <IconTile size="lg" tone="pos">
-            <PartyPopper aria-hidden className="size-7" />
-          </IconTile>
-          <h2 className="mt-3 text-xl font-bold tracking-tight">
-            {t('studio:hostedApps.install.done.title', 'Installed')}
-          </h2>
-          <p className="max-w-md text-sm text-fg-muted">
-            {t(
-              'studio:hostedApps.install.done.body',
-              '{key} is being served now. Choose where its staff side appears below.',
-              { key: result.key },
-            )}
-          </p>
+        <div className="flex max-w-[620px] flex-col gap-4">
+          <div className="flex items-start gap-[13px]">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-[13px] bg-pos-soft text-pos">
+              <Check aria-hidden className="size-[22px]" />
+            </div>
+            <div>
+              <h2 className="text-[19px] font-extrabold leading-[normal] tracking-[-0.025em]">
+                {t('studio:hostedApps.install.done.titleApp', '{app} is installed', {
+                  app: staged?.name ?? result.key,
+                })}
+              </h2>
+              <p className="mt-1 text-[13px] leading-[1.55] text-fg-muted">
+                {t(
+                  'studio:hostedApps.install.done.body',
+                  '{key} is being served now. Choose where its staff side appears below.',
+                  { key: result.key },
+                )}
+              </p>
+            </div>
+          </div>
+          {result.schema === undefined && result.pages === undefined ? null : (
+            <ul
+              data-part="done-summary"
+              className="overflow-hidden rounded-[14px] border border-border bg-surface shadow-sm"
+            >
+              {result.schema === undefined ? null : (
+                <DoneRow
+                  icon={<Table2 aria-hidden className="size-4" />}
+                  label={t('studio:hostedApps.install.done.tablesCreated', 'Tables created in {connection}', {
+                    connection: connectionName,
+                  })}
+                  value={result.schema.created.length}
+                />
+              )}
+              {result.schema === undefined || result.schema.reused.length === 0 ? null : (
+                <DoneRow
+                  icon={<RotateCcw aria-hidden className="size-4" />}
+                  label={t('studio:hostedApps.install.done.tablesKept', 'Tables used as they were')}
+                  value={result.schema.reused.length}
+                />
+              )}
+              {result.pages === undefined ? null : (
+                <DoneRow
+                  icon={<LayoutPanelLeft aria-hidden className="size-4" />}
+                  label={t('studio:hostedApps.install.done.pages', 'Pages generated')}
+                  value={result.pages.created.length}
+                />
+              )}
+              {plan?.sampleData === true ? (
+                <DoneRow
+                  icon={<Sprout aria-hidden className="size-4" />}
+                  label={t('studio:sampleData.title', 'Sample data')}
+                  value={
+                    addSample && sample.isPending
+                      ? t('studio:hostedApps.install.done.sampleAdding', 'adding…')
+                      : addSample && sample.isSuccess
+                        ? t('studio:hostedApps.install.done.sampleAdded', 'added')
+                        : t('studio:hostedApps.install.done.sampleNotAdded', 'not added')
+                  }
+                />
+              ) : null}
+            </ul>
+          )}
+          {sample.error === null ? null : (
+            <Alert role="alert" tone="danger" title={t('studio:sampleData.addFailed', 'The sample data was not added')}>
+              {sample.error.message}{' '}
+              {t('studio:hostedApps.install.done.sampleLater', 'You can add it later from the app’s page.')}
+            </Alert>
+          )}
           {/*
             * G3 — the mounts are LINKS. The comp ends this screen with "Open
-            * dashboard →", and the thing an operator wants next is the app they
+            * the till", and the thing an operator wants next is the app they
             * just installed; rendering its address as plain text asks them to
             * retype it. Same idiom the Surfaces card on this page already uses.
             */}
-          <ul className="mt-4 flex flex-col gap-2">
+          <ul className="flex flex-wrap gap-2.5">
             {result.sides.map((side) => (
               <li key={side.side}>
                 <a
-                  className="underline decoration-dotted underline-offset-2"
+                  className="inline-flex items-center gap-2 rounded-[11px] border border-border-strong bg-surface px-4 py-2.5 text-[13.5px] font-bold hover:border-fg-subtle"
                   href={`${side.prefix}/`}
                   target="_blank"
                   rel="noreferrer"
                 >
                   <MonoText className="text-sm">{side.prefix}/</MonoText>
+                  <ExternalLink aria-hidden className="size-[15px] rtl:-scale-x-100" />
                 </a>
               </li>
             ))}
           </ul>
-          {result.schema === undefined ? null : (
-            <p className="mt-3 text-sm text-fg-muted">
-              {t(
-                'studio:hostedApps.install.done.schema',
-                'Tables created: {created} · reused: {reused}',
-                { created: result.schema.created.length, reused: result.schema.reused.length },
-              )}
-            </p>
-          )}
         </div>
       ) : null}
 
@@ -629,25 +819,31 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
           * from the marketplace card it was opened from, and an upload learns
           * it from the bundle's manifest once the file has gone up.
           */}
-        <span className="text-sm text-fg-subtle">
-          {staged === null
-            ? t('studio:hostedApps.install.footerStep', 'Step {n} of {total}', {
-                n: stepIndex + 1,
-                total: STEP_IDS.length,
-              })
-            : t('studio:hostedApps.install.footerStepApp', 'Step {n} of {total} · {app}', {
-                n: stepIndex + 1,
-                total: STEP_IDS.length,
-                app: staged.key,
-              })}
-        </span>
+        {checking && stopped === null && !install.isPending && plan !== null ? (
+          <CheckHint plan={plan} picks={picks} dirty={dirty} />
+        ) : (
+          <span className="text-sm text-fg-subtle">
+            {staged === null
+              ? t('studio:hostedApps.install.footerStep', 'Step {n} of {total}', {
+                  n: stepIndex + 1,
+                  total: STEP_IDS.length,
+                })
+              : t('studio:hostedApps.install.footerStepApp', 'Step {n} of {total} · {app}', {
+                  n: stepIndex + 1,
+                  total: STEP_IDS.length,
+                  app: staged.key,
+                })}
+          </span>
+        )}
         <span className="ms-auto flex items-center gap-2">
           {step === 'done' ? null : (
             <Button variant="ghost" onClick={onClose} disabled={busy}>
               {t('studio:hostedApps.install.cancel', 'Cancel')}
             </Button>
           )}
-          {stepIndex > 0 && step !== 'done' ? (
+          {stepIndex > 0 &&
+          step !== 'done' &&
+          !(checking && (stopped !== null || install.isPending)) ? (
             <Button
               variant="secondary"
               disabled={busy}
@@ -674,13 +870,30 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
           ) : null}
 
           {step === 'database' ? (
-            <Button disabled={busy || connectionId === ''} onClick={() => preview.mutate()}>
+            <Button
+              disabled={busy || connectionId === ''}
+              onClick={() => {
+                // A new check for this database: earlier answers were about another.
+                setPicks({});
+                setRenameTo({});
+                setPrefix('');
+                setOpenRows({});
+                preview.mutate({});
+              }}
+            >
               {preview.isPending ? <Spinner size="sm" /> : null}
               {t('studio:hostedApps.install.continue', 'Continue')}
             </Button>
           ) : null}
 
-          {step === 'plan' ? (
+          {step === 'plan' && checking && dirty && stopped === null ? (
+            <Button disabled={busy} onClick={() => preview.mutate(answers)}>
+              {preview.isPending ? <Spinner size="sm" /> : null}
+              {t('studio:hostedApps.install.check.again', 'Check again')}
+            </Button>
+          ) : null}
+
+          {step === 'plan' && !(checking && (dirty || stopped !== null || install.isPending)) ? (
             <Button
               disabled={busy || plan === null || !plan.installable}
               onClick={() => install.mutate()}
@@ -706,5 +919,63 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * The plan's refusals and its page warnings. A taken table's own problem is
+ * left to its card on the check step, where the answer to it is.
+ */
+function PlanAlerts({ plan }: { plan: AppInstallPlan }) {
+  const problems = plan.problems.filter((problem) => !isCardProblem(plan, problem));
+  return (
+    <>
+    {problems.length === 0 ? null : (
+      <Alert
+        tone="danger"
+        title={t('studio:hostedApps.install.plan.refused', 'This app cannot be installed here')}
+      >
+        <ul className="list-disc ps-5">
+          {problems.map((problem) => (
+            <li key={`${problem.table}.${problem.column ?? ''}${problem.code}`}>
+              {problem.message}
+            </li>
+          ))}
+        </ul>
+      </Alert>
+    )}
+
+    {/* Not a refusal: the app installs, and these pages arrive empty,
+        each showing the "this page has no table" notice that leads to
+        the fix. Said here so it is not a surprise afterwards. */}
+    {(plan.pageWarnings ?? []).length === 0 ? null : (
+      <Alert
+        tone="warn"
+        data-testid="app-install-page-warnings"
+        title={t(
+          'studio:hostedApps.install.plan.pageWarnings',
+          'Some of this app’s pages will arrive without a table',
+        )}
+      >
+        <ul className="list-disc ps-5">
+          {(plan.pageWarnings ?? []).map((warning) => (
+            <li key={`${warning.page}:${warning.code}`}>{warning.message}</li>
+          ))}
+        </ul>
+      </Alert>
+    )}
+
+    </>
+  );
+}
+
+/** One line of the done screen's summary: what was made, and how many. */
+function DoneRow({ icon, label, value }: { icon: ReactNode; label: string; value: number | string }) {
+  return (
+    <li className="flex items-center gap-3 border-b border-border px-[17px] py-[13px] last:border-b-0">
+      <span className="shrink-0 text-fg-muted">{icon}</span>
+      <span className="flex-1 text-[13px] text-fg-muted">{label}</span>
+      <MonoText className="text-[13px] font-bold">{value}</MonoText>
+    </li>
   );
 }

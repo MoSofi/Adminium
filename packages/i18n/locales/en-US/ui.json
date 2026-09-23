@@ -1524,6 +1524,7 @@
         "loadError": "Failed to load the record."
       },
       "emptyTitle": "{count, plural, one {No {entity} yet} other {No {entity}s yet}}",
+      "emptyTitleNamed": "No {things} yet",
       "exportAction": "Export",
       "file": {
         "tooLarge": "That file is larger than the {limit} limit.",
@@ -1601,7 +1602,17 @@
       "rejectNote": "The requester will be notified with your note."
     },
     "dashboard": {
-      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout."
+      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "day": {
+        "label": "Day",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "week": "This week",
+        "pick": "Pick a day",
+        "pickHelp": "One day at a time, on the venue’s clock.",
+        "cancel": "Cancel",
+        "show": "Show day"
+      }
     },
     "builder": {
       "publish": "Publish",

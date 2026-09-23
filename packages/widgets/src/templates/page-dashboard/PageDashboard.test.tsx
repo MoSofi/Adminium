@@ -7,7 +7,7 @@
  * per-item failures, and survives invalid layouts + unknown widget ids
  * (widget-missing fallback, never a crash).
  */
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PageDashboard } from './PageDashboard.js';
@@ -203,5 +203,37 @@ describe('dashboard chrome localization (ui:templates.dashboard.* / ui:frame.noR
     await waitFor(() => {
       expect(screen.getAllByText('No result for widget').length).toBeGreaterThan(0);
     });
+  });
+});
+
+describe('the page day control', () => {
+  it('draws only when the layout asks, starts on today, and re-asks every binding for the day picked', async () => {
+    const queryBatch = vi.fn<DashboardDataAdapter['queryBatch']>(async (requests) =>
+      Object.fromEntries(requests.map((r) => [r.instanceId, { status: 'success' as const, data: { shape: 'metric+delta', value: 1 } }])),
+    );
+    const { rerender } = render(<PageDashboard layout={boundLayout} adapter={{ queryBatch }} />);
+    expect(screen.queryByTestId('page-dashboard-day')).toBeNull();
+
+    rerender(<PageDashboard layout={{ ...boundLayout, toolbar: { day: true } }} adapter={{ queryBatch }} params={{ other: 1 }} />);
+    await waitFor(() => expect(queryBatch.mock.calls.at(-1)?.[1]).toEqual({ other: 1, day: 'today' }));
+
+    screen.getByRole('radio', { name: 'Yesterday' }).click();
+    await waitFor(() => expect(queryBatch.mock.calls.at(-1)?.[1]).toEqual({ other: 1, day: 'yesterday' }));
+    screen.getByRole('radio', { name: 'This week' }).click();
+    await waitFor(() => expect(queryBatch.mock.calls.at(-1)?.[1]).toEqual({ other: 1, day: 'week' }));
+    // "Pick a day" is a fourth segment that opens a popover; Cancel changes nothing …
+    const asked = queryBatch.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a day' }));
+    fireEvent.change(await screen.findByLabelText('Pick a day'), { target: { value: '2026-09-20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByLabelText('Pick a day')).toBeNull());
+    expect(queryBatch.mock.calls.length).toBe(asked);
+    // … "Show day" shows it, and the trigger then names the day.
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a day' }));
+    fireEvent.change(await screen.findByLabelText('Pick a day'), { target: { value: '2026-09-20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Show day' }));
+    await waitFor(() => expect(queryBatch.mock.calls.at(-1)?.[1]).toEqual({ other: 1, day: '2026-09-20' }));
+    expect(screen.getByRole('button', { name: /20/ }).getAttribute('data-part')).toBe('day-pick');
+    cleanup();
   });
 });

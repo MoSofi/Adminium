@@ -20,6 +20,8 @@ import {
   type EffectiveTable,
   type RemapSelection,
 } from './model.js';
+import { labelText } from './overrides.js';
+import { useLabelLocale } from './useLabelLocale.js';
 import { overrideKey, type RemapBuffer } from './useRemapBuffer.js';
 
 export interface SchemaTreeProps {
@@ -29,21 +31,22 @@ export interface SchemaTreeProps {
   onSelect: (selection: RemapSelection) => void;
 }
 
-function stagedTableLabel(buffer: RemapBuffer, table: EffectiveTable): string | null {
+function stagedTableLabel(buffer: RemapBuffer, table: EffectiveTable, locale: string): string | null {
   const entry = buffer.get(overrideKey({ op: 'table.label', tableName: table.id, value: { label: '' } }));
   if (entry === null || entry.item.op !== 'table.label') return null;
-  return entry.item.value.label;
+  return labelText(entry.item.value.label, locale);
 }
 
-function stagedColumnLabel(buffer: RemapBuffer, tableId: string, column: string): string | null {
+function stagedColumnLabel(buffer: RemapBuffer, tableId: string, column: string, locale: string): string | null {
   const entry = buffer.get(
     overrideKey({ op: 'column.label', tableName: tableId, columnName: column, value: { label: '' } }),
   );
   if (entry === null || entry.item.op !== 'column.label') return null;
-  return entry.item.value.label;
+  return labelText(entry.item.value.label, locale);
 }
 
 export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreeProps) {
+  const locale = useLabelLocale();
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
@@ -85,7 +88,7 @@ export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreePro
         ) : null}
         {visible.map((table) => {
           const isOpen = expanded.has(table.id) || q !== '';
-          const staged = stagedTableLabel(buffer, table);
+          const staged = stagedTableLabel(buffer, table, locale);
           const label = staged ?? tableDisplayLabel(table);
           const selected = selection?.kind === 'table' && selection.tableId === table.id;
           const excluded =
@@ -140,7 +143,7 @@ export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreePro
               {isOpen ? (
                 <ul className="ms-5 border-s border-border ps-2">
                   {table.columns.map((column) => {
-                    const stagedLabel = stagedColumnLabel(buffer, table.id, column.name);
+                    const stagedLabel = stagedColumnLabel(buffer, table.id, column.name, locale);
                     const columnSelected =
                       selection?.kind === 'column' &&
                       selection.tableId === table.id &&

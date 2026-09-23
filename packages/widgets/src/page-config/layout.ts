@@ -26,6 +26,12 @@ export const pageLayoutSchema = z.object({
   // from the envelope's `v` persisted at config.v.
   version: z.literal(1),
   items: z.array(layoutItemSchema).max(60),
+  /**
+   * The page's own controls. `day` draws Today / Yesterday / This week / Pick
+   * a day and hands the choice to every widget as the `day` param, which a
+   * descriptor's `window.param` follows.
+   */
+  toolbar: z.object({ day: z.boolean().optional() }).optional(),
 });
 
 export type LayoutItem = z.infer<typeof layoutItemSchema>;

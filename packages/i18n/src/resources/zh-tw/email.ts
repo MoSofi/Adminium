@@ -819,5 +819,19 @@ export default {
     "button": "線上開啟",
     "footer": "你收到這封郵件，是因為 {business} 為你繪製了這份單據。",
     "attachment": "單據"
+  },
+  "bookingConfirmation": {
+    "name": "訂位確認",
+    "subject": "您在 {venue} 的座位已訂妥",
+    "preheader": "訂位 {code} · {when} · {party} 位",
+    "heading": "您的座位已訂妥",
+    "intro": "我們已在 {venue} 為您保留座位。抵達時請出示此代碼。",
+    "codeLabel": "訂位代碼",
+    "when": "時間：{when}",
+    "party": "人數：{party}",
+    "guest": "姓名：{name}",
+    "action": "管理您的訂位",
+    "cancel": "您最晚可在 {cancelHours} 小時前線上取消。",
+    "footer": "{venue} · {address} · {phone}"
   }
 } as const;

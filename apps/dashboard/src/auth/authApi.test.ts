@@ -63,18 +63,30 @@ const USER = {
 describe('login', () => {
   it('posts the credentials and returns the session on a 200', async () => {
     const fetchMock = stubFetch(200, { data: { user: USER } });
-    const result = await login('ava@adminium.io', 'hunter2');
+    const result = await login('ava@adminium.io', 'hunter2', true);
     expect(requestOf(fetchMock)).toEqual({
       url: '/api/v1/auth/login',
       method: 'POST',
-      body: { email: 'ava@adminium.io', password: 'hunter2' },
+      body: { email: 'ava@adminium.io', password: 'hunter2', remember: true },
     });
     expect(result).toEqual({ kind: 'session', user: USER });
   });
 
+  it('sends an unticked "Keep me signed in" as remember: false, not by leaving it out', async () => {
+    // Absent means "the long-lived cookie" to the server, so an unticked box
+    // has to be said out loud.
+    const fetchMock = stubFetch(200, { data: { user: USER } });
+    await login('ava@adminium.io', 'hunter2', false);
+    expect(requestOf(fetchMock).body).toEqual({
+      email: 'ava@adminium.io',
+      password: 'hunter2',
+      remember: false,
+    });
+  });
+
   it('returns the challenge when the server asks for a second factor', async () => {
     stubFetch(202, { data: { twoFactorRequired: true, challengeToken: 'chal_1' } });
-    expect(await login('ava@adminium.io', 'hunter2')).toEqual({
+    expect(await login('ava@adminium.io', 'hunter2', true)).toEqual({
       kind: 'challenge',
       challengeToken: 'chal_1',
     });
@@ -83,12 +95,12 @@ describe('login', () => {
   it('does not treat a tokenless challenge as a challenge', async () => {
     // Sending the browser to /otp with nothing to verify against is a dead end.
     stubFetch(202, { data: { twoFactorRequired: true } });
-    expect((await login('a@b.c', 'x')).kind).toBe('session');
+    expect((await login('a@b.c', 'x', true)).kind).toBe('session');
   });
 
   it('surfaces a rejected credential as an ApiError with the server code', async () => {
     stubFetch(401, { error: { code: 'INVALID_CREDENTIALS', message: 'Wrong password', requestId: 'req_1' } });
-    await expect(login('a@b.c', 'nope')).rejects.toMatchObject({
+    await expect(login('a@b.c', 'nope', true)).rejects.toMatchObject({
       name: 'ApiError',
       status: 401,
       code: 'INVALID_CREDENTIALS',

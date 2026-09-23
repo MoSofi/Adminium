@@ -186,6 +186,7 @@ const KEY_ORDER = [
   'identity',
   'sensitive',
   'allow_cascade',
+  'kind',
 ] as const;
 const PAGINATION_ORDER = ['default_limit', 'max_limit', 'order'];
 const RATE_ORDER = ['requests', 'window'];

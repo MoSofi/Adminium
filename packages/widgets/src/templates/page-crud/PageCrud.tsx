@@ -127,6 +127,11 @@ export interface PageCrudProps {
   source: { connectionId: string | null; table: string };
   /** Singular entity noun for domain framing ("customer"). */
   entityName?: string | undefined;
+  /**
+   * What a person calls the table as a whole ("Categories") — searched, named
+   * when it is empty, and in the form's subtitle. Absent, the table's own name.
+   */
+  tableLabel?: string | undefined;
   pageSize?: number | undefined;
   defaultSort?: CrudSort | null | undefined;
   /** Seeded filter conditions (chips scaffold). */
@@ -192,6 +197,8 @@ export interface PageCrudProps {
   locale?: string | undefined;
   currency?: string | undefined;
   labels?: PageCrudLabels | undefined;
+  /** Who is signed in — a form field may start as them (`initial: current-user`). */
+  currentUser?: { id: string; name: string } | undefined;
   /**
    * The file adapter. Absent ⇒ every `file` column renders exactly as it
    * did before its block existed: a link in the grid, a `url` input in the
@@ -284,6 +291,7 @@ export function PageCrud({
   columns,
   source,
   entityName,
+  tableLabel,
   pageSize: initialPageSize = 50,
   defaultSort = null,
   initialFilters = [],
@@ -304,6 +312,7 @@ export function PageCrud({
   files,
   onEvent,
   locale,
+  currentUser,
   currency,
   rowActions,
   bulkActions,
@@ -311,6 +320,7 @@ export function PageCrud({
   testId,
 }: PageCrudProps) {
   const entity = entityName ?? entityFromTable(source.table);
+  const tableName = tableLabel ?? source.table;
   const queue = useToastQueue();
   const t = useMaybeT();
 
@@ -1120,7 +1130,7 @@ export function PageCrud({
             onChange={(event) => setSearch(event.target.value)}
             placeholder={
               labels?.searchPlaceholder ??
-              t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: source.table })
+              t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: tableName })
             }
             className="w-72"
             onClear={() => setSearch('')}
@@ -1230,10 +1240,14 @@ export function PageCrud({
               preset="no-data"
               // `count` is the row total behind this state (always 0 here) so
               // locales get the ICU plural machinery on the entity noun.
-              title={t('ui:templates.crud.emptyTitle', '{count, plural, one {No {entity} yet} other {No {entity}s yet}}', {
-                count: 0,
-                entity,
-              })}
+              title={
+                tableLabel !== undefined
+                  ? t('ui:templates.crud.emptyTitleNamed', 'No {things} yet', { things: tableLabel })
+                  : t('ui:templates.crud.emptyTitle', '{count, plural, one {No {entity} yet} other {No {entity}s yet}}', {
+                      count: 0,
+                      entity,
+                    })
+              }
               {...(canCreate
                 ? {
                     actions: (
@@ -1328,7 +1342,7 @@ export function PageCrud({
         }}
         mode="create"
         entity={entity}
-        tableName={source.table}
+        tableName={tableName}
         formId="page-crud-create-form"
         document={formDocument}
         columns={editableColumns}
@@ -1343,6 +1357,7 @@ export function PageCrud({
         {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
         {...(currency === undefined ? {} : { currency })}
         {...(locale === undefined ? {} : { locale })}
+        {...(currentUser === undefined ? {} : { currentUser })}
         onSubmit={handleCreate}
         {...(labels?.createTitle === undefined && labels?.createSubmit === undefined && labels?.close === undefined
           ? {}
@@ -1355,7 +1370,7 @@ export function PageCrud({
             })}
         uniqueHelper={() =>
           total === null
-            ? t('ui:templates.crud.uniqueHelper', 'Must be unique in {table}.', { table: source.table })
+            ? t('ui:templates.crud.uniqueHelper', 'Must be unique in {table}.', { table: tableName })
             : // `count` drives the ICU plural; `n` keeps the pre-formatted digits.
               t(
                 'ui:templates.crud.uniqueHelperCounted',
@@ -1413,7 +1428,7 @@ export function PageCrud({
         }}
         mode="edit"
         entity={entity}
-        tableName={source.table}
+        tableName={tableName}
         formId="page-crud-edit-form"
         document={formDocument}
         columns={editableColumns}

@@ -85,6 +85,18 @@ export default {
       "submit": "Verify",
       "invalid": "That code didn’t work. Try again.",
       "failed": "Verification failed. Check your connection and try again."
+    },
+    "staff": {
+      "subtitle": "{app} · Staff sign-in",
+      "shared": "Shared tablet? Everyone signs in with their own account.",
+      "remember": "Keep me signed in on this tablet",
+      "invalid": "We couldn’t sign you in. Check your email and password, then try again.",
+      "rateLimited": "Too many tries. Try again in a minute.",
+      "offline": "Can’t reach {app}. Check the network.",
+      "opening": "Opening {app}…",
+      "openingApp": "Opening the app…",
+      "signedInAs": "Signed in as {name}",
+      "codeInvalid": "That code didn’t work. Try the newest one in your app."
     }
   },
   "nav": {
@@ -119,7 +131,11 @@ export default {
     "audit": "Audit log",
     "security": "Password & sessions",
     "files": "Files",
-    "emptyWithheld": "No pages have been shared with your role yet. Ask an administrator for access."
+    "emptyWithheld": "No pages have been shared with your role yet. Ask an administrator for access.",
+    "app": {
+      "openStaff": "Open the staff screens",
+      "openStaffInstance": "Open the staff screens · {instance}"
+    }
   },
   "apps": {
     "frame": {
@@ -159,7 +175,8 @@ export default {
     "recent": "Recent",
     "searching": "Searching records…",
     "records": "Records",
-    "empty": "No results for \"{query}\""
+    "empty": "No results for \"{query}\"",
+    "apps": "Apps"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -262,6 +279,21 @@ export default {
       "title": "This connection is paused",
       "body": "An admin paused the database behind this page, so it is not loading data right now. Nothing has been deleted — it comes back as soon as the connection is resumed in Studio → Data connections.",
       "secondary": "Go back"
+    },
+    "appDisabled": {
+      "title": "This app is switched off",
+      "body": "An admin switched this app off. Nothing was deleted — switch it on in Studio → Apps.",
+      "secondary": "Go back"
+    },
+    "screensOff": {
+      "title": "These screens are switched off",
+      "body": "An admin switched off this app’s staff screens. Nothing was deleted — switch them on in Studio → Apps.",
+      "secondary": "Go back"
+    },
+    "appExternal": {
+      "title": "This app opens on its own",
+      "body": "It opens at its own address, not inside the dashboard.",
+      "primary": "Open it"
     }
   },
   "notFound": {
@@ -1554,7 +1586,8 @@ export default {
       "data": "Data",
       "operations": "Operations",
       "workspace": "Workspace",
-      "records": "Pages & records"
+      "records": "Pages & records",
+      "apps": "Apps"
     },
     "column": {
       "actions": "Actions",
@@ -1608,7 +1641,7 @@ export default {
       "exportsManage": "Manage everyone’s exports",
       "importsManage": "Manage everyone’s imports",
       "jobsManage": "Start and cancel background jobs",
-      "manifestsManage": "Install and connect add-ons",
+      "manifestsManage": "Install and manage apps and add-ons",
       "jobsRead": "See all background jobs",
       "llmRun": "Run AI assist",
       "pagesManage": "Create and organize pages",
@@ -1641,6 +1674,10 @@ export default {
       "import": "Import records",
       "pagesEdit": "Change page layouts",
       "narrow": "{count, plural, one {# grant} other {# grants}} on a single page or table also apply, on top of the rows below. Saving keeps them."
+    },
+    "apps": {
+      "every": "Open every app’s staff screens",
+      "one": "Open {app}’s staff screens"
     }
   },
   "security": {

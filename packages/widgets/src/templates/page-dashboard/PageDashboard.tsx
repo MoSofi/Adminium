@@ -7,13 +7,18 @@
  * DashboardData adapter (one `queryBatch` round trip for all bound
  * widgets, per-item error isolation) or by deterministic demo data when
  * unbound. Responsive stacking below `lg` comes from the grid. Edit mode
- * (dashboard builder) is /M7; the chrome toolbar (`date-range-picker`
- * publishing `dateRange.*` params) arrives with the chrome family —
- * `params` is already plumbed through to the adapter.
+ * (dashboard builder) is /M7.
+ *
+ * A layout whose `toolbar.day` is set draws the page's day control — Today,
+ * Yesterday, This week, or a picked day — and hands the choice to every
+ * binding as the `day` param. A descriptor's `window.param: 'day'` follows
+ * it, on the venue's clock (the server's widget-data compiler).
  */
 
-import { useMemo } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';
+import { CalendarDays } from 'lucide-react';
+import { Button, cn, Input, Popover, PopoverContent, PopoverTrigger, SegmentedControl } from '@adminium/ui';
 
 import { WidgetHost } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
@@ -36,12 +41,128 @@ export interface PageDashboardProps {
   onEvent?: ((instanceId: string, event: WidgetEvent) => void) | undefined;
   /** Test/story override — wins over adapter/demo resolution per instance. */
   states?: DashboardDataStates | undefined;
+  /**
+   * The day the page shows, when its HOST fetches the data: the host passes
+   * `states` read for that day, so the choice must reach the host, not stay
+   * here. Absent, the page keeps the day itself (it fetches through `adapter`).
+   */
+  day?: DashboardDay | undefined;
+  onDay?: ((day: DashboardDay) => void) | undefined;
   className?: string | undefined;
 }
 
 const EMPTY_LAYOUT: PageLayout = { version: 1, items: [] };
 
-export function PageDashboard({ layout, adapter, params, onEvent, states, className }: PageDashboardProps) {
+/** The day a page shows: a named one, or a picked `YYYY-MM-DD`. */
+export type DashboardDay = 'today' | 'yesterday' | 'week' | string;
+
+/**
+ * A segment of the Overview comp's day tray (F-OV1; COMP 130-156, `seg` 715):
+ * 7/12, r8, 12 px w700 at `normal` line height — the trigger for "Pick a day"
+ * wears the same, and the selected look when a picked day is showing.
+ */
+const SEGMENT = 'h-auto px-3 py-[7px] text-[12px] font-bold leading-[normal]';
+const PICK_TRIGGER =
+  'inline-flex select-none items-center gap-1.5 whitespace-nowrap rounded-[8px] px-3 py-[7px] text-[12px] font-bold ' +
+  'leading-[normal] text-fg-muted transition-colors duration-150 hover:text-fg focus-visible:outline-2 ' +
+  'focus-visible:outline-offset-2 focus-visible:outline-accent [&_svg]:size-3.5 [&_svg]:shrink-0';
+
+/** `2026-09-20` as the viewer reads a day ("Sun, 20 Sep"), the date itself, not a moment. */
+function dayLabel(day: string): string {
+  const lang = typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined;
+  const date = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return day;
+  return new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date);
+}
+
+/** Today as `YYYY-MM-DD` on this device — the latest day the picker offers. */
+function todayIso(): string {
+  const now = new Date();
+  return `${String(now.getFullYear())}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Today / Yesterday / This week, and a picked day — one tray, as the comp draws
+ * it: "Pick a day" is a fourth segment that opens a small popover (a labelled
+ * date field, one line on the venue's clock, Cancel / Show day) and, once a
+ * day is showing, names that day.
+ */
+function DayControls({ day, onDay }: { day: DashboardDay; onDay: (day: DashboardDay) => void }) {
+  const t = useMaybeT();
+  const fieldId = useId();
+  const named = day === 'today' || day === 'yesterday' || day === 'week';
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-1 pb-3" data-testid="page-dashboard-day">
+      <div className="inline-flex flex-wrap items-center gap-[3px] rounded-[11px] border border-border bg-surface-2 p-[3px]">
+        <SegmentedControl
+          className="gap-[3px] bg-transparent p-0"
+          itemClassName={SEGMENT}
+          aria-label={t('ui:templates.dashboard.day.label', 'Day')}
+          value={named ? day : ''}
+          onValueChange={onDay}
+          options={[
+            { value: 'today', label: t('ui:templates.dashboard.day.today', 'Today') },
+            { value: 'yesterday', label: t('ui:templates.dashboard.day.yesterday', 'Yesterday') },
+            { value: 'week', label: t('ui:templates.dashboard.day.week', 'This week') },
+          ]}
+        />
+        <Popover
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (next) setDraft(named ? '' : day);
+          }}
+        >
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              data-part="day-pick"
+              className={cn(PICK_TRIGGER, named ? '' : 'bg-surface text-fg shadow-card')}
+            >
+              <CalendarDays aria-hidden />
+              {named ? t('ui:templates.dashboard.day.pick', 'Pick a day') : dayLabel(day)}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[250px] rounded-[13px] p-[14px]">
+            <label htmlFor={fieldId} className="mb-[7px] block text-[11.5px] font-bold leading-[normal] text-fg-muted">
+              {t('ui:templates.dashboard.day.pick', 'Pick a day')}
+            </label>
+            <Input
+              id={fieldId}
+              type="date"
+              className="font-mono"
+              max={todayIso()}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+            <p className="mt-2 text-[11px] leading-[1.45] text-fg-subtle">
+              {t('ui:templates.dashboard.day.pickHelp', 'One day at a time, on the venue’s clock.')}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setOpen(false)}>
+                {t('ui:templates.dashboard.day.cancel', 'Cancel')}
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={draft === ''}
+                onClick={() => {
+                  onDay(draft);
+                  setOpen(false);
+                }}
+              >
+                {t('ui:templates.dashboard.day.show', 'Show day')}
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+}
+
+export function PageDashboard({ layout, adapter, params, onEvent, states, day: hostDay, onDay: onHostDay, className }: PageDashboardProps) {
   const t = useMaybeT();
   const parsed = useMemo(() => {
     const result = pageLayoutSchema.safeParse(layout);
@@ -49,7 +170,12 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, classN
     return { layout: EMPTY_LAYOUT, invalid: true };
   }, [layout]);
 
-  const dataStates = useDashboardData(parsed.layout, adapter, params);
+  const [ownDay, setOwnDay] = useState<DashboardDay>('today');
+  const day = hostDay ?? ownDay;
+  const setDay = onHostDay ?? setOwnDay;
+  const withDay = parsed.layout.toolbar?.day === true;
+  const pageParams = useMemo(() => (withDay ? { ...params, day } : params), [withDay, params, day]);
+  const dataStates = useDashboardData(parsed.layout, adapter, pageParams);
 
   if (parsed.invalid) {
     return (
@@ -62,7 +188,7 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, classN
     );
   }
 
-  return (
+  const grid = (
     <DashboardGrid
       layout={parsed.layout}
       className={className}
@@ -77,5 +203,12 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, classN
         />
       )}
     />
+  );
+  if (!withDay) return grid;
+  return (
+    <div className="flex flex-col">
+      <DayControls day={day} onDay={setDay} />
+      {grid}
+    </div>
   );
 }

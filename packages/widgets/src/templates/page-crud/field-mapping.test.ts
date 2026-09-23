@@ -124,6 +124,10 @@ describe('form helpers', () => {
     expect(fieldTypeTag(spec({ name: 'o', label: 'O', fk: { table: 'public.team_members', column: 'id' } }))).toBe(
       '→ public.team_members',
     );
+    // A table with a name for a person is tagged by it, not its identifier.
+    expect(fieldTypeTag(spec({ name: 'c', label: 'Category', fk: { table: 'main.pos_menu_categories', column: 'id', label: 'Categories' } }))).toBe(
+      '→ Categories',
+    );
   });
 
   it('coerceFieldValue: numbers, booleans, JSON, nullable empties', () => {
@@ -273,6 +277,14 @@ describe('an admin\u2019s answers — inline values and named lists', () => {
       optionsForColumn(stage, fact({ options: { values: [{ value: 'new', label: 'New' }] } })),
     ).toEqual([{ value: 'new', label: 'New' }]);
     expect(optionsForColumn(stage)).toEqual([{ value: 'new' }, { value: 'old' }]);
+  });
+
+  it('names an enum’s own values with the column’s labels', () => {
+    const kind = spec({ name: 'kind', label: 'Choice', logicalType: 'enum', enumValues: ['radio', 'check'], nullable: false });
+    expect(optionsForColumn(kind, fact({ enumLabels: { radio: 'Pick one', check: 'Pick any' } }))).toEqual([
+      { value: 'radio', label: 'Pick one' },
+      { value: 'check', label: 'Pick any' },
+    ]);
   });
 
   it('resolves a named list through the host, in the reader\u2019s language', () => {

@@ -85,6 +85,18 @@ export default {
       "submit": "Bestätigen",
       "invalid": "Dieser Code hat nicht funktioniert. Versuchen Sie es erneut.",
       "failed": "Bestätigung fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "staff": {
+      "subtitle": "{app} · Anmeldung für Mitarbeitende",
+      "shared": "Geteiltes Tablet? Alle melden sich mit ihrem eigenen Konto an.",
+      "remember": "Auf diesem Tablet angemeldet bleiben",
+      "invalid": "Die Anmeldung hat nicht geklappt. Prüfen Sie E-Mail und Passwort und versuchen Sie es erneut.",
+      "rateLimited": "Zu viele Versuche. Versuchen Sie es in einer Minute erneut.",
+      "offline": "{app} ist nicht erreichbar. Prüfen Sie das Netzwerk.",
+      "opening": "{app} wird geöffnet…",
+      "openingApp": "Die App wird geöffnet…",
+      "signedInAs": "Angemeldet als {name}",
+      "codeInvalid": "Dieser Code hat nicht funktioniert. Versuchen Sie den neuesten aus Ihrer App."
     }
   },
   "nav": {
@@ -119,7 +131,11 @@ export default {
     "audit": "Audit-Log",
     "security": "Passwort & Sitzungen",
     "files": "Dateien",
-    "emptyWithheld": "Mit Ihrer Rolle wurden noch keine Seiten geteilt. Bitten Sie eine Administratorin oder einen Administrator um Zugriff."
+    "emptyWithheld": "Mit Ihrer Rolle wurden noch keine Seiten geteilt. Bitten Sie eine Administratorin oder einen Administrator um Zugriff.",
+    "app": {
+      "openStaff": "Mitarbeiterbildschirme öffnen",
+      "openStaffInstance": "Mitarbeiterbildschirme öffnen · {instance}"
+    }
   },
   "apps": {
     "frame": {
@@ -159,7 +175,8 @@ export default {
     "recent": "Zuletzt verwendet",
     "searching": "Datensätze werden durchsucht…",
     "records": "Datensätze",
-    "empty": "Keine Ergebnisse für „{query}“"
+    "empty": "Keine Ergebnisse für „{query}“",
+    "apps": "Apps"
   },
   "shortcuts": {
     "title": "Tastaturkürzel",
@@ -262,6 +279,21 @@ export default {
       "title": "Diese Verbindung ist pausiert",
       "body": "Ein Administrator hat die Datenbank hinter dieser Seite pausiert, deshalb werden gerade keine Daten geladen. Es wurde nichts gelöscht – alles ist wieder da, sobald die Verbindung unter Studio → Datenverbindungen fortgesetzt wird.",
       "secondary": "Zurück"
+    },
+    "appDisabled": {
+      "title": "Diese App ist ausgeschaltet",
+      "body": "Die App wurde ausgeschaltet. Nichts wurde gelöscht – schalten Sie sie unter Studio → Apps ein.",
+      "secondary": "Zurück"
+    },
+    "screensOff": {
+      "title": "Diese Bildschirme sind ausgeschaltet",
+      "body": "Die Mitarbeiterbildschirme dieser App wurden ausgeschaltet. Nichts wurde gelöscht – schalten Sie sie unter Studio → Apps ein.",
+      "secondary": "Zurück"
+    },
+    "appExternal": {
+      "title": "Diese App öffnet sich eigenständig",
+      "body": "Sie öffnet unter ihrer eigenen Adresse, nicht im Dashboard.",
+      "primary": "Öffnen"
     }
   },
   "notFound": {
@@ -1554,7 +1586,8 @@ export default {
       "data": "Daten",
       "operations": "Betrieb",
       "workspace": "Workspace",
-      "records": "Seiten & Datensätze"
+      "records": "Seiten & Datensätze",
+      "apps": "Apps"
     },
     "column": {
       "actions": "Aktionen",
@@ -1608,7 +1641,7 @@ export default {
       "exportsManage": "Exporte aller Benutzer verwalten",
       "importsManage": "Importe aller Benutzer verwalten",
       "jobsManage": "Hintergrundjobs starten und abbrechen",
-      "manifestsManage": "Add-ons installieren und verbinden",
+      "manifestsManage": "Apps und Add-ons installieren und verwalten",
       "jobsRead": "Alle Hintergrundjobs sehen",
       "llmRun": "KI-Assistenz ausführen",
       "pagesManage": "Seiten erstellen und ordnen",
@@ -1641,6 +1674,10 @@ export default {
       "import": "Datensätze importieren",
       "pagesEdit": "Seitenlayouts ändern",
       "narrow": "{count, plural, one {# Berechtigung} other {# Berechtigungen}} für eine einzelne Seite oder Tabelle gelten zusätzlich zu den Zeilen unten. Beim Speichern bleiben sie erhalten."
+    },
+    "apps": {
+      "every": "Mitarbeiterbildschirme aller Apps öffnen",
+      "one": "Mitarbeiterbildschirme von {app} öffnen"
     }
   },
   "security": {

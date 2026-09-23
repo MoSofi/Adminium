@@ -15,7 +15,7 @@ import { Suspense } from 'react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { installTestI18n } from '../i18n/testing.js';
-import { jsonResponse } from '../test/fixtures.js';
+import { jsonResponse, makeBootstrap } from '../test/fixtures.js';
 import { ShellHarness } from '../test/shellHarness.js';
 import { RolesPage } from './RolesPage.js';
 import type { RoleListItem } from './rolesApi.js';
@@ -38,7 +38,7 @@ const ROLES = [
   role('role_viewer', 'viewer', 'Viewer'),
 ];
 
-const VIEWER_GRANTS = ['page:*:view', 'table:*:*:read', 'table:conn_1:main.orders:export'];
+const VIEWER_GRANTS = ['page:*:view', 'table:*:*:read', 'table:conn_1:main.orders:export', 'app:*:staff', 'app:booking:staff'];
 
 function installFetch() {
   const puts: { url: string; body: unknown }[] = [];
@@ -52,6 +52,15 @@ function installFetch() {
         return Promise.resolve(jsonResponse(200, { roleId: 'role_viewer', grants: [] }));
       }
       if (url === '/api/v1/roles') return Promise.resolve(jsonResponse(200, { roles: ROLES }));
+      if (url.startsWith('/api/v1/bootstrap')) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            data: makeBootstrap({
+              appSections: [{ appKey: 'pos', label: 'Point of Sale', version: '0.2.0', groups: [], staff: null }],
+            }),
+          }),
+        );
+      }
       if (url === '/api/v1/permissions/catalog') {
         return Promise.resolve(
           jsonResponse(200, {
@@ -128,5 +137,31 @@ describe('RolesPage — pages & records', () => {
     const read = await screen.findByRole('button', { name: 'Read records — Viewer' });
     await waitFor(() => expect(read.getAttribute('aria-pressed')).toBe('true'));
     expect(screen.getByRole('button', { name: 'Delete records — Viewer' }).getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
+describe('RolesPage — apps', () => {
+  it('draws every app’s staff screens, then each installed app’s, and any app a role already holds', async () => {
+    installFetch();
+    renderRoles();
+    expect(await screen.findByText('Apps')).toBeTruthy();
+    const every = await screen.findByRole('button', { name: 'Open every app’s staff screens — Viewer' });
+    await waitFor(() => expect(every.getAttribute('aria-pressed')).toBe('true'));
+    const pos = await screen.findByRole('button', { name: 'Open Point of Sale’s staff screens — Viewer' });
+    expect(pos.getAttribute('aria-pressed')).toBe('false');
+    // Not installed, but held: it is never invisible here.
+    expect(screen.getByRole('button', { name: 'Open booking’s staff screens — Viewer' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('saves one app’s staff screens as its own grant', async () => {
+    const puts = installFetch();
+    const user = userEvent.setup();
+    renderRoles();
+    const pos = await screen.findByRole('button', { name: 'Open Point of Sale’s staff screens — Viewer' });
+    await waitFor(() => expect((pos as HTMLButtonElement).disabled).toBe(false));
+    await user.click(pos);
+    await user.click(screen.getByTestId('roles-save'));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect((puts[0]!.body as { grants: string[] }).grants).toContain('app:pos:staff');
   });
 });

@@ -57,7 +57,7 @@ async function renderAt(
   // A URL outside `appRoute` renders the ROOT `notFoundComponent`, which is
   // deliberately shell-less — there is no sidebar to wait for, and waiting for
   // one would time out on the very case being asserted.
-  opts: { shell?: boolean } = {},
+  opts: { shell?: boolean; bootstrap?: Record<string, unknown> } = {},
 ) {
   vi.stubGlobal('WebSocket', FakeWebSocket);
   vi.stubGlobal(
@@ -65,7 +65,9 @@ async function renderAt(
     vi.fn().mockImplementation((input: unknown) => {
       const url = String(input);
       if (url.startsWith('/api/v1/bootstrap')) {
-        return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ hostedApps }) }));
+        return Promise.resolve(
+          jsonResponse(200, { data: makeBootstrap({ hostedApps, ...(opts.bootstrap ?? {}) }) }),
+        );
       }
       return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: url } }));
     }),
@@ -153,6 +155,45 @@ describe('the sidebar section (D7)', () => {
   });
 });
 
+describe('an installed app’s own section', () => {
+  const MENU = { pageId: 'page_menu', slug: 'pos-menu', labelKey: 'nav.pos-menu', fallback: 'Menu', icon: 'book-open', order: 1, appKey: 'clients' };
+  const OVERVIEW = { ...MENU, pageId: 'page_overview', slug: 'pos-overview', fallback: 'Overview', icon: 'layout-dashboard', order: 0 };
+  const section = (staff: unknown) => ({
+    appSections: [
+      {
+        appKey: 'clients',
+        label: 'Outline',
+        version: '0.2.0',
+        groups: [
+          { key: '', label: null, items: [OVERVIEW] },
+          { key: 'manage', label: 'Manage', items: [MENU] },
+        ],
+        staff,
+      },
+    ],
+  });
+
+  it('draws the app’s name and version, its ungrouped pages, then its own groups', async () => {
+    await renderAt('/a/clients/home', [OUTLINE], { bootstrap: section({ placement: 'internal', items: OUTLINE.items }) });
+    const rail = screen.getByRole('navigation', { name: 'Primary' });
+    const part = rail.querySelector('[data-part="nav-app-section"]') as HTMLElement;
+    expect(within(part).getByText('Outline')).toBeTruthy();
+    expect(within(part).getByText('0.2.0')).toBeTruthy();
+    expect(within(part).getByText('Manage')).toBeTruthy();
+    const links = within(part).getAllByRole('link').map((link) => link.textContent);
+    expect(links).toEqual(['Overview', 'Menu', 'Home', 'Invoices', 'Archive']);
+    // Its staff screens are in the section, so the hosted section is not drawn twice.
+    expect(rail.querySelector('[data-part="nav-hosted-app"]')).toBeNull();
+  });
+
+  it('links out to staff screens that open on their own address', async () => {
+    await renderAt('/p/pos-menu', [], { bootstrap: section({ placement: 'external', url: 'https://till.example.test/' }) });
+    const open = await screen.findByRole('link', { name: 'Open the staff screens' });
+    expect(open.getAttribute('href')).toBe('https://till.example.test/');
+    expect(open.getAttribute('target')).toBe('_blank');
+  });
+});
+
 describe('the /a/ route (D5)', () => {
   it('frames the surface, titled by the active nav item', async () => {
     await renderAt('/a/clients/invoices');
@@ -197,3 +238,38 @@ describe('the /a/ route (D5)', () => {
     expect(document.querySelector('iframe')).toBeNull();
   });
 });
+
+describe('an installed app the dashboard does not show', () => {
+  const OFF = (reason: 'app-disabled' | 'side-off' | 'external', href?: string) => ({
+    unavailableApps: [{ appKey: 'pos', label: 'Point of Sale', reason, ...(href === undefined ? {} : { href }) }],
+  });
+
+  it('says a switched-off app is switched off, not that it went missing', async () => {
+    await renderAt('/a/pos/home', [], { bootstrap: OFF('app-disabled') });
+    await screen.findByRole('heading', { name: 'This app is switched off' });
+    expect(document.querySelector('iframe')).toBeNull();
+  });
+
+  it('says so for its staff screens alone, and for an instance of it', async () => {
+    await renderAt('/a/pos~north/home', [], { bootstrap: OFF('side-off') });
+    await screen.findByRole('heading', { name: 'These screens are switched off' });
+  });
+
+  it('points at an app placed on its own address', async () => {
+    await renderAt('/a/pos/home', [], { bootstrap: OFF('external', '/apps/pos/staff/') });
+    await screen.findByRole('heading', { name: 'This app opens on its own' });
+    expect(screen.getByRole('link', { name: 'Open it' }).getAttribute('href')).toBe('/apps/pos/staff/');
+  });
+
+  it('answers a bookmarked page of a switched-off app with the same state', async () => {
+    await renderAt('/p/pos-menu', [], {
+      bootstrap: {
+        disabledAppPages: [
+          { pageId: 'page_menu', slug: 'pos-menu', labelKey: 'nav.pos-menu', fallback: 'Menu', icon: 'list', order: 1, connectionId: null, sourceTable: null },
+        ],
+      },
+    });
+    await screen.findByRole('heading', { name: 'This app is switched off' });
+  });
+});
+

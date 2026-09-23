@@ -170,7 +170,7 @@ function FkField({
       value={current}
       onValueChange={(next) => onChange(next)}
       emptyText={t('ui:combobox.noMatches', 'No matches')}
-      placeholder={t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: fk.table })}
+      placeholder={t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: fk.label ?? fk.table })}
       // Debounced server-side search on the display column
       // Combobox filters locally as well, so this only widens the option set.
       filter={(option, query) => {

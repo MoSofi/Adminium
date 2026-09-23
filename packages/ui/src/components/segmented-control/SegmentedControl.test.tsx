@@ -18,6 +18,17 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'Day' }).getAttribute('aria-checked')).toBe('true');
   });
 
+  it('lets a caller set every segment at other values, after the defaults', () => {
+    render(<SegmentedControl aria-label="Period" options={options} itemClassName="h-auto py-[7px] font-bold" />);
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio.className).toContain('py-[7px]');
+      expect(radio.className).toContain('font-bold');
+      // Merged, not appended: the default it replaces is gone.
+      expect(radio.className).not.toContain('font-semibold');
+      expect(radio.className).not.toContain('h-7');
+    }
+  });
+
   it('selects a segment on click and reports the value', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();

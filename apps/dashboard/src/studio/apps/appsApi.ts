@@ -14,7 +14,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import type { DesiredColumn } from '../remap/design/types.js';
+import type { DesiredColumn, SchemaPlan } from '../remap/design/types.js';
 import { api, csrfHeaders } from '../../app/api.js';
 import type { SurfaceSide } from './hostedAppsApi.js';
 
@@ -23,6 +23,10 @@ export interface InstalledAppSide {
   prefix: string;
   /** False = the bundle predates the toolkit; blended placement unavailable. */
   navAvailable: boolean;
+  /** Its mapped host when it has one, else its prefix. Absent from an older server. */
+  openUrl?: string;
+  /** `on`, switched `off`, or the whole app `disabled`. Absent from an older server. */
+  state?: 'on' | 'off' | 'disabled';
 }
 
 export interface InstalledApp {
@@ -38,6 +42,14 @@ export interface InstalledApp {
    * is empty then too, but an empty list reads as "no frontends".
    */
   missing: boolean;
+  /** `installing` is an install that stopped part way. Absent from an older server. */
+  status?: 'installing' | 'installed' | 'disabled' | 'error';
+  /**
+   * Set when the app is prefixed now and this install's tables still carry
+   * their plain names: the prefix they would get, and how many. Absent
+   * otherwise, and from an older server.
+   */
+  oldTableNames?: { prefix: string; count: number };
 }
 
 export interface AppListReply {
@@ -131,10 +143,178 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
  */
 export function updateApp(
   key: string,
+  /** The check the operator saw for the new version: its checksum, and what they chose. */
+  checked?: { planChecksum?: string; choices?: InstallAnswers['choices'] },
 ): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
   return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
     `/api/v1/apps/${encodeURIComponent(key)}/update`,
+    checked,
   );
+}
+
+/** One table the rename to the app's prefix moves. */
+export interface PrefixRename {
+  ref: string;
+  from: string;
+  to: string;
+}
+
+/** Every table an old install would rename, and the schema editor's plan for it. */
+export interface RenameTablesPreview {
+  prefix: string;
+  connectionId: string;
+  tables: PrefixRename[];
+  plan: SchemaPlan;
+}
+
+/** What renaming to the prefix would do. Writes nothing. */
+export function planRenameTables(key: string): Promise<RenameTablesPreview> {
+  return api.post<RenameTablesPreview>(`/api/v1/apps/${encodeURIComponent(key)}/rename-tables/plan`);
+}
+
+/** Run the reviewed rename. A database that changed since answers 409 `SCHEMA_DRIFT`. */
+export function renameTables(
+  key: string,
+  checksum: string,
+): Promise<{ prefix: string; renamed: PrefixRename[]; changeId: string }> {
+  return api.post<{ prefix: string; renamed: PrefixRename[]; changeId: string }>(
+    `/api/v1/apps/${encodeURIComponent(key)}/rename-tables`,
+    { checksum },
+  );
+}
+
+// ── One app's own settings page ─────────────────────────────────────────────
+
+/** Mirrors `appSettingsReply`. */
+export interface AppSettingsView {
+  key: string;
+  /** The operator's own name, or null for the app's. */
+  name: string | null;
+  placement: 'internal' | 'external';
+  connectionId: string | null;
+  off: SurfaceSide[];
+  values: Record<string, unknown>;
+  /** This app's mapped hosts. */
+  domains: Record<string, { side: SurfaceSide; instance?: string }>;
+  declared: {
+    key: string;
+    type: 'string' | 'number' | 'boolean' | 'enum' | 'file' | 'json';
+    enum?: string[];
+    min?: number;
+    max?: number;
+    label?: string;
+    help?: string;
+  }[];
+}
+
+/** Mirrors `appOverviewReply`. */
+export interface AppOverview {
+  key: string;
+  connection: { id: string; name: string; engine: string } | null;
+  /** `sample-ledger`: Adminium's list of the sample rows it added (listed last). */
+  tables: { ref: string; table: string; state: string; role?: 'app' | 'sample-ledger'; rows: number | null }[];
+  activity: { action: string; at: number; actor: string }[];
+}
+
+export const appSettingsKey = (key: string) => ['app-settings', key] as const;
+export const appOverviewKey = (key: string) => ['app-overview', key] as const;
+
+export function appSettingsQuery(key: string) {
+  return queryOptions({
+    queryKey: appSettingsKey(key),
+    queryFn: () => api.get<AppSettingsView>(`/api/v1/apps/${encodeURIComponent(key)}/settings`),
+  });
+}
+
+export function appOverviewQuery(key: string) {
+  return queryOptions({
+    queryKey: appOverviewKey(key),
+    queryFn: () => api.get<AppOverview>(`/api/v1/apps/${encodeURIComponent(key)}/overview`),
+  });
+}
+
+// ── Sample data ─────────────────────────────────────────────────────────────
+
+export interface SampleCount {
+  /** The table's short name in the app. */
+  ref: string;
+  count: number;
+}
+
+export interface SampleDataStatus {
+  /** The app ships sample data. */
+  offered: boolean;
+  loaded: boolean;
+  total: number;
+  /** When it was added (epoch ms). */
+  addedAt: number | null;
+  tables: SampleCount[];
+  /** What an add would write, while none is loaded. */
+  available: { total: number; tables: SampleCount[]; assets: number } | null;
+}
+
+export interface SampleRemovePlan {
+  tables: SampleCount[];
+  /** Sample records your own records use: they stay. */
+  kept: { ref: string; label: string | null; title: string | null; usedBy: number }[];
+  /** Sample records you changed since they were added. */
+  changed: { ref: string; label: string | null; title: string | null; columns: string[] }[];
+  total: number;
+}
+
+export const sampleDataKey = (key: string) => ['app-sample-data', key] as const;
+
+export function sampleDataQuery(key: string) {
+  return queryOptions({
+    queryKey: sampleDataKey(key),
+    queryFn: () => api.get<SampleDataStatus>(`/api/v1/apps/${encodeURIComponent(key)}/sample-data`),
+  });
+}
+
+/** Queue the add; the job writes every record or none. */
+export function addSampleData(key: string): Promise<{ jobId: string }> {
+  return api.post<{ jobId: string }>(`/api/v1/apps/${encodeURIComponent(key)}/sample-data`);
+}
+
+/** What a removal would take and keep, read fresh each time the dialog opens. */
+export function sampleRemovePlanQuery(key: string) {
+  return queryOptions({
+    queryKey: ['app-sample-remove-plan', key] as const,
+    queryFn: () => api.post<SampleRemovePlan>(`/api/v1/apps/${encodeURIComponent(key)}/sample-data/remove-plan`),
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+export function removeSampleData(
+  key: string,
+  keepChanged: boolean,
+): Promise<{ removed: number; kept: number; byTable: Record<string, number> }> {
+  return api.post(`/api/v1/apps/${encodeURIComponent(key)}/sample-data/remove`, { keepChanged });
+}
+
+/** Change only what is sent. */
+export function patchAppSettings(
+  key: string,
+  change: Partial<Pick<AppSettingsView, 'name' | 'placement' | 'connectionId' | 'off' | 'values'>>,
+): Promise<AppSettingsView> {
+  return api.patch<AppSettingsView>(`/api/v1/apps/${encodeURIComponent(key)}/settings`, change);
+}
+
+/** Switch the whole app off, or back on. Nothing is deleted either way. */
+export function setAppEnabled(
+  key: string,
+  enabled: boolean,
+): Promise<{ key: string; status: 'installing' | 'installed' | 'disabled' | 'error' }> {
+  return api.post(`/api/v1/apps/${encodeURIComponent(key)}/${enabled ? 'enable' : 'disable'}`);
+}
+
+/** This app's hosts, all of them. Other apps' hosts are untouched. */
+export function putAppDomains(
+  key: string,
+  domains: Record<string, { side: SurfaceSide; instance?: string }>,
+): Promise<{ domains: Record<string, { side: SurfaceSide; instance?: string }> }> {
+  return api.put(`/api/v1/apps/${encodeURIComponent(key)}/domains`, { domains });
 }
 
 /** Mirrors the jobs route's view of a download or refresh. */
@@ -284,6 +464,84 @@ export interface AppInstallPlan {
    * cannot back them. Never a refusal. Absent from an older server.
    */
   pageWarnings?: { page: string; code: string; message: string; table?: string }[];
+  /** The app ships sample data, added once it is installed. Absent from an older server. */
+  sampleData?: boolean;
+  /**
+   * What the app's customer screens may do through the public API, made at
+   * install unless declined. Absent when the app asks for none.
+   */
+  publicAccess?: {
+    endpoints: {
+      ref: string;
+      table: string;
+      methods: string[];
+      select: string[];
+      writable: string[];
+      claim: string[] | null;
+      /** `availability` answers free or full per slot, never a row. Absent from an older server. */
+      kind?: 'records' | 'availability';
+      /** A guest's create here is confirmed by email. Absent from an older server. */
+      confirms?: boolean;
+      /** Answered by a later release: listed, not made now. */
+      pending: boolean;
+      issues: string[];
+    }[];
+    warnings: { code: string; message: string }[];
+    /** Making the app's key needs the API keys permission. */
+    canGrant: boolean;
+  };
+  /**
+   * The plan's identity, read from the live database. Sent back with the
+   * install, which refuses with 409 `SCHEMA_DRIFT` when the database changed
+   * in between. Absent from an older server.
+   */
+  checksum?: string;
+  /**
+   * Each table's class, what installing does with it, what the check step
+   * offers, and the safe edits a table the app uses as it is needs. Absent
+   * from an older server.
+   */
+  tables?: PlannedAppTable[];
+  /** Short name → real table. Absent from an older server. */
+  names?: Record<string, string>;
+}
+
+export type TableClass = 'new' | 'own-leftover' | 'shared' | 'taken';
+export type TableAction = 'create' | 'reuse' | 'share' | 'rename-existing' | 'undecided';
+export type TableOffer = 'reuse' | 'share' | 'rename-existing' | 'alt-prefix';
+
+/** Mirrors one entry of the server's plan `tables`. */
+export interface PlannedAppTable {
+  /** The manifest's short name. */
+  ref: string;
+  /** The real table: prefixed, recorded, or the short name itself. */
+  table: string;
+  class: TableClass;
+  action: TableAction;
+  offers: TableOffer[];
+  /** Why using a taken table as it is would not work, for a person. */
+  reuseRefusal?: string;
+  renameExistingTo?: string;
+  sharedWith?: string;
+  /** From an earlier install that used the table it found rather than making it. */
+  adopted?: true;
+  edits: {
+    kind: 'add-column' | 'widen' | 'set-identity' | 'enum-values';
+    column: string;
+    from?: string;
+    to?: string;
+    values?: string[];
+  }[];
+  blocked: { column: string; reason: string }[];
+  columns: { ref: string; type: string }[];
+}
+
+/** What the operator decided on the check step. Sent with the plan and the install. */
+export interface InstallAnswers {
+  /** By short name: what to do with a table whose name is taken. */
+  choices?: Record<string, { action: 'reuse' } | { action: 'share' } | { action: 'rename-existing'; to: string }>;
+  /** A different prefix for all of the app's tables. */
+  altPrefix?: string;
 }
 
 /** Mirrors the server's `MissingColumnsEdit` (`apps/server/src/apps/missing-columns.ts`). */
@@ -294,23 +552,48 @@ export interface MissingColumnsEdit {
 }
 
 /** What installing would do. Writes nothing — safe to call on every step-in. */
-export function planApp(input: {
-  key: string;
-  version: string;
-  connectionId: string;
-}): Promise<{ plan: AppInstallPlan }> {
+export function planApp(
+  input: {
+    key: string;
+    version: string;
+    connectionId: string;
+  } & InstallAnswers,
+): Promise<{ plan: AppInstallPlan }> {
   return api.post<{ plan: AppInstallPlan }>('/api/v1/apps/plan', input);
 }
 
 export interface InstalledAppResult extends InstalledApp {
   schema?: { created: string[]; reused: string[] };
+  /** The manifest's pages, as the install wrote them. Absent from an older server. */
+  pages?: { created: string[]; recomposed: string[]; kept: string[] };
+  /** The public endpoints saved, and the guests' key if one was made. */
+  publicAccess?: { endpoints: string[]; keyId: string | null; skipped: { ref: string; reason: string }[] };
 }
 
-export function installApp(input: {
-  key: string;
-  version: string;
-  connectionId?: string;
-}): Promise<InstalledAppResult> {
+/**
+ * The details of a 409 `APP_INSTALL_INCOMPLETE`: the step the install stopped
+ * at, the tables it made before that, and the database's own words. Sending
+ * the same install again finishes from there.
+ */
+export interface InstallStoppedDetails {
+  stage: 'tables' | 'introspect' | 'pages' | 'finish' | string;
+  table: string | null;
+  created: string[];
+  pending: string[];
+  cause: string;
+}
+
+export function installApp(
+  input: {
+    key: string;
+    version: string;
+    connectionId?: string;
+    /** The `checksum` of the plan the operator reviewed. */
+    planChecksum?: string;
+    /** False declines the public access the app asks for. */
+    publicAccess?: boolean;
+  } & InstallAnswers,
+): Promise<InstalledAppResult> {
   return api.post<InstalledAppResult>('/api/v1/apps/install', input);
 }
 
@@ -329,8 +612,43 @@ export function discardStagedApp(
   );
 }
 
-export function uninstallApp(key: string): Promise<{ key: string; uninstalled: boolean }> {
-  return api.delete<{ key: string; uninstalled: boolean }>(`/api/v1/apps/${key}`);
+/** Mirrors `uninstallPlanReply`: what an uninstall removes and keeps. */
+export interface UninstallPlan {
+  key: string;
+  pages: { removed: { slug: string; title: string }[]; kept: { slug: string; title: string }[] };
+  keys: number;
+  endpoints: number;
+  /** Deleting a role takes its members' membership and hard-deletes its `adm_sk_` keys. */
+  roles: { slug: string; name: string; members: number; apiKeys: number }[];
+  tables: { table: string; droppable: boolean }[];
+  hosts: string[];
+  /** Column rules the app wrote that are still as it wrote them. Absent from an older server. */
+  rules?: number;
+  /** Discarding data is Super Admin's alone. */
+  canDropTables: boolean;
+}
+
+export function uninstallPlanQuery(key: string) {
+  return queryOptions({
+    queryKey: ['app-uninstall-plan', key] as const,
+    queryFn: () => api.get<UninstallPlan>(`/api/v1/apps/${encodeURIComponent(key)}/uninstall-plan`),
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+/**
+ * Uninstall. `dropTables` deletes the tables the app made (nothing it found
+ * or shares), and needs the app's key typed back as `confirmKey`.
+ */
+export function uninstallApp(
+  key: string,
+  options: { dropTables?: boolean; confirmKey?: string } = {},
+): Promise<{ key: string; uninstalled: boolean; dropped?: string[] }> {
+  return api.delete<{ key: string; uninstalled: boolean; dropped?: string[] }>(
+    `/api/v1/apps/${encodeURIComponent(key)}`,
+    options.dropTables === true ? options : undefined,
+  );
 }
 
 /**

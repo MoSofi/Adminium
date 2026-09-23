@@ -819,5 +819,19 @@ export default {
     "button": "在线打开",
     "footer": "你收到这封邮件，是因为 {business} 为你绘制了这份单据。",
     "attachment": "单据"
+  },
+  "bookingConfirmation": {
+    "name": "预订确认",
+    "subject": "您在 {venue} 的餐桌已预订",
+    "preheader": "预订 {code} · {when} · {party} 人",
+    "heading": "您的餐桌已预订",
+    "intro": "我们已在 {venue} 为您保留餐桌。到店时请出示此代码。",
+    "codeLabel": "预订代码",
+    "when": "时间：{when}",
+    "party": "人数：{party}",
+    "guest": "姓名：{name}",
+    "action": "管理您的预订",
+    "cancel": "您最晚可在 {cancelHours} 小时前在线取消。",
+    "footer": "{venue} · {address} · {phone}"
   }
 } as const;

@@ -37,6 +37,7 @@
  * document arrives (`preloadPageTemplates`), so a page does not wait longer.
  */
 import { withProjectScope } from '../project/scope.js';
+import { withAppPageNotice } from './appPageNotice.js';
 import type { PageTemplateComponent } from './template-types.js';
 
 type TemplateLoader = () => Promise<PageTemplateComponent>;
@@ -75,9 +76,12 @@ const builtinTemplates: Record<string, TemplateLoader> = {
 /** Every built-in template id, for tests and the surface-defaults table. */
 export const BUILTIN_TEMPLATE_IDS = Object.keys(builtinTemplates);
 
-/** A built-in template, inside the project scope; `null` for an id this build does not have. */
+/**
+ * A built-in template, inside the project scope and under its app's notice;
+ * `null` for an id this build does not have.
+ */
 export async function loadBuiltinTemplate(id: string): Promise<PageTemplateComponent | null> {
   const loader = builtinTemplates[id];
   if (loader === undefined) return null;
-  return withProjectScope(await loader());
+  return withProjectScope(withAppPageNotice(await loader()));
 }

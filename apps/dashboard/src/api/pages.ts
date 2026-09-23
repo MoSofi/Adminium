@@ -41,7 +41,8 @@ export interface FormRelationFactReply {
 }
 
 interface ColumnFactsReply {
-  table: { labelSingular: string | null };
+  /** `labelPlural` is absent from a server older than it. */
+  table: { labelSingular: string | null; labelPlural?: string | null | undefined };
   columns: FormColumnFactReply[];
   relations?: FormRelationFactReply[];
   children?: FormChildFactReply[];
@@ -73,6 +74,7 @@ export interface FormColumnFactReply {
   writable: boolean;
   options?: { list: string } | { values: { value: string }[] } | undefined;
   validation?: Record<string, unknown> | undefined;
+  enumLabels?: Record<string, string> | undefined;
 }
 
 /** The reply's array, keyed by column name — the shape the form reads. */
@@ -88,6 +90,7 @@ function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
       // The RULE, not its answers: a named list is resolved where the reader's
       // language is known (`api/optionLists.ts`).
       ...(column.options === undefined ? {} : { options: column.options }),
+      ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
     };
   }
   return facts;
@@ -135,6 +138,8 @@ export type PageDocumentResult =
       formChildren: readonly FormChildFactReply[];
       /** The table's own singular label, for the dialog's title. */
       tableLabelSingular: string | null;
+      /** What a person calls the table as a whole ("Categories"), where it has a name. */
+      tableLabelPlural: string | null;
     }
   | { status: 'too-new'; v: number; latest: number }
   | { status: 'invalid'; issues: string[] };
@@ -209,6 +214,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     formRelations: [],
     formChildren: [],
     tableLabelSingular: null,
+    tableLabelPlural: null,
   };
 }
 
@@ -248,6 +254,7 @@ export function pageQuery(pageId: string) {
             formRelations: reply.columnFacts?.relations ?? [],
             formChildren: reply.columnFacts?.children ?? [],
             tableLabelSingular: reply.columnFacts?.table.labelSingular ?? null,
+            tableLabelPlural: reply.columnFacts?.table.labelPlural ?? null,
           }
         : result;
     },

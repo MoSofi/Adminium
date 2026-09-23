@@ -14,8 +14,10 @@
  *  4. uninstall asks for the app's name back and says, in the dialog, that the
  *     tables it created are NOT removed — because they are not.
  */
+import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -40,6 +42,14 @@ let plan: Record<string, unknown>;
 let installed: { apps: unknown[]; staged: unknown[] };
 /** What the upload route answers — the identity the server read from the bundle. */
 let uploadReply: { status: number; body: unknown };
+/** Install replies to hand out before the default success, first one first. */
+let installReplies: { status: number; body: unknown }[];
+/** Plans to hand out before `plan`, first one first. */
+let planReplies: Record<string, unknown>[];
+/** What `GET /apps/clinic/uninstall-plan` answers. */
+let uninstallPlan: Record<string, unknown>;
+/** How the sample-data job ends. */
+let sampleJob: 'succeeded' | 'failed';
 
 function stubFetch() {
   const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
@@ -55,8 +65,23 @@ function stubFetch() {
     if (url.startsWith('/api/v1/apps/upload')) {
       return Promise.resolve(jsonResponse(uploadReply.status, uploadReply.body));
     }
-    if (url === '/api/v1/apps/plan') return Promise.resolve(jsonResponse(200, { plan }));
+    if (url === '/api/v1/apps/clinic/sample-data' && method === 'POST') {
+      return Promise.resolve(jsonResponse(200, { jobId: 'job_sample' }));
+    }
+    if (url === '/api/v1/jobs/job_sample') {
+      return Promise.resolve(
+        jsonResponse(200, { data: { id: 'job_sample', status: sampleJob, progress: { pct: 100 }, lastError: 'The café is closed.' } }),
+      );
+    }
+    if (url === '/api/v1/apps/clinic/uninstall-plan') {
+      return Promise.resolve(jsonResponse(200, uninstallPlan));
+    }
+    if (url === '/api/v1/apps/plan') {
+      return Promise.resolve(jsonResponse(200, { plan: planReplies.shift() ?? plan }));
+    }
     if (url === '/api/v1/apps/install') {
+      const queued = installReplies.shift();
+      if (queued !== undefined) return Promise.resolve(jsonResponse(queued.status, queued.body));
       return Promise.resolve(
         jsonResponse(200, {
           key: 'clinic',
@@ -82,6 +107,20 @@ function stubFetch() {
 beforeEach(async () => {
   await installTestI18n();
   calls = [];
+  sampleJob = 'succeeded';
+  installReplies = [];
+  planReplies = [];
+  uninstallPlan = {
+    key: 'clinic',
+    pages: { removed: [{ slug: 'visits', title: 'Visits' }], kept: [] },
+    keys: 0,
+    endpoints: 0,
+    roles: [],
+    tables: [{ table: 'clinicians', droppable: true }],
+    hosts: [],
+    rules: 2,
+    canDropTables: false,
+  };
   installed = { apps: [], staged: [] };
   uploadReply = {
     status: 200,
@@ -151,11 +190,63 @@ describe('the install wizard', () => {
     expect(calls.some((call) => call.url === '/api/v1/apps/install')).toBe(false);
 
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Installed');
+    await screen.findByText('Clinic Desk is installed');
 
     const install = calls.find((call) => call.url === '/api/v1/apps/install');
     expect(install?.body).toEqual({ key: 'clinic', version: '1.0.0', connectionId: CONNECTION.id });
     expect(screen.getByText('/apps/clinic/staff/')).toBeTruthy();
+  });
+
+  it('sends back the checksum of the plan it showed, and re-checks when the database moved', async () => {
+    plan = { ...plan, checksum: 'a'.repeat(64) };
+    installReplies = [
+      {
+        status: 409,
+        body: {
+          error: {
+            code: 'SCHEMA_DRIFT',
+            message: 'The database changed since this install was checked. Review the new check before installing.',
+            requestId: 'r',
+          },
+        },
+      },
+    ];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachPlan(user);
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+
+    await screen.findByText(/The database changed since this install was checked/i);
+    const installs = calls.filter((call) => call.url === '/api/v1/apps/install');
+    expect(installs[0]?.body).toMatchObject({ planChecksum: 'a'.repeat(64) });
+    // The stale check was replaced by a fresh one, and nothing installed.
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2);
+    expect(screen.queryByText('Clinic Desk is installed')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+  });
+
+  it('names a reused table missing columns on the check step, and does not offer Install', async () => {
+    plan = {
+      ...plan,
+      installable: false,
+      create: [],
+      reuse: [{ ref: 'payments', missingColumns: ['tip'] }],
+      problems: [
+        {
+          code: 'COLUMNS_REQUIRED',
+          table: 'payments',
+          column: 'tip',
+          message: 'This database already has a "payments" table, and it is missing "tip", which this app writes.',
+        },
+      ],
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await reachPlan(user);
+    expect(screen.getByText(/missing "tip", which this app writes/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('asks only for the file, and installs the app the bundle says it is', async () => {
@@ -196,7 +287,7 @@ describe('the install wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await screen.findByText(/Review the schema plan/i);
     await user.click(screen.getByRole('button', { name: 'Install' }));
-    await screen.findByText('Installed');
+    await screen.findByText('Clinic Desk is installed');
 
     const identity = { key: 'clinic', version: '0.1.1', connectionId: CONNECTION.id };
     expect(calls.find((call) => call.url === '/api/v1/apps/plan')?.body).toEqual(identity);
@@ -391,14 +482,470 @@ describe('the install wizard', () => {
   });
 });
 
+/** A plan table as the server sends it. */
+function planned(overrides: Record<string, unknown> & { ref: string }): Record<string, unknown> {
+  return {
+    table: `clinic_${overrides.ref}`,
+    class: 'new',
+    action: 'create',
+    offers: [],
+    edits: [],
+    blocked: [],
+    columns: [
+      { ref: 'id', type: 'int' },
+      { ref: 'name', type: 'text' },
+    ],
+    ...overrides,
+  };
+}
+
+/** A plan with the check's classes: one new table, one from before, one taken. */
+function checkPlan(taken: Record<string, unknown> = {}): Record<string, unknown> {
+  const takenRow = planned({
+    ref: 'shifts',
+    class: 'taken',
+    action: 'undecided',
+    offers: ['rename-existing', 'alt-prefix'],
+    reuseRefusal: 'It requires "location_id", which this app never fills.',
+    ...taken,
+  });
+  const undecided = takenRow.action === 'undecided';
+  return {
+    ...plan,
+    checksum: 'c'.repeat(64),
+    installable: !undecided,
+    create: [{ ref: 'clinicians', columns: [{ ref: 'id', type: 'int' }, { ref: 'name', type: 'text' }] }],
+    reuse: [{ ref: 'visits', missingColumns: [] }],
+    problems: undecided
+      ? [
+          {
+            code: 'TABLE_TAKEN',
+            table: 'shifts',
+            message: '"clinic_shifts" already exists and was made by hand. Pick what to do with it before you install.',
+          },
+        ]
+      : [],
+    tables: [
+      planned({ ref: 'clinicians' }),
+      planned({
+        ref: 'visits',
+        class: 'own-leftover',
+        action: 'reuse',
+        offers: ['reuse', 'rename-existing', 'alt-prefix'],
+        edits: [{ kind: 'add-column', column: 'tip' }],
+      }),
+      takenRow,
+    ],
+    names: { clinicians: 'clinic_clinicians', visits: 'clinic_visits', shifts: 'clinic_shifts' },
+  };
+}
+
+async function reachCheck(user: ReturnType<typeof userEvent.setup>) {
+  const file = new File(['pretend-tarball'], 'clinic-1.0.0.tgz', { type: 'application/gzip' });
+  await user.upload(await screen.findByLabelText(/Bundle file/i), file);
+  await user.type(screen.getByLabelText(/Integrity/i), 'sha512-abc=');
+  await user.click(screen.getByRole('button', { name: 'Upload' }));
+  await screen.findByText(/Install into which database/i);
+  await user.click(screen.getByRole('radio', { name: /Practice/i }));
+  await user.click(screen.getByRole('button', { name: 'Continue' }));
+  await screen.findByText('Check the tables');
+}
+
+describe('the table check', () => {
+  it('sorts the tables into new, from before, and taken, and waits for an answer', async () => {
+    plan = checkPlan();
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+
+    const summary = document.querySelector('[data-part="check-summary"]');
+    expect(summary?.textContent).toContain('1 new');
+    expect(summary?.textContent).toContain('1 from your earlier install');
+    expect(summary?.textContent).toContain('1 name taken');
+    // The connection is named where the tables go.
+    expect(screen.getByText('Practice')).toBeTruthy();
+    // Undecided is a question on the card and in the footer, not a refusal.
+    expect(screen.queryByText('This app cannot be installed here')).toBeNull();
+    expect(screen.getByText('Pick what to do with clinic_shifts before you install.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
+
+    // A new table: its columns and the statement, under its real name.
+    await user.click(screen.getByRole('button', { name: /clinicians/ }));
+    expect(screen.getByText('Create preview')).toBeTruthy();
+    expect(screen.getByText(/CREATE TABLE clinic_clinicians/)).toBeTruthy();
+    // One from before: kept, with the column it gains.
+    await user.click(screen.getByRole('button', { name: /visits/ }));
+    const visits = screen.getByTestId('check-table-visits');
+    expect(visits.textContent).toContain('Adminium made this table on an earlier install of Clinic Desk.');
+    expect(visits.textContent).toContain('Adds 1 column:');
+    expect(visits.textContent).toContain('tip');
+    // The column count and the column list come from the same place.
+    expect(screen.getByTestId('check-table-clinicians').textContent).toContain('2 columns');
+  });
+
+  it('does not claim it made a table an earlier install only found', async () => {
+    const adopted = checkPlan();
+    (adopted.tables as Record<string, unknown>[])[1]!.adopted = true;
+    plan = adopted;
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: /visits/ }));
+    const visits = screen.getByTestId('check-table-visits');
+    expect(visits.textContent).toContain('An earlier install of Clinic Desk used this table as it found it.');
+    expect(visits.textContent).not.toContain('Adminium made this table');
+  });
+
+  it('refuses reuse with the reason, and re-checks with the rename it was given', async () => {
+    plan = checkPlan();
+    planReplies = [
+      checkPlan(),
+      checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' }),
+    ];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: /shifts/ }));
+
+    const keep = screen.getByRole('radio', { name: /Use it and keep its data/ });
+    expect(keep.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText(/requires "location_id"/)).toBeTruthy();
+
+    await user.click(screen.getByRole('radio', { name: /Rename the existing table/ }));
+    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2));
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan')[1]?.body).toMatchObject({
+      choices: { shifts: { action: 'rename-existing', to: 'clinic_shifts_old' } },
+    });
+    expect(await screen.findByText('Nothing changes until you press Install.')).toBeTruthy();
+    expect((screen.getByLabelText('New name for the existing table') as HTMLInputElement).value).toBe(
+      'clinic_shifts_old',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    const install = calls.find((call) => call.url === '/api/v1/apps/install');
+    // The answers the check was made with, and that check's checksum.
+    expect(install?.body).toMatchObject({
+      planChecksum: 'c'.repeat(64),
+      choices: { shifts: { action: 'rename-existing', to: 'clinic_shifts_old' } },
+    });
+  });
+
+  it('asks for the check again after a typed name, before it offers Install', async () => {
+    plan = checkPlan();
+    planReplies = [
+      checkPlan(),
+      checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' }),
+      checkPlan({ action: 'rename-existing', renameExistingTo: 'old_shifts' }),
+    ];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: /shifts/ }));
+    await user.click(screen.getByRole('radio', { name: /Rename the existing table/ }));
+    await screen.findByText('Nothing changes until you press Install.');
+
+    const field = screen.getByLabelText('New name for the existing table');
+    await user.clear(field);
+    await user.type(field, 'old_shifts');
+    expect(screen.getByText('Check the tables again before you install.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Install' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Check again' }));
+    await screen.findByText('Nothing changes until you press Install.');
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan').at(-1)?.body).toMatchObject({
+      choices: { shifts: { action: 'rename-existing', to: 'old_shifts' } },
+    });
+    expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('checks every table again under a different prefix, and can go back to the usual one', async () => {
+    plan = checkPlan();
+    const moved = {
+      ...checkPlan(),
+      installable: true,
+      problems: [],
+      tables: [
+        planned({ ref: 'clinicians', table: 'clinic2_clinicians' }),
+        planned({ ref: 'visits', table: 'clinic2_visits' }),
+        planned({ ref: 'shifts', table: 'clinic2_shifts' }),
+      ],
+    };
+    planReplies = [checkPlan(), moved, checkPlan()];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: /shifts/ }));
+    await user.click(screen.getByRole('radio', { name: /different prefix/ }));
+
+    // Picked, but not checked: the suggestion is there, and Install waits.
+    expect((screen.getByLabelText('Prefix') as HTMLInputElement).value).toBe('clinic2_');
+    expect(screen.getByText('Check the tables again before you install.')).toBeTruthy();
+    expect(screen.getByText('All 3 tables will be checked again.')).toBeTruthy();
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Check again' }));
+
+    await screen.findByText('Checked with the prefix', { exact: false });
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan').at(-1)?.body).toMatchObject({
+      altPrefix: 'clinic2_',
+    });
+    expect(document.querySelector('[data-part="check-summary"]')?.textContent).toContain('3 new');
+
+    await user.click(screen.getByRole('button', { name: 'Use the usual prefix' }));
+    await screen.findByText('Pick what to do with clinic_shifts before you install.');
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan').at(-1)?.body).not.toHaveProperty(
+      'altPrefix',
+    );
+  });
+
+  it('shows where an install stopped, and tries the same install again', async () => {
+    plan = checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' });
+    installReplies = [
+      {
+        status: 409,
+        body: {
+          error: {
+            code: 'APP_INSTALL_INCOMPLETE',
+            message: 'Installing "clinic" stopped at the pages step.',
+            requestId: 'r',
+            details: {
+              stage: 'pages',
+              table: null,
+              created: ['clinicians', 'shifts'],
+              pending: [],
+              cause: 'permission denied for table adminium_pages',
+            },
+          },
+        },
+      },
+    ];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+
+    const stopped = await screen.findByTestId('install-stopped');
+    expect(stopped.textContent).toContain('The install stopped part way');
+    expect(stopped.textContent).toContain('The tables were made. Creating the pages failed');
+    expect(stopped.textContent).toContain('2 created');
+    expect(stopped.textContent).toContain('permission denied for table adminium_pages');
+    // Its own screen, not the generic failure banner.
+    expect(screen.queryByText('Install failed')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByText('Clinic Desk is installed');
+    const installs = calls.filter((call) => call.url === '/api/v1/apps/install');
+    expect(installs).toHaveLength(2);
+    expect(installs[1]?.body).toEqual(installs[0]?.body);
+  });
+
+  it('goes back to a fresh check from a stopped install', async () => {
+    plan = checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' });
+    installReplies = [
+      {
+        status: 409,
+        body: {
+          error: {
+            code: 'APP_INSTALL_INCOMPLETE',
+            message: 'stopped',
+            requestId: 'r',
+            details: { stage: 'tables', table: 'clinic_visits', created: [], pending: ['visits'], cause: 'boom' },
+          },
+        },
+      },
+    ];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByTestId('install-stopped');
+    expect(screen.getByText('clinic_visits')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Back to Schema plan' }));
+    await screen.findByText('Check the tables');
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2);
+  });
+
+  it('sums up what the install made', async () => {
+    plan = checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' });
+    installReplies = [
+      {
+        status: 200,
+        body: {
+          key: 'clinic',
+          version: '1.0.0',
+          source: 'file',
+          installedAt: 0,
+          connectionId: CONNECTION.id,
+          sides: [],
+          missing: false,
+          schema: { created: ['clinicians', 'shifts'], reused: ['visits'] },
+          pages: { created: ['clinicians', 'visits', 'shifts'], recomposed: [], kept: [], warnings: [] },
+        },
+      },
+    ];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    const summary = document.querySelector('[data-part="done-summary"]');
+    expect(summary?.textContent).toContain('Tables created in Practice2');
+    expect(summary?.textContent).toContain('Tables used as they were1');
+    expect(summary?.textContent).toContain('Pages generated3');
+  });
+});
+
+describe('sample data at install', () => {
+  const ready = () => ({ ...checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' }), sampleData: true });
+  const summary = () => document.querySelector('[data-part="done-summary"]')?.textContent ?? '';
+
+  it('is offered unticked, and nothing is added unless asked', async () => {
+    plan = ready();
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    const box = within(screen.getByTestId('install-sample-data')).getByRole('checkbox');
+    expect(box.getAttribute('aria-checked')).toBe('false');
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    expect(summary()).toContain('Sample datanot added');
+    expect(calls.some((call) => call.url === '/api/v1/apps/clinic/sample-data')).toBe(false);
+  });
+
+  it('adds it after the install when ticked, and says so', async () => {
+    plan = ready();
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(within(screen.getByTestId('install-sample-data')).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    await waitFor(() => expect(summary()).toContain('Sample dataadded'));
+    const order = calls.map((call) => `${call.method} ${call.url}`);
+    // The app first; its sample data can only go into tables that exist.
+    expect(order.indexOf('POST /api/v1/apps/clinic/sample-data')).toBeGreaterThan(order.indexOf('POST /api/v1/apps/install'));
+  });
+
+  it('says when the add failed, and that it can be done later', async () => {
+    plan = ready();
+    sampleJob = 'failed';
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(within(screen.getByTestId('install-sample-data')).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('The café is closed.');
+    expect(alert.textContent).toContain('You can add it later from the app’s page.');
+    expect(summary()).toContain('Sample datanot added');
+  });
+
+  it('is not offered for an app without sample data', async () => {
+    plan = checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' });
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    expect(screen.queryByTestId('install-sample-data')).toBeNull();
+  });
+});
+
+describe('public access at install', () => {
+  const access = (over: Record<string, unknown> = {}) => ({
+    endpoints: [
+      { ref: 'clinic_slots', table: 'slots', methods: ['GET'], select: [], writable: [], claim: null, pending: false, issues: [] },
+      { ref: 'clinic_visits', table: 'visits', methods: ['POST'], select: [], writable: ['mobile'], claim: null, confirms: true, pending: false, issues: [] },
+      { ref: 'clinic_visits_claimed', table: 'visits', methods: ['GET'], select: [], writable: [], claim: ['code', 'mobile'], pending: false, issues: [] },
+      { ref: 'clinic_slots_availability', table: 'slots', methods: ['GET'], select: [], writable: [], claim: null, kind: 'availability', pending: false, issues: [] },
+      { ref: 'clinic_rooms', table: 'rooms', methods: ['GET'], select: [], writable: [], claim: null, pending: true, issues: [] },
+    ],
+    warnings: [
+      { code: 'PUBLIC_API_OFF', message: 'server words' },
+      { code: 'NO_EMAIL', message: 'server words' },
+    ],
+    canGrant: true,
+    ...over,
+  });
+  const ready = (over: Record<string, unknown> = {}) => ({
+    ...checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' }),
+    publicAccess: access(over),
+  });
+  const sent = () => (calls.find((call) => call.url === '/api/v1/apps/install')?.body as Record<string, unknown>)['publicAccess'];
+
+  it('says what the guests may do, is allowed by default, and sends that', async () => {
+    plan = ready();
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    const card = screen.getByTestId('install-public-access');
+    expect([...card.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'Read slots',
+      'Add to visits, and get a confirmation email',
+      'Look up their own visits by code, mobile',
+      'Read free or full times of slots',
+      'Read free or full times of rooms · arrives in a later release',
+      'The public API is switched off, so none of this answers until it is on.',
+      'Email is not set up, so guests will not be sent a confirmation.',
+    ]);
+    expect(within(card).getByRole('checkbox').getAttribute('aria-checked')).toBe('true');
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    expect(sent()).toBe(true);
+  });
+
+  it('sends a decline', async () => {
+    plan = ready();
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(within(screen.getByTestId('install-public-access')).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    expect(sent()).toBe(false);
+  });
+
+  it('installs without it for someone who may not manage API keys, and says why', async () => {
+    plan = ready({ canGrant: false });
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    const card = screen.getByTestId('install-public-access');
+    const box = within(card).getByRole('checkbox');
+    expect(box.getAttribute('aria-checked')).toBe('false');
+    expect(box.hasAttribute('disabled')).toBe(true);
+    expect(card.textContent).toContain('Only someone who may manage API keys can allow it');
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    expect(sent()).toBe(false);
+  });
+
+  it('is not shown for an app that asks for none', async () => {
+    plan = checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' });
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    expect(screen.queryByTestId('install-public-access')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await screen.findByText('Clinic Desk is installed');
+    expect(sent()).toBeUndefined();
+  });
+});
+
 /** Whether the app catalogue was read again after the call that changed what is on disk. */
 function catalogueReadAfter(method: string, url: string): boolean {
   const at = calls.findIndex((call) => call.method === method && call.url === url);
   return at !== -1 && calls.slice(at + 1).some((call) => call.method === 'GET' && call.url === '/api/v1/apps/catalog');
 }
 
+/** The card links each row to the app's own page, so it renders inside a router, as it does in the app. */
+function inRouter(ui: ReactNode) {
+  const root = createRootRoute({ component: () => <>{ui}</> });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/'] }) });
+  return <RouterProvider router={router} />;
+}
+
 describe('the installed list', () => {
-  it('says the tables survive an uninstall, and asks for the key back', async () => {
+  it('says what goes and what stays, and uninstalls without asking for the key', async () => {
     installed = {
       apps: [
         {
@@ -417,7 +964,7 @@ describe('the installed list', () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={client}>
-        <InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />
+        {inRouter(<InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />)}
       </QueryClientProvider>,
     );
 
@@ -433,16 +980,21 @@ describe('the installed list', () => {
 
     await user.click(screen.getByRole('button', { name: /Uninstall/i }));
 
-    // Disabling never destroys data, and the dialog says so.
-    expect(screen.getByText(/tables it created in your database are left alone/i)).toBeTruthy();
+    // The server's own list of what goes and what stays — the data stays.
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('The app’s files')).toBeTruthy();
+    expect(within(dialog).getByText('1 page')).toBeTruthy();
+    expect(within(dialog).getByText('1 table and every record in it')).toBeTruthy();
+    // The rules it wrote that are still as it wrote them.
+    expect(within(dialog).getByText('Its 2 column rules')).toBeTruthy();
+    // Not Super Admin here: no offer to delete the data at all.
+    expect(within(dialog).queryByText('Also delete its tables and data')).toBeNull();
 
-    await user.type(screen.getByLabelText(/Type clinic to confirm/i), 'clinic');
-    await user.click(screen.getAllByRole('button', { name: /Uninstall/i }).at(-1)!);
-
+    await user.click(within(dialog).getByRole('button', { name: 'Uninstall' }));
     await waitFor(() => {
-      expect(calls.some((call) => call.method === 'DELETE' && call.url === '/api/v1/apps/clinic')).toBe(
-        true,
-      );
+      const call = calls.find((c) => c.method === 'DELETE' && c.url === '/api/v1/apps/clinic');
+      expect(call).toBeTruthy();
+      expect(call?.body).toBeUndefined();
     });
     // An uninstall also removes the key's package from disk, so the shelf
     // card that offered it is gone too. This card reads the catalogue itself
@@ -453,6 +1005,43 @@ describe('the installed list', () => {
     });
   });
 
+  it('deletes the data only when asked, and only with the key typed back', async () => {
+    uninstallPlan = {
+      ...uninstallPlan,
+      canDropTables: true,
+      roles: [{ slug: 'clinic-desk', name: 'Clinic desk', members: 3, apiKeys: 1 }],
+    };
+    installed = {
+      apps: [{ key: 'clinic', version: '1.0.0', source: 'file', installedAt: 0, connectionId: null, missing: false, sides: [] }],
+      staged: [],
+    };
+    const client = createQueryClient();
+    client.setQueryData(APP_CATALOG_QUERY_KEY, { apps: [] });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={client}>
+        {inRouter(<InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />)}
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole('button', { name: /Uninstall/i }));
+    const dialog = await screen.findByRole('dialog');
+    // A role's cascade is named before it happens.
+    expect(await within(dialog).findByText(/takes it from 3 people and deletes 1 API key/)).toBeTruthy();
+
+    await user.click(within(dialog).getByRole('checkbox'));
+    const confirm = within(dialog).getByRole('button', { name: 'Uninstall and delete data' });
+    expect(confirm.hasAttribute('disabled')).toBe(true);
+    await user.type(within(dialog).getByLabelText(/Type the app’s key clinic to confirm/), 'clinic');
+    expect(confirm.hasAttribute('disabled')).toBe(false);
+    await user.click(confirm);
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === 'DELETE' && c.url === '/api/v1/apps/clinic')?.body).toEqual({
+        dropTables: true,
+        confirmKey: 'clinic',
+      });
+    });
+  });
+
   it('discards a bundle that was uploaded and never installed', async () => {
     installed = { apps: [], staged: [{ key: 'clinic', version: '1.0.0' }] };
     const client = createQueryClient();
@@ -460,7 +1049,7 @@ describe('the installed list', () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={client}>
-        <InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />
+        {inRouter(<InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />)}
       </QueryClientProvider>,
     );
 

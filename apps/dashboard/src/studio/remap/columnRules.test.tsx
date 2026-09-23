@@ -187,3 +187,49 @@ describe('the Rules section writes the four ops', () => {
     expect(screen.queryByText('Adminium fills this in automatically.')).toBeNull();
   });
 });
+
+describe('the columns Adminium decides', () => {
+  const row = (op: string, columnName: string, value: Record<string, unknown>, id: string) => ({
+    id,
+    op,
+    tableName: 'public.order_notes',
+    columnName,
+    value,
+    origin: 'app',
+    status: 'active',
+    createdAt: 1,
+    updatedAt: 1,
+  });
+  const rows = () => [
+    row('column.code', 'body', { prefix: 'MR-', length: 4 }, 'ovr_code'),
+    row('column.sequence', 'body', { start: 100 }, 'ovr_seq'),
+    // Another column's rule of the same op: two targets, not one.
+    row('column.code', 'author', { length: 6 }, 'ovr_code_2'),
+    row('column.rollup', 'body', { from: 'public.order_notes', via: 'id', sum: 'id', times: 'id' }, 'ovr_roll'),
+    row('column.venueLocal', 'body', { venueLocal: true }, 'ovr_local'),
+  ];
+
+  it('says what decides the column, and removes one rule without touching the others', async () => {
+    const harness = installFetch({ overridesRows: rows });
+    await openColumn(/Body/);
+    const decided = await screen.findByTestId('rules-decided');
+    expect(decided.textContent).toContain('The next number in order, from 100');
+    expect(decided.textContent).toContain('A random code like MR-XXXX');
+    expect(decided.textContent).toContain('The total of id × id over its rows in Order notes');
+    expect(screen.getByTestId('rules-venue-local').textContent).toContain('the venue’s own time');
+
+    const [, first] = screen.getAllByRole('button', { name: 'Remove this rule' });
+    fireEvent.click(first!);
+    await userEvent.click(screen.getByRole('button', { name: 'Save overrides' }));
+    await waitFor(() => expect(harness.putBodies).toHaveLength(1));
+    const { overrides } = harness.putBodies[0] as { overrides: { op: string; columnName?: string }[] };
+    // Each kept rule still names its column: without it a save would refuse them all.
+    // The running number went; both codes and the total stayed.
+    expect(overrides.map((o) => `${o.op}:${o.columnName ?? ''}`).sort()).toEqual([
+      'column.code:author',
+      'column.code:body',
+      'column.rollup:body',
+      'column.venueLocal:body',
+    ]);
+  });
+});

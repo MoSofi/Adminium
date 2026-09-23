@@ -628,9 +628,15 @@ export default {
         "pageWarnings": "Certaines pages de cette app arriveront sans table"
       },
       "done": {
-        "title": "Installée",
         "body": "{key} est désormais servie. Choisissez ci-dessous où apparaît son côté personnel.",
-        "schema": "Tables créées : {created} · réutilisées : {reused}"
+        "titleApp": "{app} est installée",
+        "tablesCreated": "Tables créées dans {connection}",
+        "tablesKept": "Tables utilisées telles quelles",
+        "pages": "Pages générées",
+        "sampleNotAdded": "non ajoutées",
+        "sampleAdding": "ajout en cours…",
+        "sampleAdded": "ajoutées",
+        "sampleLater": "Vous pourrez les ajouter plus tard depuis la page de l’app."
       },
       "cancel": "Annuler",
       "back": "Retour",
@@ -651,6 +657,68 @@ export default {
       "uploaded": {
         "hint": "Lu dans le manifest.json du paquet que vous avez téléversé. Rien n’est créé tant que vous n’avez pas confirmé le plan de schéma.",
         "replace": "Téléverser un autre paquet"
+      },
+      "check": {
+        "title": "Vérifier les tables",
+        "hint": "{app} les créera dans {connection}. Rien ne change tant que vous n’avez pas cliqué sur Installer.",
+        "summaryNew": "{count} nouvelles",
+        "summaryEarlier": "{count} de votre installation précédente",
+        "summaryShared": "{count} partagées avec une autre app",
+        "summaryTaken": "{count, plural, one {# nom déjà pris} other {# noms déjà pris}}",
+        "altPrefixInUse": "Vérifié avec le préfixe {prefix}.",
+        "usualPrefix": "Utiliser le préfixe habituel",
+        "badgeNew": "Nouvelle",
+        "badgeEarlier": "À vous, d’une installation précédente",
+        "badgeShared": "Partagée avec {app}",
+        "badgeTaken": "Nom déjà pris",
+        "columns": "{count, plural, one {# colonne} other {# colonnes}}",
+        "keep": "L’utiliser et garder ses données",
+        "sharedNote": "{app} utilise aussi cette table. Les deux apps continuent de lire et d’écrire les mêmes lignes.",
+        "earlierNote": "Adminium a créé cette table lors d’une installation précédente de {app}.",
+        "createPreview": "Aperçu de la création",
+        "addsColumns": "{count, plural, one {Ajoute # colonne :} other {Ajoute # colonnes :}}",
+        "widens": "Élargit {column}, de {from} à {to}.",
+        "setIdentity": "{column} numérote lui-même les nouvelles lignes.",
+        "enumValues": "{column} accepte aussi {values}.",
+        "noLoss": "Aucune colonne n’est supprimée et aucune donnée n’est perdue.",
+        "reuseNote": "L’app lit et écrit les lignes déjà présentes.",
+        "renameTitle": "Renommer la table existante pour libérer le nom",
+        "renameNote": "Une nouvelle table {table} est créée pour l’app.",
+        "renameField": "Nouveau nom de la table existante",
+        "renameFieldNote": "Adminium répare ses propres pages et règles qui pointaient vers l’ancien nom.",
+        "prefixTitle": "Utiliser un autre préfixe pour cette app",
+        "prefixNote": "S’applique à toutes les tables de l’app en une fois.",
+        "prefixField": "Préfixe",
+        "prefixFieldNote": "{count, plural, one {La table sera vérifiée à nouveau.} other {Les # tables seront vérifiées à nouveau.}}",
+        "takenIntro": "{table} existe déjà et a été créée à la main. Choisissez quoi en faire.",
+        "takenIntroShort": "Que faire de {table}",
+        "pickFirst": "Choisissez quoi faire de {table} avant d’installer.",
+        "checkFirst": "Vérifiez à nouveau les tables avant d’installer.",
+        "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Installer.",
+        "again": "Vérifier à nouveau",
+        "adoptedNote": "Une installation précédente de {app} a utilisé cette table telle qu’elle l’a trouvée."
+      },
+      "running": {
+        "title": "Installation de {app}",
+        "hint": "Écriture dans {connection}.",
+        "tables": "Tables",
+        "pages": "Pages"
+      },
+      "stopped": {
+        "failed": "échec",
+        "notStarted": "non commencé",
+        "atTables": "La création des tables a échoué, rien n’a donc été exécuté ensuite.",
+        "atIntrospect": "Les tables ont été créées. Leur relecture a échoué, rien n’a donc été exécuté ensuite.",
+        "atPages": "Les tables ont été créées. La création des pages a échoué, rien n’a donc été exécuté ensuite.",
+        "atFinish": "Les tables et les pages ont été créées. La fin de l’installation a échoué.",
+        "title": "L’installation s’est arrêtée en cours de route",
+        "created": "{count} créées",
+        "made": "créées",
+        "said": "Ce que la base de données a répondu",
+        "saidAbout": "Ce que la base de données a répondu à propos de {table}",
+        "resume": "Rien n’a été supprimé. Réessayer reprend là où cela s’est arrêté.",
+        "retry": "Réessayer",
+        "back": "Retour au plan de schéma"
       }
     },
     "installed": {
@@ -659,11 +727,6 @@ export default {
       "emptyTitle": "Aucune application installée",
       "emptyBody": "Téléversez un paquet de surface compilé pour en installer une. Les applications installées ici sont servies immédiatement — sans redémarrage, contrairement à un dossier.",
       "uninstall": "Désinstaller",
-      "confirmTitle": "Désinstaller cette application ?",
-      "confirmBody": "Ses surfaces cessent d’être servies et le paquet est supprimé. Les tables qu’elle a créées dans votre base ne sont pas touchées.",
-      "confirmPrompt": "Saisissez {key} pour confirmer",
-      "confirmCancel": "Annuler",
-      "confirmClose": "Fermer",
       "stagedTitle": "Téléversés mais non installés",
       "stagedHint": "Écartez celui que vous avez renoncé à installer, ou téléversez à nouveau la même clé pour le remplacer.",
       "discard": "Écarter",
@@ -675,7 +738,10 @@ export default {
       "missingBody": "Ses fichiers ne sont pas sur ce serveur, elle n'est donc pas servie. Réinstallez la même version, ou désinstallez-la.",
       "update": "Mettre à jour",
       "discardFailed": "Le téléversement n’a pas été abandonné",
-      "uninstallFailed": "L’application n’a pas été désinstallée"
+      "renamed": "Tables renommées en {prefix}…",
+      "oldNames": "Cette installation utilise les anciens noms de tables.",
+      "oldNamesWhy": "Elles ont été créées avant les préfixes.",
+      "renameTo": "Renommer en {prefix}…"
     },
     "instances": {
       "add": "Ajouter une instance",
@@ -726,7 +792,11 @@ export default {
       "confirm": "Mettre à jour",
       "close": "Fermer",
       "done": "{app} mise à jour vers v{version}",
-      "missingColumns": "Manquant : {tables}."
+      "missingColumns": "Manquant : {tables}.",
+      "checkSubtitle": "Vérifiez les tables utilisées par cette version.",
+      "pickFirst": "Choisissez quoi faire de {table} avant de mettre à jour.",
+      "checkFirst": "Vérifiez à nouveau les tables avant de mettre à jour.",
+      "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Mettre à jour."
     },
     "veto": {
       "title": "Ce déploiement ne peut pas consulter le catalogue en ligne",
@@ -741,6 +811,18 @@ export default {
       "failed": "Les colonnes n’ont pas pu être ajoutées",
       "valuesFailed": "Les colonnes ont été ajoutées, mais leurs valeurs autorisées n’ont pas pu être enregistrées",
       "confirm": "Ajouter les colonnes et mettre à jour"
+    },
+    "rename": {
+      "title": "Renommer les tables en {prefix}…",
+      "subtitle": "{count, plural, one {# table dans {connection}} other {# tables dans {connection}}}",
+      "close": "Fermer",
+      "body": "Cette installation date d’avant les préfixes. Le renommage donne à chaque table le préfixe de l’app, pour que {app} reconnaisse ses propres tables.",
+      "planFailed": "Le renommage n’a pas pu être planifié",
+      "refused": "Ces tables ne peuvent pas être renommées ici",
+      "failed": "Les tables n’ont pas été renommées",
+      "repair": "Adminium met aussi à jour ses propres pages et règles qui pointent vers les anciens noms.",
+      "cancel": "Annuler",
+      "confirm": "Renommer les tables"
     }
   },
   "hub": {
@@ -1295,7 +1377,8 @@ export default {
       "visible": "Afficher dans la barre latérale",
       "visibleHint": "Une page masquée reste accessible à son URL pour qui possède le lien.",
       "width": "Largeur du contenu",
-      "widthHint": "Largeur maximale de la colonne de contenu de la page sur un grand écran."
+      "widthHint": "Largeur maximale de la colonne de contenu de la page sur un grand écran.",
+      "groupApp": "Dans la section de son app"
     },
     "filters": {
       "add": "Ajouter un filtre",
@@ -1556,6 +1639,10 @@ export default {
       "ungrouped": {
         "body": "Ces pages fonctionnent à leur URL mais n’apparaissent nulle part dans la barre latérale. Ouvrez chacune d’elles et choisissez un groupe.",
         "title": "Certaines pages n’appartiennent à aucun groupe"
+      },
+      "apps": {
+        "title": "Dans les sections des apps installées",
+        "body": "Chaque app range ses pages dans sa propre section de la barre latérale."
       }
     },
     "status": {
@@ -1839,7 +1926,20 @@ export default {
       "optionsPickList": "Choisir une liste…",
       "optionsSource": "Valeurs autorisées",
       "optionsSourceHelp": "Une liste s’écrit une fois dans Studio et sert à toutes les colonnes qui la nomment.",
-      "optionsValues": "Les valeurs"
+      "optionsValues": "Les valeurs",
+      "decided": {
+        "title": "Décidé par Adminium",
+        "help": "Adminium remplit ce champ à chaque écriture, et un point de terminaison public ne peut jamais laisser un visiteur le définir.",
+        "copy": "Copié depuis {from} de la ligne vers laquelle pointe {via}",
+        "copyAlways": "toujours, quoi que fournisse l’auteur",
+        "copyDefault": "sauf si l’auteur fournit une valeur",
+        "sequence": "Le numéro suivant dans l’ordre, à partir de {start}",
+        "code": "Un code aléatoire comme {example}",
+        "remove": "Supprimer cette règle",
+        "rollup": "Le total de {sum} sur ses lignes dans {from}",
+        "rollupTimes": "Le total de {sum} × {times} sur ses lignes dans {from}"
+      },
+      "venueLocal": "Une heure écrite ici sans fuseau est l’heure locale de l’établissement."
     },
     "saveFailed": "Échec de l’enregistrement : {message}",
     "subtitle": "{tables} tables · {applied} remplacements appliqués",
@@ -2755,5 +2855,169 @@ export default {
     "subtitle": "Gérez l’accès programmatique à votre espace de travail",
     "summary": "{endpoints, plural, one {# point de terminaison} other {# points de terminaison}} · {methods, plural, one {# méthode} other {# méthodes}}",
     "title": "Clés d’API et jetons"
+  },
+  "surfacePages": {
+    "guest": {
+      "title": "{app} n’est pas disponible pour le moment.",
+      "body": "Veuillez réessayer plus tard."
+    },
+    "staff": {
+      "appOff": "{app} est désactivé pour le moment.",
+      "sideOff": "Les écrans du personnel de {app} sont désactivés.",
+      "advice": "Demandez à votre responsable de l’activer dans {app} → Paramètres.",
+      "signOut": "Se déconnecter",
+      "noAccess": "Ce compte ne peut pas ouvrir {app}.",
+      "noAccessAdvice": "Demandez à votre responsable un rôle qui ouvre {app}."
+    },
+    "notFound": {
+      "title": "Page introuvable",
+      "body": "Il n’y a rien à cette adresse. Vérifiez le lien et réessayez."
+    }
+  },
+  "appSettings": {
+    "notInstalled": "Cette app n’est pas installée",
+    "backToApps": "Retour aux apps",
+    "statusDisabled": "Désactivée",
+    "statusUpdate": "Mise à jour disponible · {version}",
+    "statusActive": "Active",
+    "version": "Version {version} · par {publisher}",
+    "open": "Ouvrir l’app",
+    "upToDate": "À jour",
+    "update": "Mettre à jour",
+    "saveFailed": "La modification n’a pas été enregistrée",
+    "screens": "Ensembles d’écrans",
+    "sideStaff": "Écrans du personnel",
+    "sideCustomer": "Écrans clients",
+    "sideAppOff": "Toute l’app est désactivée.",
+    "staffOnHelp": "Votre équipe se connecte ici avec ses propres comptes.",
+    "customerOnHelp": "Les clients utilisent ces pages. Elles sont publiques.",
+    "staffOffHelp": "Ces écrans ne sont pas servis. Rien n’a été supprimé.",
+    "customerOffHelp": "Les clients voient « indisponible ». Rien n’a été supprimé.",
+    "sideSwitch": "{side}, activé ou désactivé",
+    "on": "Activé",
+    "off": "Désactivé",
+    "whereItLives": "Où elle se trouve",
+    "ownAddress": "À sa propre adresse",
+    "insideDashboard": "Dans le tableau de bord",
+    "copyAddress": "Copier l’adresse",
+    "copied": "Copiée",
+    "copy": "Copier",
+    "addDomain": "Ajouter un domaine",
+    "preview": "Aperçu",
+    "domainField": "Domaine",
+    "addDomainSave": "Ajouter",
+    "data": "Données",
+    "noTables": "Cette app n’utilise aucune table.",
+    "rows": "{count, plural, one {# ligne} other {# lignes}}",
+    "activity": {
+      "staged": "Téléversée par {actor}",
+      "installed": "Installée par {actor}",
+      "updated": "Mise à jour par {actor}",
+      "disabled": "Désactivée par {actor}",
+      "enabled": "Activée par {actor}",
+      "settings": "Paramètres modifiés par {actor}",
+      "domains": "Domaines modifiés par {actor}",
+      "instances": "Instances modifiées par {actor}",
+      "renamed": "Tables renommées par {actor}",
+      "title": "Activité",
+      "none": "Rien pour l’instant.",
+      "sampleAdded": "Données d’exemple ajoutées par {actor}",
+      "sampleRemoved": "Données d’exemple retirées par {actor}"
+    },
+    "danger": "Zone de danger",
+    "disabledNote": "L’app est désactivée. Activer rétablit exactement ce qui existait.",
+    "disableNote": "Masque l’app partout et arrête ses points de terminaison. Rien n’est supprimé.",
+    "enable": "Activer",
+    "disable": "Désactiver",
+    "uninstallNote": "Supprime les fichiers et les pages de l’app. Conserve les tables et les données.",
+    "uninstall": "Désinstaller",
+    "disableTitle": "Désactiver {app} ?",
+    "close": "Fermer",
+    "nothingDeleted": "Rien n’est supprimé.",
+    "enableBrings": "Activer rétablit exactement ce qui existait.",
+    "cancel": "Annuler",
+    "disableLine1": "Sa section est masquée pour tout le monde.",
+    "disableLine2": "Ses écrans et ses propres points de terminaison cessent de répondre.",
+    "disableLine3": "Les tables, enregistrements et paramètres restent tels quels.",
+    "crumb": "Apps",
+    "sampleLedger": "La liste des enregistrements d’exemple d’Adminium"
+  },
+  "uninstall": {
+    "files": "Les fichiers de l’app",
+    "pages": "{count, plural, one {# page} other {# pages}}",
+    "keys": "{count, plural, one {Sa clé navigateur} other {Ses # clés navigateur}}",
+    "settings": "Ses paramètres",
+    "hosts": "{count, plural, one {Son domaine} other {Ses # domaines}}",
+    "tables": "{count, plural, one {# table et tous ses enregistrements} other {# tables et tous leurs enregistrements}}",
+    "editedPages": "Les pages que vous avez modifiées restent comme pages ordinaires",
+    "audit": "Ses entrées dans le journal d’audit",
+    "title": "Désinstaller {app} ?",
+    "close": "Fermer",
+    "planFailed": "Ce qui serait supprimé n’a pas pu être lu",
+    "removed": "Supprimé",
+    "kept": "Conservé",
+    "roleCascade": "Supprimer ce rôle le retire à {members, plural, one {# personne} other {# personnes}} et supprime {keys, plural, one {# clé API liée} other {# clés API liées}}. Ces clés cessent de fonctionner immédiatement.",
+    "dropTitle": "Supprimer aussi ses tables et données",
+    "dropBody": "{count, plural, one {Supprime la # table qu’elle a créée et tous ses enregistrements.} other {Supprime les # tables qu’elle a créées et tous leurs enregistrements.}} Action irréversible.",
+    "typeKey": "Saisissez la clé de l’app {key} pour confirmer.",
+    "failed": "L’app n’a pas été désinstallée",
+    "cancel": "Annuler",
+    "confirmDrop": "Désinstaller et supprimer les données",
+    "confirm": "Désinstaller",
+    "rules": "{count, plural, one {Sa règle de colonne} other {Ses # règles de colonne}}"
+  },
+  "sampleData": {
+    "title": "Données d’exemple",
+    "add": "Ajouter des données d’exemple",
+    "installNote": "quelques enregistrements d’exemple dans les tables de l’app, pour avoir de quoi l’essayer. Vous pouvez les retirer en un clic.",
+    "remove": "Retirer les données d’exemple",
+    "keptNotice": "{count, plural, one {# enregistrement d’exemple reste : vos propres enregistrements l’utilisent, ou vous l’avez modifié.} other {# enregistrements d’exemple restent : vos propres enregistrements les utilisent, ou vous les avez modifiés.}}",
+    "notLoaded": "Non chargées",
+    "loadedCount": "Chargées · {count, plural, one {# enregistrement} other {# enregistrements}}",
+    "loaded": "Chargées · {count, plural, one {# enregistrement} other {# enregistrements}} · {date}",
+    "addSubtitle": "Dans {connection}",
+    "close": "Fermer",
+    "addBodyNoConnection": "Quelques enregistrements d’exemple dans les tables de l’app. Rien d’autre n’est touché.",
+    "addBody": "Quelques enregistrements d’exemple dans les tables de l’app. Rien d’autre dans {connection} n’est touché.",
+    "images": "Images, ajoutées aux Fichiers",
+    "total": "Au total",
+    "records": "{count, plural, one {# enregistrement} other {# enregistrements}}",
+    "none": "Cette app ne fournit pas de données d’exemple",
+    "adding": "Ajout des données d’exemple",
+    "addFailed": "Les données d’exemple n’ont pas été ajoutées",
+    "addFailedBody": "Les données d’exemple n’ont pas été ajoutées. Rien n’a été écrit.",
+    "cancel": "Annuler",
+    "removeSubtitle": "{count, plural, one {# enregistrement ajouté le {date}} other {# enregistrements ajoutés le {date}}}",
+    "removeBody": "Adminium a gardé la liste de chaque enregistrement ajouté, et retire donc exactement ceux-là.",
+    "planFailed": "Ce qui serait retiré n’a pas pu être lu",
+    "removes": "Retirés",
+    "kept": "Conservés",
+    "usedBy": "{count, plural, one {utilisé par # de vos propres enregistrements} other {utilisé par # de vos propres enregistrements}}",
+    "keepChanged": "Garder ceux que j’ai modifiés",
+    "changedList": "{count, plural, one {# enregistrement d’exemple que vous avez modifié : {names}.} other {# enregistrements d’exemple que vous avez modifiés : {names}.}}",
+    "removeFailed": "Les données d’exemple n’ont pas été retirées",
+    "removeConfirm": "Retirer",
+    "banner": "Les données d’exemple sont chargées",
+    "bannerRemove": "Les retirer"
+  },
+  "appPublicAccess": {
+    "title": "Accès public",
+    "intro": "Les écrans clients de l’application doivent pouvoir :",
+    "availability": "Lire les créneaux libres ou complets de {table}",
+    "claim": "Retrouver leurs propres {table} par {fields}",
+    "create": "Ajouter à {table}",
+    "update": "Modifier {table}",
+    "read": "Lire {table}",
+    "later": "arrive dans une version ultérieure",
+    "allow": "Autoriser cet accès public",
+    "helper": "Vous pourrez le restreindre plus tard sur la page Clés d’API.",
+    "cannotGrant": "Seule une personne autorisée à gérer les clés d’API peut l’autoriser : l’application s’installe donc sans.",
+    "warning": {
+      "apiOff": "L’API publique est désactivée : rien de ceci ne répondra tant qu’elle ne sera pas activée.",
+      "originSelf": "Les origines autorisées n’incluent pas « self » : les pages de l’application sur ce serveur ne peuvent donc pas l’appeler.",
+      "timeZone": "Cette base de données n’a pas de fuseau horaire, dont l’API publique a besoin pour les dates et les heures.",
+      "noEmail": "L’e-mail n’est pas configuré : les clients ne recevront pas de confirmation."
+    },
+    "createConfirmed": "Ajouter à {table} et recevoir un e-mail de confirmation"
   }
 } as const;

@@ -10,11 +10,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse, makeBootstrap } from '../test/fixtures.js';
 import { ApiError } from './api.js';
 import {
+  appPagesOf,
   bootstrapQuery,
   defaultPageSlug,
   findNavItemBySlug,
   findPageBySlug,
   flattenNav,
+  hostedAppByKey,
   slugForTable,
 } from './bootstrap.js';
 
@@ -131,6 +133,29 @@ describe('nav helpers', () => {
     expect(findPageBySlug(makeBootstrap(), 'clients')).toBeNull();
   });
 
+  it('resolves an installed app’s pages, which live in its own section', () => {
+    const menu = {
+      pageId: 'page_menu',
+      slug: 'pos-menu',
+      labelKey: 'nav.pos-menu',
+      fallback: 'Menu',
+      icon: 'book-open',
+      order: 1,
+      connectionId: 'conn_1',
+      sourceTable: 'public.pos_menu_items',
+      appKey: 'pos',
+    };
+    const bootstrap = makeBootstrap({
+      appSections: [{ appKey: 'pos', label: 'Point of Sale', version: '0.2.0', groups: [{ key: 'manage', label: 'Manage', items: [menu] }], staff: null }],
+    });
+    expect(appPagesOf(bootstrap).map((item) => item.slug)).toEqual(['pos-menu']);
+    expect(findPageBySlug(bootstrap, 'pos-menu')?.pageId).toBe('page_menu');
+    expect(slugForTable(bootstrap, 'conn_1', 'public.pos_menu_items')).toBe('pos-menu');
+    // An instance whose only pages are an app's opens on the app's first.
+    expect(defaultPageSlug({ groups: [] }, appPagesOf(bootstrap))).toBe('pos-menu');
+    expect(defaultPageSlug(bootstrap.nav, appPagesOf(bootstrap))).toBe('customers');
+  });
+
   it('defaults `/` to the first Workspace item; null when nav is empty', () => {
     expect(defaultPageSlug(nav)).toBe('customers');
     expect(defaultPageSlug({ groups: [] })).toBeNull();
@@ -145,5 +170,23 @@ describe('nav helpers', () => {
         ],
       }),
     ).toBe('exports');
+  });
+});
+
+describe('hostedAppByKey', () => {
+  const item = { id: 'home', path: '', label: 'Home' };
+  const bootstrap = makeBootstrap({
+    hostedApps: [
+      { appKey: 'clients', label: 'Outline', items: [item] },
+      { appKey: 'clients', instance: 'berlin', label: 'Outline · berlin', items: [item] },
+    ],
+  });
+
+  it("resolves the app's own section and each instance by the sidebar's route param", () => {
+    expect(hostedAppByKey(bootstrap, 'clients')?.label).toBe('Outline');
+    // It compared the whole `clients~berlin` against `clients`, so every instance link was a 404.
+    expect(hostedAppByKey(bootstrap, 'clients~berlin')?.label).toBe('Outline · berlin');
+    expect(hostedAppByKey(bootstrap, 'clients~paris')).toBeNull();
+    expect(hostedAppByKey(bootstrap, 'hotel')).toBeNull();
   });
 });

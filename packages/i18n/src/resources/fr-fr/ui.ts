@@ -1534,6 +1534,7 @@ export default {
         "loadError": "Impossible de charger l’enregistrement."
       },
       "emptyTitle": "{count, plural, one {Pas encore de {entity}} other {Pas encore de {entity}}}",
+      "emptyTitleNamed": "Aucun élément dans {things} pour l’instant",
       "exportAction": "Exporter",
       "file": {
         "tooLarge": "Ce fichier dépasse la limite de {limit}.",
@@ -1611,7 +1612,17 @@ export default {
       "rejectNote": "Le demandeur sera notifié avec votre note."
     },
     "dashboard": {
-      "invalidLayout": "La disposition enregistrée de ce tableau de bord est invalide. Régénérez la page ou réinitialisez sa disposition."
+      "invalidLayout": "La disposition enregistrée de ce tableau de bord est invalide. Régénérez la page ou réinitialisez sa disposition.",
+      "day": {
+        "label": "Jour",
+        "today": "Aujourd’hui",
+        "yesterday": "Hier",
+        "week": "Cette semaine",
+        "pick": "Choisir un jour",
+        "pickHelp": "Un jour à la fois, à l’heure de l’établissement.",
+        "cancel": "Annuler",
+        "show": "Afficher le jour"
+      }
     },
     "builder": {
       "publish": "Publier",

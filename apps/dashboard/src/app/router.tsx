@@ -38,10 +38,8 @@ import { setupStateQuery } from '../setup/setupApi.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
 import { preloadPageTemplates } from '../pages/templates.js';
-import { ForgotPage } from '../auth/ForgotPage.js';
 import { LoginPage } from '../auth/LoginPage.js';
 import { OtpPage } from '../auth/OtpPage.js';
-import { ResetPage } from '../auth/ResetPage.js';
 import { ShortcutsProvider } from '../shell/ShortcutsProvider.js';
 import { useBrandedDocumentTitle } from '../shell/BrandMark.js';
 import { AppShell } from '../shell/AppShell.js';
@@ -50,8 +48,17 @@ import { pageQuery } from '../api/pages.js';
 import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
 import { widgetRuntimeEnv } from '../lib/widget-runtime.js';
+import { bootLocale } from '../i18n/setup.js';
 import { api, ApiError } from './api.js';
-import { assistantAllowed, bootstrapQuery, defaultPageSlug, findPageBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
+import {
+  appPagesOf,
+  assistantAllowed,
+  bootstrapQuery,
+  defaultPageSlug,
+  findPageBySlug,
+  type BootstrapData,
+  type ResolvedPrefs,
+} from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
 
@@ -85,6 +92,10 @@ function lazyRoute(load: () => Promise<ComponentType>): () => ReactElement {
 }
 
 const AboutPageLazy = lazyRoute(async () => (await import('../about/AboutPage.js')).AboutPage);
+// Reached only from a link — "Forgot your password?" and the reset email — so
+// every first paint was paying for two screens almost nobody opens.
+const ForgotPageLazy = lazyRoute(async () => (await import('../auth/ForgotPage.js')).ForgotPage);
+const ResetPageLazy = lazyRoute(async () => (await import('../auth/ResetPage.js')).ResetPage);
 const AddOnPageHostLazy = lazyRoute(
   async () => (await import('../add-ons/AddOnPageHost.js')).AddOnPageHost,
 );
@@ -166,7 +177,10 @@ function RootComponent() {
   return (
     <ThemeProvider
       resolveDir={resolveLocaleDir}
-      {...(boot.data === undefined ? {} : { userPrefs: toThemePrefs(boot.data.prefs) })}
+      {...(boot.data === undefined
+        ? // Signed out: the language the strings booted in, so `lang` and `dir` agree with them.
+          { globalDefaults: { locale: bootLocale() } }
+        : { userPrefs: toThemePrefs(boot.data.prefs) })}
       onPrefChange={(key, value) => {
         // Persist per-user axes once signed in (ThemeProvider wiring).
         if (!authed) return;
@@ -348,13 +362,13 @@ const forgotRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/forgot',
   beforeLoad: ({ context }) => redirectIfAuthed(context.queryClient),
-  component: ForgotPage,
+  component: ForgotPageLazy,
 });
 
 const resetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/reset/$token',
-  component: ResetPage,
+  component: ResetPageLazy,
 });
 
 const otpRoute = createRoute({
@@ -408,6 +422,16 @@ const appRoute = createRoute({
         await redirectIfSetupRequired(context.queryClient);
         throw redirect({ to: '/login', search: { returnTo: location.href } });
       }
+      // Someone who opens only an app's own screens goes there, not to a
+      // dashboard they cannot use.
+      if (error instanceof ApiError && error.code === 'APP_SCREENS_ONLY') {
+        const openUrl = (error.details as { openUrl?: unknown } | null)?.openUrl;
+        if (typeof openUrl === 'string') {
+          window.location.assign(openUrl);
+          // The page is leaving; drawing "no access" on the way out would flash.
+          return new Promise<never>(() => undefined);
+        }
+      }
       throw error;
     }
   },
@@ -421,7 +445,7 @@ const indexRoute = createRoute({
   beforeLoad: ({ context }) => {
     // `/` → the first Workspace nav item; empty nav renders the
     // empty-no-sources home.
-    const slug = defaultPageSlug(context.bootstrap.nav);
+    const slug = defaultPageSlug(context.bootstrap.nav, appPagesOf(context.bootstrap));
     if (slug !== null) throw redirect({ to: '/p/$slug', params: { slug } });
   },
   component: HomePage,

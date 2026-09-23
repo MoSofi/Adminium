@@ -628,9 +628,15 @@ export default {
         "pageWarnings": "此应用的部分页面将在没有表的情况下创建"
       },
       "done": {
-        "title": "已安装",
         "body": "{key} 已开始提供服务。请在下方选择其员工端的显示位置。",
-        "schema": "已创建表：{created} · 复用：{reused}"
+        "titleApp": "{app} 已安装",
+        "tablesCreated": "在 {connection} 中创建的数据表",
+        "tablesKept": "按原样使用的数据表",
+        "pages": "已生成的页面",
+        "sampleNotAdded": "未添加",
+        "sampleAdding": "正在添加…",
+        "sampleAdded": "已添加",
+        "sampleLater": "你可以稍后在应用页面中添加。"
       },
       "cancel": "取消",
       "back": "上一步",
@@ -651,6 +657,68 @@ export default {
       "uploaded": {
         "hint": "读取自你上传的安装包中的 manifest.json。在你确认架构计划之前不会创建任何内容。",
         "replace": "上传其他安装包"
+      },
+      "check": {
+        "title": "检查数据表",
+        "hint": "{app} 将在 {connection} 中创建这些表。按下“安装”之前不会有任何更改。",
+        "summaryNew": "{count} 个新表",
+        "summaryEarlier": "{count} 个来自之前的安装",
+        "summaryShared": "{count} 个与其他应用共享",
+        "summaryTaken": "{count, plural, other {# 个名称已被占用}}",
+        "altPrefixInUse": "已使用前缀 {prefix} 检查。",
+        "usualPrefix": "使用常规前缀",
+        "badgeNew": "新建",
+        "badgeEarlier": "之前安装留下的",
+        "badgeShared": "与 {app} 共享",
+        "badgeTaken": "名称已被占用",
+        "columns": "{count, plural, other {# 列}}",
+        "keep": "使用它并保留其数据",
+        "sharedNote": "{app} 也在使用此表。两个应用会继续读写相同的行。",
+        "earlierNote": "Adminium 在之前安装 {app} 时创建了此表。",
+        "createPreview": "创建预览",
+        "addsColumns": "{count, plural, other {添加 # 列：}}",
+        "widens": "将 {column} 从 {from} 加宽为 {to}。",
+        "setIdentity": "{column} 会自动为新行编号。",
+        "enumValues": "{column} 还接受 {values}。",
+        "noLoss": "不会删除任何列，也不会丢失任何数据。",
+        "reuseNote": "应用会读写已有的行。",
+        "renameTitle": "重命名现有表以腾出名称",
+        "renameNote": "将为应用创建一个新的 {table}。",
+        "renameField": "现有表的新名称",
+        "renameFieldNote": "Adminium 会修复指向旧名称的自有页面和规则。",
+        "prefixTitle": "为此应用使用不同的前缀",
+        "prefixNote": "一次性应用于该应用的所有表。",
+        "prefixField": "前缀",
+        "prefixFieldNote": "{count, plural, other {将重新检查全部 # 个表。}}",
+        "takenIntro": "{table} 已存在，且是手动创建的。请选择如何处理它。",
+        "takenIntroShort": "如何处理 {table}",
+        "pickFirst": "安装前请选择如何处理 {table}。",
+        "checkFirst": "安装前请重新检查数据表。",
+        "nothingYet": "按下“安装”之前不会有任何更改。",
+        "again": "重新检查",
+        "adoptedNote": "之前安装的 {app} 按原样使用了此表。"
+      },
+      "running": {
+        "title": "正在安装 {app}",
+        "hint": "正在写入 {connection}。",
+        "tables": "数据表",
+        "pages": "页面"
+      },
+      "stopped": {
+        "failed": "失败",
+        "notStarted": "未开始",
+        "atTables": "创建数据表失败，之后的步骤均未运行。",
+        "atIntrospect": "数据表已创建。重新读取失败，之后的步骤均未运行。",
+        "atPages": "数据表已创建。创建页面失败，之后的步骤均未运行。",
+        "atFinish": "数据表和页面已创建。完成安装失败。",
+        "title": "安装中途停止",
+        "created": "已创建 {count} 个",
+        "made": "已创建",
+        "said": "数据库返回的信息",
+        "saidAbout": "数据库关于 {table} 返回的信息",
+        "resume": "没有删除任何内容。重试会从停止的位置继续。",
+        "retry": "重试",
+        "back": "返回架构计划"
       }
     },
     "installed": {
@@ -659,11 +727,6 @@ export default {
       "emptyTitle": "尚未安装任何应用",
       "emptyBody": "上传已构建的界面包即可安装。在这里安装的应用会立即提供服务——与指向目录的方式不同，无需重启。",
       "uninstall": "卸载",
-      "confirmTitle": "卸载此应用？",
-      "confirmBody": "它的界面将停止提供服务，安装包会被删除。它在你数据库中创建的表不会受到影响。",
-      "confirmPrompt": "输入 {key} 以确认",
-      "confirmCancel": "取消",
-      "confirmClose": "关闭",
       "stagedTitle": "已上传但未安装",
       "stagedHint": "丢弃你决定不用的那个，或再次上传同一标识以替换它。",
       "discard": "丢弃",
@@ -675,7 +738,10 @@ export default {
       "missingBody": "它的文件不在此服务器上，因此无法提供服务。请重新安装相同版本，或将其卸载。",
       "update": "更新",
       "discardFailed": "未丢弃该上传",
-      "uninstallFailed": "未卸载该应用"
+      "renamed": "数据表已重命名为 {prefix}…",
+      "oldNames": "此安装使用的是旧的表名。",
+      "oldNamesWhy": "这些表创建于前缀功能之前。",
+      "renameTo": "重命名为 {prefix}…"
     },
     "instances": {
       "add": "添加实例",
@@ -726,7 +792,11 @@ export default {
       "confirm": "更新",
       "close": "关闭",
       "done": "{app} 已更新到 v{version}",
-      "missingColumns": "缺少：{tables}。"
+      "missingColumns": "缺少：{tables}。",
+      "checkSubtitle": "检查此版本使用的数据表。",
+      "pickFirst": "更新前请选择如何处理 {table}。",
+      "checkFirst": "更新前请重新检查数据表。",
+      "nothingYet": "按下“更新”之前不会有任何更改。"
     },
     "veto": {
       "title": "此部署无法在线浏览",
@@ -741,6 +811,18 @@ export default {
       "failed": "无法添加这些列",
       "valuesFailed": "列已添加，但无法记录其允许的值",
       "confirm": "添加列并更新"
+    },
+    "rename": {
+      "title": "将数据表重命名为 {prefix}…",
+      "subtitle": "{count, plural, other {{connection} 中的 # 个数据表}}",
+      "close": "关闭",
+      "body": "此安装早于前缀功能。重命名会为每个表加上应用的前缀，让 {app} 能识别自己的表。",
+      "planFailed": "无法规划重命名",
+      "refused": "这些表无法在此重命名",
+      "failed": "数据表未被重命名",
+      "repair": "Adminium 也会更新指向旧名称的自有页面和规则。",
+      "cancel": "取消",
+      "confirm": "重命名数据表"
     }
   },
   "hub": {
@@ -1295,7 +1377,8 @@ export default {
       "visible": "在侧边栏中显示",
       "visibleHint": "隐藏的页面仍可通过网址访问，只要对方有链接。",
       "width": "内容宽度",
-      "widthHint": "在大屏幕上，页面内容列最多可以有多宽。"
+      "widthHint": "在大屏幕上，页面内容列最多可以有多宽。",
+      "groupApp": "在所属应用的专属分区中"
     },
     "filters": {
       "add": "添加筛选",
@@ -1556,6 +1639,10 @@ export default {
       "ungrouped": {
         "body": "这些页面可以通过网址访问，但不会出现在侧边栏中。请逐个打开并选择分组。",
         "title": "有些页面不属于任何侧边栏分组"
+      },
+      "apps": {
+        "title": "在已安装应用的分区中",
+        "body": "每个应用都把自己的页面放在侧边栏中的专属分区。"
       }
     },
     "status": {
@@ -1839,7 +1926,20 @@ export default {
       "optionsPickList": "选择一个列表…",
       "optionsSource": "允许的值",
       "optionsSourceHelp": "列表在 Studio 中写一次，引用它的每一列都能使用。",
-      "optionsValues": "这些值"
+      "optionsValues": "这些值",
+      "decided": {
+        "title": "由 Adminium 决定",
+        "help": "Adminium 在每次写入时填写此项，公开端点永远不能让访客设置它。",
+        "copy": "从 {via} 指向的行的 {from} 复制",
+        "copyAlways": "始终如此，无论写入者提供什么",
+        "copyDefault": "除非写入者提供了值",
+        "sequence": "按顺序的下一个编号，从 {start} 开始",
+        "code": "类似 {example} 的随机代码",
+        "remove": "移除此规则",
+        "rollup": "{from} 中其各行 {sum} 的合计",
+        "rollupTimes": "{from} 中其各行 {sum} × {times} 的合计"
+      },
+      "venueLocal": "在此写入的不带时区的时间即为场所的本地时间。"
     },
     "saveFailed": "保存失败：{message}",
     "subtitle": "{tables} 张表 · 已应用 {applied} 项覆盖",
@@ -2755,5 +2855,169 @@ export default {
     "subtitle": "管理对工作区的程序化访问",
     "summary": "{endpoints, plural, other {# 个端点}} · {methods, plural, other {# 个方法}}",
     "title": "API 密钥与令牌"
+  },
+  "surfacePages": {
+    "guest": {
+      "title": "{app} 暂时无法使用。",
+      "body": "请稍后再试。"
+    },
+    "staff": {
+      "appOff": "{app} 目前已关闭。",
+      "sideOff": "{app} 的员工界面已关闭。",
+      "advice": "请让你的经理在 {app} → 设置 中开启。",
+      "signOut": "退出登录",
+      "noAccess": "此账户无法打开 {app}。",
+      "noAccessAdvice": "请让你的主管为你分配可以打开 {app} 的角色。"
+    },
+    "notFound": {
+      "title": "找不到页面",
+      "body": "此地址没有内容。请检查链接后重试。"
+    }
+  },
+  "appSettings": {
+    "notInstalled": "此应用未安装",
+    "backToApps": "返回应用",
+    "statusDisabled": "已停用",
+    "statusUpdate": "有可用更新 · {version}",
+    "statusActive": "正常运行",
+    "version": "版本 {version} · 由 {publisher} 提供",
+    "open": "打开应用",
+    "upToDate": "已是最新",
+    "update": "更新",
+    "saveFailed": "更改未保存",
+    "screens": "界面组",
+    "sideStaff": "员工界面",
+    "sideCustomer": "客户界面",
+    "sideAppOff": "整个应用已关闭。",
+    "staffOnHelp": "你的团队使用自己的账户在此登录。",
+    "customerOnHelp": "客户使用这些页面。它们是公开的。",
+    "staffOffHelp": "这些界面不再提供。没有删除任何内容。",
+    "customerOffHelp": "客户会看到“暂不可用”。没有删除任何内容。",
+    "sideSwitch": "{side}，开启或关闭",
+    "on": "开启",
+    "off": "关闭",
+    "whereItLives": "所在位置",
+    "ownAddress": "使用独立地址",
+    "insideDashboard": "在仪表板内",
+    "copyAddress": "复制地址",
+    "copied": "已复制",
+    "copy": "复制",
+    "addDomain": "添加域名",
+    "preview": "预览",
+    "domainField": "域名",
+    "addDomainSave": "添加",
+    "data": "数据",
+    "noTables": "此应用不使用任何数据表。",
+    "rows": "{count, plural, other {# 行}}",
+    "activity": {
+      "staged": "由 {actor} 上传",
+      "installed": "由 {actor} 安装",
+      "updated": "由 {actor} 更新",
+      "disabled": "由 {actor} 关闭",
+      "enabled": "由 {actor} 开启",
+      "settings": "由 {actor} 更改设置",
+      "domains": "由 {actor} 更改域名",
+      "instances": "由 {actor} 更改实例",
+      "renamed": "由 {actor} 重命名数据表",
+      "title": "动态",
+      "none": "暂无。",
+      "sampleAdded": "由 {actor} 添加示例数据",
+      "sampleRemoved": "由 {actor} 删除示例数据"
+    },
+    "danger": "危险操作",
+    "disabledNote": "应用已关闭。启用后将完全恢复原样。",
+    "disableNote": "在所有地方隐藏此应用并停止其端点。不会删除任何内容。",
+    "enable": "启用",
+    "disable": "停用",
+    "uninstallNote": "删除应用的文件和页面。保留数据表和数据。",
+    "uninstall": "卸载",
+    "disableTitle": "停用 {app}？",
+    "close": "关闭",
+    "nothingDeleted": "不会删除任何内容。",
+    "enableBrings": "启用后将完全恢复原样。",
+    "cancel": "取消",
+    "disableLine1": "其菜单区域对所有人隐藏。",
+    "disableLine2": "其界面和自有端点停止响应。",
+    "disableLine3": "数据表、记录和设置保持不变。",
+    "crumb": "应用",
+    "sampleLedger": "Adminium 的示例记录清单"
+  },
+  "uninstall": {
+    "files": "应用的文件",
+    "pages": "{count, plural, other {# 个页面}}",
+    "keys": "{count, plural, other {其 # 个浏览器密钥}}",
+    "settings": "其设置",
+    "hosts": "{count, plural, other {其 # 个域名}}",
+    "tables": "{count, plural, other {# 个数据表及其全部记录}}",
+    "editedPages": "你编辑过的页面会作为普通页面保留",
+    "audit": "其在审计日志中的记录",
+    "title": "卸载 {app}？",
+    "close": "关闭",
+    "planFailed": "无法读取将被移除的内容",
+    "removed": "移除",
+    "kept": "保留",
+    "roleCascade": "移除此角色会将其从 {members, plural, other {# 人}} 身上撤下，并删除绑定到它的 {keys, plural, other {# 个 API 密钥}}。这些密钥会立即失效。",
+    "dropTitle": "同时删除其数据表和数据",
+    "dropBody": "{count, plural, other {删除它创建的 # 个数据表及其全部记录。}}此操作无法撤销。",
+    "typeKey": "输入应用的键 {key} 以确认。",
+    "failed": "应用未被卸载",
+    "cancel": "取消",
+    "confirmDrop": "卸载并删除数据",
+    "confirm": "卸载",
+    "rules": "{count, plural, other {它的 # 条列规则}}"
+  },
+  "sampleData": {
+    "title": "示例数据",
+    "add": "添加示例数据",
+    "installNote": "在应用的数据表中加入一些示例记录，方便你试用。可以一键删除。",
+    "remove": "删除示例数据",
+    "keptNotice": "{count, plural, other {保留了 # 条示例记录：你自己的记录在使用它们，或你修改过它们。}}",
+    "notLoaded": "未加载",
+    "loadedCount": "已加载 · {count, plural, other {# 条记录}}",
+    "loaded": "已加载 · {count, plural, other {# 条记录}} · {date}",
+    "addSubtitle": "添加到 {connection}",
+    "close": "关闭",
+    "addBodyNoConnection": "在应用的数据表中加入一些示例记录。不会改动其他任何内容。",
+    "addBody": "在应用的数据表中加入一些示例记录。{connection} 中的其他内容不会改动。",
+    "images": "图片，添加到文件",
+    "total": "合计",
+    "records": "{count, plural, other {# 条记录}}",
+    "none": "此应用没有附带示例数据",
+    "adding": "正在添加示例数据",
+    "addFailed": "示例数据未添加",
+    "addFailedBody": "示例数据未添加。没有写入任何内容。",
+    "cancel": "取消",
+    "removeSubtitle": "{count, plural, other {{date} 添加的 # 条记录}}",
+    "removeBody": "Adminium 记录了它添加的每一条记录，因此只会删除这些记录。",
+    "planFailed": "无法读取将要删除的内容",
+    "removes": "将删除",
+    "kept": "将保留",
+    "usedBy": "{count, plural, other {被你自己的 # 条记录使用}}",
+    "keepChanged": "保留我修改过的记录",
+    "changedList": "{count, plural, other {你编辑过的 # 条示例记录：{names}。}}",
+    "removeFailed": "示例数据未删除",
+    "removeConfirm": "删除",
+    "banner": "示例数据已加载",
+    "bannerRemove": "删除"
+  },
+  "appPublicAccess": {
+    "title": "公开访问",
+    "intro": "该应用的客户界面需要：",
+    "availability": "读取 {table} 的空闲或已满时段",
+    "claim": "按 {fields} 查找自己的 {table}",
+    "create": "添加到 {table}",
+    "update": "更改 {table}",
+    "read": "读取 {table}",
+    "later": "将在以后的版本中提供",
+    "allow": "允许此公开访问",
+    "helper": "以后可以在 API 密钥页面中缩小范围。",
+    "cannotGrant": "只有可以管理 API 密钥的人才能允许它，因此该应用将在没有它的情况下安装。",
+    "warning": {
+      "apiOff": "公开 API 已关闭，在开启之前这些都不会响应。",
+      "originSelf": "允许的来源不包括 “self”，因此该应用在此服务器上的页面无法调用它。",
+      "timeZone": "此数据库未设置时区，而公开 API 需要时区来处理日期和时间。",
+      "noEmail": "尚未设置电子邮件，因此不会向客人发送确认。"
+    },
+    "createConfirmed": "添加到 {table}，并收到确认邮件"
   }
 } as const;

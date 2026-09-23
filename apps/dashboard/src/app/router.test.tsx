@@ -103,6 +103,39 @@ describe('route guards', () => {
   });
 });
 
+describe('someone who opens only an app’s own screens', () => {
+  it('is sent to those screens instead of the dashboard', async () => {
+    const assign = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...original, assign } });
+    try {
+      vi.stubGlobal('WebSocket', FakeWebSocket);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(() =>
+          Promise.resolve(
+            jsonResponse(403, {
+              error: { code: 'APP_SCREENS_ONLY', message: 'screens only', requestId: 'r', details: { openUrl: '/apps/pos/staff/' } },
+            }),
+          ),
+        ),
+      );
+      const queryClient = createQueryClient();
+      const router = createAppRouter(queryClient, { history: createMemoryHistory({ initialEntries: ['/'] }) });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>,
+      );
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('/apps/pos/staff/'));
+      // No "no access" screen on the way out.
+      expect(screen.queryByText(/don’t have access/)).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: original });
+    }
+  });
+});
+
 describe('system-state routes', () => {
   it('serves /state/$stateId publicly', async () => {
     const { fetchMock } = await renderAt('/state/maintenance', { authed: false });

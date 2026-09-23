@@ -819,5 +819,19 @@ export default {
     "button": "Åbn online",
     "footer": "Du modtager denne e-mail, fordi {business} tegnede dette bilag til dig.",
     "attachment": "Bilaget"
+  },
+  "bookingConfirmation": {
+    "name": "Bookingbekræftelse",
+    "subject": "Dit bord hos {venue} er booket",
+    "preheader": "Booking {code} · {when} · {party} personer",
+    "heading": "Dit bord er booket",
+    "intro": "Vi holder et bord til dig hos {venue}. Vis denne kode, når du ankommer.",
+    "codeLabel": "Bookingkode",
+    "when": "Hvornår: {when}",
+    "party": "Personer: {party}",
+    "guest": "Navn: {name}",
+    "action": "Administrer din booking",
+    "cancel": "Du kan afbestille online op til {cancelHours} timer før.",
+    "footer": "{venue} · {address} · {phone}"
   }
 } as const;

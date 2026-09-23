@@ -23,6 +23,11 @@ export interface BrandingData {
   logoUrl: string | null;
   /** Whether the sidebar shows the `v<version>` chip. */
   showVersion: boolean;
+  /**
+   * On an address mapped to an app's staff screens: the app, its name, and
+   * the venue's (null while the workspace keeps its default name).
+   */
+  surface?: { appKey: string; appName: string; name: string | null } | undefined;
 }
 
 export const BRANDING_QUERY_KEY = ['branding'] as const;

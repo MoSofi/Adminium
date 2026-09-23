@@ -618,9 +618,15 @@
         "pageWarnings": "Einige Seiten dieser App kommen ohne Tabelle an"
       },
       "done": {
-        "title": "Installiert",
         "body": "{key} wird jetzt ausgeliefert. Wählen Sie unten, wo die Mitarbeiterseite erscheint.",
-        "schema": "Tabellen angelegt: {created} · wiederverwendet: {reused}"
+        "titleApp": "{app} ist installiert",
+        "tablesCreated": "In {connection} angelegte Tabellen",
+        "tablesKept": "Unverändert verwendete Tabellen",
+        "pages": "Erzeugte Seiten",
+        "sampleNotAdded": "nicht hinzugefügt",
+        "sampleAdding": "wird hinzugefügt…",
+        "sampleAdded": "hinzugefügt",
+        "sampleLater": "Sie können sie später auf der Seite der App hinzufügen."
       },
       "cancel": "Abbrechen",
       "back": "Zurück",
@@ -641,6 +647,68 @@
       "uploaded": {
         "hint": "Aus der manifest.json im hochgeladenen Paket gelesen. Es wird nichts angelegt, bevor Sie den Schemaplan bestätigen.",
         "replace": "Anderes Paket hochladen"
+      },
+      "check": {
+        "title": "Tabellen prüfen",
+        "hint": "{app} legt diese in {connection} an. Nichts ändert sich, bevor Sie auf Installieren klicken.",
+        "summaryNew": "{count} neu",
+        "summaryEarlier": "{count} aus Ihrer früheren Installation",
+        "summaryShared": "{count} mit einer anderen App geteilt",
+        "summaryTaken": "{count, plural, one {# Name vergeben} other {# Namen vergeben}}",
+        "altPrefixInUse": "Geprüft mit dem Präfix {prefix}.",
+        "usualPrefix": "Das übliche Präfix verwenden",
+        "badgeNew": "Neu",
+        "badgeEarlier": "Ihre aus einer früheren Installation",
+        "badgeShared": "Geteilt mit {app}",
+        "badgeTaken": "Name vergeben",
+        "columns": "{count, plural, one {# Spalte} other {# Spalten}}",
+        "keep": "Verwenden und die Daten behalten",
+        "sharedNote": "{app} nutzt diese Tabelle ebenfalls. Beide Apps lesen und schreiben weiterhin dieselben Zeilen.",
+        "earlierNote": "Adminium hat diese Tabelle bei einer früheren Installation von {app} angelegt.",
+        "createPreview": "Vorschau des Anlegens",
+        "addsColumns": "{count, plural, one {Fügt # Spalte hinzu:} other {Fügt # Spalten hinzu:}}",
+        "widens": "Macht {column} breiter, von {from} auf {to}.",
+        "setIdentity": "{column} nummeriert neue Zeilen selbst.",
+        "enumValues": "{column} akzeptiert zusätzlich {values}.",
+        "noLoss": "Keine Spalte wird entfernt und keine Daten gehen verloren.",
+        "reuseNote": "Die App liest und schreibt die vorhandenen Zeilen.",
+        "renameTitle": "Die vorhandene Tabelle umbenennen, um Platz zu machen",
+        "renameNote": "Für die App wird eine neue {table} angelegt.",
+        "renameField": "Neuer Name für die vorhandene Tabelle",
+        "renameFieldNote": "Adminium repariert seine eigenen Seiten und Regeln, die auf den alten Namen verwiesen.",
+        "prefixTitle": "Ein anderes Präfix für diese App verwenden",
+        "prefixNote": "Gilt für alle Tabellen der App auf einmal.",
+        "prefixField": "Präfix",
+        "prefixFieldNote": "{count, plural, one {Die Tabelle wird erneut geprüft.} other {Alle # Tabellen werden erneut geprüft.}}",
+        "takenIntro": "{table} existiert bereits und wurde von Hand angelegt. Wählen Sie, was damit geschehen soll.",
+        "takenIntroShort": "Was mit {table} geschehen soll",
+        "pickFirst": "Wählen Sie vor der Installation, was mit {table} geschehen soll.",
+        "checkFirst": "Prüfen Sie die Tabellen vor der Installation erneut.",
+        "nothingYet": "Nichts ändert sich, bevor Sie auf Installieren klicken.",
+        "again": "Erneut prüfen",
+        "adoptedNote": "Eine frühere Installation von {app} hat diese Tabelle so verwendet, wie sie sie vorfand."
+      },
+      "running": {
+        "title": "{app} wird installiert",
+        "hint": "Schreibt in {connection}.",
+        "tables": "Tabellen",
+        "pages": "Seiten"
+      },
+      "stopped": {
+        "failed": "fehlgeschlagen",
+        "notStarted": "nicht gestartet",
+        "atTables": "Das Anlegen der Tabellen ist fehlgeschlagen, daher lief danach nichts mehr.",
+        "atIntrospect": "Die Tabellen wurden angelegt. Das erneute Einlesen ist fehlgeschlagen, daher lief danach nichts mehr.",
+        "atPages": "Die Tabellen wurden angelegt. Das Anlegen der Seiten ist fehlgeschlagen, daher lief danach nichts mehr.",
+        "atFinish": "Die Tabellen und Seiten wurden angelegt. Der Abschluss der Installation ist fehlgeschlagen.",
+        "title": "Die Installation wurde mittendrin angehalten",
+        "created": "{count} angelegt",
+        "made": "angelegt",
+        "said": "Was die Datenbank meldete",
+        "saidAbout": "Was die Datenbank zu {table} meldete",
+        "resume": "Nichts wurde entfernt. Ein erneuter Versuch macht dort weiter, wo es angehalten hat.",
+        "retry": "Erneut versuchen",
+        "back": "Zurück zum Schemaplan"
       }
     },
     "installed": {
@@ -649,11 +717,6 @@
       "emptyTitle": "Noch keine Apps installiert",
       "emptyBody": "Laden Sie ein gebautes Oberflächenpaket hoch, um eine zu installieren. Hier installierte Apps werden sofort ausgeliefert — ohne Neustart, anders als bei einem Verzeichnis.",
       "uninstall": "Deinstallieren",
-      "confirmTitle": "Diese App deinstallieren?",
-      "confirmBody": "Ihre Oberflächen werden nicht mehr ausgeliefert und das Paket wird gelöscht. Tabellen, die sie in Ihrer Datenbank angelegt hat, bleiben unangetastet.",
-      "confirmPrompt": "Geben Sie zur Bestätigung {key} ein",
-      "confirmCancel": "Abbrechen",
-      "confirmClose": "Schließen",
       "stagedTitle": "Hochgeladen, aber nicht installiert",
       "stagedHint": "Verwerfen Sie, wogegen Sie sich entschieden haben, oder laden Sie denselben Schlüssel erneut hoch, um ihn zu ersetzen.",
       "discard": "Verwerfen",
@@ -665,7 +728,10 @@
       "missingBody": "Ihre Dateien liegen nicht auf diesem Server, daher wird sie nicht ausgeliefert. Installieren Sie dieselbe Version erneut oder deinstallieren Sie sie.",
       "update": "Aktualisieren",
       "discardFailed": "Der Upload wurde nicht verworfen",
-      "uninstallFailed": "Die App wurde nicht deinstalliert"
+      "renamed": "Tabellen in {prefix}… umbenannt",
+      "oldNames": "Diese Installation verwendet die alten Tabellennamen.",
+      "oldNamesWhy": "Sie wurden vor den Präfixen angelegt.",
+      "renameTo": "In {prefix}… umbenennen"
     },
     "instances": {
       "add": "Instanz hinzufügen",
@@ -716,7 +782,11 @@
       "confirm": "Aktualisieren",
       "close": "Schließen",
       "done": "{app} auf v{version} aktualisiert",
-      "missingColumns": "Es fehlen: {tables}."
+      "missingColumns": "Es fehlen: {tables}.",
+      "checkSubtitle": "Prüfen Sie die Tabellen, die diese Version verwendet.",
+      "pickFirst": "Wählen Sie vor dem Update, was mit {table} geschehen soll.",
+      "checkFirst": "Prüfen Sie die Tabellen vor dem Update erneut.",
+      "nothingYet": "Nichts ändert sich, bevor Sie auf Aktualisieren klicken."
     },
     "veto": {
       "title": "Diese Installation kann nicht online suchen",
@@ -731,6 +801,18 @@
       "failed": "Die Spalten konnten nicht hinzugefügt werden",
       "valuesFailed": "Die Spalten wurden hinzugefügt, aber ihre erlaubten Werte konnten nicht gespeichert werden",
       "confirm": "Spalten hinzufügen und aktualisieren"
+    },
+    "rename": {
+      "title": "Tabellen in {prefix}… umbenennen",
+      "subtitle": "{count, plural, one {# Tabelle in {connection}} other {# Tabellen in {connection}}}",
+      "close": "Schließen",
+      "body": "Diese Installation stammt aus der Zeit vor den Präfixen. Das Umbenennen gibt jeder Tabelle das Präfix der App, damit {app} seine eigenen Tabellen erkennt.",
+      "planFailed": "Die Umbenennung konnte nicht geplant werden",
+      "refused": "Diese Tabellen können hier nicht umbenannt werden",
+      "failed": "Die Tabellen wurden nicht umbenannt",
+      "repair": "Adminium aktualisiert auch seine eigenen Seiten und Regeln, die auf die alten Namen verweisen.",
+      "cancel": "Abbrechen",
+      "confirm": "Tabellen umbenennen"
     }
   },
   "hub": {
@@ -1285,7 +1367,8 @@
       "visible": "In der Seitenleiste anzeigen",
       "visibleHint": "Eine ausgeblendete Seite bleibt über ihre URL erreichbar, wenn man den Link kennt.",
       "width": "Inhaltsbreite",
-      "widthHint": "Wie breit die Inhaltsspalte der Seite auf einem großen Bildschirm werden darf."
+      "widthHint": "Wie breit die Inhaltsspalte der Seite auf einem großen Bildschirm werden darf.",
+      "groupApp": "Im eigenen Bereich seiner App"
     },
     "filters": {
       "add": "Filter hinzufügen",
@@ -1546,6 +1629,10 @@
       "ungrouped": {
         "body": "Diese Seiten funktionieren unter ihrer URL, erscheinen aber nirgends in der Seitenleiste. Öffnen Sie jede einzeln und wählen Sie eine Gruppe.",
         "title": "Einige Seiten gehören zu keiner Gruppe der Seitenleiste"
+      },
+      "apps": {
+        "title": "In den Bereichen installierter Apps",
+        "body": "Jede App hat ihre Seiten in einem eigenen Bereich der Seitenleiste."
       }
     },
     "status": {
@@ -1829,7 +1916,20 @@
       "optionsPickList": "Liste wählen…",
       "optionsSource": "Erlaubte Werte",
       "optionsSourceHelp": "Eine Liste wird einmal in Studio geschrieben und von jeder Spalte verwendet, die sie nennt.",
-      "optionsValues": "Die Werte"
+      "optionsValues": "Die Werte",
+      "decided": {
+        "title": "Von Adminium festgelegt",
+        "help": "Adminium füllt dies bei jedem Schreibvorgang aus, und ein öffentlicher Endpunkt kann es nie von Besuchern setzen lassen.",
+        "copy": "Kopiert aus {from} der Zeile, auf die {via} verweist",
+        "copyAlways": "immer, egal was der Schreibende angibt",
+        "copyDefault": "sofern der Schreibende keinen Wert angibt",
+        "sequence": "Die nächste Nummer der Reihe nach, ab {start}",
+        "code": "Ein zufälliger Code wie {example}",
+        "remove": "Diese Regel entfernen",
+        "rollup": "Die Summe von {sum} über seine Zeilen in {from}",
+        "rollupTimes": "Die Summe von {sum} × {times} über seine Zeilen in {from}"
+      },
+      "venueLocal": "Eine hier ohne Zeitzone geschriebene Zeit ist die Ortszeit des Lokals."
     },
     "saveFailed": "Speichern fehlgeschlagen: {message}",
     "subtitle": "{tables} Tabellen · {applied} Überschreibungen angewendet",
@@ -2745,5 +2845,169 @@
     "subtitle": "Verwalten Sie den programmatischen Zugriff auf Ihren Workspace",
     "summary": "{endpoints, plural, one {# Endpunkt} other {# Endpunkte}} · {methods, plural, one {# Methode} other {# Methoden}}",
     "title": "API-Schlüssel & Tokens"
+  },
+  "surfacePages": {
+    "guest": {
+      "title": "{app} ist gerade nicht verfügbar.",
+      "body": "Bitte versuchen Sie es später noch einmal."
+    },
+    "staff": {
+      "appOff": "{app} ist vorübergehend ausgeschaltet.",
+      "sideOff": "Die Mitarbeiterbildschirme von {app} sind ausgeschaltet.",
+      "advice": "Bitten Sie Ihre Leitung, es unter {app} → Einstellungen einzuschalten.",
+      "signOut": "Abmelden",
+      "noAccess": "Dieses Konto kann {app} nicht öffnen.",
+      "noAccessAdvice": "Bitten Sie Ihre Führungskraft um eine Rolle, die {app} öffnet."
+    },
+    "notFound": {
+      "title": "Seite nicht gefunden",
+      "body": "Unter dieser Adresse gibt es nichts. Prüfen Sie den Link und versuchen Sie es erneut."
+    }
+  },
+  "appSettings": {
+    "notInstalled": "Diese App ist nicht installiert",
+    "backToApps": "Zurück zu den Apps",
+    "statusDisabled": "Deaktiviert",
+    "statusUpdate": "Update verfügbar · {version}",
+    "statusActive": "Aktiv",
+    "version": "Version {version} · von {publisher}",
+    "open": "App öffnen",
+    "upToDate": "Aktuell",
+    "update": "Aktualisieren",
+    "saveFailed": "Die Änderung wurde nicht gespeichert",
+    "screens": "Bildschirmgruppen",
+    "sideStaff": "Mitarbeiterbildschirme",
+    "sideCustomer": "Kundenbildschirme",
+    "sideAppOff": "Die ganze App ist ausgeschaltet.",
+    "staffOnHelp": "Ihr Team meldet sich hier mit eigenen Konten an.",
+    "customerOnHelp": "Kundinnen und Kunden nutzen diese Seiten. Sie sind öffentlich.",
+    "staffOffHelp": "Diese Bildschirme werden nicht ausgeliefert. Nichts wurde gelöscht.",
+    "customerOffHelp": "Kunden sehen „nicht verfügbar“. Nichts wurde gelöscht.",
+    "sideSwitch": "{side}, an oder aus",
+    "on": "An",
+    "off": "Aus",
+    "whereItLives": "Wo sie läuft",
+    "ownAddress": "Unter eigener Adresse",
+    "insideDashboard": "Im Dashboard",
+    "copyAddress": "Adresse kopieren",
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "addDomain": "Domain hinzufügen",
+    "preview": "Vorschau",
+    "domainField": "Domain",
+    "addDomainSave": "Hinzufügen",
+    "data": "Daten",
+    "noTables": "Diese App nutzt keine Tabellen.",
+    "rows": "{count, plural, one {# Zeile} other {# Zeilen}}",
+    "activity": {
+      "staged": "Hochgeladen von {actor}",
+      "installed": "Installiert von {actor}",
+      "updated": "Aktualisiert von {actor}",
+      "disabled": "Ausgeschaltet von {actor}",
+      "enabled": "Eingeschaltet von {actor}",
+      "settings": "Einstellungen geändert von {actor}",
+      "domains": "Domains geändert von {actor}",
+      "instances": "Instanzen geändert von {actor}",
+      "renamed": "Tabellen umbenannt von {actor}",
+      "title": "Aktivität",
+      "none": "Noch nichts.",
+      "sampleAdded": "Beispieldaten hinzugefügt von {actor}",
+      "sampleRemoved": "Beispieldaten entfernt von {actor}"
+    },
+    "danger": "Gefahrenzone",
+    "disabledNote": "Die App ist ausgeschaltet. Aktivieren stellt genau das wieder her, was da war.",
+    "disableNote": "Blendet die App überall aus und stoppt ihre Endpunkte. Nichts wird gelöscht.",
+    "enable": "Aktivieren",
+    "disable": "Deaktivieren",
+    "uninstallNote": "Entfernt die Dateien und Seiten der App. Tabellen und Daten bleiben.",
+    "uninstall": "Deinstallieren",
+    "disableTitle": "{app} deaktivieren?",
+    "close": "Schließen",
+    "nothingDeleted": "Nichts wird gelöscht.",
+    "enableBrings": "Aktivieren stellt genau das wieder her, was da war.",
+    "cancel": "Abbrechen",
+    "disableLine1": "Ihr Bereich wird für alle ausgeblendet.",
+    "disableLine2": "Ihre Bildschirme und eigenen Endpunkte antworten nicht mehr.",
+    "disableLine3": "Tabellen, Datensätze und Einstellungen bleiben, wie sie sind.",
+    "crumb": "Apps",
+    "sampleLedger": "Adminiums Liste der Beispieldatensätze"
+  },
+  "uninstall": {
+    "files": "Die Dateien der App",
+    "pages": "{count, plural, one {# Seite} other {# Seiten}}",
+    "keys": "{count, plural, one {Ihr Browser-Schlüssel} other {Ihre # Browser-Schlüssel}}",
+    "settings": "Ihre Einstellungen",
+    "hosts": "{count, plural, one {Ihre Domain} other {Ihre # Domains}}",
+    "tables": "{count, plural, one {# Tabelle mit allen Datensätzen} other {# Tabellen mit allen Datensätzen}}",
+    "editedPages": "Seiten, die Sie bearbeitet haben, bleiben als normale Seiten",
+    "audit": "Ihre Einträge im Audit-Log",
+    "title": "{app} deinstallieren?",
+    "close": "Schließen",
+    "planFailed": "Was entfernt würde, konnte nicht gelesen werden",
+    "removed": "Entfernt",
+    "kept": "Behalten",
+    "roleCascade": "Das Entfernen dieser Rolle nimmt sie {members, plural, one {# Person} other {# Personen}} und löscht {keys, plural, one {# daran gebundenen API-Schlüssel} other {# daran gebundene API-Schlüssel}}. Diese Schlüssel funktionieren sofort nicht mehr.",
+    "dropTitle": "Auch ihre Tabellen und Daten löschen",
+    "dropBody": "{count, plural, one {Löscht die # Tabelle, die sie angelegt hat, mit allen Datensätzen.} other {Löscht die # Tabellen, die sie angelegt hat, mit allen Datensätzen.}} Das kann nicht rückgängig gemacht werden.",
+    "typeKey": "Geben Sie zur Bestätigung den Schlüssel der App {key} ein.",
+    "failed": "Die App wurde nicht deinstalliert",
+    "cancel": "Abbrechen",
+    "confirmDrop": "Deinstallieren und Daten löschen",
+    "confirm": "Deinstallieren",
+    "rules": "{count, plural, one {Ihre Spaltenregel} other {Ihre # Spaltenregeln}}"
+  },
+  "sampleData": {
+    "title": "Beispieldaten",
+    "add": "Beispieldaten hinzufügen",
+    "installNote": "ein paar Beispieldatensätze in den Tabellen der App, damit es etwas zum Ausprobieren gibt. Sie lassen sich mit einem Klick wieder entfernen.",
+    "remove": "Beispieldaten entfernen",
+    "keptNotice": "{count, plural, one {# Beispieldatensatz bleibt: Ihre eigenen Datensätze nutzen ihn, oder Sie haben ihn geändert.} other {# Beispieldatensätze bleiben: Ihre eigenen Datensätze nutzen sie, oder Sie haben sie geändert.}}",
+    "notLoaded": "Nicht geladen",
+    "loadedCount": "Geladen · {count, plural, one {# Datensatz} other {# Datensätze}}",
+    "loaded": "Geladen · {count, plural, one {# Datensatz} other {# Datensätze}} · {date}",
+    "addSubtitle": "In {connection}",
+    "close": "Schließen",
+    "addBodyNoConnection": "Ein paar Beispieldatensätze in den Tabellen der App. Sonst wird nichts angetastet.",
+    "addBody": "Ein paar Beispieldatensätze in den Tabellen der App. Sonst wird in {connection} nichts angetastet.",
+    "images": "Bilder, abgelegt unter Dateien",
+    "total": "Gesamt",
+    "records": "{count, plural, one {# Datensatz} other {# Datensätze}}",
+    "none": "Diese App bringt keine Beispieldaten mit",
+    "adding": "Beispieldaten werden hinzugefügt",
+    "addFailed": "Die Beispieldaten wurden nicht hinzugefügt",
+    "addFailedBody": "Die Beispieldaten wurden nicht hinzugefügt. Es wurde nichts geschrieben.",
+    "cancel": "Abbrechen",
+    "removeSubtitle": "{count, plural, one {# Datensatz, hinzugefügt am {date}} other {# Datensätze, hinzugefügt am {date}}}",
+    "removeBody": "Adminium hat eine Liste aller hinzugefügten Datensätze geführt und entfernt genau diese.",
+    "planFailed": "Was entfernt würde, konnte nicht gelesen werden",
+    "removes": "Wird entfernt",
+    "kept": "Bleibt",
+    "usedBy": "{count, plural, one {genutzt von # Ihrer eigenen Datensätze} other {genutzt von # Ihrer eigenen Datensätze}}",
+    "keepChanged": "Die von mir geänderten behalten",
+    "changedList": "{count, plural, one {# Beispieldatensatz, den Sie bearbeitet haben: {names}.} other {# Beispieldatensätze, die Sie bearbeitet haben: {names}.}}",
+    "removeFailed": "Die Beispieldaten wurden nicht entfernt",
+    "removeConfirm": "Entfernen",
+    "banner": "Beispieldaten sind geladen",
+    "bannerRemove": "Entfernen"
+  },
+  "appPublicAccess": {
+    "title": "Öffentlicher Zugriff",
+    "intro": "Die Kundenseiten der App müssen:",
+    "availability": "Freie oder belegte Zeiten von {table} lesen",
+    "claim": "Eigene {table} anhand von {fields} abrufen",
+    "create": "Zu {table} hinzufügen",
+    "update": "{table} ändern",
+    "read": "{table} lesen",
+    "later": "kommt in einer späteren Version",
+    "allow": "Diesen öffentlichen Zugriff erlauben",
+    "helper": "Sie können ihn später auf der Seite „API-Schlüssel“ einschränken.",
+    "cannotGrant": "Nur wer API-Schlüssel verwalten darf, kann ihn erlauben – die App wird daher ohne ihn installiert.",
+    "warning": {
+      "apiOff": "Die öffentliche API ist ausgeschaltet, daher antwortet nichts davon, bis sie eingeschaltet ist.",
+      "originSelf": "Die erlaubten Ursprünge enthalten „self“ nicht, daher können die eigenen Seiten der App auf diesem Server sie nicht aufrufen.",
+      "timeZone": "Für diese Datenbank ist keine Zeitzone festgelegt, die die öffentliche API für Datums- und Zeitangaben braucht.",
+      "noEmail": "E-Mail ist nicht eingerichtet, daher erhalten Gäste keine Bestätigung."
+    },
+    "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten"
   }
 }

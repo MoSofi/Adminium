@@ -809,5 +809,19 @@
     "button": "Online öffnen",
     "footer": "Sie erhalten diese E-Mail, weil {business} diesen Beleg für Sie gezeichnet hat.",
     "attachment": "Der Beleg"
+  },
+  "bookingConfirmation": {
+    "name": "Buchungsbestätigung",
+    "subject": "Ihr Tisch bei {venue} ist reserviert",
+    "preheader": "Buchung {code} · {when} · {party} Personen",
+    "heading": "Ihr Tisch ist reserviert",
+    "intro": "Wir halten bei {venue} einen Tisch für Sie bereit. Zeigen Sie diesen Code bei Ihrer Ankunft.",
+    "codeLabel": "Buchungscode",
+    "when": "Wann: {when}",
+    "party": "Personen: {party}",
+    "guest": "Name: {name}",
+    "action": "Buchung verwalten",
+    "cancel": "Sie können bis {cancelHours} Stunden vorher online stornieren.",
+    "footer": "{venue} · {address} · {phone}"
   }
 }

@@ -14,11 +14,22 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { LOGICAL_TYPES, SEMANTIC_TAGS } from '@adminium/engine';
-import { Badge, FormField, Input, MonoText, SegmentedControl, Select, Switch, Tag, Textarea } from '@adminium/ui';
+import { Badge, Button, FormField, Input, MonoText, SegmentedControl, Select, Switch, Tag, Textarea } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
 import { optionListsQuery } from '../lists/optionListsApi.js';
-import { columnDisplayLabel, enumValuesFor, titleCase, type EffectiveColumn, type EffectiveModel, type EffectiveTable } from './model.js';
+import {
+  columnDisplayLabel,
+  enumValuesFor,
+  tableById,
+  tableDisplayLabel,
+  titleCase,
+  type EffectiveColumn,
+  type EffectiveModel,
+  type EffectiveTable,
+} from './model.js';
+import { labelText } from './overrides.js';
+import { useLabelLocale } from './useLabelLocale.js';
 import { overrideKey, type RemapBuffer } from './useRemapBuffer.js';
 
 /** Tone vocabulary shared with the grid enum chips (widgets column-spec). */
@@ -59,8 +70,10 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const enumKey = overrideKey({ op: 'column.enumLabels', ...target, value: { labels: {} } });
 
   const labelEntry = buffer.get(labelKey);
+  // A label the app installed in every language reads as this person's; typing replaces it.
+  const labelLocale = useLabelLocale();
   const stagedLabel =
-    labelEntry !== null && labelEntry.item.op === 'column.label' ? labelEntry.item.value.label : null;
+    labelEntry !== null && labelEntry.item.op === 'column.label' ? labelText(labelEntry.item.value.label, labelLocale) : null;
 
   const semanticEntry = buffer.get(semanticKey);
   const stagedSemantic =
@@ -139,6 +152,32 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
     options !== undefined && 'values' in options
       ? options.values.map((option) => option.value).join('\n')
       : '';
+  /*
+   * The columns Adminium decides — a copied price, a running number, a code.
+   * An app installs them; here they are said, and can be taken away.
+   */
+  const copyKey = overrideKey({ op: 'column.copy', ...target, value: { via: '', from: '' } });
+  const sequenceKey = overrideKey({ op: 'column.sequence', ...target, value: {} });
+  const codeKey = overrideKey({ op: 'column.code', ...target, value: { length: 4 } });
+  const rollupKey = overrideKey({ op: 'column.rollup', ...target, value: { from: '', via: '', sum: '' } });
+  const venueLocalKey = overrideKey({ op: 'column.venueLocal', ...target, value: { venueLocal: true } });
+  const venueLocal = buffer.get(venueLocalKey)?.item.op === 'column.venueLocal';
+  // The buffer's baseline is every stored row, so no entry is no rule — and
+  // one dropped in this session is gone until it is saved or reverted.
+  const decidedOf = <T,>(key: string, op: string): T | undefined => {
+    const entry = buffer.get(key);
+    return entry !== null && entry.item.op === op ? (entry.item.value as T) : undefined;
+  };
+  const copy = decidedOf<NonNullable<EffectiveColumn['copy']>>(copyKey, 'column.copy');
+  const sequence = decidedOf<NonNullable<EffectiveColumn['sequence']>>(sequenceKey, 'column.sequence');
+  const code = decidedOf<NonNullable<EffectiveColumn['code']>>(codeKey, 'column.code');
+  const rollup = decidedOf<NonNullable<EffectiveColumn['rollup']>>(rollupKey, 'column.rollup');
+  /** A child table by its display name, else its own. */
+  const tableName = (id: string) => {
+    const found = tableById(model, id);
+    return found === undefined ? id : tableDisplayLabel(found);
+  };
+
   const validationEntry = buffer.get(validationKey);
   const validation =
     (validationEntry !== null && validationEntry.item.op === 'column.validation'
@@ -567,6 +606,87 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
             </>
           )}
         </div>
+
+        {venueLocal ? (
+          <div className="flex items-center justify-between gap-2 text-[12.5px] text-fg" data-testid="rules-venue-local">
+            <span>{t('studio:remap.rules.venueLocal', 'A time written here without a zone is the venue’s own time.')}</span>
+            <Button size="sm" variant="ghost" onClick={() => buffer.drop(venueLocalKey)}>
+              {t('studio:remap.rules.decided.remove', 'Remove this rule')}
+            </Button>
+          </div>
+        ) : null}
+
+        {copy !== undefined || sequence !== undefined || code !== undefined || rollup !== undefined ? (
+          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3" data-testid="rules-decided">
+            <div className="flex flex-col">
+              <span className="text-body-sm font-semibold text-fg">
+                {t('studio:remap.rules.decided.title', 'Decided by Adminium')}
+              </span>
+              <span className="text-[11.5px] text-fg-muted">
+                {t(
+                  'studio:remap.rules.decided.help',
+                  'Adminium fills this in on every write, and a public endpoint can never let a visitor set it.',
+                )}
+              </span>
+            </div>
+            {[
+              copy === undefined
+                ? null
+                : {
+                    key: copyKey,
+                    text: `${t('studio:remap.rules.decided.copy', 'Copied from {from} of the row {via} points at', {
+                      from: copy.from,
+                      via: copy.via,
+                    })} — ${
+                      copy.mode === 'always'
+                        ? t('studio:remap.rules.decided.copyAlways', 'always, whatever the writer gives')
+                        : t('studio:remap.rules.decided.copyDefault', 'unless the writer gives a value')
+                    }`,
+                  },
+              sequence === undefined
+                ? null
+                : {
+                    key: sequenceKey,
+                    text: t('studio:remap.rules.decided.sequence', 'The next number in order, from {start}', {
+                      start: sequence.start ?? 1,
+                    }),
+                  },
+              rollup === undefined
+                ? null
+                : {
+                    key: rollupKey,
+                    text:
+                      rollup.times === undefined
+                        ? t('studio:remap.rules.decided.rollup', 'The total of {sum} over its rows in {from}', {
+                            sum: rollup.sum,
+                            from: tableName(rollup.from),
+                          })
+                        : t('studio:remap.rules.decided.rollupTimes', 'The total of {sum} × {times} over its rows in {from}', {
+                            sum: rollup.sum,
+                            times: rollup.times,
+                            from: tableName(rollup.from),
+                          }),
+                  },
+              code === undefined
+                ? null
+                : {
+                    key: codeKey,
+                    text: t('studio:remap.rules.decided.code', 'A random code like {example}', {
+                      example: `${code.prefix ?? ''}${'X'.repeat(code.length)}`,
+                    }),
+                  },
+            ].map((rule) =>
+              rule === null ? null : (
+                <div key={rule.key} className="flex items-center justify-between gap-2 text-[12.5px] text-fg">
+                  <span>{rule.text}</span>
+                  <Button size="sm" variant="ghost" onClick={() => buffer.drop(rule.key)}>
+                    {t('studio:remap.rules.decided.remove', 'Remove this rule')}
+                  </Button>
+                </div>
+              ),
+            )}
+          </div>
+        ) : null}
       </section>
 
       {isEnum ? (

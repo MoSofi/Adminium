@@ -85,6 +85,18 @@ export default {
       "submit": "验证",
       "invalid": "验证码不正确。请重试。",
       "failed": "验证失败。请检查网络连接后重试。"
+    },
+    "staff": {
+      "subtitle": "{app} · 员工登录",
+      "shared": "共用平板？每个人都用自己的账户登录。",
+      "remember": "在这台平板上保持登录",
+      "invalid": "无法登录。请检查邮箱和密码后重试。",
+      "rateLimited": "尝试次数过多。请一分钟后重试。",
+      "offline": "无法连接 {app}。请检查网络。",
+      "opening": "正在打开 {app}…",
+      "openingApp": "正在打开应用…",
+      "signedInAs": "已登录为 {name}",
+      "codeInvalid": "该验证码无效。请尝试应用中最新的验证码。"
     }
   },
   "nav": {
@@ -119,7 +131,11 @@ export default {
     "audit": "审计日志",
     "security": "密码与会话",
     "files": "文件",
-    "emptyWithheld": "尚未有页面共享给您的角色。请向管理员申请访问权限。"
+    "emptyWithheld": "尚未有页面共享给您的角色。请向管理员申请访问权限。",
+    "app": {
+      "openStaff": "打开员工界面",
+      "openStaffInstance": "打开员工界面 · {instance}"
+    }
   },
   "apps": {
     "frame": {
@@ -159,7 +175,8 @@ export default {
     "recent": "最近使用",
     "searching": "正在搜索记录…",
     "records": "记录",
-    "empty": "未找到与“{query}”匹配的结果"
+    "empty": "未找到与“{query}”匹配的结果",
+    "apps": "应用"
   },
   "shortcuts": {
     "title": "键盘快捷键",
@@ -262,6 +279,21 @@ export default {
       "title": "此连接已暂停",
       "body": "管理员暂停了此页面所用的数据库，因此当前不会加载数据。没有任何内容被删除 — 在 Studio → 数据连接中恢复该连接后即可恢复正常。",
       "secondary": "返回"
+    },
+    "appDisabled": {
+      "title": "此应用已关闭",
+      "body": "管理员关闭了此应用。没有删除任何内容——在 Studio → 应用 中开启即可。",
+      "secondary": "返回"
+    },
+    "screensOff": {
+      "title": "这些界面已关闭",
+      "body": "此应用的员工界面已关闭。没有删除任何内容——在 Studio → 应用 中开启即可。",
+      "secondary": "返回"
+    },
+    "appExternal": {
+      "title": "此应用在单独的地址打开",
+      "body": "它在自己的地址打开，而不是在仪表板内。",
+      "primary": "打开"
     }
   },
   "notFound": {
@@ -1554,7 +1586,8 @@ export default {
       "data": "数据",
       "operations": "运维",
       "workspace": "工作区",
-      "records": "页面与记录"
+      "records": "页面与记录",
+      "apps": "应用"
     },
     "column": {
       "actions": "操作",
@@ -1608,7 +1641,7 @@ export default {
       "exportsManage": "管理所有人的导出",
       "importsManage": "管理所有人的导入",
       "jobsManage": "启动和取消后台任务",
-      "manifestsManage": "安装并连接插件",
+      "manifestsManage": "安装并管理应用和插件",
       "jobsRead": "查看所有后台任务",
       "llmRun": "运行 AI 辅助",
       "pagesManage": "创建和整理页面",
@@ -1641,6 +1674,10 @@ export default {
       "import": "导入记录",
       "pagesEdit": "更改页面布局",
       "narrow": "另有 {count, plural, other {# 项}}针对单个页面或数据表的授权同样生效，叠加在下方各行之上。保存时会保留它们。"
+    },
+    "apps": {
+      "every": "打开所有应用的员工界面",
+      "one": "打开 {app} 的员工界面"
     }
   },
   "security": {

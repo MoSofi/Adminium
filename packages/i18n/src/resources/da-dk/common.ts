@@ -85,6 +85,18 @@ export default {
       "submit": "Bekræft",
       "invalid": "Koden virkede ikke. Prøv igen.",
       "failed": "Bekræftelse mislykkedes. Tjek din forbindelse, og prøv igen."
+    },
+    "staff": {
+      "subtitle": "{app} · Log ind for personale",
+      "shared": "Delt tablet? Alle logger ind med deres egen konto.",
+      "remember": "Forbliv logget ind på denne tablet",
+      "invalid": "Vi kunne ikke logge dig ind. Tjek din e-mail og adgangskode, og prøv igen.",
+      "rateLimited": "For mange forsøg. Prøv igen om et minut.",
+      "offline": "Kan ikke nå {app}. Tjek netværket.",
+      "opening": "Åbner {app}…",
+      "openingApp": "Åbner appen…",
+      "signedInAs": "Logget ind som {name}",
+      "codeInvalid": "Koden virkede ikke. Prøv den nyeste fra din app."
     }
   },
   "nav": {
@@ -119,7 +131,11 @@ export default {
     "audit": "Auditlog",
     "security": "Adgangskode og sessioner",
     "files": "Filer",
-    "emptyWithheld": "Der er endnu ikke delt nogen sider med din rolle. Bed en administrator om adgang."
+    "emptyWithheld": "Der er endnu ikke delt nogen sider med din rolle. Bed en administrator om adgang.",
+    "app": {
+      "openStaff": "Åbn personaleskærmene",
+      "openStaffInstance": "Åbn personaleskærmene · {instance}"
+    }
   },
   "apps": {
     "frame": {
@@ -159,7 +175,8 @@ export default {
     "recent": "Seneste",
     "searching": "Søger i poster…",
     "records": "Poster",
-    "empty": "Ingen resultater for „{query}“"
+    "empty": "Ingen resultater for „{query}“",
+    "apps": "Apps"
   },
   "shortcuts": {
     "title": "Tastaturgenveje",
@@ -262,6 +279,21 @@ export default {
       "title": "Denne forbindelse er sat på pause",
       "body": "En administrator har sat databasen bag denne side på pause, så den indlæser ikke data lige nu. Intet er slettet – det hele er tilbage, så snart forbindelsen genoptages under Studio → Dataforbindelser.",
       "secondary": "Gå tilbage"
+    },
+    "appDisabled": {
+      "title": "Denne app er slået fra",
+      "body": "En administrator har slået appen fra. Intet er slettet — slå den til i Studio → Apps.",
+      "secondary": "Gå tilbage"
+    },
+    "screensOff": {
+      "title": "Disse skærme er slået fra",
+      "body": "Personaleskærmene i denne app er slået fra. Intet er slettet — slå dem til i Studio → Apps.",
+      "secondary": "Gå tilbage"
+    },
+    "appExternal": {
+      "title": "Denne app åbner for sig selv",
+      "body": "Den åbner på sin egen adresse, ikke i dashboardet.",
+      "primary": "Åbn den"
     }
   },
   "notFound": {
@@ -1554,7 +1586,8 @@ export default {
       "data": "Data",
       "operations": "Drift",
       "workspace": "Arbejdsområde",
-      "records": "Sider og poster"
+      "records": "Sider og poster",
+      "apps": "Apps"
     },
     "column": {
       "actions": "Handlinger",
@@ -1608,7 +1641,7 @@ export default {
       "exportsManage": "Administrér alles eksporter",
       "importsManage": "Administrér alles importer",
       "jobsManage": "Start og annullér baggrundsjob",
-      "manifestsManage": "Installer og forbind tilføjelser",
+      "manifestsManage": "Installer og administrer apps og tilføjelser",
       "jobsRead": "Se alle baggrundsjob",
       "llmRun": "Kør AI-assistance",
       "pagesManage": "Opret og organisér sider",
@@ -1641,6 +1674,10 @@ export default {
       "import": "Importere poster",
       "pagesEdit": "Ændre sidelayout",
       "narrow": "{count, plural, one {# tilladelse} other {# tilladelser}} på en enkelt side eller tabel gælder også, ud over rækkerne nedenfor. De bevares, når du gemmer."
+    },
+    "apps": {
+      "every": "Åbn alle apps’ personaleskærme",
+      "one": "Åbn personaleskærmene i {app}"
     }
   },
   "security": {

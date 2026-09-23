@@ -618,9 +618,15 @@
         "pageWarnings": "Nogle af appens sider kommer uden en tabel"
       },
       "done": {
-        "title": "Installeret",
         "body": "{key} serveres nu. Vælg nedenfor, hvor medarbejdersiden skal vises.",
-        "schema": "Tabeller oprettet: {created} · genbrugt: {reused}"
+        "titleApp": "{app} er installeret",
+        "tablesCreated": "Tabeller oprettet i {connection}",
+        "tablesKept": "Tabeller brugt, som de var",
+        "pages": "Genererede sider",
+        "sampleNotAdded": "ikke tilføjet",
+        "sampleAdding": "tilføjer…",
+        "sampleAdded": "tilføjet",
+        "sampleLater": "Du kan tilføje dem senere fra appens side."
       },
       "cancel": "Annullér",
       "back": "Tilbage",
@@ -641,6 +647,68 @@
       "uploaded": {
         "hint": "Læst fra manifest.json i den pakke, du uploadede. Der oprettes intet, før du bekræfter skemaplanen.",
         "replace": "Upload en anden pakke"
+      },
+      "check": {
+        "title": "Tjek tabellerne",
+        "hint": "{app} opretter disse i {connection}. Intet ændres, før du trykker på Installer.",
+        "summaryNew": "{count} nye",
+        "summaryEarlier": "{count} fra din tidligere installation",
+        "summaryShared": "{count} delt med en anden app",
+        "summaryTaken": "{count, plural, one {# navn optaget} other {# navne optaget}}",
+        "altPrefixInUse": "Tjekket med præfikset {prefix}.",
+        "usualPrefix": "Brug det sædvanlige præfiks",
+        "badgeNew": "Ny",
+        "badgeEarlier": "Din fra en tidligere installation",
+        "badgeShared": "Delt med {app}",
+        "badgeTaken": "Navn optaget",
+        "columns": "{count, plural, one {# kolonne} other {# kolonner}}",
+        "keep": "Brug den og behold dens data",
+        "sharedNote": "{app} bruger også denne tabel. Begge apps bliver ved med at læse og skrive de samme rækker.",
+        "earlierNote": "Adminium oprettede denne tabel ved en tidligere installation af {app}.",
+        "createPreview": "Forhåndsvisning af oprettelse",
+        "addsColumns": "{count, plural, one {Tilføjer # kolonne:} other {Tilføjer # kolonner:}}",
+        "widens": "Gør {column} bredere, fra {from} til {to}.",
+        "setIdentity": "{column} nummererer selv nye rækker.",
+        "enumValues": "{column} accepterer også {values}.",
+        "noLoss": "Ingen kolonne fjernes, og ingen data går tabt.",
+        "reuseNote": "Appen læser og skriver de rækker, der allerede er der.",
+        "renameTitle": "Omdøb den eksisterende tabel, så den er af vejen",
+        "renameNote": "En ny {table} oprettes til appen.",
+        "renameField": "Nyt navn til den eksisterende tabel",
+        "renameFieldNote": "Adminium reparerer sine egne sider og regler, der pegede på det gamle navn.",
+        "prefixTitle": "Brug et andet præfiks til denne app",
+        "prefixNote": "Gælder for alle appens tabeller på én gang.",
+        "prefixField": "Præfiks",
+        "prefixFieldNote": "{count, plural, one {Tabellen bliver tjekket igen.} other {Alle # tabeller bliver tjekket igen.}}",
+        "takenIntro": "{table} findes allerede og blev lavet i hånden. Vælg, hvad der skal ske med den.",
+        "takenIntroShort": "Hvad der skal ske med {table}",
+        "pickFirst": "Vælg, hvad der skal ske med {table}, før du installerer.",
+        "checkFirst": "Tjek tabellerne igen, før du installerer.",
+        "nothingYet": "Intet ændres, før du trykker på Installer.",
+        "again": "Tjek igen",
+        "adoptedNote": "En tidligere installation af {app} brugte denne tabel, som den fandt den."
+      },
+      "running": {
+        "title": "Installerer {app}",
+        "hint": "Skriver til {connection}.",
+        "tables": "Tabeller",
+        "pages": "Sider"
+      },
+      "stopped": {
+        "failed": "mislykkedes",
+        "notStarted": "ikke startet",
+        "atTables": "Oprettelsen af tabellerne mislykkedes, så intet efter det blev kørt.",
+        "atIntrospect": "Tabellerne blev oprettet. Genindlæsningen af dem mislykkedes, så intet efter det blev kørt.",
+        "atPages": "Tabellerne blev oprettet. Oprettelsen af siderne mislykkedes, så intet efter det blev kørt.",
+        "atFinish": "Tabellerne og siderne blev oprettet. Afslutningen af installationen mislykkedes.",
+        "title": "Installationen stoppede halvvejs",
+        "created": "{count} oprettet",
+        "made": "oprettet",
+        "said": "Hvad databasen svarede",
+        "saidAbout": "Hvad databasen svarede om {table}",
+        "resume": "Intet blev fjernet. Prøv igen fortsætter, hvor den stoppede.",
+        "retry": "Prøv igen",
+        "back": "Tilbage til skemaplan"
       }
     },
     "installed": {
@@ -649,11 +717,6 @@
       "emptyTitle": "Ingen apps installeret endnu",
       "emptyBody": "Upload en bygget fladepakke for at installere en. Apps installeret her serveres med det samme — uden genstart, i modsætning til en mappe.",
       "uninstall": "Afinstallér",
-      "confirmTitle": "Afinstallér denne app?",
-      "confirmBody": "Dens flader serveres ikke længere, og pakken slettes. Tabeller, den har oprettet i din database, røres ikke.",
-      "confirmPrompt": "Skriv {key} for at bekræfte",
-      "confirmCancel": "Annullér",
-      "confirmClose": "Luk",
       "stagedTitle": "Uploadet, men ikke installeret",
       "stagedHint": "Kassér den, du har fravalgt, eller upload den samme nøgle igen for at erstatte den.",
       "discard": "Kassér",
@@ -665,7 +728,10 @@
       "missingBody": "Dens filer findes ikke på denne server, så den serveres ikke. Installer den samme version igen, eller afinstaller den.",
       "update": "Opdatér",
       "discardFailed": "Uploadet blev ikke kasseret",
-      "uninstallFailed": "Appen blev ikke afinstalleret"
+      "renamed": "Tabeller omdøbt til {prefix}…",
+      "oldNames": "Denne installation bruger de gamle tabelnavne.",
+      "oldNamesWhy": "De blev lavet før præfikser.",
+      "renameTo": "Omdøb til {prefix}…"
     },
     "instances": {
       "add": "Tilføj en instans",
@@ -716,7 +782,11 @@
       "confirm": "Opdatér",
       "close": "Luk",
       "done": "{app} opdateret til v{version}",
-      "missingColumns": "Mangler: {tables}."
+      "missingColumns": "Mangler: {tables}.",
+      "checkSubtitle": "Tjek de tabeller, denne version bruger.",
+      "pickFirst": "Vælg, hvad der skal ske med {table}, før du opdaterer.",
+      "checkFirst": "Tjek tabellerne igen, før du opdaterer.",
+      "nothingYet": "Intet ændres, før du trykker på Opdater."
     },
     "veto": {
       "title": "Denne installation kan ikke gennemse online",
@@ -731,6 +801,18 @@
       "failed": "Kolonnerne kunne ikke tilføjes",
       "valuesFailed": "Kolonnerne blev tilføjet, men deres tilladte værdier kunne ikke gemmes",
       "confirm": "Tilføj kolonnerne og opdater"
+    },
+    "rename": {
+      "title": "Omdøb tabeller til {prefix}…",
+      "subtitle": "{count, plural, one {# tabel i {connection}} other {# tabeller i {connection}}}",
+      "close": "Luk",
+      "body": "Denne installation blev lavet før præfikser. Omdøbningen giver hver tabel appens præfiks, så {app} kan genkende sine egne tabeller.",
+      "planFailed": "Omdøbningen kunne ikke planlægges",
+      "refused": "Disse tabeller kan ikke omdøbes her",
+      "failed": "Tabellerne blev ikke omdøbt",
+      "repair": "Adminium opdaterer også sine egne sider og regler, der peger på de gamle navne.",
+      "cancel": "Annuller",
+      "confirm": "Omdøb tabeller"
     }
   },
   "hub": {
@@ -1285,7 +1367,8 @@
       "visible": "Vis i sidepanelet",
       "visibleHint": "En skjult side kan stadig tilgås på sin URL af alle med linket.",
       "width": "Indholdsbredde",
-      "widthHint": "Hvor bred sidens indholdskolonne må blive på en stor skærm."
+      "widthHint": "Hvor bred sidens indholdskolonne må blive på en stor skærm.",
+      "groupApp": "I sin apps egen sektion"
     },
     "filters": {
       "add": "Tilføj et filter",
@@ -1546,6 +1629,10 @@
       "ungrouped": {
         "body": "Siderne virker på deres URL, men vises ingen steder i sidepanelet. Åbn hver enkelt og vælg en gruppe.",
         "title": "Nogle sider hører ikke til nogen gruppe"
+      },
+      "apps": {
+        "title": "I installerede apps’ sektioner",
+        "body": "Hver app har sine sider i sin egen sektion af sidepanelet."
       }
     },
     "status": {
@@ -1829,7 +1916,20 @@
       "optionsPickList": "Vælg en liste…",
       "optionsSource": "Tilladte værdier",
       "optionsSourceHelp": "En liste skrives én gang i Studio og bruges af hver kolonne, der nævner den.",
-      "optionsValues": "Værdierne"
+      "optionsValues": "Værdierne",
+      "decided": {
+        "title": "Bestemt af Adminium",
+        "help": "Adminium udfylder dette ved hver skrivning, og et offentligt endpoint kan aldrig lade en besøgende angive det.",
+        "copy": "Kopieret fra {from} i den række, {via} peger på",
+        "copyAlways": "altid, uanset hvad skribenten angiver",
+        "copyDefault": "medmindre skribenten angiver en værdi",
+        "sequence": "Det næste nummer i rækkefølge, fra {start}",
+        "code": "En tilfældig kode som {example}",
+        "remove": "Fjern denne regel",
+        "rollup": "Summen af {sum} over dens rækker i {from}",
+        "rollupTimes": "Summen af {sum} × {times} over dens rækker i {from}"
+      },
+      "venueLocal": "Et tidspunkt skrevet her uden tidszone er stedets egen tid."
     },
     "saveFailed": "Lagring mislykkedes: {message}",
     "subtitle": "{tables} tabeller · {applied} tilsidesættelser anvendt",
@@ -2745,5 +2845,169 @@
     "subtitle": "Administrér programmatisk adgang til dit arbejdsområde",
     "summary": "{endpoints, plural, one {# endpoint} other {# endpoints}} · {methods, plural, one {# metode} other {# metoder}}",
     "title": "API-nøgler og tokens"
+  },
+  "surfacePages": {
+    "guest": {
+      "title": "{app} er ikke tilgængelig lige nu.",
+      "body": "Prøv igen senere."
+    },
+    "staff": {
+      "appOff": "{app} er slået fra indtil videre.",
+      "sideOff": "Personaleskærmene i {app} er slået fra.",
+      "advice": "Bed din leder om at slå det til under {app} → Indstillinger.",
+      "signOut": "Log ud",
+      "noAccess": "Denne konto kan ikke åbne {app}.",
+      "noAccessAdvice": "Bed din leder om en rolle, der åbner {app}."
+    },
+    "notFound": {
+      "title": "Siden blev ikke fundet",
+      "body": "Der er intet på denne adresse. Tjek linket, og prøv igen."
+    }
+  },
+  "appSettings": {
+    "notInstalled": "Denne app er ikke installeret",
+    "backToApps": "Tilbage til apps",
+    "statusDisabled": "Slået fra",
+    "statusUpdate": "Opdatering tilgængelig · {version}",
+    "statusActive": "Aktiv",
+    "version": "Version {version} · af {publisher}",
+    "open": "Åbn appen",
+    "upToDate": "Opdateret",
+    "update": "Opdater",
+    "saveFailed": "Ændringen blev ikke gemt",
+    "screens": "Skærmsæt",
+    "sideStaff": "Personaleskærme",
+    "sideCustomer": "Kundeskærme",
+    "sideAppOff": "Hele appen er slået fra.",
+    "staffOnHelp": "Dit team logger ind her med deres egne konti.",
+    "customerOnHelp": "Kunder bruger disse sider. De er offentlige.",
+    "staffOffHelp": "Disse skærme vises ikke. Intet er slettet.",
+    "customerOffHelp": "Kunder ser “ikke tilgængelig”. Intet er slettet.",
+    "sideSwitch": "{side}, til eller fra",
+    "on": "Til",
+    "off": "Fra",
+    "whereItLives": "Hvor den ligger",
+    "ownAddress": "På sin egen adresse",
+    "insideDashboard": "I dashboardet",
+    "copyAddress": "Kopiér adresse",
+    "copied": "Kopieret",
+    "copy": "Kopiér",
+    "addDomain": "Tilføj et domæne",
+    "preview": "Forhåndsvis",
+    "domainField": "Domæne",
+    "addDomainSave": "Tilføj",
+    "data": "Data",
+    "noTables": "Denne app bruger ingen tabeller.",
+    "rows": "{count, plural, one {# række} other {# rækker}}",
+    "activity": {
+      "staged": "Uploadet af {actor}",
+      "installed": "Installeret af {actor}",
+      "updated": "Opdateret af {actor}",
+      "disabled": "Slået fra af {actor}",
+      "enabled": "Slået til af {actor}",
+      "settings": "Indstillinger ændret af {actor}",
+      "domains": "Domæner ændret af {actor}",
+      "instances": "Instanser ændret af {actor}",
+      "renamed": "Tabeller omdøbt af {actor}",
+      "title": "Aktivitet",
+      "none": "Intet endnu.",
+      "sampleAdded": "Eksempeldata tilføjet af {actor}",
+      "sampleRemoved": "Eksempeldata fjernet af {actor}"
+    },
+    "danger": "Farezone",
+    "disabledNote": "Appen er slået fra. Aktivér bringer præcis det tilbage, der var.",
+    "disableNote": "Skjuler appen overalt og stopper dens endpoints. Intet slettes.",
+    "enable": "Aktivér",
+    "disable": "Deaktivér",
+    "uninstallNote": "Fjerner appens filer og sider. Beholder tabellerne og dataene.",
+    "uninstall": "Afinstaller",
+    "disableTitle": "Deaktivér {app}?",
+    "close": "Luk",
+    "nothingDeleted": "Intet slettes.",
+    "enableBrings": "Aktivér bringer præcis det tilbage, der var.",
+    "cancel": "Annuller",
+    "disableLine1": "Dens sektion skjules for alle.",
+    "disableLine2": "Dens skærme og egne endpoints holder op med at svare.",
+    "disableLine3": "Tabellerne, posterne og indstillingerne forbliver, som de er.",
+    "crumb": "Apps",
+    "sampleLedger": "Adminiums liste over eksempelposter"
+  },
+  "uninstall": {
+    "files": "Appens filer",
+    "pages": "{count, plural, one {# side} other {# sider}}",
+    "keys": "{count, plural, one {Dens browsernøgle} other {Dens # browsernøgler}}",
+    "settings": "Dens indstillinger",
+    "hosts": "{count, plural, one {Dens domæne} other {Dens # domæner}}",
+    "tables": "{count, plural, one {# tabel og alle dens poster} other {# tabeller og alle deres poster}}",
+    "editedPages": "Sider, du har redigeret, bliver som almindelige sider",
+    "audit": "Dens poster i revisionsloggen",
+    "title": "Afinstaller {app}?",
+    "close": "Luk",
+    "planFailed": "Det, der ville blive fjernet, kunne ikke læses",
+    "removed": "Fjernet",
+    "kept": "Beholdt",
+    "roleCascade": "Fjernes denne rolle, mister {members, plural, one {# person} other {# personer}} den, og {keys, plural, one {# tilknyttet API-nøgle} other {# tilknyttede API-nøgler}} slettes. De nøgler holder op med at virke med det samme.",
+    "dropTitle": "Slet også dens tabeller og data",
+    "dropBody": "{count, plural, one {Sletter den # tabel, den lavede, og alle dens poster.} other {Sletter de # tabeller, den lavede, og alle deres poster.}} Det kan ikke fortrydes.",
+    "typeKey": "Skriv appens nøgle {key} for at bekræfte.",
+    "failed": "Appen blev ikke afinstalleret",
+    "cancel": "Annuller",
+    "confirmDrop": "Afinstaller og slet data",
+    "confirm": "Afinstaller",
+    "rules": "{count, plural, one {Dens kolonneregel} other {Dens # kolonneregler}}"
+  },
+  "sampleData": {
+    "title": "Eksempeldata",
+    "add": "Tilføj eksempeldata",
+    "installNote": "nogle få eksempelposter i appens tabeller, så der er noget at prøve den med. Du kan fjerne dem med ét klik.",
+    "remove": "Fjern eksempeldata",
+    "keptNotice": "{count, plural, one {# eksempelpost bliver: dine egne poster bruger den, eller du har ændret den.} other {# eksempelposter bliver: dine egne poster bruger dem, eller du har ændret dem.}}",
+    "notLoaded": "Ikke indlæst",
+    "loadedCount": "Indlæst · {count, plural, one {# post} other {# poster}}",
+    "loaded": "Indlæst · {count, plural, one {# post} other {# poster}} · {date}",
+    "addSubtitle": "I {connection}",
+    "close": "Luk",
+    "addBodyNoConnection": "Nogle få eksempelposter i appens tabeller. Intet andet røres.",
+    "addBody": "Nogle få eksempelposter i appens tabeller. Intet andet i {connection} røres.",
+    "images": "Billeder, lagt i Filer",
+    "total": "I alt",
+    "records": "{count, plural, one {# post} other {# poster}}",
+    "none": "Denne app har ingen eksempeldata med",
+    "adding": "Tilføjer eksempeldata",
+    "addFailed": "Eksempeldataene blev ikke tilføjet",
+    "addFailedBody": "Eksempeldataene blev ikke tilføjet. Intet blev skrevet.",
+    "cancel": "Annuller",
+    "removeSubtitle": "{count, plural, one {# post tilføjet {date}} other {# poster tilføjet {date}}}",
+    "removeBody": "Adminium har ført en liste over hver post, det tilføjede, så det fjerner præcis dem.",
+    "planFailed": "Det, der ville blive fjernet, kunne ikke læses",
+    "removes": "Fjernes",
+    "kept": "Beholdes",
+    "usedBy": "{count, plural, one {bruges af # af dine egne poster} other {bruges af # af dine egne poster}}",
+    "keepChanged": "Behold dem, jeg har ændret",
+    "changedList": "{count, plural, one {# eksempelpost, du har redigeret: {names}.} other {# eksempelposter, du har redigeret: {names}.}}",
+    "removeFailed": "Eksempeldataene blev ikke fjernet",
+    "removeConfirm": "Fjern",
+    "banner": "Eksempeldata er indlæst",
+    "bannerRemove": "Fjern dem"
+  },
+  "appPublicAccess": {
+    "title": "Offentlig adgang",
+    "intro": "Appens kundeskærme skal kunne:",
+    "availability": "Læse ledige eller optagne tider i {table}",
+    "claim": "Slå deres egne {table} op via {fields}",
+    "create": "Tilføje til {table}",
+    "update": "Ændre {table}",
+    "read": "Læse {table}",
+    "later": "kommer i en senere version",
+    "allow": "Tillad denne offentlige adgang",
+    "helper": "Du kan begrænse den senere på siden API-nøgler.",
+    "cannotGrant": "Kun en, der må administrere API-nøgler, kan tillade den, så appen installeres uden.",
+    "warning": {
+      "apiOff": "Den offentlige API er slået fra, så intet af dette svarer, før den er slået til.",
+      "originSelf": "De tilladte oprindelser omfatter ikke “self”, så appens egne sider på denne server kan ikke kalde den.",
+      "timeZone": "Denne database har ingen tidszone, som den offentlige API skal bruge til datoer og tidspunkter.",
+      "noEmail": "E-mail er ikke sat op, så gæster får ingen bekræftelse."
+    },
+    "createConfirmed": "Tilføje til {table} og få en bekræftelsesmail"
   }
 }

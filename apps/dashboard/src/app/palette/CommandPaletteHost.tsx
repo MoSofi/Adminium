@@ -23,7 +23,7 @@
  * every first paint has no business in the boot chunk). ⌘K is therefore bound
  * in AppShell, not here: the shortcut has to work before this module exists.
  */
-import { FileText, History, Keyboard, Loader2, LogOut, Moon, Sparkles, Sun } from 'lucide-react';
+import { ExternalLink, FileText, History, Keyboard, Loader2, LogOut, Moon, Sparkles, Sun } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CommandPalette,
@@ -34,7 +34,7 @@ import {
 } from '@adminium/ui';
 
 import { PALETTE_SEARCH_LIMIT, recordHits, search, type SearchRecordHit } from '../../api/search.js';
-import { flattenNav, type BootstrapData } from '../bootstrap.js';
+import { appSectionsOf, flattenNav, type BootstrapData } from '../bootstrap.js';
 import { hrefForRecord } from '../links.js';
 import { gChordTargets } from '../shortcuts.js';
 import { t } from '../../i18n/t.js';
@@ -63,7 +63,12 @@ export interface CommandPaletteHostProps {
   onNavigateRecord: (slug: string, recordId: string) => void;
   onSignOut: () => void;
   onShowShortcuts: () => void;
+  /** An app's screen: in the dashboard (`/a/<key>/<path>`), or its own address in a new tab. */
+  onOpenApp?: (target: { appKey: string; path: string } | { url: string }) => void;
 }
+
+/** An external app's screen: `app-screen:<appKey>/<screen id> <url>`. */
+const APP_SCREEN_ID_PREFIX = 'app-screen:';
 
 /** Parse an app href back into a palette navigation (recent entries). */
 function parseAppHref(href: string): { slug: string; recordId: string | null } | null {
@@ -87,6 +92,7 @@ export function CommandPaletteHost({
   onNavigateRecord,
   onSignOut,
   onShowShortcuts,
+  onOpenApp,
 }: CommandPaletteHostProps) {
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
@@ -181,6 +187,72 @@ export function CommandPaletteHost({
       },
     ];
 
+    /*
+     * The installed apps: each one's pages and its staff screens, named by
+     * the app they belong to — the sidebar draws them in its own section, so
+     * "Navigate" above does not list them.
+     */
+    const appItems: CommandItem[] = appSectionsOf(bootstrap).flatMap((section) => {
+      const pages = section.groups.flatMap((group) =>
+        group.items.map((item): CommandItem => {
+          const Icon = lucideByName(item.icon);
+          return {
+            id: `nav:${item.slug}`,
+            label: t(item.labelKey, item.fallback),
+            description: section.label,
+            icon: <Icon />,
+            keywords: [item.slug, section.label],
+          };
+        }),
+      );
+      const staff = section.staff;
+      const screens: CommandItem[] =
+        staff === null
+          ? []
+          : staff.placement === 'internal'
+            ? staff.items.map((item) => {
+                const Icon = lucideByName(item.icon ?? 'file');
+                return {
+                  id: `app:${section.appKey}/${item.path}`,
+                  label: item.label,
+                  description: section.label,
+                  icon: <Icon />,
+                  keywords: [section.label],
+                };
+              })
+            : [
+                {
+                  id: `app-open:${staff.url}`,
+                  label: t('nav.app.openStaff', 'Open the staff screens'),
+                  description: section.label,
+                  icon: <ExternalLink className="rtl:-scale-x-100" />,
+                  keywords: [section.label],
+                },
+                // Each screen, opened at the app's own address.
+                ...(staff.items ?? []).map((item): CommandItem => {
+                  const Icon = lucideByName(item.icon ?? 'file');
+                  return {
+                    id: `${APP_SCREEN_ID_PREFIX}${section.appKey}/${item.id} ${staff.url}${item.path}`,
+                    label: item.label,
+                    description: section.label,
+                    icon: <Icon />,
+                    keywords: [section.label],
+                  };
+                }),
+                ...(staff.instances ?? []).map(
+                  (instance): CommandItem => ({
+                    id: `app-open:${instance.url}`,
+                    label: t('nav.app.openStaff', 'Open the staff screens'),
+                    description: `${section.label} · ${instance.slug}`,
+                    icon: <ExternalLink className="rtl:-scale-x-100" />,
+                    keywords: [section.label, instance.slug],
+                  }),
+                ),
+              ];
+      return [...pages, ...screens];
+    });
+    if (appItems.length > 0) out.push({ id: 'apps', label: t('palette.apps', 'Apps'), items: appItems });
+
     if (recent.length > 0) {
       out.push({
         id: 'recent',
@@ -223,7 +295,7 @@ export function CommandPaletteHost({
     }
 
     return out;
-  }, [bootstrap.nav, dark, recent, records, needle]);
+  }, [bootstrap, dark, recent, records, needle]);
 
   const handleSelect = (item: CommandItem) => {
     if (item.id === 'action:toggle-theme') {
@@ -234,6 +306,16 @@ export function CommandPaletteHost({
       onShowShortcuts();
     } else if (item.id.startsWith('nav:')) {
       onNavigate(item.id.slice('nav:'.length));
+    } else if (item.id.startsWith(APP_SCREEN_ID_PREFIX)) {
+      // `<appKey>/<screen id> <url>` — the id keeps two screens at one URL apart.
+      const rest = item.id.slice(APP_SCREEN_ID_PREFIX.length);
+      onOpenApp?.({ url: rest.slice(rest.indexOf(' ') + 1) });
+    } else if (item.id.startsWith('app-open:')) {
+      onOpenApp?.({ url: item.id.slice('app-open:'.length) });
+    } else if (item.id.startsWith('app:')) {
+      const rest = item.id.slice('app:'.length);
+      const at = rest.indexOf('/');
+      onOpenApp?.({ appKey: rest.slice(0, at), path: rest.slice(at + 1) });
     } else if (item.id.startsWith(RECORD_ID_PREFIX)) {
       // Slugs never contain spaces (engine slugify); recordIds may (composite
       // PK JSON tuples) — split on the FIRST space only.

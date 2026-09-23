@@ -85,6 +85,11 @@ const PublicApiPageLazy = lazy(async () => {
   return { default: mod.ApiKeysPage };
 });
 
+const AppSettingsPageLazy = lazy(async () => {
+  const mod = await import('./apps/AppSettingsPage.js');
+  return { default: mod.AppSettingsPage };
+});
+
 const HostedAppsPageLazy = lazy(async () => {
   const mod = await import('./apps/HostedAppsPage.js');
   return { default: mod.HostedAppsPage };
@@ -356,7 +361,11 @@ function PublicApiRouteComponent() {
 
 function HostedAppsRouteComponent() {
   return (
-    <StudioGuard requires="settings.manage">
+    // The permission the app routes themselves check: it was
+    // `settings.manage`, which the server never asked for, so a role granted
+    // app management could not open the page and one with settings could open
+    // a page whose every call answered 403.
+    <StudioGuard requires="manifests.manage">
       <StudioBody>
         <HostedAppsPageLazy />
       </StudioBody>
@@ -515,6 +524,27 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: HostedAppsRouteComponent,
   });
 
+  /*
+   * `/studio/apps/$key` — one installed app's own page. Same guard as the
+   * list: the app routes it calls check the same permission.
+   */
+  const appSettingsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/apps/$key',
+    component: AppSettingsRouteComponent,
+  });
+
+  function AppSettingsRouteComponent() {
+    const { key } = appSettingsRoute.useParams();
+    return (
+      <StudioGuard requires="manifests.manage">
+        <StudioBody>
+          <AppSettingsPageLazy appKey={key} />
+        </StudioBody>
+      </StudioGuard>
+    );
+  }
+
   const listsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/lists',
@@ -545,6 +575,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     projectSettingsRoute,
     publicApiRoute,
     hostedAppsRoute,
+    appSettingsRoute,
     listsRoute,
     storageRoute,
     addOnsRoute,

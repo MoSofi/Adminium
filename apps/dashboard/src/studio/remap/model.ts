@@ -12,7 +12,7 @@
 import type { ColumnModel, DatabaseModel, Relation, TableModel } from '@adminium/engine';
 
 export interface EffectiveColumn extends ColumnModel {
-  label?: string;
+  // `label` is the engine column's own (an effective rename).
   hidden?: boolean;
   /** Resolved mask state (overrides > classifier default). */
   masked?: boolean;
@@ -41,6 +41,14 @@ export interface EffectiveColumn extends ColumnModel {
     minLength?: number;
     maxLength?: number;
   };
+  /** Decided by Adminium on every write: copied from a linked row. */
+  copy?: { via: string; from: string; mode?: 'default' | 'always' };
+  /** Decided by Adminium: the next number in the column's own counter. */
+  sequence?: { start?: number };
+  /** Decided by Adminium: a short random code. */
+  code?: { prefix?: string; length: number };
+  /** Decided by Adminium: the total of the child rows linking here. */
+  rollup?: { from: string; via: string; sum: string; times?: string; unlessSet?: string };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {

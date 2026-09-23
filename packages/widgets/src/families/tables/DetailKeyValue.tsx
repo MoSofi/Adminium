@@ -22,7 +22,7 @@ export interface DetailKeyValueProps {
 }
 
 function typeTagText(column: GridColumnSpec): string {
-  if (column.fk !== undefined) return `→ ${column.fk.table}`;
+  if (column.fk !== undefined) return `→ ${column.fk.label ?? column.fk.table}`;
   if (column.logicalType === 'enum') return 'enum';
   return column.logicalType;
 }

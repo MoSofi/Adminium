@@ -13,6 +13,8 @@ import { Badge, FormField, Input, KeyValueList, MonoText, Select, Switch, Tag } 
 import { t } from '../../i18n/t.js';
 import { IconPicker } from './IconPicker.js';
 import { tableDisplayLabel, titleCase, type EffectiveTable } from './model.js';
+import { labelText } from './overrides.js';
+import { useLabelLocale } from './useLabelLocale.js';
 import { overrideKey, type RemapBuffer } from './useRemapBuffer.js';
 
 const NAV_GROUPS = ['workspace', 'library', 'planning', 'people', 'account'] as const;
@@ -31,7 +33,9 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
   const labelEntry = buffer.get(labelKey);
   const staged =
     labelEntry !== null && labelEntry.item.op === 'table.label' ? labelEntry.item.value : null;
-  const stagedLabel = staged?.label ?? '';
+  // A label the app installed in every language reads as this person's; typing replaces it.
+  const labelLocale = useLabelLocale();
+  const stagedLabel = labelText(staged?.label, labelLocale);
   const stagedIcon = staged?.icon ?? null;
 
   const excludeEntry = buffer.get(excludeKey);

@@ -117,7 +117,7 @@ export function ReferenceChipsControl(props: ControlProps) {
             if (next !== null && !keys.includes(next)) set([...keys, next]);
           }}
           emptyText={t('ui:combobox.noMatches', 'No matches')}
-          placeholder={t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: fk.table })}
+          placeholder={t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: fk.label ?? fk.table })}
           {...(props.disabled === true ? { disabled: true } : {})}
           filter={(option, query) => {
             if (timer.current !== null) clearTimeout(timer.current);

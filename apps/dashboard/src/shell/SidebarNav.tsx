@@ -24,9 +24,11 @@ import {
   CalendarClock,
   Database,
   Download,
+  ExternalLink,
   FileChartColumn,
   History,
   Mail,
+  Package,
   Paperclip,
   ScrollText,
   ShieldCheck,
@@ -43,9 +45,11 @@ import {
   NAV_GROUP_KEYS,
   activeHostedItem,
   addOnNavOf,
+  appSectionsOf,
   holdsSystemAction,
   hostedAppsOf,
   type AddOnNavPage,
+  type AppSection as AppSectionData,
   type BootstrapData,
   type HostedApp,
   type NavGroupKey,
@@ -361,6 +365,17 @@ export function splitAppKeyParam(param: string): { appKey: string; instance: str
 }
 
 function HostedAppSection({ app }: { app: HostedApp }) {
+  return (
+    <div className="mb-1" data-part="nav-hosted-app">
+      <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
+        {app.label}
+      </div>
+      <HostedAppRows app={app} />
+    </div>
+  );
+}
+
+function HostedAppRows({ app }: { app: HostedApp }) {
   const matchRoute = useMatchRoute();
   const match = matchRoute({ to: '/a/$appKey/$', fuzzy: true });
   const here =
@@ -370,10 +385,6 @@ function HostedAppSection({ app }: { app: HostedApp }) {
   const active = here === null ? null : activeHostedItem(app, here);
 
   return (
-    <div className="mb-1" data-part="nav-hosted-app">
-      <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
-        {app.label}
-      </div>
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
         {app.items.map((item) => {
           const Icon = lucideByName(item.icon ?? 'file');
@@ -393,6 +404,67 @@ function HostedAppSection({ app }: { app: HostedApp }) {
           );
         })}
       </ul>
+  );
+}
+
+/**
+ * An installed app's own section (`Installed Apps.dc.html`, the sidebar
+ * view): its name and version, its pages under the groups its manifest names,
+ * and its staff screens — the hosted rows when they live in the dashboard, a
+ * link out when they open on their own address.
+ */
+function AppSection({ section }: { section: AppSectionData }) {
+  const staff = section.staff;
+  return (
+    <div className="mt-3.5 border-t border-border pt-3" data-part="nav-app-section">
+      <div className="flex items-center gap-2.5 px-[9px] pb-2 pt-1">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-[7px] bg-accent text-accent-fg">
+          <Package className="size-3.5" aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-extrabold leading-[normal] tracking-[-0.01em] text-fg">
+          {section.label}
+        </span>
+        <span className="font-mono text-[9.5px] font-bold leading-[normal] text-fg-subtle">{section.version}</span>
+      </div>
+      {section.groups.map((group) => (
+        <div key={group.key} className="mb-1">
+          {group.label === null ? null : (
+            <div className="px-2.5 pb-1 pt-[11px] text-[10px] font-extrabold uppercase tracking-[0.08em] text-fg-subtle">
+              {group.label}
+            </div>
+          )}
+          <NavItemList items={group.items} />
+        </div>
+      ))}
+      {staff?.placement === 'internal' ? (
+        <HostedAppRows app={{ appKey: section.appKey, label: section.label, items: staff.items }} />
+      ) : null}
+      {staff?.placement === 'external' ? (
+        <a href={staff.url} target="_blank" rel="noreferrer" className={NAV_LINK_CLASS} data-part="nav-app-open">
+          <Package className="size-[18px] shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">{t('nav.app.openStaff', 'Open the staff screens')}</span>
+          <ExternalLink className="size-3.5 shrink-0 opacity-70 rtl:-scale-x-100" aria-hidden="true" />
+        </a>
+      ) : null}
+      {/* An extra instance opens on its own address too, named by its slug. */}
+      {staff?.placement === 'external'
+        ? (staff.instances ?? []).map((instance) => (
+            <a
+              key={instance.slug}
+              href={instance.url}
+              target="_blank"
+              rel="noreferrer"
+              className={NAV_LINK_CLASS}
+              data-part="nav-app-open-instance"
+            >
+              <Package className="size-[18px] shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate">
+                {t('nav.app.openStaffInstance', 'Open the staff screens · {instance}', { instance: instance.slug })}
+              </span>
+              <ExternalLink className="size-3.5 shrink-0 opacity-70 rtl:-scale-x-100" aria-hidden="true" />
+            </a>
+          ))
+        : null}
     </div>
   );
 }
@@ -455,11 +527,26 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
    * connection — they render first instead of vanishing, which is the case
    * that matters most: an operator whose ONLY installed thing is an app.
    */
-  const hostedApps = hostedAppsOf(bootstrap);
+  /*
+   * An installed app's own section carries its staff screens too, so its
+   * hosted section is not drawn a second time; an extra instance's still is.
+   */
+  const appSections = appSectionsOf(bootstrap);
+  const hostedApps = hostedAppsOf(bootstrap).filter(
+    (app) => app.instance !== undefined || !appSections.some((section) => section.appKey === app.appKey),
+  );
   const hostedSections =
-    hostedApps.length === 0
-      ? null
-      : hostedApps.map((app) => <HostedAppSection key={app.appKey} app={app} />);
+    hostedApps.length === 0 && appSections.length === 0 ? null : (
+      <>
+        {/* Keyed by the route param: an app and its instances share `appKey`. */}
+        {hostedApps.map((app) => (
+          <HostedAppSection key={appKeyParam(app)} app={app} />
+        ))}
+        {appSections.map((section) => (
+          <AppSection key={section.appKey} section={section} />
+        ))}
+      </>
+    );
   const hostedAfter = nav.groups.some((group) => group.key === 'workspace') ? 'workspace' : null;
 
   return (
@@ -508,7 +595,7 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
           * generated and no app either.
           */}
         {hostedAfter === null ? hostedSections : null}
-        {nav.groups.length === 0 && hostedApps.length === 0 ? (
+        {nav.groups.length === 0 && hostedApps.length === 0 && appSections.length === 0 ? (
           <p className="px-2 py-3 text-body-sm text-fg-subtle" data-part="nav-empty">
             {/* Two different emptinesses. With pages that exist but are not
                 shared with this role, "connect a database" is false — and it

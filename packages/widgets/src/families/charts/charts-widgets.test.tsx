@@ -99,6 +99,15 @@ describe('chart-bar input mapping', () => {
     expect(inputs?.categories).toHaveLength(3);
   });
 
+  it('labels a day’s hour buckets by the hour, one bar each, not all by the same date', () => {
+    const hours = { shape: 'timeseries', points: [8, 9, 12].map((h) => ({ t: new Date(2026, 8, 23, h).toISOString(), v: h })) };
+    const inputs = barInputsOf(hours, 'Sales', { unit: 'hour', locale: 'en-US' });
+    expect(inputs?.categories).toEqual(['8 AM', '9 AM', '12 PM']);
+    // A week of hour buckets turned into days (the server's `week`) is labelled by day again.
+    const days = { shape: 'timeseries', points: [21, 22, 23].map((d) => ({ t: new Date(Date.UTC(2026, 8, d)).toISOString(), v: d })) };
+    expect(barInputsOf(days, 'Sales', { unit: 'hour' })?.categories).toEqual(['Sep 21', 'Sep 22', 'Sep 23']);
+  });
+
   it('maps categorical items to label categories', () => {
     const inputs = barInputsOf(cat, 'Tasks');
     expect(inputs?.categories).toEqual(['To do', 'In progress', 'Done']);

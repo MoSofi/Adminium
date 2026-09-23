@@ -215,4 +215,31 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     },
     secondary: { key: 'states.connectionPaused.secondary', en: 'Go back' },
   },
+  /*
+   * An app switched off in Studio — the whole of it, or its staff screens.
+   * The connection-paused reasoning, word for word: `accent`, no Retry, and
+   * the copy says where the switch is.
+   */
+  'app-disabled': {
+    id: 'app-disabled',
+    icon: PauseCircle,
+    tone: 'accent',
+    title: { key: 'states.appDisabled.title', en: 'This app is switched off' },
+    body: {
+      key: 'states.appDisabled.body',
+      en: 'An admin switched this app off. Nothing was deleted — switch it on in Studio → Apps.',
+    },
+    secondary: { key: 'states.appDisabled.secondary', en: 'Go back' },
+  },
+  'screens-off': {
+    id: 'screens-off',
+    icon: PauseCircle,
+    tone: 'accent',
+    title: { key: 'states.screensOff.title', en: 'These screens are switched off' },
+    body: {
+      key: 'states.screensOff.body',
+      en: 'An admin switched off this app’s staff screens. Nothing was deleted — switch them on in Studio → Apps.',
+    },
+    secondary: { key: 'states.screensOff.secondary', en: 'Go back' },
+  },
 };

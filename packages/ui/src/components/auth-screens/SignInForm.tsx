@@ -17,7 +17,10 @@ import { InputGroup } from '../input-group/index.js';
 export interface SignInFormValues {
   email: string;
   password: string;
-  /** "Keep me signed in" checkbox state (session length is a server concern). */
+  /**
+   * "Keep me signed in" checkbox state — the host sends it as `remember`;
+   * unticked, the server sets a cookie the browser drops when it closes.
+   */
   remember: boolean;
 }
 
@@ -74,7 +77,7 @@ export interface SignInFormProps
  * `error`/`loading`.
  *
  * Endpoint contract (apps/server/src/routes/auth):
- * `POST /api/v1/auth/login` with `{ email, password }` →
+ * `POST /api/v1/auth/login` with `{ email, password, remember }` →
  * - `200 { data: { user } }` — session cookie set, navigate into the app;
  * - `202 { data: { twoFactorRequired: true, challengeToken } }` — render
  *   `TwoFactorForm` and present the token at `/api/v1/auth/2fa/verify`;

@@ -89,9 +89,11 @@ export interface DashboardBuilderProps {
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
   /** Palette registry override (tests / manifest host); defaults to the global registry. */
   registry?: ReadonlyMap<string, WidgetDefinition> | undefined;
+  /** The page's day control, when its layout has one: the host reads `states` for this day. */
+  day?: { day: string; onDay: (day: string) => void } | null | undefined;
 }
 
-export function DashboardBuilder({ page, canEditLayout = false, states, onEvent, registry }: DashboardBuilderProps) {
+export function DashboardBuilder({ page, canEditLayout = false, states, onEvent, registry, day }: DashboardBuilderProps) {
   const pageId = page.id;
   const title = t(page.title.key, page.title.fallback);
 
@@ -386,6 +388,7 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
           layout={page.config['layout']}
           states={states}
           onEvent={onEvent}
+          {...(day === null || day === undefined ? {} : { day: day.day, onDay: day.onDay })}
         />
       )}
 

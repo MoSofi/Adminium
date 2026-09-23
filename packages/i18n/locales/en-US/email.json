@@ -809,5 +809,19 @@
     "button": "Open it online",
     "footer": "You are receiving this because {business} drew this document for you.",
     "attachment": "The document"
+  },
+  "bookingConfirmation": {
+    "name": "Booking confirmation",
+    "subject": "Your table at {venue} is booked",
+    "preheader": "Booking {code} · {when} · party of {party}",
+    "heading": "Your table is booked",
+    "intro": "We’re holding a table for you at {venue}. Show this code when you arrive.",
+    "codeLabel": "Booking code",
+    "when": "When: {when}",
+    "party": "Party: {party}",
+    "guest": "Name: {name}",
+    "action": "Manage your booking",
+    "cancel": "You can cancel online up to {cancelHours} hours before.",
+    "footer": "{venue} · {address} · {phone}"
   }
 }

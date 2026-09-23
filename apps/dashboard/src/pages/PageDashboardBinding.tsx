@@ -48,6 +48,7 @@ export function PageDashboardBinding({ page, adapters, canEditLayout }: PageTemp
       page={page}
       canEditLayout={canEditLayout ?? false}
       states={states}
+      day={adapters.dashboardDay ?? null}
       onEvent={(instanceId, event) => {
         void instanceId;
         // Forward the host's result so optimistic widgets (kanban) get the

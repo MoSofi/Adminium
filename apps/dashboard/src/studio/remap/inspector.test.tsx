@@ -130,3 +130,35 @@ describe('enum semantics editor', () => {
     expect(screen.getByText('column.semanticType · public.orders.status')).toBeDefined();
   });
 });
+
+describe('a label an app installed in every language', () => {
+  const rows = () => [
+    {
+      id: 'ovr_app',
+      op: 'column.label',
+      tableName: 'public.orders',
+      columnName: 'total',
+      value: { label: { en_US: 'Order total', de_DE: 'Gesamtbetrag' } },
+      origin: 'app',
+      status: 'active',
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ];
+
+  it('reads as the person’s own language, and a save keeps every language', async () => {
+    const harness = installFetch({ overridesRows: rows });
+    renderEditor();
+    await openColumn(/Orders/, /Order total/);
+    expect(screen.getByDisplayValue('Order total')).toBeDefined();
+
+    // Any other change saves the set again: the app's label goes back whole.
+    await userEvent.selectOptions(screen.getByLabelText('Semantic type'), 'percent');
+    await userEvent.click(screen.getByRole('button', { name: 'Save overrides' }));
+    await waitFor(() => expect(harness.putBodies).toHaveLength(1));
+    const put = harness.putBodies[0] as { overrides: { op: string; value: unknown }[] };
+    expect(put.overrides.find((o) => o.op === 'column.label')?.value).toEqual({
+      label: { en_US: 'Order total', de_DE: 'Gesamtbetrag' },
+    });
+  });
+});

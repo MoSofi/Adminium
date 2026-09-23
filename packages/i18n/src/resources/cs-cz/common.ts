@@ -85,6 +85,18 @@ export default {
       "submit": "Ověřit",
       "invalid": "Tento kód nefunguje. Zkuste to znovu.",
       "failed": "Ověření se nezdařilo. Zkontrolujte připojení a zkuste to znovu."
+    },
+    "staff": {
+      "subtitle": "{app} · Přihlášení personálu",
+      "shared": "Sdílený tablet? Každý se přihlašuje vlastním účtem.",
+      "remember": "Zůstat přihlášen na tomto tabletu",
+      "invalid": "Nepodařilo se vás přihlásit. Zkontrolujte e-mail a heslo a zkuste to znovu.",
+      "rateLimited": "Příliš mnoho pokusů. Zkuste to znovu za minutu.",
+      "offline": "{app} není dostupná. Zkontrolujte síť.",
+      "opening": "Otevírá se {app}…",
+      "openingApp": "Otevírá se aplikace…",
+      "signedInAs": "Přihlášen(a) jako {name}",
+      "codeInvalid": "Kód nefungoval. Zkuste nejnovější z vaší aplikace."
     }
   },
   "nav": {
@@ -119,7 +131,11 @@ export default {
     "audit": "Auditní log",
     "security": "Heslo a relace",
     "files": "Soubory",
-    "emptyWithheld": "S vaší rolí zatím nebyly sdíleny žádné stránky. Požádejte o přístup správce."
+    "emptyWithheld": "S vaší rolí zatím nebyly sdíleny žádné stránky. Požádejte o přístup správce.",
+    "app": {
+      "openStaff": "Otevřít obrazovky pro personál",
+      "openStaffInstance": "Otevřít obrazovky pro personál · {instance}"
+    }
   },
   "apps": {
     "frame": {
@@ -159,7 +175,8 @@ export default {
     "recent": "Nedávné",
     "searching": "Hledání záznamů…",
     "records": "Záznamy",
-    "empty": "Žádné výsledky pro „{query}“"
+    "empty": "Žádné výsledky pro „{query}“",
+    "apps": "Aplikace"
   },
   "shortcuts": {
     "title": "Klávesové zkratky",
@@ -262,6 +279,21 @@ export default {
       "title": "Toto připojení je pozastavené",
       "body": "Správce pozastavil databázi, ze které tato stránka čte, takže se teď nenačítají žádná data. Nic se nesmazalo – vše se vrátí, jakmile se připojení obnoví ve Studiu → Datová připojení.",
       "secondary": "Zpět"
+    },
+    "appDisabled": {
+      "title": "Tato aplikace je vypnutá",
+      "body": "Správce aplikaci vypnul. Nic nebylo smazáno — zapněte ji v Studio → Aplikace.",
+      "secondary": "Zpět"
+    },
+    "screensOff": {
+      "title": "Tyto obrazovky jsou vypnuté",
+      "body": "Obrazovky pro personál této aplikace jsou vypnuté. Nic nebylo smazáno — zapněte je v Studio → Aplikace.",
+      "secondary": "Zpět"
+    },
+    "appExternal": {
+      "title": "Tato aplikace se otevírá samostatně",
+      "body": "Otevírá se na vlastní adrese, ne v dashboardu.",
+      "primary": "Otevřít"
     }
   },
   "notFound": {
@@ -1554,7 +1586,8 @@ export default {
       "data": "Data",
       "operations": "Provoz",
       "workspace": "Pracovní prostor",
-      "records": "Stránky a záznamy"
+      "records": "Stránky a záznamy",
+      "apps": "Aplikace"
     },
     "column": {
       "actions": "Akce",
@@ -1608,7 +1641,7 @@ export default {
       "exportsManage": "Spravovat exporty všech uživatelů",
       "importsManage": "Spravovat importy všech uživatelů",
       "jobsManage": "Spouštět a rušit úlohy na pozadí",
-      "manifestsManage": "Instalace a připojení doplňků",
+      "manifestsManage": "Instalace a správa aplikací a doplňků",
       "jobsRead": "Vidět všechny úlohy na pozadí",
       "llmRun": "Spustit asistenta AI",
       "pagesManage": "Vytvářet a uspořádat stránky",
@@ -1641,6 +1674,10 @@ export default {
       "import": "Importovat záznamy",
       "pagesEdit": "Měnit rozvržení stránek",
       "narrow": "{count, plural, one {# oprávnění} few {# oprávnění} other {# oprávnění}} pro jednotlivou stránku nebo tabulku platí také, navíc k řádkům níže. Uložení je zachová."
+    },
+    "apps": {
+      "every": "Otevírat obrazovky pro personál všech aplikací",
+      "one": "Otevírat obrazovky pro personál aplikace {app}"
     }
   },
   "security": {

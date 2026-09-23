@@ -8,7 +8,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { ApiError } from './api.js';
 
 /**
- * The 13 system states (incl. `suspended` and `connection-paused`).
+ * The system states (incl. `suspended`, `connection-paused`, and the two an
+ * installed app is in when an operator switched it, or its staff side, off).
  */
 export const SYSTEM_STATE_IDS = [
   'not-found',
@@ -32,6 +33,13 @@ export const SYSTEM_STATE_IDS = [
    * Nothing is broken, nothing is lost, and the fix is a person resuming it.
    */
   'connection-paused',
+  /**
+   * An installed app an operator SWITCHED OFF — the whole app, or its staff
+   * screens (`screens-off`). The connection-paused reasoning holds: nothing is
+   * broken, nothing was deleted, and a person switching it on is the fix.
+   */
+  'app-disabled',
+  'screens-off',
 ] as const;
 export type SystemStateId = (typeof SYSTEM_STATE_IDS)[number];
 
@@ -62,6 +70,8 @@ export function stateIdForError(error: unknown): SystemStateId {
       case 503:
         if (error.code === 'MAINTENANCE') return 'maintenance';
         if (error.code === 'CONNECTION_DISABLED') return 'connection-paused';
+        if (error.code === 'APP_DISABLED') return 'app-disabled';
+        if (error.code === 'SURFACE_OFF') return 'screens-off';
         if (
           error.code === 'DB_UNREACHABLE' ||
           error.code === 'SOURCE_DB_UNREACHABLE' ||

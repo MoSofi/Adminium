@@ -1534,6 +1534,7 @@ export default {
         "loadError": "Záznam se nepodařilo načíst."
       },
       "emptyTitle": "{count, plural, one {Zatím žádný záznam ({entity})} few {Zatím žádné záznamy ({entity})} many {Zatím žádné záznamy ({entity})} other {Zatím žádné záznamy ({entity})}}",
+      "emptyTitleNamed": "Zatím žádné záznamy v {things}",
       "exportAction": "Exportovat",
       "file": {
         "tooLarge": "Soubor je větší než limit {limit}.",
@@ -1611,7 +1612,17 @@ export default {
       "rejectNote": "Žadatel obdrží oznámení s vaší poznámkou."
     },
     "dashboard": {
-      "invalidLayout": "Uložené rozvržení této nástěnky je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení."
+      "invalidLayout": "Uložené rozvržení této nástěnky je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
+      "day": {
+        "label": "Den",
+        "today": "Dnes",
+        "yesterday": "Včera",
+        "week": "Tento týden",
+        "pick": "Vybrat den",
+        "pickHelp": "Jeden den po druhém, podle času provozovny.",
+        "cancel": "Zrušit",
+        "show": "Zobrazit den"
+      }
     },
     "builder": {
       "publish": "Publikovat",

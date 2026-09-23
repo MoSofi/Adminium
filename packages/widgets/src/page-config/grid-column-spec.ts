@@ -264,6 +264,12 @@ export const gridColumnSpecSchema = z.object({
     .object({
       /** Referenced qualified table ("public.team_members"). */
       table: z.string().min(1),
+      /**
+       * What a person calls the referenced table ("Categories") — its rename,
+       * or the name its app installed — for the form's reference tag. Absent,
+       * the tag shows `table`.
+       */
+      label: z.string().min(1).optional(),
       /** Referenced column (usually its PK). */
       column: z.string().min(1),
       /**

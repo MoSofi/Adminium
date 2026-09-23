@@ -17,9 +17,19 @@ interface LoginReplyData {
   challengeToken?: string;
 }
 
-/** POST /auth/login → 200 session or 202 2FA challenge (step-up). */
-export async function login(email: string, password: string): Promise<LoginResult> {
-  const { data } = await api.post<{ data: LoginReplyData }>('/api/v1/auth/login', { email, password });
+/**
+ * POST /auth/login → 200 session or 202 2FA challenge (step-up).
+ *
+ * `remember` is "Keep me signed in": unticked, the server sets a cookie the
+ * browser drops when it closes. It is sent here only — a 2FA challenge
+ * carries it server-side to /auth/2fa/verify.
+ */
+export async function login(email: string, password: string, remember: boolean): Promise<LoginResult> {
+  const { data } = await api.post<{ data: LoginReplyData }>('/api/v1/auth/login', {
+    email,
+    password,
+    remember,
+  });
   if (data.twoFactorRequired === true && typeof data.challengeToken === 'string') {
     return { kind: 'challenge', challengeToken: data.challengeToken };
   }

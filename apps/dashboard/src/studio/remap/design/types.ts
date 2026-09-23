@@ -173,6 +173,10 @@ export interface ApplyResult {
     overrides: number;
     includedTables: number;
     diagramLayout: number;
+    /** Absent from a server older than the public-API and app-record repair. */
+    endpoints?: number;
+    scopes?: number;
+    appTables?: number;
   } | null;
   /** Tables this apply created — the inclusion offer's subject (D11). */
   createdTables: string[];

@@ -38,6 +38,8 @@ import type { QueryDescriptor } from '../page-config/query-descriptor.js';
 import type { TemplateCandidate } from '../templates/compose.js';
 import {
   humanize,
+  columnTitle,
+  tableTitle,
   type CandidateColumn,
   type CandidateRelation,
   type CandidateTableInput,
@@ -200,7 +202,7 @@ function kpiRow(
 ): TemplateCandidate[] {
   const byId = new Map(model.map((entry) => [entry.table.id, entry]));
   const hub = byId.get(domain.hubTableId) as CandidateTableInput;
-  const hubLabel = humanize(hub.table.name);
+  const hubLabel = tableTitle(hub.table);
   const items: TemplateCandidate[] = [];
 
   // 1 — COUNT(*) of the hub table.
@@ -220,7 +222,7 @@ function kpiRow(
     items.push(
       kpi(
         `kpi-sum-${money.entry.table.name}-${money.column.name}`,
-        `Total ${humanize(money.column.name)}`,
+        `Total ${columnTitle(money.column)}`,
         {
           kind: 'table-query',
           connectionId,
@@ -237,7 +239,7 @@ function kpiRow(
   const ts = bestTimestamp(domain, model, relations);
   if (ts !== null && items.length < 4) {
     items.push(
-      kpi(`kpi-new-${ts.entry.table.name}`, `New ${humanize(ts.entry.table.name)} (30d)`, {
+      kpi(`kpi-new-${ts.entry.table.name}`, `New ${tableTitle(ts.entry.table)} (30d)`, {
         kind: 'table-query',
         connectionId,
         source: descriptorSource(ts.entry),
@@ -257,7 +259,7 @@ function kpiRow(
       items.push(
         kpi(
           `kpi-status-${status.entry.table.name}`,
-          `${humanize(active)} ${humanize(status.entry.table.name)}`,
+          `${humanize(active)} ${tableTitle(status.entry.table)}`,
           {
             kind: 'table-query',
             connectionId,
@@ -289,7 +291,7 @@ function kpiRow(
     for (const entry of fallbacks) {
       if (items.length >= 4) break;
       items.push(
-        kpi(`kpi-count-${entry.table.name}`, `Total ${humanize(entry.table.name)}`, {
+        kpi(`kpi-count-${entry.table.name}`, `Total ${tableTitle(entry.table)}`, {
           kind: 'table-query',
           connectionId,
           source: descriptorSource(entry),
@@ -337,8 +339,8 @@ export function emitDomainDashboardCandidates(
     config: {
       title:
         heroMoney !== undefined
-          ? `${humanize(heroMoney.name)} per Month`
-          : `${humanize(ts.entry.table.name)} per Month`,
+          ? `${columnTitle(heroMoney)} per Month`
+          : `${tableTitle(ts.entry.table)} per Month`,
       binding: {
         kind: 'table-query',
         connectionId: ctx.connectionId,
@@ -363,7 +365,7 @@ export function emitDomainDashboardCandidates(
       score: DOMAIN_SCORE,
       instanceId: `donut-${categorical.entry.table.name}-${categorical.column.name}`,
       config: {
-        title: `${humanize(categorical.entry.table.name)} by ${humanize(categorical.column.name)}`,
+        title: `${tableTitle(categorical.entry.table)} by ${columnTitle(categorical.column)}`,
         binding: {
           kind: 'table-query',
           connectionId: ctx.connectionId,

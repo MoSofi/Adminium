@@ -819,5 +819,19 @@ export default {
     "button": "افتحه على الإنترنت",
     "footer": "تصلك هذه الرسالة لأن {business} رسم لك هذا المستند.",
     "attachment": "المستند"
+  },
+  "bookingConfirmation": {
+    "name": "تأكيد الحجز",
+    "subject": "طاولتك في {venue} محجوزة",
+    "preheader": "الحجز {code} · {when} · عدد الأشخاص {party}",
+    "heading": "طاولتك محجوزة",
+    "intro": "نحجز لك طاولة في {venue}. أظهر هذا الرمز عند وصولك.",
+    "codeLabel": "رمز الحجز",
+    "when": "الموعد: {when}",
+    "party": "عدد الأشخاص: {party}",
+    "guest": "الاسم: {name}",
+    "action": "إدارة حجزك",
+    "cancel": "يمكنك الإلغاء عبر الإنترنت حتى {cancelHours} ساعة قبل الموعد.",
+    "footer": "{venue} · {address} · {phone}"
   }
 } as const;

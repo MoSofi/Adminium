@@ -15,6 +15,7 @@ import type { FileFieldUpload } from './FileField.js';
 import type {
   CrudFormColumnField,
   CrudFormConfig,
+  FormFieldInitial,
   CrudFormRecapField,
   CrudFormRelationField,
   FormRelationFact,
@@ -274,12 +275,56 @@ export interface RecordFormProps {
    * preset cannot be computed without it.
    */
   locale?: string | undefined;
+  /**
+   * Who is signed in, for a field whose designer-set starting value is
+   * "who is signed in" (plan 50's `initial: current-user`). Absent, such a
+   * field starts empty.
+   */
+  currentUser?: { id: string; name: string } | undefined;
+}
+
+/**
+ * The values a new record starts with, from the form document's `initial`
+ * settings. `now` is the moment the form opens; `today` is the reader's
+ * calendar day, as the date control shows it.
+ */
+export function startingValues(
+  document: CrudFormConfig | undefined,
+  currentUser: { id: string; name: string } | undefined,
+  at: Date = new Date(),
+): CrudRow {
+  const out: CrudRow = {};
+  for (const section of document?.sections ?? []) {
+    for (const field of section.fields) {
+      if (!('column' in field) || typeof field.column !== 'string') continue;
+      const initial = (field as { initial?: FormFieldInitial }).initial;
+      if (initial === undefined) continue;
+      switch (initial.kind) {
+        case 'literal':
+          out[field.column] = initial.value;
+          break;
+        case 'now':
+          out[field.column] = at.toISOString();
+          break;
+        case 'today': {
+          const pad = (n: number) => String(n).padStart(2, '0');
+          out[field.column] = `${String(at.getFullYear())}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+          break;
+        }
+        case 'current-user':
+          if (currentUser !== undefined) out[field.column] = currentUser[initial.field];
+          break;
+      }
+    }
+  }
+  return out;
 }
 
 export function RecordForm({
   columns,
   document: formDocument,
   initialValues,
+  currentUser,
   mode,
   errors,
   facts,
@@ -395,7 +440,16 @@ export function RecordForm({
         : sections.flatMap((section) => section.entries.map((entry) => entry.column)),
     [sections, columns, facts, listOptions],
   );
-  const [values, setValues] = useState<CrudRow>(() => ({ ...(initialValues ?? {}) }));
+  /*
+   * A NEW record starts from the designer's starting values.
+   * The form designer has always saved `initial`; nothing read it, so "starts
+   * as today" and "starts as who is signed in" silently did nothing. A value
+   * the caller passed wins — it is the record being copied, or a prefill.
+   */
+  const [values, setValues] = useState<CrudRow>(() => ({
+    ...(mode === 'create' ? startingValues(formDocument, currentUser) : {}),
+    ...(initialValues ?? {}),
+  }));
   /**
    * The child rows each line-items field holds, by relation id. Separate from
    * `values` because they are ROWS OF ANOTHER TABLE, and separate from `links`
@@ -475,7 +529,19 @@ export function RecordForm({
       if (relationIdOf(column) !== null || column.name.startsWith('recap:')) continue;
       const fact = facts?.[column.name];
       if (controlForColumn(column, fact, listOptions) === 'readonly') continue;
-      const raw = values[column.name];
+      /*
+       * An on/off switch nobody touched shows OFF, and off is what it means —
+       * unless something else fills the column, in which case sending nothing
+       * lets it. It used to stay `undefined`, which the check below read as
+       * blank, so a new record's untouched switch said "This field is
+       * required.".
+       */
+      const untouchedSwitch =
+        mode === 'create' &&
+        values[column.name] === undefined &&
+        column.logicalType === 'boolean' &&
+        (fact === undefined ? column.hasDefault !== true : fact.filledBy === null);
+      const raw = untouchedSwitch ? false : values[column.name];
       /*
        * `required` used to be DECORATION — an asterisk and `aria-required`,
        * with nothing checking either. A blank NOT NULL field went to the

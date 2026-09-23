@@ -1534,6 +1534,7 @@ export default {
         "loadError": "Der Datensatz konnte nicht geladen werden."
       },
       "emptyTitle": "{count, plural, one {Noch keine {entity}} other {Noch keine {entity}}}",
+      "emptyTitleNamed": "Noch keine {things}",
       "exportAction": "Exportieren",
       "file": {
         "tooLarge": "Diese Datei ist größer als das Limit von {limit}.",
@@ -1611,7 +1612,17 @@ export default {
       "rejectNote": "Der Antragsteller wird mit Ihrer Notiz benachrichtigt."
     },
     "dashboard": {
-      "invalidLayout": "Das gespeicherte Layout dieses Dashboards ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück."
+      "invalidLayout": "Das gespeicherte Layout dieses Dashboards ist ungültig. Generieren Sie die Seite neu oder setzen Sie das Layout zurück.",
+      "day": {
+        "label": "Tag",
+        "today": "Heute",
+        "yesterday": "Gestern",
+        "week": "Diese Woche",
+        "pick": "Tag wählen",
+        "pickHelp": "Ein Tag auf einmal, nach der Uhr des Standorts.",
+        "cancel": "Abbrechen",
+        "show": "Tag anzeigen"
+      }
     },
     "builder": {
       "publish": "Veröffentlichen",

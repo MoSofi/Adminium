@@ -82,6 +82,10 @@ let installed: { apps: InstalledApp[]; staged: { key: string; version: string }[
 let switchReply: { onlineEnabled: boolean; vetoed: boolean };
 let job: { status: string; lastError: string | null };
 let plan: Record<string, unknown>;
+/** Plans handed out before `plan`, first one first. */
+let planReplies: Record<string, unknown>[];
+/** Rename-to-prefix replies handed out before a success, first one first. */
+let renameReplies: { status: number; body: unknown }[];
 let updateReply: { status: number; body: unknown };
 let schemaAuthoring: { authorable: boolean; reason: string | null } | undefined;
 
@@ -103,6 +107,8 @@ beforeEach(() => {
     requiresSchemaChange: false,
   };
   schemaAuthoring = undefined;
+  planReplies = [];
+  renameReplies = [];
   updateReply = {
     status: 200,
     body: { app: { ...INSTALLED, version: '0.1.2' }, from: '0.1.1', to: '0.1.2', pruned: ['0.1.1'] },
@@ -202,7 +208,31 @@ function stubFetch() {
       return Promise.resolve(jsonResponse(200, { overrides: [] }));
     }
     if (url === '/api/v1/apps/plan' && method === 'POST') {
-      return Promise.resolve(jsonResponse(200, { plan }));
+      return Promise.resolve(jsonResponse(200, { plan: planReplies.shift() ?? plan }));
+    }
+    if (url === '/api/v1/apps/clinic/rename-tables/plan' && method === 'POST') {
+      return Promise.resolve(
+        jsonResponse(200, {
+          prefix: 'clinic_',
+          connectionId: 'con_1',
+          tables: [
+            { ref: 'clinicians', from: 'clinicians', to: 'clinic_clinicians' },
+            { ref: 'visits', from: 'visits', to: 'clinic_visits' },
+          ],
+          plan: {
+            steps: [], refusals: [], warnings: [], hazard: 'safe', requiresSuperAdmin: false,
+            checksum: `sum_${String(posted('/api/v1/apps/clinic/rename-tables/plan').length)}`,
+            ceilings: [], unfinished: null,
+          },
+        }),
+      );
+    }
+    if (url === '/api/v1/apps/clinic/rename-tables' && method === 'POST') {
+      const queued = renameReplies.shift();
+      if (queued !== undefined) return Promise.resolve(jsonResponse(queued.status, queued.body));
+      return Promise.resolve(
+        jsonResponse(200, { prefix: 'clinic_', renamed: [], changeId: 'chg_rename' }),
+      );
     }
     if (url === '/api/v1/apps/clinic/update' && method === 'POST') {
       return Promise.resolve(jsonResponse(updateReply.status, updateReply.body));
@@ -474,8 +504,12 @@ describe('updating an installed app', () => {
 
   it('offers the missing columns, shows the statement, adds them, then updates', async () => {
     withUpdate({ updateStaged: true });
+    // What the server answers now: the missing columns are a
+    // COLUMNS_REQUIRED problem, so the plan is not installable as it stands.
     plan = {
       ...plan,
+      installable: false,
+      problems: [{ code: 'COLUMNS_REQUIRED', table: 'clinicians', column: 'email', message: 'missing' }],
       reuse: [{ ref: 'clinicians', missingColumns: ['email', 'tier'] }],
       requiresSchemaChange: true,
       missingColumnsEdit: COLUMNS_EDIT,
@@ -572,6 +606,31 @@ describe('updating an installed app', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('says why the server refused the update’s plan, not only that it did', async () => {
+    withUpdate({ updateStaged: true });
+    updateReply = {
+      status: 422,
+      body: {
+        error: {
+          code: 'VALIDATION_FAILED',
+          message: '"clinic" cannot be updated on this database.',
+          requestId: 'req_p',
+          details: {
+            reason: 'PLAN_REFUSED',
+            problems: [
+              { code: 'COLUMN_TYPE_CONFLICT', table: 'visits', message: '"visits.id" already exists as integer, which cannot hold the uuid values this app stores in it.' },
+              { code: 'COLUMNS_REQUIRED', table: 'clinicians', message: '"clinicians" is missing "clinic_id", which cannot be added to a table that already exists.' },
+            ],
+          },
+        },
+      },
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+
+    expect(await screen.findByText(/cannot be updated on this database\. "visits\.id" already exists as integer.*"clinicians" is missing "clinic_id"/)).toBeTruthy();
+  });
+
   it('answers an update beside the installed list, not above the shelf', async () => {
     withUpdate({ updateStaged: true });
     await renderPage();
@@ -592,5 +651,96 @@ describe('updating an installed app', () => {
     expect(await screen.findByText('v0.2.0 needs Adminium 0.3.0 or later')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Update' })).toBeNull();
     expect(screen.queryByText(/update available/)).toBeNull();
+  });
+});
+
+describe('checking a new version and renaming to the prefix', () => {
+  beforeEach(() => {
+    installed = { apps: [INSTALLED], staged: [] };
+  });
+
+  /** A context plan for 0.1.2: clinicians taken back, visits new but its name taken. */
+  function contextPlan(visits: Record<string, unknown>): Record<string, unknown> {
+    const table = (ref: string, over: Record<string, unknown>) => ({
+      ref, table: ref, class: 'own-leftover', action: 'reuse', offers: ['reuse', 'rename-existing', 'alt-prefix'],
+      edits: [], blocked: [], columns: [{ ref: 'id', type: 'int' }], ...over,
+    });
+    const undecided = visits.action === 'undecided';
+    return {
+      ...plan,
+      checksum: undecided ? 'c'.repeat(64) : 'u'.repeat(64),
+      installable: !undecided,
+      problems: undecided
+        ? [{ code: 'TABLE_TAKEN', table: 'visits', message: '"visits" already exists and was made by hand.' }]
+        : [],
+      tables: [
+        table('clinicians', {}),
+        table('visits', { class: 'taken', offers: ['rename-existing', 'alt-prefix'], ...visits }),
+      ],
+    };
+  }
+
+  it('asks about a new version\u2019s taken table, and updates with the answer and its checksum', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    plan = contextPlan({ action: 'undecided' });
+    planReplies = [contextPlan({ action: 'undecided' }), contextPlan({ action: 'rename-existing', renameExistingTo: 'visits_old' })];
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Pick what to do with visits before you update.')).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Update' }).hasAttribute('disabled')).toBe(true);
+    await userEvent.click(within(dialog).getByRole('button', { name: /visits/ }));
+    // An update keeps the app's tables where they are: no different prefix.
+    expect(within(dialog).queryByRole('radio', { name: /different prefix/ })).toBeNull();
+
+    await userEvent.click(within(dialog).getByRole('radio', { name: /Rename the existing table/ }));
+    expect(await within(dialog).findByText('Nothing changes until you press Update.')).toBeTruthy();
+    expect(posted('/api/v1/apps/plan').at(-1)?.body).toMatchObject({
+      version: '0.1.2',
+      choices: { visits: { action: 'rename-existing', to: 'visits_old' } },
+    });
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({
+      planChecksum: 'u'.repeat(64),
+      choices: { visits: { action: 'rename-existing', to: 'visits_old' } },
+    });
+  });
+
+  it('offers an old install the rename to its prefix, lists every table, and re-reads a stale plan', async () => {
+    installed = { apps: [{ ...INSTALLED, oldTableNames: { prefix: 'clinic_', count: 2 } }], staged: [] };
+    renameReplies = [
+      {
+        status: 409,
+        body: { error: { code: 'SCHEMA_DRIFT', message: 'The database changed since this change was reviewed.', requestId: 'r' } },
+      },
+    ];
+    await renderPage();
+    const banner = await screen.findByText('This install uses the old table names.');
+    expect(banner.closest('[data-part="old-table-names"]')?.textContent).toContain('They were made before prefixes.');
+    await userEvent.click(screen.getByRole('button', { name: 'Rename to clinic_…' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Rename tables to clinic_…')).toBeTruthy();
+    const rows = await within(dialog).findByTestId('rename-tables');
+    expect(rows.querySelectorAll('li')).toHaveLength(2);
+    expect(rows.textContent).toContain('clinic_visits');
+    expect(within(dialog).getByText('2 tables in Practice')).toBeTruthy();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Rename tables' }));
+    expect(await within(dialog).findByText(/The database changed since this change was reviewed/)).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/rename-tables')[0]?.body).toEqual({ checksum: 'sum_1' });
+    // The stale plan was read again, and the next press sends ITS checksum.
+    await waitFor(() => expect(posted('/api/v1/apps/clinic/rename-tables/plan')).toHaveLength(2));
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Rename tables' }).hasAttribute('disabled')).toBe(false));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Rename tables' }));
+    expect(await screen.findByText('Tables renamed to clinic_…')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/rename-tables')[1]?.body).toEqual({ checksum: 'sum_2' });
   });
 });

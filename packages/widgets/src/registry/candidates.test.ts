@@ -206,6 +206,23 @@ describe('emitCandidates — on a timestamped money table', () => {
   });
 });
 
+describe('emitCandidates — a table and columns with names for a person', () => {
+  it('titles its cards by them, not by the identifiers', () => {
+    const named = {
+      ...orders,
+      table: {
+        ...orders.table,
+        label: 'Purchases',
+        columns: orders.table.columns.map((c) => (c.name === 'total_amount' ? { ...c, label: 'Order value' } : c)),
+      },
+    };
+    const titles = emitCandidates(named.table, named.classified, ctx).map((c) => c.config['title']);
+    expect(titles).toContain('Total Purchases');
+    expect(titles).toContain('Total Order value');
+    expect(titles.some((title) => typeof title === 'string' && /Orders|Total Amount/.test(title))).toBe(false);
+  });
+});
+
 describe('emitCandidates — H2 caps and pruning', () => {
   it('caps every family at FAMILY_CAPS', () => {
     // A table triggering more KPI rules than the row can hold.

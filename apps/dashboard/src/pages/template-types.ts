@@ -17,6 +17,12 @@ export interface PageTemplateAdapters {
   crud: BoundCrudApi | null;
   /** Widget-data batch adapter; null when the page has no dashboard layout. */
   dashboard: DashboardData | null;
+  /**
+   * The page's day (Today / Yesterday / This week / a picked day) when its
+   * layout draws the day control: `dashboard` is read for it, so choosing a
+   * day re-reads the page. Absent or null otherwise.
+   */
+  dashboardDay?: { day: string; onDay: (day: string) => void } | null;
   /** WidgetEvent sink — record-open navigation, drill-through, mutate+undo.
    *  `mutate` events return the CRUD promise so optimistic widgets can roll
    *  back on rejection; other events return void. */
@@ -78,6 +84,8 @@ export interface PageTemplateProps {
   formChildren?: readonly FormChildFactReply[] | undefined;
   /** The table's own singular label, which the dialog's words are built on. */
   tableLabelSingular?: string | null | undefined;
+  /** What a person calls the table as a whole ("Categories"): searched, named when empty. */
+  tableLabelPlural?: string | null | undefined;
   /**
    * The owning connection's ISO-4217 currency, resolved once by
    * `PageRenderer` from the bootstrap nav item.

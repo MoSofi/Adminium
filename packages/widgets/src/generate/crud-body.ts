@@ -259,7 +259,7 @@ export function buildColumnDef(
 ): GridColumnSpecInput {
   const def: GridColumnSpecInput = {
     name: column.name,
-    label: humanize(column.name),
+    label: column.label ?? humanize(column.name),
     // The candidate mirror keeps `logicalType` an open string; the engine enum
     // it mirrors is identical to GRID_LOGICAL_TYPES (schema-model.ts), so
     // the narrow assertion cannot widen the emitted vocabulary.
@@ -280,6 +280,7 @@ export function buildColumnDef(
     def.fk = {
       table: column.references.tableId,
       column: column.references.column,
+      ...(column.references.label === undefined ? {} : { label: column.references.label }),
       ...(fkDisplay === null || fkDisplay === undefined ? {} : { display: fkDisplay }),
     };
   }

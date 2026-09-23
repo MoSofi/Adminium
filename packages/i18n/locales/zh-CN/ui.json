@@ -1524,6 +1524,7 @@
         "loadError": "无法加载该记录。"
       },
       "emptyTitle": "{count, plural, other {No {entity}s yet}}",
+      "emptyTitleNamed": "还没有{things}",
       "exportAction": "导出",
       "file": {
         "tooLarge": "该文件超过 {limit} 的上限。",
@@ -1601,7 +1602,17 @@
       "rejectNote": "请求者将收到通知及您的备注。"
     },
     "dashboard": {
-      "invalidLayout": "此仪表板保存的布局无效。请重新生成页面或重置其布局。"
+      "invalidLayout": "此仪表板保存的布局无效。请重新生成页面或重置其布局。",
+      "day": {
+        "label": "日期",
+        "today": "今天",
+        "yesterday": "昨天",
+        "week": "本周",
+        "pick": "选择日期",
+        "pickHelp": "一次一天，按门店时间。",
+        "cancel": "取消",
+        "show": "查看这一天"
+      }
     },
     "builder": {
       "publish": "发布",

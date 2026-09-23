@@ -132,6 +132,18 @@ describe('page-manager algebra', () => {
     expect(result.ungrouped.map((row) => row.id)).toEqual(['lost', 'none']);
   });
 
+  it('groupPages keeps installed apps’ pages apart, not lost', () => {
+    const result = groupPages([
+      page({ id: 'menu', slug: 'pos-menu', navGroup: 'app', navOrder: 2 }),
+      page({ id: 'overview', slug: 'pos-overview', navGroup: 'app', navOrder: 0 }),
+      page({ id: 'lost', slug: 'lost', navGroup: null }),
+    ]);
+    expect(result.apps.map((row) => row.id)).toEqual(['overview', 'menu']);
+    expect(result.ungrouped.map((row) => row.id)).toEqual(['lost']);
+    // Their order is the app's section's, never written from this rail.
+    expect(toNavOrderPayload(result.groups)).toEqual([]);
+  });
+
   it('toNavOrderPayload omits ungrouped pages instead of inventing a group', () => {
     const grouped = groupPages([
       page({ id: 'a', slug: 'a', navGroup: 'library' }),
@@ -812,6 +824,35 @@ describe('StudioPagesPage', () => {
     expect(await screen.findByText('Untitled page')).toBeTruthy();
     await user.type(await screen.findByTestId('studio-pages-title'), 'Shipping');
     expect(await screen.findByText('Shipping')).toBeTruthy();
+  });
+
+  it('lists an installed app’s pages as the app’s, without flagging them', async () => {
+    const { user } = renderAt('/studio/pages', {
+      pages: [page({ id: 'menu', slug: 'pos-menu', title: 'Menu', navGroup: 'app', origin: 'manifest' })],
+    });
+    await user.click(await screen.findByRole('tab', { name: 'Sidebar order' }));
+    const apps = await screen.findByTestId('studio-pages-apps');
+    expect(within(apps).getByText('Menu')).toBeTruthy();
+    expect(screen.queryByTestId('studio-pages-ungrouped')).toBeNull();
+  });
+
+  it('never moves an app’s page out of its section when it is renamed', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      pages: [page({ navGroup: 'app', origin: 'manifest', title: 'Menu', slug: 'pos-menu' })],
+      config: { columns: [] },
+    });
+    expect(await screen.findByTestId('studio-pages-group-app')).toBeTruthy();
+    expect(screen.queryByTestId('studio-pages-group')).toBeNull();
+    const title = screen.getByDisplayValue('Menu');
+    await user.clear(title);
+    await user.type(title, 'Our menu');
+    await user.click(screen.getByTestId('studio-pages-save'));
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/pages/page_1'))).toBeDefined();
+    });
+    const identity = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/pages/page_1'));
+    expect(identity?.body).toMatchObject({ title: 'Our menu' });
+    expect(identity?.body).not.toHaveProperty('navGroup');
   });
 
   it('flags pages that belong to no sidebar group', async () => {

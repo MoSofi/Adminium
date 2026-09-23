@@ -110,6 +110,8 @@ export interface NavItem {
    * (null for source-less pages).
    */
   sourceTable?: string | null;
+  /** The installed app whose page this is. Optional for fixtures predating it. */
+  appKey?: string | null;
 }
 
 export interface NavTree {
@@ -245,6 +247,12 @@ export interface BootstrapData {
    */
   hostedApps?: HostedApp[];
   /**
+   * Each installed app's own section: its pages under its groups, and its
+   * staff screens. Optional for fixtures predating it; read through
+   * {@link appSectionsOf}.
+   */
+  appSections?: AppSection[];
+  /**
    * Rail rows contributed by installed, enabled add-ons (51b). Optional for the
    * same reason as the fields around it — fixtures predating it — and read
    * through {@link addOnNavOf}.
@@ -277,6 +285,17 @@ export interface BootstrapData {
    * consult it.
    */
   pausedPages?: NavItem[];
+  /**
+   * Installed apps whose staff screens this dashboard does not carry, and why.
+   * Read by `/a/$appKey` only, so a link to one says "switched off" or "opens
+   * on its own" instead of a 404. Absent from an older server.
+   */
+  unavailableApps?: UnavailableApp[];
+  /**
+   * Pages of a switched-off app — like {@link pausedPages}, offered by nothing
+   * and read only by the page route, which shows the switched-off state.
+   */
+  disabledAppPages?: NavItem[];
   /**
    * The project folder this server runs, absent on every other server. Read
    * through `project/client.ts`.
@@ -343,6 +362,35 @@ export function hostedAppsOf(bootstrap: BootstrapData): HostedApp[] {
   return bootstrap.hostedApps ?? [];
 }
 
+/** An installed app's own sidebar section. */
+export interface AppSection {
+  appKey: string;
+  label: string;
+  version: string;
+  /** The first group's label is null when it holds the app's ungrouped pages. */
+  groups: { key: string; label: string | null; items: NavItem[] }[];
+  staff:
+    | null
+    | { placement: 'internal'; items: HostedNavItem[] }
+    | {
+        placement: 'external';
+        url: string;
+        /** The screens, each at `url` + its path (the palette lists them). */
+        items?: HostedNavItem[];
+        /** Each extra instance's own address. */
+        instances?: { slug: string; url: string }[];
+      };
+}
+
+export function appSectionsOf(bootstrap: BootstrapData): AppSection[] {
+  return bootstrap.appSections ?? [];
+}
+
+/** Every page the apps' sections list. */
+export function appPagesOf(bootstrap: BootstrapData): NavItem[] {
+  return appSectionsOf(bootstrap).flatMap((section) => section.groups.flatMap((group) => group.items));
+}
+
 /** The add-on rail rows and groups, never undefined — see the field's note. */
 export function addOnNavOf(bootstrap: BootstrapData): AddOnNav {
   return bootstrap.addOnNav ?? { groups: [], pages: [] };
@@ -353,14 +401,41 @@ export function hiddenPagesOf(bootstrap: BootstrapData): NavItem[] {
   return bootstrap.hiddenPages ?? [];
 }
 
+/** An installed app the dashboard does not show, and why. */
+export interface UnavailableApp {
+  appKey: string;
+  label: string;
+  reason: 'app-disabled' | 'side-off' | 'external';
+  /** Where it opens on its own, for `external`. */
+  href?: string;
+}
+
+/** Whether a page belongs to a switched-off app — see the field's note. */
+export function isDisabledAppPage(bootstrap: BootstrapData, slug: string): boolean {
+  return (bootstrap.disabledAppPages ?? []).some((item) => item.slug === slug);
+}
+
 /** The paused-connection pages, never undefined — see the field's note. */
 export function pausedPagesOf(bootstrap: BootstrapData): NavItem[] {
   return bootstrap.pausedPages ?? [];
 }
 
-/** A blended app by key, or null — the `/a/$appKey` route's resolver. */
-export function hostedAppByKey(bootstrap: BootstrapData, appKey: string): HostedApp | null {
-  return hostedAppsOf(bootstrap).find((app) => app.appKey === appKey) ?? null;
+/**
+ * A blended app by its `$appKey` route param, or null — the `/a/$appKey`
+ * route's resolver.
+ *
+ * The param is `<appKey>` for the app's own section or `<appKey>~<instance>`
+ * for an extra tenant (`appKeyParam` in the sidebar). It used to be compared
+ * whole against `appKey`, which never carries the suffix, so every instance's
+ * link was a 404.
+ */
+export function hostedAppByKey(bootstrap: BootstrapData, param: string): HostedApp | null {
+  const at = param.indexOf('~');
+  const appKey = at === -1 ? param : param.slice(0, at);
+  const instance = at === -1 ? undefined : param.slice(at + 1);
+  return (
+    hostedAppsOf(bootstrap).find((app) => app.appKey === appKey && app.instance === instance) ?? null
+  );
 }
 
 /**
@@ -437,6 +512,7 @@ export function findNavItemBySlug(nav: NavTree, slug: string): NavItem | null {
 export function findPageBySlug(bootstrap: BootstrapData, slug: string): NavItem | null {
   return (
     findNavItemBySlug(bootstrap.nav, slug) ??
+    appPagesOf(bootstrap).find((item) => item.slug === slug) ??
     hiddenPagesOf(bootstrap).find((item) => item.slug === slug) ??
     pausedPagesOf(bootstrap).find((item) => item.slug === slug) ??
     null
@@ -461,7 +537,7 @@ export function slugForTable(
   // clicks and tab activations, and this module is in the ENTRY set — map
   // machinery and a WeakMap cache cost real ratcheted bytes to save nothing
   // measurable (check-entry-budget).
-  for (const item of [...flattenNav(bootstrap.nav), ...hiddenPagesOf(bootstrap)]) {
+  for (const item of [...flattenNav(bootstrap.nav), ...appPagesOf(bootstrap), ...hiddenPagesOf(bootstrap)]) {
     if ((item.sourceTable ?? null) === table && (item.connectionId ?? null) === connectionId) {
       return item.slug;
     }
@@ -474,8 +550,9 @@ export function slugForTable(
  * anywhere; `null` when the nav is empty (zero connections → the
  * `empty-no-sources` home state until `/welcome` lands in Wave B).
  */
-export function defaultPageSlug(nav: NavTree): string | null {
+export function defaultPageSlug(nav: NavTree, appPages: readonly NavItem[] = []): string | null {
   const workspace = nav.groups.find((group) => group.key === 'workspace');
-  const first = workspace?.items[0] ?? flattenNav(nav)[0];
+  // An instance whose only pages are an app's opens on the app's first.
+  const first = workspace?.items[0] ?? flattenNav(nav)[0] ?? appPages[0];
   return first?.slug ?? null;
 }

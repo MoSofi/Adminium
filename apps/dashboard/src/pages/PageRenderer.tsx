@@ -21,7 +21,7 @@ import { FileQuestion, PackageOpen, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Card, CardBody, CardHeader, IconTile, MonoText, Skeleton } from '@adminium/ui';
 import { WidgetErrorBoundary, isDeletePreview, type ColumnFacts, type WidgetEvent } from '@adminium/widgets';
-import type { PageEnvelope } from '@adminium/engine/config';
+import { pageLayoutSchema, type PageEnvelope } from '@adminium/engine/config';
 
 import { createCrudApi, type BoundCrudApi, type CrudMutationResult } from '../api/crud.js';
 import {
@@ -31,7 +31,7 @@ import {
   type FormRelationFactReply,
 } from '../api/pages.js';
 import { useDashboardData } from '../api/widgetData.js';
-import { bootstrapQuery, findPageBySlug, slugForTable } from '../app/bootstrap.js';
+import { bootstrapQuery, findPageBySlug, isDisabledAppPage, slugForTable } from '../app/bootstrap.js';
 import { hrefForPage, hrefForRecord } from '../app/links.js';
 import { requestIdForError, stateIdForError } from '../app/query.js';
 import { t } from '../i18n/t.js';
@@ -58,6 +58,10 @@ export function PageRenderer() {
   // still answers its URL (30 follow-up).
   const item = findPageBySlug(bootstrap, slug);
 
+  // A page of a switched-off app: its URL says so, rather than "no such page".
+  if (item === null && isDisabledAppPage(bootstrap, slug)) {
+    return <StatePage stateId="app-disabled" fullPage={false} />;
+  }
   // Unknown slug → branded 404 with NO pages round trip.
   if (item === null) return <NotFoundPage />;
   return <PageDocument key={item.pageId} pageId={item.pageId} slug={slug} recordId={recordId} />;
@@ -124,6 +128,7 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       formRelations={result.formRelations}
       formChildren={result.formChildren}
       tableLabelSingular={result.tableLabelSingular}
+      tableLabelPlural={result.tableLabelPlural}
     />
   );
 }
@@ -167,6 +172,7 @@ export function TemplateMount({
   formRelations,
   formChildren,
   tableLabelSingular,
+  tableLabelPlural,
 }: {
   page: PageEnvelope;
   slug: string;
@@ -182,6 +188,7 @@ export function TemplateMount({
   formRelations?: readonly FormRelationFactReply[] | undefined;
   formChildren?: readonly FormChildFactReply[] | undefined;
   tableLabelSingular?: string | null | undefined;
+  tableLabelPlural?: string | null | undefined;
 }) {
   const [resolution, setResolution] = useState<TemplateResolution>({ phase: 'resolving' });
   const [attempt, setAttempt] = useState(0);
@@ -297,6 +304,7 @@ export function TemplateMount({
             {...(formRelations === undefined ? {} : { formRelations })}
             {...(formChildren === undefined ? {} : { formChildren })}
             {...(tableLabelSingular === undefined ? {} : { tableLabelSingular })}
+            {...(tableLabelPlural === undefined ? {} : { tableLabelPlural })}
             {...(currency === null || currency === undefined ? {} : { currency })}
           />
         </PageHostContext.Provider>
@@ -304,6 +312,9 @@ export function TemplateMount({
     </WidgetErrorBoundary>
   );
 }
+
+/** A page without page-level params: one stable object, so its query key never churns. */
+const NO_PARAMS = {};
 
 /** Data adapters + the WidgetEvent sink for one mounted page. */
 function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters {
@@ -317,7 +328,11 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
     return connectionId !== null && table !== null ? createCrudApi(connectionId, table) : null;
   }, [page.source]);
 
-  const dashboard = useDashboardData(page);
+  // A layout with the day control is read for the chosen day (today to start).
+  const withDay = useMemo(() => pageLayoutSchema.safeParse(page.config['layout']).data?.toolbar?.day === true, [page.config]);
+  const [day, setDay] = useState('today');
+  const dayParams = useMemo(() => (withDay ? { day } : NO_PARAMS), [withDay, day]);
+  const dashboard = useDashboardData(page, dayParams);
   const hasLayout = page.kind === 'dashboard';
 
   const openRecord = useCallback(
@@ -408,8 +423,15 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
   );
 
   return useMemo<PageTemplateAdapters>(
-    () => ({ crud, dashboard: hasLayout ? dashboard : null, onEvent, openRecord, notifyUndoable }),
-    [crud, hasLayout, dashboard, onEvent, openRecord, notifyUndoable],
+    () => ({
+      crud,
+      dashboard: hasLayout ? dashboard : null,
+      dashboardDay: hasLayout && withDay ? { day, onDay: setDay } : null,
+      onEvent,
+      openRecord,
+      notifyUndoable,
+    }),
+    [crud, hasLayout, dashboard, withDay, day, onEvent, openRecord, notifyUndoable],
   );
 }
 

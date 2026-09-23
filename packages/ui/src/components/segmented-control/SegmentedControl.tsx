@@ -40,6 +40,11 @@ export interface SegmentedControlProps
   onValueChange?: ((value: string) => void) | undefined;
   /** Disables the whole tray. */
   disabled?: boolean | undefined;
+  /**
+   * Classes for every segment, merged after the defaults — for a screen whose
+   * comp draws its segments at other values (a page's own toolbar).
+   */
+  itemClassName?: string | undefined;
 }
 
 /**
@@ -56,6 +61,7 @@ export function SegmentedControl({
   onValueChange,
   disabled = false,
   className,
+  itemClassName,
   ...props
 }: SegmentedControlProps) {
   const direction = useDirection();
@@ -126,6 +132,7 @@ export function SegmentedControl({
               'data-[selected]:bg-surface data-[selected]:text-fg data-[selected]:shadow-card ',
               '[&_svg]:size-3.5 [&_svg]:shrink-0',
               option.label === undefined || option.label === null ? 'px-2' : '',
+              itemClassName,
             )}
           >
             {option.dot === undefined ? null : (

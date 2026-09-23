@@ -311,6 +311,10 @@ export function AppShell() {
             }
             onSignOut={signOut}
             onShowShortcuts={() => setShortcutsOpen(true)}
+            onOpenApp={(target) => {
+              if ('url' in target) window.open(target.url, '_blank', 'noopener');
+              else void navigate({ to: '/a/$appKey/$', params: { appKey: target.appKey, _splat: target.path } });
+            }}
           />
         </Suspense>
       ) : null}

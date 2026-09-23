@@ -809,5 +809,19 @@
     "button": "Otevřít online",
     "footer": "Tento e-mail dostáváte, protože {business} pro vás nakreslil tento doklad.",
     "attachment": "Doklad"
+  },
+  "bookingConfirmation": {
+    "name": "Potvrzení rezervace",
+    "subject": "Váš stůl v {venue} je rezervován",
+    "preheader": "Rezervace {code} · {when} · počet osob: {party}",
+    "heading": "Váš stůl je rezervován",
+    "intro": "V {venue} pro vás držíme stůl. Při příchodu ukažte tento kód.",
+    "codeLabel": "Kód rezervace",
+    "when": "Kdy: {when}",
+    "party": "Počet osob: {party}",
+    "guest": "Jméno: {name}",
+    "action": "Spravovat rezervaci",
+    "cancel": "Online můžete zrušit nejpozději {cancelHours} h předem.",
+    "footer": "{venue} · {address} · {phone}"
   }
 }

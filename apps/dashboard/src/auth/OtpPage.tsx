@@ -10,20 +10,31 @@ import { TwoFactorForm } from '@adminium/ui';
 
 import { ApiError } from '../app/api.js';
 import { t } from '../i18n/t.js';
+import { useBranding } from '../shell/BrandMark.js';
 import { AuthScreenLayout } from './AuthScreenLayout.js';
 import { clearChallenge, readChallenge, verify2fa } from './authApi.js';
+import { StaffHandover } from './StaffHandover.js';
 
 export function OtpPage() {
   const router = useRouter();
   const [challenge] = useState(readChallenge);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { surface } = useBranding();
+  const [opening, setOpening] = useState<string | null>(null);
 
   useEffect(() => {
     if (challenge === null) void router.navigate({ to: '/login' });
   }, [challenge, router]);
 
   if (challenge === null) return null;
+  if (opening !== null) {
+    return (
+      <AuthScreenLayout documentTitle={t('auth.otp.title', 'Two-factor authentication')}>
+        <StaffHandover appName={surface?.appName ?? null} userName={opening} />
+      </AuthScreenLayout>
+    );
+  }
 
   return (
     <AuthScreenLayout documentTitle={t('auth.otp.title', 'Two-factor authentication')}>
@@ -44,12 +55,13 @@ export function OtpPage() {
           setLoading(true);
           setError(null);
           verify2fa(challenge.challengeToken, values.code)
-            .then(() => {
+            .then((user) => {
               clearChallenge();
               router.options.context.queryClient.clear();
               // The surface gate's target needs a DOCUMENT navigation — same
               // rule as LoginPage.finish, same path-only guard.
               if (challenge.next !== null) {
+                setOpening(user.name);
                 window.location.assign(challenge.next);
                 return;
               }
@@ -59,7 +71,11 @@ export function OtpPage() {
             .catch((cause: unknown) => {
               setLoading(false);
               if (cause instanceof ApiError && cause.status === 401) {
-                setError(t('auth.otp.invalid', 'That code didn’t work. Try again.'));
+                setError(
+                  surface === undefined
+                    ? t('auth.otp.invalid', 'That code didn’t work. Try again.')
+                    : t('auth.staff.codeInvalid', 'That code didn’t work. Try the newest one in your app.'),
+                );
               } else {
                 setError(t('auth.otp.failed', 'Verification failed. Check your connection and try again.'));
               }

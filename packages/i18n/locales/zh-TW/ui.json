@@ -1524,6 +1524,7 @@
         "loadError": "無法載入此記錄。"
       },
       "emptyTitle": "{count, plural, other {No {entity}s yet}}",
+      "emptyTitleNamed": "還沒有{things}",
       "exportAction": "匯出",
       "file": {
         "tooLarge": "該檔案超過 {limit} 的上限。",
@@ -1601,7 +1602,17 @@
       "rejectNote": "請求者會收到通知與您的備註。"
     },
     "dashboard": {
-      "invalidLayout": "此儀表板儲存的版面配置無效。請重新產生頁面或重設其版面配置。"
+      "invalidLayout": "此儀表板儲存的版面配置無效。請重新產生頁面或重設其版面配置。",
+      "day": {
+        "label": "日期",
+        "today": "今天",
+        "yesterday": "昨天",
+        "week": "本週",
+        "pick": "選擇日期",
+        "pickHelp": "一次一天，依店家時間。",
+        "cancel": "取消",
+        "show": "查看這一天"
+      }
     },
     "builder": {
       "publish": "發佈",

@@ -1524,6 +1524,7 @@
         "loadError": "تعذّر تحميل السجل."
       },
       "emptyTitle": "{count, plural, zero {لا توجد {entity} بعد} one {لا توجد {entity} بعد} two {لا توجد {entity} بعد} few {لا توجد {entity} بعد} many {لا توجد {entity} بعد} other {لا توجد {entity} بعد}}",
+      "emptyTitleNamed": "لا توجد {things} بعد",
       "exportAction": "تصدير",
       "file": {
         "tooLarge": "هذا الملف أكبر من الحد المسموح {limit}.",
@@ -1601,7 +1602,17 @@
       "rejectNote": "سيتم إشعار مقدم الطلب مع ملاحظتك."
     },
     "dashboard": {
-      "invalidLayout": "التخطيط المخزَّن للوحة المعلومات هذه غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطها."
+      "invalidLayout": "التخطيط المخزَّن للوحة المعلومات هذه غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطها.",
+      "day": {
+        "label": "اليوم",
+        "today": "اليوم",
+        "yesterday": "أمس",
+        "week": "هذا الأسبوع",
+        "pick": "اختر يومًا",
+        "pickHelp": "يوم واحد في كل مرة، بتوقيت المكان.",
+        "cancel": "إلغاء",
+        "show": "عرض اليوم"
+      }
     },
     "builder": {
       "publish": "نشر",

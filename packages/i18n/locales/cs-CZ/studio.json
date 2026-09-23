@@ -618,9 +618,15 @@
         "pageWarnings": "Některé stránky této aplikace dorazí bez tabulky"
       },
       "done": {
-        "title": "Nainstalováno",
         "body": "{key} se už servíruje. Níže vyberte, kde se má objevit její část pro personál.",
-        "schema": "Vytvořené tabulky: {created} · znovu použité: {reused}"
+        "titleApp": "{app} je nainstalována",
+        "tablesCreated": "Tabulky vytvořené v {connection}",
+        "tablesKept": "Tabulky použité tak, jak byly",
+        "pages": "Vygenerované stránky",
+        "sampleNotAdded": "nepřidána",
+        "sampleAdding": "přidávají se…",
+        "sampleAdded": "přidána",
+        "sampleLater": "Můžete je přidat později na stránce aplikace."
       },
       "cancel": "Zrušit",
       "back": "Zpět",
@@ -641,6 +647,68 @@
       "uploaded": {
         "hint": "Načteno ze souboru manifest.json v balíčku, který jste nahráli. Dokud nepotvrdíte plán schématu, nic se nevytvoří.",
         "replace": "Nahrát jiný balíček"
+      },
+      "check": {
+        "title": "Zkontrolujte tabulky",
+        "hint": "{app} je vytvoří v {connection}. Dokud nestisknete Instalovat, nic se nezmění.",
+        "summaryNew": "Nové: {count}",
+        "summaryEarlier": "Z vaší dřívější instalace: {count}",
+        "summaryShared": "Sdílené s jinou aplikací: {count}",
+        "summaryTaken": "{count, plural, one {# obsazený název} few {# obsazené názvy} many {# obsazeného názvu} other {# obsazených názvů}}",
+        "altPrefixInUse": "Zkontrolováno s předponou {prefix}.",
+        "usualPrefix": "Použít obvyklou předponu",
+        "badgeNew": "Nová",
+        "badgeEarlier": "Vaše z dřívější instalace",
+        "badgeShared": "Sdílená s {app}",
+        "badgeTaken": "Název obsazen",
+        "columns": "{count, plural, one {# sloupec} few {# sloupce} many {# sloupce} other {# sloupců}}",
+        "keep": "Použít ji a ponechat její data",
+        "sharedNote": "Tuto tabulku používá i {app}. Obě aplikace dál čtou a zapisují stejné řádky.",
+        "earlierNote": "Adminium tuto tabulku vytvořil při dřívější instalaci {app}.",
+        "createPreview": "Náhled vytvoření",
+        "addsColumns": "{count, plural, one {Přidá # sloupec:} few {Přidá # sloupce:} many {Přidá # sloupce:} other {Přidá # sloupců:}}",
+        "widens": "Rozšíří {column} z {from} na {to}.",
+        "setIdentity": "{column} čísluje nové řádky sám.",
+        "enumValues": "{column} přijímá také {values}.",
+        "noLoss": "Žádný sloupec se neodstraní a žádná data se neztratí.",
+        "reuseNote": "Aplikace čte a zapisuje řádky, které tam už jsou.",
+        "renameTitle": "Přejmenovat stávající tabulku, aby uvolnila místo",
+        "renameNote": "Pro aplikaci se vytvoří nová {table}.",
+        "renameField": "Nový název stávající tabulky",
+        "renameFieldNote": "Adminium opraví své vlastní stránky a pravidla, která odkazovala na starý název.",
+        "prefixTitle": "Použít pro tuto aplikaci jinou předponu",
+        "prefixNote": "Platí pro všechny tabulky aplikace najednou.",
+        "prefixField": "Předpona",
+        "prefixFieldNote": "{count, plural, one {Tabulka bude znovu zkontrolována.} few {Všechny # tabulky budou znovu zkontrolovány.} many {Všech # tabulky bude znovu zkontrolováno.} other {Všech # tabulek bude znovu zkontrolováno.}}",
+        "takenIntro": "{table} už existuje a byla vytvořena ručně. Vyberte, co s ní udělat.",
+        "takenIntroShort": "Co udělat s {table}",
+        "pickFirst": "Před instalací vyberte, co udělat s {table}.",
+        "checkFirst": "Před instalací tabulky zkontrolujte znovu.",
+        "nothingYet": "Dokud nestisknete Instalovat, nic se nezmění.",
+        "again": "Zkontrolovat znovu",
+        "adoptedNote": "Dřívější instalace {app} použila tuto tabulku tak, jak ji našla."
+      },
+      "running": {
+        "title": "Instaluje se {app}",
+        "hint": "Zapisuje se do {connection}.",
+        "tables": "Tabulky",
+        "pages": "Stránky"
+      },
+      "stopped": {
+        "failed": "selhalo",
+        "notStarted": "nezahájeno",
+        "atTables": "Vytvoření tabulek selhalo, takže nic dalšího neproběhlo.",
+        "atIntrospect": "Tabulky byly vytvořeny. Jejich zpětné načtení selhalo, takže nic dalšího neproběhlo.",
+        "atPages": "Tabulky byly vytvořeny. Vytvoření stránek selhalo, takže nic dalšího neproběhlo.",
+        "atFinish": "Tabulky i stránky byly vytvořeny. Dokončení instalace selhalo.",
+        "title": "Instalace se zastavila v půlce",
+        "created": "Vytvořeno: {count}",
+        "made": "vytvořeno",
+        "said": "Co odpověděla databáze",
+        "saidAbout": "Co databáze odpověděla k {table}",
+        "resume": "Nic nebylo odstraněno. Nový pokus pokračuje tam, kde se zastavila.",
+        "retry": "Zkusit znovu",
+        "back": "Zpět na plán schématu"
       }
     },
     "installed": {
@@ -649,11 +717,6 @@
       "emptyTitle": "Zatím není nainstalována žádná aplikace",
       "emptyBody": "Nahrajte sestavený balíček rozhraní a nainstalujte ji. Aplikace nainstalované zde se servírují okamžitě — bez restartu, na rozdíl od adresáře.",
       "uninstall": "Odinstalovat",
-      "confirmTitle": "Odinstalovat tuto aplikaci?",
-      "confirmBody": "Její rozhraní se přestanou servírovat a balíček se smaže. Tabulky, které vytvořila ve vaší databázi, zůstanou nedotčené.",
-      "confirmPrompt": "Pro potvrzení napište {key}",
-      "confirmCancel": "Zrušit",
-      "confirmClose": "Zavřít",
       "stagedTitle": "Nahráno, ale nenainstalováno",
       "stagedHint": "Zahoďte ten, který jste zavrhli, nebo nahrajte stejný klíč znovu a nahraďte jej.",
       "discard": "Zahodit",
@@ -665,7 +728,10 @@
       "missingBody": "Její soubory na tomto serveru nejsou, takže se neservíruje. Nainstalujte stejnou verzi znovu, nebo ji odinstalujte.",
       "update": "Aktualizovat",
       "discardFailed": "Nahraný soubor nebyl zahozen",
-      "uninstallFailed": "Aplikace nebyla odinstalována"
+      "renamed": "Tabulky přejmenovány na {prefix}…",
+      "oldNames": "Tato instalace používá staré názvy tabulek.",
+      "oldNamesWhy": "Vznikly před zavedením předpon.",
+      "renameTo": "Přejmenovat na {prefix}…"
     },
     "instances": {
       "add": "Přidat instanci",
@@ -716,7 +782,11 @@
       "confirm": "Aktualizovat",
       "close": "Zavřít",
       "done": "{app} aktualizováno na v{version}",
-      "missingColumns": "Chybí: {tables}."
+      "missingColumns": "Chybí: {tables}.",
+      "checkSubtitle": "Zkontrolujte tabulky, které tato verze používá.",
+      "pickFirst": "Před aktualizací vyberte, co udělat s {table}.",
+      "checkFirst": "Před aktualizací tabulky zkontrolujte znovu.",
+      "nothingYet": "Dokud nestisknete Aktualizovat, nic se nezmění."
     },
     "veto": {
       "title": "Toto nasazení nemůže procházet online",
@@ -731,6 +801,18 @@
       "failed": "Sloupce se nepodařilo přidat",
       "valuesFailed": "Sloupce byly přidány, ale jejich povolené hodnoty se nepodařilo uložit",
       "confirm": "Přidat sloupce a aktualizovat"
+    },
+    "rename": {
+      "title": "Přejmenovat tabulky na {prefix}…",
+      "subtitle": "{count, plural, one {# tabulka v {connection}} few {# tabulky v {connection}} many {# tabulky v {connection}} other {# tabulek v {connection}}}",
+      "close": "Zavřít",
+      "body": "Tato instalace vznikla před zavedením předpon. Přejmenování dá každé tabulce předponu aplikace, aby {app} poznala své vlastní tabulky.",
+      "planFailed": "Přejmenování se nepodařilo naplánovat",
+      "refused": "Tyto tabulky zde nelze přejmenovat",
+      "failed": "Tabulky nebyly přejmenovány",
+      "repair": "Adminium také aktualizuje své vlastní stránky a pravidla, která odkazují na staré názvy.",
+      "cancel": "Zrušit",
+      "confirm": "Přejmenovat tabulky"
     }
   },
   "hub": {
@@ -1285,7 +1367,8 @@
       "visible": "Zobrazit v postranním panelu",
       "visibleHint": "Skrytá stránka zůstává dostupná na své URL každému, kdo má odkaz.",
       "width": "Šířka obsahu",
-      "widthHint": "Jak široký může být sloupec s obsahem stránky na velké obrazovce."
+      "widthHint": "Jak široký může být sloupec s obsahem stránky na velké obrazovce.",
+      "groupApp": "Ve vlastní sekci své aplikace"
     },
     "filters": {
       "add": "Přidat filtr",
@@ -1546,6 +1629,10 @@
       "ungrouped": {
         "body": "Tyto stránky na své URL fungují, ale v postranním panelu se nikde neobjeví. Otevřete každou z nich a vyberte skupinu.",
         "title": "Některé stránky nepatří do žádné skupiny"
+      },
+      "apps": {
+        "title": "V sekcích nainstalovaných aplikací",
+        "body": "Každá aplikace má své stránky ve vlastní sekci postranního panelu."
       }
     },
     "status": {
@@ -1829,7 +1916,20 @@
       "optionsPickList": "Vyberte seznam…",
       "optionsSource": "Povolené hodnoty",
       "optionsSourceHelp": "Seznam se napíše jednou ve Studiu a použije jej každý sloupec, který jej pojmenuje.",
-      "optionsValues": "Hodnoty"
+      "optionsValues": "Hodnoty",
+      "decided": {
+        "title": "Určuje Adminium",
+        "help": "Adminium toto vyplní při každém zápisu a veřejný endpoint nikdy nedovolí návštěvníkovi to nastavit.",
+        "copy": "Zkopírováno z {from} řádku, na který odkazuje {via}",
+        "copyAlways": "vždy, bez ohledu na to, co zapisující zadá",
+        "copyDefault": "pokud zapisující nezadá hodnotu",
+        "sequence": "Další číslo v pořadí, od {start}",
+        "code": "Náhodný kód jako {example}",
+        "remove": "Odebrat toto pravidlo",
+        "rollup": "Součet {sum} přes jeho řádky v {from}",
+        "rollupTimes": "Součet {sum} × {times} přes jeho řádky v {from}"
+      },
+      "venueLocal": "Čas zapsaný sem bez časového pásma je místním časem provozovny."
     },
     "saveFailed": "Uložení se nezdařilo: {message}",
     "subtitle": "{tables} tabulek · použito {applied} úprav",
@@ -2745,5 +2845,169 @@
     "subtitle": "Spravujte programový přístup ke svému pracovnímu prostoru",
     "summary": "{endpoints, plural, one {# koncový bod} few {# koncové body} many {# koncového bodu} other {# koncových bodů}} · {methods, plural, one {# metoda} few {# metody} many {# metody} other {# metod}}",
     "title": "Klíče API a tokeny"
+  },
+  "surfacePages": {
+    "guest": {
+      "title": "{app} teď není k dispozici.",
+      "body": "Zkuste to prosím později."
+    },
+    "staff": {
+      "appOff": "{app} je zatím vypnutá.",
+      "sideOff": "Obrazovky pro personál aplikace {app} jsou vypnuté.",
+      "advice": "Požádejte vedoucího, aby ji zapnul v {app} → Nastavení.",
+      "signOut": "Odhlásit se",
+      "noAccess": "Tento účet nemůže otevřít {app}.",
+      "noAccessAdvice": "Požádejte svého vedoucího o roli, která otevírá {app}."
+    },
+    "notFound": {
+      "title": "Stránka nenalezena",
+      "body": "Na této adrese nic není. Zkontrolujte odkaz a zkuste to znovu."
+    }
+  },
+  "appSettings": {
+    "notInstalled": "Tato aplikace není nainstalována",
+    "backToApps": "Zpět na aplikace",
+    "statusDisabled": "Vypnuto",
+    "statusUpdate": "Dostupná aktualizace · {version}",
+    "statusActive": "Aktivní",
+    "version": "Verze {version} · od {publisher}",
+    "open": "Otevřít aplikaci",
+    "upToDate": "Aktuální",
+    "update": "Aktualizovat",
+    "saveFailed": "Změna nebyla uložena",
+    "screens": "Sady obrazovek",
+    "sideStaff": "Obrazovky pro personál",
+    "sideCustomer": "Obrazovky pro zákazníky",
+    "sideAppOff": "Celá aplikace je vypnutá.",
+    "staffOnHelp": "Váš tým se sem přihlašuje vlastními účty.",
+    "customerOnHelp": "Tyto stránky používají zákazníci. Jsou veřejné.",
+    "staffOffHelp": "Tyto obrazovky se neposkytují. Nic nebylo smazáno.",
+    "customerOffHelp": "Zákazníci vidí „není k dispozici“. Nic nebylo smazáno.",
+    "sideSwitch": "{side}, zapnuto nebo vypnuto",
+    "on": "Zapnuto",
+    "off": "Vypnuto",
+    "whereItLives": "Kde běží",
+    "ownAddress": "Na vlastní adrese",
+    "insideDashboard": "Uvnitř dashboardu",
+    "copyAddress": "Kopírovat adresu",
+    "copied": "Zkopírováno",
+    "copy": "Kopírovat",
+    "addDomain": "Přidat doménu",
+    "preview": "Náhled",
+    "domainField": "Doména",
+    "addDomainSave": "Přidat",
+    "data": "Data",
+    "noTables": "Tato aplikace nepoužívá žádné tabulky.",
+    "rows": "{count, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
+    "activity": {
+      "staged": "Nahrál(a) {actor}",
+      "installed": "Nainstaloval(a) {actor}",
+      "updated": "Aktualizoval(a) {actor}",
+      "disabled": "Vypnul(a) {actor}",
+      "enabled": "Zapnul(a) {actor}",
+      "settings": "Nastavení změnil(a) {actor}",
+      "domains": "Domény změnil(a) {actor}",
+      "instances": "Instance změnil(a) {actor}",
+      "renamed": "Tabulky přejmenoval(a) {actor}",
+      "title": "Aktivita",
+      "none": "Zatím nic.",
+      "sampleAdded": "Ukázková data přidal(a) {actor}",
+      "sampleRemoved": "Ukázková data odstranil(a) {actor}"
+    },
+    "danger": "Nebezpečná zóna",
+    "disabledNote": "Aplikace je vypnutá. Zapnutí vrátí přesně to, co tam bylo.",
+    "disableNote": "Skryje aplikaci všude a zastaví její koncové body. Nic se nesmaže.",
+    "enable": "Zapnout",
+    "disable": "Vypnout",
+    "uninstallNote": "Odstraní soubory a stránky aplikace. Tabulky a data zůstanou.",
+    "uninstall": "Odinstalovat",
+    "disableTitle": "Vypnout {app}?",
+    "close": "Zavřít",
+    "nothingDeleted": "Nic se nesmaže.",
+    "enableBrings": "Zapnutí vrátí přesně to, co tam bylo.",
+    "cancel": "Zrušit",
+    "disableLine1": "Její sekce se všem skryje.",
+    "disableLine2": "Její obrazovky a vlastní koncové body přestanou odpovídat.",
+    "disableLine3": "Tabulky, záznamy a nastavení zůstanou, jak jsou.",
+    "crumb": "Aplikace",
+    "sampleLedger": "Seznam ukázkových záznamů Adminia"
+  },
+  "uninstall": {
+    "files": "Soubory aplikace",
+    "pages": "{count, plural, one {# stránka} few {# stránky} many {# stránky} other {# stránek}}",
+    "keys": "{count, plural, one {Její klíč prohlížeče} few {Její # klíče prohlížeče} many {Jejích # klíče prohlížeče} other {Jejích # klíčů prohlížeče}}",
+    "settings": "Její nastavení",
+    "hosts": "{count, plural, one {Její doména} few {Její # domény} many {Jejích # domény} other {Jejích # domén}}",
+    "tables": "{count, plural, one {# tabulka a všechny její záznamy} few {# tabulky a všechny jejich záznamy} many {# tabulky a všechny jejich záznamy} other {# tabulek a všechny jejich záznamy}}",
+    "editedPages": "Stránky, které jste upravili, zůstanou jako běžné stránky",
+    "audit": "Její záznamy v auditním logu",
+    "title": "Odinstalovat {app}?",
+    "close": "Zavřít",
+    "planFailed": "Co by bylo odstraněno, se nepodařilo načíst",
+    "removed": "Odstraněno",
+    "kept": "Ponecháno",
+    "roleCascade": "Odstraněním této role ji ztratí {members, plural, one {# osoba} few {# osoby} many {# osoby} other {# osob}} a smaže se {keys, plural, one {# navázaný klíč API} few {# navázané klíče API} many {# navázaného klíče API} other {# navázaných klíčů API}}. Tyto klíče okamžitě přestanou fungovat.",
+    "dropTitle": "Smazat i její tabulky a data",
+    "dropBody": "{count, plural, one {Smaže # tabulku, kterou vytvořila, se všemi záznamy.} few {Smaže # tabulky, které vytvořila, se všemi záznamy.} many {Smaže # tabulky, které vytvořila, se všemi záznamy.} other {Smaže # tabulek, které vytvořila, se všemi záznamy.}} Nelze vrátit zpět.",
+    "typeKey": "Pro potvrzení zadejte klíč aplikace {key}.",
+    "failed": "Aplikace nebyla odinstalována",
+    "cancel": "Zrušit",
+    "confirmDrop": "Odinstalovat a smazat data",
+    "confirm": "Odinstalovat",
+    "rules": "{count, plural, one {Její pravidlo sloupce} few {Její # pravidla sloupců} many {Jejích # pravidla sloupců} other {Jejích # pravidel sloupců}}"
+  },
+  "sampleData": {
+    "title": "Ukázková data",
+    "add": "Přidat ukázková data",
+    "installNote": "několik ukázkových záznamů v tabulkách aplikace, abyste ji měli na čem vyzkoušet. Odstraníte je jedním kliknutím.",
+    "remove": "Odstranit ukázková data",
+    "keptNotice": "{count, plural, one {# ukázkový záznam zůstává: používají ho vaše vlastní záznamy, nebo jste ho změnili.} few {# ukázkové záznamy zůstávají: používají je vaše vlastní záznamy, nebo jste je změnili.} many {# ukázkového záznamu zůstává: používají ho vaše vlastní záznamy, nebo jste ho změnili.} other {# ukázkových záznamů zůstává: používají je vaše vlastní záznamy, nebo jste je změnili.}}",
+    "notLoaded": "Nenačteno",
+    "loadedCount": "Načteno · {count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
+    "loaded": "Načteno · {count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}} · {date}",
+    "addSubtitle": "Do {connection}",
+    "close": "Zavřít",
+    "addBodyNoConnection": "Několik ukázkových záznamů v tabulkách aplikace. Nic jiného se nezmění.",
+    "addBody": "Několik ukázkových záznamů v tabulkách aplikace. Nic jiného v {connection} se nezmění.",
+    "images": "Obrázky, přidané do Souborů",
+    "total": "Celkem",
+    "records": "{count, plural, one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
+    "none": "Tato aplikace nemá žádná ukázková data",
+    "adding": "Přidávají se ukázková data",
+    "addFailed": "Ukázková data nebyla přidána",
+    "addFailedBody": "Ukázková data nebyla přidána. Nic nebylo zapsáno.",
+    "cancel": "Zrušit",
+    "removeSubtitle": "{count, plural, one {# záznam přidaný {date}} few {# záznamy přidané {date}} many {# záznamu přidaného {date}} other {# záznamů přidaných {date}}}",
+    "removeBody": "Adminium si vedlo seznam všech záznamů, které přidalo, takže odstraní přesně ty.",
+    "planFailed": "Nepodařilo se načíst, co by se odstranilo",
+    "removes": "Odstraní se",
+    "kept": "Zůstane",
+    "usedBy": "{count, plural, one {používá ho # z vašich vlastních záznamů} few {používají ho # z vašich vlastních záznamů} many {používá ho # z vašich vlastních záznamů} other {používá ho # z vašich vlastních záznamů}}",
+    "keepChanged": "Ponechat ty, které jsem změnil(a)",
+    "changedList": "{count, plural, one {# ukázkový záznam, který jste upravili: {names}.} few {# ukázkové záznamy, které jste upravili: {names}.} many {# ukázkového záznamu, které jste upravili: {names}.} other {# ukázkových záznamů, které jste upravili: {names}.}}",
+    "removeFailed": "Ukázková data nebyla odstraněna",
+    "removeConfirm": "Odstranit",
+    "banner": "Ukázková data jsou načtena",
+    "bannerRemove": "Odstranit je"
+  },
+  "appPublicAccess": {
+    "title": "Veřejný přístup",
+    "intro": "Zákaznické obrazovky aplikace potřebují:",
+    "availability": "Číst volné nebo obsazené časy v {table}",
+    "claim": "Vyhledat své vlastní {table} podle {fields}",
+    "create": "Přidávat do {table}",
+    "update": "Měnit {table}",
+    "read": "Číst {table}",
+    "later": "přijde v pozdější verzi",
+    "allow": "Povolit tento veřejný přístup",
+    "helper": "Později jej můžete omezit na stránce Klíče API.",
+    "cannotGrant": "Povolit jej může jen ten, kdo smí spravovat klíče API, proto se aplikace nainstaluje bez něj.",
+    "warning": {
+      "apiOff": "Veřejné API je vypnuté, takže nic z toho neodpoví, dokud nebude zapnuté.",
+      "originSelf": "Povolené původy neobsahují „self“, takže vlastní stránky aplikace na tomto serveru je nemohou volat.",
+      "timeZone": "Tato databáze nemá nastavené časové pásmo, které veřejné API potřebuje pro data a časy.",
+      "noEmail": "E-mail není nastaven, takže hosté nedostanou potvrzení."
+    },
+    "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail"
   }
 }

@@ -115,6 +115,66 @@ describe('CommandPaletteHost', () => {
     expect(onSignOut).toHaveBeenCalledOnce();
   });
 
+  it('lists each app’s pages and screens under Apps, and opens them where they live', async () => {
+    const onOpenApp = vi.fn();
+    const bootstrap = makeBootstrap({
+      appSections: [
+        {
+          appKey: 'pos',
+          label: 'Point of Sale',
+          version: '0.2.0',
+          groups: [{ key: '', label: null, items: [{ pageId: 'p_menu', slug: 'pos-menu', labelKey: 'nav.pos-menu', fallback: 'Menu', icon: 'book-open', order: 0 }] }],
+          staff: { placement: 'internal', items: [{ id: 'till', path: 'till', label: 'Register' }] },
+        },
+        {
+          appKey: 'booking',
+          label: 'Booking',
+          version: '1.0.0',
+          groups: [],
+          staff: { placement: 'external', url: 'https://book.example.test/' },
+        },
+      ],
+    });
+    const { onNavigate } = renderPalette({ bootstrap, onOpenApp });
+    expect(screen.getAllByRole('group').map((el) => el.getAttribute('aria-label'))).toEqual(['Actions', 'Navigate', 'Apps']);
+    await userEvent.click(screen.getByRole('option', { name: /Menu/ }));
+    expect(onNavigate).toHaveBeenCalledWith('pos-menu');
+    await userEvent.click(screen.getByRole('option', { name: /Register/ }));
+    expect(onOpenApp).toHaveBeenCalledWith({ appKey: 'pos', path: 'till' });
+    await userEvent.click(screen.getByRole('option', { name: /Open the staff screens/ }));
+    expect(onOpenApp).toHaveBeenCalledWith({ url: 'https://book.example.test/' });
+  });
+
+  it('finds an external app’s own screens and instances, each opened at its address', async () => {
+    const onOpenApp = vi.fn();
+    const bootstrap = makeBootstrap({
+      appSections: [
+        {
+          appKey: 'pos',
+          label: 'Point of Sale',
+          version: '0.2.0',
+          groups: [],
+          staff: {
+            placement: 'external',
+            url: '/apps/pos/staff/',
+            items: [
+              { id: 'register', path: '', label: 'Register' },
+              { id: 'kitchen', path: 'kitchen', label: 'Kitchen' },
+            ],
+            instances: [{ slug: 'terrace', url: '/apps/pos/terrace/staff/' }],
+          },
+        },
+      ],
+    });
+    renderPalette({ bootstrap, onOpenApp });
+    await userEvent.click(screen.getByRole('option', { name: /Kitchen/ }));
+    expect(onOpenApp).toHaveBeenCalledWith({ url: '/apps/pos/staff/kitchen' });
+    await userEvent.click(screen.getByRole('option', { name: /Register/ }));
+    expect(onOpenApp).toHaveBeenCalledWith({ url: '/apps/pos/staff/' });
+    await userEvent.click(screen.getByRole('option', { name: /terrace/ }));
+    expect(onOpenApp).toHaveBeenCalledWith({ url: '/apps/pos/terrace/staff/' });
+  });
+
   it('debounces the records search into one trailing call', () => {
     vi.useFakeTimers();
     renderPalette();

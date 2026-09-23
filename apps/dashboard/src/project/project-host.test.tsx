@@ -359,7 +359,9 @@ describe('the template scope', () => {
 
   it('resolves built-in templates inside the scope', async () => {
     const component = await resolvePageTemplate('project-page');
-    expect((component as { displayName?: string } | null)?.displayName).toBe('ProjectScope(ProjectPageBinding)');
+    expect((component as { displayName?: string } | null)?.displayName).toBe(
+      'ProjectScope(AppPageNotice(ProjectPageBinding))',
+    );
   });
 });
 

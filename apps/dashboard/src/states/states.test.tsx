@@ -12,9 +12,9 @@ import { StateHero } from './StateHero.js';
 import { SYSTEM_STATES } from './stateMap.js';
 
 describe('SYSTEM_STATES map', () => {
-  it('covers all 13 state ids', () => {
+  it('covers all 15 state ids', () => {
     expect(Object.keys(SYSTEM_STATES).sort()).toEqual([...SYSTEM_STATE_IDS].sort());
-    expect(SYSTEM_STATE_IDS).toHaveLength(13);
+    expect(SYSTEM_STATE_IDS).toHaveLength(15);
   });
 
   it('keeps the comp copy for the 11 designed states', () => {
@@ -36,7 +36,7 @@ describe('SYSTEM_STATES map', () => {
       ...(spec.banner === undefined ? [] : [spec.banner]),
       ...(spec.diagnostics === undefined ? [] : [spec.diagnostics.status, spec.diagnostics.hint]),
     ]);
-    expect(msgs).toHaveLength(50);
+    expect(msgs).toHaveLength(56);
     for (const m of msgs) {
       expect(m.key).toMatch(/^states\.[a-zA-Z]+\.(title|body|primary|secondary|banner|diag\.(status|hint))$/);
       expect(m.en.length).toBeGreaterThan(0);
@@ -196,3 +196,16 @@ describe('stateIdForError mapping (errorComponent)', () => {
     expect(stateIdForError(new TypeError('fetch failed'))).toBe('offline');
   });
 });
+
+describe('an app the dashboard does not show', () => {
+  it('maps the server’s switched-off codes to their own states, not a generic error', () => {
+    expect(stateIdForError(new ApiError(503, 'APP_DISABLED', 'off', null))).toBe('app-disabled');
+    expect(stateIdForError(new ApiError(503, 'SURFACE_OFF', 'off', null))).toBe('screens-off');
+  });
+
+  it('offers no Retry for a switch a person has to flip', () => {
+    expect(SYSTEM_STATES['app-disabled'].primary).toBeUndefined();
+    expect(SYSTEM_STATES['screens-off'].primary).toBeUndefined();
+  });
+});
+

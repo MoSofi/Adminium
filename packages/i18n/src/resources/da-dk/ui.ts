@@ -1534,6 +1534,7 @@ export default {
         "loadError": "Posten kunne ikke indlæses."
       },
       "emptyTitle": "{count, plural, one {Ingen {entity} endnu} other {Ingen {entity} endnu}}",
+      "emptyTitleNamed": "Ingen {things} endnu",
       "exportAction": "Eksportér",
       "file": {
         "tooLarge": "Filen er større end grænsen på {limit}.",
@@ -1611,7 +1612,17 @@ export default {
       "rejectNote": "Anmoderen får besked sammen med din note."
     },
     "dashboard": {
-      "invalidLayout": "Dette dashboards gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout."
+      "invalidLayout": "Dette dashboards gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
+      "day": {
+        "label": "Dag",
+        "today": "I dag",
+        "yesterday": "I går",
+        "week": "Denne uge",
+        "pick": "Vælg en dag",
+        "pickHelp": "Én dag ad gangen, efter stedets ur.",
+        "cancel": "Annuller",
+        "show": "Vis dag"
+      }
     },
     "builder": {
       "publish": "Udgiv",

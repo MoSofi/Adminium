@@ -42,12 +42,26 @@ function cachedLocale(): LocaleId {
 
 const INIT_TIMEOUT_MS = 2_000;
 
+let booted: LocaleId | null = null;
+
+/**
+ * The locale this page's strings booted in — the cached one, else the
+ * browser's. Signed out, nothing else knows it: `ThemeProvider` (which stamps
+ * `lang` and `dir`) has no user prefs yet and would fall back to `en_US`,
+ * leaving an Arabic visitor's first page in Arabic words but English `lang` and
+ * a left-to-right layout. The root hands it over as the provider's default.
+ */
+export function bootLocale(): LocaleId {
+  return booted ?? cachedLocale();
+}
+
 /**
  * Builds the app i18n instance and wires it to ThemeProvider's resolved
  * locale. Idempotent per page load; returns the ready instance.
  */
 export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Promise<I18nInstance> {
   const locale = options.locale ?? cachedLocale();
+  booted = locale;
 
   // WARM boot: overrides from the versioned localStorage cache are available
   // synchronously, so the first paint already carries the admin's copy. COLD

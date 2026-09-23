@@ -43,10 +43,20 @@ export type {
 // --- data narrowing ---------------------------------------------------------
 
 /** Rows from a `record-list` payload (CRUD list envelope or bare array). */
+/** `opened_at` → `Opened at`: a heading for a column nobody named. */
+const humanize = (name: string): string => {
+  const words = name.replace(/[_-]+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 function rowsOf(data: unknown): GridRow[] {
   if (Array.isArray(data)) return data as GridRow[];
   if (typeof data === 'object' && data !== null && Array.isArray((data as { data?: unknown }).data)) {
     return (data as { data: GridRow[] }).data;
+  }
+  // The server's `record-list` answer: `{ shape, rows, columns }`.
+  if (typeof data === 'object' && data !== null && Array.isArray((data as { rows?: unknown }).rows)) {
+    return (data as { rows: GridRow[] }).rows;
   }
   return [];
 }
@@ -58,7 +68,12 @@ function rowsOf(data: unknown): GridRow[] {
 function columnsOf(config: { columns: GridColumnSpec[] }, data: unknown): readonly GridColumnSpec[] {
   if (config.columns.length > 0) return config.columns;
   if (typeof data === 'object' && data !== null && Array.isArray((data as { columns?: unknown }).columns)) {
-    return (data as { columns: GridColumnSpec[] }).columns;
+    // A server answer names its columns but need not head them: each gets its
+    // own name for a person, else its humanized one.
+    return (data as { columns: (Omit<GridColumnSpec, 'label'> & { label?: string })[] }).columns.map((column) => ({
+      ...column,
+      label: column.label ?? humanize(column.name),
+    })) as GridColumnSpec[];
   }
   return [];
 }

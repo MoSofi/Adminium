@@ -91,6 +91,7 @@ export const RESERVED_GRANTS: readonly string[] = [
 const SYSTEM_GRANT = /^system:[^:\s/]+:[^:\s/]+$/;
 const TABLE_GRANT = /^table:[^:\s/]+:[^:\s/]+:(read|create|update|delete|export|import|\*)$/;
 const PAGE_GRANT = /^page:[^:\s/]+:(view|edit|\*)$/;
+const APP_GRANT = /^app:[^:\s/]+:staff$/;
 
 /**
  * Does this string parse as a grant?
@@ -102,7 +103,7 @@ const PAGE_GRANT = /^page:[^:\s/]+:(view|edit|\*)$/;
  * own parser.
  */
 export function isPermissionGrant(key: string): key is PermissionGrant {
-  return SYSTEM_GRANT.test(key) || TABLE_GRANT.test(key) || PAGE_GRANT.test(key);
+  return SYSTEM_GRANT.test(key) || TABLE_GRANT.test(key) || PAGE_GRANT.test(key) || APP_GRANT.test(key);
 }
 
 /** A catalog entry that survived {@link catalogPermissions} — key is a grant. */
@@ -154,6 +155,31 @@ export const DATA_ACCESS_GRANTS = [
   'page:*:edit',
 ] as const satisfies readonly PermissionGrant[];
 export type DataAccessGrant = (typeof DATA_ACCESS_GRANTS)[number];
+
+/**
+ * The Apps rows: every app's staff screens (the row every role that could
+ * open them was given when the grant arrived), then each installed app's —
+ * and any other app a role already holds a grant for, so a grant is never
+ * invisible here.
+ */
+export function appStaffRows(
+  apps: readonly { key: string; label: string }[],
+  grants: GrantMap,
+): { key: PermissionGrant; app: { key: string; label: string } | null }[] {
+  const named = new Map(apps.map((app) => [app.key, app.label]));
+  for (const list of Object.values(grants)) {
+    for (const key of list) {
+      const match = /^app:([^:]+):staff$/.exec(key);
+      if (match !== null && match[1] !== '*' && !named.has(match[1]!)) named.set(match[1]!, match[1]!);
+    }
+  }
+  return [
+    { key: 'app:*:staff', app: null },
+    ...[...named.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([key, label]) => ({ key: `app:${key}:staff` as const, app: { key, label } })),
+  ];
+}
 
 /** Page/table grants on ONE page or table — held, preserved, not drawn here. */
 export function narrowDataGrantCount(grants: GrantMap): number {

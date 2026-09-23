@@ -34,6 +34,7 @@
  */
 import { useState } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import {
   Alert,
   Badge,
@@ -41,12 +42,11 @@ import {
   Card,
   CardBody,
   CardHeader,
-  ConfirmModal,
   EmptyState,
   IconTile,
   MonoText,
 } from '@adminium/ui';
-import { ArrowUp, ArrowUpCircle, Download, Package, Trash2 } from 'lucide-react';
+import { ArrowUp, ArrowUpCircle, Download, Package, Trash2, TriangleAlert, Wand2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 
 import { getI18nInstance, t } from '../../i18n/t.js';
@@ -56,11 +56,11 @@ import {
   appCatalogQuery,
   discardStagedApp,
   installedAppsQuery,
-  uninstallApp,
   type CatalogApp,
   type InstalledApp,
 } from './appsApi.js';
-import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
+import { RenameTablesDialog } from './RenameTablesDialog.js';
+import { UninstallAppDialog } from './UninstallAppDialog.js';
 
 export interface InstalledAppsCardProps {
   onInstall: () => void;
@@ -83,6 +83,9 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
   );
   const updateCount = data.apps.filter((app) => rowByKey.get(app.key)?.updateTo != null).length;
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renamed, setRenamed] = useState<string | null>(null);
+  const renamingApp = data.apps.find((app) => app.key === renaming);
 
   const discard = useMutation({
     mutationFn: (staged: { key: string; version: string }) =>
@@ -94,17 +97,6 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
     },
   });
 
-  const remove = useMutation({
-    mutationFn: (key: string) => uninstallApp(key),
-    onSuccess: async () => {
-      setConfirming(null);
-      // An uninstall removes the key's package from disk as well
-      // (`store.removeKey`), so the shelf card that offered it goes with it.
-      await queryClient.invalidateQueries({ queryKey: APPS_QUERY_KEY });
-      await queryClient.invalidateQueries({ queryKey: SURFACES_QUERY_KEY });
-      await queryClient.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY });
-    },
-  });
 
   return (
     <Card>
@@ -129,6 +121,12 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
       </CardHeader>
 
       <CardBody className="flex flex-col gap-3">
+        {renamed === null ? null : (
+          <Alert
+            tone="pos"
+            title={t('studio:hostedApps.installed.renamed', 'Tables renamed to {prefix}…', { prefix: renamed })}
+          />
+        )}
         {data.apps.length === 0 ? (
           <EmptyState
             title={t('studio:hostedApps.installed.emptyTitle', 'No apps installed yet')}
@@ -153,7 +151,14 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                 </IconTile>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-bold tracking-tight">{app.key}</span>
+                    {/* The app's own page: its switches, settings, data and danger zone. */}
+                    <Link
+                      to="/studio/apps/$key"
+                      params={{ key: app.key }}
+                      className="text-sm font-bold tracking-tight underline-offset-2 hover:underline"
+                    >
+                      {app.key}
+                    </Link>
                     <Badge>
                       <MonoText>{app.version}</MonoText>
                     </Badge>
@@ -220,6 +225,30 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                       </span>
                     )}
                   </div>
+                  {/* An install made before its app was prefixed: the offer to
+                      give every table the prefix. */}
+                  {app.oldTableNames === undefined ? null : (
+                    <div
+                      data-part="old-table-names"
+                      className="mt-2 flex flex-wrap items-center gap-2.5 rounded-[10px] border border-warn/30 bg-warn-soft px-3 py-2"
+                    >
+                      <TriangleAlert aria-hidden className="size-4 shrink-0 text-warn" />
+                      <span className="min-w-0 flex-1 text-xs">
+                        <span className="font-bold text-fg">
+                          {t('studio:hostedApps.installed.oldNames', 'This install uses the old table names.')}
+                        </span>{' '}
+                        <span className="text-fg-muted">
+                          {t('studio:hostedApps.installed.oldNamesWhy', 'They were made before prefixes.')}
+                        </span>
+                      </span>
+                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => setRenaming(app.key)}>
+                        <Wand2 aria-hidden className="size-4" />
+                        {t('studio:hostedApps.installed.renameTo', 'Rename to {prefix}…', {
+                          prefix: app.oldTableNames.prefix,
+                        })}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {updateTo === null || row === undefined ? null : (
                   <Button size="sm" disabled={busy} onClick={() => onUpdate(app, row)}>
@@ -230,11 +259,8 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => {
-                    remove.reset();
-                    setConfirming(app.key);
-                  }}
-                  disabled={remove.isPending || busy}
+                  onClick={() => setConfirming(app.key)}
+                  disabled={busy}
                 >
                   <Trash2 aria-hidden className="size-4" />
                   {t('studio:hostedApps.installed.uninstall', 'Uninstall')}
@@ -294,56 +320,25 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
         )}
       </CardBody>
 
-      <ConfirmModal
-        open={confirming !== null}
-        onOpenChange={(next) => {
-          if (!next) setConfirming(null);
-        }}
-        title={t('studio:hostedApps.installed.confirmTitle', 'Uninstall this app?')}
-        /*
-         * The tables are NOT mentioned as being removed, because they are not.
-         * Uninstall drops the bundle and the record; what an install created in
-         * the operator's own database stays theirs, disabling never destroys
-         * data.
-         */
-        body={
-          <>
-            {t(
-              'studio:hostedApps.installed.confirmBody',
-              'Its surfaces stop being served and the bundle is deleted. Any tables it created in your database are left alone.',
-            )}
-            {/* Without this a refused uninstall (a 403, a 409) left the dialog
-                open and idle with nothing said. */}
-            {remove.error === null ? null : (
-              <Alert
-                role="alert"
-                tone="danger"
-                className="mt-3"
-                data-testid="app-uninstall-error"
-                title={t('studio:hostedApps.installed.uninstallFailed', 'The app was not uninstalled')}
-                body={remove.error.message}
-              />
-            )}
-          </>
-        }
-        /*
-         * D6 — the comp's Uninstall button has no confirm at all. The house
-         * component for removing something irreversibly asks for the name back,
-         * and taking an app offline is that: its surfaces stop answering for
-         * everyone the moment this runs.
-         */
-        confirmWord={confirming ?? ''}
-        promptLabel={t('studio:hostedApps.installed.confirmPrompt', 'Type {key} to confirm', {
-          key: confirming ?? '',
-        })}
-        confirmLabel={t('studio:hostedApps.installed.uninstall', 'Uninstall')}
-        cancelLabel={t('studio:hostedApps.installed.confirmCancel', 'Cancel')}
-        closeLabel={t('studio:hostedApps.installed.confirmClose', 'Close')}
-        busy={remove.isPending}
-        onConfirm={() => {
-          if (confirming !== null) remove.mutate(confirming);
-        }}
-      />
+      {renamingApp?.oldTableNames === undefined ? null : (
+        <RenameTablesDialog
+          app={{ ...renamingApp, oldTableNames: renamingApp.oldTableNames }}
+          onClose={() => setRenaming(null)}
+          onRenamed={(prefix) => {
+            setRenaming(null);
+            setRenamed(prefix);
+          }}
+        />
+      )}
+
+      {confirming === null ? null : (
+        <UninstallAppDialog
+          appKey={confirming}
+          name={rowByKey.get(confirming)?.name ?? confirming}
+          onClose={() => setConfirming(null)}
+          onUninstalled={() => setConfirming(null)}
+        />
+      )}
     </Card>
   );
 }

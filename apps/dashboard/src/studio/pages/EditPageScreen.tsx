@@ -69,6 +69,7 @@ import {
   PAGE_URL_PREFIX,
   invalidatePages,
   isNavGroup,
+  APP_NAV_GROUP,
   savePageConfig,
   slugify,
   slugifyInput,
@@ -275,6 +276,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   const [navGroup, setNavGroup] = useState<NavGroup>(
     isNavGroup(page.navGroup) ? page.navGroup : 'workspace',
   );
+  // An installed app's page lives in the app's section; its group is not
+  // this screen's to change, and a save never sends one.
+  const appPage = page.navGroup === APP_NAV_GROUP;
   const [isEnabled, setIsEnabled] = useState(page.isEnabled);
   const [template, setTemplate] = useState(page.type);
   const [connectionId, setConnectionId] = useState<string | null>(page.connectionId);
@@ -770,7 +774,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
         title: title.trim(),
         slug: finalSlug,
         icon: icon.trim() === '' ? null : icon.trim(),
-        navGroup,
+        ...(appPage ? {} : { navGroup }),
         isEnabled,
         // Only when something about the body actually changed — otherwise every
         // rename would recompose and throw away hand-edited columns.
@@ -1100,17 +1104,23 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
           </FormField>
 
           <FormField label={t('studio:pages.field.group', 'Sidebar group')}>
-            <Select
-              value={navGroup}
-              onChange={(event) => setNavGroup(event.target.value as NavGroup)}
-              data-testid="studio-pages-group"
-            >
-              {NAV_GROUPS.map((group) => (
-                <option key={group} value={group}>
-                  {t(GROUP_LABEL_KEY[group], GROUP_FALLBACK[group])}
-                </option>
-              ))}
-            </Select>
+            {appPage ? (
+              <p className="text-body-sm text-fg-muted" data-testid="studio-pages-group-app">
+                {t('studio:pages.field.groupApp', 'In its app’s own section')}
+              </p>
+            ) : (
+              <Select
+                value={navGroup}
+                onChange={(event) => setNavGroup(event.target.value as NavGroup)}
+                data-testid="studio-pages-group"
+              >
+                {NAV_GROUPS.map((group) => (
+                  <option key={group} value={group}>
+                    {t(GROUP_LABEL_KEY[group], GROUP_FALLBACK[group])}
+                  </option>
+                ))}
+              </Select>
+            )}
           </FormField>
 
           <FormField

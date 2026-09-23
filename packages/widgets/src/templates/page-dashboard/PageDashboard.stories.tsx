@@ -80,3 +80,28 @@ export const MixedStates = {
 export const InvalidLayout = {
   render: () => <PageDashboard layout={{ version: 99, items: 'nope' }} />,
 };
+
+/**
+ * The Overview's own toolbar (POS Overview comp, F-OV1): the day tray —
+ * Today / Yesterday / This week and the "Pick a day" segment — over three
+ * cards read from fixed states, so the shot is the same every run.
+ */
+const dayLayout = {
+  version: 1,
+  toolbar: { day: true },
+  items: demoDashboardLayout.items.filter((item) => item.widget === 'kpi-stat-card').slice(0, 3),
+};
+const dayStates = Object.fromEntries(
+  dayLayout.items.map((item, index) => [item.i, { status: 'success' as const, data: { shape: 'metric+delta', value: [1284, 47, 27.3][index] ?? 0 } }]),
+);
+
+export const DayControl = {
+  tags: ['vrt'],
+  render: () => <PageDashboard layout={dayLayout} states={dayStates} day="today" onDay={() => {}} />,
+};
+
+/** A picked day showing: the fourth segment names it and wears the selected look. */
+export const DayPicked = {
+  tags: ['vrt'],
+  render: () => <PageDashboard layout={dayLayout} states={dayStates} day="2026-09-20" onDay={() => {}} />,
+};

@@ -10,7 +10,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +19,7 @@ import { createQueryClient } from '../app/query.js';
 import { createAppRouter } from '../app/router.js';
 import { jsonResponse, makeBootstrap, makeCrudEnvelope, makeDashboardEnvelope } from '../test/fixtures.js';
 import { registerPageTemplate, type PageTemplateProps } from './templates.js';
+import { withAppPageNotice } from './appPageNotice.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -76,11 +77,19 @@ function TestCrudTemplate({ page, adapters, recordId }: PageTemplateProps) {
 
 interface Fixture {
   pageReply?: () => Response;
+  /** The Overview page's envelope (default: two KPI cards, no day control). */
+  dashboardReply?: () => Response;
   batchReply?: () => Response;
   /** Rows the stubbed CrudApi list returns (default: one Northwind row). */
   rows?: Record<string, unknown>[];
   /** The `customers` nav item's owning-connection currency. */
   currency?: string | null;
+  /** The installed app the `customers` page belongs to. */
+  appKey?: string;
+  /** The session's system actions (absent: the fixture's roles decide). */
+  systemActions?: string[];
+  /** Whether that app's sample data is loaded. */
+  sampleLoaded?: boolean;
 }
 
 function stubFetch(fixture: Fixture = {}) {
@@ -93,6 +102,13 @@ function stubFetch(fixture: Fixture = {}) {
       if (fixture.currency !== undefined) {
         const item = bootstrap.nav.groups[0]?.items[0];
         if (item !== undefined) item.currency = fixture.currency;
+      }
+      if (fixture.appKey !== undefined) {
+        const item = bootstrap.nav.groups[0]?.items[0];
+        if (item !== undefined) item.appKey = fixture.appKey;
+      }
+      if (fixture.systemActions !== undefined) {
+        bootstrap.systemActions = fixture.systemActions as NonNullable<typeof bootstrap.systemActions>;
       }
       bootstrap.nav.groups[0]?.items.push({
         pageId: 'page_overview',
@@ -109,8 +125,33 @@ function stubFetch(fixture: Fixture = {}) {
         fixture.pageReply?.() ?? jsonResponse(200, { data: makeCrudEnvelope() }),
       );
     }
+    if (url === '/api/v1/apps/pos/sample-data') {
+      return Promise.resolve(
+        jsonResponse(200, {
+          offered: true,
+          loaded: fixture.sampleLoaded ?? false,
+          total: 31,
+          addedAt: Date.UTC(2026, 8, 22),
+          tables: [{ ref: 'customers', count: 31 }],
+          available: null,
+        }),
+      );
+    }
+    if (url === '/api/v1/apps/pos/sample-data/remove-plan') {
+      return Promise.resolve(jsonResponse(200, { tables: [{ ref: 'customers', count: 31 }], kept: [], changed: [], total: 31 }));
+    }
+    if (url === '/api/v1/apps/pos/overview') {
+      return Promise.resolve(
+        jsonResponse(200, {
+          key: 'pos',
+          connection: { id: 'conn_1', name: 'Practice', engine: 'postgres' },
+          tables: [{ ref: 'customers', table: 'customers', state: 'created', role: 'app', rows: 31 }],
+          activity: [],
+        }),
+      );
+    }
     if (url.startsWith('/api/v1/pages/page_overview')) {
-      return Promise.resolve(jsonResponse(200, { data: makeDashboardEnvelope() }));
+      return Promise.resolve(fixture.dashboardReply?.() ?? jsonResponse(200, { data: makeDashboardEnvelope() }));
     }
     if (url === '/api/v1/widget-data/batch' && method === 'POST') {
       return Promise.resolve(
@@ -304,6 +345,22 @@ describe('built-in page-dashboard binding (real template, no registration)', () 
     expect(body.requests).toHaveLength(1); // deduped
   });
 
+  it('reads a page with the day control for its day: today first, then the one picked', async () => {
+    const envelope = makeDashboardEnvelope();
+    const layout = envelope.config['layout'] as Record<string, unknown>;
+    const withDay = { ...envelope, config: { ...envelope.config, layout: { ...layout, toolbar: { day: true } } } };
+    const { fetchMock } = await renderAt('/p/overview', { dashboardReply: () => jsonResponse(200, { data: withDay }) });
+    await screen.findAllByText('42');
+    const days = () =>
+      fetchMock.mock.calls
+        .filter((call) => String(call[0]) === '/api/v1/widget-data/batch')
+        .map((call) => (JSON.parse(String((call[1] as RequestInit).body)) as { params?: { day?: string } }).params?.day);
+    // The host fetches the cards, so the day has to reach the host: "Today" is the venue's day, not the last 24 hours.
+    expect(days()).toEqual(['today']);
+    await userEvent.click(screen.getByRole('radio', { name: 'Yesterday' }));
+    await waitFor(() => expect(days().at(-1)).toBe('yesterday'));
+  });
+
   it('maps a whole-batch failure to per-widget error cards — page and shell stay up', async () => {
     await renderAt('/p/overview', {
       batchReply: () =>
@@ -395,5 +452,42 @@ describe('never-crash cards', () => {
     expect(await screen.findByText('You don’t have access')).toBeDefined();
     // Shell + nav stay usable (page-scoped state).
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeDefined();
+  });
+});
+
+// The built-in templates carry the notice, so these mount the real page-crud.
+describe('an app’s page with its sample data loaded', () => {
+  const sampleCalls = (fetchMock: ReturnType<typeof vi.fn>) =>
+    fetchMock.mock.calls.filter((call) => String(call[0]).includes('/sample-data'));
+
+  it('says so to whoever manages apps, and Remove it opens the removal', async () => {
+    await renderAt('/p/customers', { appKey: 'pos', sampleLoaded: true, systemActions: ['manifests.manage'] });
+    const banner = await screen.findByTestId('app-sample-banner');
+    expect(banner.textContent).toContain('Sample data is loaded');
+    await userEvent.click(screen.getByRole('button', { name: 'Remove it' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByTestId('sample-remove-tables')).toBeDefined();
+  });
+
+  it('wraps each template once, so a page never remounts for it', () => {
+    expect(withAppPageNotice(TestCrudTemplate)).toBe(withAppPageNotice(TestCrudTemplate));
+  });
+
+  it('asks nothing for someone who cannot manage apps', async () => {
+    const { fetchMock } = await renderAt('/p/customers', { appKey: 'pos', sampleLoaded: true, systemActions: [] });
+    expect(await screen.findByText('Northwind')).toBeDefined();
+    expect(screen.queryByTestId('app-sample-banner')).toBeNull();
+    expect(sampleCalls(fetchMock)).toHaveLength(0);
+  });
+
+  it('asks nothing on a page no app owns, and shows nothing once it is gone', async () => {
+    const { fetchMock } = await renderAt('/p/customers', { systemActions: ['manifests.manage'] });
+    expect(await screen.findByText('Northwind')).toBeDefined();
+    expect(sampleCalls(fetchMock)).toHaveLength(0);
+    cleanup();
+    const second = await renderAt('/p/customers', { appKey: 'pos', sampleLoaded: false, systemActions: ['manifests.manage'] });
+    expect(await screen.findByText('Northwind')).toBeDefined();
+    await waitFor(() => expect(sampleCalls(second.fetchMock)).toHaveLength(1));
+    expect(screen.queryByTestId('app-sample-banner')).toBeNull();
   });
 });

@@ -23,9 +23,11 @@
  * from the locale bundles as before.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageCrud, rowIdOf, type PageCrudFiles, type PageCrudGridState } from '@adminium/widgets';
 import { filtersFor, parseCrudFilters, parseCrudForm, parseCrudLabels } from '@adminium/engine/config';
 
+import { bootstrapQuery } from '../app/bootstrap.js';
 import { resolveFiles, uploadFile } from '../files/api.js';
 import { listKeysOf, useListOptions } from '../api/optionLists.js';
 import { t } from '../i18n/t.js';
@@ -65,8 +67,12 @@ export function PageCrudBinding({
   formRelations,
   formChildren,
   tableLabelSingular,
+  tableLabelPlural,
   currency,
 }: PageTemplateProps) {
+  // Read from the cache, never fetched here: the shell loads the bootstrap
+  // before any page renders, and a page must not suspend on it.
+  const signedIn = useQueryClient().getQueryData(bootstrapQuery().queryKey)?.user;
   /*
    * A `column.options` rule that names a LIST is resolved here, where the
    * reader's language is known: the built-ins from the browser's own data, a
@@ -359,6 +365,8 @@ export function PageCrudBinding({
       <PageCrud
         key={appliedToken}
         api={gridApi ?? crud}
+        // A form field may start as who is signed in (`initial: current-user`).
+        {...(signedIn === undefined ? {} : { currentUser: { id: signedIn.id, name: signedIn.name } })}
         columns={columns}
         source={{ connectionId: page.source.connectionId, table: sourceTable }}
         onEvent={adapters.onEvent}
@@ -390,6 +398,7 @@ export function PageCrudBinding({
         {...(tableLabelSingular === undefined || tableLabelSingular === null
           ? {}
           : { entityName: tableLabelSingular })}
+        {...(tableLabelPlural === undefined || tableLabelPlural === null ? {} : { tableLabel: tableLabelPlural })}
         // The connection's own currency for money cells. Spread so
         // an unset one leaves the prop absent and the historical USD fallback
         // in place.

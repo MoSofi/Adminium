@@ -373,6 +373,27 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
         />
       ) : null}
 
+      {server.apps.length === 0 ? null : (
+        <Card padded={false} data-testid="studio-pages-apps">
+          <CardHeader>
+            <h3 className="text-section text-fg">{t('studio:pages.sidebar.apps.title', 'In installed apps’ sections')}</h3>
+            <p className="text-body-sm text-fg-muted">
+              {t('studio:pages.sidebar.apps.body', 'Each app keeps its pages in its own section of the sidebar.')}
+            </p>
+          </CardHeader>
+          <CardBody className="p-0">
+            <ul>
+              {server.apps.map((page) => (
+                <li key={page.id} className="flex items-center gap-2 border-b border-border px-4 py-2 last:border-b-0">
+                  <span className="text-body min-w-0 flex-1 truncate text-fg">{page.title}</span>
+                  <ConnectionChip page={page} />
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      )}
+
       {groups.map((group) => (
         <Card key={group.key} padded={false}>
           <CardHeader>

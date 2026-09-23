@@ -14,6 +14,7 @@ import {
   buildPutDocument,
   dropEntry,
   effectiveEntry,
+  labelText,
   overrideKey,
   revertEntry,
   stageEntry,
@@ -192,5 +193,16 @@ describe('buildPutDocument — exact server contract', () => {
         },
       ],
     });
+  });
+});
+
+describe('labelText', () => {
+  it('reads a stored label in the person’s language, else English, else any', () => {
+    const label = { en_US: 'Category', de_DE: 'Kategorie' };
+    expect(labelText(label, 'de_DE')).toBe('Kategorie');
+    expect(labelText(label, 'fr_FR')).toBe('Category');
+    expect(labelText({ da_DK: 'Kategori' }, 'fr_FR')).toBe('Kategori');
+    expect(labelText('Plain', 'de_DE')).toBe('Plain');
+    expect(labelText(undefined, 'de_DE')).toBe('');
   });
 });

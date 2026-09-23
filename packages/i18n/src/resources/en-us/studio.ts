@@ -628,9 +628,15 @@ export default {
         "pageWarnings": "Some of this app’s pages will arrive without a table"
       },
       "done": {
-        "title": "Installed",
         "body": "{key} is being served now. Choose where its staff side appears below.",
-        "schema": "Tables created: {created} · reused: {reused}"
+        "titleApp": "{app} is installed",
+        "tablesCreated": "Tables created in {connection}",
+        "tablesKept": "Tables used as they were",
+        "pages": "Pages generated",
+        "sampleNotAdded": "not added",
+        "sampleAdding": "adding…",
+        "sampleAdded": "added",
+        "sampleLater": "You can add it later from the app’s page."
       },
       "cancel": "Cancel",
       "back": "Back",
@@ -651,6 +657,68 @@ export default {
       "uploaded": {
         "hint": "Read from the manifest.json inside the bundle you uploaded. Nothing is created until you confirm the schema plan.",
         "replace": "Upload a different bundle"
+      },
+      "check": {
+        "title": "Check the tables",
+        "hint": "{app} will create these in {connection}. Nothing changes until you press Install.",
+        "summaryNew": "{count} new",
+        "summaryEarlier": "{count} from your earlier install",
+        "summaryShared": "{count} shared with another app",
+        "summaryTaken": "{count, plural, one {# name taken} other {# names taken}}",
+        "altPrefixInUse": "Checked with the prefix {prefix}.",
+        "usualPrefix": "Use the usual prefix",
+        "badgeNew": "New",
+        "badgeEarlier": "Yours from an earlier install",
+        "badgeShared": "Shared with {app}",
+        "badgeTaken": "Name taken",
+        "columns": "{count, plural, one {# column} other {# columns}}",
+        "keep": "Use it and keep its data",
+        "sharedNote": "{app} uses this table too. Both apps keep reading and writing the same rows.",
+        "earlierNote": "Adminium made this table on an earlier install of {app}.",
+        "createPreview": "Create preview",
+        "addsColumns": "{count, plural, one {Adds # column:} other {Adds # columns:}}",
+        "widens": "Makes {column} wider, from {from} to {to}.",
+        "setIdentity": "{column} numbers new rows by itself.",
+        "enumValues": "{column} also accepts {values}.",
+        "noLoss": "No column is removed and no data is lost.",
+        "reuseNote": "The app reads and writes the rows already there.",
+        "renameTitle": "Rename the existing table out of the way",
+        "renameNote": "A fresh {table} is created for the app.",
+        "renameField": "New name for the existing table",
+        "renameFieldNote": "Adminium repairs its own pages and rules that pointed at the old name.",
+        "prefixTitle": "Use a different prefix for this app",
+        "prefixNote": "Applies to all of the app’s tables at once.",
+        "prefixField": "Prefix",
+        "prefixFieldNote": "{count, plural, one {The table will be checked again.} other {All # tables will be checked again.}}",
+        "takenIntro": "{table} already exists and was made by hand. Pick what to do with it.",
+        "takenIntroShort": "What to do with {table}",
+        "pickFirst": "Pick what to do with {table} before you install.",
+        "checkFirst": "Check the tables again before you install.",
+        "nothingYet": "Nothing changes until you press Install.",
+        "again": "Check again",
+        "adoptedNote": "An earlier install of {app} used this table as it found it."
+      },
+      "running": {
+        "title": "Installing {app}",
+        "hint": "Writing to {connection}.",
+        "tables": "Tables",
+        "pages": "Pages"
+      },
+      "stopped": {
+        "failed": "failed",
+        "notStarted": "not started",
+        "atTables": "Creating the tables failed, so nothing after that ran.",
+        "atIntrospect": "The tables were made. Reading them back failed, so nothing after that ran.",
+        "atPages": "The tables were made. Creating the pages failed, so nothing after that ran.",
+        "atFinish": "The tables and pages were made. Finishing the install failed.",
+        "title": "The install stopped part way",
+        "created": "{count} created",
+        "made": "made",
+        "said": "What the database said",
+        "saidAbout": "What the database said about {table}",
+        "resume": "Nothing was removed. Trying again finishes from where it stopped.",
+        "retry": "Try again",
+        "back": "Back to Schema plan"
       }
     },
     "installed": {
@@ -659,11 +727,6 @@ export default {
       "emptyTitle": "No apps installed yet",
       "emptyBody": "Upload a built surface bundle to install one. Apps installed here are served immediately — no restart, unlike a directory you point at.",
       "uninstall": "Uninstall",
-      "confirmTitle": "Uninstall this app?",
-      "confirmBody": "Its surfaces stop being served and the bundle is deleted. Any tables it created in your database are left alone.",
-      "confirmPrompt": "Type {key} to confirm",
-      "confirmCancel": "Cancel",
-      "confirmClose": "Close",
       "stagedTitle": "Uploaded but not installed",
       "stagedHint": "Discard one you decided against, or upload the same key again to replace it.",
       "discard": "Discard",
@@ -675,7 +738,10 @@ export default {
       "missingBody": "Its files are not on this server, so it is not served. Install the same version again, or uninstall it.",
       "update": "Update",
       "discardFailed": "The upload was not discarded",
-      "uninstallFailed": "The app was not uninstalled"
+      "renamed": "Tables renamed to {prefix}…",
+      "oldNames": "This install uses the old table names.",
+      "oldNamesWhy": "They were made before prefixes.",
+      "renameTo": "Rename to {prefix}…"
     },
     "instances": {
       "add": "Add an instance",
@@ -726,7 +792,11 @@ export default {
       "confirm": "Update",
       "close": "Close",
       "done": "{app} updated to v{version}",
-      "missingColumns": "Missing: {tables}."
+      "missingColumns": "Missing: {tables}.",
+      "checkSubtitle": "Check the tables this version uses.",
+      "pickFirst": "Pick what to do with {table} before you update.",
+      "checkFirst": "Check the tables again before you update.",
+      "nothingYet": "Nothing changes until you press Update."
     },
     "veto": {
       "title": "This deployment cannot browse online",
@@ -741,6 +811,18 @@ export default {
       "failed": "The columns could not be added",
       "valuesFailed": "The columns were added, but their allowed values could not be recorded",
       "confirm": "Add the columns and update"
+    },
+    "rename": {
+      "title": "Rename tables to {prefix}…",
+      "subtitle": "{count, plural, one {# table in {connection}} other {# tables in {connection}}}",
+      "close": "Close",
+      "body": "This install was made before prefixes. Renaming gives every table the app’s prefix, so {app} can recognise its own tables.",
+      "planFailed": "The rename could not be planned",
+      "refused": "These tables cannot be renamed here",
+      "failed": "The tables were not renamed",
+      "repair": "Adminium also updates its own pages and rules that point at the old names.",
+      "cancel": "Cancel",
+      "confirm": "Rename tables"
     }
   },
   "hub": {
@@ -1295,7 +1377,8 @@ export default {
       "visible": "Show in sidebar",
       "visibleHint": "A hidden page stays reachable at its URL for anyone who has the link.",
       "width": "Content width",
-      "widthHint": "How wide the page’s content column may grow on a large screen."
+      "widthHint": "How wide the page’s content column may grow on a large screen.",
+      "groupApp": "In its app’s own section"
     },
     "filters": {
       "add": "Add a filter",
@@ -1556,6 +1639,10 @@ export default {
       "ungrouped": {
         "body": "These pages work at their URL but appear nowhere in the sidebar. Open each one and pick a group.",
         "title": "Some pages are in no sidebar group"
+      },
+      "apps": {
+        "title": "In installed apps’ sections",
+        "body": "Each app keeps its pages in its own section of the sidebar."
       }
     },
     "status": {
@@ -1839,7 +1926,20 @@ export default {
       "optionsPickList": "Choose a list…",
       "optionsSource": "Allowed values",
       "optionsSourceHelp": "A list is written once in Studio and used by every column that names it.",
-      "optionsValues": "The values"
+      "optionsValues": "The values",
+      "decided": {
+        "title": "Decided by Adminium",
+        "help": "Adminium fills this in on every write, and a public endpoint can never let a visitor set it.",
+        "copy": "Copied from {from} of the row {via} points at",
+        "copyAlways": "always, whatever the writer gives",
+        "copyDefault": "unless the writer gives a value",
+        "sequence": "The next number in order, from {start}",
+        "code": "A random code like {example}",
+        "remove": "Remove this rule",
+        "rollup": "The total of {sum} over its rows in {from}",
+        "rollupTimes": "The total of {sum} × {times} over its rows in {from}"
+      },
+      "venueLocal": "A time written here without a zone is the venue’s own time."
     },
     "saveFailed": "Save failed: {message}",
     "subtitle": "{tables} tables · {applied} overrides applied",
@@ -2755,5 +2855,169 @@ export default {
     "subtitle": "Manage programmatic access to your workspace",
     "summary": "{endpoints, plural, one {# endpoint} other {# endpoints}} · {methods, plural, one {# method} other {# methods}}",
     "title": "API keys & tokens"
+  },
+  "surfacePages": {
+    "guest": {
+      "title": "{app} isn’t available right now.",
+      "body": "Please try again later."
+    },
+    "staff": {
+      "appOff": "{app} is switched off for now.",
+      "sideOff": "The staff screens of {app} are switched off.",
+      "advice": "Ask your manager to switch it on in {app} → Settings.",
+      "signOut": "Sign out",
+      "noAccess": "This account can’t open {app}.",
+      "noAccessAdvice": "Ask your manager for a role that opens {app}."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "There’s nothing at this address. Check the link and try again."
+    }
+  },
+  "appSettings": {
+    "notInstalled": "This app is not installed",
+    "backToApps": "Back to apps",
+    "statusDisabled": "Disabled",
+    "statusUpdate": "Update available · {version}",
+    "statusActive": "Active",
+    "version": "Version {version} · by {publisher}",
+    "open": "Open the app",
+    "upToDate": "Up to date",
+    "update": "Update",
+    "saveFailed": "The change was not saved",
+    "screens": "Sets of screens",
+    "sideStaff": "Staff screens",
+    "sideCustomer": "Customer screens",
+    "sideAppOff": "The whole app is switched off.",
+    "staffOnHelp": "Your team signs in here with their own accounts.",
+    "customerOnHelp": "Customers use these pages. They are public.",
+    "staffOffHelp": "These screens are not served. Nothing was deleted.",
+    "customerOffHelp": "Customers see “not available”. Nothing was deleted.",
+    "sideSwitch": "{side}, on or off",
+    "on": "On",
+    "off": "Off",
+    "whereItLives": "Where it lives",
+    "ownAddress": "On its own address",
+    "insideDashboard": "Inside the dashboard",
+    "copyAddress": "Copy address",
+    "copied": "Copied",
+    "copy": "Copy",
+    "addDomain": "Add a domain",
+    "preview": "Preview",
+    "domainField": "Domain",
+    "addDomainSave": "Add",
+    "data": "Data",
+    "noTables": "This app uses no tables.",
+    "rows": "{count, plural, one {# row} other {# rows}}",
+    "activity": {
+      "staged": "Uploaded by {actor}",
+      "installed": "Installed by {actor}",
+      "updated": "Updated by {actor}",
+      "disabled": "Switched off by {actor}",
+      "enabled": "Switched on by {actor}",
+      "settings": "Settings changed by {actor}",
+      "domains": "Domains changed by {actor}",
+      "instances": "Instances changed by {actor}",
+      "renamed": "Tables renamed by {actor}",
+      "title": "Activity",
+      "none": "Nothing yet.",
+      "sampleAdded": "Sample data added by {actor}",
+      "sampleRemoved": "Sample data removed by {actor}"
+    },
+    "danger": "Danger zone",
+    "disabledNote": "The app is switched off. Enable brings back exactly what was there.",
+    "disableNote": "Hides the app everywhere and stops its endpoints. Nothing is deleted.",
+    "enable": "Enable",
+    "disable": "Disable",
+    "uninstallNote": "Removes the app’s files and pages. Keeps the tables and data.",
+    "uninstall": "Uninstall",
+    "disableTitle": "Disable {app}?",
+    "close": "Close",
+    "nothingDeleted": "Nothing is deleted.",
+    "enableBrings": "Enable brings back exactly what was there.",
+    "cancel": "Cancel",
+    "disableLine1": "Its section is hidden for everyone.",
+    "disableLine2": "Its screens and its own endpoints stop answering.",
+    "disableLine3": "The tables, records and settings stay as they are.",
+    "crumb": "Apps",
+    "sampleLedger": "Adminium’s list of sample records"
+  },
+  "uninstall": {
+    "files": "The app’s files",
+    "pages": "{count, plural, one {# page} other {# pages}}",
+    "keys": "{count, plural, one {Its browser key} other {Its # browser keys}}",
+    "settings": "Its settings",
+    "hosts": "{count, plural, one {Its domain} other {Its # domains}}",
+    "tables": "{count, plural, one {# table and every record in it} other {# tables and every record in them}}",
+    "editedPages": "Pages you edited stay as ordinary pages",
+    "audit": "Its entries in the audit log",
+    "title": "Uninstall {app}?",
+    "close": "Close",
+    "planFailed": "What would be removed could not be read",
+    "removed": "Removed",
+    "kept": "Kept",
+    "roleCascade": "Removing this role takes it from {members, plural, one {# person} other {# people}} and deletes {keys, plural, one {# API key} other {# API keys}} bound to it. Those keys stop working at once.",
+    "dropTitle": "Also delete its tables and data",
+    "dropBody": "{count, plural, one {Deletes the # table it made and every record in it.} other {Deletes the # tables it made and every record in them.}} This cannot be undone.",
+    "typeKey": "Type the app’s key {key} to confirm.",
+    "failed": "The app was not uninstalled",
+    "cancel": "Cancel",
+    "confirmDrop": "Uninstall and delete data",
+    "confirm": "Uninstall",
+    "rules": "{count, plural, one {Its column rule} other {Its # column rules}}"
+  },
+  "sampleData": {
+    "title": "Sample data",
+    "add": "Add sample data",
+    "installNote": "a few example records in the app’s tables, so there is something to try it with. You can remove it in one click.",
+    "remove": "Remove sample data",
+    "keptNotice": "{count, plural, one {# sample record stays: your own records use it, or you changed it.} other {# sample records stay: your own records use them, or you changed them.}}",
+    "notLoaded": "Not loaded",
+    "loadedCount": "Loaded · {count, plural, one {# record} other {# records}}",
+    "loaded": "Loaded · {count, plural, one {# record} other {# records}} · {date}",
+    "addSubtitle": "Into {connection}",
+    "close": "Close",
+    "addBodyNoConnection": "A few example records in the app’s tables. Nothing else is touched.",
+    "addBody": "A few example records in the app’s tables. Nothing else in {connection} is touched.",
+    "images": "Images, added to Files",
+    "total": "Total",
+    "records": "{count, plural, one {# record} other {# records}}",
+    "none": "This app ships no sample data",
+    "adding": "Adding sample data",
+    "addFailed": "The sample data was not added",
+    "addFailedBody": "The sample data was not added. Nothing was written.",
+    "cancel": "Cancel",
+    "removeSubtitle": "{count, plural, one {# record added on {date}} other {# records added on {date}}}",
+    "removeBody": "Adminium kept a list of every record it added, so it takes out exactly those.",
+    "planFailed": "What would be removed could not be read",
+    "removes": "Removes",
+    "kept": "Kept",
+    "usedBy": "{count, plural, one {used by # of your own records} other {used by # of your own records}}",
+    "keepChanged": "Keep the ones I changed",
+    "changedList": "{count, plural, one {# sample record you edited: {names}.} other {# sample records you edited: {names}.}}",
+    "removeFailed": "The sample data was not removed",
+    "removeConfirm": "Remove",
+    "banner": "Sample data is loaded",
+    "bannerRemove": "Remove it"
+  },
+  "appPublicAccess": {
+    "title": "Public access",
+    "intro": "The app’s customer screens need to:",
+    "availability": "Read free or full times of {table}",
+    "claim": "Look up their own {table} by {fields}",
+    "create": "Add to {table}",
+    "update": "Change {table}",
+    "read": "Read {table}",
+    "later": "arrives in a later release",
+    "allow": "Allow this public access",
+    "helper": "You can narrow it later on the API keys page.",
+    "cannotGrant": "Only someone who may manage API keys can allow it, so the app installs without it.",
+    "warning": {
+      "apiOff": "The public API is switched off, so none of this answers until it is on.",
+      "originSelf": "The allowed origins do not include “self”, so the app’s own pages on this server cannot call it.",
+      "timeZone": "This database has no time zone set, which the public API needs for dates and times.",
+      "noEmail": "Email is not set up, so guests will not be sent a confirmation."
+    },
+    "createConfirmed": "Add to {table}, and get a confirmation email"
   }
 } as const;

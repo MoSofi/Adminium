@@ -85,6 +85,18 @@ export default {
       "submit": "驗證",
       "invalid": "驗證碼不正確。請再試一次。",
       "failed": "驗證失敗。請檢查網路連線後再試一次。"
+    },
+    "staff": {
+      "subtitle": "{app} · 員工登入",
+      "shared": "共用平板？每個人都用自己的帳號登入。",
+      "remember": "在這台平板上保持登入",
+      "invalid": "無法登入。請檢查電子郵件和密碼後再試一次。",
+      "rateLimited": "嘗試次數過多。請一分鐘後再試。",
+      "offline": "無法連線到 {app}。請檢查網路。",
+      "opening": "正在開啟 {app}…",
+      "openingApp": "正在開啟應用程式…",
+      "signedInAs": "已登入為 {name}",
+      "codeInvalid": "此驗證碼無效。請試試應用程式中最新的驗證碼。"
     }
   },
   "nav": {
@@ -119,7 +131,11 @@ export default {
     "audit": "稽核紀錄",
     "security": "密碼與工作階段",
     "files": "檔案",
-    "emptyWithheld": "尚未有頁面分享給您的角色。請向管理員申請存取權限。"
+    "emptyWithheld": "尚未有頁面分享給您的角色。請向管理員申請存取權限。",
+    "app": {
+      "openStaff": "開啟員工畫面",
+      "openStaffInstance": "開啟員工畫面 · {instance}"
+    }
   },
   "apps": {
     "frame": {
@@ -159,7 +175,8 @@ export default {
     "recent": "最近使用",
     "searching": "正在搜尋記錄…",
     "records": "記錄",
-    "empty": "找不到「{query}」的結果"
+    "empty": "找不到「{query}」的結果",
+    "apps": "應用程式"
   },
   "shortcuts": {
     "title": "鍵盤快速鍵",
@@ -262,6 +279,21 @@ export default {
       "title": "此連線已暫停",
       "body": "管理員暫停了此頁面所用的資料庫，因此目前不會載入資料。沒有任何內容被刪除 — 在 Studio → 資料連線中恢復該連線後即可恢復正常。",
       "secondary": "返回"
+    },
+    "appDisabled": {
+      "title": "此應用程式已關閉",
+      "body": "管理員關閉了此應用程式。沒有刪除任何內容——在 Studio → 應用程式 中開啟即可。",
+      "secondary": "返回"
+    },
+    "screensOff": {
+      "title": "這些畫面已關閉",
+      "body": "此應用程式的員工畫面已關閉。沒有刪除任何內容——在 Studio → 應用程式 中開啟即可。",
+      "secondary": "返回"
+    },
+    "appExternal": {
+      "title": "此應用程式在獨立的位址開啟",
+      "body": "它在自己的位址開啟，而不是在儀表板內。",
+      "primary": "開啟"
     }
   },
   "notFound": {
@@ -1554,7 +1586,8 @@ export default {
       "data": "資料",
       "operations": "維運",
       "workspace": "工作區",
-      "records": "頁面與記錄"
+      "records": "頁面與記錄",
+      "apps": "應用程式"
     },
     "column": {
       "actions": "操作",
@@ -1608,7 +1641,7 @@ export default {
       "exportsManage": "管理所有人的匯出",
       "importsManage": "管理所有人的匯入",
       "jobsManage": "啟動與取消背景工作",
-      "manifestsManage": "安裝並連接外掛",
+      "manifestsManage": "安裝並管理應用程式和外掛",
       "jobsRead": "檢視所有背景工作",
       "llmRun": "執行 AI 協助",
       "pagesManage": "建立與整理頁面",
@@ -1641,6 +1674,10 @@ export default {
       "import": "匯入記錄",
       "pagesEdit": "變更頁面版面",
       "narrow": "另有 {count, plural, other {# 項}}針對單一頁面或資料表的授權同樣生效，疊加在下方各列之上。儲存時會保留它們。"
+    },
+    "apps": {
+      "every": "開啟所有應用程式的員工畫面",
+      "one": "開啟 {app} 的員工畫面"
     }
   },
   "security": {

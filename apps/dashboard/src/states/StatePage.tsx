@@ -81,6 +81,8 @@ export function StatePage({ stateId, requestId, fullPage = true, onRetry }: Stat
     // No primary for `connection-paused`: retrying cannot change the answer
     // until a person resumes the connection (see its note in stateMap.ts).
     'connection-paused': () => window.history.back(),
+    'app-disabled': () => window.history.back(),
+    'screens-off': () => window.history.back(),
   };
 
   return (

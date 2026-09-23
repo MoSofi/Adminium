@@ -21,10 +21,31 @@
 import { useCallback } from 'react';
 import { useNavigate, useParams, useRouteContext } from '@tanstack/react-router';
 
-import { activeHostedItem, hostedAppByKey } from '../app/bootstrap.js';
+import {
+  activeHostedItem,
+  hostedAppByKey,
+  type BootstrapData,
+  type UnavailableApp,
+} from '../app/bootstrap.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
+import { StatePage } from '../states/StatePage.js';
+import { Button, IconTile } from '@adminium/ui';
+import { Compass } from 'lucide-react';
+import { t } from '../i18n/t.js';
 import { AppFrame } from './AppFrame.js';
+
+/**
+ * Why `/a/<param>` shows nothing, or null when the app is simply not
+ * installed. An instance (`key~slug`) shares its app's answer. Here rather
+ * than beside the other bootstrap readers: this page is its only reader, and
+ * that module is in the entry chunk.
+ */
+export function unavailableAppByKey(bootstrap: BootstrapData, param: string): UnavailableApp | null {
+  const at = param.indexOf('~');
+  const appKey = at === -1 ? param : param.slice(0, at);
+  return (bootstrap.unavailableApps ?? []).find((app) => app.appKey === appKey) ?? null;
+}
 
 export function AppSurfacePage() {
   /*
@@ -68,7 +89,41 @@ export function AppSurfacePage() {
   // three arrive here as "not in `hostedApps`", and all three mean this URL
   // does not name anything. Studio distinguishes them; the router does not
   // need to.
-  if (app === null) return <NotFoundPage />;
+  if (app === null) {
+    /*
+     * Installed, but not here: switched off, its staff screens switched off,
+     * or placed on its own address. Each says so, and the last links there.
+     */
+    const unavailable = unavailableAppByKey(bootstrap, appKey);
+    if (unavailable === null) return <NotFoundPage />;
+    if (unavailable.reason === 'external') {
+      /*
+       * Drawn here rather than as a system state: this lazy page is the only
+       * place it can appear, and the state map ships in the entry chunk.
+       */
+      return (
+        <div data-part="state-hero" data-state="app-external" className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+          <IconTile size="lg">
+            <Compass aria-hidden className="size-7" />
+          </IconTile>
+          <h1 className="mt-2 text-xl font-bold tracking-tight">
+            {t('states.appExternal.title', 'This app opens on its own')}
+          </h1>
+          <p className="max-w-md text-sm text-fg-muted">
+            {t('states.appExternal.body', 'It opens at its own address, not inside the dashboard.')}
+          </p>
+          {unavailable.href === undefined ? null : (
+            <Button asChild className="mt-2">
+              <a href={unavailable.href}>{t('states.appExternal.primary', 'Open it')}</a>
+            </Button>
+          )}
+        </div>
+      );
+    }
+    return (
+      <StatePage stateId={unavailable.reason === 'app-disabled' ? 'app-disabled' : 'screens-off'} fullPage={false} />
+    );
+  }
 
   const item = activeHostedItem(app, path);
   return (

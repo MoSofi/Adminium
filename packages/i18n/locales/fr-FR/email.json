@@ -809,5 +809,19 @@
     "button": "Ouvrir en ligne",
     "footer": "Vous recevez cet e-mail parce que {business} a dessiné ce document pour vous.",
     "attachment": "Le document"
+  },
+  "bookingConfirmation": {
+    "name": "Confirmation de réservation",
+    "subject": "Votre table chez {venue} est réservée",
+    "preheader": "Réservation {code} · {when} · {party} personnes",
+    "heading": "Votre table est réservée",
+    "intro": "Nous vous gardons une table chez {venue}. Présentez ce code à votre arrivée.",
+    "codeLabel": "Code de réservation",
+    "when": "Quand : {when}",
+    "party": "Personnes : {party}",
+    "guest": "Nom : {name}",
+    "action": "Gérer votre réservation",
+    "cancel": "Vous pouvez annuler en ligne jusqu’à {cancelHours} heures avant.",
+    "footer": "{venue} · {address} · {phone}"
   }
 }

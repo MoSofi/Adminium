@@ -85,6 +85,18 @@ export default {
       "submit": "Vérifier",
       "invalid": "Ce code n’a pas fonctionné. Réessayez.",
       "failed": "Échec de la vérification. Vérifiez votre connexion et réessayez."
+    },
+    "staff": {
+      "subtitle": "{app} · Connexion du personnel",
+      "shared": "Tablette partagée ? Chacun se connecte avec son propre compte.",
+      "remember": "Rester connecté sur cette tablette",
+      "invalid": "Impossible de vous connecter. Vérifiez votre e-mail et votre mot de passe, puis réessayez.",
+      "rateLimited": "Trop de tentatives. Réessayez dans une minute.",
+      "offline": "Impossible de joindre {app}. Vérifiez le réseau.",
+      "opening": "Ouverture de {app}…",
+      "openingApp": "Ouverture de l’app…",
+      "signedInAs": "Connecté en tant que {name}",
+      "codeInvalid": "Ce code n’a pas fonctionné. Essayez le plus récent de votre app."
     }
   },
   "nav": {
@@ -119,7 +131,11 @@ export default {
     "audit": "Journal d’audit",
     "security": "Mot de passe et sessions",
     "files": "Fichiers",
-    "emptyWithheld": "Aucune page n’a encore été partagée avec votre rôle. Demandez l’accès à un administrateur."
+    "emptyWithheld": "Aucune page n’a encore été partagée avec votre rôle. Demandez l’accès à un administrateur.",
+    "app": {
+      "openStaff": "Ouvrir les écrans du personnel",
+      "openStaffInstance": "Ouvrir les écrans du personnel · {instance}"
+    }
   },
   "apps": {
     "frame": {
@@ -159,7 +175,8 @@ export default {
     "recent": "Récents",
     "searching": "Recherche d’enregistrements…",
     "records": "Enregistrements",
-    "empty": "Aucun résultat pour « {query} »"
+    "empty": "Aucun résultat pour « {query} »",
+    "apps": "Apps"
   },
   "shortcuts": {
     "title": "Raccourcis clavier",
@@ -262,6 +279,21 @@ export default {
       "title": "Cette connexion est en pause",
       "body": "Un administrateur a mis en pause la base de données derrière cette page, qui ne charge donc aucune donnée pour le moment. Rien n’a été supprimé — tout revient dès que la connexion est reprise dans Studio → Connexions de données.",
       "secondary": "Retour"
+    },
+    "appDisabled": {
+      "title": "Cette app est désactivée",
+      "body": "Un administrateur a désactivé cette app. Rien n’a été supprimé — réactivez-la dans Studio → Apps.",
+      "secondary": "Retour"
+    },
+    "screensOff": {
+      "title": "Ces écrans sont désactivés",
+      "body": "Les écrans du personnel de cette app ont été désactivés. Rien n’a été supprimé — réactivez-les dans Studio → Apps.",
+      "secondary": "Retour"
+    },
+    "appExternal": {
+      "title": "Cette app s’ouvre à part",
+      "body": "Elle s’ouvre à sa propre adresse, pas dans le tableau de bord.",
+      "primary": "L’ouvrir"
     }
   },
   "notFound": {
@@ -1554,7 +1586,8 @@ export default {
       "data": "Données",
       "operations": "Opérations",
       "workspace": "Espace de travail",
-      "records": "Pages et enregistrements"
+      "records": "Pages et enregistrements",
+      "apps": "Apps"
     },
     "column": {
       "actions": "Actions",
@@ -1608,7 +1641,7 @@ export default {
       "exportsManage": "Gérer les exports de tout le monde",
       "importsManage": "Gérer les imports de tout le monde",
       "jobsManage": "Démarrer et annuler les tâches en arrière-plan",
-      "manifestsManage": "Installer et connecter des modules",
+      "manifestsManage": "Installer et gérer les applications et les modules",
       "jobsRead": "Voir toutes les tâches en arrière-plan",
       "llmRun": "Utiliser l’assistance IA",
       "pagesManage": "Créer et organiser les pages",
@@ -1641,6 +1674,10 @@ export default {
       "import": "Importer des enregistrements",
       "pagesEdit": "Modifier la mise en page des pages",
       "narrow": "{count, plural, one {# autorisation} other {# autorisations}} sur une seule page ou table s’appliquent aussi, en plus des lignes ci-dessous. L’enregistrement les conserve."
+    },
+    "apps": {
+      "every": "Ouvrir les écrans du personnel de toutes les apps",
+      "one": "Ouvrir les écrans du personnel de {app}"
     }
   },
   "security": {

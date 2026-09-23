@@ -38,6 +38,8 @@ import type { WidgetFamily } from './types.js';
  */
 export interface CandidateColumn {
   name: string;
+  /** The column's own name for a person, when it has one (a rename); else it is humanized. */
+  label?: string | undefined;
   /** 1-based position (pg attnum-style); 0/absent = unspecified (imports). */
   ordinal?: number | undefined;
   /** `@adminium/engine`'s `LogicalType`, widened: 'text' | 'integer' | 'enum' | … */
@@ -57,7 +59,8 @@ export interface CandidateColumn {
   maxLength?: number | null | undefined;
   /** Resolved `EnumDef.values` for `logicalType: 'enum'` (or CHECK-derived). */
   enumValues?: readonly string[] | undefined;
-  references?: { tableId: string; column: string } | null | undefined;
+  /** `label`: what a person calls the referenced table, when it has a name. */
+  references?: { tableId: string; column: string; label?: string | undefined } | null | undefined;
 }
 
 export interface CandidateTable {
@@ -201,6 +204,8 @@ export interface CandidateView {
 /** A column with its classification folded in. */
 export interface ViewColumn {
   name: string;
+  /** The column's own name for a person, when it has one. */
+  label?: string | undefined;
   logicalType: string;
   nullable: boolean;
   isPrimaryKey: boolean;
@@ -242,6 +247,18 @@ export function humanize(name: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+/**
+ * What a composed widget calls a table: its own name for a person — a rename,
+ * or the one its app installed — else its humanized name. Titles read
+ * "Reservations", not "Pos Reservations".
+ */
+export function tableTitle(table: { name: string; label?: string | undefined }): string {
+  return table.label ?? humanize(table.name);
+}
+
+/** The same for a column: "Unit price", never a humanized `unit_price` it has a name for. */
+export const columnTitle = tableTitle;
 
 /** Deterministic 3-decimal rounding — float association must never reorder ties. */
 function round3(value: number): number {
@@ -346,6 +363,7 @@ export function buildCandidateView(
     const info = semanticsByColumn.get(column.name);
     return {
       name: column.name,
+      ...(column.label === undefined ? {} : { label: column.label }),
       logicalType: column.logicalType,
       nullable: column.nullable ?? true,
       isPrimaryKey: column.isPrimaryKey ?? false,
@@ -515,7 +533,7 @@ const kpiCountTotal: CandidateRule = {
   id: 'kpi.count-total',
   family: 'kpi',
   match(view, ctx) {
-    const label = humanize(view.table.name);
+    const label = tableTitle(view.table);
     return [
       {
         widget: 'kpi-stat-card',
@@ -555,7 +573,7 @@ const kpiMoneySum: CandidateRule = {
         // validation and was pruned on every mount — every money KPI on a
         // generated dashboard rendered unformatted, and `format` is skipped by
         // the config drawer so it could not be repaired by hand either.
-        config: { title: `Total ${humanize(column.name)}`, metricFormat: 'currency' },
+        config: { title: `Total ${columnTitle(column)}`, metricFormat: 'currency' },
       }));
   },
 };
@@ -579,7 +597,7 @@ const kpiNewThisPeriod: CandidateRule = {
           aggregations: [{ fn: 'count', alias: 'value' }],
           window: { column: column.name, last: 30, unit: 'day', compareToPrior: true },
         }),
-        config: { title: `New ${humanize(view.table.name)} (30d)`, deltaMode: 'pct' },
+        config: { title: `New ${tableTitle(view.table)} (30d)`, deltaMode: 'pct' },
       },
     ];
   },
@@ -606,7 +624,7 @@ const kpiStatusCount: CandidateRule = {
           aggregations: [{ fn: 'count', alias: 'value' }],
           filters: [{ column: column.name, op: 'eq', value: active }],
         }),
-        config: { title: `${humanize(active)} ${humanize(view.table.name)}` },
+        config: { title: `${humanize(active)} ${tableTitle(view.table)}` },
       },
     ];
   },
@@ -630,7 +648,7 @@ const kpiScoreGauge: CandidateRule = {
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'avg', column: column.name, alias: 'value' }],
         }),
-        config: { title: `Average ${humanize(column.name)}`, max: 100 },
+        config: { title: `Average ${columnTitle(column)}`, max: 100 },
       },
     ];
   },
@@ -667,7 +685,7 @@ const kpiStorageUsage: CandidateRule = {
         // formatter, and the generator cannot know the unit of an arbitrary size
         // column. Falling through to the metric's own `unit` is the honest
         // default; a wrong hardcoded suffix would be worse than none.
-        config: { title: `${humanize(view.table.name)} Storage` },
+        config: { title: `${tableTitle(view.table)} Storage` },
       },
     ];
   },
@@ -683,8 +701,8 @@ const chartsHeroTimeseries: CandidateRule = {
     const money = firstWithSemantic(view, 'money');
     const title =
       money !== null
-        ? `${humanize(money.name)} per Month`
-        : `${humanize(view.table.name)} per Month`;
+        ? `${columnTitle(money)} per Month`
+        : `${tableTitle(view.table)} per Month`;
     return [
       {
         widget: 'chart-line-area',
@@ -730,7 +748,7 @@ const chartsTimeHeatmap: CandidateRule = {
           aggregations: [{ fn: 'count', alias: 'value' }],
           bucket: { column: axis.name, unit: 'day' },
         }),
-        config: { title: `${humanize(view.table.name)} Activity` },
+        config: { title: `${tableTitle(view.table)} Activity` },
       },
     ];
   },
@@ -757,7 +775,7 @@ const chartsCategoricalDonut: CandidateRule = {
           groupBy: [column.name],
           limit: 8,
         }),
-        config: { title: `${humanize(view.table.name)} by ${humanize(column.name)}` },
+        config: { title: `${tableTitle(view.table)} by ${columnTitle(column)}` },
       },
     ];
   },
@@ -786,7 +804,7 @@ const chartsScatter: CandidateRule = {
           select: [x.name, y.name],
           limit: 500,
         }),
-        config: { title: `${humanize(x.name)} vs ${humanize(y.name)}` },
+        config: { title: `${columnTitle(x)} vs ${columnTitle(y)}` },
       },
     ];
   },
@@ -814,7 +832,7 @@ const chartsDurationBoxplot: CandidateRule = {
             { fn: 'percentile', column: column.name, p: 0.99, alias: 'p99' },
           ],
         }),
-        config: { title: `${humanize(column.name)} Distribution` },
+        config: { title: `${columnTitle(column)} Distribution` },
       },
     ];
   },
@@ -840,7 +858,7 @@ const chartsGeoRegion: CandidateRule = {
           groupBy: [column.name],
           limit: 60,
         }),
-        config: { title: `${humanize(view.table.name)} by ${humanize(column.name)}` },
+        config: { title: `${tableTitle(view.table)} by ${columnTitle(column)}` },
       },
     ];
   },
@@ -866,7 +884,7 @@ const tablesDataGrid: CandidateRule = {
           select: listSelect(view),
           limit: 50,
         }),
-        config: { title: humanize(view.table.name) },
+        config: { title: tableTitle(view.table) },
       },
     ];
   },
@@ -917,7 +935,7 @@ const tablesMasterDetail: CandidateRule = {
           limit: 100,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           ...(enumColumn === undefined ? {} : { groupBy: enumColumn.name }),
         },
       },
@@ -927,9 +945,9 @@ const tablesMasterDetail: CandidateRule = {
         shape: 'record',
         family: 'tables',
         rule: 'tables.master-detail',
-        reason: `per-record detail pane for the ${humanize(view.table.name)} split view`,
+        reason: `per-record detail pane for the ${tableTitle(view.table)} split view`,
         binding: descriptor(view, ctx, 'record', { limit: 1 }),
-        config: { title: `${humanize(view.table.name)} Detail` },
+        config: { title: `${tableTitle(view.table)} Detail` },
       },
     ];
   },
@@ -955,7 +973,7 @@ const tablesCardGallery: CandidateRule = {
           limit: 60,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           titleColumn: view.displayColumn,
           imageColumn: image.name,
         },
@@ -985,7 +1003,7 @@ const tablesLogTable: CandidateRule = {
           ...(axis === null ? {} : { orderBy: [{ column: axis.name, dir: 'desc' as const }] }),
           limit: 100,
         }),
-        config: { title: humanize(view.table.name) },
+        config: { title: tableTitle(view.table) },
       },
     ];
   },
@@ -1010,7 +1028,7 @@ const tablesTree: CandidateRule = {
           limit: 500,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           parentColumn: view.hierarchyColumn,
           labelColumn: view.displayColumn,
         },
@@ -1044,7 +1062,7 @@ const feedsActivity: CandidateRule = {
           orderBy: [{ column: axis.name, dir: 'desc' }],
           limit: 50,
         }),
-        config: { title: `${humanize(view.table.name)} Activity` },
+        config: { title: `${tableTitle(view.table)} Activity` },
       },
     ];
   },
@@ -1075,7 +1093,7 @@ const feedsNotification: CandidateRule = {
           ...(axis === null ? {} : { orderBy: [{ column: axis.name, dir: 'desc' as const }] }),
           limit: 50,
         }),
-        config: { title: humanize(view.table.name), readColumn: flag.name },
+        config: { title: tableTitle(view.table), readColumn: flag.name },
       },
     ];
   },
@@ -1103,7 +1121,7 @@ const feedsRealtime: CandidateRule = {
           orderBy: [{ column: axis.name, dir: 'desc' }],
           limit: 50,
         }),
-        config: { title: `${humanize(view.table.name)} Live` },
+        config: { title: `${tableTitle(view.table)} Live` },
       },
     ];
   },
@@ -1136,7 +1154,7 @@ const feedsTimeline: CandidateRule = {
           orderBy: [{ column: axis.name, dir: 'desc' }],
           limit: 50,
         }),
-        config: { title: `${humanize(view.table.name)} Timeline` },
+        config: { title: `${tableTitle(view.table)} Timeline` },
       },
     ];
   },
@@ -1172,7 +1190,7 @@ const calendarMonth: CandidateRule = {
         rule: 'calendar.date-title',
         reason: `date "${date.name}" + title "${view.displayColumn}" — month calendar`,
         binding: binding(),
-        config: { title: humanize(view.table.name), ...config },
+        config: { title: tableTitle(view.table), ...config },
       },
       {
         widget: 'day-agenda',
@@ -1218,7 +1236,7 @@ const calendarScheduleMatrix: CandidateRule = {
           limit: 500,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           personColumn: person.name,
           dateColumn: date.name,
           typeColumn: type.name,
@@ -1252,7 +1270,7 @@ const calendarCapacityBoard: CandidateRule = {
           limit: 500,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           personColumn: person.name,
           projectColumn: project.name,
           hoursColumn: hours.name,
@@ -1311,7 +1329,7 @@ const boardsKanban: CandidateRule = {
           limit: 200,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           statusColumn: status.name,
           columns: [...status.enumValues],
           ...(lane === null ? {} : { laneColumn: lane.name }),
@@ -1343,7 +1361,7 @@ const geoMapBubble: CandidateRule = {
           select: listSelect(view),
           limit: 1000,
         }),
-        config: { title: humanize(view.table.name), latColumn: lat.name, lngColumn: lng.name },
+        config: { title: tableTitle(view.table), latColumn: lat.name, lngColumn: lng.name },
       },
     ];
   },
@@ -1369,7 +1387,7 @@ const mediaAttachmentList: CandidateRule = {
           select: listSelect(view),
           limit: 50,
         }),
-        config: { title: `${humanize(view.table.name)} Attachments`, fileColumn: file.name },
+        config: { title: `${tableTitle(view.table)} Attachments`, fileColumn: file.name },
       },
     ];
   },
@@ -1395,7 +1413,7 @@ const mediaImageBoard: CandidateRule = {
           select: listSelect(view),
           limit: 60,
         }),
-        config: { title: `${humanize(view.table.name)} Media`, imageColumn: image.name },
+        config: { title: `${tableTitle(view.table)} Media`, imageColumn: image.name },
       },
     ];
   },
@@ -1420,7 +1438,7 @@ const mediaFileBrowser: CandidateRule = {
           limit: 200,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           ...(view.displayColumn === null ? {} : { nameColumn: view.displayColumn }),
           ...(view.hierarchyColumn === null ? {} : { parentColumn: view.hierarchyColumn }),
         },
@@ -1448,7 +1466,7 @@ const mediaLinkList: CandidateRule = {
           select: listSelect(view),
           limit: 50,
         }),
-        config: { title: `${humanize(view.table.name)} Links`, urlColumn: url.name },
+        config: { title: `${tableTitle(view.table)} Links`, urlColumn: url.name },
       },
     ];
   },
@@ -1481,7 +1499,7 @@ const communicationPair: CandidateRule = {
           select: listSelect(view),
           limit: 100,
         }),
-        config: { title: humanize(view.table.name) },
+        config: { title: tableTitle(view.table) },
       },
       {
         widget: 'chat-thread',
@@ -1521,7 +1539,7 @@ const domainOrgChart: CandidateRule = {
           limit: 500,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           parentColumn: view.hierarchyColumn,
           ...(view.displayColumn === null ? {} : { labelColumn: view.displayColumn }),
         },
@@ -1556,7 +1574,7 @@ const domainGanttChart: CandidateRule = {
           limit: 200,
         }),
         config: {
-          title: humanize(view.table.name),
+          title: tableTitle(view.table),
           startColumn: start.name,
           endColumn: start.pair.partner,
           ...(view.displayColumn === null ? {} : { labelColumn: view.displayColumn }),
