@@ -186,6 +186,15 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Apps',
+              items: [
+                { label: 'An app’s settings page', link: '/guides/apps/settings/' },
+                { label: 'Sample data', link: '/guides/apps/sample-data/' },
+                { label: 'App roles and staff access', link: '/guides/apps/roles-and-staff-access/' },
+                { label: 'An app’s public access', link: '/guides/apps/public-access/' },
+              ],
+            },
+            {
               label: 'LLM assist',
               items: [
                 { label: 'Overview', link: '/guides/llm-assist/' },

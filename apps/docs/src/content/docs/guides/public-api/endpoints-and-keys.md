@@ -39,6 +39,10 @@ grants it or you edit it, and then it is stored. A generated endpoint:
 A column added to the table later is never exposed by itself. Open the endpoint and add
 it.
 
+An installed app with customer screens makes its own endpoints and one browser key at
+install, marked as the app's. That key can never be widened, and it stops when the app is
+switched off. See [An app's public access](/guides/apps/public-access/).
+
 **Edit endpoint** opens the builder. The form on the left and the JSON definition on the
 right are the same document, and editing one updates the other. The definition also
 accepts keys the form does not draw (`writable`, `defaults`, `filterable`, `searchable`,
@@ -105,6 +109,41 @@ A list answers `{ data, page, cursor }` (wrapped), a bare array with the next cu
 An endpoint that needs a signed-in customer also takes `X-Adminium-Public-Session`, the
 session a claim returned.
 
+### Free or full
+
+A bookings table with a limit per time slot can have an **availability** endpoint. It
+answers one question — which of a day's times have room for a party — and never returns
+a row, a name or a count:
+
+```bash
+curl 'https://admin.example.com/api/v1/public/availability/reservations_availability?date=2026-09-25&party=4' \
+  -H "Authorization: Bearer $ADMINIUM_KEY"
+```
+
+```json
+{ "data": [{ "time": "19:00", "state": "free" }, { "time": "19:30", "state": "full" }] }
+```
+
+Times are on the venue's clock, every slot from opening to the last one before closing. A
+time in the past, or further ahead than the booking window, is full. With a session, the
+guest's own booking is not counted against them, so they can make it bigger at the same
+time. `@adminiumjs/public-client` asks with `availability(ref, day, party)`, and
+`fromTenantLocal(day, minutes, timeZone)` turns the time picked into the instant to book.
+
+An endpoint that takes bookings can also **confirm** them: when a guest's booking includes
+an email address, Adminium sends the built-in *Booking confirmation* email — in the guest's
+own language, with the booking code, the time on the venue's clock, the party size, the
+cancellation window and a link back to manage it. The page itself has no server, so this is
+the only way a guest gets one. It needs email set up under Settings → Email; without it the
+booking still goes through, and an app's install check says no confirmation will be sent.
+Changing or cancelling a booking sends nothing. The template can be reworded, like every
+built-in, in the email templates.
+
+The same limit is checked again when the booking is written, so two guests asking for the
+last places at once cannot both have them. A guest can cancel only up to the venue's
+cancellation window before the time; after that the API answers `PUBLIC_TOO_LATE` and
+the venue can still cancel from its own screens.
+
 ### Refusals
 
 | Status | Code | When |
@@ -114,13 +153,19 @@ session a claim returned.
 | 404 | `PUBLIC_REF_NOT_FOUND` | No such endpoint, a method the key was not granted, or a row outside the endpoint's filter. All three look the same on purpose |
 | 400 | `PUBLIC_WRITE_REFUSED` | A column that is not writable, a PUT missing one, a batch of 0 or more than 500 rows, or a write the database refused |
 | 400 | `PUBLIC_QUERY_REFUSED` | A filter or sort the endpoint does not allow |
+| 409 | `PUBLIC_SLOT_FULL` | The time a booking asks for has no room left |
+| 409 | `PUBLIC_SLOT_BUSY` | Another visitor is booking that time this instant; try again in a moment |
+| 409 | `PUBLIC_TOO_LATE` | Too close to the time to cancel online; the venue still can |
 | 429 | `PUBLIC_RATE_LIMITED` | Over the limit. `Retry-After` says when to try again |
 | 503 | `PUBLIC_API_DISABLED` | The Public API switch is off |
 
 ### Rate limits
 
 An endpoint's own limit applies per visitor for a browser key, and across the whole key
-for a server key. A batch counts one request per row. Separately, every address is held
+for a server key. A batch counts one request per row. A browser key is also held as a
+whole, across every visitor together, to 600 reads and 60 writes a minute (a batch counts
+once here); anyone can copy a browser key out of a page, so this is what stops many
+addresses together from using it up. Separately, every address is held
 to 600 requests a minute across all endpoints. The counters live in each server process,
 so with several replicas each one counts on its own.
 

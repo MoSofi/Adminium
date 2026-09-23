@@ -16,7 +16,15 @@ pages itself; the dashboard keeps working on every host you did not map.
 - **Your proxy** terminates TLS and passes the request through **with the `Host` header intact**.
   Certificates never involve Adminium.
 - **Adminium** serves the surface for that host: every path renders the surface (deep links
-  included), while `/api/*`, `/apps/*` and the sign-in pages keep their normal meaning.
+  included). What else the host answers depends on the side:
+
+| On a mapped… | Also served | Everything else |
+|---|---|---|
+| **staff** domain | `/api/*`, `/apps/*`, and the dashboard's sign-in pages with the files they load | the surface |
+| **customer** domain | the public API (`/api/v1/public/*`) and this app's own `/apps/<app>/customer/…` files | `404` — a browser gets a plain "not found" page |
+
+A customer domain is your shop's own address, so it serves no part of the admin panel: not its
+sign-in pages, not its API, not another app's files.
 
 With Caddy the site block is two lines, because `reverse_proxy` preserves `Host` by default:
 
@@ -41,9 +49,11 @@ For nginx, set `proxy_set_header Host $host;` — the pass-through is the whole 
    hosts. Append real origins beside it only for standalone pages deployed elsewhere.
    → [Environment variables](/self-hosting/env-vars/#adminium_public_api_origins)
 
-2. **Attach the domain in Studio.** *Studio → Hosted apps → Domains*: enter the host, pick the
-   surface, save. The mapping takes effect within a few seconds. Adminium refuses the host you are
-   using to reach Studio — mapping it would take the dashboard away from you.
+2. **Attach the domain in Studio.** The **Domains** card on *Studio → Hosted apps* maps any
+   surface: enter the host, pick the surface, save. For staff screens there is a shortcut on the
+   app's own page: **Add a domain** beside them. The mapping takes effect within a few
+   seconds. Adminium refuses the host you are using to reach Studio — mapping it would take the
+   dashboard away from you.
 
 3. **Point DNS at this server.** Add the record for the new host with the same type and target as
    the address you already use for the dashboard — if `admin.example.com` is an `A` record at your
@@ -70,22 +80,39 @@ For nginx, set `proxy_set_header Host $host;` — the pass-through is the whole 
 The mapping itself is inert until traffic actually arrives carrying that `Host` — Adminium states
 the prerequisite rather than probing it.
 
-For a **customer** surface, also make sure a publishable key is bound to the app (*Studio → Public
-API*, mint a key and bind it to the app surface). The surface fetches its key from the server at
-load time, so rotating it later is Studio + reload — no rebuild.
+A **customer** surface also needs a browser key for the public API. Installing the app makes it
+when you leave **Allow this public access** ticked — see
+[An app's public access](/guides/apps/public-access/). If you unticked it, the surface has no key
+and its `surface-config.json` answers `404`; mint one on the API keys page and bind it to the app's
+customer surface. The surface fetches its key from the server at load time, so rotating it later is
+Studio + reload — no rebuild.
 
 ## What a mapped staff domain does about sign-in
 
 Sessions are cookies, and cookies are per-host: a session on `admin.example.com` does not ride to
-`staff.example.com`. So on a mapped host a short reserved set still serves the dashboard — the
-sign-in pages (`/login`, `/otp`, `/forgot`, `/reset`) plus `/api/*` and `/apps/*`. Opening a staff
-domain anonymously redirects to the login page *on that domain*; signing in (same credentials) sets
-the cookie *for that domain* and returns you to the page you asked for. One extra sign-in per
-domain is the cost of the placement.
+`staff.example.com`. So on a mapped **staff** host a short reserved set still serves the dashboard —
+the sign-in pages (`/login`, `/otp`, `/forgot`, `/reset`) plus `/api/*` and `/apps/*`. Opening a
+staff domain anonymously redirects to the login page *on that domain*; signing in (same
+credentials) sets the cookie *for that domain* and returns you to the page you asked for. A bare
+`/login` there returns you to the surface, never to a dashboard page. One extra sign-in per domain
+is the cost of the placement.
 
 Everything else about the dashboard is deliberately **not** reachable on a mapped host — workspace
-management happens on the admin host. And because the dashboard still serves normally on every
-unmapped host, a mistaken mapping is always recoverable from the host you did not map.
+management happens on the admin host. A customer domain has no sign-in at all: its guests use the
+public API. And because the dashboard still serves normally on every unmapped host, a mistaken
+mapping is always recoverable from the host you did not map.
+
+## When the app is switched off or removed
+
+A mapped domain never falls back to the dashboard:
+
+- **The app is disabled, or that side is switched off** in the app's settings: the domain answers
+  `503` with a plain page saying the screens are not available. Nothing is deleted; switching it
+  back on brings the domain back.
+- **A signed-in person without access to the staff screens** gets `403` and the same kind of page,
+  with a way to sign out.
+- **The app was uninstalled, or the surface no longer exists:** every request answers `503` with
+  the code `SURFACE_UNAVAILABLE` until you attach the host to an app again.
 
 ## When the domain serves nothing
 
@@ -119,7 +146,12 @@ docker exec <adminium-container> node -e "require('http').get({host:'127.0.0.1',
 |---|---|
 | `302 /login?next=%2F` | The mapping works. A staff surface with no session redirects to its own login page. |
 | `401` | **Also the mapping working.** The gate only redirects for a browser navigation — a request carrying `sec-fetch-mode: navigate`, or an `Accept` holding `text/html`. Anything else gets the API envelope instead. Drop the `Accept` header above and you will see this. |
-| `200` | **This is the failure.** The host matched no mapping, so it fell through to the dashboard. Check the host spelling in Studio, and that the surface it points at still exists. |
+| `200` | **This is the failure** for a staff domain. The host matched no mapping, so it fell through to the dashboard. Check the host spelling in Studio. |
+| `503` | The host is mapped, but to an app that is switched off, uninstalled or missing. See [above](#when-the-app-is-switched-off-or-removed). |
+
+A **customer** domain answers `/` with its own page, `200`, so ask it for `/login` instead: a mapped
+customer host answers `404` there, and an unmapped one serves the dashboard's login page with a
+`200`.
 
 A `curl` to `localhost:4600` on the host machine usually answers `Connection refused`, and that is
 correct rather than broken: with a proxy in the same Docker network, Adminium's port is not

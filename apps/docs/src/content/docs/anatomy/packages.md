@@ -346,7 +346,10 @@ through `Intl` with an explicit `timeZone` — `en-CA` for the day, whose short
 format is already ISO order. `isCanonicalTimeZone` is the companion, because
 `new Intl.DateTimeFormat({ timeZone })` does not throw for a legacy alias, it
 *remaps* it: `BST` resolves to `Asia/Dhaka`, six hours from the British Summer
-Time somebody meant. `formatTenantMoney` is the same argument about money — a
+Time somebody meant. `fromTenantLocal(day, minutes, timeZone)` goes the other
+way: the instant a guest's pick of "19:00 on Friday" names on the tenant's calendar,
+so a booking sent from a phone in another zone still lands at the venue's seven
+o'clock. `formatTenantMoney` is the same argument about money — a
 `money` column arrives as a bare decimal string with no currency attached, and
 it is parsed once, at the last moment, for display only.
 :::

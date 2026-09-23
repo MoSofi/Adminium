@@ -55,7 +55,10 @@ const DESCRIPTIONS = {
   apps:
     'Micro-SaaS apps installed into this instance — upload a built bundle or download one ' +
     'from the opt-in online catalog, browse what is staged or offered, plan its tables ' +
-    'against a connection, install, update, discard a staged version, and uninstall',
+    'against a connection, install (with the public access it asks for, unless declined), update, ' +
+    'rename an older install’s tables to the app’s prefix, ' +
+    'change one app’s settings, switch it off and on, set its domains and instances, ' +
+    'add and remove its sample data, discard a staged version, and uninstall',
   assistant:
     'The page assistant — open a session on a page, ask it something, read what the turn ' +
     'came back with, and act on the draft it proposed. Every route needs the assistant ' +
