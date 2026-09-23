@@ -42,7 +42,14 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 import { ENGINE, enrichWizardDsn } from './constants.js';
-import { signIn } from './helpers.js';
+import { signIn, useOwnPrincipal } from './helpers.js';
+
+/*
+ * Its own principal, so its own `api` budget (constants.ts `OWN_PRINCIPALS`):
+ * three wizard + enrich + apply legs right after the generated-app specs.
+ * Every leg here runs on sqlite only; the sign-in is skipped with them.
+ */
+if (ENGINE === 'sqlite') useOwnPrincipal('enrich');
 
 /** WCAG 2.1 A/AA — the rule set every other sweep in this suite runs. */
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];

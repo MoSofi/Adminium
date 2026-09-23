@@ -143,8 +143,9 @@ test.describe(`schema design [${ENGINE}]`, () => {
 
     await page.getByRole('button', { name: 'Review changes' }).click();
     // The statement carries both — the default the database fills in, and the
-    // constraint that keeps `status` to its two answers.
-    await expect(page.getByText(/current_timestamp|datetime\('now'\)/i)).toBeVisible();
+    // constraint that keeps `status` to its two answers. SQLite's `now` is the
+    // server's wall clock, the clock every value Adminium writes there is in.
+    await expect(page.getByText(/current_timestamp|datetime\('now', 'localtime'\)/i)).toBeVisible();
     await expect(page.getByText(/check.*status.*in.*draft/is)).toBeVisible();
 
     await page.getByRole('button', { name: 'Apply', exact: true }).click();

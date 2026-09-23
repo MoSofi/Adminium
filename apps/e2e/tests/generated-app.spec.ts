@@ -14,7 +14,14 @@
  */
 import { expect, test } from '@playwright/test';
 
-import { gridRows, gridSearch, navLink, recordPage, signIn } from './helpers.js';
+import { gridRows, gridSearch, navLink, recordPage, signIn, useOwnPrincipal } from './helpers.js';
+
+/*
+ * Its own principal, so its own `api` budget (constants.ts `OWN_PRINCIPALS`):
+ * a dozen fast page loads, straight after the export and form specs, met the
+ * rate-limit page on the shared one.
+ */
+const SIGNED_IN_AS = useOwnPrincipal('generated');
 
 test.describe('generated app on the seeded Northwind connection', () => {
   test('(a) seeded super admin signs in and lands in the generated app', async ({ page }) => {
@@ -24,7 +31,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     // permanently on screen. Opening the menu still proves what this asserted:
     // that bootstrap resolved the session user.
     await page.getByRole('button', { name: 'Account menu' }).click();
-    await expect(page.getByText('e2e@adminium.local')).toBeVisible();
+    await expect(page.getByText(SIGNED_IN_AS)).toBeVisible();
     await page.keyboard.press('Escape');
     // `/` redirected into the first workspace page (generated dashboard).
     await expect(page).toHaveURL(/\/p\//);

@@ -60,6 +60,14 @@ export const STAFF_MARK = 'e2e-app-staff';
 export const CUSTOMER_MARK = 'e2e-app-customer';
 
 /**
+ * What an install over the API answers for `shippers`. Northwind made that
+ * table, not Adminium, so the install asks what to do with it — until an
+ * earlier install in the same run has recorded it, after which it is taken
+ * back by default. The answer is the same either way: use it as it is.
+ */
+export const REUSE_CHOICES = { shippers: { action: 'reuse' } } as const;
+
+/**
  * `requiredSchema` decides what the plan step shows, and the two specs want
  * different things from it:
  *
@@ -77,8 +85,42 @@ const TABLES = {
     {
       ref: 'shippers',
       columns: [
-        { ref: 'shipper_id', type: 'int', role: 'pk' },
+        /*
+         * Not declared as the key. An app's int key numbers new rows itself,
+         * and Northwind's `smallint` key does not, so claiming it would make
+         * "use it as it is" rebuild a table every spec shares. This app never
+         * inserts a shipper, so it has no need to.
+         */
+        { ref: 'shipper_id', type: 'int' },
         { ref: 'company_name', type: 'text' },
+      ],
+    },
+  ],
+  /*
+   * The Overview's card families (P2) over Northwind's own tables, used as they
+   * are: nothing is created and no key is claimed (see `reuse`), so the
+   * composed dashboard can be installed into the dataset every spec shares.
+   */
+  overview: [
+    {
+      ref: 'orders',
+      columns: [
+        { ref: 'order_id', type: 'int' },
+        { ref: 'order_date', type: 'date' },
+        { ref: 'ship_via', type: 'int' },
+        { ref: 'freight', type: 'float' },
+        { ref: 'ship_country', type: 'text' },
+      ],
+    },
+    {
+      ref: 'products',
+      columns: [
+        { ref: 'product_name', type: 'text' },
+        { ref: 'unit_price', type: 'float' },
+        { ref: 'units_in_stock', type: 'int' },
+        // Required and without a default: declared, or reuse is refused (an app
+        // that never fills it could save no row there).
+        { ref: 'discontinued', type: 'int' },
       ],
     },
   ],
@@ -92,6 +134,41 @@ const TABLES = {
     },
   ],
 } as const;
+
+/**
+ * One sample row per shape, in the table that shape declares. The suite never
+ * ADDS it — `shippers` is Northwind's own and every spec shares it — but the
+ * install step, the Add dialog and the app's page all read that it is there.
+ */
+const SAMPLE = {
+  reuse: { ref: 'shippers', rows: [{ shipper_id: 901, company_name: 'Sample Freight' }] },
+  overview: { ref: 'orders', rows: [{ order_id: 99001, ship_country: 'Nowhere' }] },
+  create: { ref: 'e2e_app_probe', rows: [{ label: 'Sample probe' }] },
+} as const;
+
+const orders = { name: 'orders', type: 'table' } as const;
+
+/**
+ * The Overview's layout, card family by card family (`POS Overview.dc.html`):
+ * the day control, KPI cards (one windowed to the chosen day, which is empty on
+ * Northwind's 1990s dates — the empty state, drawn for real), bars over time, a
+ * donut, a ranking and a mini-table.
+ */
+const OVERVIEW_LAYOUT = {
+  version: 1,
+  toolbar: { day: true },
+  items: [
+    { i: 'kpi-orders', widget: 'kpi-stat-card', x: 0, y: 0, w: 4, h: 3, config: { title: 'Orders', metricFormat: 'plain', binding: { kind: 'table-query', source: orders, shape: 'single-metric', aggregations: [{ fn: 'count', alias: 'orders' }] } } },
+    { i: 'kpi-freight', widget: 'kpi-stat-card', x: 4, y: 0, w: 4, h: 3, config: { title: 'Freight', metricFormat: 'currency', binding: { kind: 'table-query', source: orders, shape: 'single-metric', aggregations: [{ fn: 'sum', column: 'freight', alias: 'freight' }] } } },
+    { i: 'kpi-today', widget: 'kpi-stat-card', x: 8, y: 0, w: 4, h: 3, config: { title: 'Orders on the day', metricFormat: 'plain', binding: { kind: 'table-query', source: orders, shape: 'metric+delta', aggregations: [{ fn: 'count', alias: 'orders' }], window: { column: 'order_date', last: 1, unit: 'day', param: 'day' } } } },
+    { i: 'by-month', widget: 'chart-bar', x: 0, y: 3, w: 8, h: 8, config: { title: 'Freight by month', binding: { kind: 'table-query', source: orders, shape: 'timeseries', aggregations: [{ fn: 'sum', column: 'freight', alias: 'freight' }], bucket: { column: 'order_date', unit: 'month' } } } },
+    { i: 'by-country', widget: 'chart-donut', x: 8, y: 3, w: 4, h: 8, config: { title: 'Orders by country', binding: { kind: 'table-query', source: orders, shape: 'categorical', aggregations: [{ fn: 'count', alias: 'orders' }], groupBy: ['ship_country'], limit: 6 } } },
+    { i: 'stock', widget: 'chart-ranking-bars', x: 0, y: 11, w: 6, h: 8, config: { title: 'Most in stock', binding: { kind: 'table-query', source: { name: 'products', type: 'table' }, shape: 'categorical', aggregations: [{ fn: 'sum', column: 'units_in_stock', alias: 'stock' }], groupBy: ['product_name'], limit: 5 } } },
+    { i: 'latest', widget: 'mini-table', x: 6, y: 11, w: 6, h: 8, config: { title: 'Latest orders', binding: { kind: 'table-query', source: orders, shape: 'record-list', select: ['order_id', 'order_date', 'ship_country', 'freight'], orderBy: [{ column: 'order_date', dir: 'desc' }], limit: 6 } } },
+  ],
+} as const;
+
+export const SAMPLE_FILE = `seeds/${APP_KEY}.sample.json`;
 
 function manifest(shape: keyof typeof TABLES, version: string): Record<string, unknown> {
   return {
@@ -119,6 +196,7 @@ function manifest(shape: keyof typeof TABLES, version: string): Record<string, u
      */
     compatibility: { minAdminiumVersion: '0.2.8', engines: ['postgres', 'mysql', 'sqlite'] },
     requiredSchema: { tables: TABLES[shape] },
+    sampleData: { file: SAMPLE_FILE },
     pages: [
       {
         ref: 'e2e-dashboard',
@@ -127,6 +205,7 @@ function manifest(shape: keyof typeof TABLES, version: string): Record<string, u
         // second "Dashboard" there is what the generated-app spec clicks first.
         title: { key: 'mft.e2e.page', fallback: 'E2E Desk overview' },
         nav: { group: 'manifest:e2e', icon: 'layout-dashboard', order: 1 },
+        ...(shape === 'overview' ? { config: { layout: OVERVIEW_LAYOUT } } : {}),
       },
     ],
     frontends: [
@@ -153,6 +232,7 @@ export function appBundle(
 ): Bundle {
   const buffer = tarball({
     'manifest.json': JSON.stringify(manifest(shape, version)),
+    [SAMPLE_FILE]: JSON.stringify({ format: 'adminium.sample/1', app: APP_KEY, tables: [SAMPLE[shape]] }),
     'staff/index.html': `<!doctype html><html lang="en"><head><title>Staff</title></head><body data-app="${STAFF_MARK}" data-version="${version}">Staff</body></html>`,
     'customer/index.html': `<!doctype html><html lang="en"><head><title>Customer</title></head><body data-app="${CUSTOMER_MARK}" data-version="${version}">Customer</body></html>`,
     'staff/surface.json': JSON.stringify({

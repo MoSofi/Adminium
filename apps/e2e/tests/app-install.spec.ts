@@ -19,10 +19,30 @@
  * `app-install-a11y.spec.ts`, which walks to it and cancels — planning writes
  * nothing, which is the point of it having a step of its own.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { APP_KEY, APP_VERSION, CUSTOMER_MARK, appBundle } from './appBundle.js';
 import { signIn, seededConnectionId } from './helpers.js';
+
+/**
+ * The check step, answered: `shippers` is used as it is.
+ *
+ * Northwind made it, so the first install in a run is ASKED about it; once an
+ * install has recorded it, a later one takes it back without asking. Specs in
+ * this suite share the server, so which of the two a test meets depends on
+ * what ran before it — and both end in the same place.
+ */
+async function useShippersAsItIs(page: Page): Promise<void> {
+  await expect(page.getByText('Check the tables')).toBeVisible();
+  const shippers = page.getByTestId('check-table-shippers');
+  await expect(shippers).toBeVisible();
+  if (await page.getByText('Pick what to do with shippers before you install.').isVisible()) {
+    await expect(page.getByRole('button', { name: 'Install', exact: true })).toBeDisabled();
+    await shippers.getByRole('button', { name: /shippers/ }).click();
+    await shippers.getByRole('radio', { name: /Use it and keep its data/ }).click();
+  }
+  await expect(page.getByText('Nothing changes until you press Install.', { exact: true })).toBeVisible();
+}
 
 test.describe.configure({ mode: 'serial' });
 
@@ -69,12 +89,9 @@ test.describe('installing an app', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
 
     // ── Step 3: consent ───────────────────────────────────────────────────
-    await expect(page.getByText('Review the schema plan')).toBeVisible();
-    await expect(page.getByText('shippers', { exact: true })).toBeVisible();
-    // Reuse, not create — and the badge is the only thing that says so, because
-    // there is no choice to offer.
-    await expect(page.getByText('Reuse existing')).toBeVisible();
-    await expect(page.getByText('0 created · 1 reused')).toBeVisible();
+    // Nothing is created: the one table is Northwind's, used as it is.
+    await useShippersAsItIs(page);
+    await expect(page.locator('[data-part="check-summary"]')).not.toContainText('new');
 
     /*
      * NOTHING IS SERVED YET. The bundle is unpacked and on disk, the plan has
@@ -93,7 +110,7 @@ test.describe('installing an app', () => {
     );
 
     await page.getByRole('button', { name: 'Install', exact: true }).click();
-    await expect(page.getByText('Installed', { exact: true })).toBeVisible();
+    await expect(page.getByText('E2E Desk is installed')).toBeVisible();
     await expect(page.getByText(`/apps/${APP_KEY}/staff/`).first()).toBeVisible();
 
     // ── Served, on the next request, with no restart ──────────────────────
@@ -116,9 +133,11 @@ test.describe('installing an app', () => {
 
     // ── Uninstall asks for the key back, and means it ─────────────────────
     await page.getByRole('button', { name: 'Uninstall' }).first().click();
-    await expect(page.getByText(/tables it created in your database are left alone/i)).toBeVisible();
-    await page.getByLabel(new RegExp(`Type ${APP_KEY} to confirm`)).fill(APP_KEY);
-    await page.getByRole('button', { name: 'Uninstall', exact: true }).last().click();
+    // What goes and what stays, from the server's own plan: the data stays.
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('The app’s files')).toBeVisible();
+    await expect(dialog.getByText('Kept')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Uninstall', exact: true }).click();
 
     await expect(page.getByText('No apps installed yet')).toBeVisible();
     const afterUninstall = await page.request.get(`/apps/${APP_KEY}/customer/`);
@@ -164,9 +183,9 @@ test.describe('installing an app', () => {
     await expect(page.getByText('Install into which database?')).toBeVisible();
     await page.getByRole('radio', { name: /northwind/i }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByText('Review the schema plan')).toBeVisible();
+    await useShippersAsItIs(page);
     await page.getByRole('button', { name: 'Install', exact: true }).click();
-    await expect(page.getByText('Installed', { exact: true })).toBeVisible();
+    await expect(page.getByText('E2E Desk is installed')).toBeVisible();
 
     // Back on the shelf the card says so, instead of offering to do it again.
     await page.getByRole('button', { name: 'Manage apps' }).click();
@@ -201,12 +220,14 @@ test.describe('installing an app', () => {
     await page.getByRole('radio', { name: /northwind/i }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    await expect(page.getByText('Review the schema plan')).toBeVisible();
-    await expect(page.getByText('e2e_app_probe', { exact: true })).toBeVisible();
-    await expect(page.getByText('1 created · 0 reused')).toBeVisible();
+    await expect(page.getByText('Check the tables')).toBeVisible();
+    const probe = page.getByTestId('check-table-e2e_app_probe');
+    await expect(probe).toBeVisible();
+    await expect(page.locator('[data-part="check-summary"]')).toContainText('1 new');
 
-    // The DDL preview is a disclosure, and it carries the real column list.
-    await page.getByRole('button', { name: 'Show the DDL preview' }).click();
+    // The create preview is a disclosure, and it carries the real column list.
+    await probe.getByRole('button', { name: /e2e_app_probe/ }).click();
+    await expect(probe.getByText('Create preview')).toBeVisible();
     await expect(page.getByText('CREATE TABLE e2e_app_probe')).toBeVisible();
 
     // Cancelling writes nothing: the table the plan describes does not exist.

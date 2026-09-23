@@ -4,9 +4,15 @@
  * installed, the page with an app on it, the uninstall dialog, and each of
  * the wizard's steps — including the plan step with its DDL preview open,
  * which is the one state that paints a dark code block on a themed page.
- * Each in light and dark. Zero serious/critical violations is the gate;
- * lesser counts are annotated per state so a regression in them is visible
- * in the report.
+ * Each in light and dark, in English and in Arabic (right to left) — every
+ * string the flow looks for is read from the locale files by key
+ * (`localeText.ts`). Zero serious/critical violations is the gate; lesser
+ * counts are annotated per state so a regression in them is visible in the
+ * report.
+ *
+ * Also the states an install passes through that are easy to leave unswept:
+ * stopped part way (the server's own 409 reply to a first attempt), Done, and
+ * an install from before prefixes (its banner and the rename dialog).
  *
  * The online app catalogue adds two more (b G8-D7): the shelf with catalogue
  * rows on it — a switch, a warn-toned "needs a newer Adminium" line and a
@@ -38,7 +44,8 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 import { APP_KEY, APP_NEXT_VERSION, APP_VERSION, appBundle } from './appBundle.js';
-import { signIn, seededConnectionId, serverDataDir } from './helpers.js';
+import { signIn, serverDataDir } from './helpers.js';
+import { textIn } from './localeText.js';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING = new Set(['critical', 'serious']);
@@ -91,30 +98,6 @@ async function sweep(
   if (blocking.length > 0) tally.failures.push(`${label} — ${String(blocking.length)} blocking:\n${report}`);
 }
 
-async function setTheme(page: Page, theme: string | null): Promise<void> {
-  const reply = await page.request.patch('/api/v1/me/prefs', { data: { theme, locale: null } });
-  expect(reply.ok(), `prefs → ${String(reply.status())}`).toBe(true);
-}
-
-/** Uploads + installs the reuse bundle over the API, for the "installed" states. */
-async function installOverApi(page: Page, connectionId: string): Promise<void> {
-  const bundle = appBundle('reuse');
-  const query = new URLSearchParams({
-    key: APP_KEY,
-    version: APP_VERSION,
-    expectedSha512: bundle.integrity,
-  });
-  const uploaded = await page.request.post(`/api/v1/apps/upload?${query.toString()}`, {
-    headers: { 'content-type': 'application/octet-stream' },
-    data: bundle.buffer,
-  });
-  expect(uploaded.ok(), await uploaded.text()).toBe(true);
-  const installed = await page.request.post('/api/v1/apps/install', {
-    data: { key: APP_KEY, version: APP_VERSION, connectionId },
-  });
-  expect(installed.ok(), await installed.text()).toBe(true);
-}
-
 /**
  * The cached catalogue document, written where the store reads it.
  *
@@ -164,17 +147,36 @@ async function catalogueOffline(page: Page): Promise<void> {
   rmSync(catalogueCacheFile(), { force: true });
 }
 
-/** Drives the wizard to the plan step with the DDL preview open. */
-async function toPlanStep(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Install an app' }).click();
-  const bundle = appBundle('create');
+async function setPrefs(page: Page, theme: string | null, locale: string | null): Promise<void> {
+  const reply = await page.request.patch('/api/v1/me/prefs', { data: { theme, locale } });
+  expect(reply.ok(), `prefs → ${String(reply.status())}`).toBe(true);
+}
+
+/** Drives the wizard to the bundle step with the given bundle picked. */
+async function toBundleStep(page: Page, tx: Text, shape: 'reuse' | 'create'): Promise<void> {
+  await page.getByRole('button', { name: tx('studio:hostedApps.installed.install') }).click();
+  const bundle = appBundle(shape);
   await page.locator('input[type="file"]').setInputFiles({
     name: `${APP_KEY}-${APP_VERSION}.tgz`,
     mimeType: 'application/gzip',
     buffer: bundle.buffer,
   });
-  await page.getByLabel(/Integrity/).fill(bundle.integrity);
+  await page.getByLabel(tx('studio:hostedApps.install.bundle.integrity')).fill(bundle.integrity);
 }
+
+type Text = ReturnType<typeof textIn>;
+
+/**
+ * Light and dark, in English and in Arabic (right to left) — AC16's "passes
+ * axe and works in Arabic and dark mode" for P1's screens. The flow is one
+ * function; every string it looks for comes from the locale files by key.
+ */
+const COMBOS = [
+  { theme: 'light', locale: 'en-US', pref: null, dir: 'ltr' },
+  { theme: 'dark', locale: 'en-US', pref: null, dir: 'ltr' },
+  { theme: 'light', locale: 'ar-EG', pref: 'ar_EG', dir: 'rtl' },
+  { theme: 'dark', locale: 'ar-EG', pref: 'ar_EG', dir: 'rtl' },
+] as const;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -190,20 +192,29 @@ test.describe('/studio/apps under axe', () => {
     await page.close();
   });
 
-  for (const theme of ['light', 'dark'] as const) {
-    test(`every state, ${theme}`, async ({ page }, testInfo) => {
-      test.setTimeout(180_000);
+  // Theme and language are the shared account's own prefs: each test puts them
+  // back, so the next sign-in (and the next spec) meets the English page it
+  // expects even when a sweep fails half way.
+  test.afterEach(async ({ page }) => {
+    await page.request.patch('/api/v1/me/prefs', { data: { theme: null, locale: null } }).catch(() => undefined);
+  });
+
+  for (const combo of COMBOS) {
+    const name = `${combo.theme}${combo.dir === 'rtl' ? ', Arabic (rtl)' : ''}`;
+    test(`every state, ${name}`, async ({ page }, testInfo) => {
+      test.setTimeout(240_000);
       const tally: Sweep = { states: 0, minor: 0, failures: [] };
+      const tx = textIn(combo.locale);
+      const at = (label: string): string => `${name} · ${label}`;
 
       await signIn(page);
-      const connectionId = await seededConnectionId(page);
-      await setTheme(page, theme);
+      await setPrefs(page, combo.theme, combo.pref);
       await page.goto('/studio/apps');
-      await expect(page.getByRole('heading', { name: 'Hosted apps' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: tx('studio:hostedApps.title') })).toBeVisible();
 
       /*
-       * THE THEME IS PROVEN, NOT ASSUMED — and the first draft of this probe is
-       * why the check is written twice over.
+       * THE THEME AND THE DIRECTION ARE PROVEN, NOT ASSUMED — and the first
+       * draft of this probe is why the check is written twice over.
        *
        * It read `[data-part="app-shell"], main`, and both themes came back
        * `rgba(0, 0, 0, 0)`: those elements are transparent, so the "dark" run
@@ -215,50 +226,131 @@ test.describe('/studio/apps under axe', () => {
         const card = document.querySelector('.bg-surface') ?? document.body;
         return {
           attribute: document.documentElement.getAttribute('data-theme'),
+          dir: document.documentElement.getAttribute('dir') ?? 'ltr',
           painted: getComputedStyle(card).backgroundColor,
         };
       });
-      expect(probe.attribute, 'the theme pref never reached the document').toBe(theme);
+      expect(probe.attribute, 'the theme pref never reached the document').toBe(combo.theme);
+      expect(probe.dir, 'the locale pref never reached the document').toBe(combo.dir);
       expect(probe.painted, 'the probe read an unpainted element').not.toBe('rgba(0, 0, 0, 0)');
       testInfo.annotations.push({
         type: 'theme-probe',
-        description: `${theme}: data-theme=${String(probe.attribute)} surface=${probe.painted}`,
+        description: `${name}: data-theme=${String(probe.attribute)} dir=${probe.dir} surface=${probe.painted}`,
       });
 
-      await expect(page.getByText('No apps installed yet')).toBeVisible();
-      await sweep(page, `${theme} · page, nothing installed`, tally, testInfo);
+      await expect(page.getByText(tx('studio:hostedApps.installed.emptyTitle'))).toBeVisible();
+      await sweep(page, at('page, nothing installed'), tally, testInfo);
 
       // ── the wizard ────────────────────────────────────────────────────
-      await toPlanStep(page);
-      await sweep(page, `${theme} · wizard, bundle step`, tally, testInfo);
+      await toBundleStep(page, tx, 'create');
+      await sweep(page, at('wizard, bundle step'), tally, testInfo);
 
-      await page.getByRole('button', { name: 'Upload' }).click();
-      await expect(page.getByText('Install into which database?')).toBeVisible();
-      await sweep(page, `${theme} · wizard, database step`, tally, testInfo);
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.upload') }).click();
+      await expect(page.getByText(tx('studio:hostedApps.install.database.title'))).toBeVisible();
+      await sweep(page, at('wizard, database step'), tally, testInfo);
 
       // Back to the bundle step, which now confirms the app the upload read
       // from its manifest instead of showing the file picker again.
-      await page.getByRole('button', { name: 'Back' }).click();
-      await expect(page.getByText('Install E2E Desk')).toBeVisible();
-      await sweep(page, `${theme} · wizard, bundle step after the upload`, tally, testInfo);
-      await page.getByRole('button', { name: 'Continue' }).click();
-      await expect(page.getByText('Install into which database?')).toBeVisible();
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.back'), exact: true }).click();
+      await expect(page.getByText(tx('studio:hostedApps.install.chosen.title', { app: 'E2E Desk' }))).toBeVisible();
+      await sweep(page, at('wizard, bundle step after the upload'), tally, testInfo);
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.continue') }).click();
+      await expect(page.getByText(tx('studio:hostedApps.install.database.title'))).toBeVisible();
 
       await page.getByRole('radio', { name: /northwind/i }).click();
-      await page.getByRole('button', { name: 'Continue' }).click();
-      await expect(page.getByText('Review the schema plan')).toBeVisible();
-      await sweep(page, `${theme} · wizard, plan step`, tally, testInfo);
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.continue') }).click();
+      await expect(page.getByText(tx('studio:hostedApps.install.check.title'))).toBeVisible();
+      // The app ships sample data, so the check step offers it, unticked.
+      await expect(page.getByTestId('install-sample-data')).toBeVisible();
+      await sweep(page, at('wizard, check step'), tally, testInfo);
 
-      await page.getByRole('button', { name: 'Show the DDL preview' }).click();
+      await page.getByRole('button', { name: /e2e_app_probe/ }).click();
       await expect(page.getByText('CREATE TABLE e2e_app_probe')).toBeVisible();
-      await sweep(page, `${theme} · wizard, plan step with DDL open`, tally, testInfo);
+      await sweep(page, at('wizard, check step with the create preview open'), tally, testInfo);
+
+      /*
+       * A table whose name is taken — the one state that paints the choices,
+       * a disabled one among them, and a field. No seeded table lands in that
+       * class reliably (a run's earlier installs record `shippers`), so the
+       * server's real plan is fetched and only the probe table's class is
+       * changed on its way to the page.
+       */
+      await page.route('**/api/v1/apps/plan', async (route) => {
+        const reply = await route.fetch();
+        const body = (await reply.json()) as { plan: { installable: boolean; tables: Record<string, unknown>[] } };
+        body.plan.installable = false;
+        body.plan.tables = body.plan.tables.map((table) => ({
+          ...table,
+          class: 'taken',
+          action: 'undecided',
+          offers: ['rename-existing', 'alt-prefix'],
+          reuseRefusal: 'It requires "location_id", which this app never fills.',
+        }));
+        await route.fulfill({ response: reply, json: body });
+      });
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.back'), exact: true }).click();
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.continue') }).click();
+      await expect(
+        page.getByText(tx('studio:hostedApps.install.check.pickFirst', { table: 'e2e_app_probe' })),
+      ).toBeVisible();
+      await page.getByRole('button', { name: /e2e_app_probe/ }).click();
+      await page.getByRole('radio', { name: tx('studio:hostedApps.install.check.prefixTitle') }).click();
+      await expect(page.getByLabel(tx('studio:hostedApps.install.check.prefixField'), { exact: true })).toBeVisible();
+      await sweep(page, at('wizard, check step with a taken table'), tally, testInfo);
+      await page.unroute('**/api/v1/apps/plan');
 
       // Cancel writes nothing — the staged bundle is all that is left, and the
       // install below replaces it.
-      await page.getByRole('button', { name: 'Cancel' }).click();
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.cancel') }).click();
 
-      // ── installed, and the dialog that removes it ─────────────────────
-      await installOverApi(page, connectionId);
+      // ── an install that stops part way, then finishes ─────────────────
+      /*
+       * The reuse bundle creates no table (it uses Northwind's own
+       * `shippers`), so installing it through the wizard is as harmless as the
+       * API install this used to make — and it reaches the Done step for real.
+       * The FIRST attempt is answered with the server's own incomplete-install
+       * reply, which is the one way to paint "stopped part way" without
+       * breaking a database every spec shares; "Try again" is the real install.
+       */
+      await toBundleStep(page, tx, 'reuse');
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.upload') }).click();
+      await page.getByRole('radio', { name: /northwind/i }).click();
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.continue') }).click();
+      await expect(page.getByText(tx('studio:hostedApps.install.check.title'))).toBeVisible();
+      if (await page.getByText(tx('studio:hostedApps.install.check.pickFirst', { table: 'shippers' })).isVisible()) {
+        const shippers = page.getByTestId('check-table-shippers');
+        await shippers.getByRole('button', { name: /shippers/ }).click();
+        await shippers.getByRole('radio', { name: tx('studio:hostedApps.install.check.keep') }).click();
+      }
+      let stopped = false;
+      await page.route('**/api/v1/apps/install', async (route) => {
+        if (stopped) return route.continue();
+        stopped = true;
+        await route.fulfill({
+          status: 409,
+          json: {
+            error: {
+              code: 'APP_INSTALL_INCOMPLETE',
+              message: `Installing "${APP_KEY}" stopped at the pages step: the page store was busy.`,
+              requestId: 'req_a11y',
+              details: { stage: 'pages', table: null, created: [], pending: [], cause: 'the page store was busy' },
+            },
+          },
+        });
+      });
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.confirm'), exact: true }).click();
+      await expect(page.getByTestId('install-stopped')).toBeVisible();
+      await expect(page.getByText(tx('studio:hostedApps.install.stopped.title'))).toBeVisible();
+      await sweep(page, at('wizard, install stopped part way'), tally, testInfo);
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.stopped.retry') }).click();
+      await expect(page.getByText(tx('studio:hostedApps.install.done.titleApp', { app: 'E2E Desk' }))).toBeVisible({
+        timeout: 60_000,
+      });
+      await page.unroute('**/api/v1/apps/install');
+      await sweep(page, at('wizard, done'), tally, testInfo);
+      await page.getByRole('button', { name: tx('studio:hostedApps.install.finish') }).click();
+
+      // ── installed ─────────────────────────────────────────────────────
       await page.reload();
       await expect(page.getByText(`/apps/${APP_KEY}/staff/`).first()).toBeVisible();
       /*
@@ -267,15 +359,123 @@ test.describe('/studio/apps under axe', () => {
        * over an empty shelf and reporting the card state as covered.
        */
       await expect(page.getByRole('article').filter({ hasText: 'E2E Desk' })).toBeVisible();
-      await sweep(page, `${theme} · page, one app installed`, tally, testInfo);
+      await sweep(page, at('page, one app installed'), tally, testInfo);
+
+      // ── an install from before prefixes: the banner and the rename dialog ──
+      /*
+       * The fixture app is not prefixed, so the list is answered with the one
+       * field that says otherwise and the preview with a plan of the shape the
+       * schema editor returns. Nothing is renamed: the dialog is closed.
+       */
+      await page.route('**/api/v1/apps', async (route) => {
+        if (route.request().method() !== 'GET') return route.continue();
+        const reply = await route.fetch();
+        const body = (await reply.json()) as { apps: Record<string, unknown>[] };
+        body.apps = body.apps.map((app) => (app['key'] === APP_KEY ? { ...app, oldTableNames: { prefix: 'e2e_', count: 1 } } : app));
+        await route.fulfill({ response: reply, json: body });
+      });
+      await page.route(`**/api/v1/apps/${APP_KEY}/rename-tables/plan`, (route) =>
+        route.fulfill({
+          json: {
+            prefix: 'e2e_',
+            connectionId: 'conn_a11y',
+            tables: [{ ref: 'shippers', from: 'shippers', to: 'e2e_shippers' }],
+            plan: {
+              steps: [
+                {
+                  id: 'rename-table-1',
+                  kind: 'rename-table',
+                  table: 'main.shippers',
+                  column: null,
+                  hazard: 'safe',
+                  requiresSuperAdmin: false,
+                  summary: 'Rename table shippers to e2e_shippers',
+                  rationale: 'A rename keeps every row.',
+                  consequences: [],
+                  dependsOn: [],
+                  outsideTransaction: false,
+                  refusal: null,
+                  sql: ['ALTER TABLE "shippers" RENAME TO "e2e_shippers"'],
+                },
+              ],
+              refusals: [],
+              ceilings: [],
+              warnings: [],
+              hazard: 'safe',
+              requiresSuperAdmin: false,
+              checksum: 'a'.repeat(64),
+              unfinished: null,
+            },
+          },
+        }),
+      );
+      await page.reload();
+      await expect(page.locator('[data-part="old-table-names"]')).toBeVisible();
+      await sweep(page, at('page, an install with the old table names'), tally, testInfo);
+      await page.getByRole('button', { name: tx('studio:hostedApps.installed.renameTo', { prefix: 'e2e_' }) }).click();
+      await expect(page.getByRole('dialog').getByText('e2e_shippers')).toBeVisible();
+      await sweep(page, at('rename tables dialog'), tally, testInfo, '[role="dialog"]');
+      await page.keyboard.press('Escape');
+      await page.unroute('**/api/v1/apps');
+      await page.unroute(`**/api/v1/apps/${APP_KEY}/rename-tables/plan`);
+
+      // ── the app's own page, and the dialog that switches it off ───────
+      await page.goto(`/studio/apps/${APP_KEY}`);
+      await expect(page.getByRole('heading', { name: 'E2E Desk', level: 2 })).toBeVisible();
+      await sweep(page, at("the app's own page"), tally, testInfo);
+      await page.getByRole('button', { name: tx('studio:appSettings.disable') }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await sweep(page, at('disable dialog'), tally, testInfo, '[role="dialog"]');
+      await page.keyboard.press('Escape');
+
+      // ── sample data: the Add dialog reads, and is cancelled ───────────
+      await page.getByTestId('app-sample-data').getByRole('button', { name: tx('studio:sampleData.add') }).click();
+      await expect(page.getByRole('dialog').getByRole('button', { name: tx('studio:sampleData.add') })).toBeEnabled();
+      await sweep(page, at('add sample data dialog'), tally, testInfo, '[role="dialog"]');
+      await page.keyboard.press('Escape');
+
+      /*
+       * Loaded is ANSWERED, not made: adding would write into Northwind's own
+       * `shippers`, which every spec shares. The Remove dialog and the page
+       * banner render from these two replies, and nothing is removed.
+       */
+      await page.route(`**/api/v1/apps/${APP_KEY}/sample-data`, (route) =>
+        route.fulfill({
+          json: { offered: true, loaded: true, total: 1, addedAt: Date.now(), tables: [{ ref: 'shippers', count: 1 }], available: null },
+        }),
+      );
+      await page.route(`**/api/v1/apps/${APP_KEY}/sample-data/remove-plan`, (route) =>
+        route.fulfill({
+          json: {
+            tables: [{ ref: 'shippers', count: 1 }],
+            kept: [{ ref: 'shippers', label: null, title: 'Sample Freight', usedBy: 2 }],
+            changed: [{ ref: 'shippers', label: null, title: 'Sample Freight', columns: ['company_name'] }],
+            total: 1,
+          },
+        }),
+      );
+      await page.reload();
+      await page.getByTestId('app-sample-data').getByRole('button', { name: tx('studio:sampleData.remove') }).click();
+      await expect(page.getByRole('dialog').getByText(tx('studio:sampleData.keepChanged'))).toBeVisible();
+      await sweep(page, at('remove sample data dialog'), tally, testInfo, '[role="dialog"]');
+      await page.keyboard.press('Escape');
+
+      // The app's own page says so too.
+      await page.getByRole('link', { name: 'E2E Desk overview' }).first().click();
+      await expect(page.getByTestId('app-sample-banner')).toBeVisible();
+      await sweep(page, at('an app page with sample data loaded'), tally, testInfo);
+      await page.unroute(`**/api/v1/apps/${APP_KEY}/sample-data`);
+      await page.unroute(`**/api/v1/apps/${APP_KEY}/sample-data/remove-plan`);
+      await page.goto('/studio/apps');
+      await expect(page.getByRole('heading', { name: tx('studio:hostedApps.title') })).toBeVisible();
 
       // ── the shelf with the online catalogue on ───────────────────
       await withCatalogueOnline(page);
       await page.reload();
       const blocked = page.getByRole('article').filter({ hasText: 'E2E Future' });
       // Without this the sweep could pass over a shelf the switch never reached.
-      await expect(blocked.getByText('Needs Adminium 99.0.0 or later')).toBeVisible();
-      await sweep(page, `${theme} · page, catalogue rows on the shelf`, tally, testInfo);
+      await expect(blocked.getByText(tx('studio:hostedApps.browse.needsNewer', { version: '99.0.0' }))).toBeVisible();
+      await sweep(page, at('page, catalogue rows on the shelf'), tally, testInfo);
 
       // ── the update consent dialog ──────────────────────────
       /*
@@ -296,30 +496,33 @@ test.describe('/studio/apps under axe', () => {
       });
       expect(uploaded.ok(), await uploaded.text()).toBe(true);
       await page.reload();
-      await page.getByRole('button', { name: 'Update' }).click();
-      await expect(page.getByText(`Update ${APP_KEY} to v${APP_NEXT_VERSION}`)).toBeVisible({
-        timeout: 30_000,
-      });
+      await page.getByRole('button', { name: tx('studio:hostedApps.installed.update') }).click();
+      await expect(
+        page.getByText(tx('studio:hostedApps.update.title', { app: APP_KEY, version: APP_NEXT_VERSION })),
+      ).toBeVisible({ timeout: 30_000 });
+      // The update shows the same table check as the install; open the new
+      // table's row so its create preview is part of the sweep.
+      await page.getByRole('dialog').getByRole('button', { name: /e2e_app_probe/ }).click();
       await expect(page.getByText('CREATE TABLE e2e_app_probe')).toBeVisible();
-      await sweep(page, `${theme} · update consent dialog`, tally, testInfo, '[role="dialog"]');
-      await page.getByRole('button', { name: 'Cancel' }).click();
+      await sweep(page, at('update consent dialog'), tally, testInfo, '[role="dialog"]');
+      await page.getByRole('button', { name: tx('studio:hostedApps.update.cancel') }).click();
 
       await page.request.delete(`/api/v1/apps/staged/${APP_KEY}/${APP_NEXT_VERSION}`);
       await catalogueOffline(page);
       await page.reload();
 
-      await page.getByRole('button', { name: 'Uninstall' }).first().click();
-      await expect(page.getByText(/tables it created in your database are left alone/i)).toBeVisible();
-      await sweep(page, `${theme} · uninstall dialog`, tally, testInfo, '[role="dialog"]');
+      await page.getByRole('button', { name: tx('studio:hostedApps.installed.uninstall') }).first().click();
+      await expect(page.getByRole('dialog').getByText(tx('studio:uninstall.files'))).toBeVisible();
+      await sweep(page, at('uninstall dialog'), tally, testInfo, '[role="dialog"]');
 
       await page.keyboard.press('Escape');
       await page.request.delete(`/api/v1/apps/${APP_KEY}`);
 
       testInfo.annotations.push({
         type: 'axe-summary',
-        description: `${theme}: ${String(tally.states)} states, ${String(tally.minor)} lesser`,
+        description: `${name}: ${String(tally.states)} states, ${String(tally.minor)} lesser`,
       });
-      expect(tally.states, 'no state was swept').toBeGreaterThanOrEqual(10);
+      expect(tally.states, 'a state was skipped').toBeGreaterThanOrEqual(20);
       expect(tally.failures.join('\n\n')).toBe('');
     });
   }

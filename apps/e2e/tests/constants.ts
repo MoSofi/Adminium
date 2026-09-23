@@ -70,6 +70,27 @@ export const PUBLIC_API_ADMIN_EMAIL = 'e2e-public-api@adminium.local';
 export const PUBLIC_API_ADMIN_NAME = 'E2E Public API Admin';
 export const PUBLIC_API_ADMIN_PASSWORD = 'adminium-e2e-password';
 
+/**
+ * More super admins, each for ONE heavy spec file, which signs in as it
+ * starts (`helpers.ts` `useOwnPrincipal`) rather than in the setup project:
+ * the setup project's three logins open the run, and one more there put the
+ * specs that sign in a user of their own in the first minute over the 5/min
+ * `auth-login` bucket. By the time these files run, that minute is gone.
+ *
+ *   generated   the generated-app specs: a dozen fast page loads that, with
+ *               the export and form specs just before them, spent the shared
+ *               `api` budget and met the rate-limit page (postgres, c6);
+ *   enrich      the LLM enrichment legs: three wizard + enrich + apply walks
+ *               right after the generated app — the last one's analyze step
+ *               met a 429 and failed as "Connection failed" (sqlite).
+ */
+export const OWN_PRINCIPALS = {
+  generated: { email: 'e2e-generated@adminium.local', name: 'E2E Generated App Admin' },
+  enrich: { email: 'e2e-enrich@adminium.local', name: 'E2E Enrich Admin' },
+} as const;
+export type OwnPrincipal = keyof typeof OWN_PRINCIPALS;
+export const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';
+
 /** Name of the connection the boot script seeds + generates pages for. */
 export const SEED_CONNECTION_NAME = 'northwind';
 
@@ -97,6 +118,13 @@ export function filesStorageStatePath(): string {
 export function publicApiStorageStatePath(): string {
   return fileURLToPath(
     new URL(`../.playwright/auth/state-public-api-${ENGINE}.json`, import.meta.url),
+  );
+}
+
+/** A heavy spec file's own session — see {@link OWN_PRINCIPALS}. */
+export function ownStorageStatePath(key: OwnPrincipal): string {
+  return fileURLToPath(
+    new URL(`../.playwright/auth/state-${key}-${ENGINE}.json`, import.meta.url),
   );
 }
 

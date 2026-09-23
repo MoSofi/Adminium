@@ -72,6 +72,14 @@ const FILES_ADMIN_PASSWORD = process.env.E2E_FILES_ADMIN_PASSWORD ?? 'adminium-e
 const PUBLIC_API_ADMIN_EMAIL = process.env.E2E_PUBLIC_API_ADMIN_EMAIL ?? 'e2e-public-api@adminium.local';
 const PUBLIC_API_ADMIN_NAME = 'E2E Public API Admin';
 const PUBLIC_API_ADMIN_PASSWORD = process.env.E2E_PUBLIC_API_ADMIN_PASSWORD ?? 'adminium-e2e-password';
+
+// One super admin per heavy spec file, signed in by the file itself
+// (tests/constants.ts OWN_PRINCIPALS): the same reason, their own `api` budget.
+const OWN_PRINCIPALS = [
+  ['e2e-generated@adminium.local', 'E2E Generated App Admin'],
+  ['e2e-enrich@adminium.local', 'E2E Enrich Admin'],
+];
+const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';
 const E2E_DATABASE = process.env.E2E_DATABASE ?? 'adminium_e2e';
 /**
@@ -316,6 +324,7 @@ try {
       [FILES_ADMIN_EMAIL, FILES_ADMIN_NAME, FILES_ADMIN_PASSWORD],
       // The public API specs, for the same reason: their own `api` budget.
       [PUBLIC_API_ADMIN_EMAIL, PUBLIC_API_ADMIN_NAME, PUBLIC_API_ADMIN_PASSWORD],
+      ...OWN_PRINCIPALS.map(([email, name]) => [email, name, OWN_PRINCIPAL_PASSWORD]),
     ];
     for (const [email, name, password] of extra) {
       const user = await usersRepo(meta).create({

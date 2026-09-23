@@ -41,7 +41,7 @@ import { join } from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { APP_KEY, APP_NEXT_VERSION, APP_VERSION, appBundle } from './appBundle.js';
+import { APP_KEY, APP_NEXT_VERSION, APP_VERSION, REUSE_CHOICES, appBundle } from './appBundle.js';
 import { seededConnectionId, serverDataDir, signIn } from './helpers.js';
 
 /** Catalogue-only rows: one this server can take, one it cannot (G8-D2). */
@@ -201,7 +201,7 @@ test.describe('the online app catalogue', () => {
 
     await stage(page, APP_VERSION);
     const installed = await page.request.post('/api/v1/apps/install', {
-      data: { key: APP_KEY, version: APP_VERSION, connectionId },
+      data: { key: APP_KEY, version: APP_VERSION, connectionId, choices: REUSE_CHOICES },
     });
     expect(installed.ok(), await installed.text()).toBe(true);
     expect(await servedVersion(page)).toBe(APP_VERSION);

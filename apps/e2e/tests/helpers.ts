@@ -1,15 +1,59 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { readFileSync } from 'node:fs';
 
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
+  BASE_URL,
   FAKE_LLM_URL,
+  OWN_PRINCIPAL_PASSWORD,
+  OWN_PRINCIPALS,
   SEED_CONNECTION_NAME,
   dataDirPointerPath,
+  ownStorageStatePath,
+  type OwnPrincipal,
 } from './constants.js';
+
+/**
+ * Run this spec file as its own seeded super admin, so it spends its own `api`
+ * budget (constants.ts `OWN_PRINCIPALS`). Call it at the top of the file: it
+ * signs in once, as the file starts, and every test in the file reuses that
+ * session. Returns the principal's email, for a test that asserts who it is.
+ */
+export function useOwnPrincipal(key: OwnPrincipal): string {
+  const { email } = OWN_PRINCIPALS[key];
+  test.beforeAll(async ({ browser }) => {
+    // Room to sit out the login bucket once (below).
+    test.setTimeout(150_000);
+    // An empty state, stated: a context made here would otherwise load the very file it is about to write.
+    const context = await browser.newContext({ baseURL: BASE_URL, storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+    const shell = page.getByRole('navigation', { name: 'Primary' });
+    const refused = page.getByRole('alert').filter({ hasText: /Too many attempts/ });
+    for (let attempt = 0; ; attempt += 1) {
+      await page.goto('/login');
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password', { exact: true }).fill(OWN_PRINCIPAL_PASSWORD);
+      await page.getByRole('button', { name: 'Sign in' }).click();
+      await expect(shell.or(refused)).toBeVisible();
+      if (await shell.isVisible()) break;
+      /*
+       * The 5/min `auth-login` bucket, which a run of just a file or two can
+       * meet: the setup project's logins are then in the same minute. The
+       * whole suite reaches these files minutes later; either way, wait it out
+       * rather than weaken the limit.
+       */
+      expect(attempt, 'still refused a minute later').toBe(0);
+      await page.waitForTimeout(61_000);
+    }
+    await context.storageState({ path: ownStorageStatePath(key) });
+    await context.close();
+  });
+  test.use({ storageState: ownStorageStatePath(key) });
+  return email;
+}
 
 /**
  * Land in the app shell as the seeded super admin.
