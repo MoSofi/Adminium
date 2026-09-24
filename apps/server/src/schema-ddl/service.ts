@@ -47,7 +47,7 @@ import {
 } from '@adminium/engine';
 import { sha256Hex } from '@adminium/engine';
 import type { MetaDb, StepOutcome } from '@adminium/meta';
-import { schemaChangesRepo } from '@adminium/meta';
+import { overridesRepo, schemaChangesRepo } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, ValidationFailedError } from '../errors.js';
 import { compileStep, resetRails, sessionRails, type CompileContext } from './compile.js';
@@ -909,6 +909,26 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
       columnRenames: succeededColumnRenames,
       crypto: input.crypto,
     });
+  }
+
+  /*
+   * A table or column that is gone takes the override rows that described it
+   * along: a rule, a label or a personal-data mark on something that no longer
+   * exists is meaningless, and a later save of the whole override set refuses
+   * any row naming an unknown table. Only for drops that SUCCEEDED.
+   */
+  const droppedTables = outcomes.filter((o) => o.kind === 'drop-table' && o.outcome === 'succeeded').map((o) => o.table);
+  const droppedColumns = outcomes
+    .filter((o) => o.kind === 'drop-column' && o.outcome === 'succeeded' && o.column !== null)
+    .map((o) => ({ table: o.table, column: o.column as string }));
+  if (droppedTables.length > 0 || droppedColumns.length > 0) {
+    const overrides = overridesRepo(input.meta);
+    for (const row of await overrides.listForConnection(input.connectionId)) {
+      const gone =
+        droppedTables.includes(row.tableName) ||
+        (row.columnName !== null && droppedColumns.some((d) => d.table === row.tableName && d.column === row.columnName));
+      if (gone) await overrides.delete(row.id);
+    }
   }
 
   return { changeId: change.id, status, steps: outcomes, error: failed, repaired };
