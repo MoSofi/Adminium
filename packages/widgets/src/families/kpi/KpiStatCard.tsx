@@ -11,13 +11,22 @@ import { DeltaPill, IconTile, MonoText } from '@adminium/ui';
 import { Sparkline } from '@adminium/charts';
 import {
   Activity,
+  Banknote,
+  BellRing,
+  CalendarCheck,
   CircleDollarSign,
+  ClipboardCheck,
   Database,
   Gauge,
+  MessageSquareWarning,
   Package,
+  Receipt,
   ShoppingCart,
   Star,
   TrendingUp,
+  UserCheck,
+  UserPlus,
+  UserX,
   Users,
   Zap,
 } from 'lucide-react';
@@ -25,6 +34,7 @@ import { computeDelta, formatMetricValue, formatOptionsOf } from '../../lib/form
 import { asMetricDelta } from '../../lib/shapes.js';
 import type { KpiStatCardConfig } from './kpi-config.js';
 import type { WidgetProps } from '../../registry/types.js';
+import { CardLink } from './CardLink.js';
 
 // Config schema + deterministic demo payload live in the pure `kpi-config`
 // module so the registry metadata graph never reaches this component file
@@ -43,9 +53,18 @@ const ICONS = {
   star: Star,
   package: Package,
   trending: TrendingUp,
+  'calendar-check': CalendarCheck,
+  'user-check': UserCheck,
+  banknote: Banknote,
+  receipt: Receipt,
+  'user-x': UserX,
+  'user-plus': UserPlus,
+  'clipboard-check': ClipboardCheck,
+  'bell-ring': BellRing,
+  'message-square-warning': MessageSquareWarning,
 } as const;
 
-export function KpiStatCard({ config, data }: WidgetProps<KpiStatCardConfig>) {
+export function KpiStatCard({ config, data, onEvent }: WidgetProps<KpiStatCardConfig>) {
   const metric = asMetricDelta(data);
   if (metric === null) {
     return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
@@ -64,28 +83,30 @@ export function KpiStatCard({ config, data }: WidgetProps<KpiStatCardConfig>) {
   const spark = config.showSparkline ? metric.spark : undefined;
 
   return (
-    <div className="flex h-full flex-col justify-between gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="kpi-stat-card">
-      <div className="flex items-start justify-between gap-2">
-        <IconTile tone={config.iconTone} size="md" icon={<Icon />} />
-        {delta !== null && (
-          <DeltaPill trend={delta.trend} invertGood={config.invertDeltaGood}>
-            {delta.text}
-          </DeltaPill>
-        )}
-      </div>
-      <div className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          {label !== undefined && (
-            <p className="truncate text-body-sm text-fg-muted">{label}</p>
+    <CardLink href={config.href} name={[config.title ?? label, value].filter(Boolean).join(': ')} onEvent={onEvent}>
+      <div className="flex h-full flex-col justify-between gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="kpi-stat-card">
+        <div className="flex items-start justify-between gap-2">
+          <IconTile tone={config.iconTone} size="md" icon={<Icon />} />
+          {delta !== null && (
+            <DeltaPill trend={delta.trend} invertGood={config.invertDeltaGood}>
+              {delta.text}
+            </DeltaPill>
           )}
-          <MonoText className="block text-[26px] font-bold leading-tight text-fg compact:text-[22px]">
-            {value}
-          </MonoText>
         </div>
-        {spark !== undefined && (
-          <Sparkline data={spark} variant="bar" width={72} height={26} className="shrink-0" />
-        )}
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            {label !== undefined && (
+              <p className="truncate text-body-sm text-fg-muted">{label}</p>
+            )}
+            <MonoText className="block text-[26px] font-bold leading-tight text-fg compact:text-[22px]">
+              {value}
+            </MonoText>
+          </div>
+          {spark !== undefined && (
+            <Sparkline data={spark} variant="bar" width={72} height={26} className="shrink-0" />
+          )}
+        </div>
       </div>
-    </div>
+    </CardLink>
   );
 }

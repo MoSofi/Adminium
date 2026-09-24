@@ -259,6 +259,8 @@ export const gridColumnSpecSchema = z.object({
   enumValues: z.array(z.string()).optional(),
   /** enum value → tone map (`enumTones`) — never hardcoded tints. */
   enumTones: z.record(z.string(), gridToneSchema).optional(),
+  /** enum value → the word a person reads ("Checked in" for `checked_in`). */
+  enumLabels: z.record(z.string(), z.string()).optional(),
   /** Outbound FK — cell renders the display value as an avatar chip. */
   fk: z
     .object({

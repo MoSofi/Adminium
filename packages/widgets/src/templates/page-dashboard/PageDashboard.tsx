@@ -15,12 +15,13 @@
  * it, on the venue's clock (the server's widget-data compiler).
  */
 
-import { useId, useMemo, useState } from 'react';
-import { useMaybeT } from '@adminium/i18n/react';
-import { CalendarDays } from 'lucide-react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
+import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
+import { ArrowRight, CalendarDays, ClipboardList, ExternalLink } from 'lucide-react';
 import { Button, cn, Input, Popover, PopoverContent, PopoverTrigger, SegmentedControl } from '@adminium/ui';
 
 import { WidgetHost } from '../../frame/WidgetHost.js';
+import { pickLocalized } from '../../lib/localized.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import { pageLayoutSchema, type PageLayout } from '../../page-config/index.js';
 import type { WidgetEvent } from '../../registry/types.js';
@@ -48,7 +49,21 @@ export interface PageDashboardProps {
    */
   day?: DashboardDay | undefined;
   onDay?: ((day: DashboardDay) => void) | undefined;
+  /**
+   * The connection's currency, for every widget that names none — merged as
+   * the page draws, never into the stored layout, so a dashboard saved here
+   * still follows the connection when its currency changes.
+   */
+  currency?: string | undefined;
   className?: string | undefined;
+}
+
+/** A widget's config with the page's currency, unless it names its own. */
+function withCurrency(config: unknown, currency: string | undefined): unknown {
+  if (currency === undefined || typeof config !== 'object' || config === null) return config;
+  const format = (config as { format?: Record<string, unknown> }).format;
+  if (typeof format?.['currency'] === 'string') return config;
+  return { ...config, format: { ...format, currency } };
 }
 
 const EMPTY_LAYOUT: PageLayout = { version: 1, items: [] };
@@ -87,7 +102,7 @@ function todayIso(): string {
  * date field, one line on the venue's clock, Cancel / Show day) and, once a
  * day is showing, names that day.
  */
-function DayControls({ day, onDay }: { day: DashboardDay; onDay: (day: DashboardDay) => void }) {
+function DayControls({ day, onDay, end }: { day: DashboardDay; onDay: (day: DashboardDay) => void; end?: ReactNode }) {
   const t = useMaybeT();
   const fieldId = useId();
   const named = day === 'today' || day === 'yesterday' || day === 'week';
@@ -158,12 +173,14 @@ function DayControls({ day, onDay }: { day: DashboardDay; onDay: (day: Dashboard
           </PopoverContent>
         </Popover>
       </div>
+      {end}
     </div>
   );
 }
 
-export function PageDashboard({ layout, adapter, params, onEvent, states, day: hostDay, onDay: onHostDay, className }: PageDashboardProps) {
+export function PageDashboard({ layout, adapter, params, onEvent, states, day: hostDay, onDay: onHostDay, currency, className }: PageDashboardProps) {
   const t = useMaybeT();
+  const locale = useMaybeI18n()?.locale;
   const parsed = useMemo(() => {
     const result = pageLayoutSchema.safeParse(layout);
     if (result.success) return { layout: result.data, invalid: false };
@@ -188,6 +205,16 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, day: h
     );
   }
 
+  const link = parsed.layout.toolbar?.link;
+  const linkButton =
+    link === undefined ? null : (
+      <ToolbarLink
+        label={pickLocalized(link.label, link.labels, locale)}
+        icon={link.icon ?? 'arrow-right'}
+        onOpen={() => onEvent?.(TOOLBAR_INSTANCE, { type: 'drill-through', href: link.href })}
+      />
+    );
+
   const grid = (
     <DashboardGrid
       layout={parsed.layout}
@@ -197,18 +224,38 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, day: h
         <WidgetHost
           widgetId={item.widget}
           instanceId={item.i}
-          config={item.config}
+          config={withCurrency(item.config, currency)}
           data={states?.[item.i] ?? dataStates[item.i] ?? { status: 'loading' }}
           onEvent={onEvent === undefined ? undefined : (event) => onEvent(item.i, event)}
         />
       )}
     />
   );
-  if (!withDay) return grid;
+  if (!withDay && linkButton === null) return grid;
   return (
     <div className="flex flex-col">
-      <DayControls day={day} onDay={setDay} />
+      {withDay ? (
+        <DayControls day={day} onDay={setDay} end={linkButton} />
+      ) : (
+        <div className="flex justify-end px-1 pb-3">{linkButton}</div>
+      )}
       {grid}
     </div>
+  );
+}
+
+/** Whose event a page-level link is: no widget's. */
+const TOOLBAR_INSTANCE = '__toolbar';
+
+const LINK_ICONS = { 'arrow-right': ArrowRight, 'clipboard-list': ClipboardList, 'external-link': ExternalLink } as const;
+
+/** The page's one link, at the end of its controls: the host opens the route. */
+function ToolbarLink({ label, icon, onOpen }: { label: string; icon: keyof typeof LINK_ICONS; onOpen: () => void }) {
+  const Icon = LINK_ICONS[icon];
+  return (
+    <Button variant="secondary" className="ms-auto" data-testid="page-dashboard-link" onClick={onOpen}>
+      {label}
+      <Icon aria-hidden className="rtl:-scale-x-100" />
+    </Button>
   );
 }

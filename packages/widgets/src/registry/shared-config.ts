@@ -10,6 +10,11 @@ import { queryDescriptorSchema } from '../page-config/index.js';
  */
 export const widgetSharedConfigSchema = z.object({
   title: z.string().optional(),
+  /**
+   * `title` in the other languages the page is read in, by tag (`de-DE`):
+   * the page's language picks one, else `title` stands.
+   */
+  titles: z.record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/), z.string().min(1).max(120)).optional(),
   subtitle: z.string().optional(),
   icon: z.string().optional(), // lucide-react icon name
   href: z.string().optional(), // drill-through route

@@ -355,10 +355,15 @@ function CellContent({
 
   if (column.semantic === 'status-workflow') {
     const tone = enumTone(column, String(value));
-    return <StatusPill status={String(value)} {...(tone === undefined ? {} : { tone })} />;
+    return (
+      <StatusPill status={String(value)} {...(tone === undefined ? {} : { tone })}>
+        {column.enumLabels?.[String(value)] ?? String(value)}
+      </StatusPill>
+    );
   }
-  if (column.semantic === 'category-enum' || column.logicalType === 'enum') {
-    return <Badge tone={enumTone(column, String(value)) ?? 'neutral'}>{String(value)}</Badge>;
+  // A choice column: its word for the value, when it has one, in its tone.
+  if (column.semantic === 'category-enum' || column.logicalType === 'enum' || column.enumLabels !== undefined) {
+    return <Badge tone={enumTone(column, String(value)) ?? 'neutral'}>{column.enumLabels?.[String(value)] ?? String(value)}</Badge>;
   }
 
   if (column.logicalType === 'boolean') {

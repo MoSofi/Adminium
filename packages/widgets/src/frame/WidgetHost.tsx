@@ -3,8 +3,9 @@ import { DropdownMenuItem } from '@adminium/ui';
 import { ImageDown } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
 
+import { pickLocalized, type Localized } from '../lib/localized.js';
 import { isEmptyData } from '../registry/data-empty.js';
 import { logConfigWarnings, validateConfigAgainst, widgetRegistry } from '../registry/index.js';
 import type { ParsedConfig } from '../registry/index.js';
@@ -147,7 +148,14 @@ export function WidgetHost({
           : 'loaded';
 
   const t = useMaybeT();
-  const cfg = parsed.config;
+  const locale = useMaybeI18n()?.locale;
+  // A title in the page's language, when the config carries its translations.
+  const cfg = useMemo(() => {
+    const raw = parsed.config;
+    const titles = raw['titles'] as Localized | undefined;
+    if (titles === undefined) return raw;
+    return { ...raw, title: pickLocalized(typeof raw['title'] === 'string' ? raw['title'] : undefined, titles, locale) };
+  }, [parsed.config, locale]);
   const emptyOverride = cfg.emptyState as
     | { icon?: string; titleKey?: string; bodyKey?: string }
     | undefined;

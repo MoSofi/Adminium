@@ -43,7 +43,28 @@ export const kpiStatCardConfigSchema = widgetSharedConfigSchema.extend({
   showSparkline: z.boolean().default(true),
   /** Curated Lucide tile icon (M4 set — full by-name lookup lands with the builder). */
   iconName: z
-    .enum(['activity', 'dollar', 'users', 'cart', 'gauge', 'database', 'zap', 'star', 'package', 'trending'])
+    .enum([
+      'activity',
+      'dollar',
+      'users',
+      'cart',
+      'gauge',
+      'database',
+      'zap',
+      'star',
+      'package',
+      'trending',
+      // A front desk's: visits, arrivals, takings, bills, no-shows, new people, checks, reminders, messages that failed.
+      'calendar-check',
+      'user-check',
+      'banknote',
+      'receipt',
+      'user-x',
+      'user-plus',
+      'clipboard-check',
+      'bell-ring',
+      'message-square-warning',
+    ])
     .default('activity'),
   iconTone: z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']).default('accent'),
 });

@@ -31,7 +31,25 @@ export const pageLayoutSchema = z.object({
    * a day and hands the choice to every widget as the `day` param, which a
    * descriptor's `window.param` follows.
    */
-  toolbar: z.object({ day: z.boolean().optional() }).optional(),
+  toolbar: z
+    .object({
+      day: z.boolean().optional(),
+      /**
+       * One link at the end of the page's controls ("Open the desk"): a route
+       * the host opens, its label, and the label in the other languages the
+       * page is read in.
+       */
+      link: z
+        .object({
+          label: z.string().min(1).max(60),
+          labels: z.record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/), z.string().min(1).max(60)).optional(),
+          href: z.string().min(1).max(300),
+          icon: z.enum(['arrow-right', 'clipboard-list', 'external-link']).optional(),
+        })
+        .strict()
+        .optional(),
+    })
+    .optional(),
 });
 
 export type LayoutItem = z.infer<typeof layoutItemSchema>;

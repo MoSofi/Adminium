@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -95,6 +95,25 @@ describe('CellValue — type-aware cell renderers', () => {
     const pill = container.querySelector('[data-status="past_due"]');
     expect(pill).not.toBeNull();
     expect(screen.getByText('past_due')).toBeDefined();
+  });
+
+  it('a choice column prints its word for the value, in its tone, whatever its type', () => {
+    const { container } = render(
+      <CellValue
+        column={spec({ name: 'status', label: 'Status', logicalType: 'text', enumLabels: { checked_in: 'Checked in' }, enumTones: { checked_in: 'info' } })}
+        row={{ status: 'checked_in' }}
+      />,
+    );
+    expect(screen.getByText('Checked in')).toBeDefined();
+    expect(container.textContent).not.toContain('checked_in');
+    cleanup();
+    render(
+      <CellValue
+        column={spec({ name: 'status', label: 'Status', logicalType: 'enum', semantic: 'status-workflow', enumLabels: { past_due: 'Past due' } })}
+        row={{ status: 'past_due' }}
+      />,
+    );
+    expect(screen.getByText('Past due')).toBeDefined();
   });
 
   it('category enum → Badge', () => {

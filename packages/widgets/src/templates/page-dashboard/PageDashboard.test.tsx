@@ -237,3 +237,63 @@ describe('the page day control', () => {
     cleanup();
   });
 });
+
+describe('the page’s link, currency and languages', () => {
+  const money: PageLayout = {
+    version: 1,
+    items: [
+      { i: 'taken', widget: 'kpi-stat-card', x: 0, y: 0, w: 3, h: 3, config: { title: 'Taken', titles: { 'de-DE': 'Eingenommen', fr: 'Encaissé' }, metricFormat: 'currency' } },
+      { i: 'dollars', widget: 'kpi-stat-card', x: 3, y: 0, w: 3, h: 3, config: { title: 'Dollars', metricFormat: 'currency', format: { currency: 'USD' } } },
+    ],
+  };
+  const states = {
+    taken: { status: 'success' as const, data: { value: 40 } },
+    dollars: { status: 'success' as const, data: { value: 40 } },
+  };
+
+  it('draws a money card in the connection’s currency unless it names its own', async () => {
+    render(<PageDashboard layout={money} states={states} currency="GBP" />);
+    expect(await screen.findByText(/£40/)).toBeDefined();
+    expect(await screen.findByText(/\$40/)).toBeDefined();
+    cleanup();
+  });
+
+  it('titles a card in the page’s language, the same language in another region, else its own title', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    for (const [locale, title] of [['de_DE', 'Eingenommen'], ['fr_FR', 'Encaissé'], ['da_DK', 'Taken']] as const) {
+      const i18n = await createI18n({ locale, loadBundle: async () => null });
+      render(
+        <I18nProvider i18n={i18n}>
+          <PageDashboard layout={money} states={states} />
+        </I18nProvider>,
+      );
+      expect(screen.getByText(title)).toBeDefined();
+      cleanup();
+    }
+  });
+
+  it('ends its controls with one link the host opens, named in the page’s language', async () => {
+    const onEvent = vi.fn();
+    const withLink: PageLayout = { ...money, toolbar: { day: true, link: { label: 'Open the desk', labels: { 'de-DE': 'Zum Empfang' }, href: '/p/clinic-day' } } };
+    render(<PageDashboard layout={withLink} states={states} onEvent={onEvent} day="today" onDay={() => undefined} />);
+    const controls = screen.getByTestId('page-dashboard-day');
+    const link = screen.getByRole('button', { name: 'Open the desk' });
+    expect(controls.contains(link)).toBe(true);
+    fireEvent.click(link);
+    expect(onEvent).toHaveBeenCalledWith('__toolbar', { type: 'drill-through', href: '/p/clinic-day' });
+    cleanup();
+    // Without a day control it still stands, alone; in German it says so.
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({ locale: 'de_DE', loadBundle: async () => null });
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageDashboard layout={{ ...withLink, toolbar: { link: withLink.toolbar!.link! } }} states={states} onEvent={onEvent} />
+      </I18nProvider>,
+    );
+    expect(screen.queryByTestId('page-dashboard-day')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Zum Empfang' })).toBeDefined();
+    cleanup();
+  });
+});

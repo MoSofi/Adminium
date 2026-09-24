@@ -59,6 +59,13 @@ export const queryDescriptorSchema = z.object({
   lookups: z.array(z.string()).max(4).optional(),
   aggregations: z.array(aggregationSchema).max(8).optional(),
   groupBy: z.array(z.string()).max(2).optional(),
+  /**
+   * `fkColumn.labelColumn` — what a group keyed by a foreign key is called:
+   * a column of the row it points at (`clinician_id.short_name`), read with
+   * the same per-table read check and masking as `lookups`. A group keyed by
+   * a choice column is called by its labels without asking.
+   */
+  groupLabel: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/).optional(),
   bucket: z
     .object({
       // time bucketing (mutually additive with groupBy)

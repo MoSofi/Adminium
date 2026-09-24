@@ -131,6 +131,45 @@ describe('kpi-stat-card', () => {
   });
 });
 
+describe('a metric card that leads somewhere', () => {
+  it('is one button, named by its title and value, that asks the host to open the route', () => {
+    const onEvent = vi.fn();
+    render(
+      <KpiStatCard
+        config={statCardConfig({ title: 'Waiting to check', href: '/p/registrations', iconName: 'clipboard-check' })}
+        data={{ value: 4, prior: 4 }}
+        instanceId="w-link"
+        onEvent={onEvent}
+      />,
+    );
+    const card = screen.getByRole('button', { name: 'Waiting to check: 4' });
+    fireEvent.click(card);
+    expect(onEvent).toHaveBeenCalledWith({ type: 'drill-through', href: '/p/registrations' });
+    cleanup();
+    render(
+      <KpiStatTileCompact
+        config={kpiStatTileCompactConfigSchema.parse({ title: 'No-shows', href: '/p/no-shows' })}
+        data={{ value: 2, prior: 1 }}
+        instanceId="w-link-2"
+        onEvent={onEvent}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'No-shows: 2' }));
+    expect(onEvent).toHaveBeenLastCalledWith({ type: 'drill-through', href: '/p/no-shows' });
+  });
+
+  it('is no button without one, and draws every front-desk icon', () => {
+    render(<KpiStatCard config={statCardConfig({ title: 'Taken' })} data={{ value: 1, prior: 1 }} instanceId="w-plain" onEvent={noop} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    cleanup();
+    for (const iconName of ['calendar-check', 'user-check', 'banknote', 'receipt', 'user-x', 'user-plus', 'clipboard-check', 'bell-ring', 'message-square-warning'] as const) {
+      const { container } = render(<KpiStatCard config={statCardConfig({ iconName })} data={{ value: 1, prior: 1 }} instanceId={`w-${iconName}`} onEvent={noop} />);
+      expect(container.querySelector('svg')).not.toBeNull();
+      cleanup();
+    }
+  });
+});
+
 describe('usage-meter', () => {
   function meter(value: number, config: Record<string, unknown> = {}) {
     const { container } = render(
