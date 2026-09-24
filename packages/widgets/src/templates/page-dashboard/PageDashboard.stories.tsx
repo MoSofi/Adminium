@@ -89,7 +89,13 @@ export const InvalidLayout = {
 const dayLayout = {
   version: 1,
   toolbar: { day: true },
-  items: demoDashboardLayout.items.filter((item) => item.widget === 'kpi-stat-card').slice(0, 3),
+  // Four rows high: the first card carries a metric label, and at its default
+  // three a labelled card runs its value past the card's edge — the tray is
+  // this story's subject, so the cards get the room to draw whole.
+  items: demoDashboardLayout.items
+    .filter((item) => item.widget === 'kpi-stat-card')
+    .slice(0, 3)
+    .map((item) => ({ ...item, h: 4 })),
 };
 const dayStates = Object.fromEntries(
   dayLayout.items.map((item, index) => [item.i, { status: 'success' as const, data: { shape: 'metric+delta', value: [1284, 47, 27.3][index] ?? 0 } }]),
