@@ -120,6 +120,26 @@ describe('global error handler — unexpected errors', () => {
     expect(res.statusCode).toBe(500);
     expect(res.json<Envelope>().error.message).toBe('kaboom');
   });
+
+  it('answers a lock conflict no route mapped as a retryable 409, not a 500', async () => {
+    const server = await build({ exposeInternalErrors: true });
+    // A Postgres deadlock as `pg` throws it (captured; see crud-db-errors.test.ts).
+    server.get('/boom/deadlock', async () => {
+      throw Object.assign(new Error('deadlock detected'), {
+        code: '40P01',
+        detail: 'Process 5862 waits for ShareLock on transaction 1112711; blocked by process 5864.',
+      });
+    });
+    const res = await server.inject({ method: 'GET', url: '/boom/deadlock' });
+    expect(res.statusCode).toBe(409);
+    const body = res.json<Envelope>();
+    expect(body.error).toMatchObject({
+      code: 'WRITE_CONFLICT',
+      message: 'Someone else changed this at the same moment. Try again.',
+      details: { retry: true },
+    });
+    expect(res.payload).not.toContain('ShareLock');
+  });
 });
 
 describe('global error handler — Zod validation (fastify-type-provider-zod)', () => {

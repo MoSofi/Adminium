@@ -51,7 +51,7 @@ import {
   referenceCounts,
   type ReferenceCount,
 } from '../../crud/records.js';
-import { readDbRefusal } from '../../crud/db-errors.js';
+import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-errors.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { tableRulesFor } from '../../crud/column-rules.js';
 import {
@@ -188,8 +188,12 @@ interface DataContext {
  * TABLE in hand, `crud/db-errors.ts` reads those and this raises 422
  * `VALIDATION_FAILED` with `details.fields`, which the dashboard renders under
  * the field. The table is optional only because the export predates it.
+ *
+ * A lock conflict (deadlock, serialization failure, busy SQLite file) is none
+ * of these: it is 409 `WRITE_CONFLICT` with `{ retry: true }`, table or not.
  */
 export function mapDbError(error: unknown, table?: ResolvedTable): never {
+  if (isWriteConflict(error)) throw writeConflict();
   const dbError = error as { code?: string; detail?: string; constraint?: string; message?: string };
   const message = typeof dbError.message === 'string' ? dbError.message : '';
   if (

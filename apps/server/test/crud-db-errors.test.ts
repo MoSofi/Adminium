@@ -22,7 +22,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { readDbRefusal } from '../src/crud/db-errors.js';
+import { isWriteConflict, readDbRefusal } from '../src/crud/db-errors.js';
+import { ConflictError } from '../src/errors.js';
+import { mapDbError } from '../src/routes/data/index.js';
 import type { ResolvedColumn, ResolvedTable } from '../src/crud/identifiers.js';
 import type { EffectiveTable } from '../src/connections/effective-schema.js';
 
@@ -168,5 +170,143 @@ describe('database refusals → field errors', () => {
     expect(readDbRefusal({ code: '42601', message: 'syntax error at or near "slect"' }, patients)).toBeNull();
     expect(readDbRefusal({ code: '23505', message: 'duplicate key value' }, patients)).toBeNull();
     expect(readDbRefusal(null, patients)).toBeNull();
+  });
+});
+
+/**
+ * LOCK CONFLICTS, captured the same way on 2026-09-24 — PostgreSQL 18.3,
+ * MySQL 26.7.0 and better-sqlite3 — by making two connections want the same
+ * rows: crossed `FOR UPDATE`s for the deadlocks, two SERIALIZABLE updates of
+ * one row, a `FOR UPDATE` behind another with a 1 s `innodb_lock_wait_timeout`
+ * (and a 100 ms `lock_timeout` on Postgres), and on SQLite a second
+ * `BEGIN IMMEDIATE`, then a WAL snapshot upgraded after another commit.
+ *
+ * Worth naming: SQLite says "database is locked" for BOTH of its codes, and
+ * MySQL's deadlock carries SQLSTATE 40001 on `sqlState` — the Postgres
+ * serialization code — while its lock wait carries HY000.
+ */
+const LOCKS = {
+  postgres: {
+    deadlock: {
+      code: '40P01',
+      severity: 'ERROR',
+      routine: 'DeadLockReport',
+      detail:
+        'Process 5862 waits for ShareLock on transaction 1112711; blocked by process 5864.\n' +
+        'Process 5864 waits for ShareLock on transaction 1112710; blocked by process 5862.',
+      message: 'deadlock detected',
+    },
+    serialization: {
+      code: '40001',
+      severity: 'ERROR',
+      routine: 'ExecUpdate',
+      message: 'could not serialize access due to concurrent update',
+    },
+    lockTimeout: {
+      code: '55P03',
+      severity: 'ERROR',
+      routine: 'ProcessInterrupts',
+      message: 'canceling statement due to lock timeout',
+    },
+  },
+  mysql: {
+    deadlock: {
+      code: 'ER_LOCK_DEADLOCK',
+      errno: 1213,
+      sqlState: '40001',
+      sqlMessage: 'Deadlock found when trying to get lock; try restarting transaction',
+      message: 'Deadlock found when trying to get lock; try restarting transaction',
+    },
+    lockWait: {
+      code: 'ER_LOCK_WAIT_TIMEOUT',
+      errno: 1205,
+      sqlState: 'HY000',
+      sqlMessage: 'Lock wait timeout exceeded; try restarting transaction',
+      message: 'Lock wait timeout exceeded; try restarting transaction',
+    },
+  },
+  sqlite: {
+    busy: { code: 'SQLITE_BUSY', message: 'database is locked' },
+    busySnapshot: { code: 'SQLITE_BUSY_SNAPSHOT', message: 'database is locked' },
+  },
+};
+
+const EVERY_LOCK: [string, object][] = Object.entries(LOCKS).flatMap(([engine, errors]) =>
+  Object.entries(errors).map(([name, error]): [string, object] => [`${engine} ${name}`, error]),
+);
+
+/** A driver error as the driver throws it: an Error carrying the fields. */
+function thrown(fields: object): Error {
+  const { message, ...rest } = fields as { message: string };
+  return Object.assign(new Error(message), rest);
+}
+
+/** What `mapDbError` threw, or a failed test when it threw nothing. */
+function mapped(error: unknown, table?: ResolvedTable): unknown {
+  try {
+    mapDbError(error, table);
+  } catch (out) {
+    return out;
+  }
+  return expect.unreachable('mapDbError must throw');
+}
+
+describe('lock conflicts → 409 WRITE_CONFLICT', () => {
+  it.each(EVERY_LOCK)('%s is a write conflict', (_, error) => {
+    expect(isWriteConflict(error)).toBe(true);
+    expect(isWriteConflict(thrown(error))).toBe(true);
+  });
+
+  it.each(EVERY_LOCK)('%s is not a refused value', (_, error) => {
+    expect(readDbRefusal(thrown(error), patients)).toBeNull();
+  });
+
+  it.each(EVERY_LOCK)('%s maps to a retryable 409 that names nothing of the engine’s', (_, error) => {
+    for (const table of [patients, undefined]) {
+      const out = mapped(thrown(error), table);
+      expect(out).toBeInstanceOf(ConflictError);
+      expect(out).toMatchObject({
+        statusCode: 409,
+        code: 'WRITE_CONFLICT',
+        message: 'Someone else changed this at the same moment. Try again.',
+        details: { retry: true },
+      });
+      // Not the engine's prose: a deadlock report names processes and transactions.
+      expect(JSON.stringify((out as ConflictError).details)).not.toMatch(/process|transaction|lock/i);
+    }
+  });
+
+  it('reads a MySQL conflict by its errno when the symbol is missing', () => {
+    expect(isWriteConflict({ errno: 1213, message: 'Deadlock found' })).toBe(true);
+    expect(isWriteConflict({ errno: 1205, message: 'Lock wait timeout exceeded' })).toBe(true);
+  });
+
+  it('leaves every other error alone', () => {
+    // The refusals above, the unique and FK codes, and the ones nobody maps.
+    for (const error of [...Object.values(POSTGRES), ...Object.values(MYSQL), ...Object.values(SQLITE)]) {
+      expect(isWriteConflict(error)).toBe(false);
+    }
+    expect(isWriteConflict({ code: '23505', message: 'duplicate key value' })).toBe(false);
+    expect(isWriteConflict({ code: 'ER_DUP_ENTRY', errno: 1062 })).toBe(false);
+    // SQLITE_BUSY's prefix, not a substring of some other code.
+    expect(isWriteConflict({ code: 'SQLITE_BUSYNESS', message: 'x' })).toBe(false);
+    expect(isWriteConflict({ code: 'SQLITE_LOCKED', message: 'database table is locked' })).toBe(false);
+    // A Node system error carries a NEGATIVE errno.
+    expect(isWriteConflict(Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET', errno: -54 }))).toBe(false);
+    // Already translated: a conflict is not mapped twice.
+    expect(isWriteConflict(new ConflictError('taken', 'CAPACITY_BUSY'))).toBe(false);
+    expect(isWriteConflict(null)).toBe(false);
+    expect(isWriteConflict('40P01')).toBe(false);
+  });
+
+  it('keeps unique and foreign-key conflicts as they were', () => {
+    expect(mapped(thrown({ code: '23505', message: 'duplicate key value' }), patients)).toMatchObject({
+      statusCode: 409,
+      code: 'UNIQUE_VIOLATION',
+    });
+    expect(mapped(thrown({ code: '23503', message: 'violates foreign key constraint' }), patients)).toMatchObject({
+      statusCode: 409,
+      code: 'FK_VIOLATION',
+    });
   });
 });

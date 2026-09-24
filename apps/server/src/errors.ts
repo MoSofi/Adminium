@@ -170,6 +170,10 @@ export class ConflictError extends AppError {
       // A payment or a write-off larger than what is left to pay, or a lower
       // fee than what is already paid: a balance kept at zero or above.
       | 'BALANCE_EXCEEDED'
+      // Two writers wanted the same rows at once and the database gave this
+      // one up (a deadlock, a serialization failure, a busy SQLite file).
+      // `details.retry` is true: the same write a moment later goes through.
+      | 'WRITE_CONFLICT'
       // The plan was built against a schema that has since moved — either the
       // snapshot (another admin applied a plan) or the database itself
       // (somebody ran DDL outside Adminium). Both mean the same thing to the

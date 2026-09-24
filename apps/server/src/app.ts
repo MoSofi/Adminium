@@ -29,6 +29,7 @@ import { hashPassword } from './auth/passwords.js';
 import { SESSION_COOKIE } from './auth/sessions.js';
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
+import { isWriteConflict, writeConflict } from './crud/db-errors.js';
 import { scrubUrlForLog } from './log-scrub.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
 import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
@@ -427,6 +428,17 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       void reply
         .status(error.statusCode)
         .send(errorEnvelope(error.code, error.message, requestId, error.details));
+      return;
+    }
+
+    // A lock conflict from a transaction no `mapDbError` watched (a parent
+    // form's COMMIT, a multi-row settle): the person can try again, and a 500
+    // would tell them something broke (`crud/db-errors.ts` rule 5).
+    if (isWriteConflict(error)) {
+      const conflict = writeConflict();
+      void reply
+        .status(conflict.statusCode)
+        .send(errorEnvelope(conflict.code, conflict.message, requestId, conflict.details));
       return;
     }
 

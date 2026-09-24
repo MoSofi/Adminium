@@ -75,6 +75,7 @@ import { getPrincipal } from '../rbac/principal.js';
 import { checkCapacity, touchesGuard, withSlotLock } from './capacity-guard.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, type DecideContext } from './decide.js';
+import { isWriteConflict } from './db-errors.js';
 import {
   checkRow,
   fillRow,
@@ -1225,6 +1226,22 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     }
   }
 
+  /**
+   * A whole write, locks and commit included. A lock conflict can surface
+   * where no `statement` is watching — the `FOR UPDATE` on a parent's
+   * balance, a named lock, the COMMIT itself — so ONLY a lock conflict is
+   * handed to the caller's `mapError` here (`db-errors.ts` rule 5). Anything
+   * else has already been through it, or never should be.
+   */
+  async function conflicted<T>(run: () => Promise<T>, mapError: ((error: unknown) => never) | undefined): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (mapError !== undefined && isWriteConflict(error)) mapError(error);
+      throw error;
+    }
+  }
+
   return {
     get hooks() {
       return current();
@@ -1291,14 +1308,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         day = bookingDay(booking, checked, zone ?? 'UTC');
         if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', booking.start)), input.mapError);
       }
-      const { row, values: written } =
-        rules?.capacity !== undefined
-          ? await withSlotLock(rules.capacity, target, checked, write)
-          : day !== null
-            ? await withBookingLock({ ...target, timezone: zone }, day, write)
-            : settles(rules)
-              ? await atomically(target, write)
-              : await write(target.db);
+      const { row, values: written } = await conflicted(
+        () =>
+          rules?.capacity !== undefined
+            ? withSlotLock(rules.capacity, target, checked, write)
+            : day !== null
+              ? withBookingLock({ ...target, timezone: zone }, day, write)
+              : settles(rules)
+                ? atomically(target, write)
+                : write(target.db),
+        input.mapError,
+      );
       await input.announce(row, written);
       if (await hooks.wants('after', 'create', target, context)) {
         await hooks.after({ action: 'create', target, record: row, before: null, context });
@@ -1392,18 +1412,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (written !== checkedValues) values = written;
         return changed;
       };
-      let count: number;
-      if (capacity !== undefined) {
-        // The lock is named by the slot the row will hold.
-        const current = before ?? ((await fetchByPk(target.db, target.table, pk)) ?? null);
-        count = await withSlotLock(capacity, target, { ...(current ?? {}), ...checkedValues }, write);
-      } else if (booking !== undefined) {
-        count = await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
-          lockedDay = day;
-        }, write, rolls, input.mapError);
-      } else {
-        count = rolls ? await atomically(target, write) : await write(target.db);
-      }
+      const count = await conflicted(async () => {
+        if (capacity !== undefined) {
+          // The lock is named by the slot the row will hold.
+          const current = before ?? ((await fetchByPk(target.db, target.table, pk)) ?? null);
+          return await withSlotLock(capacity, target, { ...(current ?? {}), ...checkedValues }, write);
+        }
+        if (booking !== undefined) {
+          return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
+            lockedDay = day;
+          }, write, rolls, input.mapError);
+        }
+        return rolls ? await atomically(target, write) : await write(target.db);
+      }, input.mapError);
       if (count === 0 && input.skipIfNone === true) return { before, after: null, values, count };
       const after = (await fetchByPk(target.db, target.table, pk)) ?? null;
       const outcome: UpdateOutcome = { before, after, values, count };
@@ -1425,7 +1446,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       const rolls = (rules?.rollupsInto?.length ?? 0) > 0;
       const count = rolls
-        ? await atomically(target, async (db) => {
+        ? await conflicted(() => atomically(target, async (db) => {
             // The parent the row fed, read before it goes.
             const gone = holdsMoney(rules) ? ((await fetchHeld(db, target, pk)) ?? null) : (before ?? ((await fetchByPk(db, target.table, pk)) ?? null));
             const within = { ...target, db };
@@ -1433,7 +1454,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             const removed = await statement(() => deleteRows(db, target.table, pk, input.refine), input.mapError);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], held), input.mapError);
             return removed;
-          })
+          }), input.mapError)
         : await statement(() => deleteRows(target.db, target.table, pk, input.refine), input.mapError);
       if (count === 0 && input.skipIfNone === true) return 0;
       await input.announce(count, before);

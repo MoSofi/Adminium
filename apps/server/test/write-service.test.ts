@@ -3,11 +3,17 @@
  * The write service: the order a write runs in, what hooks may change, and
  * that a server with no hooks sends exactly the statements it always sent.
  */
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import BetterSqlite3 from 'better-sqlite3';
 import { Kysely, SqliteDialect } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SourceDatabase } from '../src/connections/manager.js';
+import type { EffectiveTable } from '../src/connections/effective-schema.js';
+import { isWriteConflict } from '../src/crud/db-errors.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../src/crud/identifiers.js';
 import type { Row } from '../src/crud/mask.js';
 import {
@@ -160,6 +166,99 @@ describe('with no hooks', () => {
         announce: () => Promise.reject(new Error('announce failed')),
       }),
     ).rejects.toThrow('announce failed');
+  });
+});
+
+describe('a lock conflict outside any one statement', () => {
+  /*
+   * A payment feeds its visit's `paid` total, so the create runs in a
+   * transaction of its own (`atomically`) — the path a `FOR UPDATE` on a
+   * parent row and a named lock take too. Here a second connection holds a
+   * read open on the file, so every statement succeeds and the COMMIT is
+   * what SQLite refuses (`SQLITE_BUSY`), where no `statement` is watching.
+   * Before `conflicted` that raw driver error went past `mapError` to the
+   * global handler as a 500.
+   */
+  let dir: string;
+  let writer: BetterSqlite3.Database;
+  let reader: BetterSqlite3.Database;
+  let paymentsDb: Kysely<SourceDatabase>;
+
+  const payments: ResolvedTable = {
+    id: 'main.payments',
+    schema: 'main',
+    name: 'payments',
+    primaryKey: ['id'],
+    columns: new Map(
+      [
+        column('id', 'integer', { isPrimaryKey: true, nullable: false }),
+        column('visit_id', 'integer'),
+        column('amount', 'decimal'),
+      ].map((c) => [c.name, c]),
+    ),
+    readOnly: false,
+    table: {} as ResolvedTable['table'],
+  };
+  const visits = {
+    id: 'main.visits',
+    name: 'visits',
+    primaryKey: ['id'],
+    columns: [
+      { name: 'id', logicalType: 'integer' },
+      { name: 'paid', logicalType: 'decimal', rollup: { from: 'main.payments', via: 'visit_id', sum: 'amount' } },
+    ],
+  } as unknown as EffectiveTable;
+  const paymentsView = {
+    table: () => payments,
+    model: { tables: [visits], relations: [], enums: [] },
+  } as unknown as SnapshotView;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'write-conflict-'));
+    const file = join(dir, 'clinic.sqlite');
+    // No busy wait: the COMMIT is refused at once rather than after 5 s.
+    writer = new BetterSqlite3(file, { timeout: 0 });
+    writer.exec('CREATE TABLE visits (id INTEGER PRIMARY KEY, paid REAL); INSERT INTO visits VALUES (1, 0);');
+    writer.exec('CREATE TABLE payments (id INTEGER PRIMARY KEY, visit_id INTEGER, amount REAL)');
+    reader = new BetterSqlite3(file);
+    paymentsDb = new Kysely<SourceDatabase>({ dialect: new SqliteDialect({ database: writer }) });
+  });
+
+  afterEach(async () => {
+    if (reader.inTransaction) reader.exec('ROLLBACK');
+    reader.close();
+    await paymentsDb.destroy();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('hands the caller’s mapError the conflict the COMMIT raised', async () => {
+    const writes = createWriteService();
+    const target: WriteTarget = { connectionId: 'conn_1', view: paymentsView, table: payments, db: paymentsDb, dialect: 'sqlite' };
+    // An open read holds the file's SHARED lock (rollback journal): the
+    // writer may write, but may not COMMIT until it lets go.
+    reader.exec('BEGIN');
+    reader.prepare('SELECT * FROM visits').all();
+
+    const seen: unknown[] = [];
+    const mapError = (error: unknown): never => {
+      seen.push(error);
+      throw new Error('mapped');
+    };
+    await expect(
+      writes.create({ target, values: { id: 1, visit_id: 1, amount: 20 }, context, mapError, announce: async () => {} }),
+    ).rejects.toThrow('mapped');
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ code: 'SQLITE_BUSY' });
+    expect(isWriteConflict(seen[0])).toBe(true);
+
+    // Nothing was kept: the payment and its total went back together.
+    reader.exec('ROLLBACK');
+    expect(reader.prepare('SELECT count(*) AS n FROM payments').get()).toEqual({ n: 0 });
+    expect(reader.prepare('SELECT paid FROM visits WHERE id = 1').get()).toEqual({ paid: 0 });
+
+    // And the same write a moment later goes through, as the 409 says it will.
+    await writes.create({ target, values: { id: 1, visit_id: 1, amount: 20 }, context, mapError, announce: async () => {} });
+    expect(reader.prepare('SELECT paid FROM visits WHERE id = 1').get()).toEqual({ paid: 20 });
   });
 });
 

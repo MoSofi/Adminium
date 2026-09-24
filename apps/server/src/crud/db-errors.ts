@@ -31,8 +31,15 @@
  * 4. The public surface collapses all of this into its one opaque refusal
  *    (`routes/public/index.ts` `refuseWrite`): naming a column to an anonymous
  *    caller is a membership oracle.
+ * 5. A LOCK CONFLICT is not a refused value. Two writers wanted the same rows
+ *    at the same moment and the database gave one of them up (a deadlock, a
+ *    serialization failure, a lock wait that ran out, a busy SQLite file).
+ *    Nothing the person typed was wrong and the same write a moment later
+ *    goes through, so it is 409 `WRITE_CONFLICT` with `{ retry: true }`
+ *    ({@link isWriteConflict}), never a 422 and never a 500.
  */
 
+import { ConflictError } from '../errors.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { IssueCode } from './column-rules.js';
 
@@ -223,4 +230,47 @@ export function readDbRefusal(error: unknown, table: ResolvedTable): DbRefusal |
     mysqlRefusal(driver, table, message) ??
     sqliteRefusal(table, message)
   );
+}
+
+// --- lock conflicts (rule 5) -----------------------------------------------------
+
+/**
+ * The codes each engine gives the writer it gives up, as the drivers really
+ * send them (fixtures captured in `test/crud-db-errors.test.ts`):
+ *
+ *   · Postgres: `40001` serialization_failure, `40P01` deadlock_detected, and
+ *     `55P03` lock_not_available — what a `lock_timeout` a DBA set on the role
+ *     raises when a `FOR UPDATE` waited too long.
+ *   · MySQL: `ER_LOCK_DEADLOCK` (1213) and `ER_LOCK_WAIT_TIMEOUT` (1205). The
+ *     errno is read too: the symbol is mysql2's, the number is the server's.
+ *   · SQLite: `SQLITE_BUSY` and its extended codes (`SQLITE_BUSY_SNAPSHOT`,
+ *     `…_RECOVERY`, `…_TIMEOUT`). The message is only "database is locked",
+ *     so the code is the signal.
+ */
+const POSTGRES_CONFLICTS = new Set(['40001', '40P01', '55P03']);
+const MYSQL_CONFLICTS = new Set(['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT']);
+const MYSQL_CONFLICT_ERRNOS = new Set([1213, 1205]);
+
+/** Whether a driver error is a lost lock race rather than a refused value (rule 5). */
+export function isWriteConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const driver = error as DriverError;
+  const code = textOf(driver.code);
+  return (
+    POSTGRES_CONFLICTS.has(code) ||
+    MYSQL_CONFLICTS.has(code) ||
+    (typeof driver.errno === 'number' && MYSQL_CONFLICT_ERRNOS.has(driver.errno)) ||
+    /^SQLITE_BUSY(?:_|$)/.test(code)
+  );
+}
+
+/**
+ * The one answer to a lock conflict. The wording is the person's, not the
+ * engine's: "deadlock" and "serialization" mean nothing on a form, and the
+ * engine's prose would name the tables and processes involved.
+ */
+export function writeConflict(): ConflictError {
+  return new ConflictError('Someone else changed this at the same moment. Try again.', 'WRITE_CONFLICT', {
+    retry: true,
+  });
 }
