@@ -46,7 +46,16 @@ function resource(over: Partial<CompiledResource> = {}): CompiledResource {
       created_at: { $generate: 'now' },
       sender_kind: 'customer',
     },
-    mandatory: null,
+    where: { fixed: null, relative: [] },
+    writableValues: {},
+    writableWhen: {},
+    level: 'lookup',
+    onClaim: null,
+    maxOpen: null,
+    rank: null,
+    humanCheck: false,
+    anonymous: null,
+    requireSetting: [],
     claim: { column: 'conversation_id' },
     sensitive: false,
     limit: 100,
@@ -65,6 +74,7 @@ const session = (value: unknown): PublicSessionContext => ({
   id: 'sess_1',
   keyId: 'key_1',
   grant: { ref: 'conversation', column: 'id', value },
+  level: 'lookup',
 });
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

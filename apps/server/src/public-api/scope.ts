@@ -21,10 +21,12 @@
  * here is in service of that sentence.
  */
 
+import type { AnonymousCaps } from './anonymous-caps.js';
 import { z } from 'zod';
 
 import { FILTER_OPS, type RecordFilter } from '../crud/filters.js';
 import { PUBLIC_GENERATORS, readGenerator } from './generate.js';
+import { RELATIVE_FILTER_OPS, isRelativeOp, type RelativeCondition, type ScopeWhere } from './relative-filters.js';
 
 /* --------------------------------------------------------------- vocabulary */
 
@@ -108,9 +110,14 @@ const columnSchema = z.string().min(1).max(128);
  */
 const mandatoryConditionSchema = z.object({
   column: columnSchema,
-  op: z.enum(FILTER_OPS),
+  /** `today` and `from-today` are the venue's calendar, worked out per request (`relative-filters.ts`). */
+  op: z.enum([...FILTER_OPS, ...RELATIVE_FILTER_OPS]),
   value: z.unknown().optional(),
+  /** `from-today` only: how many days, today included. */
+  days: z.number().int().min(1).max(366).optional(),
 });
+
+const scalarSchema = z.union([z.string().max(256), z.number(), z.boolean()]);
 
 /**
  * How a claimed session narrows this resource.
@@ -127,6 +134,10 @@ const claimScopeSchema = z
       .object({ ref: refSchema, localColumn: columnSchema, foreignColumn: columnSchema })
       .strict()
       .optional(),
+    /** The identity a session must have been claimed through; any other reaches nothing here. */
+    ref: refSchema.optional(),
+    /** A create that goes through without a session as well — only a create. */
+    optional: z.literal(true).optional(),
   })
   .strict();
 
@@ -195,6 +206,46 @@ const resourceSchema = z
     kind: z.enum(['records', 'availability']).optional(),
     /** The email sent when a guest creates a row (see the endpoint's `confirm`). */
     confirm: z.record(z.string(), z.unknown()).optional(),
+    /** The only values a caller may write into these columns. */
+    writableValues: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
+    /**
+     * The state a row must be IN for an update to touch it — ANDed into the
+     * UPDATE, never into a read. `from-now`: a time still ahead.
+     */
+    writableWhen: z.record(columnSchema, z.union([z.array(scalarSchema).min(1).max(32), z.literal('from-now')])).optional(),
+    /** The session level this resource needs; `verified` only where the claim sends a code. */
+    level: z.enum(['lookup', 'verified']).optional(),
+    /** On an optional claim: the columns a signed-in create empties. */
+    onClaim: z.object({ clear: z.array(columnSchema).min(1).max(12) }).strict().optional(),
+    /** A claimed person may hold at most `n` rows whose column is one of `values`. */
+    maxOpen: z
+      .object({
+        column: columnSchema,
+        values: z.array(scalarSchema).min(1).max(32),
+        n: z.number().int().min(1).max(50),
+        upcoming: columnSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    /** A create answers how many matching rows are ordered at or before it. */
+    rank: z.object({ orderBy: columnSchema, where: z.object({ column: columnSchema, eq: scalarSchema }).strict().optional() }).strict().optional(),
+    /** A create with no session carries a proof of work. */
+    humanCheck: z.literal(true).optional(),
+    /** Writes refused while a bool in the settings row is false. */
+    requireSetting: z
+      .array(z.object({ table: z.string().min(1).max(200), column: columnSchema, when: z.literal('anonymous').optional() }).strict())
+      .min(1)
+      .max(4)
+      .optional(),
+    /** The limits on a create nobody signed in for. */
+    anonymous: z
+      .object({
+        perValue: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
+        perKeyHour: z.number().int().min(1).max(1000).optional(),
+        plainText: z.array(columnSchema).min(1).max(8).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -250,6 +301,11 @@ export const publicScopeDocumentSchema = z
         ref: refSchema,
         /** Columns the claimant must match, ALL of them, equality only. */
         match: z.array(columnSchema).min(1),
+        /** A code emailed to the claimed row's `email` column raises a session to `verified`. */
+        verify: z.literal('email-code').optional(),
+        email: columnSchema.optional(),
+        /** Every claim start carries a proof of work. */
+        humanCheck: z.literal(true).optional(),
       })
       .strict()
       .optional(),
@@ -310,8 +366,29 @@ export interface CompiledResource {
   orderable: ReadonlySet<string>;
   writable: ReadonlySet<string>;
   defaults: Readonly<Record<string, unknown>>;
-  /** Already in the dashboard's own grammar, ready to AND. */
-  mandatory: RecordFilter | null;
+  /**
+   * The mandatory filter: fixed conditions already in the dashboard's own
+   * grammar, and calendar ones a request works out with `mandatoryAt`.
+   */
+  where: ScopeWhere;
+  /** The only values a caller may write into these columns. */
+  writableValues: Readonly<Record<string, readonly (string | number | boolean)[]>>;
+  /** The state a row must be in for an update to touch it. */
+  writableWhen: Readonly<Record<string, readonly (string | number | boolean)[] | 'from-now'>>;
+  /** The session level this resource needs. */
+  level: 'lookup' | 'verified';
+  /** The columns a signed-in create empties, on an optional claim. */
+  onClaim: { clear: readonly string[] } | null;
+  /** How many open rows a claimed person may hold. */
+  maxOpen: { column: string; values: readonly (string | number | boolean)[]; n: number; upcoming?: string | undefined } | null;
+  /** What a create answers about where it stands. */
+  rank: { orderBy: string; where?: { column: string; eq: string | number | boolean } | undefined } | null;
+  /** A create with no session (or one this resource does not cap) carries a proof of work. */
+  humanCheck: boolean;
+  /** The limits on a create nobody signed in for; null when there are none. */
+  anonymous: AnonymousCaps | null;
+  /** The settings switches a write here needs on. */
+  requireSetting: readonly { table: string; column: string; when?: 'anonymous' | undefined }[];
   claim: z.infer<typeof claimScopeSchema> | null;
   sensitive: boolean;
   /** The cap. A caller may ask for fewer rows, never more. */
@@ -536,6 +613,12 @@ export function compileScope(
     for (const c of r.searchable) check(c, 'SCOPE_SEARCHABLE_UNKNOWN_COLUMN');
     for (const c of r.orderable) check(c, 'SCOPE_ORDERABLE_UNKNOWN_COLUMN');
     for (const c of r.writable) check(c, 'SCOPE_WRITABLE_UNKNOWN_COLUMN');
+    for (const c of Object.keys(r.writableWhen ?? {})) check(c, 'SCOPE_WRITABLE_WHEN_UNKNOWN_COLUMN');
+    for (const c of Object.keys(r.writableValues ?? {})) {
+      if (!r.writable.includes(c)) {
+        issues.push({ code: 'SCOPE_WRITABLE_VALUES_NOT_WRITABLE', message: `"${c}" lists the values a caller may write, but is not writable`, ref: r.ref, column: c });
+      }
+    }
     for (const c of r.where) check(c.column, 'SCOPE_WHERE_UNKNOWN_COLUMN');
     /*
      * Defaults were the one list not checked against the snapshot, and the
@@ -584,10 +667,17 @@ export function compileScope(
       }
     }
 
-    /* A caller must never be able to move a row out of its own scope. */
+    /*
+     * A caller must never be able to move a row out of its own scope — unless
+     * the resource pins both ends of the change: the state the row must be in
+     * (`writableWhen`, part of the UPDATE itself) and the values it may take
+     * (`writableValues`). A kiosk reads today's visits from booked to ready
+     * and may move one from booked to checked in, and nothing else.
+     */
     const writable = new Set(r.writable);
+    const pinned = (column: string) => r.writableWhen?.[column] !== undefined && r.writableValues?.[column] !== undefined;
     for (const c of r.where) {
-      if (writable.has(c.column)) {
+      if (writable.has(c.column) && !pinned(c.column)) {
         issues.push({
           code: 'SCOPE_WHERE_COLUMN_WRITABLE',
           message: `"${c.column}" is constrained by the mandatory predicate and also writable — a caller could write itself out of scope`,
@@ -660,7 +750,7 @@ export function compileScope(
     }
 
     for (const c of r.where) {
-      const needsValue = c.op !== 'is_null' && c.op !== 'not_null';
+      const needsValue = c.op !== 'is_null' && c.op !== 'not_null' && !isRelativeOp(c.op);
       if (needsValue && c.value === undefined) {
         issues.push({
           code: 'SCOPE_WHERE_VALUE_MISSING',
@@ -771,11 +861,61 @@ export function compileScope(
         message: `claim targets ref "${doc.claim.ref}", which this scope does not declare`,
       });
     } else {
-      if (doc.claim.strategy === 'lookup' && target.sensitive) {
+      /*
+       * A `lookup` claim on a sensitive identity opens only the identity's
+       * own select ("found you" — a name), never more: every OTHER sensitive
+       * resource it opens must ask for a `verified` session, which only the
+       * emailed code gives. Without a code to send, a sensitive identity
+       * cannot be claimed by lookup at all.
+       */
+      if (doc.claim.strategy === 'lookup' && target.sensitive && doc.claim.verify === undefined) {
         issues.push({
           code: 'SCOPE_CLAIM_TIER_TOO_WEAK',
           message: `ref "${target.ref}" is sensitive, so it cannot be claimed by reference lookup — use "email-code" or "external"`,
           ref: target.ref,
+        });
+      }
+      if (doc.claim.strategy === 'lookup' && target.sensitive) {
+        for (const r of doc.resources) {
+          if (r.ref === target.ref || !r.sensitive || r.claim === undefined || r.level === 'verified') continue;
+          issues.push({
+            code: 'SCOPE_CLAIM_TIER_TOO_WEAK',
+            message: `ref "${r.ref}" is sensitive and opened by a lookup claim, so it needs a verified session`,
+            ref: r.ref,
+          });
+        }
+      }
+      /*
+       * Where a code proves the person, the address it goes to and the
+       * details that find them are theirs alone to change — through the code
+       * flow, never a PATCH: a found session that could write the address
+       * would send the next code to itself. Nor may anyone make a row there
+       * with a stranger's details, which would leave two matching rows and
+       * lock the real person out of every claim.
+       */
+      if (doc.claim.verify !== undefined) {
+        const guarded = new Set([...(doc.claim.email === undefined ? [] : [doc.claim.email]), ...doc.claim.match]);
+        for (const r of doc.resources) {
+          if (r.table !== target.table) continue;
+          for (const column of r.writable ?? []) {
+            if (!guarded.has(column)) continue;
+            issues.push({
+              code: 'SCOPE_CLAIM_COLUMN_WRITABLE',
+              message: `"${column}" proves who a person is, so "${r.ref}" may not write it`,
+              ref: r.ref,
+              column,
+            });
+          }
+          if (r.actions.includes('create')) {
+            issues.push({ code: 'SCOPE_CLAIM_TABLE_CREATE', message: `"${r.ref}" may not create rows where people prove who they are`, ref: r.ref });
+          }
+        }
+      }
+      if (doc.claim.verify !== undefined && (doc.claim.email === undefined || (columnsOf?.(target.table) ?? null)?.has(doc.claim.email) === false)) {
+        issues.push({
+          code: 'SCOPE_CLAIM_UNKNOWN_COLUMN',
+          message: `a code is emailed to the claimed row, so the claim names a column of ${target.table} holding the address`,
+          ...(doc.claim.email === undefined ? {} : { column: doc.claim.email }),
         });
       }
       const cols = columnsOf?.(target.table) ?? null;
@@ -788,6 +928,37 @@ export function compileScope(
           });
         }
       }
+    }
+  }
+
+  for (const r of doc.resources) {
+    // A session claimed through another identity must never open this one.
+    // Judged where there is an identity to compare with: an endpoint alone has none.
+    if (r.claim?.ref !== undefined && doc.claim !== undefined && r.claim.ref !== doc.claim.ref) {
+      issues.push({
+        code: 'SCOPE_CLAIM_REF_MISMATCH',
+        message: `ref "${r.ref}" is opened by a claim on "${r.claim.ref}", which is not this scope's identity`,
+        ref: r.ref,
+      });
+    }
+    // Only a create may go through without a session: a read or a change that
+    // did would reach every row.
+    if (r.claim?.optional === true && r.actions.some((action) => action !== 'create')) {
+      issues.push({ code: 'SCOPE_CLAIM_OPTIONAL_NOT_CREATE', message: `ref "${r.ref}" may go without a session only as a create`, ref: r.ref });
+    }
+    if (r.level === 'verified' && doc.claim !== undefined && doc.claim.verify === undefined) {
+      issues.push({
+        code: 'SCOPE_LEVEL_UNREACHABLE',
+        message: `ref "${r.ref}" needs a verified session, and this scope's claim sends no code to verify one`,
+        ref: r.ref,
+      });
+    }
+    // A proved create opened by a claim is only as proved as that claim: the claim must ask one too.
+    if (r.humanCheck === true && r.claim?.ref !== undefined && doc.claim !== undefined && doc.claim.humanCheck !== true) {
+      issues.push({ code: 'SCOPE_PROOF_CLAIM_MISSING', message: `ref "${r.ref}" asks a proof, and the claim that opens it does not`, ref: r.ref });
+    }
+    if ((r.onClaim !== undefined || r.maxOpen !== undefined) && r.claim === undefined) {
+      issues.push({ code: 'SCOPE_CLAIM_MISSING', message: `ref "${r.ref}" limits a signed-in create, and is opened by no claim`, ref: r.ref });
     }
   }
 
@@ -817,7 +988,21 @@ export function compileScope(
       orderable: new Set(r.orderable),
       writable: new Set(r.writable),
       defaults: { ...r.defaults },
-      mandatory: toRecordFilter(r.where),
+      where: {
+        fixed: toRecordFilter(r.where.filter((c) => !isRelativeOp(c.op))),
+        relative: r.where.flatMap((c): RelativeCondition[] =>
+          isRelativeOp(c.op) ? [{ column: c.column, op: c.op, ...(c.days === undefined ? {} : { days: c.days }) }] : [],
+        ),
+      },
+      writableValues: { ...(r.writableValues ?? {}) },
+      writableWhen: { ...(r.writableWhen ?? {}) },
+      level: r.level ?? 'lookup',
+      onClaim: r.onClaim === undefined ? null : { clear: [...r.onClaim.clear] },
+      maxOpen: r.maxOpen === undefined ? null : { ...r.maxOpen },
+      rank: r.rank === undefined ? null : { ...r.rank },
+      humanCheck: r.humanCheck === true,
+      anonymous: r.anonymous === undefined ? null : { ...r.anonymous },
+      requireSetting: (r.requireSetting ?? []).map((setting) => ({ ...setting })),
       claim: r.claim ?? null,
       sensitive: r.sensitive,
       limit: r.limit,
@@ -872,7 +1057,8 @@ export function publicConfigOf(scope: CompiledScope): {
   side: PublicSide;
   timezone: string;
   currency: string | null;
-  claim: { strategy: ClaimStrategy; ref: string; match: string[] } | null;
+  /** `verify` says a found session can be raised by an emailed code (the page offers the step). */
+  claim: { strategy: ClaimStrategy; ref: string; match: string[]; verify?: 'email-code' } | null;
   /**
    * A capability, not a rule about rows — the page needs to know whether it
    * may offer "email me a copy" at all, and hiding that would make it
@@ -889,7 +1075,12 @@ export function publicConfigOf(scope: CompiledScope): {
     timezone: scope.timezone,
     currency: scope.currency,
     claim: scope.claim
-      ? { strategy: scope.claim.strategy, ref: scope.claim.ref, match: [...scope.claim.match] }
+      ? {
+          strategy: scope.claim.strategy,
+          ref: scope.claim.ref,
+          match: [...scope.claim.match],
+          ...(scope.claim.verify === undefined ? {} : { verify: scope.claim.verify }),
+        }
       : null,
     documents: { create: scope.documents.create },
     refs,

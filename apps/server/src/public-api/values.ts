@@ -17,6 +17,8 @@
  */
 import type { Dialect } from '@adminium/engine';
 
+import { sameValue } from '../crud/write-values.js';
+
 import type { PublicSessionContext } from './claim.js';
 import { readGenerator, resolveDefaults } from './generate.js';
 import type { CompiledResource } from './scope.js';
@@ -52,6 +54,10 @@ export const prepareValues = (
 ): Record<string, unknown> | null => {
   for (const column of Object.keys(values)) {
     if (!resource.writable.has(column)) return null;
+    // A column the endpoint pins takes only its listed values: a cancellation
+    // is not a licence to mark a visit seen.
+    const allowed = resource.writableValues[column];
+    if (allowed !== undefined && !allowed.some((value) => sameValue(value, values[column]))) return null;
   }
   /*
    * `$generate` SENTINELS RESOLVE ON CREATE AND ARE DROPPED ON
@@ -91,6 +97,9 @@ export const prepareValues = (
    * proves.
    */
   if (session !== null && resource.claim?.column !== undefined) {
+    // A signed-in create is the claimed person's: what a stranger would have
+    // typed about themselves (a first visit's name, a to-check flag) is emptied.
+    for (const column of resource.onClaim?.clear ?? []) out[column] = null;
     out[resource.claim.column] = session.grant.value;
   }
   return out;

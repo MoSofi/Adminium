@@ -33,6 +33,7 @@ import { compileFilter, type RecordFilter } from '../crud/filters.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
 import type { CompiledResource, CompiledScope } from './scope.js';
+import { mandatoryAt } from './relative-filters.js';
 
 /** What a session is: one column pinned to one value, on one resource. */
 export interface ClaimGrant {
@@ -45,12 +46,16 @@ export interface ClaimGrant {
 }
 
 export const CLAIM_SESSION_TTL_MS = 30 * 60_000;
+/** A session found at a kiosk: one patient after another, so minutes, not half an hour. */
+export const KIOSK_SESSION_TTL_MS = 3 * 60_000;
 
 /** A resolved session, as the request path sees it. */
 export interface PublicSessionContext {
   id: string;
   keyId: string;
   grant: ClaimGrant;
+  /** `lookup` from matching a row's details; `verified` once an emailed code is confirmed. */
+  level: 'lookup' | 'verified';
 }
 
 export function parseGrant(json: string): ClaimGrant | null {
@@ -190,7 +195,7 @@ export async function resolveClaim(opts: {
    * be claimed, and the session then read it through the claim. ANDed here
    * exactly as the list path ANDs it (`crud/list.ts`).
    */
-  const mandatory = resource.mandatory;
+  const mandatory = mandatoryAt(resource.where, table, scope.timezone);
   if (mandatory !== null) {
     const ctx = { view: opts.view, table, canReadPii: true, dynamic: db.dynamic, dialect: opts.dialect };
     query = query.where((eb) => compileFilter(eb as never, ctx, mandatory));
@@ -227,7 +232,12 @@ export function claimPredicateFor(
   session: PublicSessionContext | null,
 ): { reachable: true; predicate: RecordFilter | null } | { reachable: false } {
   if (resource.claim === null) return { reachable: true, predicate: null };
-  if (session === null) return { reachable: false };
+  // A create that may go without a session goes without one; with one, the
+  // grant fills its claim column (`prepareValues`), and reaches nothing more.
+  if (session === null) return resource.claim.optional === true ? { reachable: true, predicate: null } : { reachable: false };
+  // A resource opened through ONE identity is not opened by a session claimed
+  // through another, whatever value that session carries.
+  if (resource.claim.ref !== undefined && session.grant.ref !== resource.claim.ref) return { reachable: false };
 
   if (resource.claim.column !== undefined) {
     /*

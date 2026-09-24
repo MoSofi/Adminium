@@ -56,6 +56,8 @@ import { scrubSecretFields } from './log-redaction.js';
 export const REDACT_PATHS: readonly string[] = [
   'req.headers.authorization',
   'req.headers.cookie',
+  // A found (or verified) patient's public session: a bearer credential like any other.
+  'req.headers["x-adminium-public-session"]',
   'ADMINIUM_SECRET',
   '*.ADMINIUM_SECRET',
   '*.password',

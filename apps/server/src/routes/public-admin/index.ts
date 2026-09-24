@@ -35,6 +35,7 @@ import {
   type PublicKey,
   type PublicScope,
   connectionTenantConfig,
+  keyStaffBinding,
 } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 import type { DsnCrypto } from '@adminium/meta';
@@ -148,6 +149,9 @@ function keyToDto(row: PublicKey, extras: KeyExtras = NO_EXTRAS): PublicKeyDto {
     issues: extras.issues.map((i) => ({ ...i })),
     side: row.side === 'staff' ? 'staff' : 'customer',
     appKey: row.appKey,
+    purpose: row.purpose,
+    // Stored but unreadable reads as bound to nobody, as the gate treats it.
+    requiresStaff: row.requiresStaff === null ? null : (keyStaffBinding(row) ?? { appKey: '', roleSlug: '' }),
     origins,
     expiresAt: row.expiresAt,
     revokedAt: row.revokedAt,

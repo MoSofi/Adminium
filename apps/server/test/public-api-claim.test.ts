@@ -119,6 +119,7 @@ const SESSION: PublicSessionContext = {
   id: 'pss_1',
   keyId: 'pbk_1',
   grant: { ref: 'orders', column: 'customer_id', value: 41 },
+  level: 'lookup',
 };
 
 describe('a claim-gated resource is UNREACHABLE without a session', () => {
@@ -175,7 +176,7 @@ describe('the scope predicate and the session predicate are BOTH mandatory', () 
     const claim = claimPredicateFor(r, SESSION);
     expect(claim.reachable).toBe(true);
     const combined = combinePredicates(
-      r.mandatory,
+      r.where.fixed,
       claim.reachable ? claim.predicate : null,
     );
     expect(combined).toEqual({

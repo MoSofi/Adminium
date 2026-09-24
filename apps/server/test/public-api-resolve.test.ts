@@ -76,6 +76,23 @@ describe('resolution succeeds for a live key', () => {
     expect(resolved?.scope.byRef.get('menu')?.expose).toEqual(['id', 'name']);
   });
 
+  it('reads a second key\u2019s purpose and bindings, and a stored binding it cannot read binds it to nobody', async () => {
+    const { token } = generatePublishableKey();
+    const bound = rows(token, { purpose: 'kiosk', managedBy: 'clinic', requiresStaff: '{"appKey":"clinic","roleSlug":"clinic-kiosk"}', enabledBy: '{"table":"main.settings","column":"kiosk_on"}' });
+    expect(await makeResolver(bound.key, bound.scope).resolve(token)).toMatchObject({
+      purpose: 'kiosk',
+      requiresStaff: { appKey: 'clinic', roleSlug: 'clinic-kiosk' },
+      enabledBy: { table: 'main.settings', column: 'kiosk_on' },
+    });
+    const broken = rows(token, { purpose: 'kiosk', managedBy: 'clinic', requiresStaff: '{not json', enabledBy: '[]' });
+    expect(await makeResolver(broken.key, broken.scope).resolve(token)).toMatchObject({
+      requiresStaff: { appKey: '', roleSlug: '' },
+      enabledBy: { table: '', column: '' },
+    });
+    const plain = rows(token);
+    expect(await makeResolver(plain.key, plain.scope).resolve(token)).toMatchObject({ purpose: 'customer', requiresStaff: null, enabledBy: null });
+  });
+
   it('caches, so a second resolve does not hit the store again', async () => {
     const { token } = generatePublishableKey();
     const { key, scope } = rows(token);

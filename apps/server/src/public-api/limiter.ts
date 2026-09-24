@@ -49,7 +49,8 @@
  * also counts on the key alone —
  *
  *     pubkey:<keyId>:read    600 a minute
- *     pubkey:<keyId>:write    60 a minute (claims count here: each is a guess)
+ *     pubkey:<keyId>:write    60 a minute
+ *     pubkey:<keyId>:claim    60 a minute (each claim is a guess at a person)
  *
  * — the write rung a tenth of the read one, since a busy page reads far more
  * than it writes. A server key is one backend, whose endpoint rate is already
@@ -71,7 +72,7 @@
  * resource with no `rate` — every scope that predates this feature — keeps the
  * class limits above exactly as they were.
  *
- * The flood guard still runs first and still caps one address at 300 a
+ * The flood guard still runs first and still caps one address at 400 a
  * minute, and the core `public` bucket caps it at 600 (`plugins/core.ts`):
  * an endpoint's "5,000 a minute" is reachable by a server key's fleet, never
  * by one address. A request's COST can exceed one — a batch spends its row
@@ -106,6 +107,20 @@ export const PUBLIC_LIMITS = {
    * Deliberately the tightest bucket in the product.
    */
   'public-claim': { max: 5, windowMs: 60_000 },
+  /**
+   * Asking for an emailed code, and typing it back. Only a found session gets
+   * this far, so it counts per session (a person typing a code), and never on
+   * the whole key: an anonymous flood of claims must not stop the patients
+   * who already found themselves from confirming. The code's own tries and
+   * the per-person caps are the guard against guessing.
+   */
+  'public-code': { max: 10, windowMs: 60_000 },
+  /**
+   * Claims through a staff-bound key (a kiosk): every patient in the waiting
+   * room shares one address, so they count per staff sign-in — the tablet —
+   * not per address, and a stolen staff cookie is still held to this.
+   */
+  'public-staff-claim': { max: 30, windowMs: 60_000 },
 } as const;
 
 export type PublicLimit = keyof typeof PUBLIC_LIMITS;
@@ -117,16 +132,24 @@ export type PublicLimit = keyof typeof PUBLIC_LIMITS;
  * make the server do — a random-token flood costs a `findByPrefix` round trip
  * per request — so it must sit above everything a legitimate address can spend
  * after resolution, or it would bind before the limits it guards: the anonymous
- * rung's three classes (120 + 20 + 5) plus one claimed session's (120 + 20) is
- * 285. And below the core `public` backstop (600, `plugins/core.ts`), which
+ * rung's four classes (120 + 20 + 5 + 10) plus one claimed session's (120 + 20 +
+ * 10) is 305, and a kiosk's claims (30) on the same address make 335 — 365
+ * counted the way the ladder test counts, every class twice. And below the
+ * core `public` backstop (600, `plugins/core.ts`), which
  * does not collapse IPv6 and so is no bound at all against a /64.
  */
-export const PUBLIC_FLOOD_GUARD = { max: 300, windowMs: 60_000 } as const;
+export const PUBLIC_FLOOD_GUARD = { max: 400, windowMs: 60_000 } as const;
 
 /** The whole-key rung for a browser key: every visitor together. */
 export const PUBLIC_KEY_LIMITS = {
   read: { max: 600, windowMs: 60_000 },
   write: { max: 60, windowMs: 60_000 },
+  /**
+   * Claims on their own rung: each is a guess at a person's details, bounded
+   * key-wide — and apart from writes, so a dozen addresses spending it cannot
+   * stop the bookings.
+   */
+  claim: { max: 60, windowMs: 60_000 },
 } as const;
 
 export type PublicKeySide = keyof typeof PUBLIC_KEY_LIMITS;
@@ -189,6 +212,8 @@ export interface RateIdentity {
    * `public-claim`.
    */
   sessionId?: string | undefined;
+  /** A staff-bound key's staff sign-in: the device every waiting patient shares. */
+  staffSessionId?: string | undefined;
 }
 
 export interface EndpointRateIdentity extends RateIdentity {
@@ -255,7 +280,8 @@ export function floodKeyFor(ip: string): string {
  * map — the same reason `plugins/core.ts` embeds it.
  */
 export function rateKeyFor(limit: PublicLimit, id: RateIdentity): string {
-  if (id.sessionId !== undefined && limit !== 'public-claim') return `${limit}|pubs:${id.sessionId}`;
+  if (id.sessionId !== undefined && limit !== 'public-claim' && limit !== 'public-staff-claim') return `${limit}|pubs:${id.sessionId}`;
+  if (id.staffSessionId !== undefined) return `${limit}|staff:${id.keyId}:${id.staffSessionId}`;
   return `${limit}|pub:${id.keyId}:ip:${rateAddress(id.ip)}`;
 }
 

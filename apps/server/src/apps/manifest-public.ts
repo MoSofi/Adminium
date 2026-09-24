@@ -7,8 +7,10 @@
  *
  * Each entry becomes an endpoint on the real table:
  *  - ref: the real table name (`pos_booking_rules`); an entry that proves a
- *    guest's own row (`claim`) is `<table>_claimed`, since one table may be
- *    read publicly AND claimed, and two endpoints cannot share a ref;
+ *    guest's own row (`claim`), or reads a person's own rows (`claimedBy`),
+ *    is `<table>_claimed` — `<table>_verified` when it asks for a verified
+ *    session — since one table may be read publicly AND claimed, and two
+ *    endpoints cannot share a ref;
  *  - `select` as asked, else every column the app declares for the table;
  *  - a claim becomes a `lookup` identity on the table's key: knowing the
  *    row's details (a booking code and a mobile) is what opens it;
@@ -23,7 +25,15 @@
  * a database with no time zone — before anything is written.
  */
 import type { Manifest } from '@adminium/manifest';
-import { connectionTenantConfig, settingsRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
+import {
+  CUSTOMER_KEY_PURPOSE,
+  connectionTenantConfig,
+  settingsRepo,
+  type DsnCrypto,
+  type KeyEnabledBy,
+  type KeyStaffBinding,
+  type MetaDb,
+} from '@adminium/meta';
 
 import { SELF_ORIGIN_SENTINEL } from '../config/env.js';
 import { isEmailConfigured } from '../email/send.js';
@@ -32,6 +42,7 @@ import { endpointIssues, type PublicEndpointDefinition, type PublicMethod } from
 import { EndpointSaveRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import { generatePublishableKey, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
+import { roleSlugFor } from './manifest-roles.js';
 
 type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['publicAccess']>[number];
 
@@ -48,6 +59,8 @@ export interface PlannedPublicEndpoint {
   kind: 'records' | 'availability';
   /** A guest's create here is confirmed by email. */
   confirms: boolean;
+  /** Which of the app's browser keys serves it: `customer`, or a name from `publicKeys`. */
+  key: string;
   /** Answered by a later release: listed, not made. None is, today. */
   pending: boolean;
   /** What stops the endpoint as defined (it cannot be made while any remain). */
@@ -70,6 +83,8 @@ function definitionOf(
   primaryKey: readonly string[],
   /** The real id of another of the app's tables (the confirmation's venue). */
   idOf: (ref: string) => string = (other) => other,
+  /** The ref of the identity endpoint a `claimedBy` entry is opened through. */
+  identityRef?: string,
 ): PublicEndpointDefinition {
   const declared = manifest.requiredSchema?.tables.find((table) => table.ref === entry.table);
   const key = primaryKey[0] ?? 'id';
@@ -89,19 +104,67 @@ function definitionOf(
     } as PublicEndpointDefinition;
   }
   const select = entry.select ?? (declared?.columns ?? []).map((column) => column.ref);
+  // Ordered by the key when it is shown, else by the first column shown: an
+  // order never reveals a column the endpoint does not.
+  const order = select.includes(key) || select.length === 0 ? key : (select[0] as string);
   return {
     path: `/${ref}`,
     source: tableId,
     methods: [...entry.methods],
     select,
-    filters: (entry.filters ?? []).map((filter) => ({ column: filter.column, op: filter.op, value: filter.value })),
-    pagination: { default_limit: 50, max_limit: 200, order: `${key}.asc` },
-    auth: { role: entry.claim === undefined ? 'anon' : 'authenticated' },
+    // Passed on whole: a relative filter (`today`) is worked out on every
+    // request, on the venue's clock.
+    filters: (entry.filters ?? []).map((filter) => ({ ...filter })),
+    pagination: { default_limit: 50, max_limit: 200, order: `${order}.asc` },
+    // Signed in to reach it — except a create a session is optional on.
+    auth: { role: entry.claim !== undefined || (entry.claimedBy !== undefined && entry.claimedBy.optional !== true) ? 'authenticated' : 'anon' },
     rate_limit: { requests: 60, window: '1m' },
     response: { shape: 'object', envelope: 'data' },
     ...(entry.writable === undefined ? {} : { writable: [...entry.writable] }),
+    ...(entry.writableValues === undefined ? {} : { writable_values: { ...entry.writableValues } }),
+    ...(entry.writableWhen === undefined ? {} : { writable_when: { ...entry.writableWhen } }),
     ...(entry.defaults === undefined ? {} : { defaults: { ...entry.defaults } }),
-    ...(entry.claim === undefined ? {} : { identity: { strategy: 'lookup', match: [...entry.claim.match], column: key } }),
+    ...(entry.claim === undefined
+      ? {}
+      : {
+          identity: {
+            strategy: 'lookup',
+            match: [...entry.claim.match],
+            column: key,
+            ...(entry.claim.verify === undefined ? {} : { verify: entry.claim.verify, email: entry.claim.email }),
+          },
+        }),
+    // A person's own rows: opened by the value the identity's session carries.
+    ...(entry.claimedBy === undefined
+      ? {}
+      : {
+          claim: {
+            column: entry.claimedBy.column,
+            ...(identityRef === undefined ? {} : { ref: identityRef }),
+            ...(entry.claimedBy.optional === true ? { optional: true } : {}),
+          },
+        }),
+    ...(entry.level === undefined ? {} : { level: entry.level }),
+    // A proof of work: before a session-less create here, or (on an identity) before every claim.
+    ...(entry.humanCheck === true ? { human_check: true } : {}),
+    ...(entry.sensitive === undefined ? {} : { sensitive: entry.sensitive }),
+    ...(entry.onClaim === undefined ? {} : { on_claim: { clear: [...entry.onClaim.clear] } }),
+    ...(entry.maxOpen === undefined ? {} : { max_open: { ...entry.maxOpen } }),
+    ...(entry.requireSetting === undefined
+      ? {}
+      : { require_setting: entry.requireSetting.map((setting) => ({ ...setting, table: idOf(setting.table) })) }),
+    ...(entry.anonymous === undefined
+      ? {}
+      : {
+          anonymous: {
+            ...(entry.anonymous.perValue === undefined ? {} : { per_value: { columns: [...entry.anonymous.perValue.columns], n: entry.anonymous.perValue.n } }),
+            ...(entry.anonymous.perKeyHour === undefined ? {} : { per_key_hour: entry.anonymous.perKeyHour }),
+            ...(entry.anonymous.plainText === undefined ? {} : { plain_text: [...entry.anonymous.plainText] }),
+          },
+        }),
+    ...(entry.rank === undefined
+      ? {}
+      : { rank: { order_by: entry.rank.orderBy, ...(entry.rank.where === undefined ? {} : { where: { ...entry.rank.where } }) } }),
     ...(entry.confirm === undefined
       ? {}
       : {
@@ -125,13 +188,33 @@ export function planPublicEndpoints(
   opts: { tablesMadeLater?: boolean } = {},
 ): PlannedPublicEndpoint[] {
   if (manifest.kind !== 'app') return [];
+  const entries = manifest.publicAccess ?? [];
+  // Refs first: a person's own rows are opened through their key's identity, by its ref.
   const taken = new Set<string>();
-  return (manifest.publicAccess ?? []).map((entry) => {
+  const refs = entries.map((entry) => {
     const real = names[entry.table] ?? entry.table;
-    const base = entry.kind === 'availability' ? `${real}_availability` : entry.claim === undefined ? real : `${real}_claimed`;
+    const base =
+      entry.kind === 'availability'
+        ? `${real}_availability`
+        : entry.claim !== undefined || (entry.claimedBy !== undefined && entry.level !== 'verified')
+          ? `${real}_claimed`
+          : entry.claimedBy !== undefined
+            ? `${real}_verified`
+            : real;
     let ref = base;
     for (let n = 2; taken.has(ref); n += 1) ref = `${base}_${String(n)}`;
     taken.add(ref);
+    return ref;
+  });
+  const identityRefOf = (entry: PublicAccessEntry): string | undefined => {
+    const by = entry.claimedBy;
+    if (by === undefined) return undefined;
+    const at = entries.findIndex((other) => other.claim !== undefined && other.table === by.table && (other.key ?? 'customer') === (entry.key ?? 'customer'));
+    return at === -1 ? undefined : refs[at];
+  };
+  return entries.map((entry, index) => {
+    const real = names[entry.table] ?? entry.table;
+    const ref = refs[index] as string;
     const pending = false;
     const planned: PlannedPublicEndpoint = {
       ref,
@@ -142,13 +225,14 @@ export function planPublicEndpoints(
       claim: entry.claim === undefined ? null : [...entry.claim.match],
       kind: entry.kind === 'availability' ? 'availability' : 'records',
       confirms: entry.confirm !== undefined,
+      key: entry.key ?? CUSTOMER_KEY_PURPOSE,
       pending,
       issues: [],
       definition: null,
     };
     if (pending) return planned;
     // What the app's own key may hold is known from the entry alone.
-    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id']), entry.methods, new Set()).map(
+    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry)), entry.methods, new Set()).map(
       (issue) => issue.message,
     );
     if (view === null) return { ...planned, issues: safety };
@@ -159,7 +243,7 @@ export function planPublicEndpoints(
         : { ...planned, issues: [`"${real}" is not a table of this connection`, ...safety] };
     }
     const idOf = (short: string) => view.model.tables.find((t) => t.name === (names[short] ?? short))?.id ?? short;
-    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf);
+    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry));
     const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety];
     return { ...planned, select: definition.select, issues, definition };
   });
@@ -194,10 +278,15 @@ export async function publicAccessWarnings(
 }
 
 /**
- * Save the app's endpoints and make its one browser key — after its tables
- * exist and are introspected. Endpoints first: the key is made from them.
- * An endpoint the app already made is saved again (an update may change it);
- * a key is made only when the app has none live.
+ * Save the app's endpoints and make its browser keys — after its tables
+ * exist and are introspected. Endpoints first: a key is made from them.
+ * An endpoint the app already made is saved again (an update may change it).
+ *
+ * One key per purpose: `customer` for the public side, and one for each of
+ * the manifest's `publicKeys` (a kiosk), made only when the app has none of
+ * that purpose live. A second key is bound to a signed-in staff member
+ * holding the role it names, and switched by its settings column — so its
+ * token, served only to that staff member's screen, opens nothing alone.
  */
 export async function installPublicAccess(input: {
   service: EndpointService;
@@ -209,8 +298,11 @@ export async function installPublicAccess(input: {
   view: SnapshotView;
   appName: string;
   actorId: string | null;
-  hasLiveKey: boolean;
-}): Promise<{ endpoints: string[]; keyId: string | null; skipped: { ref: string; reason: string }[] }> {
+  /** The purposes the app already has a live key for. */
+  livePurposes: ReadonlySet<string>;
+  /** Purposes whose key the operator revoked: an update does not make them again. */
+  withheld?: ReadonlySet<string> | undefined;
+}): Promise<{ endpoints: string[]; keyId: string | null; keys: Record<string, string>; skipped: { ref: string; reason: string }[] }> {
   const planned = planPublicEndpoints(input.manifest, input.names, input.view).filter((entry) => !entry.pending);
   const refused = planned.filter((entry) => entry.issues.length > 0 || entry.definition === null);
   if (refused.length > 0) {
@@ -232,22 +324,61 @@ export async function installPublicAccess(input: {
     } catch (error) {
       // An update may not widen the key the operator allowed at install:
       // the endpoint stays as it was, and the reply says why.
-      if (!input.hasLiveKey || !(error instanceof EndpointSaveRefused)) throw error;
+      if (!input.livePurposes.has(entry.key) || !(error instanceof EndpointSaveRefused)) throw error;
       skipped.push({ ref: entry.ref, reason: error.issues.map((issue) => issue.message).join('; ') });
     }
   }
-  if (planned.length === 0 || input.hasLiveKey) return { endpoints: saved, keyId: null, skipped };
-  const generated = generatePublishableKey('browser');
-  const { key } = await input.service.createKey({
-    connectionId: input.connectionId,
-    name: `${input.appName} · guests`,
-    access: planned.map((entry) => ({ ref: entry.ref, methods: entry.methods })),
-    secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(input.crypto, generated.token) },
-    appKey: input.manifest.key,
-    origins: [],
-    kind: 'browser',
-    actorId: input.actorId,
-    managedBy: input.manifest.key,
-  });
-  return { endpoints: saved, keyId: key.id, skipped };
+  const keys: Record<string, string> = {};
+  const manifest = input.manifest;
+  const purposes = [...new Set(planned.map((entry) => entry.key))];
+  for (const purpose of purposes) {
+    if (input.livePurposes.has(purpose)) continue;
+    // An update never makes again a key the operator took back.
+    if (input.withheld?.has(purpose) === true) continue;
+    const binding = staffBindingOf(manifest, purpose, input);
+    // A second key the manifest does not declare (the check refuses that) is never made unbound.
+    if (purpose !== CUSTOMER_KEY_PURPOSE && binding === null) continue;
+    const generated = generatePublishableKey('browser');
+    const { key } = await input.service.createKey({
+      connectionId: input.connectionId,
+      name: purpose === CUSTOMER_KEY_PURPOSE ? `${input.appName} · guests` : `${input.appName} · ${purpose}`,
+      access: planned.filter((entry) => entry.key === purpose).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
+      secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(input.crypto, generated.token) },
+      appKey: manifest.key,
+      origins: [],
+      kind: 'browser',
+      actorId: input.actorId,
+      managedBy: manifest.key,
+      purpose,
+      ...(binding === null ? {} : binding),
+    });
+    keys[purpose] = key.id;
+  }
+  return { endpoints: saved, keyId: keys[CUSTOMER_KEY_PURPOSE] ?? null, keys, skipped };
+}
+
+/**
+ * What a second key (a kiosk's) is bound to, as the manifest declares it: the
+ * app's own role a signed-in staff member must hold, and the settings column
+ * that switches it. Null for the public side's key, or a purpose the
+ * manifest does not declare.
+ */
+export function staffBindingOf(
+  manifest: Manifest,
+  purpose: string,
+  input: { names: Readonly<Record<string, string>>; view: SnapshotView },
+): { requiresStaff: KeyStaffBinding; enabledBy: KeyEnabledBy | null } | null {
+  if (purpose === CUSTOMER_KEY_PURPOSE || manifest.kind !== 'app') return null;
+  const declared = manifest.publicKeys?.[purpose];
+  if (declared === undefined) return null;
+  return {
+    requiresStaff: { appKey: manifest.key, roleSlug: roleSlugFor(manifest.key, declared.requiresStaff.role) },
+    enabledBy: declared.enabledBy === undefined ? null : { table: idOfTable(input, declared.enabledBy.table), column: declared.enabledBy.column },
+  };
+}
+
+/** A manifest table's id in the snapshot, by its real name. */
+function idOfTable(input: { names: Readonly<Record<string, string>>; view: SnapshotView }, short: string): string {
+  const real = input.names[short] ?? short;
+  return input.view.model.tables.find((table) => table.name === real)?.id ?? real;
 }

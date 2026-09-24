@@ -37,17 +37,44 @@ export const publicListQuery = z.object({
 });
 export type PublicListQuery = z.infer<typeof publicListQuery>;
 
-/** A day on the venue's calendar and the party asking. */
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/**
+ * What an availability read asks, in one of two forms, told apart by the
+ * table's rule:
+ *
+ *  - a CAPACITY table (a restaurant): `date` and the `party` asking;
+ *  - a BOOKING table (a clinic): the `kind` of visit, the `resource` — one
+ *    person's key, or `any` — and either one `date` (every time of that day)
+ *    or `from` + `days` (a strip of days, up to 31). `exclude` names a row the
+ *    asker's own session reaches, so moving their visit is not blocked by it.
+ *
+ * One object rather than a union, because a querystring schema is one object;
+ * the route refuses a mixture.
+ */
 export const publicAvailabilityQuery = z
   .object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    party: z.coerce.number().int().min(1).max(1000),
+    date: day.optional(),
+    party: z.coerce.number().int().min(1).max(1000).optional(),
+    kind: z.string().min(1).max(200).optional(),
+    resource: z.string().min(1).max(200).optional(),
+    from: day.optional(),
+    days: z.coerce.number().int().min(1).max(31).optional(),
+    exclude: z.string().min(1).max(400).optional(),
   })
   .strict();
+export type PublicAvailabilityQuery = z.infer<typeof publicAvailabilityQuery>;
 
-/** Each slot of the day, free or full, and nothing more. */
+/**
+ * Each time of the day, free or full — or, for a strip of days, how many
+ * times each day has free and whether it is open, full or closed. Nothing
+ * more: no row, no name, no count per person.
+ */
 export const publicAvailabilityReply = z.object({
-  data: z.array(z.object({ time: z.string(), state: z.enum(['free', 'full']) })),
+  data: z.union([
+    z.array(z.object({ time: z.string(), state: z.enum(['free', 'full']) })),
+    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']) })),
+  ]),
 });
 
 export const publicRefParams = z.object({
@@ -73,6 +100,8 @@ export const publicConfigReply = z.object({
         strategy: z.enum(['lookup', 'email-code', 'external']),
         ref: z.string(),
         match: z.array(z.string()),
+        /** A found session can be raised to `verified` by a code emailed to the person. */
+        verify: z.literal('email-code').optional(),
       })
       .nullable(),
     /**
@@ -127,6 +156,11 @@ export const publicListShapes = z.union([
 
 export const publicRecordReply = z.object({
   data: z.record(z.string(), z.unknown()),
+  /**
+   * A create on an endpoint that ranks: how many matching rows are ordered at
+   * or before the new one ("you are 3rd on the list"). No other row is told.
+   */
+  rank: z.number().int().optional(),
 });
 
 /**
@@ -176,6 +210,53 @@ export const publicClaimReply = z.object({
   }),
 });
 
+/**
+ * `POST /public/claim/code`: a code to the claimed person's address (`verify`)
+ * or to a new one (`email-change`, from a verified session).
+ */
+export const publicCodeBody = z.discriminatedUnion('purpose', [
+  z.object({ purpose: z.literal('verify') }).strict(),
+  z.object({ purpose: z.literal('email-change'), email: z.string().min(3).max(254) }).strict(),
+]);
+
+export const publicCodeReply = z.object({
+  data: z.object({
+    /** The address, masked: `l•••@e•••.com`, the whole domain only for the big mail providers. */
+    sentTo: z.string(),
+    /** Seconds before another code may be asked for. */
+    resendAfter: z.number().int(),
+    expiresAt: z.number().int(),
+  }),
+});
+
+/** `GET /public/challenge`: a proof of work for a write or a claim. */
+export const publicChallengeQuery = z.object({ purpose: z.enum(['write', 'claim']) }).strict();
+
+export const publicChallengeReply = z.object({
+  data: z.object({
+    /** Sent back as `x-adminium-proof: <id>.<nonce>`. */
+    id: z.string(),
+    salt: z.string(),
+    /** Leading zero bits `sha256(salt + nonce)` must start with. */
+    difficulty: z.number().int(),
+    expiresAt: z.number().int(),
+  }),
+});
+
+/** `POST /public/claim/verify`: the code typed back. */
+export const publicVerifyBody = z
+  .object({ purpose: z.enum(['verify', 'email-change']).default('verify'), code: z.string().min(1).max(12) })
+  .strict();
+
+export const publicVerifyReply = z.object({
+  data: z.object({
+    level: z.enum(['lookup', 'verified']),
+    expiresAt: z.number().int(),
+    /** An address change: the new address, masked. */
+    email: z.string().optional(),
+  }),
+});
+
 /** Every code this surface can emit. Exported so the client can mirror it. */
 export const PUBLIC_ERROR_CODES = [
   'PUBLIC_API_DISABLED',
@@ -202,6 +283,46 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_SLOT_BUSY',
   /** A guest cancelling closer to the time than the venue allows online (409). */
   'PUBLIC_TOO_LATE',
+  /**
+   * The resource needs a VERIFIED session and this one only found the person
+   * (403): confirm the emailed code first. Said only to a session the resource
+   * would otherwise take.
+   */
+  'PUBLIC_CLAIM_LEVEL',
+  /** A signed-in person already holds as many open rows here as the endpoint allows (409). */
+  'PUBLIC_LIMIT_REACHED',
+  /** The app has switched this off in its settings (online booking, new patients online) (403). */
+  'PUBLIC_SWITCHED_OFF',
+  /**
+   * A staff-bound key (a kiosk's) used without its staff member signed in on
+   * this screen, from this page, holding the key's role (403). One code for
+   * every reason.
+   */
+  'PUBLIC_STAFF_REQUIRED',
+  /** A key the app switched off in its settings row (the kiosk switch) (503). */
+  'PUBLIC_KEY_OFF',
+  /** The claimed person has no address a code could go to (409): ring the desk. */
+  'PUBLIC_CLAIM_NO_EMAIL',
+  /** Too many wrong codes for this person today (403): the desk can lift it. */
+  'PUBLIC_CLAIM_LOCKED',
+  /** Another code was sent a moment ago (429, `retryAfter` seconds). */
+  'PUBLIC_CODE_TOO_SOON',
+  /** This session has asked for as many codes as it may (429). */
+  'PUBLIC_CODE_LIMIT',
+  /** The last code died of wrong tries; this session waits (429, `retryAfter`). */
+  'PUBLIC_CODE_LOCKED',
+  /** That code is not right (403, `triesLeft`). */
+  'PUBLIC_CODE_WRONG',
+  /** No code is open for this session: expired, used or replaced (410). */
+  'PUBLIC_CODE_EXPIRED',
+  /** No code can be sent from this server right now (503). */
+  'PUBLIC_CODE_UNAVAILABLE',
+  /** Changing the address needs a code confirmed in the last few minutes (403). */
+  'PUBLIC_CODE_STEP_UP',
+  /** The address was changed today already (429). */
+  'PUBLIC_EMAIL_CHANGE_LIMIT',
+  /** A proof of work is missing, wrong, expired or already used (403): ask for a challenge. */
+  'PUBLIC_PROOF_REQUIRED',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
   /**
    * The app that made this key at install is switched off (503), or its

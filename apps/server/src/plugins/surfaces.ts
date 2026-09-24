@@ -53,11 +53,14 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { BUILTIN_LOCALE_IDS, type LocaleId } from '@adminium/i18n';
 import { createServerI18n } from '@adminium/i18n/server';
 import {
+  CUSTOMER_KEY_PURPOSE,
   addOnSettingsRepo,
   appTablesRepo,
   connectionTenantConfig,
+  keyStaffBinding,
   publicKeysRepo,
   readJson,
+  rolesRepo,
   sessionsRepo,
   settingsRepo,
   type DsnCrypto,
@@ -638,9 +641,11 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
          */
         const bound = connectionId ?? fallback;
         const venue = bound === null || opts.metaDb === undefined ? null : await connectionTenantConfig(opts.metaDb, bound);
+        const staffKeys = user === null || bound === null ? {} : await staffKeysFor(appKey, bound, user.id);
         return {
           connectionId: bound,
           appName,
+          ...(Object.keys(staffKeys).length === 0 ? {} : { publicKeys: staffKeys }),
           ...(tables === null ? {} : { tables }),
           ...(values === null ? {} : { settings: values }),
           ...(venue === null
@@ -678,6 +683,32 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
       };
+    }
+
+    /**
+     * The app's staff-bound keys (a kiosk's) this person may use, by purpose:
+     * only the ones bound to an app role they hold, of this app, on this
+     * database. The key opens nothing without that same person's sign-in
+     * alongside it (the public gate checks), so the token here is a handle,
+     * not a credential on its own.
+     */
+    async function staffKeysFor(appKey: string, connectionId: string, userId: string): Promise<Record<string, string>> {
+      const metaDb = opts.metaDb;
+      const crypto = opts.crypto;
+      if (metaDb === undefined || crypto === undefined) return {};
+      const roles = await rolesRepo(metaDb).rolesForUser(userId);
+      const held = new Set(roles.filter((role) => role.appKey === appKey).map((role) => role.slug));
+      if (held.size === 0) return {};
+      const keys = publicKeysRepo(metaDb);
+      const out: Record<string, string> = {};
+      for (const purpose of await keys.purposesByApp(appKey)) {
+        if (purpose === CUSTOMER_KEY_PURPOSE) continue;
+        const key = await keys.newestLiveByAppAndConnection(appKey, 'customer', connectionId, Date.now(), purpose);
+        const binding = key === null ? null : keyStaffBinding(key);
+        if (key === null || key.managedBy !== appKey || binding === null || binding.appKey !== appKey || !held.has(binding.roleSlug)) continue;
+        out[purpose] = openPublishableKey(crypto, key.tokenEncrypted);
+      }
+      return out;
     }
 
     /**

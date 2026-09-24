@@ -50,6 +50,8 @@ export function allowedForScreensOnly(method: string, url: string, connections: 
   if (!path.startsWith(`${API}/`)) return true;
   const rest = path.slice(API.length);
   if (/^\/(auth|data|i18n)(\/|$)/.test(rest)) return true;
+  // The public API has its own gate, and a kiosk's staff-bound key rides it.
+  if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;
   if (rest === '/events') return true;
   const schema = /^\/connections\/([^/]+)\/schema$/.exec(rest);

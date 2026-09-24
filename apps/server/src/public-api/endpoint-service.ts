@@ -38,6 +38,8 @@ import {
   publicEndpointsRepo,
   publicKeysRepo,
   publicScopesRepo,
+  type KeyEnabledBy,
+  type KeyStaffBinding,
   type MetaDb,
   type PublicEndpoint,
   type PublicKey,
@@ -245,6 +247,12 @@ export interface CreateKeyInput {
   kind?: PublicKeyKind;
   /** The installed app that made the key, which alone may take it back. */
   managedBy?: string | null;
+  /** Which of the app's browser keys (default `customer`). */
+  purpose?: string;
+  /** Bound to a signed-in staff member holding this app role. */
+  requiresStaff?: KeyStaffBinding | null;
+  /** Switched off by a yes/no in the app's settings row. */
+  enabledBy?: KeyEnabledBy | null;
 }
 
 export function createEndpointService(deps: EndpointServiceDeps) {
@@ -276,14 +284,19 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     return out;
   }
 
-  /** The columns of `source` Adminium decides (copied, coded, numbered, totalled). */
+  /** The columns of `source` Adminium decides (copied, coded, numbered, totalled, stamped, a balance, a late flag). */
   async function decidedColumns(connectionId: string, source: string): Promise<Set<string>> {
-    const rows = await overridesRepo(meta).listForConnection(connectionId);
-    return new Set(
-      rows
-        .filter((o) => o.status === 'active' && o.tableName === source && DECIDED_COLUMN_OPS.includes(o.op))
-        .flatMap((o) => (o.columnName === null ? [] : [o.columnName])),
-    );
+    const rows = (await overridesRepo(meta).listForConnection(connectionId)).filter((o) => o.status === 'active' && o.tableName === source);
+    const flag = rows.find((o) => o.op === 'table.booking')?.value['cancel'] as { flag?: unknown } | undefined;
+    const balances = rows.flatMap((o) => {
+      const balance = o.op === 'column.rollup' ? (o.value['balance'] as { column?: unknown } | undefined) : undefined;
+      return typeof balance?.column === 'string' ? [balance.column] : [];
+    });
+    return new Set([
+      ...rows.filter((o) => DECIDED_COLUMN_OPS.includes(o.op)).flatMap((o) => (o.columnName === null ? [] : [o.columnName])),
+      ...(typeof flag?.flag === 'string' ? [flag.flag] : []),
+      ...balances,
+    ]);
   }
 
   /** Everything a save would do, computed without writing anything. */
@@ -613,6 +626,9 @@ export function createEndpointService(deps: EndpointServiceDeps) {
             ...(input.appKey === undefined || input.appKey === null ? {} : { appKey: input.appKey }),
             ...(input.origins === undefined ? {} : { origins: input.origins }),
             ...(input.managedBy === undefined || input.managedBy === null ? {} : { managedBy: input.managedBy }),
+            ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
+            ...(input.requiresStaff === undefined || input.requiresStaff === null ? {} : { requiresStaff: input.requiresStaff }),
+            ...(input.enabledBy === undefined || input.enabledBy === null ? {} : { enabledBy: input.enabledBy }),
             createdBy: input.actorId ?? null,
             expiresAt: input.expiresAt ?? null,
           },

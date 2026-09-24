@@ -27,19 +27,27 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import type { DocumentRow, MetaDb, RecordRef } from '@adminium/meta';
 import {
+  CUSTOMER_KEY_PURPOSE,
   documentProfilesRepo,
   filesRepo,
   documentsRepo,
   auditRepo,
   publicKeysRepo,
+  publicChallengesRepo,
+  publicProofsRepo,
   publicSessionsRepo,
+  rolesRepo,
+  settingsRepo,
 } from '@adminium/meta';
 
 import { SELF_ORIGIN_SENTINEL, type Env } from '../../config/env.js';
 import { AppError, ConnectionDisabledError } from '../../errors.js';
-import { isSameOriginRequest } from '../../security/csrf.js';
+import { csrfHeaderMatches, csrfSigningKey, isSameOriginRequest } from '../../security/csrf.js';
 import { availabilityOf } from '../../surfaces/settings.js';
-import type { ConnectionManager } from '../../connections/manager.js';
+import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
+import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import type { Dialect } from '@adminium/engine';
+import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
@@ -50,10 +58,12 @@ import {
   type PublicViews,
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
+import { afterNow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import {
   CLAIM_SESSION_TTL_MS,
+  KIOSK_SESSION_TTL_MS,
   claimPredicateFor,
   combinePredicates,
   parseGrant,
@@ -66,12 +76,46 @@ import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { maskRows, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability } from '../../crud/capacity-guard.js';
+import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { sendConfirmation } from '../../public-api/confirm.js';
+import {
+  CODE_LOCK_MS,
+  CODE_RESEND_MS,
+  CODE_TRIES,
+  CODE_TTL_MS,
+  CODES_PER_SESSION,
+  DAY_MS,
+  EMAIL_CHANGES_DAY,
+  PERSON_CODES_15M,
+  PERSON_CODES_DAY,
+  PERSON_FAILURES_DAY,
+  STEP_UP_MS,
+  VERIFIED_TTL_MS,
+  addressKey,
+  codeBinding,
+  codeKey,
+  hashAddress,
+  hashCode,
+  maskAddress,
+  newCode,
+  plausibleAddress,
+  subjectOf,
+  tryCode,
+} from '../../public-api/claim-code.js';
+import { capKey, chargeAnonymous, notPlain } from '../../public-api/anonymous-caps.js';
+import { appSignature } from '../../outbox/sender.js';
+import { createSwitches } from '../../public-api/switches.js';
+import { dsnCryptoFromSecret } from '../../connections/crypto.js';
+import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
+import { EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
+import { recipientLocale } from '../../i18n/server-i18n.js';
+import { negotiateLocale } from '../../plugins/surfaces.js';
 import { publicConfirmSchema } from '../../public-api/endpoint.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
   GuardedBatchError,
   HookRejectedError,
+  bindValue,
   createWriteService,
   insertRow,
   updateRows,
@@ -89,6 +133,12 @@ import {
   PUBLIC_ERROR_CODES,
   publicClaimBody,
   publicClaimReply,
+  publicChallengeQuery,
+  publicChallengeReply,
+  publicCodeBody,
+  publicCodeReply,
+  publicVerifyBody,
+  publicVerifyReply,
   publicConfigReply,
   publicErrorReply,
   publicAvailabilityQuery,
@@ -147,8 +197,16 @@ export interface PublicRoutesDeps {
   stats?: RequestStats | undefined;
 }
 
-/** A failed statement on this surface; answered without naming the constraint. */
-class PublicWriteRefused extends Error {}
+/**
+ * A failed statement on this surface; answered without naming the
+ * constraint. A booking refusal names its column and why (`closed`,
+ * `out-of-hours`, …) — nothing the day's availability does not already say.
+ */
+class PublicWriteRefused extends Error {
+  constructor(readonly params?: { column: string; reason: string }) {
+    super('That write was refused.');
+  }
+}
 
 /**
  * The one refusal a guest is told apart: the time they picked has no room
@@ -167,16 +225,83 @@ class PublicSlotRefused extends Error {
   }
 }
 
+/**
+ * The state a row must be in for an update to touch it (`writable_when`), as
+ * conditions for the UPDATE's own WHERE — never a read's — or null.
+ */
+function updatableState(resource: CompiledResource, table: ResolvedTable): RecordFilter | null {
+  const conditions: RecordFilter[] = Object.entries(resource.writableWhen).map(([column, when]) =>
+    when === 'from-now' ? afterNow(table, column) : { column, op: 'in', value: [...when] },
+  );
+  return conditions.length === 0 ? null : conditions.length === 1 ? (conditions[0] as RecordFilter) : { and: conditions };
+}
+
+/**
+ * Whether a proved create's writer is excused the proof: a session claimed
+ * through the resource's own identity, on a resource that caps what one
+ * person may hold. Any other session — or none — still proves.
+ */
+function proofExcused(resource: CompiledResource, session: PublicSessionContext | null): boolean {
+  return session !== null && resource.claim?.ref !== undefined && session.grant.ref === resource.claim.ref && resource.maxOpen !== null;
+}
+
+/**
+ * The proof a request owes, or null: a create on a resource that asks one
+ * (unless excused), a claim through an identity that asks one. A server key
+ * is one backend, never asked; nor is anything else.
+ */
+function proofOwed(
+  key: ResolvedKey,
+  session: PublicSessionContext | null,
+  kind: 'create' | 'claim' | undefined,
+  ref: unknown,
+): ProofPurpose | null {
+  // A staff-bound key is a signed-in staff member's screen: no proof asked.
+  if (kind === undefined || key.kind !== 'browser' || key.requiresStaff !== null) return null;
+  if (kind === 'claim') return key.scope.claim?.humanCheck === true ? 'claim' : null;
+  const resource = typeof ref === 'string' ? key.scope.byRef.get(ref) : undefined;
+  return resource?.humanCheck === true && !proofExcused(resource, session) ? 'write' : null;
+}
+
+/**
+ * Whether a read may show PII-masked columns: only a person's own rows (a
+ * claim-gated resource), only at the `verified` level — they proved the
+ * mailbox — and only to a verified session. Every other public read keeps
+ * the mask.
+ */
+function readsOwnPii(resource: CompiledResource, session: PublicSessionContext | null): boolean {
+  return resource.claim !== null && resource.claim.optional !== true && resource.level === 'verified' && session?.level === 'verified';
+}
+
 /** The booking guard's refusals a guest is told, by the code they are told. */
 const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
   CAPACITY_FULL: 'PUBLIC_SLOT_FULL',
   CAPACITY_BUSY: 'PUBLIC_SLOT_BUSY',
   CAPACITY_TOO_LATE: 'PUBLIC_TOO_LATE',
+  // Booking people: the time went while the guest was typing (the page offers the nearest).
+  BOOKING_TAKEN: 'PUBLIC_SLOT_FULL',
+  BOOKING_BUSY: 'PUBLIC_SLOT_BUSY',
+  BOOKING_TOO_LATE: 'PUBLIC_TOO_LATE',
+};
+
+/** The booking refusals a guest is told as a refused write, by why. */
+const BOOKING_REASONS: Readonly<Record<string, string>> = {
+  BOOKING_CLOSED: 'closed',
+  BOOKING_OUT_OF_HOURS: 'out-of-hours',
+  BOOKING_OUT_OF_RANGE: 'out-of-range',
+  BOOKING_NOT_OFFERED: 'not-offered',
 };
 
 const refuseWrite = (error?: unknown): never => {
   const told = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (told !== undefined) throw new PublicSlotRefused(told);
+  if (error instanceof AppError) {
+    const details = (error.details ?? {}) as { reason?: unknown; column?: unknown; fields?: Record<string, unknown> };
+    const code = error.code === 'BOOKING_CLOSED' ? 'BOOKING_CLOSED' : typeof details.reason === 'string' ? details.reason : '';
+    const reason = BOOKING_REASONS[code];
+    const column = typeof details.column === 'string' ? details.column : Object.keys(details.fields ?? {})[0];
+    if (reason !== undefined && column !== undefined) throw new PublicWriteRefused({ column, reason });
+  }
   throw new PublicWriteRefused();
 };
 
@@ -251,6 +376,41 @@ function collectFilterColumns(filter: unknown, out: string[] = []): string[] {
   return out;
 }
 
+/** `days` after a `YYYY-MM-DD` day. */
+function addCalendarDays(day: string, days: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * The key of a row the session reaches in `table`, when `id` names one — the
+ * asker's own visit — or null. Looked up through each claimed resource on the
+ * same table, with that resource's claim predicate, so an id outside the
+ * session answers the same as one that does not exist.
+ */
+async function claimedRowKey(
+  ok: { key: ResolvedKey; session: PublicSessionContext | null },
+  db: Kysely<SourceDatabase>,
+  table: ResolvedTable,
+  id: string,
+): Promise<string | null> {
+  const [keyColumn, ...rest] = table.primaryKey;
+  if (keyColumn === undefined || rest.length > 0 || ok.session === null) return null;
+  for (const resource of ok.key.scope.byRef.values()) {
+    if (resource.table !== table.id || resource.claim === null) continue;
+    const claim = claimPredicateFor(resource, ok.session);
+    if (!claim.reachable || claim.predicate === null || !('column' in claim.predicate)) continue;
+    const predicate = claim.predicate as { column: string; value: unknown };
+    const row = await db
+      .selectFrom(table.id)
+      .select(sql<unknown>`${sql.ref(keyColumn)}`.as('key'))
+      .where((eb) => eb(db.dynamic.ref(keyColumn), '=', id as never))
+      .where((eb) => eb(db.dynamic.ref(predicate.column), '=', predicate.value as never))
+      .executeTakeFirst();
+    if (row !== undefined) return String((row as { key: unknown }).key);
+  }
+  return null;
+}
+
 function fail(
   reply: FastifyReply,
   status: number,
@@ -277,6 +437,47 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const sameOriginAllowed = configured.includes(SELF_ORIGIN_SENTINEL);
   const keys = publicKeysRepo(meta);
   const sessions = publicSessionsRepo(meta);
+  const challenges = publicChallengesRepo(meta);
+  const proofs = publicProofsRepo(meta);
+  const proofSecret = proofKey(env.ADMINIUM_SECRET);
+  // The emailed code's keys, each derived for its own use from the server's secret.
+  const codeSecret = codeKey(env.ADMINIUM_SECRET);
+  const addressSecret = addressKey(env.ADMINIUM_SECRET);
+  const capSecret = capKey(env.ADMINIUM_SECRET);
+  // An app's settings switches, trusted for fifteen seconds.
+  const switches = createSwitches(async (connectionId) => (await manager.data(connectionId)).db);
+  const csrfKey = csrfSigningKey(env.ADMINIUM_SECRET);
+  const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
+  /**
+   * Whether this request comes from a staff member the key is bound to: a
+   * live staff sign-in whose person holds the app role the key names (that
+   * app's own role — never a super-admin, never another app's role of the same
+   * slug); from this origin, with the CSRF token on a write (the cookie is the
+   * credential here, so it is held to what the dashboard holds it to); and on
+   * the app's own staff host when the operator mapped one.
+   */
+  const staffPresent = async (request: FastifyRequest, key: ResolvedKey): Promise<boolean> => {
+    const binding = key.requiresStaff;
+    const user = request.user;
+    if (binding === null || user === null || request.session === null) return false;
+    if (binding.appKey === '' || binding.appKey !== key.managedBy) return false;
+    if (!isSameOriginRequest(request)) return false;
+    if (!SAFE_METHODS.has(request.method) && !csrfHeaderMatches(request, csrfKey)) return false;
+    if (request.server.surfaceSettings != null) {
+      const settings = await request.server.surfaceSettings.read();
+      const hosts = Object.entries(settings.domains)
+        .filter(([, target]) => target.appKey === binding.appKey && target.side === 'staff')
+        .map(([host]) => host.toLowerCase());
+      if (hosts.length > 0 && !hosts.includes(request.hostname.toLowerCase())) return false;
+    }
+    const roles = await rolesRepo(meta).rolesForUser(user.id);
+    return roles.some((role) => role.slug === binding.roleSlug && role.appKey === binding.appKey);
+  };
+  /** What a person's code emails are signed with: the app's own name through its own key, else the workspace's. */
+  const signatureOf = async (key: { managedBy: string | null; connectionId: string }): Promise<string> =>
+    (key.managedBy === null ? null : await appSignature(meta, manager, key.managedBy, key.connectionId)) ??
+    String((await settingsRepo(meta).get('branding.appName')) ?? 'Adminium');
+  const addressCrypto = dsnCryptoFromSecret(env.ADMINIUM_SECRET);
   const audit = auditRepo(meta);
   const writes = deps.writes ?? createWriteService(writeStores(meta));
 
@@ -349,7 +550,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     // delete's; PUT replaces a record. A browser refuses to send
     // any method this list does not name.
     reply.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
-    reply.header('Access-Control-Allow-Headers', 'authorization, content-type, x-adminium-public-session');
+    reply.header('Access-Control-Allow-Headers', 'authorization, content-type, x-adminium-public-session, x-adminium-proof');
     reply.header('Access-Control-Max-Age', '600');
     return reply.code(204).send();
   };
@@ -375,7 +576,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     reply: FastifyReply,
     limit: PublicLimit,
     /** What this request spends of an endpoint's own limit: a batch spends its rows. */
-    opts: { cost?: number } = {},
+    opts: {
+      cost?: number;
+      /**
+       * The human check this request may owe: a create on a proved resource,
+       * or a claim through a proved identity. Checked after the visitor's own
+       * limit and before the whole key's, so bad proofs cost the key nothing.
+       */
+      proof?: 'create' | 'claim';
+      /** Counted per visitor only: a challenge costs nothing to hand out. */
+      keyWide?: false;
+    } = {},
   ): Promise<{ key: ResolvedKey; session: PublicSessionContext | null } | null> => {
     /*
      * CORS HEADERS FIRST, REFUSALS AFTER — and the order is load-bearing.
@@ -490,7 +701,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      */
     if (key.managedBy !== null && request.server.surfaceSettings != null) {
       const settings = await request.server.surfaceSettings.read();
-      const availability = availabilityOf(settings, key.managedBy, 'customer');
+      // The public side's key stops with the public side; another (a kiosk's)
+      // with the staff side its screen is served from.
+      const availability = availabilityOf(settings, key.managedBy, key.purpose === CUSTOMER_KEY_PURPOSE ? 'customer' : 'staff');
       if (availability !== 'ok') {
         fail(
           reply,
@@ -500,6 +713,22 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         );
         return null;
       }
+    }
+
+    /*
+     * A STAFF-BOUND KEY (a kiosk's) opens nothing alone: every request also
+     * comes from a staff member signed in on this server, holding the app role
+     * the key names, from the page itself — checked before any limit is
+     * spent, so a token copied out of the page cannot even drain a bucket.
+     */
+    if (key.requiresStaff !== null && !(await staffPresent(request, key))) {
+      fail(reply, 403, 'PUBLIC_STAFF_REQUIRED', 'Sign in on this screen to use it.');
+      return null;
+    }
+    // A key the app switches in its settings row (the kiosk switch), read at most every 15 s.
+    if (key.enabledBy !== null && !(await switches.isOn(key.connectionId, key.enabledBy.table, key.enabledBy.column))) {
+      fail(reply, 503, 'PUBLIC_KEY_OFF', 'This is switched off right now.');
+      return null;
     }
 
     /*
@@ -516,7 +745,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // a DIFFERENT key must not carry its grants across.
       if (row !== null && row.keyId === key.keyId) {
         const grant = parseGrant(row.grants);
-        if (grant !== null) session = { id: row.id, keyId: row.keyId, grant };
+        if (grant !== null) session = { id: row.id, keyId: row.keyId, grant, level: row.level === 'verified' ? 'verified' : 'lookup' };
       }
     }
 
@@ -526,7 +755,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * session header that verified nothing counts where an anonymous caller
      * counts. `public-claim` ignores the session whatever it is.
      */
-    const counted = { keyId: key.keyId, ip: request.ip, sessionId: session?.id };
+    const counted = {
+      keyId: key.keyId,
+      ip: request.ip,
+      sessionId: session?.id,
+      // A kiosk counts per staff sign-in: every waiting patient shares its address.
+      ...(key.requiresStaff !== null && request.session !== null ? { staffSessionId: request.session.id } : {}),
+    };
+    const counts: PublicLimit = key.requiresStaff !== null && limit === 'public-claim' ? 'public-staff-claim' : limit;
     const ref = (request.params as { ref?: unknown } | undefined)?.ref;
     // Charged to the resolved key and the ref it named, whatever it answers
     // from here on; a 401 above has no key to charge.
@@ -548,12 +784,25 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         return null;
       }
       if (!admit(reply, limiter.hitEndpoint({ ...counted, ref, kind: key.kind }, rated, cost))) return null;
-    } else if (!admit(reply, limiter.hit(limit, counted))) {
+    } else if (!admit(reply, limiter.hit(counts, counted))) {
       return null;
     }
     // Every visitor together, on a key anyone can copy out of a page. By
     // request: a batch's rows are the endpoint's own limit to count.
-    if (key.kind === 'browser' && !admit(reply, limiter.hitKey(key.keyId, limit === 'public-read' ? 'read' : 'write'))) {
+    // The human check, before the whole key is charged: a flood of bad proofs spends nobody's allowance.
+    const owed = proofOwed(key, session, opts.proof, ref);
+    const proved = owed === null ? null : checkProof(proofSecret, request.headers['x-adminium-proof'], { keyId: key.keyId, purpose: owed, now: Date.now() });
+    if (proved !== null && !proved.ok) {
+      fail(reply, 403, 'PUBLIC_PROOF_REQUIRED', 'Prove this is a person first.');
+      return null;
+    }
+    const rung = opts.keyWide === false ? null : limit === 'public-read' ? 'read' : limit === 'public-claim' ? 'claim' : limit === 'public-write' ? 'write' : null;
+    if (key.kind === 'browser' && rung !== null && !admit(reply, limiter.hitKey(key.keyId, rung))) {
+      return null;
+    }
+    // Spent once, on every instance: a replay finds the row already there.
+    if (proved?.ok === true && !(await proofs.spend({ id: proved.spendId, keyId: key.keyId, purpose: owed!, expiresAt: proved.expiresAt }))) {
+      fail(reply, 403, 'PUBLIC_PROOF_REQUIRED', 'Prove this is a person first.');
       return null;
     }
     if (session !== null && sessionTouches.due(session.id)) void sessions.touch(session.id);
@@ -566,6 +815,61 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
    * answered. One function so the read and the two write paths cannot drift on
    * which check they skip.
    */
+  /** How many rows match a filter, read as the server (never shown as rows). */
+  const countOf = async (found: { db: Kysely<SourceDatabase>; view: SnapshotView; table: ResolvedTable; dialect: Dialect }, filter: RecordFilter): Promise<number> => {
+    const ctx = { view: found.view, table: found.table, canReadPii: true, dynamic: found.db.dynamic, dialect: found.dialect };
+    const row = (await found.db
+      .selectFrom(found.table.id)
+      .select(sql<number>`count(*)`.as('n'))
+      .where((eb) => compileFilter(eb as never, ctx, filter))
+      .executeTakeFirst()) as { n: unknown } | undefined;
+    return Number(row?.n ?? 0);
+  };
+
+  /**
+   * Whether a signed-in person already holds as many open rows as the
+   * endpoint's `maxOpen` allows: rows of theirs whose column is one of the
+   * values (and, with `upcoming`, still ahead). Not asked without a session.
+   */
+  const openRowsFull = async (
+    found: { resource: CompiledResource; db: Kysely<SourceDatabase>; view: SnapshotView; table: ResolvedTable; dialect: Dialect },
+    session: PublicSessionContext | null,
+  ): Promise<boolean> => {
+    const max = found.resource.maxOpen;
+    const column = found.resource.claim?.column;
+    if (max === null || session === null || column === undefined) return false;
+    const conditions: RecordFilter[] = [
+      { column, op: 'eq', value: session.grant.value },
+      { column: max.column, op: 'in', value: [...max.values] },
+      ...(max.upcoming === undefined ? [] : [afterNow(found.table, max.upcoming)]),
+    ];
+    return (await countOf(found, { and: conditions })) >= max.n;
+  };
+
+  /**
+   * Where a new row stands among the matching rows, by the endpoint's `rank`;
+   * null when it does not rank. The new row's own order value is read in SQL,
+   * as the database keeps it: Postgres keeps microseconds a JavaScript date
+   * does not, and a comparison with the date would leave the row out of its
+   * own count.
+   */
+  const rankOf = async (
+    found: { resource: CompiledResource; db: Kysely<SourceDatabase>; table: ResolvedTable; dialect: Dialect },
+    row: Row,
+  ): Promise<number | null> => {
+    const rank = found.resource.rank;
+    const key = found.table.primaryKey[0];
+    if (rank === null || key === undefined || row[key] === null || row[key] === undefined) return null;
+    const table = sql.table(found.table.id);
+    const order = sql.ref(rank.orderBy);
+    const own = sql`(select ${order} from ${table} where ${sql.ref(key)} = ${row[key]})`;
+    const matching =
+      rank.where === undefined ? sql`` : sql`${sql.ref(rank.where.column)} = ${bindValue(found.dialect, rank.where.eq)} and `;
+    // Rows ordered before it, and those at the same moment made no later than it.
+    const counted = await sql<{ n: unknown }>`select count(*) as n from ${table} where ${matching}(${order} < ${own} or (${order} = ${own} and ${sql.ref(key)} <= ${row[key]}))`.execute(found.db);
+    return Number(counted.rows[0]?.n ?? 0);
+  };
+
   const resolveResource = async (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -603,6 +907,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
       return null;
     }
+    /*
+     * A session that found the person but has not confirmed the emailed code
+     * is told so, and only once it holds a session this resource would take:
+     * the page then starts the code step. Nothing about any row is said.
+     */
+    if (resource.level === 'verified' && ok.session !== null && ok.session.level !== 'verified' && opts.bypassClaimGate !== true) {
+      fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
+      return null;
+    }
 
     const view = await viewFor(ok.key.connectionId);
     if (view === null) {
@@ -632,6 +945,21 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The resource is unavailable.');
       return null;
     }
+    /*
+     * A write the app switched off in its settings row (online booking off;
+     * new patients online off, for a create nobody signed in for). Said
+     * plainly: the page shows it and offers the phone.
+     */
+    if (action !== 'read') {
+      const unsigned = ok.session === null || resource.claim === null;
+      for (const setting of resource.requireSetting) {
+        if (setting.when === 'anonymous' && !(unsigned && (action === 'create' || action === 'batch'))) continue;
+        if (!(await switches.isOn(ok.key.connectionId, setting.table, setting.column))) {
+          fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');
+          return null;
+        }
+      }
+    }
     const { db, dialect } = handle;
     return {
       resource,
@@ -639,7 +967,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       table,
       db,
       dialect,
-      predicate: combinePredicates(resource.mandatory, claim.reachable ? claim.predicate : null),
+      // A calendar filter (`today`) is worked out now, on the venue's clock.
+      predicate: combinePredicates(mandatoryAt(resource.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null),
     };
   };
 
@@ -759,6 +1088,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           response: {
             200: publicConfigReply,
             401: publicErrorReply,
+            // A staff-bound key without its staff member on this screen.
+            403: publicErrorReply,
             429: publicErrorReply,
             503: publicErrorReply,
           },
@@ -864,7 +1195,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           },
           // Anonymous callers never see PII-masked columns, whatever the scope
           // says: masking is a second line and the allow-list is the boundary.
-          canReadPii: false,
+          // A person who proved their mailbox reads their OWN row as it is.
+          canReadPii: readsOwnPii(resource, ok.session),
           dialect,
           // Scope predicate AND session predicate, both mandatory, neither
           // removable by any combination of query parameters.
@@ -933,6 +1265,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             200: publicAvailabilityReply,
             400: publicErrorReply,
             401: publicErrorReply,
+            // A staff-bound key without its staff member, a switched-off side.
+            403: publicErrorReply,
             404: publicErrorReply,
             429: publicErrorReply,
             503: publicErrorReply,
@@ -944,28 +1278,69 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (ok === null) return reply;
         const found = await resolveResource(request, reply, ok, request.params.ref, 'read', { kind: 'availability' });
         if (found === null) return reply;
-        const rule = found.table.table.capacity;
-        if (rule === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const query = request.query;
         const target = {
           connectionId: ok.key.connectionId,
           table: found.table,
           db: found.db,
           dialect: found.dialect,
           timezone: ok.key.scope.timezone,
+          origin: 'public' as const,
         };
-        // The booking this guest has claimed, when it is in the same table.
-        let own: Row | null = null;
-        const grant = ok.session?.grant;
-        if (grant !== undefined && ok.key.scope.byRef.get(grant.ref)?.table === found.table.id) {
-          own =
-            ((await found.db
-              .selectFrom(found.table.id)
-              .selectAll()
-              .where((eb) => eb(found.db.dynamic.ref(grant.column), '=', grant.value))
-              .executeTakeFirst()) as Row | undefined) ?? null;
+        const rule = found.table.table.capacity;
+        if (rule !== undefined) {
+          if (query.date === undefined || query.party === undefined || query.kind !== undefined || query.from !== undefined) {
+            return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'Ask for one date and the party.');
+          }
+          // The booking this guest has claimed, when it is in the same table.
+          let own: Row | null = null;
+          const grant = ok.session?.grant;
+          if (grant !== undefined && ok.key.scope.byRef.get(grant.ref)?.table === found.table.id) {
+            own =
+              ((await found.db
+                .selectFrom(found.table.id)
+                .selectAll()
+                .where((eb) => eb(found.db.dynamic.ref(grant.column), '=', grant.value))
+                .executeTakeFirst()) as Row | undefined) ?? null;
+          }
+          const slots = await slotAvailability(rule, target, query.date, query.party, own);
+          return reply.send({ data: slots });
         }
-        const slots = await slotAvailability(rule, target, request.query.date, request.query.party, own);
-        return reply.send({ data: slots });
+
+        /*
+         * BOOKING PEOPLE: a kind of visit, one person or anyone, one day or a
+         * strip. The asker's own visit, when they are moving it, is left out
+         * — but only a row their session can read: `exclude` is looked up
+         * through the claim, so it cannot be used to probe another's visit.
+         */
+        const booking = found.table.table.booking;
+        if (booking === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const oneDay = query.date !== undefined;
+        if (
+          query.party !== undefined ||
+          query.kind === undefined ||
+          oneDay === (query.from !== undefined) ||
+          (query.from !== undefined) !== (query.days !== undefined)
+        ) {
+          return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'Ask for a kind, and one date or a from date with a number of days.');
+        }
+        const input = {
+          kind: query.kind,
+          resource: query.resource ?? 'any',
+          isPublic: true,
+          excludePk: query.exclude === undefined ? null : await claimedRowKey(ok, found.db, found.table, query.exclude),
+          now: new Date(),
+        };
+        const minutes = await kindMinutes(booking, target, query.kind);
+        if (oneDay) {
+          const slots = minutes === null ? [] : (await bookingSlots(booking, target, query.date!, minutes, input)).slots;
+          return reply.send({ data: slots });
+        }
+        const days =
+          minutes === null
+            ? Array.from({ length: query.days! }, (_, i) => ({ date: addCalendarDays(query.from!, i), open: 0, state: 'closed' as const }))
+            : await bookingDays(booking, target, query.from!, query.days!, minutes, input);
+        return reply.send({ data: days });
       },
     );
 
@@ -1006,7 +1381,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           view: found.view,
           table: found.table,
           params: { limit: 1, count: 'none' },
-          canReadPii: false,
+          canReadPii: readsOwnPii(found.resource, ok.session),
           dialect: found.dialect,
           // Never null: the key condition is always there.
           mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
@@ -1036,14 +1411,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             201: publicRecordReply,
             400: publicErrorReply,
             401: publicErrorReply,
+            403: publicErrorReply,
             404: publicErrorReply,
+            409: publicErrorReply,
             429: publicErrorReply,
             503: publicErrorReply,
           },
         },
       },
       async (request, reply) => {
-        const ok = await gate(request, reply, 'public-write');
+        const ok = await gate(request, reply, 'public-write', { proof: 'create' });
         if (ok === null) return reply;
         const found = await resolveResource(request, reply, ok, request.params.ref, 'create');
         if (found === null) return reply;
@@ -1057,6 +1434,33 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         );
         if (values === null) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
+        }
+        // A signed-in person may hold only so many open rows: a found session
+        // cannot fill someone's diary in their name.
+        if ((await openRowsFull(found, ok.session)) === true) {
+          return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
+        }
+        // A create nobody signed in for: a name that is only a name, and so
+        // many a day per phone number or address and an hour per key.
+        const caps = found.resource.anonymous;
+        let release: (() => Promise<void>) | null = null;
+        if (caps !== null && (ok.session === null || found.resource.claim === null)) {
+          const column = notPlain(caps, values);
+          if (column !== null) {
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+          }
+          const charge = await chargeAnonymous(challenges, {
+            caps,
+            key: capSecret,
+            keyId: ok.key.keyId,
+            connectionId: ok.key.connectionId,
+            table: found.table.id,
+            ref: request.params.ref,
+            values,
+            now: Date.now(),
+          });
+          if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
+          release = charge.release;
         }
 
         const target: WriteTarget = {
@@ -1134,8 +1538,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             },
           });
         } catch (error) {
+          // Nothing was made: what the caps counted for it is taken back.
+          await release?.();
           if (error instanceof PublicWriteRefused) {
-            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
@@ -1162,7 +1568,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // than a read of the same row would.
         const projected: Record<string, unknown> = {};
         for (const column of found.resource.expose) projected[column] = inserted[column];
-        return reply.status(201).send({ data: wallTimesAsInstants(projected, found.table.columns, found.dialect) });
+        const rank = await rankOf(found, inserted);
+        return reply
+          .status(201)
+          .send({ data: wallTimesAsInstants(projected, found.table.columns, found.dialect), ...(rank === null ? {} : { rank }) });
       },
     );
 
@@ -1218,9 +1627,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * THE PREDICATE APPLIES TO THE UPDATE ITSELF, not to a lookup before it.
          * Checking first and then updating is a TOCTOU window, and worse, an
          * update whose WHERE lacks the predicate can move a row the caller was
-         * never allowed to touch. So both go into one statement.
+         * never allowed to touch. So both go into one statement — and so does
+         * the state the row must be in (`writable_when`): a visit already seen
+         * matches nothing, and is not changed.
          */
-        const predicate = found.predicate;
+        const predicate = combinePredicates(found.predicate, updatableState(found.resource, found.table));
         const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
           predicate === null
             ? query
@@ -1272,7 +1683,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             },
             skipIfNone: true,
             mapError: refuseWrite,
-            announce: async ({ after }) => {
+            announce: async ({ before, after }) => {
               await auditWrite(
                 request,
                 ok,
@@ -1298,13 +1709,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 table: found.table,
                 action: 'update',
                 entity: updatedRef,
-                // The before-image is not read on this path — the predicate goes
-                // into the UPDATE itself rather than a lookup before it (see
-                // above), and adding a SELECT to recover it would reopen the
-                // TOCTOU window that design closed. A rule's `when` therefore
-                // evaluates on the after image, which is what it evaluates on
-                // for every other origin too.
-                before: null,
+                // The before-image is read only when something needs it (a hook,
+                // a decided column, a table an app's email watches for a change),
+                // and then inside the scope; the UPDATE still carries the
+                // predicate itself. A rule's `when` evaluates on the after
+                // image, which is what it evaluates on for every other origin.
+                before,
                 after,
                 origin: 'public',
               });
@@ -1312,7 +1722,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
         } catch (error) {
           if (error instanceof PublicWriteRefused) {
-            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
@@ -1498,7 +1908,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
         } catch (error) {
           if (error instanceof PublicWriteRefused) {
-            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
@@ -1539,6 +1949,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             200: publicRecordReply,
             400: publicErrorReply,
             401: publicErrorReply,
+            403: publicErrorReply,
             404: publicErrorReply,
             429: publicErrorReply,
             503: publicErrorReply,
@@ -1561,6 +1972,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
         const refuseRow = (index: number, message: string) =>
           fail(reply, 400, 'PUBLIC_WRITE_REFUSED', message, { index });
+        // A proved resource takes its creates one at a time, each with its proof:
+        // one proof must not buy a batch of rows.
+        if (resource.humanCheck && ok.key.kind === 'browser' && !proofExcused(resource, ok.session) && rows.some((raw) => table.primaryKey.every((c) => !Object.prototype.hasOwnProperty.call(raw, c)))) {
+          return fail(reply, 403, 'PUBLIC_PROOF_REQUIRED', 'Rows here are created one at a time.');
+        }
         const keyColumns = table.primaryKey;
         const inserts: { index: number; values: Row }[] = [];
         const updates: { index: number; pk: Row; values: Row }[] = [];
@@ -1586,7 +2002,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           updates.push({ index, pk, values });
         }
 
-        const predicate = found.predicate;
+        // Only updates are in this batch's WHERE: the state a row must be in joins the scope there.
+        const predicate = combinePredicates(found.predicate, updatableState(resource, table));
         const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
           predicate === null
             ? query
@@ -1735,7 +2152,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         },
       },
       async (request, reply) => {
-        const ok = await gate(request, reply, 'public-claim');
+        const ok = await gate(request, reply, 'public-claim', { proof: 'claim' });
         if (ok === null) return reply;
 
         const claim = ok.key.scope.claim;
@@ -1773,18 +2190,305 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
 
         const minted = generatePublicSessionToken();
-        const expiresAt = Date.now() + CLAIM_SESSION_TTL_MS;
+        // At a kiosk, one patient after another: a found session lasts minutes, not half an hour.
+        const expiresAt = Date.now() + (ok.key.requiresStaff !== null ? KIOSK_SESSION_TTL_MS : CLAIM_SESSION_TTL_MS);
         await sessions.create({
           keyId: ok.key.keyId,
           tokenHash: minted.tokenHash,
           grants: JSON.stringify(grant),
           expiresAt,
+          // The person, by their row: what ends every session of theirs when their address changes.
+          subject: subjectOf(ok.key.connectionId, found.table.id, grant.column, grant.value),
         });
         await auditWrite(request, ok, 'public.claim', { ref: claim.ref });
         return reply.send({ data: { session: minted.token, expiresAt } });
       },
     );
 
+    /* ------------------------------------------------------ the emailed code */
+
+    /**
+     * The found person's own row, read through the identity: exactly one, or
+     * a refusal already sent. Only for a key whose claim sends a code, and a
+     * session claimed through that identity.
+     */
+    const claimedPerson = async (
+      request: FastifyRequest,
+      reply: FastifyReply,
+      ok: { key: ResolvedKey; session: PublicSessionContext | null },
+    ) => {
+      const claim = ok.key.scope.claim;
+      const session = ok.session;
+      if (claim === null || claim === undefined || claim.verify === undefined || claim.email === undefined) {
+        fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        return null;
+      }
+      if (session === null || session.grant.ref !== claim.ref) {
+        fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        return null;
+      }
+      const found = await resolveResource(request, reply, ok, claim.ref, 'read', { bypassClaimGate: true });
+      if (found === null) return null;
+      // Two rows under one value would let one mailbox open another person's record.
+      const rows = (await found.db
+        .selectFrom(found.table.id)
+        .selectAll()
+        .where((eb) => eb(found.db.dynamic.ref(session.grant.column), '=', session.grant.value))
+        .limit(2)
+        .execute()) as Row[];
+      const row = rows.length === 1 ? (rows[0] as Row) : null;
+      return {
+        found,
+        session,
+        claim: { ...claim, email: claim.email },
+        row,
+        subject: subjectOf(ok.key.connectionId, found.table.id, session.grant.column, session.grant.value),
+      };
+    };
+
+    app.options('/public/claim/code', { schema: { hide: true } }, preflight);
+    app.options('/public/claim/verify', { schema: { hide: true } }, preflight);
+
+    app.post(
+      '/public/claim/code',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          body: publicCodeBody,
+          response: {
+            200: publicCodeReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            403: publicErrorReply,
+            404: publicErrorReply,
+            409: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-code');
+        if (ok === null) return reply;
+        const person = await claimedPerson(request, reply, ok);
+        if (person === null) return reply;
+        const { session, subject, row } = person;
+        const now = Date.now();
+        const body = request.body;
+        const current = row === null ? null : row[person.claim.email];
+
+        if (body.purpose === 'email-change') {
+          if (session.level !== 'verified') return fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
+          // A session lifted by someone else must not move the address: a code confirmed minutes ago, or none of this.
+          if (!(await challenges.markedSince(session.id, 'verified', now - STEP_UP_MS))) {
+            return fail(reply, 403, 'PUBLIC_CODE_STEP_UP', 'Confirm a new code first.');
+          }
+          if (!plausibleAddress(body.email) || (typeof current === 'string' && current.trim().toLowerCase() === body.email.trim().toLowerCase())) {
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That address cannot be used.');
+          }
+          if ((await challenges.sentSince(subject, now - DAY_MS, 'email-changed')) >= EMAIL_CHANGES_DAY) {
+            return fail(reply, 429, 'PUBLIC_EMAIL_CHANGE_LIMIT', 'The address was changed today already.');
+          }
+        }
+        const address = body.purpose === 'verify' ? current : body.email;
+        if (row === null || !plausibleAddress(address)) return fail(reply, 409, 'PUBLIC_CLAIM_NO_EMAIL', 'There is no address to send a code to.');
+
+        // The person's own lock first: too many wrong codes today.
+        if ((await challenges.failuresSince(subject, now - DAY_MS)) >= PERSON_FAILURES_DAY) {
+          return fail(reply, 403, 'PUBLIC_CLAIM_LOCKED', 'Too many tries today. Ring the desk.');
+        }
+        const newest = await challenges.newestFor(session.id, body.purpose);
+        if (newest !== null && newest.attempts >= CODE_TRIES && now - (newest.consumedAt ?? newest.createdAt) < CODE_LOCK_MS) {
+          const retryAfter = Math.ceil((CODE_LOCK_MS - (now - (newest.consumedAt ?? newest.createdAt))) / 1000);
+          return fail(reply, 429, 'PUBLIC_CODE_LOCKED', 'Too many tries. Wait a little, or ring the desk.', { retryAfter });
+        }
+        if (newest !== null && now - newest.createdAt < CODE_RESEND_MS) {
+          return fail(reply, 429, 'PUBLIC_CODE_TOO_SOON', 'A code was sent a moment ago.', {
+            retryAfter: Math.ceil((CODE_RESEND_MS - (now - newest.createdAt)) / 1000),
+          });
+        }
+        if ((await challenges.countForSession(session.id)) >= CODES_PER_SESSION) {
+          return fail(reply, 429, 'PUBLIC_CODE_LIMIT', 'No more codes can be sent here. Ring the desk.');
+        }
+        const sessionRow = await sessions.findById(session.id);
+        const expiresAt = Math.min(now + CODE_TTL_MS, sessionRow?.expiresAt ?? now + CODE_TTL_MS);
+        const answer = { data: { sentTo: maskAddress(address), resendAfter: CODE_RESEND_MS / 1000, expiresAt } };
+
+        // Per person, across every session and key: over the cap the answer is
+        // the same and nothing is sent, so a stranger learns nothing from it.
+        const sent = async (since: number) =>
+          (await challenges.sentSince(subject, since, 'verify')) + (await challenges.sentSince(subject, since, 'email-change'));
+        if ((await sent(now - 15 * 60_000)) >= PERSON_CODES_15M || (await sent(now - DAY_MS)) >= PERSON_CODES_DAY) {
+          await auditWrite(request, ok, 'public.claim.code.held', { ref: person.claim.ref, purpose: body.purpose });
+          return reply.send(answer);
+        }
+
+        const code = newCode();
+        const created = await challenges.create(
+          {
+            keyId: ok.key.keyId,
+            ref: person.claim.ref,
+            destinationHash: hashAddress(addressSecret, address),
+            codeHash: hashCode(codeSecret, codeBinding({ sessionId: session.id, purpose: body.purpose, createdAt: now }), code),
+            expiresAt,
+            sessionId: session.id,
+            purpose: body.purpose,
+            newDestinationEnc: body.purpose === 'email-change' ? addressCrypto.encrypt(body.email.trim()) : null,
+            subject,
+          },
+          now,
+        );
+        const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
+        const queued = await enqueueEmail(
+          { meta, logger: request.log },
+          {
+            to: address.trim(),
+            templateKey: SIGN_IN_CODE_TEMPLATE_KEY,
+            locale,
+            vars: { appName: await signatureOf(ok.key), code, minutes: String(CODE_TTL_MS / 60_000) },
+          },
+        );
+        // Nothing can be sent (no mail set up, the template switched off): the
+        // code dies here rather than leaving someone typing at nothing.
+        if (queued === null) {
+          await challenges.consume(created.id);
+          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A code cannot be sent right now. Ring the desk.');
+        }
+        await auditWrite(request, ok, 'public.claim.code', { ref: person.claim.ref, purpose: body.purpose });
+        return reply.send(answer);
+      },
+    );
+
+    app.post(
+      '/public/claim/verify',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          body: publicVerifyBody,
+          response: {
+            200: publicVerifyReply,
+            401: publicErrorReply,
+            403: publicErrorReply,
+            404: publicErrorReply,
+            410: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-code');
+        if (ok === null) return reply;
+        const person = await claimedPerson(request, reply, ok);
+        if (person === null) return reply;
+        const { session, subject, row, found } = person;
+        const now = Date.now();
+        const purpose = request.body.purpose;
+        if ((await challenges.failuresSince(subject, now - DAY_MS)) >= PERSON_FAILURES_DAY) {
+          return fail(reply, 403, 'PUBLIC_CLAIM_LOCKED', 'Too many tries today. Ring the desk.');
+        }
+        const open = await challenges.findOpen(session.id, purpose, now);
+        if (open === null) return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'That code has expired. Ask for a new one.');
+        // Charged before it is compared (`tryCode`): guesses in flight together get five compares between them.
+        const tried = await tryCode(challenges, open, request.body.code, codeSecret, now);
+        if (tried.outcome === 'expired') return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'That code has expired. Ask for a new one.');
+        if (tried.outcome === 'wrong') return fail(reply, 403, 'PUBLIC_CODE_WRONG', 'That code isn’t right.', { triesLeft: tried.triesLeft });
+
+        if (purpose === 'verify') {
+          const expiresAt = now + VERIFIED_TTL_MS;
+          if (!(await sessions.raise(session.id, 'verified', expiresAt, now))) {
+            return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'This session has ended. Start again.');
+          }
+          await challenges.mark({ keyId: ok.key.keyId, ref: person.claim.ref, sessionId: session.id, subject, purpose: 'verified' }, now);
+          await auditWrite(request, ok, 'public.claim.verified', { ref: person.claim.ref });
+          return reply.send({ data: { level: 'verified' as const, expiresAt } });
+        }
+
+        // An address change: once a day, and the old address always hears of it.
+        if (row === null || session.level !== 'verified' || open.newDestinationEnc === null) {
+          return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'That code has expired. Ask for a new one.');
+        }
+        if ((await challenges.sentSince(subject, now - DAY_MS, 'email-changed')) >= EMAIL_CHANGES_DAY) {
+          return fail(reply, 429, 'PUBLIC_EMAIL_CHANGE_LIMIT', 'The address was changed today already.');
+        }
+        if (!(await isEmailConfigured(meta, null))) {
+          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'The address cannot be changed right now. Ring the desk.');
+        }
+        const oldAddress = row[person.claim.email];
+        const newAddress = addressCrypto.decrypt(open.newDestinationEnc);
+        const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
+        const target: WriteTarget = {
+          connectionId: ok.key.connectionId,
+          view: found.view,
+          table: found.table,
+          db: found.db,
+          dialect: found.dialect,
+          timezone: ok.key.scope.timezone,
+        };
+        await writes.update({
+          target,
+          pk,
+          values: { [person.claim.email]: newAddress },
+          context: publicWriteContext(request, ok.key.keyId),
+          mapError: refuseWrite,
+          announce: async () => {
+            // Named by the row, never by the address.
+            await auditWrite(request, ok, 'public.claim.email-changed', { ref: person.claim.ref }, {
+              connectionId: ok.key.connectionId,
+              table: found.table.id,
+              pk,
+              label: pkLabel(found.table, pk),
+            });
+            invalidateWidgetData(app, ok.key.connectionId, found.table.id);
+          },
+        });
+        await challenges.mark({ keyId: ok.key.keyId, ref: person.claim.ref, sessionId: session.id, subject, purpose: 'email-changed' }, now);
+        const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
+        if (plausibleAddress(oldAddress)) {
+          await enqueueEmail(
+            { meta, logger: request.log },
+            {
+              to: oldAddress.trim(),
+              templateKey: EMAIL_CHANGED_TEMPLATE_KEY,
+              locale,
+              always: true,
+              vars: {
+                appName: await signatureOf(ok.key),
+                // The identity shows its person by its first column (a name).
+                name: String(row[found.resource.expose[0] ?? ''] ?? ''),
+                newEmail: maskAddress(newAddress),
+              },
+            },
+          );
+        }
+        // Every session of theirs ends, this one too: whoever else held one
+        // must find them again, and so does the page (the reply says it ended).
+        await sessions.removeBySubject(subject);
+        return reply.send({ data: { level: 'lookup' as const, expiresAt: now, email: maskAddress(newAddress) } });
+      },
+    );
+
+
+    /* ------------------------------------------------------------ human check */
+
+    app.options('/public/challenge', { schema: { hide: true } }, preflight);
+
+    app.get(
+      '/public/challenge',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          querystring: publicChallengeQuery,
+          response: { 200: publicChallengeReply, 400: publicErrorReply, 401: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        // Handed out for nothing: counted per visitor, never against the whole key.
+        const ok = await gate(request, reply, 'public-read', { keyWide: false });
+        if (ok === null) return reply;
+        return reply.send({ data: issueChallenge(proofSecret, ok.key.keyId, request.query.purpose, Date.now()) });
+      },
+    );
 
     /* ------------------------------------------------------------ documents */
     /*
@@ -1879,7 +2583,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         dialect: handle.dialect,
         mandatory:
           combinePredicates(
-            combinePredicates(resource.mandatory, claim.predicate),
+            combinePredicates(mandatoryAt(resource.where, table, ok.key.scope.timezone), claim.predicate),
             byPk.length === 1 ? byPk[0]! : { and: byPk },
           ) ?? undefined,
         exposeColumns: [...table.primaryKey],

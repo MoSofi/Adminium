@@ -34,6 +34,7 @@ import { columnPolicyFor } from '../connections/effective-schema.js';
 import { FILTER_OPS } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { readGenerator } from './generate.js';
+import { DAY_TYPES } from './relative-filters.js';
 import {
   CLAIM_STRATEGIES,
   compileScope,
@@ -92,9 +93,25 @@ export const endpointRefSchema = z
 
 const columnSchema = z.string().min(1).max(128);
 
-const filterSchema = z
-  .object({ column: columnSchema, op: z.enum(FILTER_OPS), value: z.unknown().optional() })
-  .strict();
+const filterSchema = z.union([
+  z.object({ column: columnSchema, op: z.enum(FILTER_OPS), value: z.unknown().optional() }).strict(),
+  /*
+   * The venue's calendar, worked out on every request in its zone: `today`
+   * is today's date, `from-today` today on (`days` limits how far). A date
+   * or a time column only.
+   */
+  z.object({ column: columnSchema, op: z.literal('today') }).strict(),
+  z.object({ column: columnSchema, op: z.literal('from-today'), days: z.number().int().min(1).max(366).optional() }).strict(),
+]);
+
+const scalarSchema = z.union([z.string().max(256), z.number(), z.boolean()]);
+
+/** One filter as the document spells it, whichever kind. */
+function filterOf(f: z.infer<typeof filterSchema>): Record<string, unknown> {
+  if (f.op === 'today') return { column: f.column, op: f.op };
+  if (f.op === 'from-today') return f.days === undefined ? { column: f.column, op: f.op } : { column: f.column, op: f.op, days: f.days };
+  return f.value === undefined ? { column: f.column, op: f.op } : { column: f.column, op: f.op, value: f.value };
+}
 
 /**
  * The design writes `{ shape: "object", envelope: "data" }` for a wrapped
@@ -114,6 +131,17 @@ const claimSchema = z
       .object({ ref: endpointRefSchema, localColumn: columnSchema, foreignColumn: columnSchema })
       .strict()
       .optional(),
+    /**
+     * The identity endpoint the session must have been claimed through. Set,
+     * a session claimed on any other identity reaches nothing here — two
+     * identities never share a value by accident.
+     */
+    ref: endpointRefSchema.optional(),
+    /**
+     * A create that goes through without a session too (a first visit, by
+     * someone not on file yet). With one, the claim column is filled from it.
+     */
+    optional: z.literal(true).optional(),
   })
   .strict();
 
@@ -128,6 +156,9 @@ const identitySchema = z
     strategy: z.enum(CLAIM_STRATEGIES),
     match: z.array(columnSchema).min(1),
     column: columnSchema,
+    /** A code emailed to the row's `email` column raises the session to `verified`. */
+    verify: z.literal('email-code').optional(),
+    email: columnSchema.optional(),
   })
   .strict();
 
@@ -202,6 +233,56 @@ export const publicEndpointDefinitionSchema = z
      * column the email reads; `venue` names a one-row settings table.
      */
     confirm: publicConfirmSchema.optional(),
+    /** The only values a caller may write into these columns (`status: [cancelled]`). */
+    writable_values: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
+    /**
+     * The state a row must be in for an update to touch it — part of the
+     * UPDATE, never of a read: a finished visit still lists, and cannot be
+     * moved. `from-now` on a time: while it is still ahead.
+     */
+    writable_when: z.record(columnSchema, z.union([z.array(scalarSchema).min(1).max(32), z.literal('from-now')])).optional(),
+    /** The session this endpoint needs: `verified` once an emailed code is confirmed. */
+    level: z.enum(['lookup', 'verified']).optional(),
+    /**
+     * A small proof of work before a create with no session — or, on an
+     * identity endpoint, before every claim (`x-adminium-proof`).
+     */
+    human_check: z.literal(true).optional(),
+    /** On an optional claim: the columns a signed-in create empties (a first visit's own details). */
+    on_claim: z.object({ clear: z.array(columnSchema).min(1).max(12) }).strict().optional(),
+    /** A signed-in person may hold at most `n` rows whose column is one of `values` (still ahead, with `upcoming`). */
+    max_open: z
+      .object({
+        column: columnSchema,
+        values: z.array(scalarSchema).min(1).max(32),
+        n: z.number().int().min(1).max(50),
+        upcoming: columnSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    /** A create answers where the new row stands: the matching rows ordered at or before it. */
+    rank: z
+      .object({ order_by: columnSchema, where: z.object({ column: columnSchema, eq: scalarSchema }).strict().optional() })
+      .strict()
+      .optional(),
+    /**
+     * Writes refused while a bool in the settings row is false; `when:
+     * anonymous` refuses only a create nobody signed in for.
+     */
+    require_setting: z
+      .array(z.object({ table: z.string().min(1).max(200), column: columnSchema, when: z.literal('anonymous').optional() }).strict())
+      .min(1)
+      .max(4)
+      .optional(),
+    /** The limits on a create nobody signed in for: per value a day, per key an hour, plain-text columns. */
+    anonymous: z
+      .object({
+        per_value: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
+        per_key_hour: z.number().int().min(1).max(1000).optional(),
+        plain_text: z.array(columnSchema).min(1).max(8).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -226,9 +307,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
     source: def.source,
     methods: canonicalMethods(def.methods),
     select: [...def.select],
-    filters: def.filters.map((f) =>
-      f.value === undefined ? { column: f.column, op: f.op } : { column: f.column, op: f.op, value: f.value },
-    ),
+    filters: def.filters.map(filterOf),
     pagination: {
       default_limit: def.pagination.default_limit,
       max_limit: def.pagination.max_limit,
@@ -256,6 +335,8 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
         foreignColumn: def.claim.via.foreignColumn,
       };
     }
+    if (def.claim.ref !== undefined) claim['ref'] = def.claim.ref;
+    if (def.claim.optional !== undefined) claim['optional'] = def.claim.optional;
     out['claim'] = claim;
   }
   if (def.identity !== undefined) {
@@ -263,12 +344,23 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       strategy: def.identity.strategy,
       match: [...def.identity.match],
       column: def.identity.column,
+      ...(def.identity.verify === undefined ? {} : { verify: def.identity.verify }),
+      ...(def.identity.email === undefined ? {} : { email: def.identity.email }),
     };
   }
   if (def.sensitive !== undefined) out['sensitive'] = def.sensitive;
   if (def.allow_cascade !== undefined) out['allow_cascade'] = def.allow_cascade;
   if (def.kind !== undefined) out['kind'] = def.kind;
   if (def.confirm !== undefined) out['confirm'] = { ...def.confirm };
+  if (def.writable_values !== undefined) out['writable_values'] = { ...def.writable_values };
+  if (def.writable_when !== undefined) out['writable_when'] = { ...def.writable_when };
+  if (def.level !== undefined) out['level'] = def.level;
+  if (def.human_check !== undefined) out['human_check'] = def.human_check;
+  if (def.on_claim !== undefined) out['on_claim'] = { clear: [...def.on_claim.clear] };
+  if (def.max_open !== undefined) out['max_open'] = { ...def.max_open };
+  if (def.rank !== undefined) out['rank'] = { ...def.rank };
+  if (def.anonymous !== undefined) out['anonymous'] = { ...def.anonymous };
+  if (def.require_setting !== undefined) out['require_setting'] = def.require_setting.map((setting) => ({ ...setting }));
   return out;
 }
 
@@ -336,9 +428,24 @@ function serverOwned(column: EffectiveColumn): boolean {
   return column.isGenerated || column.default?.kind === 'autoincrement';
 }
 
-/** A copied value, a running number, a code or a total: the write path fills it, never a caller. */
+/** A copied value, a running number, a code, a total or a stamp: the write path fills it, never a caller. */
 function decidedByAdminium(column: EffectiveColumn): boolean {
-  return column.copy !== undefined || column.sequence !== undefined || column.code !== undefined || column.rollup !== undefined;
+  return (
+    column.copy !== undefined ||
+    column.sequence !== undefined ||
+    column.code !== undefined ||
+    column.rollup !== undefined ||
+    column.stamp !== undefined
+  );
+}
+
+/** The columns of a table Adminium decides: its columns' own rules, a balance, and a booking's late flag. */
+function decidedColumnsOf(table: ResolvedTable): Set<string> {
+  const out = new Set(table.table.columns.filter(decidedByAdminium).map((c) => c.name));
+  for (const column of table.table.columns) if (column.rollup?.balance !== undefined) out.add(column.rollup.balance.column);
+  const flag = table.table.booking?.cancel?.flag;
+  if (flag !== undefined) out.add(flag);
+  return out;
 }
 
 /**
@@ -385,7 +492,8 @@ function defaultWritable(def: PublicEndpointDefinition, table: ResolvedTable | n
   const out = new Set(def.select);
   if (table !== null) {
     for (const pk of table.primaryKey) out.delete(pk);
-    for (const column of table.table.columns) if (serverOwned(column) || decidedByAdminium(column)) out.delete(column.name);
+    const decided = decidedColumnsOf(table);
+    for (const column of table.table.columns) if (serverOwned(column) || decided.has(column.name)) out.delete(column.name);
   }
   for (const f of def.filters) out.delete(f.column);
   if (def.claim?.column !== undefined) out.delete(def.claim.column);
@@ -430,6 +538,8 @@ export function definitionToResource(
         : {
             ...(def.claim.column === undefined ? {} : { column: def.claim.column }),
             ...(def.claim.via === undefined ? {} : { via: { ...def.claim.via } }),
+            ...(def.claim.ref === undefined ? {} : { ref: def.claim.ref }),
+            ...(def.claim.optional === undefined ? {} : { optional: def.claim.optional }),
           };
   const resource: PublicScopeResource = {
     ref,
@@ -439,9 +549,7 @@ export function definitionToResource(
     filterable: [...(def.filterable ?? [])],
     searchable: [...(def.searchable ?? [])],
     orderable: [...(def.orderable ?? [])],
-    where: def.filters.map((f) =>
-      f.value === undefined ? { column: f.column, op: f.op } : { column: f.column, op: f.op, value: f.value },
-    ),
+    where: def.filters.map(filterOf) as PublicScopeResource['where'],
     writable: def.writable === undefined ? defaultWritable(def, table) : [...def.writable],
     defaults: { ...(def.defaults ?? {}) },
     sensitive: def.sensitive ?? false,
@@ -455,6 +563,22 @@ export function definitionToResource(
   if (claim !== undefined) resource.claim = claim;
   if (def.kind === 'availability') resource.kind = 'availability';
   if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
+  if (def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };
+  if (def.writable_when !== undefined) resource.writableWhen = { ...def.writable_when };
+  if (def.level !== undefined) resource.level = def.level;
+  if (def.human_check !== undefined) resource.humanCheck = true;
+  if (def.on_claim !== undefined) resource.onClaim = { clear: [...def.on_claim.clear] };
+  if (def.max_open !== undefined) resource.maxOpen = { ...def.max_open };
+  if (def.rank !== undefined) resource.rank = { orderBy: def.rank.order_by, ...(def.rank.where === undefined ? {} : { where: { ...def.rank.where } }) };
+  if (def.require_setting !== undefined) resource.requireSetting = def.require_setting.map((setting) => ({ ...setting }));
+  if (def.anonymous !== undefined) {
+    const caps = def.anonymous;
+    resource.anonymous = {
+      ...(caps.per_value === undefined ? {} : { perValue: { columns: [...caps.per_value.columns], n: caps.per_value.n } }),
+      ...(caps.per_key_hour === undefined ? {} : { perKeyHour: caps.per_key_hour }),
+      ...(caps.plain_text === undefined ? {} : { plainText: [...caps.plain_text] }),
+    };
+  }
   return resource;
 }
 
@@ -600,9 +724,10 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     // Free or full, per slot, and nothing else: a read of the booking limit.
     const capacity = table.table.capacity;
     if ([...methods].some((m) => m !== 'GET')) push('ENDPOINT_AVAILABILITY_READ_ONLY', 'availability answers GET only');
-    if (capacity === undefined) {
+    if (capacity === undefined && table.table.booking === undefined) {
       push('ENDPOINT_AVAILABILITY_NO_LIMIT', `${def.source} has no booking limit to answer availability from`);
-    } else if (capacity.resource !== undefined) {
+    } else if (capacity?.resource !== undefined) {
+      // A booking rule answers per person; a capacity limit per table or room does not yet.
       push('ENDPOINT_AVAILABILITY_PER_RESOURCE', 'availability for a limit per table or room is not offered yet');
     }
   }
@@ -638,7 +763,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     def.writable ?? definitionToResource(ref, def, def.methods, table).writable;
   const pk = new Set(table.primaryKey);
   const owned = new Set(table.table.columns.filter(serverOwned).map((c) => c.name));
-  const decided = new Set(table.table.columns.filter(decidedByAdminium).map((c) => c.name));
+  const decided = decidedColumnsOf(table);
   if (def.methods.some((m) => WRITING_METHODS.has(m))) {
     for (const column of writable) {
       if (pk.has(column) || owned.has(column)) {
@@ -651,6 +776,50 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
         // A guest never picks a price, a number or a code.
         push('ENDPOINT_WRITABLE_DECIDED', `"${column}" is decided by Adminium and cannot be writable`, column);
       }
+    }
+  }
+
+  // What a signed-in create empties, counts and ranks by: columns of this table.
+  const named = [
+    ...(def.on_claim?.clear ?? []).map((column) => ['on_claim', column] as const),
+    ...(def.max_open === undefined ? [] : [['max_open', def.max_open.column] as const, ...(def.max_open.upcoming === undefined ? [] : [['max_open', def.max_open.upcoming] as const])]),
+    ...(def.rank === undefined ? [] : [['rank', def.rank.order_by] as const, ...(def.rank.where === undefined ? [] : [['rank', def.rank.where.column] as const])]),
+    ...(def.identity?.email === undefined ? [] : [['identity', def.identity.email] as const]),
+    ...[...(def.anonymous?.per_value?.columns ?? []), ...(def.anonymous?.plain_text ?? [])].map((column) => ['anonymous', column] as const),
+  ];
+  for (const [key, column] of named) {
+    if (!table.columns.has(column)) push('ENDPOINT_COLUMN_UNKNOWN', `"${column}" (${key}) is not a column of ${def.source}`, column);
+  }
+  // A switch is a yes/no column of a table this connection has.
+  for (const setting of view === null ? [] : (def.require_setting ?? [])) {
+    let type: string | undefined;
+    try {
+      type = view?.table(setting.table).columns.get(setting.column)?.logicalType;
+    } catch {
+      type = undefined;
+    }
+    // A yes/no: a boolean, or the 0/1 integer SQLite and MySQL keep one in.
+    if (type !== 'boolean' && type !== 'integer') push('ENDPOINT_SETTING_NOT_A_SWITCH', `"${setting.table}.${setting.column}" is not a yes/no column of this database`, setting.column);
+  }
+  if (def.max_open?.upcoming !== undefined) {
+    const type = table.columns.get(def.max_open.upcoming)?.logicalType;
+    if (type !== undefined && type !== 'timestamp' && type !== 'timestamptz') {
+      push('ENDPOINT_WRITABLE_WHEN_NOT_A_TIME', `"${def.max_open.upcoming}" is not a time, so "upcoming" cannot apply`, def.max_open.upcoming);
+    }
+  }
+
+  // A calendar filter counts days on a date or a time; `from-now` asks for a time still ahead.
+  for (const f of def.filters) {
+    if (f.op !== 'today' && f.op !== 'from-today') continue;
+    const type = table.columns.get(f.column)?.logicalType;
+    if (type !== undefined && !DAY_TYPES.has(type)) {
+      push('ENDPOINT_FILTER_NOT_A_DAY', `"${f.column}" is not a date or a time, so "${f.op}" cannot apply`, f.column);
+    }
+  }
+  for (const [column, when] of Object.entries(def.writable_when ?? {})) {
+    const type = table.columns.get(column)?.logicalType;
+    if (when === 'from-now' && type !== undefined && type !== 'timestamp' && type !== 'timestamptz') {
+      push('ENDPOINT_WRITABLE_WHEN_NOT_A_TIME', `"${column}" is not a time, so "from-now" cannot apply`, column);
     }
   }
 
@@ -712,7 +881,14 @@ function scopeIssuesOf(
     resources: [resource],
   };
   if (def.identity !== undefined) {
-    document.claim = { strategy: def.identity.strategy, ref, match: [...def.identity.match] };
+    document.claim = {
+      strategy: def.identity.strategy,
+      ref,
+      match: [...def.identity.match],
+      ...(def.identity.verify === undefined ? {} : { verify: def.identity.verify }),
+      ...(def.identity.email === undefined ? {} : { email: def.identity.email }),
+      ...(def.human_check === undefined ? {} : { humanCheck: true as const }),
+    };
   }
   try {
     // Secret columns are left out of the lookup, so naming one in any list

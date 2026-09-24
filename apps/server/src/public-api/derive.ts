@@ -165,7 +165,15 @@ export function deriveScopeDocument(
           ref: identity.ref,
         });
       }
-      document.claim = { strategy: spec.strategy, ref: identity.ref, match: [...spec.match] };
+      document.claim = {
+        strategy: spec.strategy,
+        ref: identity.ref,
+        match: [...spec.match],
+        ...(spec.verify === undefined ? {} : { verify: spec.verify }),
+        ...(spec.email === undefined ? {} : { email: spec.email }),
+        // Every claim through this identity is proved to be a person's.
+        ...(identity.definition.human_check === undefined ? {} : { humanCheck: true as const }),
+      };
     }
   }
   if (identities.length === 0 && resources.some((r) => r.claim !== undefined)) {
@@ -216,8 +224,35 @@ export interface Widening {
   ref: string;
   methods: string[];
   columns: string[];
-  /** True when the save removes or changes a mandatory filter. */
+  /**
+   * True when the save removes or changes a mandatory filter — or loosens
+   * what a caller may write: a value it may set, the state a row must be in
+   * before it changes, or the limits on a stranger's create.
+   */
   rows: boolean;
+}
+
+/** Each limit on a write as one comparable string: `values|status|["cancelled"]`. */
+function writeLimits(r: PublicScopeResource | undefined): Set<string> {
+  const out = new Set<string>();
+  for (const [column, values] of Object.entries(r?.writableValues ?? {})) out.add(`values|${column}|${JSON.stringify(values)}`);
+  for (const [column, when] of Object.entries(r?.writableWhen ?? {})) out.add(`when|${column}|${JSON.stringify(when)}`);
+  return out;
+}
+
+/**
+ * Whether a save loosens the limits on a create nobody signed in for: a cap
+ * dropped or raised, a column no longer counted or no longer held to plain
+ * text. A tighter cap is not a widening.
+ */
+function capsLoosened(before: PublicScopeResource['anonymous'], after: PublicScopeResource['anonymous']): boolean {
+  if (before === undefined) return false;
+  if (after === undefined) return true;
+  if (before.perKeyHour !== undefined && (after.perKeyHour === undefined || after.perKeyHour > before.perKeyHour)) return true;
+  const was = before.perValue;
+  const now = after.perValue;
+  if (was !== undefined && (now === undefined || now.n > was.n || was.columns.some((column) => !now.columns.includes(column)))) return true;
+  return (before.plainText ?? []).some((column) => !(after.plainText ?? []).includes(column));
 }
 
 export function wideningOf(before: unknown, after: PublicScopeDocument): Widening[] {
@@ -234,8 +269,11 @@ export function wideningOf(before: unknown, after: PublicScopeDocument): Widenin
     const newWhere = new Set(r.where.map((w) => JSON.stringify(w)));
     const methods = r.actions.filter((a) => !had.has(a));
     const columns = r.expose.filter((c) => !shown.has(c));
-    // Rows widen when a condition that held before no longer does.
-    const rows = prior !== undefined && [...oldWhere].some((w) => !newWhere.has(w));
+    // Rows widen when a condition that held before no longer does — on reads, or on writes.
+    const limits = writeLimits(r);
+    const rows =
+      prior !== undefined &&
+      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous));
     if (methods.length > 0 || columns.length > 0 || rows) out.push({ ref: r.ref, methods, columns, rows });
   }
   return out;

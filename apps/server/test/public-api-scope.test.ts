@@ -602,7 +602,7 @@ describe('compileScope — properties', () => {
         }),
         columnsOf,
       );
-      const m = scope.byRef.get('menu')?.mandatory;
+      const m = scope.byRef.get('menu')?.where.fixed;
       expect(m).not.toBeNull();
       const count = m && 'and' in m ? m.and.length : 1;
       expect(count).toBe(n);

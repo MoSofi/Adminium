@@ -20,6 +20,7 @@
  * having any route to the response.
  */
 
+import { CUSTOMER_KEY_PURPOSE, keyEnabledBy, keyStaffBinding, type KeyEnabledBy, type KeyStaffBinding } from '@adminium/meta';
 import { compileScope, type InheritedTenantConfig, ScopeCompileError, type CompiledScope, type TableColumnLookup } from './scope.js';
 import {
   hashPublishableKey,
@@ -42,6 +43,12 @@ export interface ResolvedKey {
   origins: readonly string[];
   /** The app that made this key at install, or null for an operator's own. */
   managedBy: string | null;
+  /** Which of an app's browser keys: `customer` (its public side) or a name the app gave (`kiosk`). */
+  purpose: string;
+  /** Every request must also come from a signed-in staff member holding this app role. */
+  requiresStaff: KeyStaffBinding | null;
+  /** A yes/no in the app's settings row that switches the key off. */
+  enabledBy: KeyEnabledBy | null;
 }
 
 export interface PublicKeyRow {
@@ -57,6 +64,10 @@ export interface PublicKeyRow {
   kind?: string;
   /** Absent on rows written before apps made their own keys. */
   managedBy?: string | null;
+  /** Absent on rows written before an app could have a second key. */
+  purpose?: string;
+  requiresStaff?: string | null;
+  enabledBy?: string | null;
 }
 
 export interface PublicScopeRow {
@@ -220,6 +231,17 @@ export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
       scope,
       origins,
       managedBy: matched.managedBy ?? null,
+      purpose: matched.purpose ?? CUSTOMER_KEY_PURPOSE,
+      // Stored but unreadable binds the key to nobody, and an unreadable switch
+      // reads as off: a malformed column must never open a key wider.
+      requiresStaff:
+        matched.requiresStaff === null || matched.requiresStaff === undefined
+          ? null
+          : (keyStaffBinding({ requiresStaff: matched.requiresStaff }) ?? { appKey: '', roleSlug: '' }),
+      enabledBy:
+        matched.enabledBy === null || matched.enabledBy === undefined
+          ? null
+          : (keyEnabledBy({ enabledBy: matched.enabledBy }) ?? { table: '', column: '' }),
     };
     if (started === generation) {
       // Never cached past the key's own expiry: a key must stop at

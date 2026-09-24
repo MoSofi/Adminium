@@ -109,6 +109,10 @@ export const publicKeyDto = z.object({
   side: z.enum(['staff', 'customer']),
   /** Hosted app surface this key is bound to, or null. */
   appKey: z.string().nullable(),
+  /** Which of an app's browser keys: `customer`, or a name the app gave a second one (`kiosk`). */
+  purpose: z.string(),
+  /** A second key answers only alongside a signed-in staff member holding this app role. */
+  requiresStaff: z.object({ appKey: z.string(), roleSlug: z.string() }).nullable(),
   origins: z.array(z.string()),
   expiresAt: z.number().nullable(),
   revokedAt: z.number().nullable(),

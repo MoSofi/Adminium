@@ -9,7 +9,7 @@
  *  - PATCH only on an endpoint that needs a signed-in guest (the session
  *    reaches the claimant's own row alone), and only while its `writable`
  *    names no column Adminium decides — a copied price, a code, a running
- *    number, a total;
+ *    number, a total, a stamp;
  *  - never PUT, DELETE or BATCH (a batch updates every row the key reaches).
  * And an anonymous create never also offers GET: the single-row read by id
  * would let anyone read every booking by guessing ids.
@@ -26,7 +26,7 @@ import type { ScopeIssue } from './scope.js';
 export const KEY_MANAGED_UNSAFE = 'KEY_MANAGED_UNSAFE';
 
 /** The override ops whose column Adminium decides; a guest never writes one. */
-export const DECIDED_COLUMN_OPS: readonly string[] = ['column.copy', 'column.code', 'column.sequence', 'column.rollup'];
+export const DECIDED_COLUMN_OPS: readonly string[] = ['column.copy', 'column.code', 'column.sequence', 'column.rollup', 'column.stamp'];
 
 const WRITE_METHODS: ReadonlySet<PublicMethod> = new Set(['POST', 'PATCH', 'PUT', 'DELETE', 'BATCH']);
 const NEVER: ReadonlySet<PublicMethod> = new Set(['PUT', 'DELETE', 'BATCH']);

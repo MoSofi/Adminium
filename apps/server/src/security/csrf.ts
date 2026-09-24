@@ -97,6 +97,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 
 import { deriveKey } from '../config/secrets.js';
+import { PUBLISHABLE_KEY_PREFIX, SERVER_KEY_PREFIX } from '../public-api/keys.js';
 import { parseBearerApiKey } from '../rbac/api-keys.js';
 
 /** Header the dashboard echoes the bootstrap `csrfToken` in. */
@@ -312,6 +313,9 @@ export function checkCsrf(request: FastifyRequest, deps: CsrfDeps): CsrfFailure 
   // keys on routes the rbac plugin never reached (see the module header).
   if (request.apiKey?.id !== undefined) return null;
   if (parseBearerApiKey(request.headers.authorization) !== null) return null;
+  // A public key's request is the key's, not the cookie's: the public gate
+  // runs its own cookie check where a key does lean on one (a staff-bound key).
+  if (publicKeyBearer(request.headers.authorization)) return null;
 
   const sessionId = request.session?.id;
   if (sessionId === undefined) return null;
@@ -341,6 +345,22 @@ function formToken(body: unknown): string | undefined {
   if (typeof body !== 'string') return undefined;
   const match = new RegExp(`^${CSRF_FORM_FIELD}=([A-Za-z0-9_-]+)\\s*$`).exec(body);
   return match?.[1];
+}
+
+/** A public API key (`adm_pub_` / `adm_srv_`) in the Authorization header. */
+function publicKeyBearer(authorization: string | undefined): boolean {
+  const match = /^Bearer\s+(\S+)$/i.exec((authorization ?? '').trim());
+  return match !== null && (match[1]!.startsWith(PUBLISHABLE_KEY_PREFIX) || match[1]!.startsWith(SERVER_KEY_PREFIX));
+}
+
+/**
+ * Whether a cookie session's request carries its CSRF token in the header —
+ * for a gate that leans on the cookie after the global check stood aside.
+ */
+export function csrfHeaderMatches(request: FastifyRequest, key: Uint8Array): boolean {
+  const sessionId = request.session?.id;
+  const presented = request.headers[CSRF_HEADER];
+  return sessionId !== undefined && typeof presented === 'string' && presented.length > 0 && tokensMatch(presented, issueCsrfToken(key, sessionId));
 }
 
 /** Length-safe constant-time compare (`timingSafeEqual` throws on a mismatch). */
