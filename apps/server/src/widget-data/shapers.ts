@@ -173,7 +173,13 @@ export interface ColumnMeta {
   logicalType: string;
   nullable: boolean;
   isPrimaryKey: boolean;
+  /** A choice column's words for its values ("Checked in" for `checked_in`), and their tones. */
+  enumLabels?: Record<string, string>;
+  enumTones?: Record<string, string>;
 }
+
+/** The tones a cell may draw a choice in; anything else is left to the default. */
+const CELL_TONES: ReadonlySet<string> = new Set(['neutral', 'accent', 'pos', 'warn', 'danger', 'info', 'muted']);
 
 export interface ShapedRecordList {
   shape: 'record-list';
@@ -278,10 +284,22 @@ function pointsOf(rows: Row[], bucketAlias: string, valueAlias: string): TsPoint
 }
 
 /** Group-key normalization shared by every keyed envelope (`null` ⇒ `__null`). */
-function keyOf(value: unknown): { key: string; label: string } {
+function keyOf(value: unknown, labels?: ReadonlyMap<string, string>): { key: string; label: string } {
   return value === null || value === undefined
     ? { key: '__null', label: '—' }
-    : { key: String(value), label: String(value) };
+    : { key: String(value), label: labels?.get(String(value)) ?? String(value) };
+}
+
+/**
+ * What each group is called: its choice column's labels, from the schema,
+ * overridden by the labels the route read for a foreign-key group.
+ */
+function labelsOf(compiled: CompiledWidgetQuery, index: number, read: ReadonlyMap<string, string> | undefined): ReadonlyMap<string, string> | undefined {
+  const name = compiled.groupColumns[index];
+  const column = name === undefined ? undefined : compiled.table.table?.columns.find((candidate) => candidate.name === name);
+  const enumLabels = (column as { enumLabels?: Record<string, string> } | undefined)?.enumLabels;
+  if (enumLabels === undefined) return read;
+  return new Map([...Object.entries(enumLabels), ...(read ?? new Map<string, string>())]);
 }
 
 /**
@@ -476,13 +494,20 @@ export interface ShapeInput {
   canReadPii: boolean;
   /** Connection id — needed to build the `stream` channel name. */
   connectionId?: string | undefined;
+  /** What a foreign-key group is called, read by the route (`descriptor.groupLabel`). */
+  groupLabels?: ReadonlyMap<string, string> | undefined;
 }
 
 function columnMetaOf(compiled: CompiledWidgetQuery): ColumnMeta[] {
   const labels = new Map<string, string>();
+  const choices = new Map<string, Pick<ColumnMeta, 'enumLabels' | 'enumTones'>>();
   for (const column of compiled.table.table?.columns ?? []) {
-    const label = (column as { label?: string }).label;
+    const { label, enumLabels, enumTones } = column as { label?: string; enumLabels?: Record<string, string>; enumTones?: Record<string, string> };
     if (label !== undefined) labels.set(column.name, label);
+    const tones = Object.fromEntries(Object.entries(enumTones ?? {}).filter(([, tone]) => CELL_TONES.has(tone)));
+    if (enumLabels !== undefined || Object.keys(tones).length > 0) {
+      choices.set(column.name, { ...(enumLabels === undefined ? {} : { enumLabels }), ...(Object.keys(tones).length === 0 ? {} : { enumTones: tones }) });
+    }
   }
   const selected: ColumnMeta[] = compiled.selectedColumns.map((column) => {
     const label = labels.get(column.name);
@@ -492,6 +517,7 @@ function columnMetaOf(compiled: CompiledWidgetQuery): ColumnMeta[] {
       logicalType: column.logicalType,
       nullable: column.nullable,
       isPrimaryKey: column.isPrimaryKey,
+      ...(choices.get(column.name) ?? {}),
     };
   });
   // A looked-up value is a column of the answer too — "On shift" names the person.
@@ -529,6 +555,8 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
   const rows = scan === null ? zoned : foldPercentileScan(scan, zoned);
   const priorZoned = input.priorRows === undefined ? undefined : venueBuckets(compiled, input.priorRows);
   const priorRows = priorZoned === undefined || scan === null ? priorZoned : foldPercentileScan(scan, priorZoned);
+  const groupNames = labelsOf(compiled, 0, input.groupLabels);
+  const colNames = labelsOf(compiled, 1, undefined);
 
   switch (compiled.shape) {
     case 'single-metric':
@@ -561,7 +589,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       // keeps each series chronological without a second sort.
       const series = new Map<string, ShapedMultiTimeseries['series'][number]>();
       for (const row of rows) {
-        const { key, label } = keyOf(row[groupAlias]);
+        const { key, label } = keyOf(row[groupAlias], groupNames);
         let entry = series.get(key);
         if (entry === undefined) {
           entry = { key, label, points: [] };
@@ -580,8 +608,8 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       const colKeys: string[] = [];
       const values = new Map<string, number>();
       for (const row of rows) {
-        const r = keyOf(row[groupAlias]).key;
-        const c = keyOf(row[colAlias]).key;
+        const r = keyOf(row[groupAlias], groupNames).key;
+        const c = keyOf(row[colAlias], colNames).key;
         if (!rowKeys.includes(r)) {
           if (rowKeys.length >= MATRIX_AXIS_CAP) continue;
           rowKeys.push(r);
@@ -609,8 +637,8 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
         const colAlias = compiled.colAlias ?? COL_ALIAS;
         const branches = new Map<string, TreeNode>();
         for (const row of rows) {
-          const branch = keyOf(row[groupAlias]);
-          const leaf = keyOf(row[colAlias]);
+          const branch = keyOf(row[groupAlias], groupNames);
+          const leaf = keyOf(row[colAlias], colNames);
           let node = branches.get(branch.key);
           if (node === undefined) {
             node = { id: branch.key, label: branch.label, value: 0, children: [] };
@@ -677,7 +705,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
         // metric — the shape `chart-choropleth-grid` fills regions from.
         const groupAlias = compiled.groupAlias ?? GROUP_ALIAS;
         const points = rows.map((row): GeoPoint => {
-          const { key, label } = keyOf(row[groupAlias]);
+          const { key, label } = keyOf(row[groupAlias], groupNames);
           const values = Object.fromEntries(
             compiled.aggregationAliases.map((alias) => [alias, toNumber(row[alias])]),
           );
@@ -724,8 +752,8 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       const labels = new Map<string, string>();
       const links: ShapedFlows['links'] = [];
       for (const row of rows) {
-        const from = keyOf(row[groupAlias]);
-        const to = keyOf(row[colAlias]);
+        const from = keyOf(row[groupAlias], groupNames);
+        const to = keyOf(row[colAlias], colNames);
         if (!labels.has(from.key)) labels.set(from.key, from.label);
         if (!labels.has(to.key)) labels.set(to.key, to.label);
         links.push({ from: from.key, to: to.key, weight: toNumber(row[alias]) });
@@ -803,7 +831,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
     case 'distribution': {
       const groupAlias = compiled.groupAlias;
       const groups = rows.map((row) => {
-        const { key, label } = groupAlias === null ? { key: 'all', label: 'All' } : keyOf(row[groupAlias]);
+        const { key, label } = groupAlias === null ? { key: 'all', label: 'All' } : keyOf(row[groupAlias], groupNames);
         const quantiles = Object.fromEntries(
           DISTRIBUTION_QUANTILES.map(({ alias, key: name }) => [name, toNumber(row[alias])]),
         ) as Record<'min' | 'q1' | 'med' | 'q3' | 'max', number>;
@@ -838,7 +866,7 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
     case 'categorical': {
       const alias = firstAlias(compiled);
       const groupAlias = compiled.groupAlias ?? '__group';
-      const items = rows.map((row) => ({ ...keyOf(row[groupAlias]), value: toNumber(row[alias]) }));
+      const items = rows.map((row) => ({ ...keyOf(row[groupAlias], groupNames), value: toNumber(row[alias]) }));
       // Cardinality cap: rows arrive ordered by value desc (compiler); fold
       // the tail into `__other` (guardrails — fold is over fetched
       // rows, themselves bounded by the hard LIMIT).

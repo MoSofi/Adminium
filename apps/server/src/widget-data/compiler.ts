@@ -243,6 +243,8 @@ export interface CompiledWidgetQuery {
   groupAlias: string | null;
   /** Second group-by key — `matrix` column headers only. */
   colAlias: string | null;
+  /** The columns grouped by, in order (the group, then the column key). */
+  groupColumns: string[];
   /** Resolved columns of a row-bearing SELECT (masking metadata). */
   selectedColumns: ResolvedColumn[];
   /** Lookups projected onto each row; the shaper nulls the refused ones. */
@@ -1059,6 +1061,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     // Every two-key rollup reads its second key here: `matrix` cells, `flows`
     // targets and the leaves of a rolled-up `hierarchy/tree`.
     colAlias: !rowShape && groupColumns.length === 2 ? COL_ALIAS : null,
+    groupColumns: rowShape ? [] : [...groupColumns],
     ohlcScan: ohlcColumn === null ? null : { bucketAlias: BUCKET_ALIAS, valueAlias: VALUE_ALIAS },
     percentileScan: scan
       ? {

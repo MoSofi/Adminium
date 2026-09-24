@@ -388,6 +388,7 @@ describe('shapers', () => {
     count: null,
     bucketAlias: null,
     groupAlias: null,
+    groupColumns: [],
     selectedColumns: [],
     limit: 1000,
     query: null as never,

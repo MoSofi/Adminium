@@ -30,6 +30,7 @@ import { canReadPii } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
+import { groupLabelsFor } from '../../widget-data/group-labels.js';
 import { shapeRows, toNumber, type ShapedPayload } from '../../widget-data/shapers.js';
 import { widgetBatchBody, widgetBatchReply, widgetQueryBody, widgetQueryReply } from './schema.js';
 
@@ -143,7 +144,17 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         const countRow = (await compiled.count.executeTakeFirst()) as { total?: unknown } | undefined;
         total = toNumber(countRow?.total);
       }
-      const result = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId });
+      // What each foreign-key group is called, read like a lookup: this caller's read, this caller's mask.
+      const groupLabels = await groupLabelsFor({
+        path: descriptor.groupLabel,
+        compiled,
+        rows,
+        view,
+        db,
+        canReadPii: unmasked,
+        canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
+      });
+      const result = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels });
 
       // Execution metrics for the Studio slow-query panel — the
       // structured log line is the v1 sink.
