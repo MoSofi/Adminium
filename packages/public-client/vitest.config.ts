@@ -24,6 +24,10 @@
  * reachable values are multiples of 5, so both accept 17/20 and both reject
  * 16/20. They stop being the same the moment the denominator moves, which is
  * the case the ratchet is written for.
+ *
+ * Re-measured 2026-09-24, with the human check, the emailed code and booking
+ * availability in: statements 99.47, branches 91.18, functions 100 (55/55) —
+ * ratcheted to 99 / 91 / 100.
  */
 import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
@@ -31,6 +35,6 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     ...workers(),
-    coverage: coverage({ statements: 89, branches: 81, functions: 85 }),
+    coverage: coverage({ statements: 99, branches: 91, functions: 100 }),
   },
 });

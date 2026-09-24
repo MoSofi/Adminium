@@ -59,6 +59,48 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_SLOT_BUSY',
   /** Too close to the time to cancel online; the venue still can. */
   'PUBLIC_TOO_LATE',
+  /**
+   * The resource needs a VERIFIED session and this one only found the person
+   * (403): ask for the emailed code with `requestCode`, then `verifyCode`.
+   */
+  'PUBLIC_CLAIM_LEVEL',
+  /** The signed-in person already holds as many open rows here as the app allows (409). */
+  'PUBLIC_LIMIT_REACHED',
+  /** The app switched this off in its own settings — online booking, say (403). */
+  'PUBLIC_SWITCHED_OFF',
+  /**
+   * A kiosk's key used without its staff member signed in on this screen
+   * (403). One code for every reason, so do not try to tell them apart.
+   */
+  'PUBLIC_STAFF_REQUIRED',
+  /** The app switched this key off — the kiosk switch (503). */
+  'PUBLIC_KEY_OFF',
+  /** The person has no address a code could go to (409): send them to the desk. */
+  'PUBLIC_CLAIM_NO_EMAIL',
+  /** Too many wrong codes for this person today (403); the desk can lift it. */
+  'PUBLIC_CLAIM_LOCKED',
+  /** A code was sent a moment ago (429); `retryAfterSeconds` says how long to wait. */
+  'PUBLIC_CODE_TOO_SOON',
+  /** This session has asked for as many codes as it may (429). */
+  'PUBLIC_CODE_LIMIT',
+  /** The last code died of wrong tries and this session waits (429, `retryAfterSeconds`). */
+  'PUBLIC_CODE_LOCKED',
+  /** That code is not right (403). `verifyCode` answers it as a result, with the tries left. */
+  'PUBLIC_CODE_WRONG',
+  /** No code is open for this session: it expired, was used or was replaced (410). */
+  'PUBLIC_CODE_EXPIRED',
+  /** No code can be sent from this server right now (503). */
+  'PUBLIC_CODE_UNAVAILABLE',
+  /** Changing the address needs a code confirmed in the last few minutes (403). */
+  'PUBLIC_CODE_STEP_UP',
+  /** The address was changed today already (429). */
+  'PUBLIC_EMAIL_CHANGE_LIMIT',
+  /**
+   * The human check is missing, wrong, expired or already used (403). The
+   * client answers it itself on `create` and `claim` — once — so a page only
+   * sees it when a fresh proof was refused too.
+   */
+  'PUBLIC_PROOF_REQUIRED',
   'PUBLIC_UPSTREAM_UNAVAILABLE',
   /**
    * The app that made this key at install is switched off (503), or its
@@ -83,14 +125,28 @@ export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
 export class PublicApiError extends Error {
   readonly code: PublicErrorCode;
   readonly status: number;
+  /**
+   * How long to wait before asking again: the `Retry-After` header on a rate
+   * limit, or the reply's own `retryAfter` on a code asked for too soon.
+   */
   readonly retryAfterSeconds: number | null;
+  /** What the server said beside the code — `triesLeft`, `retryAfter`. Empty when it said nothing. */
+  readonly params: Readonly<Record<string, unknown>>;
 
-  constructor(code: PublicErrorCode, status: number, message: string, retryAfterSeconds?: number) {
+  constructor(
+    code: PublicErrorCode,
+    status: number,
+    message: string,
+    retryAfterSeconds?: number,
+    params?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = 'PublicApiError';
     this.code = code;
     this.status = status;
-    this.retryAfterSeconds = retryAfterSeconds ?? null;
+    this.params = params ?? {};
+    const told = this.params['retryAfter'];
+    this.retryAfterSeconds = retryAfterSeconds ?? (typeof told === 'number' ? told : null);
   }
 
   /**
@@ -143,6 +199,8 @@ export interface PublicRefConfig {
   limit: number;
   /** Absent from a server that predates response shapes: read it as `wrapped`. */
   response?: { shape: PublicResponseShape };
+  /** Present on an availability ref: ask `availability` or `bookingTimes`, never `list`. */
+  kind?: 'availability';
 }
 
 export interface PublicConfig {
@@ -157,7 +215,13 @@ export interface PublicConfig {
    * currency attached, so formatting one without this is a guess.
    */
   currency: string | null;
-  claim: { strategy: 'lookup' | 'email-code' | 'external'; ref: string; match: string[] } | null;
+  claim: {
+    strategy: 'lookup' | 'email-code' | 'external';
+    ref: string;
+    match: string[];
+    /** A found session can be raised to `verified` by a code emailed to the person. */
+    verify?: 'email-code';
+  } | null;
   /**
    * Whether this key may ask for a document to be drawn.
    *
@@ -205,6 +269,99 @@ export interface PublicClientOptions {
   publishableKey: string;
   /** Injectable for tests; `globalThis.fetch` otherwise. */
   fetch?: typeof fetch;
+  /**
+   * The human check on `create` and `claim`.
+   *
+   * Absent, the client answers the server: it sends without a proof and, when
+   * refused for want of one, solves a challenge and sends again. `true` solves
+   * one before every create and claim — a page that knows its refs ask saves
+   * the refused round trip. `false` never solves one, and the refusal reaches
+   * the page as `PUBLIC_PROOF_REQUIRED`. The object form names what is known
+   * to ask, and answers the server for the rest.
+   */
+  humanCheck?: boolean | { refs?: readonly string[]; claim?: boolean };
+  /**
+   * The signed-in staff member's CSRF token, for a key bound to staff (a
+   * kiosk). Sent on every write, never on a read.
+   *
+   * A kiosk page reads both halves from its staff `surface-config.json`: the
+   * token from `csrfToken`, and the key from `publicKeys[purpose]` as
+   * `publishableKey`. A getter is read on each request, so a token that
+   * changes with a new sign-in is picked up without a new client.
+   *
+   * The key's other condition is the staff cookie, which a same-origin fetch
+   * sends by default: this client never sets `credentials`, and must not.
+   */
+  csrfToken?: string | (() => string | null | undefined);
+}
+
+/** How far a claim session reaches: `lookup` found the person, `verified` proved their mailbox. */
+export type ClaimLevel = 'lookup' | 'verified';
+
+/** The claim session a client holds, without its token. */
+export interface PublicSession {
+  level: ClaimLevel;
+  /** Epoch ms. */
+  expiresAt: number;
+}
+
+/** A day of a strip of days, as a booking availability ref answers it. */
+export interface DayAvailability {
+  /** `YYYY-MM-DD` on the tenant's calendar. */
+  date: string;
+  /** How many of the day's times are free. */
+  open: number;
+  state: 'open' | 'full' | 'closed';
+}
+
+/** What a booking availability read asks, whichever form. */
+export interface BookingQuery {
+  /** The kind of visit — its key, as the table knows it. */
+  kind: string;
+  /** One person's key, or `any` (the default). */
+  resource?: string;
+  /**
+   * The id of a row this session reaches — the visit being moved — so its
+   * own time is not counted against it. Ignored for a row the session cannot
+   * read, so it tells a stranger nothing.
+   */
+  exclude?: string;
+}
+
+/**
+ * What `requestCode` asks for. `verify` goes to the address the person
+ * already has; `email-change` goes to the NEW address, and needs a verified
+ * session that confirmed a code in the last few minutes.
+ */
+export type CodeRequest = { purpose: 'verify' } | { purpose: 'email-change'; email: string };
+
+/** A code is on its way. */
+export interface CodeSent {
+  /** The address, masked (`l•••@e•••.com`): show it so the person knows where to look. */
+  sentTo: string;
+  /** Seconds before another code may be asked for. */
+  resendAfter: number;
+  /** Epoch ms after which this code no longer works. */
+  expiresAt: number;
+}
+
+/**
+ * The answer to a typed-back code.
+ *
+ * A wrong code is an ordinary outcome, like a claim that does not match, so it
+ * is a result rather than an exception. `ended` is true after an address
+ * change: every session of that person ends, this one too, and the client has
+ * already dropped it — the page asks them to find themselves again.
+ */
+export type VerifyCodeResult =
+  | { ok: true; level: ClaimLevel; expiresAt: number; ended: boolean; email?: string }
+  | { ok: false; triesLeft: number };
+
+/** A created row, and where it stands when the endpoint ranks ("you are 3rd on the list"). */
+export interface Created<T = Row> {
+  data: T;
+  /** Null when the endpoint does not rank. */
+  rank: number | null;
 }
 
 /** One drawn document, as a claimed visitor may see it. */
@@ -261,6 +418,12 @@ export interface PublicDocuments {
 /* --------------------------------------------------------------- client */
 
 const SESSION_HEADER = 'x-adminium-public-session';
+const PROOF_HEADER = 'x-adminium-proof';
+/** The staff member's token on a kiosk's writes — the dashboard's own CSRF header. */
+const CSRF_HEADER = 'x-adminium-csrf';
+const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
+/** Where a claim that asked for a proof is remembered — a symbol, so no ref name can be it. */
+const CLAIM = Symbol('claim');
 
 /** One time of a day, as an availability ref answers it. */
 export interface SlotAvailability {
@@ -275,6 +438,11 @@ export interface PublicClient {
   list: <T = Row>(ref: string, options?: ListOptions) => Promise<ListResult<T>>;
   get: <T = Row>(ref: string, id: string, signal?: AbortSignal) => Promise<T>;
   create: <T = Row>(ref: string, values: Row) => Promise<T>;
+  /**
+   * `create`, with where the new row stands. Its own verb so that `create`
+   * keeps answering the bare row every app already reads.
+   */
+  createWithRank: <T = Row>(ref: string, values: Row) => Promise<Created<T>>;
   update: <T = Row>(ref: string, id: string, values: Row) => Promise<T>;
   /**
    * Replace the row's writable columns — every one of them must be present (a
@@ -294,11 +462,32 @@ export interface PublicClient {
    * visitor's own booking is not counted against them.
    */
   availability: (ref: string, day: string, party: number, signal?: AbortSignal) => Promise<SlotAvailability[]>;
+  /**
+   * The times of one day, from an availability ref on a BOOKING table (a
+   * clinic): a kind of visit, with one person or anyone.
+   */
+  bookingTimes: (ref: string, query: BookingQuery & { date: string }, signal?: AbortSignal) => Promise<SlotAvailability[]>;
+  /** A strip of up to 31 days from `from`, each open, full or closed, from the same ref. */
+  bookingDays: (
+    ref: string,
+    query: BookingQuery & { from: string; days: number },
+    signal?: AbortSignal,
+  ) => Promise<DayAvailability[]>;
   /** Identify the visitor. Returns false when the details did not match. */
   claim: (match: Record<string, unknown>) => Promise<boolean>;
+  /** Email the claimed person a code — to raise the session, or to confirm a new address. */
+  requestCode: (request: CodeRequest) => Promise<CodeSent>;
+  /**
+   * Type the code back. On success the session the client holds takes the new
+   * level and expiry; after an address change it is dropped (see
+   * {@link VerifyCodeResult}).
+   */
+  verifyCode: (input: { purpose?: CodeRequest['purpose']; code: string }) => Promise<VerifyCodeResult>;
   signOut: () => Promise<void>;
   /** Is a claim session currently held? */
   isClaimed: () => boolean;
+  /** The claim session held, or null. */
+  session: () => PublicSession | null;
   /**
    * The documents this visitor may see and ask for.
    *
@@ -354,15 +543,39 @@ export function createPublicClient(
   if (baseUrl === undefined || baseUrl === '' || key === undefined || key === '') return null;
 
   const doFetch = options?.fetch ?? globalThis.fetch.bind(globalThis);
-  let session: string | null = null;
+  const humanCheck = options?.humanCheck;
+  const csrfToken = options?.csrfToken;
+  let session: (PublicSession & { token: string }) | null = null;
   let cachedConfig: Promise<PublicConfig> | null = null;
+  /** Refs that asked for a proof under the session held now, and {@link CLAIM} when a claim did. */
+  const asked = new Set<string | typeof CLAIM>();
+
+  /**
+   * The only way the session changes. What asked for a proof is forgotten
+   * with it: a signed-in person is excused the proof on a ref that caps what
+   * they hold, so what asked of a stranger need not ask of them.
+   */
+  const holdSession = (next: (PublicSession & { token: string }) | null): void => {
+    session = next;
+    asked.clear();
+  };
 
   /** One request, with the reply's headers — `list()` reads `X-Next-Cursor`. */
-  const send = async <T>(path: string, init: RequestInit = {}): Promise<{ body: T; headers: Headers }> => {
+  const send = async <T>(
+    path: string,
+    init: RequestInit = {},
+    extra: Record<string, string> = {},
+  ): Promise<{ body: T; headers: Headers }> => {
+    const csrf = typeof csrfToken === 'function' ? csrfToken() : csrfToken;
+    const writes = init.method !== undefined && !SAFE_METHODS.has(init.method.toUpperCase());
     const headers: Record<string, string> = {
       authorization: `Bearer ${key}`,
       ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
-      ...(session === null ? {} : { [SESSION_HEADER]: session }),
+      ...(session === null ? {} : { [SESSION_HEADER]: session.token }),
+      // Only on a write: the server checks it only there, and a token in every
+      // read is one more place for it to be logged.
+      ...(writes && typeof csrf === 'string' && csrf !== '' ? { [CSRF_HEADER]: csrf } : {}),
+      ...extra,
     };
 
     let res: Response;
@@ -381,13 +594,17 @@ export function createPublicClient(
     if (!res.ok) {
       let code: PublicErrorCode = 'PUBLIC_UPSTREAM_UNAVAILABLE';
       let message = `HTTP ${String(res.status)}`;
+      let params: Record<string, unknown> | undefined;
       try {
-        const body = (await res.json()) as { error?: { code?: string; message?: string } };
+        const body = (await res.json()) as {
+          error?: { code?: string; message?: string; params?: Record<string, unknown> };
+        };
         const got = body.error?.code;
         if (typeof got === 'string' && (PUBLIC_ERROR_CODES as readonly string[]).includes(got)) {
           code = got as PublicErrorCode;
         }
         if (typeof body.error?.message === 'string') message = body.error.message;
+        if (typeof body.error?.params === 'object' && body.error.params !== null) params = body.error.params;
       } catch {
         /* a non-JSON error body — the status is all there is */
       }
@@ -397,12 +614,81 @@ export function createPublicClient(
         res.status,
         message,
         retry === null ? undefined : Number(retry),
+        params,
       );
     }
     return { body: (await res.json()) as T, headers: res.headers };
   };
 
-  const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => (await send<T>(path, init)).body;
+  const request = async <T>(path: string, init: RequestInit = {}, extra?: Record<string, string>): Promise<T> =>
+    (await send<T>(path, init, extra)).body;
+
+  /** A challenge fetched and solved, as the header value that carries it. */
+  const prove = async (purpose: ProofPurpose): Promise<string> => {
+    const out = await request<{ data: ProofChallenge }>(`/api/v1/public/challenge?purpose=${purpose}`);
+    return `${out.data.id}.${await solveChallenge(out.data)}`;
+  };
+
+  /** Is this create (a ref) or the claim (null) known to ask for a proof before it is sent? */
+  const knownToAsk = (ref: string | null): boolean => {
+    if (humanCheck === true || asked.has(ref ?? CLAIM)) return true;
+    if (typeof humanCheck !== 'object') return false;
+    return ref === null ? humanCheck.claim === true : (humanCheck.refs ?? []).includes(ref);
+  };
+
+  /**
+   * A create or a claim, with the human check it may owe.
+   *
+   * Unless it is known to ask, it goes WITHOUT a proof first and answers the
+   * server. That is the one choice right on every key: the config does not
+   * say which refs ask, a kiosk's key is never asked, and a signed-in person
+   * is excused on a ref that caps what they hold. It costs a refused round
+   * trip where a proof was owed, against a second of a cheap phone's time on
+   * every write where it was not. A ref that asked once solves first after
+   * that, until the session changes.
+   *
+   * The challenge is fetched here, at the moment of sending, and never
+   * earlier: it lives two minutes, and one fetched when the form opened can be
+   * dead by the time the visitor presses the button.
+   *
+   * A refusal is retried ONCE with a fresh proof, never in a loop: a second
+   * refusal is a real one — a key whose clock or secret disagrees — and
+   * solving again would only spend the visitor's battery on it.
+   */
+  const withProof = async <T>(
+    purpose: ProofPurpose,
+    ref: string | null,
+    attempt: (proof: Record<string, string>) => Promise<T>,
+  ): Promise<T> => {
+    if (humanCheck === false) return attempt({});
+    const first = knownToAsk(ref) ? { [PROOF_HEADER]: await prove(purpose) } : {};
+    try {
+      return await attempt(first);
+    } catch (error) {
+      if (!(error instanceof PublicApiError) || error.code !== 'PUBLIC_PROOF_REQUIRED') throw error;
+      asked.add(ref ?? CLAIM);
+      return attempt({ [PROOF_HEADER]: await prove(purpose) });
+    }
+  };
+
+  const insert = <T>(ref: string, values: Row): Promise<{ data: T; rank?: number }> =>
+    withProof('write', ref, (proof) =>
+      request<{ data: T; rank?: number }>(
+        `/api/v1/public/records/${ref}`,
+        { method: 'POST', body: JSON.stringify({ values }) },
+        proof,
+      ),
+    );
+
+  /** A booking availability read, in either form. */
+  const booking = async <T>(ref: string, query: Record<string, string | number | undefined>, signal?: AbortSignal) => {
+    const init: RequestInit = {};
+    if (signal !== undefined) init.signal = signal;
+    const p = new URLSearchParams();
+    for (const [name, value] of Object.entries(query)) if (value !== undefined) p.set(name, String(value));
+    const out = await request<{ data: T[] }>(`/api/v1/public/availability/${ref}?${p.toString()}`, init);
+    return out.data;
+  };
 
   /**
    * Query-string encoder.
@@ -447,6 +733,18 @@ export function createPublicClient(
       return out.data;
     },
 
+    bookingTimes(ref, query, signal) {
+      // Named one by one rather than spread: the server refuses a mixture of
+      // the two forms, and a caller's stray `from` would be one.
+      const { kind, resource, exclude, date } = query;
+      return booking<SlotAvailability>(ref, { kind, resource, date, exclude }, signal);
+    },
+
+    bookingDays(ref, query, signal) {
+      const { kind, resource, exclude, from, days } = query;
+      return booking<DayAvailability>(ref, { kind, resource, from, days, exclude }, signal);
+    },
+
     async get<T = Row>(ref: string, id: string, signal?: AbortSignal) {
       const init: RequestInit = {};
       if (signal !== undefined) init.signal = signal;
@@ -458,11 +756,12 @@ export function createPublicClient(
     },
 
     async create<T = Row>(ref: string, values: Row) {
-      const out = await request<{ data: T }>(`/api/v1/public/records/${ref}`, {
-        method: 'POST',
-        body: JSON.stringify({ values }),
-      });
-      return out.data;
+      return (await insert<T>(ref, values)).data;
+    },
+
+    async createWithRank<T = Row>(ref: string, values: Row) {
+      const out = await insert<T>(ref, values);
+      return { data: out.data, rank: typeof out.rank === 'number' ? out.rank : null };
     },
 
     async update<T = Row>(ref: string, id: string, values: Row) {
@@ -497,11 +796,15 @@ export function createPublicClient(
 
     async claim(match: Record<string, unknown>) {
       try {
-        const out = await request<{ data: { session: string; expiresAt: number } }>(
-          '/api/v1/public/claim',
-          { method: 'POST', body: JSON.stringify({ match }) },
+        const out = await withProof('claim', null, (proof) =>
+          request<{ data: { session: string; expiresAt: number } }>(
+            '/api/v1/public/claim',
+            { method: 'POST', body: JSON.stringify({ match }) },
+            proof,
+          ),
         );
-        session = out.data.session;
+        // A claim finds the person; only a code raises it to `verified`.
+        holdSession({ token: out.data.session, level: 'lookup', expiresAt: out.data.expiresAt });
         return true;
       } catch (error) {
         /*
@@ -518,6 +821,45 @@ export function createPublicClient(
       }
     },
 
+    async requestCode(input: CodeRequest) {
+      // Exactly the two shapes the server takes; it refuses any other key.
+      const body = input.purpose === 'verify' ? { purpose: 'verify' } : { purpose: input.purpose, email: input.email };
+      const out = await request<{ data: CodeSent }>('/api/v1/public/claim/code', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      return out.data;
+    },
+
+    async verifyCode(input) {
+      const purpose = input.purpose ?? 'verify';
+      let out: { data: { level: ClaimLevel; expiresAt: number; email?: string } };
+      try {
+        out = await request('/api/v1/public/claim/verify', {
+          method: 'POST',
+          body: JSON.stringify({ purpose, code: input.code }),
+        });
+      } catch (error) {
+        // A mistyped code is an ordinary outcome, like a claim that does not
+        // match; everything else — expired, locked — still throws.
+        if (error instanceof PublicApiError && error.code === 'PUBLIC_CODE_WRONG') {
+          const left = error.params['triesLeft'];
+          return { ok: false, triesLeft: typeof left === 'number' ? left : 0 };
+        }
+        throw error;
+      }
+      const { level, expiresAt, email } = out.data;
+      /*
+       * An address change ends every session of the person, this one too, and
+       * its reply's `expiresAt` is the moment it ended. Holding on to the
+       * token would only turn the next request into a puzzling 401.
+       */
+      const ended = purpose === 'email-change' || expiresAt <= Date.now();
+      if (ended) holdSession(null);
+      else if (session !== null) holdSession({ token: session.token, level, expiresAt });
+      return { ok: true, level, expiresAt, ended, ...(email === undefined ? {} : { email }) };
+    },
+
     async signOut() {
       if (session === null) return;
       try {
@@ -525,12 +867,16 @@ export function createPublicClient(
       } finally {
         // Dropped locally whatever the server said: a visitor who clicked sign
         // out must not still be holding a session because a request failed.
-        session = null;
+        holdSession(null);
       }
     },
 
     isClaimed() {
       return session !== null;
+    },
+
+    session() {
+      return session === null ? null : { level: session.level, expiresAt: session.expiresAt };
     },
 
     async assertRefs(required) {
@@ -706,4 +1052,212 @@ export function isCanonicalTimeZone(timezone: string): boolean {
     typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
   if (supported.length === 0) return timezone.includes('/');
   return supported.includes(timezone);
+}
+
+/* ----------------------------------------------------------- human check */
+
+/** What a proof is asked for: a create, or a claim. */
+export type ProofPurpose = 'write' | 'claim';
+
+/** A challenge, as `GET /public/challenge` hands it out. */
+export interface ProofChallenge {
+  /** Sent back as `x-adminium-proof: <id>.<nonce>`. */
+  id: string;
+  salt: string;
+  /** Leading zero bits `sha256(salt + nonce)` must start with. */
+  difficulty: number;
+  /** Epoch ms. Two minutes after it was handed out. */
+  expiresAt: number;
+}
+
+interface ProofKernel {
+  sha256: (input: string | Uint8Array) => Uint8Array;
+  leadingZeroBits: (bytes: Uint8Array) => number;
+  search: (salt: string, difficulty: number, start: number, count: number) => string | null;
+}
+
+/**
+ * The work, as one function that reaches for nothing outside itself.
+ *
+ * Self-contained because it is shipped twice: called here, and turned back
+ * into source text for the worker. A helper it named from outside would be
+ * missing in the worker, which has only what the text carries. That is also
+ * why the SHA-256 is written out rather than taken from `crypto.subtle`: that
+ * one is async, and a promise per attempt makes the ~65,000 attempts of a
+ * sixteen-bit proof many times slower than hashing them straight through.
+ *
+ * A bundler told to keep function names (esbuild's `keepNames`) wraps each
+ * inner function in a helper of its own, which the worker's text does not
+ * carry. That worker then fails to start and the search runs on the page
+ * instead — slower, never wrong.
+ */
+function proofKernel(): ProofKernel {
+  const K = new Int32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+  ]);
+  const W = new Int32Array(64);
+  const encoder = new TextEncoder();
+
+  const sha256 = (input: string | Uint8Array): Uint8Array => {
+    const bytes = typeof input === 'string' ? encoder.encode(input) : input;
+    // The message, a 1 bit, zeros, and its length in bits as 64 big-endian
+    // bits, filling a whole number of 64-byte blocks.
+    const padded = new Uint8Array((((bytes.length + 8) >> 6) + 1) * 64);
+    padded.set(bytes);
+    padded[bytes.length] = 0x80;
+    const view = new DataView(padded.buffer);
+    view.setUint32(padded.length - 8, Math.floor(bytes.length / 0x20000000));
+    view.setUint32(padded.length - 4, (bytes.length * 8) >>> 0);
+
+    const H = new Int32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+    for (let offset = 0; offset < padded.length; offset += 64) {
+      for (let i = 0; i < 16; i += 1) W[i] = view.getInt32(offset + i * 4);
+      for (let i = 16; i < 64; i += 1) {
+        const w15 = W[i - 15]!;
+        const w2 = W[i - 2]!;
+        const s0 = ((w15 >>> 7) | (w15 << 25)) ^ ((w15 >>> 18) | (w15 << 14)) ^ (w15 >>> 3);
+        const s1 = ((w2 >>> 17) | (w2 << 15)) ^ ((w2 >>> 19) | (w2 << 13)) ^ (w2 >>> 10);
+        W[i] = (W[i - 16]! + s0 + W[i - 7]! + s1) | 0;
+      }
+      let a = H[0]!, b = H[1]!, c = H[2]!, d = H[3]!, e = H[4]!, f = H[5]!, g = H[6]!, h = H[7]!;
+      for (let i = 0; i < 64; i += 1) {
+        const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+        const t1 = (h + S1 + ((e & f) ^ (~e & g)) + K[i]! + W[i]!) | 0;
+        const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+        const t2 = (S0 + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        h = g;
+        g = f;
+        f = e;
+        e = (d + t1) | 0;
+        d = c;
+        c = b;
+        b = a;
+        a = (t1 + t2) | 0;
+      }
+      H[0] = (H[0]! + a) | 0;
+      H[1] = (H[1]! + b) | 0;
+      H[2] = (H[2]! + c) | 0;
+      H[3] = (H[3]! + d) | 0;
+      H[4] = (H[4]! + e) | 0;
+      H[5] = (H[5]! + f) | 0;
+      H[6] = (H[6]! + g) | 0;
+      H[7] = (H[7]! + h) | 0;
+    }
+    const out = new Uint8Array(32);
+    const outView = new DataView(out.buffer);
+    for (let i = 0; i < 8; i += 1) outView.setInt32(i * 4, H[i]!);
+    return out;
+  };
+
+  const leadingZeroBits = (bytes: Uint8Array): number => {
+    let bits = 0;
+    for (const byte of bytes) {
+      if (byte !== 0) return bits + Math.clz32(byte) - 24;
+      bits += 8;
+    }
+    return bits;
+  };
+
+  // The nonce is the counter in lowercase base 36 — the only spelling the
+  // server's header pattern accepts.
+  const search = (salt: string, difficulty: number, start: number, count: number): string | null => {
+    for (let n = start; n < start + count; n += 1) {
+      const nonce = n.toString(36);
+      if (leadingZeroBits(sha256(salt + nonce)) >= difficulty) return nonce;
+    }
+    return null;
+  };
+
+  return { sha256, leadingZeroBits, search };
+}
+
+const kernel = /* @__PURE__ */ proofKernel();
+
+/** SHA-256 of a string (as UTF-8) or of bytes, synchronously. */
+export const sha256: (input: string | Uint8Array) => Uint8Array = kernel.sha256;
+
+/** How many zero bits a hash starts with. */
+export const leadingZeroBits: (bytes: Uint8Array) => number = kernel.leadingZeroBits;
+
+/**
+ * What the worker runs: the kernel, rebuilt from its own text, searching from
+ * zero until it finds a nonce. Built as a string so that no bundler has to be
+ * told about a worker file.
+ */
+export function proofWorkerSource(): string {
+  return (
+    `const kernel = (${proofKernel.toString()})();\n` +
+    'self.onmessage = (event) => {\n' +
+    '  const { salt, difficulty } = event.data;\n' +
+    '  self.postMessage(kernel.search(salt, difficulty, 0, Number.MAX_SAFE_INTEGER));\n' +
+    '};\n'
+  );
+}
+
+/** Attempts between yields on the main thread: a few milliseconds of work on a phone. */
+const CHUNK = 2_000;
+
+/** The search off the main thread, or null where there is no worker to be had. */
+function solveInWorker(challenge: ProofChallenge): Promise<string> | null {
+  if (typeof Worker !== 'function' || typeof Blob !== 'function' || typeof URL.createObjectURL !== 'function') {
+    return null;
+  }
+  let url: string | null = null;
+  let worker: Worker;
+  try {
+    url = URL.createObjectURL(new Blob([proofWorkerSource()], { type: 'text/javascript' }));
+    worker = new Worker(url);
+  } catch {
+    // A page whose CSP refuses `blob:` workers throws here, in some browsers.
+    if (url !== null) URL.revokeObjectURL(url);
+    return null;
+  }
+  const done = (): void => {
+    worker.terminate();
+    if (url !== null) URL.revokeObjectURL(url);
+  };
+  return new Promise((resolve, reject) => {
+    worker.onmessage = (event: MessageEvent<unknown>) => {
+      done();
+      resolve(String(event.data));
+    };
+    // …and fires this instead, in others.
+    worker.onerror = (event: ErrorEvent) => {
+      event.preventDefault();
+      done();
+      reject(new Error('the proof worker could not run'));
+    };
+    worker.postMessage({ salt: challenge.salt, difficulty: challenge.difficulty });
+  });
+}
+
+/**
+ * Find the nonce a challenge asks for.
+ *
+ * In a Web Worker where there is one, so the page stays responsive through
+ * the second a cheap phone spends on it. Where there is none — a test, a
+ * server render, a CSP that refuses `blob:` workers — on this thread, in
+ * small chunks that yield between them, so a click still lands meanwhile.
+ */
+export async function solveChallenge(challenge: ProofChallenge): Promise<string> {
+  const offThread = solveInWorker(challenge);
+  if (offThread !== null) {
+    try {
+      return await offThread;
+    } catch {
+      /* the worker would not run — do the work here instead */
+    }
+  }
+  for (let start = 0; ; start += CHUNK) {
+    const found = kernel.search(challenge.salt, challenge.difficulty, start, CHUNK);
+    if (found !== null) return found;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
