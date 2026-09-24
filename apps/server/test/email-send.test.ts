@@ -197,6 +197,34 @@ describe('email.send: sealed payload, transport, and the quiet paths', () => {
     expect((await jobRows(meta))[0]?.status).toBe('succeeded');
   });
 
+  it('tells the row it was sent for when the message fails for good, and only then', async () => {
+    await configureSmtp(meta);
+    const report = { app: 'pos', connectionId: 'c1', table: 'public.pos_messages', pk: { id: 7 }, sentAt: 1_700_000_000_000 };
+    const job = await enqueueEmail(
+      { meta, secret: TEST_SECRET },
+      { to: 'ava@hill.dev', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', vars: { appName: 'A', name: 'Ava', email: 'x', resetUrl: 'u', expiresInMinutes: '30' }, report },
+    );
+    const told: unknown[] = [];
+    const registry = createJobRegistry();
+    registerEmailSendHandler(registry, {
+      meta,
+      secret: TEST_SECRET,
+      createTransport: () => ({ send: async () => Promise.reject(new Error('550 mailbox unavailable')) }),
+      onGiveUp: async (r, error) => {
+        told.push({ r, message: (error as Error).message });
+      },
+    });
+    const handler = registry.get(EMAIL_SEND_JOB_KIND)!;
+    const payload = handler.schema.parse(job!.payload) as never;
+    const ctx = (attempt: number) => ({ jobId: job!.id, kind: EMAIL_SEND_JOB_KIND, attempt, maxAttempts: 5, signal: new AbortController().signal, progress: () => undefined, log: () => undefined });
+    // The report rides the stored payload, ids only.
+    expect(JSON.stringify(job!.payload)).not.toContain('ava@hill.dev');
+    await expect(handler.run(payload, ctx(1))).rejects.toThrow('550');
+    expect(told).toEqual([]);
+    await expect(handler.run(payload, ctx(5))).rejects.toThrow('550');
+    expect(told).toEqual([{ r: report, message: '550 mailbox unavailable' }]);
+  });
+
   it('enqueues nothing and throws nothing when SMTP is unconfigured', async () => {
     expect(await isEmailConfigured(meta, TEST_SECRET)).toBe(false);
 

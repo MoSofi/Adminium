@@ -95,6 +95,8 @@ export interface JobsAndRealtimeOptions {
          * attachment then fails loudly rather than sending without it.
          */
         storage?: EmailSendHandlerDeps['storage'];
+        /** A message sent for a row failed for good: tell the row. */
+        onGiveUp?: EmailSendHandlerDeps['onGiveUp'];
       }
     | undefined;
   /**
@@ -202,6 +204,7 @@ export async function registerJobsAndRealtime(
         ? {}
         : { createTransport: opts.email.createTransport }),
       ...(opts.email.storage === undefined ? {} : { storage: opts.email.storage }),
+      ...(opts.email.onGiveUp === undefined ? {} : { onGiveUp: opts.email.onGiveUp }),
     });
   }
 

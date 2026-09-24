@@ -56,7 +56,7 @@ import { dirForLocale, isLocaleId } from '@adminium/i18n';
 
 import { deriveKey, encryptSecret } from '../config/secrets.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
-import { resolveEmailTemplate } from './builtins.js';
+import { builtinEmailTemplates, resolveEmailTemplate, translatorForLocale } from './builtins.js';
 import { emailSecretKey, resolveSmtpConfig } from './config.js';
 import { bareAddress } from './document.js';
 import { isShippedMark } from './marks.js';
@@ -123,6 +123,9 @@ export const NOTIFICATION_EMAIL_TEMPLATE_KEY = 'notification';
 export const DOCUMENT_READY_TEMPLATE_KEY = 'document-ready';
 /** A guest's booking through an app's public page (`public-api/confirm.ts`). */
 export const BOOKING_CONFIRMATION_TEMPLATE_KEY = 'booking-confirmation';
+/** The code that raises a found session to verified, and the notice an address change sends the old one. */
+export const SIGN_IN_CODE_TEMPLATE_KEY = 'sign-in-code';
+export const EMAIL_CHANGED_TEMPLATE_KEY = 'email-changed';
 
 /**
  * Inline last resort for the `notification` key, used ONLY when no row exists
@@ -183,6 +186,14 @@ export interface EnqueueEmailInput {
    * but is disabled is an operator decision and always wins over this.
    */
   fallback?: { subject: string; blocks: readonly unknown[] } | undefined;
+  /**
+   * A security notice ("your address was changed"): a built-in the operator
+   * switched off or archived is sent from its own shipped text instead, since
+   * the person it protects must hear of the change whatever the settings say.
+   */
+  always?: boolean | undefined;
+  /** The row to tell when the message fails for good. */
+  report?: EmailSendReport | undefined;
 }
 
 // --- composition-root runtime -------------------------------------------------------
@@ -230,12 +241,28 @@ interface EmailEnvelope {
 }
 
 /** The plaintext `adminium_jobs.payload` of an `email.send` row. */
+/**
+ * The row a message was sent for, told when the message fails for good — an
+ * app's outbox row, which then reads `failed` instead of `sent`. Ids only:
+ * the job row never holds an address.
+ */
+export interface EmailSendReport {
+  app: string;
+  connectionId: string;
+  table: string;
+  pk: Record<string, string | number>;
+  /** When the row was marked sent: a later send of the same row is not this message's to fail. */
+  sentAt?: number | undefined;
+}
+
 export interface EmailSendPayload {
   v: number;
   templateKey: string;
   locale: string;
   /** `enc:v1:` token over {@link EmailEnvelope} (config/secrets.ts). */
   envelope: string;
+  /** Who to tell when the message cannot be delivered after every try. */
+  report?: EmailSendReport;
   /** Library files whose bytes travel with the message; absent on `v: 1` rows.
    * */
   attachments?: EmailSendAttachmentRef[];
@@ -382,6 +409,7 @@ export interface EnqueueRenderedEmailInput {
   attachments?: readonly EmailSendAttachmentRef[] | undefined;
   /** Collapses duplicates while a job with the same key is pending/running. */
   dedupeKey?: string | null | undefined;
+  report?: EmailSendReport | undefined;
 }
 
 /**
@@ -418,6 +446,7 @@ export async function enqueueRenderedEmail(
     envelope: encryptSecret(JSON.stringify(envelope), emailEnvelopeKey(secret)),
     ...(attachments.length === 0 ? {} : { attachments }),
     ...(inline.length === 0 ? {} : { inline }),
+    ...(input.report === undefined ? {} : { report: input.report }),
   };
 
   const enqueue = deps.enqueue ?? ((job: EnqueueJobInput) => jobsRepo(deps.meta).enqueue(job));
@@ -498,6 +527,7 @@ export async function enqueueEmail(
       rendered,
       from: prepared.from,
       attachments: [...prepared.attachments, ...generated],
+      report: input.report,
     },
   );
 }
@@ -525,6 +555,12 @@ async function resolveTemplate(
 ): Promise<EmailRenderSource | null> {
   const row = await resolveEmailTemplate(meta, input.templateKey, locale);
   if (row !== null) return row;
+  if (input.always === true) {
+    const def = builtinEmailTemplates((await translatorForLocale(meta, locale)).t).find((d) => d.key === input.templateKey);
+    if (def !== undefined) {
+      return { subject: def.subject, preheader: def.preheader ?? '', blocks: def.blocks, footer: def.footer, brand: null, attachments: [] };
+    }
+  }
 
   if (input.fallback !== undefined && !(await templateExists(meta, input.templateKey, locale))) {
     return {

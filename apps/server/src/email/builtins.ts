@@ -118,6 +118,13 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    * here; any app whose guests book, order or buy reuses it.
    */
   'booking-confirmation',
+  /*
+   * A patient proving it is them: the code a found session types back to be
+   * verified. And the notice to the OLD address when the address on a record
+   * is changed, which is sent even when switched off (`always`).
+   */
+  'sign-in-code',
+  'email-changed',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -147,6 +154,8 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    */
   'document-ready': ['appName', 'kind', 'number', 'business', 'documentUrl', 'documentFileId'],
   'booking-confirmation': ['appName', 'venue', 'name', 'code', 'when', 'party', 'manageUrl', 'cancelHours', 'address', 'phone'],
+  'sign-in-code': ['appName', 'code', 'minutes'],
+  'email-changed': ['appName', 'name', 'newEmail'],
 };
 
 /**
@@ -178,6 +187,8 @@ const VAR = {
   cancelHours: '{{cancelHours}}',
   address: '{{address}}',
   phone: '{{phone}}',
+  minutes: '{{minutes}}',
+  newEmail: '{{newEmail}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -442,6 +453,62 @@ function bookingConfirmationTemplate(t: Translate): BuiltinEmailTemplate {
 }
 
 /**
+ * The code a patient types back to prove the address is theirs. The code is
+ * the whole point, so it leads the subject and sits in its own box.
+ */
+function signInCodeTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'sign-in-code',
+    name: t('email:signInCode.name', { defaultValue: 'Sign-in code' }),
+    subject: t('email:signInCode.subject', { code: VAR.code, appName: VAR.appName, defaultValue: '{code} is your {appName} code' }),
+    preheader: t('email:signInCode.preheader', { minutes: VAR.minutes, defaultValue: 'It works for {minutes} minutes.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:signInCode.heading', { defaultValue: 'Your code' })),
+      paragraph(
+        'intro',
+        t('email:signInCode.intro', {
+          minutes: VAR.minutes,
+          defaultValue: 'Type this code to confirm it’s you. It works for {minutes} minutes.',
+        }),
+      ),
+      { block: 'email.box', id: 'code', data: { label: t('email:signInCode.codeLabel', { defaultValue: 'Code' }), value: VAR.code } },
+      paragraph(
+        'notice',
+        t('email:signInCode.notice', {
+          defaultValue: 'If you didn’t ask for it, you can ignore this email: nobody can use it without the code.',
+        }),
+      ),
+    ],
+    footer: t('email:signInCode.footer', { appName: VAR.appName, defaultValue: '{appName}' }),
+  };
+}
+
+/** Sent to the OLD address when a record's address is changed: the one way its owner hears of it. */
+function emailChangedTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'email-changed',
+    name: t('email:emailChanged.name', { defaultValue: 'Email address changed' }),
+    subject: t('email:emailChanged.subject', { appName: VAR.appName, defaultValue: 'Your email address at {appName} was changed' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:emailChanged.heading', { defaultValue: 'Your email address was changed' })),
+      paragraph(
+        'intro',
+        t('email:emailChanged.intro', {
+          name: VAR.name,
+          appName: VAR.appName,
+          newEmail: VAR.newEmail,
+          defaultValue: 'Hi {name}, the email address on your record at {appName} is now {newEmail}.',
+        }),
+      ),
+      paragraph('notice', t('email:emailChanged.notice', { defaultValue: 'If this wasn’t you, contact us straight away.' })),
+    ],
+    footer: t('email:emailChanged.footer', { appName: VAR.appName, defaultValue: '{appName}' }),
+  };
+}
+
+/**
  * Every built-in, rendered through one recipient-locale translator. Exported
  * for the seed and for tests that need the exact bytes without a database.
  */
@@ -452,6 +519,8 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     notificationTemplate(t),
     documentReadyTemplate(t),
     bookingConfirmationTemplate(t),
+    signInCodeTemplate(t),
+    emailChangedTemplate(t),
   ];
 }
 

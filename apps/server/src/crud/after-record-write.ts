@@ -89,9 +89,15 @@ export interface AutomationDispatcher {
   onRulesChanged(): Promise<void>;
 }
 
+/** What queues an installed app's emails from its writes; decorated by compose. */
+export interface OutboxDispatcher {
+  onRecordEvent(event: RecordWriteEvent): Promise<void>;
+}
+
 declare module 'fastify' {
   interface FastifyInstance {
     automations: AutomationDispatcher;
+    outbox: OutboxDispatcher;
     /** The ONE widget-data result cache `routes/widget-data` serves from (compose). */
     widgetDataCache: WidgetDataCache;
   }
@@ -145,6 +151,8 @@ export interface AfterRecordWriteInput extends RecordWriteEvent {
  * picks up afterwards.
  */
 export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEvent): Promise<void> {
+  // An app's emails are queued whether or not any rule exists; the producers never throw.
+  if (app.hasDecorator('outbox')) await app.outbox.onRecordEvent(event);
   if (!app.hasDecorator('automations')) return;
   await app.automations.onRecordEvent(event);
 }

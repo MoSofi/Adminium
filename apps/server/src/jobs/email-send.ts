@@ -35,7 +35,7 @@ import { filesRepo, type MetaDb } from '@adminium/meta';
 import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
-import { EMAIL_SEND_JOB_KIND, emailEnvelopeKey } from '../email/send.js';
+import { EMAIL_SEND_JOB_KIND, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
 import type {
   EmailSendAttachmentRef,
   EmailSendInlineRef,
@@ -44,7 +44,7 @@ import type {
   SmtpConfig,
 } from '../email/types.js';
 import type { FileStore } from '../files/store.js';
-import type { JobRegistry } from './registry.js';
+import type { JobHandlerContext, JobRegistry } from './registry.js';
 
 export { EMAIL_SEND_JOB_KIND };
 
@@ -74,6 +74,15 @@ export const emailSendPayloadSchema = z.object({
   envelope: z.string().min(1),
   attachments: z.array(emailSendAttachmentRefSchema).max(20).optional(),
   inline: z.array(emailSendInlineRefSchema).max(50).optional(),
+  report: z
+    .object({
+      app: z.string().min(1).max(64),
+      connectionId: z.string().min(1).max(64),
+      table: z.string().min(1).max(200),
+      pk: z.record(z.string(), z.union([z.string(), z.number()])),
+      sentAt: z.number().int().optional(),
+    })
+    .optional(),
 });
 export type EmailSendJobPayload = z.infer<typeof emailSendPayloadSchema>;
 
@@ -95,6 +104,11 @@ export interface EmailSendHandlerDeps {
   createTransport?: ((cfg: SmtpConfig) => EmailTransport) | undefined;
   /** Where attachment and inline-image bytes are read from. */
   storage?: FileStore | undefined;
+  /**
+   * A message sent for a row (an app's outbox) could not be delivered after
+   * its last try: tell the row. Never throws into the job.
+   */
+  onGiveUp?: ((report: EmailSendReport, error: unknown) => Promise<void>) | undefined;
 }
 
 async function readAll(stream: AsyncIterable<Buffer | string>): Promise<Buffer> {
@@ -156,37 +170,49 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     EMAIL_SEND_JOB_KIND,
     emailSendPayloadSchema,
     async (payload, ctx) => {
-      const config = await resolveSmtpConfig(deps.meta, emailSecretKey(deps.secret));
-      if (config === null) {
-        // Configured at enqueue, gone by delivery. Retrying is right: an
-        // operator who is mid-edit on the SMTP settings gets the mail once
-        // they finish, and a genuine removal dead-letters visibly.
-        throw new Error('SMTP is no longer configured — cannot deliver this message');
+      try {
+        return await deliver(payload, ctx);
+      } catch (error) {
+        const report = payload.report;
+        if (report !== undefined && ctx.attempt >= ctx.maxAttempts && deps.onGiveUp !== undefined) {
+          await deps.onGiveUp(report, error).catch(() => undefined);
+        }
+        throw error;
       }
-
-      const envelope = envelopeSchema.parse(
-        JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(deps.secret))),
-      );
-      // Bytes are read HERE, never at enqueue: the queue row carries
-      // ids, the message carries content, and a file trashed in between fails
-      // the send instead of sending a copy nobody can revoke.
-      ctx.progress(25, { step: 'attachments', message: 'reading attachments' });
-      const attachments = await resolveEmailParts(deps, payload);
-      ctx.progress(50, { step: 'send', message: `sending ${payload.templateKey}` });
-      await makeTransport(config).send({
-        to: envelope.to,
-        subject: envelope.subject,
-        html: envelope.html,
-        text: envelope.text,
-        ...(envelope.from === undefined ? {} : { from: envelope.from }),
-        ...(attachments.length === 0 ? {} : { attachments }),
-      });
-      ctx.progress(100, { step: 'sent' });
-      // The recipient address is PII and the body is a secret — the result is
-      // the only thing that survives into `adminium_jobs.result`, so it names
-      // the template and nothing else.
-      return { templateKey: payload.templateKey, locale: payload.locale };
     },
     { internal: true },
   );
+
+  async function deliver(payload: EmailSendJobPayload, ctx: JobHandlerContext) {
+    const config = await resolveSmtpConfig(deps.meta, emailSecretKey(deps.secret));
+    if (config === null) {
+      // Configured at enqueue, gone by delivery. Retrying is right: an
+      // operator who is mid-edit on the SMTP settings gets the mail once
+      // they finish, and a genuine removal dead-letters visibly.
+      throw new Error('SMTP is no longer configured — cannot deliver this message');
+    }
+
+    const envelope = envelopeSchema.parse(
+      JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(deps.secret))),
+    );
+    // Bytes are read HERE, never at enqueue: the queue row carries
+    // ids, the message carries content, and a file trashed in between fails
+    // the send instead of sending a copy nobody can revoke.
+    ctx.progress(25, { step: 'attachments', message: 'reading attachments' });
+    const attachments = await resolveEmailParts(deps, payload);
+    ctx.progress(50, { step: 'send', message: `sending ${payload.templateKey}` });
+    await makeTransport(config).send({
+      to: envelope.to,
+      subject: envelope.subject,
+      html: envelope.html,
+      text: envelope.text,
+      ...(envelope.from === undefined ? {} : { from: envelope.from }),
+      ...(attachments.length === 0 ? {} : { attachments }),
+    });
+    ctx.progress(100, { step: 'sent' });
+    // The recipient address is PII and the body is a secret — the result is
+    // the only thing that survives into `adminium_jobs.result`, so it names
+    // the template and nothing else.
+    return { templateKey: payload.templateKey, locale: payload.locale };
+  }
 }
