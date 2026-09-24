@@ -26,6 +26,47 @@ import type {
 type Executor = Kysely<MetaDB> | Transaction<MetaDB>;
 
 export type PublicScope = Selectable<AdminiumPublicScopesTable>;
+
+/** The purpose of an app's public-side key; any other names a second key (wave 0042). */
+export const CUSTOMER_KEY_PURPOSE = 'customer';
+
+/** Who a staff-bound key's requests must also come from. */
+export interface KeyStaffBinding {
+  appKey: string;
+  roleSlug: string;
+}
+
+/** A bool in the app's settings row that switches a key off. */
+export interface KeyEnabledBy {
+  table: string;
+  column: string;
+}
+
+/** A key's staff binding, or null when it has none (or the stored text is not one). */
+export function keyStaffBinding(key: Pick<PublicKey, 'requiresStaff'>): KeyStaffBinding | null {
+  const value = parsedObject(key.requiresStaff);
+  return typeof value?.['appKey'] === 'string' && typeof value['roleSlug'] === 'string'
+    ? { appKey: value['appKey'], roleSlug: value['roleSlug'] }
+    : null;
+}
+
+/** A key's settings switch, or null when it has none. */
+export function keyEnabledBy(key: Pick<PublicKey, 'enabledBy'>): KeyEnabledBy | null {
+  const value = parsedObject(key.enabledBy);
+  return typeof value?.['table'] === 'string' && typeof value['column'] === 'string'
+    ? { table: value['table'], column: value['column'] }
+    : null;
+}
+
+function parsedObject(text: string | null): Record<string, unknown> | null {
+  if (text === null) return null;
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
 export type PublicKey = Selectable<AdminiumPublicKeysTable>;
 export type PublicSession = Selectable<AdminiumPublicSessionsTable>;
 
@@ -262,6 +303,12 @@ export interface CreatePublicKeyInput {
   kind?: string;
   /** The app key that creates it at install; absent for an operator's key. */
   managedBy?: string | null;
+  /** `customer` (default), or the name of an app's second browser key. */
+  purpose?: string;
+  /** A key only a signed-in staff member holding this role may use. */
+  requiresStaff?: KeyStaffBinding | null;
+  /** A bool in the app's settings row that switches the key off. */
+  enabledBy?: KeyEnabledBy | null;
   createdBy?: string | null;
   expiresAt?: number | null;
 }
@@ -289,6 +336,9 @@ export function publicKeysRepo(meta: MetaDb) {
         createdAt: at,
         updatedAt: at,
         managedBy: input.managedBy ?? null,
+        purpose: input.purpose ?? CUSTOMER_KEY_PURPOSE,
+        requiresStaff: input.requiresStaff === undefined || input.requiresStaff === null ? null : JSON.stringify(input.requiresStaff),
+        enabledBy: input.enabledBy === undefined || input.enabledBy === null ? null : JSON.stringify(input.enabledBy),
       };
       await on.insertInto('adminium_public_keys').values(row).execute();
       return row;
@@ -385,6 +435,8 @@ export function publicKeysRepo(meta: MetaDb) {
       side: string,
       connectionId: string,
       at: number = Date.now(),
+      /** Which of the app's keys: the public side's unless another is named. */
+      purpose: string = CUSTOMER_KEY_PURPOSE,
     ): Promise<PublicKey | null> {
       const row = await db
         .selectFrom('adminium_public_keys')
@@ -399,6 +451,7 @@ export function publicKeysRepo(meta: MetaDb) {
         // A hosted surface is a browser: a server key is never served to one.
         .where('adminium_public_keys.kind', '=', 'browser')
         .where('adminium_public_scopes.connectionId', '=', connectionId)
+        .where('adminium_public_keys.purpose', '=', purpose)
         .where('adminium_public_keys.revokedAt', 'is', null)
         .where((eb) =>
           eb.or([
@@ -415,6 +468,12 @@ export function publicKeysRepo(meta: MetaDb) {
       appKey: string,
       side: string,
       at: number = Date.now(),
+      /**
+       * Which of the app's keys: the public side's unless another is named.
+       * Without it, a second key made after the first (a kiosk's) would be
+       * the newest, and published to every visitor.
+       */
+      purpose: string = CUSTOMER_KEY_PURPOSE,
     ): Promise<PublicKey | null> {
       const row = await db
         .selectFrom('adminium_public_keys')
@@ -422,11 +481,44 @@ export function publicKeysRepo(meta: MetaDb) {
         .where('appKey', '=', appKey)
         .where('side', '=', side)
         .where('kind', '=', 'browser')
+        .where('purpose', '=', purpose)
         .where('revokedAt', 'is', null)
         .where((eb) => eb.or([eb('expiresAt', 'is', null), eb('expiresAt', '>', at)]))
         .orderBy('createdAt', 'desc')
         .executeTakeFirst();
       return row === undefined ? null : keyRow(row);
+    },
+
+    /** The purposes an app has a live browser key for (`customer`, `kiosk`). */
+    async purposesByApp(appKey: string, at: number = Date.now()): Promise<string[]> {
+      const rows = await db
+        .selectFrom('adminium_public_keys')
+        .select('purpose')
+        .distinct()
+        .where('appKey', '=', appKey)
+        .where('kind', '=', 'browser')
+        .where('revokedAt', 'is', null)
+        .where((eb) => eb.or([eb('expiresAt', 'is', null), eb('expiresAt', '>', at)]))
+        .execute();
+      return rows.map((row) => row.purpose).sort();
+    },
+
+    /** Every key an app made, live or not, newest first: what an update compares its manifest with. */
+    async listManagedBy(appKey: string): Promise<PublicKey[]> {
+      const rows = await db.selectFrom('adminium_public_keys').selectAll().where('managedBy', '=', appKey).orderBy('createdAt', 'desc').execute();
+      return rows.map(keyRow);
+    },
+
+    /** Rewrite a staff-bound key's binding and switch, as the app's new version declares them. */
+    async setBinding(id: string, input: { requiresStaff: KeyStaffBinding | null; enabledBy: KeyEnabledBy | null }): Promise<void> {
+      await db
+        .updateTable('adminium_public_keys')
+        .set({
+          requiresStaff: input.requiresStaff === null ? null : JSON.stringify(input.requiresStaff),
+          enabledBy: input.enabledBy === null ? null : JSON.stringify(input.enabledBy),
+        })
+        .where('id', '=', id)
+        .execute();
     },
 
     async list(): Promise<PublicKey[]> {
@@ -511,6 +603,12 @@ export interface CreatePublicSessionInput {
   /** The RESOLVED claim — see the table comment on why it is not re-derived. */
   grants: string;
   expiresAt: number;
+  /** `lookup` (default) | `verified`. */
+  level?: string;
+  /** `claim` (default) | `account`. */
+  kind?: string;
+  /** What the session is about — for a claim, the claimed row. */
+  subject?: string | null;
 }
 
 export function publicSessionsRepo(meta: MetaDb) {
@@ -525,9 +623,43 @@ export function publicSessionsRepo(meta: MetaDb) {
         expiresAt: input.expiresAt,
         createdAt: at,
         lastSeenAt: null,
+        level: input.level ?? 'lookup',
+        kind: input.kind ?? 'claim',
+        subject: input.subject ?? null,
       };
       await db.insertInto('adminium_public_sessions').values(row).execute();
       return row;
+    },
+
+    async findById(id: string, at: number = Date.now()): Promise<PublicSession | null> {
+      const row = await db
+        .selectFrom('adminium_public_sessions')
+        .selectAll()
+        .where('id', '=', id)
+        .where('expiresAt', '>', at)
+        .executeTakeFirst();
+      return row === undefined ? null : sessionRow(row);
+    },
+
+    /**
+     * Raise a live session to `level`, and give it a fresh expiry. Only a
+     * session that has not lapsed moves: a code confirmed a moment too late
+     * does not bring one back.
+     */
+    async raise(id: string, level: string, expiresAt: number, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_sessions')
+        .set({ level, expiresAt })
+        .where('id', '=', id)
+        .where('expiresAt', '>', at)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /** End every session about one subject (sign out everywhere). */
+    async removeBySubject(subject: string): Promise<number> {
+      const res = await db.deleteFrom('adminium_public_sessions').where('subject', '=', subject).executeTakeFirst();
+      return Number(res.numDeletedRows);
     },
 
     /**

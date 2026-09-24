@@ -74,6 +74,10 @@ export interface EmailTemplate {
   brand: EmailBrand | null;
   attachments: EmailAttachment[];
   createdBy: string | null;
+  /** The app that shipped it; null for the operator's own and the built-ins. */
+  managedBy: string | null;
+  /** The hash of what the app shipped: a row that no longer hashes to it was edited. */
+  contentHash: string | null;
 }
 
 /** The envelope fields every write may carry beyond the M7 five. */
@@ -96,6 +100,9 @@ export interface UpsertEmailTemplateInput extends EmailEnvelopeInput {
   updatedBy?: string | null | undefined;
   /** Seed writes pass true; editor writes default false. */
   isBuiltinCopy?: boolean | undefined;
+  /** An app's install writes its key here, with the hash of what it wrote. */
+  managedBy?: string | null | undefined;
+  contentHash?: string | null | undefined;
 }
 
 export interface CreateEmailTemplateInput extends EmailEnvelopeInput {
@@ -248,6 +255,8 @@ function decode(row: Selectable<AdminiumEmailTemplatesTable>): EmailTemplate {
     brand: brandRaw === null ? null : emailBrandSchema.parse(brandRaw),
     attachments: attachmentsRaw === null ? [] : emailAttachmentsSchema.parse(attachmentsRaw),
     createdBy: row.createdBy,
+    managedBy: row.managedBy,
+    contentHash: row.contentHash,
   };
 }
 
@@ -578,6 +587,8 @@ export function emailTemplatesRepo(meta: MetaDb) {
         isBuiltinCopy: writeBool(meta, input.isBuiltinCopy ?? false),
         updatedBy: input.updatedBy ?? null,
         ...envelopeColumns(input),
+        ...(input.managedBy === undefined ? {} : { managedBy: input.managedBy }),
+        ...(input.contentHash === undefined ? {} : { contentHash: input.contentHash }),
       };
       const res = await db
         .updateTable('adminium_email_templates')
@@ -607,6 +618,18 @@ export function emailTemplatesRepo(meta: MetaDb) {
       const row = await findByKeyLocale(key, locale);
       if (row === null) throw new Error(`email template upsert lost its row: ${key}/${locale}`);
       return row;
+    },
+
+    /** Every row an app shipped, archived ones included, by key then locale. */
+    async listManagedBy(appKey: string): Promise<EmailTemplate[]> {
+      const rows = await db
+        .selectFrom('adminium_email_templates')
+        .selectAll()
+        .where('managedBy', '=', appKey)
+        .orderBy('key')
+        .orderBy('locale')
+        .execute();
+      return rows.map(decode);
     },
 
     async remove(key: string, locale: string): Promise<boolean> {

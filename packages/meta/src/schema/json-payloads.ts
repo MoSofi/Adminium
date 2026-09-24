@@ -357,6 +357,19 @@ const capacitySetting = z.object({ table: z.string().min(1).max(256), column: z.
 const capacityNumber = z.union([z.number().int().nonnegative(), capacitySetting]);
 const capacityTime = z.union([z.string().regex(/^\d{2}:\d{2}$/), capacitySetting]);
 
+/** A column of the booking table, or of a table the booking rule names. */
+const bookingName = z.string().min(1).max(128);
+/** A table the booking rule reads, by its id in the snapshot. */
+const bookingTable = z.string().min(1).max(256);
+/** A weekly-hours table's columns: the weekday and `HH:MM` text times. */
+const bookingHours = {
+  weekday: bookingName,
+  opens: bookingName,
+  closes: bookingName,
+  breakStart: bookingName.optional(),
+  breakEnd: bookingName.optional(),
+};
+
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
@@ -495,6 +508,29 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
    * column that says so — never applied globally, so no install shifts.
    */
   z.object({ op: z.literal('column.venueLocal'), value: z.object({ venueLocal: z.literal(true) }) }),
+  /*
+   * A value written when something happens: the moment, or who did it, on a
+   * create or when another column of the row changes to one of `values`
+   * (`checked_in_at` when `status` becomes `checked_in`). `byOrigin` writes
+   * one word for a public write and another for staff. A public write never
+   * stamps a person: a browser key is nobody.
+   */
+  z.object({
+    op: z.literal('column.stamp'),
+    value: z.object({
+      set: z.union([
+        z.enum(['now', 'user-name', 'user-id']),
+        z.object({ byOrigin: z.object({ public: z.string().min(1).max(256), staff: z.string().min(1).max(256) }) }),
+      ]),
+      on: z.union([
+        z.literal('create'),
+        z.object({
+          column: z.string().min(1).max(128),
+          values: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(16),
+        }),
+      ]),
+    }),
+  }),
   z.object({
     op: z.literal('column.rollup'),
     value: z.object({
@@ -506,6 +542,21 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       times: z.string().min(1).max(128).optional(),
       /** A child row whose column holds a value is left out, e.g. a voided line. */
       unlessSet: z.string().min(1).max(128).optional(),
+      /** Only child rows whose column equals the value are added up (`voided = false`). */
+      where: z.object({ column: z.string().min(1).max(128), eq: z.union([z.string().max(256), z.number(), z.boolean()]) }).optional(),
+      /**
+       * A second column of this row kept in step, `of − Σminus − total`
+       * (`balance = fee − waived − paid`). Adminium writes it; nobody else may.
+       */
+      balance: z
+        .object({
+          column: z.string().min(1).max(128),
+          of: z.string().min(1).max(128),
+          minus: z.array(z.string().min(1).max(128)).max(4).optional(),
+        })
+        .optional(),
+      /** A write that would take the balance below zero is refused. */
+      cap: z.literal(true).optional(),
     }),
   }),
   /*
@@ -526,6 +577,49 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       closes: capacityTime.optional(),
       resource: z.string().min(1).max(128).optional(),
       cancelHours: capacityNumber.optional(),
+    }),
+  }),
+  /*
+   * Booking PEOPLE: no two counted rows of one resource (a clinician) may
+   * overlap, inside that resource's weekly hours and outside its closures.
+   * Every table it names is its id in the snapshot, nested ones included —
+   * the installer maps an app's short names to the real ones before it writes
+   * the rule, so the guard never reads a table by a name that does not exist.
+   */
+  z.object({
+    op: z.literal('table.booking'),
+    value: z.object({
+      start: bookingName,
+      minutes: bookingName,
+      resource: bookingName,
+      kind: bookingName,
+      countWhere: z.object({ column: bookingName, values: z.array(z.string().min(1)).min(1) }),
+      eligible: z.object({
+        table: bookingTable,
+        resource: bookingName,
+        kind: bookingName,
+        order: z
+          .object({ table: bookingTable, column: bookingName, active: bookingName.optional(), public: bookingName.optional() })
+          .optional(),
+      }),
+      hours: z.object({
+        practice: z.object({ table: bookingTable, open: bookingName.optional(), ...bookingHours }),
+        own: z.object({ table: bookingTable, resource: bookingName, ...bookingHours }).optional(),
+      }),
+      closures: z
+        .object({ table: bookingTable, from: bookingName, to: bookingName, resource: bookingName.optional(), active: bookingName.optional() })
+        .optional(),
+      grid: capacityNumber,
+      windowDays: capacityNumber.optional(),
+      noticeMinutes: capacityNumber.optional(),
+      cancel: z
+        .object({
+          hours: capacityNumber,
+          mode: z.enum(['refuse', 'flag']),
+          flag: bookingName.optional(),
+          when: z.object({ column: bookingName, to: z.string().min(1) }),
+        })
+        .optional(),
     }),
   }),
   z.object({

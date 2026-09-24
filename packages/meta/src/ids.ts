@@ -92,6 +92,8 @@ export const ID_PREFIXES = {
   aoc: 'adminium_add_on_credentials',
   /** One table an installed app uses (wave 0039). */
   atb: 'adminium_app_tables',
+  /** An installed app's outbox (wave 0042). */
+  aob: 'adminium_app_outboxes',
   loc: 'adminium_locales',
   trn: 'adminium_translations',
   // The public surface. `pbk` is deliberately not `key`: a publishable key is

@@ -41,6 +41,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.code',
   'column.rollup',
   'column.venueLocal',
+  'column.stamp',
 ]);
 
 export interface SchemaOverride {

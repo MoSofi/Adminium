@@ -701,6 +701,10 @@ export interface AdminiumEmailTemplatesTable {
   /** `EmailAttachment[]`; NULL reads as []. */
   attachments: JsonColumn | null;
   createdBy: Id | null;
+  /** The app that shipped the template (wave 0042); NULL for the operator's and the built-ins. */
+  managedBy: string | null;
+  /** The hash of what the app shipped; a row that no longer hashes to it was edited. */
+  contentHash: string | null;
 }
 
 /** Saved reusable email blocks, workspace-wide. */
@@ -1133,6 +1137,15 @@ export interface AdminiumPublicKeysTable {
   access: string | null;
   /** `browser` (`adm_pub_`, re-readable) | `server` (`adm_srv_`, hash only). */
   kind: string;
+  /**
+   * Which of an app's browser keys this is (wave 0042): `customer` for the
+   * public side, or the name the manifest gave a second one (`kiosk`).
+   */
+  purpose: string;
+  /** JSON `{appKey, roleSlug}`: every request must also carry that staff member's session. */
+  requiresStaff: string | null;
+  /** JSON `{table, column}`: a bool in the app's settings row that switches the key off. */
+  enabledBy: string | null;
   expiresAt: Ts | null;
   revokedAt: Ts | null;
   lastUsedAt: Ts | null;
@@ -1159,6 +1172,12 @@ export interface AdminiumPublicSessionsTable {
   expiresAt: Ts;
   createdAt: Ts;
   lastSeenAt: Ts | null;
+  /** `lookup` | `verified` (wave 0042): whether an emailed code was typed back. */
+  level: string;
+  /** `claim` | `account`. */
+  kind: string;
+  /** What the session is about — for a claim, the claimed row. */
+  subject: string | null;
 }
 
 /**
@@ -1235,6 +1254,38 @@ export interface AdminiumPublicChallengesTable {
   /** On the row, not in the in-process limiter, so the bound survives a restart. */
   attempts: number;
   consumedAt: Ts | null;
+  expiresAt: Ts;
+  createdAt: Ts;
+  /** The session the code belongs to (wave 0042). */
+  sessionId: Id | null;
+  /** `verify` | `email-change`. */
+  purpose: string;
+  /** An `email-change` challenge's new address, encrypted until it is confirmed. */
+  newDestinationEnc: string | null;
+  /** The claimed row the code was sent for, so the caps count per person. */
+  subject: string | null;
+  /** Set when the desk lifts the lock; a cleared row no longer counts toward it. */
+  clearedAt: Ts | null;
+}
+
+/** An installed app's outbox (wave 0042), its table names made real. */
+export interface AdminiumAppOutboxesTable {
+  id: Id;
+  appKey: string;
+  manifestId: Id;
+  connectionId: Id;
+  /** JSON text of the definition. */
+  definition: string;
+  scannedAt: Ts | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** A human check's proof, used once (wave 0042). The id IS the proof's id. */
+export interface AdminiumPublicProofsTable {
+  id: string;
+  keyId: Id;
+  purpose: string;
   expiresAt: Ts;
   createdAt: Ts;
 }
@@ -1381,6 +1432,7 @@ export interface MetaDB {
   adminium_feature_flags: AdminiumFeatureFlagsTable;
   adminium_manifests: AdminiumManifestsTable;
   adminium_app_tables: AdminiumAppTablesTable;
+  adminium_app_outboxes: AdminiumAppOutboxesTable;
   adminium_manifest_attachments: AdminiumManifestAttachmentsTable;
   adminium_add_on_credentials: AdminiumAddOnCredentialsTable;
   adminium_changelog_seen: AdminiumChangelogSeenTable;
@@ -1390,6 +1442,7 @@ export interface MetaDB {
   adminium_public_keys: AdminiumPublicKeysTable;
   adminium_public_sessions: AdminiumPublicSessionsTable;
   adminium_public_challenges: AdminiumPublicChallengesTable;
+  adminium_public_proofs: AdminiumPublicProofsTable;
   adminium_public_endpoints: AdminiumPublicEndpointsTable;
   adminium_public_request_stats: AdminiumPublicRequestStatsTable;
   adminium_public_api_state: AdminiumPublicApiStateTable;
@@ -1443,6 +1496,7 @@ export const META_TABLE_NAMES = [
   'adminium_feature_flags',
   'adminium_manifests',
   'adminium_app_tables',
+  'adminium_app_outboxes',
   'adminium_manifest_attachments',
   'adminium_add_on_credentials',
   'adminium_changelog_seen',
@@ -1452,6 +1506,7 @@ export const META_TABLE_NAMES = [
   'adminium_public_keys',
   'adminium_public_sessions',
   'adminium_public_challenges',
+  'adminium_public_proofs',
   'adminium_public_endpoints',
   'adminium_public_request_stats',
   'adminium_public_api_state',
