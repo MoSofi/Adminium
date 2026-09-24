@@ -101,7 +101,9 @@ export interface PlanProblem {
     // Added by the server, which can see the pages and read their forms.
     | 'PAGE_SLUG_TAKEN'
     | 'PAGE_FORM_INVALID'
-    | 'ROLE_INVALID';
+    | 'ROLE_INVALID'
+    // An email the app ships that the renderer cannot draw.
+    | 'EMAIL_TEMPLATE_INVALID';
   message: string;
   table: string;
   column?: string;

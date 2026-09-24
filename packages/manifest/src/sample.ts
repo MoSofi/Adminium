@@ -4,14 +4,27 @@
  * by the manifest's `sampleData.file`.
  *
  * Rows are written in the order the tables are listed, parents first, and
- * removed in reverse. A value is a plain JSON value or one of five directives:
+ * removed in reverse. A value is a plain JSON value or one of these directives:
  *
  *   `{"@ref": "<label>"}`      the key of an earlier row with that `@label`
  *   `{"@ago": "PT19M"}`        an ISO-8601 duration before now
  *   `{"@day": -1, "@time": "09:30"}`   a wall time in the venue's own zone,
  *                               days from today
+ *   `{"@day": 3}`              a date in the venue's own zone
  *   `{"@t": {"en-US": "…"}}`   the adding person's language
  *   `{"@asset": "<label>"}`    a file from `assets`, added to the Files library
+ *
+ * A `@day` may add `"@workdays": true`: its days count Monday to Friday, and
+ * day 0 on a weekend is the Monday after — so "today's" busy day is never a
+ * Saturday.
+ *
+ * A row may carry, beside its `@label`, one ROW directive: `@byClock`
+ * `{at, before, around, after}` merges one of three sets of columns into the
+ * row, by where its time `at` (a column of the row, or a `@day`/`@time`)
+ * falls against the adding moment — more than half an hour before, within
+ * half an hour, or later — so a sample day's statuses match the clock it is
+ * added at. A set with `"@skip": true` leaves the row out (a payment for a
+ * visit that has not happened yet).
  *
  * Pure: a format and its checks, no I/O. The server resolves the directives.
  */
@@ -33,8 +46,10 @@ const directive = z.union([
     .object({
       '@day': z.number().int().min(-366).max(366),
       '@time': z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'a time such as 09:30'),
+      '@workdays': z.literal(true).optional(),
     })
     .strict(),
+  z.object({ '@day': z.number().int().min(-366).max(366), '@workdays': z.literal(true).optional() }).strict(),
   z.object({ '@t': z.record(z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/), z.string()).refine((m) => Object.keys(m).length > 0) }).strict(),
   z.object({ '@asset': label }).strict(),
 ]);
@@ -45,6 +60,24 @@ const plain = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 export const sampleValueSchema = z.union([plain, directive, z.array(z.unknown()), z.record(z.string(), z.unknown())]);
 
 export const sampleRowSchema = z.record(z.string(), sampleValueSchema);
+
+/** One of `@byClock`'s three sets: columns to merge, or `"@skip": true` to leave the row out. */
+const clockBranchSchema = z.record(z.string(), sampleValueSchema);
+
+/** `@byClock`: a row's columns by where its time falls against the adding moment. */
+export const byClockSchema = z
+  .object({
+    /** A column of the row holding its time, or the time itself. */
+    at: z.union([z.string().min(1), directive]),
+    before: clockBranchSchema.optional(),
+    around: clockBranchSchema.optional(),
+    after: clockBranchSchema.optional(),
+  })
+  .strict();
+export type ByClock = z.infer<typeof byClockSchema>;
+
+/** The keys of a row that are directives about the row, not columns. */
+export const ROW_DIRECTIVES: ReadonlySet<string> = new Set(['@label', '@byClock']);
 
 export const sampleBundleSchema = z
   .object({
@@ -66,7 +99,8 @@ export type SampleValue = z.infer<typeof sampleValueSchema>;
 export function sampleDirective(value: unknown):
   | { kind: 'ref'; label: string }
   | { kind: 'ago'; duration: string }
-  | { kind: 'wall'; day: number; time: string }
+  | { kind: 'wall'; day: number; time: string; workdays: boolean }
+  | { kind: 'date'; day: number; workdays: boolean }
   | { kind: 't'; texts: Record<string, string> }
   | { kind: 'asset'; label: string }
   | null {
@@ -75,8 +109,9 @@ export function sampleDirective(value: unknown):
   if (typeof record['@ref'] === 'string') return { kind: 'ref', label: record['@ref'] };
   if (typeof record['@ago'] === 'string') return { kind: 'ago', duration: record['@ago'] };
   if (typeof record['@day'] === 'number' && typeof record['@time'] === 'string') {
-    return { kind: 'wall', day: record['@day'], time: record['@time'] };
+    return { kind: 'wall', day: record['@day'], time: record['@time'], workdays: record['@workdays'] === true };
   }
+  if (typeof record['@day'] === 'number') return { kind: 'date', day: record['@day'], workdays: record['@workdays'] === true };
   if (typeof record['@t'] === 'object' && record['@t'] !== null) {
     return { kind: 't', texts: record['@t'] as Record<string, string> };
   }
@@ -129,6 +164,33 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
             issues.push({ path: `${at}.@label`, message: 'A label is letters, digits and : . _ -.' });
           } else if (seen.has(value)) {
             issues.push({ path: `${at}.@label`, message: `The label "${value}" is used twice.` });
+          }
+          continue;
+        }
+        if (column === '@byClock') {
+          const clock = byClockSchema.safeParse(value);
+          if (!clock.success) {
+            issues.push({ path: `${at}.@byClock`, message: '@byClock names its time (`at`) and up to three sets: before, around, after.' });
+            continue;
+          }
+          const when = clock.data.at;
+          if (typeof when === 'string' && !(columns.has(when) && when in row)) {
+            issues.push({ path: `${at}.@byClock.at`, message: `"${when}" is not a column this row sets.` });
+          } else if (typeof when !== 'string' && sampleDirective(when)?.kind !== 'wall') {
+            issues.push({ path: `${at}.@byClock.at`, message: 'The time is a column of the row or a `@day` with a `@time`.' });
+          }
+          for (const branch of ['before', 'around', 'after'] as const) {
+            for (const [name, part] of Object.entries(clock.data[branch] ?? {})) {
+              if (name === '@skip') {
+                if (part !== true) issues.push({ path: `${at}.@byClock.${branch}.@skip`, message: '"@skip" is true, or absent.' });
+                continue;
+              }
+              if (!columns.has(name)) issues.push({ path: `${at}.@byClock.${branch}.${name}`, message: `"${table.ref}" has no column "${name}".` });
+              const found = sampleDirective(part);
+              if (found?.kind === 'ref' && !seen.has(found.label)) {
+                issues.push({ path: `${at}.@byClock.${branch}.${name}`, message: `"${found.label}" is not an earlier row: a referenced row must come first.` });
+              }
+            }
           }
           continue;
         }

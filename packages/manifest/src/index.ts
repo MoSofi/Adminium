@@ -51,6 +51,7 @@ export {
   capacitySchema,
   navGroupSchema,
   publicAccessSchema,
+  publicKeysSchema,
   sampleDataSchema,
   labelsSchema,
   type ColumnRules,
@@ -74,6 +75,21 @@ export {
   type ValidateManifestOptions,
   type ManifestIssue,
 } from './validate.js';
+
+export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
+
+export {
+  OUTBOX_STATUSES,
+  emailTemplateSchema,
+  outboxSchema,
+  type EmailTemplate,
+  type Outbox,
+  type OutboxProducer,
+} from './outbox.js';
+
+export { CUSTOMER_KEY, publicKeySchema, type PublicKey } from './public-access.js';
+
+export { parseSemverRange, satisfiesSemverRange } from './semver.js';
 
 export {
   planInstall,
@@ -101,12 +117,15 @@ export {
 
 export {
   SAMPLE_FORMAT,
+  ROW_DIRECTIVES,
+  byClockSchema,
   isoDurationMs,
   sampleBundleIssues,
   sampleBundleSchema,
   sampleDirective,
   sampleRowSchema,
   sampleValueSchema,
+  type ByClock,
   type SampleBundle,
   type SampleIssue,
   type SampleValue,

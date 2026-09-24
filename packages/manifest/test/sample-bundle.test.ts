@@ -132,7 +132,7 @@ describe('adminium.sample/1', () => {
   it('reads a directive for what it is', () => {
     expect(sampleDirective({ '@ref': 'x' })).toEqual({ kind: 'ref', label: 'x' });
     expect(sampleDirective({ '@ago': 'PT5M' })).toEqual({ kind: 'ago', duration: 'PT5M' });
-    expect(sampleDirective({ '@day': -1, '@time': '09:30' })).toEqual({ kind: 'wall', day: -1, time: '09:30' });
+    expect(sampleDirective({ '@day': -1, '@time': '09:30' })).toEqual({ kind: 'wall', day: -1, time: '09:30', workdays: false });
     expect(sampleDirective({ '@t': { 'en-US': 'Hi' } })).toEqual({ kind: 't', texts: { 'en-US': 'Hi' } });
     expect(sampleDirective({ '@asset': 'img' })).toEqual({ kind: 'asset', label: 'img' });
     expect(sampleDirective('plain')).toBeNull();
@@ -146,5 +146,38 @@ describe('adminium.sample/1', () => {
     expect(isoDurationMs('P2W')).toBe(14 * 86_400_000);
     expect(isoDurationMs('PT1.5S')).toBe(1500);
     expect(() => isoDurationMs('P')).toThrow();
+  });
+});
+
+describe('days, working days and the clock', () => {
+  const bundleWith = (row: Record<string, unknown>) =>
+    sampleBundleSchema.parse({
+      format: 'adminium.sample/1',
+      app: 'pos',
+      tables: [
+        { ref: 'menu_categories', rows: [{ '@label': 'c', name: 'Drinks' }] },
+        { ref: 'menu_items', rows: [{ category_id: { '@ref': 'c' }, name: 'Tea', ...row }] },
+      ],
+    });
+
+  it('reads a date alone, and working days on either form', () => {
+    expect(sampleDirective({ '@day': 2 })).toEqual({ kind: 'date', day: 2, workdays: false });
+    expect(sampleDirective({ '@day': 0, '@workdays': true })).toEqual({ kind: 'date', day: 0, workdays: true });
+    expect(sampleDirective({ '@day': -1, '@time': '09:30', '@workdays': true })).toEqual({ kind: 'wall', day: -1, time: '09:30', workdays: true });
+    expect(sampleBundleIssues(bundleWith({ added_at: { '@day': 1, '@workdays': true } }), manifest())).toEqual([]);
+    // A malformed one is refused rather than written into the column.
+    expect(sampleBundleIssues(bundleWith({ added_at: { '@day': 1, '@workdays': 'yes' } }), manifest()).map((i) => i.message)).toEqual([
+      '"added_at" holds a directive that is not well formed.',
+    ]);
+  });
+
+  it('knows @byClock as a row directive: its time, its sets, their columns', () => {
+    const clock = { at: 'added_at', before: { name: 'Old tea' }, around: { '@skip': true } };
+    expect(sampleBundleIssues(bundleWith({ added_at: { '@day': 0, '@time': '09:00' }, '@byClock': clock }), manifest())).toEqual([]);
+    const messages = (row: Record<string, unknown>) => sampleBundleIssues(bundleWith(row), manifest()).map((i) => i.message);
+    expect(messages({ '@byClock': clock })).toEqual(['"added_at" is not a column this row sets.']);
+    expect(messages({ added_at: { '@day': 0, '@time': '09:00' }, '@byClock': { ...clock, after: { nope: 1 } } })).toEqual(['"menu_items" has no column "nope".']);
+    expect(messages({ '@byClock': { at: { '@day': 0 }, before: {} } })).toEqual(['The time is a column of the row or a `@day` with a `@time`.']);
+    expect(messages({ '@byClock': { at: 'added_at', before: { '@skip': 'yes' } }, added_at: { '@day': 0, '@time': '09:00' } })).toEqual(['"@skip" is true, or absent.']);
   });
 });
