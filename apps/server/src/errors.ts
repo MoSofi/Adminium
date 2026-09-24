@@ -159,6 +159,17 @@ export class ConflictError extends AppError {
       | 'CAPACITY_BUSY'
       // A guest cancelling through the public API inside the venue's window.
       | 'CAPACITY_TOO_LATE'
+      // Booking people: the person is already booked for part of that time,
+      // they are away that day, or another writer held the day too long.
+      | 'BOOKING_TAKEN'
+      | 'BOOKING_CLOSED'
+      | 'BOOKING_BUSY'
+      // A guest cancelling (mode `refuse`) or moving a visit inside the
+      // cancellation window: only the practice may now.
+      | 'BOOKING_TOO_LATE'
+      // A payment or a write-off larger than what is left to pay, or a lower
+      // fee than what is already paid: a balance kept at zero or above.
+      | 'BALANCE_EXCEEDED'
       // The plan was built against a schema that has since moved — either the
       // snapshot (another admin applied a plan) or the database itself
       // (somebody ran DDL outside Adminium). Both mean the same thing to the

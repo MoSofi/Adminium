@@ -74,15 +74,15 @@ export function slotInstant(value: unknown): Date | null {
   return Number.isNaN(instant.getTime()) ? null : instant;
 }
 
-const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+export const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 /** `HH:MM` (or a database time, `HH:MM:SS`) as minutes of the day. */
-function minutesOf(value: unknown): number | null {
+export function minutesOf(value: unknown): number | null {
   const match = /^(\d{1,2}):(\d{2})/.exec(String(value ?? ''));
   return match === null ? null : Number(match[1]) * 60 + Number(match[2]);
 }
 
-async function settingOf(db: Db, setting: CapacitySetting): Promise<unknown> {
+export async function settingOf(db: Db, setting: CapacitySetting): Promise<unknown> {
   const row = (await db
     .selectFrom(setting.table)
     .select(sql<unknown>`${sql.ref(setting.column)}`.as('value'))
@@ -91,7 +91,7 @@ async function settingOf(db: Db, setting: CapacitySetting): Promise<unknown> {
   return row?.value;
 }
 
-async function numberOf(db: Db, value: number | CapacitySetting | undefined): Promise<number | null> {
+export async function numberOf(db: Db, value: number | CapacitySetting | undefined): Promise<number | null> {
   if (value === undefined) return null;
   if (typeof value === 'number') return value;
   const read = Number(await settingOf(db, value));
@@ -244,7 +244,29 @@ export async function withSlotLock<T>(
   row: Row,
   write: (db: Db) => Promise<T>,
 ): Promise<T> {
-  const name = lockName(rule, target, row);
+  return withNamedLock(target, lockName(rule, target, row), 'CAPACITY_BUSY', write);
+}
+
+/**
+ * Run `write` inside one transaction, holding a lock only writers asking for
+ * the same `name` contend for, and released only once the write is
+ * committed — a writer let in before the commit would count rows it cannot
+ * see yet.
+ *
+ *  - Postgres: `pg_advisory_xact_lock`, which the commit itself releases.
+ *  - MySQL: `GET_LOCK` on a pinned connection, around a transaction of this
+ *    function's own, released in `finally` after it commits. Joining a
+ *    caller's open transaction is refused: the lock would have to go before
+ *    that transaction commits, which is the race this lock exists to close.
+ *  - SQLite: one connection serialises this process; `BEGIN IMMEDIATE` takes
+ *    the write lock up front against a second process.
+ */
+export async function withNamedLock<T>(
+  target: Pick<GuardTarget, 'db' | 'dialect'>,
+  name: string,
+  busy: 'CAPACITY_BUSY' | 'BOOKING_BUSY',
+  write: (db: Db) => Promise<T>,
+): Promise<T> {
   const { db, dialect } = target;
   if (dialect === 'postgres') {
     const locked = async (trx: Db) => {
@@ -254,18 +276,20 @@ export async function withSlotLock<T>(
     return db.isTransaction ? locked(db) : db.transaction().execute(locked);
   }
   if (dialect === 'mysql') {
+    if (db.isTransaction) {
+      throw new Error('A guarded write on MySQL opens its own transaction; it cannot join one already open.');
+    }
     // MySQL's lock names stop at 64 characters.
     const key = `adm:${createHash('sha1').update(name).digest('hex')}`;
-    const held = async (conn: Db) => {
+    return db.connection().execute(async (conn) => {
       const got = (await sql<{ got: number | null }>`select get_lock(${key}, ${LOCK_WAIT_SECONDS}) as got`.execute(conn)).rows[0]?.got;
-      if (Number(got) !== 1) throw new ConflictError('That time is busy. Try again in a moment.', 'CAPACITY_BUSY');
+      if (Number(got) !== 1) throw new ConflictError('That time is busy. Try again in a moment.', busy);
       try {
-        return conn.isTransaction ? await write(conn) : await conn.transaction().execute(write);
+        return await conn.transaction().execute(write);
       } finally {
         await sql`select release_lock(${key})`.execute(conn);
       }
-    };
-    return db.isTransaction ? held(db) : db.connection().execute(held);
+    });
   }
   // SQLite: this process has one connection; BEGIN IMMEDIATE holds off a second.
   if (db.isTransaction) return write(db);

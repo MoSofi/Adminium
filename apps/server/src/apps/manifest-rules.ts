@@ -14,7 +14,7 @@
  * The rules written are the four an operator can set in the column inspector
  * — the allowed values, the labels of a database enum, required and
  * validation — and the ones Adminium decides for every write: a copied price,
- * a running number, a code. A total over child rows joins them with the
+ * a running number, a code, a stamp. A total over child rows joins them with the
  * write path's rollup. The app's names for its tables and columns — in every
  * language it speaks — and the column that names a row where another links to
  * it are written the same way: the operator's rename wins, and an unchanged
@@ -27,7 +27,7 @@
 import { createHash } from 'node:crypto';
 
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
-import type { ColumnRules, Manifest } from '@adminium/manifest';
+import type { BookingRule, ColumnRules, Manifest } from '@adminium/manifest';
 import {
   MetaValidationError,
   appTablesRepo,
@@ -42,7 +42,7 @@ import {
 } from '@adminium/meta';
 
 import { canonicalJson } from './sample-data.js';
-import { capacityRuleIssue, columnRuleIssue } from '../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue } from '../connections/column-rules-validation.js';
 
 type RuleOp =
   | 'column.options'
@@ -54,16 +54,18 @@ type RuleOp =
   | 'column.code'
   | 'column.rollup'
   | 'column.venueLocal'
+  | 'column.stamp'
   | 'column.pii'
   | 'column.label'
   | 'table.capacity'
+  | 'table.booking'
   | 'table.label'
   | 'table.keyField';
 
 /** Ops that name things rather than rule a write: no column-rule check applies. */
 const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
-const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.label', 'table.keyField']);
+const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.label', 'table.keyField']);
 
 interface DesiredRule {
   ref: string;
@@ -155,8 +157,40 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   // `from` names the child by its short ref; the installer swaps in its real id.
   if (rules.rollup !== undefined) out.push({ op: 'column.rollup', value: { ...rules.rollup } });
   if (rules.venueLocal === true) out.push({ op: 'column.venueLocal', value: { venueLocal: true } });
+  if (rules.stamp !== undefined) out.push({ op: 'column.stamp', value: { ...rules.stamp } });
   if (rules.personal !== undefined) out.push({ op: 'column.pii', value: { masked: rules.personal } });
   return out;
+}
+
+/**
+ * A booking rule as it is stored: every table it names — top-level or nested
+ * (who does what, the order, both hours tables, the closures, each number read
+ * from the settings row) — replaced by the real table's id, so a prefixed
+ * install never queries a short name.
+ */
+export function bookingValue(booking: BookingRule, realId: (ref: string) => string): Record<string, unknown> {
+  const setting = <T>(value: T): T =>
+    typeof value === 'object' && value !== null && 'table' in value
+      ? ({ ...value, table: realId((value as { table: string }).table) } as T)
+      : value;
+  const { eligible, hours, closures, cancel } = booking;
+  return {
+    ...booking,
+    eligible: {
+      ...eligible,
+      table: realId(eligible.table),
+      ...(eligible.order === undefined ? {} : { order: { ...eligible.order, table: realId(eligible.order.table) } }),
+    },
+    hours: {
+      practice: { ...hours.practice, table: realId(hours.practice.table) },
+      ...(hours.own === undefined ? {} : { own: { ...hours.own, table: realId(hours.own.table) } }),
+    },
+    ...(closures === undefined ? {} : { closures: { ...closures, table: realId(closures.table) } }),
+    grid: setting(booking.grid),
+    ...(booking.windowDays === undefined ? {} : { windowDays: setting(booking.windowDays) }),
+    ...(booking.noticeMinutes === undefined ? {} : { noticeMinutes: setting(booking.noticeMinutes) }),
+    ...(cancel === undefined ? {} : { cancel: { ...cancel, hours: setting(cancel.hours) } }),
+  };
 }
 
 /** A rule's value, hashed the same however the store's JSON column ordered its keys. */
@@ -233,10 +267,12 @@ export async function writeManifestRules(input: {
     const record = records.find((r) => r.ref === ref);
     return record === undefined ? undefined : model.tables.find((t) => t.name === record.tableName);
   };
+  /** An app table's short name → its id in the snapshot; '' when it is not there (the check refuses it). */
+  const realId = (ref: string) => realOf(ref)?.id ?? '';
   /** A setting `{table: <ref>, column}` pointed at the real table. */
   const settingOf = (value: unknown) =>
     typeof value === 'object' && value !== null && 'table' in value
-      ? { ...(value as { table: string; column: string }), table: realOf((value as { table: string }).table)?.id ?? '' }
+      ? { ...(value as { table: string; column: string }), table: realId((value as { table: string }).table) }
       : value;
   const desired: DesiredRule[] = [];
   for (const table of manifest.requiredSchema?.tables ?? []) {
@@ -293,6 +329,9 @@ export async function writeManifestRules(input: {
     if (table.capacity !== undefined) {
       const value = Object.fromEntries(Object.entries(table.capacity).map(([key, setting]) => [key, settingOf(setting)]));
       desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.capacity', value });
+    }
+    if (table.booking !== undefined) {
+      desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.booking', value: bookingValue(table.booking, realId) });
     }
   }
 
@@ -369,15 +408,15 @@ export async function writeManifestRules(input: {
         skip(`"${table.name}" has no column "${String(rule.value['column'])}".`);
         continue;
       }
-      if (rule.op === 'table.capacity') {
-        const issue = capacityRuleIssue(rule.value, table, model);
+      if (rule.op === 'table.capacity' || rule.op === 'table.booking') {
+        const issue = (rule.op === 'table.capacity' ? capacityRuleIssue : bookingRuleIssue)(rule.value, table, model);
         if (issue !== null) {
           skip(issue);
           continue;
         }
       } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && column !== undefined) {
         const issue = columnRuleIssue(
-          rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.label' | 'table.capacity' | 'table.label' | 'table.keyField'>,
+          rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.label' | 'table.keyField'>,
           rule.value,
           column,
           model,

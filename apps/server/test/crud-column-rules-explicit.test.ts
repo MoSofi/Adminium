@@ -532,6 +532,17 @@ describe('a copy, a running number or a code the column cannot keep is refused a
     expect(columnRuleIssue('column.venueLocal', { venueLocal: true }, column('code'), model)).toMatch(/date-and-time column/);
   });
 
+  it('stamps a time into a date-and-time column and a name into a text one, watching another column', () => {
+    const on = { column: 'code', values: ['x'] };
+    expect(columnRuleIssue('column.stamp', { set: 'now', on }, column('at'), model)).toBeNull();
+    expect(columnRuleIssue('column.stamp', { set: 'now', on: 'create' }, column('unit_price'), model)).toMatch(/date-and-time column/);
+    expect(columnRuleIssue('column.stamp', { set: 'user-name', on: 'create' }, column('code'), model)).toBeNull();
+    expect(columnRuleIssue('column.stamp', { set: 'user-id', on: 'create' }, column('unit_price'), model)).toMatch(/needs a text column/);
+    expect(columnRuleIssue('column.stamp', { set: 'now', on: { column: 'at', values: ['x'] } }, column('at'), model)).toMatch(/watches another column/);
+    expect(columnRuleIssue('column.stamp', { set: 'now', on: { column: 'nope', values: ['x'] } }, column('at'), model)).toMatch(/no column "nope" to watch/);
+    expect(columnRuleIssue('column.stamp', { set: 'now', on: 'create' }, column('id'), model)).toMatch(/cannot stamp it/);
+  });
+
   it('codes a text column wide enough for the code', () => {
     expect(columnRuleIssue('column.code', { length: 6 }, column('code'), model)).toBeNull();
     expect(columnRuleIssue('column.code', { prefix: 'MR-', length: 4 }, column('code'), model)).toMatch(

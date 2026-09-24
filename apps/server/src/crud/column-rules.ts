@@ -46,7 +46,14 @@ import { randomUUID } from 'node:crypto';
 
 import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
 
-import type { ColumnValidation, EffectiveColumn, TableCapacityRule } from '../connections/effective-schema.js';
+import type {
+  ColumnStampRule,
+  ColumnValidation,
+  EffectiveColumn,
+  EffectiveTable,
+  TableBookingRule,
+  TableCapacityRule,
+} from '../connections/effective-schema.js';
 import { isNowType, renderNow } from './instants.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
@@ -145,6 +152,30 @@ export interface ColumnCode {
   length: number;
 }
 
+/** `column.stamp`: what is written, and when. */
+export interface ColumnStamp extends ColumnStampRule {
+  column: string;
+  logicalType: LogicalType;
+}
+
+/**
+ * A balance a table keeps beside its totals: `of − Σminus − total`
+ * (`balance = fee − waived − paid`).
+ */
+export interface TableBalance {
+  column: string;
+  of: string;
+  minus: string[];
+  /** The total whose rollup declares it. */
+  total: string;
+  scale: number;
+  /**
+   * The totals among `total` and `minus` whose rollup says `cap`: a write
+   * that moves one of them may not take this balance below zero.
+   */
+  cappedBy: string[];
+}
+
 /** A parent's total this table's rows feed (`column.rollup` on the parent). */
 export interface RollupInto {
   /** The parent table's id, and its single-column key. */
@@ -152,14 +183,27 @@ export interface RollupInto {
   parentKey: string;
   /** The parent's total column. */
   column: string;
+  /** The child table's id: the rows added up. */
+  child: string;
   /** This table's column linking to the parent. */
   via: string;
   sum: string;
   times?: string;
   /** Child rows whose column holds a value are left out of the total. */
   unlessSet?: string;
+  /** Only child rows whose column equals the value are added up. */
+  where?: { column: string; eq: string | number | boolean };
   /** Decimal places the total keeps. */
   scale: number;
+  /** Every balance the parent keeps, worked out again once this total moves. */
+  balances: TableBalance[];
+  /** Whether a balance this total is part of may not go below zero. */
+  capped: boolean;
+  /**
+   * Every total the parent keeps (this one included), added up again before
+   * a capped balance is read: what is stored may lag what the rows say.
+   */
+  siblings: RollupInto[];
 }
 
 export interface TableRules {
@@ -169,17 +213,27 @@ export interface TableRules {
   copies?: ColumnCopy[];
   sequences?: ColumnSequence[];
   codes?: ColumnCode[];
+  /** Values written when something happens (a check-in's time, who booked). */
+  stamps?: ColumnStamp[];
   /** Parent totals kept in step when this table's rows change. */
   rollupsInto?: RollupInto[];
+  /** This table's own totals, settled when one of its rows is created. */
+  ownRollups?: RollupInto[];
+  /** This table's balances, worked out again when their `of` or `minus` changes. */
+  balances?: TableBalance[];
+  /** Columns only a settle writes (totals and balances): dropped from every writer's values. */
+  readOnly?: string[];
   /** The booking guard on this table. */
   capacity?: TableCapacityRule;
+  /** Booking people on this table: no overlap per resource. */
+  booking?: TableBookingRule;
   /** Columns whose zone-less wall times are read on the venue's clock. */
   venueLocal?: string[];
 }
 
-/** Whether any column of the table is decided by Adminium (copied, numbered, coded). */
+/** Whether any column of the table is decided by Adminium (copied, numbered, coded, stamped). */
 export function hasDecided(rules: TableRules | null): boolean {
-  return (rules?.copies?.length ?? 0) + (rules?.sequences?.length ?? 0) + (rules?.codes?.length ?? 0) > 0;
+  return (rules?.copies?.length ?? 0) + (rules?.sequences?.length ?? 0) + (rules?.codes?.length ?? 0) + (rules?.stamps?.length ?? 0) > 0;
 }
 
 export interface FillContext {
@@ -287,6 +341,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const copies: ColumnCopy[] = [];
   const sequences: ColumnSequence[] = [];
   const codes: ColumnCode[] = [];
+  const stamps: ColumnStamp[] = [];
   const venueLocal: string[] = [];
   for (const column of columns) {
     if (column.venueLocal === true) venueLocal.push(column.name);
@@ -321,6 +376,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     if (column.code !== undefined) {
       codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length });
     }
+    if (column.stamp !== undefined) stamps.push({ ...column.stamp, column: column.name, logicalType: column.logicalType });
     const values = enumValuesOf(column, enums);
     /*
      * The answers this column accepts, from the rule.
@@ -359,41 +415,125 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const rollupsInto: RollupInto[] = [];
   for (const parent of target.view?.model?.tables ?? []) {
     if (parent.primaryKey.length !== 1) continue;
-    for (const column of parent.columns as EffectiveColumn[]) {
-      const rollup = column.rollup;
-      if (rollup === undefined || rollup.from !== target.table.id) continue;
-      rollupsInto.push({
-        parent: parent.id,
-        parentKey: parent.primaryKey[0] as string,
-        column: column.name,
-        via: rollup.via,
-        sum: rollup.sum,
-        ...(rollup.times === undefined ? {} : { times: rollup.times }),
-        ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
-        scale: column.numericScale ?? 2,
-      });
-    }
+    const totals = rollupsOf(parent as EffectiveTable);
+    rollupsInto.push(...totals.filter((rollup) => rollup.child === target.table.id));
   }
+  // This table's own totals and balances: settled when one of its rows is
+  // created or its `of`/`minus` changes, and written by nothing else.
+  // A hand-built target may carry an empty table: it has no totals.
+  const self = target.table.table?.columns === undefined ? undefined : target.table.table;
+  const ownRollups: RollupInto[] = self === undefined ? [] : rollupsOf(self);
+  const balances = self === undefined ? [] : balancesOf(self);
+  const readOnly = [...ownRollups.map((r) => r.column), ...balances.map((b) => b.column)];
   const capacity = target.table.table?.capacity;
-  const decided = copies.length + sequences.length + codes.length > 0;
+  const booking = target.table.table?.booking;
+  const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
   const rules =
     fills.length === 0 &&
     checks.length === 0 &&
     !decided &&
     rollupsInto.length === 0 &&
+    ownRollups.length === 0 &&
     capacity === undefined &&
+    booking === undefined &&
     venueLocal.length === 0
       ? null
       : {
           fills,
           checks,
-          ...(decided ? { copies, sequences, codes } : {}),
+          ...(decided ? { copies, sequences, codes, ...(stamps.length === 0 ? {} : { stamps }) } : {}),
           ...(rollupsInto.length === 0 ? {} : { rollupsInto }),
+          ...(ownRollups.length === 0 ? {} : { ownRollups, readOnly }),
+          ...(balances.length === 0 ? {} : { balances }),
           ...(capacity === undefined ? {} : { capacity }),
+          ...(booking === undefined ? {} : { booking }),
           ...(venueLocal.length === 0 ? {} : { venueLocal }),
         };
   CACHE.set(target.table, rules);
   return rules;
+}
+
+/** The balances a table keeps, each with the capped totals that guard it. */
+function balancesOf(table: EffectiveTable): TableBalance[] {
+  const capped = new Set(table.columns.filter((c) => c.rollup?.cap === true).map((c) => c.name));
+  return table.columns.flatMap((column) => {
+    const balance = column.rollup?.balance;
+    if (balance === undefined) return [];
+    const minus = balance.minus ?? [];
+    return [
+      {
+        column: balance.column,
+        of: balance.of,
+        minus,
+        total: column.name,
+        scale: table.columns.find((c) => c.name === balance.column)?.numericScale ?? column.numericScale ?? 2,
+        cappedBy: [column.name, ...minus].filter((name) => capped.has(name)),
+      },
+    ];
+  });
+}
+
+/** A table's totals, as the writes to its child rows settle them; none for a table without a one-column key. */
+function rollupsOf(parent: EffectiveTable): RollupInto[] {
+  if (parent.primaryKey?.length !== 1) return [];
+  const balances = balancesOf(parent);
+  const siblings: RollupInto[] = [];
+  for (const column of parent.columns) {
+    if (column.rollup !== undefined) siblings.push(rollupOf(parent, column, column.rollup, balances, siblings));
+  }
+  return siblings;
+}
+
+/**
+ * The balances a write to this total must keep at zero or above: those it is
+ * part of that a capped total guards — as the total, as something taken off,
+ * or as what the balance is worked out from (an invoice's total, lowered by
+ * deleting a line after it was paid).
+ */
+export function guardedBy(rollup: Pick<RollupInto, 'column' | 'balances'>): TableBalance[] {
+  return rollup.balances.filter(
+    (balance) => balance.cappedBy.length > 0 && (balance.cappedBy.includes(rollup.column) || balance.of === rollup.column),
+  );
+}
+
+/** One of a parent's totals, as the writes to its child rows settle it. */
+function rollupOf(
+  parent: EffectiveTable,
+  column: EffectiveColumn,
+  rollup: NonNullable<EffectiveColumn['rollup']>,
+  balances: TableBalance[],
+  siblings: RollupInto[],
+): RollupInto {
+  const out: RollupInto = {
+    parent: parent.id,
+    parentKey: parent.primaryKey[0] as string,
+    column: column.name,
+    child: rollup.from,
+    via: rollup.via,
+    sum: rollup.sum,
+    ...(rollup.times === undefined ? {} : { times: rollup.times }),
+    ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
+    ...(rollup.where === undefined ? {} : { where: rollup.where }),
+    scale: column.numericScale ?? 2,
+    balances,
+    capped: false,
+    siblings,
+  };
+  out.capped = guardedBy(out).length > 0;
+  return out;
+}
+
+/**
+ * The values without the columns only a settle writes. A whole-row edit
+ * sends a total back as it read it; dropping it, rather than refusing the
+ * edit, keeps every form working and the total the settle's alone.
+ */
+export function withoutReadOnly(rules: TableRules | null, values: Row): Row {
+  const readOnly = rules?.readOnly ?? [];
+  if (!readOnly.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
+  const out = { ...values };
+  for (const column of readOnly) delete out[column];
+  return out;
 }
 
 // --- filling -----------------------------------------------------------------
@@ -595,6 +735,7 @@ export function checkRow(
     ...(rules.copies ?? []).map((c) => c.column),
     ...(rules.sequences ?? []).map((c) => c.column),
     ...(rules.codes ?? []).map((c) => c.column),
+    ...(rules.stamps ?? []).map((c) => c.column),
   ]);
   for (const check of rules.checks) {
     const supplied = Object.prototype.hasOwnProperty.call(values, check.column);

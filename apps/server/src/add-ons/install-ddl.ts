@@ -492,9 +492,12 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
     }
 
     // A code's uniqueness is the database's to keep: the write path makes a
-    // fresh code when this refuses one.
+    // fresh code when this refuses one. A column the app declares `unique` (a
+    // day closed once, an action saved once) is kept the same way. `table.ref`
+    // is the REAL name here, so two apps' constraints never share a name —
+    // Postgres keeps constraint indexes in one namespace per schema.
     for (const column of table.columns) {
-      if (column.rules?.code === undefined) continue;
+      if (column.rules?.code === undefined && column.unique !== true) continue;
       builder = builder.addUniqueConstraint(`uq_${table.ref}_${column.ref}`, [column.ref]);
     }
 

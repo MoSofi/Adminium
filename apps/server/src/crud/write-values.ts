@@ -41,3 +41,21 @@ export function normalizeWriteValue(column: ResolvedColumn, value: unknown): unk
     (ms === 0 ? '' : `.${pad(ms, 3)}`)
   );
 }
+
+/**
+ * Whether a value in a column and a value a rule names are the same answer.
+ * A boolean comes back from MySQL and SQLite as 1 or 0, and a number from a
+ * form as a string.
+ */
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (a === null || a === undefined || b === null || b === undefined) return (a ?? null) === (b ?? null);
+  if (typeof a === 'boolean' || typeof b === 'boolean') {
+    const truth = (v: unknown) => (['true', 't', '1', 'yes'].includes(String(v).toLowerCase()) ? true : ['false', 'f', '0', 'no'].includes(String(v).toLowerCase()) ? false : null);
+    return truth(a) !== null && truth(a) === truth(b);
+  }
+  if (typeof a === 'number' || typeof b === 'number' || typeof a === 'bigint' || typeof b === 'bigint') {
+    const [x, y] = [Number(a), Number(b)];
+    return Number.isFinite(x) && x === y;
+  }
+  return String(a) === String(b);
+}

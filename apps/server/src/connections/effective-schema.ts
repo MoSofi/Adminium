@@ -62,6 +62,21 @@ export interface ColumnRollupRule {
   times?: string;
   /** A child row whose column holds a value is left out (a voided line). */
   unlessSet?: string;
+  /** Only child rows whose column equals the value are added up (`voided = false`). */
+  where?: { column: string; eq: string | number | boolean };
+  /** A second column of this row kept in step: `of − Σminus − total` (`balance = fee − waived − paid`). */
+  balance?: { column: string; of: string; minus?: string[] };
+  /** A write that would take a balance this total feeds below zero is refused. */
+  cap?: true;
+}
+
+/**
+ * `column.stamp`: a value written when something happens — the moment, or who
+ * did it — on a create, or when another column changes to one of `values`.
+ */
+export interface ColumnStampRule {
+  set: 'now' | 'user-name' | 'user-id' | { byOrigin: { public: string; staff: string } };
+  on: 'create' | { column: string; values: (string | number | boolean)[] };
 }
 
 /** A number or a time the rule states, or a settings table's column read at write time. */
@@ -80,6 +95,51 @@ export interface TableCapacityRule {
   resource?: string;
   /** Hours before its time a guest may still cancel through the public API. */
   cancelHours?: number | CapacitySetting;
+}
+
+/** A weekly-hours table the booking guard reads: the weekday and `HH:MM` text times. */
+export interface BookingHoursTable {
+  /** The table's id in the snapshot. */
+  table: string;
+  weekday: string;
+  opens: string;
+  closes: string;
+  breakStart?: string;
+  breakEnd?: string;
+}
+
+/**
+ * `table.booking`: booking PEOPLE. No two counted rows of one resource may
+ * overlap, inside its weekly hours and outside its closures. Every nested
+ * `table` is an id in the snapshot, mapped from the app's short names at
+ * install.
+ */
+export interface TableBookingRule {
+  start: string;
+  minutes: string;
+  resource: string;
+  kind: string;
+  countWhere: { column: string; values: string[] };
+  eligible: {
+    table: string;
+    resource: string;
+    kind: string;
+    order?: { table: string; column: string; active?: string; public?: string };
+  };
+  hours: {
+    practice: BookingHoursTable & { open?: string };
+    own?: BookingHoursTable & { resource: string };
+  };
+  closures?: { table: string; from: string; to: string; resource?: string; active?: string };
+  grid: number | CapacitySetting;
+  windowDays?: number | CapacitySetting;
+  noticeMinutes?: number | CapacitySetting;
+  cancel?: {
+    hours: number | CapacitySetting;
+    mode: 'refuse' | 'flag';
+    flag?: string;
+    when: { column: string; to: string };
+  };
 }
 
 /** `column.validation`: the checks an admin asked for, beyond the column's type. */
@@ -122,6 +182,7 @@ export interface EffectiveColumn extends ColumnModel {
   sequence?: { start?: number };
   code?: ColumnCodeRule;
   rollup?: ColumnRollupRule;
+  stamp?: ColumnStampRule;
   /** `column.venueLocal`: a wall time with no zone is read on the venue's clock. */
   venueLocal?: boolean;
 }
@@ -135,6 +196,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   keyField?: string;
   /** The booking guard (`table.capacity`). */
   capacity?: TableCapacityRule;
+  /** Booking people (`table.booking`). */
+  booking?: TableBookingRule;
 }
 
 export interface EffectiveRelation extends Relation {
@@ -590,6 +653,10 @@ export function applyOverrides(
         if (table !== undefined) table.capacity = value as unknown as TableCapacityRule;
         break;
       }
+      case 'table.booking': {
+        if (table !== undefined) table.booking = value as unknown as TableBookingRule;
+        break;
+      }
       case 'column.venueLocal': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.venueLocal = value.venueLocal === true;
@@ -598,6 +665,11 @@ export function applyOverrides(
       case 'column.rollup': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.rollup = value as unknown as ColumnRollupRule;
+        break;
+      }
+      case 'column.stamp': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.stamp = value as unknown as ColumnStampRule;
         break;
       }
       case 'column.label': {

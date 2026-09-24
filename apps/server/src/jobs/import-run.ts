@@ -31,7 +31,7 @@ import { z } from 'zod';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
-import type { FieldIssues } from '../crud/column-rules.js';
+import { tableRulesFor, type FieldIssues } from '../crud/column-rules.js';
 import type { Row } from '../crud/mask.js';
 import {
   HookFailedError,
@@ -258,6 +258,7 @@ async function runImport(
         reportProgress();
         return;
       }
+      let written = false;
       try {
         await db.transaction().execute(async (trx) => {
           await insertRows(
@@ -267,16 +268,21 @@ async function runImport(
             good.map((entry) => entry.values),
           );
         });
+        written = true;
+      } catch {
+        // Isolate the offending row(s): replay the chunk row-by-row.
+        for (const entry of good) await writeOne(entry.item, false);
+      }
+      if (written) {
         inserted += good.length;
         // The parent totals these rows feed; no hook step ran to settle them.
+        // Outside the try: the chunk is committed, and a settle that fails
+        // must not replay it as new rows.
         await writes.settle(
           'create',
           writeTarget,
           good.map((entry) => ({ record: entry.values, before: null })),
         );
-      } catch {
-        // Isolate the offending row(s): replay the chunk row-by-row.
-        for (const entry of good) await writeOne(entry.item, false);
       }
     }
     reportProgress();
@@ -356,12 +362,13 @@ async function runImport(
             return;
           }
         } else {
-          const existing = await (db as Kysely<SourceDatabase>)
+          // The whole row: the parent it fed before, when this update moves it to another.
+          const existing = (await (db as Kysely<SourceDatabase>)
             .selectFrom(table.id)
-            .select((eb) => eb.val(1).as('present'))
+            .selectAll()
             .where((eb) => eb(db.dynamic.ref(matchResolved.name), '=', matchValue))
             .limit(1)
-            .executeTakeFirst();
+            .executeTakeFirst()) as Row | undefined;
           if (existing !== undefined) {
             const checked = await writes.check('update', writeTarget, context, [item.values], HISTORY);
             const values = checked.rows[0];
@@ -371,7 +378,7 @@ async function runImport(
             }
             await updateRows(db, dialect, table, values, match);
             updated += 1;
-            await writes.settle('update', writeTarget, [{ record: { ...values, ...match }, before: null }]);
+            await writes.settle('update', writeTarget, [{ record: { ...existing, ...values, ...match }, before: existing }]);
             return;
           }
         }
@@ -407,9 +414,11 @@ async function runImport(
     }
   }
 
-  /** After hooks for an upserted row, reading it again only when one runs. */
+  /** The totals and after hooks for an upserted row, reading it again only when either needs it. */
   async function afterImportWrite(action: 'update', match: Row, before: Row): Promise<void> {
-    if (!(await writes.wants('after', action, writeTarget, context))) return;
+    const rules = tableRulesFor(writeTarget);
+    const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) > 0;
+    if (!settles && !(await writes.wants('after', action, writeTarget, context))) return;
     const record = (await (db as Kysely<SourceDatabase>)
       .selectFrom(table.id)
       .selectAll()

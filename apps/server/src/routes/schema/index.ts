@@ -29,7 +29,7 @@ import {
 } from '@adminium/meta';
 
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
-import { capacityRuleIssue, columnRuleIssue } from '../../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue } from '../../connections/column-rules-validation.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
@@ -246,6 +246,16 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       // are checked against the column they name as well: a rule the
       // engine cannot keep is worse than no rule, because the form would
       // promise it.
+      // One kind of booking guard per table: a limit per slot, or no overlap
+      // per person — never both, which would ask one write two questions.
+      const guarded = (op: string) =>
+        new Set(body.overrides.filter((o) => o.op === op && o.status !== 'disabled').map((o) => o.tableName));
+      const capacityTables = guarded('table.capacity');
+      for (const tableName of guarded('table.booking')) {
+        if (capacityTables.has(tableName)) {
+          throw new ValidationFailedError('A table has a capacity or a booking rule, not both.', { table: tableName });
+        }
+      }
       for (const item of body.overrides) {
         try {
           validateOverrideInput({ connectionId, ...item, columnName: item.columnName ?? null });
@@ -276,7 +286,8 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.sequence' ||
           item.op === 'column.code' ||
           item.op === 'column.rollup' ||
-          item.op === 'column.venueLocal'
+          item.op === 'column.venueLocal' ||
+          item.op === 'column.stamp'
         ) {
           const column = table.columns.find((c) => c.name === item.columnName);
           // `columnName` was proved above; this is for the type checker.
@@ -293,6 +304,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         if (item.op === 'table.capacity') {
           const issue = capacityRuleIssue(item.value, table, model);
+          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
+        }
+        if (item.op === 'table.booking') {
+          const issue = bookingRuleIssue(item.value, table, model);
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'relation.add') {

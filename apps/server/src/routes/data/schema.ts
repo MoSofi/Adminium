@@ -108,6 +108,21 @@ export const referencesReply = z.object({
 });
 
 /**
+ * Whether a person may prove themselves by an emailed code today, as the
+ * desk sees it: `locked` after too many wrong codes, with how many there
+ * were. A row nobody finds themselves by is never locked.
+ */
+export const claimLockReply = z.object({
+  locked: z.boolean(),
+  failures: z.number().int(),
+});
+
+export const claimLockClearedReply = z.object({
+  /** Wrong codes that stop counting now. */
+  cleared: z.number().int(),
+});
+
+/**
  * The link sets a write replaces, keyed by relation id.
  *
  * A relation the body does not name is left ALONE — the same rule an absent
@@ -196,6 +211,33 @@ export const availabilityQuery = z.object({
   resourceValue: z.string().max(200).optional(),
   /** The record this read is for; its own instant is not "taken". */
   exclude: z.string().min(1).max(400).optional(),
+});
+
+/**
+ * The desk's booking read: a kind of visit, one person or anyone, and one
+ * date or a strip of days — what the patients' side asks, answered for staff:
+ * no notice limit, and with `resource=any` each free time names who would be
+ * booked.
+ */
+export const bookingSlotsQuery = z
+  .object({
+    kind: z.string().min(1).max(200),
+    resource: z.string().min(1).max(200).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    days: z.coerce.number().int().min(1).max(31).optional(),
+    /** The visit being moved; its own time is not counted against it. */
+    exclude: z.string().min(1).max(400).optional(),
+  })
+  .strict();
+
+export const bookingSlotsReply = z.object({
+  data: z.union([
+    z.array(
+      z.object({ time: z.string(), state: z.enum(['free', 'full']), resource: z.union([z.string(), z.number()]).optional() }),
+    ),
+    z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']) })),
+  ]),
 });
 
 export const availabilityReply = z.object({

@@ -13,13 +13,25 @@
 
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { optionListsRepo, overridesRepo, snapshotsRepo, type MetaDb, type RecordRef } from '@adminium/meta';
+import {
+  connectionTenantConfig,
+  optionListsRepo,
+  overridesRepo,
+  publicChallengesRepo,
+  publicEndpointsRepo,
+  snapshotsRepo,
+  type MetaDb,
+  type RecordRef,
+} from '@adminium/meta';
 import type { DatabaseModel, Dialect } from '@adminium/engine';
 import { builtinOptionValues } from '@adminium/engine/config';
 import type { Kysely } from 'kysely';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
+import { DAY_MS, PERSON_FAILURES_DAY, subjectOf } from '../../public-api/claim-code.js';
+import { audited } from '../../audit/coverage.js';
+import { parseDefinition } from '../../public-api/endpoint.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { applyDerivedFields } from '../../crud/derive.js';
@@ -41,6 +53,7 @@ import {
 } from '../../crud/records.js';
 import { readDbRefusal } from '../../crud/db-errors.js';
 import { labelColumnFor } from '../../crud/labels.js';
+import { tableRulesFor } from '../../crud/column-rules.js';
 import {
   rowsEqual,
   UndoStore,
@@ -58,6 +71,7 @@ import {
 } from '../../crud/after-record-write.js';
 import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
+import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { diffLinks, resolveLink, sameKeys, type ResolvedLink } from '../../crud/links.js';
 import {
   diffChildRows,
@@ -106,6 +120,8 @@ import {
   recordListQuery,
   availabilityQuery,
   availabilityReply,
+  bookingSlotsQuery,
+  bookingSlotsReply,
   recordLinksParams,
   recordLinksQuery,
   recordLinksReply,
@@ -114,6 +130,8 @@ import {
   recordReply,
   recordUpdateBody,
   referencesReply,
+  claimLockClearedReply,
+  claimLockReply,
   undoParams,
   undoReply,
 } from './schema.js';
@@ -386,6 +404,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       );
     }
 
+    /** Whether a column carries `column.venueLocal`: its times are judged by the write service. */
+    function isVenueLocal(table: ResolvedTable, column: string): boolean {
+      return table.table?.columns.some((c) => c.name === column && c.venueLocal === true) === true;
+    }
+
     /** Allowlist incoming row keys against the snapshot (422 otherwise). */
     function allowlistValues(ctx: DataContext, values: Row): Row {
       const entries = Object.entries(values);
@@ -398,7 +421,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // Zoned instants aimed at naive timestamp columns re-encode to the
         // server-local wall clock — see crud/write-values.ts for the drift
         // this prevents. (Undo binds driver Date objects and is unaffected.)
-        out[column.name] = normalizeWriteValue(column, value);
+        // A venue-local column is left to the write service, which reads a
+        // zone-less wall time on the venue's clock FIRST: re-encoding a zoned
+        // instant here would hand it a server wall time to misread as the
+        // venue's, moving the booking by the difference between the zones.
+        out[column.name] = isVenueLocal(ctx.table, column.name) ? value : normalizeWriteValue(column, value);
       }
       return out;
     }
@@ -603,7 +630,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       for (const [key, value] of Object.entries(values)) {
         if (key === child.foreignColumn) continue;
         const column = ctx.view.column(child.child, key);
-        out[column.name] = normalizeWriteValue(column, value);
+        out[column.name] = isVenueLocal(child.child, column.name) ? value : normalizeWriteValue(column, value);
       }
       return out;
     }
@@ -731,9 +758,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         options.events?.push({ table: child.child, action: 'delete', pk: key, row: before ?? null });
       }
+      // Inside the form's transaction: a payment row the balance has no room
+      // for refuses the whole save.
       for (const action of ['create', 'update', 'delete'] as const) {
         const rows = settled.filter((row) => row.action === action);
-        if (rows.length > 0) await writes.settle(action, target, rows);
+        if (rows.length > 0) await writes.settle(action, target, rows, { cap: true });
       }
       return undo;
     }
@@ -1229,9 +1258,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         return { restored, written };
       });
-      // The rows as they stand now, for after hooks — read only when one runs.
+      // The rows as they stand now, for the totals they feed and for after
+      // hooks — read only when either needs them.
+      const rules = tableRulesFor(target);
+      const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) > 0;
       const written: WrittenRow[] = [];
-      if (outcome.written.length > 0 && (await writes.wants('after', UNDO_WRITE[entry.action], target, context))) {
+      if (outcome.written.length > 0 && (settles || (await writes.wants('after', UNDO_WRITE[entry.action], target, context)))) {
         for (const row of outcome.written) {
           const record = row.record ?? (await fetchByPk(target.db, table, row.pk));
           if (record !== undefined) written.push({ record, before: row.before });
@@ -1378,6 +1410,67 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    // --- a person's code lock -----------------------------------------------------
+
+    /**
+     * The subjects a row is counted under when people find themselves by it:
+     * one per public identity on this table, by that identity's own column —
+     * the same as the claim route writes (`subjectOf`), whichever key or
+     * endpoint the person came through.
+     */
+    async function claimSubjectsOf(ctx: DataContext, row: Row): Promise<string[]> {
+      const subjects = new Set<string>();
+      for (const stored of await publicEndpointsRepo(meta).listByConnection(ctx.connectionId)) {
+        const parsed = parseDefinition(stored.definition);
+        if (!parsed.ok || parsed.definition.source !== ctx.table.id || parsed.definition.identity === undefined) continue;
+        const column = parsed.definition.identity.column;
+        if (row[column] !== undefined && row[column] !== null) subjects.add(subjectOf(ctx.connectionId, ctx.table.id, column, row[column]));
+      }
+      return [...subjects];
+    }
+
+    /*
+     * The desk sees whether a person is locked out of the emailed code (too
+     * many wrong codes today — perhaps someone else guessing), and lifts it
+     * once they have checked who is asking. Reading needs the table's read;
+     * lifting needs its update, like any change to the person's record.
+     */
+    app.get(
+      '/data/:connectionId/:table/:recordId/claim-lock',
+      { schema: { params: dataRecordParams, response: { 200: claimLockReply } } },
+      async (request) => {
+        const ctx = await contextFor(request, 'read');
+        const pk = parseRecordId(ctx.table, request.params.recordId);
+        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        if (row === undefined) throw new NotFoundError('Record not found.', { pk });
+        const since = Date.now() - DAY_MS;
+        let failures = 0;
+        for (const subject of await claimSubjectsOf(ctx, row)) failures = Math.max(failures, await publicChallengesRepo(meta).failuresSince(subject, since));
+        return { locked: failures >= PERSON_FAILURES_DAY, failures };
+      },
+    );
+
+    app.delete(
+      '/data/:connectionId/:table/:recordId/claim-lock',
+      { config: { audit: audited('rbac') }, schema: { params: dataRecordParams, response: { 200: claimLockClearedReply } } },
+      async (request) => {
+        const ctx = await contextFor(request, 'update');
+        const pk = parseRecordId(ctx.table, request.params.recordId);
+        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        if (row === undefined) throw new NotFoundError('Record not found.', { pk });
+        let cleared = 0;
+        for (const subject of await claimSubjectsOf(ctx, row)) cleared += await publicChallengesRepo(meta).clearSubject(subject);
+        await app.rbac.audit(request, {
+          category: 'data',
+          action: 'public.claim.lock.clear',
+          connectionId: ctx.connectionId,
+          entity: recordRef(ctx, pk),
+          changes: { after: { cleared } },
+        });
+        return { cleared };
+      },
+    );
+
     // --- single record --------------------------------------------------------------
 
     app.get(
@@ -1448,6 +1541,50 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           ...rest,
           ...(exclude === undefined ? {} : { exclude }),
         });
+      },
+    );
+
+    /*
+     * FREE TIMES FOR THE DESK — the booking rule's own answer, from the same
+     * day-read the write path's guard runs, so the day sheet's open slots,
+     * "next free times" and a waiting list's fits are the times a booking
+     * would take. Behind the table's read grant like the read above.
+     */
+    app.get(
+      '/data/:connectionId/:table/booking-slots',
+      {
+        schema: {
+          params: dataTableParams,
+          querystring: bookingSlotsQuery,
+          response: { 200: bookingSlotsReply },
+        },
+      },
+      async (request) => {
+        const ctx = await contextFor(request, 'read');
+        const booking = ctx.table.table?.booking;
+        if (booking === undefined) throw new NotFoundError('This table books no one.', { table: ctx.table.id });
+        const query = request.query;
+        const oneDay = query.date !== undefined;
+        if (oneDay === (query.from !== undefined) || (query.from !== undefined) !== (query.days !== undefined)) {
+          throw new ValidationFailedError('Ask for one date, or a from date with a number of days.', {});
+        }
+        const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
+        const target = { connectionId: ctx.connectionId, table: ctx.table, db: ctx.db, dialect: ctx.dialect, timezone, origin: 'dashboard' as const };
+        const excluded = query.exclude === undefined ? null : parseRecordId(ctx.table, query.exclude);
+        const input = {
+          kind: query.kind,
+          resource: query.resource ?? 'any',
+          isPublic: false,
+          excludePk: excluded === null ? null : ctx.table.primaryKey.map((key) => String(excluded[key] ?? '')).join('|'),
+          now: new Date(),
+        };
+        const minutes = await kindMinutes(booking, target, query.kind);
+        if (minutes === null) throw new ValidationFailedError('That kind has no length to book.', { kind: query.kind });
+        return {
+          data: oneDay
+            ? (await bookingSlots(booking, target, query.date!, minutes, input)).slots
+            : await bookingDays(booking, target, query.from!, query.days!, minutes, input),
+        };
       },
     );
 

@@ -35,6 +35,7 @@ import { basename, extname } from 'node:path';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 import {
+  byClockSchema,
   isoDurationMs,
   prefixFor,
   sampleBundleIssues,
@@ -65,7 +66,8 @@ import { SnapshotView, type ResolvedTable } from '../crud/identifiers.js';
 import { tableRulesFor } from '../crud/column-rules.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
-import { createWriteService, deleteRows, insertRow, type WriteContext } from '../crud/write-service.js';
+import { createWriteService, deleteRows, insertRow, type WriteContext, type WriteTarget } from '../crud/write-service.js';
+import { fetchByPk } from '../crud/records.js';
 import { writeStores } from '../crud/write-stores.js';
 import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { FileStore } from '../files/store.js';
@@ -230,11 +232,56 @@ export interface ResolveContext {
   assets: ReadonlyMap<string, string>;
 }
 
-/** One sample row, with every directive replaced by its value. */
-export function resolveSampleRow(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Row {
+/**
+ * The day `n` working days (Monday to Friday) from today in `timeZone`; day 0
+ * on a weekend is the Monday after, so a sample's "today" is a working day.
+ */
+function zonedWorkday(now: number, timeZone: string, n: number): { y: number; m: number; d: number } {
+  const today = zonedDay(now, timeZone, 0);
+  const at = new Date(Date.UTC(today.y, today.m - 1, today.d));
+  const weekend = (date: Date) => date.getUTCDay() === 0 || date.getUTCDay() === 6;
+  while (weekend(at)) at.setUTCDate(at.getUTCDate() + 1);
+  for (let left = Math.abs(n); left > 0; ) {
+    at.setUTCDate(at.getUTCDate() + Math.sign(n));
+    if (!weekend(at)) left -= 1;
+  }
+  return { y: at.getUTCFullYear(), m: at.getUTCMonth() + 1, d: at.getUTCDate() };
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Half an hour either side of the adding moment is "around" it. */
+const AROUND_MS = 30 * 60_000;
+
+/**
+ * One sample row, with every directive replaced by its value — or null when
+ * its `@byClock` set says to leave it out.
+ */
+export function resolveSampleRow(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Row | null {
+  const clock = row['@byClock'] === undefined ? null : byClockSchema.parse(row['@byClock']);
+  let values: Readonly<Record<string, unknown>> = row;
+  if (clock !== null) {
+    // The row's own time, against the adding moment.
+    const when = resolveValues({ at: typeof clock.at === 'string' ? row[clock.at] : clock.at }, ctx)['at'];
+    const instant = when instanceof Date ? when.getTime() : Number.NaN;
+    const branch = Number.isNaN(instant)
+      ? undefined
+      : instant < ctx.now - AROUND_MS
+        ? clock.before
+        : instant <= ctx.now + AROUND_MS
+          ? clock.around
+          : clock.after;
+    if (branch?.['@skip'] === true) return null;
+    const { ['@skip']: _skip, ...columns } = branch ?? {};
+    values = { ...row, ...columns };
+  }
+  return resolveValues(values, ctx);
+}
+
+function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Row {
   const out: Row = {};
   for (const [column, value] of Object.entries(row)) {
-    if (column === '@label') continue;
+    if (column === '@label' || column === '@byClock') continue;
     const found = sampleDirective(value);
     if (found === null) {
       out[column] = value;
@@ -250,9 +297,17 @@ export function resolveSampleRow(row: Readonly<Record<string, unknown>>, ctx: Re
       case 'ago':
         out[column] = new Date(ctx.now - isoDurationMs(found.duration));
         break;
-      case 'wall':
-        out[column] = zonedWallTime(zonedDay(ctx.now, ctx.timeZone, found.day), found.time, ctx.timeZone);
+      case 'wall': {
+        const day = found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
+        out[column] = zonedWallTime(day, found.time, ctx.timeZone);
         break;
+      }
+      // A date is the venue's day, spelled as the day — never the server's.
+      case 'date': {
+        const day = found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
+        out[column] = `${String(day.y).padStart(4, '0')}-${pad2(day.m)}-${pad2(day.d)}`;
+        break;
+      }
       case 't':
         out[column] = pickText(found.texts, ctx.locale);
         break;
@@ -280,6 +335,12 @@ function spellInstants(values: Row, table: ResolvedTable, dialect: DataHandle['d
       continue;
     }
     const shape = table.table.columns.find((candidate) => candidate.name === column);
+    // A venue-local column reads a zone-less time as the VENUE's wall clock;
+    // the server's would be off by the difference. The instant goes as it is.
+    if (shape?.venueLocal === true) {
+      out[column] = value.toISOString();
+      continue;
+    }
     out[column] = (shape === undefined ? null : renderNow(shape, dialect, value)) ?? value.toISOString();
   }
   return out;
@@ -528,17 +589,21 @@ export function createSampleDataService(deps: SampleDataDeps) {
         await handle.db.transaction().execute(async (trx) => {
           const db = asDb(trx);
           const labels = new Map<string, unknown>();
+          /** The rows of tables that keep totals, settled once every row is in. */
+          const totals = new Map<string, { target: WriteTarget; rows: { seq: number; key: Row; record: Row }[] }>();
           let seq = 0;
           let done = 0;
           for (const table of bundle.tables) {
             const resolved = view.table(names[table.ref] ?? table.ref);
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
             for (const row of table.rows) {
-              const values = spellInstants(
-                resolveSampleRow(row, { now, timeZone, locale: opts.locale, labels, assets: fileIds }),
-                resolved,
-                handle.dialect,
-              );
+              const resolvedRow = resolveSampleRow(row, { now, timeZone, locale: opts.locale, labels, assets: fileIds });
+              // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
+              if (resolvedRow === null) {
+                done += 1;
+                continue;
+              }
+              const values = spellInstants(resolvedRow, resolved, handle.dialect);
               if (resolved.primaryKey.some((column) => values[column] !== undefined)) explicitKeys.add(resolved.name);
               /*
                * A code or a running number the table already holds — a row
@@ -575,6 +640,11 @@ export function createSampleDataService(deps: SampleDataDeps) {
               }
               const { rowHash, colHashes } = hashRow(stored, resolved);
               seq += 1;
+              if ((tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0) {
+                const bucket = totals.get(table.ref) ?? { target, rows: [] as { seq: number; key: Row; record: Row }[] };
+                bucket.rows.push({ seq, key, record: stored });
+                totals.set(table.ref, bucket);
+              }
               await db
                 .insertInto(ledger as never)
                 .values({
@@ -590,6 +660,25 @@ export function createSampleDataService(deps: SampleDataDeps) {
               counts[table.ref] = (counts[table.ref] ?? 0) + 1;
               done += 1;
               if (done % 25 === 0) opts.progress?.(20 + Math.round((done / total) * 70), `Wrote ${String(done)} of ${String(total)}`);
+            }
+          }
+          /*
+           * Totals last, from every child row: the rows went in one at a time
+           * and nothing settled them (a payment's visit, a visit's balance).
+           * Each settled row is hashed again as it now stands, or its removal
+           * would take the new total for an edit and keep the row.
+           */
+          for (const [ref, { target, rows }] of totals) {
+            await writes.settle('create', target, rows.map((row) => ({ record: row.record, before: null })));
+            for (const row of rows) {
+              const now = (await fetchByPk(db, target.table, row.key)) ?? row.record;
+              const { rowHash, colHashes } = hashRow(now, target.table);
+              await db
+                .updateTable(ledger as never)
+                .set({ row_hash: rowHash, col_hashes: JSON.stringify(colHashes) } as never)
+                .where('seq' as never, '=', row.seq as never)
+                .where('table_ref' as never, '=', ref as never)
+                .execute();
             }
           }
           for (const [label, id] of fileIds) {
