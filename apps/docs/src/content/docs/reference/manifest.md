@@ -1,11 +1,11 @@
 ---
 title: Manifest spec
-description: The manifest.json every app and add-on package carries — identity, tables, pages, frontends, roles, settings, public access and sample data, field by field.
+description: The manifest.json every app and add-on package carries — identity, tables, bookings, pages, frontends, roles, settings, emails, public access and sample data, field by field.
 ---
 
 A **manifest** is the `manifest.json` at the root of an app or add-on package. It tells Adminium
 what the package is, which tables it needs in the operator's database, and what it adds on top of
-them: pages in the sidebar, roles, settings, frontends, public endpoints and sample data. Adminium
+them: pages in the sidebar, roles, settings, frontends, emails, public endpoints and sample data. Adminium
 validates it before anything is installed, and builds the install plan from it.
 
 This page describes version 1 of the format, which is what Adminium 0.3 reads. For what an operator
@@ -115,6 +115,12 @@ other publisher is refused at validation, for apps and add-ons alike.
 | `maxAdminiumVersion` | no | An exclusive upper bound. It must be greater than `minAdminiumVersion`. The installer does not enforce it in this release. |
 | `engines` | no | The databases the package's tables work on: `postgres`, `mysql`, `sqlite`. At least one when present. Informational in this release. |
 | `requires` | no | Capabilities the package cannot run without, from the same list as `capabilities`. Informational in this release. |
+| `updatesFrom` | no | The installed versions this release can update in place, as a semver range (`>=0.2.0`, `^0.2.0`, `>=0.2.0 <1.0.0`, `^1.0.0 \|\| >=2.0.0`), up to 120 characters. Absent means any older version. |
+
+Use `updatesFrom` when a release changes its tables in a way an update cannot carry. An install
+outside the range is not offered the update, and an update or upload of it is refused with a
+message telling the operator to uninstall the old version first. That is better than an update
+that fails half-way.
 
 Versions are compared on `major.minor.patch` only: a pre-release tag is ignored, so
 `"minAdminiumVersion": "0.3.0-rc.4"` is met by any `0.3.0` build.
@@ -210,7 +216,8 @@ the database.
 | `labelPlural` | no | A label for the table ("Categories"). Needs `label`. |
 | `keyField` | no | The column that names a row wherever another table links to it (a category's `name`). Must be one of the table's columns. |
 | `shape` | no | `<name>@<version>`, such as `menu@1`. Two apps that declare the same shape on a table can use one table between them. |
-| `capacity` | no | A booking limit on the table; see [Capacity](#capacity). |
+| `capacity` | no | A limit on how much of a time slot the table's rows may take; see [Capacity](#capacity). |
+| `booking` | no | Rows that book a person's time, never overlapping; see [Booking](#booking). A table has `capacity` or `booking`, not both. |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -234,12 +241,17 @@ version of the app does not overwrite it.
 | `references` | for `fk` | The `ref` of the table this foreign key points at. That table must declare exactly one `pk` column; the foreign key takes its type. |
 | `maxLength` | no | `text` only: creates `varchar(n)` instead of unbounded text. 1–1000. |
 | `default` | no | The value the database fills when an insert leaves the column out. See [Defaults](#defaults). |
+| `unique` | no | `true`: no two rows may hold the same value. Empty values do not count, so many rows may leave it empty. Not on the primary key, a `json` or a `blob` column; a `text` column needs `maxLength`, because MySQL cannot index unbounded text. |
 | `label` | no | A [label](#conventions) for the column: a form field, a list heading. |
 | `rules` | no | Rules Adminium keeps on the column; see [Column rules](#column-rules). |
 
 A `NOT NULL` column with no default refuses every insert that leaves it out, which includes every
 record added from a form that does not show it. Give such columns a `default`, or make them
 `nullable`.
+
+`unique` becomes a unique constraint named `uq_<table>_<column>`, where `<table>` is the real
+table name (`uq_clinic_patients_email`). It is made when Adminium creates the table. A column
+added to a table that already exists, by an update or on a reused table, gets no constraint.
 
 #### Column types
 
@@ -286,15 +298,17 @@ change or delete is theirs from then on.
 | `copy` | `{ "via", "from", "mode"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. |
 | `sequence` | `{ "start"? }` | The next number in this column's own counter. `start` is at least 1. |
 | `code` | `{ "length", "prefix"? }` | A short random code, unique in the column. `length` is 4–12; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). |
-| `rollup` | `{ "from", "via", "sum", "times"?, "unlessSet"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up. `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). |
+| `rollup` | `{ "from", "via", "sum", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up. `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
+| `stamp` | `{ "set", "on" }` | A value Adminium writes when something happens: the moment, or who did it. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
 | `personal` | `true` or `false` | Whether the column is personal data, overriding the guess Adminium makes from the column's name. |
 
 Tones are the dashboard's badge colours: `neutral`, `accent`, `info`, `pos`, `warn` and `danger`.
 
-`copy`, `sequence`, `code` and `rollup` are values **Adminium decides**: they are filled on the
-server, so a browser never picks a price, a number or a code. They cannot be listed as `writable`
-in [public access](#public-access), and a primary key cannot take `sequence` or `code`.
+`copy`, `sequence`, `code`, `rollup` and `stamp` are values **Adminium decides**: they are filled
+on the server, so a browser never picks a price, a number, a code or a time. So are a rollup's
+`balance` column and a booking's late-cancellation [`flag`](#booking). None of them can be listed as
+`writable` in [public access](#public-access), and a primary key cannot take `sequence` or `code`.
 
 Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
 table, `rollup.via` must point back at this table, and so on.
@@ -304,6 +318,62 @@ table, `rollup.via` must point back at this table, and so on.
   "rules": { "rollup": { "from": "ticket_items", "via": "ticket_id", "sum": "unit_price",
                          "times": "qty", "unlessSet": "voided_at" } } }
 ```
+
+#### Totals and balances
+
+A rollup can also filter its child rows, keep a balance beside the total, and refuse a change
+that would take the balance below zero: what a visit's fee, its payments and its write-offs need.
+
+| Field | Rule |
+|---|---|
+| `where` | `{ "column", "eq" }`: only child rows whose column equals the value are added up (`voided` is `false`). The value must fit the column, and the column must not be nullable: a row left empty would drop out of the total unseen. |
+| `balance` | `{ "column", "of", "minus"? }`: a second column of this row, kept as `of − minus… − total` (`balance = fee − waived − paid`). `minus` lists up to 4 columns. Every column named is a number column of this table, and the balance is a column of its own, with no rules of its own. |
+| `cap` | `true`: a child write that would take the balance below zero is refused. It needs a `balance` on the same rollup, or a balance elsewhere on the row whose `minus` lists this total (a write-off is capped by the balance it lowers). |
+
+```json
+{ "ref": "paid", "type": "money", "default": 0,
+  "rules": { "rollup": { "from": "payments", "via": "visit_id", "sum": "amount",
+                         "where": { "column": "voided", "eq": false },
+                         "balance": { "column": "balance", "of": "fee", "minus": ["waived"] },
+                         "cap": true } } }
+```
+
+A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
+change to the parent that lowers `of` under what is already paid. Only a write that takes the
+balance below zero, or further below it, is refused: a row already negative from older data can
+still be edited or voided. Two payments at once are judged one after the other, so they cannot
+both pass.
+
+A write that touches several rows of a table feeding a capped total is refused with
+`BALANCE_ONE_AT_A_TIME`, because it cannot be judged row by row. Imports and sample data are
+settled but not capped: they record what already happened.
+
+A total or a balance a writer sends is dropped, not refused, so a form that sends the whole row
+still saves.
+
+#### Stamps
+
+A stamp writes a value when a row is created, or when another column changes to one of a list of
+values: the time a patient checked in, who took a payment.
+
+```json
+{ "ref": "checked_in_at", "type": "timestamptz", "nullable": true,
+  "rules": { "stamp": { "set": "now", "on": { "column": "status", "values": ["checked_in"] } } } }
+```
+
+| Field | Rule |
+|---|---|
+| `set` | `"now"` (a `timestamptz` column), `"user-name"` or `"user-id"` (a `text` column), or `{ "byOrigin": { "public", "staff" } }`: one value for a write through the public API and another for everyone else. Both values must fit the column. |
+| `on` | `"create"`, or `{ "column", "values" }`: another column of the table, and 1–16 values it must change to. |
+
+A change is judged against the stored row, so sending a status the row already holds stamps
+nothing again. A create that already holds one of the values (a walk-in written as checked in)
+is stamped too. A stamp wins over a value the writer sent.
+
+A public write stamps the time and a `byOrigin` value, but never a person: a browser key is
+nobody. For an automation, `user-name` is the rule's name. Imports, sample data and undo stamp nothing, since a
+stamp of today's time over history would be false. A stamped column takes no `copy`, `sequence`,
+`code` or `rollup` as well.
 
 ### Capacity
 
@@ -322,6 +392,72 @@ form. Numbers can be literal, or read from the app's one-row settings table as
 | `opens`, `closes` | no | `"HH:MM"`, or a settings reference. |
 | `resource` | no | A column (a table, a room): the limit applies per value of it too. |
 | `cancelHours` | no | Until how many hours before its time a guest may still cancel through the public API. Staff are never held to it. |
+
+### Booking
+
+`booking` books a person's time rather than seats: each row takes a resource (a clinician) for its
+own length, and two counted rows of one resource may never overlap. The time must also fall
+inside that resource's hours, off their break, on the booking grid and outside any closure.
+Capacity adds up a party per start time; booking forbids overlap per resource. They answer
+different questions, so a table has one or the other, never both.
+
+Every table the rule names is one of the app's own, by its short ref. A number can be literal or
+read from the settings table as `{ "table", "column" }`, as in [Capacity](#capacity). For how the
+pieces fit together, see [Booking rules](/guides/apps/booking-rules/).
+
+```json
+"booking": {
+  "start": "starts_at", "minutes": "minutes", "resource": "clinician_id", "kind": "visit_type_id",
+  "countWhere": { "column": "status", "values": ["booked", "checked_in", "seen"] },
+  "eligible": { "table": "clinician_visit_types", "resource": "clinician_id", "kind": "visit_type_id",
+                "order": { "table": "clinicians", "column": "position", "active": "active", "public": "online" } },
+  "hours": {
+    "practice": { "table": "opening_hours", "weekday": "weekday", "opens": "opens", "closes": "closes",
+                  "breakStart": "break_start", "breakEnd": "break_end", "open": "open" },
+    "own": { "table": "clinician_hours", "resource": "clinician_id", "weekday": "weekday",
+             "opens": "opens", "closes": "closes" }
+  },
+  "closures": { "table": "closures", "from": "from_date", "to": "to_date", "resource": "clinician_id" },
+  "grid": { "table": "settings", "column": "grid_minutes" },
+  "windowDays": 60,
+  "noticeMinutes": 120,
+  "cancel": { "hours": 24, "mode": "flag", "flag": "late_cancel",
+              "when": { "column": "status", "to": "cancelled" } }
+}
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `start` | yes | A `timestamptz` column: when the row starts, read in the venue's time zone. |
+| `minutes` | yes | An `int` column: how long the row lasts. Usually a `copy` from the kind. |
+| `resource` | yes | A foreign key: whose time the row takes. Left empty on a create, it means anyone: Adminium picks the first free person in `eligible.order`. |
+| `kind` | yes | A foreign key: what the row is, which decides who may be booked for it. |
+| `countWhere` | yes | `{ "column", "values" }`: only rows whose column holds one of these values take time (a cancelled visit takes none). Each value must fit the column. |
+| `eligible` | yes | Who does what: `{ "table", "resource", "kind", "order"? }`, a link table whose two foreign keys point where the row's `resource` and `kind` point. A person with no link row for a kind is never booked for it. |
+| `eligible.order` | no | `{ "table", "column", "active"?, "public"? }`, kept on the table `resource` points at. `column` is a number: the order in which "anyone" picks. A person whose `active` bool is false is never booked; one whose `public` bool is false is never booked through the public API. |
+| `hours.practice` | yes | Weekly hours: `{ "table", "weekday", "opens", "closes", "breakStart"?, "breakEnd"?, "open"? }`, one row per weekday. `weekday` is an enum of exactly `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`, in that order. The times are `text` columns holding `HH:MM`. A break names both its start and its end. `open` is a bool. |
+| `hours.own` | no | A person's own weekly hours, the same shape plus `resource`, a foreign key to the person. A person with rows here follows them every day, and a weekday with no row is a day off. A person with none follows the practice's hours. |
+| `closures` | no | Dated closures: `{ "table", "from", "to", "resource"?, "active"? }`. `from` and `to` are `date` columns. `resource` must be nullable: an empty one closes for everyone. `active` is a bool. |
+| `grid` | yes | The minutes between bookable starts, counted from the opening time. At least 1. |
+| `windowDays` | no | How many working days ahead a booking may be made. |
+| `noticeMinutes` | no | How far ahead a public booking must be. Staff are never held to it. |
+| `cancel` | no | Late cancellation: `{ "hours", "mode", "flag"?, "when" }`. See below. |
+
+`cancel.when` is `{ "column", "to" }`: a cancellation is a change of the `countWhere` column to a
+value that does not count. Inside `hours` of the start, `mode: "refuse"` turns a guest's
+cancellation away, and `mode: "flag"` lets it through and sets `flag`, a bool column of the table,
+whoever cancels. `flag` is required with `"flag"` and not allowed with `"refuse"`. A guest can never
+move a booking inside the window, in either mode. Staff are never refused.
+
+Nothing may start in the past, with one exception: staff may create a walk-in in the slot that
+holds the current time, when its status is a counted value other than the first in `countWhere`
+(`checked_in` rather than `booked`).
+
+The public API answers a clash with `PUBLIC_SLOT_FULL`; a time outside hours, on a closure,
+beyond the window or with nobody offered for the kind with `PUBLIC_WRITE_REFUSED`; and a guest's
+late move, or a late cancellation in `refuse` mode, with `PUBLIC_TOO_LATE`. An
+[`availability`](#public-access) entry on a booking table lists the free times of a day, or a
+strip of days, for a kind.
 
 ## Option lists
 
@@ -431,7 +567,8 @@ there and is not declared.
 
 Adminium serves each side at `/apps/<key>/<side>/`. The staff side needs a signed-in user; the
 customer side is public and calls the [public API](/guides/public-api/endpoints-and-keys/) with the
-browser key the install creates. Each side reads its `surface-config.json` at boot: the real table
+app's `customer` browser key, which the install creates. A staff side can be handed a second key
+for a screen of its own; see [publicKeys](#publickeys). Each side reads its `surface-config.json` at boot: the real table
 names, the app's settings and, for the staff side, the connection and the venue's time zone and
 currency.
 
@@ -469,6 +606,9 @@ The plan refuses a `system:` grant, a wildcard, and a reference to a table or pa
 does not declare. Grants are given once: an update adds what a new version asks for, and an
 operator's narrowing of an app role survives it.
 
+A role that signs in a staff-bound browser key (a check-in tablet; see [publicKeys](#publickeys))
+must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`.
+
 ## Settings
 
 `settings` declares values the operator sets for the app, such as a business type or a currency.
@@ -495,12 +635,140 @@ a `help` sentence shown under the field (both i18n messages). By type:
 A setting marked `secret` is never sent to an app's screens. In this release an app's settings page
 does not show or store secret settings; they are used by add-ons.
 
+## Emails
+
+An app declares the emails it sends with two blocks: `outbox`, which names one of its tables as
+the outbox and says what queues rows in it, and `emailTemplates`, the templates those rows are
+sent with. For a walk-through, see [Emails](/guides/apps/emails/).
+
+The outbox table is the log. Every email is a row in it, queued by a producer below, by the app's
+own screens or by the operator. Adminium sends queued rows and records the outcome on each:
+`sent` once the message is handed to the mail queue, `skipped` when there is nothing to send to
+("No email on file", or a reserved example address), and `failed` with a reason. A row already
+there for the same kind and source is what stops a second send.
+
+### outbox
+
+```json
+"outbox": {
+  "table": "messages",
+  "columns": { "kind": "kind", "status": "status", "to": "to_address", "language": "language",
+               "due": "due_at", "sentAt": "sent_at", "error": "error" },
+  "links": { "appointment": "appointment_id", "patient": "patient_id" },
+  "recipient": { "via": "patient_id", "table": "patients", "email": "email", "name": "name",
+                 "language": "language", "optIn": "reminders",
+                 "fallback": { "via": "appointment_id", "email": "new_email", "name": "new_name" } },
+  "settings": { "table": "settings", "enabled": "emails_on", "name": "practice_name" },
+  "pages": { "manage": "/my-visits", "booking": "/" },
+  "kinds": { "confirmation": "clinic-confirmation", "reminder": "clinic-reminder" },
+  "producers": [
+    { "kind": "confirmation", "link": "appointment_id", "gate": "enabled",
+      "onCreate": { "table": "appointments" } },
+    { "kind": "reminder", "link": "appointment_id", "gate": "enabled", "optIn": true,
+      "before": { "table": "appointments", "at": "starts_at",
+                  "lead": { "via": "patient_id", "table": "patients", "column": "reminder_hours",
+                            "fallback": { "table": "settings", "column": "reminder_hours" }, "max": 72 },
+                  "where": { "column": "status", "eq": "booked" } } }
+  ]
+}
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `table` | yes | One of the app's tables: the outbox. |
+| `columns` | yes | The outbox's columns. `kind` is an enum of the kinds. `status` is an enum holding at least `queued`, `sent`, `failed` and `skipped`. `to` is `text`, the address. Optional: `language` (`text`), `due` (`timestamptz`, required by a `before` producer), `sentAt` (`timestamptz`) and `error` (`text`). |
+| `links` | no | The outbox's foreign keys, by the name a template reads them under: `{ "appointment": "appointment_id" }` gives a template `appointment.*`. Names are snake_case. Every foreign key of the outbox table that the outbox names must be nullable: not every email is about one. |
+| `recipient` | yes | Who the email goes to. See below. |
+| `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the workspace's name is used. |
+| `pages` | no | `{ "manage"?, "booking"? }`: paths on the app's customer side (`/my-visits`) that a template's `manage_url` and `booking_url` lead to. Up to 120 characters. Default: the side's front page. |
+| `kinds` | yes | Each value of the kind column, and the key of the template it is sent with. Every value must be one of the enum's, and every template one of `emailTemplates`. |
+| `producers` | no | Up to 16 rules that queue rows by themselves. See below. |
+
+**`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
+`via` is the outbox's foreign key to the person, `table` the person's table, and the rest are its
+columns: `email`, `name` and `language` are `text`, and `optIn` is a bool the person sets (false
+means nothing from a producer that asks `optIn`). `fallback` is `{ "via", "email", "name"?, "language"? }`: where the address
+comes from when `via` is empty. Its `via` is another foreign key of the outbox, and its columns
+belong to the table that key points at; a first visit by someone not yet on file carries their
+details on the visit itself.
+
+**Producers.** Each has a `kind` (a key of `kinds`) and a `link`, the outbox's foreign-key column
+that points at the row that produced it and must be one of `links`. Optionally `gate: "enabled"`
+(needs `settings.enabled`) and `optIn: true` (needs `recipient.optIn`: a person who opted out gets
+nothing). Then exactly one of:
+
+| Producer | Shape | Queues a row |
+|---|---|---|
+| `onCreate` | `{ "table", "where"? }` | When a row of the table is created. |
+| `onChange` | `{ "table", "column", "to", "where"? }` | When the column changes to `to`, a value or a list of 1–16 values. |
+| `before` | `{ "table", "at", "lead", "where"? }` | A lead time before `at`, a `timestamptz` of the row: a reminder. |
+
+`where` is one condition on the source row: `{ "column", "eq" }`, `{ "column", "in": [values] }`
+or `{ "column", "isNull": true|false }`, exactly one of the three. `before.lead` is
+`{ "via", "table", "column", "fallback"?, "max" }`: the number of hours before, read from `column`
+(an `int`) of the row that `via` points at, else from the settings `fallback`, and never more
+than `max` hours (1–336). `max` is also how far ahead Adminium looks. A reminder is queued with
+its moment in `columns.due`.
+
+A source row produces each kind once. A reminder is produced again only when its moment moves.
+Sample data, imports and undo never queue an email.
+
+### emailTemplates
+
+Up to 16 templates. Each is stored as the app's: an operator can edit it, and an edited template
+is kept as they left it across updates and uninstalls. A template a new version no longer ships is
+removed if nobody edited it.
+
+```json
+{
+  "key": "clinic-reminder",
+  "name": { "en-US": "Visit reminder", "de-DE": "Terminerinnerung" },
+  "vars": ["recipient.first_name", "appointment.starts_at.relative_day", "manage_url"],
+  "locales": {
+    "en-US": {
+      "subject": "Your visit {{appointment.starts_at.relative_day}}",
+      "blocks": [
+        { "block": "email.text", "data": { "text": "Hello {{recipient.first_name}}, see you {{appointment.starts_at.relative_day}} at {{appointment.starts_at.time}}." } },
+        { "block": "email.button", "data": { "label": "Manage your visit", "url": "{{manage_url}}" } }
+      ]
+    }
+  }
+}
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `key` | yes | kebab-case, 2–80 characters, starting with the app's key and `-` (`clinic-reminder`). Unique in the manifest. |
+| `name` | yes | A plain string or a keyed [label](#conventions). |
+| `vars` | no | Up to 60 variable names the template reads, for the editor's list. |
+| `locales` | yes | The template in each language it ships, keyed by BCP 47 tag. `en-US` is required. |
+
+Each language is `{ "subject", "preheader"?, "blocks", "footer"? }`: a subject and a preheader of
+up to 200 characters, 1–40 blocks, and a footer of up to 1000. A block is
+`{ "block", "id"?, "label"?, "data"? }`, where `block` is an email block kind such as `email.text`,
+`email.heading` or `email.button`. `email.html` is refused: its variables are not escaped, and an
+app's emails show values a stranger typed. The install's check step refuses a block kind the
+renderer does not know, or data of the wrong shape.
+
+A template reads variables as `{{name}}`: each link by its name (`appointment.*`, and one foreign
+key further, such as `appointment.clinician.*`), `recipient.name` and `recipient.first_name`,
+`practice.*`, `appName`, `manage_url` and `booking_url`. A time has the forms `.date`, `.time`,
+`.day_month` and `.relative_day` ("tomorrow"), in the recipient's language and the venue's zone.
+The guide lists [every variable](/guides/apps/emails/).
+
+Templates are sent through an outbox, so a manifest with `emailTemplates` and no `outbox` is
+refused. The install's check step warns when the server cannot send email.
+
 ## Public access
 
-`publicAccess` says what the app's public screens may do, through the one browser key the install
-creates. Each entry becomes an endpoint of the [public API](/guides/public-api/endpoints-and-keys/)
-on the real table, marked as the app's: switching the app off stops it and uninstalling removes it.
-Up to 32 entries.
+`publicAccess` says what the app's public screens may do. Each entry becomes an endpoint of the
+[public API](/guides/public-api/endpoints-and-keys/) on the real table, served through one of the
+app's browser keys and marked as the app's: switching the app off stops it and uninstalling
+removes it. Up to 32 entries.
+
+An entry is served through the app's `customer` key unless it names another in `key`. The install
+creates one key for `customer` and one for each name in [`publicKeys`](#publickeys). A key the
+operator revoked is not made again by an update.
 
 ```json
 "publicAccess": [
@@ -521,25 +789,188 @@ Up to 32 entries.
 | Field | Required | Rule |
 |---|---|---|
 | `table` | yes | One of the app's table refs. |
-| `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`. |
+| `methods` | yes | At least one of `GET`, `POST`, `PATCH`. `PATCH` needs a `claim`, or a `claimedBy` that is not `optional`. |
 | `kind` | no | `records` (the default) or `availability`. |
-| `select` | no | The columns a response carries. Default: every column the app declares for the table. |
+| `key` | no | The browser key that serves the entry: `customer` (the default) or a name in [`publicKeys`](#publickeys). |
+| `select` | no | The columns a response carries. Default: every column the app declares for the table. An entry with `claimedBy` must list them. |
 | `writable` | no | The columns a create or change may set. Never a column whose value Adminium decides. |
-| `filters` | no | Rows the endpoint can reach at all: `{ "column", "op", "value" }`, with `op` one of `eq`, `neq`, `in`, `gte`, `lte`. |
+| `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |
+| `writableWhen` | no | `{ "<column>": [1–32 values] }` or `{ "<column>": "from-now" }`: the state a row must be in to be changed. `"from-now"` needs a `timestamptz` and means "still ahead". Needs `PATCH`. |
+| `filters` | no | Rows the endpoint can reach at all. See [Filters](#filters). |
 | `defaults` | no | Values the server writes whatever the browser sends. |
-| `claim` | no | `{ "match": [1–3 columns] }`. The caller proves they know a row's details (a booking code and a mobile number) to reach that row, and only that row. |
+| `claim` | no | `{ "match", "verify"?, "email"? }`. Makes the entry its key's identity. See [A person's own rows](#a-persons-own-rows). |
+| `claimedBy` | no | `{ "table", "column", "optional"? }`. The entry reaches only the rows of the person its key's identity claimed. |
+| `level` | no | `lookup` (the default) or `verified`: the session the entry needs. Only with `claimedBy`. |
+| `sensitive` | no | Whether the rows need a verified session to see. See [A person's own rows](#a-persons-own-rows). |
+| `reason` | with `sensitive: false` | Why the entry is not sensitive, 1–200 characters. Only with `sensitive: false`. |
+| `onClaim` | no | `{ "clear": [1–12 columns] }`: on an entry whose `claimedBy` is `optional`, the nullable columns a signed-in create empties (the name and number a first visit would type). |
+| `maxOpen` | no | `{ "column", "values", "n", "upcoming"? }`: a claimed person may hold at most `n` (1–50) rows whose column holds one of `values`. With `upcoming`, a `timestamptz`, only rows still ahead count. Needs `claimedBy` and `POST`. |
+| `rank` | no | `{ "orderBy", "where"? }`: a create also answers where the new row stands, as the number of rows ordered by `orderBy` at or before it. `where` is `{ "column", "eq" }`. Needs `POST`. |
+| `humanCheck` | no | `true`: the browser solves a small proof of work before a create or a claim is taken. Only on an entry that creates or claims. |
+| `anonymous` | no | Limits on a create nobody signed in for. See [Limits on a stranger's create](#limits-on-a-strangers-create). |
+| `requireSetting` | no | Up to 4 `{ "table", "column", "when"? }`, each a bool of the settings table. While one is false, every write through the entry is refused. |
 | `confirm` | no | An email Adminium sends when a guest creates a row; needs `POST`. See below. |
+
+`writableValues` and `writableWhen` pin both ends of a change: `status` may become `cancelled`,
+and only while it is `booked`. `writableWhen` is part of the change itself, never of a read, so a
+finished visit still lists but cannot be moved; a change to a row in any other state answers as if
+the row were not there. An entry with `claimedBy` that changes an enum column must list its
+`writableValues`: permission to cancel is not permission to mark a visit seen.
 
 `confirm` takes `template` (only `booking-confirmation` today), `to` (the column holding the
 guest's address) and optionally `code`, `when`, `party` and `name` (columns the email shows),
 `venue` (`{ "table", "name"?, "address"?, "phone"? }`, the app's one-row venue table) and `link`
 (a path under the customer side, up to 200 characters).
 
-An `availability` entry answers free or full for each slot of a day and never returns a row. It
-is `GET` only, and the table must declare a [`capacity`](#capacity).
+An `availability` entry answers free or full and never returns a row. It is `GET` only, and the
+table must declare a [`capacity`](#capacity) or a [`booking`](#booking). On a capacity table it
+answers each slot of a day for a party size. On a booking table it answers the times of a day, or
+a strip of up to 31 days, for a kind and optionally a person; a guest is offered only people
+bookable online, and is never told who.
 
 The install's check step lists every endpoint it will create, and warns about anything that would
 stop the key working, such as the public API being off or no time zone set on the database.
+
+### Filters
+
+A filter limits every read and every write of the entry.
+
+| Filter | Rows it keeps |
+|---|---|
+| `{ "column", "op", "value" }` | `op` is `eq`, `neq`, `in`, `gte` or `lte`. |
+| `{ "column", "op": "today" }` | Rows whose date or time falls on today. |
+| `{ "column", "op": "from-today", "days"? }` | Rows from today onwards; `days` (1–366) limits how far, today included. |
+
+`today` and `from-today` need a `date` or `timestamptz` column, and are worked out on every
+request in the venue's time zone. A filtered column can be `writable` only when both
+`writableWhen` and `writableValues` pin it; otherwise a write could move the row out of the
+endpoint half-way.
+
+### A person's own rows
+
+An entry with `claim` is its key's **identity**. A caller proves they know a row's details (a
+mobile number and a date of birth) and gets a session on that row. Each key has at most one
+identity.
+
+| Field | Rule |
+|---|---|
+| `match` | 1–3 columns the caller must match. |
+| `verify` | `"email-code"`: the session starts at `lookup`, and a code emailed to the row's own address raises it to `verified`. |
+| `email` | With `verify` only: the `text` column holding the address. |
+
+An entry with `claimedBy` reaches only the claimed person's rows. `table` is the table its key's
+identity claims. `column` is a foreign key of this entry's table pointing at it, or that table's
+own primary key when the entry is on the identity's table. The column is filled from the session,
+so it cannot be `writable`. With `optional: true`, a create goes through with no session at all:
+a first visit by someone not yet on file. Only an entry whose `methods` is exactly `["POST"]` may
+be optional. An identity takes no `claimedBy`.
+
+```json
+"publicAccess": [
+  { "table": "patients", "methods": ["GET"], "select": ["name"],
+    "claim": { "match": ["mobile", "date_of_birth"], "verify": "email-code", "email": "email" },
+    "sensitive": true, "humanCheck": true },
+  { "table": "appointments", "methods": ["GET", "PATCH"],
+    "claimedBy": { "table": "patients", "column": "patient_id" }, "level": "verified",
+    "sensitive": false, "reason": "Times and visit types only, no clinical notes.",
+    "select": ["id", "starts_at", "visit_type_id", "clinician_id", "status"],
+    "writable": ["status"], "writableValues": { "status": ["cancelled"] },
+    "writableWhen": { "status": ["booked"], "starts_at": "from-now" } },
+  { "table": "appointments", "methods": ["POST"],
+    "claimedBy": { "table": "patients", "column": "patient_id", "optional": true },
+    "sensitive": false, "reason": "A new booking answers with its own time only.",
+    "select": ["id", "starts_at"],
+    "writable": ["starts_at", "visit_type_id", "clinician_id", "new_name", "new_mobile", "new_email"],
+    "defaults": { "status": "booked" },
+    "humanCheck": true,
+    "maxOpen": { "column": "status", "values": ["booked"], "n": 2, "upcoming": "starts_at" },
+    "onClaim": { "clear": ["new_name", "new_mobile", "new_email"] },
+    "anonymous": { "perValue": { "columns": ["new_mobile", "new_email"], "n": 2 },
+                   "perKeyHour": 30, "plainText": ["new_name"] },
+    "requireSetting": [{ "table": "settings", "column": "online_booking" },
+                       { "table": "settings", "column": "new_patients_online", "when": "anonymous" }] }
+]
+```
+
+The rules that tie these together:
+
+- **Levels.** An entry with `level: "verified"` refuses a `lookup` session with
+  `PUBLIC_CLAIM_LEVEL`, and needs an identity that sends a code. A code is six digits, lasts
+  10 minutes and allows 5 tries; a verified session lasts 30 minutes. See
+  [The emailed code](/guides/apps/public-access/#the-emailed-code).
+- **Sensitive rows.** An identity marked `sensitive: true` shows a `lookup` session only its own
+  `select`, and must send a code. Every `claimedBy` entry of its key must then say `sensitive`
+  either way: `true` needs `level: "verified"`, and `false` needs a `reason`.
+- **The address.** Where a claim sends a code, no entry may write the identity's `email` or `match`
+  columns or create rows on its table: a session could otherwise send the next code to itself.
+  The install refuses such an endpoint.
+- **The human check.** A `claimedBy` entry with `humanCheck` needs an identity with `humanCheck`
+  too, or claiming first would skip the proof. A found person's own create on an entry with
+  `maxOpen` asks no proof. See [The human check](/guides/apps/public-access/#the-human-check).
+- **`maxOpen`** counts only for a signed-in create, and refuses the next one with
+  `PUBLIC_LIMIT_REACHED`.
+
+For the whole flow, see [A person's own rows](/guides/apps/public-access/#a-persons-own-rows).
+
+### Limits on a stranger's create
+
+`anonymous` limits a create that nobody signed in for: an entry with no claim at all, or an
+optional `claimedBy` create made with no session. It needs `POST`.
+
+| Field | Rule |
+|---|---|
+| `perValue` | `{ "columns", "n" }`: at most `n` (1–20) creates a day for one phone number or address in any of these `text` columns (1–4), through any key or page. A phone number counts by its last nine digits, and an address in lower case, so two spellings of one number are one number. |
+| `perKeyHour` | At most this many (1–1000) such creates an hour through the key, from everyone. |
+| `plainText` | 1–8 `text` columns that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, with no digits and no link. |
+
+A create over a limit is refused with `PUBLIC_LIMIT_REACHED`, and one that breaks `plainText` with
+`PUBLIC_WRITE_REFUSED`. A create refused for another reason (the slot was taken) does not count.
+See [Limits on a stranger's create](/guides/apps/public-access/#limits-on-a-strangers-create).
+
+`requireSetting` switches an entry off from the settings row: while one of its bools is false,
+writes through the entry are refused with `PUBLIC_SWITCHED_OFF`. With `"when": "anonymous"`, the
+switch holds only for a create with no session, so a found patient can still book while new
+patients are turned away; it is allowed only on an optional `claimedBy` entry. A switch is read
+from the settings table and trusted for 15 seconds. No row, no column or a failed read counts as
+off. See [Switches in the settings row](/guides/apps/public-access/#switches-in-the-settings-row).
+
+### publicKeys
+
+`publicKeys` declares browser keys besides `customer`, keyed by a kebab-case name of up to 32
+characters. Such a key is never published on the customer side. The staff side is handed it, in
+its `surface-config.json` under `publicKeys`, only when the person signed in holds the key's role.
+Every request on the key must then carry that same staff sign-in, from the same origin, with the
+CSRF token on a write. A token copied out of the page opens nothing on its own.
+
+```json
+"publicKeys": {
+  "kiosk": { "requiresStaff": { "role": "kiosk" },
+             "enabledBy": { "table": "settings", "column": "kiosk_on" } }
+},
+"roles": [
+  { "key": "kiosk", "name": "Check-in tablet", "screensOnly": true, "permissions": ["app:@:staff"] }
+],
+"publicAccess": [
+  { "table": "patients", "key": "kiosk", "methods": ["GET"], "select": ["name"],
+    "claim": { "match": ["surname", "date_of_birth"] } },
+  { "table": "appointments", "key": "kiosk", "methods": ["GET", "PATCH"],
+    "claimedBy": { "table": "patients", "column": "patient_id" },
+    "filters": [{ "column": "starts_at", "op": "today" }],
+    "select": ["id", "starts_at", "status"],
+    "writable": ["status"], "writableValues": { "status": ["checked_in"] },
+    "writableWhen": { "status": ["booked"] } }
+]
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `requiresStaff` | yes | `{ "role" }`: one of the app's roles. It must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`, because the screen stands where anyone can walk up to it. |
+| `enabledBy` | no | `{ "table", "column" }`: a bool of the settings table. While it is false the key answers `PUBLIC_KEY_OFF`. Read as `requireSetting` is, and trusted for 15 seconds. |
+
+`customer` cannot be declared here, and at least one entry must name each key. A request without
+the right staff sign-in is refused with `PUBLIC_STAFF_REQUIRED`; a super-admin is refused too.
+Claims through a staff-bound key ask no proof, and their sessions last 3 minutes. See
+[A kiosk](/guides/apps/public-access/#a-kiosk).
 
 ## Sample data
 
@@ -584,8 +1015,33 @@ point at it. A value is plain JSON, or one of these directives:
 | `{ "@ref": "<label>" }` | The key of an earlier row with that label. |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
 | `{ "@day": -1, "@time": "09:30" }` | A wall time in the venue's time zone, a number of days from today (−366 to 366). |
+| `{ "@day": 3 }` | A date: that many days from today, as the venue's calendar has it. For a `date` column. |
+| `"@workdays": true` | Added to either `@day` form: the days count Monday to Friday only, and day 0 on a weekend is the Monday after. So the sample's busy day is never a Saturday. |
 | `{ "@t": { "en-US": "…" } }` | Text in the language of the person adding the sample. Keys are `xx` or `xx-XX`. |
 | `{ "@asset": "<label>" }` | A file from `assets`, added to the Files library. |
+
+Beside its `@label`, a row may carry one row directive, `@byClock`, so that a sample day's
+statuses match the time it is added at:
+
+```json
+{ "@label": "visit-2", "starts_at": { "@day": 0, "@time": "10:00", "@workdays": true },
+  "status": "booked",
+  "@byClock": { "at": "starts_at",
+                "before": { "status": "seen" },
+                "around": { "status": "checked_in" } } }
+```
+
+| Field | Rule |
+|---|---|
+| `at` | The row's time: the name of a column the row sets, or a `@day` with a `@time`. |
+| `before` | Columns merged into the row when its time is more than half an hour before the moment the sample is added. |
+| `around` | Columns merged when its time is within half an hour of it. |
+| `after` | Columns merged when its time is later. |
+
+Each set holds columns of the table, and may use directives. A set with `"@skip": true` leaves the
+row out altogether: a payment for a visit that has not happened yet. A later `@ref` to a row left
+out fails. Every table that keeps totals is settled once all the sample rows are in, so a sample
+visit's balance is right from the start.
 
 Adminium keeps track of the rows it added in a ledger table named `<key>_sample_data` (with `-` in
 the key written as `_`), so avoid a table of that name.
@@ -603,8 +1059,8 @@ An add-on manifest has `"kind": "add-on"` and shares the identity fields, `compa
 
 - **Categories** come from a separate list: `artwork`, `delivery`, `payments`, `email`, `data`.
 - **No `pages`, `roles`, `frontends`**, and none of `navGroups`, `optionLists`, `publicAccess`,
-  `sampleData` or `seeds`. An add-on's own screens are code it ships, declared under
-  `addOn.pages`.
+  `publicKeys`, `outbox`, `emailTemplates`, `sampleData` or `seeds`. An add-on's own screens are
+  code it ships, declared under `addOn.pages`.
 - **`requiredSchema` is optional** and cannot be `prefixed`: an add-on uses its host app's
   tables. Tables an add-on creates are kept when it is disconnected.
 - **An `addOn` block** is required:
@@ -638,17 +1094,19 @@ checks are:
 
 - **The schema.** Every field on this page, its type and its limits. Every object is strict, so a
   misspelled or unknown field is an error.
-- **Cross-references.** Every name the manifest uses must be declared in it: a rule's columns, a
-  capacity's columns, a public entry's table and columns, an option list, a foreign key's target.
-  A `PATCH` without a `claim`, a writable column that Adminium decides, and an `availability`
-  entry on a table with no `capacity` are refused.
+- **Cross-references.** Every name the manifest uses must be declared in it, and be of the right
+  type: a rule's columns, a capacity's or a booking's tables and columns, a public entry's table
+  and columns, a public key's role, the outbox's columns and templates, an option list, a foreign
+  key's target. A `PATCH` without a claim, a writable column that Adminium decides, and an
+  `availability` entry on a table with neither `capacity` nor `booking` are refused, along with
+  every rule stated in the sections above.
 - **Policy.** The publisher must be `adminium`, and the key must not be reserved.
 - **The version floor.** An app or add-on whose `minAdminiumVersion` is newer than the server is
   refused with a message naming both versions, including when an older server cannot parse a
   newer manifest.
 - **The install plan**, against the operator's database: name lengths for that database (63 bytes
   on Postgres and SQLite, 64 on MySQL, including foreign key names `fk_<table>_<column>`), role
-  names, page forms, and tables that are taken.
+  names, page forms, email template blocks, public endpoints, and tables that are taken.
 
 There is no published JSON Schema file for manifests. The schema itself is published as the
 `@adminiumjs/manifest` npm package. Its `validateManifest(document)` runs the schema,

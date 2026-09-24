@@ -192,6 +192,8 @@ export default defineConfig({
                 { label: 'Sample data', link: '/guides/apps/sample-data/' },
                 { label: 'App roles and staff access', link: '/guides/apps/roles-and-staff-access/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
+                { label: 'Booking rules', link: '/guides/apps/booking-rules/' },
+                { label: 'An app’s emails', link: '/guides/apps/emails/' },
               ],
             },
             {
