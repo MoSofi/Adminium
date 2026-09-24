@@ -291,7 +291,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # The other six cross-package tests (see the step before MinIO). These
+      # The other six cross-package tests (see the step before the S3 server). These
       # need built workspace packages, so they run once the build has. Among
       # them: the Docker distribution contract, which pins the ROOT Dockerfile,
       # compose file and workflows, and the desktop demo's acceptance test,
@@ -501,60 +501,74 @@ jobs:
       # TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
       # suite (apps/server/test/files-drivers.test.ts) — the only place SigV4 is
       # proved against a real S3 implementation rather than against AWS's
-      # published vectors. The vectors prove the signing math; MinIO proves
-      # interop with a target that actually VERIFIES it. That is why the
-      # replacement below is MinIO again and not an S3 mock: a mock that accepts
-      # any signature would keep this green while proving nothing.
+      # published vectors. The vectors prove the signing math; a real server
+      # proves interop with a target that actually VERIFIES it. So the target
+      # is never an S3 mock: one that accepts any signature would keep this
+      # green while proving nothing — and the step below checks, before the
+      # suite runs, that this one refuses an unsigned and a wrongly signed
+      # request.
       #
-      # WHY A STEP AND NOT A `services:` CONTAINER. It was one until 2026-09-09,
-      # using `bitnami/minio` for the reason the old comment gave: a service
-      # container cannot be given a command, the upstream image needs
-      # `server /data`, and Bitnami's started from environment alone and created
-      # the bucket via MINIO_DEFAULT_BUCKETS. Bitnami then emptied their free
-      # Docker Hub catalog — `bitnami/minio` now has ZERO tags and every run
-      # failed on `manifest for bitnami/minio:latest not found`, so no pin could
-      # rescue it. The surviving `bitnamilegacy/minio` is an explicitly
-      # unsupported shelf frozen at 2025-08, i.e. the same failure again later.
-      # A step has none of the service block's limits: it can pass the command,
-      # so it runs the upstream image, which is the maintained one.
+      # WHY VERSITY'S GATEWAY AND NOT MINIO. MinIO ran here until 2026-09-24
+      # and its images kept disappearing under the pin: `bitnami/minio` emptied
+      # (2026-09-09), `minio/minio` left Docker Hub (2026-09-13), and then
+      # quay.io answered 401 for the same pinned tag while dl.min.io answers
+      # 410 for every release — the community project is archived. Versity's
+      # `versitygw` is a maintained S3 gateway (Apache-2.0) that verifies SigV4,
+      # shipped as a single binary on GitHub Releases: pulled from the host the
+      # runner already trusts, pinned by version AND sha256, so a moved or
+      # replaced asset fails here by name instead of drifting.
       #
-      # The readiness probe runs on the RUNNER rather than as a container
-      # `--health-cmd`: the upstream image is UBI-micro based and is not
-      # guaranteed to carry curl, and a health check that cannot execute reports
-      # unhealthy forever.
-      #
-      # FROM quay.io, NOT DOCKER HUB. On 2026-09-13 `minio/minio` stopped
-      # existing on Docker Hub (repository 404, "pull access denied"), so this
-      # step exited 125 and `verify` ran nothing. quay.io is MinIO's own registry
-      # and carries this exact pinned tag, so the pin did not move, only where it
-      # is pulled from.
-      - name: Start MinIO (the S3 conformance target)
+      # A step, not a `services:` container: the binary needs its arguments,
+      # and a service block cannot pass a command.
+      - name: Start an S3 server (the conformance target)
         if: matrix.s3
+        env:
+          VGW_VERSION: v1.8.0
+          VGW_SHA256: 2ba2c734d10d2c4e651d03182cb4b246656bc735a2f282db7b0b73fba6073467
+          S3_KEY: adminium
+          S3_SECRET: adminium-s3-secret
         run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=minioadmin \
-            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+          set -euo pipefail
+          curl -fsSL -o /tmp/vgw.tgz \
+            "https://github.com/versity/versitygw/releases/download/${VGW_VERSION}/versitygw_${VGW_VERSION}_Linux_x86_64.tar.gz"
+          echo "${VGW_SHA256}  /tmp/vgw.tgz" | sha256sum -c -
+          mkdir -p /tmp/vgw /tmp/s3-data
+          tar -xzf /tmp/vgw.tgz -C /tmp/vgw
+          bin=$(find /tmp/vgw -type f -name versitygw | head -n 1)
+          [ -n "$bin" ] || { echo "::error::no versitygw binary in the release archive"; exit 1; }
+          ROOT_ACCESS_KEY="$S3_KEY" ROOT_SECRET_KEY="$S3_SECRET" \
+            nohup "$bin" --port 127.0.0.1:9000 posix /tmp/s3-data > /tmp/vgw.log 2>&1 &
           for i in $(seq 1 40); do
-            if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null 2>&1; then
-              echo "minio ready after ${i} attempt(s)"
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9000/ || true)
+            if [ "$code" != "000" ]; then
+              echo "S3 server answering (HTTP $code) after ${i} attempt(s)"
               break
             fi
             if [ "$i" -eq 40 ]; then
-              echo "::error::MinIO did not become ready; logs follow"
-              docker logs minio || true
+              echo "::error::the S3 server did not start; its log follows"
+              cat /tmp/vgw.log || true
               exit 1
             fi
-            sleep 2
+            sleep 1
           done
           # The suite reads the bucket out of TEST_S3_URL and does NOT create it
-          # (files-drivers.test.ts:118). MINIO_DEFAULT_BUCKETS did this before;
-          # the AWS CLI is preinstalled on ubuntu-latest, so nothing new is
-          # fetched to replace it.
-          AWS_ACCESS_KEY_ID=minioadmin \
-          AWS_SECRET_ACCESS_KEY=minioadmin \
-          AWS_DEFAULT_REGION=us-east-1 \
+          # (files-drivers.test.ts); the AWS CLI is preinstalled on ubuntu-latest.
+          export AWS_DEFAULT_REGION=us-east-1
+          AWS_ACCESS_KEY_ID="$S3_KEY" AWS_SECRET_ACCESS_KEY="$S3_SECRET" \
             aws --endpoint-url http://127.0.0.1:9000 s3 mb s3://adminium-test
+          # The whole point of a real target: it must REFUSE what is not signed
+          # with the secret. If either request below is accepted, this server
+          # proves nothing about SigV4 and the leg must not go green.
+          unsigned=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9000/adminium-test)
+          case "$unsigned" in
+            400|401|403) ;;
+            *) echo "::error::an unsigned request was answered $unsigned, not refused"; exit 1 ;;
+          esac
+          if AWS_ACCESS_KEY_ID="$S3_KEY" AWS_SECRET_ACCESS_KEY=not-the-secret \
+            aws --endpoint-url http://127.0.0.1:9000 s3 ls s3://adminium-test >/dev/null 2>&1; then
+            echo "::error::a request signed with the wrong secret was accepted"; exit 1
+          fi
+          echo "the S3 server refuses unsigned and wrongly signed requests"
 
       - name: Test
         run: pnpm turbo run test --filter=${{ matrix.workspace }}
@@ -567,7 +581,7 @@ jobs:
           # The grammar is `http://<key>:<secret>@<host>/<bucket>`; the suite
           # prints "SKIPPED (TEST_S3_URL is not set)" by name when it is
           # absent, so a leg that stops running says so instead of vanishing.
-          TEST_S3_URL: ${{ matrix.s3 && 'http://minioadmin:minioadmin@127.0.0.1:9000/adminium-test' || '' }}
+          TEST_S3_URL: ${{ matrix.s3 && 'http://adminium:adminium-s3-secret@127.0.0.1:9000/adminium-test' || '' }}
           # The psql-driven harnesses shell out to `psql -h 127.0.0.1` and
           # authenticate from the ambient PG env.
           PGUSER: postgres

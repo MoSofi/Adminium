@@ -4,7 +4,7 @@
  *
  * `local` always runs. `webdav` always runs too, against the in-process stub,
  * and additionally against `TEST_WEBDAV_URL` when one is set. `s3` runs against
- * `TEST_S3_URL` — MinIO in CI, skipped locally with the reason printed in the
+ * `TEST_S3_URL` — a real S3 server in CI (Versity's gateway), skipped locally with the reason printed in the
  * test name, never silently.
  *
  * TEST_S3_URL grammar: `http://<accessKey>:<secretKey>@<host>:<port>/<bucket>`.
@@ -77,7 +77,7 @@ describeFileDriver(
 
 // ── s3 (in-process protocol stub) ──────────────────────────────────────────
 //
-// Not a substitute for the MinIO leg — it cannot prove signature interop (see
+// Not a substitute for the real-server leg — it cannot prove signature interop (see
 // `helpers/s3-stub.ts`). It proves the wire behaviour a signer vector cannot:
 // unchunked streamed PUTs whose bytes hash to what was signed, ranges, 404s,
 // idempotent deletes, and XML error surfacing. Without it, every `s3` assertion
@@ -108,7 +108,7 @@ describeFileDriver(
   { keyStyle: 'dated' },
 );
 
-// ── s3 (MinIO in CI) ───────────────────────────────────────────────────────
+// ── s3 (a real server in CI) ───────────────────────────────────────────────────────
 
 const s3Url = process.env['TEST_S3_URL'];
 describeFileDriver(
@@ -136,7 +136,7 @@ describeFileDriver(
       }),
     };
   },
-  { keyStyle: 'dated', skip: s3Url === undefined ? 'TEST_S3_URL is not set (CI runs this against MinIO)' : undefined },
+  { keyStyle: 'dated', skip: s3Url === undefined ? 'TEST_S3_URL is not set (CI runs this against a real S3 server)' : undefined },
 );
 
 // ── key layout, which needs no server at all ───────────────────────────────
