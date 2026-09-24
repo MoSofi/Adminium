@@ -35,6 +35,7 @@ export {
   type GridSemantic,
   type GridTone,
 } from './column-spec.js';
+export { servedChoicesOf, withChoices, type ChoiceWords } from './choices.js';
 export { CellValue, MASKED_PLACEHOLDER, cellAlignClass, type CellContext, type ResolvedFile } from './cells.js';
 export {
   CustomCellProvider,

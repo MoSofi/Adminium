@@ -850,6 +850,7 @@ export default {
     "heading": "Vaše e-mailová adresa byla změněna",
     "intro": "Dobrý den, {name}, e-mailová adresa ve vašem záznamu u {appName} je nyní {newEmail}.",
     "notice": "Pokud jste to nebyli vy, ihned nás kontaktujte.",
+    "noticePhone": "Pokud jste to nebyli vy, ihned nám zavolejte na číslo {phone}.",
     "footer": "{appName}"
   }
 } as const;

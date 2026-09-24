@@ -12,12 +12,13 @@
  * resolution → per-table RBAC read check (403 TABLE_FORBIDDEN + audit on
  * denial) → PII column refusal (403 COLUMN_FORBIDDEN, in the compiler) →
  * dynamic-Kysely execution on the data connection → envelope shaping → 30
- * s in-memory cache keyed on descriptor+params+connection+role scope.
+ * s in-memory cache keyed on descriptor+params+connection+role scope+the
+ * reader's locale.
  */
 
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { connectionTenantConfig, overridesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, overridesRepo, snapshotsRepo, userPrefsRepo, type MetaDb } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 import type { QueryDescriptor } from '@adminium/engine/config';
 
@@ -26,7 +27,7 @@ import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { SnapshotView } from '../../crud/identifiers.js';
 import { resolveLookups } from '../../crud/lookups.js';
-import { canReadPii } from '../../crud/mask.js';
+import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
@@ -54,10 +55,26 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
   const snapshots = snapshotsRepo(meta);
   const overrides = overridesRepo(meta);
   const viewCache = new Map<string, { stamp: string; view: SnapshotView }>();
+  /*
+   * The reader's language, looked up once per request however many cards a
+   * batch carries. A card's column names and a choice column's value labels
+   * an app ships in several languages are read in it, as a page's are.
+   */
+  const readerLocales = new WeakMap<FastifyRequest, Promise<string | undefined>>();
+  function readerLocale(request: FastifyRequest): Promise<string | undefined> {
+    let locale = readerLocales.get(request);
+    if (locale === undefined) {
+      const userId = request.user?.id;
+      locale = userId === undefined ? Promise.resolve(undefined) : userPrefsRepo(meta).resolve(userId).then((prefs) => prefs.locale);
+      readerLocales.set(request, locale);
+    }
+    return locale;
+  }
 
   // Same snapshot-view resolution as routes/data — stamped on snapshot id +
-  // active-override set so remaps/masks invalidate immediately.
-  async function viewFor(connectionId: string): Promise<SnapshotView> {
+  // active-override set so remaps/masks invalidate immediately. One view per
+  // locale: the labels in it are resolved for that reader.
+  async function viewFor(connectionId: string, locale: string | undefined): Promise<SnapshotView> {
     const snapshot = await snapshots.latest(connectionId);
     if (snapshot === null) {
       throw new NotFoundError('No schema snapshot — introspect the connection first.', {
@@ -67,10 +84,14 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
     const active = await overrides.listForConnection(connectionId, { status: 'active' });
     const last = active.at(-1);
     const stamp = `${snapshot.id}:${String(active.length)}:${last?.id ?? ''}:${String(last?.updatedAt ?? 0)}`;
-    const cached = viewCache.get(connectionId);
+    const cacheKey = `${connectionId}\u0000${locale ?? ''}`;
+    const cached = viewCache.get(cacheKey);
     if (cached !== undefined && cached.stamp === stamp) return cached.view;
-    const view = new SnapshotView(connectionId, applyOverrides(snapshot.schema as DatabaseModel, active));
-    viewCache.set(connectionId, { stamp, view });
+    const view = new SnapshotView(
+      connectionId,
+      applyOverrides(snapshot.schema as DatabaseModel, active, locale === undefined ? {} : { defaultLocale: locale }),
+    );
+    viewCache.set(cacheKey, { stamp, view });
     return view;
   }
 
@@ -82,7 +103,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
     ): Promise<QueryOutcome> {
       const connectionId = descriptor.connectionId;
       await manager.mustFind(connectionId);
-      const view = await viewFor(connectionId);
+      const locale = await readerLocale(request);
+      const view = await viewFor(connectionId, locale);
 
       // Identifier resolution FIRST, then RBAC on the resolved name.
       const table = resolveSource(view, descriptor);
@@ -99,10 +121,13 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         });
       }
 
-      const unmasked = await canReadPii(request);
+      // This table's personal columns; lookups and group labels ask of their own.
+      const unmasked = await canReadPii(request, connectionId, table.id);
+      const piiOf = piiCheckFor(request, connectionId);
       const resolution = await app.rbac.resolve(request);
       const roleScope = `${[...resolution.roleIds].sort().join(',')}${resolution.superAdmin ? '+sa' : ''}:${unmasked ? 'pii' : 'masked'}`;
-      const key = cacheKeyOf({ descriptor, params: params ?? null, connectionId, roleScope });
+      // The answer carries labels in the reader's language, so it is kept per language too.
+      const key = cacheKeyOf({ descriptor, params: params ?? null, connectionId, roleScope, locale: locale ?? null });
       const hit = cache.get(key);
       if (hit !== undefined) return { result: hit as ShapedPayload, cached: true };
 
@@ -116,7 +141,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
               view,
               table,
               raw: descriptor.lookups ?? [],
-              canReadPii: unmasked,
+              canReadPii: piiOf,
               canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
             });
 
@@ -151,7 +176,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         rows,
         view,
         db,
-        canReadPii: unmasked,
+        canReadPii: piiOf,
         canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
       });
       const result = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels });

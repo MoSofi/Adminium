@@ -50,7 +50,7 @@ import type { Manifest } from '@adminium/manifest';
 import { BUILTIN_NAV_GROUP_KEYS } from '@adminium/add-on-contracts';
 import { newId, overridesRepo, pagesRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 
-import { bindForm, bindLayout } from './manifest-page-config.js';
+import { bindForm, bindLayout, calendarOf } from './manifest-page-config.js';
 import { applyCompositionOverrides, applyOverrides, withEffectiveLabels } from '../connections/effective-schema.js';
 import { SnapshotView } from '../crud/identifiers.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
@@ -69,7 +69,9 @@ export interface ManifestPageSkip {
     | 'PAGE_UNFIT'
     // Created, without the form or layout the manifest gave it.
     | 'PAGE_FORM_INVALID'
-    | 'PAGE_LAYOUT_INVALID';
+    | 'PAGE_LAYOUT_INVALID'
+    // Created, plotted by the columns Adminium picks rather than the ones it named.
+    | 'PAGE_CALENDAR_INVALID';
   message: string;
 }
 
@@ -260,14 +262,22 @@ export async function materialiseManifestPages(input: MaterialiseInput): Promise
         message: `"${String(tableRef)}" is not a table of this connection, so the page was created empty`,
       });
     } else if (bound && connectionId !== null && model !== null && tableId !== null) {
-      const built = composeRequestedPage(model, tableId, template, {
-        connectionId,
-        slug,
-        id,
-        navGroup,
-        navIcon: page.nav.icon,
-        navOrder: page.nav.order,
-      });
+      const context = { connectionId, slug, id, navGroup, navIcon: page.nav.icon, navOrder: page.nav.order };
+      // A calendar plots by the columns the app names; failing that, by the
+      // time its table's booking rule books — never a date of birth that
+      // happens to come first.
+      const booked = composed?.view.table(tableId).table.booking?.start;
+      const hinted = booked === undefined ? undefined : { start: booked };
+      const named = calendarOf(page);
+      let built = composeRequestedPage(model, tableId, template, { ...context, calendar: named ?? hinted });
+      if (built.envelope === null && named !== null) {
+        result.warnings.push({
+          page: page.ref,
+          reason: 'PAGE_CALENDAR_INVALID',
+          message: `${built.reason}, so it plots by the columns Adminium picks`,
+        });
+        built = composeRequestedPage(model, tableId, template, { ...context, calendar: hinted });
+      }
       if (built.envelope === null) {
         result.warnings.push({
           page: page.ref,

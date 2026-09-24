@@ -162,3 +162,35 @@ describe('a label an app installed in every language', () => {
     });
   });
 });
+
+describe('value labels an app installed in every language', () => {
+  const rows = () => [
+    {
+      id: 'ovr_app_enum',
+      op: 'column.enumLabels',
+      tableName: 'public.orders',
+      columnName: 'status',
+      value: { labels: { paid: { en_US: 'Paid', de_DE: 'Bezahlt' }, pending: 'Waiting' } },
+      origin: 'app',
+      status: 'active',
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ];
+
+  it('reads each in the person’s own language, and a save changes only the value typed into', async () => {
+    const harness = installFetch({ overridesRows: rows });
+    renderEditor();
+    await openColumn(/Orders/, /Status/);
+    expect((screen.getByLabelText('Label for paid') as HTMLInputElement).value).toBe('Paid');
+    expect((screen.getByLabelText('Label for pending') as HTMLInputElement).value).toBe('Waiting');
+
+    await userEvent.type(screen.getByLabelText('Label for cancelled'), 'Void');
+    await userEvent.click(screen.getByRole('button', { name: 'Save overrides' }));
+    await waitFor(() => expect(harness.putBodies).toHaveLength(1));
+    const put = harness.putBodies[0] as { overrides: { op: string; value: unknown }[] };
+    expect(put.overrides.find((o) => o.op === 'column.enumLabels')?.value).toEqual({
+      labels: { paid: { en_US: 'Paid', de_DE: 'Bezahlt' }, pending: 'Waiting', cancelled: 'Void' },
+    });
+  });
+});

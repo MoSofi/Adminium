@@ -526,3 +526,66 @@ describe('planning date helpers', () => {
     expect(planningDateKindOf({ rows: [] }, 'a')).toBeUndefined();
   });
 });
+
+/**
+ * The answer names a category's and a status's words, read in the reader's
+ * language: the legend, the agenda-side lists and the status pill say
+ * "Freigabe", not `release`. The raw value stays the key the colours and the
+ * legend's filter go by.
+ */
+describe('PageCalendar — the answer’s words for a category and a status', () => {
+  const ROWS_WITH_STATUS = ROWS.map((row, index) => ({ ...row, status: index === 1 ? 'at_risk' : 'scheduled' }));
+  const served = {
+    'cal-1': {
+      status: 'success' as const,
+      data: {
+        rows: ROWS_WITH_STATUS,
+        total: ROWS_WITH_STATUS.length,
+        columns: [
+          { name: 'category', logicalType: 'enum', nullable: true, isPrimaryKey: false, enumLabels: { release: 'Freigabe', maintenance: 'Wartung' } },
+          { name: 'status', logicalType: 'enum', nullable: true, isPrimaryKey: false, enumLabels: { at_risk: 'Gefährdet' }, enumTones: { at_risk: 'danger' } },
+        ],
+      },
+    },
+  };
+
+  it('carries the words beside the raw values', () => {
+    const events = calendarEventsOf(served['cal-1'].data, calendarItemConfigOf(CAL_CONFIG), 'UTC');
+    expect(events[0]).toMatchObject({ category: 'release', categoryLabel: 'Freigabe', status: 'scheduled' });
+    expect(events[0]?.statusLabel).toBeUndefined();
+    expect(events[1]).toMatchObject({ category: 'maintenance', categoryLabel: 'Wartung', status: 'at_risk', statusLabel: 'Gefährdet', statusTone: 'danger' });
+    expect(events[2]?.categoryLabel).toBeUndefined();
+  });
+
+  it('the legend names a category in the reader’s words and still filters by its value', () => {
+    render(
+      <PageCalendar
+        config={calendarPage([{ i: 'legend-1', widget: 'calendar-legend-filter', x: 8, y: 15, w: 4, h: 4, config: {} }])}
+        states={served}
+        referenceDate={TODAY}
+        timeZone="UTC"
+      />,
+    );
+    const legend = screen.getByTestId('legend-slot-legend-1');
+    expect(within(legend).getByText('Freigabe')).toBeDefined();
+    expect(within(legend).getByText('meeting')).toBeDefined();
+    const day15 = () => screen.getByRole('gridcell', { name: '2026-07-15' });
+    fireEvent.click(within(legend).getByRole('checkbox', { name: 'Freigabe' }));
+    expect(within(day15()).queryByText('Billing service')).toBeNull();
+  });
+
+  it('an upcoming row names its category and its status in the reader’s words', () => {
+    render(
+      <PageCalendar
+        config={calendarPage([{ i: 'up-1', widget: 'upcoming-events-list', x: 0, y: 15, w: 8, h: 6, config: {} }])}
+        states={served}
+        referenceDate={TODAY}
+        timeZone="UTC"
+      />,
+    );
+    const upcoming = screen.getByTestId('upcoming-slot-up-1');
+    expect(within(upcoming).getByText('Wartung')).toBeDefined();
+    expect(within(upcoming).getByText('Gefährdet').closest('[data-tone]')?.getAttribute('data-tone')).toBe('danger');
+    expect(within(upcoming).queryByText('at_risk')).toBeNull();
+  });
+});

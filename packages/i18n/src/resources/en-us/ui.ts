@@ -124,7 +124,8 @@ export default {
       "step": "Step {n}",
       "back": "Back",
       "next": "Continue"
-    }
+    },
+    "unavailable": "This field can’t be shown: nothing links this record to the rows it names."
   },
   "combobox": {
     "placeholder": "Select…",

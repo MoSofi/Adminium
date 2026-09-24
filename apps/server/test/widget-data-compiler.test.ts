@@ -459,7 +459,7 @@ describe('WidgetDataCache', () => {
   it('expires by TTL and invalidates by table', () => {
     let t = 0;
     const cache = new WidgetDataCache({ ttlMs: 1000, now: () => t });
-    const key = cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'r1' });
+    const key = cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'r1', locale: null });
     cache.set(key, { shape: 'single-metric', value: 1 }, 'c1', 'public.orders');
     expect(cache.get(key)).toEqual({ shape: 'single-metric', value: 1 });
 
@@ -472,10 +472,15 @@ describe('WidgetDataCache', () => {
   });
 
   it('role scope and params are part of the key', () => {
-    const a = cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'viewer' });
-    const b = cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'admin' });
-    const c = cacheKeyOf({ descriptor: { a: 1 }, params: { x: 1 }, connectionId: 'c1', roleScope: 'viewer' });
+    const a = cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'viewer', locale: null });
+    const b = cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'admin', locale: null });
+    const c = cacheKeyOf({ descriptor: { a: 1 }, params: { x: 1 }, connectionId: 'c1', roleScope: 'viewer', locale: null });
     expect(new Set([a, b, c]).size).toBe(3);
+  });
+
+  it('keeps an answer per language, so a German reader never gets the English one', () => {
+    const key = (locale: string | null) => cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'viewer', locale });
+    expect(new Set([key(null), key('en_US'), key('de_DE')]).size).toBe(3);
   });
 });
 

@@ -25,6 +25,7 @@ import { pickLocalized } from '../../lib/localized.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import { pageLayoutSchema, type PageLayout } from '../../page-config/index.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { withCurrency } from '../page-currency.js';
 import {
   useDashboardData,
   type DashboardDataAdapter,
@@ -56,14 +57,6 @@ export interface PageDashboardProps {
    */
   currency?: string | undefined;
   className?: string | undefined;
-}
-
-/** A widget's config with the page's currency, unless it names its own. */
-function withCurrency(config: unknown, currency: string | undefined): unknown {
-  if (currency === undefined || typeof config !== 'object' || config === null) return config;
-  const format = (config as { format?: Record<string, unknown> }).format;
-  if (typeof format?.['currency'] === 'string') return config;
-  return { ...config, format: { ...format, currency } };
 }
 
 const EMPTY_LAYOUT: PageLayout = { version: 1, items: [] };

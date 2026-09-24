@@ -26,7 +26,15 @@ import { z } from 'zod';
 
 import { FILTER_OPS, type RecordFilter } from '../crud/filters.js';
 import { PUBLIC_GENERATORS, readGenerator } from './generate.js';
-import { RELATIVE_FILTER_OPS, isRelativeOp, type RelativeCondition, type ScopeWhere } from './relative-filters.js';
+import {
+  RELATIVE_FILTER_OPS,
+  TIME_WINDOW_MAX_MINUTES,
+  isRelativeOp,
+  isTimeWindow,
+  type RelativeCondition,
+  type ScopeWhere,
+  type WritableState,
+} from './relative-filters.js';
 
 /* --------------------------------------------------------------- vocabulary */
 
@@ -120,6 +128,25 @@ const mandatoryConditionSchema = z.object({
 const scalarSchema = z.union([z.string().max(256), z.number(), z.boolean()]);
 
 /**
+ * The state a row must be in for an update to touch it: one of some values,
+ * `from-now` (a time still ahead) or `{within: n}` (a time no more than n
+ * minutes ahead). One window at most: a change refused as too early names
+ * the one time it waits for.
+ */
+export const writableWhenSchema = z
+  .record(
+    columnSchema,
+    z.union([
+      z.array(scalarSchema).min(1).max(32),
+      z.literal('from-now'),
+      z.object({ within: z.number().int().min(1).max(TIME_WINDOW_MAX_MINUTES) }).strict(),
+    ]),
+  )
+  .refine((when) => Object.values(when).filter(isTimeWindow).length <= 1, {
+    message: 'one time window at most: a change refused as too early names one time',
+  });
+
+/**
  * How a claimed session narrows this resource.
  *
  * `column` is matched against a value the CLAIM resolved (e.g. `patient_id`).
@@ -210,9 +237,10 @@ const resourceSchema = z
     writableValues: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
     /**
      * The state a row must be IN for an update to touch it — ANDed into the
-     * UPDATE, never into a read. `from-now`: a time still ahead.
+     * UPDATE, never into a read. `from-now`: a time still ahead; `{within}`:
+     * no more than that many minutes ahead.
      */
-    writableWhen: z.record(columnSchema, z.union([z.array(scalarSchema).min(1).max(32), z.literal('from-now')])).optional(),
+    writableWhen: writableWhenSchema.optional(),
     /** The session level this resource needs; `verified` only where the claim sends a code. */
     level: z.enum(['lookup', 'verified']).optional(),
     /** On an optional claim: the columns a signed-in create empties. */
@@ -374,7 +402,7 @@ export interface CompiledResource {
   /** The only values a caller may write into these columns. */
   writableValues: Readonly<Record<string, readonly (string | number | boolean)[]>>;
   /** The state a row must be in for an update to touch it. */
-  writableWhen: Readonly<Record<string, readonly (string | number | boolean)[] | 'from-now'>>;
+  writableWhen: Readonly<Record<string, WritableState>>;
   /** The session level this resource needs. */
   level: 'lookup' | 'verified';
   /** The columns a signed-in create empties, on an optional claim. */

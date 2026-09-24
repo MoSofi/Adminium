@@ -69,7 +69,7 @@ import {
   NotFoundError,
   ValidationFailedError,
 } from '../../errors.js';
-import { applyCompositionOverrides } from '../../connections/effective-schema.js';
+import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { canReadPii } from '../../crud/mask.js';
 import { columnFactsFor } from './column-facts.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
@@ -299,6 +299,10 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       // date left the calendar refusing to compose: the override was visible
       // everywhere except the thing it was made to correct.
       const model = await compositionModel(input.connectionId);
+      // A calendar over a table with a booking rule plots by the time the rule
+      // books — as an app's install does — not by the first date it finds (a
+      // date of birth).
+      const booked = input.template === 'page-calendar' ? await bookingStart(input.connectionId, input.table) : undefined;
       const built = composeRequestedPage(
         model,
         input.table,
@@ -311,6 +315,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           navIcon: input.navIcon,
           navOrder: input.navOrder,
           ...(input.titleThrough === undefined ? {} : { titleThrough: input.titleThrough }),
+          ...(booked === undefined ? {} : { calendar: { start: booked } }),
         },
       );
       if (built.envelope === null && input.titleThrough !== undefined) {
@@ -619,10 +624,11 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
                 // it from `canUpdate` would hide the panel on exactly the
                 // connections it exists for.
                 canAttach: await request.can(`table:${source.connectionId}:${source.table}:update`),
-                // The SAME unmask check the data routes mask rows with — when
-                // true the caller's reads carry PII in clear, so the grid may
-                // render its reveal affordance (schema.ts pageReply).
-                canUnmask: await canReadPii(request),
+                // The SAME unmask check the data routes mask rows with, for
+                // this table — when true the caller's reads carry PII in
+                // clear, so the grid may render its reveal affordance
+                // (schema.ts pageReply).
+                canUnmask: await canReadPii(request, source.connectionId, source.table),
               }
             : {};
         /*
@@ -794,6 +800,15 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
      * not use, and an operator who had already tagged a column would be told to
      * tag it again.
      */
+    /** The column a table's booking rule books by, if it has one. */
+    async function bookingStart(connectionId: string, table: string): Promise<string | undefined> {
+      const snapshot = await snapshotsRepo(deps.meta).latest(connectionId);
+      if (snapshot === null) return undefined;
+      const overrides = await overridesRepo(deps.meta).listForConnection(connectionId, { status: 'active' });
+      const effective = applyOverrides(parseDatabaseModel(snapshot.schema), overrides);
+      return effective.tables.find((t) => t.id === table)?.booking?.start;
+    }
+
     async function compositionModel(connectionId: string) {
       const connection = await deps.meta.db
         .selectFrom('adminium_connections')

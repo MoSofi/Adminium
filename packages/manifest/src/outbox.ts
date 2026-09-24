@@ -144,9 +144,14 @@ export const outboxSchema = z
     recipient: recipientSchema,
     /**
      * The app's one-row settings table, read as `practice.*` by every template;
-     * `name` is the column its emails are signed with (the sign-in code's too).
+     * `name` is the column its emails are signed with (the sign-in code's too),
+     * and `phone` the number Adminium's own notices give a person to ring —
+     * the one sent to an old address after a change of email.
      */
-    settings: z.object({ table: refSchema, enabled: refSchema.optional(), name: refSchema.optional() }).strict().optional(),
+    settings: z
+      .object({ table: refSchema, enabled: refSchema.optional(), name: refSchema.optional(), phone: refSchema.optional() })
+      .strict()
+      .optional(),
     /**
      * Where a template's links lead on the app's guest side: `manage_url` and
      * `booking_url`, as paths under its address (default: its front page).
@@ -302,6 +307,7 @@ export function outboxIssues(
   } else if (box.settings !== undefined) {
     if (box.settings.enabled !== undefined) col(box.settings.table, box.settings.enabled, ['bool'], at('settings', 'enabled'), 'a bool');
     if (box.settings.name !== undefined) col(box.settings.table, box.settings.name, ['text'], at('settings', 'name'), 'a text column');
+    if (box.settings.phone !== undefined) col(box.settings.table, box.settings.phone, ['text'], at('settings', 'phone'), 'a text column');
   }
 
   for (const [value, template] of Object.entries(box.kinds)) {

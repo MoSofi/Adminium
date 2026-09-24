@@ -29,6 +29,7 @@ export const NAMESPACES = [
   'assistant',
   'addOns',
   'apiDocs',
+  'roles',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -127,8 +128,9 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * `apps/dashboard/src/files/filesMessages.ts`,
  * `apps/dashboard/src/report-builder/reportBuilderMessages.ts` and
  * `apps/dashboard/src/project/projectMessages.ts`,
- * `apps/dashboard/src/assistant/assistantMessages.ts` and
- * `apps/dashboard/src/api-docs/apiDocsMessages.ts`.
+ * `apps/dashboard/src/assistant/assistantMessages.ts`,
+ * `apps/dashboard/src/api-docs/apiDocsMessages.ts` and
+ * `apps/dashboard/src/team/rolesMessages.ts`.
  */
 export const DEFERRED_NAMESPACES = [
   'studio',
@@ -155,6 +157,16 @@ export const DEFERRED_NAMESPACES = [
    * `onboarding` — the other pre-auth surface.
    */
   'apiDocs',
+  /*
+   * The Roles & permissions editor at `/settings/roles`: its matrix rows,
+   * category names and the create/rename/delete dialogs. It lived under
+   * `common.roles.*` until 2026-09-24 — 76 messages, ~3.2 KiB raw of en-US, in
+   * every user's entry chunk for one lazy admin route behind `roles.manage`,
+   * a permission the built-in Admin does not even hold. The ratchet went red
+   * by 25 bytes on two new strings, and this is what paid for them. Its only
+   * reader is `team/RolesPage.tsx`; the route body awaits the namespace.
+   */
+  'roles',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

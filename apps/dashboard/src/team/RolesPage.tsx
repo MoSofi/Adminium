@@ -25,6 +25,11 @@
  * Saving is explicit and PER TOUCHED ROLE: the endpoint is a full-matrix
  * replace, so writing every column on every save would rewrite — and
  * audit-log — matrices nobody edited. `changedRoleIds` decides what ships.
+ *
+ * Its text is the DEFERRED `roles` namespace (`rolesMessages.ts`), which the
+ * route awaits before this renders; `common:` is read only for the shared
+ * Save/Cancel/Close words. `i18n/rolesNamespace.test.ts` holds every inline
+ * fallback here to the catalogue text.
  */
 import { useMutation, useQueries, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Plus, ShieldCheck, Trash2 } from 'lucide-react';
@@ -81,13 +86,13 @@ import {
 function categoryLabel(category: PermissionCategory): string {
   switch (category) {
     case 'access':
-      return t('roles.category.access', 'Access');
+      return t('roles:category.access', 'Access');
     case 'data':
-      return t('roles.category.data', 'Data');
+      return t('roles:category.data', 'Data');
     case 'workspace':
-      return t('roles.category.workspace', 'Workspace');
+      return t('roles:category.workspace', 'Workspace');
     case 'operations':
-      return t('roles.category.operations', 'Operations');
+      return t('roles:category.operations', 'Operations');
   }
 }
 
@@ -95,7 +100,7 @@ function categoryLabel(category: PermissionCategory): string {
  * Row labels, localized by grant string.
  *
  * A switch and not a lookup built from the key, because `adminium/no-dynamic-
- * i18n-key` correctly forbids assembling `t('roles.permission.' + key)`: a
+ * i18n-key` correctly forbids assembling `roles:permission.` + key: a
  * fabricated key cannot be checked against the 8 bundles and renders as a raw
  * dotted string when it misses. The `default` is the endpoint's own English
  * `label`, which is exactly the fallback its docblock promises — so a grantable
@@ -105,43 +110,43 @@ function categoryLabel(category: PermissionCategory): string {
 function permissionLabel(entry: GrantableCatalogEntry): string {
   switch (entry.key) {
     case 'system:users:manage':
-      return t('roles.permission.usersManage', 'Manage users');
+      return t('roles:permission.usersManage', 'Manage users');
     case 'system:roles:manage':
-      return t('roles.permission.rolesManage', 'Manage roles and permissions');
+      return t('roles:permission.rolesManage', 'Manage roles and permissions');
     case 'system:api-keys:manage':
-      return t('roles.permission.apiKeysManage', 'Manage API keys');
+      return t('roles:permission.apiKeysManage', 'Manage API keys');
     case 'system:settings:manage':
-      return t('roles.permission.settingsManage', 'Manage workspace settings');
+      return t('roles:permission.settingsManage', 'Manage workspace settings');
     case 'system:audit:read':
-      return t('roles.permission.auditRead', 'Read the audit log');
+      return t('roles:permission.auditRead', 'Read the audit log');
     case 'system:pages:manage':
-      return t('roles.permission.pagesManage', 'Create and organize pages');
+      return t('roles:permission.pagesManage', 'Create and organize pages');
     case 'system:project:read':
-      return t('roles.permission.projectRead', 'Read pages and schema changes for a project pull');
+      return t('roles:permission.projectRead', 'Read pages and schema changes for a project pull');
     case 'system:connections:manage':
-      return t('roles.permission.connectionsManage', 'Manage database connections');
+      return t('roles:permission.connectionsManage', 'Manage database connections');
     case 'system:schema:remap':
-      return t('roles.permission.schemaRemap', 'Edit schema labels and overrides');
+      return t('roles:permission.schemaRemap', 'Edit schema labels and overrides');
     case 'system:schema:ddl':
-      return t('roles.permission.schemaDdl', 'Create, edit and delete tables');
+      return t('roles:permission.schemaDdl', 'Create, edit and delete tables');
     case 'system:exports:manage':
-      return t('roles.permission.exportsManage', 'Manage everyone’s exports');
+      return t('roles:permission.exportsManage', 'Manage everyone’s exports');
     case 'system:imports:manage':
-      return t('roles.permission.importsManage', 'Manage everyone’s imports');
+      return t('roles:permission.importsManage', 'Manage everyone’s imports');
     case 'system:reports:manage':
-      return t('roles.permission.reportsManage', 'Manage scheduled reports');
+      return t('roles:permission.reportsManage', 'Manage scheduled reports');
     case 'system:llm:run':
-      return t('roles.permission.llmRun', 'Run AI assist');
+      return t('roles:permission.llmRun', 'Run AI assist');
     case 'system:jobs:read':
-      return t('roles.permission.jobsRead', 'See all background jobs');
+      return t('roles:permission.jobsRead', 'See all background jobs');
     case 'system:jobs:manage':
-      return t('roles.permission.jobsManage', 'Start and cancel background jobs');
+      return t('roles:permission.jobsManage', 'Start and cancel background jobs');
     case 'system:manifests:manage':
-      return t('roles.permission.manifestsManage', 'Install and manage apps and add-ons');
+      return t('roles:permission.manifestsManage', 'Install and manage apps and add-ons');
     case 'system:files:manage':
-      return t('roles.permission.filesManage', 'Manage everyone’s files');
+      return t('roles:permission.filesManage', 'Manage everyone’s files');
     case 'system:storage:manage':
-      return t('roles.permission.storageManage', 'Manage storage destinations');
+      return t('roles:permission.storageManage', 'Manage storage destinations');
     default:
       return entry.label;
   }
@@ -151,21 +156,23 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
 function dataAccessLabel(key: DataAccessGrant): string {
   switch (key) {
     case 'page:*:view':
-      return t('roles.data.pagesView', 'See every page');
+      return t('roles:data.pagesView', 'See every page');
     case 'table:*:*:read':
-      return t('roles.data.read', 'Read records');
+      return t('roles:data.read', 'Read records');
+    case 'table:*:*:read_pii':
+      return t('roles:data.readPii', 'See personal data in records');
     case 'table:*:*:create':
-      return t('roles.data.create', 'Create records');
+      return t('roles:data.create', 'Create records');
     case 'table:*:*:update':
-      return t('roles.data.update', 'Edit records');
+      return t('roles:data.update', 'Edit records');
     case 'table:*:*:delete':
-      return t('roles.data.delete', 'Delete records');
+      return t('roles:data.delete', 'Delete records');
     case 'table:*:*:export':
-      return t('roles.data.export', 'Export records');
+      return t('roles:data.export', 'Export records');
     case 'table:*:*:import':
-      return t('roles.data.import', 'Import records');
+      return t('roles:data.import', 'Import records');
     case 'page:*:edit':
-      return t('roles.data.pagesEdit', 'Change page layouts');
+      return t('roles:data.pagesEdit', 'Change page layouts');
   }
 }
 
@@ -223,16 +230,16 @@ export function RolesPage(): ReactNode {
     return [...byKey].map(([key, label]) => ({ key, label }));
   }, [bootstrap]);
   const permissions = useMemo(() => {
-    const dataCategory = t('roles.category.records', 'Pages & records');
-    const appCategory = t('roles.category.apps', 'Apps');
+    const dataCategory = t('roles:category.records', 'Pages & records');
+    const appCategory = t('roles:category.apps', 'Apps');
     return [
       ...DATA_ACCESS_GRANTS.map((key) => ({ key, label: dataAccessLabel(key), category: dataCategory })),
       ...appStaffRows(installedApps, baseline).map((row) => ({
         key: row.key,
         label:
           row.app === null
-            ? t('roles.apps.every', 'Open every app’s staff screens')
-            : t('roles.apps.one', 'Open {app}’s staff screens', { app: row.app.label }),
+            ? t('roles:apps.every', 'Open every app’s staff screens')
+            : t('roles:apps.one', 'Open {app}’s staff screens', { app: row.app.label }),
         category: appCategory,
       })),
       ...matrixRows(catalogPermissions(catalog), permissionLabel, (entry) => categoryLabel(entry.category)),
@@ -301,15 +308,15 @@ export function RolesPage(): ReactNode {
   return (
     <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
-        title={t('roles.title', 'Roles & permissions')}
-        subtitle={t('roles.subtitle', 'What each role may do. A user gets the union of every role they hold.')}
+        title={t('roles:title', 'Roles & permissions')}
+        subtitle={t('roles:subtitle', 'What each role may do. A user gets the union of every role they hold.')}
       >
         <Button
           iconLeft={<Plus className="size-4" />}
           onClick={() => setCreateOpen(true)}
           data-testid="roles-create"
         >
-          {t('roles.createButton', 'New role')}
+          {t('roles:createButton', 'New role')}
         </Button>
       </PageActions>
 
@@ -318,9 +325,9 @@ export function RolesPage(): ReactNode {
           role="alert"
           tone="danger"
           data-testid="roles-grants-error"
-          title={t('roles.loadFailed.title', 'Some permissions could not be read')}
+          title={t('roles:loadFailed.title', 'Some permissions could not be read')}
           body={t(
-            'roles.loadFailed.body',
+            'roles:loadFailed.body',
             'The matrix below is incomplete, so saving it would clear permissions that are simply not loaded. Reload before making changes.',
           )}
         />
@@ -328,12 +335,12 @@ export function RolesPage(): ReactNode {
 
       <Card padded={false}>
         <CardHeader className="justify-between flex flex-wrap items-center gap-3">
-          <h2 className="text-section flex-1 text-fg">{t('roles.matrix.title', 'Permissions')}</h2>
+          <h2 className="text-section flex-1 text-fg">{t('roles:matrix.title', 'Permissions')}</h2>
           <span className="text-body-sm text-fg-subtle" data-testid="roles-pending">
             {pending === 0
-              ? t('roles.matrix.noChanges', 'No pending changes')
+              ? t('roles:matrix.noChanges', 'No pending changes')
               : t(
-                  'roles.matrix.pending',
+                  'roles:matrix.pending',
                   '{count, plural, one {# pending change} other {# pending changes}}',
                   { count: pending },
                 )}
@@ -344,7 +351,7 @@ export function RolesPage(): ReactNode {
             disabled={pending === 0 || save.isPending}
             onClick={() => setDraft(null)}
           >
-            {t('roles.matrix.discard', 'Discard')}
+            {t('roles:matrix.discard', 'Discard')}
           </Button>
           <Button
             size="sm"
@@ -362,7 +369,7 @@ export function RolesPage(): ReactNode {
               role="alert"
               tone="danger"
               className="mb-4"
-              title={t('roles.saveFailed.title', 'Could not save every role')}
+              title={t('roles:saveFailed.title', 'Could not save every role')}
               body={save.error.message}
             />
           )}
@@ -371,9 +378,9 @@ export function RolesPage(): ReactNode {
               compact
               preset="no-data"
               icon={<ShieldCheck />}
-              title={t('roles.matrix.empty.title', 'No permissions to show')}
+              title={t('roles:matrix.empty.title', 'No permissions to show')}
               body={t(
-                'roles.matrix.empty.body',
+                'roles:matrix.empty.body',
                 'This instance reported no grantable permissions at all, which should not happen — reload, and if it persists check the server log.',
               )}
             />
@@ -382,7 +389,7 @@ export function RolesPage(): ReactNode {
               {narrowGrants === 0 ? null : (
                 <p className="mb-3 text-body-sm text-fg-muted" data-testid="roles-narrow-grants">
                   {t(
-                    'roles.data.narrow',
+                    'roles:data.narrow',
                     '{count, plural, one {# grant} other {# grants}} on a single page or table also apply, on top of the rows below. Saving keeps them.',
                     { count: narrowGrants },
                   )}
@@ -390,8 +397,8 @@ export function RolesPage(): ReactNode {
               )}
               <PermissionMatrix
                 data-testid="roles-matrix"
-                label={t('roles.matrix.label', 'Role permissions')}
-                rowHeader={t('roles.matrix.rowHeader', 'Permission')}
+                label={t('roles:matrix.label', 'Role permissions')}
+                rowHeader={t('roles:matrix.rowHeader', 'Permission')}
                 roles={roles.map((role) => ({
                   id: role.id,
                   name: role.name,
@@ -412,7 +419,7 @@ export function RolesPage(): ReactNode {
 
       <Card padded={false}>
         <CardHeader>
-          <h2 className="text-section text-fg">{t('roles.list.title', 'Roles')}</h2>
+          <h2 className="text-section text-fg">{t('roles:list.title', 'Roles')}</h2>
         </CardHeader>
         <CardBody className="p-0">
           <div className="overflow-x-auto">
@@ -420,13 +427,13 @@ export function RolesPage(): ReactNode {
               <thead>
                 <tr className="border-b border-border text-micro uppercase text-fg-subtle">
                   <th scope="col" className="px-4 py-2 text-start font-bold">
-                    {t('roles.column.name', 'Role')}
+                    {t('roles:column.name', 'Role')}
                   </th>
                   <th scope="col" className="px-4 py-2 text-start font-bold">
-                    {t('roles.column.members', 'Members')}
+                    {t('roles:column.members', 'Members')}
                   </th>
                   <th scope="col" className="px-4 py-2 text-end font-bold">
-                    {t('roles.column.actions', 'Actions')}
+                    {t('roles:column.actions', 'Actions')}
                   </th>
                 </tr>
               </thead>
@@ -442,14 +449,14 @@ export function RolesPage(): ReactNode {
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-fg-muted">
-                      {t('roles.memberCount', '{count, plural, one {# user} other {# users}}', {
+                      {t('roles:memberCount', '{count, plural, one {# user} other {# users}}', {
                         count: role.memberCount,
                       })}
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex flex-wrap justify-end gap-1">
                         <Button variant="ghost" size="sm" onClick={() => setRenaming(role)}>
-                          {t('roles.action.rename', 'Rename')}
+                          {t('roles:action.rename', 'Rename')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -457,12 +464,12 @@ export function RolesPage(): ReactNode {
                           disabled={role.isBuiltin}
                           title={
                             role.isBuiltin
-                              ? t('roles.builtinLocked', 'Built-in roles cannot be deleted.')
+                              ? t('roles:builtinLocked', 'Built-in roles cannot be deleted.')
                               : undefined
                           }
                           onClick={() => setDeleting(role)}
                         >
-                          {t('roles.action.delete', 'Delete')}
+                          {t('roles:action.delete', 'Delete')}
                         </Button>
                       </div>
                     </td>
@@ -544,8 +551,8 @@ function CreateRoleDialog(props: {
     >
       <ModalHeader
         icon={<ShieldCheck />}
-        title={t('roles.create.title', 'New role')}
-        subtitle={t('roles.create.description', 'A new role starts with no permissions at all.')}
+        title={t('roles:create.title', 'New role')}
+        subtitle={t('roles:create.description', 'A new role starts with no permissions at all.')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
@@ -562,16 +569,16 @@ function CreateRoleDialog(props: {
             });
           }}
         >
-          <FormField label={t('roles.create.name', 'Name')} required>
+          <FormField label={t('roles:create.name', 'Name')} required>
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder={t('roles.create.namePlaceholder', 'e.g. Support agent')}
+              placeholder={t('roles:create.namePlaceholder', 'e.g. Support agent')}
               maxLength={80}
               autoFocus
             />
           </FormField>
-          <FormField label={t('roles.create.descriptionLabel', 'Description')}>
+          <FormField label={t('roles:create.descriptionLabel', 'Description')}>
             <Textarea
               rows={3}
               value={description}
@@ -583,7 +590,7 @@ function CreateRoleDialog(props: {
             <Alert
               role="alert"
               tone="danger"
-              title={t('roles.create.failed', 'Could not create the role')}
+              title={t('roles:create.failed', 'Could not create the role')}
               body={props.error}
             />
           )}
@@ -594,7 +601,7 @@ function CreateRoleDialog(props: {
           {t('common.cancel', 'Cancel')}
         </Button>
         <Button type="submit" form="create-role" disabled={!canSubmit} loading={props.busy}>
-          {t('roles.create.submit', 'Create role')}
+          {t('roles:create.submit', 'Create role')}
         </Button>
       </ModalFooter>
     </Modal>
@@ -615,7 +622,7 @@ function RenameRoleDialog(props: {
     <Modal open size="sm" onOpenChange={(next) => { if (!next) props.onClose(); }}>
       <ModalHeader
         icon={<ShieldCheck />}
-        title={t('roles.rename.title', 'Rename role')}
+        title={t('roles:rename.title', 'Rename role')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
@@ -626,7 +633,7 @@ function RenameRoleDialog(props: {
             if (canSubmit) props.onSubmit(name.trim());
           }}
         >
-          <FormField label={t('roles.create.name', 'Name')} required>
+          <FormField label={t('roles:create.name', 'Name')} required>
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -639,7 +646,7 @@ function RenameRoleDialog(props: {
               role="alert"
               tone="danger"
               className="mt-4"
-              title={t('roles.rename.failed', 'Could not rename the role')}
+              title={t('roles:rename.failed', 'Could not rename the role')}
               body={props.error}
             />
           )}
@@ -682,31 +689,31 @@ function DeleteRoleDialog(props: {
       <ModalHeader
         tone="danger"
         icon={<Trash2 />}
-        title={t('roles.delete.title', 'Delete role')}
-        subtitle={t('roles.delete.description', 'The role and its permission rows are removed.')}
+        title={t('roles:delete.title', 'Delete role')}
+        subtitle={t('roles:delete.description', 'The role and its permission rows are removed.')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody className="flex flex-col gap-4">
         <p className="text-body-sm text-fg">
           {needsReassign
             ? t(
-                'roles.delete.hasMembers',
+                'roles:delete.hasMembers',
                 '“{name}” still has {count, plural, one {# member} other {# members}}. Choose the role they move to — Adminium will not leave an account with no role.',
                 { name: props.role.name, count: props.role.memberCount },
               )
-            : t('roles.delete.noMembers', 'Nobody holds “{name}”, so nothing moves.', {
+            : t('roles:delete.noMembers', 'Nobody holds “{name}”, so nothing moves.', {
                 name: props.role.name,
               })}
         </p>
 
         {needsReassign ? (
-          <FormField label={t('roles.delete.reassignTo', 'Move members to')} required>
+          <FormField label={t('roles:delete.reassignTo', 'Move members to')} required>
             <Select
               value={reassignTo}
               onChange={(event) => setReassignTo(event.target.value)}
               data-testid="roles-reassign"
             >
-              <option value="">{t('roles.delete.reassignPlaceholder', 'Choose a role…')}</option>
+              <option value="">{t('roles:delete.reassignPlaceholder', 'Choose a role…')}</option>
               {props.targets.map((role) => (
                 <option key={role.id} value={role.id}>
                   {role.name}
@@ -720,7 +727,7 @@ function DeleteRoleDialog(props: {
           <Alert
             role="alert"
             tone="danger"
-            title={t('roles.delete.failed', 'Could not delete the role')}
+            title={t('roles:delete.failed', 'Could not delete the role')}
             body={props.error}
           />
         )}
@@ -736,7 +743,7 @@ function DeleteRoleDialog(props: {
           onClick={() => props.onConfirm(needsReassign ? reassignTo : null)}
           data-testid="roles-delete-confirm"
         >
-          {t('roles.delete.confirm', 'Delete role')}
+          {t('roles:delete.confirm', 'Delete role')}
         </Button>
       </ModalFooter>
     </Modal>

@@ -23,6 +23,14 @@
   },
   "history": [
     {
+      "when": "2026-09-24",
+      "by": "moving the Roles & permissions editor's 76 keys out of the eagerly bundled `common` catalogue into a deferred `roles` namespace",
+      "from": 298978,
+      "measured": "298,232 bytes (291.2 KiB gz), down from 299,003 measured on the same inputs — 771 bytes gz out of the entry. The ratchet stays at 298,978: 298,232 plus the usual 2,000-byte margin is above it, and this number only moves down.",
+      "why": "The gate went RED by 25 bytes on two new en-US strings in eager namespaces: `common:roles.data.readPii` (the Roles matrix's new personal-data row) and `ui:formDialog.unavailable`. The first one names the defect: `common.roles.*` (~3.2 KiB raw of en-US) has exactly one reader, `team/RolesPage.tsx`, a lazy route behind `roles.manage`, which the built-in Admin does not hold, yet every user downloaded it on every route. It is the `roles` namespace now, the same move `dataio`/`files`/`email` made on 2026-09-09. The route body awaits it under the Suspense boundary it already had, as `/files` does. Attributed through the source map before and after: `en-us/common.js` −3,080 raw, `en-us/roles.js` absent from the entry, and the cost is `lazy.js` +464 raw (eight loader entries), `router.tsx` +68 and `team/rolesMessages.ts` +33.",
+      "cost": "One round trip before `/settings/roles` first renders, in parallel with its own chunk. Meta migration 0043 re-files operator overrides from `common:roles.*` to `roles:*`. Every key moved, so no twin is kept. Headroom under the ratchet is 746 bytes, not the usual 2,000."
+    },
+    {
       "when": "2026-09-19",
       "by": "the add-on nav rail and its route (51b/51c) — owner-ratified, after both removable parts were removed and measured",
       "from": 296902,

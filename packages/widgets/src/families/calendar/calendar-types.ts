@@ -14,6 +14,8 @@ export interface CalendarEvent {
   date: string;
   title: string;
   category?: string | undefined;
+  /** What a person calls the category, when its column has a word for it; `category` stays the key. */
+  categoryLabel?: string | undefined;
   /** 24-hour `HH:MM` start time (agenda + chip prefix). */
   time?: string | undefined;
   /** Explicit tone override; else derived from `category`. */
@@ -95,6 +97,8 @@ export interface UpcomingEvent extends CalendarEvent {
   owner?: string | undefined;
   /** Workflow status ("Scheduled", "At risk", "Shipped"). */
   status?: string | undefined;
+  /** What a person calls the status, when its column has a word for it; `status` stays the key. */
+  statusLabel?: string | undefined;
   statusTone?: string | undefined;
 }
 

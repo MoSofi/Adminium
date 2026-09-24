@@ -127,23 +127,21 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
         'list' in rules.options
           ? { list: listKeyFor(appKey, rules.options.list) }
           : {
-              values: rules.options.values.map((item) => {
-                const label = oneLabel(item.label);
-                return {
-                  value: item.value,
-                  ...(label === undefined ? {} : { label }),
-                  ...(item.tone === undefined ? {} : { tone: item.tone }),
-                };
-              }),
+              // Each value's word kept in every language the app gives, as a
+              // choice column's value labels are: "Bar" to a German reader.
+              values: rules.options.values.map((item) => ({
+                value: item.value,
+                ...(item.label === undefined ? {} : { label: storedLabel(item.label) }),
+                ...(item.tone === undefined ? {} : { tone: item.tone }),
+              })),
             },
     });
   }
   if (rules.enumLabels !== undefined) {
-    const labels: Record<string, string> = {};
-    for (const [value, label] of Object.entries(rules.enumLabels.labels)) {
-      const text = oneLabel(label);
-      if (text !== undefined) labels[value] = text;
-    }
+    // Kept in every language the app gives, as a column's name is, so a
+    // status reads "Wartend" to a German reader and "Waiting" to an English one.
+    const labels: Record<string, string | Record<string, string>> = {};
+    for (const [value, label] of Object.entries(rules.enumLabels.labels)) labels[value] = storedLabel(label);
     out.push({
       op: 'column.enumLabels',
       value: { labels, ...(rules.enumLabels.tones === undefined ? {} : { tones: rules.enumLabels.tones }) },
@@ -297,7 +295,8 @@ export async function writeManifestRules(input: {
        * adds one to a table that exists as a varchar, since the schema door it
        * uses carries no value list — keeps its values as the allowed-values
        * rule, so every write is still held to them. A column the install made
-       * has its CHECK, and a rule of the app's own wins.
+       * has its CHECK, and a rule of the app's own wins. Its values' words go
+       * with them, in every language the app gives.
        */
       const live = real.columns.find((c) => c.name === column.ref);
       const names = real.columns.map((c) => c.name);
@@ -313,8 +312,8 @@ export async function writeManifestRules(input: {
           op: 'column.options',
           value: {
             values: column.enum.map((value) => {
-              const label = oneLabel(labels[value]);
-              return { value, ...(label === undefined ? {} : { label }) };
+              const label = labels[value];
+              return { value, ...(label === undefined ? {} : { label: storedLabel(label) }) };
             }),
           },
         });

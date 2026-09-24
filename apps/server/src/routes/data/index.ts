@@ -43,7 +43,8 @@ import {
   type ProjectionRefusal,
   type Projections,
 } from '../../crud/projections.js';
-import { canReadPii, maskRow, type Row } from '../../crud/mask.js';
+import { canReadPii, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
+import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import {
   fetchByPk,
   parseRecordId,
@@ -370,9 +371,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         table,
         db,
         dialect,
-        unmasked: await canReadPii(request),
+        // This table's personal columns; a lookup asks of the table it reaches.
+        unmasked: await canReadPii(request, connectionId, table.id),
         target: { connectionId, view, table, db, dialect },
       };
+    }
+
+    /**
+     * What this caller's update on one table may write, or null for anything
+     * (rbac/update-limits.ts). Asked with what the caller SENT, before a rule
+     * or a hook adds to it: a stamp a status change sets is not theirs.
+     */
+    async function updateLimitFor(request: FastifyRequest, connectionId: string, tableId: string): Promise<UpdateLimit | null> {
+      return updateLimitOf(await app.rbac.resolve(request), connectionId, tableId);
     }
 
     /**
@@ -571,6 +582,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       canCreate: boolean;
       canUpdate: boolean;
       canDelete: boolean;
+      /** What the caller's update on the CHILD table may write (rbac/update-limits.ts). */
+      updateLimit: UpdateLimit | null;
       /** The child table has a before hook, so its rows cannot be written blind. */
       hooked: boolean;
     }
@@ -616,6 +629,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           canCreate: await request.can(`table:${ctx.connectionId}:${id}:create`),
           canUpdate: await request.can(`table:${ctx.connectionId}:${id}:update`),
           canDelete: await request.can(`table:${ctx.connectionId}:${id}:delete`),
+          updateLimit: await updateLimitFor(request, ctx.connectionId, id),
           hooked: await writes.wants('before', 'create', childTargetOf(ctx, child, ctx.db), context),
         });
       }
@@ -730,6 +744,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const before = existing.find((row) =>
           child.child.primaryKey.every((name) => String(row[name]) === String(change.key[name])),
         );
+        // Every existing row a form sends is "changed"; only what moved is judged.
+        assertWithinLimit(requested.updateLimit, child.child.id, change.values, before ?? null);
         const [prepared] = await writes.beforeEach('update', target, context, [
           { match: change.key, values: change.values },
         ]);
@@ -950,7 +966,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const projections = await resolveProjections({
         view: ctx.view,
         table: ctx.table,
-        canReadPii: ctx.unmasked,
+        canReadPii: piiCheckFor(request, ctx.connectionId),
         canReadTable: (tableId) => request.can(`table:${ctx.connectionId}:${tableId}:read`),
         lookup: query.lookup,
         agg: query.agg,
@@ -1285,6 +1301,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const action = request.body.action;
         const ctx = await contextFor(request, action);
         const values = action === 'update' ? allowlistValues(ctx, request.body.values ?? {}) : null;
+        // One `values` for every row, so every column sent counts as a change.
+        if (values !== null) assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values);
         const context = requestWriteContext(request, 'bulk');
         const pks = request.body.ids.map((id) => pkFromLoose(ctx.table, id));
         // Before hooks for every row, before the transaction opens.
@@ -1539,7 +1557,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const ctx = await contextFor(request, 'read');
         const query = request.query;
         const { exclude: excludeId, ...rest } = query;
-        const columns = availabilityColumns(ctx.view, ctx.table, rest, await canReadPii(request));
+        const columns = availabilityColumns(ctx.view, ctx.table, rest, ctx.unmasked);
         const exclude = excludeId === undefined ? undefined : parseRecordId(ctx.table, excludeId);
         return await readAvailability(ctx.db, ctx.dialect, ctx.table, columns, {
           ...rest,
@@ -1628,7 +1646,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const page = keys.slice(0, LINK_READ_CAP);
         if (page.length === 0) return { data: [], hasMore: false };
 
-        const pii = await canReadPii(request);
+        // The picker names rows of the TARGET table, so its grant decides.
+        const pii = await canReadPii(request, ctx.connectionId, link.target.id);
         /*
          * The name the picker shows: the field's own setting, else the target's
          * classified display column — the same answer the search palette
@@ -1748,7 +1767,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             context,
             rows.map((record) => ({ record, before: null })),
           );
-          const first = rows[0] as Row;
+          // The reply is the row as stored, its own totals settled after the commit.
+          const [first] = (await writes.stored(ctx.target, rows.slice(0, 1))) as [Row];
           return reply
             .status(201)
             .send({ data: maskRow(first, ctx.table, ctx.unmasked), undoToken, created: rows.length });
@@ -1836,7 +1856,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const written: { relationId: string; before: string[]; after: string[] }[] = [];
         const childWrites: UndoChildren[] = [];
         const childEvents: ChildEvent[] = [];
-        const inserted = await ctx.db.transaction().execute(async (trx) => {
+        let inserted = await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           const row = await (async () => {
             try {
@@ -1875,6 +1895,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('create', ctx.target, context, [{ record: inserted, before: null }]);
+        // The reply is the row as stored, its own totals settled after the commit.
+        inserted = (await writes.stored(ctx.target, [inserted]))[0] ?? inserted;
         return reply.status(201).send({ data: maskRow(inserted, ctx.table, ctx.unmasked), undoToken });
       },
     );
@@ -1891,6 +1913,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await assertFileColumns(ctx, values);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
+        assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values, before);
         const context = requestWriteContext(request, 'dashboard');
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, request.body.children);
@@ -1933,7 +1956,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const written: UndoLinks[] = [];
         const childWrites: UndoChildren[] = [];
         const childEvents: ChildEvent[] = [];
-        const after = await ctx.db.transaction().execute(async (trx) => {
+        let after = await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           if (Object.keys(prepared.values).length > 0) {
             try {
@@ -1975,6 +1998,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
+        after = (await writes.stored(ctx.target, [after]))[0] ?? after;
         return { data: maskRow(after, ctx.table, ctx.unmasked), undoToken };
       },
     );

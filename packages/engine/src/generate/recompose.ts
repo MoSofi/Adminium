@@ -37,6 +37,7 @@ import type { DatabaseModel } from '../schema-model.js';
 import { buildArchetypeEnvelope } from './archetype.js';
 import { buildCrudEnvelope } from './crud.js';
 import { bindableSet } from './fit.js';
+import { applyCalendarColumns, calendarColumnsProblem, calendarEntry, calendarTitleThrough, type CalendarColumns } from './calendar-columns.js';
 import { TITLE_THROUGH_TEMPLATES, applyTitleThrough, titleThroughEntry } from './title-through.js';
 
 export { TABLE_BOUND_TEMPLATES, isTableBoundTemplate } from '../config-schema/table-bound.js';
@@ -58,6 +59,12 @@ export interface RecomposeContext {
    * composer writes the key. Calendar only; absent ⇒ the table's own title.
    */
   titleThrough?: string | undefined;
+  /**
+   * The columns a `page-calendar` plots by, as an app's page or the table's
+   * booking rule names them (`./calendar-columns.ts`). Absent ⇒ the calendar
+   * rule's own choice. Ignored by every other template.
+   */
+  calendar?: CalendarColumns | undefined;
 }
 
 export interface RecomposeResult {
@@ -131,7 +138,15 @@ export function composeRequestedPage(
   };
   let composedEntry = entry;
   let through: ReturnType<typeof titleThroughEntry> | null = null;
-  if (ctx.titleThrough !== undefined) {
+  const calendar = template === 'page-calendar' ? ctx.calendar : undefined;
+  if (calendar !== undefined) {
+    const problem = calendarColumnsProblem(entry, calendar);
+    if (problem !== null) return { envelope: null, bindable: true, reason: problem };
+  }
+  // A calendar titled `patient_id.name` takes its title through that key.
+  const calendarThrough = calendarTitleThrough(calendar?.title);
+  const titleThrough = calendarThrough?.column ?? ctx.titleThrough;
+  if (titleThrough !== undefined) {
     if (!TITLE_THROUGH_TEMPLATES.includes(template)) {
       return {
         envelope: null,
@@ -139,10 +154,11 @@ export function composeRequestedPage(
         reason: `a ${template} cannot take its title through a foreign key`,
       };
     }
-    through = titleThroughEntry(entry, candidateModel, ctx.titleThrough, ctx.connectionId);
+    through = titleThroughEntry(entry, candidateModel, titleThrough, ctx.connectionId, calendarThrough?.label);
     if ('reason' in through) return { envelope: null, bindable: true, reason: through.reason };
     composedEntry = through.entry;
   }
+  if (calendar !== undefined) composedEntry = calendarEntry(composedEntry, calendar);
   const candidates = emitCandidates(composedEntry.table, composedEntry.classified, candidateCtx);
   const built = buildArchetypeEnvelope(
     table,
@@ -158,11 +174,14 @@ export function composeRequestedPage(
       reason: detail || `this table has no columns the ${template} layout can bind`,
     };
   }
+  const titled = through === null || 'reason' in through ? null : through;
+  // The named columns first, while the title's alias is still a selected column.
+  const plotted =
+    calendar === undefined
+      ? built.envelope
+      : applyCalendarColumns(built.envelope, calendar, titled?.alias ?? (calendarThrough === null ? calendar.title : undefined));
   return {
-    envelope:
-      through === null || 'reason' in through
-        ? built.envelope
-        : applyTitleThrough(built.envelope, through),
+    envelope: titled === null ? plotted : applyTitleThrough(plotted, titled),
     bindable: true,
     reason: '',
   };

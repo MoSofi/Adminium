@@ -38,12 +38,14 @@ import {
   type ColumnDefInput,
   type LaneDefInput,
 } from '../../families/boards/board-lib.js';
+import { servedChoicesOf } from '../../families/tables/choices.js';
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
 import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotice.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import type { LayoutItem } from '../../grid/layout-schema.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { withCurrency } from '../page-currency.js';
 import {
   configString,
   dayStartValue,
@@ -97,6 +99,11 @@ export interface PageBoardProps {
   labels?: PageBoardLabels | undefined;
   className?: string | undefined;
   testId?: string | undefined;
+  /**
+   * The connection's currency, for a stored widget that names none (a KPI
+   * card's money) — merged as the page draws, never into the stored layout.
+   */
+  currency?: string | undefined;
 }
 
 /** The stored board item config, normalized from the candidate vocabulary. */
@@ -215,9 +222,11 @@ function BoardSlot({
     [rows, cfg, timeZone, dateKind],
   );
   const roadmap = cfg.roadmap && cfg.dateColumn !== undefined;
+  // The answer's words for a status and a lane, read in the reader's language.
+  const served = useMemo(() => servedChoicesOf(state.data), [state.data]);
   const columns = useMemo(
-    () => (roadmap ? quarterColumnsOf(cards) : resolveColumns(cards, cfg.columnDefs)),
-    [roadmap, cards, cfg.columnDefs],
+    () => (roadmap ? quarterColumnsOf(cards) : resolveColumns(cards, cfg.columnDefs, served.get(cfg.statusColumn)?.enumLabels)),
+    [roadmap, cards, cfg.columnDefs, cfg.statusColumn, served],
   );
   // Cards with no status — or one outside the declared columns — are not on
   // any column. All of them unplaced reads as an empty board (a status column
@@ -228,7 +237,13 @@ function BoardSlot({
     [cards, columns],
   );
   const swimlane = item.widget === 'kanban-swimlane-grid';
-  const lanes = useMemo(() => (swimlane ? resolveLanes(cards, cfg.laneDefs) : []), [swimlane, cards, cfg.laneDefs]);
+  const lanes = useMemo(
+    () =>
+      swimlane
+        ? resolveLanes(cards, cfg.laneDefs, cfg.laneColumn === undefined ? undefined : served.get(cfg.laneColumn)?.enumLabels)
+        : [],
+    [swimlane, cards, cfg.laneDefs, cfg.laneColumn, served],
+  );
 
   const mutate = (recordId: string, values: Record<string, unknown>) => {
     if (source === null || onEvent === undefined) return undefined;
@@ -420,6 +435,7 @@ export function PageBoard({
   labels,
   className,
   testId,
+  currency,
 }: PageBoardProps) {
   const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
@@ -464,7 +480,7 @@ export function PageBoard({
           <WidgetHost
             widgetId={item.widget}
             instanceId={item.i}
-            config={item.config}
+            config={withCurrency(item.config, currency)}
             data={state}
             onEvent={onEvent === undefined ? undefined : (event) => void onEvent(item.i, event)}
           />

@@ -22,6 +22,7 @@ import apiDocs from './en-us/apiDocs.js';
 import onboarding from './en-us/onboarding.js';
 import project from './en-us/project.js';
 import reportBuilder from './en-us/reportBuilder.js';
+import roles from './en-us/roles.js';
 import studio from './en-us/studio.js';
 
 import { EN_US_EAGER } from './eager.js';
@@ -51,4 +52,5 @@ export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   reportBuilder,
   onboarding,
   project,
+  roles,
 };

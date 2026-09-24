@@ -23,7 +23,7 @@ import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { usePlanningStates } from './planning/planningData.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageBoardBinding({ page, adapters, recordId }: PageTemplateProps) {
+export function PageBoardBinding({ page, adapters, recordId, columnFacts, currency }: PageTemplateProps) {
   const states = usePlanningStates(page);
 
   // An empty layout renders an empty grid — nothing at all. A page created
@@ -38,6 +38,8 @@ export function PageBoardBinding({ page, adapters, recordId }: PageTemplateProps
   return (
     <>
       <PageBoard
+        // The connection's currency: a money card that names none reads in it.
+        {...(currency === undefined ? {} : { currency })}
         config={page.config}
         states={states}
         labels={{
@@ -59,6 +61,7 @@ export function PageBoardBinding({ page, adapters, recordId }: PageTemplateProps
           crud={adapters.crud}
           recordId={recordId}
           onClose={() => adapters.openRecord(null)}
+          facts={columnFacts}
         />
       )}
     </>

@@ -5,6 +5,7 @@ import { DetailKeyValue } from './DetailKeyValue.js';
 import { MiniTable } from './MiniTable.js';
 import { PaginationFooter } from './PaginationFooter.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
+import { withChoices } from './choices.js';
 import type {
   BulkActionToolbarConfig,
   DataGridConfig,
@@ -61,21 +62,45 @@ function rowsOf(data: unknown): GridRow[] {
   return [];
 }
 
+type ServedColumn = Omit<GridColumnSpec, 'label'> & { label?: string };
+
+/** The columns a server answer (or a demo payload) names, when it names any. */
+function servedColumnsOf(data: unknown): readonly ServedColumn[] | null {
+  if (typeof data === 'object' && data !== null && Array.isArray((data as { columns?: unknown }).columns)) {
+    return (data as { columns: ServedColumn[] }).columns;
+  }
+  return null;
+}
+
 /**
  * Column specs: instance config wins; demo payloads embed their own
  * `columns` so palette/storybook rendering works with default config.
  */
 function columnsOf(config: { columns: GridColumnSpec[] }, data: unknown): readonly GridColumnSpec[] {
-  if (config.columns.length > 0) return config.columns;
-  if (typeof data === 'object' && data !== null && Array.isArray((data as { columns?: unknown }).columns)) {
+  const served = servedColumnsOf(data);
+  if (config.columns.length > 0) return withServedChoices(config.columns, served);
+  if (served !== null) {
     // A server answer names its columns but need not head them: each gets its
     // own name for a person, else its humanized one.
-    return (data as { columns: (Omit<GridColumnSpec, 'label'> & { label?: string })[] }).columns.map((column) => ({
+    return served.map((column) => ({
       ...column,
       label: column.label ?? humanize(column.name),
     })) as GridColumnSpec[];
   }
   return [];
+}
+
+/*
+ * A card that lists its own columns still draws a choice column's values in
+ * the server's words: the labels the answer carries are read in the reader's
+ * language, which a card's stored config cannot be. A card column that sets
+ * its own labels or tones keeps them.
+ */
+function withServedChoices(columns: GridColumnSpec[], served: readonly ServedColumn[] | null): readonly GridColumnSpec[] {
+  if (served === null) return columns;
+  const byName = new Map(served.map((column) => [column.name, column]));
+  // The card's own array when nothing is added, so a render keeps the same columns.
+  return withChoices(columns, (name) => byName.get(name));
 }
 
 function recordOf(data: unknown): GridRow {

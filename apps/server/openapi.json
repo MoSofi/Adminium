@@ -63561,6 +63561,9 @@
                               },
                               "targetName": {
                                 "type": "string"
+                              },
+                              "targetLabel": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -63725,6 +63728,15 @@
                                       "additionalProperties": {
                                         "type": "string"
                                       }
+                                    },
+                                    "enumTones": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "string"
+                                      }
                                     }
                                   },
                                   "required": [
@@ -63877,6 +63889,15 @@
                                 "additionalProperties": false
                               },
                               "enumLabels": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "string"
+                                }
+                              },
+                              "enumTones": {
                                 "type": "object",
                                 "propertyNames": {
                                   "type": "string"
@@ -74219,7 +74240,8 @@
                 "project",
                 "assistant",
                 "addOns",
-                "apiDocs"
+                "apiDocs",
+                "roles"
               ]
             },
             "in": "path",
@@ -74353,7 +74375,8 @@
                 "project",
                 "assistant",
                 "addOns",
-                "apiDocs"
+                "apiDocs",
+                "roles"
               ]
             },
             "in": "query",
@@ -74558,7 +74581,8 @@
                       "project",
                       "assistant",
                       "addOns",
-                      "apiDocs"
+                      "apiDocs",
+                      "roles"
                     ]
                   },
                   "key": {
@@ -74711,7 +74735,8 @@
                 "project",
                 "assistant",
                 "addOns",
-                "apiDocs"
+                "apiDocs",
+                "roles"
               ]
             },
             "in": "query",
@@ -74868,7 +74893,8 @@
                             "project",
                             "assistant",
                             "addOns",
-                            "apiDocs"
+                            "apiDocs",
+                            "roles"
                           ]
                         },
                         "key": {
@@ -94589,6 +94615,45 @@
               }
             }
           },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           "429": {
             "description": "Default Response",
             "content": {
@@ -94822,6 +94887,45 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {

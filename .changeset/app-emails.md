@@ -14,4 +14,6 @@ the person's language, on the venue's clock and in its currency, and writes `sen
 `skipped` with the reason on each row; a message that cannot be delivered after every try turns
 the row `failed`, and the desk can queue it again. Sample data, imports and undo never send mail,
 example addresses are never mailed, and a template given an HTML block is not sent. Templates are
-installed as the app's; an operator's edit is kept across updates.
+installed as the app's; an operator's edit is kept across updates. A column that holds nothing
+reads as empty, so a paragraph holding only an optional value is left out instead of printing its
+placeholder.

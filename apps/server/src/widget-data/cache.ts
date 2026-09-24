@@ -2,8 +2,10 @@
 /**
  * In-memory widget-data result cache.
  *
- * Keyed on `sha256(descriptor + params + connection + role scope)` so two
- * callers with different role sets (or unmask grants) never share entries.
+ * Keyed on `sha256(descriptor + params + connection + role scope + locale)`
+ * so two callers with different role sets (or unmask grants) never share
+ * entries, and neither do two readers of different languages: an answer
+ * carries column names and value labels resolved for its reader.
  * TTL defaults to 30 s (constructor-configurable; 04 specifies
  * `min(binding.refreshInterval ?? 60, 60)` — the binding's interval lives
  * client-side, so the server applies a flat conservative TTL for now).
@@ -33,6 +35,8 @@ export function cacheKeyOf(input: {
   params: unknown;
   connectionId: string;
   roleScope: string;
+  /** The reader's locale (`de_DE`); null when the labels are read in US English. */
+  locale: string | null;
 }): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }

@@ -8,6 +8,7 @@ import { WidgetHost } from '../../frame/WidgetHost.js';
 import type { WidgetDataState } from '../../frame/WidgetHost.js';
 import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { formatRelativeTime, uiToneOf } from '../../families/tables/column-spec.js';
+import { servedChoicesOf, withChoices } from '../../families/tables/choices.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import { describeDataError } from '../../lib/data-error.js';
 import {
@@ -126,8 +127,15 @@ function rowIdText(row: GridRow, index: number): string {
   return typeof id === 'string' || typeof id === 'number' ? String(id) : String(index);
 }
 
-/** "3 open · 2 pending" — the derived micro-KPI subtitle. */
-export function deriveStatusSubtitle(rows: readonly GridRow[], statusField: string | undefined): string | null {
+/**
+ * "3 open · 2 pending" — the derived micro-KPI subtitle. A value the server
+ * has a word for is counted under it, in the reader's language, as written.
+ */
+export function deriveStatusSubtitle(
+  rows: readonly GridRow[],
+  statusField: string | undefined,
+  words?: Readonly<Record<string, string>> | undefined,
+): string | null {
   if (statusField === undefined || rows.length === 0) return null;
   const counts = new Map<string, number>();
   for (const row of rows) {
@@ -137,7 +145,7 @@ export function deriveStatusSubtitle(rows: readonly GridRow[], statusField: stri
   }
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 3);
   if (top.length === 0) return null;
-  return top.map(([value, count]) => `${String(count)} ${humanizeName(value).toLowerCase()}`).join(' · ');
+  return top.map(([value, count]) => `${String(count)} ${words?.[value] ?? humanizeName(value).toLowerCase()}`).join(' · ');
 }
 
 export function PageMasterDetail({
@@ -184,6 +192,17 @@ export function PageMasterDetail({
   );
   const rows = useMemo(() => recordRowsOf(masterState.data), [masterState.data]);
   const fields = useMemo(() => masterFieldsOf(masterItem, rows), [masterItem, rows]);
+  /*
+   * The answer's words for a choice column's values, read in the reader's
+   * language — a status pill says "Wartend", not `waiting`. The page's own
+   * tone map wins where it has one.
+   */
+  const served = useMemo(() => servedChoicesOf(masterState.data), [masterState.data]);
+  const wordFor = useCallback(
+    (field: string | undefined, value: string | undefined): string | undefined =>
+      field === undefined || value === undefined ? undefined : served.get(field)?.enumLabels?.[value],
+    [served],
+  );
 
   // --- filter chips (live facet counts) ---------------------------------------
   const [filter, setFilter] = useState<string | null>(null);
@@ -264,16 +283,18 @@ export function PageMasterDetail({
   );
 
   const subtitle = useMemo(
-    () => deriveStatusSubtitle(rows, fields.statusField),
-    [rows, fields.statusField],
+    () =>
+      deriveStatusSubtitle(rows, fields.statusField, fields.statusField === undefined ? undefined : served.get(fields.statusField)?.enumLabels),
+    [rows, fields.statusField, served],
   );
 
   const toneFor = useCallback(
-    (value: string | undefined) =>
-      value === undefined || fields.enumTones?.[value] === undefined
-        ? undefined
-        : uiToneOf(fields.enumTones[value] as GridTone),
-    [fields.enumTones],
+    (field: string | undefined, value: string | undefined) => {
+      const tones = fields.enumTones ?? (field === undefined ? undefined : served.get(field)?.enumTones);
+      const tone = value === undefined ? undefined : tones?.[value];
+      return tone === undefined ? undefined : uiToneOf(tone as GridTone);
+    },
+    [fields.enumTones, served],
   );
 
   const detailSpecs = useMemo(() => {
@@ -281,8 +302,8 @@ export function PageMasterDetail({
     const toneFields: Record<string, Record<string, GridTone> | undefined> = {};
     if (fields.statusField !== undefined) toneFields[fields.statusField] = fields.enumTones;
     if (fields.priorityField !== undefined) toneFields[fields.priorityField] = fields.enumTones;
-    return specsForRecord(selectedRow, { toneFields, displayField: fields.titleField });
-  }, [selectedRow, fields]);
+    return withChoices(specsForRecord(selectedRow, { toneFields, displayField: fields.titleField }), (name) => served.get(name));
+  }, [selectedRow, fields, served]);
 
   if (!body.valid) {
     return (
@@ -302,7 +323,8 @@ export function PageMasterDetail({
     selectedRow === undefined || fields.statusField === undefined
       ? undefined
       : cellText(selectedRow[fields.statusField]);
-  const selectedStatusTone = toneFor(selectedStatus);
+  const selectedStatusTone = toneFor(fields.statusField, selectedStatus);
+  const selectedStatusWord = wordFor(fields.statusField, selectedStatus);
 
   return (
     <div
@@ -330,7 +352,7 @@ export function PageMasterDetail({
               >
                 {value === null
                   ? (labels?.allFilter ?? t('ui:widgets.forms.filterChipBar.all', 'All'))
-                  : humanizeName(value)}
+                  : (wordFor(fields.statusField, value) ?? humanizeName(value))}
                 <span className="font-mono tabular-nums text-fg-subtle">{count}</span>
               </button>
             );
@@ -404,8 +426,10 @@ export function PageMasterDetail({
                   fields.subtitleField === undefined ? undefined : cellText(row[fields.subtitleField]);
                 const updated =
                   fields.updatedField === undefined ? undefined : cellText(row[fields.updatedField]);
-                const priorityTone = toneFor(priority);
-                const statusTone = toneFor(status);
+                const priorityTone = toneFor(fields.priorityField, priority);
+                const statusTone = toneFor(fields.statusField, status);
+                const priorityWord = wordFor(fields.priorityField, priority);
+                const statusWord = wordFor(fields.statusField, status);
                 const isSelected = effectiveSelected === id;
                 return (
                   <li key={id}>
@@ -436,7 +460,9 @@ export function PageMasterDetail({
                             status={priority}
                             {...(priorityTone === undefined ? {} : { tone: priorityTone })}
                             data-part="priority-pill"
-                          />
+                          >
+                            {priorityWord}
+                          </StatusPill>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
@@ -445,7 +471,9 @@ export function PageMasterDetail({
                             status={status}
                             {...(statusTone === undefined ? {} : { tone: statusTone })}
                             data-part="status-pill"
-                          />
+                          >
+                            {statusWord}
+                          </StatusPill>
                         )}
                         {rowSubtitle !== undefined && (
                           <span className="min-w-0 truncate text-caption text-fg-muted">{rowSubtitle}</span>
@@ -498,7 +526,9 @@ export function PageMasterDetail({
                   <StatusPill
                     status={selectedStatus}
                     {...(selectedStatusTone === undefined ? {} : { tone: selectedStatusTone })}
-                  />
+                  >
+                    {selectedStatusWord}
+                  </StatusPill>
                 )}
               </header>
               <DetailKeyValue columns={detailSpecs} record={selectedRow} testId="master-detail-record" />

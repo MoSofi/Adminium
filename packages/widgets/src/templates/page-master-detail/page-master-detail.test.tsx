@@ -266,3 +266,58 @@ describe('deriveStatusSubtitle', () => {
     expect(deriveStatusSubtitle([], 'status')).toBeNull();
   });
 });
+
+/**
+ * The answer names each choice column's words for its values, read in the
+ * reader's language: the rail, the chips, the subtitle and the detail pane
+ * say "Offen", not `open`. The page's own tone map still wins; without one,
+ * the answer's tones draw the pills.
+ */
+describe('PageMasterDetail — the answer’s words for a status', () => {
+  const served = {
+    master: {
+      status: 'success' as const,
+      data: {
+        ...listOf(TICKETS),
+        columns: [
+          { name: 'status', logicalType: 'enum', nullable: false, isPrimaryKey: false, enumLabels: { open: 'Offen', pending: 'Wartend' }, enumTones: { open: 'pos' } },
+          { name: 'priority', logicalType: 'enum', nullable: false, isPrimaryKey: false, enumLabels: { high: 'Hoch' } },
+        ],
+      },
+    },
+  };
+  const withoutTones = () => {
+    const doc = config();
+    const master = doc.layout.items[0]!;
+    return { ...doc, layout: { ...doc.layout, items: [{ ...master, config: { ...master.config, enumTones: undefined } }, doc.layout.items[1]!] } };
+  };
+
+  it('labels the pills, the chips and the subtitle, in the page’s own tones', () => {
+    render(<PageMasterDetail config={config()} states={served} now={NOW} />);
+    const list = rail();
+    expect(within(list).getAllByText('Offen')).toHaveLength(2);
+    expect(within(list).getByText('Wartend')).toBeDefined();
+    expect(within(list).getByText('Hoch')).toBeDefined();
+    expect(within(list).queryByText('open')).toBeNull();
+    // The page's own map: `open` is info there, not the answer's pos.
+    expect(within(list).getAllByText('Offen')[0]!.closest('[data-tone]')?.getAttribute('data-tone')).toBe('info');
+    const chips = screen.getByRole('group', { name: 'Filter' });
+    expect(within(chips).getByRole('button', { name: /Offen/ })).toBeDefined();
+    expect(document.querySelector('[data-part="master-subtitle"]')?.textContent).toBe('2 Offen · 1 Wartend');
+    const pane = document.querySelector('[data-part="detail-pane"]') as HTMLElement;
+    expect(within(pane).getAllByText('Offen').length).toBeGreaterThan(0);
+    cleanup();
+  });
+
+  it('draws the answer’s tones where the page has none', () => {
+    render(<PageMasterDetail config={withoutTones()} states={served} now={NOW} />);
+    expect(within(rail()).getAllByText('Offen')[0]!.closest('[data-tone]')?.getAttribute('data-tone')).toBe('pos');
+    cleanup();
+  });
+
+  it('keeps the raw value where the answer names no word', () => {
+    render(<PageMasterDetail config={config()} states={loaded} now={NOW} />);
+    expect(within(rail()).getAllByText('open').length).toBeGreaterThan(0);
+    cleanup();
+  });
+});

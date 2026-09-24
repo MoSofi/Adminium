@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { dateOnlyValue } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
+import { withChoices, type ChoiceWords } from '../../families/tables/choices.js';
 import { controlFor, legalControls, type FormControl } from '../../page-config/index.js';
 import type { ControlOption } from './controls/types.js';
 
@@ -45,8 +46,10 @@ export interface ColumnFact {
    * reader's language, and a country's name is `Intl.DisplayNames`'s to give.
    */
   options?: { list: string } | { values: readonly ControlOption[] } | undefined;
-  /** What a person calls each of the column's enum values — the app's, or the operator's. */
+  /** What a person calls each of the column's enum values — the app's, or the operator's — in the reader's language. */
   enumLabels?: Readonly<Record<string, string>> | undefined;
+  /** Each value's badge tone, the app's or the operator's. */
+  enumTones?: Readonly<Record<string, string>> | undefined;
 }
 
 /** Resolves a list key into the answers it holds, in the reader's language. */
@@ -69,7 +72,14 @@ export function optionsForColumn(
     const resolved = 'values' in rule ? rule.values : listOptions?.(rule.list);
     // A list the host cannot resolve contributes nothing, exactly as it does on
     // the server: the column falls back to what the database itself allows.
-    if (resolved !== undefined) return resolved.map((option) => ({ ...option }));
+    // A value the rule gives no word keeps the column's own, as the list does.
+    if (resolved !== undefined) {
+      return resolved.map((option) =>
+        option.label !== undefined || fact?.enumLabels?.[option.value] === undefined
+          ? { ...option }
+          : { ...option, label: fact.enumLabels[option.value] },
+      );
+    }
   }
   return (column.enumValues ?? []).map((value) => ({
     value,
@@ -79,6 +89,42 @@ export function optionsForColumn(
 }
 
 export type ColumnFacts = Readonly<Record<string, ColumnFact>>;
+
+/**
+ * What the server says a column's values are called and drawn in, for a
+ * list: its value labels and tones, with the words and tones of the inline
+ * answers a form offers over them — so a grid cell and a choice on the same
+ * page say the same thing. All of it already in the reader's language.
+ *
+ * A named list is left to the form: a column of country codes stays a column
+ * of codes in a grid, as it always has.
+ */
+export function choiceWordsOf(fact: ColumnFact | undefined): ChoiceWords | undefined {
+  if (fact === undefined) return undefined;
+  const rule = fact.options;
+  const answers = rule !== undefined && 'values' in rule ? rule.values : undefined;
+  const labels: Record<string, string> = { ...fact.enumLabels };
+  const tones: Record<string, string> = { ...fact.enumTones };
+  for (const answer of answers ?? []) {
+    if (answer.label !== undefined) labels[answer.value] = answer.label;
+    if (answer.tone !== undefined) tones[answer.value] = answer.tone;
+  }
+  if (Object.keys(labels).length === 0 && Object.keys(tones).length === 0) return undefined;
+  return {
+    ...(Object.keys(labels).length === 0 ? {} : { enumLabels: labels }),
+    ...(Object.keys(tones).length === 0 ? {} : { enumTones: tones }),
+  };
+}
+
+/**
+ * A page's stored columns with the server's words for their values, where the
+ * page sets none of its own: what the grid, the peek and the record page draw
+ * a status or a choice with.
+ */
+export function withFactChoices(columns: readonly GridColumnSpec[], facts: ColumnFacts | undefined): readonly GridColumnSpec[] {
+  if (facts === undefined) return columns;
+  return withChoices(columns, (name) => choiceWordsOf(facts[name]));
+}
 
 /**
  * The ONE mapping: which control this column gets, or that it gets none.

@@ -66,6 +66,7 @@ export {
   type TableDraft,
   type TableDraftOptions,
 } from './fit-draft.js';
+export { calendarColumnsProblem, calendarTitleThrough, type CalendarColumns } from './calendar-columns.js';
 export {
   TITLE_THROUGH_TEMPLATES,
   applyTitleThrough,

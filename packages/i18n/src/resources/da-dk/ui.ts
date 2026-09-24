@@ -124,7 +124,8 @@ export default {
       "step": "Trin {n}",
       "back": "Tilbage",
       "next": "Fortsæt"
-    }
+    },
+    "unavailable": "Dette felt kan ikke vises: intet forbinder denne post med de rækker, det henviser til."
   },
   "combobox": {
     "placeholder": "Vælg…",

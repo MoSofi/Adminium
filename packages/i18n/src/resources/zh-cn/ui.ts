@@ -124,7 +124,8 @@ export default {
       "step": "第 {n} 步",
       "back": "上一步",
       "next": "继续"
-    }
+    },
+    "unavailable": "无法显示此字段：没有任何关联将此记录与其指向的行相连。"
   },
   "combobox": {
     "placeholder": "请选择…",

@@ -27,9 +27,9 @@ An app can declare roles of its own, such as a cashier and a manager. They are c
 is installed, named as the app names them, and appear under **People → Roles & permissions** beside
 yours. Give them to people as you would any role.
 
-An app's role can only grant things inside that app: reading or changing its own tables, viewing or
-editing its own pages, and opening its own staff screens. It can never grant a console permission,
-such as managing users or connections, and never a wildcard.
+An app's role can only grant things inside that app: reading or changing its own tables, seeing
+the personal data in them, viewing or editing its own pages, and opening its own staff screens. It
+can never grant a console permission, such as managing users or connections, and never a wildcard.
 
 - **Your changes survive updates.** A role's grants are given once. An update adds only the grants
   a new version asks for, so a grant you took away stays away.
@@ -38,6 +38,52 @@ such as managing users or connections, and never a wildcard.
 - **Removed on uninstall.** Uninstalling the app deletes its roles. Everyone who held one loses it,
   and API keys bound to one of those roles are deleted and stop working at once. The uninstall
   dialog says how many people and keys each role has before you confirm.
+
+## Personal data
+
+Columns that hold personal data, such as a patient's mobile, email, address or an allergy note, are
+masked: a person without the right permission reads them as empty. Two permissions show them:
+
+- **See personal data** on a table shows that table's personal columns, and no other table's. An app
+  grants it to the roles whose work needs it, such as a clinic's reception, which rings patients.
+- **Manage database connections** shows every table's personal columns. Super Admin and the built-in
+  Admin role hold it.
+
+The table asked about is always the one the value lives in. A list of appointments that shows each
+patient's mobile needs **See personal data** on the patients table, not on the appointments table.
+The same holds for record pages, dashboard cards and exports.
+
+Under **People → Roles & permissions**, **See personal data in records** gives a role the
+permission on every table. It is never included in anything else, so no existing role gains it. An
+app role's grant on a single table is counted in the line above the matrix and kept when you save.
+
+Live updates pushed to open pages are masked for everyone, whatever their roles, because everyone
+watching a table receives the same update.
+
+## Edits limited to some columns
+
+An app can limit what a role's edit permission on a table may change. A clinic's clinician may move
+a visit along, from roomed to with the clinician to ready, and may not cancel it or change its time.
+
+When a limited person saves a change outside the limit, Adminium refuses it with `403` and the code
+`COLUMN_FORBIDDEN`, naming the column, and the value when the column may change but not to that
+value. The limit covers:
+
+- editing one record, and a column sent unchanged, as a form that sends the whole record does;
+- editing many records at once;
+- rows edited from another record's form, such as a patient's visits from the patient.
+
+Roles add up. Someone who also holds a role that may edit the table without a limit, such as a
+manager, an Admin or Super Admin, is not limited. A role an app copies from a limited role
+(`cloneFrom`) is limited the same way.
+
+The limit applies to edits only. Creating records is its own permission, and deleting one too. Undo
+puts back what the same person changed a moment ago, and is not limited. Files attached beside a
+record are not columns of it, so the limit does not cover them.
+
+An update of the app replaces the role's limits with the ones the new version declares. Saving the
+role under **People → Roles & permissions** keeps them; the screen does not show them. See
+[`limits`](/reference/manifest/#roles) in the manifest reference.
 
 ## People who only use the app
 

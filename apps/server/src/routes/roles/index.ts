@@ -14,7 +14,7 @@
  * `rbac`-category audit entry (dotted verb + resource — anatomy).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { permissionsRepo, rolesRepo, usersRepo, type Role } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, usersRepo, type Role, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
@@ -255,10 +255,24 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
           invalidGrants: invalid,
         });
       }
-      const before = grantsFromMatrixRows(await permissions.listForRole(role.id));
+      const held = await permissions.listForRole(role.id);
+      const before = grantsFromMatrixRows(held);
+      /*
+       * A limit on an update (an app's clinician may only move a visit along)
+       * is not a grant string, so the matrix cannot send it back. It stays on
+       * its table's row through a save: dropping it would quietly let the
+       * role rewrite every column the moment anyone ticked a box.
+       */
+      const limits = new Map<string, UpdateLimit>();
+      for (const row of held) {
+        const limit = row.resourceKind === 'table' ? (row.actions as TableActions).updateLimit : undefined;
+        if (limit !== undefined) limits.set(row.resourceRef, limit);
+      }
       await meta.db.deleteFrom('adminium_role_permissions').where('roleId', '=', role.id).execute();
       for (const row of rows) {
-        await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
+        const limit = row.resourceKind === 'table' ? limits.get(row.resourceRef) : undefined;
+        const actions = limit === undefined ? row.actions : { ...(row.actions as TableActions), updateLimit: limit };
+        await permissions.grant(role.id, row.resourceKind, row.resourceRef, actions);
       }
       const after = grantsFromMatrixRows(await permissions.listForRole(role.id));
       await app.rbac.audit(request, {

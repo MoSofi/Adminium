@@ -39,6 +39,7 @@ import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import type { LayoutItem } from '../../grid/layout-schema.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { withCurrency } from '../page-currency.js';
 import { ShiftMatrix, type ShiftCell, type ShiftResource, type ShiftTypeDef } from './ShiftMatrix.js';
 import {
   configNumber,
@@ -93,6 +94,11 @@ export interface PageSchedulerProps {
   labels?: PageSchedulerLabels | undefined;
   className?: string | undefined;
   testId?: string | undefined;
+  /**
+   * The connection's currency, for a stored widget that names none (a KPI
+   * card's money) — merged as the page draws, never into the stored layout.
+   */
+  currency?: string | undefined;
 }
 
 interface MatrixItemConfig {
@@ -506,6 +512,7 @@ export function PageScheduler({
   labels,
   className,
   testId,
+  currency,
 }: PageSchedulerProps) {
   const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
@@ -551,7 +558,7 @@ export function PageScheduler({
           <WidgetHost
             widgetId={item.widget}
             instanceId={item.i}
-            config={item.config}
+            config={withCurrency(item.config, currency)}
             data={state}
             onEvent={onEvent === undefined ? undefined : (event) => void onEvent(item.i, event)}
           />

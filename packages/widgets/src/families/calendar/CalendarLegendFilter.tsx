@@ -30,7 +30,10 @@ export type { CalendarLegendFilterConfig };
  */
 
 export interface LegendCategory {
+  /** The category's key: what hiding it filters on. */
   name: string;
+  /** What a person calls it, when its column has a word for it. */
+  label?: string | undefined;
   count: number;
   tone: 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
 }
@@ -122,7 +125,7 @@ export function CalendarLegendFilter({
                 } ${toggleable ? 'hover:bg-surface-3' : 'cursor-default'}`}
               >
                 {swatch}
-                <span className={on ? '' : 'line-through'}>{category.name}</span>
+                <span className={on ? '' : 'line-through'}>{category.label ?? category.name}</span>
                 <MonoText className="text-fg-subtle">{count}</MonoText>
               </button>
             </li>
@@ -139,13 +142,13 @@ export function CalendarLegendFilter({
                 <Checkbox
                   checked={on}
                   onCheckedChange={() => toggle(category.name)}
-                  aria-label={category.name}
+                  aria-label={category.label ?? category.name}
                   className="shrink-0"
                 />
               )}
               {swatch}
               <span className={`min-w-0 flex-1 truncate text-body-sm ${on ? 'text-fg' : 'text-fg-subtle'}`}>
-                {category.name}
+                {category.label ?? category.name}
               </span>
               <MonoText className="shrink-0 text-caption text-fg-subtle">{count}</MonoText>
             </label>

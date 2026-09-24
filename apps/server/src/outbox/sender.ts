@@ -4,7 +4,9 @@
  *
  * A row the producers (or the desk's "Send now") left `queued` is rendered
  * with the template its kind names, in the row's language and the venue's
- * clock, and handed to the mail queue; the row then reads `sent`, `failed`
+ * clock — the nearest of Adminium's languages for the words, the row's own
+ * tag for its dates, times and money (`en-GB` reads "09:30") — and handed to
+ * the mail queue; the row then reads `sent`, `failed`
  * or `skipped`, with a sentence saying why. It runs as a job right after a
  * row is queued and as a sweep once a minute, so a row queued by hand, or
  * left behind by a restart, goes too.
@@ -20,6 +22,19 @@
  * `booking_url` on the app's guest side — its own host when it has one, else
  * the server's public address, else no link at all: a job has no request to
  * guess an address from.
+ *
+ * A column that holds nothing reads as an empty value, not an unknown one: a
+ * paragraph (or a list item) holding only a visit's optional reason is then
+ * left out of the email, where it would otherwise print `{{…}}` to a patient.
+ * A name no row has is still printed as it was written — that is a mistake in
+ * the template, and a loud one gets fixed.
+ *
+ * ── WHERE IT GOES ─────────────────────────────────────────────────────────
+ * The row's own address. A row that names none — one a desk queued by hand,
+ * linking the patient whose email it may not read — goes where its
+ * recipient link says, as the producers would have addressed it, and the
+ * address is written into the row when it is sent. Still none: `skipped`,
+ * "No email on file".
  *
  * ── WHAT IS NEVER SENT ─────────────────────────────────────────────────────
  * An address that is not one (`skipped`); an address on a reserved domain —
@@ -47,7 +62,7 @@ import type { RecordWriteService, WriteContext } from '../crud/write-service.js'
 import { normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
 import { enqueueEmail, type EmailSendReport } from '../email/send.js';
-import { bcp47 } from '../i18n/bcp47.js';
+import { bcp47, formatTag } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
@@ -95,7 +110,12 @@ declare module 'fastify' {
   }
 }
 
-type Outcome = { status: 'sent' | 'failed' | 'skipped'; error: string | null };
+/**
+ * What became of a row. `to` and `language` are what the sender looked up for
+ * a row that named no address — written back with a `sent`, so the log says
+ * where it went.
+ */
+type Outcome = { status: 'sent' | 'failed' | 'skipped'; error: string | null; to?: string; language?: string };
 
 const plausible = (value: unknown): value is string => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
@@ -213,8 +233,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       for (const column of table.columns.values()) {
         if (column.secret) continue;
         const value = record[column.name];
-        if (value === null || value === undefined) continue;
         const name = `${prefix}.${column.name}`;
+        if (value === null || value === undefined) {
+          vars[name] = '';
+          const forms = column.logicalType === 'timestamp' || column.logicalType === 'timestamptz' ? ['date', 'time', 'day_month', 'relative_day'] : column.logicalType === 'date' ? ['day_month'] : [];
+          for (const form of forms) vars[`${name}.${form}`] = '';
+          continue;
+        }
         const effective = table.table.columns.find((c) => c.name === column.name);
         if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') Object.assign(vars, forms.instant(name, value));
         else if (column.logicalType === 'date') Object.assign(vars, forms.day(name, value));
@@ -287,6 +312,26 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     return vars;
   }
 
+  /**
+   * Who a row goes to when it names no address: the person it links through
+   * `recipient.via`, else what the row the fallback links carries (a first
+   * visit's own email) — looked up as the producers look it up when they
+   * queue. A desk that queues a row by hand may not read a patient's email
+   * (personal columns are masked for an app's roles), so it links the person
+   * and leaves the address to this. No opt-in is asked here: that is a
+   * reminder's question, and the producers ask it; a row somebody queued by
+   * hand was sent on purpose.
+   */
+  async function lookedUp(ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable }, box: LiveOutbox, row: Row): Promise<{ address: unknown; language: unknown }> {
+    const recipient = box.definition.recipient;
+    const person = await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]);
+    if (person !== null) return { address: person[recipient.email], language: recipient.language === undefined ? undefined : person[recipient.language] };
+    const fallback = recipient.fallback;
+    if (fallback === undefined) return { address: undefined, language: undefined };
+    const holder = await rowOf(ctx.db, ctx.view, referenced(ctx.view, ctx.outbox.id, fallback.via), row[fallback.via]);
+    return { address: holder?.[fallback.email], language: fallback.language === undefined ? undefined : holder?.[fallback.language] };
+  }
+
   /** One row: its message queued, or the reason it is not. */
   async function deliver(
     box: LiveOutbox,
@@ -294,14 +339,21 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     row: Row,
   ): Promise<Outcome> {
     const cols = box.definition.columns;
-    const to = row[cols.to];
+    // A row that names its own address keeps it; one that names none is sent
+    // where its recipient link says, and says so once it is sent.
+    const named = row[cols.to];
+    const blank = named === null || named === undefined || (typeof named === 'string' && named.trim() === '');
+    const found = blank ? await lookedUp(ctx, box, row) : null;
+    const to = found === null ? named : found.address;
     if (!plausible(to)) return { status: 'skipped', error: 'No email on file' };
     if (reservedAddress(to)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
     const kind = String(row[cols.kind] ?? '');
     const templateKey = box.definition.kinds[kind];
     if (templateKey === undefined) return { status: 'failed', error: sentence(`No email is set for "${kind}"`) };
 
-    const language = cols.language === undefined ? undefined : row[cols.language];
+    const own = cols.language === undefined ? undefined : row[cols.language];
+    // The row's own language first; for a row that named nobody, the one looked up with the address.
+    const language = typeof own === 'string' && own !== '' ? own : found?.language;
     const locale =
       (typeof language === 'string' && language !== '' ? negotiateLocale(language.replace(/_/g, '-')) : null) ?? (await recipientLocale(deps.meta, null));
     const template = await resolveEmailTemplate(deps.meta, templateKey, locale);
@@ -310,7 +362,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       return { status: 'failed', error: 'The email has an HTML block, which cannot carry what a person typed' };
     }
 
-    const forms = valueForms({ locale, zone: ctx.zone, currency: ctx.currency, now: ctx.now });
+    // The nearest template language writes the words; the recipient's own tag the clock.
+    const forms = valueForms({ locale: formatTag(typeof language === 'string' ? language : null, locale), zone: ctx.zone, currency: ctx.currency, now: ctx.now });
     const vars = await variables(box, { ...ctx, forms }, row);
     const key = ctx.outbox.primaryKey[0];
     const report: EmailSendReport | undefined =
@@ -321,7 +374,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       { meta: deps.meta, logger: deps.logger === undefined ? undefined : { info: () => undefined, warn: deps.logger.warn.bind(deps.logger) }, secret: deps.secret },
       { to: to.trim(), templateKey, locale, vars, report },
     );
-    return job === null ? { status: 'failed', error: 'Email is not set up on this server' } : { status: 'sent', error: null };
+    if (job === null) return { status: 'failed', error: 'Email is not set up on this server' };
+    return found === null
+      ? { status: 'sent', error: null }
+      : { status: 'sent', error: null, to: to.trim(), ...(typeof language === 'string' && language !== '' && language !== own ? { language } : {}) };
   }
 
   function context(appKey: string): WriteContext {
@@ -357,6 +413,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const values: Row = { [cols.status]: outcome.status };
         if (cols.error !== undefined) values[cols.error] = outcome.error;
         if (cols.sentAt !== undefined && outcome.status === 'sent') values[cols.sentAt] = new Date(now).toISOString();
+        if (outcome.to !== undefined) values[cols.to] = outcome.to;
+        if (outcome.language !== undefined && cols.language !== undefined) values[cols.language] = outcome.language;
         const result = await deps.writes.update({
           target: { connectionId: box.connectionId, view, table: outbox, db, dialect: handle.dialect },
           pk: { [key]: row[key] },
@@ -429,22 +487,36 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
 }
 
 /**
- * The name an app's emails are signed with: its settings row's `name` column,
- * when the app declares an outbox with one. Also what a sign-in code sent
- * through the app's own key is signed with. Null otherwise, or on any doubt.
+ * How an app's own notices speak for it, from its settings row: `name` is what
+ * its emails are signed with (a sign-in code sent through the app's own key
+ * too), `phone` the number a person is told to ring (the notice to an old
+ * address after a change of email). Each is null when the app's outbox
+ * declares no such column, the row holds nothing there, or on any doubt —
+ * and the caller then says what it said before.
  */
-export async function appSignature(meta: MetaDb, manager: ConnectionManager, appKey: string, connectionId: string): Promise<string | null> {
+export async function appContact(
+  meta: MetaDb,
+  manager: ConnectionManager,
+  appKey: string,
+  connectionId: string,
+): Promise<{ name: string | null; phone: string | null }> {
+  const none = { name: null, phone: null };
   try {
     const stored = await appOutboxesRepo(meta).findByApp(appKey);
-    if (stored === null || stored.connectionId !== connectionId) return null;
+    if (stored === null || stored.connectionId !== connectionId) return none;
     const settings = (JSON.parse(stored.definition) as LiveOutbox['definition']).settings;
-    if (settings?.name === undefined) return null;
+    if (settings === undefined || (settings.name === undefined && settings.phone === undefined)) return none;
     const { db } = await manager.data(connectionId);
-    const row = (await db.selectFrom(settings.table as never).select(settings.name as never).limit(1).executeTakeFirst()) as Row | undefined;
-    const name = row?.[settings.name];
-    return typeof name === 'string' && name.trim() !== '' ? name.trim() : null;
+    const row = (await db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
+    // One line of text each: a stray line break would split the sentence it sits in.
+    const text = (column: string | undefined): string | null => {
+      const value = column === undefined ? undefined : row?.[column];
+      const line = typeof value === 'string' ? value.replaceAll(/\s+/g, ' ').trim() : '';
+      return line === '' ? null : line;
+    };
+    return { name: text(settings.name), phone: text(settings.phone) };
   } catch {
-    return null;
+    return none;
   }
 }
 

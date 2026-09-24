@@ -52,6 +52,13 @@ const relativeFilterSchema = z.union([
 
 const valuesSchema = z.array(scalarSchema).min(1).max(32);
 
+/**
+ * A time no more than `within` minutes ahead — a past time always passes. A
+ * kiosk takes an arrival from an hour before the visit, and a late one too.
+ * Up to a day: a longer window is no window.
+ */
+const timeWindowSchema = z.object({ within: z.number().int().min(1).max(1440) }).strict();
+
 export const publicAccessSchema = z
   .object({
     table: refSchema,
@@ -101,9 +108,12 @@ export const publicAccessSchema = z
     /**
      * The state a row must be IN to be changed — part of the update itself,
      * never of a read, so a finished visit still lists but cannot be moved.
-     * `from-now` on a time: only while it is still ahead.
+     * `from-now` on a time: only while it is still ahead. `{within: 60}` on a
+     * time: no more than 60 minutes ahead, and a change made earlier is
+     * refused with that time (`PUBLIC_TOO_EARLY`), even when `select` leaves
+     * it out — naming the window is agreeing to that.
      */
-    writableWhen: z.record(refSchema, z.union([valuesSchema, z.literal('from-now')])).optional(),
+    writableWhen: z.record(refSchema, z.union([valuesSchema, z.literal('from-now'), timeWindowSchema])).optional(),
     /** A proof-of-work the browser solves before the write (or the claim) is taken. */
     humanCheck: z.literal(true).optional(),
     /** A create answers where the new row stands: the rows ordered at or before it. */
@@ -375,11 +385,18 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         out.push({ path: at('writableWhen', ref), message: `"${entry.table}" has no column "${ref}"` });
       } else if (when === 'from-now') {
         if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"from-now" needs a timestamptz, and "${ref}" is not one` });
+      } else if (!Array.isArray(when)) {
+        if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"within" needs a timestamptz, and "${ref}" is not one` });
       } else {
         for (const value of when) {
           if (!valueFits(found, value)) out.push({ path: at('writableWhen', ref), message: `${JSON.stringify(value)} is not a value of "${entry.table}.${ref}"` });
         }
       }
+    }
+    // The early refusal names one time, so an entry keeps one window.
+    const windows = Object.values(entry.writableWhen ?? {}).filter((when) => typeof when === 'object' && !Array.isArray(when));
+    if (windows.length > 1) {
+      out.push({ path: at('writableWhen'), message: 'one time window per entry: a change refused as too early names one time' });
     }
     // A browser that may set a status must be told which statuses: a
     // cancellation is not a licence to mark a visit seen. Held for the new

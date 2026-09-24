@@ -34,7 +34,7 @@ import { columnPolicyFor } from '../connections/effective-schema.js';
 import { FILTER_OPS } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { readGenerator } from './generate.js';
-import { DAY_TYPES } from './relative-filters.js';
+import { DAY_TYPES, isTimeWindow } from './relative-filters.js';
 import {
   CLAIM_STRATEGIES,
   compileScope,
@@ -44,6 +44,7 @@ import {
   type PublicScopeResource,
   ScopeCompileError,
   type ScopeIssue,
+  writableWhenSchema,
 } from './scope.js';
 
 /* --------------------------------------------------------------- vocabulary */
@@ -238,9 +239,11 @@ export const publicEndpointDefinitionSchema = z
     /**
      * The state a row must be in for an update to touch it — part of the
      * UPDATE, never of a read: a finished visit still lists, and cannot be
-     * moved. `from-now` on a time: while it is still ahead.
+     * moved. `from-now` on a time: while it is still ahead. `{within: 60}` on
+     * a time: no more than 60 minutes ahead — a change asked for earlier is
+     * refused as too early, with that time.
      */
-    writable_when: z.record(columnSchema, z.union([z.array(scalarSchema).min(1).max(32), z.literal('from-now')])).optional(),
+    writable_when: writableWhenSchema.optional(),
     /** The session this endpoint needs: `verified` once an emailed code is confirmed. */
     level: z.enum(['lookup', 'verified']).optional(),
     /**
@@ -808,7 +811,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     }
   }
 
-  // A calendar filter counts days on a date or a time; `from-now` asks for a time still ahead.
+  // A calendar filter counts days on a date or a time; `from-now` and a window ask for a time.
   for (const f of def.filters) {
     if (f.op !== 'today' && f.op !== 'from-today') continue;
     const type = table.columns.get(f.column)?.logicalType;
@@ -818,8 +821,9 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
   }
   for (const [column, when] of Object.entries(def.writable_when ?? {})) {
     const type = table.columns.get(column)?.logicalType;
-    if (when === 'from-now' && type !== undefined && type !== 'timestamp' && type !== 'timestamptz') {
-      push('ENDPOINT_WRITABLE_WHEN_NOT_A_TIME', `"${column}" is not a time, so "from-now" cannot apply`, column);
+    const timed = when === 'from-now' ? 'from-now' : isTimeWindow(when) ? 'within' : null;
+    if (timed !== null && type !== undefined && type !== 'timestamp' && type !== 'timestamptz') {
+      push('ENDPOINT_WRITABLE_WHEN_NOT_A_TIME', `"${column}" is not a time, so "${timed}" cannot apply`, column);
     }
   }
 

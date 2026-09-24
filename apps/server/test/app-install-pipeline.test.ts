@@ -38,6 +38,7 @@ import {
   rolesRepo,
   settingsRepo,
   usersRepo,
+  userPrefsRepo,
   type MetaDb,
 } from '@adminium/meta';
 
@@ -64,6 +65,9 @@ import { wallTimeToInstant } from '../src/crud/venue-time.js';
 import { writeStores } from '../src/crud/write-stores.js';
 import { columnFactsFor } from '../src/routes/pages/column-facts.js';
 import { compileWidgetQuery } from '../src/widget-data/compiler.js';
+import { WidgetDataCache } from '../src/widget-data/cache.js';
+import { schemaRoutes } from '../src/routes/schema/index.js';
+import { widgetDataRoutes } from '../src/routes/widget-data/index.js';
 import { shapeRows } from '../src/widget-data/shapers.js';
 import { queryDescriptorSchema } from '@adminium/engine/config';
 import { POS_OVERVIEW_LAYOUT, POS_OVERVIEW_TABLES } from './fixtures/pos-overview.js';
@@ -231,6 +235,30 @@ async function buildApp(meta: MetaDb, manager: ConnectionManager, dataDir: strin
       },
     }),
   );
+  await app.ready();
+  return app;
+}
+
+/**
+ * The routes a dashboard reads a card and the schema through, signed in as the
+ * user an `x-user` header names and allowed every table: what a card shows a
+ * reader, in their language.
+ */
+async function readingApp(h: Harness) {
+  const Fastify = (await import('fastify')).default;
+  const { serializerCompiler, validatorCompiler } = await import('fastify-type-provider-zod');
+  const app = Fastify();
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+  app.decorate('rbac', { require: () => async () => {}, resolve: async () => ({ roleIds: new Set<string>(), superAdmin: true }), audit: async () => {} } as never);
+  app.decorateRequest('user', null);
+  app.addHook('onRequest', async (request) => {
+    const id = request.headers['x-user'];
+    (request as { user?: unknown }).user = typeof id === 'string' ? { id, email: `${id}@test` } : null;
+    (request as { can?: unknown }).can = async () => true;
+  });
+  await app.register(schemaRoutes({ manager: h.manager, meta: h.meta }));
+  await app.register(widgetDataRoutes({ manager: h.manager, meta: h.meta, cache: new WidgetDataCache() }));
   await app.ready();
   return app;
 }
@@ -1503,9 +1531,22 @@ async function installEmails(h: Harness): Promise<void> {
   expect((await templates.findByKeyLocale('pos-reminder', 'de_DE'))!.subject).toBe('Mine');
 }
 
+/** The patients app open to each patient, whose outbox names the practice's settings row: the name its emails are signed with and the number to ring. */
+function contactManifest() {
+  const base = outboxManifest('1.0.0');
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  const settings = { ref: 'settings', columns: [id, { ref: 'practice_name', type: 'text', maxLength: 80, nullable: true }, { ref: 'phone', type: 'text', maxLength: 30, nullable: true }] };
+  return {
+    ...base,
+    publicAccess: patientsManifest().publicAccess,
+    requiredSchema: { ...base.requiredSchema, tables: [...base.requiredSchema.tables, settings] },
+    outbox: { ...base.outbox, settings: { table: 'settings', name: 'practice_name', phone: 'phone' } },
+  };
+}
+
 /** A found session raised to verified by an emailed code, the guards around it, and a change of address. */
 async function verifyByCode(h: Harness): Promise<void> {
-  await stageManifest(h, patientsManifest());
+  await stageManifest(h, contactManifest());
   const installed = await post(h, '/apps/install');
   expect(installed.statusCode, installed.body).toBe(200);
   const served = await servePublic(h, (installed.json().publicAccess as { keyId: string }).keyId);
@@ -1537,6 +1578,7 @@ async function verifyByCode(h: Harness): Promise<void> {
     await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ada', '07700900001', '1980-01-01', 'ada@example.com')`);
     await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ben', '07700900002', '1981-02-02', 'ben@gmail.com')`);
     await h.run(`insert into pos_patients (name, mobile, born_on) values ('Cy', '07700900003', '1982-03-03')`);
+    await h.run(`insert into pos_settings (practice_name, phone) values ('Hill Surgery', '0117 496 0142')`);
 
     // No mail set up: no code is pretended, and none is left open.
     const ada = await claim('07700900001', '1980-01-01');
@@ -1612,7 +1654,12 @@ async function verifyByCode(h: Harness): Promise<void> {
     const changed = await send('/claim/verify', { purpose: 'email-change', code: await lastCode() }, ada);
     expect(changed.statusCode, changed.body).toBe(200);
     expect((await h.rows("select email from pos_patients where name = 'Ada'"))[0]!['email']).toBe('ada.new@example.org');
-    expect((await mail()).at(-1)).toMatchObject({ template: 'email-changed', to: 'ada@example.com' });
+    // Told by the practice, with the number on its settings row to ring.
+    const told = (await mail()).at(-1)!;
+    expect(told).toMatchObject({ template: 'email-changed', to: 'ada@example.com', subject: 'Your email address at Hill Surgery was changed' });
+    expect(told.text).toContain('If this wasn’t you, ring us on 0117 496 0142.');
+    expect(told.text).not.toContain('contact us');
+    expect(told.text).not.toContain('{{');
     // Every session of hers ended; found again, the address cannot change twice in a day.
     expect((await call('GET', '/records/pos_patients_claimed', ada)).statusCode).toBe(404);
     const back = await claim('07700900001', '1980-01-01');
@@ -1632,6 +1679,20 @@ async function verifyByCode(h: Harness): Promise<void> {
     await send('/claim/verify', { code: await lastCode() }, bens);
     tick(11 * 60_000);
     expect(codeOf(await send('/claim/code', { purpose: 'email-change', email: 'ben@example.org' }, bens))).toBe('PUBLIC_CODE_STEP_UP');
+
+    // No number on the settings row: the old address is told to get in touch, as it always was.
+    await h.run(`update pos_settings set phone = null`);
+    await send('/claim/code', { purpose: 'verify' }, bens);
+    await send('/claim/verify', { code: await lastCode() }, bens);
+    tick(31_000);
+    expect((await send('/claim/code', { purpose: 'email-change', email: 'ben@example.org' }, bens)).statusCode).toBe(200);
+    const benChanged = await send('/claim/verify', { purpose: 'email-change', code: await lastCode() }, bens);
+    expect(benChanged.statusCode, benChanged.body).toBe(200);
+    const plain = (await mail()).at(-1)!;
+    expect(plain).toMatchObject({ template: 'email-changed', to: 'ben@gmail.com' });
+    expect(plain.text).toContain('If this wasn’t you, contact us straight away.');
+    expect(plain.text).not.toContain('ring us');
+    expect(plain.text).not.toContain('{{');
   } finally {
     await served.composed.app.close();
   }
@@ -1999,18 +2060,27 @@ function senderManifest() {
           { ref: 'clinician_id', type: 'fk', references: 'clinicians', nullable: true },
           { ref: 'minutes', type: 'int', default: 15 },
           { ref: 'fee', type: 'money', nullable: true },
+          { ref: 'reason', type: 'text', maxLength: 120, nullable: true },
+          { ref: 'cancelled_at', type: 'timestamptz', nullable: true },
         ],
       };
     }
     return t;
   });
   const text = 'Hi {{recipient.first_name}}: {{appointment.starts_at.relative_day}}, {{appointment.time_range}}, with {{clinician.name}}. Fee {{appointment.fee}}. Call {{practice.phone}}. Manage: {{manage_url}}';
+  // An optional value alone in its own blocks: gone when the visit has none. A name no row has stays loud.
+  const blocks = [
+    { block: 'email.text', data: { text } },
+    { block: 'email.quote', data: { text: '{{appointment.reason}}' } },
+    { block: 'email.list', data: { items: ['Why: {{appointment.reason}}', '{{appointment.reason}}', 'Ends {{appointment.cancelled_at.time}}Z'] } },
+    { block: 'email.text', data: { paras: ['{{appointment.reason}}', 'Typo: {{appointment.nope}}'] } },
+  ];
   const template = (key: string) => ({
     key,
     name: 'Email',
     locales: {
-      'en-US': { subject: `Booked at {{appName}}`, blocks: [{ block: 'email.text', data: { text } }] },
-      'de-DE': { subject: `Gebucht bei {{appName}}`, blocks: [{ block: 'email.text', data: { text } }] },
+      'en-US': { subject: `Booked at {{appName}}`, blocks },
+      'de-DE': { subject: `Gebucht bei {{appName}}`, blocks },
     },
   });
   return {
@@ -2101,7 +2171,8 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
     expect(await log()).toEqual([
       { id: adaRow, status: 'sent', sent: true, error: null },
       { id: benRow, status: 'skipped', sent: false, error: 'A reserved address (for examples and tests)' },
-      { id: nobody, status: 'skipped', sent: false, error: 'No email on file' },
+      // No address on the row: the sender finds Ben's through the patient, and his is a reserved one.
+      { id: nobody, status: 'skipped', sent: false, error: 'A reserved address (for examples and tests)' },
       { id: offRow, status: 'failed', sent: false, error: 'The email is switched off, or has no text' },
       { id: htmlRow, status: 'failed', sent: false, error: 'The email has an HTML block, which cannot carry what a person typed' },
     ]);
@@ -2123,6 +2194,14 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
     ]) {
       expect(message!.text).toContain(piece);
     }
+    // Her visit has no reason: the quote and the reason's own item and paragraph are left out,
+    // a sentence around it keeps its words, and a name no row has is still printed as written.
+    expect(message!.text).not.toContain('{{appointment.reason}}');
+    expect(message!.text).not.toContain('{{appointment.cancelled_at');
+    expect(message!.text).not.toContain('“”');
+    expect(message!.text).toContain('• Why:\n');
+    expect(message!.text).toContain('Ends Z');
+    expect(message!.text).toContain('Typo: {{appointment.nope}}');
 
     // Undelivered for good: the row says so, and the desk may queue it again.
     await sender.markUndelivered(message!.report!, new Error('550 5.1.1 mailbox unavailable'));
@@ -2179,7 +2258,11 @@ function kioskManifest(opts: { kiosk?: boolean; role?: string } = {}) {
         },
       ],
     },
-    roles: [screen('kiosk'), screen('kiosk2'), { key: 'desk', name: 'Desk', permissions: ['app:@:staff'] }],
+    roles: [
+      screen('kiosk'),
+      screen('kiosk2'),
+      { key: 'desk', name: 'Desk', permissions: ['app:@:staff', 'table:@appointments:read', 'table:@appointments:update', 'table:@patients:read'] },
+    ],
     frontends: [...MANIFEST.frontends, { side: 'customer', kind: 'spa', entry: 'index.html' }],
     ...(kiosk ? { publicKeys: { kiosk: { requiresStaff: { role: opts.role ?? 'kiosk' }, enabledBy: { table: 'settings', column: 'kiosk_on' } } } } : {}),
     publicAccess: [
@@ -2196,9 +2279,14 @@ function kioskManifest(opts: { kiosk?: boolean; role?: string } = {}) {
               key: 'kiosk',
               methods: ['GET', 'PATCH'],
               select: ['id', 'status'],
+              // Today's visits, booked or already in; checked in ("seen" here) from booked only, and up to an hour early.
+              filters: [
+                { column: 'starts_at', op: 'today' },
+                { column: 'status', op: 'in', value: ['booked', 'seen'] },
+              ],
               writable: ['status'],
               writableValues: { status: ['seen'] },
-              writableWhen: { status: ['booked'] },
+              writableWhen: { status: ['booked'], starts_at: { within: 60 } },
               claimedBy: { table: 'patients', column: 'patient_id' },
               sensitive: false,
               reason: 'the screen shows only whether a visit is booked',
@@ -2209,9 +2297,20 @@ function kioskManifest(opts: { kiosk?: boolean; role?: string } = {}) {
   };
 }
 
-/** The kiosk's key: served only to its staff screen, answering only beside that sign-in, switched by the app, and following the version. */
+/**
+ * The kiosk's key: served only to its staff screen, answering only beside that sign-in, switched by
+ * the app, and following the version. Its check-in takes a visit up to an hour early, or late, and
+ * tells an early arrival the time — and nothing about any visit it would not take anyway.
+ */
 async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
   const files = { 'customer/index.html': '<!doctype html><html><body data-app="pos-customer"></body></html>' };
+  // The venue's clock, and a day on it: tomorrow at noon, so every visit below is "today" there.
+  await h.meta.db.updateTable('adminium_connections').set({ timezone: 'Europe/London' }).execute();
+  const tomorrow = new Date(Date.now() + 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+  const noon = wallTimeToInstant(`${tomorrow} 12:00`, 'Europe/London')!.getTime();
+  const minutes = (n: number) => new Date(noon + n * 60_000).toISOString();
+  const spell = (n: number) =>
+    dialect === 'sqlite' ? String(normalizeWriteValue({ logicalType: 'timestamp' } as never, minutes(n))) : `${minutes(n).slice(0, 19).replace('T', ' ')}+00:00`;
   await stageManifest(h, kioskManifest(), files);
   const installed = await post(h, '/apps/install');
   expect(installed.statusCode, installed.body).toBe(200);
@@ -2230,7 +2329,8 @@ async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
   try {
     await h.run(`insert into pos_settings (kiosk_on, online_on, new_online) values (${bool(true)}, ${bool(true)}, ${bool(false)})`);
     await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ada', '07700900001', '1980-01-01', 'ada@example.com')`);
-    await h.run(`insert into pos_appointments (patient_id, starts_at, status) values (1, '2099-01-05 10:00:00', 'booked')`);
+    // Ada's visit an hour and a half after noon.
+    await h.run(`insert into pos_appointments (patient_id, starts_at, status) values (1, '${spell(90)}', 'booked')`);
 
     // Staff: one on the kiosk role, one on the desk's.
     const signIn = async (email: string, roleSlug: string) => {
@@ -2253,12 +2353,16 @@ async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
     const kioskToken = staff.publicKeys?.['kiosk'];
     expect(kioskToken).toMatch(/^adm_pub_/);
     expect((await config('staff', desk)).publicKeys).toBeUndefined();
+    // What each person may do with the app's tables, and whose screen it is: the desk's grants, the tablet's none.
+    const accessOf = async (cookie: string) => ((await app.inject({ method: 'GET', url: '/apps/pos/staff/surface-config.json', headers: { cookie } })).json() as { access?: unknown }).access;
+    expect(await accessOf(desk)).toEqual({ tables: { appointments: ['read', 'update'], patients: ['read'] }, roles: [{ slug: 'pos-desk', name: 'Desk' }] });
+    expect(await accessOf(tablet)).toEqual({ tables: {}, roles: [{ slug: 'pos-kiosk', name: 'Screen kiosk' }] });
     const guests = await config('customer');
     expect(guests.publishableKey).toMatch(/^adm_pub_/);
     expect(guests.publishableKey).not.toBe(kioskToken);
 
     const host = 'clinic.local';
-    const kiosk = (method: 'GET' | 'POST', url: string, opts: { cookie?: string; csrf?: string | undefined; origin?: string; host?: string; payload?: unknown; session?: string } = {}) =>
+    const kiosk = (method: 'GET' | 'POST' | 'PATCH', url: string, opts: { cookie?: string; csrf?: string | undefined; origin?: string; host?: string; payload?: unknown; session?: string } = {}) =>
       app.inject({
         method,
         url: `/api/v1/public${url}`,
@@ -2266,7 +2370,7 @@ async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
           authorization: `Bearer ${kioskToken}`,
           host: opts.host ?? host,
           'sec-fetch-site': opts.origin === undefined ? 'same-origin' : 'cross-site',
-          ...(method === 'POST' ? { origin: opts.origin ?? `http://${opts.host ?? host}` } : {}),
+          ...(method !== 'GET' ? { origin: opts.origin ?? `http://${opts.host ?? host}` } : {}),
           ...(opts.cookie === undefined ? {} : { cookie: opts.cookie }),
           ...(opts.csrf === undefined ? {} : { 'x-adminium-csrf': opts.csrf }),
           ...(opts.session === undefined ? {} : { 'x-adminium-public-session': opts.session }),
@@ -2290,7 +2394,8 @@ async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
     await h.run(`update pos_settings set kiosk_on = ${bool(true)}`);
     vi.useFakeTimers({ toFake: ['Date'] });
     try {
-      vi.setSystemTime(Date.now() + 16_000);
+      // Hours on, well past the switch's fifteen seconds: noon on the venue's day.
+      vi.setSystemTime(noon);
       // Signed in on this screen: found, for minutes, with no proof of work.
       const found = await kiosk('POST', '/claim', { payload: claim, cookie: tablet, csrf: staff.csrfToken });
       expect(found.statusCode, found.body).toBe(200);
@@ -2312,6 +2417,55 @@ async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
       expect((await kiosk('GET', '/records/pos_appointments_claimed_2', { cookie: tablet, session, host: 'desk.clinic.dev' })).statusCode).toBe(200);
       await settingsRepo(h.meta).set('surfaces.domains', {});
       app.surfaceSettings?.invalidate();
+
+      // Checking in. Ada's other visits: half an hour ahead, twenty minutes late, one checked in already
+      // (two hours ahead), tomorrow's, a cancelled one; and Ben's, as far ahead as her first.
+      await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ben', '07700900002', '1981-02-02', 'ben@example.com')`);
+      const visit = async (patient: number, at: number, status: string) => {
+        await h.run(`insert into pos_appointments (patient_id, starts_at, status) values (${patient}, '${spell(at)}', '${status}')`);
+        const row = (await h.rows(`select max(id) as id from pos_appointments`))[0] as { id: unknown };
+        return String(row.id);
+      };
+      const soon = await visit(1, 30, 'booked');
+      const late = await visit(1, -20, 'booked');
+      const already = await visit(1, 120, 'seen');
+      const nextDay = await visit(1, 24 * 60 + 90, 'booked');
+      const cancelled = await visit(1, 90, 'cancelled');
+      const bens = await visit(2, 90, 'booked');
+      const checkIn = (id: string, as = session) =>
+        kiosk('PATCH', `/records/pos_appointments_claimed_2/${id}`, { cookie: tablet, csrf: staff.csrfToken, session: as, payload: { values: { status: 'seen' } } });
+      const statusOf = async (id: string) => ((await h.rows(`select status from pos_appointments where id = ${id}`))[0] as { status: string }).status;
+
+      // More than an hour early: refused, with the visit's time and when she may check in — and nothing changed.
+      const early = await checkIn('1');
+      expect(early.statusCode, early.body).toBe(409);
+      expect(early.json()).toEqual({ error: { code: 'PUBLIC_TOO_EARLY', params: { at: minutes(90), from: minutes(30) }, message: expect.any(String) } });
+      expect(await statusOf('1')).toBe('booked');
+      // Inside the hour, and late: checked in.
+      for (const id of [soon, late]) {
+        const res = await checkIn(id);
+        expect(res.statusCode, res.body).toBe(200);
+        expect(res.json()).toEqual({ data: { id: expect.anything(), status: 'seen' } });
+        expect(await statusOf(id)).toBe('seen');
+      }
+      // Every other miss is the one "no such record", with no time in it: another patient's, one
+      // checked in already (however far ahead), tomorrow's, a cancelled one, one that does not exist —
+      // and a second check-in of the visit just checked in.
+      for (const id of [bens, already, nextDay, cancelled, '99999', soon]) {
+        const res = await checkIn(id);
+        expect(res.statusCode, `${id}: ${res.body}`).toBe(404);
+        expect(res.json()).toEqual({ error: { code: 'PUBLIC_REF_NOT_FOUND', message: 'No such record.' } });
+      }
+      expect([await statusOf(nextDay), await statusOf(bens)]).toEqual(['booked', 'booked']);
+      // The screen tells "already" from its own read: booked and checked-in visits of today, no others.
+      const today = (await kiosk('GET', '/records/pos_appointments_claimed_2', { cookie: tablet, session })).json() as { data: { id: unknown; status: string }[] };
+      expect(today.data.map((row) => [String(row.id), row.status]).sort()).toEqual([['1', 'booked'], [already, 'seen'], [late, 'seen'], [soon, 'seen']].sort());
+      // Half an hour on, the window has opened: a fresh claim checks her in.
+      vi.setSystemTime(noon + 31 * 60_000);
+      const again = (await kiosk('POST', '/claim', { payload: claim, cookie: tablet, csrf: staff.csrfToken })).json() as { data: { session: string } };
+      const opened = await checkIn('1', again.data.session);
+      expect(opened.statusCode, opened.body).toBe(200);
+      expect(await statusOf('1')).toBe('seen');
     } finally {
       vi.useRealTimers();
     }
@@ -3148,9 +3302,9 @@ for (const [dialect, available] of legs) {
           op: 'column.options',
           at: 'pos_payments.method',
           origin: 'app',
-          value: { values: [{ value: 'cash', label: 'Cash' }, { value: 'card' }] },
+          value: { values: [{ value: 'cash', label: { en_US: 'Cash', de_DE: 'Bar' } }, { value: 'card' }] },
         },
-        { op: 'column.enumLabels', at: 'pos_shifts.state', origin: 'app', value: { labels: { open: 'Open', closed: 'Closed' } } },
+        { op: 'column.enumLabels', at: 'pos_shifts.state', origin: 'app', value: { labels: { open: 'Open', closed: { en_US: 'Closed' } } } },
         { op: 'column.options', at: 'pos_shifts.zone', origin: 'app', value: { list: 'pos-zones' } },
       ]);
       expect(await optionListsRepo(h.meta).findByKey('pos-zones')).toMatchObject({
@@ -3322,6 +3476,100 @@ for (const [dialect, available] of legs) {
       expect(removed.statusCode, removed.body).toBe(200);
       expect(removed.json().removed.rules).toBe(4);
       expect((await labels()).map((r) => `${r.at}:${r.op}:${r.origin}`)).toEqual(['pos_payments.method:column.label:user']);
+    }, 60_000);
+
+    it('shows a choice column’s values in each reader’s language on a card and in the schema, and an older row as it was', async () => {
+      const h = (open = await harness(dialect));
+      const stateLabels = { waiting: { 'en-US': 'Waiting', 'de-DE': 'Wartend' }, seen: { 'en-US': 'Seen', 'de-DE': 'Behandelt' } };
+      await stageManifest(h, {
+        ...MANIFEST,
+        requiredSchema: {
+          prefixed: true,
+          tables: TABLES.map((table) =>
+            table.ref !== 'shifts'
+              ? table
+              : {
+                  ...table,
+                  columns: [
+                    ...table.columns,
+                    { ref: 'state', type: 'enum', enum: ['waiting', 'seen'], default: 'waiting', rules: { enumLabels: { labels: stateLabels, tones: { waiting: 'warn' } } } },
+                  ],
+                },
+          ),
+        },
+      });
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+
+      // Kept in every language, keyed the way Adminium's locales are.
+      const overrides = overridesRepo(h.meta);
+      const rule = (await overrides.listForConnection(h.connectionId)).find((o) => o.op === 'column.enumLabels')!;
+      expect(rule.value).toEqual({
+        labels: { waiting: { en_US: 'Waiting', de_DE: 'Wartend' }, seen: { en_US: 'Seen', de_DE: 'Behandelt' } },
+        tones: { waiting: 'warn' },
+      });
+
+      await h.run(`insert into pos_shifts (state) values ('waiting')`);
+      await h.run(`insert into pos_shifts (state) values ('waiting')`);
+      await h.run(`insert into pos_shifts (state) values ('seen')`);
+      const users = usersRepo(h.meta);
+      const anna = await users.create({ email: 'anna@test', name: 'Anna' });
+      const ada = await users.create({ email: 'ada@test', name: 'Ada' });
+      await userPrefsRepo(h.meta).set(anna.id, { locale: 'de_DE' });
+      await userPrefsRepo(h.meta).set(ada.id, { locale: 'en_US' });
+
+      const source = { name: 'pos_shifts', type: 'table' };
+      const byState = { connectionId: h.connectionId, kind: 'table-query', source, shape: 'categorical', aggregations: [{ fn: 'count', alias: 'shifts' }], groupBy: ['state'] };
+      const list = { connectionId: h.connectionId, kind: 'table-query', source, shape: 'record-list', select: ['id', 'state'], orderBy: [{ column: 'id', dir: 'asc' }] };
+      const readCards = async (app: Awaited<ReturnType<typeof readingApp>>, user: string) => {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/widget-data/batch',
+          headers: { 'x-user': user },
+          payload: { requests: [{ instanceId: 'by-state', descriptor: byState }, { instanceId: 'list', descriptor: list }] },
+        });
+        expect(res.statusCode, res.body).toBe(200);
+        const results = res.json().results as Record<string, { ok: boolean; result: Record<string, unknown> }>;
+        const legend = (results['by-state']!.result['items'] as { key: string; label: string }[]).map((item) => `${item.key}=${item.label}`).sort();
+        const state = (results['list']!.result['columns'] as { name: string; enumLabels?: Record<string, string> }[]).find((c) => c.name === 'state');
+        return { legend, pill: state?.enumLabels };
+      };
+
+      const reader = await readingApp(h);
+      try {
+        // The English reader first, so the German one would get a kept English answer if the language were not part of it.
+        expect(await readCards(reader, ada.id)).toEqual({ legend: ['seen=Seen', 'waiting=Waiting'], pill: { waiting: 'Waiting', seen: 'Seen' } });
+        expect(await readCards(reader, anna.id)).toEqual({ legend: ['seen=Behandelt', 'waiting=Wartend'], pill: { waiting: 'Wartend', seen: 'Behandelt' } });
+
+        // The schema reads them in the language asked for.
+        const schemaState = async (query: string) => {
+          const res = await reader.inject({ method: 'GET', url: `/connections/${h.connectionId}/schema${query}`, headers: { 'x-user': anna.id } });
+          expect(res.statusCode, res.body).toBe(200);
+          const model = res.json().model as { tables: { name: string; columns: { name: string; enumLabels?: Record<string, string> }[] }[] };
+          return model.tables.find((t) => t.name === 'pos_shifts')?.columns.find((c) => c.name === 'state')?.enumLabels;
+        };
+        expect(await schemaState('?locale=de_DE')).toEqual({ waiting: 'Wartend', seen: 'Behandelt' });
+        expect(await schemaState('')).toEqual({ waiting: 'Waiting', seen: 'Seen' });
+      } finally {
+        await reader.close();
+      }
+
+      // An install made before labels were kept per language holds plain strings: every reader still gets them.
+      await overrides.delete(rule.id);
+      await overrides.create({
+        connectionId: h.connectionId,
+        op: 'column.enumLabels',
+        tableName: rule.tableName,
+        columnName: 'state',
+        value: { labels: { waiting: 'Waiting', seen: 'Seen' } },
+        origin: 'app',
+      });
+      const later = await readingApp(h);
+      try {
+        expect(await readCards(later, anna.id)).toEqual({ legend: ['seen=Seen', 'waiting=Waiting'], pill: { waiting: 'Waiting', seen: 'Seen' } });
+      } finally {
+        await later.close();
+      }
     }, 60_000);
 
     it('installs its roles with their grants filled in, seeded once, and suspended while it is off', async () => {
@@ -4188,6 +4436,49 @@ for (const [dialect, available] of legs) {
       expect(rows[2]!.code).toBe('MR-7777');
       expect(String(rows[1]!.code)).toMatch(/^MR-[0-9A-Z]{4}$/);
       expect(new Set(rows.map((r) => r.code)).size).toBe(3);
+    }, 90_000);
+
+    it('stops a sample row that repeats a one-of-a-kind value of your own, naming it, and keeps nothing', async () => {
+      const h = (open = await harness(dialect));
+      const bundle = {
+        format: 'adminium.sample/1',
+        app: 'pos',
+        assets: {},
+        tables: [{ ref: 'rotas', rows: [{ weekday: 'mon', person: 'Mara' }, { weekday: 'tue', person: 'Noah' }] }],
+      };
+      const manifest = {
+        ...MANIFEST,
+        sampleData: { file: 'seeds/pos.sample.json' },
+        requiredSchema: {
+          prefixed: true,
+          tables: [
+            ...TABLES,
+            {
+              ref: 'rotas',
+              columns: [
+                { ref: 'id', type: 'int', role: 'pk' },
+                { ref: 'weekday', type: 'text', maxLength: 3, unique: true },
+                { ref: 'person', type: 'text', maxLength: 40 },
+              ],
+            },
+          ],
+        },
+      };
+      await stageManifest(h, manifest, { 'seeds/pos.sample.json': JSON.stringify(bundle) });
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+      // The operator already set up Tuesday themselves.
+      await h.run(`INSERT INTO pos_rotas (weekday, person) VALUES ('tue', 'Own')`);
+      const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+      const app = (await findSampleApp(h.meta, 'pos'))!;
+      const refused = await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test' }).then(
+        () => null,
+        (error: { details?: unknown; message?: string }) => error,
+      );
+      expect(refused?.details).toEqual({ reason: 'SAMPLE_ROW_CLASH', table: 'rotas', column: 'weekday' });
+      expect(refused?.message).toContain('weekday "tue"');
+      // One transaction: Monday's sample row went with it, and the ledger holds nothing.
+      expect((await h.rows('SELECT weekday, person FROM pos_rotas ORDER BY id')).map((r) => [r.weekday, r.person])).toEqual([['tue', 'Own']]);
+      expect((await service.status(app)).loaded).toBe(false);
     }, 90_000);
 
     it('adds sample data in one go, then removes it without touching what you use or changed', async () => {

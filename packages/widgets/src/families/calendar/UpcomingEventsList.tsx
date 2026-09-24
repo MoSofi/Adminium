@@ -118,7 +118,7 @@ export function UpcomingEventsList({
                 )}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                {event.category !== undefined && <Tag tone={tone}>{event.category}</Tag>}
+                {event.category !== undefined && <Tag tone={tone}>{event.categoryLabel ?? event.category}</Tag>}
                 {time !== '' && <MonoText className="text-caption text-fg-muted">{time}</MonoText>}
               </div>
             </div>
@@ -138,7 +138,7 @@ export function UpcomingEventsList({
                 className="shrink-0"
                 {...(event.statusTone === undefined ? {} : { tone: toneOf(event.statusTone, 'neutral') })}
               >
-                {event.status}
+                {event.statusLabel ?? event.status}
               </StatusPill>
             )}
           </>

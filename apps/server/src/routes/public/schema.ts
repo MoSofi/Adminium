@@ -284,6 +284,12 @@ export const PUBLIC_ERROR_CODES = [
   /** A guest cancelling closer to the time than the venue allows online (409). */
   'PUBLIC_TOO_LATE',
   /**
+   * The caller's own row is not yet inside the endpoint's time window (409):
+   * `params.at` is the row's time and `params.from` when the window opens,
+   * both instants. Said only when nothing but the window stood in the way.
+   */
+  'PUBLIC_TOO_EARLY',
+  /**
    * The resource needs a VERIFIED session and this one only found the person
    * (403): confirm the emailed code first. Said only to a session the resource
    * would otherwise take.

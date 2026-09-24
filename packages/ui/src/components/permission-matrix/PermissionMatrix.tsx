@@ -11,7 +11,7 @@ import type { ToggleMatrixCellState, ToggleMatrixGroup } from '../toggle-matrix/
  *
  * ```
  * system:<area>:<verb>                    // closed set, e.g. system:roles:manage
- * table:<connectionId>:<table>:<action>   // read|create|update|delete|export|import
+ * table:<connectionId>:<table>:<action>   // read|create|update|delete|export|import|read_pii
  * page:<pageId>:<view|edit>
  * app:<appKey>:staff                      // an installed app's staff screens
  * ```
@@ -19,7 +19,7 @@ import type { ToggleMatrixCellState, ToggleMatrixGroup } from '../toggle-matrix/
  * `*` may stand in for any single `table:`/`page:` segment in *stored*
  * grants (`table:*:*:read`); `system:` grants are always concrete.
  */
-export type TableGrantAction = 'read' | 'create' | 'update' | 'delete' | 'export' | 'import';
+export type TableGrantAction = 'read' | 'create' | 'update' | 'delete' | 'export' | 'import' | 'read_pii';
 export type SystemGrant = `system:${string}:${string}`;
 export type TableGrant = `table:${string}:${string}:${TableGrantAction | '*'}`;
 export type PageGrant = `page:${string}:${'view' | 'edit' | '*'}`;

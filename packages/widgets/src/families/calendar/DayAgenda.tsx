@@ -5,7 +5,6 @@ import { Badge, EmptyState, MonoText } from '@adminium/ui';
 import { useMemo } from 'react';
 
 import {
-  ANCHOR_TODAY,
   TONE_BORDER,
   categoryTone,
   fmtDayLabel,
@@ -74,7 +73,7 @@ function EventRow({
         <p className="truncate text-body-sm font-semibold text-fg">{event.title}</p>
         {event.category !== undefined && (
           <Badge tone={tone} dot className="mt-1">
-            {event.category}
+            {event.categoryLabel ?? event.category}
           </Badge>
         )}
       </div>
@@ -83,6 +82,12 @@ function EventRow({
       )}
     </li>
   );
+}
+
+/** The wall clock's day as a `YYYY-MM-DD` key. */
+function wallToday(): string {
+  const now = new Date();
+  return isoDayKey(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())));
 }
 
 export function DayAgenda({
@@ -98,7 +103,9 @@ export function DayAgenda({
 }: DayAgendaProps) {
   const t = useMaybeT();
   const tag = resolveLocale(locale);
-  const anchor = date ?? (events.length > 0 ? events[0]?.date : undefined) ?? ANCHOR_TODAY;
+  // With no day named and nothing to show, the day is today: the demo anchor
+  // is a story's to pass as `date`, never a live agenda's default.
+  const anchor = date ?? (events.length > 0 ? events[0]?.date : undefined) ?? wallToday();
   const firstJs = firstJsWeekday(tag, firstDayOfWeek);
 
   const days = useMemo(() => {

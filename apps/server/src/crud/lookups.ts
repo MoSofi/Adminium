@@ -24,7 +24,8 @@
  *
  * Access is enforced per REACHED table, degrade-don't-break: a lookup whose
  * chain crosses a table the caller cannot read, or whose target (or any hop
- * column) is masked for a caller without the unmask grant, resolves to `null`
+ * column) is masked for a caller who may not see THAT table's personal
+ * columns (crud/mask.ts), resolves to `null`
  * and is listed in the row's `_masked` marker — the page keeps rendering for
  * a low-privilege caller instead of 403ing wholesale. Malformed specs and
  * unknown/secret identifiers stay hard 422s: those are page-author mistakes
@@ -37,7 +38,7 @@ import { ValidationFailedError } from '../errors.js';
 import { assertNotReservedAlias } from './reserved-aliases.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
-import type { Row } from './mask.js';
+import { piiAllows, type PiiAccess, type Row } from './mask.js';
 
 /** Most lookups one request may carry — a page has no business exceeding it. */
 export const MAX_LOOKUPS = 12;
@@ -128,7 +129,8 @@ export interface ResolveLookupsOptions {
   table: ResolvedTable;
   /** Raw `lookup=` values, in request order. */
   raw: readonly string[];
-  canReadPii: boolean;
+  /** Asked of each table a masked column lives in (crud/mask.ts). */
+  canReadPii: PiiAccess;
   /** Per-table read check (`table:<conn>:<id>:read`) for every reached table. */
   canReadTable: (tableId: string) => Promise<boolean>;
 }
@@ -167,10 +169,11 @@ export async function resolveLookups(opts: ResolveLookupsOptions): Promise<Resol
 
     const hops: LookupHop[] = [];
     let current = table;
-    let masked = false;
+    // The tables whose personal columns this lookup reads (a hop's key or the target).
+    const maskedOn = new Set<string>();
     for (const fkColumn of parsed.path) {
       const column = view.column(current, fkColumn); // 422 unknown/secret
-      masked ||= column.masked;
+      if (column.masked) maskedOn.add(current.id);
       const ref = outboundFk(view, current, fkColumn);
       if (ref === null) {
         throw new ValidationFailedError(
@@ -184,9 +187,15 @@ export async function resolveLookups(opts: ResolveLookupsOptions): Promise<Resol
     }
 
     const target = view.column(current, parsed.select); // 422 unknown/secret
-    masked ||= target.masked;
+    if (target.masked) maskedOn.add(current.id);
 
-    let refused = masked && !canReadPii;
+    let refused = false;
+    for (const tableId of maskedOn) {
+      if (!(await piiAllows(canReadPii, tableId))) {
+        refused = true;
+        break;
+      }
+    }
     if (!refused) {
       for (const hop of hops) {
         if (!(await canReadTable(hop.refTable.id))) {

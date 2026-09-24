@@ -850,6 +850,7 @@ export default {
     "heading": "您的电子邮箱已更改",
     "intro": "{name}，您好：您在 {appName} 记录中的电子邮箱现已改为 {newEmail}。",
     "notice": "如果不是您本人操作，请立即联系我们。",
+    "noticePhone": "如果不是您本人操作，请立即致电 {phone} 联系我们。",
     "footer": "{appName}"
   }
 } as const;

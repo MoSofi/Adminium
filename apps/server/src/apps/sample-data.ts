@@ -64,6 +64,7 @@ import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager, DataHandle, SourceDatabase } from '../connections/manager.js';
 import { SnapshotView, type ResolvedTable } from '../crud/identifiers.js';
 import { tableRulesFor } from '../crud/column-rules.js';
+import { isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
 import { createWriteService, deleteRows, insertRow, type WriteContext, type WriteTarget } from '../crud/write-service.js';
@@ -622,6 +623,24 @@ export function createSampleDataService(deps: SampleDataDeps) {
                   .executeTakeFirst();
                 if (taken !== undefined) delete values[decided.column];
               }
+              /*
+               * Any other one-of-a-kind value the table already holds is one of
+               * the operator's own records (their Monday opening hours, a day
+               * they already closed): the sample never overwrites it and never
+               * guesses around it, it stops — with the table, the column and
+               * the value named, not the database's own words. Nothing of the
+               * add is kept (it is one transaction).
+               */
+              for (const column of resolved.table.columns) {
+                const value = values[column.name];
+                if (!column.isUnique || column.isPrimaryKey || value === undefined || value === null) continue;
+                const taken = await db
+                  .selectFrom(resolved.id as never)
+                  .select(sql`1`.as('taken'))
+                  .where(sql.ref(column.name), '=', value as never)
+                  .executeTakeFirst();
+                if (taken !== undefined) throw sampleClash(table.ref, column.name, value);
+              }
               // Sample data is history the operator asked for, not bookings to judge.
               const checked = await writes.check('create', target, context, [values], { capacity: 'unchecked' });
               const good = checked.rows[0];
@@ -632,7 +651,14 @@ export function createSampleDataService(deps: SampleDataDeps) {
                   issues: checked.issues[0],
                 });
               }
-              const stored = await insertRow(db, handle.dialect, resolved, good);
+              let stored: Row;
+              try {
+                stored = await insertRow(db, handle.dialect, resolved, good);
+              } catch (error) {
+                // A unique rule over several columns, which the check above cannot see.
+                if (isUniqueViolation(error)) throw sampleClash(table.ref, null, null);
+                throw error;
+              }
               const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, stored[column]]));
               const label = typeof row['@label'] === 'string' ? row['@label'] : null;
               if (label !== null) {
@@ -964,6 +990,15 @@ function safeTable(view: SnapshotView, id: string): ResolvedTable | null {
 }
 
 // ── the job ─────────────────────────────────────────────────────────────────
+
+/** A sample row that would repeat a value one of the operator's own records already holds. */
+function sampleClash(ref: string, column: string | null, value: unknown): ValidationFailedError {
+  const what = column === null ? 'a record already there' : `a record already there with ${column} "${String(value)}"`;
+  return new ValidationFailedError(
+    `The sample data was not added: a sample row for "${ref}" clashes with ${what}. Sample data is for tables that hold none of your own records of that kind yet.`,
+    { reason: 'SAMPLE_ROW_CLASH', table: ref, column },
+  );
+}
 
 export const SAMPLE_ADD_KIND = 'app-sample-add';
 

@@ -14,7 +14,7 @@ import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import type { SnapshotView } from '../crud/identifiers.js';
-import type { Row } from '../crud/mask.js';
+import { piiAllows, type PiiAccess, type Row } from '../crud/mask.js';
 import { ValidationFailedError } from '../errors.js';
 import type { CompiledWidgetQuery } from './compiler.js';
 
@@ -27,7 +27,8 @@ export async function groupLabelsFor(input: {
   rows: readonly Row[];
   view: SnapshotView;
   db: Kysely<SourceDatabase>;
-  canReadPii: boolean;
+  /** Asked of the table the label is read from, not the grouped one. */
+  canReadPii: PiiAccess;
   canReadTable: (tableId: string) => Promise<boolean>;
 }): Promise<ReadonlyMap<string, string> | undefined> {
   const { path, compiled, view } = input;
@@ -49,7 +50,7 @@ export async function groupLabelsFor(input: {
     throw new ValidationFailedError(`"${column}" is not a column of ${target.id} a label can be read from.`, { groupLabel: path });
   }
   if (!(await input.canReadTable(target.id))) return undefined;
-  if (label.masked && !input.canReadPii) return undefined;
+  if (label.masked && !(await piiAllows(input.canReadPii, target.id))) return undefined;
 
   const alias = compiled.groupAlias;
   const keys = [...new Set(input.rows.map((row) => row[alias]).filter((key) => key !== null && key !== undefined))].slice(0, LABEL_KEYS_MAX);

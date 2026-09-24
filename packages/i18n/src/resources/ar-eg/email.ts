@@ -850,6 +850,7 @@ export default {
     "heading": "تم تغيير بريدك الإلكتروني",
     "intro": "مرحبًا {name}، أصبح البريد الإلكتروني في سجلك لدى {appName} هو {newEmail}.",
     "notice": "إذا لم تكن أنت، فتواصل معنا فورًا.",
+    "noticePhone": "إذا لم تكن أنت، فاتصل بنا فورًا على الرقم {phone}.",
     "footer": "{appName}"
   }
 } as const;

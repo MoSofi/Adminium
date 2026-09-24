@@ -613,8 +613,10 @@ Layered on top:
 - **Read-only guards.** A connection marked read-only, or a table with no
   primary key, or a view, rejects any non-read action.
 - **PII masking** applies to everyone. `secret` columns are dropped even for
-  super admins; `masked` columns are nulled unless the caller holds the unmask
-  grant. Audit before/after images are themselves masked.
+  super admins; `masked` columns are nulled unless the caller may see the
+  personal columns of the table the value lives in: `table:…:read_pii` for that
+  table, or `system:connections:manage` for every table. Audit before/after
+  images are themselves masked.
 - **A cursor-leak defence.** Keyset pagination refuses with a 422 when any sort
   key is masked for the caller, because the cursor carries the raw pre-mask sort
   tuple.

@@ -108,6 +108,11 @@ reaches none of them. Without a session they answer `404`, as if there were noth
 - **What may change.** A guest may change only their own rows, only the columns listed, only to
   the values listed (cancel, never mark a visit seen), and only while the row is in the state the
   app names (booked, and still ahead). Any other row is `404` to the change, though it still lists.
+- **Not too early.** The state can include a time window: a check-in no more than an hour before
+  the visit, or any time after it. A change asked for earlier is refused `409` with the code
+  `PUBLIC_TOO_EARLY`, and the reply names the row's time and when the window opens, even when the
+  entry does not otherwise show that time. That is said only for the person's own row, in a state
+  the change would otherwise be taken from; every other miss is still `404`.
 - **Only so many open.** An entry can cap how many open rows one person holds, for example two
   upcoming visits. The next signed-in create is refused `409` with the code
   `PUBLIC_LIMIT_REACHED`, and the page offers the phone instead.
@@ -171,7 +176,10 @@ only this way:
    address that is not one, or is the same, is refused `400` `PUBLIC_WRITE_REFUSED`.
 2. The code goes to the **new** address. Confirm it with `{"purpose":"email-change","code":…}`.
 3. The row's address is changed, and the **old** address gets the built-in **Email address
-   changed** notice, even if that template is switched off.
+   changed** notice, even if that template is switched off. When the app's outbox names a
+   `phone` column of its settings row and that row holds a number, the notice ends "If this
+   wasn’t you, ring us on" that number, in the recipient's language; otherwise it asks them to
+   contact you straight away.
 4. **Every session of that person ends**, this one too: the reply says so, and the page starts
    again from the details.
 
@@ -246,7 +254,14 @@ At the kiosk:
 - claims count **per staff sign-in**, 30 a minute, since everyone in the waiting room shares one
   address;
 - the kiosk can have its own switch in the app's settings row. While it is off, the key answers
-  `503` `PUBLIC_KEY_OFF` ([below](#switches-in-the-settings-row)).
+  `503` `PUBLIC_KEY_OFF` ([below](#switches-in-the-settings-row));
+- a check-in can have a time window, such as an hour before the visit. Someone who arrives earlier
+  is refused `409` `PUBLIC_TOO_EARLY`, and the screen can tell them their visit's time. The tablet
+  learns that time only for the person whose details were just typed, and only for their booked
+  visit later that day.
+
+If the tablet goes missing, suspend the staff account it is signed in with, which signs it out
+everywhere, or turn the kiosk's switch off.
 
 The kiosk key stops with the app's **staff** side, not the customer side. An update never makes
 again a kiosk key you revoked; uninstalling and installing the app does. An update that drops the

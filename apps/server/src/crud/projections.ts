@@ -26,12 +26,14 @@ import { resolveAggregates } from './aggregates.js';
 import { parseComputeParam, singleComputeParam, type ParsedCompute } from './compute.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import { resolveLookups, type ResolvedLookup } from './lookups.js';
+import type { PiiAccess } from './mask.js';
 import { resolveMeasures, type MeasureRefusal, type ResolvedMeasure } from './measures.js';
 
 export interface ResolveProjectionsOptions {
   view: SnapshotView;
   table: ResolvedTable;
-  canReadPii: boolean;
+  /** Asked of every table a lookup or a measure reaches (crud/mask.ts). */
+  canReadPii: PiiAccess;
   /** Per-table read check (`table:<conn>:<id>:read`) for every reached table. */
   canReadTable: (tableId: string) => Promise<boolean>;
   /** Raw `lookup=` values (`alias:fk[.fk…].target`), in request order. */

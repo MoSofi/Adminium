@@ -29,7 +29,7 @@ import {
 } from '@adminium/meta';
 
 import type { ConnectionManager } from '../../connections/manager.js';
-import { canReadPii } from '../../crud/mask.js';
+import { canReadPii, piiCheckFor, piiTablesOf, UNMASK_PERMISSION } from '../../crud/mask.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { resolveExportDefinition, sanitizeFileName } from '../../export/definition.js';
 import { registerBuilderRoutes } from './builder.js';
@@ -144,8 +144,8 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
           table: table.id,
           ...(resolved.filters === undefined ? {} : { filters: resolved.filters }),
         };
-        // PII capability captured at request time (crud/mask.ts).
-        const unmasked = await canReadPii(request);
+        // PII capability captured at request time, for the exported table (crud/mask.ts).
+        const unmasked = await canReadPii(request, connectionId, table.id);
         // A builder DEFINITION is validated here, through the same resolver
         // the preview and the job use: an unknown
         // column, a bad hop, a colliding alias or a duplicate header is a 422
@@ -155,6 +155,7 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
           table,
           source: stored,
           canReadPii: unmasked,
+          canReadPiiOf: piiCheckFor(request, connectionId),
           canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
         });
         if (
@@ -178,6 +179,12 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
             exportId: row.id,
             userId,
             unmasked,
+            // The other tables a lookup or a measure may reach, for someone
+            // who sees only some tables' personal columns. An admin sees
+            // every table's, which `unmasked` alone already says.
+            ...(await request.can(UNMASK_PERMISSION)
+              ? {}
+              : { piiTables: await piiTablesOf(request, connectionId, view.model.tables.map((t) => t.id)) }),
             // A definition carries its own derived block; threading the page's
             // as well would compute the same measures twice under two alias
             // sets. Only the pre-definition shape reads the page.

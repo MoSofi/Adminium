@@ -402,3 +402,40 @@ describe('decisionValuesOf', () => {
     expect(decisionValuesOf({}, [])).toEqual({ approve: 'approved', reject: 'rejected', pending: undefined });
   });
 });
+
+/**
+ * The answer names the status column's words for its values, read in the
+ * reader's language: the tabs and the pills say "Offen", not `pending`, and
+ * the page's own tone map still draws them.
+ */
+describe('PageQueueInbox — the answer’s words for a status', () => {
+  const served = {
+    queue: {
+      status: 'success' as const,
+      data: {
+        ...listOf(REQUESTS),
+        columns: [
+          { name: 'status', logicalType: 'enum', nullable: false, isPrimaryKey: false, enumLabels: { pending: 'Offen', approved: 'Genehmigt' }, enumTones: { pending: 'info' } },
+        ],
+      },
+    },
+  };
+
+  it('labels the tabs and the pills, in the page’s own tones', () => {
+    render(<PageQueueInbox config={config()} now={NOW} states={served} />);
+    const tabs = screen.getByRole('radiogroup', { name: 'Status filter' });
+    expect(within(tabs).getByRole('radio', { name: /Offen/ })).toBeDefined();
+    expect(within(tabs).getByRole('radio', { name: /Genehmigt/ })).toBeDefined();
+    const pills = queueRows().querySelectorAll('[data-part="queue-status-pill"]');
+    expect([...pills].map((pill) => pill.textContent)).toEqual(['Offen', 'Offen', 'Offen']);
+    expect(pills[0]?.getAttribute('data-tone')).toBe('warn');
+    cleanup();
+  });
+
+  it('keeps the raw value where the answer names no word', () => {
+    render(<PageQueueInbox config={config()} now={NOW} states={loaded} />);
+    const pills = queueRows().querySelectorAll('[data-part="queue-status-pill"]');
+    expect(pills[0]?.textContent).toBe('pending');
+    cleanup();
+  });
+});

@@ -24,7 +24,9 @@ import { BulkActionToolbar } from '../../families/tables/BulkActionToolbar.js';
 import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { LoadOlderPaginator } from '../../families/feeds/LoadOlderPaginator.js';
 import { formatRelativeTime, uiToneOf } from '../../families/tables/column-spec.js';
+import { servedChoicesOf, withChoices } from '../../families/tables/choices.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { withCurrency } from '../page-currency.js';
 import { describeDataError } from '../../lib/data-error.js';
 import {
   useDashboardData,
@@ -264,6 +266,13 @@ export function PageQueueInbox({
     [rawRows, patches, rowIdText],
   );
   const fields = useMemo(() => queueFieldsOf(queueItem, rawRows), [queueItem, rawRows]);
+  /*
+   * The answer's words for the status values, read in the reader's language:
+   * a tab and a pill say "Wartend", not `waiting`. The page's own tone map
+   * wins where it has one.
+   */
+  const served = useMemo(() => servedChoicesOf(queueState.data), [queueState.data]);
+  const statusWords = fields.statusField === undefined ? undefined : served.get(fields.statusField);
 
   const statusValues = useMemo(() => {
     if (fields.statusField === undefined) return [];
@@ -283,9 +292,9 @@ export function PageQueueInbox({
     }
     return [
       { value: '__all__', label: labels?.allSegment ?? t('ui:templates.queue.allSegment', 'All'), count: rows.length },
-      ...[...counts.entries()].map(([value, count]) => ({ value, label: humanizeName(value), count })),
+      ...[...counts.entries()].map(([value, count]) => ({ value, label: statusWords?.enumLabels?.[value] ?? humanizeName(value), count })),
     ];
-  }, [rows, fields.statusField, labels?.allSegment, t]);
+  }, [rows, fields.statusField, labels?.allSegment, t, statusWords]);
 
   const visibleRows = useMemo(
     () =>
@@ -314,11 +323,11 @@ export function PageQueueInbox({
   );
 
   const toneFor = useCallback(
-    (value: string | undefined) =>
-      value === undefined || fields.enumTones?.[value] === undefined
-        ? undefined
-        : uiToneOf(fields.enumTones[value] as GridTone),
-    [fields.enumTones],
+    (value: string | undefined) => {
+      const tone = value === undefined ? undefined : (fields.enumTones ?? statusWords?.enumTones)?.[value];
+      return tone === undefined ? undefined : uiToneOf(tone as GridTone);
+    },
+    [fields.enumTones, statusWords],
   );
 
   // --- polymorphic amount cell ($4,120 / 5 days /) ----------------------
@@ -451,8 +460,8 @@ export function PageQueueInbox({
     if (focusedRow === undefined) return [];
     const toneFields: Record<string, Record<string, GridTone> | undefined> = {};
     if (fields.statusField !== undefined) toneFields[fields.statusField] = fields.enumTones;
-    return specsForRecord(focusedRow, { toneFields, displayField: fields.titleField });
-  }, [focusedRow, fields]);
+    return withChoices(specsForRecord(focusedRow, { toneFields, displayField: fields.titleField }), (name) => served.get(name));
+  }, [focusedRow, fields, served]);
 
   if (!body.valid) {
     return (
@@ -477,7 +486,7 @@ export function PageQueueInbox({
               key={item.i}
               widgetId={item.widget}
               instanceId={item.i}
-              config={item.config}
+              config={withCurrency(item.config, currency)}
               data={stateFor(item)}
               onEvent={onEvent === undefined ? undefined : (event) => void onEvent(item.i, event)}
             />
@@ -621,7 +630,9 @@ export function PageQueueInbox({
                                   status={status}
                                   {...(statusTone === undefined ? {} : { tone: statusTone })}
                                   data-part="queue-status-pill"
-                                />
+                                >
+                                  {statusWords?.enumLabels?.[status]}
+                                </StatusPill>
                               )}
                             </span>
                             <span className="flex w-full items-center gap-2">

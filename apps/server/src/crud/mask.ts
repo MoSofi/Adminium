@@ -4,12 +4,17 @@
  * receive masked columns as `null` plus a `_masked` sibling marker so the
  * UI renders the masked-cell treatment. Secret columns never appear at all.
  *
- * PERMISSION MAPPING NOTE: a `table:<t>:read_pii` action is
- * `data.unmask_pii` grant; the v1 grammar shipped in M2
- * (rbac/permissions.ts + meta's closed SYSTEM_ACTION_KEYS) has neither.
- * Until the grammar grows the action (M5 remap/roles work), unmasking is
- * granted by `system:connections:manage` — admins and super-admins see PII,
- * editors/viewers do not. Centralized here so the swap is one line.
+ * WHO SEES PERSONAL COLUMNS, PER TABLE. `table:<connectionId>:<table>:read_pii`
+ * shows one table's personal columns in clear: a clinic's reception rings
+ * patients, so its role holds it on the patients table and nowhere else.
+ * `system:connections:manage` still shows every table's, which is how admins
+ * and Super Admin have always seen them. The question is always asked of the
+ * table the value lives in: a lookup from appointments to a patient's mobile
+ * needs the grant on patients, not on appointments.
+ *
+ * Not everything asks. Live-stream frames go out on channels shared by every
+ * subscriber and stay masked for all of them (widget-data/stream-publisher.ts);
+ * the public API decides for itself and never reads these grants.
  */
 
 import type { FastifyRequest } from 'fastify';
@@ -18,9 +23,43 @@ import type { ResolvedTable } from './identifiers.js';
 
 export const UNMASK_PERMISSION = 'system:connections:manage';
 
-/** Resolve the caller's unmask capability once per request. */
-export async function canReadPii(request: FastifyRequest): Promise<boolean> {
-  return request.can(UNMASK_PERMISSION);
+/** Whether the caller sees one table's personal columns in clear. */
+export async function canReadPii(request: FastifyRequest, connectionId: string, tableId: string): Promise<boolean> {
+  return (await request.can(UNMASK_PERMISSION)) || request.can(`table:${connectionId}:${tableId}:read_pii`);
+}
+
+/**
+ * The same question for any table a read reaches (a lookup's target, a
+ * measure's child table), by the table's snapshot id.
+ */
+export type PiiCheck = (tableId: string) => Promise<boolean>;
+
+/** {@link canReadPii} for every table of one connection. */
+export function piiCheckFor(request: FastifyRequest, connectionId: string): PiiCheck {
+  return (tableId) => canReadPii(request, connectionId, tableId);
+}
+
+/**
+ * The tables among `tableIds` whose personal columns the caller sees, for a
+ * job that runs later without the request (an export): the answer is taken
+ * when it is asked for, as the export's own `unmasked` always has been.
+ */
+export async function piiTablesOf(request: FastifyRequest, connectionId: string, tableIds: readonly string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const tableId of tableIds) if (await canReadPii(request, connectionId, tableId)) out.push(tableId);
+  return out;
+}
+
+/**
+ * What the readers that reach other tables take: one answer for every table
+ * (`true` for a system reader, `false` for a shared one such as search or the
+ * assistant), or the per-table check a person's read passes.
+ */
+export type PiiAccess = boolean | PiiCheck;
+
+/** Whether `access` shows the personal columns of one table. */
+export async function piiAllows(access: PiiAccess, tableId: string): Promise<boolean> {
+  return typeof access === 'boolean' ? access : access(tableId);
 }
 
 export type Row = Record<string, unknown>;

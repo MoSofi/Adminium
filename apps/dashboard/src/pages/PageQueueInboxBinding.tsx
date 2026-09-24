@@ -32,7 +32,7 @@ import { t } from '../i18n/t.js';
 import type { PageTemplateProps } from './template-types.js';
 import { usePageTemplateData } from './usePageTemplateData.js';
 
-export function PageQueueInboxBinding({ page, adapters }: PageTemplateProps) {
+export function PageQueueInboxBinding({ page, adapters, currency }: PageTemplateProps) {
   const { states } = usePageTemplateData(page);
   const crud = adapters.crud;
   const queryClient = useQueryClient();
@@ -105,6 +105,8 @@ export function PageQueueInboxBinding({ page, adapters }: PageTemplateProps) {
 
   return (
     <PageQueueInbox
+      // The connection's currency: a money card that names none reads in it.
+      {...(currency === undefined ? {} : { currency })}
       config={page.config}
       states={mergedStates}
       api={api}

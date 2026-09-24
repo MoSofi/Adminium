@@ -77,8 +77,15 @@ file", so you can see that an email was due.
 Queued rows go right after they are queued, and a pass every minute picks up any left behind, for
 example after a restart or when you queue one yourself. Each row is sent:
 
+- **to the row's address.** A row with none, such as one the desk queued with the patient linked
+  but not their email, goes to the address the producers would have used: the person the row
+  links, else what the linked visit carries for a first visit. The address, and the language
+  found with it, are written into the row once it is sent. The person's reminder opt-out is not
+  asked here: it only stops the producers;
 - **in the row's language,** when it is one Adminium speaks, else the workspace's. A template
-  with no version in that language is sent in US English;
+  with no version in that language is sent in US English. Another language picks the nearest one
+  Adminium speaks (`en-GB` gets the US English email), and its dates, times and money are still
+  written the recipient's way (`en-GB` reads "09:30", not "9:30 AM");
 - **on the venue's clock:** the time zone of the app's connection, or UTC when none is set;
 - **in the connection's currency** for money.
 
@@ -87,7 +94,7 @@ Then the row's status changes, with a sentence in its error column:
 | Status | Sentence | What it means |
 |---|---|---|
 | `sent` | none | Handed to the mail queue. **Sent at** is filled in. |
-| `skipped` | No email on file | There is no usable address. |
+| `skipped` | No email on file | There is no usable address, on the row or on the person it links. |
 | `skipped` | A reserved address (for examples and tests) | The address is on `example.com` or another name kept for examples: `example.*`, `.example`, `.test`, `.invalid`, `.localhost`. Sample records use these. |
 | `failed` | No email is set for "*kind*" | The kind has no template. |
 | `failed` | The email is switched off, or has no text | The template, in that language, is a draft or archived. |
@@ -124,8 +131,10 @@ same reason.
 
 ## Variables
 
-A template reads variables as `{{name}}`. Empty values are left out, and a column marked secret is
-never offered.
+A template reads variables as `{{name}}`. A column that holds nothing reads as empty: a
+paragraph, list item or quote holding only it is left out of the email, so an optional value
+(a visit's reason) sits best in a block of its own. A name that no row has is printed as written,
+so a mistake in a template shows rather than vanishing. A column marked secret is never offered.
 
 | Variable | What it holds |
 |---|---|

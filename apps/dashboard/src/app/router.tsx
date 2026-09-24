@@ -27,6 +27,7 @@ import { emailMessagesReady } from '../email/emailMessages.js';
 import { filesMessagesReady } from '../files/filesMessages.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
 import { reportBuilderMessagesReady } from '../report-builder/reportBuilderMessages.js';
+import { rolesMessagesReady } from '../team/rolesMessages.js';
 import { validateReportBuilderSearch } from '../report-builder/search.js';
 import { automationsMessagesReady } from '../automations/automationsMessages.js';
 import {
@@ -920,11 +921,19 @@ function TeamRouteComponent() {
   );
 }
 
+/** Same choreography as `EmailMessages` — see the note above it. */
+function RolesMessages({ children }: { children: ReactElement }) {
+  use(rolesMessagesReady());
+  return children;
+}
+
 function RolesRouteComponent() {
   return (
     <StudioGuard requires="roles.manage">
       <Suspense fallback={null}>
-        <RolesPageLazy />
+        <RolesMessages>
+          <RolesPageLazy />
+        </RolesMessages>
       </Suspense>
     </StudioGuard>
   );

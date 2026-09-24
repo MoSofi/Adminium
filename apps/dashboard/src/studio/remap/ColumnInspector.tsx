@@ -29,7 +29,7 @@ import {
   type EffectiveTable,
   type StampRule,
 } from './model.js';
-import { labelText } from './overrides.js';
+import { labelText, type LabelText } from './overrides.js';
 import { useLabelLocale } from './useLabelLocale.js';
 import { overrideKey, type RemapBuffer } from './useRemapBuffer.js';
 
@@ -49,6 +49,9 @@ export interface ColumnInspectorProps {
 
 /** Where a column's answers come from (D19/D20). */
 type OptionsSource = 'any' | 'values' | 'list';
+
+/** One inline answer as the store keeps it: its label one string, or one per locale. */
+type OptionItem = { value: string; label?: LabelText; tone?: string; description?: string };
 
 export function ColumnInspector({ model, table, column, buffer, fieldError }: ColumnInspectorProps) {
   /*
@@ -106,10 +109,12 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
     });
   };
 
-  const enumLabels = stagedEnum?.labels ?? column.enumLabels ?? {};
+  // A value's label an app installed in every language reads as this person's;
+  // typing replaces that value's label only, and the others keep theirs.
+  const enumLabels: Record<string, LabelText> = stagedEnum?.labels ?? column.enumLabels ?? {};
   const enumTones = stagedEnum?.tones ?? column.enumTones ?? {};
 
-  const stageEnum = (labels: Record<string, string>, tones: Record<string, string>) => {
+  const stageEnum = (labels: Record<string, LabelText>, tones: Record<string, string>) => {
     if (Object.keys(labels).length === 0 && Object.keys(tones).length === 0) {
       buffer.drop(enumKey);
       return;
@@ -289,10 +294,15 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
       buffer.drop(optionsKey);
       return;
     }
+    // A value kept keeps its word, its tone and its detail line — every
+    // language of a word an app installed included. Only the values are typed here.
+    const kept = new Map<string, OptionItem>(
+      (options !== undefined && 'values' in options ? options.values : []).map((item) => [item.value, item]),
+    );
     buffer.stage({
       op: 'column.options',
       ...target,
-      value: { values: values.map((value) => ({ value })) },
+      value: { values: values.map((value) => kept.get(value) ?? { value }) },
     });
   };
 
@@ -768,7 +778,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                 <MonoText className="truncate text-[12px]">{value}</MonoText>
                 <Input
                   aria-label={t('studio:remap.column.enumLabelFor', 'Label for {value}', { value: value })}
-                  value={enumLabels[value] ?? ''}
+                  value={labelText(enumLabels[value], labelLocale)}
                   placeholder={titleCase(value)}
                   onChange={(event) => {
                     const labels = { ...enumLabels };

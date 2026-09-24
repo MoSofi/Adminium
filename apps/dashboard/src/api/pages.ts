@@ -38,6 +38,7 @@ export interface FormRelationFactReply {
   targetKey: string;
   /** The column a chip shows; absent ⇒ the key labels itself. */
   targetName?: string;
+  targetLabel?: string;
 }
 
 interface ColumnFactsReply {
@@ -72,9 +73,12 @@ export interface FormColumnFactReply {
   filledBy: 'database' | 'adminium' | null;
   required: boolean;
   writable: boolean;
-  options?: { list: string } | { values: { value: string }[] } | undefined;
+  /** Inline values carry their words in the reader's language. */
+  options?: { list: string } | { values: { value: string; label?: string; tone?: string }[] } | undefined;
   validation?: Record<string, unknown> | undefined;
+  /** A choice column's words for its values, in the reader's language, and their tones. */
   enumLabels?: Record<string, string> | undefined;
+  enumTones?: Record<string, string> | undefined;
 }
 
 /** The reply's array, keyed by column name — the shape the form reads. */
@@ -91,6 +95,7 @@ function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
       // language is known (`api/optionLists.ts`).
       ...(column.options === undefined ? {} : { options: column.options }),
       ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
+      ...(column.enumTones === undefined ? {} : { enumTones: column.enumTones }),
     };
   }
   return facts;

@@ -850,6 +850,7 @@ export default {
     "heading": "Din e-mailadresse er ændret",
     "intro": "Hej {name}, e-mailadressen på din journal hos {appName} er nu {newEmail}.",
     "notice": "Hvis det ikke var dig, så kontakt os med det samme.",
+    "noticePhone": "Hvis det ikke var dig, så ring til os med det samme på {phone}.",
     "footer": "{appName}"
   }
 } as const;

@@ -124,7 +124,8 @@ export default {
       "step": "Étape {n}",
       "back": "Retour",
       "next": "Continuer"
-    }
+    },
+    "unavailable": "Ce champ ne peut pas être affiché : rien ne relie cet enregistrement aux lignes qu’il désigne."
   },
   "combobox": {
     "placeholder": "Sélectionner…",

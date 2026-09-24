@@ -59,7 +59,7 @@ import {
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
-import type { Row } from './mask.js';
+import { piiAllows, type PiiAccess, type Row } from './mask.js';
 
 /** One resolved term of a fold body: snapshot-owned column names only. */
 export interface ResolvedTerm {
@@ -119,7 +119,8 @@ export interface ResolveMeasuresOptions {
   table: ResolvedTable;
   /** Validated measure specs — from `compute=` or up-converted from `agg=`. */
   specs: readonly Measure[];
-  canReadPii: boolean;
+  /** Asked of the folded table and the base table apart (crud/mask.ts). */
+  canReadPii: PiiAccess;
   /** Per-table read check (`table:<conn>:<id>:read`) for the referencing table. */
   canReadTable: (tableId: string) => Promise<boolean>;
   /** Called once per refusal, for the audit trail (D16). */
@@ -167,10 +168,12 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
      * grant.
      */
     let secretTouched = false;
+    // Masked columns are asked about per table: the folded table's, the base's.
     let maskedTouched = fkColumn.masked;
+    let baseMaskedTouched = false;
     const baseColumn = table.columns.get(toColumn);
     if (baseColumn?.secret === true) secretTouched = true;
-    else if (baseColumn?.masked === true) maskedTouched = true;
+    else if (baseColumn?.masked === true) baseMaskedTouched = true;
 
     const terms: ResolvedTerm[] = [];
     for (const term of spec.of?.terms ?? []) {
@@ -188,7 +191,8 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
 
     let reason: MeasureRefusal['reason'] | null = null;
     if (secretTouched) reason = 'secret-column';
-    else if (maskedTouched && !canReadPii) reason = 'masked-column';
+    else if (maskedTouched && !(await piiAllows(canReadPii, refTable.id))) reason = 'masked-column';
+    else if (baseMaskedTouched && !(await piiAllows(canReadPii, table.id))) reason = 'masked-column';
     else if (!(await canReadTable(refTable.id))) reason = 'table-read';
     if (reason !== null) onRefusal?.({ alias: spec.id, table: refTable.id, reason });
 

@@ -11,7 +11,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { Button, Drawer, DrawerBody, DrawerHeader, EmptyState, Spinner } from '@adminium/ui';
-import { RecordDetail, type GridColumnSpec } from '@adminium/widgets';
+import { RecordDetail, withFactChoices, type ColumnFacts, type GridColumnSpec } from '@adminium/widgets';
 
 import type { BoundCrudApi } from '../../api/crud.js';
 import { t } from '../../i18n/t.js';
@@ -50,18 +50,24 @@ export interface PlanningRecordDrawerProps {
   crud: BoundCrudApi;
   recordId: string;
   onClose: () => void;
+  /**
+   * What the server says of the page's table (`columnFacts` on the page
+   * reply): a choice column's words for its values, in the reader's language.
+   */
+  facts?: ColumnFacts | undefined;
 }
 
-export function PlanningRecordDrawer({ crud, recordId, onClose }: PlanningRecordDrawerProps) {
+export function PlanningRecordDrawer({ crud, recordId, onClose, facts }: PlanningRecordDrawerProps) {
   const record = useQuery({
     queryKey: ['data', crud.connectionId, crud.table, 'planning-record', recordId] as const,
     staleTime: 0,
     queryFn: () => crud.get(recordId),
   });
 
+  // A status reads "Wartend" here as it does on the calendar, not `waiting`.
   const columns = useMemo(
-    () => (record.data === undefined ? [] : columnsFromRecord(record.data.data)),
-    [record.data],
+    () => (record.data === undefined ? [] : withFactChoices(columnsFromRecord(record.data.data), facts)),
+    [record.data, facts],
   );
 
   return (

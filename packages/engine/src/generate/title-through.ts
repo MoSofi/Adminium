@@ -70,13 +70,15 @@ export interface TitleThrough {
 
 /**
  * Prepare `entry` to be titled through its FK column `fkColumn`, or say why
- * it cannot be.
+ * it cannot be. The title is the referenced table's display column, or the
+ * column `labelColumn` names (an app's calendar says `patient_id.name`).
  */
 export function titleThroughEntry(
   entry: CandidateTableInput,
   candidateModel: readonly CandidateTableInput[],
   fkColumn: string,
   connectionId: string,
+  labelColumn?: string,
 ): TitleThrough | { reason: string } {
   const column = entry.table.columns.find((c) => c.name === fkColumn);
   const ref = column?.references ?? null;
@@ -87,7 +89,10 @@ export function titleThroughEntry(
     return { reason: `column ${fkColumn} points back at ${entry.table.id} itself` };
   }
   const target = candidateModel.find((e) => e.table.id === ref.tableId);
-  const label = target?.classified.displayColumn ?? null;
+  if (labelColumn !== undefined && target?.table.columns.some((c) => c.name === labelColumn) !== true) {
+    return { reason: `the table ${ref.tableId} has no column ${labelColumn}` };
+  }
+  const label = labelColumn ?? target?.classified.displayColumn ?? null;
   if (target === undefined || label === null || label === undefined) {
     return { reason: `the table ${ref.tableId} has no column to use as a title` };
   }

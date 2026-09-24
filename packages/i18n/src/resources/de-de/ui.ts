@@ -124,7 +124,8 @@ export default {
       "step": "Schritt {n}",
       "back": "Zurück",
       "next": "Weiter"
-    }
+    },
+    "unavailable": "Dieses Feld kann nicht angezeigt werden: Nichts verknüpft diesen Datensatz mit den Zeilen, die es nennt."
   },
   "combobox": {
     "placeholder": "Auswählen…",

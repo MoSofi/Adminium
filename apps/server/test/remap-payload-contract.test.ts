@@ -64,6 +64,20 @@ const DASHBOARD_DOCUMENTS = [
     },
   },
   {
+    // inspector.test.tsx: an app's value labels go back whole beside the operator's one.
+    name: 'value labels an app installed in every language, saved with one of the operator’s',
+    document: {
+      overrides: [
+        {
+          op: 'column.enumLabels',
+          tableName: 'public.orders',
+          columnName: 'status',
+          value: { labels: { paid: { en_US: 'Paid', de_DE: 'Bezahlt' }, pending: 'Waiting', cancelled: 'Void' } },
+        },
+      ],
+    },
+  },
+  {
     name: 'disabled row survives the round trip',
     document: {
       overrides: [
@@ -134,6 +148,16 @@ describe('every item passes the op-vocabulary validation', () => {
         tableName: 'public.customers',
         columnName: null,
         value: { group: 'workspace' },
+      }),
+    ).toThrow(MetaValidationError);
+    // A value label kept per language, with no language in it.
+    expect(() =>
+      validateOverrideInput({
+        connectionId: 'conn_1',
+        op: 'column.enumLabels',
+        tableName: 'public.orders',
+        columnName: 'status',
+        value: { labels: { paid: {} } },
       }),
     ).toThrow(MetaValidationError);
     // relation.add with a cardinality outside the op vocabulary.

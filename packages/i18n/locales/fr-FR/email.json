@@ -840,6 +840,7 @@
     "heading": "Votre adresse e-mail a été modifiée",
     "intro": "Bonjour {name}, l’adresse e-mail de votre dossier chez {appName} est désormais {newEmail}.",
     "notice": "Si ce n’était pas vous, contactez-nous immédiatement.",
+    "noticePhone": "Si ce n’était pas vous, appelez-nous immédiatement au {phone}.",
     "footer": "{appName}"
   }
 }

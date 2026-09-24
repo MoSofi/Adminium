@@ -18,6 +18,7 @@ import type { GalleryCard } from '../../families/tables/CardGallery.js';
 import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { OrgChart } from '../../families/domain/OrgChart.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { withCurrency } from '../page-currency.js';
 import { describeDataError } from '../../lib/data-error.js';
 import {
   useDashboardData,
@@ -95,6 +96,11 @@ export interface PageDirectoryProps {
   onEvent?: ((instanceId: string, event: WidgetEvent) => void | Promise<unknown>) | undefined;
   labels?: PageDirectoryLabels | undefined;
   testId?: string | undefined;
+  /**
+   * The connection's currency, for a stored widget that names none (a KPI
+   * card's money) — merged as the page draws, never into the stored layout.
+   */
+  currency?: string | undefined;
 }
 
 function interpolateCount(template: string | undefined, count: number): string {
@@ -139,6 +145,7 @@ export function PageDirectory({
   onEvent,
   labels,
   testId,
+  currency,
 }: PageDirectoryProps) {
   const t = useMaybeT();
   const body: TemplateBody = useMemo(() => parseTemplateBody(config), [config]);
@@ -278,7 +285,7 @@ export function PageDirectory({
           <WidgetHost
             widgetId={summaryItem.widget}
             instanceId={summaryItem.i}
-            config={summaryItem.config}
+            config={withCurrency(summaryItem.config, currency)}
             data={stateFor(summaryItem)}
             onEvent={onEvent === undefined ? undefined : (event) => void onEvent(summaryItem.i, event)}
           />

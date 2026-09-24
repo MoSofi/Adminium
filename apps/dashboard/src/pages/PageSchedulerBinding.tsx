@@ -26,7 +26,7 @@ import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { planningWindowTargetOf, usePlanningStates } from './planning/planningData.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageSchedulerBinding({ page, adapters, recordId }: PageTemplateProps) {
+export function PageSchedulerBinding({ page, adapters, recordId, columnFacts, currency }: PageTemplateProps) {
   const [params, setParams] = useState<WidgetDataParams>({});
   const window = useMemo(
     () => planningWindowTargetOf(page, ['schedule-matrix'], ['dateColumn', 'startColumn']),
@@ -46,6 +46,8 @@ export function PageSchedulerBinding({ page, adapters, recordId }: PageTemplateP
   return (
     <>
       <PageScheduler
+        // The connection's currency: a money card that names none reads in it.
+        {...(currency === undefined ? {} : { currency })}
         config={page.config}
         states={states}
         labels={{
@@ -67,6 +69,7 @@ export function PageSchedulerBinding({ page, adapters, recordId }: PageTemplateP
           crud={adapters.crud}
           recordId={recordId}
           onClose={() => adapters.openRecord(null)}
+          facts={columnFacts}
         />
       )}
     </>

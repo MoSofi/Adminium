@@ -69,6 +69,12 @@ interface FieldEntry {
   column: GridColumnSpec;
 }
 
+/**
+ * The stand-in column of a relation field the page reply does not offer: it
+ * renders a notice and is never collected, sent or checked.
+ */
+const UNAVAILABLE_PREFIX = 'unavailable:';
+
 /** The relation a stand-in column stands for, or null for a real column. */
 export function relationIdOf(column: GridColumnSpec): string | null {
   return column.name.startsWith('rel:') ? column.name.slice('rel:'.length) : null;
@@ -362,6 +368,7 @@ export function RecordForm({
         targetTable: fact.targetTable,
         targetKey: fact.targetKey,
         ...(fact.targetName === undefined ? {} : { targetName: fact.targetName }),
+        ...(fact.targetLabel === undefined ? {} : { targetLabel: fact.targetLabel }),
       }),
     );
   /**
@@ -373,6 +380,15 @@ export function RecordForm({
    * Telling the admin about it is the designer's job (phase H), not the
    * dialog's.
    */
+  /** A relation field the page reply cannot back, kept as a notice in its place. */
+  const unavailable = (field: CrudFormRelationField): FieldEntry => ({
+    field,
+    column: gridColumnSpecSchema.parse({
+      name: `${UNAVAILABLE_PREFIX}${field.relation}`,
+      label: field.label ?? field.relation,
+      logicalType: 'text',
+    }),
+  });
   const sections = useMemo(() => {
     if (formDocument === undefined) return null;
     return formDocument.sections.map((section) => ({
@@ -407,7 +423,7 @@ export function RecordForm({
            */
           if (field.control === 'child-rows') {
             const child = childFacts?.[field.relation];
-            if (child === undefined) return [];
+            if (child === undefined) return childFacts === undefined ? [] : [unavailable(field)];
             return [
               {
                 field,
@@ -422,16 +438,18 @@ export function RecordForm({
           // A relation field renders through the control registry like any
           // other, with a stand-in column carrying the target (see
           // `relationColumnShape`). A relation the reply does not offer is
-          // skipped, exactly as a column the page does not carry is.
+          // said, in its place: the form was designed with it, and a field
+          // that silently vanished is one nobody can find out about. A reply
+          // with no relations at all (an older server) offers none to say.
           const fact = relationFacts?.[field.relation];
-          if (fact === undefined) return [];
+          if (fact === undefined) return relations === undefined ? [] : [unavailable(field)];
           return [{ field, column: relationColumn(fact, field.label) }];
         }
         const column = byName.get(field.column);
         return column === undefined ? [] : [{ field, column }];
       }),
     }));
-  }, [formDocument, byName, relationFacts, childFacts]);
+  }, [formDocument, byName, relationFacts, childFacts, relations]);
 
   const fields = useMemo(
     () =>
@@ -526,7 +544,7 @@ export function RecordForm({
       // A relation's stand-in column is not a column of this row: its keys go
       // in the second argument, as rows of another table. A recap's stand-in
       // is not a column of anything — it writes nothing at all.
-      if (relationIdOf(column) !== null || column.name.startsWith('recap:')) continue;
+      if (relationIdOf(column) !== null || column.name.startsWith('recap:') || column.name.startsWith(UNAVAILABLE_PREFIX)) continue;
       const fact = facts?.[column.name];
       if (controlForColumn(column, fact, listOptions) === 'readonly') continue;
       /*
@@ -903,6 +921,9 @@ export function RecordForm({
       if ('recap' in entry.field) {
         return <RecapBox key={entry.column.name} recap={entry.field.recap} values={values} labels={labelFor} />;
       }
+      if (entry.column.name.startsWith(UNAVAILABLE_PREFIX)) {
+        return <UnavailableField key={entry.column.name} label={'label' in entry.field ? entry.field.label : undefined} />;
+      }
       return renderField(entry.column, {
         sectioned: true,
         // A relation's entry is not a column field: it carries no bounds, no
@@ -1115,6 +1136,24 @@ export function RecordForm({
   );
 }
 
+
+/**
+ * A designed field this record has nothing behind: a relation the page reply
+ * does not offer (its link table is not one Adminium can write through, or it
+ * is hidden from this reader). Said where the field would be, so the form
+ * never looks complete with a field quietly gone.
+ */
+function UnavailableField({ label }: { label: string | undefined }) {
+  const t = useMaybeT();
+  return (
+    <div role="alert" className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2" data-testid="form-field-unavailable">
+      {label === undefined ? null : <p className="text-[12px] font-semibold text-fg">{label}</p>}
+      <p className="text-[12px] text-fg-muted">
+        {t('ui:formDialog.unavailable', 'This field can’t be shown: nothing links this record to the rows it names.')}
+      </p>
+    </div>
+  );
+}
 
 /**
  * THE RECAP BOX — the comp's accent-soft summary (443–446, 683–684, 781–782).

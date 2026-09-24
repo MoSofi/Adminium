@@ -840,6 +840,7 @@
     "heading": "Your email address was changed",
     "intro": "Hi {name}, the email address on your record at {appName} is now {newEmail}.",
     "notice": "If this wasn’t you, contact us straight away.",
+    "noticePhone": "If this wasn’t you, ring us on {phone}.",
     "footer": "{appName}"
   }
 }

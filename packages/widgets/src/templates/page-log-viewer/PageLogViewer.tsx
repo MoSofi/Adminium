@@ -24,6 +24,7 @@ import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { pageLayoutSchema, queryDescriptorSchema, type PageLayout, type QueryDescriptor } from '../../page-config/index.js';
 import type { LayoutItem } from '../../page-config/layout.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { withCurrency } from '../page-currency.js';
 import {
   useDashboardData,
   type DashboardDataAdapter,
@@ -102,6 +103,11 @@ export interface PageLogViewerProps {
   labels?: PageLogViewerLabels | undefined;
   className?: string | undefined;
   testId?: string | undefined;
+  /**
+   * The connection's currency, for a stored widget that names none (a KPI
+   * card's money) — merged as the page draws, never into the stored layout.
+   */
+  currency?: string | undefined;
 }
 
 const EMPTY_LAYOUT: PageLayout = { version: 1, items: [] };
@@ -144,6 +150,7 @@ export function PageLogViewer({
   labels,
   className,
   testId,
+  currency,
 }: PageLogViewerProps) {
   const t = useMaybeT();
   const parsed = useMemo(() => {
@@ -223,7 +230,7 @@ export function PageLogViewer({
               <WidgetHost
                 widgetId={item.widget}
                 instanceId={item.i}
-                config={item.config}
+                config={withCurrency(item.config, currency)}
                 data={stateFor(item.i)}
                 onEvent={onEvent === undefined ? undefined : (event) => onEvent(item.i, event)}
               />

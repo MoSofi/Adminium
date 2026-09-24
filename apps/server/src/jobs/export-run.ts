@@ -39,6 +39,7 @@ import { createRowWriter, type WriterColumn } from '../export/writer.js';
 import type { FileStore } from '../files/store.js';
 import { parseComputeParam } from '../crud/compute.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import type { PiiAccess } from '../crud/mask.js';
 import { resolveMeasures, type ResolvedMeasure } from '../crud/measures.js';
 import { canReadTableFor } from '../rbac/table-grants.js';
 import { JobCancelledError, type JobHandlerContext, type JobRegistry } from './registry.js';
@@ -49,8 +50,15 @@ export const exportRunPayloadSchema = z.object({
   exportId: z.string().min(1),
   /** Owner convention (routes/jobs): the requesting user. */
   userId: z.string().optional(),
-  /** PII capability captured at request time (crud/mask.ts). */
+  /** PII capability captured at request time, for the exported table (crud/mask.ts). */
   unmasked: z.boolean().default(false),
+  /**
+   * The tables whose personal columns the requester saw, captured with
+   * `unmasked`, for the lookups and measures that reach beyond the exported
+   * table. Absent (an admin's export, a scheduled report, a job queued before
+   * this existed), `unmasked` answers for every table.
+   */
+  piiTables: z.array(z.string()).optional(),
   /**
    * The page whose `config.derived` this export computes, when there is
    * one.
@@ -82,6 +90,13 @@ export function registerExportRunHandler(registry: JobRegistry, deps: ExportRunD
     // internal: the `unmasked` PII decision is captured from the caller's
     // authority on POST /exports, never from a POST /jobs payload.
   }, { internal: true });
+}
+
+/** The requester's personal-column answer per table, as captured on the payload. */
+function piiAccessOf(payload: ExportRunPayload, exported: string): PiiAccess {
+  const tables = payload.piiTables;
+  if (tables === undefined) return payload.unmasked;
+  return (tableId) => Promise.resolve(tableId === exported ? payload.unmasked : tables.includes(tableId));
 }
 
 async function executeExportRun(
@@ -165,6 +180,7 @@ async function runExport(
     table,
     source: row.source,
     canReadPii: payload.unmasked,
+    canReadPiiOf: piiAccessOf(payload, table.id),
     canReadTable,
   });
   const derived = definition.legacy
@@ -366,7 +382,7 @@ async function resolveExportDerived(
     view,
     table,
     specs: parsed.measures,
-    canReadPii: payload.unmasked,
+    canReadPii: piiAccessOf(payload, table.id),
     canReadTable,
   });
   return { measures, fields: [...parsed.fields], requiredColumns: parsed.requiredColumns };

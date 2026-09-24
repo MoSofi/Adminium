@@ -483,6 +483,21 @@ async function fetchHeld(db: Db, target: WriteTarget, pk: Row): Promise<Row | un
   return (await query.executeTakeFirst()) as Row | undefined;
 }
 
+/**
+ * A written row read again by its key: what a settle wrote beside it (its own
+ * totals, its balances) is in the row the caller hands back. The row as given
+ * when its key is not all there (a MySQL row the INSERT could not address).
+ */
+async function readAgain(db: Db, table: ResolvedTable, row: Row): Promise<Row> {
+  const pk: Row = {};
+  for (const column of table.primaryKey) {
+    const value = row[column];
+    if (value === null || value === undefined) return row;
+    pk[column] = value;
+  }
+  return (await fetchByPk(db, table, pk)) ?? row;
+}
+
 /** A money value as a number, or null. */
 function amountOf(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
@@ -759,6 +774,13 @@ export interface RecordWriteService {
    * ask for it.
    */
   settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], opts?: { cap?: boolean }): Promise<void>;
+  /**
+   * Created or updated rows as their own totals left them, once `afterEach`
+   * or `settle` ran: read again from the table that keeps totals on its own
+   * rows, and handed back as they are from any other. What a multi-row path
+   * replies with, so the caller shows the balance that is stored.
+   */
+  stored(target: WriteTarget, rows: readonly Row[]): Promise<Row[]>;
 }
 
 export interface WriteServiceOptions {
@@ -1052,6 +1074,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   /** Whether a write to this table settles a total: a parent's, or its own. */
   const settles = (rules: TableRules | null): boolean => (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) > 0;
 
+  /** Whether a settle writes to the written row itself: a total over its own child rows, and the balances beside it. */
+  const keepsOwnTotals = (rules: TableRules | null): boolean => (rules?.ownRollups?.length ?? 0) > 0;
+
   /** Whether a written row moves a total that keeps a balance, which is then held while it is written. */
   const holdsMoney = (rules: TableRules | null): boolean => (rules?.rollupsInto ?? []).some((rollup) => rollup.balances.length > 0);
 
@@ -1301,7 +1326,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           await settleRows(rules, within, [{ record: out.row, before: null }], held);
           await settleOwn(rules, within, 'create', out.row, out.values);
         }, input.mapError);
-        return out;
+        // The row as its own totals left it: the INSERT returned it before they were added up.
+        return keepsOwnTotals(rules) ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
       };
       let day: string | null = null;
       if (booking !== undefined && need !== null) {
@@ -1555,5 +1581,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
 
     settle,
+
+    async stored(target, rows) {
+      if (!keepsOwnTotals(rulesOf(target))) return [...rows];
+      const out: Row[] = [];
+      for (const row of rows) out.push(await readAgain(target.db, target.table, row));
+      return out;
+    },
   };
 }

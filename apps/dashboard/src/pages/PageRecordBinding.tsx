@@ -33,6 +33,7 @@ import { parseCrudAttachmentsConfig, parseCrudDetailConfig } from '@adminium/eng
 import { formatRefList, parseRefList } from '@adminium/widgets/page-config';
 import {
   PageRecord,
+  withFactChoices,
   type CrudApi,
   type CrudListParams,
   type PageRecordAttachments,
@@ -87,6 +88,7 @@ export function PageRecordBinding({
   canAttach,
   canDelete,
   canUnmask,
+  columnFacts,
   formRelations,
   currency,
 }: PageTemplateProps) {
@@ -99,6 +101,9 @@ export function PageRecordBinding({
     () => withFkDisplay(parseColumns(page.config, page.id)),
     [page.config, page.id],
   );
+  // A choice column reads as the list beside it does: the server's words for
+  // its values, in this person's language, where the page sets none.
+  const shownColumns = useMemo(() => withFactChoices(columns, columnFacts), [columns, columnFacts]);
   // The record fetch carries the page's lookup + aggregate params — explicit
   // AND the derived FK-display ones — so lookup, reverse-link and FK-chip
   // columns render on the record page exactly as in the list.
@@ -193,7 +198,8 @@ export function PageRecordBinding({
           tabLookups.set(table, plan.lookups);
           tabProjections.set(table, projectionParamsOf(plan.columns, result.page.config));
           return {
-            columns: plan.columns,
+            // Its choice columns in the words its own list uses.
+            columns: withFactChoices(plan.columns, result.columnFacts),
             defaultSort: parseDefaultSort(result.page.config),
             // The in-tab "New row" gate: the TARGET page's per-caller create
             // capability AND its own readOnly — the same pair that governs the
@@ -505,7 +511,7 @@ export function PageRecordBinding({
       />
       <PageRecord
         api={recordApi ?? crud}
-        columns={columns}
+        columns={shownColumns}
         source={{ connectionId, table: sourceTable ?? crud.table }}
         recordId={recordId}
         keyField={keyField}

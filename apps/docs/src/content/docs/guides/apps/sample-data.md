@@ -32,6 +32,10 @@ What happens when you confirm:
   that a row in the table already has, the sample's value is dropped and the column's own rule
   fills in a fresh one, exactly as for a record a person creates. See
   [Column rules](/guides/schema/column-rules/#filled-in-by-adminium).
+- **One of a kind stays one of a kind.** Any other column that must be unique (a weekday's opening
+  hours, a day already closed) is never worked around: if a sample record would repeat a value
+  one of your records holds, nothing is added, and the dialog names the table, the column and the
+  value. Sample data is meant for tables that hold none of your own records of that kind yet.
 - **Rules apply, automations do not.** The records go through the same column rules as a person's
   write, but no hooks or automations run, so a sample booking sends no email.
 - **Images go to Files.** A picture the sample uses is stored in the **Files** library under the

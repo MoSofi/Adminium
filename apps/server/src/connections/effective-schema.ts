@@ -243,6 +243,45 @@ function resolveUserLabel(value: unknown, locale: string): string | null {
 }
 
 /**
+ * A choice column's words for its values, in the reader's language.
+ *
+ * Each value's label takes either shape a user label does: a plain string (an
+ * operator's, and every row an app wrote before it kept its labels in each
+ * language) or a locale map, resolved like a column's name — theirs, else US
+ * English. Both are read for good, so older rows need no migration. A value
+ * with nothing to show for this reader is left out and reads as its raw value.
+ */
+export function resolveEnumLabels(labels: unknown, locale: string = DEFAULT_LOCALE): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (typeof labels !== 'object' || labels === null || Array.isArray(labels)) return out;
+  for (const [value, label] of Object.entries(labels as Record<string, unknown>)) {
+    const text = resolveUserLabel(label, locale);
+    if (text !== null) out[value] = text;
+  }
+  return out;
+}
+
+/**
+ * A `column.options` rule with each value's word in the reader's language.
+ *
+ * An inline value's label takes the same two shapes a value label does — a
+ * plain string, or one per locale an app installed — and resolves the same
+ * way; a value with nothing to show for this reader loses its label and reads
+ * as its raw value. A named list passes through: it is resolved where the
+ * reader's language is known, from the list itself.
+ */
+export function resolveColumnOptions(value: unknown, locale: string = DEFAULT_LOCALE): ColumnOptions {
+  const options = value as { list?: unknown; values?: unknown };
+  if (!Array.isArray(options.values)) return value as ColumnOptions;
+  return {
+    values: (options.values as (Omit<ColumnOptionItem, 'label'> & { label?: unknown })[]).map(({ label, ...item }) => {
+      const text = label === undefined ? null : resolveUserLabel(label, locale);
+      return text === null ? item : { ...item, label: text };
+    }),
+  };
+}
+
+/**
  * Effective table-label map (`tableName` → label) from active override rows.
  * Provenance user > llm > heuristic: a user `table.label` row beats an
  * accepted `llm.label` bundle for the same table REGARDLESS of created_at
@@ -594,7 +633,11 @@ export function applyRelationOverrides(
 }
 
 export interface ApplyOverridesOptions {
-  /** Locale `llm.label` L10n bundles resolve to; en_US in v1. */
+  /**
+   * The reader's locale (`de_DE`): the one every label kept in several
+   * languages resolves to — names, `llm.label` bundles and a choice column's
+   * value labels, its inline `column.options` words included. Absent, en_US.
+   */
   defaultLocale?: string;
 }
 
@@ -696,7 +739,7 @@ export function applyOverrides(
       case 'column.enumLabels': {
         const column = columnOf(table, row.columnName);
         if (column === undefined) break;
-        column.enumLabels = value.labels as Record<string, string>;
+        column.enumLabels = resolveEnumLabels(value.labels, locale);
         if (value.tones !== undefined) column.enumTones = value.tones as Record<string, string>;
         break;
       }
@@ -724,7 +767,7 @@ export function applyOverrides(
       }
       case 'column.options': {
         const column = columnOf(table, row.columnName);
-        if (column !== undefined) column.options = value as unknown as ColumnOptions;
+        if (column !== undefined) column.options = resolveColumnOptions(value, locale);
         break;
       }
       case 'column.required': {

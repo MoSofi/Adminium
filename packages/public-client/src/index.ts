@@ -60,6 +60,12 @@ export const PUBLIC_ERROR_CODES = [
   /** Too close to the time to cancel online; the venue still can. */
   'PUBLIC_TOO_LATE',
   /**
+   * Too early for this change — a kiosk check-in more than an hour before the
+   * visit (409). `error.tooEarly` holds the row's time and when the window
+   * opens; say them in the venue's zone (`toTenantMinutes`).
+   */
+  'PUBLIC_TOO_EARLY',
+  /**
    * The resource needs a VERIFIED session and this one only found the person
    * (403): ask for the emailed code with `requestCode`, then `verifyCode`.
    */
@@ -115,6 +121,15 @@ export const PUBLIC_ERROR_CODES = [
 export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
 
 /**
+ * What a `PUBLIC_TOO_EARLY` refusal carries, as instants (ISO strings): the
+ * row's own time, and the moment the change will be taken.
+ */
+export interface PublicTooEarly {
+  at: string;
+  from: string;
+}
+
+/**
  * A failed request.
  *
  * `code` is the contract; render your own copy from it. `message` is a
@@ -168,6 +183,13 @@ export class PublicApiError extends Error {
   /** True when the surface is off — the signal to fall back to demo content. */
   get isDisabled(): boolean {
     return this.code === 'PUBLIC_API_DISABLED';
+  }
+
+  /** On a `PUBLIC_TOO_EARLY` refusal, the times it carries; null on any other. */
+  get tooEarly(): PublicTooEarly | null {
+    if (this.code !== 'PUBLIC_TOO_EARLY') return null;
+    const { at, from } = this.params;
+    return typeof at === 'string' && typeof from === 'string' ? { at, from } : null;
   }
 }
 

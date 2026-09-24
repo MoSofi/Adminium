@@ -828,6 +828,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         createdBy: userId,
         ...(names === undefined ? {} : { names }),
       });
+      // A page given the form Adminium makes, rather than the one it declared,
+      // is said in the reply and in the log: never a field silently gone.
+      if (result.warnings.length > 0) {
+        request.log.warn({ warnings: result.warnings, app: manifest.key }, 'app pages written with warnings');
+      }
       const server = request.server;
       if (
         server.hasDecorator('realtime') &&

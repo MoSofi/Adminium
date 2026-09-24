@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/da-DK/roles.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle;
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "action": {
+    "delete": "Slet",
+    "rename": "Omdøb"
+  },
+  "builtinLocked": "Indbyggede roller kan ikke slettes.",
+  "category": {
+    "access": "Adgang",
+    "data": "Data",
+    "operations": "Drift",
+    "workspace": "Arbejdsområde",
+    "records": "Sider og poster",
+    "apps": "Apps"
+  },
+  "column": {
+    "actions": "Handlinger",
+    "members": "Medlemmer",
+    "name": "Rolle"
+  },
+  "create": {
+    "descriptionLabel": "Beskrivelse",
+    "description": "En ny rolle starter helt uden rettigheder.",
+    "failed": "Rollen kunne ikke oprettes",
+    "namePlaceholder": "f.eks. Supportmedarbejder",
+    "name": "Navn",
+    "submit": "Opret rolle",
+    "title": "Ny rolle"
+  },
+  "createButton": "Ny rolle",
+  "delete": {
+    "confirm": "Slet rolle",
+    "description": "Rollen og dens rettighedsrækker fjernes.",
+    "failed": "Rollen kunne ikke slettes",
+    "hasMembers": "„{name}“ har stadig {count, plural, one {# medlem} other {# medlemmer}}. Vælg den rolle, de flyttes til — Adminium efterlader ikke en konto uden rolle.",
+    "noMembers": "Ingen har „{name}“, så intet flyttes.",
+    "reassignPlaceholder": "Vælg en rolle…",
+    "reassignTo": "Flyt medlemmer til",
+    "title": "Slet rolle"
+  },
+  "list": {
+    "title": "Roller"
+  },
+  "loadFailed": {
+    "body": "Matricen nedenfor er ufuldstændig, så hvis du gemmer den, ryddes rettigheder, der blot ikke er indlæst. Genindlæs, før du foretager ændringer.",
+    "title": "Nogle rettigheder kunne ikke læses"
+  },
+  "matrix": {
+    "discard": "Kassér",
+    "empty": {
+      "body": "Denne instans rapporterede slet ingen rettigheder, der kan tildeles, hvilket ikke burde ske — genindlæs, og tjek serverloggen, hvis det bliver ved.",
+      "title": "Ingen rettigheder at vise"
+    },
+    "label": "Rollerettigheder",
+    "noChanges": "Ingen ventende ændringer",
+    "pending": "{count, plural, one {# ventende ændring} other {# ventende ændringer}}",
+    "rowHeader": "Rettighed",
+    "title": "Rettigheder"
+  },
+  "memberCount": "{count, plural, one {# bruger} other {# brugere}}",
+  "permission": {
+    "apiKeysManage": "Administrér API-nøgler",
+    "auditRead": "Læs auditloggen",
+    "connectionsManage": "Administrér databaseforbindelser",
+    "exportsManage": "Administrér alles eksporter",
+    "importsManage": "Administrér alles importer",
+    "jobsManage": "Start og annullér baggrundsjob",
+    "manifestsManage": "Installer og administrer apps og tilføjelser",
+    "jobsRead": "Se alle baggrundsjob",
+    "llmRun": "Kør AI-assistance",
+    "pagesManage": "Opret og organisér sider",
+    "projectRead": "Læs side- og skemaændringer til et projekt-pull",
+    "reportsManage": "Administrér planlagte rapporter",
+    "rolesManage": "Administrér roller og rettigheder",
+    "schemaRemap": "Redigér skemaetiketter og tilsidesættelser",
+    "schemaDdl": "Opret, redigér og slet tabeller",
+    "settingsManage": "Administrér arbejdsområdeindstillinger",
+    "usersManage": "Administrér brugere",
+    "filesManage": "Administrér alles filer",
+    "storageManage": "Administrér lagringsdestinationer"
+  },
+  "rename": {
+    "failed": "Rollen kunne ikke omdøbes",
+    "title": "Omdøb rolle"
+  },
+  "saveFailed": {
+    "title": "Ikke alle roller kunne gemmes"
+  },
+  "subtitle": "Hvad hver rolle må. En bruger får summen af alle de roller, vedkommende har.",
+  "title": "Roller og rettigheder",
+  "data": {
+    "pagesView": "Se alle sider",
+    "read": "Læse poster",
+    "readPii": "Se persondata i poster",
+    "create": "Oprette poster",
+    "update": "Redigere poster",
+    "delete": "Slette poster",
+    "export": "Eksportere poster",
+    "import": "Importere poster",
+    "pagesEdit": "Ændre sidelayout",
+    "narrow": "{count, plural, one {# tilladelse} other {# tilladelser}} på en enkelt side eller tabel gælder også, ud over rækkerne nedenfor. De bevares, når du gemmer."
+  },
+  "apps": {
+    "every": "Åbn alle apps’ personaleskærme",
+    "one": "Åbn personaleskærmene i {app}"
+  }
+} as const;

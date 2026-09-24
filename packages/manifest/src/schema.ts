@@ -21,8 +21,10 @@ import {
 import { z } from 'zod';
 
 import { bookingIssues, bookingSchema } from './booking.js';
+import { pageCalendarIssues } from './page-calendar.js';
 import { emailTemplateSchema, outboxIssues, outboxSchema } from './outbox.js';
 import { publicAccessIssues, publicAccessSchema, publicKeysSchema, type PublicAccess } from './public-access.js';
+import { roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
 import {
   NUMERIC_TYPES,
   labelsSchema,
@@ -597,6 +599,8 @@ export const roleSchema = z
     permissions: z.array(z.string().min(1)).optional(),
     /** Opens the app's own screens and never the dashboard (a till cashier). */
     screensOnly: z.boolean().optional(),
+    /** Per table, what the role's update there may write (roles.ts). */
+    limits: roleLimitsSchema.optional(),
   })
   .strict();
 
@@ -841,7 +845,7 @@ export function appReferenceIssues(m: {
   publicAccess?: readonly PublicAccess[] | undefined;
   publicKeys?: z.infer<typeof publicKeysSchema> | undefined;
   optionLists?: Readonly<Record<string, unknown>> | undefined;
-  roles?: readonly { key: string }[] | undefined;
+  roles?: readonly RoleShape[] | undefined;
   outbox?: z.infer<typeof outboxSchema> | undefined;
   emailTemplates?: readonly z.infer<typeof emailTemplateSchema>[] | undefined;
 }): { path: (string | number)[]; message: string }[] {
@@ -996,6 +1000,7 @@ export function appReferenceIssues(m: {
     }),
   );
   out.push(...outboxIssues(m, index));
+  out.push(...roleLimitIssues(m.roles ?? [], index));
   return out;
 }
 
@@ -1057,6 +1062,10 @@ export const appManifestSchema = z
   .refine(sidesAreDistinct, { ...SIDES_MESSAGE, path: [...SIDES_MESSAGE.path] })
   .superRefine((m, ctx) => {
     for (const issue of appReferenceIssues(m)) {
+      ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
+    }
+    // A calendar page's named columns, against the app's own tables.
+    for (const issue of pageCalendarIssues(m.pages, tableIndex(m.requiredSchema.tables))) {
       ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
     }
   });

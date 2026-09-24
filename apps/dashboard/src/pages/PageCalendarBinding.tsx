@@ -13,25 +13,43 @@
  *
  * Events re-enter the host sink: the agenda composer → insert intent (undo
  * toast from the host), agenda/upcoming row click → `record-open` →
- * `/p/$slug/r/$id` → the shared planning record drawer.
+ * `/p/$slug/r/$id` → the shared planning record drawer. A page with a form
+ * of its own (an app's appointments) opens that form for "Add event" and an
+ * empty day instead, started on the day (`PlanningCreateDialog`).
  */
 import { useMemo, useState } from 'react';
 import { PageCalendar } from '@adminium/widgets';
+import { parseCrudForm } from '@adminium/engine/config';
 
 import type { WidgetDataParams } from '../api/widgetData.js';
 import { t } from '../i18n/t.js';
 import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
+import { PlanningCreateDialog } from './planning/PlanningCreateDialog.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { planningWindowTargetOf, usePlanningStates } from './planning/planningData.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageCalendarBinding({ page, adapters, recordId }: PageTemplateProps) {
+export function PageCalendarBinding({
+  page,
+  adapters,
+  recordId,
+  columnFacts,
+  currency,
+  canCreate,
+  formColumns,
+  formRelations,
+  tableLabelSingular,
+}: PageTemplateProps) {
   const [params, setParams] = useState<WidgetDataParams>({});
   const window = useMemo(
     () => planningWindowTargetOf(page, ['calendar-month'], ['startColumn', 'dateColumn']),
     [page],
   );
   const states = usePlanningStates(page, params, window);
+  // The page's own form, for a new row — when it has one and the caller may create.
+  const form = useMemo(() => parseCrudForm(page.config), [page.config]);
+  const [draft, setDraft] = useState<Record<string, unknown> | null>(null);
+  const creates = form !== null && adapters.crud !== null && canCreate !== false;
 
   // An empty layout renders an empty grid — nothing at all. A page created
   // without a table is the way in; the notice names the missing binding.
@@ -45,6 +63,8 @@ export function PageCalendarBinding({ page, adapters, recordId }: PageTemplatePr
   return (
     <>
       <PageCalendar
+        // The connection's currency: a money card that names none reads in it.
+        {...(currency === undefined ? {} : { currency })}
         config={page.config}
         states={states}
         labels={{
@@ -59,12 +79,28 @@ export function PageCalendarBinding({ page, adapters, recordId }: PageTemplatePr
         }}
         onEvent={(_instanceId, event) => adapters.onEvent(event)}
         onParamsChange={setParams}
+        {...(creates ? { onCreate: setDraft } : {})}
       />
+      {creates && adapters.crud !== null && form !== null && (
+        <PlanningCreateDialog
+          crud={adapters.crud}
+          form={form}
+          initialValues={draft}
+          onClose={() => setDraft(null)}
+          formColumns={formColumns}
+          formRelations={formRelations}
+          columnFacts={columnFacts}
+          entity={tableLabelSingular}
+          {...(currency === undefined ? {} : { currency })}
+          notifyUndoable={adapters.notifyUndoable}
+        />
+      )}
       {recordId !== undefined && adapters.crud !== null && (
         <PlanningRecordDrawer
           crud={adapters.crud}
           recordId={recordId}
           onClose={() => adapters.openRecord(null)}
+          facts={columnFacts}
         />
       )}
     </>

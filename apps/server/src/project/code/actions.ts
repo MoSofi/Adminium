@@ -168,7 +168,7 @@ export function createActionRunner(deps: ActionRunnerDeps) {
     }
 
     const { db: raw, dialect } = await deps.manager.data(placed.connection);
-    const unmasked = await canReadPii(request);
+    const unmasked = await canReadPii(request, placed.connection.id, placed.table.id);
     const keys = input.ids.map((id) => keyOf(placed.table, id));
     const records: Row[] = [];
     for (const pk of keys) {

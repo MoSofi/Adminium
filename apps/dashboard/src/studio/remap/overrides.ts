@@ -46,7 +46,8 @@ export type RemapOverride =
       op: 'column.enumLabels';
       tableName: string;
       columnName: string;
-      value: { labels: Record<string, string>; tones?: Record<string, string> };
+      /** Each value's label, one string or one per locale when an app installed it in every language it speaks. */
+      value: { labels: Record<string, LabelText>; tones?: Record<string, string> };
     }
   | { op: 'column.pii'; tableName: string; columnName: string; value: { masked: boolean; kind?: string } }
   | { op: 'column.hidden'; tableName: string; columnName: string; value: { hidden: boolean } }
@@ -71,9 +72,10 @@ export type RemapOverride =
       op: 'column.options';
       tableName: string;
       columnName: string;
+      /** An inline value's label is one string, or one per locale when an app installed it in every language it speaks. */
       value:
         | { list: string }
-        | { values: { value: string; label?: string; tone?: string; description?: string }[] };
+        | { values: { value: string; label?: LabelText; tone?: string; description?: string }[] };
     }
   /** `required: true` only — "not required" is the absence of the row. */
   | { op: 'column.required'; tableName: string; columnName: string; value: { required: true } }

@@ -29,7 +29,7 @@ import { slotInstant } from '../crud/capacity-guard.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { BOOKING_CONFIRMATION_TEMPLATE_KEY, enqueueEmail } from '../email/send.js';
-import { bcp47 } from '../i18n/bcp47.js';
+import { formatTag } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { linkOrigin } from '../security/public-origin.js';
@@ -94,10 +94,11 @@ export async function sendConfirmation(input: ConfirmInput): Promise<boolean> {
     const locale =
       negotiateLocale(input.request.headers['accept-language']) ?? (await recipientLocale(input.meta, null));
     const instant = confirm.when === undefined ? null : slotInstant(row[confirm.when]);
+    // The words in the nearest language; the time the guest's own way (`en-GB` reads 09:30).
     const when =
       instant === null
         ? ''
-        : new Intl.DateTimeFormat(bcp47(locale), {
+        : new Intl.DateTimeFormat(formatTag(input.request.headers['accept-language'], locale), {
             dateStyle: 'full',
             timeStyle: 'short',
             timeZone: input.timezone,

@@ -31,6 +31,7 @@ import { ValidationFailedError } from '../errors.js';
 import { assertNotReservedAlias } from './reserved-aliases.js';
 import type { Measure } from '@adminium/engine/config';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
+import type { PiiAccess } from './mask.js';
 import { resolveMeasures, type MeasureRefusal, type ResolvedMeasure } from './measures.js';
 
 /**
@@ -99,7 +100,8 @@ export interface ResolveAggregatesOptions {
   table: ResolvedTable;
   /** Raw `agg=` values, in request order. */
   raw: readonly string[];
-  canReadPii: boolean;
+  /** Per table (crud/mask.ts). */
+  canReadPii: PiiAccess;
   /** Per-table read check (`table:<conn>:<id>:read`) for the referencing table. */
   canReadTable: (tableId: string) => Promise<boolean>;
   /** Aliases already claimed by this request's `lookup=` params. */

@@ -34,6 +34,7 @@ function tables() {
         { ref: 'online_booking_on', type: 'bool', default: true },
         { ref: 'new_patients_online', type: 'bool', default: true },
         { ref: 'practice_name', type: 'text', maxLength: 80, nullable: true },
+        { ref: 'practice_phone', type: 'text', maxLength: 32, nullable: true },
       ],
     },
     { ref: 'opening_hours', columns: [id, { ...weekday, unique: true }, { ref: 'open', type: 'bool', default: true }, hhmm('opens'), hhmm('closes'), hhmm('break_start', true), hhmm('break_end', true)] },
@@ -232,7 +233,7 @@ function clinic() {
         filters: [{ column: 'starts_at', op: 'today' }],
         writable: ['status'],
         writableValues: { status: ['checked_in'] },
-        writableWhen: { status: ['booked'] },
+        writableWhen: { status: ['booked'], starts_at: { within: 60 } },
       },
     ],
     outbox: {
@@ -248,7 +249,7 @@ function clinic() {
         optIn: 'remind_email',
         fallback: { via: 'appointment_id', email: 'new_email', name: 'new_name' },
       },
-      settings: { table: 'settings', enabled: 'reminders_on', name: 'practice_name' },
+      settings: { table: 'settings', enabled: 'reminders_on', name: 'practice_name', phone: 'practice_phone' },
       pages: { manage: '/my-visits', booking: '/' },
       kinds: { confirmation: 'clinic-confirmation', reminder: 'clinic-reminder', missed: 'clinic-missed' },
       producers: [
@@ -472,6 +473,23 @@ describe('claims, levels and keys', () => {
     expect(issuesOf(changed((d) => (entry(d, 4)['writableWhen'] = { status: ['booked'] })))).toContain('this entry changes nothing');
   });
 
+  it('takes a time window on a timestamptz only, in whole minutes up to a day, once per entry', () => {
+    const window = (when: Record<string, unknown>) => changed((d) => (entry(d, 7)['writableWhen'] = { status: ['booked'], ...when }));
+    // The kiosk's: an arrival up to an hour early, or late.
+    expect(issuesOf(window({ starts_at: { within: 60 } }))).toBe('');
+    expect(issuesOf(window({ starts_at: { within: 1440 } }))).toBe('');
+    expect(issuesOf(window({ minutes: { within: 60 } }))).toContain('"within" needs a timestamptz, and "minutes" is not one');
+    for (const within of [0, 1441, 7.5, -60, '60']) {
+      expect(issuesOf(window({ starts_at: { within } })), String(within)).toContain('publicAccess.7.writableWhen.starts_at');
+    }
+    expect(issuesOf(window({ starts_at: { within: 60, after: 10 } }))).toContain('publicAccess.7.writableWhen.starts_at');
+    expect(issuesOf(window({ starts_at: { within: 60 }, checked_in_at: { within: 60 } }))).toContain(
+      'one time window per entry: a change refused as too early names one time',
+    );
+    // A window beside `from-now` on another column is still one window.
+    expect(issuesOf(window({ starts_at: { within: 60 }, checked_in_at: 'from-now' }))).toBe('');
+  });
+
   it('refuses a filter on a column the entry writes, unless both ends of the change are pinned', () => {
     const filtered = (d: Doc) => (entry(d, 7)['filters'] = [{ column: 'starts_at', op: 'today' }, { column: 'status', op: 'in', value: ['booked', 'checked_in'] }]);
     // The kiosk: reads booked and checked in, and moves booked to checked in only.
@@ -557,6 +575,12 @@ describe('the outbox and its templates', () => {
   it('signs with a text column of the settings row, and links only to a path', () => {
     expect(issuesOf(changed((d) => ((d.outbox.settings as Record<string, unknown>)['name'] = 'cancel_hours')))).toContain('"settings.cancel_hours" must be a text column');
     expect(issuesOf(changed((d) => ((d.outbox as Record<string, unknown>)['pages'] = { manage: 'https://elsewhere.example/x' })))).toContain('a path on the guest side');
+  });
+
+  it('gives a number to ring only from a text column the settings row has', () => {
+    expect(issuesOf(changed((d) => delete (d.outbox.settings as Record<string, unknown>)['phone']))).toBe('');
+    expect(issuesOf(changed((d) => ((d.outbox.settings as Record<string, unknown>)['phone'] = 'fax')))).toContain('"settings" has no column "fax"');
+    expect(issuesOf(changed((d) => ((d.outbox.settings as Record<string, unknown>)['phone'] = 'cancel_hours')))).toContain('"settings.cancel_hours" must be a text column');
   });
 
   it('gates only on switches that exist', () => {

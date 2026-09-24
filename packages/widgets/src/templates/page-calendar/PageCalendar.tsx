@@ -34,6 +34,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { InlineComposeCard } from '../../families/boards/InlineComposeCard.js';
 import { boardRowsOf } from '../../families/boards/board-lib.js';
 import { CalendarLegendFilter } from '../../families/calendar/CalendarLegendFilter.js';
+import { servedChoicesOf } from '../../families/tables/choices.js';
 import { CalendarMonth, eventsOf } from '../../families/calendar/CalendarMonth.js';
 import { DateRangePicker } from '../../families/calendar/DateRangePicker.js';
 import { UpcomingEventsList } from '../../families/calendar/UpcomingEventsList.js';
@@ -54,6 +55,7 @@ import { UnplacedRowsNotice, nothingPlaced } from '../planning/UnplacedRowsNotic
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { withCurrency } from '../page-currency.js';
 import {
   configString,
   dayStartValue,
@@ -107,6 +109,18 @@ export interface PageCalendarProps {
   timeZone?: string | undefined;
   locale?: string | undefined;
   labels?: PageCalendarLabels | undefined;
+  /**
+   * The page's own form, for a new row. When the host passes it (a page whose
+   * app or admin designed a form), "Add event" and a click on an empty day
+   * open that form with the day filled in — the values it is called with —
+   * instead of the title composer, which can only write a title and a date.
+   */
+  onCreate?: ((values: Record<string, unknown>) => void) | undefined;
+  /**
+   * The connection's currency, for a stored widget that names none (a KPI
+   * card's money) — merged as the page draws, never into the stored layout.
+   */
+  currency?: string | undefined;
   className?: string | undefined;
   testId?: string | undefined;
 }
@@ -211,6 +225,11 @@ export function calendarEventsOf(
   const rows = boardRowsOf(data);
   const startKind = planningDateKindOf(data, cfg.startColumn);
   const endKind = planningDateKindOf(data, cfg.endColumn);
+  // The answer's words for a category or a status, read in the reader's
+  // language; the raw value stays the key colours and filters go by.
+  const served = servedChoicesOf(data);
+  const categoryWords = served.get(cfg.categoryColumn ?? 'category');
+  const statusWords = served.get('status');
   const events: UpcomingEvent[] = [];
   for (const row of rows) {
     const start = splitInstant(row[cfg.startColumn], { timeZone, kind: startKind });
@@ -227,9 +246,18 @@ export function calendarEventsOf(
       ...(start.time === undefined ? {} : { time: start.time }),
       ...(end?.time === undefined ? {} : { end: end.time }),
       ...(typeof category === 'string' && category !== '' ? { category } : {}),
+      ...(typeof category === 'string' && categoryWords?.enumLabels?.[category] !== undefined
+        ? { categoryLabel: categoryWords.enumLabels[category] }
+        : {}),
       ...(typeof row['ref'] === 'string' ? { ref: row['ref'] as string } : {}),
       ...(typeof row['owner'] === 'string' ? { owner: row['owner'] as string } : {}),
       ...(typeof row['status'] === 'string' ? { status: row['status'] as string } : {}),
+      ...(typeof row['status'] === 'string' && statusWords?.enumLabels?.[row['status'] as string] !== undefined
+        ? { statusLabel: statusWords.enumLabels[row['status'] as string] }
+        : {}),
+      ...(typeof row['status'] === 'string' && statusWords?.enumTones?.[row['status'] as string] !== undefined
+        ? { statusTone: statusWords.enumTones[row['status'] as string] }
+        : {}),
     });
   }
   return events;
@@ -427,6 +455,8 @@ export function PageCalendar({
   timeZone,
   locale,
   labels,
+  onCreate,
+  currency,
   className,
   testId,
 }: PageCalendarProps) {
@@ -524,6 +554,14 @@ export function PageCalendar({
     });
   };
 
+  // What a new row starts with: the day it was asked for, as its start.
+  const createOn = (day: string) => onCreate?.({ [cfg.startColumn]: startValueOf(day) });
+  const selectDay = (day: string) => {
+    setSelectedDay(day);
+    // An empty day is a place to book: the form opens on it.
+    if (onCreate !== undefined && source !== null && !visibleEvents.some((event) => event.date === day)) createOn(day);
+  };
+
   const applyRange = (next: DateRangeValue) => {
     setRange(next);
     if (next.start !== null && next.end !== null) {
@@ -543,6 +581,31 @@ export function PageCalendar({
   }
 
   const showRangePicker = parsed.toolbar.includes('date-range-picker');
+  const addLabel = labels?.composeOpen ?? t('ui:templates.calendar.addEvent', 'Add event');
+  // "Add event": the page's form when it has one; a pick-list when the title
+  // is a related row; else the title composer AgendaPane draws itself.
+  const composer =
+    onCreate !== undefined ? (
+      <button
+        type="button"
+        data-testid="agenda-compose-open"
+        onClick={() => createOn(selectedDay)}
+        className="flex w-full items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:bg-surface-2 hover:text-fg"
+      >
+        <Plus className="size-3.5" aria-hidden />
+        {addLabel}
+      </button>
+    ) : lookup !== undefined ? (
+      <ChoiceCompose
+        choices={choices}
+        openLabel={addLabel}
+        addLabel={labels?.composeAdd ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add')}
+        cancelLabel={labels?.composeCancel ?? t('ui:action.cancel', 'Cancel')}
+        chooseLabel={labels?.composeChoose ?? t('ui:templates.calendar.composeChoose', 'What this event is for')}
+        placeholder={labels?.composeChoosePlaceholder ?? t('ui:templates.calendar.composeChoosePlaceholder', 'Choose…')}
+        onAdd={chooseFor(selectedDay)}
+      />
+    ) : undefined;
 
   return (
     <div data-part="page-calendar" data-testid={testId ?? 'page-calendar'} className={className}>
@@ -596,11 +659,15 @@ export function PageCalendar({
                 ) : null}
                 <CalendarMonth
                   events={visibleEvents}
+                  // A live calendar opens on the month today falls in, in the
+                  // calendar's own zone — not on the month most rows are in.
+                  year={Number(today.slice(0, 4))}
+                  month={Number(today.slice(5, 7)) - 1}
                   today={today}
                   selectedDate={selectedDay}
                   {...(locale === undefined ? {} : { locale })}
                   {...(cfg.categoryColorMap === undefined ? {} : { categoryColorMap: cfg.categoryColorMap })}
-                  onDaySelect={setSelectedDay}
+                  onDaySelect={selectDay}
                 />
               </WidgetFrame>
             );
@@ -618,31 +685,11 @@ export function PageCalendar({
                   events={visibleEvents}
                   colorMap={cfg.categoryColorMap}
                   locale={locale}
-                  canCompose={source !== null && (lookup === undefined || choices.length > 0)}
+                  canCompose={source !== null && (onCreate !== undefined || lookup === undefined || choices.length > 0)}
                   onOpen={calendarItem === undefined ? undefined : openRecordFrom(calendarItem.i)}
                   onCompose={composeFor(selectedDay)}
                   labels={labels}
-                  {...(lookup === undefined
-                    ? {}
-                    : {
-                        composer: (
-                          <ChoiceCompose
-                            choices={choices}
-                            openLabel={labels?.composeOpen ?? t('ui:templates.calendar.addEvent', 'Add event')}
-                            addLabel={labels?.composeAdd ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add')}
-                            cancelLabel={labels?.composeCancel ?? t('ui:action.cancel', 'Cancel')}
-                            chooseLabel={
-                              labels?.composeChoose ??
-                              t('ui:templates.calendar.composeChoose', 'What this event is for')
-                            }
-                            placeholder={
-                              labels?.composeChoosePlaceholder ??
-                              t('ui:templates.calendar.composeChoosePlaceholder', 'Choose…')
-                            }
-                            onAdd={chooseFor(selectedDay)}
-                          />
-                        ),
-                      })}
+                  {...(composer === undefined ? {} : { composer })}
                 />
               </WidgetFrame>
             );
@@ -685,7 +732,7 @@ export function PageCalendar({
             <WidgetHost
               widgetId={item.widget}
               instanceId={item.i}
-              config={item.config}
+              config={withCurrency(item.config, currency)}
               data={state}
               onEvent={onEvent === undefined ? undefined : (event) => void onEvent(item.i, event)}
             />

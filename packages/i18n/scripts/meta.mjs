@@ -71,6 +71,9 @@ const GATE_RELAXED = {
   // is silently held to nothing at all.
   dataio: 0.95,
   files: 0.95,
+  // The Roles & permissions editor, out of `common` on 2026-09-24 — the same
+  // ruling as the two above.
+  roles: 0.95,
   reportBuilder: 0.95,
   // The first-run wizard. Named here for the reason the note above gives:
   // a namespace in neither list is held to nothing.

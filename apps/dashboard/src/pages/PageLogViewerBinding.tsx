@@ -23,7 +23,7 @@ import { appStreamTransport } from './lmc/stream.js';
 import { findItemDescriptor, usePageWidgetStates } from './lmc/widgetStates.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageLogViewerBinding({ page, adapters }: PageTemplateProps) {
+export function PageLogViewerBinding({ page, adapters, currency }: PageTemplateProps) {
   const { states } = usePageWidgetStates(page);
 
   const liveChannel = useMemo(() => {
@@ -35,6 +35,8 @@ export function PageLogViewerBinding({ page, adapters }: PageTemplateProps) {
   return (
     <StreamTransportProvider transport={appStreamTransport()}>
       <PageLogViewer
+        // The connection's currency: a money card that names none reads in it.
+        {...(currency === undefined ? {} : { currency })}
         layout={page.config['layout']}
         states={states}
         {...(liveChannel === undefined ? {} : { liveChannel })}

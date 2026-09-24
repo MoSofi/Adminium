@@ -124,7 +124,8 @@ export default {
       "step": "Krok {n}",
       "back": "Zpět",
       "next": "Pokračovat"
-    }
+    },
+    "unavailable": "Toto pole nelze zobrazit: nic nespojuje tento záznam s řádky, na které odkazuje."
   },
   "combobox": {
     "placeholder": "Vyberte…",

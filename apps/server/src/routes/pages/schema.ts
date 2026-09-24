@@ -219,8 +219,10 @@ const columnFactSchema = z.object({
       maxLength: z.number().optional(),
     })
     .optional(),
-  /** What a person calls each of an enum's values. */
+  /** What a person calls each of an enum's values, in the reader's language. */
   enumLabels: z.record(z.string(), z.string()).optional(),
+  /** Each value's badge tone: what a list draws it in when the page sets none. */
+  enumTones: z.record(z.string(), z.string()).optional(),
 });
 
 /**
@@ -258,9 +260,9 @@ export const pageReply = z.object({
    */
   canAttach: z.boolean().optional(),
   /**
-   * Whether the caller holds the PII unmask permission (crud/mask.ts
-   * UNMASK_PERMISSION — the same check the data routes run before sending
-   * masked columns in clear). The grid renders PII cells with a reveal
+   * Whether the caller sees the source table's personal columns in clear
+   * (crud/mask.ts `canReadPii` — the same check the data routes run before
+   * sending masked columns in clear). The grid renders PII cells with a reveal
    * affordance only when true; when false the server nulls those values
    * anyway, so the client's masked treatment is not just cosmetic. Absent
    * means "not computed" and the client keeps cells masked (closed default —
@@ -302,6 +304,7 @@ export const pageReply = z.object({
             targetKey: z.string(),
             /** The column a chip shows; absent ⇒ the key is the label. */
             targetName: z.string().optional(),
+            targetLabel: z.string().optional(),
           }),
         )
         .optional(),

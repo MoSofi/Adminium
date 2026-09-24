@@ -322,3 +322,34 @@ describe('PageBoard — a table with no rows yet', () => {
     expect(screen.queryByText('No cards yet')).toBeNull();
   });
 });
+
+/**
+ * The answer names the status column's words for its values, read in the
+ * reader's language: a board's columns are headed "Offen", not "Todo". A
+ * column the page labels itself keeps its label.
+ */
+describe('PageBoard — the answer’s words for a status', () => {
+  const served = (words: Record<string, string>) => ({
+    status: 'success' as const,
+    data: {
+      rows: ROWS,
+      total: ROWS.length,
+      columns: [{ name: 'status', logicalType: 'enum', nullable: false, isPrimaryKey: false, enumLabels: words }],
+    },
+  });
+  const header = (id: string) => (document.querySelector(`[data-board-column="${id}"]`) as HTMLElement).textContent ?? '';
+
+  it('heads each column with the answer’s word, else its humanized value', () => {
+    render(<PageBoard config={boardConfig(KANBAN_CONFIG)} states={{ 'board-1': served({ todo: 'Offen', in_progress: 'In Arbeit' }) }} />);
+    expect(header('todo')).toContain('Offen');
+    expect(header('in_progress')).toContain('In Arbeit');
+    expect(header('done')).toContain('Done');
+  });
+
+  it('a column the page labels keeps its label', () => {
+    const config = boardConfig({ ...KANBAN_CONFIG, columns: [{ id: 'todo', label: 'Backlog' }, 'in_progress', 'done'] });
+    render(<PageBoard config={config} states={{ 'board-1': served({ todo: 'Offen' }) }} />);
+    expect(header('todo')).toContain('Backlog');
+    expect(header('todo')).not.toContain('Offen');
+  });
+});

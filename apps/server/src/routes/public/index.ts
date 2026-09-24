@@ -58,7 +58,7 @@ import {
   type PublicViews,
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
-import { afterNow, mandatoryAt } from '../../public-api/relative-filters.js';
+import { afterNow, aheadWithin, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import {
@@ -75,7 +75,7 @@ import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { maskRows, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
-import { slotAvailability } from '../../crud/capacity-guard.js';
+import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { sendConfirmation } from '../../public-api/confirm.js';
 import {
@@ -103,10 +103,11 @@ import {
   tryCode,
 } from '../../public-api/claim-code.js';
 import { capKey, chargeAnonymous, notPlain } from '../../public-api/anonymous-caps.js';
-import { appSignature } from '../../outbox/sender.js';
+import { appContact } from '../../outbox/sender.js';
 import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
+import { emailChangedLines, translatorForLocale } from '../../email/builtins.js';
 import { EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
@@ -227,12 +228,21 @@ class PublicSlotRefused extends Error {
 
 /**
  * The state a row must be in for an update to touch it (`writable_when`), as
- * conditions for the UPDATE's own WHERE — never a read's — or null.
+ * conditions for the UPDATE's own WHERE — never a read's — or null. `without`
+ * leaves the time window out: only the question "was it the window that
+ * refused this row?" asks that.
  */
-function updatableState(resource: CompiledResource, table: ResolvedTable): RecordFilter | null {
-  const conditions: RecordFilter[] = Object.entries(resource.writableWhen).map(([column, when]) =>
-    when === 'from-now' ? afterNow(table, column) : { column, op: 'in', value: [...when] },
-  );
+function updatableState(
+  resource: CompiledResource,
+  table: ResolvedTable,
+  now: Date = new Date(),
+  windows: 'with' | 'without' = 'with',
+): RecordFilter | null {
+  const conditions: RecordFilter[] = Object.entries(resource.writableWhen).flatMap(([column, when]): RecordFilter[] => {
+    if (when === 'from-now') return [afterNow(table, column, now)];
+    if (isTimeWindow(when)) return windows === 'with' ? [aheadWithin(table, column, when.within, now)] : [];
+    return [{ column, op: 'in', value: [...when] }];
+  });
   return conditions.length === 0 ? null : conditions.length === 1 ? (conditions[0] as RecordFilter) : { and: conditions };
 }
 
@@ -473,10 +483,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     const roles = await rolesRepo(meta).rolesForUser(user.id);
     return roles.some((role) => role.slug === binding.roleSlug && role.appKey === binding.appKey);
   };
-  /** What a person's code emails are signed with: the app's own name through its own key, else the workspace's. */
-  const signatureOf = async (key: { managedBy: string | null; connectionId: string }): Promise<string> =>
-    (key.managedBy === null ? null : await appSignature(meta, manager, key.managedBy, key.connectionId)) ??
-    String((await settingsRepo(meta).get('branding.appName')) ?? 'Adminium');
+  /**
+   * Who a person's code emails come from: through an app's own key, the app's
+   * name and phone from its settings row; else the workspace's name and no
+   * phone (the notices then say "contact us", as they always did).
+   */
+  const senderOf = async (key: { managedBy: string | null; connectionId: string }): Promise<{ appName: string; phone: string | null }> => {
+    const contact = key.managedBy === null ? null : await appContact(meta, manager, key.managedBy, key.connectionId);
+    return {
+      appName: contact?.name ?? String((await settingsRepo(meta).get('branding.appName')) ?? 'Adminium'),
+      phone: contact?.phone ?? null,
+    };
+  };
   const addressCrypto = dsnCryptoFromSecret(env.ADMINIUM_SECRET);
   const audit = auditRepo(meta);
   const writes = deps.writes ?? createWriteService(writeStores(meta));
@@ -824,6 +842,43 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       .where((eb) => compileFilter(eb as never, ctx, filter))
       .executeTakeFirst()) as { n: unknown } | undefined;
     return Number(row?.n ?? 0);
+  };
+
+  /**
+   * Why an update touched nothing, when the answer is "too early": the row,
+   * by its key, is the caller's own — inside the resource's read predicate
+   * and its claim — every other state the update asks of it holds, and its
+   * time is beyond the window. Then that time, and the moment the window
+   * opens, as instants. Otherwise null: every other miss keeps the one "no
+   * such record", so the time is never said about a row the caller could
+   * not change later. Asked with the update's own `now`, so the two agree.
+   */
+  const tooEarlyFor = async (
+    found: { resource: CompiledResource; db: Kysely<SourceDatabase>; view: SnapshotView; table: ResolvedTable; dialect: Dialect; predicate: RecordFilter | null },
+    pk: Record<string, unknown>,
+    now: Date,
+  ): Promise<{ at: string; from: string } | null> => {
+    const [window, ...more] = Object.entries(found.resource.writableWhen).flatMap(([column, when]) =>
+      isTimeWindow(when) ? [{ column, within: when.within }] : [],
+    );
+    if (window === undefined || more.length > 0) return null;
+    const conditions: RecordFilter[] = [
+      ...Object.entries(pk).map(([column, value]) => ({ column, op: 'eq', value }) as RecordFilter),
+      ...[found.predicate, updatableState(found.resource, found.table, now, 'without')].filter((c): c is RecordFilter => c !== null),
+      aheadWithin(found.table, window.column, window.within, now, 'beyond'),
+    ];
+    const ctx = { view: found.view, table: found.table, canReadPii: false, dynamic: found.db.dynamic, dialect: found.dialect };
+    const row = (await found.db
+      .selectFrom(found.table.id)
+      .select(sql<unknown>`${sql.ref(window.column)}`.as('at'))
+      .where((eb) => compileFilter(eb as never, ctx, { and: conditions }))
+      .limit(1)
+      .executeTakeFirst()) as { at?: unknown } | undefined;
+    if (row === undefined) return null;
+    // As a read of the row would show it: SQLite keeps a wall time, the others an instant.
+    const at = slotInstant(wallTimesAsInstants({ [window.column]: row.at }, found.table.columns, found.dialect)[window.column]);
+    if (at === null) return null;
+    return { at: at.toISOString(), from: new Date(at.getTime() - window.within * 60_000).toISOString() };
   };
 
   /**
@@ -1631,7 +1686,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * the state the row must be in (`writable_when`): a visit already seen
          * matches nothing, and is not changed.
          */
-        const predicate = combinePredicates(found.predicate, updatableState(found.resource, found.table));
+        const now = new Date();
+        const predicate = combinePredicates(found.predicate, updatableState(found.resource, found.table, now));
         const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
           predicate === null
             ? query
@@ -1730,8 +1786,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
 
         // Zero rows means "no such record" whether it does not exist, is out of
-        // scope, or belongs to somebody else. One answer for all three.
+        // scope, or belongs to somebody else. One answer for all three — and
+        // for a row in any other state. The one exception is the caller's own
+        // row that only its time window refused: that is told when it opens.
         if (outcome.count === 0) {
+          const early = await tooEarlyFor(found, pk, now);
+          if (early !== null) return fail(reply, 409, 'PUBLIC_TOO_EARLY', 'Too early for this change; `at` is the time it waits for.', early);
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
         }
 
@@ -1752,6 +1812,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             400: publicErrorReply,
             401: publicErrorReply,
             404: publicErrorReply,
+            409: publicErrorReply,
             429: publicErrorReply,
             503: publicErrorReply,
           },
@@ -1772,6 +1833,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             400: publicErrorReply,
             401: publicErrorReply,
             404: publicErrorReply,
+            409: publicErrorReply,
             429: publicErrorReply,
             503: publicErrorReply,
           },
@@ -2345,7 +2407,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             to: address.trim(),
             templateKey: SIGN_IN_CODE_TEMPLATE_KEY,
             locale,
-            vars: { appName: await signatureOf(ok.key), code, minutes: String(CODE_TTL_MS / 60_000) },
+            vars: { appName: (await senderOf(ok.key)).appName, code, minutes: String(CODE_TTL_MS / 60_000) },
           },
         );
         // Nothing can be sent (no mail set up, the template switched off): the
@@ -2445,6 +2507,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         await challenges.mark({ keyId: ok.key.keyId, ref: person.claim.ref, sessionId: session.id, subject, purpose: 'email-changed' }, now);
         const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
         if (plausibleAddress(oldAddress)) {
+          const from = await senderOf(ok.key);
+          // The closing line in the recipient's language: the practice's number when it has one.
+          const lines = emailChangedLines((await translatorForLocale(meta, locale)).t, from.phone);
           await enqueueEmail(
             { meta, logger: request.log },
             {
@@ -2453,10 +2518,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               locale,
               always: true,
               vars: {
-                appName: await signatureOf(ok.key),
+                appName: from.appName,
                 // The identity shows its person by its first column (a name).
                 name: String(row[found.resource.expose[0] ?? ''] ?? ''),
                 newEmail: maskAddress(newAddress),
+                ...lines,
               },
             },
           );

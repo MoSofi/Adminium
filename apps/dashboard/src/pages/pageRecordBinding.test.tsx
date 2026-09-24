@@ -843,3 +843,89 @@ describe('project actions (the project’s own buttons)', () => {
     });
   });
 });
+
+/**
+ * A choice column's words for its values ride the page reply's column facts,
+ * read in the person's language. Page generation stores none, so the list,
+ * the peek and the record page take them from there — the same words the
+ * form beside them offers — unless the page sets its own.
+ */
+describe('a choice column reads in the person’s language', () => {
+  /** The reply a German reader gets: the status's word, and an inline list's word for it. */
+  const germanReply = (envelope: PageEnvelope = recordEnvelope(), extra: Record<string, unknown> = {}) => () =>
+    jsonResponse(200, {
+      data: envelope,
+      columnFacts: {
+        table: { labelSingular: 'Kunde', labelPlural: 'Kunden' },
+        columns: [
+          {
+            spec: { name: 'status', label: 'Status', logicalType: 'enum', enumValues: ['active'] },
+            ordinal: 3,
+            writable: true,
+            filledBy: null,
+            required: false,
+            enumLabels: { active: 'Aktiv' },
+            enumTones: { active: 'warn' },
+            ...extra,
+          },
+        ],
+      },
+    });
+  const statusCell = (scope: HTMLElement = document.body) => scope.querySelector('[data-status="active"], [data-tone]');
+
+  it('list: the grid draws the server’s word, in the page’s own tone', async () => {
+    await renderAt('/p/customers', { pageReply: germanReply() });
+    expect(await screen.findByText('Aktiv')).toBeDefined();
+    expect(screen.queryByText('active')).toBeNull();
+    // The page stores its own tones for the status; those win over the server's.
+    expect(screen.getByText('Aktiv').closest('[data-tone]')?.getAttribute('data-tone')).toBe('pos');
+  });
+
+  it('peek and record page: the same word', async () => {
+    const user = userEvent.setup();
+    await renderAt('/p/customers', { pageReply: germanReply() });
+    await screen.findByText('Northwind');
+    await user.click(screen.getByRole('button', { name: 'Peek' }));
+    const drawer = await screen.findByRole('dialog');
+    expect(await within(drawer).findByText('Aktiv')).toBeDefined();
+    cleanup();
+    await renderAt('/p/customers/r/1', { pageReply: germanReply() });
+    await screen.findByRole('heading', { level: 2 });
+    const fields = document.querySelector('[data-part="record-fields"]') as HTMLElement;
+    expect(within(fields).getByText('Aktiv')).toBeDefined();
+    expect(statusCell(fields)).not.toBeNull();
+  });
+
+  it('an inline list’s word for a value is the one the form offers, so the grid says it too', async () => {
+    await renderAt('/p/customers', { pageReply: germanReply(recordEnvelope(), { options: { values: [{ value: 'active', label: 'In Betrieb' }] } }) });
+    expect(await screen.findByText('In Betrieb')).toBeDefined();
+    expect(screen.queryByText('Aktiv')).toBeNull();
+  });
+
+  it('a page that names its own words keeps them', async () => {
+    const own = recordEnvelope();
+    const columns = (own.config['columns'] as Record<string, unknown>[]).map((column) =>
+      column['name'] === 'status' ? { ...column, enumLabels: { active: 'Live' } } : column,
+    );
+    await renderAt('/p/customers', { pageReply: germanReply({ ...own, config: { ...own.config, columns } }) });
+    expect(await screen.findByText('Live')).toBeDefined();
+    expect(screen.queryByText('Aktiv')).toBeNull();
+  });
+
+  it('a page that stores no tones draws the server’s', async () => {
+    const bare = recordEnvelope();
+    const columns = (bare.config['columns'] as Record<string, unknown>[]).map((column) => {
+      if (column['name'] !== 'status') return column;
+      const { enumTones: _tones, ...rest } = column;
+      return rest;
+    });
+    await renderAt('/p/customers', { pageReply: germanReply({ ...bare, config: { ...bare.config, columns } }) });
+    expect((await screen.findByText('Aktiv')).closest('[data-tone]')?.getAttribute('data-tone')).toBe('warn');
+  });
+
+  it('with no words on the reply, the raw value as before', async () => {
+    await renderAt('/p/customers', { pageReply: () => jsonResponse(200, { data: recordEnvelope() }) });
+    await screen.findByText('Northwind');
+    expect(screen.getByText('active')).toBeDefined();
+  });
+});

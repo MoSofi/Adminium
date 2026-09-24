@@ -89,7 +89,7 @@ export const RESERVED_GRANTS: readonly string[] = [
 ];
 
 const SYSTEM_GRANT = /^system:[^:\s/]+:[^:\s/]+$/;
-const TABLE_GRANT = /^table:[^:\s/]+:[^:\s/]+:(read|create|update|delete|export|import|\*)$/;
+const TABLE_GRANT = /^table:[^:\s/]+:[^:\s/]+:(read|create|update|delete|export|import|read_pii|\*)$/;
 const PAGE_GRANT = /^page:[^:\s/]+:(view|edit|\*)$/;
 const APP_GRANT = /^app:[^:\s/]+:staff$/;
 
@@ -147,6 +147,9 @@ export function catalogPermissions(reply: PermissionCatalogReply): GrantableCata
 export const DATA_ACCESS_GRANTS = [
   'page:*:view',
   'table:*:*:read',
+  // Personal columns in clear, on every table. Never implied by another
+  // row: the server does not let a `*` action stand for it.
+  'table:*:*:read_pii',
   'table:*:*:create',
   'table:*:*:update',
   'table:*:*:delete',

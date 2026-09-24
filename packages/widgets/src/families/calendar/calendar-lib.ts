@@ -338,26 +338,33 @@ export function fmtNextRun(tag: string, iso: string): string {
  * `fallback` rather than vanishing from the counts.
  */
 export function aggregateCategories(
-  events: readonly { category?: string | undefined; tone?: string | undefined }[],
+  events: readonly { category?: string | undefined; categoryLabel?: string | undefined; tone?: string | undefined }[],
   map?: Record<string, string> | undefined,
   fallback = 'other',
-): { name: string; count: number; tone: Tone }[] {
+): { name: string; label?: string; count: number; tone: Tone }[] {
   const order: string[] = [];
   const counts = new Map<string, number>();
   const tones = new Map<string, Tone>();
+  // What a person calls each category, when its column has a word for it.
+  const labels = new Map<string, string>();
   for (const event of events) {
     const name = event.category ?? fallback;
     if (!counts.has(name)) {
       order.push(name);
       tones.set(name, event.tone === undefined ? categoryTone(name, map) : toneOf(event.tone));
+      if (event.categoryLabel !== undefined) labels.set(name, event.categoryLabel);
     }
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
-  return order.map((name) => ({
-    name,
-    count: counts.get(name) ?? 0,
-    tone: tones.get(name) ?? 'accent',
-  }));
+  return order.map((name) => {
+    const label = labels.get(name);
+    return {
+      name,
+      ...(label === undefined ? {} : { label }),
+      count: counts.get(name) ?? 0,
+      tone: tones.get(name) ?? 'accent',
+    };
+  });
 }
 
 // --- upcoming-events-list -----------------------------------------------------

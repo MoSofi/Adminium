@@ -243,3 +243,43 @@ describe('the columns Adminium decides', () => {
     ]);
   });
 });
+
+describe('an app’s words for its allowed values', () => {
+  /** The row an app installs: one value's word in every language it speaks, one plain. */
+  const rows = () => [
+    {
+      id: 'ovr_app_options',
+      op: 'column.options',
+      tableName: 'public.order_notes',
+      columnName: 'body',
+      value: {
+        values: [
+          { value: 'cash', label: { en_US: 'Cash', de_DE: 'Bar' }, tone: 'pos' },
+          { value: 'card', label: 'Card' },
+        ],
+      },
+      origin: 'app',
+      status: 'active',
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ];
+
+  it('keeps each kept value’s words, every language of them, when the values are edited', async () => {
+    const harness = installFetch({ overridesRows: rows });
+    await openColumn(/Body/);
+    expect((screen.getByLabelText('The values') as HTMLTextAreaElement).value).toBe('cash\ncard');
+
+    fireEvent.change(screen.getByLabelText('The values'), { target: { value: 'cash\ncard\nvoucher' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Save overrides' }));
+    await waitFor(() => expect(harness.putBodies).toHaveLength(1));
+    const { overrides } = harness.putBodies[0] as { overrides: { op: string; value: unknown }[] };
+    expect(overrides.find((o) => o.op === 'column.options')?.value).toEqual({
+      values: [
+        { value: 'cash', label: { en_US: 'Cash', de_DE: 'Bar' }, tone: 'pos' },
+        { value: 'card', label: 'Card' },
+        { value: 'voucher' },
+      ],
+    });
+  });
+});

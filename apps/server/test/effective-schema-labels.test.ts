@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { parseDatabaseModel } from '@adminium/engine';
 import type { SchemaOverride } from '@adminium/meta';
 
-import { activeTableLabels, applyOverrides } from '../src/connections/effective-schema.js';
+import { activeTableLabels, applyOverrides, resolveEnumLabels } from '../src/connections/effective-schema.js';
 
 const MODEL = parseDatabaseModel({
   dialect: 'sqlite',
@@ -29,6 +29,7 @@ const MODEL = parseDatabaseModel({
       columns: [
         { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
         { name: 'unit_price', logicalType: 'decimal' },
+        { name: 'status', logicalType: 'text' },
       ],
       primaryKey: ['id'],
     },
@@ -214,5 +215,39 @@ describe('user labels are localizable', () => {
     expect(activeTableLabels([row('table.label', BILINGUAL)], 'de_DE').get('main.order_details')).toBe(
       'Patienten',
     );
+  });
+});
+
+/**
+ * A choice column's value labels follow the reader as its name does: an app
+ * keeps "Waiting" / "Wartend" per locale, and an operator's own word (or any
+ * row written before) is one plain string, read by everyone.
+ */
+describe('value labels are read in the reader’s language', () => {
+  const status = (m: ReturnType<typeof applyOverrides>) => m.tables[0]?.columns.find((c) => c.name === 'status');
+  const APP_LABELS = {
+    labels: { waiting: { en_US: 'Waiting', de_DE: 'Wartend', fr_FR: 'En attente' }, seen: { en_US: 'Seen', de_DE: 'Behandelt' } },
+    tones: { waiting: 'warn' },
+  };
+
+  it('resolves each value for the viewer, falling back to US English per value', () => {
+    const overrides = [row('column.enumLabels', APP_LABELS, { column: 'status' })];
+    expect(status(applyOverrides(MODEL, overrides, { defaultLocale: 'de_DE' }))?.enumLabels).toEqual({ waiting: 'Wartend', seen: 'Behandelt' });
+    expect(status(applyOverrides(MODEL, overrides, { defaultLocale: 'fr_FR' }))?.enumLabels).toEqual({ waiting: 'En attente', seen: 'Seen' });
+    expect(status(applyOverrides(MODEL, overrides))?.enumLabels).toEqual({ waiting: 'Waiting', seen: 'Seen' });
+    expect(status(applyOverrides(MODEL, overrides, { defaultLocale: 'de_DE' }))?.enumTones).toEqual({ waiting: 'warn' });
+  });
+
+  it('still reads the plain strings every older row holds, for every reader', () => {
+    const overrides = [row('column.enumLabels', { labels: { waiting: 'Waiting', seen: 'Seen' } }, { column: 'status' })];
+    expect(status(applyOverrides(MODEL, overrides, { defaultLocale: 'de_DE' }))?.enumLabels).toEqual({ waiting: 'Waiting', seen: 'Seen' });
+  });
+
+  it('mixes both shapes in one row, and leaves out a value with nothing to show', () => {
+    expect(resolveEnumLabels({ waiting: { en_US: 'Waiting', de_DE: 'Wartend' }, seen: 'Done', gone: '', odd: { de_DE: 'Nur deutsch' } }, 'zh_CN')).toEqual({
+      waiting: 'Waiting',
+      seen: 'Done',
+    });
+    expect(resolveEnumLabels(null)).toEqual({});
   });
 });

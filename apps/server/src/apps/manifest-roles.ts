@@ -7,14 +7,23 @@
  * its pages' ids, so it grants through placeholders, filled in once the
  * tables exist and have been introspected:
  *
- *   `table:@<ref>:<action>`   read | create | update | delete | export | import
+ *   `table:@<ref>:<action>`   read | create | update | delete | export | import | read_pii
  *   `page:@<pageRef>:<action>` view | edit
  *   `app:@:staff`              the app's own staff screens
+ *
+ * `read_pii` shows the table's personal columns in clear (crud/mask.ts): a
+ * reception that rings patients holds it on the patients table.
  *
  * Grants are SEEDED ONCE, like the built-in roles': a ledger of
  * `<role slug>|<placeholder>` pairs remembers what an install has already
  * given, so an update adds only what a new version asks for and an operator's
  * narrowing of an app role survives it.
+ *
+ * A role's `limits` (what its update on a table may write) are not grants and
+ * are not seeded once: every install and update writes the manifest's
+ * current limits onto the role's rows, and takes away one the manifest no
+ * longer declares. A limit only ever narrows the app's own grant, so
+ * following the app's latest word on it widens nothing the operator gave.
  *
  * Refused at plan time: a `system:` grant (an app may not hand out the
  * console), a wildcard, a reference to a table or page the app does not
@@ -23,7 +32,7 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest } from '@adminium/manifest';
-import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
+import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
 
@@ -32,7 +41,7 @@ export const ROLE_SLUG_MAX = 40;
 
 const SEEDED_APP_ROLE_GRANTS_KEY = 'system.seededAppRoleGrants';
 
-const TABLE = /^table:@([A-Za-z0-9_]+):(read|create|update|delete|export|import)$/;
+const TABLE = /^table:@([A-Za-z0-9_]+):(read|create|update|delete|export|import|read_pii)$/;
 const PAGE = /^page:@([a-z][a-z0-9-]*):(view|edit)$/;
 const APP = /^app:@:staff$/;
 
@@ -44,6 +53,16 @@ export function roleSlugFor(appKey: string, roleKey: string): string {
 function grantsOf(role: ManifestRole, roles: readonly ManifestRole[]): string[] {
   const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
   return [...new Set([...(from?.permissions ?? []), ...(role.permissions ?? [])])];
+}
+
+/**
+ * A role's limits: the ones of the role it clones, then its own over them. A
+ * clone of a limited role is limited alike unless it says otherwise, or a
+ * copy would be a way round the limit.
+ */
+function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, UpdateLimit> {
+  const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
+  return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
 }
 
 /** What is wrong with the manifest's roles, one message per problem. */
@@ -122,6 +141,23 @@ export async function writeManifestRoles(input: {
   const permissions = permissionsRepo(meta);
   const settings = settingsRepo(meta);
   const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));
+
+  /** Put the manifest's limits on the role's table rows, and nothing else there. */
+  const writeLimits = async (roleId: string, limits: Record<string, UpdateLimit>): Promise<void> => {
+    const wanted = new Map<string, UpdateLimit>();
+    for (const [ref, limit] of Object.entries(limits)) {
+      const id = tableId(ref);
+      if (id !== null) wanted.set(`${connectionId}/${id}`, limit);
+    }
+    for (const row of await permissions.listForRole(roleId)) {
+      if (row.resourceKind !== 'table' || !row.resourceRef.startsWith(`${connectionId}/`)) continue;
+      const actions = row.actions as TableActions;
+      const limit = wanted.get(row.resourceRef);
+      if (limit === undefined && actions.updateLimit === undefined) continue;
+      const { updateLimit: _previous, ...rest } = actions;
+      await permissions.grant(roleId, 'table', row.resourceRef, limit === undefined ? rest : { ...rest, updateLimit: limit });
+    }
+  };
   const before = seeded.size;
 
   for (const declared of manifest.roles ?? []) {
@@ -170,6 +206,7 @@ export async function writeManifestRoles(input: {
       seeded.add(pair);
       result.seeded += 1;
     }
+    await writeLimits(role.id, limitsOf(declared, manifest.roles ?? []));
   }
   if (seeded.size !== before) await settings.set(SEEDED_APP_ROLE_GRANTS_KEY, [...seeded].sort());
   return result;

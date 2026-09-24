@@ -32,7 +32,7 @@ import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
-import { canReadPii } from '../../crud/mask.js';
+import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { filtersToWhere, resolveExportDefinition } from '../../export/definition.js';
@@ -212,7 +212,7 @@ export async function registerBuilderRoutes(
       const view = await loadSnapshotView(meta, connectionId);
       const table = tableOrNotFound(view, request.query.table);
       await exportGrant(request, connectionId, table);
-      const unmasked = await canReadPii(request);
+      const unmasked = await canReadPii(request, connectionId, table.id);
       const { db, dialect } = await manager.data(connectionId);
       const views = viewsRepo(meta);
       const out = [];
@@ -256,12 +256,13 @@ export async function registerBuilderRoutes(
       const view = await loadSnapshotView(meta, connectionId);
       const table = view.table(resolved.table);
       await exportGrant(request, connectionId, table);
-      const unmasked = await canReadPii(request);
+      const unmasked = await canReadPii(request, connectionId, table.id);
       const definition = await resolveExportDefinition({
         view,
         table,
         source: { ...source, table: table.id, ...(resolved.filters === undefined ? {} : { filters: resolved.filters }) },
         canReadPii: unmasked,
+        canReadPiiOf: piiCheckFor(request, connectionId),
         canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
       });
       for (const refusal of definition.refusals) {

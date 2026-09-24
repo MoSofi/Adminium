@@ -63,6 +63,7 @@ import {
   rolesRepo,
   sessionsRepo,
   settingsRepo,
+  snapshotsRepo,
   type DsnCrypto,
   type MetaDb,
 } from '@adminium/meta';
@@ -642,10 +643,12 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const bound = connectionId ?? fallback;
         const venue = bound === null || opts.metaDb === undefined ? null : await connectionTenantConfig(opts.metaDb, bound);
         const staffKeys = user === null || bound === null ? {} : await staffKeysFor(appKey, bound, user.id);
+        const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id);
         return {
           connectionId: bound,
           appName,
           ...(Object.keys(staffKeys).length === 0 ? {} : { publicKeys: staffKeys }),
+          ...(access === null ? {} : { access }),
           ...(tables === null ? {} : { tables }),
           ...(values === null ? {} : { settings: values }),
           ...(venue === null
@@ -683,6 +686,42 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
       };
+    }
+
+    /**
+     * WHAT THIS PERSON MAY DO with the app's own tables, and the app's roles
+     * they hold — so the screens can leave out a button whose write the
+     * server would refuse (a write-off, the practice's hours), and say whose
+     * desk it is ("Clinic reception"). The grants are only read here: every
+     * write is still checked by the data API, and a button shown by mistake
+     * is refused there. A person's own grants are no secret to them.
+     */
+    async function accessOf(
+      request: FastifyRequest,
+      appKey: string,
+      connectionId: string,
+      tables: Record<string, string> | null,
+      userId: string,
+    ): Promise<{ tables: Record<string, ('read' | 'create' | 'update' | 'delete')[]>; roles: { slug: string; name: string }[] } | null> {
+      const metaDb = opts.metaDb;
+      if (metaDb === undefined || typeof request.can !== 'function') return null;
+      const snapshot = await snapshotsRepo(metaDb).latest(connectionId);
+      const model = snapshot?.schema as { tables?: { id?: string; name?: string }[] } | undefined;
+      const ids = new Map((model?.tables ?? []).flatMap((t) => (typeof t.id === 'string' && typeof t.name === 'string' ? [[t.name, t.id] as const] : [])));
+      const grants: Record<string, ('read' | 'create' | 'update' | 'delete')[]> = {};
+      for (const [ref, name] of Object.entries(tables ?? {})) {
+        const id = ids.get(name);
+        if (id === undefined) continue;
+        const held: ('read' | 'create' | 'update' | 'delete')[] = [];
+        for (const action of ['read', 'create', 'update', 'delete'] as const) {
+          if (await request.can(`table:${connectionId}:${id}:${action}`)) held.push(action);
+        }
+        if (held.length > 0) grants[ref] = held;
+      }
+      const roles = (await rolesRepo(metaDb).rolesForUser(userId))
+        .filter((role) => role.appKey === appKey)
+        .map((role) => ({ slug: role.slug, name: role.name }));
+      return { tables: grants, roles };
     }
 
     /**

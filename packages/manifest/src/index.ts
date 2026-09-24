@@ -67,6 +67,7 @@ export {
   type RequiredTable,
   type RequiredColumn,
 } from './schema.js';
+export { roleLimitSchema, roleLimitsSchema, type RoleLimit } from './roles.js';
 
 export {
   validateManifest,

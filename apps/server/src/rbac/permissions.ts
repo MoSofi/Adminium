@@ -8,12 +8,16 @@
  * ```
  * system:<area>:<verb>                      // closed set — meta SYSTEM_ACTION_KEYS,
  *                                           // e.g. system:users:manage ⇔ `users.manage`
- * table:<connectionId>:<table>:<action>     // action: read|create|update|delete|export|import
+ * table:<connectionId>:<table>:<action>     // action: read|create|update|delete|export|import|read_pii
  * page:<pageId>:<view|edit>
  * ```
  *
  * Wildcards: `*` may stand in for any single segment of a stored `table:` or
- * `page:` grant (`table:*:*:read`). Permissions *checked* at enforcement time
+ * `page:` grant (`table:*:*:read`), with one exception: a `*` ACTION never
+ * stands for `read_pii`. Seeing people's phone numbers and addresses is given
+ * by name (`table:*:*:read_pii` names it for every table), so a role handed
+ * "everything on this table" does not quietly gain it, and no grant stored
+ * before the action existed changes meaning. Permissions *checked* at enforcement time
  * are always concrete. `system:` grants are always concrete and validated
  * against the v1 closed set. Deny-by-default: anything unparseable never
  * matches anything.
@@ -35,9 +39,17 @@ import {
   type TableActions,
 } from '@adminium/meta';
 
-/** Table matrix actions (`actions` payload). */
-export const TABLE_ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import'] as const;
+/**
+ * Table matrix actions (`actions` payload). `read_pii` shows the table's
+ * personal columns in clear (crud/mask.ts); without it they read as `null`.
+ */
+export const TABLE_ACTIONS = ['read', 'create', 'update', 'delete', 'export', 'import', 'read_pii'] as const;
 export type TableAction = (typeof TABLE_ACTIONS)[number];
+
+/** What a `*` action stands for: every action but `read_pii` (see the header). */
+export const WILDCARD_TABLE_ACTIONS = TABLE_ACTIONS.filter(
+  (action): action is Exclude<TableAction, 'read_pii'> => action !== 'read_pii',
+);
 
 export const PAGE_ACTIONS = ['view', 'edit'] as const;
 export type PageAction = (typeof PAGE_ACTIONS)[number];
@@ -184,6 +196,7 @@ export function grantMatches(grant: string, required: string): boolean {
     }
     case 'table': {
       const gt = g as Extract<ParsedGrant, { kind: 'table' }>;
+      if (gt.action === '*' && r.action === 'read_pii') return false; // given by name only
       return (
         segmentMatches(gt.connectionId, r.connectionId) &&
         segmentMatches(gt.table, r.table) &&
@@ -309,7 +322,7 @@ export function matrixRowsFromGrants(grants: readonly string[]): MatrixConversio
       const ref = `${parsed.connectionId}/${parsed.table}`;
       const actions = tableRows.get(ref) ?? emptyTableActions();
       if (parsed.action === '*') {
-        for (const action of TABLE_ACTIONS) actions[action] = true;
+        for (const action of WILDCARD_TABLE_ACTIONS) actions[action] = true;
       } else {
         actions[parsed.action] = true;
       }

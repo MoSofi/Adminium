@@ -56,13 +56,19 @@ export interface ColumnFact {
   /**
    * The answers this column accepts, when an admin fixed them with
    * `column.options` (phase C). A LIST travels as its key, never as a copy of
-   * a 249-row list (D16) — the client resolves it once and caches it.
+   * a 249-row list (D16) — the client resolves it once and caches it. Inline
+   * values carry their words in the reader's language.
    */
   options?: { list: string } | { values: ColumnOptionItem[] };
   /** The rules an admin typed, so the dialog can check them before sending. */
   validation?: ColumnValidation;
-  /** What a person calls each of an enum's values ("Pick one" for `radio`). */
+  /** What a person calls each of an enum's values ("Pick one" for `radio`), in the reader's language. */
   enumLabels?: Record<string, string>;
+  /**
+   * Each value's badge tone, as the app or the operator set it. With the
+   * labels, what a list draws a status in when the page stores none of its own.
+   */
+  enumTones?: Record<string, string>;
 }
 
 /** A relation the form can offer as a field of chips. */
@@ -80,6 +86,8 @@ export interface RelationFact {
    * which for a table keyed by a code is the code itself, twice.
    */
   targetName?: string;
+  /** What the linked table is called, in the reader's language ("Visit types"), for the picker. */
+  targetLabel?: string;
 }
 
 /** A table whose rows this one can hold a list of. */
@@ -187,17 +195,21 @@ function blockFor(
       ...(column.options === undefined ? {} : { options: column.options }),
       ...(column.validation === undefined ? {} : { validation: column.validation }),
       ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
+      ...(column.enumTones === undefined ? {} : { enumTones: column.enumTones }),
     });
   }
   columns.sort((a, b) => a.ordinal - b.ordinal);
   const relations = linkableRelations(view, table).map((link) => {
     const name = labelColumnFor(view, link.target);
+    // A field of links holds several: it is called by the linked table's plural.
+    const called = link.target.table.labelPlural ?? link.target.table.label;
     return {
       relationId: link.relationId,
-      label: link.target.table.label ?? humanize(link.target.name),
+      label: called ?? humanize(link.target.name),
       targetTable: link.target.id,
       targetKey: link.targetKeyColumn,
       ...(name === null || name === link.targetKeyColumn ? {} : { targetName: name }),
+      ...(called === undefined ? {} : { targetLabel: called }),
     };
   });
   /*

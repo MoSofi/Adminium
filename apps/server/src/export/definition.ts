@@ -33,6 +33,7 @@ import type { ExportSource } from '@adminium/meta';
 import { ValidationFailedError } from '../errors.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { ResolvedLookup } from '../crud/lookups.js';
+import type { PiiAccess } from '../crud/mask.js';
 import type { ResolvedMeasure } from '../crud/measures.js';
 import { resolveProjections, type ProjectionRefusal } from '../crud/projections.js';
 
@@ -71,7 +72,14 @@ export interface ResolveExportDefinitionOptions {
   view: SnapshotView;
   table: ResolvedTable;
   source: ExportSource;
+  /** Whether the exported table's own personal columns go out in clear. */
   canReadPii: boolean;
+  /**
+   * The same, asked of each table a lookup or a measure reaches. Absent,
+   * `canReadPii` answers for every table, which is right only for a reader
+   * whose answer does not depend on the table.
+   */
+  canReadPiiOf?: PiiAccess | undefined;
   canReadTable: (tableId: string) => Promise<boolean>;
 }
 
@@ -86,7 +94,7 @@ function refuse(message: string, details: unknown): never {
 export async function resolveExportDefinition(
   opts: ResolveExportDefinitionOptions,
 ): Promise<ResolvedExportDefinition> {
-  const { view, table, source, canReadPii, canReadTable } = opts;
+  const { view, table, source, canReadPii, canReadPiiOf, canReadTable } = opts;
 
   if (source.columns === undefined) {
     return {
@@ -167,7 +175,7 @@ export async function resolveExportDefinition(
   const projections = await resolveProjections({
     view,
     table,
-    canReadPii,
+    canReadPii: canReadPiiOf ?? canReadPii,
     canReadTable,
     lookup: lookupSpecs,
     agg: aggSpecs,

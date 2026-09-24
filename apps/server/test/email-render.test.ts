@@ -29,8 +29,10 @@ import {
   BUILTIN_EMAIL_TEMPLATE_KEYS,
   BUILTIN_EMAIL_TEMPLATE_VARS,
   builtinEmailTemplates,
+  emailChangedLines,
   resolveEmailTemplate,
   seedBuiltinEmailTemplates,
+  translatorForLocale,
   type BuiltinEmailTemplate,
 } from '../src/email/builtins.js';
 import { renderEmail } from '../src/email/render.js';
@@ -476,5 +478,38 @@ describe('built-in coverage', () => {
     expect(rendered.html).toContain('Export ready');
     expect(rendered.html).not.toContain('<a href=');
     expect(rendered.text).not.toContain('Open Adminium');
+  });
+
+  it('closes the address-change notice with the number to ring, or with "contact us" when there is none — never both', () => {
+    const render = (phone: string | null) =>
+      renderEmail({
+        document: builtin('email-changed'),
+        locale: 'en_US',
+        vars: { appName: 'Hill Surgery', name: 'Ada', newEmail: 'a•••@e•••.org', ...emailChangedLines(stubT as never, phone) },
+        dir: 'ltr',
+      });
+    const withPhone = render('0117 496 0142');
+    expect(withPhone.text).toContain('If this wasn’t you, ring us on 0117 496 0142.');
+    expect(withPhone.text).not.toContain('contact us');
+    const without = render(null);
+    expect(without.text).toContain('If this wasn’t you, contact us straight away.');
+    expect(without.text).not.toContain('ring us');
+    for (const rendered of [withPhone, without]) {
+      expect(rendered.text).not.toContain('{{');
+      expect(rendered.html).not.toContain('{{');
+      // The line left empty leaves no empty paragraph behind.
+      expect(rendered.html).not.toMatch(/<p[^>]*>\s*<\/p>/);
+    }
+  });
+
+  it('says the number to ring in the recipient’s language', async () => {
+    const meta = await makeMeta();
+    try {
+      const { t } = await translatorForLocale(meta, 'de_DE');
+      expect(emailChangedLines(t, '0117 496 0142')).toEqual({ phoneLine: 'Wenn Sie das nicht waren, rufen Sie uns bitte sofort unter 0117 496 0142 an.', contactLine: '' });
+      expect(emailChangedLines(t, null)).toEqual({ phoneLine: '', contactLine: 'Wenn Sie das nicht waren, melden Sie sich bitte sofort bei uns.' });
+    } finally {
+      await meta.db.destroy();
+    }
   });
 });

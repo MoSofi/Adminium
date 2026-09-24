@@ -117,6 +117,9 @@ export const I18N_CHANGED = 'i18n.changed';
  * project's own code, moved out of `common` so it loads with the first
  * project page.
  *
+ * `roles` joined the same way: the Roles & permissions editor's messages,
+ * which were `common.roles.*` until they moved out of the entry chunk.
+ *
  * `generated` is still out, and correctly: nothing fetches overrides for it.
  */
 const BUDGETED_NAMESPACES: readonly Namespace[] = [
@@ -129,6 +132,7 @@ const BUDGETED_NAMESPACES: readonly Namespace[] = [
   'dataio',
   'files',
   'project',
+  'roles',
 ];
 
 /**

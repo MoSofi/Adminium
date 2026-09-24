@@ -24,7 +24,15 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { PageCrud, rowIdOf, type PageCrudFiles, type PageCrudGridState } from '@adminium/widgets';
+import {
+  PageCrud,
+  rowIdOf,
+  withFactChoices,
+  type ColumnFacts,
+  type GridColumnSpec,
+  type PageCrudFiles,
+  type PageCrudGridState,
+} from '@adminium/widgets';
 import { filtersFor, parseCrudFilters, parseCrudForm, parseCrudLabels } from '@adminium/engine/config';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
@@ -88,6 +96,14 @@ export function PageCrudBinding({
     () => withFkDisplay(parseColumns(page.config, page.id)),
     [page.config, page.id],
   );
+  /*
+   * What the grid, the peek and the card layouts draw: the stored columns with
+   * the server's words for a choice column's values, read in this person's
+   * language. Generation stores none, so without them a status reads
+   * `checked_in` in the list and "Eingecheckt" in the form beside it. A column
+   * the page gives its own words or tones keeps them.
+   */
+  const shownColumns = useMemo(() => withFactChoices(columns, columnFacts), [columns, columnFacts]);
   // Lookup columns ride every read as `lookup=` params, reverse-link columns
   // as `agg=` params, and the page's stored `config.derived` block as the one
   // `compute=` param — the server aliases the referenced-table values, the
@@ -132,18 +148,7 @@ export function PageCrudBinding({
           // refuses a relation that points anywhere else.
           parentKeyColumn: primaryKeyOf(columns)[0] ?? 'id',
           primaryKey: primaryKeyOf(child.columns.map((column) => column.spec)),
-          columns: parseColumns({ columns: child.columns.map((column) => column.spec) }, page.id),
-          facts: Object.fromEntries(
-            child.columns.map((column) => [
-              String(column.spec['name'] ?? ''),
-              {
-                filledBy: column.filledBy,
-                required: column.required,
-                writable: column.writable,
-                ...(column.options === undefined ? {} : { options: column.options }),
-              },
-            ]),
-          ),
+          ...childColumnsOf(child, page.id),
         },
       ]),
     );
@@ -367,7 +372,7 @@ export function PageCrudBinding({
         api={gridApi ?? crud}
         // A form field may start as who is signed in (`initial: current-user`).
         {...(signedIn === undefined ? {} : { currentUser: { id: signedIn.id, name: signedIn.name } })}
-        columns={columns}
+        columns={shownColumns}
         source={{ connectionId: page.source.connectionId, table: sourceTable }}
         onEvent={adapters.onEvent}
         // Spread, not `labels={labels ?? undefined}`: `exactOptionalPropertyTypes`
@@ -438,6 +443,29 @@ export function PageCrudBinding({
       {projectActions.dialog}
     </>
   );
+}
+
+/**
+ * A line-items table's columns and what the server says of each — its choice
+ * columns' words and tones included, so a line's status reads in the person's
+ * language in the repeater as it does in the grid.
+ */
+function childColumnsOf(child: FormChildFactReply, pageId: string): { columns: readonly GridColumnSpec[]; facts: ColumnFacts } {
+  const facts: ColumnFacts = Object.fromEntries(
+    child.columns.map((column) => [
+      String(column.spec['name'] ?? ''),
+      {
+        filledBy: column.filledBy,
+        required: column.required,
+        writable: column.writable,
+        ...(column.options === undefined ? {} : { options: column.options }),
+        ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
+        ...(column.enumTones === undefined ? {} : { enumTones: column.enumTones }),
+      },
+    ]),
+  );
+  const columns = parseColumns({ columns: child.columns.map((column) => column.spec) }, pageId);
+  return { columns: withFactChoices(columns, facts), facts };
 }
 
 /** The key columns of a spec list, in order. */

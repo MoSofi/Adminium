@@ -91,6 +91,38 @@ export function mandatoryAt(where: ScopeWhere, table: ResolvedTable, timezone: s
 }
 
 /**
+ * A time window on a write: the time is no more than `within` minutes ahead,
+ * and a past time always passes (a kiosk takes an arrival from an hour before
+ * the visit, and a late one too). Instants only — now plus the minutes — so a
+ * clock change or the venue's midnight moves nothing.
+ */
+export interface TimeWindow {
+  within: number;
+}
+
+/** The furthest a window reaches: a day. A longer one is no window. */
+export const TIME_WINDOW_MAX_MINUTES = 1440;
+
+/** One state `writable_when` asks of a column: one of these values, still ahead, or inside a window. */
+export type WritableState = readonly (string | number | boolean)[] | 'from-now' | TimeWindow;
+
+export function isTimeWindow(when: WritableState): when is TimeWindow {
+  return typeof when === 'object' && !Array.isArray(when);
+}
+
+/**
+ * Inside the window (`at most now + minutes`), or — `beyond` — later than
+ * it, spelled as the column keeps a time. The UPDATE asks the first; only the
+ * question "was it the window that refused this row?" asks the second.
+ */
+export function aheadWithin(table: ResolvedTable, column: string, minutes: number, now: Date, side: 'inside' | 'beyond' = 'inside'): RecordFilter {
+  const found = table.columns.get(column);
+  if (found === undefined || (found.logicalType !== 'timestamp' && found.logicalType !== 'timestamptz')) return nothing(table);
+  const bound = normalizeWriteValue(found, new Date(now.getTime() + minutes * 60_000).toISOString());
+  return { column, op: side === 'inside' ? 'lte' : 'gt', value: bound };
+}
+
+/**
  * "Still ahead": a time after now, spelled as the column keeps one — the
  * state `writable_when: {column: 'from-now'}` asks a row to be in.
  */

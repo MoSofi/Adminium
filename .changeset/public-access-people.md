@@ -22,6 +22,9 @@
   names held to plain text.
 - Writes can be switched off from the app's settings row (`PUBLIC_SWITCHED_OFF`).
 - Email sign-in codes sent through an app's own key are signed with the app's name for its venue.
+- The notice to an old address after a change of email gives the practice's number to ring, when
+  the app's outbox names a `phone` column of its settings row (`outbox.settings.phone`, a `text`
+  column) and the row holds one; otherwise it still says to get in touch.
 
 `@adminium/public-client` gains `requestCode()`, `verifyCode()`, `session()`, `solveChallenge()`
 with a `humanCheck` option that answers the server, `createWithRank()`, and the new error codes.

@@ -5515,306 +5515,6 @@
     "srcHash": "cd24c1d35220",
     "status": "mt"
   },
-  "common.roles.action.delete": {
-    "status": "mt",
-    "srcHash": "f6fdbe48dc54"
-  },
-  "common.roles.action.rename": {
-    "status": "mt",
-    "srcHash": "d3f4cb898fbe"
-  },
-  "common.roles.apps.every": {
-    "status": "mt",
-    "srcHash": "73972ff23c05"
-  },
-  "common.roles.apps.one": {
-    "status": "mt",
-    "srcHash": "ee4a95e7e5a3"
-  },
-  "common.roles.builtinLocked": {
-    "status": "mt",
-    "srcHash": "68169c1d618b"
-  },
-  "common.roles.category.access": {
-    "status": "mt",
-    "srcHash": "2f81a22de0af"
-  },
-  "common.roles.category.apps": {
-    "status": "mt",
-    "srcHash": "d9a36850b7f3"
-  },
-  "common.roles.category.data": {
-    "status": "mt",
-    "srcHash": "e5e429bcc9c2"
-  },
-  "common.roles.category.operations": {
-    "status": "mt",
-    "srcHash": "a1fdaa6b2a84"
-  },
-  "common.roles.category.records": {
-    "status": "mt",
-    "srcHash": "9d272438bef0"
-  },
-  "common.roles.category.workspace": {
-    "status": "mt",
-    "srcHash": "4ca0a75c2b7f"
-  },
-  "common.roles.column.actions": {
-    "status": "mt",
-    "srcHash": "c3cd636a585b"
-  },
-  "common.roles.column.members": {
-    "status": "mt",
-    "srcHash": "1cb449c11266"
-  },
-  "common.roles.column.name": {
-    "status": "mt",
-    "srcHash": "c3f104d13657"
-  },
-  "common.roles.create.description": {
-    "status": "mt",
-    "srcHash": "afefee406147"
-  },
-  "common.roles.create.descriptionLabel": {
-    "status": "mt",
-    "srcHash": "55f8ebc805e6"
-  },
-  "common.roles.create.failed": {
-    "status": "mt",
-    "srcHash": "0632def13ee2"
-  },
-  "common.roles.create.name": {
-    "status": "mt",
-    "srcHash": "709a23220f2c"
-  },
-  "common.roles.create.namePlaceholder": {
-    "status": "mt",
-    "srcHash": "f22914d20a1c"
-  },
-  "common.roles.create.submit": {
-    "status": "mt",
-    "srcHash": "db859badeb38"
-  },
-  "common.roles.create.title": {
-    "status": "mt",
-    "srcHash": "165fb5e1e341"
-  },
-  "common.roles.createButton": {
-    "status": "mt",
-    "srcHash": "165fb5e1e341"
-  },
-  "common.roles.data.create": {
-    "status": "mt",
-    "srcHash": "16832885202f"
-  },
-  "common.roles.data.delete": {
-    "status": "mt",
-    "srcHash": "1635174e7028"
-  },
-  "common.roles.data.export": {
-    "status": "mt",
-    "srcHash": "8f6b73c89204"
-  },
-  "common.roles.data.import": {
-    "status": "mt",
-    "srcHash": "ab7be91e6608"
-  },
-  "common.roles.data.narrow": {
-    "status": "mt",
-    "srcHash": "991e5f6b5e38"
-  },
-  "common.roles.data.pagesEdit": {
-    "status": "mt",
-    "srcHash": "1b1f83114c2a"
-  },
-  "common.roles.data.pagesView": {
-    "status": "mt",
-    "srcHash": "c9645bfb7627"
-  },
-  "common.roles.data.read": {
-    "status": "mt",
-    "srcHash": "e233ce74144a"
-  },
-  "common.roles.data.update": {
-    "status": "mt",
-    "srcHash": "98da958d04ff"
-  },
-  "common.roles.delete.confirm": {
-    "status": "mt",
-    "srcHash": "fbf0667eaa4b"
-  },
-  "common.roles.delete.description": {
-    "status": "mt",
-    "srcHash": "b131ba79a083"
-  },
-  "common.roles.delete.failed": {
-    "status": "mt",
-    "srcHash": "f4dc2b13cead"
-  },
-  "common.roles.delete.hasMembers": {
-    "status": "mt",
-    "srcHash": "a88546ac4084"
-  },
-  "common.roles.delete.noMembers": {
-    "status": "mt",
-    "srcHash": "7dae3a0a3805"
-  },
-  "common.roles.delete.reassignPlaceholder": {
-    "status": "mt",
-    "srcHash": "8cbfd4f948c2"
-  },
-  "common.roles.delete.reassignTo": {
-    "status": "mt",
-    "srcHash": "694614e44751"
-  },
-  "common.roles.delete.title": {
-    "status": "mt",
-    "srcHash": "fbf0667eaa4b"
-  },
-  "common.roles.list.title": {
-    "status": "mt",
-    "srcHash": "47dcc27d6e87"
-  },
-  "common.roles.loadFailed.body": {
-    "status": "mt",
-    "srcHash": "406e9defada3"
-  },
-  "common.roles.loadFailed.title": {
-    "status": "mt",
-    "srcHash": "9bc5cd374f50"
-  },
-  "common.roles.matrix.discard": {
-    "status": "mt",
-    "srcHash": "36fff63ccbcd"
-  },
-  "common.roles.matrix.empty.body": {
-    "status": "mt",
-    "srcHash": "664ef95371d5"
-  },
-  "common.roles.matrix.empty.title": {
-    "status": "mt",
-    "srcHash": "f0d30bfbd6e1"
-  },
-  "common.roles.matrix.label": {
-    "status": "mt",
-    "srcHash": "4b9cd8f7044f"
-  },
-  "common.roles.matrix.noChanges": {
-    "status": "mt",
-    "srcHash": "ca41eed5cdc8"
-  },
-  "common.roles.matrix.pending": {
-    "status": "mt",
-    "srcHash": "fdc3597d9782"
-  },
-  "common.roles.matrix.rowHeader": {
-    "status": "mt",
-    "srcHash": "1785713451d0"
-  },
-  "common.roles.matrix.title": {
-    "status": "mt",
-    "srcHash": "d06d55570938"
-  },
-  "common.roles.memberCount": {
-    "status": "mt",
-    "srcHash": "d44477454f93"
-  },
-  "common.roles.permission.apiKeysManage": {
-    "status": "mt",
-    "srcHash": "85a7ad27ceab"
-  },
-  "common.roles.permission.auditRead": {
-    "status": "mt",
-    "srcHash": "e26b54924cdc"
-  },
-  "common.roles.permission.connectionsManage": {
-    "status": "mt",
-    "srcHash": "65cd18d3a599"
-  },
-  "common.roles.permission.exportsManage": {
-    "status": "mt",
-    "srcHash": "4da5e826ccf4"
-  },
-  "common.roles.permission.filesManage": {
-    "status": "mt",
-    "srcHash": "761719504b7b"
-  },
-  "common.roles.permission.importsManage": {
-    "status": "mt",
-    "srcHash": "9261c59d8910"
-  },
-  "common.roles.permission.jobsManage": {
-    "status": "mt",
-    "srcHash": "6f75c0236f97"
-  },
-  "common.roles.permission.jobsRead": {
-    "status": "mt",
-    "srcHash": "c82815f003b5"
-  },
-  "common.roles.permission.llmRun": {
-    "status": "mt",
-    "srcHash": "e8998fbdbe9a"
-  },
-  "common.roles.permission.manifestsManage": {
-    "status": "mt",
-    "srcHash": "21fcaba1ed9e"
-  },
-  "common.roles.permission.pagesManage": {
-    "status": "mt",
-    "srcHash": "901b67a9a07f"
-  },
-  "common.roles.permission.projectRead": {
-    "status": "mt",
-    "srcHash": "bb0cbe226b62"
-  },
-  "common.roles.permission.reportsManage": {
-    "status": "mt",
-    "srcHash": "d5cea4e24afb"
-  },
-  "common.roles.permission.rolesManage": {
-    "status": "mt",
-    "srcHash": "40ac3d72ee9b"
-  },
-  "common.roles.permission.schemaDdl": {
-    "status": "mt",
-    "srcHash": "93f259b61d98"
-  },
-  "common.roles.permission.schemaRemap": {
-    "status": "mt",
-    "srcHash": "700575a6eb74"
-  },
-  "common.roles.permission.settingsManage": {
-    "status": "mt",
-    "srcHash": "687e00456e85"
-  },
-  "common.roles.permission.storageManage": {
-    "status": "mt",
-    "srcHash": "3a4d20b7746a"
-  },
-  "common.roles.permission.usersManage": {
-    "status": "mt",
-    "srcHash": "b7ee3c4dd0a4"
-  },
-  "common.roles.rename.failed": {
-    "status": "mt",
-    "srcHash": "79847ee7a282"
-  },
-  "common.roles.rename.title": {
-    "status": "mt",
-    "srcHash": "c59828c39f12"
-  },
-  "common.roles.saveFailed.title": {
-    "status": "mt",
-    "srcHash": "4c36562e8dc1"
-  },
-  "common.roles.subtitle": {
-    "status": "mt",
-    "srcHash": "1b632c5cfb65"
-  },
-  "common.roles.title": {
-    "status": "mt",
-    "srcHash": "997fabd09c7e"
-  },
   "common.scheduler.addShift": {
     "srcHash": "402f0f9825b6",
     "status": "mt"
@@ -9234,6 +8934,10 @@
   "email.emailChanged.notice": {
     "status": "mt",
     "srcHash": "13e655b884a1"
+  },
+  "email.emailChanged.noticePhone": {
+    "status": "mt",
+    "srcHash": "62fcf4d13f01"
   },
   "email.emailChanged.subject": {
     "status": "mt",
@@ -12906,6 +12610,310 @@
   "reportBuilder.toast.undo": {
     "status": "mt",
     "srcHash": "39fc72124884"
+  },
+  "roles.action.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "roles.action.rename": {
+    "status": "mt",
+    "srcHash": "d3f4cb898fbe"
+  },
+  "roles.apps.every": {
+    "status": "mt",
+    "srcHash": "73972ff23c05"
+  },
+  "roles.apps.one": {
+    "status": "mt",
+    "srcHash": "ee4a95e7e5a3"
+  },
+  "roles.builtinLocked": {
+    "status": "mt",
+    "srcHash": "68169c1d618b"
+  },
+  "roles.category.access": {
+    "status": "mt",
+    "srcHash": "2f81a22de0af"
+  },
+  "roles.category.apps": {
+    "status": "mt",
+    "srcHash": "d9a36850b7f3"
+  },
+  "roles.category.data": {
+    "status": "mt",
+    "srcHash": "e5e429bcc9c2"
+  },
+  "roles.category.operations": {
+    "status": "mt",
+    "srcHash": "a1fdaa6b2a84"
+  },
+  "roles.category.records": {
+    "status": "mt",
+    "srcHash": "9d272438bef0"
+  },
+  "roles.category.workspace": {
+    "status": "mt",
+    "srcHash": "4ca0a75c2b7f"
+  },
+  "roles.column.actions": {
+    "status": "mt",
+    "srcHash": "c3cd636a585b"
+  },
+  "roles.column.members": {
+    "status": "mt",
+    "srcHash": "1cb449c11266"
+  },
+  "roles.column.name": {
+    "status": "mt",
+    "srcHash": "c3f104d13657"
+  },
+  "roles.create.description": {
+    "status": "mt",
+    "srcHash": "afefee406147"
+  },
+  "roles.create.descriptionLabel": {
+    "status": "mt",
+    "srcHash": "55f8ebc805e6"
+  },
+  "roles.create.failed": {
+    "status": "mt",
+    "srcHash": "0632def13ee2"
+  },
+  "roles.create.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "roles.create.namePlaceholder": {
+    "status": "mt",
+    "srcHash": "f22914d20a1c"
+  },
+  "roles.create.submit": {
+    "status": "mt",
+    "srcHash": "db859badeb38"
+  },
+  "roles.create.title": {
+    "status": "mt",
+    "srcHash": "165fb5e1e341"
+  },
+  "roles.createButton": {
+    "status": "mt",
+    "srcHash": "165fb5e1e341"
+  },
+  "roles.data.create": {
+    "status": "mt",
+    "srcHash": "16832885202f"
+  },
+  "roles.data.delete": {
+    "status": "mt",
+    "srcHash": "1635174e7028"
+  },
+  "roles.data.export": {
+    "status": "mt",
+    "srcHash": "8f6b73c89204"
+  },
+  "roles.data.import": {
+    "status": "mt",
+    "srcHash": "ab7be91e6608"
+  },
+  "roles.data.narrow": {
+    "status": "mt",
+    "srcHash": "991e5f6b5e38"
+  },
+  "roles.data.pagesEdit": {
+    "status": "mt",
+    "srcHash": "1b1f83114c2a"
+  },
+  "roles.data.pagesView": {
+    "status": "mt",
+    "srcHash": "c9645bfb7627"
+  },
+  "roles.data.read": {
+    "status": "mt",
+    "srcHash": "e233ce74144a"
+  },
+  "roles.data.readPii": {
+    "status": "mt",
+    "srcHash": "449e3578857a"
+  },
+  "roles.data.update": {
+    "status": "mt",
+    "srcHash": "98da958d04ff"
+  },
+  "roles.delete.confirm": {
+    "status": "mt",
+    "srcHash": "fbf0667eaa4b"
+  },
+  "roles.delete.description": {
+    "status": "mt",
+    "srcHash": "b131ba79a083"
+  },
+  "roles.delete.failed": {
+    "status": "mt",
+    "srcHash": "f4dc2b13cead"
+  },
+  "roles.delete.hasMembers": {
+    "status": "mt",
+    "srcHash": "a88546ac4084"
+  },
+  "roles.delete.noMembers": {
+    "status": "mt",
+    "srcHash": "7dae3a0a3805"
+  },
+  "roles.delete.reassignPlaceholder": {
+    "status": "mt",
+    "srcHash": "8cbfd4f948c2"
+  },
+  "roles.delete.reassignTo": {
+    "status": "mt",
+    "srcHash": "694614e44751"
+  },
+  "roles.delete.title": {
+    "status": "mt",
+    "srcHash": "fbf0667eaa4b"
+  },
+  "roles.list.title": {
+    "status": "mt",
+    "srcHash": "47dcc27d6e87"
+  },
+  "roles.loadFailed.body": {
+    "status": "mt",
+    "srcHash": "406e9defada3"
+  },
+  "roles.loadFailed.title": {
+    "status": "mt",
+    "srcHash": "9bc5cd374f50"
+  },
+  "roles.matrix.discard": {
+    "status": "mt",
+    "srcHash": "36fff63ccbcd"
+  },
+  "roles.matrix.empty.body": {
+    "status": "mt",
+    "srcHash": "664ef95371d5"
+  },
+  "roles.matrix.empty.title": {
+    "status": "mt",
+    "srcHash": "f0d30bfbd6e1"
+  },
+  "roles.matrix.label": {
+    "status": "mt",
+    "srcHash": "4b9cd8f7044f"
+  },
+  "roles.matrix.noChanges": {
+    "status": "mt",
+    "srcHash": "ca41eed5cdc8"
+  },
+  "roles.matrix.pending": {
+    "status": "mt",
+    "srcHash": "fdc3597d9782"
+  },
+  "roles.matrix.rowHeader": {
+    "status": "mt",
+    "srcHash": "1785713451d0"
+  },
+  "roles.matrix.title": {
+    "status": "mt",
+    "srcHash": "d06d55570938"
+  },
+  "roles.memberCount": {
+    "status": "mt",
+    "srcHash": "d44477454f93"
+  },
+  "roles.permission.apiKeysManage": {
+    "status": "mt",
+    "srcHash": "85a7ad27ceab"
+  },
+  "roles.permission.auditRead": {
+    "status": "mt",
+    "srcHash": "e26b54924cdc"
+  },
+  "roles.permission.connectionsManage": {
+    "status": "mt",
+    "srcHash": "65cd18d3a599"
+  },
+  "roles.permission.exportsManage": {
+    "status": "mt",
+    "srcHash": "4da5e826ccf4"
+  },
+  "roles.permission.filesManage": {
+    "status": "mt",
+    "srcHash": "761719504b7b"
+  },
+  "roles.permission.importsManage": {
+    "status": "mt",
+    "srcHash": "9261c59d8910"
+  },
+  "roles.permission.jobsManage": {
+    "status": "mt",
+    "srcHash": "6f75c0236f97"
+  },
+  "roles.permission.jobsRead": {
+    "status": "mt",
+    "srcHash": "c82815f003b5"
+  },
+  "roles.permission.llmRun": {
+    "status": "mt",
+    "srcHash": "e8998fbdbe9a"
+  },
+  "roles.permission.manifestsManage": {
+    "status": "mt",
+    "srcHash": "21fcaba1ed9e"
+  },
+  "roles.permission.pagesManage": {
+    "status": "mt",
+    "srcHash": "901b67a9a07f"
+  },
+  "roles.permission.projectRead": {
+    "status": "mt",
+    "srcHash": "bb0cbe226b62"
+  },
+  "roles.permission.reportsManage": {
+    "status": "mt",
+    "srcHash": "d5cea4e24afb"
+  },
+  "roles.permission.rolesManage": {
+    "status": "mt",
+    "srcHash": "40ac3d72ee9b"
+  },
+  "roles.permission.schemaDdl": {
+    "status": "mt",
+    "srcHash": "93f259b61d98"
+  },
+  "roles.permission.schemaRemap": {
+    "status": "mt",
+    "srcHash": "700575a6eb74"
+  },
+  "roles.permission.settingsManage": {
+    "status": "mt",
+    "srcHash": "687e00456e85"
+  },
+  "roles.permission.storageManage": {
+    "status": "mt",
+    "srcHash": "3a4d20b7746a"
+  },
+  "roles.permission.usersManage": {
+    "status": "mt",
+    "srcHash": "b7ee3c4dd0a4"
+  },
+  "roles.rename.failed": {
+    "status": "mt",
+    "srcHash": "79847ee7a282"
+  },
+  "roles.rename.title": {
+    "status": "mt",
+    "srcHash": "c59828c39f12"
+  },
+  "roles.saveFailed.title": {
+    "status": "mt",
+    "srcHash": "4c36562e8dc1"
+  },
+  "roles.subtitle": {
+    "status": "mt",
+    "srcHash": "1b632c5cfb65"
+  },
+  "roles.title": {
+    "status": "mt",
+    "srcHash": "997fabd09c7e"
   },
   "studio.addOns.browse.all": {
     "status": "mt",
@@ -22538,6 +22546,10 @@
   "ui.formDialog.title.edit": {
     "status": "mt",
     "srcHash": "bfbe8fd0738c"
+  },
+  "ui.formDialog.unavailable": {
+    "status": "mt",
+    "srcHash": "22ec8ec521e3"
   },
   "ui.formDialog.wizard.back": {
     "status": "mt",

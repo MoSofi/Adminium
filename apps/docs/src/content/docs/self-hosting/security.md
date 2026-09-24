@@ -113,6 +113,10 @@ personal. The default is masked. Review the proposals rather than bulk-accepting
 the unmask — the default exists because "we did not think about it" should fail
 closed.
 
+Who reads masked columns in clear is a permission per table: **See personal data** on a table, or
+**Manage database connections** for every table. See
+[Personal data](/guides/apps/roles-and-staff-access/#personal-data).
+
 ## The audit log
 
 Every mutation is recorded: who, what, when, before, after. It is only worth

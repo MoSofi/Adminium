@@ -547,6 +547,20 @@ describe('the codes the server can say', () => {
     expect.assertions(2);
   });
 
+  it('reads a too-early refusal’s times, and nothing from any other refusal', async () => {
+    const times = { at: '2026-09-24T10:15:00.000Z', from: '2026-09-24T09:15:00.000Z' };
+    const { client } = clientOver(
+      () => new Response(JSON.stringify({ error: { code: 'PUBLIC_TOO_EARLY', params: times, message: 'x' } }), { status: 409 }),
+    );
+    await client.update('visits', '7', { status: 'checked_in' }).catch((e: PublicApiError) => {
+      expect(e).toMatchObject({ code: 'PUBLIC_TOO_EARLY', status: 409 });
+      expect(e.tooEarly).toEqual(times);
+    });
+    expect(new PublicApiError('PUBLIC_REF_NOT_FOUND', 404, 'x', undefined, times).tooEarly).toBeNull();
+    expect(new PublicApiError('PUBLIC_TOO_EARLY', 409, 'x', undefined, { at: times.at }).tooEarly).toBeNull();
+    expect.assertions(4);
+  });
+
   it('has empty params when the reply named none', async () => {
     const { client } = clientOver(() => err(404, 'PUBLIC_REF_NOT_FOUND'));
     await client.list('menu').catch((e: PublicApiError) => {

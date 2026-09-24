@@ -146,6 +146,7 @@ export function relationColumnShape(input: {
   targetTable: string;
   targetKey: string;
   targetName?: string | undefined;
+  targetLabel?: string | undefined;
 }): Record<string, unknown> {
   return {
     name: `rel:${input.relationId}`,
@@ -158,6 +159,8 @@ export function relationColumnShape(input: {
       // What a chip shows. Without it the picker falls back to the row's first
       // text column, which for a table keyed by a code is the code again.
       ...(input.targetName === undefined ? {} : { display: input.targetName }),
+      // What the picker calls the linked table; without it, its id.
+      ...(input.targetLabel === undefined ? {} : { label: input.targetLabel }),
     },
   };
 }

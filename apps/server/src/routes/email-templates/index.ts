@@ -196,6 +196,9 @@ function testSendVars(appName: string, origin: string, to: string): Record<strin
     title: `Test message from ${appName}`,
     body: 'This is a test message. If you received it, your SMTP settings work.',
     actionUrl: `${origin}/`,
+    // The address-change notice's closing line: the variant with a number to ring, the other left out.
+    phoneLine: 'If this wasn’t you, ring us on 0117 496 0142.',
+    contactLine: '',
   };
 }
 

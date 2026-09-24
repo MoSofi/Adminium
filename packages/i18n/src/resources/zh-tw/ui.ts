@@ -124,7 +124,8 @@ export default {
       "step": "第 {n} 步",
       "back": "上一步",
       "next": "繼續"
-    }
+    },
+    "unavailable": "無法顯示此欄位：沒有任何關聯將此記錄與其指向的列相連。"
   },
   "combobox": {
     "placeholder": "請選取…",

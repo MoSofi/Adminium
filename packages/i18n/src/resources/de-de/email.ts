@@ -850,6 +850,7 @@ export default {
     "heading": "Ihre E-Mail-Adresse wurde geändert",
     "intro": "Hallo {name}, die E-Mail-Adresse in Ihren Daten bei {appName} lautet jetzt {newEmail}.",
     "notice": "Wenn Sie das nicht waren, melden Sie sich bitte sofort bei uns.",
+    "noticePhone": "Wenn Sie das nicht waren, rufen Sie uns bitte sofort unter {phone} an.",
     "footer": "{appName}"
   }
 } as const;

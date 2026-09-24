@@ -32,4 +32,33 @@ describe('mini-table over a server record list', () => {
     expect(screen.getByText('Banana Bread')).toBeDefined();
     expect(screen.getByText(/4\.6/)).toBeDefined();
   });
+
+  it('draws a card’s own columns with the answer’s words for a choice, and the card’s own words win', () => {
+    const data = {
+      shape: 'record-list',
+      rows: [{ number: '1042', status: 'waiting', kind: 'walk_in', stage: 'seen' }],
+      // The server reads a choice column's labels in the reader's language.
+      columns: [
+        { name: 'number', logicalType: 'varchar', nullable: false, isPrimaryKey: false },
+        { name: 'status', logicalType: 'enum', nullable: false, isPrimaryKey: false, enumLabels: { waiting: 'Wartend' }, enumTones: { waiting: 'warn' } },
+        { name: 'kind', logicalType: 'enum', nullable: false, isPrimaryKey: false, enumLabels: { walk_in: 'Laufkundschaft' } },
+      ],
+      total: 1,
+    };
+    const config = miniTableConfigSchema.parse({
+      title: 'Waiting longest',
+      columns: [
+        { name: 'status', label: 'Status', logicalType: 'enum' },
+        { name: 'kind', label: 'Kind', logicalType: 'enum', enumLabels: { walk_in: 'Walk-in' } },
+        // A column the answer does not name is drawn as the card says.
+        { name: 'stage', label: 'Stage', logicalType: 'enum' },
+      ],
+    });
+    const { container } = render(<MiniTableWidget instanceId="waiting" config={config} data={data} onEvent={() => undefined} />);
+    expect(screen.getByText('Wartend')).toBeDefined();
+    expect(container.querySelector('[data-tone="warn"]')?.textContent).toBe('Wartend');
+    expect(screen.getByText('Walk-in')).toBeDefined();
+    expect(container.textContent).not.toContain('Laufkundschaft');
+    expect(screen.getByText('seen')).toBeDefined();
+  });
 });

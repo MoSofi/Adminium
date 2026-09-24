@@ -33,6 +33,8 @@ export {
   formColumns,
   isRequired,
   optionsForColumn,
+  choiceWordsOf,
+  withFactChoices,
   type ColumnFact,
   type ColumnFacts,
   type FormControl,

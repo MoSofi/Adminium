@@ -131,3 +131,29 @@ describe('a relation field', () => {
     expect(onSubmit.mock.calls[0]?.length).toBe(1);
   });
 });
+
+describe("a relation field's picker", () => {
+  it("calls the linked table by its name, never its id", async () => {
+    const relations = [{ ...RELATIONS[0]!, targetLabel: 'Visit types' }];
+    const form = deriveFormDocument({
+      columns: [{ spec: COLUMNS[1]!, ordinal: 1, writable: true, filledBy: null, required: true }],
+      relations,
+    });
+    render(
+      <RecordForm
+        columns={COLUMNS}
+        document={form}
+        relations={relations}
+        initialValues={{ who: 'Ada' }}
+        mode="create"
+        lookup={vi.fn().mockResolvedValue(SERVICES) as never}
+        onSubmit={vi.fn()}
+        formId="named-form"
+        footer={null}
+      />,
+    );
+    const picker = await screen.findByLabelText('Services');
+    expect(picker.getAttribute('placeholder') ?? picker.textContent ?? '').toContain('Visit types');
+    expect(document.body.textContent).not.toContain('public.services');
+  });
+});

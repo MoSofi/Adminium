@@ -502,6 +502,8 @@ export interface FormRelationFact {
   targetKey: string;
   /** The column a chip SHOWS; absent ⇒ the key labels itself. */
   targetName?: string | undefined;
+  /** What the linked table is called ("Visit types"): the picker says it, never the table's id. */
+  targetLabel?: string | undefined;
 }
 
 export interface DeriveFormInput {

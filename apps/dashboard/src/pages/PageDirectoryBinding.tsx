@@ -16,11 +16,13 @@ import { t } from '../i18n/t.js';
 import type { PageTemplateProps } from './template-types.js';
 import { usePageTemplateData } from './usePageTemplateData.js';
 
-export function PageDirectoryBinding({ page, adapters, recordId }: PageTemplateProps) {
+export function PageDirectoryBinding({ page, adapters, recordId, currency }: PageTemplateProps) {
   const { states } = usePageTemplateData(page);
 
   return (
     <PageDirectory
+      // The connection's currency: a money card that names none reads in it.
+      {...(currency === undefined ? {} : { currency })}
       config={page.config}
       states={states}
       detailRecordId={recordId ?? null}

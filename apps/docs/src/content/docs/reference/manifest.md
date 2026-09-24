@@ -291,8 +291,8 @@ change or delete is theirs from then on.
 
 | Rule | Shape | What it does |
 |---|---|---|
-| `options` | `{ "list": "<name>" }` or `{ "values": [{ "value", "label"?, "tone"? }] }` | The allowed values. `list` names one of the app's [option lists](#option-lists), or a built-in list: `builtin:countries`, `builtin:us-states`, `builtin:gender`. Inline `values` take 1–500 entries. |
-| `enumLabels` | `{ "labels": { "<value>": label }, "tones"?: { "<value>": "<tone>" } }` | Display labels (and badge tones) for an enum's values. |
+| `options` | `{ "list": "<name>" }` or `{ "values": [{ "value", "label"?, "tone"? }] }` | The allowed values. `list` names one of the app's [option lists](#option-lists), or a built-in list: `builtin:countries`, `builtin:us-states`, `builtin:gender`. Inline `values` take 1–500 entries. An inline value's `label` is a [label](#conventions): a keyed one follows the reader's language in the form's choices, the filters, the list and dashboard cards, falling back to `en-US`. An app's option list keeps its `en-US` words. |
+| `enumLabels` | `{ "labels": { "<value>": label }, "tones"?: { "<value>": "<tone>" } }` | Display labels (and badge tones) for an enum's values. Each label is a [label](#conventions): a keyed one follows the reader's language on pages (the list, the record and the form), and on dashboard cards, falling back to `en-US`. A page that sets its own labels or tones for the column keeps them. |
 | `required` | `true` | The server requires a value on every write. |
 | `validation` | `{ "format"?, "min"?, "max"?, "minLength"?, "maxLength"? }` | `format` is `email`, `url` or `phone`. |
 | `copy` | `{ "via", "from", "mode"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. |
@@ -506,7 +506,7 @@ and appears in the app's own sidebar section.
 | `titles` | no | The title in other languages, keyed by BCP 47 tag, each 1–120 characters. The sidebar shows the operator's language until the operator renames the page. |
 | `nav` | yes | `{ "group", "icon", "order" }`. `group` is 1–80 characters, `icon` a [Lucide](https://lucide.dev/icons/) icon name (1–60 characters), `order` an integer. |
 | `bindings` | no | Which of the app's tables the page reads: an object from a page-local name to a `requiredSchema` table ref. |
-| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`. |
+| `config` | no | Page configuration: a `form` for a record page, a `layout` for `page-dashboard`, a `calendar` for `page-calendar`. |
 
 **Templates.** A table-bound template reads one table: `page-crud`, `page-board`,
 `page-calendar`, `page-scheduler`, `page-directory`, `page-master-detail`, `page-queue-inbox`,
@@ -520,6 +520,30 @@ refs; Adminium binds them to the real tables at install. The plan refuses a form
 not well formed or that names a column or table the manifest does not declare. Other problems do
 not block the install: a page with no `bindings`, an unknown template, or a table that cannot back
 its template gives a page that is created empty and says so, and the install report lists it.
+
+A form's chips field (`"control": "reference-chips"`) may name the table it picks from or the
+link table between the two (`"relation": "clinician_visit_types"`). A link table is one that
+holds the two foreign keys and nothing else to fill, with or without its own `id`. A field the
+install cannot bind is listed in the install report, and the page gets the form Adminium makes. A
+designed field the form cannot show says so in its place.
+
+`config.calendar` names the columns a `page-calendar` plots by:
+
+```json
+"config": { "calendar": { "start": "starts_at", "title": "patient_id.name", "category": "visit_type_id" } }
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `start` | yes | A `date` or `timestamptz` column of the page's table: where each row is plotted. |
+| `end` | no | A `date` or `timestamptz` column: where a row that spans time ends. |
+| `title` | no | A column of the page's table, or `<fk column>.<column>`: a column of the table that foreign key points at (the patient's name). |
+| `category` | no | A column of the page's table: what the rows are coloured and filtered by. |
+
+The manifest is refused when a name is not a column of the right table and type. Without
+`calendar`, a table with a booking rule is plotted by the booking's `start`; any other table by
+the first date Adminium finds. On a page with a `form`, **Add event** and a click on an empty day
+open that form, with the day filled in.
 
 **Updates.** A page nobody has edited is rebuilt when the app is updated. A page the operator
 edited is left as they left it. Uninstalling an app does not delete its pages.
@@ -569,8 +593,10 @@ Adminium serves each side at `/apps/<key>/<side>/`. The staff side needs a signe
 customer side is public and calls the [public API](/guides/public-api/endpoints-and-keys/) with the
 app's `customer` browser key, which the install creates. A staff side can be handed a second key
 for a screen of its own; see [publicKeys](#publickeys). Each side reads its `surface-config.json` at boot: the real table
-names, the app's settings and, for the staff side, the connection and the venue's time zone and
-currency.
+names, the app's settings and, for the staff side, the connection, the venue's time zone and
+currency, who is signed in, and `access`: which of `read`, `create`, `update` and `delete` they
+hold on each of the app's tables, and the app's roles they hold. A staff screen uses it to leave
+out a button whose write would be refused; the data API still checks every write.
 
 ## Roles
 
@@ -591,20 +617,52 @@ currency.
 | `key` | yes | kebab-case. The full `<key>-<role key>` must fit in 40 characters. |
 | `name` | yes | 1–80 characters. |
 | `permissions` | no | Grants, in the forms below. |
-| `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets. |
+| `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets, and its `limits`. |
 | `screensOnly` | no | `true`: people with this role open the app's own screens and never the dashboard. |
+| `limits` | no | Per table ref, what the role's `update` there may change. See below. |
 
 A manifest cannot know the real table names or page ids, so it grants through placeholders:
 
 | Grant | Actions |
 |---|---|
-| `table:@<table ref>:<action>` | `read`, `create`, `update`, `delete`, `export`, `import` |
+| `table:@<table ref>:<action>` | `read`, `create`, `update`, `delete`, `export`, `import`, `read_pii` |
 | `page:@<page ref>:<action>` | `view`, `edit` |
 | `app:@:staff` | Open the app's staff screens. |
+
+`read_pii` shows the table's personal columns in clear. Without it they read as `null`, listed in
+the row's `_masked`. A lookup into another table needs `read_pii` on that other table. See
+[Personal data](/guides/apps/roles-and-staff-access/#personal-data).
 
 The plan refuses a `system:` grant, a wildcard, and a reference to a table or page the manifest
 does not declare. Grants are given once: an update adds what a new version asks for, and an
 operator's narrowing of an app role survives it.
+
+`limits` narrows the role's `update` on a table to some columns and, for some of those, to some
+values. The names are the ones [public access](#public-access) uses:
+
+```json
+{
+  "key": "clinician",
+  "name": "Clinician",
+  "permissions": ["table:@appointments:read", "table:@appointments:update", "app:@:staff"],
+  "limits": {
+    "appointments": {
+      "writable": ["status"],
+      "writableValues": { "status": ["roomed", "with_clinician", "ready"] }
+    }
+  }
+}
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `writable` | yes | The columns the update may change, at least one. |
+| `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). |
+
+The table must be one the app declares, and the role must grant `table:@<ref>:update` itself or
+through `cloneFrom`. Someone who also holds a role with an unlimited update on the table is not
+limited. Creating rows is not limited. Every install and update writes the manifest's current
+limits. See [Edits limited to some columns](/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
 
 A role that signs in a staff-bound browser key (a check-in tablet; see [publicKeys](#publickeys))
 must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`.
@@ -658,7 +716,7 @@ there for the same kind and source is what stops a second send.
   "recipient": { "via": "patient_id", "table": "patients", "email": "email", "name": "name",
                  "language": "language", "optIn": "reminders",
                  "fallback": { "via": "appointment_id", "email": "new_email", "name": "new_name" } },
-  "settings": { "table": "settings", "enabled": "emails_on", "name": "practice_name" },
+  "settings": { "table": "settings", "enabled": "emails_on", "name": "practice_name", "phone": "phone" },
   "pages": { "manage": "/my-visits", "booking": "/" },
   "kinds": { "confirmation": "clinic-confirmation", "reminder": "clinic-reminder" },
   "producers": [
@@ -679,7 +737,7 @@ there for the same kind and source is what stops a second send.
 | `columns` | yes | The outbox's columns. `kind` is an enum of the kinds. `status` is an enum holding at least `queued`, `sent`, `failed` and `skipped`. `to` is `text`, the address. Optional: `language` (`text`), `due` (`timestamptz`, required by a `before` producer), `sentAt` (`timestamptz`) and `error` (`text`). |
 | `links` | no | The outbox's foreign keys, by the name a template reads them under: `{ "appointment": "appointment_id" }` gives a template `appointment.*`. Names are snake_case. Every foreign key of the outbox table that the outbox names must be nullable: not every email is about one. |
 | `recipient` | yes | Who the email goes to. See below. |
-| `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the workspace's name is used. |
+| `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"?, "phone"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the workspace's name is used. `phone` is a `text` column: when it holds a number, the notice sent to a person's old address after a change of email tells them to ring it; without one, the notice says to contact you. |
 | `pages` | no | `{ "manage"?, "booking"? }`: paths on the app's customer side (`/my-visits`) that a template's `manage_url` and `booking_url` lead to. Up to 120 characters. Default: the side's front page. |
 | `kinds` | yes | Each value of the kind column, and the key of the template it is sent with. Every value must be one of the enum's, and every template one of `emailTemplates`. |
 | `producers` | no | Up to 16 rules that queue rows by themselves. See below. |
@@ -795,7 +853,7 @@ operator revoked is not made again by an update.
 | `select` | no | The columns a response carries. Default: every column the app declares for the table. An entry with `claimedBy` must list them. |
 | `writable` | no | The columns a create or change may set. Never a column whose value Adminium decides. |
 | `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |
-| `writableWhen` | no | `{ "<column>": [1–32 values] }` or `{ "<column>": "from-now" }`: the state a row must be in to be changed. `"from-now"` needs a `timestamptz` and means "still ahead". Needs `PATCH`. |
+| `writableWhen` | no | `{ "<column>": [1–32 values] }`, `{ "<column>": "from-now" }` or `{ "<column>": { "within": <minutes> } }`: the state a row must be in to be changed. `"from-now"` needs a `timestamptz` and means "still ahead". `within` needs a `timestamptz` and means "no more than that many minutes ahead" (1–1440; a past time always passes); at most one per entry. Needs `PATCH`. |
 | `filters` | no | Rows the endpoint can reach at all. See [Filters](#filters). |
 | `defaults` | no | Values the server writes whatever the browser sends. |
 | `claim` | no | `{ "match", "verify"?, "email"? }`. Makes the entry its key's identity. See [A person's own rows](#a-persons-own-rows). |
@@ -816,6 +874,13 @@ and only while it is `booked`. `writableWhen` is part of the change itself, neve
 finished visit still lists but cannot be moved; a change to a row in any other state answers as if
 the row were not there. An entry with `claimedBy` that changes an enum column must list its
 `writableValues`: permission to cancel is not permission to mark a visit seen.
+
+A window lets a change wait for its time: `"starts_at": { "within": 60 }` takes a check-in up to an
+hour before the visit, or any time after it. A change asked for earlier is refused `409`
+`PUBLIC_TOO_EARLY`, and the reply's `params` carry `at`, the row's time, and `from`, when the window
+opens, both as instants — even when `select` leaves the column out; naming the window agrees to
+that. The refusal is said only for a row the caller's own read reaches, with every other state in
+`writableWhen` met; any other miss answers as if the row were not there.
 
 `confirm` takes `template` (only `booking-confirmation` today), `to` (the column holding the
 guest's address) and optionally `code`, `when`, `party` and `name` (columns the email shows),
@@ -958,7 +1023,7 @@ CSRF token on a write. A token copied out of the page opens nothing on its own.
     "filters": [{ "column": "starts_at", "op": "today" }],
     "select": ["id", "starts_at", "status"],
     "writable": ["status"], "writableValues": { "status": ["checked_in"] },
-    "writableWhen": { "status": ["booked"] } }
+    "writableWhen": { "status": ["booked"], "starts_at": { "within": 60 } } }
 ]
 ```
 

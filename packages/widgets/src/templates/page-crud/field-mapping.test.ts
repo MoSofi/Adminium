@@ -9,6 +9,7 @@ import {
   formColumns,
   isRequired,
   optionsForColumn,
+  withFactChoices,
 } from './field-mapping.js';
 import { SEGMENTED_MAX_ARITY } from '../../page-config/crud-form.js';
 import type { ColumnFact } from './field-mapping.js';
@@ -307,5 +308,60 @@ describe('an admin\u2019s answers — inline values and named lists', () => {
     const facts = fact({ options: { list: 'gone' } });
     expect(optionsForColumn(country, facts, lists)).toEqual([]);
     expect(controlForColumn(country, facts, lists)).toBe('text');
+  });
+});
+
+/*
+ * A page's stored columns never carry a choice column's words — generation
+ * writes none — so the list takes them from the server's facts, read in the
+ * person's language, and says what the form beside it offers.
+ */
+describe('the server’s words for a choice column, on a page’s stored columns', () => {
+  const status = spec({ name: 'status', label: 'Status', logicalType: 'enum', enumValues: ['waiting', 'seen'] });
+  const paid = spec({ name: 'paid_with', label: 'Paid with' });
+  const base: ColumnFact = { filledBy: null, required: false, writable: true };
+
+  it('takes the facts’ labels and tones where the page sets none', () => {
+    const facts = { status: { ...base, enumLabels: { waiting: 'Wartend' }, enumTones: { waiting: 'warn', seen: 'glitter' } } };
+    const [shown] = withFactChoices([status], facts);
+    expect(shown?.enumLabels).toEqual({ waiting: 'Wartend' });
+    // A tone no cell can draw is left to the column's default.
+    expect(shown?.enumTones).toEqual({ waiting: 'warn' });
+  });
+
+  it('draws an inline list’s words and tones over the value labels, as the form offers them', () => {
+    const facts = {
+      paid_with: { ...base, options: { values: [{ value: 'cash', label: 'Bar', tone: 'pos' }, { value: 'card' }] } },
+      status: { ...base, enumLabels: { waiting: 'Wartend' }, options: { values: [{ value: 'waiting', label: 'In der Schlange' }] } },
+    };
+    const [shownPaid, shownStatus] = withFactChoices([paid, status], facts);
+    expect(shownPaid).toMatchObject({ enumLabels: { cash: 'Bar' }, enumTones: { cash: 'pos' } });
+    expect(shownStatus?.enumLabels).toEqual({ waiting: 'In der Schlange' });
+  });
+
+  it('keeps a named list’s column as it was: a grid of codes stays one', () => {
+    const columns = [paid];
+    expect(withFactChoices(columns, { paid_with: { ...base, options: { list: 'builtin:countries' } } })).toBe(columns);
+  });
+
+  it('a page’s own words and tones win, each on its own', () => {
+    const own = spec({ name: 'status', label: 'Status', logicalType: 'enum', enumLabels: { waiting: 'Queued' } });
+    const [shown] = withFactChoices([own], { status: { ...base, enumLabels: { waiting: 'Wartend' }, enumTones: { waiting: 'warn' } } });
+    expect(shown?.enumLabels).toEqual({ waiting: 'Queued' });
+    expect(shown?.enumTones).toEqual({ waiting: 'warn' });
+  });
+
+  it('hands back the same columns when there is nothing to add', () => {
+    const columns = [status, paid];
+    expect(withFactChoices(columns, undefined)).toBe(columns);
+    expect(withFactChoices(columns, { status: base })).toBe(columns);
+  });
+
+  it('a form’s answer with no word of its own takes the column’s value label', () => {
+    const fact: ColumnFact = { ...base, enumLabels: { waiting: 'Wartend' }, options: { values: [{ value: 'waiting' }, { value: 'seen', label: 'Behandelt' }] } };
+    expect(optionsForColumn(status, fact)).toEqual([
+      { value: 'waiting', label: 'Wartend' },
+      { value: 'seen', label: 'Behandelt' },
+    ]);
   });
 });

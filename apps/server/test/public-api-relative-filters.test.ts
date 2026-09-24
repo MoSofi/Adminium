@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../src/crud/identifiers.js';
 import { wideningOf } from '../src/public-api/derive.js';
 import { endpointIssues } from '../src/public-api/endpoint.js';
-import { afterNow, mandatoryAt, type ScopeWhere } from '../src/public-api/relative-filters.js';
+import { afterNow, aheadWithin, mandatoryAt, type ScopeWhere } from '../src/public-api/relative-filters.js';
 import { compileScope } from '../src/public-api/scope.js';
 
 const column = (name: string, logicalType: string): ResolvedColumn => ({ name, logicalType }) as unknown as ResolvedColumn;
@@ -101,6 +101,18 @@ describe('a filter on the venue’s calendar', () => {
     expect(afterNow(table, 'starts_at', now)).toEqual({ column: 'starts_at', op: 'gt', value: '2026-07-28T22:30:00.000Z' });
     expect(afterNow(table, 'on_day', now)).toEqual({ column: 'id', op: 'is_null' });
   });
+
+  it('asks a window of a time as instants — no more than that far ahead, or beyond it — and of nothing else', () => {
+    // 23:30 in London, an hour on: past the venue's midnight, and no calendar in it.
+    expect(aheadWithin(table, 'starts_at', 60, now)).toEqual({ column: 'starts_at', op: 'lte', value: '2026-07-28T23:30:00.000Z' });
+    expect(aheadWithin(table, 'starts_at', 60, now, 'beyond')).toEqual({ column: 'starts_at', op: 'gt', value: '2026-07-28T23:30:00.000Z' });
+    const wall = aheadWithin(table, 'wall', 90, now) as { value: string };
+    expect(new Date(wall.value.replace(' ', 'T')).getTime()).toBe(new Date('2026-07-29T00:00:00.000Z').getTime());
+    // Across the autumn clock change it is still sixty real minutes.
+    expect(aheadWithin(table, 'starts_at', 60, new Date('2026-10-25T00:30:00Z'))).toMatchObject({ value: '2026-10-25T01:30:00.000Z' });
+    expect(aheadWithin(table, 'on_day', 60, now)).toEqual({ column: 'id', op: 'is_null' });
+    expect(aheadWithin(table, 'gone', 60, now, 'beyond')).toEqual({ column: 'id', op: 'is_null' });
+  });
 });
 
 describe('the rules that come with them', () => {
@@ -152,6 +164,18 @@ describe('the rules that come with them', () => {
     expect(codes({ writable: ['status'], writable_when: { starts_at: 'from-now', status: ['booked'] } })).toEqual([]);
   });
 
+  it('takes a time window only on a time, in whole minutes up to a day, and one per endpoint', () => {
+    expect(codes({ writable: ['status'], writable_when: { starts_at: { within: 60 }, status: ['booked'] } })).toEqual([]);
+    expect(codes({ writable: ['status'], writable_when: { wall: { within: 1440 } } })).toEqual([]);
+    expect(codes({ writable: ['status'], writable_when: { on_day: { within: 60 } } })).toContain('ENDPOINT_WRITABLE_WHEN_NOT_A_TIME:on_day');
+    for (const within of [0, 1441, 1.5, '60']) {
+      const refused = codes({ writable: ['status'], writable_when: { starts_at: { within } } });
+      expect(refused.filter((c) => c.startsWith('ENDPOINT_SHAPE_INVALID:writable_when.starts_at')), String(within)).not.toEqual([]);
+    }
+    expect(codes({ writable: ['status'], writable_when: { starts_at: { within: 60 }, wall: { within: 60 } } })).toContain('ENDPOINT_SHAPE_INVALID:writable_when');
+    expect(codes({ writable: ['status'], writable_when: { starts_at: { within: 60 }, wall: 'from-now' } })).toEqual([]);
+  });
+
   it('refuses a stranger\u2019s cap on a column the table does not have', () => {
     expect(codes({ methods: ['POST'], writable: ['status'], anonymous: { per_value: { columns: ['phone'], n: 2 }, plain_text: ['status'] } })).toContain('ENDPOINT_COLUMN_UNKNOWN:phone');
     expect(codes({ methods: ['POST'], writable: ['status'], anonymous: { per_value: { columns: ['status'], n: 2 }, per_key_hour: 20 } })).not.toContain('ENDPOINT_COLUMN_UNKNOWN:status');
@@ -181,6 +205,8 @@ describe('the rules that come with them', () => {
       { ...pinned, writableValues: { status: ['cancelled', 'seen'] } },
       { writableWhen: pinned.writableWhen },
       { ...pinned, writableWhen: { status: ['booked'] } },
+      // A window that reaches further, or none at all where there was one.
+      { ...pinned, writableWhen: { status: ['booked'], starts_at: { within: 120 } } },
     ]) {
       expect(wideningOf(doc(pinned), doc(looser))).toEqual([{ ref: 'visits', methods: [], columns: [], rows: true }]);
     }

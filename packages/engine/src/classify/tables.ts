@@ -190,7 +190,8 @@ export function joinDetectionColumns(
  * (possibly the same one), and at most 2 additional columns drawn from
  * {surrogate id, created-at-classified, position/sort_order, one small
  * metadata column}. Boosters: composite PK/unique over the pair (+0.1),
- * name matching the two target names (+0.1). Base 0.7 → typical 0.8–0.9;
+ * nothing but the pair and a one-column surrogate key (+0.1), name matching
+ * the two target names (+0.1). Base 0.7 → typical 0.8–0.9;
  * accepted at ≥ 0.8 (thresholds).
  */
 export function detectJoinTable(
@@ -238,6 +239,22 @@ export function detectJoinTable(
   if (coveredByPk || coveredByUnique) {
     confidenceHundredths += 10;
     reasons.push('composite PK/unique constraint covers the FK pair (+0.1)');
+  }
+
+  // Nothing but the pair and the table's own one-column key: a link table
+  // made with a surrogate id (`clinician_visit_types(id, clinician_id,
+  // visit_type_id)`). With no data column of its own a row can only say "these
+  // two go together" — and an install's table prefix hides the composed name
+  // the booster below looks for, so this is the signal that still holds.
+  const ownKey = extras.length === 1 ? extras[0] : undefined;
+  const onlyOwnKey =
+    ownKey !== undefined &&
+    table.primaryKey.length === 1 &&
+    table.primaryKey[0] === ownKey.name &&
+    byName.get(ownKey.name)?.semantics.primary === 'pk-id';
+  if (onlyOwnKey && !coveredByPk) {
+    confidenceHundredths += 10;
+    reasons.push('nothing but the FK pair and its own surrogate key (+0.1)');
   }
 
   const targets = fkCols

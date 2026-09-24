@@ -5,8 +5,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import {
-  ANCHOR_MONTH,
-  ANCHOR_YEAR,
   TONE_SOFT_BORDER,
   categoryTone,
   fmtDayNumber,
@@ -69,8 +67,17 @@ function groupByDay(events: readonly CalendarEvent[]): Map<string, CalendarEvent
   return map;
 }
 
-/** Pick the displayed month: explicit config, else the modal event month, else anchor. */
-function inferMonth(events: readonly CalendarEvent[], year?: number, month?: number): { year: number; month: number } {
+/**
+ * Pick the displayed month: explicit config, else the modal event month, else
+ * the month `today` falls in (the wall clock's when absent). The demo anchor
+ * month is a story's to pass explicitly, never a live calendar's default.
+ */
+function inferMonth(
+  events: readonly CalendarEvent[],
+  year?: number,
+  month?: number,
+  today?: string,
+): { year: number; month: number } {
   if (year !== undefined && month !== undefined) return { year, month };
   if (events.length > 0) {
     const counts = new Map<string, number>();
@@ -90,7 +97,8 @@ function inferMonth(events: readonly CalendarEvent[], year?: number, month?: num
     const [y, m] = bestKey.split('-').map(Number);
     return { year: year ?? (y as number), month: month ?? (m as number) };
   }
-  return { year: year ?? ANCHOR_YEAR, month: month ?? ANCHOR_MONTH };
+  const now = parseIsoDay(today ?? todayKey());
+  return { year: year ?? now.getUTCFullYear(), month: month ?? now.getUTCMonth() };
 }
 
 export function CalendarMonth({
@@ -110,7 +118,7 @@ export function CalendarMonth({
 }: CalendarMonthProps) {
   const t = useMaybeT();
   const tag = resolveLocale(locale);
-  const base = useMemo(() => inferMonth(events, year, month), [events, year, month]);
+  const base = useMemo(() => inferMonth(events, year, month, today), [events, year, month, today]);
   const [view, setView] = useState(base);
   const [selected, setSelected] = useState<string | undefined>(selectedDate);
 

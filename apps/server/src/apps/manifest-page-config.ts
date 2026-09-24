@@ -8,15 +8,21 @@
  *  - A form's column fields name columns, which keep their names. A relation
  *    field names the table at its other end — `modifier_groups`, or
  *    `modifier_groups.item_id` where two relations reach the same table — and
- *    becomes the relation's real id.
+ *    becomes the relation's real id. A chips field may name its link table
+ *    instead (`clinician_visit_types`): the table the app declared, which is
+ *    also a child table of the form's own, so the field's control says which
+ *    of the two relations it means.
  *  - A layout's widget queries name a table as `source: {name}` with no
  *    connection; they get the install's connection and the real table.
+ *  - A calendar's columns (`calendar: {start, end?, title?, category?}`) name
+ *    columns, which keep their names; they are handed to the composition as
+ *    they are (`calendarOf`).
  *
  * The plan checks the same form against the manifest's own declarations
  * (`formIssues`), so an app whose form names a column it never declared is
  * refused before anything is written — never a form silently dropped.
  */
-import { pageSourceTable, type DatabaseModel } from '@adminium/engine';
+import { pageSourceTable, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
 import { pageLayoutSchema, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
 import type { Manifest } from '@adminium/manifest';
 
@@ -82,10 +88,20 @@ export function bindForm(
 ): { form: CrudFormConfig } | { problem: string } {
   const form = parseCrudForm({ form: raw });
   if (form === null) return { problem: 'its form is not a valid form' };
-  const links = linkableRelations(view, table).map((link) => ({ id: link.relationId, table: link.target.name, column: link.ownColumn }));
+  // A link is named by the table it picks from — or, by a field that says it
+  // picks, by its link table.
+  const links = linkableRelations(view, table).map((link) => ({
+    id: link.relationId,
+    kind: 'link' as const,
+    table: link.target.name,
+    through: link.linkTable.name as string | null,
+    column: link.ownColumn,
+  }));
   const children = childRelations(view, table).map((child) => ({
     id: child.relationId,
+    kind: 'child' as const,
     table: child.child.name,
+    through: null,
     column: child.foreignColumn,
   }));
   const candidates = [...links, ...children];
@@ -95,12 +111,21 @@ export function bindForm(
       if (!('relation' in field)) continue;
       const { ref, column } = splitRelation(field.relation);
       const real = names[ref] ?? ref;
-      const found = candidates.filter((c) => c.table === real && (column === null || c.column === column));
+      // Rows edited in place are a child relation; picked keys, a link.
+      const kind = field.control === undefined ? null : field.control === 'child-rows' ? 'child' : 'link';
+      const found = candidates.filter(
+        (c) =>
+          (c.table === real || (kind === 'link' && c.through === real)) &&
+          (kind === null || c.kind === kind) &&
+          (column === null || c.column === column),
+      );
       if (found.length !== 1) {
         return {
           problem:
             found.length === 0
-              ? `nothing links "${table.name}" to "${real}"`
+              ? kind === 'link'
+                ? `nothing links "${table.name}" to "${real}" for a field that picks rows (a link table holds two keys and nothing else to fill)`
+                : `nothing links "${table.name}" to "${real}"`
               : `"${table.name}" reaches "${real}" more than one way; name the column (${ref}.<column>)`,
         };
       }
@@ -108,6 +133,27 @@ export function bindForm(
     }
   }
   return { form: bound };
+}
+
+/**
+ * The columns a page's `config.calendar` names, or null when it names none.
+ * The manifest's own check has judged it against the app's tables; this only
+ * reads it.
+ */
+export function calendarOf(page: ManifestPage): CalendarColumns | null {
+  const raw = page.config?.['calendar'];
+  if (typeof raw !== 'object' || raw === null) return null;
+  const value = raw as Record<string, unknown>;
+  const text = (key: string): string | undefined => (typeof value[key] === 'string' && value[key] !== '' ? (value[key] as string) : undefined);
+  const start = text('start');
+  if (start === undefined) return null;
+  const [end, title, category] = [text('end'), text('title'), text('category')];
+  return {
+    start,
+    ...(end === undefined ? {} : { end }),
+    ...(title === undefined ? {} : { title }),
+    ...(category === undefined ? {} : { category }),
+  };
 }
 
 /**

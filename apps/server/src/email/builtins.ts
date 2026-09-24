@@ -155,7 +155,12 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
   'document-ready': ['appName', 'kind', 'number', 'business', 'documentUrl', 'documentFileId'],
   'booking-confirmation': ['appName', 'venue', 'name', 'code', 'when', 'party', 'manageUrl', 'cancelHours', 'address', 'phone'],
   'sign-in-code': ['appName', 'code', 'minutes'],
-  'email-changed': ['appName', 'name', 'newEmail'],
+  /*
+   * `phoneLine` and `contactLine` are whole sentences, not fragments: the
+   * send fills exactly one of them (`emailChangedLines`) and the other with
+   * nothing, which drops its paragraph.
+   */
+  'email-changed': ['appName', 'name', 'newEmail', 'phoneLine', 'contactLine'],
 };
 
 /**
@@ -189,6 +194,8 @@ const VAR = {
   phone: '{{phone}}',
   minutes: '{{minutes}}',
   newEmail: '{{newEmail}}',
+  phoneLine: '{{phoneLine}}',
+  contactLine: '{{contactLine}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -484,6 +491,24 @@ function signInCodeTemplate(t: Translate): BuiltinEmailTemplate {
   };
 }
 
+/**
+ * The closing sentence of the `email-changed` notice, in the recipient's
+ * language, as the two variables the template reads: the number to ring when
+ * the practice has one, else "contact us straight away" as before. Exactly
+ * one of the two holds a sentence; the other is empty, and the renderer drops
+ * a paragraph that fills to nothing.
+ *
+ * Filled per send rather than seeded into the row because the number is the
+ * app's, read from its settings row when the change is made, and one stored
+ * row serves every app on the install.
+ */
+export function emailChangedLines(t: Translate, phone: string | null): { phoneLine: string; contactLine: string } {
+  if (phone === null) {
+    return { phoneLine: '', contactLine: t('email:emailChanged.notice', { defaultValue: 'If this wasn’t you, contact us straight away.' }) };
+  }
+  return { phoneLine: t('email:emailChanged.noticePhone', { phone, defaultValue: 'If this wasn’t you, ring us on {phone}.' }), contactLine: '' };
+}
+
 /** Sent to the OLD address when a record's address is changed: the one way its owner hears of it. */
 function emailChangedTemplate(t: Translate): BuiltinEmailTemplate {
   return {
@@ -502,7 +527,9 @@ function emailChangedTemplate(t: Translate): BuiltinEmailTemplate {
           defaultValue: 'Hi {name}, the email address on your record at {appName} is now {newEmail}.',
         }),
       ),
-      paragraph('notice', t('email:emailChanged.notice', { defaultValue: 'If this wasn’t you, contact us straight away.' })),
+      // One of the two, never both: see `emailChangedLines`.
+      paragraph('notice', VAR.contactLine),
+      paragraph('phone', VAR.phoneLine),
     ],
     footer: t('email:emailChanged.footer', { appName: VAR.appName, defaultValue: '{appName}' }),
   };

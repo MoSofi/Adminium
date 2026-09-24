@@ -116,15 +116,20 @@ export function humanizeEnum(value: string): string {
  * + label + tone + wip); otherwise columns are derived from the distinct values
  * of `columnField` in first-seen order, tone-cycled deterministically (annex:
  * "columns derived from enum values").
+ *
+ * `words` are the status column's words for its values, from the server and
+ * in the reader's language: a column with no label of its own is headed by
+ * its word ("Wartend"), else by its humanized value.
  */
 export function resolveColumns(
   cards: readonly BoardCardData[],
   columnDefs?: readonly ColumnDefInput[] | undefined,
+  words?: Readonly<Record<string, string>> | undefined,
 ): ColumnDef[] {
   if (columnDefs && columnDefs.length > 0) {
     return columnDefs.map((def, index) => ({
       id: String(def.id ?? index),
-      label: def.label ?? humanizeEnum(String(def.id ?? index)),
+      label: def.label ?? words?.[String(def.id ?? index)] ?? humanizeEnum(String(def.id ?? index)),
       tone: boardToneOf(def.tone, COLUMN_TONE_CYCLE[index % COLUMN_TONE_CYCLE.length]),
       wip: def.wip,
     }));
@@ -135,20 +140,21 @@ export function resolveColumns(
   }
   return seen.map((id, index) => ({
     id,
-    label: humanizeEnum(id),
+    label: words?.[id] ?? humanizeEnum(id),
     tone: COLUMN_TONE_CYCLE[index % COLUMN_TONE_CYCLE.length] as Tone,
   }));
 }
 
-/** Resolve the ordered lane set for a swimlane board (annex `laneDefs`). */
+/** Resolve the ordered lane set for a swimlane board (annex `laneDefs`); `words` as for columns. */
 export function resolveLanes(
   cards: readonly BoardCardData[],
   laneDefs?: readonly LaneDefInput[] | undefined,
+  words?: Readonly<Record<string, string>> | undefined,
 ): LaneDef[] {
   if (laneDefs && laneDefs.length > 0) {
     return laneDefs.map((def, index) => ({
       id: String(def.id ?? index),
-      name: def.name ?? humanizeEnum(String(def.id ?? index)),
+      name: def.name ?? words?.[String(def.id ?? index)] ?? humanizeEnum(String(def.id ?? index)),
       tone: boardToneOf(def.tone, COLUMN_TONE_CYCLE[index % COLUMN_TONE_CYCLE.length]),
     }));
   }
@@ -159,7 +165,7 @@ export function resolveLanes(
   }
   return seen.map((id, index) => ({
     id,
-    name: humanizeEnum(id),
+    name: words?.[id] ?? humanizeEnum(id),
     tone: COLUMN_TONE_CYCLE[index % COLUMN_TONE_CYCLE.length] as Tone,
   }));
 }

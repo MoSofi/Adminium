@@ -156,6 +156,7 @@ the venue can still cancel from its own screens.
 | 409 | `PUBLIC_SLOT_FULL` | The time a booking asks for has no room left |
 | 409 | `PUBLIC_SLOT_BUSY` | Another visitor is booking that time this instant; try again in a moment |
 | 409 | `PUBLIC_TOO_LATE` | Too close to the time to cancel online; the venue still can |
+| 409 | `PUBLIC_TOO_EARLY` | The guest's own row is not yet inside the endpoint's time window. `params.at` is the row's time and `params.from` when the window opens |
 | 429 | `PUBLIC_RATE_LIMITED` | Over the limit. `Retry-After` says when to try again |
 | 503 | `PUBLIC_API_DISABLED` | The Public API switch is off |
 

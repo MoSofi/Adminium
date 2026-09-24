@@ -10,6 +10,7 @@ import { permissionsRepo, rolesRepo, type MetaDb, type Role } from '@adminium/me
 
 import { grantsFromMatrixRows, isGranted } from './permissions.js';
 import type { RbacPrincipal } from './principal.js';
+import { limitOfRow, type LimitedUpdate, type UpdateLimits } from './update-limits.js';
 
 /** Built-in slug whose members bypass every check. */
 export const SUPER_ADMIN_SLUG = 'super-admin';
@@ -24,6 +25,11 @@ export interface PermissionSet {
    * use the dashboard: Super Admin, and anyone with one ordinary role.
    */
   screensOnly: readonly string[] | null;
+  /**
+   * The update grants that may write only some columns (rbac/update-limits.ts).
+   * Absent means none: a set built without it limits nothing.
+   */
+  updateLimits?: UpdateLimits | undefined;
 }
 
 export function emptyPermissionSet(): PermissionSet {
@@ -59,16 +65,30 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
   const superAdmin = roles.some((role) => role.slug === SUPER_ADMIN_SLUG);
   const permissions = permissionsRepo(meta);
   const grants = new Set<string>();
+  // The same union without the update grants a limit narrows, and the limits.
+  const unlimited = new Set<string>();
+  const limited: LimitedUpdate[] = [];
   if (!superAdmin) {
     const suspended = await suspendedApps(meta, roles);
     for (const role of roles) {
       if (role.appKey !== null && suspended.has(role.appKey)) continue;
-      for (const grant of grantsFromMatrixRows(await permissions.listForRole(role.id))) {
-        grants.add(grant);
+      for (const row of await permissions.listForRole(role.id)) {
+        const limit = limitOfRow(row);
+        for (const grant of grantsFromMatrixRows([row])) {
+          grants.add(grant);
+          if (limit !== null && grant.endsWith(':update')) limited.push({ grant, limit });
+          else unlimited.add(grant);
+        }
       }
     }
   }
-  return { superAdmin, grants, roleIds: roles.map((role) => role.id), screensOnly: screensOnlyApps(roles) };
+  return {
+    superAdmin,
+    grants,
+    roleIds: roles.map((role) => role.id),
+    screensOnly: screensOnlyApps(roles),
+    ...(limited.length === 0 ? {} : { updateLimits: { limited, unlimited } }),
+  };
 }
 
 /**

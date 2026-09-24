@@ -102,6 +102,19 @@ export const uiStateSchema = z.record(z.string(), z.unknown());
 export const resourceKindSchema = z.enum(['table', 'page', 'system', 'app']);
 export type ResourceKind = z.infer<typeof resourceKindSchema>;
 
+/**
+ * What an update grant on one table may write, when it may not write
+ * everything: these columns and, for the ones listed in `writableValues`,
+ * only these values. An app's role carries it (a clinician moves a visit
+ * along and does nothing else to it). The names follow the public-access
+ * entries' `writable` / `writableValues`.
+ */
+export const updateLimitSchema = z.object({
+  writable: z.array(z.string().min(1)).min(1),
+  writableValues: z.record(z.string(), z.array(z.union([z.string(), z.number(), z.boolean()])).min(1)).optional(),
+});
+export type UpdateLimit = z.infer<typeof updateLimitSchema>;
+
 export const tableActionsSchema = z.object({
   read: z.boolean(),
   create: z.boolean(),
@@ -109,6 +122,13 @@ export const tableActionsSchema = z.object({
   delete: z.boolean(),
   export: z.boolean(),
   import: z.boolean(),
+  /*
+   * Personal columns in clear. Optional because every row written before it
+   * existed lacks it, and a missing key reads as not granted.
+   */
+  read_pii: z.boolean().optional(),
+  /** Narrows `update` on this row; absent, the grant writes every column. */
+  updateLimit: updateLimitSchema.optional(),
 });
 export type TableActions = z.infer<typeof tableActionsSchema>;
 
@@ -393,7 +413,13 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   z.object({
     op: z.literal('column.enumLabels'),
     value: z.object({
-      labels: z.record(z.string(), z.string()),
+      /*
+       * Each value's label is a plain string (the operator's, and every row
+       * written before apps shipped theirs in several languages) or one per
+       * locale, as a column's name is. The read path resolves either shape
+       * for its reader, so older rows need no migration.
+       */
+      labels: z.record(z.string(), z.union([z.string(), labelTextSchema])),
       tones: z.record(z.string(), toneSchema).optional(),
     }),
   }),
@@ -443,7 +469,12 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
           .array(
             z.object({
               value: z.string().min(1).max(256),
-              label: z.string().max(256).optional(),
+              /*
+               * A plain string (the operator's, and every row written before
+               * apps kept theirs per language) or one per locale, read for
+               * each reader as a value label is. No migration for either.
+               */
+              label: z.union([z.string().max(256), labelTextSchema]).optional(),
               tone: toneSchema.optional(),
               description: z.string().max(512).optional(),
             }),
