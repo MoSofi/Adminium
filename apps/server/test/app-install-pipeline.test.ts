@@ -19,10 +19,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { desiredTableSchema, parseDatabaseModel } from '@adminium/engine';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
 import {
+  appOutboxesRepo,
   appTablesRepo,
   connectionTenantConfig,
   createSqliteMetaDb,
   documentSequencesRepo,
+  emailTemplatesRepo,
   snapshotsRepo,
   firstRun,
   manifestsRepo,
@@ -32,7 +34,9 @@ import {
   permissionsRepo,
   publicEndpointsRepo,
   publicKeysRepo,
+  publicSessionsRepo,
   rolesRepo,
+  settingsRepo,
   usersRepo,
   type MetaDb,
 } from '@adminium/meta';
@@ -51,8 +55,10 @@ import { registerAdapters } from '../src/connections/register-adapters.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
 import { resolveLookups } from '../src/crud/lookups.js';
-import { venueClock } from '../src/crud/capacity-guard.js';
-import { createWriteService, GuardedBatchError, type WriteTarget } from '../src/crud/write-service.js';
+import { tableRulesFor } from '../src/crud/column-rules.js';
+import { slotInstant, venueClock } from '../src/crud/capacity-guard.js';
+import type { Row } from '../src/crud/mask.js';
+import { createWriteService, GuardedBatchError, insertRow, type WriteContext, type WriteTarget } from '../src/crud/write-service.js';
 import { normalizeWriteValue } from '../src/crud/write-values.js';
 import { wallTimeToInstant } from '../src/crud/venue-time.js';
 import { writeStores } from '../src/crud/write-stores.js';
@@ -66,7 +72,17 @@ import { endpointIssues, parseDefinition } from '../src/public-api/endpoint.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { packageTarball } from './app-bundle-helpers.js';
-import { TEST_SECRET } from './helpers.js';
+import { composeServer } from '../src/compose.js';
+import { createApplyService } from '../src/llm/apply-service.js';
+import { createRunService } from '../src/llm/run-service.js';
+import { hashPublishableKey, openPublishableKey } from '../src/public-api/keys.js';
+import { solveProof } from '../src/public-api/proof.js';
+import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
+import type { OutboxProducers } from '../src/outbox/producers.js';
+import { decryptSecret, encryptSecret } from '../src/config/secrets.js';
+import { emailSecretKey } from '../src/email/config.js';
+import { emailEnvelopeKey, type EmailSendReport } from '../src/email/send.js';
+import { makeEnv, TEST_SECRET } from './helpers.js';
 
 /**
  * The code generator's dice, loaded on request: a queued number is the next
@@ -355,6 +371,1982 @@ async function stageManifest(
   expect(res.statusCode, res.body).toBe(200);
 }
 
+/** The clinic-shaped tables a booking rule reads, prefixed `pos_` by the harness's app. */
+function bookingManifest() {
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  const hhmm = (ref: string, nullable = false) => ({ ref, type: 'text', maxLength: 5, ...(nullable ? { nullable: true } : {}) });
+  const weekday = { ref: 'weekday', type: 'enum', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] };
+  return {
+    ...MANIFEST,
+    requiredSchema: {
+      prefixed: true,
+      tables: [
+        TABLES[0],
+        {
+          ref: 'booking_settings',
+          columns: [
+            id,
+            { ref: 'slot_minutes', type: 'int', default: 15 },
+            { ref: 'booking_days', type: 'int', default: 5 },
+            { ref: 'notice_minutes', type: 'int', default: 60 },
+            { ref: 'cancel_hours', type: 'int', default: 24 },
+          ],
+        },
+        { ref: 'opening_hours', columns: [id, weekday, { ref: 'open', type: 'bool', default: true }, hhmm('opens'), hhmm('closes'), hhmm('break_start', true), hhmm('break_end', true)] },
+        {
+          ref: 'clinicians',
+          columns: [id, { ref: 'name', type: 'text', maxLength: 40 }, { ref: 'position', type: 'int', default: 0 }, { ref: 'active', type: 'bool', default: true }, { ref: 'bookable_online', type: 'bool', default: true }],
+        },
+        { ref: 'visit_types', columns: [id, { ref: 'name', type: 'text', maxLength: 40 }, { ref: 'minutes', type: 'int', default: 15 }] },
+        { ref: 'clinician_visit_types', columns: [id, { ref: 'clinician_id', type: 'fk', references: 'clinicians' }, { ref: 'visit_type_id', type: 'fk', references: 'visit_types' }] },
+        { ref: 'clinician_hours', columns: [id, { ref: 'clinician_id', type: 'fk', references: 'clinicians' }, weekday, hhmm('opens'), hhmm('closes')] },
+        {
+          ref: 'closures',
+          columns: [id, { ref: 'clinician_id', type: 'fk', references: 'clinicians', nullable: true }, { ref: 'from_date', type: 'date' }, { ref: 'to_date', type: 'date' }, { ref: 'active', type: 'bool', default: true }],
+        },
+        {
+          ref: 'visits',
+          booking: {
+            start: 'starts_at',
+            minutes: 'minutes',
+            resource: 'clinician_id',
+            kind: 'visit_type_id',
+            countWhere: { column: 'status', values: ['booked', 'checked_in', 'seen'] },
+            eligible: {
+              table: 'clinician_visit_types',
+              resource: 'clinician_id',
+              kind: 'visit_type_id',
+              order: { table: 'clinicians', column: 'position', active: 'active', public: 'bookable_online' },
+            },
+            hours: {
+              practice: { table: 'opening_hours', weekday: 'weekday', open: 'open', opens: 'opens', closes: 'closes', breakStart: 'break_start', breakEnd: 'break_end' },
+              own: { table: 'clinician_hours', resource: 'clinician_id', weekday: 'weekday', opens: 'opens', closes: 'closes' },
+            },
+            closures: { table: 'closures', from: 'from_date', to: 'to_date', resource: 'clinician_id', active: 'active' },
+            grid: { table: 'booking_settings', column: 'slot_minutes' },
+            windowDays: { table: 'booking_settings', column: 'booking_days' },
+            noticeMinutes: { table: 'booking_settings', column: 'notice_minutes' },
+            cancel: { hours: { table: 'booking_settings', column: 'cancel_hours' }, mode: 'flag', flag: 'late_cancel', when: { column: 'status', to: 'cancelled' } },
+          },
+          columns: [
+            id,
+            { ref: 'clinician_id', type: 'fk', references: 'clinicians', nullable: true },
+            { ref: 'visit_type_id', type: 'fk', references: 'visit_types' },
+            { ref: 'starts_at', type: 'timestamptz', rules: { venueLocal: true } },
+            { ref: 'minutes', type: 'int', default: 15, rules: { copy: { via: 'visit_type_id', from: 'minutes', mode: 'always' } } },
+            { ref: 'status', type: 'enum', enum: ['booked', 'checked_in', 'seen', 'no_show', 'cancelled'], default: 'booked' },
+            { ref: 'late_cancel', type: 'bool', default: false },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+/** The booking guard, end to end, against the harness's real database. */
+async function bookPeople(h: Harness, zone: string): Promise<void> {
+  await stageManifest(h, bookingManifest());
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+
+  const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
+  const view = new SnapshotView(
+    h.connectionId,
+    applyOverrides(parseDatabaseModel(snapshot.schema), await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })),
+    new Map(),
+  );
+  const { db, dialect: d } = await h.manager.data(h.connectionId);
+  const targetOf = (name: string): WriteTarget => ({
+    connectionId: h.connectionId,
+    view,
+    table: view.table(view.model.tables.find((t) => t.name === `pos_${name}`)!.id),
+    db,
+    dialect: d,
+    timezone: zone,
+  });
+  const writes = createWriteService({ sequences: documentSequencesRepo(h.meta) });
+  const staff: WriteContext = { origin: 'dashboard', hops: 0, actor: null, request: null };
+  const guest: WriteContext = { ...staff, origin: 'public' };
+  // As the data routes prepare a value — leaving a venue-local time to the write service.
+  const prepared = (name: string, values: Record<string, unknown>) => {
+    const table = targetOf(name).table;
+    const local = new Set(table.table?.columns.filter((c) => c.venueLocal === true).map((c) => c.name));
+    return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, local.has(k) ? v : normalizeWriteValue(table.columns.get(k)!, v)]));
+  };
+  const create = (name: string, values: Record<string, unknown>, context: typeof staff = staff) =>
+    writes.create({ target: targetOf(name), values: prepared(name, values), context, announce: async () => {} });
+  const update = (id: unknown, values: Record<string, unknown>, context: typeof staff = staff) =>
+    writes.update({ target: targetOf('visits'), pk: { id }, values: prepared('visits', values), context, announce: async () => {} });
+  /** What a write came to: `written`, or the refusal's code (a 422's reason). */
+  const outcome = (run: Promise<unknown>) =>
+    run.then(
+      () => 'written',
+      (error: { code?: string; details?: { reason?: string } }) => (error.code === 'VALIDATION_FAILED' ? String(error.details?.reason) : String(error.code)),
+    );
+  /** A wall time on the venue's clock, as the instant a guest's browser sends. */
+  const at = (day: string, hhmm: string) => wallTimeToInstant(`${day} ${hhmm}`, zone)!.toISOString();
+  const TUE = '2026-07-28';
+  const WED = '2026-07-29';
+  const THU = '2026-07-30';
+  const FRI = '2026-07-31';
+
+  await create('booking_settings', { slot_minutes: 15, booking_days: 5, notice_minutes: 60, cancel_hours: 24 });
+  for (const weekday of ['mon', 'tue', 'wed', 'thu', 'fri']) {
+    await create('opening_hours', { weekday, opens: '08:30', closes: '17:30', break_start: '12:30', break_end: '13:15' });
+  }
+  const ada = await create('clinicians', { name: 'Ada', position: 1 });
+  const ben = await create('clinicians', { name: 'Ben', position: 2, bookable_online: false });
+  const cal = await create('clinicians', { name: 'Cal', position: 3, active: false });
+  const routine = await create('visit_types', { name: 'Routine', minutes: 15 });
+  const long = await create('visit_types', { name: 'Long', minutes: 45 });
+  const flu = await create('visit_types', { name: 'Flu', minutes: 15 });
+  for (const [who, what] of [[ada, routine], [ada, long], [ben, routine], [ben, long], [ben, flu], [cal, routine]] as const) {
+    await create('clinician_visit_types', { clinician_id: who['id'], visit_type_id: what['id'] });
+  }
+  // Ben keeps his own hours: Tuesday afternoons only.
+  await create('clinician_hours', { clinician_id: ben['id'], weekday: 'tue', opens: '13:15', closes: '17:30' });
+  // The practice is shut on Friday; Ada is away on Thursday.
+  await create('closures', { from_date: FRI, to_date: FRI });
+  await create('closures', { clinician_id: ada['id'], from_date: THU, to_date: THU });
+
+  const visit = (who: Row | null, what: Row, day: string, hhmm: string, extra: Record<string, unknown> = {}) => ({
+    clinician_id: who === null ? null : who['id'],
+    visit_type_id: what['id'],
+    starts_at: at(day, hhmm),
+    ...extra,
+  });
+  const book = (who: Row | null, what: Row, day: string, hhmm: string, extra: Record<string, unknown> = {}, context = staff) =>
+    outcome(create('visits', visit(who, what, day, hhmm, extra), context));
+
+  // ── overlap: half-open intervals, each visit its own length ────────────
+  const nine = await create('visits', visit(ada, routine, TUE, '09:00'));
+  expect(Number(nine['minutes'])).toBe(15);
+  expect(await book(ada, routine, TUE, '09:00')).toBe('BOOKING_TAKEN');
+  expect(await book(ada, long, TUE, '08:30')).toBe('BOOKING_TAKEN'); // 08:30–09:15 covers 09:00
+  expect(await book(ada, routine, TUE, '08:45')).toBe('written'); // ends at 09:00, exactly
+  expect(await book(ada, routine, TUE, '09:15')).toBe('written');
+  expect(await book(ben, routine, WED, '09:00')).toBe('BOOKING_OUT_OF_HOURS'); // his own hours: Tuesday only
+
+  // ── hours, breaks and the grid ─────────────────────────────────────────
+  expect(await book(ada, long, WED, '11:45')).toBe('written'); // 11:45 + 45 = 12:30, the break: fits by nothing
+  expect(await book(ada, long, WED, '12:15')).toBe('BOOKING_OUT_OF_HOURS'); // runs into lunch
+  expect(await book(ada, routine, WED, '13:00')).toBe('BOOKING_OUT_OF_HOURS'); // inside lunch
+  expect(await book(ada, routine, WED, '13:15')).toBe('written');
+  expect(await book(ada, routine, WED, '09:10')).toBe('BOOKING_OUT_OF_HOURS'); // off the grid
+  expect(await book(ada, routine, WED, '17:15')).toBe('written'); // ends at closing
+  expect(await book(ada, routine, WED, '17:30')).toBe('BOOKING_OUT_OF_HOURS');
+  expect(await book(ada, routine, WED, '08:15')).toBe('BOOKING_OUT_OF_HOURS');
+  expect(await book(ben, routine, TUE, '10:00')).toBe('BOOKING_OUT_OF_HOURS'); // before his own Tuesday hours
+  expect(await book(ben, routine, TUE, '13:15')).toBe('written');
+
+  // ── who does what ──────────────────────────────────────────────────────
+  expect(await book(ada, flu, TUE, '10:00')).toBe('BOOKING_NOT_OFFERED');
+  expect(await book(cal, routine, TUE, '10:00')).toBe('BOOKING_NOT_OFFERED'); // not active
+
+  // ── closures ───────────────────────────────────────────────────────────
+  expect(await book(ada, routine, FRI, '10:00')).toBe('BOOKING_CLOSED');
+  expect(await book(ada, routine, THU, '10:00')).toBe('BOOKING_CLOSED');
+  // A closure switched off ("reopen this day") closes nothing.
+  await db.updateTable(targetOf('closures').table.id as never).set({ active: d === 'sqlite' ? 0 : false } as never).where('clinician_id' as never, '=', ada['id'] as never).execute();
+  expect(await book(ada, routine, THU, '10:00')).toBe('written');
+
+  // ── the past, the window of working days, a guest's notice ─────────────
+  expect(await book(ada, routine, '2026-07-27', '10:00')).toBe('BOOKING_OUT_OF_RANGE');
+  // Five working days from Tuesday, both counted: Tue, Wed, Thu, (Fri shut), Mon 3, Tue 4.
+  expect(await book(ada, routine, '2026-08-04', '10:00')).toBe('written');
+  expect(await book(ada, routine, '2026-08-05', '10:00')).toBe('BOOKING_OUT_OF_RANGE');
+  expect(await book(ada, routine, TUE, '09:30', {}, guest)).toBe('written'); // 70 minutes ahead
+  expect(await book(ada, routine, TUE, '08:30', {}, guest)).toBe('BOOKING_OUT_OF_RANGE'); // 10 minutes: under the notice
+  expect(await book(ada, routine, TUE, '08:30')).toBe('written'); // staff are never held to it
+  expect(await book(ben, routine, TUE, '14:00', {}, guest)).toBe('BOOKING_NOT_OFFERED'); // not bookable online
+
+  // ── "anyone": the first eligible person the time suits, in order ───────
+  const anyone = (day: string, hhmm: string, context = staff) => create('visits', visit(null, routine, day, hhmm), context);
+  expect(Number((await anyone(TUE, '10:00'))['clinician_id'])).toBe(Number(ada['id']));
+  expect(await outcome(anyone(TUE, '09:00'))).toBe('BOOKING_TAKEN'); // Ada has it; Ben is not in yet; Cal is inactive
+  expect(await book(ada, routine, TUE, '14:30')).toBe('written');
+  expect(Number((await anyone(TUE, '14:30'))['clinician_id'])).toBe(Number(ben['id']));
+  expect(await book(ada, routine, TUE, '14:45')).toBe('written');
+  expect(await outcome(anyone(TUE, '14:45', guest))).toBe('BOOKING_TAKEN'); // a guest is never given Ben
+  expect(await outcome(anyone(FRI, '10:00'))).toBe('BOOKING_CLOSED');
+  expect(await outcome(create('visits', visit(null, flu, WED, '10:00')))).toBe('BOOKING_OUT_OF_HOURS'); // only Ben does it, and not on Wednesdays
+
+  // ── updates: a move is judged; a status step is not ────────────────────
+  const moving = await create('visits', visit(ada, long, WED, '09:00'));
+  expect(await outcome(update(moving['id'], { starts_at: at(WED, '09:15') }))).toBe('written'); // overlaps only itself
+  expect(await outcome(update(moving['id'], { starts_at: at(WED, '11:15') }))).toBe('BOOKING_TAKEN'); // into 11:45's visit
+  expect(await outcome(update(moving['id'], { visit_type_id: routine['id'] }))).toBe('written'); // a length change is a move
+  expect(Number((await db.selectFrom(targetOf('visits').table.id as never).select('minutes' as never).where('id' as never, '=', moving['id'] as never).executeTakeFirst() as { minutes: unknown }).minutes)).toBe(15);
+  // A cancelled visit that is booked again is judged for overlap only.
+  const cancelled = await create('visits', visit(ada, routine, WED, '15:00', { status: 'cancelled' }));
+  await create('visits', visit(ada, routine, WED, '15:00'));
+  expect(await outcome(update(cancelled['id'], { status: 'booked' }))).toBe('BOOKING_TAKEN');
+
+  // Later that morning a closure is added for Ada today; checking in her
+  // 09:00 visit, now in the past, is a status step and is never refused.
+  vi.setSystemTime(wallTimeToInstant(`${TUE} 10:37`, zone)!);
+  await create('closures', { clinician_id: ada['id'], from_date: TUE, to_date: TUE });
+  expect(await outcome(update(nine['id'], { status: 'checked_in' }))).toBe('written');
+  expect(await outcome(update(nine['id'], { status: 'seen', starts_at: at(TUE, '09:00') }))).toBe('written'); // the same time sent again is no move
+  await db.deleteFrom(targetOf('closures').table.id as never).where('from_date' as never, '=', TUE as never).execute();
+
+  // ── a walk-in: the desk books the slot that holds now, already checked in ─
+  expect(await book(ada, routine, TUE, '10:30', { status: 'checked_in' })).toBe('written');
+  expect(await book(ada, routine, TUE, '10:45')).toBe('written'); // the next slot is ordinary
+  expect(await book(ben, routine, TUE, '10:15', { status: 'checked_in' })).toBe('BOOKING_OUT_OF_RANGE'); // a slot already over
+  expect(await book(ada, long, TUE, '10:30', { status: 'booked' })).toBe('BOOKING_OUT_OF_RANGE'); // a booking, not a walk-in
+  expect(await book(ada, routine, TUE, '10:30', { status: 'checked_in' }, guest)).toBe('BOOKING_OUT_OF_RANGE'); // never from outside
+
+  // ── two writers, one slot: one of them gets it ─────────────────────────
+  const race = await Promise.all(Array.from({ length: 5 }, () => book(ada, routine, WED, '16:00')));
+  expect(race.filter((o) => o === 'written')).toHaveLength(1);
+  expect(race.filter((o) => o !== 'written').every((o) => o === 'BOOKING_TAKEN' || o === 'BOOKING_BUSY')).toBe(true);
+  // "Anyone" at a time two people are free: two bookings, then none.
+  const both = await Promise.all(Array.from({ length: 4 }, () => outcome(anyone(TUE, '16:00'))));
+  expect(both.filter((o) => o === 'written')).toHaveLength(2);
+
+  // ── rows written together cannot each hold their time ──────────────────
+  await expect(writes.check('create', targetOf('visits'), staff, [visit(ada, routine, WED, '16:30')])).rejects.toBeInstanceOf(GuardedBatchError);
+
+  // ── a clock change: 09:00 stays 09:00 on the venue's wall ──────────────
+  vi.setSystemTime(wallTimeToInstant('2026-10-23 08:00', zone)!);
+  await db.updateTable(targetOf('booking_settings').table.id as never).set({ booking_days: 30 } as never).execute();
+  const friday = await create('visits', visit(ada, routine, '2026-10-23', '09:00')); // BST
+  const monday = await create('visits', visit(ada, routine, '2026-10-26', '09:00')); // GMT, after the clocks go back
+  const instant = (row: Row) => slotInstantOf(row['starts_at']);
+  expect(instant(friday)).toBe('2026-10-23T08:00:00.000Z');
+  expect(instant(monday)).toBe('2026-10-26T09:00:00.000Z');
+  expect(await book(ada, routine, '2026-10-26', '08:15')).toBe('BOOKING_OUT_OF_HOURS');
+  expect(await book(ada, routine, '2026-10-26', '08:30')).toBe('written');
+}
+
+/** The cancellation window: 24 hours, flagged; then the same rule refusing. */
+async function cancelLate(h: Harness, zone: string): Promise<void> {
+  await stageManifest(h, bookingManifest());
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+
+  const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
+  const model = parseDatabaseModel(snapshot.schema);
+  const viewOf = async () =>
+    new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
+  let view = await viewOf();
+  const { db, dialect: d } = await h.manager.data(h.connectionId);
+  const targetOf = (name: string): WriteTarget => ({
+    connectionId: h.connectionId,
+    view,
+    table: view.table(view.model.tables.find((t) => t.name === `pos_${name}`)!.id),
+    db,
+    dialect: d,
+    timezone: zone,
+  });
+  const writes = createWriteService({ sequences: documentSequencesRepo(h.meta) });
+  const staff: WriteContext = { origin: 'dashboard', hops: 0, actor: null, request: null };
+  const guest: WriteContext = { ...staff, origin: 'public' };
+  const create = (name: string, values: Record<string, unknown>) =>
+    writes.create({ target: targetOf(name), values, context: staff, announce: async () => {} });
+  const update = (id: unknown, values: Record<string, unknown>, context = staff) =>
+    writes.update({ target: targetOf('visits'), pk: { id }, values, context, announce: async () => {} });
+  const outcome = (run: Promise<unknown>) =>
+    run.then(
+      () => 'written',
+      (error: { code?: string }) => String(error.code),
+    );
+  const at = (day: string, hhmm: string) => wallTimeToInstant(`${day} ${hhmm}`, zone)!.toISOString();
+  const late = async (id: unknown) =>
+    [true, 1, '1'].includes(
+      ((await db.selectFrom(targetOf('visits').table.id as never).select('late_cancel' as never).where('id' as never, '=', id as never).executeTakeFirst()) as { late_cancel: unknown })
+        .late_cancel as never,
+    );
+
+  await create('booking_settings', { slot_minutes: 15, booking_days: 5, notice_minutes: 60, cancel_hours: 24 });
+  for (const weekday of ['mon', 'tue', 'wed', 'thu', 'fri']) await create('opening_hours', { weekday, opens: '08:30', closes: '17:30' });
+  const ada = await create('clinicians', { name: 'Ada', position: 1 });
+  const routine = await create('visit_types', { name: 'Routine', minutes: 15 });
+  await create('clinician_visit_types', { clinician_id: ada['id'], visit_type_id: routine['id'] });
+  const visit = (day: string, hhmm: string) => create('visits', { clinician_id: ada['id'], visit_type_id: routine['id'], starts_at: at(day, hhmm) });
+
+  // Inside 24 hours, cancelled by the desk: through, and flagged — in the
+  // same statement, and in what undo is handed.
+  const soon = await visit('2026-07-28', '10:00');
+  const cancelled = await update(soon['id'], { status: 'cancelled' });
+  expect(cancelled.values['status']).toBe('cancelled');
+  // "Yes" as the column keeps it: a boolean, or 1 where the engine stores one as a number.
+  expect([true, 1]).toContain(cancelled.values['late_cancel']);
+  expect(await late(soon['id'])).toBe(true);
+  // Outside it: not late.
+  const later = await visit('2026-07-30', '10:00');
+  expect((await update(later['id'], { status: 'cancelled' })).values).not.toHaveProperty('late_cancel');
+  expect(await late(later['id'])).toBe(false);
+  // A guest cancelling inside the window is let through too, and flagged.
+  const guests = await visit('2026-07-28', '16:00');
+  expect(await outcome(update(guests['id'], { status: 'cancelled' }, guest))).toBe('written');
+  expect(await late(guests['id'])).toBe(true);
+  // A visit already cancelled is not cancelled "again" and late.
+  const noShow = await visit('2026-07-28', '11:30');
+  expect((await update(noShow['id'], { status: 'no_show' })).values).not.toHaveProperty('late_cancel');
+
+  // A guest may not MOVE a visit inside the window; the desk may.
+  const eleven = await visit('2026-07-28', '11:00');
+  expect(await outcome(update(eleven['id'], { starts_at: at('2026-07-28', '14:00') }, guest))).toBe('BOOKING_TOO_LATE');
+  expect(await outcome(update(eleven['id'], { starts_at: at('2026-07-28', '14:00') }))).toBe('written');
+  const thursday = await visit('2026-07-30', '11:00');
+  expect(await outcome(update(thursday['id'], { starts_at: at('2026-07-30', '11:30') }, guest))).toBe('written');
+
+  // Many rows at once: each decided against its own stored row.
+  const a = await visit('2026-07-28', '12:00');
+  const b = await visit('2026-07-30', '12:00');
+  const prepared = await writes.beforeEach('update', targetOf('visits'), staff, [
+    { values: { status: 'cancelled' }, match: { id: a['id'] } },
+    { values: { status: 'cancelled' }, match: { id: b['id'] } },
+  ]);
+  expect(prepared.map((row) => (row.values['late_cancel'] === undefined ? null : Boolean(row.values['late_cancel'])))).toEqual([true, null]);
+  const moves = await writes.beforeEach('update', targetOf('visits'), guest, [{ values: { starts_at: at('2026-07-28', '15:00') }, match: { id: a['id'] } }]).catch((error: { code?: string }) => error.code);
+  // A batch that moves visits is refused whole, before anything is decided.
+  expect(moves).toBe('CONFLICT');
+  // Marking visits no-show together needs no lock, and goes through as one batch.
+  await expect(writes.check('update', targetOf('visits'), staff, [{ status: 'no_show' }])).resolves.toBeDefined();
+  await expect(writes.check('update', targetOf('visits'), staff, [{ status: 'booked' }])).rejects.toBeInstanceOf(GuardedBatchError);
+
+  // Mode `refuse`: a guest is turned away inside the window, the desk is not, and nothing is flagged.
+  const [rule] = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => o.op === 'table.booking');
+  const value = rule!.value as { cancel: Record<string, unknown> };
+  await overridesRepo(h.meta).delete(rule!.id);
+  await overridesRepo(h.meta).create({
+    connectionId: h.connectionId,
+    op: 'table.booking',
+    tableName: rule!.tableName,
+    columnName: null,
+    value: { ...value, cancel: { hours: value.cancel['hours'], mode: 'refuse', when: value.cancel['when'] } },
+  });
+  view = await viewOf();
+  const refused = await visit('2026-07-28', '16:30');
+  expect(await outcome(update(refused['id'], { status: 'cancelled' }, guest))).toBe('BOOKING_TOO_LATE');
+  expect((await update(refused['id'], { status: 'cancelled' })).values).not.toHaveProperty('late_cancel');
+  expect(await late(refused['id'])).toBe(false);
+}
+
+/** The booking manifest with stamped columns: who booked, when checked in, who cancelled, who voided. */
+function stampManifest() {
+  const base = bookingManifest();
+  const tables = (base.requiredSchema.tables as { ref: string; columns: Record<string, unknown>[] }[]).map((table) =>
+    table.ref !== 'visits'
+      ? table
+      : {
+          ...table,
+          columns: [
+            ...table.columns,
+            { ref: 'booked_by', type: 'text', nullable: true, rules: { stamp: { set: 'user-name', on: 'create' } } },
+            { ref: 'checked_in_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'status', values: ['checked_in'] } } } },
+            {
+              ref: 'cancelled_by',
+              type: 'enum',
+              enum: ['patient', 'desk'],
+              nullable: true,
+              rules: { stamp: { set: { byOrigin: { public: 'patient', staff: 'desk' } }, on: { column: 'status', values: ['cancelled'] } } },
+            },
+          ],
+        },
+  );
+  const payments = {
+    ref: 'payments',
+    columns: [
+      { ref: 'id', type: 'int', role: 'pk' },
+      { ref: 'visit_id', type: 'fk', references: 'visits' },
+      { ref: 'amount', type: 'money' },
+      { ref: 'voided', type: 'bool', default: false },
+      { ref: 'taken_by', type: 'text', nullable: true, rules: { stamp: { set: 'user-name', on: 'create' } } },
+      { ref: 'voided_by', type: 'text', nullable: true, rules: { stamp: { set: 'user-id', on: { column: 'voided', values: [true] } } } },
+      { ref: 'voided_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: { column: 'voided', values: [true] } } } },
+    ],
+  };
+  return { ...base, requiredSchema: { ...base.requiredSchema, tables: [...tables, payments] } };
+}
+
+/** Stamps: on a create, on a change against the stored row, per origin, and never over history. */
+async function stampRows(h: Harness, zone: string): Promise<void> {
+  await stageManifest(h, stampManifest());
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+  const stamps = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => o.op === 'column.stamp');
+  expect(stamps.map((o) => `${o.tableName.split('.').pop()}.${o.columnName}`).sort()).toEqual([
+    'pos_payments.taken_by',
+    'pos_payments.voided_at',
+    'pos_payments.voided_by',
+    'pos_visits.booked_by',
+    'pos_visits.cancelled_by',
+    'pos_visits.checked_in_at',
+  ]);
+
+  const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
+  const view = new SnapshotView(
+    h.connectionId,
+    applyOverrides(parseDatabaseModel(snapshot.schema), await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })),
+    new Map(),
+  );
+  const { db, dialect: d } = await h.manager.data(h.connectionId);
+  const targetOf = (name: string): WriteTarget => ({
+    connectionId: h.connectionId,
+    view,
+    table: view.table(view.model.tables.find((t) => t.name === `pos_${name}`)!.id),
+    db,
+    dialect: d,
+    timezone: zone,
+  });
+  const writes = createWriteService({ sequences: documentSequencesRepo(h.meta) });
+  const staff: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy' }, request: null };
+  const guest: WriteContext = { origin: 'public', hops: 0, actor: { kind: 'public', id: null, label: 'public:key_1' }, request: null };
+  const rule: WriteContext = { origin: 'automation', hops: 1, actor: { kind: 'automation', id: 'rul_1', label: 'Tidy the day' }, request: null };
+  const history: WriteContext = { origin: 'import', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy' }, request: null };
+  const prepared = (name: string, values: Record<string, unknown>) => {
+    const table = targetOf(name).table;
+    const local = new Set(table.table?.columns.filter((c) => c.venueLocal === true).map((c) => c.name));
+    return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, local.has(k) ? v : normalizeWriteValue(table.columns.get(k)!, v)]));
+  };
+  const create = (name: string, values: Record<string, unknown>, context: WriteContext = staff) =>
+    writes.create({ target: targetOf(name), values: prepared(name, values), context, announce: async () => {} });
+  const update = (name: string, id: unknown, values: Record<string, unknown>, context: WriteContext = staff) =>
+    writes.update({ target: targetOf(name), pk: { id }, values: prepared(name, values), context, announce: async () => {} });
+  const stored = async (name: string, id: unknown) =>
+    (await db.selectFrom(targetOf(name).table.id as never).selectAll().where('id' as never, '=', id as never).executeTakeFirst()) as Row;
+  const at = (day: string, hhmm: string) => wallTimeToInstant(`${day} ${hhmm}`, zone)!.toISOString();
+  /** A stamped time as the instant it names, to the second. */
+  const when = (value: unknown) => (value === null || value === undefined ? null : slotInstantOf(value).slice(0, 19));
+  const nowIso = () => new Date().toISOString().slice(0, 19);
+
+  await create('booking_settings', { slot_minutes: 15, booking_days: 5, notice_minutes: 0, cancel_hours: 24 });
+  for (const weekday of ['mon', 'tue', 'wed', 'thu', 'fri']) await create('opening_hours', { weekday, opens: '08:30', closes: '17:30' });
+  const ada = await create('clinicians', { name: 'Ada', position: 1 });
+  const routine = await create('visit_types', { name: 'Routine', minutes: 15 });
+  await create('clinician_visit_types', { clinician_id: ada['id'], visit_type_id: routine['id'] });
+  const visit = (hhmm: string, extra: Record<string, unknown> = {}, context: WriteContext = staff) =>
+    create('visits', { clinician_id: ada['id'], visit_type_id: routine['id'], starts_at: at('2026-07-29', hhmm), ...extra }, context);
+
+  // On a create: who booked it — and the stamp wins over a name the writer sent.
+  const first = await visit('09:00', { booked_by: 'Mallory' });
+  expect(first['booked_by']).toBe('Ivy');
+  expect(first['checked_in_at'] ?? null).toBeNull();
+  // A status change stamps the time, once: re-sending the status the row holds stamps nothing again.
+  const checkedIn = await update('visits', first['id'], { status: 'checked_in' });
+  expect(when(checkedIn.values['checked_in_at'])).toBe(nowIso());
+  expect(when((await stored('visits', first['id']))['checked_in_at'])).toBe(nowIso());
+  const stampedAt = when((await stored('visits', first['id']))['checked_in_at']);
+  vi.setSystemTime(new Date(Date.now() + 5 * 60_000));
+  const again = await update('visits', first['id'], { status: 'checked_in' });
+  expect(again.values).not.toHaveProperty('checked_in_at');
+  expect(when((await stored('visits', first['id']))['checked_in_at'])).toBe(stampedAt);
+  // A create whose watched value is already one of them stamps too: a walk-in.
+  const walkIn = await visit('09:15', { status: 'checked_in' });
+  expect(when(walkIn['checked_in_at'])).toBe(nowIso());
+
+  // Staff cancelling: "desk". A guest: "patient", and never a person's name.
+  const byDesk = await visit('10:00');
+  await update('visits', byDesk['id'], { status: 'cancelled' });
+  expect((await stored('visits', byDesk['id']))['cancelled_by']).toBe('desk');
+  const online = await visit('10:30', {}, guest);
+  expect(online['booked_by'] ?? null).toBeNull();
+  const cancelledOnline = await update('visits', online['id'], { status: 'cancelled' }, guest);
+  expect(cancelledOnline.values['cancelled_by']).toBe('patient');
+  expect((await stored('visits', online['id']))['cancelled_by']).toBe('patient');
+  // An automation stamps its rule's name.
+  expect((await visit('11:00', {}, rule))['booked_by']).toBe('Tidy the day');
+
+  // History keeps what it says: an import stamps nothing, neither over a value nor into an empty one.
+  const imported = await writes.check('create', targetOf('visits'), history, [
+    prepared('visits', { clinician_id: ada['id'], visit_type_id: routine['id'], starts_at: at('2026-07-20', '09:00'), status: 'checked_in', booked_by: 'Old desk' }),
+  ], { capacity: 'unchecked' });
+  expect(imported.rows[0]!['booked_by']).toBe('Old desk');
+  expect(imported.rows[0]).not.toHaveProperty('checked_in_at');
+  const [restated] = await writes.beforeEach('update', targetOf('visits'), history, [{ values: { status: 'checked_in' }, match: { id: byDesk['id'] } }], {
+    capacity: 'unchecked',
+  });
+  expect(restated!.values).not.toHaveProperty('checked_in_at');
+
+  // A create through the multi-row path is stamped as a single one is.
+  const bulkCreate = await writes.beforeEach('create', targetOf('payments'), staff, [
+    { values: prepared('payments', { visit_id: first['id'], amount: 5 }) },
+    { values: prepared('payments', { visit_id: first['id'], amount: 6, taken_by: 'Mallory' }) },
+  ]);
+  expect(bulkCreate.map((row) => row.values['taken_by'])).toEqual(['Ivy', 'Ivy']);
+
+  // A switch: voiding stamps who and when, on each row of a bulk write; un-voiding stamps nothing.
+  const paid = await create('payments', { visit_id: first['id'], amount: 30 });
+  expect(paid['taken_by']).toBe('Ivy');
+  const other = await create('payments', { visit_id: first['id'], amount: 10 });
+  const voided = await update('payments', paid['id'], { voided: true });
+  expect(voided.values['voided_by']).toBe('usr_ivy');
+  expect(when((await stored('payments', paid['id']))['voided_at'])).toBe(nowIso());
+  const bulk = await writes.beforeEach('update', targetOf('payments'), staff, [
+    { values: prepared('payments', { voided: true }), match: { id: paid['id'] } },
+    // A switch as MySQL and SQLite spell one.
+    { values: { voided: 1 }, match: { id: other['id'] } },
+  ]);
+  expect(bulk.map((row) => row.values['voided_by'] ?? null)).toEqual([null, 'usr_ivy']);
+  const unvoid = await update('payments', paid['id'], { voided: false });
+  expect(unvoid.values).not.toHaveProperty('voided_by');
+
+  // And a public endpoint may offer a guest none of them, nor the late flag.
+  const visits = targetOf('visits').table;
+  const definition = {
+    path: '/pos_visits',
+    source: visits.id,
+    methods: ['POST'],
+    select: ['id', 'starts_at', 'status'],
+    writable: ['starts_at', 'checked_in_at', 'cancelled_by', 'late_cancel'],
+    filters: [],
+    pagination: { default_limit: 50, max_limit: 200, order: 'id.asc' },
+    auth: { role: 'anon' },
+    rate_limit: { requests: 60, window: '1m' },
+    response: { shape: 'object', envelope: 'data' },
+  } as never;
+  expect(endpointIssues(definition, { ref: 'pos_visits', view }).map((i) => [i.code, i.column])).toEqual([
+    ['ENDPOINT_WRITABLE_DECIDED', 'checked_in_at'],
+    ['ENDPOINT_WRITABLE_DECIDED', 'cancelled_by'],
+    ['ENDPOINT_WRITABLE_DECIDED', 'late_cancel'],
+  ]);
+}
+
+/** The booking manifest with money on each visit: a fee, what is paid, what is written off, and the balance. */
+function moneyManifest() {
+  const base = bookingManifest();
+  const tables = (base.requiredSchema.tables as { ref: string; columns: Record<string, unknown>[] }[]).map((table) => {
+    if (table.ref === 'visit_types') return { ...table, columns: [...table.columns, { ref: 'fee', type: 'money', default: 0 }] };
+    if (table.ref !== 'visits') return table;
+    return {
+      ...table,
+      columns: [
+        ...table.columns,
+        { ref: 'fee', type: 'money', nullable: true, rules: { copy: { via: 'visit_type_id', from: 'fee' } } },
+        {
+          ref: 'paid',
+          type: 'money',
+          nullable: true,
+          rules: {
+            rollup: { from: 'payments', via: 'visit_id', sum: 'amount', where: { column: 'voided', eq: false }, balance: { column: 'balance', of: 'fee', minus: ['waived'] }, cap: true },
+          },
+        },
+        { ref: 'waived', type: 'money', nullable: true, rules: { rollup: { from: 'write_offs', via: 'visit_id', sum: 'amount', cap: true } } },
+        { ref: 'balance', type: 'money', nullable: true },
+      ],
+    };
+  });
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  return {
+    ...base,
+    requiredSchema: {
+      ...base.requiredSchema,
+      tables: [
+        ...tables,
+        { ref: 'payments', columns: [id, { ref: 'visit_id', type: 'fk', references: 'visits' }, { ref: 'amount', type: 'money' }, { ref: 'voided', type: 'bool', default: false }] },
+        { ref: 'write_offs', columns: [id, { ref: 'visit_id', type: 'fk', references: 'visits' }, { ref: 'amount', type: 'money' }] },
+      ],
+    },
+  };
+}
+
+/** A visit's money: a filtered total, a balance worked out from it, and a cap no path gets past. */
+async function keepBalances(h: Harness, zone: string): Promise<void> {
+  await stageManifest(h, moneyManifest());
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+  // The filter, the balance and the cap are stored as the app asked: none of them dropped on the way.
+  const [paidRule] = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => o.op === 'column.rollup' && o.columnName === 'paid');
+  expect(paidRule!.value).toMatchObject({ where: { column: 'voided', eq: false }, balance: { column: 'balance', of: 'fee', minus: ['waived'] }, cap: true });
+
+  const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
+  const viewOf = async () =>
+    new SnapshotView(
+      h.connectionId,
+      applyOverrides(parseDatabaseModel(snapshot.schema), await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })),
+      new Map(),
+    );
+  let view = await viewOf();
+  const { db, dialect: d } = await h.manager.data(h.connectionId);
+  const targetOf = (name: string): WriteTarget => ({
+    connectionId: h.connectionId,
+    view,
+    table: view.table(view.model.tables.find((t) => t.name === `pos_${name}`)!.id),
+    db,
+    dialect: d,
+    timezone: zone,
+  });
+  const writes = createWriteService({ sequences: documentSequencesRepo(h.meta) });
+  const staff: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy' }, request: null };
+  const history: WriteContext = { ...staff, origin: 'import' };
+  const prepared = (name: string, values: Record<string, unknown>) => {
+    const table = targetOf(name).table;
+    const local = new Set(table.table?.columns.filter((c) => c.venueLocal === true).map((c) => c.name));
+    return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, local.has(k) ? v : normalizeWriteValue(table.columns.get(k)!, v)]));
+  };
+  const create = (name: string, values: Record<string, unknown>) =>
+    writes.create({ target: targetOf(name), values: prepared(name, values), context: staff, announce: async () => {} });
+  const update = (name: string, id: unknown, values: Record<string, unknown>) =>
+    writes.update({ target: targetOf(name), pk: { id }, values: prepared(name, values), context: staff, announce: async () => {} });
+  const outcome = (run: Promise<unknown>) =>
+    run.then(
+      () => 'written',
+      (error: { code?: string; details?: { reason?: string } }) => String(error.details?.reason ?? error.code),
+    );
+  const refusal = (run: Promise<unknown>) => run.then(() => null, (error: { details?: unknown }) => error.details);
+  const money = async (id: unknown) => {
+    const row = (await db.selectFrom(targetOf('visits').table.id as never).selectAll().where('id' as never, '=', id as never).executeTakeFirst()) as Row;
+    return Object.fromEntries(['fee', 'paid', 'waived', 'balance'].map((k) => [k, row[k] === null ? null : Number(row[k])]));
+  };
+  const count = async (name: string) =>
+    Number(((await db.selectFrom(targetOf(name).table.id as never).select(sql<number>`count(*)`.as('n')).executeTakeFirst()) as { n: unknown }).n);
+  const at = (hhmm: string) => wallTimeToInstant(`2026-07-29 ${hhmm}`, zone)!.toISOString();
+
+  await create('booking_settings', { slot_minutes: 15, booking_days: 5, notice_minutes: 0, cancel_hours: 24 });
+  for (const weekday of ['mon', 'tue', 'wed', 'thu', 'fri']) await create('opening_hours', { weekday, opens: '08:30', closes: '17:30' });
+  const ada = await create('clinicians', { name: 'Ada', position: 1 });
+  const routine = await create('visit_types', { name: 'Routine', minutes: 15, fee: 40 });
+  const long = await create('visit_types', { name: 'Long', minutes: 15, fee: 60 });
+  await create('clinician_visit_types', { clinician_id: ada['id'], visit_type_id: routine['id'] });
+  await create('clinician_visit_types', { clinician_id: ada['id'], visit_type_id: long['id'] });
+  const visit = (hhmm: string) => create('visits', { clinician_id: ada['id'], visit_type_id: routine['id'], starts_at: at(hhmm) });
+
+  // A new visit owes its fee: its totals are settled when it is made.
+  const v = await visit('09:00');
+  expect(await money(v['id'])).toEqual({ fee: 40, paid: 0, waived: 0, balance: 40 });
+
+  // Payments count while they are not voided, and never past the balance.
+  const first = await create('payments', { visit_id: v['id'], amount: 25 });
+  expect(await money(v['id'])).toMatchObject({ paid: 25, balance: 15 });
+  expect(await refusal(create('payments', { visit_id: v['id'], amount: 20 }))).toEqual({ column: 'balance', balance: 15 });
+  // Refused whole: the payment is not there, and nothing moved.
+  expect(await count('payments')).toBe(1);
+  expect(await money(v['id'])).toMatchObject({ paid: 25, balance: 15 });
+  await create('payments', { visit_id: v['id'], amount: 15 });
+  expect(await money(v['id'])).toMatchObject({ paid: 40, balance: 0 });
+  // Voiding one gives its amount back.
+  await update('payments', first['id'], { voided: true });
+  expect(await money(v['id'])).toMatchObject({ paid: 15, balance: 25 });
+
+  // A write-off is capped by the same balance, which it lowers.
+  expect(await outcome(create('write_offs', { visit_id: v['id'], amount: 30 }))).toBe('BALANCE_EXCEEDED');
+  await create('write_offs', { visit_id: v['id'], amount: 5 });
+  expect(await money(v['id'])).toEqual({ fee: 40, paid: 15, waived: 5, balance: 20 });
+
+  // A lower fee is held to what is already paid and written off.
+  expect(await refusal(update('visits', v['id'], { fee: 10 }))).toEqual({ column: 'balance', balance: 20 });
+  expect(await money(v['id'])).toEqual({ fee: 40, paid: 15, waived: 5, balance: 20 });
+  await update('visits', v['id'], { fee: 25 });
+  expect(await money(v['id'])).toEqual({ fee: 25, paid: 15, waived: 5, balance: 5 });
+  // A whole-row edit that sends the totals back as it read them — or anything else — changes none of them.
+  await update('visits', v['id'], { status: 'booked', paid: 999, waived: 999, balance: 999 });
+  expect(await money(v['id'])).toEqual({ fee: 25, paid: 15, waived: 5, balance: 5 });
+  // Another visit type copies its fee again, and the balance follows.
+  await update('visits', v['id'], { visit_type_id: long['id'] });
+  expect(await money(v['id'])).toEqual({ fee: 60, paid: 15, waived: 5, balance: 40 });
+  // A deleted payment gives its amount back too.
+  const later = await create('payments', { visit_id: v['id'], amount: 10 });
+  await writes.delete({ target: targetOf('payments'), pk: { id: later['id'] }, context: staff, announce: async () => {} });
+  expect(await money(v['id'])).toMatchObject({ paid: 15, balance: 40 });
+
+  // Five desks taking 10 at once from a balance of 25: two are paid, three are refused.
+  const busy = await visit('10:00');
+  await create('payments', { visit_id: busy['id'], amount: 15 });
+  const race = await Promise.all(Array.from({ length: 5 }, () => outcome(create('payments', { visit_id: busy['id'], amount: 10 }))));
+  expect(race.filter((r) => r === 'written')).toHaveLength(2);
+  expect(race.filter((r) => r === 'BALANCE_EXCEEDED')).toHaveLength(3);
+  expect(await money(busy['id'])).toMatchObject({ paid: 35, balance: 5 });
+
+  // Many rows at once cannot be held to a balance, so they are refused — unless they are history.
+  await expect(outcome(writes.beforeEach('create', targetOf('payments'), staff, [{ values: prepared('payments', { visit_id: v['id'], amount: 1 }) }]))).resolves.toBe(
+    'BALANCE_ONE_AT_A_TIME',
+  );
+  await expect(outcome(writes.beforeEach('delete', targetOf('payments'), staff, [{ values: {}, match: { id: first['id'] } }]))).resolves.toBe('BALANCE_ONE_AT_A_TIME');
+  await expect(outcome(writes.beforeEach('update', targetOf('visits'), staff, [{ values: { fee: 5 }, match: { id: v['id'] } }]))).resolves.toBe('BALANCE_ONE_AT_A_TIME');
+  await expect(outcome(writes.beforeEach('update', targetOf('visits'), staff, [{ values: { status: 'no_show' }, match: { id: busy['id'] } }]))).resolves.toBe('written');
+  const imported = await writes.check('create', targetOf('payments'), history, [prepared('payments', { visit_id: busy['id'], amount: 5 })], { capacity: 'unchecked' });
+  const row = await insertRow(db, d, targetOf('payments').table, imported.rows[0]!);
+  await writes.settle('create', targetOf('payments'), [{ record: row, before: null }]);
+  expect(await money(busy['id'])).toMatchObject({ paid: 40, balance: 0 });
+  // A visit brought in by an import is settled like one made at the desk.
+  const [old] = (await writes.check('create', targetOf('visits'), history, [prepared('visits', { clinician_id: ada['id'], visit_type_id: routine['id'], starts_at: at('11:00'), paid: 70 })], { capacity: 'unchecked' })).rows;
+  expect(old).not.toHaveProperty('paid');
+  const oldRow = await insertRow(db, d, targetOf('visits').table, old!);
+  await writes.settle('create', targetOf('visits'), [{ record: oldRow, before: null }]);
+  expect(await money(oldRow['id'])).toEqual({ fee: 40, paid: 0, waived: 0, balance: 40 });
+
+  // What is stored may lag the rows (a rule added since, a write made elsewhere): the cap judges the truth.
+  const table = (name: string) => targetOf(name).table.id;
+  const lagging = await visit('12:00');
+  // Stored as far below zero while it truly is 40: judged against what it was, 50 would pass.
+  await db.updateTable(table('visits') as never).set({ balance: -100, paid: null } as never).where('id' as never, '=', lagging['id'] as never).execute();
+  expect(await outcome(create('payments', { visit_id: lagging['id'], amount: 50 }))).toBe('BALANCE_EXCEEDED');
+  await db.updateTable(table('visits') as never).set({ balance: null } as never).where('id' as never, '=', lagging['id'] as never).execute();
+  await create('payments', { visit_id: lagging['id'], amount: 10 });
+  expect(await money(lagging['id'])).toMatchObject({ paid: 10, balance: 30 });
+  // A visit already overpaid by old data can still be edited, and have a payment voided; not paid again.
+  const legacy = await visit('12:15');
+  const overpaid = await insertRow(db, d, targetOf('payments').table, (await writes.check('create', targetOf('payments'), history, [prepared('payments', { visit_id: legacy['id'], amount: 50 })], { capacity: 'unchecked' })).rows[0]!);
+  expect(await outcome(update('visits', legacy['id'], { status: 'booked', fee: 40 }))).toBe('written');
+  expect(await outcome(create('payments', { visit_id: legacy['id'], amount: 1 }))).toBe('BALANCE_EXCEEDED');
+  expect(await outcome(update('payments', overpaid['id'], { voided: true }))).toBe('written');
+  expect(await money(legacy['id'])).toMatchObject({ paid: 0, balance: 40 });
+
+  // A total is the settle's alone, whatever a project hook sets.
+  const hooked = createWriteService({
+    sequences: documentSequencesRepo(h.meta),
+    hooks: () => ({
+      wants: () => Promise.resolve(true),
+      before: (event) => {
+        event.values['paid'] = 999;
+        event.values['balance'] = 999;
+        return Promise.resolve();
+      },
+      after: () => Promise.resolve(),
+    }),
+  });
+  await hooked.update({ target: targetOf('visits'), pk: { id: lagging['id'] }, values: { status: 'booked' }, context: staff, announce: async () => {} });
+  expect(await money(lagging['id'])).toMatchObject({ paid: 10, balance: 30 });
+
+  // A parent form's payment rows are written inside its transaction, settled and judged there.
+  const inForm = (amount: number) =>
+    db.transaction().execute(async (trx) => {
+      const within = { ...targetOf('payments'), db: trx as unknown as typeof db };
+      const [row] = await writes.beforeEach('create', within, staff, [{ values: prepared('payments', { visit_id: lagging['id'], amount }) }]);
+      const written = await insertRow(within.db, d, within.table, row!.values);
+      await writes.settle('create', within, [{ record: written, before: null }], { cap: true });
+    });
+  expect(await outcome(inForm(31))).toBe('BALANCE_EXCEEDED');
+  expect(await money(lagging['id'])).toMatchObject({ paid: 10, balance: 30 });
+  expect(await outcome(inForm(30))).toBe('written');
+  expect(await money(lagging['id'])).toMatchObject({ paid: 40, balance: 0 });
+  // A batch that re-copies a lower fee through a new visit type moves a booking, and is refused as one…
+  const cheap = await create('visit_types', { name: 'Check', minutes: 15, fee: 5 });
+  await create('clinician_visit_types', { clinician_id: ada['id'], visit_type_id: cheap['id'] });
+  const recopy = () =>
+    outcome(writes.beforeEach('update', targetOf('visits'), staff, [{ values: prepared('visits', { visit_type_id: cheap['id'] }), match: { id: lagging['id'] } }]));
+  await expect(recopy()).resolves.toBe('CAPACITY_ONE_AT_A_TIME');
+  // …and without the booking rule, as the fee change it also is. One sending the same fee is neither.
+  const [bookingRule] = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => o.op === 'table.booking');
+  await overridesRepo(h.meta).setStatus(bookingRule!.id, 'disabled');
+  view = await viewOf();
+  await expect(recopy()).resolves.toBe('BALANCE_ONE_AT_A_TIME');
+  await expect(
+    outcome(writes.beforeEach('update', targetOf('visits'), staff, [{ values: prepared('visits', { status: 'booked', fee: 40 }), match: { id: lagging['id'] } }])),
+  ).resolves.toBe('written');
+
+  // And a guest may never write a balance.
+  const definition = {
+    path: '/pos_visits',
+    source: targetOf('visits').table.id,
+    methods: ['POST'],
+    select: ['id', 'starts_at'],
+    writable: ['starts_at', 'balance', 'paid'],
+    filters: [],
+    pagination: { default_limit: 50, max_limit: 200, order: 'id.asc' },
+    auth: { role: 'anon' },
+    rate_limit: { requests: 60, window: '1m' },
+    response: { shape: 'object', envelope: 'data' },
+  } as never;
+  expect(endpointIssues(definition, { ref: 'pos_visits', view }).map((i) => [i.code, i.column])).toEqual([
+    ['ENDPOINT_WRITABLE_DECIDED', 'balance'],
+    ['ENDPOINT_WRITABLE_DECIDED', 'paid'],
+  ]);
+}
+
+/** A practice's patients, their visits and a waiting list, opened to each patient alone. */
+function patientsManifest(opts: { proofs?: boolean } = {}) {
+  const proof = opts.proofs === true ? { humanCheck: true } : {};
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  return {
+    ...MANIFEST,
+    requiredSchema: {
+      prefixed: true,
+      tables: [
+        TABLES[0],
+        {
+          ref: 'patients',
+          columns: [
+            id,
+            { ref: 'name', type: 'text', maxLength: 40 },
+            { ref: 'mobile', type: 'text', maxLength: 20 },
+            { ref: 'born_on', type: 'date' },
+            { ref: 'email', type: 'text', maxLength: 80, nullable: true },
+            { ref: 'remind', type: 'bool', default: false },
+          ],
+        },
+        {
+          ref: 'appointments',
+          columns: [
+            id,
+            { ref: 'patient_id', type: 'fk', references: 'patients', nullable: true },
+            { ref: 'starts_at', type: 'timestamptz' },
+            { ref: 'status', type: 'enum', enum: ['booked', 'seen', 'cancelled'], default: 'booked' },
+            { ref: 'new_name', type: 'text', maxLength: 80, nullable: true },
+            { ref: 'check_status', type: 'enum', enum: ['to_check', 'done'], nullable: true },
+          ],
+        },
+        {
+          ref: 'waiting_list',
+          columns: [
+            id,
+            { ref: 'patient_id', type: 'fk', references: 'patients' },
+            { ref: 'status', type: 'enum', enum: ['waiting', 'done'], default: 'waiting' },
+            { ref: 'note', type: 'text', maxLength: 80, nullable: true },
+            { ref: 'created_at', type: 'timestamptz', default: 'now' },
+          ],
+        },
+      ],
+    },
+    publicAccess: [
+      // "Found you": the name, and a code emailed to go further.
+      { table: 'patients', methods: ['GET'], select: ['name'], sensitive: true, claim: { match: ['mobile', 'born_on'], verify: 'email-code', email: 'email' }, ...proof },
+      { table: 'patients', methods: ['GET', 'PATCH'], select: ['name', 'email', 'remind'], writable: ['remind'], claimedBy: { table: 'patients', column: 'id' }, level: 'verified', sensitive: true },
+      {
+        table: 'appointments',
+        methods: ['POST'],
+        select: ['id', 'starts_at', 'status'],
+        writable: ['starts_at', 'new_name'],
+        defaults: { status: 'booked', check_status: 'to_check' },
+        claimedBy: { table: 'patients', column: 'patient_id', optional: true },
+        onClaim: { clear: ['new_name', 'check_status'] },
+        maxOpen: { column: 'status', values: ['booked'], n: 2, upcoming: 'starts_at' },
+        sensitive: false,
+        reason: 'the reply names the booking just made and nothing else',
+        ...proof,
+      },
+      {
+        table: 'appointments',
+        methods: ['GET', 'PATCH'],
+        select: ['id', 'starts_at', 'status'],
+        writable: ['status'],
+        writableValues: { status: ['cancelled'] },
+        writableWhen: { status: ['booked'] },
+        claimedBy: { table: 'patients', column: 'patient_id' },
+        level: 'verified',
+        sensitive: true,
+      },
+      {
+        table: 'waiting_list',
+        methods: ['POST'],
+        select: ['id', 'status'],
+        writable: ['note'],
+        defaults: { status: 'waiting' },
+        claimedBy: { table: 'patients', column: 'patient_id' },
+        rank: { orderBy: 'created_at', where: { column: 'status', eq: 'waiting' } },
+        maxOpen: { column: 'status', values: ['waiting'], n: 1 },
+        sensitive: false,
+        reason: 'the reply says only where they stand',
+      },
+    ],
+  };
+}
+
+/** The whole server over the harness's store, answering with an app's own key. */
+async function servePublic(h: Harness, keyId: string, opts: { serveApps?: boolean } = {}) {
+  await settingsRepo(h.meta).set('publicApi.enabled', true);
+  const runService = createRunService({ meta: h.meta });
+  const composed = await composeServer({
+    env: makeEnv({
+      // `self`: the app's own pages on this server (a kiosk) may call it too.
+      ADMINIUM_PUBLIC_API_ORIGINS: opts.serveApps === true ? 'self,https://clinic.example.com' : 'https://clinic.example.com',
+      HOST: '127.0.0.1',
+      ADMINIUM_SECRET: TEST_SECRET,
+      // The installed apps' files, where the harness's install put them: their sides are served.
+      ...(opts.serveApps === true ? { ADMINIUM_DATA_DIR: h.dataDir } : {}),
+    }),
+    metaStore: { meta: h.meta, url: 'sqlite::memory:', engine: 'sqlite', source: 'embedded', close: async () => Promise.resolve() },
+    manager: h.manager,
+    runService,
+    applyService: createApplyService({ meta: h.meta, runService }),
+    allowed: null,
+    logger: false,
+    telemetry: false,
+  });
+  await composed.app.ready();
+  // The test drives the outbox, the reminder scan and the jobs itself: no tick or poll may race it.
+  await composed.jobs.worker.stop();
+  composed.jobs.scheduler.stop();
+  const key = (await publicKeysRepo(h.meta).findById(keyId))!;
+  const token = openPublishableKey(dsnCryptoFromSecret(TEST_SECRET), key.tokenEncrypted!);
+  const headers = (session?: string) => ({
+    authorization: `Bearer ${token}`,
+    origin: 'https://clinic.example.com',
+    ...(session === undefined ? {} : { 'x-adminium-public-session': session }),
+  });
+  const call = (method: 'GET' | 'POST' | 'PATCH', url: string, session?: string, values?: Record<string, unknown>) =>
+    composed.app.inject({ method, url: `/api/v1/public${url}`, headers: headers(session), ...(values === undefined ? {} : { payload: { values } }) });
+  const post = (url: string, payload: Record<string, unknown>, session?: string, extra: Record<string, string> = {}) =>
+    composed.app.inject({ method: 'POST', url: `/api/v1/public${url}`, headers: { ...headers(session), ...extra }, payload });
+  const codeOf = (res: { json: () => unknown }) => (res.json() as { error?: { code: string } }).error?.code;
+  return { composed, headers, call, post, codeOf };
+}
+
+/** A patient's own rows: one identity, two levels, an optional claim, caps and a rank — and never another's rows. */
+async function claimPatients(h: Harness): Promise<void> {
+  await stageManifest(h, patientsManifest());
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+  const made = installed.json().publicAccess as { endpoints: string[]; keyId: string };
+  expect(made.endpoints).toEqual(['pos_patients_claimed', 'pos_patients_verified', 'pos_appointments_claimed', 'pos_appointments_verified', 'pos_waiting_list_claimed']);
+  const definitionOf = async (ref: string) =>
+    JSON.parse((await publicEndpointsRepo(h.meta).listByConnection(h.connectionId)).find((e) => e.ref === ref)!.definition) as Record<string, unknown>;
+  expect((await definitionOf('pos_patients_claimed'))['identity']).toEqual({
+    strategy: 'lookup',
+    match: ['mobile', 'born_on'],
+    column: 'id',
+    verify: 'email-code',
+    email: 'email',
+  });
+  expect(await definitionOf('pos_appointments_claimed')).toMatchObject({
+    auth: { role: 'anon' },
+    claim: { column: 'patient_id', ref: 'pos_patients_claimed', optional: true },
+    on_claim: { clear: ['new_name', 'check_status'] },
+  });
+  expect(await definitionOf('pos_appointments_verified')).toMatchObject({
+    auth: { role: 'authenticated' },
+    claim: { column: 'patient_id', ref: 'pos_patients_claimed' },
+    level: 'verified',
+    sensitive: true,
+  });
+
+  const served = await servePublic(h, made.keyId);
+  const composed = served.composed;
+  try {
+    const { headers, call, codeOf } = served;
+    const ids = (res: { json: () => unknown }) => (res.json() as { data: { id: unknown }[] }).data.map((row) => Number(row.id));
+
+    await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ada', '07700900001', '1980-01-01', 'ada@example.com')`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ben', '07700900002', '1981-02-02', 'ben@example.com')`);
+    const future = (day: string) => `'${day} 10:00:00'`;
+    await h.run(`insert into pos_appointments (patient_id, starts_at, status) values (2, ${future('2099-01-05')}, 'booked')`);
+    await h.run(`insert into pos_appointments (patient_id, starts_at, status) values (1, ${future('2000-01-05')}, 'booked')`);
+    await h.run(`insert into pos_waiting_list (patient_id, status, created_at) values (2, 'waiting', ${future('2020-01-01')})`);
+
+    // The page learns a found session can be verified by a code.
+    const config = await composed.app.inject({ method: 'GET', url: '/api/v1/public/config', headers: headers() });
+    expect((config.json() as { data: { claim: unknown } }).data.claim).toEqual({
+      strategy: 'lookup',
+      ref: 'pos_patients_claimed',
+      match: ['mobile', 'born_on'],
+      verify: 'email-code',
+    });
+
+    // A first visit, by nobody on file: no session, marked to check, their own name kept.
+    const first = await call('POST', '/records/pos_appointments_claimed', undefined, { starts_at: '2099-02-01T10:00:00Z', new_name: 'Cara' });
+    expect(first.statusCode, first.body).toBe(201);
+    expect((await h.rows('select patient_id, new_name, check_status from pos_appointments where id = 3'))[0]).toMatchObject({ patient_id: null, new_name: 'Cara', check_status: 'to_check' });
+
+    const claim = await composed.app.inject({ method: 'POST', url: '/api/v1/public/claim', headers: headers(), payload: { match: { mobile: '07700900001', born_on: '1980-01-01' } } });
+    expect(claim.statusCode, claim.body).toBe(200);
+    const ada = (claim.json() as { data: { session: string } }).data.session;
+
+    // Found: a name, and nothing more until the code is confirmed.
+    const found = await call('GET', '/records/pos_patients_claimed', ada);
+    expect((found.json() as { data: unknown[] }).data).toEqual([{ name: 'Ada' }]);
+    for (const ref of ['pos_patients_verified', 'pos_appointments_verified']) {
+      const refused = await call('GET', `/records/${ref}`, ada);
+      expect(refused.statusCode, refused.body).toBe(403);
+      expect(codeOf(refused)).toBe('PUBLIC_CLAIM_LEVEL');
+    }
+    // No session at all is still no such thing.
+    expect((await call('GET', '/records/pos_appointments_verified')).statusCode).toBe(404);
+
+    // Booked by a found session: theirs, and what a stranger would type is emptied.
+    const mine = await call('POST', '/records/pos_appointments_claimed', ada, { starts_at: '2099-03-01T10:00:00Z', new_name: 'Mallory' });
+    expect(mine.statusCode, mine.body).toBe(201);
+    const mineId = Number((mine.json() as { data: { id: unknown } }).data.id);
+    expect((await h.rows(`select patient_id, new_name, check_status from pos_appointments where id = ${mineId}`))[0]).toMatchObject({
+      patient_id: 1,
+      new_name: null,
+      check_status: null,
+    });
+    // Two booked visits still ahead is as many as a found session may make; one long past does not count.
+    expect((await call('POST', '/records/pos_appointments_claimed', ada, { starts_at: '2099-03-02T10:00:00Z' })).statusCode).toBe(201);
+    const third = await call('POST', '/records/pos_appointments_claimed', ada, { starts_at: '2099-03-03T10:00:00Z' });
+    expect(third.statusCode, third.body).toBe(409);
+    expect(codeOf(third)).toBe('PUBLIC_LIMIT_REACHED');
+    // …which a stranger's first visit never meets: it holds no session.
+    expect((await call('POST', '/records/pos_appointments_claimed', undefined, { starts_at: '2099-03-04T10:00:00Z', new_name: 'Dee' })).statusCode).toBe(201);
+
+    // On the list: where they stand, and once.
+    const joined = await call('POST', '/records/pos_waiting_list_claimed', ada, { note: 'mornings' });
+    expect(joined.statusCode, joined.body).toBe(201);
+    expect((joined.json() as { rank?: number }).rank).toBe(2);
+    expect(codeOf(await call('POST', '/records/pos_waiting_list_claimed', ada, { note: 'again' }))).toBe('PUBLIC_LIMIT_REACHED');
+
+    // The code confirmed (the code step itself is the next piece): Ada's rows, and never Ben's.
+    const sessionRow = await publicSessionsRepo(h.meta).findValid(hashPublishableKey(ada));
+    await publicSessionsRepo(h.meta).raise(sessionRow!.id, 'verified', Date.now() + 30 * 60_000);
+    expect(ids(await call('GET', '/records/pos_appointments_verified', ada)).sort()).toEqual([2, mineId, mineId + 1].sort());
+    expect((await call('GET', '/records/pos_appointments_verified/1', ada)).statusCode).toBe(404);
+    expect((await call('PATCH', '/records/pos_appointments_verified/1', ada, { status: 'cancelled' })).statusCode).toBe(404);
+    expect((await h.rows('select status from pos_appointments where id = 1'))[0]!['status']).toBe('booked');
+    expect((await call('PATCH', `/records/pos_appointments_verified/${mineId}`, ada, { status: 'cancelled' })).statusCode).toBe(200);
+    expect((await call('GET', '/records/pos_patients_verified', ada)).json()).toMatchObject({ data: [{ name: 'Ada', email: 'ada@example.com' }] });
+    expect((await call('GET', '/records/pos_patients_verified/2', ada)).statusCode).toBe(404);
+    expect((await call('PATCH', '/records/pos_patients_verified/2', ada, { remind: true })).statusCode).toBe(404);
+    // Ben, claimed in his own session, reaches his own and not Ada's.
+    const benClaim = await composed.app.inject({ method: 'POST', url: '/api/v1/public/claim', headers: headers(), payload: { match: { mobile: '07700900002', born_on: '1981-02-02' } } });
+    const ben = (benClaim.json() as { data: { session: string } }).data.session;
+    const benRow = await publicSessionsRepo(h.meta).findValid(hashPublishableKey(ben));
+    await publicSessionsRepo(h.meta).raise(benRow!.id, 'verified', Date.now() + 30 * 60_000);
+    expect(ids(await call('GET', '/records/pos_appointments_verified', ben))).toEqual([1]);
+    expect((await call('GET', `/records/pos_appointments_verified/${mineId}`, ben)).statusCode).toBe(404);
+  } finally {
+    await composed.app.close();
+  }
+}
+
+/** The patients app with an outbox: a log table, who a row goes to, and a template in two languages. */
+function outboxManifest(version: string, opts: { subject?: string; dropReminder?: boolean; block?: string } = {}) {
+  const base = patientsManifest();
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  const template = (key: string, subject: string) => ({
+    key,
+    name: { 'en-US': 'Confirmation', 'de-DE': 'Bestätigung' },
+    vars: ['patient.name'],
+    locales: {
+      'en-US': { subject, blocks: [{ block: opts.block ?? 'email.heading', data: { text: 'Hello {{patient.name}}' } }, { block: 'email.text', data: { text: 'See you soon.' } }] },
+      'de-DE': { subject: `DE ${subject}`, blocks: [{ block: 'email.heading', data: { text: 'Hallo {{patient.name}}' } }] },
+    },
+  });
+  return {
+    ...base,
+    version,
+    publicAccess: [],
+    requiredSchema: {
+      ...base.requiredSchema,
+      tables: [
+        ...base.requiredSchema.tables,
+        {
+          ref: 'messages',
+          columns: [
+            id,
+            { ref: 'kind', type: 'enum', enum: ['confirmation', 'reminder'] },
+            { ref: 'status', type: 'enum', enum: ['queued', 'sent', 'failed', 'skipped'], default: 'queued' },
+            { ref: 'to_address', type: 'text', maxLength: 254, nullable: true },
+            { ref: 'patient_id', type: 'fk', references: 'patients', nullable: true },
+            { ref: 'appointment_id', type: 'fk', references: 'appointments', nullable: true },
+            { ref: 'sent_at', type: 'timestamptz', nullable: true },
+            { ref: 'error', type: 'text', maxLength: 200, nullable: true },
+          ],
+        },
+      ],
+    },
+    outbox: {
+      table: 'messages',
+      columns: { kind: 'kind', status: 'status', to: 'to_address', sentAt: 'sent_at', error: 'error' },
+      links: { patient: 'patient_id', appointment: 'appointment_id' },
+      recipient: { via: 'patient_id', table: 'patients', email: 'email', name: 'name' },
+      kinds: opts.dropReminder === true ? { confirmation: 'pos-confirmation' } : { confirmation: 'pos-confirmation', reminder: 'pos-reminder' },
+      producers: [{ kind: 'confirmation', link: 'appointment_id', onCreate: { table: 'appointments' } }],
+    },
+    emailTemplates: [
+      template('pos-confirmation', opts.subject ?? 'You are booked'),
+      ...(opts.dropReminder === true ? [] : [template('pos-reminder', 'See you tomorrow')]),
+    ],
+  };
+}
+
+/** The app's emails: stored with real names, its templates the operator may edit and keep, taken back at uninstall. */
+async function installEmails(h: Harness): Promise<void> {
+  // A template of the app's name the operator already made is theirs.
+  await emailTemplatesRepo(h.meta).upsert('pos-reminder', 'de_DE', { name: 'Mine', subject: 'Mine', blocks: [{ id: 'a', block: 'email.text', data: { text: 'mine' } }], enabled: true });
+  // A block the renderer cannot draw stops the install before anything is made.
+  await stageManifest(h, outboxManifest('1.0.0', { block: 'email.hologram' }));
+  const refused = await post(h, '/apps/plan');
+  expect(refused.json().plan.problems.map((p: { code: string }) => p.code)).toContain('EMAIL_TEMPLATE_INVALID');
+
+  await stageManifest(h, outboxManifest('1.0.0'));
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().outbox).toEqual({
+    defined: true,
+    templates: {
+      written: ['pos-confirmation/en_US', 'pos-confirmation/de_DE', 'pos-reminder/en_US'],
+      kept: [],
+      skipped: [{ key: 'pos-reminder', locale: 'de_DE', reason: 'An email template of this name and language is not this app’s.' }],
+      removed: 0,
+    },
+  });
+  // Stored with the real tables' ids, as the producers and the sender will read it.
+  const stored = JSON.parse((await appOutboxesRepo(h.meta).findByApp('pos'))!.definition) as { table: string; recipient: { table: string }; producers: { onCreate: { table: string } }[] };
+  expect([stored.table, stored.recipient.table, stored.producers[0]!.onCreate.table].map((t) => t.split('.').pop())).toEqual([
+    'pos_messages',
+    'pos_patients',
+    'pos_appointments',
+  ]);
+  const templates = emailTemplatesRepo(h.meta);
+  const confirmation = (await templates.findByKeyLocale('pos-confirmation', 'en_US'))!;
+  expect(confirmation).toMatchObject({ managedBy: 'pos', subject: 'You are booked', name: 'Confirmation' });
+  expect((await templates.findByKeyLocale('pos-confirmation', 'de_DE'))!.name).toBe('Bestätigung');
+
+  // The operator rewrites the German one; an update then brings the English one up to date and leaves hers.
+  const german = (await templates.findByKeyLocale('pos-confirmation', 'de_DE'))!;
+  await templates.upsert('pos-confirmation', 'de_DE', { name: german.name, subject: 'Ihr Termin', blocks: german.blocks, enabled: true });
+  await stageManifest(h, outboxManifest('1.1.0', { subject: 'Your visit is booked', dropReminder: true }));
+  const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update' });
+  expect(updated.statusCode, updated.body).toBe(200);
+  expect(updated.json().app.outbox.templates).toMatchObject({ written: ['pos-confirmation/en_US'], kept: ['pos-confirmation/de_DE'], removed: 1 });
+  expect((await templates.findByKeyLocale('pos-confirmation', 'en_US'))!.subject).toBe('Your visit is booked');
+  expect((await templates.findByKeyLocale('pos-confirmation', 'de_DE'))!.subject).toBe('Ihr Termin');
+  expect(await templates.findByKeyLocale('pos-reminder', 'en_US')).toBeNull();
+  expect((await templates.findByKeyLocale('pos-reminder', 'de_DE'))!.subject).toBe('Mine');
+
+  // Uninstalled: the definition and the unedited template go; hers and the operator's own stay.
+  const gone = await h.app.inject({ method: 'DELETE', url: '/apps/pos' });
+  expect(gone.statusCode, gone.body).toBe(200);
+  expect(gone.json().removed.emails).toBe(1);
+  expect(await appOutboxesRepo(h.meta).findByApp('pos')).toBeNull();
+  expect(await templates.findByKeyLocale('pos-confirmation', 'en_US')).toBeNull();
+  expect((await templates.findByKeyLocale('pos-confirmation', 'de_DE'))!.subject).toBe('Ihr Termin');
+  expect((await templates.findByKeyLocale('pos-reminder', 'de_DE'))!.subject).toBe('Mine');
+}
+
+/** A found session raised to verified by an emailed code, the guards around it, and a change of address. */
+async function verifyByCode(h: Harness): Promise<void> {
+  await stageManifest(h, patientsManifest());
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  const served = await servePublic(h, (installed.json().publicAccess as { keyId: string }).keyId);
+  const { call, post: send, codeOf } = served;
+  const mailOn = () =>
+    settingsRepo(h.meta).set('email.smtp', {
+      host: 'localhost',
+      port: 587,
+      user: 'postmaster',
+      passEncrypted: encryptSecret('hunter2', emailSecretKey(TEST_SECRET)),
+      from: 'Clinic <no-reply@clinic.test>',
+      secure: false,
+    } as never);
+  /** Every email queued so far: who it went to, its template and its text. */
+  const mail = async () =>
+    (await h.meta.db.selectFrom('adminium_jobs').selectAll().where('kind', '=', 'email.send').orderBy('createdAt').execute()).map((job) => {
+      const payload = (typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload) as { templateKey: string; envelope: string };
+      const envelope = JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(TEST_SECRET))) as { to: string; subject: string; text: string };
+      return { template: payload.templateKey, to: envelope.to, subject: envelope.subject, text: envelope.text };
+    });
+  const lastCode = async () => /\b(\d{6})\b/.exec((await mail()).filter((m) => m.template === 'sign-in-code').at(-1)!.subject)![1]!;
+  const claim = async (mobile: string, born: string) => {
+    const res = await send('/claim', { match: { mobile, born_on: born } });
+    expect(res.statusCode, res.body).toBe(200);
+    return (res.json() as { data: { session: string } }).data.session;
+  };
+  const tick = (ms: number) => vi.setSystemTime(new Date(Date.now() + ms));
+  try {
+    await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ada', '07700900001', '1980-01-01', 'ada@example.com')`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ben', '07700900002', '1981-02-02', 'ben@gmail.com')`);
+    await h.run(`insert into pos_patients (name, mobile, born_on) values ('Cy', '07700900003', '1982-03-03')`);
+
+    // No mail set up: no code is pretended, and none is left open.
+    const ada = await claim('07700900001', '1980-01-01');
+    const unavailable = await send('/claim/code', { purpose: 'verify' }, ada);
+    expect(unavailable.statusCode, unavailable.body).toBe(503);
+    expect(codeOf(unavailable)).toBe('PUBLIC_CODE_UNAVAILABLE');
+    expect(codeOf(await send('/claim/verify', { code: '000000' }, ada))).toBe('PUBLIC_CODE_EXPIRED');
+
+    await mailOn();
+    tick(31_000);
+    // Sent to the address on her row, shown masked; a big provider's domain is shown whole.
+    const sent = await send('/claim/code', { purpose: 'verify' }, ada);
+    expect(sent.statusCode, sent.body).toBe(200);
+    expect((sent.json() as { data: { sentTo: string; resendAfter: number } }).data).toMatchObject({ sentTo: 'a•••@e•••.com', resendAfter: 30 });
+    expect((await mail()).at(-1)).toMatchObject({ template: 'sign-in-code', to: 'ada@example.com' });
+    // Not again for thirty seconds.
+    expect(codeOf(await send('/claim/code', { purpose: 'verify' }, ada))).toBe('PUBLIC_CODE_TOO_SOON');
+    const wrong = await send('/claim/verify', { code: '999999' === (await lastCode()) ? '999998' : '999999' }, ada);
+    expect(wrong.statusCode).toBe(403);
+    expect((wrong.json() as { error: { params: { triesLeft: number } } }).error.params.triesLeft).toBe(4);
+    const right = await send('/claim/verify', { code: await lastCode() }, ada);
+    expect(right.statusCode, right.body).toBe(200);
+    expect((right.json() as { data: { level: string } }).data.level).toBe('verified');
+    expect((await call('GET', '/records/pos_patients_verified', ada)).statusCode).toBe(200);
+    // A used code is used.
+    expect(codeOf(await send('/claim/verify', { code: await lastCode() }, ada))).toBe('PUBLIC_CODE_EXPIRED');
+
+    // No address on file: said so, nothing sent.
+    const cy = await claim('07700900003', '1982-03-03');
+    expect(codeOf(await send('/claim/code', { purpose: 'verify' }, cy))).toBe('PUBLIC_CLAIM_NO_EMAIL');
+
+    // Guesses sent all at once are each charged before they are compared: five tries, then nothing.
+    const ben = await claim('07700900002', '1981-02-02');
+    expect((await send('/claim/code', { purpose: 'verify' }, ben)).json()).toMatchObject({ data: { sentTo: 'b•••@gmail.com' } });
+    const benCode = await lastCode();
+    const guesses = Array.from({ length: 8 }, (_, i) => String((Number(benCode) + 1 + i) % 1_000_000).padStart(6, '0'));
+    const answers = await Promise.all(guesses.map((code) => send('/claim/verify', { code }, ben)));
+    expect(answers.filter((a) => codeOf(a) === 'PUBLIC_CODE_WRONG')).toHaveLength(5);
+    expect(answers.filter((a) => codeOf(a) === 'PUBLIC_CODE_EXPIRED')).toHaveLength(3);
+    // The code died with its fifth wrong try: the right one opens nothing, and the session waits.
+    expect(codeOf(await send('/claim/verify', { code: benCode }, ben))).toBe('PUBLIC_CODE_EXPIRED');
+    // (A minute on: ten code requests a minute per session is its own limit.)
+    tick(61_000);
+    expect(codeOf(await send('/claim/code', { purpose: 'verify' }, ben))).toBe('PUBLIC_CODE_LOCKED');
+    // Another session is another five tries — until ten wrong ones in a day lock Ben out, whoever asks.
+    const again = await claim('07700900002', '1981-02-02');
+    await send('/claim/code', { purpose: 'verify' }, again);
+    for (let i = 0; i < 5; i += 1) await send('/claim/verify', { code: String((Number(await lastCode()) + 1 + i) % 1_000_000).padStart(6, '0') }, again);
+    tick(31_000);
+    const third = await claim('07700900002', '1981-02-02');
+    expect(codeOf(await send('/claim/code', { purpose: 'verify' }, third))).toBe('PUBLIC_CLAIM_LOCKED');
+    // The desk sees the lock on Ben's record, and lifts it.
+    const desk = await usersRepo(h.meta).create({ email: 'desk@clinic.dev', name: 'Desk', passwordHash: await adminPasswordHash() });
+    await rolesRepo(h.meta).assignToUser(desk.id, (await rolesRepo(h.meta).findBySlug('super-admin'))!.id);
+    const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'desk@clinic.dev', password: ADMIN_PASSWORD } });
+    const cookie = sessionCookie(login.headers['set-cookie']);
+    const patients = (await createPublicViews(h.meta).viewFor(h.connectionId))!.model.tables.find((t) => t.name === 'pos_patients')!.id;
+    const lockUrl = (id: number) => `/api/v1/data/${h.connectionId}/${encodeURIComponent(patients)}/${String(id)}/claim-lock`;
+    const lockOf = async (id: number) => (await served.composed.app.inject({ method: 'GET', url: lockUrl(id), headers: { cookie } })).json() as { locked: boolean; failures: number };
+    expect(await lockOf(2)).toEqual({ locked: true, failures: 10 });
+    expect((await lockOf(1)).locked).toBe(false);
+    const lifted = await served.composed.app.inject({ method: 'DELETE', url: lockUrl(2), headers: { cookie } });
+    expect(lifted.statusCode, lifted.body).toBe(200);
+    expect((lifted.json() as { cleared: number }).cleared).toBeGreaterThan(0);
+    expect(await lockOf(2)).toEqual({ locked: false, failures: 0 });
+    expect((await send('/claim/code', { purpose: 'verify' }, third)).statusCode).toBe(200);
+
+    // A new address: from a session verified moments ago, confirmed at the NEW address; the old one is told.
+    tick(31_000);
+    const change = await send('/claim/code', { purpose: 'email-change', email: 'ada.new@example.org' }, ada);
+    expect(change.statusCode, change.body).toBe(200);
+    expect((await mail()).at(-1)).toMatchObject({ template: 'sign-in-code', to: 'ada.new@example.org' });
+    const changed = await send('/claim/verify', { purpose: 'email-change', code: await lastCode() }, ada);
+    expect(changed.statusCode, changed.body).toBe(200);
+    expect((await h.rows("select email from pos_patients where name = 'Ada'"))[0]!['email']).toBe('ada.new@example.org');
+    expect((await mail()).at(-1)).toMatchObject({ template: 'email-changed', to: 'ada@example.com' });
+    // Every session of hers ended; found again, the address cannot change twice in a day.
+    expect((await call('GET', '/records/pos_patients_claimed', ada)).statusCode).toBe(404);
+    const back = await claim('07700900001', '1980-01-01');
+    // Three codes to Ada in fifteen minutes is all a stranger could make her get: a fourth is held, silently.
+    const held = await send('/claim/code', { purpose: 'verify' }, back);
+    expect(held.statusCode, held.body).toBe(200);
+    expect((await mail()).at(-1)!.template).toBe('email-changed');
+    tick(15 * 60_000);
+    await send('/claim/code', { purpose: 'verify' }, back);
+    await send('/claim/verify', { code: await lastCode() }, back);
+    tick(31_000);
+    expect(codeOf(await send('/claim/code', { purpose: 'email-change', email: 'ada.third@example.org' }, back))).toBe('PUBLIC_EMAIL_CHANGE_LIMIT');
+    // …nor from a session verified long enough ago.
+    const bens = await claim('07700900002', '1981-02-02');
+    tick(31_000);
+    await send('/claim/code', { purpose: 'verify' }, bens);
+    await send('/claim/verify', { code: await lastCode() }, bens);
+    tick(11 * 60_000);
+    expect(codeOf(await send('/claim/code', { purpose: 'email-change', email: 'ben@example.org' }, bens))).toBe('PUBLIC_CODE_STEP_UP');
+  } finally {
+    await served.composed.app.close();
+  }
+}
+
+/** Sample visits whose statuses follow the adding clock, on working days, with their money settled. */
+async function sampleByClock(h: Harness): Promise<void> {
+  const day0 = (time: string) => ({ '@day': 0, '@time': time, '@workdays': true });
+  const clock = { at: 'starts_at', before: { status: 'seen' }, around: { status: 'checked_in' }, after: { status: 'booked' } };
+  // A payment exists only for a visit already over.
+  const paidIf = (time: string) => ({ at: day0(time), before: {}, around: { '@skip': true }, after: { '@skip': true } });
+  const bundle = {
+    format: 'adminium.sample/1',
+    app: 'pos',
+    tables: [
+      { ref: 'booking_settings', rows: [{ slot_minutes: 15, booking_days: 5, notice_minutes: 0, cancel_hours: 24 }] },
+      { ref: 'clinicians', rows: [{ '@label': 'ada', name: 'Ada', position: 1 }] },
+      { ref: 'visit_types', rows: [{ '@label': 'routine', name: 'Routine', minutes: 15, fee: 40 }] },
+      {
+        ref: 'visits',
+        rows: [
+          { '@label': 'v9', clinician_id: { '@ref': 'ada' }, visit_type_id: { '@ref': 'routine' }, starts_at: day0('09:00'), '@byClock': clock },
+          { '@label': 'v10', clinician_id: { '@ref': 'ada' }, visit_type_id: { '@ref': 'routine' }, starts_at: day0('10:00'), '@byClock': clock },
+          { '@label': 'v15', clinician_id: { '@ref': 'ada' }, visit_type_id: { '@ref': 'routine' }, starts_at: day0('15:00'), '@byClock': clock },
+        ],
+      },
+      {
+        ref: 'payments',
+        rows: [
+          { visit_id: { '@ref': 'v9' }, amount: 40, '@byClock': paidIf('09:00') },
+          { visit_id: { '@ref': 'v15' }, amount: 40, '@byClock': paidIf('15:00') },
+        ],
+      },
+      { ref: 'closures', rows: [{ from_date: { '@day': 1, '@workdays': true }, to_date: { '@day': 1, '@workdays': true } }] },
+    ],
+  };
+  await stageManifest(h, { ...moneyManifest(), sampleData: { file: 'seeds/pos.sample.json' } }, { 'seeds/pos.sample.json': JSON.stringify(bundle) });
+  expect((await post(h, '/apps/install')).statusCode).toBe(200);
+  await h.meta.db.updateTable('adminium_connections').set({ timezone: 'Europe/London' }).execute();
+  const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+  const app = (await findSampleApp(h.meta, 'pos'))!;
+  const visits = async () =>
+    (await h.rows('SELECT starts_at, status, paid, balance FROM pos_visits ORDER BY starts_at')).map((r) => ({
+      at: slotInstantOf(r['starts_at']),
+      status: r['status'],
+      paid: Number(r['paid']),
+      balance: Number(r['balance']),
+    }));
+  const closure = async () => {
+    const [row] = await h.rows('SELECT from_date FROM pos_closures');
+    const value = row!['from_date'];
+    return value instanceof Date ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}` : String(value).slice(0, 10);
+  };
+
+  // Tuesday 28 July 2026, 10:05 in London: 09:00 is over, 10:00 is now, 15:00 is to come.
+  const added = await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.UTC(2026, 6, 28, 9, 5) });
+  // The 15:00 payment was left out: that visit has not happened yet.
+  expect(added.counts).toMatchObject({ visits: 3, payments: 1, closures: 1 });
+  expect(await visits()).toEqual([
+    { at: '2026-07-28T08:00:00.000Z', status: 'seen', paid: 40, balance: 0 },
+    { at: '2026-07-28T09:00:00.000Z', status: 'checked_in', paid: 0, balance: 40 },
+    { at: '2026-07-28T14:00:00.000Z', status: 'booked', paid: 0, balance: 40 },
+  ]);
+  // A date is the venue's day: tomorrow, a working day.
+  expect(await closure()).toBe('2026-07-29');
+  // Settled totals are how the rows were written, not an edit: removal takes everything.
+  const plan = (await h.app.inject({ method: 'POST', url: '/apps/pos/sample-data/remove-plan' })).json();
+  expect(plan.changed).toEqual([]);
+  const removed = await h.app.inject({ method: 'POST', url: '/apps/pos/sample-data/remove', payload: { keepChanged: false } });
+  expect(removed.statusCode, removed.body).toBe(200);
+  expect((await h.rows('SELECT id FROM pos_visits')).length).toBe(0);
+
+  // Added on a Saturday, "today" is Monday and tomorrow Tuesday; nothing has happened yet.
+  await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.UTC(2026, 7, 1, 9, 5) });
+  expect((await visits()).map((v) => [v.at, v.status])).toEqual([
+    ['2026-08-03T08:00:00.000Z', 'booked'],
+    ['2026-08-03T09:00:00.000Z', 'booked'],
+    ['2026-08-03T14:00:00.000Z', 'booked'],
+  ]);
+  expect(await closure()).toBe('2026-08-04');
+  expect((await h.rows('SELECT id FROM pos_payments')).length).toBe(0);
+}
+
+/** The human check: a session-less booking and every claim carry a proof, spent once; a found person's booking does not. */
+async function proveAPerson(h: Harness): Promise<void> {
+  await stageManifest(h, patientsManifest({ proofs: true }));
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  const served = await servePublic(h, (installed.json().publicAccess as { keyId: string }).keyId);
+  const { post: send, codeOf, headers } = served;
+  const app = served.composed.app;
+  try {
+    await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ada', '07700900001', '1980-01-01', 'ada@example.com')`);
+    const proof = async (purpose: 'write' | 'claim') => {
+      const res = await app.inject({ method: 'GET', url: `/api/v1/public/challenge?purpose=${purpose}`, headers: headers() });
+      expect(res.statusCode, res.body).toBe(200);
+      const { id, salt, difficulty } = (res.json() as { data: { id: string; salt: string; difficulty: number } }).data;
+      return { 'x-adminium-proof': `${id}.${solveProof(salt, difficulty)}` };
+    };
+    // A browser may send the header.
+    const preflight = await app.inject({ method: 'OPTIONS', url: '/api/v1/public/records/pos_appointments_claimed', headers: { origin: 'https://clinic.example.com', 'access-control-request-method': 'POST' } });
+    expect(String(preflight.headers['access-control-allow-headers'])).toContain('x-adminium-proof');
+
+    const visit = { starts_at: '2099-02-01T10:00:00Z', new_name: 'Cara' };
+    const bare = await send('/records/pos_appointments_claimed', { values: visit });
+    expect(bare.statusCode, bare.body).toBe(403);
+    expect(codeOf(bare)).toBe('PUBLIC_PROOF_REQUIRED');
+    // A proof for a claim is not one for a write.
+    expect(codeOf(await send('/records/pos_appointments_claimed', { values: visit }, undefined, await proof('claim')))).toBe('PUBLIC_PROOF_REQUIRED');
+    const good = await proof('write');
+    expect((await send('/records/pos_appointments_claimed', { values: visit }, undefined, good)).statusCode).toBe(201);
+    // Spent: the same proof buys nothing twice.
+    expect(codeOf(await send('/records/pos_appointments_claimed', { values: visit }, undefined, good))).toBe('PUBLIC_PROOF_REQUIRED');
+
+    // Every claim start carries one.
+    const match = { match: { mobile: '07700900001', born_on: '1980-01-01' } };
+    expect(codeOf(await send('/claim', match))).toBe('PUBLIC_PROOF_REQUIRED');
+    const claimed = await send('/claim', match, undefined, await proof('claim'));
+    expect(claimed.statusCode, claimed.body).toBe(200);
+    const session = (claimed.json() as { data: { session: string } }).data.session;
+    // A found person's booking is theirs, and capped: no second proof.
+    const mine = await send('/records/pos_appointments_claimed', { values: { starts_at: '2099-03-01T10:00:00Z' } }, session);
+    expect(mine.statusCode, mine.body).toBe(201);
+    expect(Number((await h.rows('select count(*) as n from pos_appointments where patient_id = 1'))[0]!['n'])).toBe(1);
+  } finally {
+    await served.composed.app.close();
+  }
+}
+
+/** The patients app with producers: a confirmation, a cancellation behind the switch, reminders at each person's hour, and a stranger's caps. */
+function producersManifest() {
+  const base = outboxManifest('1.0.0');
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  const extra: Record<string, Record<string, unknown>[]> = {
+    patients: [
+      { ref: 'language', type: 'text', maxLength: 10, nullable: true },
+      { ref: 'lead_hours', type: 'int', nullable: true },
+    ],
+    appointments: [
+      { ref: 'new_email', type: 'text', maxLength: 80, nullable: true, rules: { validation: { format: 'email' } } },
+      { ref: 'new_mobile', type: 'text', maxLength: 20, nullable: true },
+    ],
+    messages: [
+      { ref: 'language', type: 'text', maxLength: 10, nullable: true },
+      { ref: 'due_at', type: 'timestamptz', nullable: true },
+    ],
+  };
+  const tables = base.requiredSchema.tables.map((table) => {
+    const t = table as { ref: string; columns: Record<string, unknown>[] };
+    const columns = t.columns.map((c) => (t.ref === 'messages' && c['ref'] === 'kind' ? { ...c, enum: ['confirmation', 'cancelled', 'reminder'] } : c));
+    return { ...t, columns: [...columns, ...(extra[t.ref] ?? [])] };
+  });
+  const template = (key: string) => ({ key, name: 'Email', locales: { 'en-US': { subject: key, blocks: [{ block: 'email.text', data: { text: 'Hello' } }] } } });
+  const publicAccess = patientsManifest().publicAccess.map((entry) =>
+    entry.table === 'appointments' && entry.methods.includes('POST')
+      ? {
+          ...entry,
+          writable: ['starts_at', 'new_name', 'new_email', 'new_mobile'],
+          onClaim: { clear: ['new_name', 'new_email', 'new_mobile', 'check_status'] },
+          anonymous: { perValue: { columns: ['new_mobile', 'new_email'], n: 2 }, perKeyHour: 5, plainText: ['new_name'] },
+        }
+      : entry,
+  );
+  return {
+    ...base,
+    publicAccess,
+    sampleData: { file: 'seeds/pos.sample.json' },
+    requiredSchema: {
+      ...base.requiredSchema,
+      tables: [...tables, { ref: 'settings', columns: [id, { ref: 'emails_on', type: 'bool', default: true }, { ref: 'lead_default', type: 'int', default: 24 }] }],
+    },
+    outbox: {
+      ...base.outbox,
+      columns: { ...base.outbox.columns, language: 'language', due: 'due_at' },
+      recipient: { ...base.outbox.recipient, language: 'language', optIn: 'remind', fallback: { via: 'appointment_id', email: 'new_email' } },
+      settings: { table: 'settings', enabled: 'emails_on' },
+      kinds: { confirmation: 'pos-confirmation', cancelled: 'pos-cancelled', reminder: 'pos-reminder' },
+      producers: [
+        { kind: 'confirmation', link: 'appointment_id', onCreate: { table: 'appointments', where: { column: 'status', eq: 'booked' } } },
+        { kind: 'cancelled', link: 'appointment_id', gate: 'enabled', onChange: { table: 'appointments', column: 'status', to: 'cancelled' } },
+        {
+          kind: 'reminder',
+          link: 'appointment_id',
+          optIn: true,
+          before: {
+            table: 'appointments',
+            at: 'starts_at',
+            lead: { via: 'patient_id', table: 'patients', column: 'lead_hours', fallback: { table: 'settings', column: 'lead_default' }, max: 48 },
+            where: { column: 'status', eq: 'booked' },
+          },
+        },
+      ],
+    },
+    emailTemplates: [template('pos-confirmation'), template('pos-cancelled'), template('pos-reminder')],
+  };
+}
+
+/** What queues an app's emails: its writes (whoever makes them), a minute's scan for reminders, once each — and never for a sample visit or a stranger's flood. */
+async function produceEmails(h: Harness, dialect: Dialect): Promise<void> {
+  const bundle = {
+    format: 'adminium.sample/1',
+    app: 'pos',
+    tables: [
+      { ref: 'patients', rows: [{ '@label': 'sam', name: 'Sam', mobile: '07700900777', born_on: '1970-01-01', email: 'sam@example.com', remind: true, lead_hours: 48 }] },
+      { ref: 'appointments', rows: [{ patient_id: { '@ref': 'sam' }, starts_at: { '@day': 1, '@time': '10:00' }, status: 'booked' }] },
+    ],
+  };
+  await stageManifest(h, producersManifest(), { 'seeds/pos.sample.json': JSON.stringify(bundle) });
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+  const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+  await service.add((await findSampleApp(h.meta, 'pos'))!, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.now() });
+
+  const served = await servePublic(h, (installed.json().publicAccess as { keyId: string }).keyId);
+  const app = served.composed.app;
+  const outbox = app.outbox as OutboxProducers;
+  const { call, codeOf, headers } = served;
+  const bool = (on: boolean) => (dialect === 'postgres' ? String(on) : on ? '1' : '0');
+  // An instant as each engine keeps one written through Adminium.
+  const at = (ms: number) =>
+    dialect === 'sqlite'
+      ? `'${String(normalizeWriteValue({ logicalType: 'timestamp' } as never, new Date(ms).toISOString()))}'`
+      : `'${new Date(ms).toISOString().slice(0, 19).replace('T', ' ')}+00:00'`;
+  const messages = async (where = '1 = 1') =>
+    (await h.rows(`select kind, status, to_address, language, patient_id, appointment_id, due_at, error from pos_messages where ${where} order by id`)).map((r) => ({
+      kind: r['kind'],
+      status: r['status'],
+      to: r['to_address'] ?? null,
+      language: r['language'] ?? null,
+      patient: r['patient_id'] === null ? null : Number(r['patient_id']),
+      appointment: r['appointment_id'] === null ? null : Number(r['appointment_id']),
+      due: r['due_at'] === null ? null : slotInstantOf(r['due_at']),
+      error: r['error'] ?? null,
+    }));
+  const idOf = async (statement: string) => Number((await h.rows(statement))[0]!['id']);
+  const created = (res: { json: () => unknown }) => Number((res.json() as { data: { id: unknown } }).data.id);
+  try {
+    await h.run(`insert into pos_settings (emails_on, lead_default) values (${bool(true)}, 24)`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email, remind, language, lead_hours) values ('Ada', '07700900001', '1980-01-01', 'ada@example.com', ${bool(true)}, 'de', 2)`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email, remind) values ('Ben', '07700900002', '1981-02-02', null, ${bool(true)})`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email, remind) values ('Cy', '07700900003', '1982-03-03', 'cy@example.com', ${bool(false)})`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email, remind) values ('Dee', '07700900004', '1983-04-04', 'dee@example.com', ${bool(true)})`);
+    const ada = await idOf(`select id from pos_patients where name = 'Ada'`);
+    const ben = await idOf(`select id from pos_patients where name = 'Ben'`);
+    const cy = await idOf(`select id from pos_patients where name = 'Cy'`);
+    const dee = await idOf(`select id from pos_patients where name = 'Dee'`);
+    const sam = await idOf(`select id from pos_patients where name = 'Sam'`);
+    // Sample data makes no mail of its own.
+    expect(await messages()).toEqual([]);
+
+    // A stranger's first visit: the confirmation goes to the address on the visit itself.
+    const visit = (mobile: string, email: string, extra: Record<string, unknown> = {}) => ({ starts_at: '2099-02-01T10:00:00Z', new_name: 'Cara O’Neil', new_mobile: mobile, new_email: email, ...extra });
+    const first = await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700 900123', 'cara@example.com'));
+    expect(first.statusCode, first.body).toBe(201);
+    expect(await messages(`appointment_id = ${created(first)}`)).toEqual([
+      { kind: 'confirmation', status: 'queued', to: 'cara@example.com', language: null, patient: null, appointment: created(first), due: null, error: null },
+    ]);
+    // The same number spelled another way is the same person: two a day, then no more.
+    expect((await call('POST', '/records/pos_appointments_claimed', undefined, visit('+44 7700 900123', 'Cara@Example.com'))).statusCode).toBe(201);
+    const third = await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700900123', 'other@example.com'));
+    expect(third.statusCode, third.body).toBe(409);
+    expect(codeOf(third)).toBe('PUBLIC_LIMIT_REACHED');
+    // A name is only a name.
+    const linked = await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700 900888', 'x@example.com', { new_name: 'Deals at www.example.com' }));
+    expect(linked.statusCode, linked.body).toBe(400);
+    expect((linked.json() as { error: { params?: unknown } }).error.params).toEqual({ column: 'new_name' });
+    // A booking that fails for another reason is not counted against the person.
+    expect((await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700 900999', 'not an address'))).statusCode).toBe(400);
+    expect((await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700 900999', 'dan@example.com'))).statusCode).toBe(201);
+    expect((await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700 900999', 'dan@example.com'))).statusCode).toBe(201);
+    // Five strangers' bookings an hour through the key, however many people.
+    expect((await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700 900555', 'eve@example.com'))).statusCode).toBe(201);
+    const flood = await call('POST', '/records/pos_appointments_claimed', undefined, visit('07700 900444', 'fay@example.com'));
+    expect(flood.statusCode, flood.body).toBe(409);
+    expect((await messages(`kind = 'confirmation'`)).length).toBe(5);
+
+    // A found person's booking goes to them, in their language; with no address it is logged, not dropped.
+    const claim = async (mobile: string, born: string) => {
+      const res = await app.inject({ method: 'POST', url: '/api/v1/public/claim', headers: headers(), payload: { match: { mobile, born_on: born } } });
+      const session = (res.json() as { data: { session: string } }).data.session;
+      const row = await publicSessionsRepo(h.meta).findValid(hashPublishableKey(session));
+      await publicSessionsRepo(h.meta).raise(row!.id, 'verified', Date.now() + 30 * 60_000);
+      return session;
+    };
+    const adaSession = await claim('07700900001', '1980-01-01');
+    const benSession = await claim('07700900002', '1981-02-02');
+    const adaVisit = created(await call('POST', '/records/pos_appointments_claimed', adaSession, { starts_at: '2099-03-01T10:00:00Z' }));
+    const benVisit = created(await call('POST', '/records/pos_appointments_claimed', benSession, { starts_at: '2099-03-02T10:00:00Z' }));
+    expect(await messages(`appointment_id in (${adaVisit}, ${benVisit})`)).toEqual([
+      { kind: 'confirmation', status: 'queued', to: 'ada@example.com', language: 'de', patient: ada, appointment: adaVisit, due: null, error: null },
+      { kind: 'confirmation', status: 'skipped', to: null, language: null, patient: ben, appointment: benVisit, due: null, error: 'No email on file' },
+    ]);
+
+    // Cancelled by the patient: "changed to" is seen on the public PATCH too.
+    expect((await call('PATCH', `/records/pos_appointments_verified/${adaVisit}`, adaSession, { status: 'cancelled' })).statusCode).toBe(200);
+    expect(await messages(`kind = 'cancelled'`)).toEqual([
+      { kind: 'cancelled', status: 'queued', to: 'ada@example.com', language: 'de', patient: ada, appointment: adaVisit, due: null, error: null },
+    ]);
+    // With the practice's emails switched off, a cancellation queues nothing.
+    await h.run(`update pos_settings set emails_on = ${bool(false)}`);
+    expect((await call('PATCH', `/records/pos_appointments_verified/${benVisit}`, benSession, { status: 'cancelled' })).statusCode).toBe(200);
+    expect((await messages(`kind = 'cancelled'`)).length).toBe(1);
+    // With no settings row at all, the same: a switch nobody set is not on.
+    await h.run('delete from pos_settings');
+    const another = created(await call('POST', '/records/pos_appointments_claimed', adaSession, { starts_at: '2099-04-01T10:00:00Z' }));
+    expect((await call('PATCH', `/records/pos_appointments_verified/${another}`, adaSession, { status: 'cancelled' })).statusCode).toBe(200);
+    expect((await messages(`kind = 'cancelled'`)).length).toBe(1);
+    await h.run(`insert into pos_settings (emails_on, lead_default) values (${bool(true)}, 24)`);
+    // Reminders: each person's lead, or the practice's; never an opted-out one, never a cancelled visit.
+    const now = Math.floor(Date.now() / 1000) * 1000;
+    const book = async (patient: number, ms: number, status = 'booked') => {
+      await h.run(`insert into pos_appointments (patient_id, starts_at, status) values (${patient}, ${at(ms)}, '${status}')`);
+      return idOf(`select max(id) as id from pos_appointments`);
+    };
+    const HOUR = 3_600_000;
+    const soon = await book(ada, now + HOUR);
+    await book(ada, now + 5 * HOUR);
+    await book(cy, now + HOUR);
+    const deeVisit = await book(dee, now + 20 * HOUR);
+    await book(dee, now + HOUR, 'cancelled');
+    // Two servers scanning at once add each reminder once: the check and the insert share a lock.
+    const [one, two] = await Promise.all([outbox.scan(now), outbox.scan(now)]);
+    expect(one + two).toBe(2);
+    expect(await messages(`kind = 'reminder'`)).toEqual([
+      { kind: 'reminder', status: 'queued', to: 'ada@example.com', language: 'de', patient: ada, appointment: soon, due: new Date(now + HOUR).toISOString(), error: null },
+      { kind: 'reminder', status: 'queued', to: 'dee@example.com', language: null, patient: dee, appointment: deeVisit, due: new Date(now + 20 * HOUR).toISOString(), error: null },
+    ]);
+    // A sample visit is never reminded of, though its patient asked for 48 hours.
+    const samVisit = await idOf(`select id from pos_appointments where patient_id = ${sam}`);
+    expect(await messages(`appointment_id = ${samVisit}`)).toEqual([]);
+    // Once: the next minute's scan finds them already there.
+    expect(await outbox.scan(now + 60_000)).toBe(0);
+    // A visit moved is a new moment, and a new reminder.
+    await h.run(`update pos_appointments set starts_at = ${at(now + 90 * 60_000)} where id = ${soon}`);
+    expect(await outbox.scan(now + 60_000)).toBe(1);
+    expect((await messages(`appointment_id = ${soon}`)).map((m) => m.due)).toEqual([new Date(now + HOUR).toISOString(), new Date(now + 90 * 60_000).toISOString()]);
+
+    // Switched off, the app queues nothing; switched on, the reminder comes.
+    const later = await book(ada, now + 100 * 60_000);
+    expect((await h.app.inject({ method: 'POST', url: '/apps/pos/disable' })).statusCode).toBe(200);
+    // (Another server's list refreshes on its own install routes; this one is told.)
+    outbox.reset();
+    expect(await outbox.scan(now)).toBe(0);
+    expect((await h.app.inject({ method: 'POST', url: '/apps/pos/enable' })).statusCode).toBe(200);
+    outbox.reset();
+    expect(await outbox.scan(now)).toBe(1);
+    expect((await messages(`appointment_id = ${later}`)).length).toBe(1);
+  } finally {
+    await app.close();
+  }
+}
+
+/** The producers' app with a sender to read: a practice name and phone, a clinician, a fee, and templates full of variables. */
+function senderManifest() {
+  const { sampleData: _sample, ...base } = producersManifest();
+  const tables = base.requiredSchema.tables.map((table) => {
+    const t = table as { ref: string; columns: Record<string, unknown>[] };
+    if (t.ref === 'settings') return { ...t, columns: [...t.columns, { ref: 'practice_name', type: 'text', maxLength: 80, nullable: true }, { ref: 'phone', type: 'text', maxLength: 30, nullable: true }] };
+    if (t.ref === 'appointments') {
+      return {
+        ...t,
+        columns: [
+          ...t.columns,
+          { ref: 'clinician_id', type: 'fk', references: 'clinicians', nullable: true },
+          { ref: 'minutes', type: 'int', default: 15 },
+          { ref: 'fee', type: 'money', nullable: true },
+        ],
+      };
+    }
+    return t;
+  });
+  const text = 'Hi {{recipient.first_name}}: {{appointment.starts_at.relative_day}}, {{appointment.time_range}}, with {{clinician.name}}. Fee {{appointment.fee}}. Call {{practice.phone}}. Manage: {{manage_url}}';
+  const template = (key: string) => ({
+    key,
+    name: 'Email',
+    locales: {
+      'en-US': { subject: `Booked at {{appName}}`, blocks: [{ block: 'email.text', data: { text } }] },
+      'de-DE': { subject: `Gebucht bei {{appName}}`, blocks: [{ block: 'email.text', data: { text } }] },
+    },
+  });
+  return {
+    ...base,
+    requiredSchema: {
+      ...base.requiredSchema,
+      tables: [...tables.slice(0, 1), { ref: 'clinicians', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'name', type: 'text', maxLength: 40 }] }, ...tables.slice(1)],
+    },
+    outbox: { ...base.outbox, settings: { ...base.outbox.settings, name: 'practice_name' }, pages: { manage: '/my-visits' } },
+    emailTemplates: [template('pos-confirmation'), template('pos-cancelled'), template('pos-reminder')],
+  };
+}
+
+/** The sender: rendered in the row's language on the venue's clock, the log settled, never twice, and never to an example address. */
+async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
+  await stageManifest(h, senderManifest());
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+  await h.meta.db.updateTable('adminium_connections').set({ timezone: 'Europe/London', currency: 'GBP' }).execute();
+  await settingsRepo(h.meta).set('surfaces.domains', { 'book.hill.dev': { appKey: 'pos', side: 'customer' } });
+  const served = await servePublic(h, (installed.json().publicAccess as { keyId: string }).keyId);
+  const app = served.composed.app;
+  const outbox = app.outbox as OutboxProducers;
+  const sender = app.outboxSender;
+  await settingsRepo(h.meta).set('email.smtp', {
+    host: 'localhost',
+    port: 587,
+    user: 'postmaster',
+    passEncrypted: encryptSecret('hunter2', emailSecretKey(TEST_SECRET)),
+    from: 'Clinic <no-reply@clinic.test>',
+    secure: false,
+  } as never);
+  const mail = async () =>
+    (await h.meta.db.selectFrom('adminium_jobs').selectAll().where('kind', '=', 'email.send').orderBy('createdAt').execute()).map((job) => {
+      const payload = (typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload) as { templateKey: string; locale: string; envelope: string; report?: EmailSendReport };
+      const envelope = JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(TEST_SECRET))) as { to: string; subject: string; text: string };
+      return { template: payload.templateKey, locale: payload.locale, to: envelope.to, subject: envelope.subject, text: envelope.text, report: payload.report };
+    });
+  const bool = (on: boolean) => (dialect === 'postgres' ? String(on) : on ? '1' : '0');
+  const log = async () =>
+    (await h.rows('select id, kind, status, sent_at, error from pos_messages order by id')).map((r) => ({ id: Number(r['id']), status: r['status'], sent: r['sent_at'] !== null, error: r['error'] ?? null }));
+  const idOf = async (statement: string) => Number((await h.rows(statement))[0]!['id']);
+  try {
+    await h.run(`insert into pos_settings (emails_on, lead_default, practice_name, phone) values (${bool(true)}, 24, 'Hill Clinic', '020 7946 0000')`);
+    await h.run(`insert into pos_clinicians (name) values ('Dr Rao')`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email, remind, language) values ('Ada Lovelace', '07700900001', '1980-01-01', 'ada@hill.dev', ${bool(true)}, 'de')`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email, remind) values ('Ben', '07700900002', '1981-02-02', 'ben@example.com', ${bool(true)})`);
+    const ada = await idOf(`select id from pos_patients where name = 'Ada Lovelace'`);
+    const ben = await idOf(`select id from pos_patients where name = 'Ben'`);
+    const clinician = await idOf(`select id from pos_clinicians`);
+    // Tomorrow at 10:00 in London.
+    const now = Date.now();
+    const tomorrow = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now + 86_400_000));
+    const at = wallTimeToInstant(`${tomorrow}T10:00`, 'Europe/London')!;
+    const spelled = dialect === 'sqlite' ? String(normalizeWriteValue({ logicalType: 'timestamp' } as never, at.toISOString())) : `${at.toISOString().slice(0, 19).replace('T', ' ')}+00:00`;
+    for (const patient of [ada, ben]) {
+      await h.run(`insert into pos_appointments (patient_id, starts_at, status, clinician_id, minutes, fee) values (${patient}, '${spelled}', 'booked', ${clinician}, 15, 40)`);
+    }
+    const [adaVisit, benVisit] = (await h.rows('select id from pos_appointments order by id')).map((r) => Number(r['id']));
+    // The desk's "Send now": rows queued by hand.
+    const queue = async (kind: string, to: string | null, patient: number, visit: number, language: string | null = null) => {
+      await h.run(
+        `insert into pos_messages (kind, status, to_address, patient_id, appointment_id, language) values ('${kind}', 'queued', ${to === null ? 'null' : `'${to}'`}, ${patient}, ${visit}, ${language === null ? 'null' : `'${language}'`})`,
+      );
+      return idOf('select max(id) as id from pos_messages');
+    };
+    const adaRow = await queue('confirmation', 'ada@hill.dev', ada, adaVisit!, 'de');
+    const benRow = await queue('confirmation', 'ben@example.com', ben, benVisit!);
+    const nobody = await queue('confirmation', null, ben, benVisit!);
+    // A kind whose email the operator switched off.
+    const off = (await emailTemplatesRepo(h.meta).findByKeyLocale('pos-cancelled', 'en_US'))!;
+    await emailTemplatesRepo(h.meta).upsert('pos-cancelled', 'en_US', { name: off.name, subject: off.subject, blocks: off.blocks, enabled: false });
+    const offRow = await queue('cancelled', 'ada@hill.dev', ada, adaVisit!, 'en');
+    // One the operator gave an HTML block: what a stranger typed would go out unescaped in it.
+    const reminder = (await emailTemplatesRepo(h.meta).findByKeyLocale('pos-reminder', 'en_US'))!;
+    await emailTemplatesRepo(h.meta).upsert('pos-reminder', 'en_US', {
+      name: reminder.name,
+      subject: reminder.subject,
+      blocks: [...reminder.blocks, { id: 'raw', block: 'email.html', data: { code: '<p>{{recipient.name}}</p>' } }],
+      enabled: true,
+    });
+    const htmlRow = await queue('reminder', 'ada@hill.dev', ada, adaVisit!, 'en');
+
+    // Two senders at once settle each row once.
+    const [one, two] = await Promise.all([sender.sendApp('pos', now), sender.sendApp('pos', now)]);
+    expect(one + two).toBe(5);
+    expect(await log()).toEqual([
+      { id: adaRow, status: 'sent', sent: true, error: null },
+      { id: benRow, status: 'skipped', sent: false, error: 'A reserved address (for examples and tests)' },
+      { id: nobody, status: 'skipped', sent: false, error: 'No email on file' },
+      { id: offRow, status: 'failed', sent: false, error: 'The email is switched off, or has no text' },
+      { id: htmlRow, status: 'failed', sent: false, error: 'The email has an HTML block, which cannot carry what a person typed' },
+    ]);
+    // In her language, on the venue's clock, in the connection's currency, linking to the app's own host.
+    const [message, ...others] = await mail();
+    expect(others).toEqual([]);
+    const tag = 'de-DE';
+    const time = new Intl.DateTimeFormat(tag, { timeStyle: 'short', timeZone: 'Europe/London' });
+    expect(message).toMatchObject({ template: 'pos-confirmation', locale: 'de_DE', to: 'ada@hill.dev', subject: 'Gebucht bei Hill Clinic' });
+    expect(message!.report).toMatchObject({ app: 'pos', connectionId: h.connectionId });
+    for (const piece of [
+      'Hi Ada:',
+      new Intl.RelativeTimeFormat(tag, { numeric: 'auto' }).format(1, 'day'),
+      time.formatRange(at, new Date(at.getTime() + 15 * 60_000)),
+      'with Dr Rao',
+      new Intl.NumberFormat(tag, { style: 'currency', currency: 'GBP' }).format(40),
+      'Call 020 7946 0000',
+      'Manage: https://book.hill.dev/my-visits',
+    ]) {
+      expect(message!.text).toContain(piece);
+    }
+
+    // Undelivered for good: the row says so, and the desk may queue it again.
+    await sender.markUndelivered(message!.report!, new Error('550 5.1.1 mailbox unavailable'));
+    expect((await log()).find((row) => row.id === adaRow)).toEqual({ id: adaRow, status: 'failed', sent: true, error: 'Not delivered: 550 5.1.1 mailbox unavailable' });
+    await h.run(`update pos_messages set status = 'queued' where id = ${adaRow}`);
+    expect(await sender.sweep(now + 60_000)).toBe(1);
+    expect((await mail()).length).toBe(2);
+    // …and a late report of the first message no longer touches it.
+    await sender.markUndelivered(message!.report!, new Error('late'));
+    expect((await log()).find((row) => row.id === adaRow)!.status).toBe('sent');
+
+    // Switched off, nothing goes; switched on, it does.
+    const waiting = await queue('confirmation', 'ada@hill.dev', ada, adaVisit!);
+    expect((await h.app.inject({ method: 'POST', url: '/apps/pos/disable' })).statusCode).toBe(200);
+    outbox.reset();
+    expect(await sender.sweep(now)).toBe(0);
+    expect((await log()).find((row) => row.id === waiting)!.status).toBe('queued');
+    expect((await h.app.inject({ method: 'POST', url: '/apps/pos/enable' })).statusCode).toBe(200);
+    outbox.reset();
+    expect(await sender.sweep(now)).toBe(1);
+
+    // A row the producers queue asks for a send at once.
+    const booked = await served.call('POST', '/records/pos_appointments_claimed', undefined, { starts_at: '2099-02-01T10:00:00Z', new_name: 'Dan', new_email: 'dan@hill.dev', new_mobile: '07700 900321' });
+    expect(booked.statusCode, booked.body).toBe(201);
+    const jobs = await h.meta.db.selectFrom('adminium_jobs').selectAll().where('kind', '=', 'app-outbox-send').execute();
+    expect(jobs.map((job) => (typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload))).toEqual([{ app: 'pos' }]);
+
+    // A person's sign-in code, through the app's own key, is signed with the practice's name.
+    const claimed = await app.inject({ method: 'POST', url: '/api/v1/public/claim', headers: served.headers(), payload: { match: { mobile: '07700900001', born_on: '1980-01-01' } } });
+    const session = (claimed.json() as { data: { session: string } }).data.session;
+    expect((await served.post('/claim/code', { purpose: 'verify' }, session)).statusCode).toBe(200);
+    expect((await mail()).at(-1)).toMatchObject({ template: 'sign-in-code', to: 'ada@hill.dev' });
+    expect((await mail()).at(-1)!.subject).toContain('Hill Clinic');
+  } finally {
+    await app.close();
+  }
+}
+
+/** The patients app with a waiting-room kiosk: a second key bound to a screens-only role and switched by the settings row. */
+function kioskManifest(opts: { kiosk?: boolean; role?: string } = {}) {
+  const base = patientsManifest();
+  const id = { ref: 'id', type: 'int', role: 'pk' };
+  const screen = (key: string) => ({ key, name: `Screen ${key}`, screensOnly: true, permissions: ['app:@:staff'] });
+  const kiosk = opts.kiosk !== false;
+  return {
+    ...base,
+    requiredSchema: {
+      ...base.requiredSchema,
+      tables: [
+        ...base.requiredSchema.tables,
+        {
+          ref: 'settings',
+          columns: [id, { ref: 'kiosk_on', type: 'bool', default: true }, { ref: 'online_on', type: 'bool', default: true }, { ref: 'new_online', type: 'bool', default: true }],
+        },
+      ],
+    },
+    roles: [screen('kiosk'), screen('kiosk2'), { key: 'desk', name: 'Desk', permissions: ['app:@:staff'] }],
+    frontends: [...MANIFEST.frontends, { side: 'customer', kind: 'spa', entry: 'index.html' }],
+    ...(kiosk ? { publicKeys: { kiosk: { requiresStaff: { role: opts.role ?? 'kiosk' }, enabledBy: { table: 'settings', column: 'kiosk_on' } } } } : {}),
+    publicAccess: [
+      ...base.publicAccess.map((entry) =>
+        entry.table === 'appointments' && entry.methods.includes('POST')
+          ? { ...entry, requireSetting: [{ table: 'settings', column: 'online_on' }, { table: 'settings', column: 'new_online', when: 'anonymous' }] }
+          : entry,
+      ),
+      ...(kiosk
+        ? [
+            { table: 'patients', key: 'kiosk', methods: ['GET'], select: ['name'], claim: { match: ['mobile', 'born_on'] }, sensitive: false, reason: 'the screen greets the person standing at it by name' },
+            {
+              table: 'appointments',
+              key: 'kiosk',
+              methods: ['GET', 'PATCH'],
+              select: ['id', 'status'],
+              writable: ['status'],
+              writableValues: { status: ['seen'] },
+              writableWhen: { status: ['booked'] },
+              claimedBy: { table: 'patients', column: 'patient_id' },
+              sensitive: false,
+              reason: 'the screen shows only whether a visit is booked',
+            },
+          ]
+        : []),
+    ],
+  };
+}
+
+/** The kiosk's key: served only to its staff screen, answering only beside that sign-in, switched by the app, and following the version. */
+async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
+  const files = { 'customer/index.html': '<!doctype html><html><body data-app="pos-customer"></body></html>' };
+  await stageManifest(h, kioskManifest(), files);
+  const installed = await post(h, '/apps/install');
+  expect(installed.statusCode, installed.body).toBe(200);
+  expect(installed.json().rules.skipped).toEqual([]);
+  const made = installed.json().publicAccess as { keyId: string; keys: Record<string, string> };
+  expect(Object.keys(made.keys).sort()).toEqual(['customer', 'kiosk']);
+  const keys = publicKeysRepo(h.meta);
+  const kioskRow = (await keys.findById(made.keys['kiosk']!))!;
+  expect(kioskRow).toMatchObject({ purpose: 'kiosk', managedBy: 'pos', name: 'Point of Sale · kiosk' });
+  expect(JSON.parse(kioskRow.requiresStaff!)).toEqual({ appKey: 'pos', roleSlug: 'pos-kiosk' });
+  expect(JSON.parse(kioskRow.enabledBy!)).toMatchObject({ column: 'kiosk_on' });
+
+  const served = await servePublic(h, made.keyId, { serveApps: true });
+  const app = served.composed.app;
+  const bool = (on: boolean) => (dialect === 'postgres' ? String(on) : on ? '1' : '0');
+  try {
+    await h.run(`insert into pos_settings (kiosk_on, online_on, new_online) values (${bool(true)}, ${bool(true)}, ${bool(false)})`);
+    await h.run(`insert into pos_patients (name, mobile, born_on, email) values ('Ada', '07700900001', '1980-01-01', 'ada@example.com')`);
+    await h.run(`insert into pos_appointments (patient_id, starts_at, status) values (1, '2099-01-05 10:00:00', 'booked')`);
+
+    // Staff: one on the kiosk role, one on the desk's.
+    const signIn = async (email: string, roleSlug: string) => {
+      const user = await usersRepo(h.meta).create({ email, name: email, passwordHash: await adminPasswordHash() });
+      await rolesRepo(h.meta).assignToUser(user.id, (await rolesRepo(h.meta).findBySlug(roleSlug))!.id);
+      const res = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email, password: ADMIN_PASSWORD } });
+      expect(res.statusCode, res.body).toBe(200);
+      return sessionCookie(res.headers['set-cookie']);
+    };
+    const tablet = await signIn('tablet@clinic.dev', 'pos-kiosk');
+    const desk = await signIn('desk@clinic.dev', 'pos-desk');
+    const config = async (side: string, cookie?: string) =>
+      (await app.inject({ method: 'GET', url: `/apps/pos/${side}/surface-config.json`, headers: cookie === undefined ? {} : { cookie } })).json() as {
+        publicKeys?: Record<string, string>;
+        publishableKey?: string;
+        csrfToken?: string;
+      };
+    // Only the kiosk's own screen is handed the kiosk key; the public side gets its own.
+    const staff = await config('staff', tablet);
+    const kioskToken = staff.publicKeys?.['kiosk'];
+    expect(kioskToken).toMatch(/^adm_pub_/);
+    expect((await config('staff', desk)).publicKeys).toBeUndefined();
+    const guests = await config('customer');
+    expect(guests.publishableKey).toMatch(/^adm_pub_/);
+    expect(guests.publishableKey).not.toBe(kioskToken);
+
+    const host = 'clinic.local';
+    const kiosk = (method: 'GET' | 'POST', url: string, opts: { cookie?: string; csrf?: string | undefined; origin?: string; host?: string; payload?: unknown; session?: string } = {}) =>
+      app.inject({
+        method,
+        url: `/api/v1/public${url}`,
+        headers: {
+          authorization: `Bearer ${kioskToken}`,
+          host: opts.host ?? host,
+          'sec-fetch-site': opts.origin === undefined ? 'same-origin' : 'cross-site',
+          ...(method === 'POST' ? { origin: opts.origin ?? `http://${opts.host ?? host}` } : {}),
+          ...(opts.cookie === undefined ? {} : { cookie: opts.cookie }),
+          ...(opts.csrf === undefined ? {} : { 'x-adminium-csrf': opts.csrf }),
+          ...(opts.session === undefined ? {} : { 'x-adminium-public-session': opts.session }),
+        },
+        ...(opts.payload === undefined ? {} : { payload: opts.payload as never }),
+      });
+    const claim = { match: { mobile: '07700900001', born_on: '1980-01-01' } };
+    const refused = async (res: { statusCode: number; json: () => unknown }, code: string) => {
+      expect(res.statusCode).toBe(code === 'PUBLIC_KEY_OFF' || code === 'APP_DISABLED' ? 503 : 403);
+      expect((res.json() as { error: { code: string } }).error.code).toBe(code);
+    };
+    // The token alone opens nothing; nor another staff member's sign-in; nor another page; nor a write without the CSRF token.
+    await refused(await kiosk('POST', '/claim', { payload: claim }), 'PUBLIC_STAFF_REQUIRED');
+    await refused(await kiosk('POST', '/claim', { payload: claim, cookie: desk, csrf: (await config('staff', desk)).csrfToken }), 'PUBLIC_STAFF_REQUIRED');
+    await refused(await kiosk('POST', '/claim', { payload: claim, cookie: tablet, csrf: staff.csrfToken, origin: 'https://clinic.example.com' }), 'PUBLIC_STAFF_REQUIRED');
+    await refused(await kiosk('POST', '/claim', { payload: claim, cookie: tablet }), 'PUBLIC_STAFF_REQUIRED');
+
+    // Switched off in the settings row: off within fifteen seconds, back on after.
+    await h.run(`update pos_settings set kiosk_on = ${bool(false)}`);
+    await refused(await kiosk('POST', '/claim', { payload: claim, cookie: tablet, csrf: staff.csrfToken }), 'PUBLIC_KEY_OFF');
+    await h.run(`update pos_settings set kiosk_on = ${bool(true)}`);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(Date.now() + 16_000);
+      // Signed in on this screen: found, for minutes, with no proof of work.
+      const found = await kiosk('POST', '/claim', { payload: claim, cookie: tablet, csrf: staff.csrfToken });
+      expect(found.statusCode, found.body).toBe(200);
+      const { session, expiresAt } = (found.json() as { data: { session: string; expiresAt: number } }).data;
+      expect(expiresAt - Date.now()).toBeLessThanOrEqual(3 * 60_000);
+      const visits = await kiosk('GET', '/records/pos_appointments_claimed_2', { cookie: tablet, session });
+      expect(visits.statusCode, visits.body).toBe(200);
+      expect((visits.json() as { data: { status: string }[] }).data).toEqual([{ id: expect.anything(), status: 'booked' }]);
+      // The customer side switched off leaves the kiosk; the app switched off stops it.
+      await settingsRepo(h.meta).set('surfaces.apps', { pos: { off: ['customer'] } } as never);
+      app.surfaceSettings?.invalidate();
+      expect((await kiosk('GET', '/records/pos_appointments_claimed_2', { cookie: tablet, session })).statusCode).toBe(200);
+      expect((await served.call('GET', '/config')).statusCode).toBe(503);
+      await settingsRepo(h.meta).set('surfaces.apps', {} as never);
+      // Served on its own host once the operator maps one, and on no other.
+      await settingsRepo(h.meta).set('surfaces.domains', { 'desk.clinic.dev': { appKey: 'pos', side: 'staff' } });
+      app.surfaceSettings?.invalidate();
+      await refused(await kiosk('GET', '/records/pos_appointments_claimed_2', { cookie: tablet, session }), 'PUBLIC_STAFF_REQUIRED');
+      expect((await kiosk('GET', '/records/pos_appointments_claimed_2', { cookie: tablet, session, host: 'desk.clinic.dev' })).statusCode).toBe(200);
+      await settingsRepo(h.meta).set('surfaces.domains', {});
+      app.surfaceSettings?.invalidate();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    // Booking online: a stranger's create while new patients are off is refused; a found person's is not.
+    const stranger = await served.call('POST', '/records/pos_appointments_claimed', undefined, { starts_at: '2099-02-01T10:00:00Z', new_name: 'Cara' });
+    expect(stranger.statusCode, stranger.body).toBe(403);
+    expect(served.codeOf(stranger)).toBe('PUBLIC_SWITCHED_OFF');
+    // A staff member signed in on this browser does not break the public side: its key, not the cookie, is the credential.
+    const found = await app.inject({ method: 'POST', url: '/api/v1/public/claim', headers: { ...served.headers(), cookie: desk, 'sec-fetch-site': 'cross-site' }, payload: claim });
+    expect(found.statusCode, found.body).toBe(200);
+    const guest = (found.json() as { data: { session: string } }).data.session;
+    expect((await served.call('POST', '/records/pos_appointments_claimed', guest, { starts_at: '2099-02-02T10:00:00Z' })).statusCode).toBe(201);
+
+    // An update follows the version: a changed role rebinds the key, a dropped kiosk revokes it…
+    await stageManifest(h, { ...kioskManifest({ role: 'kiosk2' }), version: '1.1.0' }, files);
+    expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update' })).statusCode).toBe(200);
+    expect(JSON.parse((await keys.findById(made.keys['kiosk']!))!.requiresStaff!)).toEqual({ appKey: 'pos', roleSlug: 'pos-kiosk2' });
+    await stageManifest(h, { ...kioskManifest({ kiosk: false }), version: '1.2.0' }, files);
+    expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update' })).statusCode).toBe(200);
+    expect((await keys.findById(made.keys['kiosk']!))!.revokedAt).not.toBeNull();
+    // …and a kiosk key the operator took back is not made again by an update.
+    await stageManifest(h, { ...kioskManifest(), version: '1.3.0' }, files);
+    expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update' })).statusCode).toBe(200);
+    expect((await keys.listManagedBy('pos')).filter((k) => k.purpose === 'kiosk' && k.revokedAt === null)).toEqual([]);
+  } finally {
+    await app.close();
+  }
+}
+
+/** A stored start as an ISO instant, however the driver hands it back. */
+function slotInstantOf(value: unknown): string {
+  return slotInstant(value)!.toISOString();
+}
+
 const post = (h: Harness, url: string, extra: Record<string, unknown> = {}) =>
   h.app.inject({ method: 'POST', url, payload: { key: 'pos', version: '1.0.0', connectionId: h.connectionId, ...extra } });
 
@@ -608,6 +2600,57 @@ for (const [dialect, available] of legs) {
       expect(row.version).toBe('1.0.0');
     }, 60_000);
 
+    it('refuses to update an install its release no longer updates, at the upload, the plan, the update and the offer', async () => {
+      const h = (open = await harness(dialect));
+      const next = { ...MANIFEST, version: '2.0.0', compatibility: { ...MANIFEST.compatibility, updatesFrom: '>=1.5.0' } };
+      // Staged before anything is installed, as a download from the catalogue lands it.
+      await stageManifest(h, next);
+      await stage(h);
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+
+      // (This harness's bare error handler drops `details`; the app's keeps
+      // `reason: UPDATE_NOT_SUPPORTED` with the versions and the range.)
+      const refusal = {
+        code: 'VALIDATION_FAILED',
+        message: 'Point of Sale 1.0.0 used a different layout, so 2.0.0 cannot update it in place. Uninstall it first, then install 2.0.0.',
+      };
+      const planned = await post(h, '/apps/plan', { version: '2.0.0' });
+      expect(planned.statusCode, planned.body).toBe(422);
+      expect(planned.json()).toMatchObject(refusal);
+      const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update' });
+      expect(updated.statusCode, updated.body).toBe(422);
+      expect(updated.json()).toMatchObject(refusal);
+      const [row] = (await h.app.inject({ method: 'GET', url: '/apps' })).json().apps;
+      expect(row.version).toBe('1.0.0');
+
+      // The shelf offers no update, and says why.
+      const catalog = (await h.app.inject({ method: 'GET', url: '/apps/catalog' })).json();
+      expect(catalog.apps.find((a: { key: string }) => a.key === 'pos')).toMatchObject({
+        updateTo: null,
+        cannotUpdate: { version: '2.0.0', updatesFrom: '>=1.5.0' },
+      });
+
+      // Once installed, uploading such a release is refused outright.
+      const later = { ...next, version: '2.0.1' };
+      const tarball = packageTarball({ 'manifest.json': JSON.stringify(later), 'staff/index.html': '<!doctype html><html></html>' });
+      const upload = await h.app.inject({
+        method: 'POST',
+        url: `/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`,
+        headers: { 'content-type': 'application/octet-stream' },
+        payload: Buffer.from(tarball),
+      });
+      expect(upload.statusCode, upload.body).toBe(422);
+      expect(upload.json().message).toBe(
+        'Point of Sale 1.0.0 used a different layout, so 2.0.1 cannot update it in place. Uninstall it first, then install 2.0.1.',
+      );
+
+      // A release whose range takes the installed version updates as before.
+      await stageManifest(h, { ...MANIFEST, version: '2.1.0', compatibility: { ...MANIFEST.compatibility, updatesFrom: '^1.0.0 || >=2.0.0' } });
+      const ok = await h.app.inject({ method: 'POST', url: '/apps/pos/update' });
+      expect(ok.statusCode, ok.body).toBe(200);
+      expect(ok.json()).toMatchObject({ from: '1.0.0', to: '2.1.0' });
+    }, 60_000);
+
     it('renames an install made before prefixes to the prefix, every table, as reviewed', async () => {
       const h = (open = await harness(dialect));
       // The version an older install came from: plain names.
@@ -728,9 +2771,15 @@ for (const [dialect, available] of legs) {
       expect(unconfirmed.statusCode).toBe(422);
       expect(await h.columns('pos_menu_items')).not.toEqual({});
 
+      // What Adminium noticed about a table on its own (a personal-data mark) goes with the table.
+      const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
+      const menuTable = parseDatabaseModel(snapshot.schema).tables.find((t) => t.name === 'pos_menu_items')!.id!;
+      await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'column.pii', tableName: menuTable, columnName: 'name', value: { masked: true, kind: 'name' }, origin: 'auto' });
       const res = await h.app.inject({ method: 'DELETE', url: '/apps/pos', payload: { dropTables: true, confirmKey: 'pos' } });
       expect(res.statusCode, res.body).toBe(200);
       expect(res.json().dropped.sort()).toEqual(['pos_lines', 'pos_menu_items', 'pos_payments', 'pos_shifts']);
+      const left = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => /pos_(menu_items|payments|shifts|lines)$/.test(o.tableName));
+      expect(left).toEqual([]);
       for (const table of ['pos_menu_items', 'pos_payments', 'pos_shifts', 'pos_lines']) {
         expect(await h.columns(table), table).toEqual({});
       }
@@ -827,6 +2876,228 @@ for (const [dialect, available] of legs) {
       // Still installed, pages and all.
       expect((await h.app.inject({ method: 'GET', url: '/apps' })).json().apps).toHaveLength(1);
       expect(await pagesRepo(h.meta).findBySlug(h.connectionId, 'pos-menu')).not.toBeNull();
+    }, 60_000);
+
+    it('books people: hours, breaks, closures, the window, notice, overlap, anyone and walk-ins, on the venue clock', async () => {
+      const h = (open = await harness(dialect));
+      const zone = 'Europe/London';
+      // Tuesday 28 July 2026, 08:20 in London: the clock every check below reads.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(wallTimeToInstant('2026-07-28 08:20', zone)!);
+      try {
+        await bookPeople(h, zone);
+      } finally {
+        vi.useRealTimers();
+      }
+    }, 90_000);
+
+    it('flags a late cancellation, refuses a guest\u2019s late move, and hands both to undo', async () => {
+      const h = (open = await harness(dialect));
+      const zone = 'Europe/London';
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(wallTimeToInstant('2026-07-28 08:20', zone)!);
+      try {
+        await cancelLate(h, zone);
+      } finally {
+        vi.useRealTimers();
+      }
+    }, 90_000);
+
+    it('stamps who and when on a create and on a change, per origin, and never over history', async () => {
+      const h = (open = await harness(dialect));
+      const zone = 'Europe/London';
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(wallTimeToInstant('2026-07-28 08:20', zone)!);
+      try {
+        await stampRows(h, zone);
+      } finally {
+        vi.useRealTimers();
+      }
+    }, 90_000);
+
+    it('keeps a visit’s balance from its fee, payments and write-offs, and never lets it go below zero', async () => {
+      const h = (open = await harness(dialect));
+      const zone = 'Europe/London';
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(wallTimeToInstant('2026-07-28 08:20', zone)!);
+      try {
+        await keepBalances(h, zone);
+      } finally {
+        vi.useRealTimers();
+      }
+    }, 90_000);
+
+    it('makes a unique column under the real table’s name, and the database keeps it', async () => {
+      const h = (open = await harness(dialect));
+      await stageManifest(h, {
+        ...MANIFEST,
+        requiredSchema: {
+          prefixed: true,
+          tables: [
+            TABLES[0],
+            {
+              ref: 'day_closes',
+              columns: [
+                { ref: 'id', type: 'int', role: 'pk' },
+                { ref: 'day', type: 'date', unique: true },
+                { ref: 'client_key', type: 'text', maxLength: 36, nullable: true, unique: true },
+              ],
+            },
+          ],
+        },
+      });
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+      const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
+      const table = model.tables.find((t) => t.name === 'pos_day_closes')!;
+      const uniques = [...table.uniques, ...table.indexes.filter((i) => i.unique)].map((u) => u.columns.join(','));
+      expect(uniques).toEqual(expect.arrayContaining(['day', 'client_key']));
+      if (dialect !== 'sqlite') {
+        // Named after the real table, so another app's `day_closes.day` never collides with it.
+        const names = [...table.uniques, ...table.indexes].map((u) => u.name ?? '');
+        expect(names).toEqual(expect.arrayContaining(['uq_pos_day_closes_day', 'uq_pos_day_closes_client_key']));
+      }
+      await h.run(`insert into pos_day_closes (day, client_key) values ('2026-07-28', 'a')`);
+      await expect(h.run(`insert into pos_day_closes (day, client_key) values ('2026-07-28', 'b')`)).rejects.toThrow();
+      // Empty is not a value: any number of rows may leave the key empty.
+      await h.run(`insert into pos_day_closes (day) values ('2026-07-29')`);
+      await h.run(`insert into pos_day_closes (day) values ('2026-07-30')`);
+      await expect(h.run(`insert into pos_day_closes (day, client_key) values ('2026-07-31', 'a')`)).rejects.toThrow();
+    }, 60_000);
+
+    it('opens a patient\u2019s own rows through one identity, at the level each asks, and never another\u2019s', async () => {
+      const h = (open = await harness(dialect));
+      await claimPatients(h);
+    }, 90_000);
+
+    it('installs the emails an app sends, keeps an operator\u2019s edit across an update, and takes the rest back', async () => {
+      const h = (open = await harness(dialect));
+      await installEmails(h);
+    }, 90_000);
+
+    it('raises a found session by an emailed code, charges every try first, and changes an address only with care', async () => {
+      const h = (open = await harness(dialect));
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-07-28T08:00:00Z'));
+      try {
+        await verifyByCode(h);
+      } finally {
+        vi.useRealTimers();
+      }
+    }, 120_000);
+
+    it('adds sample visits whose statuses follow the clock, on working days, and settles their money', async () => {
+      const h = (open = await harness(dialect));
+      await sampleByClock(h);
+    }, 90_000);
+
+    it('sends an app\u2019s queued emails in each person\u2019s language on the venue\u2019s clock, once, and never to an example address', async () => {
+      const h = (open = await harness(dialect));
+      await sendEmails(h, dialect);
+    });
+
+    it('serves a kiosk\u2019s key only to its staff screen, answering only beside that sign-in, switched by the app, and following the version', async () => {
+      const h = (open = await harness(dialect));
+      await kioskKey(h, dialect);
+    });
+
+    it('queues an app\u2019s emails from its writes and its reminders, once each, never for sample or history, and caps a stranger', async () => {
+      const h = (open = await harness(dialect));
+      await produceEmails(h, dialect);
+    });
+
+    it('asks a proof of work before a stranger\u2019s booking and every claim, spent once', async () => {
+      const h = (open = await harness(dialect));
+      await proveAPerson(h);
+    }, 90_000);
+
+    it('stores a booking rule with every table it reads under its real, prefixed name', async () => {
+      const h = (open = await harness(dialect));
+      const id = { ref: 'id', type: 'int', role: 'pk' };
+      const hhmm = (ref: string, nullable = false) => ({ ref, type: 'text', maxLength: 5, ...(nullable ? { nullable: true } : {}) });
+      const weekday = { ref: 'weekday', type: 'enum', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] };
+      const booking = {
+        start: 'starts_at',
+        minutes: 'minutes',
+        resource: 'clinician_id',
+        kind: 'visit_type_id',
+        countWhere: { column: 'status', values: ['booked', 'seen'] },
+        eligible: { table: 'clinician_visit_types', resource: 'clinician_id', kind: 'visit_type_id', order: { table: 'clinicians', column: 'position', active: 'active' } },
+        hours: {
+          practice: { table: 'opening_hours', weekday: 'weekday', opens: 'opens', closes: 'closes', breakStart: 'break_start', breakEnd: 'break_end' },
+          own: { table: 'clinician_hours', resource: 'clinician_id', weekday: 'weekday', opens: 'opens', closes: 'closes' },
+        },
+        closures: { table: 'closures', from: 'from_date', to: 'to_date', resource: 'clinician_id' },
+        grid: { table: 'booking_settings', column: 'slot_minutes' },
+        windowDays: 10,
+        noticeMinutes: { table: 'booking_settings', column: 'notice_minutes' },
+        cancel: { hours: { table: 'booking_settings', column: 'cancel_hours' }, mode: 'flag', flag: 'late_cancel', when: { column: 'status', to: 'cancelled' } },
+      };
+      const tables = [
+        ...TABLES,
+        { ref: 'booking_settings', columns: [id, { ref: 'slot_minutes', type: 'int', default: 15 }, { ref: 'notice_minutes', type: 'int', default: 60 }, { ref: 'cancel_hours', type: 'int', default: 24 }] },
+        { ref: 'opening_hours', columns: [id, weekday, hhmm('opens'), hhmm('closes'), hhmm('break_start', true), hhmm('break_end', true)] },
+        { ref: 'clinicians', columns: [id, { ref: 'position', type: 'int', default: 0 }, { ref: 'active', type: 'bool', default: true }] },
+        { ref: 'visit_types', columns: [id, { ref: 'minutes', type: 'int', default: 15 }] },
+        { ref: 'clinician_visit_types', columns: [id, { ref: 'clinician_id', type: 'fk', references: 'clinicians' }, { ref: 'visit_type_id', type: 'fk', references: 'visit_types' }] },
+        { ref: 'clinician_hours', columns: [id, { ref: 'clinician_id', type: 'fk', references: 'clinicians' }, weekday, hhmm('opens'), hhmm('closes')] },
+        { ref: 'closures', columns: [id, { ref: 'clinician_id', type: 'fk', references: 'clinicians', nullable: true }, { ref: 'from_date', type: 'date' }, { ref: 'to_date', type: 'date' }] },
+        {
+          ref: 'visits',
+          booking,
+          columns: [
+            id,
+            { ref: 'clinician_id', type: 'fk', references: 'clinicians', nullable: true },
+            { ref: 'visit_type_id', type: 'fk', references: 'visit_types' },
+            { ref: 'starts_at', type: 'timestamptz' },
+            { ref: 'minutes', type: 'int', default: 15 },
+            { ref: 'status', type: 'enum', enum: ['booked', 'seen', 'cancelled'], default: 'booked' },
+            { ref: 'late_cancel', type: 'bool', default: false },
+          ],
+        },
+      ];
+      await stageManifest(h, { ...MANIFEST, requiredSchema: { prefixed: true, tables } });
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+      expect(installed.json().rules).toMatchObject({ written: 1, skipped: [] });
+
+      const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
+      const model = parseDatabaseModel(snapshot.schema);
+      const real = (name: string) => model.tables.find((t) => t.name === name)!.id;
+      const [row] = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => o.op === 'table.booking');
+      expect(row).toMatchObject({ tableName: real('pos_visits'), columnName: null, origin: 'app' });
+      const expected = {
+        ...booking,
+        eligible: { ...booking.eligible, table: real('pos_clinician_visit_types'), order: { ...booking.eligible.order, table: real('pos_clinicians') } },
+        hours: {
+          practice: { ...booking.hours.practice, table: real('pos_opening_hours') },
+          own: { ...booking.hours.own, table: real('pos_clinician_hours') },
+        },
+        closures: { ...booking.closures, table: real('pos_closures') },
+        grid: { table: real('pos_booking_settings'), column: 'slot_minutes' },
+        noticeMinutes: { table: real('pos_booking_settings'), column: 'notice_minutes' },
+        cancel: { ...booking.cancel, hours: { table: real('pos_booking_settings'), column: 'cancel_hours' } },
+      };
+      expect(row!.value).toEqual(expected);
+      // No short name survives anywhere in the stored rule: every `table`, at any depth, is a real one.
+      const named: string[] = [];
+      const walk = (node: unknown): void => {
+        if (typeof node !== 'object' || node === null) return;
+        for (const [key, child] of Object.entries(node)) {
+          if (key === 'table' && typeof child === 'string') named.push(child);
+          else walk(child);
+        }
+      };
+      walk(row!.value);
+      expect(named).toHaveLength(8); // eligible, order, both hours, closures, grid, notice, cancel hours
+      const realIds = new Set(model.tables.map((t) => t.id));
+      expect(named.filter((table) => !realIds.has(table) || !table.includes('pos_'))).toEqual([]);
+
+      // The write path sees it: on the effective table, and in the table's rules.
+      const view = new SnapshotView(h.connectionId, applyOverrides(model, await overridesRepo(h.meta).listForConnection(h.connectionId, { status: 'active' })), new Map());
+      const visits = view.table(real('pos_visits'));
+      expect(visits.table?.booking).toEqual(expected);
+      expect(tableRulesFor({ view, table: visits })?.booking).toEqual(expected);
     }, 60_000);
 
     it('keeps the rules its manifest asks for, and takes back only the ones still its own', async () => {
@@ -1184,7 +3455,7 @@ for (const [dialect, available] of legs) {
       await stageManifest(h, withAccess('1.1.0'));
       const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update' });
       expect(updated.statusCode, updated.body).toBe(200);
-      expect(updated.json().app.publicAccess).toEqual({ endpoints: ['pos_menu_items', 'pos_payments_claimed'], keyId: null, skipped: [] });
+      expect(updated.json().app.publicAccess).toEqual({ endpoints: ['pos_menu_items', 'pos_payments_claimed'], keyId: null, keys: {}, skipped: [] });
       expect((await publicKeysRepo(h.meta).list()).filter((k) => k.managedBy === 'pos')).toHaveLength(1);
 
       // Uninstalled: the key is revoked and the endpoints are gone.

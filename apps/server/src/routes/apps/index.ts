@@ -43,6 +43,7 @@ import {
   type InstallPlan,
   type Manifest,
   prefixFor,
+  satisfiesSemverRange,
   type InstallTablePlan,
   type PlanProblem,
   type TableChoice,
@@ -51,7 +52,10 @@ import { checkManifestPages, sha256Hex, type DatabaseModel } from '@adminium/eng
 import {
   addOnSettingsRepo,
   appTablesRepo,
+  CUSTOMER_KEY_PURPOSE,
   auditRepo,
+  keyEnabledBy,
+  keyStaffBinding,
   connectionTenantConfig,
   permissionsRepo,
   publicEndpointsRepo,
@@ -115,7 +119,8 @@ import {
 import { ownRules, removeManifestRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
 import { formIssues, layoutTables } from '../../apps/manifest-page-config.js';
 import { forgetAppRoleGrants, roleIssues, writeManifestRoles, type RolesResult } from '../../apps/manifest-roles.js';
-import { installPublicAccess, planPublicEndpoints, publicAccessWarnings } from '../../apps/manifest-public.js';
+import { installPublicAccess, planPublicEndpoints, publicAccessWarnings, staffBindingOf } from '../../apps/manifest-public.js';
+import { installOutbox, removeOutbox, templateProblems, type OutboxResult } from '../../apps/manifest-outbox.js';
 import type { EndpointService } from '../../public-api/endpoint-service.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import type { DsnCrypto } from '@adminium/meta';
@@ -362,6 +367,22 @@ function lenientMinimum(document: unknown): string | null {
   return typeof minimum === 'string' && /^\d+\.\d+\.\d+/.test(minimum) ? minimum : null;
 }
 
+/**
+ * Why this release cannot update an install of `from` in place, or null when
+ * it can. A release whose tables changed shape declares the versions it still
+ * updates (`compatibility.updatesFrom`); an older install is told to
+ * uninstall first rather than being walked into an update that cannot fit.
+ */
+export function updateRefusal(manifest: Manifest, from: string): ValidationFailedError | null {
+  const range = manifest.compatibility.updatesFrom;
+  if (range === undefined || satisfiesSemverRange(from, range)) return null;
+  return new ValidationFailedError(
+    `${manifest.name} ${from} used a different layout, so ${manifest.version} cannot update it in place. ` +
+      `Uninstall it first, then install ${manifest.version}.`,
+    { reason: 'UPDATE_NOT_SUPPORTED', from, to: manifest.version, updatesFrom: range },
+  );
+}
+
 export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const serverVersion = deps.serverVersion ?? APP_VERSION;
@@ -601,6 +622,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     const pageProblems = [
       ...(await slugProblems(manifest, connectionId)),
       ...pageConfigProblems(manifest),
+      ...templateProblems(manifest).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
       ...roleIssues(manifest).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
     ];
     const plan: InstallPlan =
@@ -700,7 +722,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         deps.meta,
         connectionId,
         deps.publicAccess?.origins ?? [],
-        (manifest.publicAccess ?? []).some((entry) => entry.confirm !== undefined),
+        (manifest.publicAccess ?? []).some((entry) => entry.confirm !== undefined) || manifest.outbox !== undefined,
       ),
       canGrant: typeof request.can !== 'function' || (await request.can(PERMISSIONS.apiKeysManage)),
     };
@@ -784,6 +806,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         rules: RulesResult | undefined;
         roles: RolesResult | undefined;
         publicAccess: Awaited<ReturnType<typeof installPublicAccess>> | undefined;
+        outbox: OutboxResult | undefined;
       }
     | undefined
   > {
@@ -825,24 +848,58 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               connectionId,
               names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
             });
+      // The emails it sends: the outbox over its tables, and its templates.
+      const outbox =
+        connectionId === null || manifestRowId === null
+          ? undefined
+          : await (async () => {
+              const realNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+              const model = await deps.publicAccess?.viewFor(connectionId);
+              const realId = (ref: string) => {
+                const real = realNames[ref] ?? ref;
+                return model?.model.tables.find((table) => table.name === real)?.id ?? real;
+              };
+              return installOutbox({ meta: deps.meta, manifest, manifestId: manifestRowId, connectionId, realId });
+            })();
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
       let made: Awaited<ReturnType<typeof installPublicAccess>> | undefined;
       if (publicAccess && connectionId !== null && deps.publicAccess !== undefined && manifest.kind === 'app') {
         const view = await deps.publicAccess.viewFor(connectionId);
         if (view !== null && (manifest.publicAccess ?? []).length > 0) {
-          const live = await publicKeysRepo(deps.meta).newestLiveByApp(manifest.key, 'customer');
+          // Each of the app's keys is made once: the public side's, and a kiosk's.
+          const at = Date.now();
+          const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
+          const live = own.filter((k) => k.kind === 'browser' && k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at));
+          const declaredPurposes = [CUSTOMER_KEY_PURPOSE, ...Object.keys(manifest.publicKeys ?? {})];
+          const livePurposes = new Set(declaredPurposes.filter((purpose) => live.some((k) => k.purpose === purpose)));
+          // An install starts afresh; an update never makes again a key the operator took back.
+          const withheld = new Set(strict ? [] : declaredPurposes.filter((purpose) => !livePurposes.has(purpose) && own.some((k) => k.purpose === purpose)));
+          const tableNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
           made = await installPublicAccess({
             service: deps.publicAccess.service,
             meta: deps.meta,
             crypto: deps.publicAccess.crypto,
             manifest,
             connectionId,
-            names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
+            names: tableNames,
             view,
             appName: manifest.name,
             actorId: userId,
-            hasLiveKey: live !== null && live.managedBy === manifest.key,
+            livePurposes,
+            withheld,
           });
+          // A second key follows the version: gone when it no longer declares
+          // it, rebound when its role or switch changed.
+          for (const k of live) {
+            if (k.purpose === CUSTOMER_KEY_PURPOSE) continue;
+            const binding = staffBindingOf(manifest, k.purpose, { names: tableNames, view });
+            if (binding === null) {
+              await publicKeysRepo(deps.meta).revoke(k.id);
+            } else if (JSON.stringify(keyStaffBinding(k)) !== JSON.stringify(binding.requiresStaff) || JSON.stringify(keyEnabledBy(k)) !== JSON.stringify(binding.enabledBy)) {
+              await publicKeysRepo(deps.meta).setBinding(k.id, binding);
+            } else continue;
+            deps.publicAccess.invalidateKey?.(k.id);
+          }
           // The admin routes' own audit rows, with the app named.
           const actor = { actorKind: 'user' as const, actorId: userId, actorLabel: request.user?.email ?? 'unknown', category: 'system' as const };
           for (const ref of made.endpoints) {
@@ -852,17 +909,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               changes: { after: { connectionId, ref, app: manifest.key } },
             });
           }
-          if (made.keyId !== null) {
+          for (const [purpose, keyId] of Object.entries(made.keys)) {
             await auditRepo(deps.meta).append({
               ...actor,
               action: 'public-key.create',
-              changes: { after: { keyId: made.keyId, connectionId, app: manifest.key, access: made.endpoints } },
+              changes: { after: { keyId, connectionId, app: manifest.key, purpose, access: made.endpoints } },
             });
           }
           deps.publicAccess.onChange?.();
         }
       }
-      return { pages: result, rules, roles, publicAccess: made };
+      return { pages: result, rules, roles, publicAccess: made, outbox };
     } catch (error) {
       if (strict) throw error;
       request.log.warn({ err: error, manifestRowId }, 'app installed, but its pages were not written');
@@ -1211,6 +1268,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
          * assigned on every line below this call.
          */
         const read: { manifest?: Manifest } = {};
+        // What is installed, read BEFORE the stage: `identify` runs inside it
+        // and cannot wait on the meta store.
+        const installedVersions = new Map(
+          (await manifests.list('app')).map((installed) => [installed.row.manifestKey, installed.row.version]),
+        );
         let staged;
         try {
           staged = await deps.store.stage({
@@ -1254,6 +1316,14 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                     `this server is ${serverVersion}. Upgrade Adminium before uploading it.`,
                   { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: minimum, serverVersion },
                 );
+              }
+              // A release that cannot update what is installed is refused
+              // here too, before it sits in the store offering an update the
+              // update route would refuse.
+              const installedVersion = installedVersions.get(manifest.key);
+              if (installedVersion !== undefined && installedVersion !== manifest.version) {
+                const refused = updateRefusal(manifest, installedVersion);
+                if (refused !== null) throw refused;
               }
               return { key: manifest.key, version: manifest.version };
             },
@@ -1411,6 +1481,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           let publisher = '';
           let capabilities: string[] = [];
           let readable = false;
+          let updatesFrom: string | undefined;
           try {
             const doc: unknown = JSON.parse(
               (await deps.store.readFile(key, version, MANIFEST_FILE)).toString('utf8'),
@@ -1422,6 +1493,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               categories = [...validated.manifest.categories];
               publisher = validated.manifest.publisher.name;
               capabilities = [...(validated.manifest.capabilities ?? [])];
+              updatesFrom = validated.manifest.compatibility.updatesFrom;
               readable = true;
             }
           } catch {
@@ -1432,10 +1504,22 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           const current = installedByKey.get(key) ?? null;
           let updateTo: string | null = null;
           let needsNewerAdminium: { version: string; minAdminiumVersion: string } | null = null;
+          let cannotUpdate: { version: string; updatesFrom: string } | null = null;
           if (current !== null) {
-            // Disk and catalog both count; the newer usable one wins.
-            const onDisk = compareSemver(version, current) > 0 ? version : null;
-            const { usable, blocked } = catalogUpdate(key, current);
+            /*
+             * Disk and catalog both count; the newer usable one wins. A staged
+             * release that does not update this install in place is no offer
+             * — from disk, nor from the feed when the feed lists that same
+             * release (which is how it got onto disk).
+             */
+            const newer = compareSemver(version, current) > 0;
+            if (newer && updatesFrom !== undefined && !satisfiesSemverRange(current, updatesFrom)) {
+              cannotUpdate = { version, updatesFrom };
+            }
+            const onDisk = newer && cannotUpdate === null ? version : null;
+            const offered = catalogUpdate(key, current);
+            const usable = cannotUpdate !== null && offered.usable === version ? null : offered.usable;
+            const blocked = offered.blocked;
             updateTo =
               onDisk !== null && (usable === null || compareSemver(onDisk, usable) >= 0)
                 ? onDisk
@@ -1466,6 +1550,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             updateTo,
             updateStaged: updateTo !== null && versions.includes(updateTo),
             needsNewerAdminium,
+            cannotUpdate,
           });
         }
 
@@ -1506,6 +1591,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             updateTo: usable,
             updateStaged: false,
             needsNewerAdminium: blocked,
+            cannotUpdate: null,
           });
         }
 
@@ -1536,6 +1622,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             updateTo: null,
             updateStaged: false,
             needsNewerAdminium: null,
+            cannotUpdate: null,
           });
         }
 
@@ -1690,6 +1777,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const { key, version, connectionId, choices, altPrefix } = request.body;
         const manifest = await verifiedManifest(key, version);
+        // The preview an update is checked with: the same refusal the update
+        // route gives, before the operator is shown tables to consent to.
+        const installed = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+        if (installed !== undefined && installed.row.version !== version) {
+          const refused = updateRefusal(manifest, installed.row.version);
+          if (refused !== null) throw refused;
+        }
         const { dto } = await planFor(manifest, connectionId, {
           ...(choices === undefined ? {} : { choices }),
           ...(altPrefix === undefined ? {} : { altPrefix }),
@@ -1958,6 +2052,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           ...(writtenPages?.rules === undefined ? {} : { rules: writtenPages.rules }),
           ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
           ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
+          ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
         };
       },
     );
@@ -2012,6 +2107,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             userLabel,
           );
           throw error;
+        }
+
+        const refused = updateRefusal(manifest, from);
+        if (refused !== null) {
+          await auditAppEvent(
+            'app.verify-refused',
+            { key, version: to, from, reason: 'UPDATE_NOT_SUPPORTED' },
+            userId,
+            userLabel,
+          );
+          throw refused;
         }
 
         const surfaces = surfacesOfInstalled(deps.store, { key, version: to });
@@ -2120,6 +2226,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             ...(writtenPages?.rules === undefined ? {} : { rules: writtenPages.rules }),
             ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
             ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
+            ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
           },
           from,
           to,
@@ -2895,6 +3002,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           plan.connectionId === null
             ? 0
             : await removeManifestRules(deps.meta, plan.tables.map((entry) => entry.record), plan.connectionId);
+        // Its emails: the outbox definition, and the templates nobody edited.
+        const emailsRemoved = await removeOutbox(deps.meta, key);
         /*
          * 5. Its tables: dropped only when asked, with the key typed back, and
          *    only the ones this app made and nothing else names. Every other
@@ -2960,6 +3069,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           endpoints: plan.endpoints.length,
           roles: plan.roles.length,
           rules: rulesRemoved,
+          emails: emailsRemoved,
         };
         const keptSummary = { pages: plan.pages.kept.length, tables: kept.map((entry) => entry.record.tableName) };
         await auditAppEvent(

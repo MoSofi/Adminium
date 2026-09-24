@@ -52,6 +52,8 @@ import {
   passwordResetsRepo,
   publicApiStateRepo,
   publicRequestStatsRepo,
+  publicChallengesRepo,
+  publicProofsRepo,
   publicSessionsRepo,
   sessionsRepo,
   settingsRepo,
@@ -126,6 +128,9 @@ import { registerAutomationRunHandler } from './jobs/automation-run.js';
 import { automationsRoutes } from './routes/automations/index.js';
 import { automationRunsRoutes } from './routes/automations/runs.js';
 import { createAutomations, decorateAutomations } from './automations/register.js';
+import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
+import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
+import { publishChildWrite } from './crud/after-record-write.js';
 import {
   AUTOMATION_POLL_CRON,
   AUTOMATION_SCHEDULE_JITTER_MS,
@@ -481,14 +486,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
   });
   const appManifests = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+  /** Forget which apps have an outbox; set once the producers exist below. */
+  let outboxesChanged = (): void => {};
   const installedApps = createInstalledApps({
     store: appStore,
-    list: async () =>
-      (await appManifests.list('app')).map((installed) => ({
+    // Every install, update, switch and uninstall refreshes this list, so the
+    // app emails' producers look again at which apps are live.
+    list: async () => {
+      outboxesChanged();
+      return (await appManifests.list('app')).map((installed) => ({
         key: installed.row.manifestKey,
         version: installed.row.version,
         status: installed.row.status,
-      })),
+      }));
+    },
   });
 
   const app = await buildServer({
@@ -784,7 +795,53 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...(hookRunner === null ? {} : { hooks: () => hookRunner }),
     // A running number counts in the meta store; a venue's clock is its connection's.
     ...writeStores(meta),
+    // An update of a table an app's email watches for a change reads the row first.
+    watched: (connectionId, tableId) => outboxProducers.watches(connectionId, tableId),
   });
+  /*
+   * AN APP'S EMAILS. The producers queue rows in an installed app's outbox
+   * table from its writes and, once a minute, for its reminders. Decorated
+   * here, before any route, because every write reaches them through
+   * `emitRecordEvent`.
+   */
+  const outboxProducers = createOutboxProducers({
+    meta,
+    manager,
+    viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    writes: recordWrites,
+    logger: app.log,
+    announce: (connectionId, table, row) => {
+      publishChildWrite(app, { connectionId, table, action: 'create', pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
+    },
+    // A row was queued: send it now rather than at the next minute's sweep.
+    onQueued: (appKey) => {
+      void jobs.enqueue({ kind: OUTBOX_SEND_JOB_KIND, payload: { app: appKey }, dedupeKey: `${OUTBOX_SEND_JOB_KIND}:${appKey}` }).catch((error: unknown) => {
+        app.log.warn({ err: error, appKey }, 'the app email send job could not be queued; the sweep will send it');
+      });
+    },
+  });
+  outboxesChanged = () => {
+    outboxProducers.reset();
+  };
+  app.decorate('outbox', outboxProducers);
+  const outboxSender = createOutboxSender({
+    meta,
+    manager,
+    viewFor: (connectionId) => publicViews.viewFor(connectionId),
+    writes: recordWrites,
+    live: () => outboxProducers.live(),
+    logger: app.log,
+    // The app's guest side on its own host, when the operator mapped one.
+    hostFor: async (appKey) => {
+      const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
+      return Object.entries(settings.domains).find(([, target]) => target.appKey === appKey && target.side === 'customer' && target.instance === undefined)?.[0];
+    },
+    announce: (connectionId, table, row) => {
+      publishChildWrite(app, { connectionId, table, action: 'update', pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
+    },
+    secret: env.ADMINIUM_SECRET,
+  });
+  app.decorate('outboxSender', outboxSender);
   const projectActions =
     projectCode === null
       ? null
@@ -982,7 +1039,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // Claims the `email.send` kind (jobs/email-send.ts). Registered
     // unconditionally: whether mail actually goes out is decided by the
     // `email.smtp` SETTING at enqueue time, not by boot configuration.
-    email: { secret: env.ADMINIUM_SECRET, storage },
+    // A message an app's outbox row asked for that fails for good turns the row `failed`.
+    email: { secret: env.ADMINIUM_SECRET, storage, onGiveUp: (report, error) => outboxSender.markUndelivered(report, error) },
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
     // The assistant's turn runner. The GUARDED resolver, not the enrichment
     // job's: it re-checks the stored base URL against the outbound guard at the
@@ -1056,6 +1114,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         log: app.log,
       });
       if (tick.runsStarted > 0) app.log.info(tick, 'automation watch tick');
+    },
+    { jitterMs: AUTOMATION_WATCH_JITTER_MS },
+  );
+  registerOutboxSendHandler(jobs.registry, outboxSender);
+  jobs.scheduler.registerSchedule(
+    OUTBOX_SWEEP_SCHEDULE_NAME,
+    AUTOMATION_POLL_CRON,
+    async () => {
+      const settled = await outboxSender.sweep();
+      if (settled > 0) app.log.info({ settled }, 'app emails sent');
+    },
+    { jitterMs: AUTOMATION_WATCH_JITTER_MS },
+  );
+  jobs.scheduler.registerSchedule(
+    OUTBOX_SCAN_SCHEDULE_NAME,
+    AUTOMATION_POLL_CRON,
+    async () => {
+      const queued = await outboxProducers.scan();
+      if (queued > 0) app.log.info({ queued }, 'app reminders queued');
     },
     { jitterMs: AUTOMATION_WATCH_JITTER_MS },
   );
@@ -2089,6 +2166,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     } catch (error) {
       app.log.warn({ err: error }, 'retention sweep: public session purge failed');
     }
+    // Emailed codes and used human checks: a day and more after they were made
+    // (the per-person caps read a day back), in its own catch.
+    let publicChallenges: number | null = null;
+    try {
+      publicChallenges = await publicChallengesRepo(meta).purgeBefore(at - 2 * DAY_MS);
+      publicChallenges += await publicProofsRepo(meta).purgeExpired(at);
+    } catch (error) {
+      app.log.warn({ err: error }, 'retention sweep: public code purge failed');
+    }
     // Public request counts past `retention.publicRequestStatsDays`,
     // in its own catch for the same reason.
     let publicRequestStats: number | null = null;
@@ -2108,6 +2194,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         automationRuns,
         assistantSessions,
         publicSessions,
+        publicChallenges,
         publicRequestStats,
         jobsDays,
         auditLogDays,

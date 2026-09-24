@@ -1431,6 +1431,7 @@ describe('the bundled app set (47 step 4)', () => {
         updateTo: null,
         updateStaged: false,
         needsNewerAdminium: null,
+        cannotUpdate: null,
       },
     ]);
 

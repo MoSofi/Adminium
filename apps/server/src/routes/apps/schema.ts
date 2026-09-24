@@ -378,8 +378,26 @@ export const installedAppReply = z.object({
     .object({
       endpoints: z.array(z.string()),
       keyId: z.string().nullable(),
+      /** Every key made now, by purpose: the guests' (`customer`) and a second one's (`kiosk`). */
+      keys: z.record(z.string(), z.string()),
       /** An update's change the app's own key may not take; the endpoint stays as it was. */
       skipped: z.array(z.object({ ref: z.string(), reason: z.string() })),
+    })
+    .optional(),
+  /**
+   * The emails the manifest declares: whether its outbox is defined now, and
+   * each template language written, kept (the operator edited it), skipped
+   * (the name is someone else's) or removed (no longer shipped, unedited).
+   */
+  outbox: z
+    .object({
+      defined: z.boolean(),
+      templates: z.object({
+        written: z.array(z.string()),
+        kept: z.array(z.string()),
+        skipped: z.array(z.object({ key: z.string(), locale: z.string(), reason: z.string() })),
+        removed: z.number(),
+      }),
     })
     .optional(),
 });
@@ -461,6 +479,12 @@ export const appCatalogEntry = z.object({
   needsNewerAdminium: z
     .object({ version: z.string(), minAdminiumVersion: z.string() })
     .nullable(),
+  /**
+   * A newer release on disk that cannot update the installed version in
+   * place: its manifest's `updatesFrom` leaves this version out. Uninstalling
+   * first is the way to it, and the page says so rather than offering it.
+   */
+  cannotUpdate: z.object({ version: z.string(), updatesFrom: z.string() }).nullable(),
 });
 
 export const appCatalogReply = z.object({
@@ -728,7 +752,15 @@ export const uninstallAppReply = z.object({
   uninstalled: z.boolean(),
   /** What went. Absent from an older server. */
   removed: z
-    .object({ pages: z.number(), keys: z.number(), endpoints: z.number(), roles: z.number(), rules: z.number().optional() })
+    .object({
+      pages: z.number(),
+      keys: z.number(),
+      endpoints: z.number(),
+      roles: z.number(),
+      rules: z.number().optional(),
+      /** The app's email templates nobody edited. */
+      emails: z.number().optional(),
+    })
     .optional(),
   /** What stayed: pages someone edited, and every table not dropped. */
   kept: z.object({ pages: z.number(), tables: z.array(z.string()) }).optional(),
