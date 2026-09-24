@@ -1,5 +1,54 @@
 # @adminium/desktop
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [64a1f12]
+- Updated dependencies [d3a8058]
+- Updated dependencies [64a1f12]
+- Updated dependencies [d3a8058]
+- Updated dependencies [64a1f12]
+- Updated dependencies [d3a8058]
+- Updated dependencies [64a1f12]
+- Updated dependencies [64a1f12]
+- Updated dependencies [64a1f12]
+- Updated dependencies [64a1f12]
+- Updated dependencies [64a1f12]
+- Updated dependencies [5b4dbff]
+- Updated dependencies [ae41762]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ae41762]
+- Updated dependencies [a795485]
+- Updated dependencies [a795485]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [a795485]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [a795485]
+- Updated dependencies [c451e7d]
+- Updated dependencies [dd63dc2]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae8b1ed]
+- Updated dependencies [874cae3]
+- Updated dependencies [4448b09]
+  - @adminium/server@0.3.0
+  - @adminium/adapter-mysql@0.3.0
+  - @adminium/adapter-postgres@0.3.0
+  - @adminium/adapter-sqlite@0.3.0
+
 ## 0.3.0-rc.4
 
 ### Patch Changes

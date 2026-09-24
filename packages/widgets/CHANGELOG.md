@@ -1,5 +1,80 @@
 # @adminium/widgets
 
+## 0.3.0
+
+### Patch Changes
+
+- d3a8058: **Calendar pages plot by the right columns and open the page's own form; a few app fixes.**
+  
+  - A calendar opens on the month today falls in, and its day list on today. It used to open on a
+    fixed month from the demo data, or on the month most rows were in.
+  - An app can name a calendar's columns in its page's `config.calendar` (`start`, `end`, `title`,
+    which may read through a foreign key such as `patient_id.name`, and `category`). Without it, a
+    table with a booking rule is plotted by the booking's start instead of the first date in the
+    table. On a page with a form, **Add event** and a click on an empty day open that form, with the
+    day filled in.
+  - KPI cards on calendar, scheduler, board, queue, log and directory pages read money in the
+    connection's currency, as dashboard cards already did.
+  - A link table with its own `id` and two foreign keys counts as a link between the two tables, so
+    a chips field over it ("Visit types they do") reads and saves its rows. A form field may name
+    the link table. A designed field that cannot be shown now says so in the form, and the install
+    report and the server log name a field the install could not bind.
+  - A create replies with the row as stored, its totals and balance included. It used to reply
+    before they were added up, so a new visit showed no balance.
+  - An app's email with no address on the row goes to the person the row links (or a first visit's
+    own address), and the address is written into the row. A recipient whose language is not one of
+    Adminium's gets the nearest template, with dates and times written their own way: `en-GB`
+    reads "09:30".
+- 64a1f12: **Dashboard cards speak the page's language and lead somewhere.**
+  
+  - A KPI card with a link is one button that opens it; nine new icons for front-desk cards.
+  - A chart grouped by a link names each group by the row it points at ("Dr Rao", not 7), under
+    your read and masking; a choice column's groups and record-list cells use its labels.
+  - Money cards use the connection's currency unless they name their own.
+  - A dashboard can end its day controls with one link ("Open the desk").
+  - Card titles can carry translations, picked by the page's language.
+  - A choice column's value labels an app ships in several languages are read in each person's own:
+    a status pill, a chart legend and a form's choices say "Wartend" to a German reader and
+    "Waiting" to an English one. A card that lists its own columns takes them from the answer too.
+    Labels installed before stay as they were until the app is updated. A page's list, record,
+    master-detail, queue and calendar say them too, as do the words of an inline list of allowed
+    values in the form, the filters and the list; a page that names its own words keeps them.
+- ab31a89: **App manifests can name their tables and columns in every language, and dashboards gain a day control.**
+  
+  A manifest's tables take `label`, `labelPlural` and `keyField`, its columns a `label`, and enum
+  columns a label per value — plain text or a map keyed by language. Forms, grids, filters and
+  dashboard cards use them, in the viewer's language.
+  
+  A dashboard page can show **Today / Yesterday / This week / Pick a day**; every card reads the
+  chosen day on the venue's clock, and hourly bars are labelled by hour. `SegmentedControl` takes
+  an `itemClassName`.
+  
+  Fixes: SQLite boolean updates, a SQLite `now` default on the server's wall clock, SQLite schema
+  edits after another program changed the database, a public key's scope refreshing when the
+  connection's time zone or currency changes, and a revoked key no longer answering after an
+  uninstall.
+- Updated dependencies [64a1f12]
+- Updated dependencies [d3a8058]
+- Updated dependencies [d3a8058]
+- Updated dependencies [64a1f12]
+- Updated dependencies [d3a8058]
+- Updated dependencies [64a1f12]
+- Updated dependencies [64a1f12]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ae41762]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [ab31a89]
+- Updated dependencies [c451e7d]
+- Updated dependencies [ae41762]
+  - @adminium/i18n@0.3.0
+  - @adminium/ui@0.3.0
+  - @adminium/tokens@0.3.0
+  - @adminium/charts@0.3.0
+
 ## 0.3.0-rc.4
 
 ### Patch Changes

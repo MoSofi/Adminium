@@ -1,5 +1,7 @@
 # @adminium/add-on-contracts
 
+## 0.3.0
+
 ## 0.3.0-rc.4
 
 ## 0.3.0-rc.3

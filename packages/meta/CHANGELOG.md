@@ -1,5 +1,404 @@
 # @adminium/meta
 
+## 0.3.0
+
+### Patch Changes
+
+- 64a1f12: **Apps send their own emails, and the log is a table you can read.**
+  
+  An app declares an outbox: its own table where every email is a row, the templates it ships (in
+  every language it speaks), and what queues one — a row created, a column changed to a value, or a
+  reminder a number of hours before a moment, at each person's chosen lead. Adminium sends them in
+  the person's language, on the venue's clock and in its currency, and writes `sent`, `failed` or
+  `skipped` with the reason on each row; a message that cannot be delivered after every try turns
+  the row `failed`, and the desk can queue it again. Sample data, imports and undo never send mail,
+  example addresses are never mailed, and a template given an HTML block is not sent. Templates are
+  installed as the app's; an operator's edit is kept across updates. A column that holds nothing
+  reads as empty, so a paragraph holding only an optional value is left out instead of printing its
+  placeholder.
+- d3a8058: **An app's own roles can see personal data where their work needs it, and an edit can be limited to some columns.**
+  
+  Personal columns (a patient's mobile, email, address, an allergy note) used to be shown in clear
+  only to people who manage database connections, so an app's staff roles read them as empty and a
+  clinic's reception could not ring anyone. A new table permission, `read_pii`, shows one table's
+  personal columns: an app grants it as `table:@patients:read_pii`, and **People → Roles &
+  permissions** has a **See personal data in records** row that grants it on every table. The table
+  asked about is the one the value lives in, so a lookup from appointments to a patient's mobile
+  needs it on patients. It applies to lists, single records, lookups, measures, dashboard cards,
+  record pages and exports. A `*` action never includes it, so no existing role gains it. Live
+  updates stay masked for everyone, and the public API is unchanged.
+  
+  An app role can limit what its edit permission on a table may change: `limits` on the role, per
+  table, with `writable` columns and `writableValues`, the names public access uses. A clinician
+  may move a visit from roomed to ready and nothing else; anything outside the limit is refused
+  `403` `COLUMN_FORBIDDEN`, naming the column and the value. It covers editing one record, many at
+  once, and rows edited from another record's form. Someone who also holds a role with an
+  unlimited edit on the table, an Admin or Super Admin, is not limited. Saving the role in the
+  permissions matrix keeps its limits, and an app update writes the new version's.
+- 64a1f12: **Apps can take bookings against people's hours, not just seats per slot.**
+  
+  A table may carry a booking rule: the practice's opening hours and breaks, each person's own hours,
+  closures (for everyone or one person), how many days ahead and how much notice, the slot grid, and
+  which kinds of visit each person offers. Every write — a guest's, the desk's, an import's — is held
+  to it on the venue's clock, and two people booking the last time at once get one booking. "Anyone"
+  picks the first person free in the app's order. Availability answers free or full per time, and a
+  strip of days open, full or closed; a person moving their own visit is not blocked by it
+  (`exclude`). A cancellation inside the notice window is flagged on the row, and a guest cannot move
+  a visit that late. `@adminium/public-client` gains `bookingTimes()` and `bookingDays()`.
+- 64a1f12: **Columns Adminium fills in: stamps, balances, unique values and relative filters.**
+  
+  - A **stamp** writes the time, or who did it, when a row is made or a column changes to a value
+    ("checked in at", "cancelled by"); a guest's write can stamp something else than the staff's.
+  - A total can count only some child rows (`where`) and keep a **balance** (a fee less payments and
+    write-offs). With **`cap`**, a change that would take a balance below zero is refused with
+    `BALANCE_EXCEEDED`; a payment taken while another is being written waits for it.
+  - A column can be **unique**, enforced by the database under the real table's name.
+  - Public endpoints can filter on the venue's **today** or the days from today, allow a column only
+    certain values, and change a row only while it is in a given state or still ahead.
+  
+  Studio's column inspector shows each of these rules.
+- d3a8058: The Roles & permissions editor's messages leave the eagerly bundled `common`
+  catalogue for a deferred `roles` namespace, which `/settings/roles` loads
+  before it renders.
+  
+  `common` ships in every user's first load, so its 76 `roles.*` keys were paid
+  for on every route by every user, for one lazy admin screen behind a permission
+  the built-in Admin does not hold. Moving them is what makes room for the new
+  strings in this release without raising the entry-chunk budget.
+  
+  **Operators with customised translations:** meta migration `0043` re-files
+  overrides written against the old `common:roles.*` addresses under `roles:`.
+  Every key moved, so nothing is copied or left behind.
+- 64a1f12: **An app can have a second key for a kiosk, bound to a signed-in staff member.**
+  
+  A kiosk's key is served only to the screen of a staff member holding the app's kiosk role (a
+  screens-only role with no data), and answers only beside that sign-in, from the same page, with
+  its CSRF token on writes, and on the app's own staff host when one is mapped. The app switches it
+  off from its settings row (`PUBLIC_KEY_OFF`); it stops with the staff side. Sessions found at a
+  kiosk last three minutes, ask no proof of work, and count per screen. An app update rebinds it,
+  revokes it when the app drops it, and never re-makes one an operator revoked. The API keys page
+  marks it "Staff screen only".
+  
+  Also fixed: a staff member signed in on the same browser no longer breaks an app's public pages
+  (the public API's requests are the key's, not the cookie's), and a screens-only person may call the
+  public API.
+  
+  An app's staff screens also learn what the signed-in person may do: the staff config carries
+  `access`, their read / create / update / delete on each of the app's tables and the app's roles
+  they hold, so a screen can leave out a button whose write the server would refuse.
+  
+  A check-in can wait for its time: `writableWhen` takes a window on a time,
+  `{starts_at: {within: 60}}`, meaning no more than 60 minutes ahead (a late arrival always
+  passes). An earlier change is refused `409` `PUBLIC_TOO_EARLY` with the row's time and when the
+  window opens (`params.at`, `params.from`), and only when the row is the caller's own and nothing
+  but the window stood in the way; every other miss is still `404`. The public client reads them as
+  `error.tooEarly`.
+- 64a1f12: **Dashboard cards speak the page's language and lead somewhere.**
+  
+  - A KPI card with a link is one button that opens it; nine new icons for front-desk cards.
+  - A chart grouped by a link names each group by the row it points at ("Dr Rao", not 7), under
+    your read and masking; a choice column's groups and record-list cells use its labels.
+  - Money cards use the connection's currency unless they name their own.
+  - A dashboard can end its day controls with one link ("Open the desk").
+  - Card titles can carry translations, picked by the page's language.
+  - A choice column's value labels an app ships in several languages are read in each person's own:
+    a status pill, a chart legend and a form's choices say "Wartend" to a German reader and
+    "Waiting" to an English one. A card that lists its own columns takes them from the answer too.
+    Labels installed before stay as they were until the app is updated. A page's list, record,
+    master-detail, queue and calendar say them too, as do the words of an inline list of allowed
+    values in the form, the filters and the list; a page that names its own words keeps them.
+- 64a1f12: **An app's guests can find themselves, prove it by email, and see only their own rows.**
+  
+  - An app declares one **identity** per key (a patient found by mobile and date of birth); its other
+    endpoints open that person's own rows, at the level each asks: found (`lookup`) or proved by a
+    six-digit **code emailed** to them (`verified`). Codes last 10 minutes and take 5 tries; the
+    requests and wrong tries are limited per session and per person; a person locked out by wrong
+    tries is shown to the desk, which can lift it (`GET`/`DELETE
+    /api/v1/data/:connectionId/:table/:recordId/claim-lock`). A person with a fresh code may change
+    their address; the old address is told, and every session of theirs ends.
+  - A signed-in person may hold only so many open rows (`PUBLIC_LIMIT_REACHED`), and a create can say
+    where the new row stands (a waiting-list place).
+  - A **human check** (a small proof of work) can guard a stranger's create and every claim.
+  - A stranger's create can be limited per phone number or address a day and per key an hour, with
+    names held to plain text.
+  - Writes can be switched off from the app's settings row (`PUBLIC_SWITCHED_OFF`).
+  - Email sign-in codes sent through an app's own key are signed with the app's name for its venue.
+  - The notice to an old address after a change of email gives the practice's number to ring, when
+    the app's outbox names a `phone` column of its settings row (`outbox.settings.phone`, a `text`
+    column) and the row holds one; otherwise it still says to get in touch.
+  
+  `@adminium/public-client` gains `requestCode()`, `verifyCode()`, `session()`, `solveChallenge()`
+  with a `humanCheck` option that answers the server, `createWithRank()`, and the new error codes.
+- ab31a89: **Installing an app checks every table first, and never writes anything you have not seen.**
+  
+  Before **Install**, the new **Check the tables** step lists each table the app needs: **New**,
+  **Yours from an earlier install**, **Shared with another app** or **Name taken**. For a taken
+  name you choose: use the table as it is (offered only when it is safe — a table with a required
+  column the app never fills cannot be reused, and the page says why), rename the existing table
+  out of the way (Adminium repairs its own pages, grants, label overrides and public endpoints
+  that named it), or give the whole app a different prefix. Apps that ask for it get their tables
+  under their own prefix (`pos_menu_items`), so another app's plain `payments` is never in the way.
+  
+  An install that stops part way answers `409 APP_INSTALL_INCOMPLETE` naming the stage and the
+  tables already made; nothing is removed, and **Try again** finishes from where it stopped.
+  Updating runs the same check for new tables and keeps the names an install already has; an
+  update that cannot run lists every reason. An install made before its app used a prefix is
+  offered **Rename to <prefix>…**, which previews every table and then renames them, with pages,
+  grants, overrides and endpoints following.
+  
+  Uninstalling keeps your data unless a Super Admin ticks **Also delete its tables and data** and
+  types the app's key; only tables the app created and no other app uses are dropped. Pages you
+  edited stay as ordinary pages, the app's key is revoked at once, and a domain that pointed at the
+  app answers `503 SURFACE_UNAVAILABLE` until you map it again. A reinstall recognises the tables
+  it left.
+- ae41762: **Deleting a connection or a public scope that ever had a publishable key works now.**
+  
+  A connection's public scopes cascade away with it, but a publishable key is
+  `restrict` on its scope (0014), so the cascade hit the key and the driver
+  error came back as an unhandled 500 — on every meta dialect, not only
+  Postgres. The test that claimed "deleting the connection clears both" deleted
+  the keys by hand first, so it never ran the real path.
+  
+  The delete now looks at the keys first, in one transaction with the delete:
+  
+  - A **live** key (not revoked, not expired) refuses the whole delete with a
+    `409 PUBLIC_KEYS_LIVE` whose `details.keys` names each key. The migration's
+    rule stands: the operator revokes a shipped public surface on purpose, and
+    sees what it breaks. It is not a side effect of deleting something else. The
+    delete dialog names the keys and points at the Public API page. It no longer
+    says "Try again".
+  - **Revoked or expired** keys break nothing, and nothing else in the product
+    can remove their rows, so they are cleared with the connection. Their
+    sessions and challenges cascade with them. The `connection.delete` audit row
+    lists each cleared key's id and prefix. Their `public-key.revoke` rows are
+    unchanged.
+  
+  Deleting a **scope** had the same dead end in a different form. It refused
+  while any key row pointed at it, revoked or not. Nothing in the product
+  removes a key row, so a scope that ever had a key could never be deleted, and
+  the refusal told the operator to revoke, which did not help. It now follows
+  the same rule through the same helper: live keys refuse with
+  `PUBLIC_KEYS_LIVE`, and inert ones go with the scope, named in the
+  `public-scope.delete` audit row. The Public API page names the blocking keys,
+  and its delete dialog no longer says "Keys are not deleted".
+  
+  The FK stays `restrict`, and no migration was needed. The connection's pool is
+  now released after the row is gone, so a refused delete keeps its pool.
+- ab31a89: **"Keep me signed in" now does what it says.**
+  
+  The box on the sign-in page, and **Keep me signed in on this tablet** on an app's
+  staff address, was collected and never sent: every sign-in got the same 30-day
+  cookie whatever it said. The box now starts ticked, as the designs draw it.
+  Ticked, the session survives closing the browser, as before. Unticked, the
+  session cookie has no `Max-Age`, so the browser drops it when it closes.
+  
+  `POST /api/v1/auth/login` takes an optional `remember` boolean. `false` gives
+  the browser-session cookie; `true` or leaving it out gives the long-lived
+  cookie, so API clients that never send it are unaffected. The answer is given
+  once: a two-factor sign-in carries it through `/auth/2fa/verify`, and changing
+  your password keeps it, so an unticked sign-in on a shared computer is never
+  turned into a 30-day one.
+  
+  Only the cookie changes. The session still ends after 7 days without use or at
+  the workspace's session limit either way, and a browser that restores its last
+  tabs may bring back an unticked session too.
+  
+  Meta migration `0041_session_persistent` adds `adminium_sessions.persistent`
+  (default true, so every existing session stays long-lived).
+- ab31a89: **App manifests can name their tables and columns in every language, and dashboards gain a day control.**
+  
+  A manifest's tables take `label`, `labelPlural` and `keyField`, its columns a `label`, and enum
+  columns a label per value — plain text or a map keyed by language. Forms, grids, filters and
+  dashboard cards use them, in the viewer's language.
+  
+  A dashboard page can show **Today / Yesterday / This week / Pick a day**; every card reads the
+  chosen day on the venue's clock, and hourly bars are labelled by hour. `SegmentedControl` takes
+  an `itemClassName`.
+  
+  Fixes: SQLite boolean updates, a SQLite `now` default on the server's wall clock, SQLite schema
+  edits after another program changed the database, a public key's scope refreshing when the
+  connection's time zone or currency changes, and a revoked key no longer answering after an
+  uninstall.
+- c451e7d: **A page assistant that drafts in the page's own format, and never saves.**
+  
+  The pages that build documents — Email templates and Report builder — gain an
+  **Ask** button in the header. It opens an assistant
+  that already knows what that page holds: its documents, the format they are
+  written in, your branding, and the tables your role can read. Describe what you
+  need and it drafts it, showing its work: every tool it ran, every table it
+  touched, and what the draft would be.
+  
+  **It never writes.** The model's last move is a draft. Every button that would
+  change something is locked until you turn actions on for that session, needs the
+  same permission the page's own Save needs, and asks once more before it runs.
+  What it saves is a draft — an email template disabled, a report with status
+  `draft` — and every write leaves an audit row naming the session that proposed
+  it.
+  
+  **Reading rows is opt-in.** By default it works from your documents and schema
+  alone. An administrator can let it read rows your role can read — masked, at
+  most 50 per request, and listed under *Sources read* on every result. That
+  switch is not carried by an exported bundle: importing somebody else's
+  configuration can never turn it on for you.
+  
+  The permission is seeded to Super Admin and Admin only, and a role that may
+  draft but not save is the ordinary case: it can look, draft, preview, and put a
+  draft straight onto an editor's screen, with the writing buttons locked and a
+  sentence saying why.
+  
+  Settings → AI names the assistant and holds the row-data switch. It needs the
+  same AI provider schema enrichment uses; there is no copy-paste path here,
+  because a conversation is many round trips.
+- ae41762: **Public API keys can be made from endpoints instead of a hand-written scope.**
+  
+  Every table and view of a connection now has a generated public endpoint:
+  its columns (none marked secret or personal data), its filters, page size,
+  order, rate limit and response shape, and the methods its source supports.
+  An operator can store an edited endpoint or a new custom one, and a key can
+  be given several endpoints with different methods on each. Adminium writes the
+  key's scope from those grants.
+  
+  New admin routes, all behind the API-keys permission:
+  
+  - `GET /api/v1/public-endpoints?connectionId=` lists the endpoints, the
+    source tables and their columns, and any table without a generated endpoint
+    with the reason.
+  - `POST /api/v1/public-endpoints/check` compiles a definition without saving
+    it. It reports every issue, the live keys a save would break, and the
+    browser keys that would gain columns, methods or rows.
+  - `PUT /api/v1/public-endpoints/:connectionId/:ref` saves an endpoint and
+    rewrites the scope of every live key that uses it in the same step. A save
+    that would break one of those keys is refused, and the reply names the key.
+  - `POST …/:ref/rename` and `DELETE …/:ref` are refused while a live key uses
+    the endpoint. Deleting a generated endpoint switches it off instead of
+    removing it, so its default does not come back.
+  - `POST /api/v1/public-keys` also accepts `connectionId` with `access` (the
+    endpoints and methods), next to the existing `scopeId`.
+  
+  `GET /api/v1/public-keys` now returns each key's connection, kind, what it can
+  call on each endpoint (and any method the endpoint no longer offers), and any
+  issue that stops the key from working today.
+  
+  A key's derived scope is not listed by `GET /api/v1/public-scopes` and cannot
+  be edited, deleted or reused by another key.
+  
+  Scopes also gain a default page size (`defaultLimit`), a default order
+  (`defaultOrder`), a per-resource rate (`rate`) and a list response shape
+  (`response`), and the `replace`, `delete` and `batch` actions. All are
+  optional; a scope written before this change behaves as it did. The routes
+  that serve the three new actions come in a later release.
+  `GET /public/config` reports each resource's response shape.
+  
+  With more than one server process, a revoke, rotate, key create or endpoint
+  save now reaches the other processes within 5 seconds (it was 30).
+- ae41762: **The public API gains one-row reads, PUT, DELETE and BATCH, per-endpoint rate limits, list shapes, request counts and server keys.**
+  
+  New public routes, each allowed only when the key was granted that method on the endpoint:
+  
+  - `GET /public/records/:ref/:id` reads one row. It returns the same columns as the list and
+    hides the same personal data. A row that doesn't exist and a row outside the key's scope both
+    answer the same 404.
+  - `PUT /public/records/:ref/:id` replaces a row. The body must include every column the key may
+    write. The scope is part of the UPDATE statement itself.
+  - `DELETE /public/records/:ref/:id` deletes a row. The scope is part of the DELETE statement
+    itself. A row outside the scope answers 404 and is not deleted. When the database refuses a
+    delete because of a foreign key, the caller gets one refusal that names nothing. Each delete
+    writes an audit row showing the removed row, with personal data masked.
+  - `POST /public/records/:ref/batch` takes 1 to 500 rows in one transaction, and either all of
+    them are written or none are.
+    - A row without its primary key is inserted, and the server chooses the key.
+    - A row with its primary key updates that row, and the key must also hold PATCH.
+    - If any keyed row is missing or outside the scope, the whole batch is refused, without saying
+      which case it was.
+  
+  An endpoint's own rate limit now replaces its class limit. For browser keys it counts per
+  visitor, and for server keys it counts across the whole key. A batch uses up one request per row.
+  A request too large to ever fit is refused with 400 rather than 429. Scopes written before this
+  change keep the limits they had.
+  
+  An address whose keys keep failing to match is refused after 30 failures a minute, before the
+  server looks the key up.
+  
+  A list can be returned wrapped (as before), as a bare array with the next cursor in
+  `X-Next-Cursor`, or as exactly one row. `Retry-After` and `X-Next-Cursor` can now be read by
+  pages on other origins.
+  
+  "Requests · 24h" is counted per key, endpoint and hour. The counts are written every minute and
+  when the server shuts down, and kept for `retention.publicRequestStatsDays`. The new admin route
+  `GET /api/v1/public-api/stats` returns the total.
+  
+  **Server keys** (`adm_srv_`) work without an `Origin` header. They are refused when a request
+  comes from a browser, are shown only once, and cannot be revealed. Rotating one gives another
+  server key. Only a server key can be granted a service-role endpoint. A hosted app is never
+  given a server key.
+- ae41762: **On a Postgres or MySQL meta store, a key's allowed origins and a customer's
+  claimed session now work.**
+  
+  Postgres and MySQL return a JSON column already parsed, and SQLite returns
+  the text it stored. The public API read two such columns expecting text, and
+  on the two production stores both reads failed:
+  
+  - **A key limited to certain origins accepted every origin** on the
+    instance's `ADMINIUM_PUBLIC_API_ORIGINS` list. The key's own list was
+    dropped, so it was narrowed by nothing.
+  - **A customer who had claimed their records was treated as not signed in.**
+    Everything behind a claim answered 404 for them.
+  
+  SQLite was never affected, which is why every local test passed. Both
+  columns now read back as text on every store, the same fix the scope document
+  got earlier.
+  
+  This release also adds meta migration `0038_public_endpoints`. It creates
+  three new tables and adds nullable or defaulted columns to publishable keys and
+  scopes, so existing rows are unchanged. Nothing uses them yet; they are for the
+  coming endpoint builder on the API keys page.
+- ae41762: **Revoking a publishable key now stops it on the next request.**
+  
+  The public API keeps each key's compiled scope in memory for up to 30
+  seconds. Revoking or rotating a key, or editing a scope, was meant to clear
+  that memory, but the key pages were connected to a copy the public API never
+  read. So a revoked key, or the old token of a rotated one, kept working for up
+  to 30 seconds, and a scope edit took as long to apply. They now share one, and
+  the change applies to the next request.
+  
+  A revoke that lands while a request for the same key is still being looked up
+  now holds as well. Before, that lookup could put the key back in memory as live
+  for another 30 seconds. The same fix applies to switching the public API off
+  in Studio.
+  
+  With more than one server process, the process that handled the change applies
+  it at once. The others still take up to 30 seconds.
+  
+  Also:
+  
+  - A key with an expiry date stops at that time. It used to keep working for up
+    to 30 seconds past it.
+  - Each key's "last used" time is written at most once a minute, not on every
+    request. A customer's public session is updated the same way.
+  - Expired public sessions are deleted by the nightly clean-up. Nothing deleted
+    them before.
+  - Each public request reads a small record to check whether the schema
+    changed, rather than the whole stored schema.
+- ae41762: **On a Postgres or MySQL meta store, a workspace or assistant name that looks
+  like a number now stays a name.**
+  
+  A name setting whose text is also valid JSON, such as `2048`, `true`, `null`
+  or `[1]`, came back from these stores as a number, boolean, null or array. It
+  then failed its own check on every read:
+  
+  - **An assistant named `42` broke the dashboard.** The first request after
+    sign-in failed, so no page loaded.
+  - **A workspace named `2048` broke every branding read**, including the
+    sign-in page's. Renaming it did not help either, because the rename reads
+    the current name first and failed the same way.
+  - **An exported configuration carried the name as a number**, so the instance
+    importing it skipped the setting.
+  
+  A name in quotes, such as `"Acme"`, silently lost its quotes.
+  
+  SQLite was never affected, which is why every local test passed. Settings
+  now read back exactly as they were written on every store.
+
 ## 0.3.0-rc.4
 
 ### Patch Changes
