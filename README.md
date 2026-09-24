@@ -53,7 +53,7 @@ export ADMINIUM_SECRET=${ADMINIUM_SECRET:-$(openssl rand -hex 32)}  # save this 
 adminium start   # → http://localhost:4600
 ```
 
-On a server, pin the version (`@adminiumjs/adminium@0.3.0-rc.0`) and set
+On a server, pin the version (`@adminiumjs/adminium@0.3.0`) and set
 `ADMINIUM_DATA_DIR`. Do not run a server with plain `npx @adminiumjs/adminium`.
 Without a version, npx looks for a newer release on every run. With no
 terminal attached, it installs one without asking, and `start` then migrates

@@ -86,7 +86,7 @@ sudo npm install --prefix /opt/adminium --save-exact "@adminiumjs/adminium@$VERS
 
 To install another release, set `VERSION` to it instead. `--save-exact` writes
 that exact version into `/opt/adminium/package.json`. Without it, npm saves a
-range such as `^0.3.0-rc.0`, which `npm update` is allowed to move. The version on
+range such as `^0.3.0`, which `npm update` is allowed to move. The version on
 this server now changes only when you run this command again.
 
 The install usually takes less than a minute and uses about 230 MB of disk.
@@ -211,7 +211,7 @@ curl -s http://127.0.0.1:4600/api/v1/healthz
 The answer should contain `"ok":true`:
 
 ```json
-{"ok":true,"version":"0.3.0-rc.0","uptime":5.03}
+{"ok":true,"version":"0.3.0","uptime":5.03}
 ```
 
 If `curl` prints nothing, wait a little longer and run it again. If it still
