@@ -734,6 +734,7 @@ export default {
       "updatesAvailable": "{count, plural, one {# update available} other {# updates available}}",
       "updateTo": "Update to v{version}",
       "needsNewer": "v{version} needs Adminium {minimum} or later",
+      "cannotUpdate": "v{version} cannot update this version in place. Uninstall it first, then install v{version}.",
       "missing": "Missing",
       "missingBody": "Its files are not on this server, so it is not served. Install the same version again, or uninstall it.",
       "update": "Update",
@@ -1937,7 +1938,16 @@ export default {
         "code": "A random code like {example}",
         "remove": "Remove this rule",
         "rollup": "The total of {sum} over its rows in {from}",
-        "rollupTimes": "The total of {sum} × {times} over its rows in {from}"
+        "rollupTimes": "The total of {sum} × {times} over its rows in {from}",
+        "stampCreate": "Set to {what} when the row is created",
+        "stampChange": "Set to {what} when {column} becomes {values}",
+        "stampNow": "the time",
+        "stampUserName": "the name of whoever does it",
+        "stampUserId": "the id of whoever does it",
+        "stampByOrigin": "“{public}” from the public side, “{staff}” from staff",
+        "rollupWhere": "counting only rows where {column} is {value}",
+        "rollupBalance": "and keeps {balance} = {of} − {minus} − this total",
+        "rollupCap": "A write that would take the balance below zero is refused."
       },
       "venueLocal": "A time written here without a zone is the venue’s own time."
     },
@@ -2666,7 +2676,9 @@ export default {
         "lt": "less than",
         "lte": "at most",
         "neq": "not equals",
-        "not_null": "is not empty"
+        "not_null": "is not empty",
+        "today": "is today",
+        "fromToday": "from today on"
       },
       "paging": {
         "asc": "Asc",
@@ -2757,7 +2769,9 @@ export default {
       },
       "revokeFailed": "That key could not be revoked. It is still active.",
       "title": "Active keys",
-      "untitled": "Untitled key"
+      "untitled": "Untitled key",
+      "staffOnly": "Staff screen only",
+      "staffOnlyHint": "Answers only on a screen where a staff member holding {role} is signed in."
     },
     "method": {
       "BATCH": {

@@ -833,5 +833,23 @@ export default {
     "action": "管理您的訂位",
     "cancel": "您最晚可在 {cancelHours} 小時前線上取消。",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "登入驗證碼",
+    "subject": "{code} 是您的 {appName} 驗證碼",
+    "preheader": "有效期 {minutes} 分鐘。",
+    "heading": "您的驗證碼",
+    "intro": "輸入此驗證碼以確認是您本人。有效期 {minutes} 分鐘。",
+    "codeLabel": "驗證碼",
+    "notice": "如果不是您本人申請，請忽略此郵件：沒有驗證碼，任何人都無法使用。",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "電子郵件地址已變更",
+    "subject": "您在 {appName} 的電子郵件地址已變更",
+    "heading": "您的電子郵件地址已變更",
+    "intro": "{name}，您好：您在 {appName} 紀錄中的電子郵件地址現已改為 {newEmail}。",
+    "notice": "如果不是您本人操作，請立即與我們聯絡。",
+    "footer": "{appName}"
   }
 } as const;

@@ -823,5 +823,23 @@
     "action": "Manage your booking",
     "cancel": "You can cancel online up to {cancelHours} hours before.",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "Sign-in code",
+    "subject": "{code} is your {appName} code",
+    "preheader": "It works for {minutes} minutes.",
+    "heading": "Your code",
+    "intro": "Type this code to confirm it’s you. It works for {minutes} minutes.",
+    "codeLabel": "Code",
+    "notice": "If you didn’t ask for it, you can ignore this email: nobody can use it without the code.",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "Email address changed",
+    "subject": "Your email address at {appName} was changed",
+    "heading": "Your email address was changed",
+    "intro": "Hi {name}, the email address on your record at {appName} is now {newEmail}.",
+    "notice": "If this wasn’t you, contact us straight away.",
+    "footer": "{appName}"
   }
 }

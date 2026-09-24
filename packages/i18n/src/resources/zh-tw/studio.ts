@@ -734,6 +734,7 @@ export default {
       "updatesAvailable": "{count, plural, other {# 個可用更新}}",
       "updateTo": "更新至 v{version}",
       "needsNewer": "v{version} 需要 Adminium {minimum} 或更新版本",
+      "cannotUpdate": "v{version} 無法直接更新此版本。請先解除安裝，再安裝 v{version}。",
       "missing": "遺失",
       "missingBody": "它的檔案不在此伺服器上，因此無法提供服務。請重新安裝相同版本，或將其解除安裝。",
       "update": "更新",
@@ -1937,7 +1938,16 @@ export default {
         "code": "類似 {example} 的隨機代碼",
         "remove": "移除此規則",
         "rollup": "{from} 中其各列 {sum} 的合計",
-        "rollupTimes": "{from} 中其各列 {sum} × {times} 的合計"
+        "rollupTimes": "{from} 中其各列 {sum} × {times} 的合計",
+        "stampCreate": "建立該列時設為{what}",
+        "stampChange": "當 {column} 變為 {values} 時設為{what}",
+        "stampNow": "當前時間",
+        "stampUserName": "操作者的姓名",
+        "stampUserId": "操作者的 ID",
+        "stampByOrigin": "公開端為「{public}」，員工端為「{staff}」",
+        "rollupWhere": "只統計 {column} 為 {value} 的列",
+        "rollupBalance": "並保持 {balance} = {of} − {minus} − 此合計",
+        "rollupCap": "會使餘額低於零的寫入將被拒絕。"
       },
       "venueLocal": "在此寫入的不帶時區的時間即為場所的當地時間。"
     },
@@ -2666,7 +2676,9 @@ export default {
         "lt": "小於",
         "lte": "至多",
         "neq": "不等於",
-        "not_null": "不為空"
+        "not_null": "不為空",
+        "today": "是今天",
+        "fromToday": "從今天起"
       },
       "paging": {
         "asc": "遞增",
@@ -2757,7 +2769,9 @@ export default {
       },
       "revokeFailed": "無法撤銷該金鑰，它仍然有效。",
       "title": "有效金鑰",
-      "untitled": "未命名金鑰"
+      "untitled": "未命名金鑰",
+      "staffOnly": "僅限員工螢幕",
+      "staffOnlyHint": "僅在擁有 {role} 角色的員工已登入的螢幕上回應。"
     },
     "method": {
       "BATCH": {

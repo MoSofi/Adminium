@@ -734,6 +734,7 @@ export default {
       "updatesAvailable": "{count, plural, zero {لا تحديثات متاحة} one {تحديث واحد متاح} two {تحديثان متاحان} few {# تحديثات متاحة} many {# تحديثًا متاحًا} other {# تحديث متاح}}",
       "updateTo": "التحديث إلى v{version}",
       "needsNewer": "v{version} يتطلب Adminium {minimum} أو أحدث",
+      "cannotUpdate": "لا يمكن للإصدار v{version} تحديث هذا الإصدار مباشرة. أزل تثبيته أولاً، ثم ثبّت v{version}.",
       "missing": "مفقود",
       "missingBody": "ملفاته غير موجودة على هذا الخادم، لذا لا يُقدَّم. ثبّت الإصدار نفسه مرة أخرى، أو أزل تثبيته.",
       "update": "تحديث",
@@ -1937,7 +1938,16 @@ export default {
         "code": "رمز عشوائي مثل {example}",
         "remove": "إزالة هذه القاعدة",
         "rollup": "مجموع {sum} عبر صفوفه في {from}",
-        "rollupTimes": "مجموع {sum} × {times} عبر صفوفه في {from}"
+        "rollupTimes": "مجموع {sum} × {times} عبر صفوفه في {from}",
+        "stampCreate": "يُضبط على {what} عند إنشاء الصف",
+        "stampChange": "يُضبط على {what} عندما يصبح {column} {values}",
+        "stampNow": "الوقت",
+        "stampUserName": "اسم من يقوم بذلك",
+        "stampUserId": "معرّف من يقوم بذلك",
+        "stampByOrigin": "«{public}» من الجانب العام، و«{staff}» من الموظفين",
+        "rollupWhere": "مع احتساب الصفوف التي يكون فيها {column} هو {value} فقط",
+        "rollupBalance": "ويحافظ على {balance} = {of} − {minus} − هذا المجموع",
+        "rollupCap": "تُرفض أي كتابة تجعل الرصيد أقل من الصفر."
       },
       "venueLocal": "الوقت المكتوب هنا دون منطقة زمنية هو الوقت المحلي للمكان."
     },
@@ -2666,7 +2676,9 @@ export default {
         "lt": "أصغر من",
         "lte": "على الأكثر",
         "neq": "لا يساوي",
-        "not_null": "غير فارغ"
+        "not_null": "غير فارغ",
+        "today": "هو اليوم",
+        "fromToday": "من اليوم فصاعدًا"
       },
       "paging": {
         "asc": "تصاعدي",
@@ -2757,7 +2769,9 @@ export default {
       },
       "revokeFailed": "تعذّر إبطال هذا المفتاح. لا يزال فعّالًا.",
       "title": "المفاتيح الفعّالة",
-      "untitled": "مفتاح بلا اسم"
+      "untitled": "مفتاح بلا اسم",
+      "staffOnly": "شاشة الموظفين فقط",
+      "staffOnlyHint": "لا يستجيب إلا على شاشة سجّل فيها الدخول موظف لديه الدور {role}."
     },
     "method": {
       "BATCH": {

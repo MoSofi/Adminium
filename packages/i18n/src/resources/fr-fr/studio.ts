@@ -734,6 +734,7 @@ export default {
       "updatesAvailable": "{count, plural, one {# mise à jour disponible} other {# mises à jour disponibles}}",
       "updateTo": "Mettre à jour vers v{version}",
       "needsNewer": "v{version} nécessite Adminium {minimum} ou plus récent",
+      "cannotUpdate": "v{version} ne peut pas mettre à jour cette version sur place. Désinstallez-la d’abord, puis installez v{version}.",
       "missing": "Introuvable",
       "missingBody": "Ses fichiers ne sont pas sur ce serveur, elle n'est donc pas servie. Réinstallez la même version, ou désinstallez-la.",
       "update": "Mettre à jour",
@@ -1937,7 +1938,16 @@ export default {
         "code": "Un code aléatoire comme {example}",
         "remove": "Supprimer cette règle",
         "rollup": "Le total de {sum} sur ses lignes dans {from}",
-        "rollupTimes": "Le total de {sum} × {times} sur ses lignes dans {from}"
+        "rollupTimes": "Le total de {sum} × {times} sur ses lignes dans {from}",
+        "stampCreate": "Réglé sur {what} à la création de la ligne",
+        "stampChange": "Réglé sur {what} quand {column} devient {values}",
+        "stampNow": "l’heure",
+        "stampUserName": "le nom de la personne qui le fait",
+        "stampUserId": "l’identifiant de la personne qui le fait",
+        "stampByOrigin": "« {public} » côté public, « {staff} » côté équipe",
+        "rollupWhere": "en ne comptant que les lignes où {column} vaut {value}",
+        "rollupBalance": "et tient {balance} = {of} − {minus} − ce total",
+        "rollupCap": "Une écriture qui ferait passer le solde sous zéro est refusée."
       },
       "venueLocal": "Une heure écrite ici sans fuseau est l’heure locale de l’établissement."
     },
@@ -2666,7 +2676,9 @@ export default {
         "lt": "inférieur à",
         "lte": "au plus",
         "neq": "différent de",
-        "not_null": "n’est pas vide"
+        "not_null": "n’est pas vide",
+        "today": "est aujourd’hui",
+        "fromToday": "à partir d’aujourd’hui"
       },
       "paging": {
         "asc": "Croiss.",
@@ -2757,7 +2769,9 @@ export default {
       },
       "revokeFailed": "Cette clé n’a pas pu être révoquée. Elle est toujours active.",
       "title": "Clés actives",
-      "untitled": "Clé sans nom"
+      "untitled": "Clé sans nom",
+      "staffOnly": "Écran du personnel uniquement",
+      "staffOnlyHint": "Ne répond que sur un écran où un membre du personnel ayant le rôle {role} est connecté."
     },
     "method": {
       "BATCH": {

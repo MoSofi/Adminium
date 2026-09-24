@@ -724,6 +724,7 @@
       "updatesAvailable": "{count, plural, one {# dostupná aktualizace} few {# dostupné aktualizace} many {# dostupné aktualizace} other {# dostupných aktualizací}}",
       "updateTo": "Aktualizovat na v{version}",
       "needsNewer": "v{version} vyžaduje Adminium {minimum} nebo novější",
+      "cannotUpdate": "v{version} nemůže tuto verzi aktualizovat na místě. Nejprve ji odinstalujte a poté nainstalujte v{version}.",
       "missing": "Chybí",
       "missingBody": "Její soubory na tomto serveru nejsou, takže se neservíruje. Nainstalujte stejnou verzi znovu, nebo ji odinstalujte.",
       "update": "Aktualizovat",
@@ -1927,7 +1928,16 @@
         "code": "Náhodný kód jako {example}",
         "remove": "Odebrat toto pravidlo",
         "rollup": "Součet {sum} přes jeho řádky v {from}",
-        "rollupTimes": "Součet {sum} × {times} přes jeho řádky v {from}"
+        "rollupTimes": "Součet {sum} × {times} přes jeho řádky v {from}",
+        "stampCreate": "Při vytvoření řádku se nastaví na {what}",
+        "stampChange": "Nastaví se na {what}, když {column} přejde na {values}",
+        "stampNow": "čas",
+        "stampUserName": "jméno toho, kdo to udělá",
+        "stampUserId": "ID toho, kdo to udělá",
+        "stampByOrigin": "„{public}“ z veřejné strany, „{staff}“ od personálu",
+        "rollupWhere": "počítají se jen řádky, kde {column} je {value}",
+        "rollupBalance": "a udržuje {balance} = {of} − {minus} − tento součet",
+        "rollupCap": "Zápis, který by snížil zůstatek pod nulu, je odmítnut."
       },
       "venueLocal": "Čas zapsaný sem bez časového pásma je místním časem provozovny."
     },
@@ -2656,7 +2666,9 @@
         "lt": "menší než",
         "lte": "nejvýše",
         "neq": "nerovná se",
-        "not_null": "není prázdné"
+        "not_null": "není prázdné",
+        "today": "je dnes",
+        "fromToday": "od dneška"
       },
       "paging": {
         "asc": "Vzestupně",
@@ -2747,7 +2759,9 @@
       },
       "revokeFailed": "Tento klíč se nepodařilo odvolat. Je stále aktivní.",
       "title": "Aktivní klíče",
-      "untitled": "Klíč bez názvu"
+      "untitled": "Klíč bez názvu",
+      "staffOnly": "Jen obrazovka personálu",
+      "staffOnlyHint": "Odpovídá jen na obrazovce, kde je přihlášen zaměstnanec s rolí {role}."
     },
     "method": {
       "BATCH": {

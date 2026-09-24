@@ -734,6 +734,7 @@ export default {
       "updatesAvailable": "{count, plural, one {# Update verfügbar} other {# Updates verfügbar}}",
       "updateTo": "Update auf v{version}",
       "needsNewer": "v{version} benötigt Adminium {minimum} oder neuer",
+      "cannotUpdate": "v{version} kann diese Version nicht direkt aktualisieren. Deinstallieren Sie sie zuerst und installieren Sie dann v{version}.",
       "missing": "Fehlt",
       "missingBody": "Ihre Dateien liegen nicht auf diesem Server, daher wird sie nicht ausgeliefert. Installieren Sie dieselbe Version erneut oder deinstallieren Sie sie.",
       "update": "Aktualisieren",
@@ -1937,7 +1938,16 @@ export default {
         "code": "Ein zufälliger Code wie {example}",
         "remove": "Diese Regel entfernen",
         "rollup": "Die Summe von {sum} über seine Zeilen in {from}",
-        "rollupTimes": "Die Summe von {sum} × {times} über seine Zeilen in {from}"
+        "rollupTimes": "Die Summe von {sum} × {times} über seine Zeilen in {from}",
+        "stampCreate": "Wird beim Anlegen der Zeile auf {what} gesetzt",
+        "stampChange": "Wird auf {what} gesetzt, wenn {column} zu {values} wird",
+        "stampNow": "die Uhrzeit",
+        "stampUserName": "den Namen der Person, die es tut",
+        "stampUserId": "die ID der Person, die es tut",
+        "stampByOrigin": "„{public}“ von der öffentlichen Seite, „{staff}“ vom Personal",
+        "rollupWhere": "nur Zeilen, in denen {column} {value} ist",
+        "rollupBalance": "und hält {balance} = {of} − {minus} − diese Summe",
+        "rollupCap": "Eine Änderung, die den Saldo unter null bringen würde, wird abgelehnt."
       },
       "venueLocal": "Eine hier ohne Zeitzone geschriebene Zeit ist die Ortszeit des Lokals."
     },
@@ -2666,7 +2676,9 @@ export default {
         "lt": "kleiner als",
         "lte": "höchstens",
         "neq": "ungleich",
-        "not_null": "ist nicht leer"
+        "not_null": "ist nicht leer",
+        "today": "ist heute",
+        "fromToday": "ab heute"
       },
       "paging": {
         "asc": "Aufst.",
@@ -2757,7 +2769,9 @@ export default {
       },
       "revokeFailed": "Dieser Schlüssel konnte nicht widerrufen werden. Er ist weiterhin aktiv.",
       "title": "Aktive Schlüssel",
-      "untitled": "Unbenannter Schlüssel"
+      "untitled": "Unbenannter Schlüssel",
+      "staffOnly": "Nur Mitarbeiterbildschirm",
+      "staffOnlyHint": "Antwortet nur auf einem Bildschirm, an dem ein Mitarbeiter mit {role} angemeldet ist."
     },
     "method": {
       "BATCH": {

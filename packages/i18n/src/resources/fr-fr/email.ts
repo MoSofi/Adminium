@@ -833,5 +833,23 @@ export default {
     "action": "Gérer votre réservation",
     "cancel": "Vous pouvez annuler en ligne jusqu’à {cancelHours} heures avant.",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "Code de connexion",
+    "subject": "{code} est votre code {appName}",
+    "preheader": "Il est valable {minutes} minutes.",
+    "heading": "Votre code",
+    "intro": "Saisissez ce code pour confirmer que c’est bien vous. Il est valable {minutes} minutes.",
+    "codeLabel": "Code",
+    "notice": "Si vous ne l’avez pas demandé, ignorez cet e-mail : personne ne peut l’utiliser sans le code.",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "Adresse e-mail modifiée",
+    "subject": "Votre adresse e-mail chez {appName} a été modifiée",
+    "heading": "Votre adresse e-mail a été modifiée",
+    "intro": "Bonjour {name}, l’adresse e-mail de votre dossier chez {appName} est désormais {newEmail}.",
+    "notice": "Si ce n’était pas vous, contactez-nous immédiatement.",
+    "footer": "{appName}"
   }
 } as const;

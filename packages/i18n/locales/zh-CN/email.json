@@ -823,5 +823,23 @@
     "action": "管理您的预订",
     "cancel": "您最晚可在 {cancelHours} 小时前在线取消。",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "登录验证码",
+    "subject": "{code} 是您的 {appName} 验证码",
+    "preheader": "有效期 {minutes} 分钟。",
+    "heading": "您的验证码",
+    "intro": "输入此验证码以确认是您本人。有效期 {minutes} 分钟。",
+    "codeLabel": "验证码",
+    "notice": "如果不是您本人申请，请忽略此邮件：没有验证码，任何人都无法使用。",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "电子邮箱已更改",
+    "subject": "您在 {appName} 的电子邮箱已更改",
+    "heading": "您的电子邮箱已更改",
+    "intro": "{name}，您好：您在 {appName} 记录中的电子邮箱现已改为 {newEmail}。",
+    "notice": "如果不是您本人操作，请立即联系我们。",
+    "footer": "{appName}"
   }
 }

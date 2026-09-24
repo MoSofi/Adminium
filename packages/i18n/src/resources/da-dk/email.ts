@@ -833,5 +833,23 @@ export default {
     "action": "Administrer din booking",
     "cancel": "Du kan afbestille online op til {cancelHours} timer før.",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "Loginkode",
+    "subject": "{code} er din kode til {appName}",
+    "preheader": "Den gælder i {minutes} minutter.",
+    "heading": "Din kode",
+    "intro": "Indtast denne kode for at bekræfte, at det er dig. Den gælder i {minutes} minutter.",
+    "codeLabel": "Kode",
+    "notice": "Hvis du ikke har bedt om den, kan du se bort fra denne e-mail: ingen kan bruge den uden koden.",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "E-mailadresse ændret",
+    "subject": "Din e-mailadresse hos {appName} er ændret",
+    "heading": "Din e-mailadresse er ændret",
+    "intro": "Hej {name}, e-mailadressen på din journal hos {appName} er nu {newEmail}.",
+    "notice": "Hvis det ikke var dig, så kontakt os med det samme.",
+    "footer": "{appName}"
   }
 } as const;

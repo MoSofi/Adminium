@@ -9215,6 +9215,30 @@
     "status": "mt",
     "srcHash": "39fc72124884"
   },
+  "email.emailChanged.footer": {
+    "status": "src",
+    "srcHash": "401110dbbabf"
+  },
+  "email.emailChanged.heading": {
+    "status": "mt",
+    "srcHash": "374e349e8968"
+  },
+  "email.emailChanged.intro": {
+    "status": "mt",
+    "srcHash": "a88905ec1b8f"
+  },
+  "email.emailChanged.name": {
+    "status": "mt",
+    "srcHash": "875659772310"
+  },
+  "email.emailChanged.notice": {
+    "status": "mt",
+    "srcHash": "13e655b884a1"
+  },
+  "email.emailChanged.subject": {
+    "status": "mt",
+    "srcHash": "e2e703deaa1f"
+  },
   "email.empty.archived.body": {
     "status": "mt",
     "srcHash": "594437bbd43a"
@@ -10002,6 +10026,38 @@
   "email.search.templates": {
     "status": "mt",
     "srcHash": "ea73467cf50e"
+  },
+  "email.signInCode.codeLabel": {
+    "status": "mt",
+    "srcHash": "adac69379a62"
+  },
+  "email.signInCode.footer": {
+    "status": "src",
+    "srcHash": "401110dbbabf"
+  },
+  "email.signInCode.heading": {
+    "status": "mt",
+    "srcHash": "9d6e1c864ba1"
+  },
+  "email.signInCode.intro": {
+    "status": "mt",
+    "srcHash": "c014d38bde6f"
+  },
+  "email.signInCode.name": {
+    "status": "mt",
+    "srcHash": "6af151bce32e"
+  },
+  "email.signInCode.notice": {
+    "status": "mt",
+    "srcHash": "8aa351b72935"
+  },
+  "email.signInCode.preheader": {
+    "status": "mt",
+    "srcHash": "d1e0c350ba54"
+  },
+  "email.signInCode.subject": {
+    "status": "mt",
+    "srcHash": "fe39426e50b6"
   },
   "email.starters.digest.boxLabel": {
     "status": "mt",
@@ -13307,6 +13363,10 @@
     "status": "mt",
     "srcHash": "80b2f559a147"
   },
+  "studio.apiKeys.builder.op.fromToday": {
+    "status": "mt",
+    "srcHash": "79cda0f378aa"
+  },
   "studio.apiKeys.builder.op.gt": {
     "status": "mt",
     "srcHash": "2fa709f02b05"
@@ -13346,6 +13406,10 @@
   "studio.apiKeys.builder.op.not_null": {
     "status": "mt",
     "srcHash": "8e5ab35fdfaa"
+  },
+  "studio.apiKeys.builder.op.today": {
+    "status": "mt",
+    "srcHash": "9bdcc8110505"
   },
   "studio.apiKeys.builder.paging.asc": {
     "status": "mt",
@@ -13602,6 +13666,14 @@
   "studio.apiKeys.keys.revokeFailed": {
     "status": "mt",
     "srcHash": "b8aa2a20defe"
+  },
+  "studio.apiKeys.keys.staffOnly": {
+    "status": "mt",
+    "srcHash": "28b28d64a677"
+  },
+  "studio.apiKeys.keys.staffOnlyHint": {
+    "status": "mt",
+    "srcHash": "f4fb6b256917"
   },
   "studio.apiKeys.keys.title": {
     "status": "mt",
@@ -16126,6 +16198,10 @@
   "studio.hostedApps.install.uploaded.replace": {
     "status": "mt",
     "srcHash": "0f14907d67be"
+  },
+  "studio.hostedApps.installed.cannotUpdate": {
+    "status": "mt",
+    "srcHash": "00343907671e"
   },
   "studio.hostedApps.installed.discard": {
     "status": "mt",
@@ -19823,13 +19899,49 @@
     "status": "mt",
     "srcHash": "ca6c19516ccf"
   },
+  "studio.remap.rules.decided.rollupBalance": {
+    "status": "mt",
+    "srcHash": "1b8f86c7b694"
+  },
+  "studio.remap.rules.decided.rollupCap": {
+    "status": "mt",
+    "srcHash": "652324d1657e"
+  },
   "studio.remap.rules.decided.rollupTimes": {
     "status": "mt",
     "srcHash": "841a3e7a51f2"
   },
+  "studio.remap.rules.decided.rollupWhere": {
+    "status": "mt",
+    "srcHash": "a1614d6b24de"
+  },
   "studio.remap.rules.decided.sequence": {
     "status": "mt",
     "srcHash": "a76b0745aaf4"
+  },
+  "studio.remap.rules.decided.stampByOrigin": {
+    "status": "mt",
+    "srcHash": "45f8c801c087"
+  },
+  "studio.remap.rules.decided.stampChange": {
+    "status": "mt",
+    "srcHash": "69c847cc1b0f"
+  },
+  "studio.remap.rules.decided.stampCreate": {
+    "status": "mt",
+    "srcHash": "9fda8dad1fdd"
+  },
+  "studio.remap.rules.decided.stampNow": {
+    "status": "mt",
+    "srcHash": "266cd12c614e"
+  },
+  "studio.remap.rules.decided.stampUserId": {
+    "status": "mt",
+    "srcHash": "f54e1cbf915e"
+  },
+  "studio.remap.rules.decided.stampUserName": {
+    "status": "mt",
+    "srcHash": "8454bd67b00e"
   },
   "studio.remap.rules.decided.title": {
     "status": "mt",

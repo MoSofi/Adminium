@@ -833,5 +833,23 @@ export default {
     "action": "Buchung verwalten",
     "cancel": "Sie können bis {cancelHours} Stunden vorher online stornieren.",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "Anmeldecode",
+    "subject": "{code} ist Ihr Code für {appName}",
+    "preheader": "Er gilt {minutes} Minuten.",
+    "heading": "Ihr Code",
+    "intro": "Geben Sie diesen Code ein, um zu bestätigen, dass Sie es sind. Er gilt {minutes} Minuten.",
+    "codeLabel": "Code",
+    "notice": "Wenn Sie ihn nicht angefordert haben, können Sie diese E-Mail ignorieren: Ohne den Code kann niemand etwas damit anfangen.",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "E-Mail-Adresse geändert",
+    "subject": "Ihre E-Mail-Adresse bei {appName} wurde geändert",
+    "heading": "Ihre E-Mail-Adresse wurde geändert",
+    "intro": "Hallo {name}, die E-Mail-Adresse in Ihren Daten bei {appName} lautet jetzt {newEmail}.",
+    "notice": "Wenn Sie das nicht waren, melden Sie sich bitte sofort bei uns.",
+    "footer": "{appName}"
   }
 } as const;

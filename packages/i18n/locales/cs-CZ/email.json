@@ -823,5 +823,23 @@
     "action": "Spravovat rezervaci",
     "cancel": "Online můžete zrušit nejpozději {cancelHours} h předem.",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "Přihlašovací kód",
+    "subject": "{code} je váš kód pro {appName}",
+    "preheader": "Platí {minutes} minut.",
+    "heading": "Váš kód",
+    "intro": "Zadejte tento kód a potvrďte, že jste to vy. Platí {minutes} minut.",
+    "codeLabel": "Kód",
+    "notice": "Pokud jste o něj nežádali, tento e-mail ignorujte: bez kódu ho nikdo nepoužije.",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "E-mailová adresa změněna",
+    "subject": "Vaše e-mailová adresa u {appName} byla změněna",
+    "heading": "Vaše e-mailová adresa byla změněna",
+    "intro": "Dobrý den, {name}, e-mailová adresa ve vašem záznamu u {appName} je nyní {newEmail}.",
+    "notice": "Pokud jste to nebyli vy, ihned nás kontaktujte.",
+    "footer": "{appName}"
   }
 }

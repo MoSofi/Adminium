@@ -734,6 +734,7 @@ export default {
       "updatesAvailable": "{count, plural, one {# opdatering tilgængelig} other {# opdateringer tilgængelige}}",
       "updateTo": "Opdatér til v{version}",
       "needsNewer": "v{version} kræver Adminium {minimum} eller nyere",
+      "cannotUpdate": "v{version} kan ikke opdatere denne version direkte. Afinstaller den først, og installer derefter v{version}.",
       "missing": "Mangler",
       "missingBody": "Dens filer findes ikke på denne server, så den serveres ikke. Installer den samme version igen, eller afinstaller den.",
       "update": "Opdatér",
@@ -1937,7 +1938,16 @@ export default {
         "code": "En tilfældig kode som {example}",
         "remove": "Fjern denne regel",
         "rollup": "Summen af {sum} over dens rækker i {from}",
-        "rollupTimes": "Summen af {sum} × {times} over dens rækker i {from}"
+        "rollupTimes": "Summen af {sum} × {times} over dens rækker i {from}",
+        "stampCreate": "Sættes til {what}, når rækken oprettes",
+        "stampChange": "Sættes til {what}, når {column} bliver {values}",
+        "stampNow": "tidspunktet",
+        "stampUserName": "navnet på den, der gør det",
+        "stampUserId": "id’et på den, der gør det",
+        "stampByOrigin": "“{public}” fra den offentlige side, “{staff}” fra personalet",
+        "rollupWhere": "tæller kun rækker, hvor {column} er {value}",
+        "rollupBalance": "og holder {balance} = {of} − {minus} − denne sum",
+        "rollupCap": "En ændring, der ville bringe saldoen under nul, afvises."
       },
       "venueLocal": "Et tidspunkt skrevet her uden tidszone er stedets egen tid."
     },
@@ -2666,7 +2676,9 @@ export default {
         "lt": "mindre end",
         "lte": "højst",
         "neq": "er ikke lig med",
-        "not_null": "er ikke tom"
+        "not_null": "er ikke tom",
+        "today": "er i dag",
+        "fromToday": "fra i dag"
       },
       "paging": {
         "asc": "Stigende",
@@ -2757,7 +2769,9 @@ export default {
       },
       "revokeFailed": "Nøglen kunne ikke tilbagekaldes. Den er stadig aktiv.",
       "title": "Aktive nøgler",
-      "untitled": "Unavngivet nøgle"
+      "untitled": "Unavngivet nøgle",
+      "staffOnly": "Kun personaleskærm",
+      "staffOnlyHint": "Svarer kun på en skærm, hvor en medarbejder med {role} er logget ind."
     },
     "method": {
       "BATCH": {

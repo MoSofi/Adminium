@@ -823,5 +823,23 @@
     "action": "إدارة حجزك",
     "cancel": "يمكنك الإلغاء عبر الإنترنت حتى {cancelHours} ساعة قبل الموعد.",
     "footer": "{venue} · {address} · {phone}"
+  },
+  "signInCode": {
+    "name": "رمز تسجيل الدخول",
+    "subject": "{code} هو رمزك في {appName}",
+    "preheader": "صالح لمدة {minutes} دقيقة.",
+    "heading": "رمزك",
+    "intro": "اكتب هذا الرمز لتأكيد أنك أنت. صالح لمدة {minutes} دقيقة.",
+    "codeLabel": "الرمز",
+    "notice": "إذا لم تطلبه، يمكنك تجاهل هذه الرسالة: لا يمكن لأحد استخدامه دون الرمز.",
+    "footer": "{appName}"
+  },
+  "emailChanged": {
+    "name": "تم تغيير البريد الإلكتروني",
+    "subject": "تم تغيير بريدك الإلكتروني لدى {appName}",
+    "heading": "تم تغيير بريدك الإلكتروني",
+    "intro": "مرحبًا {name}، أصبح البريد الإلكتروني في سجلك لدى {appName} هو {newEmail}.",
+    "notice": "إذا لم تكن أنت، فتواصل معنا فورًا.",
+    "footer": "{appName}"
   }
 }

@@ -724,6 +724,7 @@
       "updatesAvailable": "{count, plural, other {# 个可用更新}}",
       "updateTo": "更新到 v{version}",
       "needsNewer": "v{version} 需要 Adminium {minimum} 或更高版本",
+      "cannotUpdate": "v{version} 无法直接更新此版本。请先卸载它，再安装 v{version}。",
       "missing": "缺失",
       "missingBody": "它的文件不在此服务器上，因此无法提供服务。请重新安装相同版本，或将其卸载。",
       "update": "更新",
@@ -1927,7 +1928,16 @@
         "code": "类似 {example} 的随机代码",
         "remove": "移除此规则",
         "rollup": "{from} 中其各行 {sum} 的合计",
-        "rollupTimes": "{from} 中其各行 {sum} × {times} 的合计"
+        "rollupTimes": "{from} 中其各行 {sum} × {times} 的合计",
+        "stampCreate": "创建该行时设为{what}",
+        "stampChange": "当 {column} 变为 {values} 时设为{what}",
+        "stampNow": "当前时间",
+        "stampUserName": "操作者的姓名",
+        "stampUserId": "操作者的 ID",
+        "stampByOrigin": "公开端为“{public}”，员工端为“{staff}”",
+        "rollupWhere": "只统计 {column} 为 {value} 的行",
+        "rollupBalance": "并保持 {balance} = {of} − {minus} − 此合计",
+        "rollupCap": "会使余额低于零的写入将被拒绝。"
       },
       "venueLocal": "在此写入的不带时区的时间即为场所的本地时间。"
     },
@@ -2656,7 +2666,9 @@
         "lt": "小于",
         "lte": "至多",
         "neq": "不等于",
-        "not_null": "不为空"
+        "not_null": "不为空",
+        "today": "是今天",
+        "fromToday": "从今天起"
       },
       "paging": {
         "asc": "升序",
@@ -2747,7 +2759,9 @@
       },
       "revokeFailed": "无法吊销该密钥，它仍处于有效状态。",
       "title": "有效密钥",
-      "untitled": "未命名密钥"
+      "untitled": "未命名密钥",
+      "staffOnly": "仅限员工屏幕",
+      "staffOnlyHint": "仅在拥有 {role} 角色的员工已登录的屏幕上响应。"
     },
     "method": {
       "BATCH": {
