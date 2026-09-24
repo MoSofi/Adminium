@@ -326,6 +326,14 @@ export function ApiKeysPage() {
                           : t('studio:apiKeys.keys.kind.browser', 'BROWSER')}
                       </span>
                       <span className="truncate text-[13px] font-bold text-fg">{key.name}</span>
+                      {key.requiresStaff != null ? (
+                        <span
+                          className="shrink-0 rounded-[5px] bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold text-fg-muted"
+                          title={t('studio:apiKeys.keys.staffOnlyHint', 'Answers only on a screen where a staff member holding {role} is signed in.', { role: key.requiresStaff.roleSlug })}
+                        >
+                          {t('studio:apiKeys.keys.staffOnly', 'Staff screen only')}
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                   <div role="cell" className={CELL}>

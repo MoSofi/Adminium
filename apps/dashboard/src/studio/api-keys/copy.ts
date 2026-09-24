@@ -65,6 +65,8 @@ export const OP_COPY: Readonly<Record<string, Copy>> = {
   is_null: { key: 'studio:apiKeys.builder.op.is_null', fallback: 'is empty' },
   not_null: { key: 'studio:apiKeys.builder.op.not_null', fallback: 'is not empty' },
   between: { key: 'studio:apiKeys.builder.op.between', fallback: 'between' },
+  today: { key: 'studio:apiKeys.builder.op.today', fallback: 'is today' },
+  'from-today': { key: 'studio:apiKeys.builder.op.fromToday', fallback: 'from today on' },
 };
 
 /**
@@ -73,8 +75,8 @@ export const OP_COPY: Readonly<Record<string, Copy>> = {
  */
 export const DRAWN_OPS: readonly string[] = ['eq', 'neq', 'gt', 'lt', 'in', 'is_null', 'not_null'];
 
-/** Operators that take no value. */
-export const VALUELESS_OPS: ReadonlySet<string> = new Set(['is_null', 'not_null']);
+/** Operators that take no value: the venue's calendar supplies `today`'s. */
+export const VALUELESS_OPS: ReadonlySet<string> = new Set(['is_null', 'not_null', 'today', 'from-today']);
 
 export type AuthRole = 'anon' | 'authenticated' | 'service_role';
 

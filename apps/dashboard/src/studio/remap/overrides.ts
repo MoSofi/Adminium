@@ -19,6 +19,8 @@
  * the FULL document (the route replaces the connection's override set).
  */
 
+import type { EffectiveColumn, StampRule } from './model.js';
+
 // --- op vocabulary (mirror) -------------------------------------------
 
 export const RELATION_OP_CARDINALITIES = [
@@ -103,12 +105,15 @@ export type RemapOverride =
       op: 'column.rollup';
       tableName: string;
       columnName: string;
-      value: { from: string; via: string; sum: string; times?: string };
+      value: NonNullable<EffectiveColumn['rollup']>;
     }
   /** A zone-less wall time is the venue's. */
   | { op: 'column.venueLocal'; tableName: string; columnName: string; value: { venueLocal: true } }
+  | { op: 'column.stamp'; tableName: string; columnName: string; value: StampRule }
   /** The booking guard, one per table. Kept whole through a save; not edited here. */
   | { op: 'table.capacity'; tableName: string; value: Record<string, unknown> }
+  /** Booking people, one per table. Kept whole through a save; not edited here. */
+  | { op: 'table.booking'; tableName: string; value: Record<string, unknown> }
   | {
       op: 'relation.add';
       tableName: string;
@@ -148,6 +153,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.code',
   'column.rollup',
   'column.venueLocal',
+  'column.stamp',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

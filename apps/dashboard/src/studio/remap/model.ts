@@ -48,7 +48,24 @@ export interface EffectiveColumn extends ColumnModel {
   /** Decided by Adminium: a short random code. */
   code?: { prefix?: string; length: number };
   /** Decided by Adminium: the total of the child rows linking here. */
-  rollup?: { from: string; via: string; sum: string; times?: string; unlessSet?: string };
+  rollup?: {
+    from: string;
+    via: string;
+    sum: string;
+    times?: string;
+    unlessSet?: string;
+    where?: { column: string; eq: string | number | boolean };
+    balance?: { column: string; of: string; minus?: string[] };
+    cap?: true;
+  };
+  /** Decided by Adminium: the moment, or who did it, when something happens. */
+  stamp?: StampRule;
+}
+
+/** `column.stamp`: what is written, and when. */
+export interface StampRule {
+  set: 'now' | 'user-name' | 'user-id' | { byOrigin: { public: string; staff: string } };
+  on: 'create' | { column: string; values: (string | number | boolean)[] };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {

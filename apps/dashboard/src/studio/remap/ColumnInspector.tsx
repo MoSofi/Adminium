@@ -27,6 +27,7 @@ import {
   type EffectiveColumn,
   type EffectiveModel,
   type EffectiveTable,
+  type StampRule,
 } from './model.js';
 import { labelText } from './overrides.js';
 import { useLabelLocale } from './useLabelLocale.js';
@@ -161,6 +162,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const codeKey = overrideKey({ op: 'column.code', ...target, value: { length: 4 } });
   const rollupKey = overrideKey({ op: 'column.rollup', ...target, value: { from: '', via: '', sum: '' } });
   const venueLocalKey = overrideKey({ op: 'column.venueLocal', ...target, value: { venueLocal: true } });
+  const stampKey = overrideKey({ op: 'column.stamp', ...target, value: { set: 'now', on: 'create' } });
   const venueLocal = buffer.get(venueLocalKey)?.item.op === 'column.venueLocal';
   // The buffer's baseline is every stored row, so no entry is no rule — and
   // one dropped in this session is gone until it is saved or reverted.
@@ -172,6 +174,19 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const sequence = decidedOf<NonNullable<EffectiveColumn['sequence']>>(sequenceKey, 'column.sequence');
   const code = decidedOf<NonNullable<EffectiveColumn['code']>>(codeKey, 'column.code');
   const rollup = decidedOf<NonNullable<EffectiveColumn['rollup']>>(rollupKey, 'column.rollup');
+  const stamp = decidedOf<StampRule>(stampKey, 'column.stamp');
+  /** What a stamp writes, in words. */
+  const stampWhat = (set: StampRule['set']): string =>
+    typeof set === 'object'
+      ? t('studio:remap.rules.decided.stampByOrigin', '“{public}” from the public side, “{staff}” from staff', {
+          public: set.byOrigin.public,
+          staff: set.byOrigin.staff,
+        })
+      : set === 'now'
+        ? t('studio:remap.rules.decided.stampNow', 'the time')
+        : set === 'user-name'
+          ? t('studio:remap.rules.decided.stampUserName', 'the name of whoever does it')
+          : t('studio:remap.rules.decided.stampUserId', 'the id of whoever does it');
   /** A child table by its display name, else its own. */
   const tableName = (id: string) => {
     const found = tableById(model, id);
@@ -616,7 +631,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
           </div>
         ) : null}
 
-        {copy !== undefined || sequence !== undefined || code !== undefined || rollup !== undefined ? (
+        {copy !== undefined || sequence !== undefined || code !== undefined || rollup !== undefined || stamp !== undefined ? (
           <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3" data-testid="rules-decided">
             <div className="flex flex-col">
               <span className="text-body-sm font-semibold text-fg">
@@ -655,7 +670,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                 ? null
                 : {
                     key: rollupKey,
-                    text:
+                    text: [
                       rollup.times === undefined
                         ? t('studio:remap.rules.decided.rollup', 'The total of {sum} over its rows in {from}', {
                             sum: rollup.sum,
@@ -665,6 +680,40 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                             sum: rollup.sum,
                             times: rollup.times,
                             from: tableName(rollup.from),
+                          }),
+                      rollup.where === undefined
+                        ? null
+                        : t('studio:remap.rules.decided.rollupWhere', 'counting only rows where {column} is {value}', {
+                            column: rollup.where.column,
+                            value: String(rollup.where.eq),
+                          }),
+                      rollup.balance === undefined
+                        ? null
+                        : t('studio:remap.rules.decided.rollupBalance', 'and keeps {balance} = {of} − {minus} − this total', {
+                            balance: rollup.balance.column,
+                            of: rollup.balance.of,
+                            minus: (rollup.balance.minus ?? []).join(' − ') || '0',
+                          }),
+                      rollup.cap === true
+                        ? t('studio:remap.rules.decided.rollupCap', 'A write that would take the balance below zero is refused.')
+                        : null,
+                    ]
+                      .filter((part) => part !== null)
+                      .join('; '),
+                  },
+              stamp === undefined
+                ? null
+                : {
+                    key: stampKey,
+                    text:
+                      stamp.on === 'create'
+                        ? t('studio:remap.rules.decided.stampCreate', 'Set to {what} when the row is created', {
+                            what: stampWhat(stamp.set),
+                          })
+                        : t('studio:remap.rules.decided.stampChange', 'Set to {what} when {column} becomes {values}', {
+                            what: stampWhat(stamp.set),
+                            column: stamp.on.column,
+                            values: stamp.on.values.map(String).join(', '),
                           }),
                   },
               code === undefined

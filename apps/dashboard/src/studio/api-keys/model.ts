@@ -187,10 +187,13 @@ const KEY_ORDER = [
   'sensitive',
   'allow_cascade',
   'kind',
+  'confirm',
+  'writable_values',
+  'writable_when',
 ] as const;
 const PAGINATION_ORDER = ['default_limit', 'max_limit', 'order'];
 const RATE_ORDER = ['requests', 'window'];
-const FILTER_ORDER = ['column', 'op', 'value'];
+const FILTER_ORDER = ['column', 'op', 'days', 'value'];
 
 function ordered(value: Record<string, unknown>, order: readonly string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};

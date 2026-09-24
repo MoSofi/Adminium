@@ -91,9 +91,11 @@ export interface DashboardBuilderProps {
   registry?: ReadonlyMap<string, WidgetDefinition> | undefined;
   /** The page's day control, when its layout has one: the host reads `states` for this day. */
   day?: { day: string; onDay: (day: string) => void } | null | undefined;
+  /** The connection's currency, for every widget that names none. */
+  currency?: string | undefined;
 }
 
-export function DashboardBuilder({ page, canEditLayout = false, states, onEvent, registry, day }: DashboardBuilderProps) {
+export function DashboardBuilder({ page, canEditLayout = false, states, onEvent, registry, day, currency }: DashboardBuilderProps) {
   const pageId = page.id;
   const title = t(page.title.key, page.title.fallback);
 
@@ -389,6 +391,7 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
           states={states}
           onEvent={onEvent}
           {...(day === null || day === undefined ? {} : { day: day.day, onDay: day.onDay })}
+          {...(currency === undefined ? {} : { currency })}
         />
       )}
 

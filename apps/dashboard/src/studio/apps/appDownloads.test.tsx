@@ -652,6 +652,16 @@ describe('updating an installed app', () => {
     expect(screen.queryByRole('button', { name: 'Update' })).toBeNull();
     expect(screen.queryByText(/update available/)).toBeNull();
   });
+
+  it('names a newer release that cannot update this install in place, and offers no Update for it', async () => {
+    withUpdate({ updateTo: null, cannotUpdate: { version: '0.2.0', updatesFrom: '>=0.2.0' } });
+    await renderPage();
+    expect(
+      await screen.findByText('v0.2.0 cannot update this version in place. Uninstall it first, then install v0.2.0.'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Update' })).toBeNull();
+    expect(screen.queryByText(/update available/)).toBeNull();
+  });
 });
 
 describe('checking a new version and renaming to the prefix', () => {

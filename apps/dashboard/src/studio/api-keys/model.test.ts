@@ -174,6 +174,18 @@ describe('definitions', () => {
     expect(printDefinition(JSON.parse(printed) as Record<string, unknown>)).toBe(printed);
   });
 
+  it('prints a calendar filter and a pinned change where the server does', () => {
+    const pinned = {
+      ...doc,
+      writable_when: { status: ['booked'], starts_at: 'from-now' },
+      writable_values: { status: ['cancelled'] },
+      filters: [{ days: 7, op: 'from-today', column: 'starts_at' }],
+    };
+    const printed = printDefinition(pinned);
+    expect(Object.keys(JSON.parse(printed) as object).slice(-3)).toEqual(['claim', 'writable_values', 'writable_when']);
+    expect(printed).toContain('{\n      "column": "starts_at",\n      "op": "from-today",\n      "days": 7\n    }');
+  });
+
   it('keeps an unknown key, at the end, for the server to refuse by name', () => {
     expect(Object.keys(JSON.parse(printDefinition({ ...doc, rls: true })) as object).at(-1)).toBe('rls');
   });

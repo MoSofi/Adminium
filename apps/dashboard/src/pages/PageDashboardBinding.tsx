@@ -28,7 +28,7 @@ import { extractBindings } from '../api/widgetData.js';
 import { DashboardBuilder } from './dashboard-builder/index.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageDashboardBinding({ page, adapters, canEditLayout }: PageTemplateProps) {
+export function PageDashboardBinding({ page, adapters, canEditLayout, currency }: PageTemplateProps) {
   const dashboard = adapters.dashboard;
   const { requests, invalid } = useMemo(() => extractBindings(page), [page]);
 
@@ -49,6 +49,8 @@ export function PageDashboardBinding({ page, adapters, canEditLayout }: PageTemp
       canEditLayout={canEditLayout ?? false}
       states={states}
       day={adapters.dashboardDay ?? null}
+      // The connection's currency: a money card that names none reads in it.
+      {...(currency === undefined || currency === null ? {} : { currency })}
       onEvent={(instanceId, event) => {
         void instanceId;
         // Forward the host's result so optimistic widgets (kanban) get the

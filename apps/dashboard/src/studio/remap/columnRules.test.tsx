@@ -205,8 +205,14 @@ describe('the columns Adminium decides', () => {
     row('column.sequence', 'body', { start: 100 }, 'ovr_seq'),
     // Another column's rule of the same op: two targets, not one.
     row('column.code', 'author', { length: 6 }, 'ovr_code_2'),
-    row('column.rollup', 'body', { from: 'public.order_notes', via: 'id', sum: 'id', times: 'id' }, 'ovr_roll'),
+    row(
+      'column.rollup',
+      'body',
+      { from: 'public.order_notes', via: 'id', sum: 'id', times: 'id', where: { column: 'author', eq: 'ann' }, balance: { column: 'id', of: 'id', minus: ['author'] }, cap: true },
+      'ovr_roll',
+    ),
     row('column.venueLocal', 'body', { venueLocal: true }, 'ovr_local'),
+    row('column.stamp', 'body', { set: { byOrigin: { public: 'patient', staff: 'desk' } }, on: { column: 'author', values: ['x', 'y'] } }, 'ovr_stamp'),
   ];
 
   it('says what decides the column, and removes one rule without touching the others', async () => {
@@ -215,7 +221,10 @@ describe('the columns Adminium decides', () => {
     const decided = await screen.findByTestId('rules-decided');
     expect(decided.textContent).toContain('The next number in order, from 100');
     expect(decided.textContent).toContain('A random code like MR-XXXX');
-    expect(decided.textContent).toContain('The total of id × id over its rows in Order notes');
+    expect(decided.textContent).toContain(
+      'The total of id × id over its rows in Order notes; counting only rows where author is ann; and keeps id = id − author − this total; A write that would take the balance below zero is refused.',
+    );
+    expect(decided.textContent).toContain('Set to “patient” from the public side, “desk” from staff when author becomes x, y');
     expect(screen.getByTestId('rules-venue-local').textContent).toContain('the venue’s own time');
 
     const [, first] = screen.getAllByRole('button', { name: 'Remove this rule' });
@@ -229,6 +238,7 @@ describe('the columns Adminium decides', () => {
       'column.code:author',
       'column.code:body',
       'column.rollup:body',
+      'column.stamp:body',
       'column.venueLocal:body',
     ]);
   });

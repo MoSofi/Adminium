@@ -141,6 +141,7 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
               const row = rowByKey.get(app.key);
               const updateTo = row?.updateTo ?? null;
               const blocked = row?.needsNewerAdminium ?? null;
+              const cannotUpdate = row?.cannotUpdate ?? null;
               // The comp's sub-line leads with it; the manifest's own word, so
               // it is data rather than a key (the shelf card's badge is the same).
               const category = row?.categories[0] ?? null;
@@ -213,6 +214,15 @@ export function InstalledAppsCard({ onInstall, onUpdate, busy = false }: Install
                           'studio:hostedApps.installed.needsNewer',
                           'v{version} needs Adminium {minimum} or later',
                           { version: blocked.version, minimum: blocked.minAdminiumVersion },
+                        )}
+                      </span>
+                    )}
+                    {cannotUpdate === null ? null : (
+                      <span className="text-warn">
+                        {t(
+                          'studio:hostedApps.installed.cannotUpdate',
+                          'v{version} cannot update this version in place. Uninstall it first, then install v{version}.',
+                          { version: cannotUpdate.version },
                         )}
                       </span>
                     )}

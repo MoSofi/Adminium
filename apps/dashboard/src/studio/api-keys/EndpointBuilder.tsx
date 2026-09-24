@@ -61,7 +61,7 @@ const segClass = (on: boolean): string =>
     on ? 'bg-surface text-fg shadow-card' : 'text-fg-subtle'
   }`;
 
-type Filter = { column: string; op: string; value?: unknown };
+type Filter = { column: string; op: string; value?: unknown; days?: number };
 
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const rec = (v: unknown): Record<string, unknown> => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -378,6 +378,8 @@ export function EndpointBuilder({ open, onOpenChange, connectionId, endpoint, so
                     if (i !== index) return x;
                     const merged: Filter = { ...x, ...patch };
                     if (VALUELESS_OPS.has(merged.op)) delete merged.value;
+                    // A count of days belongs to `from-today` alone.
+                    if (merged.op !== 'from-today') delete merged.days;
                     return merged;
                   });
                   edit(patchDefinition(doc, { filters: next }));

@@ -58,6 +58,10 @@ export interface KeyDto {
   issues: Issue[];
   side: 'staff' | 'customer';
   appKey: string | null;
+  /** Which of an app's browser keys (`customer`, or `kiosk`). Absent from an older server. */
+  purpose?: string;
+  /** Answers only alongside a signed-in staff member holding this app role. */
+  requiresStaff?: { appKey: string; roleSlug: string } | null;
   origins: string[];
   expiresAt: number | null;
   revokedAt: number | null;

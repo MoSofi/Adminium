@@ -91,6 +91,8 @@ export interface CatalogApp {
   updateStaged: boolean;
   /** A catalog release this server is too old for, and the version it needs (G8-D2). */
   needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
+  /** A newer release on disk that cannot update the installed version in place (its `updatesFrom` leaves it out). */
+  cannotUpdate?: { version: string; updatesFrom: string } | null;
 }
 
 export interface AppCatalogReply {
