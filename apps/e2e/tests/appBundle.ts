@@ -44,6 +44,12 @@ function tarball(files: Record<string, string>): Buffer {
   return Buffer.from(gzipSync(Buffer.concat(members.map((m) => Buffer.from(m)))));
 }
 
+/** Any app package, member by member: its tarball and the integrity an install checks it against. */
+export function bundleOf(files: Record<string, string>): { buffer: Buffer; integrity: string } {
+  const buffer = tarball(files);
+  return { buffer, integrity: `sha512-${createHash('sha512').update(buffer).digest('base64')}` };
+}
+
 /** The key the app specs share, so none leaves a staged package behind. */
 export const APP_KEY = 'e2e-desk';
 export const APP_VERSION = '1.0.0';

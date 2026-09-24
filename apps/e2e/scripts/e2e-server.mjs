@@ -78,6 +78,7 @@ const PUBLIC_API_ADMIN_PASSWORD = process.env.E2E_PUBLIC_API_ADMIN_PASSWORD ?? '
 const OWN_PRINCIPALS = [
   ['e2e-generated@adminium.local', 'E2E Generated App Admin'],
   ['e2e-enrich@adminium.local', 'E2E Enrich Admin'],
+  ['e2e-booking@adminium.local', 'E2E Booking App Admin'],
 ];
 const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';
