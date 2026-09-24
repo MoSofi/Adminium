@@ -118,8 +118,12 @@ test.describe('email templates manager', () => {
     // Mid-page, clear of the sticky top bar: with fifty-six cards the one found can
     // sit where scrolling it "into view" parks it under the bar (postgres run).
     await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
-    await card.hover();
-    await card.getByRole('button', { name: 'Edit' }).click();
+    // By keyboard, as the card promises: focus inside it slides the action row
+    // in. A hover-revealed row under a moving pointer let the card itself take
+    // the click on postgres and mysql, where this card lands lower on the page.
+    const edit = card.getByRole('button', { name: 'Edit' });
+    await edit.focus();
+    await edit.press('Enter');
     await expect(page.getByTestId('email-editor-header')).toBeVisible();
     const name = page.getByTestId('email-editor-name');
     await expect(name).toHaveValue('Notification');
