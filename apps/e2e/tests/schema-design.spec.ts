@@ -145,7 +145,15 @@ test.describe(`schema design [${ENGINE}]`, () => {
     // The statement carries both — the default the database fills in, and the
     // constraint that keeps `status` to its two answers. SQLite's `now` is the
     // server's wall clock, the clock every value Adminium writes there is in.
-    await expect(page.getByText(/current_timestamp|datetime\('now', 'localtime'\)/i)).toBeVisible();
+    // MySQL's column gets no default at all: its `CURRENT_TIMESTAMP` would be
+    // UTC's wall clock in a DATETIME read on this server's, so Adminium fills
+    // the moment itself on every create instead.
+    if (ENGINE === 'mysql') {
+      await expect(page.getByText(/`created_at` datetime,/i)).toBeVisible();
+      await expect(page.getByText(/current_timestamp/i)).toHaveCount(0);
+    } else {
+      await expect(page.getByText(/current_timestamp|datetime\('now', 'localtime'\)/i)).toBeVisible();
+    }
     await expect(page.getByText(/check.*status.*in.*draft/is)).toBeVisible();
 
     await page.getByRole('button', { name: 'Apply', exact: true }).click();
