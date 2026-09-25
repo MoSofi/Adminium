@@ -445,6 +445,8 @@ export async function renderDocument(
   const carried = ownNumber === undefined ? await documents.numberFor(profile.id, source.entity) : null;
   let number: string | null =
     ownNumber !== undefined ? ownNumber : (carried ?? `${prefix}${String(await sequences.peek(profile.id))}`);
+  // Drawn again, it is the same document: a slot it filled by default (the day it was made) stays as it was.
+  const drawnBefore = (await documents.drawnFor(profile.id, source.entity))?.subject?.['fields'];
 
   const subjectFor = (printed: string | null) =>
     buildSubject({
@@ -459,6 +461,7 @@ export async function renderDocument(
         ? {}
         : { values: { ...(options.literals ?? {}), ...(source.statement?.fields ?? {}) } }),
       ...(source.statement === undefined ? {} : { collectionValues: source.statement.collections }),
+      ...(drawnBefore === undefined || drawnBefore === null ? {} : { drawnBefore: drawnBefore as Record<string, unknown> }),
       now: { iso: new Date(at).toISOString(), timezone: source.timezone },
       locale,
       currency: source.currency,

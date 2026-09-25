@@ -300,10 +300,19 @@ describe.each(LEGS)('documents for an app\'s own rows on %s', (dialect, reachabl
     expect(again.statusCode).toBe(200);
     expect((again.json() as { data: Doc }).data.id).toBe((first.json() as { data: Doc }).data.id);
 
+    // Drawn again, it is the same invoice: the day it was first drawn stays (set back here, as if drawn in January).
+    const firstId = (first.json() as { data: Doc }).data.id;
+    const stored = (await documentsRepo(h.meta).findById(firstId))!;
+    await h.meta.db
+      .updateTable('adminium_documents')
+      .set({ subject: JSON.stringify({ ...stored.subject, fields: { ...(stored.subject!['fields'] as object), issuedAt: '2026-01-15' } }) })
+      .where('id', '=', firstId)
+      .execute();
     await h.sql(`update ${h.real('invoices')} set total = '150.00' where id = 3`);
     const changed = await ask();
     expect(changed.statusCode).toBe(201);
-    expect((changed.json() as { data: Doc }).data.id).not.toBe((first.json() as { data: Doc }).data.id);
+    expect((changed.json() as { data: Doc }).data.id).not.toBe(firstId);
+    expect((await printed((changed.json() as { data: Doc }).data.id, sessions['ann']!)).fields['issuedAt']).toBe('2026-01-15');
     // The list shows the row once: its latest document.
     expect(ids(await served.call('GET', '/documents?ref=studio_invoices_claimed&id=3', { session: sessions['ann'] }))).toEqual([(changed.json() as { data: Doc }).data.id]);
   });
@@ -315,6 +324,8 @@ describe.each(LEGS)('documents for an app\'s own rows on %s', (dialect, reachabl
       return await printed((res.json() as { data: Doc }).data.id, sessions['cara']!);
     };
     const year = await statement('year');
+    // No row dates a statement: it is issued on the day it is drawn, on the venue's clock — the day its period runs to.
+    expect(year.fields['issuedAt']).toBe(year.fields['periodTo']);
     expect(year.fields).toMatchObject({
       clientName: 'Cara Makes',
       periodFrom: '2026-01-01',

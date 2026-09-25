@@ -312,6 +312,28 @@ export function documentsRepo(meta: MetaDb) {
   }
 
   /**
+   * The newest rendered (not voided) document of a profile for one row — the
+   * document a new draw of that row is drawing AGAIN. What it printed on its
+   * own (the day it was made, say) is what the new draw prints too.
+   */
+  async function drawnFor(
+    profileId: string,
+    entity: { table: string; pk: Readonly<Record<string, unknown>> },
+  ): Promise<DocumentRow | null> {
+    const row = await db
+      .selectFrom('adminium_documents')
+      .selectAll()
+      .where('profileId', '=', profileId)
+      .where('entityTable', '=', clampKey(entity.table))
+      .where('entityId', '=', entityKeyOf(entity.pk))
+      .where('status', '=', 'rendered')
+      .orderBy('createdAt', 'desc')
+      .orderBy('id', 'desc')
+      .executeTakeFirst();
+    return row === undefined ? null : hydrate(row, false);
+  }
+
+  /**
    * Mark a render successful and attach its bytes.
    *
    * `number` is passed in rather than claimed here: the sequence is claimed
@@ -553,6 +575,7 @@ export function documentsRepo(meta: MetaDb) {
     create,
     findReusable,
     numberFor,
+    drawnFor,
     markRendered,
     markFailed,
     markVoided,

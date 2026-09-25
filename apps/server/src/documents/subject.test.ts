@@ -131,6 +131,14 @@ describe('coercion per slot type', () => {
     expect(coerceSlot('date', '01/09/2026')).toBe('01/09/2026');
   });
 
+  it('reads an empty column as no number, never zero', () => {
+    expect(coerceSlot('number', '')).toBeNull();
+    expect(coerceSlot('number', null)).toBeNull();
+    expect(coerceSlot('number', '  ')).toBeNull();
+    expect(coerceSlot('number', 0)).toBe(0);
+    expect(coerceSlot('number', '0')).toBe(0);
+  });
+
   it('never lets an object reach a provider as "[object Object]"', () => {
     expect(coerceSlot('text', { nested: true })).toBe('');
     expect(coerceSlot('text', null)).toBe('');
@@ -265,6 +273,54 @@ describe('a value typed into the mapping instead of a column', () => {
       collectionValues: { items: [{ desc: 'Audit', secret: 'x' }] },
     });
     expect(subject.collections.items).toEqual([{ desc: 'Audit' }]);
+  });
+});
+
+describe('a slot the outline gives a default', () => {
+  const DEFAULTED: SubjectSlot[] = [
+    { id: 'customerName', type: 'text', required: true },
+    { id: 'number', type: 'text', required: true, default: 'sequence' },
+    { id: 'issuedAt', type: 'date', required: true, default: 'now' },
+    { id: 'currency', type: 'currency', required: false, default: 'connection' },
+    { id: 'rate', type: 'percent', required: true, default: 'setting' },
+  ];
+  const late = { iso: '2026-09-10T23:30:00.000Z', timezone: 'Asia/Tokyo' };
+
+  it('fills an unmapped slot: the day on the venue’s clock, the currency, the printed number', () => {
+    const { subject, missing } = build({ slots: DEFAULTED, mapping: { customerName: { column: 'customer' } }, now: late, number: 'INV-0042' });
+    // 23:30 UTC is already the 11th in Tokyo.
+    expect(subject.fields).toMatchObject({ number: 'INV-0042', issuedAt: '2026-09-11', currency: 'EUR' });
+    // `setting` is the add-on's own to read: the engine cannot fill it, so a required one is still missing.
+    expect(missing).toEqual(['rate']);
+  });
+
+  it('fills a MAPPED slot that is empty on this row — a draft with no issue date yet', () => {
+    const { subject, missing } = build({
+      slots: DEFAULTED,
+      mapping: { customerName: { column: 'customer' }, issuedAt: { column: 'issued_on' }, number: { column: 'ref' } },
+      row: { customer: 'Acme', issued_on: null, ref: '' },
+      now: late,
+      number: 'INV-0042',
+      values: { rate: '20' },
+    });
+    expect(subject.fields).toMatchObject({ issuedAt: '2026-09-11', number: 'INV-0042' });
+    expect(missing).toEqual([]);
+  });
+
+  it('gives way to a column with a value, and to a typed value', () => {
+    const { subject } = build({
+      slots: DEFAULTED,
+      mapping: { customerName: { column: 'customer' }, issuedAt: { column: 'issued_on' } },
+      row: { customer: 'Acme', issued_on: '2026-08-01' },
+      values: { currency: 'JPY', rate: '20' },
+      number: 'INV-0042',
+    });
+    expect(subject.fields).toMatchObject({ issuedAt: '2026-08-01', currency: 'JPY' });
+  });
+
+  it('still reports a required `sequence` slot when no number is printed', () => {
+    const { missing } = build({ slots: DEFAULTED, mapping: { customerName: { column: 'customer' } }, values: { rate: '20' }, number: null });
+    expect(missing).toEqual(['number']);
   });
 });
 

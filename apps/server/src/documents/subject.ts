@@ -70,7 +70,30 @@ export interface SubjectSlot {
   id: string;
   type: SlotType;
   required: boolean;
+  /** Where the slot's value comes from when nothing fills it (`slotDefault`). */
+  default?: 'sequence' | 'connection' | 'setting' | 'now';
   columns?: readonly { id: string; type: SlotType }[];
+}
+
+/**
+ * The value an empty slot takes from its outline's `default`, or undefined.
+ *
+ * The outline promises these to the add-on, so such a slot need not be
+ * mapped: `now` is the day (or instant) the document is made, on the venue's
+ * clock — kept from the first draw when the same document is drawn again;
+ * `connection` the connection's currency; `sequence` the number this document
+ * prints. `setting` is one of the add-on's own settings, which only the add-on
+ * reads, so it is left to the add-on — and a required slot the engine cannot
+ * fill still counts as missing.
+ */
+function slotDefault(slot: SubjectSlot, input: SubjectInput, scale: number): unknown {
+  let raw: unknown;
+  if (slot.default === 'now') raw = input.drawnBefore?.[slot.id] ?? input.now.iso;
+  else if (slot.default === 'connection') raw = input.currency;
+  else if (slot.default === 'sequence') raw = input.number;
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const value = coerceSlot(slot.type, raw, scale, input.now.timezone);
+  return value === null || value === '' ? undefined : value;
 }
 
 const DECIMAL = /^([+−-]?)(\d*)(?:[.,](\d*))?$/;
@@ -170,6 +193,8 @@ export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2, timez
     case 'percent':
       return toBasisPoints(value);
     case 'number': {
+      // An empty column is no number, not zero (`Number('')` is 0).
+      if (value === null || value === undefined || toText(value).trim() === '') return null;
       const numeric = typeof value === 'number' ? value : Number(toText(value));
       return Number.isFinite(numeric) ? numeric : null;
     }
@@ -224,6 +249,8 @@ export interface SubjectInput {
   business: { name: string; lines: readonly string[]; logoDataUrl?: string };
   entity: RecordRef | null;
   number: string | null;
+  /** The fields this document printed when it was last drawn, if it was. */
+  drawnBefore?: Readonly<Record<string, unknown>>;
 }
 
 export interface BuiltSubject {
@@ -324,6 +351,11 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
           continue;
         }
       }
+      const fallback = slotDefault(slot, input, scale);
+      if (fallback !== undefined) {
+        fields[slot.id] = fallback;
+        continue;
+      }
       if (slot.required) missing.push(slot.id);
       continue;
     }
@@ -336,9 +368,18 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
           : undefined;
 
     const value = coerceSlot(slot.type, raw, scale, zone);
-    if (slot.required && (value === null || value === '' )) {
-      missing.push(slot.id);
-      continue;
+    if (value === null || value === '') {
+      // The column is mapped but empty on this row (a draft with no issue
+      // date yet): the outline's default stands in, as it would unmapped.
+      const fallback = slotDefault(slot, input, scale);
+      if (fallback !== undefined) {
+        fields[slot.id] = fallback;
+        continue;
+      }
+      if (slot.required) {
+        missing.push(slot.id);
+        continue;
+      }
     }
     fields[slot.id] = value;
   }

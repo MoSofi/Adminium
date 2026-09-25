@@ -182,10 +182,12 @@ export function studioManifest(): Record<string, unknown> {
 }
 
 /** The stand-in add-on's kinds: what each document's outline asks for. */
-const KINDS: Record<string, { id: string; type: string; required: boolean; columns?: { id: string; type: string }[] }[]> = {
+const KINDS: Record<string, { id: string; type: string; required: boolean; default?: string; columns?: { id: string; type: string }[] }[]> = {
   invoice: [
     { id: 'number', type: 'text', required: false },
     { id: 'clientName', type: 'text', required: true },
+    // Never mapped here: the day the invoice is first drawn, as the real add-on defaults it.
+    { id: 'issuedAt', type: 'date', required: true, default: 'now' },
     { id: 'total', type: 'money', required: false },
     { id: 'lines', type: 'collection', required: false, columns: [{ id: 'description', type: 'text' }, { id: 'amount', type: 'money' }] },
   ],
@@ -204,6 +206,8 @@ const KINDS: Record<string, { id: string; type: string; required: boolean; colum
     { id: 'amount', type: 'money', required: true },
   ],
   statement: [
+    // Required, with the engine's `now` default, as the Invoices & Receipts add-on declares it.
+    { id: 'issuedAt', type: 'date', required: true, default: 'now' },
     { id: 'clientName', type: 'text', required: false },
     { id: 'period', type: 'text', required: false },
     { id: 'periodFrom', type: 'date', required: false },
