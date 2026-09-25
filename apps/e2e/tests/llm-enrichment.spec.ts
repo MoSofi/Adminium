@@ -65,7 +65,13 @@ async function expectNoBlockingViolations(page: Page, label: string, testInfo: T
   // axe reads COMPUTED colours; a panel measured mid-transition reports its
   // blended ones and fails a contrast check it passes at rest.
   await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))),
+    Promise.all(
+      document
+        .getAnimations()
+        // Not a spinner, whose animation never finishes.
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
   );
   const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
   // A sweep that analysed nothing reports zero violations and looks identical to

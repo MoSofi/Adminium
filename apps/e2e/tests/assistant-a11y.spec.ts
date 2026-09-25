@@ -52,7 +52,15 @@ interface Sweep {
 async function sweep(page: Page, label: string, tally: Sweep, testInfo: TestInfo, within?: string): Promise<void> {
   // Overlays fade in; axe reads computed colours, so a dialog measured mid-transition
   // reports its backdrop-blended colours and fails contrast it passes at rest.
-  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        // Not a spinner, whose animation never finishes.
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
   const builder = new AxeBuilder({ page }).withTags(TAGS);
   const results = await (within === undefined ? builder : builder.include(within)).analyze();
   // The floor that makes a green run mean something: a modal has a dialog, a

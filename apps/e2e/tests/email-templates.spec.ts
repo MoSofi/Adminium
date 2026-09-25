@@ -6,8 +6,8 @@
  * The dashboard suite mounts the manager through the real router with a
  * fetch stub (`email/manager/manager.test.tsx`); the server suite covers the
  * routes in process. What only this file sees: the lazy route mounts from
- * the BUILT bundle, the seed's seven built-ins × eight locales come back
- * through a real socket as fifty-six cards, and a duplicate + Undo makes
+ * the BUILT bundle, the seed's eight built-ins × eight locales come back
+ * through a real socket as sixty-four cards, and a duplicate + Undo makes
  * the round trip and leaves the fixture as it found it. The send flows (test
  * send, campaign run) join here once the SMTP sink lands.
  */
@@ -56,23 +56,23 @@ test.describe('email templates manager', () => {
   test('mounts from the built bundle with the seeded built-ins, grouped by topic', async ({ page }, testInfo) => {
     await expect(page.getByText('Design reusable emails & the campaigns you send from them.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'New template' })).toBeVisible();
-    // Seven built-in flows × eight locales: password reset, team invitation,
-    // notification, document ready, booking confirmation, sign-in code and
-    // address changed (`BUILTIN_EMAIL_TEMPLATE_KEYS`).
-    await expect(page.getByTestId('email-card')).toHaveCount(56);
-    await expect(page.getByTestId('tab-count').first()).toHaveText('56');
+    // Eight built-in flows × eight locales: password reset, team invitation,
+    // notification, document ready, booking confirmation, sign-in code,
+    // address changed and sign-in link (`BUILTIN_EMAIL_TEMPLATE_KEYS`).
+    await expect(page.getByTestId('email-card')).toHaveCount(64);
+    await expect(page.getByTestId('tab-count').first()).toHaveText('64');
     await testInfo.attach('manager-gallery', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 
-    // A topic is one flow (`groupDocuments` keys on the template key), so seven.
+    // A topic is one flow (`groupDocuments` keys on the template key), so eight.
     await page.getByRole('radio', { name: 'Topic' }).click();
     const headers = page.getByTestId('email-group-header');
-    await expect(headers).toHaveCount(7);
+    await expect(headers).toHaveCount(8);
     await expect(page.getByTestId('email-group-sub').first()).toHaveText('8 languages');
     await testInfo.attach('manager-topics', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 
     // One table per topic group, each with the comp's five columns.
     await page.getByRole('radio', { name: 'List' }).click();
-    await expect(page.getByRole('table')).toHaveCount(7);
+    await expect(page.getByRole('table')).toHaveCount(8);
     await expect(page.getByRole('table').first().getByRole('columnheader')).toHaveText(['Name', 'Lang', 'Status', 'Updated', 'Actions']);
     await testInfo.attach('manager-list', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
     // Leave the prefs as found: they persist in localStorage for later specs.
@@ -115,7 +115,7 @@ test.describe('email templates manager', () => {
       .getByTestId('email-card')
       .filter({ has: page.getByText('Notification', { exact: true }) })
       .first();
-    // Mid-page, clear of the sticky top bar: with fifty-six cards the one found can
+    // Mid-page, clear of the sticky top bar: with sixty-four cards the one found can
     // sit where scrolling it "into view" parks it under the bar (postgres run).
     await card.evaluate((el) => el.scrollIntoView({ block: 'center' }));
     // By keyboard, as the card promises: focus inside it slides the action row
@@ -152,7 +152,7 @@ test.describe('email templates manager', () => {
     await expect(page.getByTestId('email-save-chip')).toHaveText('All changes saved');
     await page.getByRole('link', { name: 'Back' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Email templates' })).toBeVisible();
-    await expect(page.getByTestId('email-card')).toHaveCount(56);
+    await expect(page.getByTestId('email-card')).toHaveCount(64);
   });
 
   test('the canvas draws every block kind without blocking a11y violations (axe)', async ({ page }, testInfo) => {
@@ -331,6 +331,6 @@ test.describe('email templates manager', () => {
     await expect(page.getByText('No archived templates')).toBeVisible();
     await page.getByRole('button', { name: 'Leave archived' }).click();
     await expect(page.getByTestId('email-archived-chip')).toBeHidden();
-    await expect(page.getByTestId('email-card')).toHaveCount(56);
+    await expect(page.getByTestId('email-card')).toHaveCount(64);
   });
 });

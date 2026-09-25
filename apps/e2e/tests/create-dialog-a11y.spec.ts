@@ -46,7 +46,13 @@ async function sweep(
   // mid-transition reports its backdrop-blended colours and fails a contrast
   // check it passes at rest.
   await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))),
+    Promise.all(
+      document
+        .getAnimations()
+        // Not a spinner, whose animation never finishes.
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
   );
   const builder = new AxeBuilder({ page }).withTags(TAGS);
   const results = await (within === undefined ? builder : builder.include(within)).analyze();
