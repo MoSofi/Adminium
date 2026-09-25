@@ -1606,7 +1606,10 @@ export default {
         "ignoredColumn": "Nicht nach {name} gefiltert: Diese Liste hat keine solche Spalte",
         "ignoredMasked": "Nicht nach {name} gefiltert: Diese Spalte ist für Sie verborgen",
         "ignoredTooMany": "Nicht nach {name} gefiltert: Ein Link kann 8 Filter tragen",
-        "ignoredValue": "Nicht nach {name} gefiltert: „{filter}“ ist kein Filter, den diese Spalte annimmt"
+        "ignoredValue": "Nicht nach {name} gefiltert: „{filter}“ ist kein Filter, den diese Spalte annimmt",
+        "now": "jetzt",
+        "daysAgo": "{count, plural, one {heute − # Tag} other {heute − # Tage}}",
+        "daysAhead": "{count, plural, one {heute + # Tag} other {heute + # Tage}}"
       }
     },
     "queue": {

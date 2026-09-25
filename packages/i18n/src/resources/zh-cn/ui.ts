@@ -1606,7 +1606,10 @@ export default {
         "ignoredColumn": "未按 {name} 筛选：此列表没有该列",
         "ignoredMasked": "未按 {name} 筛选：该列对你隐藏",
         "ignoredTooMany": "未按 {name} 筛选：一个链接最多带 8 个筛选",
-        "ignoredValue": "未按 {name} 筛选：“{filter}”不是此列接受的筛选"
+        "ignoredValue": "未按 {name} 筛选：“{filter}”不是此列接受的筛选",
+        "now": "现在",
+        "daysAgo": "{count, plural, other {# 天前}}",
+        "daysAhead": "{count, plural, other {# 天后}}"
       }
     },
     "queue": {

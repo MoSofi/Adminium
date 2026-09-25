@@ -325,7 +325,8 @@
       "pending": "Application des filtres du lien",
       "failedTitle": "Les filtres de ce lien n’ont pas pu être appliqués",
       "failedBody": "La liste n’est pas affichée, pour ne pas la confondre avec la liste filtrée.",
-      "showAll": "Afficher toute la liste"
+      "showAll": "Afficher toute la liste",
+      "group": "Filtres du lien"
     }
   },
   "mutation": {

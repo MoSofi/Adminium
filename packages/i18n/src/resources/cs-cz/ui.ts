@@ -1606,7 +1606,10 @@ export default {
         "ignoredColumn": "Nefiltrováno podle {name}: tento seznam takový sloupec nemá",
         "ignoredMasked": "Nefiltrováno podle {name}: tento sloupec je před vámi skrytý",
         "ignoredTooMany": "Nefiltrováno podle {name}: odkaz může nést 8 filtrů",
-        "ignoredValue": "Nefiltrováno podle {name}: „{filter}“ není filtr, který tento sloupec přijímá"
+        "ignoredValue": "Nefiltrováno podle {name}: „{filter}“ není filtr, který tento sloupec přijímá",
+        "now": "teď",
+        "daysAgo": "{count, plural, one {dnes − # den} few {dnes − # dny} many {dnes − # dne} other {dnes − # dní}}",
+        "daysAhead": "{count, plural, one {dnes + # den} few {dnes + # dny} many {dnes + # dne} other {dnes + # dní}}"
       }
     },
     "queue": {

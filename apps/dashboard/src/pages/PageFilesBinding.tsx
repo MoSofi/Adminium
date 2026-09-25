@@ -17,12 +17,21 @@
 import { PageFiles } from '@adminium/widgets';
 
 import { usePageWidgetStates } from './lmc/widgetStates.js';
+import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageFilesBinding({ page, adapters, recordId }: PageTemplateProps) {
-  const { states } = usePageWidgetStates(page);
+export function PageFilesBinding({ page, adapters, recordId, formColumns, columnFacts }: PageTemplateProps) {
+  // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
+  const narrowing = useLinkNarrowing(page, adapters.crud?.table);
+  const view = useNarrowedPage(page, narrowing);
+  const { states } = usePageWidgetStates(view.page, {}, view.key);
+
+  if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
+
 
   return (
+    <>
+    <LinkFilterBar narrowing={narrowing} columns={formColumns} facts={columnFacts} />
     <PageFiles
       layout={page.config['layout']}
       states={states}
@@ -33,5 +42,6 @@ export function PageFilesBinding({ page, adapters, recordId }: PageTemplateProps
         void adapters.onEvent(event);
       }}
     />
+    </>
   );
 }

@@ -325,7 +325,8 @@
       "pending": "Linkets filtre anvendes",
       "failedTitle": "Linkets filtre kunne ikke anvendes",
       "failedBody": "Listen vises ikke, så den ikke forveksles med den filtrerede.",
-      "showAll": "Vis hele listen"
+      "showAll": "Vis hele listen",
+      "group": "Filtre fra linket"
     }
   },
   "mutation": {

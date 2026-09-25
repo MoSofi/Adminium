@@ -159,6 +159,8 @@ export function usePlanningStates(
   page: PageEnvelope,
   params: WidgetDataParams = {},
   window?: PlanningWindowTarget | null,
+  /** A link's narrowing (`linkNarrowing.ts`): a different narrowing is a different read. */
+  narrowing?: string,
 ): PlanningStates | undefined {
   const queryClient = useQueryClient();
   const { requests: base, invalid } = useMemo(() => extractPlanningBindings(page), [page]);
@@ -171,7 +173,7 @@ export function usePlanningStates(
     // Distinct key tail: the (disabled) dashboard hook observes
     // ['widget-data', pageId, params] on the same page — the shared
     // ['widget-data'] prefix keeps WS invalidations covering both.
-    queryKey: [WIDGET_DATA_KEY_ROOT, page.id, 'planning', params] as const,
+    queryKey: [WIDGET_DATA_KEY_ROOT, page.id, 'planning', params, ...(narrowing === undefined ? [] : [narrowing])] as const,
     enabled: requests.length > 0,
     staleTime: 0,
     queryFn: () => fetchWidgetDataBatch(requests, params),

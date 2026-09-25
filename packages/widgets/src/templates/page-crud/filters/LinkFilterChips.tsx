@@ -56,6 +56,8 @@ export function LinkFilterChips({ filters, describeColumn, onRemove }: LinkFilte
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** `today-30`, `today+7`: days counted from the venue's today. */
+const TODAY_OFFSET = /^today([+-])(\d{1,4})$/;
 
 /** What an applied piece says: the column's name, then the condition in words. */
 function appliedWords(
@@ -65,8 +67,19 @@ function appliedWords(
 ): string {
   const name = column.label;
   const raw = filter.value ?? '';
-  const isDay = raw === 'today' || DAY.test(raw);
-  const value = raw === 'today' ? t('ui:templates.crud.linkFilter.today', 'today') : column.valueLabel(raw);
+  const offset = TODAY_OFFSET.exec(raw);
+  // A day or a moment: "Due before today", "Due on or after 30 days ago", "Sent before now".
+  const isDay = raw === 'today' || raw === 'now' || offset !== null || DAY.test(raw);
+  const value =
+    raw === 'today'
+      ? t('ui:templates.crud.linkFilter.today', 'today')
+      : raw === 'now'
+        ? t('ui:templates.crud.linkFilter.now', 'now')
+        : offset !== null
+          ? offset[1] === '-'
+            ? t('ui:templates.crud.linkFilter.daysAgo', '{count, plural, one {# day ago} other {# days ago}}', { count: Number(offset[2]) })
+            : t('ui:templates.crud.linkFilter.daysAhead', '{count, plural, one {# day from today} other {# days from today}}', { count: Number(offset[2]) })
+          : column.valueLabel(raw);
   switch (filter.op) {
     case 'eq':
       return t('ui:templates.crud.linkFilter.eq', '{name} is {value}', { name, value });

@@ -1606,7 +1606,10 @@ export default {
         "ignoredColumn": "Not filtered by {name}: this list has no such column",
         "ignoredMasked": "Not filtered by {name}: that column is hidden from you",
         "ignoredTooMany": "Not filtered by {name}: a link can carry 8 filters",
-        "ignoredValue": "Not filtered by {name}: “{filter}” is not a filter this column takes"
+        "ignoredValue": "Not filtered by {name}: “{filter}” is not a filter this column takes",
+        "now": "now",
+        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+        "daysAhead": "{count, plural, one {# day from today} other {# days from today}}"
       }
     },
     "queue": {

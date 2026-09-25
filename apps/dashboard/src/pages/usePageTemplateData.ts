@@ -86,12 +86,17 @@ export interface PageTemplateData {
   refetch(): void;
 }
 
-export function usePageTemplateData(page: PageEnvelope, params: WidgetDataParams = {}): PageTemplateData {
+export function usePageTemplateData(
+  page: PageEnvelope,
+  params: WidgetDataParams = {},
+  /** A link's narrowing (`linkNarrowing.ts`): a different narrowing is a different read. */
+  narrowing?: string,
+): PageTemplateData {
   const queryClient = useQueryClient();
   const { requests, invalid } = useMemo(() => extractTemplateBindings(page), [page]);
 
   const query = useQuery({
-    queryKey: [WIDGET_DATA_KEY_ROOT, page.id, params] as const,
+    queryKey: [WIDGET_DATA_KEY_ROOT, page.id, params, ...(narrowing === undefined ? [] : [narrowing])] as const,
     enabled: requests.length > 0,
     staleTime: 0,
     queryFn: () => fetchWidgetDataBatch(requests, params),

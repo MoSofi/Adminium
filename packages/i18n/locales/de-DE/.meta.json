@@ -5187,6 +5187,10 @@
     "status": "mt",
     "srcHash": "f4f23a541a8a"
   },
+  "common.page.linkFilters.group": {
+    "status": "mt",
+    "srcHash": "5ad06eec0060"
+  },
   "common.page.linkFilters.pending": {
     "status": "mt",
     "srcHash": "206528a4cc7e"
@@ -23807,6 +23811,14 @@
     "status": "mt",
     "srcHash": "d205cfc1cb28"
   },
+  "ui.templates.crud.linkFilter.daysAgo": {
+    "status": "mt",
+    "srcHash": "85231471498a"
+  },
+  "ui.templates.crud.linkFilter.daysAhead": {
+    "status": "mt",
+    "srcHash": "143425654125"
+  },
   "ui.templates.crud.linkFilter.eq": {
     "status": "mt",
     "srcHash": "1271b764a15a"
@@ -23854,6 +23866,10 @@
   "ui.templates.crud.linkFilter.neq": {
     "status": "mt",
     "srcHash": "36e8e00d2c25"
+  },
+  "ui.templates.crud.linkFilter.now": {
+    "status": "mt",
+    "srcHash": "c9bc849a968f"
   },
   "ui.templates.crud.linkFilter.onOrAfter": {
     "status": "mt",

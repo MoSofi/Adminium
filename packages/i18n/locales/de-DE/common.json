@@ -325,7 +325,8 @@
       "pending": "Die Filter des Links werden angewendet",
       "failedTitle": "Die Filter dieses Links konnten nicht angewendet werden",
       "failedBody": "Die Liste wird nicht angezeigt, damit sie nicht mit der gefilterten verwechselt wird.",
-      "showAll": "Ganze Liste anzeigen"
+      "showAll": "Ganze Liste anzeigen",
+      "group": "Filter aus dem Link"
     }
   },
   "mutation": {

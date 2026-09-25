@@ -29,11 +29,15 @@ import { PageQueueInbox, type QueueApi, type WidgetDataState } from '@adminium/w
 
 import { notificationFeedRow, notificationsQuery } from '../api/notifications.js';
 import { t } from '../i18n/t.js';
+import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 import { usePageTemplateData } from './usePageTemplateData.js';
 
-export function PageQueueInboxBinding({ page, adapters, currency }: PageTemplateProps) {
-  const { states } = usePageTemplateData(page);
+export function PageQueueInboxBinding({ page, adapters, currency, formColumns, columnFacts }: PageTemplateProps) {
+  // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
+  const narrowing = useLinkNarrowing(page, adapters.crud?.table);
+  const view = useNarrowedPage(page, narrowing);
+  const { states } = usePageTemplateData(view.page, {}, view.key);
   const crud = adapters.crud;
   const queryClient = useQueryClient();
 
@@ -103,7 +107,11 @@ export function PageQueueInboxBinding({ page, adapters, currency }: PageTemplate
     };
   }, [crud, queryClient]);
 
+  if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
+
   return (
+    <>
+    <LinkFilterBar narrowing={narrowing} columns={formColumns} facts={columnFacts} />
     <PageQueueInbox
       // The connection's currency: a money card that names none reads in it.
       {...(currency === undefined ? {} : { currency })}
@@ -143,5 +151,6 @@ export function PageQueueInboxBinding({ page, adapters, currency }: PageTemplate
         daysUnit: t('templates.queueInbox.daysUnit', '{count} days'),
       }}
     />
+    </>
   );
 }

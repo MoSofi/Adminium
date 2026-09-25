@@ -335,7 +335,8 @@ export default {
       "pending": "Používají se filtry odkazu",
       "failedTitle": "Filtry tohoto odkazu nešlo použít",
       "failedBody": "Seznam se nezobrazuje, aby se nezaměnil s filtrovaným.",
-      "showAll": "Zobrazit celý seznam"
+      "showAll": "Zobrazit celý seznam",
+      "group": "Filtry z odkazu"
     }
   },
   "mutation": {

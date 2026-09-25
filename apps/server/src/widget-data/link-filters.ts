@@ -10,13 +10,18 @@
  * piece so the page can show a chip for every one:
  *
  *   eq:<v>  neq:<v>  in:<a,b>              the value, or one of the values
- *   gt: gte: lt: lte:<n | day | today>     a number, a day, or the venue's today
- *   before:today  after:today               a day or a time, before or after today
+ *   gt: gte: lt: lte:<n | day>             a number, or a day
+ *   before:<day>  after:<day>               a day or a time, before or after that day
+ *   before:now  after:now                   a time, before or after this moment
  *   month:this  month:last                  a day or a time in this or last month
  *   set  unset                              has a value, or has none
  *
+ * A day is `YYYY-MM-DD`, or the venue's `today`, or a whole number of days
+ * from it — `today-30`, `today+7` (at most 3660 either way).
+ *
  * A day on a TIME column is the whole day where the venue is: `after:today`
  * starts at tomorrow's midnight there, `lte:2026-09-25` ends at the next one.
+ * `now` is the instant itself, on a time column only: a date has no moment.
  *
  * WHAT IT NEVER DOES. It never builds SQL: the result is conditions of the list
  * grammar, whose every value binds as a parameter. It never widens a list
@@ -37,6 +42,8 @@ import { calendarBoundValue } from './compiler.js';
 export const LINK_FILTERS_MAX = 8;
 /** How many values one `in:` may list. */
 export const LINK_IN_VALUES_MAX = 50;
+/** The furthest a day may be counted from today, either way: ten years. */
+export const LINK_DAY_OFFSET_MAX = 3660;
 /** The longest single value a piece may carry. */
 const VALUE_MAX = 200;
 
@@ -147,7 +154,7 @@ export function resolveLinkFilters(options: ResolveLinkFiltersOptions): LinkFilt
     if (column.masked && !canReadPii) return ignore('masked-column');
     try {
       const parsed = parsePiece(piece.raw);
-      conditions.push(...conditionsFor(column, parsed.op, parsed.value, { today, dialect, timezone }));
+      conditions.push(...conditionsFor(column, parsed.op, parsed.value, { today, now, dialect, timezone }));
       filters.push({ column: piece.column, raw: piece.raw, status: 'applied', op: parsed.op, value: parsed.value });
     } catch (error) {
       if (error instanceof Refused) return ignore(error.reason);
@@ -176,6 +183,8 @@ function parsePiece(raw: string): { op: LinkOp; value: string | null } {
 
 interface Clock {
   today: string;
+  /** This moment, for `now`. */
+  now: Date;
   dialect: Dialect;
   timezone: string;
 }
@@ -194,8 +203,15 @@ function conditionsFor(column: ResolvedColumn, op: LinkOp, value: string | null,
       if (shift === null) throw new Refused('bad-value');
       return dayRange(column, monthStart(clock.today, shift), monthStart(clock.today, shift + 1), clock);
     }
-    if (value !== 'today') throw new Refused('bad-value');
-    return op === 'before' ? dayCompare(column, 'lt', clock.today, clock) : dayCompare(column, 'gt', clock.today, clock);
+    if (value === 'now') return nowCompare(column, op === 'before' ? 'lt' : 'gt', clock);
+    const day = dayOf(value as string, clock);
+    return op === 'before' ? dayCompare(column, 'lt', day, clock) : dayCompare(column, 'gt', day, clock);
+  }
+
+  if ((kind === 'date' || kind === 'time') && value === 'now') {
+    if (op === 'gt' || op === 'gte' || op === 'lt' || op === 'lte') return nowCompare(column, op, clock);
+    // "Equal to this moment" is no list anyone means.
+    throw new Refused('wrong-operator');
   }
 
   if (kind === 'date' || kind === 'time') {
@@ -257,11 +273,32 @@ function textOf(column: ResolvedColumn, text: string): string {
   return text;
 }
 
-/** A day the link names: `today` on the venue's calendar, or a real `YYYY-MM-DD`. */
+const TODAY_OFFSET = /^today([+-])(\d{1,4})$/;
+
+/**
+ * A day the link names: `today` on the venue's calendar, a whole number of
+ * days from it (`today-30`, `today+7`), or a real `YYYY-MM-DD`.
+ */
 function dayOf(text: string, clock: Clock): string {
   if (text === 'today') return clock.today;
+  const offset = TODAY_OFFSET.exec(text);
+  if (offset !== null) {
+    const days = Number(offset[2]);
+    if (days > LINK_DAY_OFFSET_MAX) throw new Refused('bad-value');
+    return plusDays(clock.today, offset[1] === '-' ? -days : days);
+  }
   if (!isDay(text)) throw new Refused('bad-value');
   return text;
+}
+
+/**
+ * A comparison with this very moment: a time column only — on a date "now"
+ * would silently mean the whole of today, which is the `today` the link could
+ * have said.
+ */
+function nowCompare(column: ResolvedColumn, op: 'gt' | 'gte' | 'lt' | 'lte', clock: Clock): FilterCondition[] {
+  if (column.logicalType === 'date') throw new Refused('wrong-operator');
+  return [{ column: column.name, op, value: calendarBoundValue(column, clock.now, clock.dialect, clock.timezone) }];
 }
 
 /** The instant a venue day starts, spelled as the column keeps a value. */

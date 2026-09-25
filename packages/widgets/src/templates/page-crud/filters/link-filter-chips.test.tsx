@@ -87,6 +87,24 @@ describe('a list opened from a link', () => {
     ]);
   });
 
+  it('says days counted from today, and this moment, in words', async () => {
+    renderList([
+      applied('due_on', 'gte', 'today-30'),
+      applied('due_on', 'lt', 'today-1'),
+      applied('due_on', 'lte', 'today+7'),
+      applied('due_on', 'before', 'now'),
+      applied('due_on', 'after', 'today+1'),
+    ]);
+    await screen.findByText('INV-1');
+    expect(screen.getAllByTestId('link-filter').map((chip) => chip.textContent)).toEqual([
+      'Due on or after 30 days ago',
+      'Due before 1 day ago',
+      'Due on or before 7 days from today',
+      'Due before now',
+      'Due after 1 day from today',
+    ]);
+  });
+
   it('says which pieces it could not use, and why', async () => {
     renderList([
       { column: 'ghost', raw: 'eq:1', status: 'ignored', reason: 'unknown-column' },

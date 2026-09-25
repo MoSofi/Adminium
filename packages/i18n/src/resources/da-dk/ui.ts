@@ -1606,7 +1606,10 @@ export default {
         "ignoredColumn": "Ikke filtreret efter {name}: listen har ingen sådan kolonne",
         "ignoredMasked": "Ikke filtreret efter {name}: den kolonne er skjult for dig",
         "ignoredTooMany": "Ikke filtreret efter {name}: et link kan bære 8 filtre",
-        "ignoredValue": "Ikke filtreret efter {name}: “{filter}” er ikke et filter, kolonnen tager imod"
+        "ignoredValue": "Ikke filtreret efter {name}: “{filter}” er ikke et filter, kolonnen tager imod",
+        "now": "nu",
+        "daysAgo": "{count, plural, one {i dag − # dag} other {i dag − # dage}}",
+        "daysAhead": "{count, plural, one {i dag + # dag} other {i dag + # dage}}"
       }
     },
     "queue": {

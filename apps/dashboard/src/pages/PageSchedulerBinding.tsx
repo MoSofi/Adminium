@@ -24,15 +24,19 @@ import { t } from '../i18n/t.js';
 import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { planningWindowTargetOf, usePlanningStates } from './planning/planningData.js';
+import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageSchedulerBinding({ page, adapters, recordId, columnFacts, currency }: PageTemplateProps) {
+export function PageSchedulerBinding({ page, adapters, recordId, columnFacts, currency, formColumns }: PageTemplateProps) {
   const [params, setParams] = useState<WidgetDataParams>({});
   const window = useMemo(
     () => planningWindowTargetOf(page, ['schedule-matrix'], ['dateColumn', 'startColumn']),
     [page],
   );
-  const states = usePlanningStates(page, params, window);
+  // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
+  const narrowing = useLinkNarrowing(page, adapters.crud?.table);
+  const view = useNarrowedPage(page, narrowing);
+  const states = usePlanningStates(view.page, params, window, view.key);
 
   // An empty layout renders an empty grid — nothing at all. A page created
   // without a table is the way in; the notice names the missing binding.
@@ -42,9 +46,11 @@ export function PageSchedulerBinding({ page, adapters, recordId, columnFacts, cu
   if (layoutIsEmpty(page.config)) {
     return <EmptyLayoutNotice pageId={page.id} template="scheduler" />;
   }
+  if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
 
   return (
     <>
+      <LinkFilterBar narrowing={narrowing} columns={formColumns} facts={columnFacts} />
       <PageScheduler
         // The connection's currency: a money card that names none reads in it.
         {...(currency === undefined ? {} : { currency })}

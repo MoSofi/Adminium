@@ -89,12 +89,17 @@ export interface PageWidgetStates {
  * One batch round trip per page mount under the shared
  * `['widget-data', pageId, params]` key — realtime invalidations refetch it.
  */
-export function usePageWidgetStates(page: PageEnvelope, params: WidgetDataParams = {}): PageWidgetStates {
+export function usePageWidgetStates(
+  page: PageEnvelope,
+  params: WidgetDataParams = {},
+  /** A link's narrowing (`linkNarrowing.ts`): a different narrowing is a different read. */
+  narrowing?: string,
+): PageWidgetStates {
   const queryClient = useQueryClient();
   const { requests, invalid } = useMemo(() => extractPageBindings(page), [page]);
 
   const query = useQuery({
-    queryKey: [WIDGET_DATA_KEY_ROOT, page.id, params] as const,
+    queryKey: [WIDGET_DATA_KEY_ROOT, page.id, params, ...(narrowing === undefined ? [] : [narrowing])] as const,
     enabled: requests.length > 0,
     staleTime: 0,
     queryFn: () => fetchWidgetDataBatch(requests, params),

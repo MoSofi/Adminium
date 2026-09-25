@@ -21,10 +21,14 @@ import { t } from '../i18n/t.js';
 import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { usePlanningStates } from './planning/planningData.js';
+import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageBoardBinding({ page, adapters, recordId, columnFacts, currency }: PageTemplateProps) {
-  const states = usePlanningStates(page);
+export function PageBoardBinding({ page, adapters, recordId, columnFacts, currency, formColumns }: PageTemplateProps) {
+  // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
+  const narrowing = useLinkNarrowing(page, adapters.crud?.table);
+  const view = useNarrowedPage(page, narrowing);
+  const states = usePlanningStates(view.page, {}, undefined, view.key);
 
   // An empty layout renders an empty grid — nothing at all. A page created
   // without a table is the way in; the notice names the missing binding.
@@ -34,9 +38,11 @@ export function PageBoardBinding({ page, adapters, recordId, columnFacts, curren
   if (layoutIsEmpty(page.config)) {
     return <EmptyLayoutNotice pageId={page.id} template="board" />;
   }
+  if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
 
   return (
     <>
+      <LinkFilterBar narrowing={narrowing} columns={formColumns} facts={columnFacts} />
       <PageBoard
         // The connection's currency: a money card that names none reads in it.
         {...(currency === undefined ? {} : { currency })}

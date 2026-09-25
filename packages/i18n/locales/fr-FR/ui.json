@@ -1596,7 +1596,10 @@
         "ignoredColumn": "Pas de filtre sur {name} : cette liste n’a pas cette colonne",
         "ignoredMasked": "Pas de filtre sur {name} : cette colonne vous est masquée",
         "ignoredTooMany": "Pas de filtre sur {name} : un lien peut porter 8 filtres",
-        "ignoredValue": "Pas de filtre sur {name} : « {filter} » n’est pas un filtre accepté par cette colonne"
+        "ignoredValue": "Pas de filtre sur {name} : « {filter} » n’est pas un filtre accepté par cette colonne",
+        "now": "maintenant",
+        "daysAgo": "{count, plural, one {J-#} other {J-#}}",
+        "daysAhead": "{count, plural, one {J+#} other {J+#}}"
       }
     },
     "queue": {

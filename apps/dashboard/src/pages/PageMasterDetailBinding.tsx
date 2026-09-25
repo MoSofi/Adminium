@@ -14,13 +14,22 @@
 import { PageMasterDetail } from '@adminium/widgets';
 
 import { t } from '../i18n/t.js';
+import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 import { usePageTemplateData } from './usePageTemplateData.js';
 
-export function PageMasterDetailBinding({ page, adapters, recordId }: PageTemplateProps) {
-  const { states } = usePageTemplateData(page);
+export function PageMasterDetailBinding({ page, adapters, recordId, formColumns, columnFacts }: PageTemplateProps) {
+  // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
+  const narrowing = useLinkNarrowing(page, adapters.crud?.table);
+  const view = useNarrowedPage(page, narrowing);
+  const { states } = usePageTemplateData(view.page, {}, view.key);
+
+  if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
+
 
   return (
+    <>
+    <LinkFilterBar narrowing={narrowing} columns={formColumns} facts={columnFacts} />
     <PageMasterDetail
       config={page.config}
       states={states}
@@ -44,5 +53,6 @@ export function PageMasterDetailBinding({ page, adapters, recordId }: PageTempla
         selectPrompt: t('templates.masterDetail.selectPrompt', 'Select a record'),
       }}
     />
+    </>
   );
 }

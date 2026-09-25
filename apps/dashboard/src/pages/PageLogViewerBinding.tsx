@@ -21,10 +21,14 @@ import { StreamTransportProvider, streamChannelForSource } from '@adminium/widge
 
 import { appStreamTransport } from './lmc/stream.js';
 import { findItemDescriptor, usePageWidgetStates } from './lmc/widgetStates.js';
+import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageLogViewerBinding({ page, adapters, currency }: PageTemplateProps) {
-  const { states } = usePageWidgetStates(page);
+export function PageLogViewerBinding({ page, adapters, currency, formColumns, columnFacts }: PageTemplateProps) {
+  // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
+  const narrowing = useLinkNarrowing(page, adapters.crud?.table);
+  const view = useNarrowedPage(page, narrowing);
+  const { states } = usePageWidgetStates(view.page, {}, view.key);
 
   const liveChannel = useMemo(() => {
     const log = findItemDescriptor(page, ['log-table', 'realtime-feed'], 'log');
@@ -32,8 +36,11 @@ export function PageLogViewerBinding({ page, adapters, currency }: PageTemplateP
     return streamChannelForSource(log.descriptor.connectionId, log.descriptor.source);
   }, [page]);
 
+  if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
+
   return (
     <StreamTransportProvider transport={appStreamTransport()}>
+      <LinkFilterBar narrowing={narrowing} columns={formColumns} facts={columnFacts} />
       <PageLogViewer
         // The connection's currency: a money card that names none reads in it.
         {...(currency === undefined ? {} : { currency })}

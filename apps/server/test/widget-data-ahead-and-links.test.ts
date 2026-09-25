@@ -205,6 +205,32 @@ describe('the pieces of a link, before any engine sees them', () => {
     expect(reasons([['id', 'eq:0b9a2c3e-4d5f-4a6b-8c7d-9e0f1a2b3c4d']])).toEqual(['applied']);
   });
 
+  it('counts days from today no further than ten years, and names no moment on a date', () => {
+    expect(
+      reasons([
+        ['due_on', 'gte:today-3660'],
+        ['due_on', 'lt:today+3660'],
+        ['due_on', 'gte:today-3661'],
+        ['due_on', 'lt:today+99999'],
+        ['due_on', 'gte:today-'],
+        ['due_on', 'gte:today+1.5'],
+        ['due_on', 'gte:yesterday-1'],
+      ]),
+    ).toEqual(['applied', 'applied', 'bad-value', 'bad-value', 'bad-value', 'bad-value', 'bad-value']);
+    expect(reasons([['due_on', 'before:now'], ['due_on', 'gt:now'], ['status', 'before:now']])).toEqual([
+      'wrong-operator',
+      'wrong-operator',
+      'wrong-operator',
+    ]);
+    // Today is Tokyo's 25th; the bounds are days, spelled as the date column keeps them.
+    expect(resolve([['due_on', 'gte:today-30'], ['due_on', 'lt:today+7']]).where).toEqual({
+      and: [
+        { column: 'due_on', op: 'gte', value: '2026-08-26' },
+        { column: 'due_on', op: 'lt', value: '2026-10-02' },
+      ],
+    });
+  });
+
   it('uses the first eight pieces and says the rest were left out', () => {
     const many = Array.from({ length: 10 }, () => ['status', 'eq:sent'] as [string, string]);
     const resolution = resolve(many);
@@ -273,9 +299,9 @@ async function studio(dialect: Dialect) {
    * The ids a link lets through: its pieces worked out, the tree sent as the
    * page sends it (JSON in `where=`), read by the list itself.
    */
-  const linked = async (link: Record<string, string>) => {
+  const linked = async (link: Record<string, string> | [column: string, raw: string][]) => {
     const resolution = resolveLinkFilters({
-      pieces: Object.entries(link).map(([column, raw]) => ({ column, raw })),
+      pieces: (Array.isArray(link) ? link : Object.entries(link)).map(([column, raw]) => ({ column, raw })),
       table,
       canReadPii: true,
       dialect,
@@ -376,6 +402,42 @@ for (const [dialect, available] of LEGS) {
       // The overview's "Overdue" tile: sent, owing, due before today.
       expect(await ids({ status: 'eq:sent', balance: 'gt:0', due_on: 'before:today' })).toEqual([1]);
     }, 120_000);
+
+    it('counts days from today, either way, on the venue’s calendar — a time column by the venue’s midnight', async () => {
+      const s = await studio(dialect);
+      const ids = async (...pieces: [string, string][]) => (await s.linked(pieces)).ids;
+      // A date column: plain days. Today is Tokyo's 25th.
+      expect(await ids(['due_on', 'gte:today-1'])).toEqual([1, 2, 3, 5]);
+      expect(await ids(['due_on', 'lt:today+1'])).toEqual([1, 2, 4, 6]);
+      expect(await ids(['due_on', 'before:today-30'])).toEqual([4]);
+      expect(await ids(['due_on', 'after:today+1'])).toEqual([5]);
+      // Two pieces on one column: a band of days — the overview's 1–30 days late.
+      expect(await ids(['due_on', 'gte:today-30'], ['due_on', 'lt:today'])).toEqual([1, 6]);
+      expect(await ids(['due_on', 'eq:today-1'])).toEqual([1]);
+      // Time columns, with a zone and without: the day starts at the venue's midnight.
+      for (const column of ['logged_at', 'sent_at']) {
+        // From the 24th's midnight in Tokyo: 23:59 on the 24th is in, 31 August is not.
+        expect(await ids([column, 'gte:today-1']), column).toEqual([1, 2, 3]);
+        // Before the 26th's midnight: 00:30 on the 26th is out.
+        expect(await ids([column, 'lt:today+1']), column).toEqual([1, 2, 4, 6]);
+        expect(await ids([column, 'after:today-1']), column).toEqual([2, 3]);
+        expect(await ids([column, 'before:today-24']), column).toEqual([6]);
+      }
+    }, 120_000);
+
+    it('compares a time column with this very moment, not with the day', async () => {
+      const s = await studio(dialect);
+      const ids = async (...pieces: [string, string][]) => (await s.linked(pieces)).ids;
+      // Now is 01:00 on the 25th in Tokyo: 00:01 today has passed, 00:30 tomorrow has not.
+      for (const column of ['logged_at', 'sent_at']) {
+        expect(await ids([column, 'before:now']), column).toEqual([1, 2, 4, 6]);
+        expect(await ids([column, 'after:now']), column).toEqual([3]);
+        expect(await ids([column, 'lte:now']), column).toEqual([1, 2, 4, 6]);
+        expect(await ids([column, 'gt:now']), column).toEqual([3]);
+      }
+      // "Before today" is a different list: the row at 00:01 today is not in it.
+      expect(await ids(['sent_at', 'before:today'])).toEqual([1, 4, 6]);
+    }, 60_000);
 
     it('leaves out a piece it cannot use, says why, and never widens the rest', async () => {
       const s = await studio(dialect);

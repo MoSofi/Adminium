@@ -335,7 +335,8 @@ export default {
       "pending": "Applying the link’s filters",
       "failedTitle": "This link’s filters could not be applied",
       "failedBody": "The list is not shown, so it is not mistaken for the filtered one.",
-      "showAll": "Show the whole list"
+      "showAll": "Show the whole list",
+      "group": "Filters from the link"
     }
   },
   "mutation": {

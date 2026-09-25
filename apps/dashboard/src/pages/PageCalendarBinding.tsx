@@ -27,6 +27,7 @@ import { EmptyLayoutNotice, layoutIsEmpty } from './planning/EmptyLayoutNotice.j
 import { PlanningCreateDialog } from './planning/PlanningCreateDialog.js';
 import { PlanningRecordDrawer } from './planning/PlanningRecordDrawer.js';
 import { planningWindowTargetOf, usePlanningStates } from './planning/planningData.js';
+import { LinkFilterBar, LinkNarrowingGate, useLinkNarrowing, useNarrowedPage } from './linkNarrowing.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageCalendarBinding({
@@ -45,7 +46,10 @@ export function PageCalendarBinding({
     () => planningWindowTargetOf(page, ['calendar-month'], ['startColumn', 'dateColumn']),
     [page],
   );
-  const states = usePlanningStates(page, params, window);
+  // A link may open this list narrowed (`?f.<column>=<op>:<value>`): see linkNarrowing.tsx.
+  const narrowing = useLinkNarrowing(page, adapters.crud?.table);
+  const view = useNarrowedPage(page, narrowing);
+  const states = usePlanningStates(view.page, params, window, view.key);
   // The page's own form, for a new row — when it has one and the caller may create.
   const form = useMemo(() => parseCrudForm(page.config), [page.config]);
   const [draft, setDraft] = useState<Record<string, unknown> | null>(null);
@@ -59,9 +63,11 @@ export function PageCalendarBinding({
   if (layoutIsEmpty(page.config)) {
     return <EmptyLayoutNotice pageId={page.id} template="calendar" />;
   }
+  if (view.blocked) return <LinkNarrowingGate narrowing={narrowing} cannotCarry={view.cannotCarry} />;
 
   return (
     <>
+      <LinkFilterBar narrowing={narrowing} columns={formColumns} facts={columnFacts} />
       <PageCalendar
         // The connection's currency: a money card that names none reads in it.
         {...(currency === undefined ? {} : { currency })}

@@ -335,7 +335,8 @@ export default {
       "pending": "正在应用链接的筛选",
       "failedTitle": "无法应用此链接的筛选",
       "failedBody": "不显示列表，以免被误认为已筛选的列表。",
-      "showAll": "显示完整列表"
+      "showAll": "显示完整列表",
+      "group": "来自链接的筛选"
     }
   },
   "mutation": {
