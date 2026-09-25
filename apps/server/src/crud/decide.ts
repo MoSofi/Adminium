@@ -156,14 +156,20 @@ function stampValue(stamp: ColumnStamp, context: DecideContext, row: Row): unkno
   const set = stamp.set;
   const guest = context.origin === 'public';
   const who = (field: 'user-name' | 'user-id') => (field === 'user-name' ? context.actor?.label : context.actor?.id) ?? undefined;
-  if (typeof set === 'string') {
+  /** What a stamp word means: the moment, the venue's date, the person (never a guest). */
+  const word = (name: StampWord): unknown => {
     // A zone-less column keeps the server's wall clock, as a fill does; a text
     // one (a time SQLite was given as text) the instant.
-    if (set === 'now') return renderNow({ logicalType: stamp.logicalType }, context.dialect, context.now) ?? instantFor(context.dialect, context.now);
-    if (set === 'today') return venueClock(context.now, context.zone ?? 'UTC').day;
-    return guest ? undefined : who(set);
+    if (name === 'now') return renderNow({ logicalType: stamp.logicalType }, context.dialect, context.now) ?? instantFor(context.dialect, context.now);
+    if (name === 'today') return venueClock(context.now, context.zone ?? 'UTC').day;
+    return guest ? undefined : who(name);
+  };
+  if (typeof set === 'string') return word(set);
+  if ('byOrigin' in set) {
+    // A side's word that is itself a stamp word means what that stamp writes; any other is written as it is.
+    const said = guest ? set.byOrigin.public : set.byOrigin.staff;
+    return said !== undefined && isStampWord(said) ? word(said) : said;
   }
-  if ('byOrigin' in set) return guest ? set.byOrigin.public : set.byOrigin.staff;
   if ('copy' in set) return row[set.copy] ?? null;
   if ('claim' in set) {
     if (guest) return context.claimed?.[set.claim] ?? undefined;
@@ -188,6 +194,15 @@ function stampValue(stamp: ColumnStamp, context: DecideContext, row: Row): unkno
   return undefined;
 }
 
+/** The words a stamp writes by meaning rather than as text. */
+type StampWord = 'now' | 'today' | 'user-name' | 'user-id';
+
+const STAMP_WORDS: ReadonlySet<string> = new Set<StampWord>(['now', 'today', 'user-name', 'user-id']);
+
+function isStampWord(value: string): value is StampWord {
+  return STAMP_WORDS.has(value);
+}
+
 /** A hundred years of days: more is no date anyone keeps. */
 const MAX_DAYS = 36_600;
 
@@ -201,7 +216,11 @@ export function stampYields(stamp: Pick<ColumnStamp, 'set'>, origin: WriteOrigin
   const set = stamp.set;
   const guest = origin === 'public';
   if (typeof set === 'string') return set === 'now' || set === 'today' || !guest;
-  if ('byOrigin' in set) return guest || set.byOrigin.staff !== undefined;
+  if ('byOrigin' in set) {
+    const said = guest ? set.byOrigin.public : set.byOrigin.staff;
+    // A guest is nobody: their side's person word gives nothing.
+    return said !== undefined && !(guest && (said === 'user-name' || said === 'user-id'));
+  }
   if ('claim' in set) return guest ? claimed?.[set.claim] !== undefined && claimed?.[set.claim] !== null : set.staff !== undefined;
   return !('hashOf' in set);
 }

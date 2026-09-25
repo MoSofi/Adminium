@@ -307,11 +307,18 @@ export function columnRuleIssue(
       const sqliteText = model.dialect === 'sqlite' && (column.logicalType === 'text' || column.logicalType === 'varchar');
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
       const dated = typeof set === 'object' && set !== null && 'addDays' in set;
-      if (set === 'now' || set === 'today' || dated) {
-        const clock = NOW_TYPES.has(column.logicalType) || sqliteText;
-        if (!clock) return `A date stamp needs a date or date-and-time column; ${name} is ${column.logicalType}.`;
-      } else if (!TEXTUAL_TYPES.has(column.logicalType) && column.logicalType !== 'enum') {
-        return `A stamp that names someone needs a text column; ${name} is ${column.logicalType}.`;
+      // A `byOrigin` side's word that is a stamp word writes what that word means (`today`: a date).
+      const words =
+        typeof set === 'object' && set !== null && 'byOrigin' in set
+          ? Object.values((set as { byOrigin: Record<string, unknown> }).byOrigin).map(String)
+          : [typeof set === 'string' ? set : dated ? 'today' : ''];
+      const clock = NOW_TYPES.has(column.logicalType) || sqliteText;
+      for (const word of words) {
+        if (word === 'now' || word === 'today') {
+          if (!clock) return `A date stamp needs a date or date-and-time column; ${name} is ${column.logicalType}.`;
+        } else if (!TEXTUAL_TYPES.has(column.logicalType) && column.logicalType !== 'enum') {
+          return `A stamp that names someone needs a text column; ${name} is ${column.logicalType}.`;
+        }
       }
       if (typeof set === 'object' && set !== null && 'copy' in set) {
         const source = String((set as { copy: unknown }).copy);
