@@ -1,5 +1,22 @@
 # @adminium/dashboard
 
+## 0.3.3
+
+### Patch Changes
+
+- 69ba57d: The code a shared link opens a row with is shown to the staff who read its table, even when its name reads like a secret. A studio's `share_token` holds the handover link Adminium made to be sent, but a name with `token` in it was taken for a secret and left out of every answer, admins' included: the desk could not show or copy the link, and "Make a new link" answered without the new code. Now the install says the link's column is no secret, on a table the app made, so the list, the record, a new record and the new link's answer all carry it, and a new record gets its code when it is made. A `code` rule by itself shows nothing: a code column whose name reads like a secret, with no shared link and no `secret: false`, stays one, as every code rule written before this release does. A manifest column may say `secret: true` or `secret: false` to settle the guess Adminium makes from its name, as `personal` does for personal data, but an app shows a column only on a table its install made: on a table it reuses (your `users`, with its `api_token`), a rule that would show a secret or take a personal column's mask off is skipped, the check step says so, and only a Super Admin can show the column, in Studio. A secret you set in Studio wins over an app's word, and an app may add only `secret: true` to a column of an add-on's shape. A Studio save that stops any column being a secret needs Super Admin, as turning off a personal-data mask does, and so does using a project's schema file that would. The public side never shows a code unless an entry names it: an entry or a generated endpoint that names no columns leaves codes out, and no entry or endpoint of the table, anonymous or not, may show, filter, search or order by a shared link's code. The audit log and the automation logs keep `[code]` (or `[new code]`) where a code was, neither the assistant nor an AI-assist prompt's sampling ever reads one, and "Make a new link" answers with the new code only to someone who may read the table. A column renamed from a secret-looking name to a harmless one stays secret. No rule copies a secret, personal data or a shared link's code into a column where it is not kept the same way: a `copy`, a stamp that copies a column of its row, or a formula reading one, is refused in the manifest and in Studio, and skipped (saying why) by an install. A shared link's code is never copied at all. An automation on a deleted row acts on the row as it was, while its log keeps `[code]` and masked values as before.
+- 1e00e94: A column can be required only for some values of another column of its row: `"requiredWhen": { "column": "kind", "in": ["away"] }` asks for `person_id` on an away event and not on one in the office. A create or an update that leaves the column empty while the other column holds one of the values is refused on every door (a form, a bulk edit, an import, an automation, an outbox's change) with 422 `VALIDATION_FAILED` and the code `required` on the column, and on the public API with its one refusal. Moving the other column to one of the values over an empty column is refused too. A create that leaves the other column out is judged by that column's database default. A yes is a yes in any spelling (`on`, `y`, ` true`, `1`), and on MySQL a text value is compared as MySQL compares it (`AWAY ` is `away`). An edit that changes neither column is not judged, so a row kept from before the rule can still be edited, in the record form too. Two people changing the same row at once cannot together leave it breaking the rule: the second write is refused. Studio refuses the rule beside `required`, on a column Adminium fills, or with a value the other column's own list does not have, as the manifest does, and a yes or a no for a number column on Postgres or MySQL. A number written to a number column there stays a number, whatever a rule lists. The record form marks the field required as soon as the other column holds one of the values, including a yes read back as `1`.
+- Updated dependencies [69ba57d]
+- Updated dependencies [1e00e94]
+- Updated dependencies [22f5722]
+  - @adminium/i18n@0.3.3
+  - @adminium/widgets@0.3.3
+  - @adminium/engine@0.3.3
+  - @adminium/charts@0.3.3
+  - @adminium/add-on-contracts@0.3.3
+  - @adminium/tokens@0.3.3
+  - @adminium/ui@0.3.3
+
 ## 0.3.2
 
 ### Patch Changes
