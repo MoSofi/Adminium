@@ -1584,7 +1584,30 @@ export default {
         "updateFailed": "Aktualisierung fehlgeschlagen."
       },
       "uniqueHelper": "Muss in {table} eindeutig sein.",
-      "uniqueHelperCounted": "{count, plural, one {Mit {n} Zeile abgeglichen.} other {Mit {n} Zeilen abgeglichen.}}"
+      "uniqueHelperCounted": "{count, plural, one {Mit {n} Zeile abgeglichen.} other {Mit {n} Zeilen abgeglichen.}}",
+      "linkFilter": {
+        "remove": "Filter {column} entfernen",
+        "today": "heute",
+        "eq": "{name} ist {value}",
+        "neq": "{name} ist nicht {value}",
+        "in": "{name} ist eines von {values}",
+        "gt": "{name} mehr als {value}",
+        "gte": "{name} {value} oder mehr",
+        "lt": "{name} weniger als {value}",
+        "lte": "{name} {value} oder weniger",
+        "after": "{name} nach {value}",
+        "before": "{name} vor {value}",
+        "onOrAfter": "{name} am {value} oder später",
+        "onOrBefore": "{name} am {value} oder früher",
+        "thisMonth": "{name} diesen Monat",
+        "lastMonth": "{name} letzten Monat",
+        "set": "{name} ist ausgefüllt",
+        "unset": "{name} ist leer",
+        "ignoredColumn": "Nicht nach {name} gefiltert: Diese Liste hat keine solche Spalte",
+        "ignoredMasked": "Nicht nach {name} gefiltert: Diese Spalte ist für Sie verborgen",
+        "ignoredTooMany": "Nicht nach {name} gefiltert: Ein Link kann 8 Filter tragen",
+        "ignoredValue": "Nicht nach {name} gefiltert: „{filter}“ ist kein Filter, den diese Spalte annimmt"
+      }
     },
     "queue": {
       "allSegment": "Alle",

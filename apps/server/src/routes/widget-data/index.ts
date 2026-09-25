@@ -22,6 +22,7 @@ import { connectionTenantConfig, overridesRepo, snapshotsRepo, userPrefsRepo, ty
 import type { DatabaseModel } from '@adminium/engine';
 import type { QueryDescriptor } from '@adminium/engine/config';
 
+import { auditExempt } from '../../audit/coverage.js';
 import { AppError, ForbiddenError, NotFoundError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
@@ -32,8 +33,16 @@ import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
 import { groupLabelsFor } from '../../widget-data/group-labels.js';
+import { resolveLinkFilters } from '../../widget-data/link-filters.js';
 import { shapeRows, toNumber, type ShapedPayload } from '../../widget-data/shapers.js';
-import { widgetBatchBody, widgetBatchReply, widgetQueryBody, widgetQueryReply } from './schema.js';
+import {
+  linkFiltersBody,
+  linkFiltersReply,
+  widgetBatchBody,
+  widgetBatchReply,
+  widgetQueryBody,
+  widgetQueryReply,
+} from './schema.js';
 
 export interface WidgetDataRoutesDeps {
   manager: ConnectionManager;
@@ -206,6 +215,52 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       async (request) => {
         await app.rbac.resolve(request); // 401 without a principal
         return runDescriptor(request, request.body.descriptor, request.body.params);
+      },
+    );
+
+    /*
+     * A link that opens a records page filtered. Worked out here rather than in
+     * the browser because "today" is the venue's and the column types are the
+     * snapshot's; the page then ANDs the returned tree into every read of its
+     * list (and its exports), where each value binds like any other filter.
+     * The same table read check as a widget, so a link cannot probe a table
+     * its reader may not open.
+     */
+    app.post(
+      '/widget-data/link-filters',
+      {
+        schema: { body: linkFiltersBody, response: { 200: linkFiltersReply } },
+        // The denied branch audits (rbac permission.denied), as a widget read does.
+        config: {
+          audit: auditExempt('Works out a list filter from a link and reads no rows; a POST only because the pieces ride in a body.'),
+        },
+      },
+      async (request) => {
+        await app.rbac.resolve(request); // 401 without a principal
+        const { connectionId, filters } = request.body;
+        await manager.mustFind(connectionId);
+        const view = await viewFor(connectionId, await readerLocale(request));
+        const table = view.table(request.body.table);
+        const permission = `table:${connectionId}:${table.id}:read`;
+        if (!(await request.can(permission))) {
+          await app.rbac.audit(request, {
+            category: 'rbac',
+            action: 'permission.denied',
+            connectionId,
+            changes: { after: { permission, method: request.method, url: request.url } },
+          });
+          throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', { permission });
+        }
+        const { dialect } = await manager.data(connectionId);
+        const timezone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
+        return resolveLinkFilters({
+          pieces: filters,
+          table,
+          canReadPii: await canReadPii(request, connectionId, table.id),
+          dialect,
+          timezone,
+          now: deps.now?.() ?? new Date(),
+        });
       },
     );
 

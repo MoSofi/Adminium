@@ -38,6 +38,7 @@ import { reportsRoutes } from '../reports/routes.js';
 import { setupStateQuery } from '../setup/setupApi.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
+import { validatePageSearch } from '../pages/pageSearch.js';
 import { preloadPageTemplates } from '../pages/templates.js';
 import { LoginPage } from '../auth/LoginPage.js';
 import { OtpPage } from '../auth/OtpPage.js';
@@ -482,6 +483,8 @@ function PageRouteErrorComponent({ error }: { error: Error }) {
 const pageRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/p/$slug',
+  // `?f.<column>=<op>:<value>`: a link that opens the list filtered (pages/pageSearch.ts, pages/linkFilters.ts).
+  validateSearch: validatePageSearch,
   loader: ({ context, params }) => loadPageDocument(context.queryClient, context.bootstrap, params.slug),
   errorComponent: PageRouteErrorComponent,
   component: PageRenderer,

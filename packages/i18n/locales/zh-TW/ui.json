@@ -1574,7 +1574,30 @@
         "updateFailed": "更新失敗。"
       },
       "uniqueHelper": "在 {table} 中必須是唯一值。",
-      "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}"
+      "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}",
+      "linkFilter": {
+        "remove": "移除 {column} 篩選",
+        "today": "今天",
+        "eq": "{name} 為 {value}",
+        "neq": "{name} 不為 {value}",
+        "in": "{name} 為 {values} 之一",
+        "gt": "{name} 大於 {value}",
+        "gte": "{name} 不少於 {value}",
+        "lt": "{name} 小於 {value}",
+        "lte": "{name} 不超過 {value}",
+        "after": "{name} 晚於 {value}",
+        "before": "{name} 早於 {value}",
+        "onOrAfter": "{name} 在 {value} 當天或之後",
+        "onOrBefore": "{name} 在 {value} 當天或之前",
+        "thisMonth": "{name} 在本月",
+        "lastMonth": "{name} 在上月",
+        "set": "{name} 已填寫",
+        "unset": "{name} 為空",
+        "ignoredColumn": "未按 {name} 篩選：此清單沒有該欄",
+        "ignoredMasked": "未按 {name} 篩選：該欄對你隱藏",
+        "ignoredTooMany": "未按 {name} 篩選：一個連結最多帶 8 個篩選",
+        "ignoredValue": "未按 {name} 篩選：「{filter}」不是此欄接受的篩選"
+      }
     },
     "queue": {
       "allSegment": "全部",

@@ -34,6 +34,7 @@ import {
   type FormRelationFact,
 } from '../../page-config/index.js';
 import { FilterBar, ReferenceFilterPicker, type FilterSpec } from './filters/FilterBar.js';
+import { LinkFilterChips, type PageCrudLinkFilter } from './filters/LinkFilterChips.js';
 import type { ControlOption } from './controls/index.js';
 import { optionsForColumn } from './field-mapping.js';
 import type { ColumnFacts, ListOptionsResolver } from './field-mapping.js';
@@ -226,6 +227,19 @@ export interface PageCrudProps {
    * ABSENT ⇒ the bulk bar is what it always was.
    */
   bulkActions?: readonly PageCrudBulkAction[] | undefined;
+  /**
+   * THE FILTERS A LINK OPENED THIS LIST WITH (`?f.<column>=<op>:<value>`),
+   * as the host's server worked them out. The host narrows every read of
+   * `api` by them; this draws them as chips so a narrowed list never looks
+   * like the whole table, and treats "nothing matches" as a filtered result.
+   *
+   * ABSENT or empty ⇒ the toolbar is what it always was.
+   */
+  linkFilters?: readonly PageCrudLinkFilter[] | undefined;
+  /** Drop one link filter (by position). Required for the chips to render. */
+  onRemoveLinkFilter?: ((index: number) => void) | undefined;
+  /** Drop them all — the empty result's "Clear filters" also clears these. */
+  onClearLinkFilters?: (() => void) | undefined;
 }
 
 /** One host bulk action. */
@@ -318,9 +332,26 @@ export function PageCrud({
   bulkActions,
   labels,
   testId,
+  linkFilters = [],
+  onRemoveLinkFilter,
+  onClearLinkFilters,
 }: PageCrudProps) {
   const entity = entityName ?? entityFromTable(source.table);
   const tableName = tableLabel ?? source.table;
+  // A link's filter narrows the list as much as the toolbar's own do.
+  const linkNarrowed = linkFilters.some((filter) => filter.status === 'applied');
+  /** A column's name and value words, for the link's chips. */
+  const describeColumn = useCallback(
+    (name: string) => {
+      const spec = columns.find((column) => column.name === name);
+      // A column the grid does not list (the link may filter on any of the
+      // table's) is named as the form names it, else by itself.
+      const fact = formColumns?.find((column) => column.spec.name === name)?.spec as { label?: unknown } | undefined;
+      const label = spec?.label ?? (typeof fact?.label === 'string' ? fact.label : name);
+      return { label, valueLabel: (value: string) => spec?.enumLabels?.[value] ?? value };
+    },
+    [columns, formColumns],
+  );
   const queue = useToastQueue();
   const t = useMaybeT();
 
@@ -1138,6 +1169,9 @@ export function PageCrud({
           />
           {toolbarAccessory}
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+            {onRemoveLinkFilter === undefined ? null : (
+              <LinkFilterChips filters={linkFilters} describeColumn={describeColumn} onRemove={onRemoveLinkFilter} />
+            )}
             <FilterBar
               filters={filterSpecs}
               active={filters}
@@ -1209,7 +1243,7 @@ export function PageCrud({
             <Spinner label={t('ui:templates.crud.loadingRows', 'Loading rows')} />
           </div>
         ) : list.rows.length === 0 ? (
-          q !== '' || filters.length > 0 ? (
+          q !== '' || filters.length > 0 || linkNarrowed ? (
             <EmptyState
               preset="no-matches"
               title={t('ui:templates.crud.noMatchesTitle', 'No matching rows')}
@@ -1217,7 +1251,7 @@ export function PageCrud({
               // F18: the way out, where the person is looking. A filtered-away
               // table with the only Clear button up in the toolbar is a screen
               // that says "nothing here" and hides the reason.
-              {...(filters.length === 0
+              {...(filters.length === 0 && !linkNarrowed
                 ? {}
                 : {
                     actions: (
@@ -1227,6 +1261,7 @@ export function PageCrud({
                           setFilters([]);
                           setCursor('');
                           setCursorStack([]);
+                          if (linkNarrowed) onClearLinkFilters?.();
                         }}
                         data-testid="filter-clear-empty"
                       >

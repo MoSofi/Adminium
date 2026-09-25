@@ -1574,7 +1574,30 @@
         "updateFailed": "Échec de la mise à jour."
       },
       "uniqueHelper": "Doit être unique dans {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Vérifié sur {n} ligne.} other {Vérifié sur {n} lignes.}}"
+      "uniqueHelperCounted": "{count, plural, one {Vérifié sur {n} ligne.} other {Vérifié sur {n} lignes.}}",
+      "linkFilter": {
+        "remove": "Retirer le filtre {column}",
+        "today": "aujourd’hui",
+        "eq": "{name} est {value}",
+        "neq": "{name} n’est pas {value}",
+        "in": "{name} est l’un de {values}",
+        "gt": "{name} supérieur à {value}",
+        "gte": "{name} {value} ou plus",
+        "lt": "{name} inférieur à {value}",
+        "lte": "{name} {value} ou moins",
+        "after": "{name} après {value}",
+        "before": "{name} avant {value}",
+        "onOrAfter": "{name} le {value} ou après",
+        "onOrBefore": "{name} le {value} ou avant",
+        "thisMonth": "{name} ce mois-ci",
+        "lastMonth": "{name} le mois dernier",
+        "set": "{name} est renseigné",
+        "unset": "{name} est vide",
+        "ignoredColumn": "Pas de filtre sur {name} : cette liste n’a pas cette colonne",
+        "ignoredMasked": "Pas de filtre sur {name} : cette colonne vous est masquée",
+        "ignoredTooMany": "Pas de filtre sur {name} : un lien peut porter 8 filtres",
+        "ignoredValue": "Pas de filtre sur {name} : « {filter} » n’est pas un filtre accepté par cette colonne"
+      }
     },
     "queue": {
       "allSegment": "Tout",

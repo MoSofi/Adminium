@@ -407,6 +407,51 @@ export function dayWindow(value: unknown, now: Date, timezone: string): { last: 
   return reject('The day asked for is not one this page can show.', { day: value });
 }
 
+/** A window's instants; `end` is null for one that reaches forward with no end. */
+interface WindowBounds {
+  start: Date;
+  end: Date | null;
+  priorStart: Date;
+  priorEnd: Date;
+}
+
+/**
+ * A window that reaches forward: from the start of the current period on the
+ * venue's clock (today's midnight, this Monday, the 1st of this month) with no
+ * end. It has no prior span — `compareToPrior` is refused on it.
+ */
+export function aheadBounds(unit: BucketUnit, now: Date, timezone: string): WindowBounds {
+  const { start } = calendarBounds(1, unit, 0, now, timezone);
+  return { start, end: null, priorStart: start, priorEnd: start };
+}
+
+/**
+ * `ahead` has one reading only. Every knob that would make it a second one is
+ * refused by name instead of ignored: `last` other than 1 (a reader would take
+ * it as "the next n periods" and miss every row past them), `offset`, a prior
+ * span, the day control (which names a past day) and `calendar: false`.
+ */
+function assertAheadWindow(window: NonNullable<QueryDescriptor['window']>): void {
+  const clash =
+    window.last !== 1
+      ? 'last'
+      : window.offset !== undefined && window.offset !== 0
+        ? 'offset'
+        : window.compareToPrior
+          ? 'compareToPrior'
+          : window.param !== undefined
+            ? 'param'
+            : window.calendar === false
+              ? 'calendar'
+              : null;
+  if (clash !== null) {
+    reject(
+      `A window that reaches ahead runs from the start of this ${window.unit} with no end, so it takes no \`${clash}\`${clash === 'last' ? ' other than 1' : ''}.`,
+      { window: { ahead: true, [clash]: window[clash] } },
+    );
+  }
+}
+
 /** How far a zone's clock is ahead of UTC at `instant`, in minutes. */
 function offsetMinutes(instant: Date, timezone: string): number {
   const clock = venueClock(instant, timezone);
@@ -525,6 +570,17 @@ function windowBoundValue(date: Date, dialect: Dialect): Date | string {
     return date.toISOString().slice(0, 19).replace('T', ' ');
   }
   return date;
+}
+
+/**
+ * A calendar boundary spelled as the column keeps a value: a date column takes
+ * the venue's day, a zone-less timestamp this server's wall clock (what every
+ * write to it stores, `crud/write-values.ts`), and a zoned one the instant.
+ */
+export function calendarBoundValue(column: ResolvedColumn, instant: Date, dialect: Dialect, timezone: string): unknown {
+  if (column.logicalType === 'date') return venueClock(instant, timezone).day;
+  if (column.logicalType === 'timestamp') return normalizeWriteValue(column, instant.toISOString());
+  return windowBoundValue(instant, dialect);
 }
 
 /**
@@ -836,13 +892,17 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     descriptor.window === undefined || followed === undefined
       ? descriptor.window
       : { ...descriptor.window, ...dayWindow(followed, now(), zone), calendar: true };
-  const calendar = span?.calendar === true;
-  const bounds =
+  const ahead = descriptor.window?.ahead === true;
+  if (ahead && descriptor.window !== undefined) assertAheadWindow(descriptor.window);
+  const calendar = span?.calendar === true || ahead;
+  const bounds: WindowBounds | null =
     span === undefined
       ? null
-      : calendar
-        ? calendarBounds(span.last, span.unit, span.offset ?? 0, now(), zone)
-        : windowBounds(span.last, span.unit, now());
+      : ahead
+        ? aheadBounds(span.unit, now(), zone)
+        : calendar
+          ? calendarBounds(span.last, span.unit, span.offset ?? 0, now(), zone)
+          : windowBounds(span.last, span.unit, now());
   /*
    * A calendar window's bounds are spelled as the column keeps them: a date
    * column takes the venue's days, and a zone-less timestamp this server's
@@ -850,21 +910,20 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
    * rolling window keeps its UTC spelling, as it always has (exact where the
    * server runs on UTC, as the shipped image does).
    */
-  const boundOf = (instant: Date): unknown => {
-    if (!calendar || windowColumn === null) return windowBoundValue(instant, dialect);
-    if (windowColumn.logicalType === 'date') return venueClock(instant, zone).day;
-    if (windowColumn.logicalType === 'timestamp') return normalizeWriteValue(windowColumn, instant.toISOString());
-    return windowBoundValue(instant, dialect);
-  };
+  const boundOf = (instant: Date): unknown =>
+    !calendar || windowColumn === null ? windowBoundValue(instant, dialect) : calendarBoundValue(windowColumn, instant, dialect, zone);
 
-  const applyWhere = (qb: Qb, window: { start: Date; end: Date } | null): Qb => {
+  const applyWhere = (qb: Qb, window: { start: Date; end: Date | null } | null): Qb => {
     let out = qb;
     if (conditions.length > 0) {
       out = out.where((eb) => compileFilter(eb as never, filterCtx, { and: conditions }));
     }
     if (window !== null && windowColumn !== null) {
       const ref = dynamic.ref(windowColumn.name);
-      out = out.where((eb) => eb(ref, '>=', boundOf(window.start))).where((eb) => eb(ref, '<', boundOf(window.end)));
+      out = out.where((eb) => eb(ref, '>=', boundOf(window.start)));
+      // A window that reaches forward has no end: every row from its start on.
+      const end = window.end;
+      if (end !== null) out = out.where((eb) => eb(ref, '<', boundOf(end)));
     }
     return out;
   };
@@ -931,7 +990,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   const groupAliases = [GROUP_ALIAS, COL_ALIAS];
 
   let bucketZone: string | null = null;
-  const build = (window: { start: Date; end: Date } | null): Qb => {
+  const build = (window: { start: Date; end: Date | null } | null): Qb => {
     let qb = applyWhere(db.selectFrom(table.id) as unknown as Qb, window);
 
     if (rowShape) {

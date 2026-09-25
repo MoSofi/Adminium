@@ -46,6 +46,7 @@ import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
 import { PageHostContext, type PageHost } from './pageHost.js';
 import { DEFAULT_TEMPLATE_SURFACE, templateSurface } from './surfaceDefaults.js';
+import { STAFF_HREF, openStaffTarget, staffTargetFor } from './staffLink.js';
 import { resolvePageTemplate, type PageTemplateAdapters, type PageTemplateComponent } from './templates.js';
 import { useUndoToast } from './toasts.js';
 
@@ -368,6 +369,13 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
     [openRecord, page.source.table, page.source.connectionId, bootstrap, router],
   );
 
+  // `@staff`: the owning app's staff screens, where the sidebar would open them.
+  const staff = useMemo(() => staffTargetFor(bootstrap, slug), [bootstrap, slug]);
+  const linkAvailable = useCallback(
+    (href: string) => (href.startsWith('@') ? href === STAFF_HREF && staff !== null : true),
+    [staff],
+  );
+
   const invalidateAfterMutation = useCallback(() => {
     if (crud !== null) {
       void queryClient.invalidateQueries({ queryKey: ['data', crud.connectionId, crud.table] });
@@ -378,6 +386,13 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
   const onEvent = useCallback(
     (event: WidgetEvent) => {
       if (event.type === 'drill-through') {
+        if (event.href === STAFF_HREF) {
+          if (staff !== null) openStaffTarget(staff, (href) => router.history.push(href));
+          return;
+        }
+        // Another `@` address names something this host does not know: it
+        // opens nothing (and `linkAvailable` kept its button from being drawn).
+        if (event.href.startsWith('@')) return;
         router.history.push(event.href);
         return;
       }
@@ -419,7 +434,7 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
         });
       return promise;
     },
-    [router, openRecordFor, crud, invalidateAfterMutation, notifyUndoable],
+    [router, openRecordFor, crud, invalidateAfterMutation, notifyUndoable, staff],
   );
 
   return useMemo<PageTemplateAdapters>(
@@ -430,8 +445,9 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
       onEvent,
       openRecord,
       notifyUndoable,
+      linkAvailable,
     }),
-    [crud, hasLayout, dashboard, withDay, day, onEvent, openRecord, notifyUndoable],
+    [crud, hasLayout, dashboard, withDay, day, onEvent, openRecord, notifyUndoable, linkAvailable],
   );
 }
 

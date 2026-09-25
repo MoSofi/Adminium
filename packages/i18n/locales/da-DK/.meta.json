@@ -5179,6 +5179,22 @@
     "srcHash": "bd4ffde747c7",
     "status": "mt"
   },
+  "common.page.linkFilters.failedBody": {
+    "status": "mt",
+    "srcHash": "4336520587f3"
+  },
+  "common.page.linkFilters.failedTitle": {
+    "status": "mt",
+    "srcHash": "f4f23a541a8a"
+  },
+  "common.page.linkFilters.pending": {
+    "status": "mt",
+    "srcHash": "206528a4cc7e"
+  },
+  "common.page.linkFilters.showAll": {
+    "status": "mt",
+    "srcHash": "e1edc264da7b"
+  },
   "common.page.renderError.title": {
     "srcHash": "a3fa115d48fd",
     "status": "mt"
@@ -23350,6 +23366,90 @@
   "ui.templates.crud.filters.yes": {
     "status": "mt",
     "srcHash": "5397e0583f14"
+  },
+  "ui.templates.crud.linkFilter.after": {
+    "status": "mt",
+    "srcHash": "9ac68a81cb46"
+  },
+  "ui.templates.crud.linkFilter.before": {
+    "status": "mt",
+    "srcHash": "d205cfc1cb28"
+  },
+  "ui.templates.crud.linkFilter.eq": {
+    "status": "mt",
+    "srcHash": "1271b764a15a"
+  },
+  "ui.templates.crud.linkFilter.gt": {
+    "status": "mt",
+    "srcHash": "98837ef8b377"
+  },
+  "ui.templates.crud.linkFilter.gte": {
+    "status": "mt",
+    "srcHash": "86193666bbb7"
+  },
+  "ui.templates.crud.linkFilter.ignoredColumn": {
+    "status": "mt",
+    "srcHash": "c4d7b49fd05e"
+  },
+  "ui.templates.crud.linkFilter.ignoredMasked": {
+    "status": "mt",
+    "srcHash": "041fd71e1e8a"
+  },
+  "ui.templates.crud.linkFilter.ignoredTooMany": {
+    "status": "mt",
+    "srcHash": "0319b67fafd8"
+  },
+  "ui.templates.crud.linkFilter.ignoredValue": {
+    "status": "mt",
+    "srcHash": "f6b9f7511dfb"
+  },
+  "ui.templates.crud.linkFilter.in": {
+    "status": "mt",
+    "srcHash": "514f1e9a7394"
+  },
+  "ui.templates.crud.linkFilter.lastMonth": {
+    "status": "mt",
+    "srcHash": "8e7b12f0eab4"
+  },
+  "ui.templates.crud.linkFilter.lt": {
+    "status": "mt",
+    "srcHash": "858bffe5a0c5"
+  },
+  "ui.templates.crud.linkFilter.lte": {
+    "status": "mt",
+    "srcHash": "7eebfbd8e455"
+  },
+  "ui.templates.crud.linkFilter.neq": {
+    "status": "mt",
+    "srcHash": "36e8e00d2c25"
+  },
+  "ui.templates.crud.linkFilter.onOrAfter": {
+    "status": "mt",
+    "srcHash": "2d0c908acb61"
+  },
+  "ui.templates.crud.linkFilter.onOrBefore": {
+    "status": "mt",
+    "srcHash": "b2e5f4a51d31"
+  },
+  "ui.templates.crud.linkFilter.remove": {
+    "status": "mt",
+    "srcHash": "0269a0053d3d"
+  },
+  "ui.templates.crud.linkFilter.set": {
+    "status": "mt",
+    "srcHash": "25870604d0f8"
+  },
+  "ui.templates.crud.linkFilter.thisMonth": {
+    "status": "mt",
+    "srcHash": "6ca2f5d3d5ef"
+  },
+  "ui.templates.crud.linkFilter.today": {
+    "status": "mt",
+    "srcHash": "2dd2bed72567"
+  },
+  "ui.templates.crud.linkFilter.unset": {
+    "status": "mt",
+    "srcHash": "31e8df339afd"
   },
   "ui.templates.crud.loadingRows": {
     "srcHash": "ac8e946b7a45",

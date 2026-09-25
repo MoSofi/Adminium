@@ -330,6 +330,12 @@ export default {
     "unknownTemplate": {
       "title": "Modèle de page inconnu",
       "body": "Cette page utilise un modèle que cette version ne reconnaît pas. Il provient peut-être d’un Adminium plus récent ou d’une extension qui n’est pas installée."
+    },
+    "linkFilters": {
+      "pending": "Application des filtres du lien",
+      "failedTitle": "Les filtres de ce lien n’ont pas pu être appliqués",
+      "failedBody": "La liste n’est pas affichée, pour ne pas la confondre avec la liste filtrée.",
+      "showAll": "Afficher toute la liste"
     }
   },
   "mutation": {

@@ -559,7 +559,14 @@ export function draftIsLossy(descriptor: QueryDescriptor): boolean {
     (descriptor.aggregations?.length ?? 0) > 1 ||
     (descriptor.orderBy?.length ?? 0) > 1 ||
     (descriptor.filters ?? []).some((filter) => filter.param !== undefined) ||
-    descriptor.cursor !== undefined
+    descriptor.cursor !== undefined ||
+    // The form's window is "the last n units": one on the venue's calendar,
+    // moved back, following the day control or reaching ahead ("not yet due")
+    // would come back as a different window, so the editor warns first.
+    descriptor.window?.ahead === true ||
+    descriptor.window?.calendar === true ||
+    (descriptor.window?.offset ?? 0) !== 0 ||
+    descriptor.window?.param !== undefined
   );
 }
 

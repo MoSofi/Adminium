@@ -67603,6 +67603,9 @@
                           "param": {
                             "type": "string",
                             "pattern": "^[a-zA-Z][a-zA-Z0-9_.]{0,63}$"
+                          },
+                          "ahead": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -67680,6 +67683,149 @@
                   "required": [
                     "result",
                     "cached"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/widget-data/link-filters": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "table": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "filters": {
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "column": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "raw": {
+                          "type": "string",
+                          "maxLength": 400
+                        }
+                      },
+                      "required": [
+                        "column",
+                        "raw"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "connectionId",
+                  "table",
+                  "filters"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "where": {},
+                    "filters": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string"
+                              },
+                              "raw": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "applied"
+                                ]
+                              },
+                              "op": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "raw",
+                              "status",
+                              "op",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "column": {
+                                "type": "string"
+                              },
+                              "raw": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ignored"
+                                ]
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "column",
+                              "raw",
+                              "status",
+                              "reason"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "where",
+                    "filters"
                   ],
                   "additionalProperties": false
                 }
@@ -67925,6 +68071,9 @@
                                 "param": {
                                   "type": "string",
                                   "pattern": "^[a-zA-Z][a-zA-Z0-9_.]{0,63}$"
+                                },
+                                "ahead": {
+                                  "type": "boolean"
                                 }
                               },
                               "required": [

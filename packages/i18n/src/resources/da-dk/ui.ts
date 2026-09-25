@@ -1584,7 +1584,30 @@ export default {
         "updateFailed": "Opdateringen mislykkedes."
       },
       "uniqueHelper": "Skal være unik i {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Kontrolleret mod {n} række.} other {Kontrolleret mod {n} rækker.}}"
+      "uniqueHelperCounted": "{count, plural, one {Kontrolleret mod {n} række.} other {Kontrolleret mod {n} rækker.}}",
+      "linkFilter": {
+        "remove": "Fjern filteret {column}",
+        "today": "i dag",
+        "eq": "{name} er {value}",
+        "neq": "{name} er ikke {value}",
+        "in": "{name} er en af {values}",
+        "gt": "{name} mere end {value}",
+        "gte": "{name} {value} eller mere",
+        "lt": "{name} mindre end {value}",
+        "lte": "{name} {value} eller mindre",
+        "after": "{name} efter {value}",
+        "before": "{name} før {value}",
+        "onOrAfter": "{name} {value} eller senere",
+        "onOrBefore": "{name} {value} eller tidligere",
+        "thisMonth": "{name} denne måned",
+        "lastMonth": "{name} sidste måned",
+        "set": "{name} er udfyldt",
+        "unset": "{name} er tom",
+        "ignoredColumn": "Ikke filtreret efter {name}: listen har ingen sådan kolonne",
+        "ignoredMasked": "Ikke filtreret efter {name}: den kolonne er skjult for dig",
+        "ignoredTooMany": "Ikke filtreret efter {name}: et link kan bære 8 filtre",
+        "ignoredValue": "Ikke filtreret efter {name}: “{filter}” er ikke et filter, kolonnen tager imod"
+      }
     },
     "queue": {
       "allSegment": "Alle",

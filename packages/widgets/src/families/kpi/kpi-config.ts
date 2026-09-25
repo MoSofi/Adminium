@@ -64,6 +64,15 @@ export const kpiStatCardConfigSchema = widgetSharedConfigSchema.extend({
       'clipboard-check',
       'bell-ring',
       'message-square-warning',
+      // A studio's: overdue money, work done, proposals out, projects, a client
+      // who says they paid, changes asked for, new enquiries.
+      'clock-alert',
+      'circle-check',
+      'file-pen-line',
+      'folder-kanban',
+      'hand-coins',
+      'message-square-diff',
+      'inbox',
     ])
     .default('activity'),
   iconTone: z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']).default('accent'),

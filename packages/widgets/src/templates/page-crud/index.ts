@@ -63,3 +63,4 @@ export {
   type PageCrudLabels,
   type PageCrudProps,
 } from './PageCrud.js';
+export { LinkFilterChips, type LinkFilterChipsProps, type PageCrudLinkFilter } from './filters/LinkFilterChips.js';

@@ -320,6 +320,12 @@
     "unknownTemplate": {
       "title": "未知的页面模板",
       "body": "此页面使用了当前版本无法识别的模板。它可能来自更新版本的 Adminium，或来自尚未安装的扩展。"
+    },
+    "linkFilters": {
+      "pending": "正在应用链接的筛选",
+      "failedTitle": "无法应用此链接的筛选",
+      "failedBody": "不显示列表，以免被误认为已筛选的列表。",
+      "showAll": "显示完整列表"
     }
   },
   "mutation": {

@@ -17,6 +17,12 @@
  * — a read-only grantee sees no New row, and the peek carries no Edit/Delete,
  * instead of buttons that 403.
  *
+ * A link may open the list FILTERED (`?f.<column>=<op>:<value>`, see
+ * `linkFilters.ts`): the server works the pieces out, every read of the list
+ * carries them, and each one is a chip the person can take away. Until the
+ * server has answered, the list is not drawn — a moment of the whole table
+ * under a link that promised part of it is the one thing this must not show.
+ *
  * Chrome copy rides `config.labels`: the stored per-page overrides the Studio
  * editor writes, projected straight onto the template's `labels` prop. Absent
  * (the generated default) leaves the prop undefined and every string resolves
@@ -24,6 +30,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Button, EmptyState, Spinner } from '@adminium/ui';
 import {
   PageCrud,
   rowIdOf,
@@ -43,6 +50,7 @@ import { PageActions } from '../shell/PageActionsProvider.js';
 import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
 import { ProjectActionMenu, useProjectActions } from './projectActions.js';
 import { useAppToasts } from './toasts.js';
+import { linkPiecesOf, searchWithout, useLinkFilters, usePageSearch, withLinkWhere } from './linkFilters.js';
 import type { FormChildFactReply } from '../api/pages.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
@@ -286,9 +294,25 @@ export function PageCrudBinding({
     page.source.table ?? crud?.table,
     useCallback(() => setActionRuns((n) => n + 1), []),
   );
+  /*
+   * The link's filter, under every read of the list. Wrapped BEFORE the
+   * re-read trick below: `Object.create` keeps the methods on the prototype,
+   * and a spread (which the wrapper is) would not see them.
+   */
+  const { search, replaceSearch } = usePageSearch();
+  const pieces = useMemo(() => linkPiecesOf(search), [search]);
+  const link = useLinkFilters(page.source.connectionId, page.source.table ?? crud?.table ?? null, pieces);
+  const linkWhere = pieces.length === 0 ? null : (link.data?.where ?? null);
+  const linkedCrud = useMemo(() => (crud === null ? null : withLinkWhere(crud, linkWhere)), [crud, linkWhere]);
+  const dropLinkFilter = useCallback(
+    (index: number | 'all') => {
+      replaceSearch(searchWithout(search, index));
+    },
+    [replaceSearch, search],
+  );
   const gridApi = useMemo(
-    () => (actionRuns === 0 || crud === null ? crud : (Object.create(crud) as typeof crud)),
-    [crud, actionRuns],
+    () => (actionRuns === 0 || linkedCrud === null ? linkedCrud : (Object.create(linkedCrud) as typeof linkedCrud)),
+    [linkedCrud, actionRuns],
   );
   const bulkActions = useMemo(
     () =>
@@ -355,6 +379,34 @@ export function PageCrudBinding({
     [page.source.connectionId, sourceTable, columns],
   );
 
+  if (pieces.length > 0 && link.isPending) {
+    return (
+      <div className="flex flex-1 items-center justify-center py-16" data-testid="link-filters-pending">
+        <Spinner label={t('page.linkFilters.pending', 'Applying the link’s filters')} />
+      </div>
+    );
+  }
+  if (pieces.length > 0 && link.isError) {
+    // Never the whole list in its place: the person chooses to see it.
+    return (
+      <EmptyState
+        tone="warn"
+        title={t('page.linkFilters.failedTitle', 'This link’s filters could not be applied')}
+        body={t('page.linkFilters.failedBody', 'The list is not shown, so it is not mistaken for the filtered one.')}
+        actions={
+          <>
+            <Button size="sm" variant="secondary" onClick={() => void link.refetch()}>
+              {t('common.retry', 'Retry')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => dropLinkFilter('all')} data-testid="link-filters-show-all">
+              {t('page.linkFilters.showAll', 'Show the whole list')}
+            </Button>
+          </>
+        }
+      />
+    );
+  }
+
   return (
     <>
       {/* The topbar title is the nav label an admin chose ("Support tickets");
@@ -369,7 +421,7 @@ export function PageCrudBinding({
           carries the `h-full` that lets PageCrud's own chain resolve. */}
       <PageCrud
         key={appliedToken}
-        api={gridApi ?? crud}
+        api={gridApi ?? linkedCrud ?? crud}
         // A form field may start as who is signed in (`initial: current-user`).
         {...(signedIn === undefined ? {} : { currentUser: { id: signedIn.id, name: signedIn.name } })}
         columns={shownColumns}
@@ -439,6 +491,9 @@ export function PageCrudBinding({
               ),
             })}
         {...(bulkActions.length === 0 ? {} : { bulkActions })}
+        {...(pieces.length === 0 || link.data === undefined
+          ? {}
+          : { linkFilters: link.data.filters, onRemoveLinkFilter: dropLinkFilter, onClearLinkFilters: () => dropLinkFilter('all') })}
       />
       {projectActions.dialog}
     </>

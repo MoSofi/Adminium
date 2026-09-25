@@ -37,7 +37,10 @@ export const pageLayoutSchema = z.object({
       /**
        * One link at the end of the page's controls ("Open the desk"): a route
        * the host opens, its label, and the label in the other languages the
-       * page is read in.
+       * page is read in. `href: "@staff"` names the installed app's own staff
+       * screens, wherever the app placed them (the address the sidebar's
+       * "Open the staff screens" opens); a page whose app has none draws no
+       * link at all.
        */
       link: z
         .object({

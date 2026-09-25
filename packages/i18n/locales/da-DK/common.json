@@ -320,6 +320,12 @@
     "unknownTemplate": {
       "title": "Ukendt sideskabelon",
       "body": "Denne side bruger en skabelon, som dette build ikke kender. Den kan stamme fra et nyere Adminium eller fra en udvidelse, der ikke er installeret."
+    },
+    "linkFilters": {
+      "pending": "Linkets filtre anvendes",
+      "failedTitle": "Linkets filtre kunne ikke anvendes",
+      "failedBody": "Listen vises ikke, så den ikke forveksles med den filtrerede.",
+      "showAll": "Vis hele listen"
     }
   },
   "mutation": {

@@ -93,9 +93,11 @@ export interface DashboardBuilderProps {
   day?: { day: string; onDay: (day: string) => void } | null | undefined;
   /** The connection's currency, for every widget that names none. */
   currency?: string | undefined;
+  /** Whether the host can open a link's address (`@staff`); see `PageDashboard`. */
+  linkAvailable?: ((href: string) => boolean) | undefined;
 }
 
-export function DashboardBuilder({ page, canEditLayout = false, states, onEvent, registry, day, currency }: DashboardBuilderProps) {
+export function DashboardBuilder({ page, canEditLayout = false, states, onEvent, registry, day, currency, linkAvailable }: DashboardBuilderProps) {
   const pageId = page.id;
   const title = t(page.title.key, page.title.fallback);
 
@@ -392,6 +394,7 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
           onEvent={onEvent}
           {...(day === null || day === undefined ? {} : { day: day.day, onDay: day.onDay })}
           {...(currency === undefined ? {} : { currency })}
+          {...(linkAvailable === undefined ? {} : { linkAvailable })}
         />
       )}
 

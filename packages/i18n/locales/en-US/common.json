@@ -320,6 +320,12 @@
     "unknownTemplate": {
       "title": "Unknown page template",
       "body": "This page uses a template this build doesn’t recognize. It may come from a newer Adminium or an extension that isn’t installed."
+    },
+    "linkFilters": {
+      "pending": "Applying the link’s filters",
+      "failedTitle": "This link’s filters could not be applied",
+      "failedBody": "The list is not shown, so it is not mistaken for the filtered one.",
+      "showAll": "Show the whole list"
     }
   },
   "mutation": {

@@ -330,6 +330,12 @@ export default {
     "unknownTemplate": {
       "title": "Unbekannte Seitenvorlage",
       "body": "Diese Seite verwendet eine Vorlage, die dieser Build nicht kennt. Sie stammt womöglich aus einem neueren Adminium oder aus einer nicht installierten Erweiterung."
+    },
+    "linkFilters": {
+      "pending": "Die Filter des Links werden angewendet",
+      "failedTitle": "Die Filter dieses Links konnten nicht angewendet werden",
+      "failedBody": "Die Liste wird nicht angezeigt, damit sie nicht mit der gefilterten verwechselt wird.",
+      "showAll": "Ganze Liste anzeigen"
     }
   },
   "mutation": {

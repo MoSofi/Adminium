@@ -1574,7 +1574,30 @@
         "updateFailed": "Update failed."
       },
       "uniqueHelper": "Must be unique in {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}"
+      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}",
+      "linkFilter": {
+        "remove": "Remove {column} filter",
+        "today": "today",
+        "eq": "{name} is {value}",
+        "neq": "{name} is not {value}",
+        "in": "{name} is one of {values}",
+        "gt": "{name} more than {value}",
+        "gte": "{name} {value} or more",
+        "lt": "{name} less than {value}",
+        "lte": "{name} {value} or less",
+        "after": "{name} after {value}",
+        "before": "{name} before {value}",
+        "onOrAfter": "{name} on or after {value}",
+        "onOrBefore": "{name} on or before {value}",
+        "thisMonth": "{name} this month",
+        "lastMonth": "{name} last month",
+        "set": "{name} is filled in",
+        "unset": "{name} is empty",
+        "ignoredColumn": "Not filtered by {name}: this list has no such column",
+        "ignoredMasked": "Not filtered by {name}: that column is hidden from you",
+        "ignoredTooMany": "Not filtered by {name}: a link can carry 8 filters",
+        "ignoredValue": "Not filtered by {name}: “{filter}” is not a filter this column takes"
+      }
     },
     "queue": {
       "allSegment": "All",

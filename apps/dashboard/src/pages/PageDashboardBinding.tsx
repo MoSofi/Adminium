@@ -49,6 +49,8 @@ export function PageDashboardBinding({ page, adapters, canEditLayout, currency }
       canEditLayout={canEditLayout ?? false}
       states={states}
       day={adapters.dashboardDay ?? null}
+      // An `@staff` link is drawn only when the owning app has staff screens.
+      {...(adapters.linkAvailable === undefined ? {} : { linkAvailable: adapters.linkAvailable })}
       // The connection's currency: a money card that names none reads in it.
       {...(currency === undefined || currency === null ? {} : { currency })}
       onEvent={(instanceId, event) => {

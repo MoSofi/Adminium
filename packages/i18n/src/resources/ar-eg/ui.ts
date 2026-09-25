@@ -1584,7 +1584,30 @@ export default {
         "updateFailed": "فشل التحديث."
       },
       "uniqueHelper": "يجب أن تكون القيمة فريدة في {table}.",
-      "uniqueHelperCounted": "{count, plural, zero {تم التحقق مقابل {n} صف.} one {تم التحقق مقابل صف واحد.} two {تم التحقق مقابل صفين.} few {تم التحقق مقابل {n} صفوف.} many {تم التحقق مقابل {n} صفًا.} other {تم التحقق مقابل {n} صف.}}"
+      "uniqueHelperCounted": "{count, plural, zero {تم التحقق مقابل {n} صف.} one {تم التحقق مقابل صف واحد.} two {تم التحقق مقابل صفين.} few {تم التحقق مقابل {n} صفوف.} many {تم التحقق مقابل {n} صفًا.} other {تم التحقق مقابل {n} صف.}}",
+      "linkFilter": {
+        "remove": "إزالة عامل تصفية {column}",
+        "today": "اليوم",
+        "eq": "{name} هو {value}",
+        "neq": "{name} ليس {value}",
+        "in": "{name} واحد من {values}",
+        "gt": "{name} أكثر من {value}",
+        "gte": "{name} {value} أو أكثر",
+        "lt": "{name} أقل من {value}",
+        "lte": "{name} {value} أو أقل",
+        "after": "{name} بعد {value}",
+        "before": "{name} قبل {value}",
+        "onOrAfter": "{name} في {value} أو بعده",
+        "onOrBefore": "{name} في {value} أو قبله",
+        "thisMonth": "{name} هذا الشهر",
+        "lastMonth": "{name} الشهر الماضي",
+        "set": "{name} مملوء",
+        "unset": "{name} فارغ",
+        "ignoredColumn": "لم تتم التصفية حسب {name}: لا يوجد عمود بهذا الاسم في هذه القائمة",
+        "ignoredMasked": "لم تتم التصفية حسب {name}: هذا العمود مخفي عنك",
+        "ignoredTooMany": "لم تتم التصفية حسب {name}: يمكن أن يحمل الرابط 8 عوامل تصفية",
+        "ignoredValue": "لم تتم التصفية حسب {name}: «{filter}» ليس عامل تصفية يقبله هذا العمود"
+      }
     },
     "queue": {
       "allSegment": "الكل",

@@ -320,6 +320,12 @@
     "unknownTemplate": {
       "title": "Neznámá šablona stránky",
       "body": "Tato stránka používá šablonu, kterou tento build nezná. Může pocházet z novějšího Adminia nebo z rozšíření, které není nainstalované."
+    },
+    "linkFilters": {
+      "pending": "Používají se filtry odkazu",
+      "failedTitle": "Filtry tohoto odkazu nešlo použít",
+      "failedBody": "Seznam se nezobrazuje, aby se nezaměnil s filtrovaným.",
+      "showAll": "Zobrazit celý seznam"
     }
   },
   "mutation": {

@@ -56,6 +56,14 @@ export interface PageDashboardProps {
    * still follows the connection when its currency changes.
    */
   currency?: string | undefined;
+  /**
+   * Whether the host can open a link's address. An address starting with `@`
+   * names something only the host knows (`@staff`: the app's own staff
+   * screens) — a host without it, or without an answer for it, gets no
+   * button, never a dead one. Absent: every `@` address is hidden and every
+   * other one is drawn.
+   */
+  linkAvailable?: ((href: string) => boolean) | undefined;
   className?: string | undefined;
 }
 
@@ -171,7 +179,7 @@ function DayControls({ day, onDay, end }: { day: DashboardDay; onDay: (day: Dash
   );
 }
 
-export function PageDashboard({ layout, adapter, params, onEvent, states, day: hostDay, onDay: onHostDay, currency, className }: PageDashboardProps) {
+export function PageDashboard({ layout, adapter, params, onEvent, states, day: hostDay, onDay: onHostDay, currency, linkAvailable, className }: PageDashboardProps) {
   const t = useMaybeT();
   const locale = useMaybeI18n()?.locale;
   const parsed = useMemo(() => {
@@ -198,7 +206,8 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, day: h
     );
   }
 
-  const link = parsed.layout.toolbar?.link;
+  const stored = parsed.layout.toolbar?.link;
+  const link = stored === undefined || !(linkAvailable?.(stored.href) ?? !stored.href.startsWith('@')) ? undefined : stored;
   const linkButton =
     link === undefined ? null : (
       <ToolbarLink

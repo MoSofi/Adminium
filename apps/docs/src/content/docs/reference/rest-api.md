@@ -139,7 +139,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/surfaces/*` | 6 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system` | 1 | Version and instance information |
 | `/api/v1/users/*` | 9 | People in the workspace — invite, suspend, delete, assign roles |
-| `/api/v1/widget-data/*` | 2 | The queries widgets run, singly and in batches |
+| `/api/v1/widget-data/*` | 3 | The queries widgets run, singly and in batches |
 
 <!-- END GENERATED: groups -->
 
@@ -781,6 +781,7 @@ POST /api/v1/users/{id}/invite/resend
 
 ```http
 POST /api/v1/widget-data/query
+POST /api/v1/widget-data/link-filters
 POST /api/v1/widget-data/batch
 ```
 

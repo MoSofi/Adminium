@@ -330,6 +330,12 @@ export default {
     "unknownTemplate": {
       "title": "未知的頁面範本",
       "body": "此頁面使用了目前組建無法辨識的範本。它可能來自較新版本的 Adminium，或來自尚未安裝的擴充功能。"
+    },
+    "linkFilters": {
+      "pending": "正在套用連結的篩選",
+      "failedTitle": "無法套用此連結的篩選",
+      "failedBody": "不顯示清單，以免被誤認為已篩選的清單。",
+      "showAll": "顯示完整清單"
     }
   },
   "mutation": {

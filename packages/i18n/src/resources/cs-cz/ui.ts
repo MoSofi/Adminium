@@ -1584,7 +1584,30 @@ export default {
         "updateFailed": "Aktualizace se nezdařila."
       },
       "uniqueHelper": "Musí být jedinečné v {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Ověřeno proti {n} řádku.} few {Ověřeno proti {n} řádkům.} many {Ověřeno proti {n} řádku.} other {Ověřeno proti {n} řádkům.}}"
+      "uniqueHelperCounted": "{count, plural, one {Ověřeno proti {n} řádku.} few {Ověřeno proti {n} řádkům.} many {Ověřeno proti {n} řádku.} other {Ověřeno proti {n} řádkům.}}",
+      "linkFilter": {
+        "remove": "Odebrat filtr {column}",
+        "today": "dnes",
+        "eq": "{name} je {value}",
+        "neq": "{name} není {value}",
+        "in": "{name} je jedno z {values}",
+        "gt": "{name} více než {value}",
+        "gte": "{name} {value} nebo více",
+        "lt": "{name} méně než {value}",
+        "lte": "{name} {value} nebo méně",
+        "after": "{name} po {value}",
+        "before": "{name} před {value}",
+        "onOrAfter": "{name} {value} nebo později",
+        "onOrBefore": "{name} {value} nebo dříve",
+        "thisMonth": "{name} tento měsíc",
+        "lastMonth": "{name} minulý měsíc",
+        "set": "{name} je vyplněno",
+        "unset": "{name} je prázdné",
+        "ignoredColumn": "Nefiltrováno podle {name}: tento seznam takový sloupec nemá",
+        "ignoredMasked": "Nefiltrováno podle {name}: tento sloupec je před vámi skrytý",
+        "ignoredTooMany": "Nefiltrováno podle {name}: odkaz může nést 8 filtrů",
+        "ignoredValue": "Nefiltrováno podle {name}: „{filter}“ není filtr, který tento sloupec přijímá"
+      }
     },
     "queue": {
       "allSegment": "Vše",

@@ -53,3 +53,33 @@ export const widgetBatchReply = z.object({
   /** Keyed by `instanceId`; failures are per-item, never all-or-nothing. */
   results: z.record(z.string(), widgetBatchItemResult),
 });
+
+/**
+ * `POST /widget-data/link-filters` — the `f.<column>=<op>:<value>` pieces of a
+ * link into a records page, worked out against that page's table on the
+ * venue's calendar (`widget-data/link-filters.ts`). More pieces than a link
+ * may use are accepted and reported as left out, never refused.
+ */
+export const linkFiltersBody = z.object({
+  connectionId: z.string().min(1),
+  /** The table as the data routes name it (`:table`). */
+  table: z.string().min(1),
+  filters: z.array(z.object({ column: z.string().min(1).max(128), raw: z.string().max(400) })).max(32),
+});
+
+export const linkFiltersReply = z.object({
+  /** The list-grammar filter tree to AND into every read of the list; null when nothing applies. */
+  where: z.unknown(),
+  filters: z.array(
+    z.union([
+      z.object({
+        column: z.string(),
+        raw: z.string(),
+        status: z.literal('applied'),
+        op: z.string(),
+        value: z.string().nullable(),
+      }),
+      z.object({ column: z.string(), raw: z.string(), status: z.literal('ignored'), reason: z.string() }),
+    ]),
+  ),
+});

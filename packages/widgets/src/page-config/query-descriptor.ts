@@ -94,6 +94,16 @@ export const queryDescriptorSchema = z.object({
        * calendar window, and a `week` turns hour buckets into days.
        */
       param: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_.]{0,63}$/).optional(),
+      /**
+       * Reach forward instead of back: from the start of the current period on
+       * the venue's clock, with NO end — `{ ahead: true, last: 1, unit: 'day' }`
+       * is every row dated today or later (invoices not yet due, proposals
+       * still in date). Always a calendar window. It has no end on purpose: a
+       * bounded "next n periods" would silently drop a row dated past it, so
+       * `last` must stay 1 and `offset`, `compareToPrior` and `param` are
+       * refused rather than read one of two ways.
+       */
+      ahead: z.boolean().optional(),
     })
     .optional(),
   orderBy: z
