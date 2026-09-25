@@ -194,6 +194,7 @@ export default defineConfig({
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
                 { label: 'Booking rules', link: '/guides/apps/booking-rules/' },
                 { label: 'An app’s emails', link: '/guides/apps/emails/' },
+                { label: 'Building on an add-on', link: '/guides/building-on-an-add-on/' },
               ],
             },
             {
