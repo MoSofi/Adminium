@@ -1692,6 +1692,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // Without this a provider installed at 10am is unreachable until the
           // process restarts, round trip cannot pass.
           rebuildRuntime: () => rebuildAddOnRuntime(),
+          // Read after that rebuild, so an add-on connected to an installed
+          // app makes the app's documents it draws there and then.
+          runtime: () => addOnRuntime,
           /*
            * Uninstall's 34 half, run BEFORE the manifest row goes: disable the
            * add-on's document mappings so no write can enqueue a render for a

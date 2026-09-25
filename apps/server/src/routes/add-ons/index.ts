@@ -108,6 +108,7 @@ import {
   type OAuthConnect,
   type OAuthFlowStore,
 } from '../../add-ons/oauth.js';
+import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import type { AddOnSchemaTarget } from '../../add-ons/schema-target.js';
 import { packageIsInStore } from '../../add-ons/store.js';
 import type { AddOnStore, StagedPackage } from '../../add-ons/store.js';
@@ -118,6 +119,7 @@ import {
   enqueueCatalogRefresh,
 } from '../../jobs/add-on-acquire.js';
 import { audited } from '../../audit/coverage.js';
+import { attachAppDocuments } from '../../documents/app-documents.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { settingValueIssues } from '../../apps/settings-values.js';
 import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
@@ -196,6 +198,13 @@ export interface AddOnRoutesDeps {
    * at all; absent, the routes behave as they did before.
    */
   rebuildRuntime?: (() => Promise<void>) | undefined;
+  /**
+   * The add-on runtime as it stands, read AFTER a rebuild: connecting an add-on
+   * to an installed app makes the app's documents that add-on draws, and only
+   * a loaded provider says which kinds it draws. Absent, as in a route-only
+   * test topology, no document is made.
+   */
+  runtime?: (() => AddOnRuntimeState | null) | undefined;
   /**
    * The half of uninstall that is 34's. Called INSIDE the uninstall
    * handler, before the manifest row goes, so no job can be enqueued for a
@@ -357,6 +366,21 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
   /** Who did it, for the audit rows the shared installer writes. */
   function actorOf(request: FastifyRequest): Actor {
     return { id: request.user?.id ?? null, label: request.user?.email ?? 'unknown' };
+  }
+
+  /**
+   * The documents of installed apps the add-on was just connected to — made
+   * here, not left for the app's next update. Run after the runtime rebuild,
+   * which is what knows the kinds the add-on draws; run whether or not the
+   * connection changed, so connecting again mends an app connected before.
+   */
+  async function makeAppDocuments(request: FastifyRequest, hosts: readonly string[]): Promise<void> {
+    if (deps.runtime === undefined || hosts.length === 0) return;
+    const made = await attachAppDocuments({ meta: deps.meta, hosts, runtime: deps.runtime, createdBy: request.user?.id ?? null });
+    for (const { app, result } of made) {
+      if (result.skipped.length + result.refused.length === 0) continue;
+      request.log.info({ app, skipped: result.skipped, refused: result.refused }, 'app document profiles skipped');
+    }
   }
 
   /** The app needs a reply carries, in the wire shape. */
@@ -1192,6 +1216,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           attachTo,
           actor: actorOf(request),
         });
+        await makeAppDocuments(request, attachTo);
         return { addOn: await toDto(installed), plan };
       },
     );
@@ -1213,6 +1238,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           host: request.body.app,
           actor: actorOf(request),
         });
+        await makeAppDocuments(request, [request.body.app]);
         return { addOn: await toDto(installed), change };
       },
     );
@@ -1545,6 +1571,9 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // rebuilt here too — an add-on switched off must stop rendering
         // immediately, not at the next restart.
         await deps.rebuildRuntime?.();
+        // Switched back on: the app's documents it draws, if the app was
+        // installed while it was off. Switched off, they stay and are off.
+        if (request.body.enabled) await makeAppDocuments(request, [request.body.attachedTo]);
 
         const after = await manifests.findByKey(request.params.key);
         const features = request.body.enabled ? [] : needs.filter((need) => need.need === 'feature');

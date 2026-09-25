@@ -68,6 +68,9 @@ describe.each(LEGS)('two entries on one table, and a caller who varies what they
     const res = await served.call('POST', '/documents/render', { session: sessions['ann'], payload: { ref: 'studio_clients_claimed', id: 1, kind: 'statement', period: 'all' } });
     expect(res.statusCode, res.body).toBe(201);
     const content = await served.call('GET', `/documents/${(res.json() as { data: Doc }).data.id}/content`, { session: sessions['ann'] });
+    // A download, never a page: the public side has no print view of its own.
+    expect(content.headers['content-disposition']).toMatch(/^attachment; /);
+    expect(content.headers['x-content-type-options']).toBe('nosniff');
     const sheet = JSON.parse(content.body) as { collections: { entries: { number: string; kind: string }[] } };
     // Her euro invoice and both payments; not the dollar invoice her entry does not show.
     expect(sheet.collections.entries.filter((e) => e.kind === 'document').map((e) => e.number)).toEqual(['INV-ANN-8']);

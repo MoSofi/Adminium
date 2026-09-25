@@ -47,6 +47,10 @@ export type SlotMapping =
         columns: Record<string, string>;
         /** The column the lines are listed by (a line's position); then by key. */
         orderBy?: string | undefined;
+        /** Only the child rows whose column holds one of these. */
+        where?: { column: string; in: readonly (string | number | boolean)[] } | undefined;
+        /** A child row whose column is true (or set) is left out: a voided line. */
+        unless?: string | undefined;
       };
     };
 

@@ -125,6 +125,20 @@ export function unscaled(value: bigint): string {
   return `${negative ? '-' : ''}${whole}${frac === '' ? '' : `.${frac}`}`;
 }
 
+/**
+ * Whether a row stays in a list that leaves rows out by their own columns: a
+ * statement's sources, and a document's child list. `where` keeps only a row
+ * whose column holds one of its values; `unless` drops a row whose column is
+ * set.
+ */
+export function keptBy(
+  row: Readonly<Record<string, unknown>>,
+  filter: { where?: { column: string; in: readonly (string | number | boolean)[] } | undefined; unless?: string | undefined },
+): boolean {
+  if (filter.where !== undefined && !filter.where.in.some((value) => sameValue(row[filter.where!.column], value))) return false;
+  return filter.unless === undefined || !isSet(row[filter.unless]);
+}
+
 /** Whether a row's `unless` column leaves it out: true, 1, or any other value set. */
 function isSet(value: unknown): boolean {
   if (value === null || value === undefined || value === '' || value === false || value === 0) return false;
@@ -178,8 +192,7 @@ async function readSource(
     for (const pk of table.primaryKey) query = query.orderBy(pk as never, 'asc');
     const rows = (await query.limit(PAGE).offset(offset).execute()) as Record<string, unknown>[];
     for (const row of rows) {
-      if (source.where !== undefined && !source.where.in.some((value) => sameValue(row[source.where!.column], value))) continue;
-      if (source.unless !== undefined && isSet(row[source.unless])) continue;
+      if (!keptBy(row, source)) continue;
       const date = dayOf(row[source.date]);
       const amount = scaled(row[source.amount]);
       // A row with no date or no amount has no place on a statement: it is a

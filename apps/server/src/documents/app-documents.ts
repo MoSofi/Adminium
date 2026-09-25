@@ -4,7 +4,9 @@
  * uninstall takes back, and whether one of them can be drawn right now.
  *
  * The install and uninstall routes call the two functions at the top; the
- * staff route that draws a document for an app's own screen calls the third.
+ * add-on routes call `attachAppDocuments` when an add-on is connected to an app
+ * already installed; the staff route that draws a document for an app's own
+ * screen asks `appDocumentOff`.
  *
  * ─── A DOCUMENT IS A FEATURE ───────────────────────────────────────────────
  *
@@ -20,10 +22,11 @@
  * is written.
  */
 import type { AppManifest } from '@adminium/manifest';
-import { documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
+import { appTablesRepo, documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
 import { providerByKey, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { SnapshotView } from '../crud/identifiers.js';
+import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { AppError } from '../errors.js';
 import {
   availabilityOf,
@@ -108,6 +111,60 @@ export async function installAppDocuments(input: {
     );
   }
   return result;
+}
+
+/**
+ * An add-on connected to apps that are already installed — attached, installed
+ * onto them, or switched back on there: make each app's documents now, the
+ * install's step run again for the app as it stands.
+ *
+ * Without this only an install or an update made them, so an app that merely
+ * SUGGESTS the add-on, installed before it was connected, kept the document
+ * off until its next update. Idempotent, so connecting again changes nothing
+ * — and mends an app connected before this ran.
+ *
+ * It never refuses: the add-on is already connected when this runs. A kind the
+ * add-on does not draw is left off, listed under `refused`, with nothing
+ * written. A host that is not an app installed on a connection (the
+ * dashboard, an app still installing, which makes its own) is passed over.
+ * Switching the add-on off again leaves the profiles where they are, as it
+ * does the install's: the draw is refused as off while it is.
+ */
+export async function attachAppDocuments(input: {
+  meta: MetaDb;
+  /** The hosts the add-on was just connected to. */
+  hosts: readonly string[];
+  runtime: () => AddOnRuntimeState | null;
+  createdBy?: string | null | undefined;
+}): Promise<{ app: string; result: AppProfilesResult }[]> {
+  const manifests = manifestsRepo(input.meta, NO_SECRETS);
+  const out: { app: string; result: AppProfilesResult }[] = [];
+  for (const host of new Set(input.hosts)) {
+    const installed = await manifests.findByKey(host);
+    const manifest = installed?.document as AppManifest | undefined;
+    const connectionId = installed?.row.connectionId ?? null;
+    if (
+      installed === null ||
+      installed.row.kind !== 'app' ||
+      (installed.row.status !== 'installed' && installed.row.status !== 'disabled') ||
+      connectionId === null ||
+      manifest?.kind !== 'app'
+    ) {
+      continue;
+    }
+    const view = await loadSnapshotView(input.meta, connectionId).catch(() => null);
+    const result = await makeAppProfiles({
+      meta: input.meta,
+      manifest,
+      connectionId,
+      realId: realIdIn(view, await appTablesRepo(input.meta).realNames(connectionId, host)),
+      shapes: await installedShapes(input.meta),
+      availability: await addOnAvailability(input.meta, host, input.runtime),
+      createdBy: input.createdBy,
+    });
+    out.push({ app: host, result });
+  }
+  return out;
 }
 
 /** The uninstall's step: the app's own profiles on its connection, and nothing else. */

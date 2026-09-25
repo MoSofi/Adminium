@@ -522,18 +522,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const row = await load(request.params.id);
         const verdict = await readable(request, row);
         if (!verdict.ok) throw new ForbiddenError('This document is not yours to read.');
-        /*
-         * The HTML half, sandboxed. These bytes came out of an add-on and are
-         * full of customer-supplied text; served same-origin they would be a
-         * stored-XSS primitive. `sandbox` with no allow-list means no script,
-         * no forms, no navigation — a page that draws and prints and does
-         * nothing else.
-         */
-        reply.header(
-          'content-security-policy',
-          "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'",
-        );
-        return await serveBytes(reply, row, { inline: true, preferHtml: true });
+        return await serveBytes(reply, row, { inline: true, print: true });
       },
     );
 
@@ -593,7 +582,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
      *
      * The staff side of an installed app — a till printing a receipt, a desk
      * sending an invoice — names what it knows: its own table name, the row,
-     * the kind. The document is the app's own profile for that kind on that
+     * the kind, and values for slots nothing maps (how many labels to print).
+     * The document is the app's own profile for that kind on that
      * table, drawn now (or the one already drawn, while the row is unchanged)
      * and handed back with where its bytes are.
      *
@@ -678,6 +668,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
           reuse: true,
           ...(body.period === undefined ? {} : { period: body.period }),
           ...(body.locale === undefined ? {} : { locale: body.locale }),
+          ...(body.values === undefined ? {} : { values: body.values }),
         });
         if (outcome.status === 'skipped') {
           if (outcome.reason === 'row-gone') notFound();
@@ -797,28 +788,56 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     };
   }
 
-  /** Serve a document's bytes with the headers a document needs. */
+  /**
+   * Serve a document's bytes with the headers a document needs.
+   *
+   * `print` is the print route: the HTML copy first, and that copy RENDERED —
+   * in the tab it was opened in, where the browser's print dialog can reach
+   * it. A document that is HTML only (one in a script the PDF writer cannot
+   * draw) has no other way to be printed.
+   */
   async function serveBytes(
     reply: FastifyReply,
     row: DocumentRow,
-    opts: { inline: boolean; preferHtml?: boolean },
+    opts: { inline: boolean; print?: boolean },
   ) {
-    const fileId = opts.preferHtml === true ? (row.htmlFileId ?? row.fileId) : (row.fileId ?? row.htmlFileId);
+    const fileId = opts.print === true ? (row.htmlFileId ?? row.fileId) : (row.fileId ?? row.htmlFileId);
     if (fileId === null) throw new NotFoundError('This document has no bytes.');
     const file = await filesRepo(deps.meta).findById(fileId);
     if (file === null) throw new NotFoundError('This document has no bytes.');
 
+    const rendered = opts.print === true && /^text\/html\b/i.test(file.mime);
+    if (opts.print === true) {
+      /*
+       * The print copy, sandboxed. These bytes came out of an add-on and are
+       * full of customer-supplied text; served same-origin they would be a
+       * stored-XSS primitive. `sandbox` with no allow-list means no script, no
+       * forms, no navigation, and an opaque origin that holds none of this
+       * server's cookies; `default-src 'none'` means nothing is fetched. What
+       * is left is what a document draws with: its own `<style>`, and images
+       * and fonts carried inline as `data:`. A page that draws and prints and
+       * does nothing else.
+       */
+      reply.header(
+        'content-security-policy',
+        "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; " +
+          "base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
+      );
+    }
+
     const opened = await deps.storage.open(file);
     return reply
-      .header('content-type', file.mime)
+      // Said, never sniffed, and UTF-8 whatever the stored type left out: a
+      // receipt in Arabic or Japanese is why the HTML copy exists at all.
+      .header('content-type', rendered ? 'text/html; charset=utf-8' : file.mime)
       .header('content-length', String(opened.sizeBytes))
       // A PDF renders inline; HTML is ALWAYS an attachment on the content
       // route, because HTML served same-origin from a document an add-on drew
       // is a stored-XSS primitive. `/print` is the one place it renders, and
-      // only under a sandbox CSP.
+      // only under the sandbox above.
       .header(
         'content-disposition',
-        `${opts.inline && file.mime === 'application/pdf' ? 'inline' : 'attachment'}; filename="${file.filename.replace(/"/g, '')}"`,
+        `${(opts.inline && file.mime === 'application/pdf') || rendered ? 'inline' : 'attachment'}; filename="${file.filename.replace(/"/g, '')}"`,
       )
       .header('x-content-type-options', 'nosniff')
       // sha256 is the content's identity — a free, exact ETag.

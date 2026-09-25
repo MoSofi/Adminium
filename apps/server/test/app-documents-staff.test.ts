@@ -252,6 +252,31 @@ describe.each(LEGS)('an app\'s own documents on %s', (dialect, reachable) => {
     expect((again.json() as { id: string; reused: boolean })).toMatchObject({ id: body.id, reused: true });
   });
 
+  it.skipIf(!reachable)('opens an HTML-only receipt in the tab to print, sandboxed, and still downloads it from the content route', async () => {
+    const drawn = await ask('pos', { kind: 'receipt', ref: 'sales', pk: { id: 1 } });
+    const { printUrl, contentUrl } = drawn.json() as { printUrl: string; contentUrl: string };
+    const headers = { 'x-user': users['cashier']! };
+
+    const printed = await app.inject({ method: 'GET', url: printUrl, headers });
+    expect(printed.statusCode).toBe(200);
+    expect(printed.headers['content-type']).toBe('text/html; charset=utf-8');
+    expect(printed.headers['content-disposition']).toMatch(/^inline; filename="receipt\.html"$/);
+    expect(printed.headers['x-content-type-options']).toBe('nosniff');
+    // Drawn with its own styles and inline images; no script, no fetch, no form, no origin of ours.
+    const policy = String(printed.headers['content-security-policy']).split(';').map((d) => d.trim());
+    expect(policy).toEqual(expect.arrayContaining(['sandbox', "default-src 'none'", "style-src 'unsafe-inline'", 'img-src data:', 'font-src data:']));
+    expect(policy.find((d) => d.startsWith('sandbox'))).toBe('sandbox');
+    expect(policy.join(';')).not.toMatch(/script-src|connect-src|allow-/);
+    expect(printed.body).toContain('S-0001');
+
+    // The content route is the download it always was.
+    const content = await app.inject({ method: 'GET', url: contentUrl, headers });
+    expect(content.statusCode).toBe(200);
+    expect(content.headers['content-disposition']).toMatch(/^attachment; filename="receipt\.html"$/);
+    expect(content.headers['x-content-type-options']).toBe('nosniff');
+    expect(content.headers['content-security-policy']).toBeUndefined();
+  });
+
   it.skipIf(!reachable)('draws the practice\'s insurer receipt for its own staff', async () => {
     const res = await ask('clinic', { kind: 'insurer-receipt', ref: 'payments', pk: { id: 1 } }, users['nurse']);
     expect(res.statusCode, res.body).toBe(201);

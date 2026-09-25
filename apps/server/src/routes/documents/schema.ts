@@ -115,6 +115,15 @@ export const appDocumentRenderBody = z
     pk: z.record(z.string().max(128), z.union([z.string().max(200), z.number()])),
     period: z.enum(STATEMENT_PERIODS).optional(),
     locale: z.string().max(35).optional(),
+    /**
+     * Values for slots the document's profile does not map (a label sheet's
+     * `count`), by slot id. Typed by the add-on's outline; a mapped slot, a
+     * list, or a slot the outline does not have is refused.
+     */
+    values: z
+      .record(z.string().regex(/^[A-Za-z][A-Za-z0-9_]*$/).max(64), z.union([z.string().max(2000), z.number().finite(), z.boolean()]))
+      .refine((values) => Object.keys(values).length <= 32, 'at most 32 values')
+      .optional(),
   })
   .strict();
 

@@ -157,6 +157,23 @@ describe('unmapped and literal are different things', () => {
     // An unmapped slot round-trips as ABSENT, which is what it was.
     expect('discountRate' in restored).toBe(false);
   });
+
+  it('saves back what it does not show: the lines\' order, the rows left out, a linked row\'s table', () => {
+    const stored = {
+      items: {
+        collection: {
+          table: 'public.order_lines',
+          fkColumn: 'order_id',
+          orderBy: 'position',
+          unless: 'voided',
+          where: { column: 'kind', in: ['item', 'fee'] },
+          columns: { desc: 'description' },
+        },
+      },
+      customerEmail: { ref: 'customer_id', column: 'email', table: 'public.customers' },
+    };
+    expect(toMapping(fromMapping(stored))).toEqual(stored);
+  });
 });
 
 describe('which tables a profile reads', () => {

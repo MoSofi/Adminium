@@ -18,10 +18,14 @@
  * ```
  *
  * A slot reads a column of the row, a column of a row a foreign key points at
- * (`via`), or a list of child rows in order. The slots themselves are the
- * add-on's words; Adminium checks the columns here and the slots against the
- * add-on when the profile is made at install. A profile is the app's: made
- * with real table names when the app is installed, removed with it.
+ * (`via`), or a list of child rows in order. A list may leave rows out by
+ * their own columns, the way a statement's sources do: `where` keeps only the
+ * rows whose column holds one of its values, and `unless` drops a row whose
+ * column is true or set (a voided line: `"unless": "voided"`). The slots
+ * themselves are the add-on's words; Adminium checks the columns here and the
+ * slots against the add-on when the profile is made at install. A profile is
+ * the app's: made with real table names when the app is installed, removed
+ * with it.
  *
  * A statement is a document over one row (a client) and a period: it lists
  * the documents and payments that point at that row, so it names them
@@ -32,6 +36,9 @@ import { z } from 'zod';
 import { refSchema, textOrLabels, type ReferenceIssue, type TableIndex } from './refs.js';
 
 const slotId = z.string().regex(/^[A-Za-z][A-Za-z0-9_]*$/, 'a slot id');
+
+/** Only rows whose column holds one of the values (sent invoices, not drafts). */
+const whereSchema = z.object({ column: refSchema, in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(16) }).strict();
 
 export const slotMappingSchema = z.union([
   z.object({ column: refSchema }).strict(),
@@ -44,6 +51,10 @@ export const slotMappingSchema = z.union([
           via: refSchema,
           orderBy: refSchema.optional(),
           columns: z.record(slotId, refSchema),
+          /** Only the child rows whose column holds one of the values. */
+          where: whereSchema.optional(),
+          /** A child row whose column is true (or set) is left out: a voided line. */
+          unless: refSchema.optional(),
         })
         .strict(),
     })
@@ -59,8 +70,7 @@ const statementSourceSchema = z
     date: refSchema,
     amount: refSchema,
     number: refSchema.optional(),
-    /** Only rows whose column holds one of the values (sent invoices, not drafts). */
-    where: z.object({ column: refSchema, in: z.array(z.union([z.string(), z.number(), z.boolean()])).min(1).max(16) }).strict().optional(),
+    where: whereSchema.optional(),
     /** A row whose column is true (or set) is left out: a voided payment. */
     unless: refSchema.optional(),
   })
@@ -98,7 +108,7 @@ export function mappingIssues(
       }
       const via = index.column(c.table, c.via);
       if (via?.type !== 'fk' || via.references !== table) out.push({ path: here('collection', 'via'), message: `"${c.table}.${c.via}" does not point at "${table}"` });
-      for (const ref of [...Object.values(c.columns), ...(c.orderBy === undefined ? [] : [c.orderBy])]) {
+      for (const ref of [...Object.values(c.columns), ...[c.orderBy, c.where?.column, c.unless].filter((r) => r !== undefined)]) {
         if (!index.has(c.table, ref)) out.push({ path: here('collection'), message: `"${c.table}" has no column "${ref}"` });
       }
     } else if ('via' in source) {

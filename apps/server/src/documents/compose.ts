@@ -42,8 +42,8 @@ import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
 import { DocumentReadError, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
-import { dayOf, dayOn, readStatement, scaled, unscaled, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
-import type { ProfileMapping } from './subject.js';
+import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
+import type { ProfileMapping, SlotMapping } from './subject.js';
 
 // The filter type lives with the renderer, which reads it too; importers still find it here.
 export type { ReadFilter } from './render.js';
@@ -147,6 +147,10 @@ async function readLookups(
  * the child's key — so two lines at the same position still come out the same
  * way every time. Read in pages; past {@link DOCUMENT_MAX_LINES} the render
  * fails rather than printing a document with lines silently missing.
+ *
+ * A line the mapping leaves out (`where`, `unless`: a voided line) is left out
+ * as it is read, by the same rule a statement's sources use, and does not
+ * count towards the limit: the limit is on what the document prints.
  */
 async function readLines(
   db: Kysely<SourceDatabase>,
@@ -155,8 +159,14 @@ async function readLines(
   parentValue: unknown,
   orderBy: string | null,
   dialect: Dialect,
+  filter: Pick<Extract<SlotMapping, { collection: unknown }>['collection'], 'where' | 'unless'> = {},
 ): Promise<Record<string, unknown>[]> {
   if (!child.columns.has(fkColumn)) return [];
+  // A column the filter names that the table does not have is a stale
+  // mapping; reading every line instead would print the voided ones.
+  for (const column of [filter.where?.column, filter.unless]) {
+    if (column !== undefined && !child.columns.has(column)) throw new DocumentReadError(`${child.name} has no column ${column}`);
+  }
   const rows: Record<string, unknown>[] = [];
   for (let offset = 0; ; offset += LINES_PAGE) {
     let query = db
@@ -166,7 +176,7 @@ async function readLines(
     if (orderBy !== null && child.columns.has(orderBy)) query = query.orderBy(orderBy as never, 'asc');
     for (const pk of child.primaryKey) query = query.orderBy(pk as never, 'asc');
     const page = (await query.limit(LINES_PAGE).offset(offset).execute()) as Record<string, unknown>[];
-    rows.push(...page.map((line) => spelled(line, child, dialect)));
+    rows.push(...page.filter((line) => keptBy(line, filter)).map((line) => spelled(line, child, dialect)));
     if (rows.length > DOCUMENT_MAX_LINES) {
       throw new DocumentReadError(`more than ${String(DOCUMENT_MAX_LINES)} lines in ${child.name}`);
     }
@@ -480,6 +490,7 @@ export async function readProfileSource(input: {
       row[parentKey],
       mapped.collection.orderBy ?? profile.orderBy ?? null,
       dialect,
+      mapped.collection,
     );
   }
 

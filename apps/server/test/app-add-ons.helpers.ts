@@ -8,6 +8,9 @@
  * download or the boot seed would, and `bundled: true` also lays its tarball's
  * name in the bundled directory — the only witness of "comes with Adminium".
  *
+ * `documents` also serves the documents routes over an add-on runtime the test
+ * hands in, so an app's own screen can ask for a document to be drawn.
+ *
  * SQLite always; Postgres with TEST_POSTGRES_URL, MySQL with TEST_MYSQL_URL.
  */
 import { randomBytes } from 'node:crypto';
@@ -21,6 +24,7 @@ import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter'
 import { createSqliteMetaDb, firstRun, manifestsRepo, rolesRepo, usersRepo, type MetaDb, type User } from '@adminium/meta';
 
 import type { CatalogClient } from '../src/add-ons/catalog.js';
+import type { AddOnRuntimeState } from '../src/add-ons/runtime.js';
 import { createAddOnSchemaTarget } from '../src/add-ons/schema-target.js';
 import { createAddOnStore, sha512Integrity, type AddOnStore } from '../src/add-ons/store.js';
 import { createInstalledApps } from '../src/apps/installed.js';
@@ -34,7 +38,10 @@ import { AppError, errorEnvelope, UnauthorizedError } from '../src/errors.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { addOnRoutes } from '../src/routes/add-ons/index.js';
 import { appRoutes } from '../src/routes/apps/index.js';
+import { documentRoutes } from '../src/routes/documents/index.js';
+import { createDocumentPipeline } from '../src/documents/compose.js';
 import { packageTarball } from './app-bundle-helpers.js';
+import { memoryStorage } from './memory-storage.helpers.js';
 import { TEST_SECRET } from './helpers.js';
 
 export type Dialect = 'sqlite' | 'postgres' | 'mysql';
@@ -142,7 +149,12 @@ export interface Harness {
   close: () => Promise<void>;
 }
 
-export async function addOnHarness(dialect: Dialect): Promise<Harness> {
+export interface HarnessOptions {
+  /** Serve the documents routes too, drawing with this add-on runtime. */
+  documents?: { runtime: () => AddOnRuntimeState | null } | undefined;
+}
+
+export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}): Promise<Harness> {
   const dataDir = await mkdtemp(join(tmpdir(), 'app-add-ons-'));
   const bundledDir = await mkdtemp(join(tmpdir(), 'add-ons-bundle-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -246,8 +258,9 @@ export async function addOnHarness(dialect: Dialect): Promise<Harness> {
     },
   };
   const manifests = manifestsRepo(meta, CRYPTO);
+  const runtime = opts.documents?.runtime;
   await app.register(
-    addOnRoutes({ ...installer, serverVersion: '0.4.0', catalog }),
+    addOnRoutes({ ...installer, serverVersion: '0.4.0', catalog, ...(runtime === undefined ? {} : { runtime }) }),
   );
   await app.register(
     appRoutes({
@@ -262,8 +275,15 @@ export async function addOnHarness(dialect: Dialect): Promise<Harness> {
       serverVersion: '0.4.0',
       schemaTarget,
       addOns: { installer, catalog, bundledDir },
+      ...(runtime === undefined ? {} : { addOnRuntime: runtime }),
     }),
   );
+  if (runtime !== undefined) {
+    // Imported here: that module imports this one.
+    const storage = memoryStorage();
+    const pipeline = createDocumentPipeline({ meta, manager, storage, runtime });
+    await app.register(documentRoutes({ meta, storage, runtime, enqueue: () => Promise.resolve({ id: 'job_1' }), pipeline }));
+  }
   await app.ready();
   const handle = await manager.data(connection.id);
 

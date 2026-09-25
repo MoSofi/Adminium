@@ -59,6 +59,8 @@
 
 import { createHash } from 'node:crypto';
 
+import { currencyScale } from '@adminium/manifest';
+
 import { DOCUMENT_LOCALE_IDS } from '@adminium/add-on-contracts';
 import {
   auditRepo,
@@ -77,6 +79,7 @@ import type { RecordFilter } from '../crud/filters.js';
 import type { FileStore } from '../files/store.js';
 import { providerByKey, providersFor, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EmailLogger } from '../email/send.js';
+import { AppError } from '../errors.js';
 import { emailDocument, type DocumentDelivery } from './deliver.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
@@ -84,7 +87,7 @@ import {
   renderingProviderOf,
 } from './provider.js';
 import type { StatementPeriod, StatementRead } from './statement.js';
-import { buildSubject, mappedTables, type ProfileMapping } from './subject.js';
+import { buildSubject, coerceSlot, mappedTables, type ProfileMapping, type SubjectSlot } from './subject.js';
 
 /**
  * What a public reader may read of one table: a filter, nothing (the table
@@ -200,6 +203,54 @@ export interface RenderRequest {
   period?: StatementPeriod | undefined;
   /** What a public caller may read beside the row (see `RenderDeps.readSource`). */
   readFilters?: ReadonlyMap<string, ReadFilter> | undefined;
+  /**
+   * Values for slots the profile does not map, from whoever asked — a label
+   * sheet's count, from the screen that prints it. Typed by the outline like
+   * the profile's own typed values, and over them; never over a mapped column.
+   * A slot the outline does not have, a list, a mapped slot or a value its
+   * type cannot hold is refused (400, naming the slot) before anything is
+   * written.
+   */
+  values?: Readonly<Record<string, string | number | boolean>> | undefined;
+}
+
+/** A value a render request carries for a slot, refused: the slot is named. */
+export class DocumentValueError extends AppError {
+  override readonly name = 'DocumentValueError';
+
+  constructor(slot: string, message: string) {
+    super(400, 'DOCUMENT_VALUE_REFUSED', message, { slot });
+  }
+}
+
+/**
+ * A request's values, each typed as its slot's type — or the first one that
+ * cannot be. Typed here, before the reuse key is made, so `"12"` and `12`
+ * are the same sheet.
+ */
+function typedValues(
+  values: Readonly<Record<string, string | number | boolean>>,
+  slots: readonly SubjectSlot[],
+  mapping: ProfileMapping,
+  kind: string,
+  currency: string,
+  timezone: string,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [id, value] of Object.entries(values)) {
+    const slot = slots.find((candidate) => candidate.id === id);
+    if (slot === undefined) throw new DocumentValueError(id, `A ${kind} has no slot "${id}".`);
+    if (slot.type === 'collection') throw new DocumentValueError(id, `"${id}" is a list, and a list cannot be sent as a value.`);
+    if (mapping[id] !== undefined) {
+      throw new DocumentValueError(id, `"${id}" is read from the row, so a value sent for it would print something the row does not say.`);
+    }
+    const typed = coerceSlot(slot.type, value, currencyScale(currency), timezone);
+    if (typed === null || typed === '' || (slot.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(String(typed)))) {
+      throw new DocumentValueError(id, `"${id}" cannot hold ${JSON.stringify(value)}.`);
+    }
+    out[id] = typed;
+  }
+  return out;
 }
 
 export type RenderOutcome =
@@ -414,8 +465,15 @@ export async function renderDocument(
   const paper = (options.paper ?? kind?.paper[0] ?? 'a4') as string;
   const settings = await deps.settingsFor(profile.addOnKey);
   const business = await deps.business(profile.addOnKey);
+  const values =
+    request.values === undefined || Object.keys(request.values).length === 0
+      ? undefined
+      : typedValues(request.values, outline.slots, profile.mapping as ProfileMapping, profile.kind, source.currency, source.timezone);
 
   const reuseKey = reuseKeyOf(profile, {
+    // Only when sent: a key that always held them would miss every document
+    // drawn before, and draw each one again under a new number.
+    ...(values === undefined ? {} : { values }),
     pk: source.entity.pk,
     row: source.row,
     collections: source.collections,
@@ -457,9 +515,11 @@ export async function renderDocument(
       lookups: source.lookups,
       // The values somebody typed into the mapping rather than pointing at a
       // column, and a statement's figures: both fill only slots nothing maps.
-      ...(options.literals === undefined && source.statement === undefined
+      // A request's own values stand over the profile's, as its language does;
+      // a statement's figures are read from the data, and stand over both.
+      ...(options.literals === undefined && values === undefined && source.statement === undefined
         ? {}
-        : { values: { ...(options.literals ?? {}), ...(source.statement?.fields ?? {}) } }),
+        : { values: { ...(options.literals ?? {}), ...(values ?? {}), ...(source.statement?.fields ?? {}) } }),
       ...(source.statement === undefined ? {} : { collectionValues: source.statement.collections }),
       ...(drawnBefore === undefined || drawnBefore === null ? {} : { drawnBefore: drawnBefore as Record<string, unknown> }),
       now: { iso: new Date(at).toISOString(), timezone: source.timezone },

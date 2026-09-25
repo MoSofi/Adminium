@@ -385,9 +385,13 @@ describe.each(LEGS)('documents for an app\'s own rows on %s', (dialect, reachabl
   it.skipIf(!reachable)('is idempotent on update, removes what a version drops, and skips what it cannot make', async () => {
     const base = studioManifest() as never;
     const shapes = await installedShapes(h.meta);
-    const again = await makeAppProfiles({ meta: h.meta, manifest: base, connectionId: h.connectionId, realId: h.realId, shapes });
+    const edited = async () => (await documentProfilesRepo(h.meta).listOwnedBy(h.connectionId, 'studio')).map((p) => [p.id, p.updatedAt]);
+    const before = await edited();
+    const again = await makeAppProfiles({ meta: h.meta, manifest: base, connectionId: h.connectionId, realId: h.realId, shapes, at: Date.now() + 60_000 });
     expect(again.made).toEqual([]);
     expect(again.updated.map((u) => u.id).sort()).toEqual(profiles.map((p) => p.id).sort());
+    // Nothing to change, nothing written: the edit time every reuse key reads stays put.
+    expect(await edited()).toEqual(before);
 
     /*
      * An operator's profile of the same name (made while the app's was gone)

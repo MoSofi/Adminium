@@ -72654,6 +72654,28 @@
                   "locale": {
                     "type": "string",
                     "maxLength": 35
+                  },
+                  "values": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                    },
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
+                    }
                   }
                 },
                 "required": [

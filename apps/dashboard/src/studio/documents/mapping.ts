@@ -173,13 +173,20 @@ export function rankChildTables(
 export type SlotBinding =
   | { kind: 'unmapped' }
   | { kind: 'column'; column: string }
-  | { kind: 'lookup'; ref: string; column: string }
+  /** `table` is the linked row's table, kept from the stored mapping when it names one. */
+  | { kind: 'lookup'; ref: string; column: string; table?: string }
   | { kind: 'literal'; value: string }
   | {
       kind: 'collection';
       table: string;
       fkColumn: string;
       columns: Record<string, string>;
+      /**
+       * What the editor does not show but must not lose: the lines' order and
+       * which rows are left out (`orderBy`, `where`, `unless`), carried from the
+       * stored mapping back into it unchanged.
+       */
+      kept?: Record<string, unknown>;
     };
 
 export type Bindings = Record<string, SlotBinding>;
@@ -211,11 +218,12 @@ export function toMapping(bindings: Bindings): Record<string, unknown> {
         mapping[slotId] = { column: binding.column };
         break;
       case 'lookup':
-        mapping[slotId] = { ref: binding.ref, column: binding.column };
+        mapping[slotId] = { ref: binding.ref, column: binding.column, ...(binding.table === undefined ? {} : { table: binding.table }) };
         break;
       case 'collection':
         mapping[slotId] = {
           collection: {
+            ...binding.kept,
             table: binding.table,
             fkColumn: binding.fkColumn,
             columns: binding.columns,
@@ -263,17 +271,18 @@ export function fromMapping(
     if (typeof raw !== 'object' || raw === null) continue;
     const value = raw as Record<string, unknown>;
     if ('collection' in value) {
-      const collection = value.collection as {
+      const { table, fkColumn, columns, ...kept } = value.collection as {
         table: string;
         fkColumn: string;
         columns: Record<string, string>;
-      };
-      bindings[slotId] = { kind: 'collection', ...collection };
+      } & Record<string, unknown>;
+      bindings[slotId] = { kind: 'collection', table, fkColumn, columns, ...(Object.keys(kept).length === 0 ? {} : { kept }) };
     } else if ('ref' in value) {
       bindings[slotId] = {
         kind: 'lookup',
         ref: String(value.ref),
         column: String(value.column),
+        ...(typeof value.table === 'string' ? { table: value.table } : {}),
       };
     } else if ('column' in value) {
       bindings[slotId] = { kind: 'column', column: String(value.column) };

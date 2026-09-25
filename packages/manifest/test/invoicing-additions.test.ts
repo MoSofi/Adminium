@@ -321,6 +321,22 @@ describe('addOns and documents', () => {
     expectIssue(m, '"invoice_lines.document_id" does not point at "clients"');
   });
 
+  it('leaves rows out of a child list by the child\'s own columns, and names one it does not have', () => {
+    const lines = (filter: Doc): Doc => ({ lines: { collection: { table: 'invoices', via: 'client_id', columns: { amount: 'total' }, ...filter } } });
+    let m = valid();
+    (m['documents'] as Doc[])[0]!['mapping'] = lines({ where: { column: 'status', in: ['sent', 'void'] }, unless: 'client_paid_at' });
+    expect(validateManifest(m).ok, issuesText(m)).toBe(true);
+    m = valid();
+    (m['documents'] as Doc[])[0]!['mapping'] = lines({ unless: 'voided' });
+    expectIssue(m, '"invoices" has no column "voided"');
+    m = valid();
+    (m['documents'] as Doc[])[0]!['mapping'] = lines({ where: { column: 'email', in: ['a'] } });
+    expectIssue(m, '"invoices" has no column "email"');
+    m = valid();
+    (m['documents'] as Doc[])[0]!['mapping'] = lines({ where: { column: 'status', in: [] } });
+    expect(validateManifest(m).ok).toBe(false);
+  });
+
   it('keeps builtOn and part together, and apart from a shared shape', () => {
     let m = valid();
     delete tableOf(m, 'payments')['part'];

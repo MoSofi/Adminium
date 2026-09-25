@@ -35,6 +35,8 @@
  * So is one whose mapping names a table the install did not make. A profile
  * is either made whole or not at all.
  */
+import { isDeepStrictEqual } from 'node:util';
+
 import type { AppDocument, AppManifest, ColumnRules, ShapeDefinition, SlotMapping as ManifestSlotMapping } from '@adminium/manifest';
 import { shapeDefinitionSchema, shapeKey } from '@adminium/manifest';
 import { documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
@@ -238,6 +240,8 @@ export function storedProfile(
           fkColumn: source.collection.via,
           columns: { ...source.collection.columns },
           ...(source.collection.orderBy === undefined ? {} : { orderBy: source.collection.orderBy }),
+          ...(source.collection.where === undefined ? {} : { where: { column: source.collection.where.column, in: [...source.collection.where.in] } }),
+          ...(source.collection.unless === undefined ? {} : { unless: source.collection.unless }),
         },
       };
       mapping[slot] = collection;
@@ -425,7 +429,14 @@ export async function makeAppProfiles(input: {
       const options: Record<string, unknown> = { ...mine.options };
       for (const key of APP_OPTIONS) delete options[key];
       Object.assign(options, stored.options);
-      await repo.patch(mine.id, { name: stored.name, mapping: stored.mapping as Record<string, unknown>, options, orderBy: stored.orderBy }, at);
+      const next = { name: stored.name, mapping: stored.mapping as Record<string, unknown>, options, orderBy: stored.orderBy };
+      /*
+       * Written only when it differs. The profile's edit time is part of every
+       * document's reuse key, so a write that changed nothing would make the
+       * next draw of an unchanged row a NEW document, under a new number — on
+       * every update, and every time an add-on is connected to the app.
+       */
+      if (!sameAsStored(mine, next)) await repo.patch(mine.id, next, at);
       result.updated.push({ id: mine.id, kind: stored.kind, table: stored.table });
       continue;
     }
@@ -465,6 +476,20 @@ export async function makeAppProfiles(input: {
     result.removed.push(profile.id);
   }
   return result;
+}
+
+/** Whether a profile already holds these values, compared as they are stored (JSON). */
+function sameAsStored(
+  profile: DocumentProfile,
+  next: { name: string; mapping: Record<string, unknown>; options: Record<string, unknown>; orderBy: string | null },
+): boolean {
+  const asStored = (value: unknown): unknown => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
+  return (
+    profile.name === next.name &&
+    (profile.orderBy ?? null) === next.orderBy &&
+    isDeepStrictEqual(asStored(profile.mapping), asStored(next.mapping)) &&
+    isDeepStrictEqual(asStored(profile.options), asStored(next.options))
+  );
 }
 
 /** One profile, and the rule of any trigger an operator gave it. */
