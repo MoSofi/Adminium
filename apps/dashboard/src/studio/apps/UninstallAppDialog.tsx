@@ -84,6 +84,10 @@ export function UninstallAppDialog({ appKey, name, subtitle, onClose, onUninstal
       );
     }
     for (const role of data.roles) removed.push(role.name);
+    // The add-ons stay installed — they are shared — and only their link to this app goes.
+    for (const addOn of data.addOns ?? []) {
+      removed.push(t('studio:appAddOns.uninstall.link', 'Its link to {addOn}', { addOn: addOn.name }));
+    }
     if (data.hosts.length > 0) {
       removed.push(
         t('studio:uninstall.hosts', '{count, plural, one {Its domain} other {Its # domains}}', { count: data.hosts.length }),
@@ -101,6 +105,13 @@ export function UninstallAppDialog({ appKey, name, subtitle, onClose, onUninstal
       kept.push(t('studio:uninstall.editedPages', 'Pages you edited stay as ordinary pages'));
     }
     kept.push(t('studio:uninstall.audit', 'Its entries in the audit log'));
+    for (const addOn of data.addOns ?? []) {
+      kept.push(
+        t('studio:appAddOns.uninstall.kept', '{addOn} stays installed. Uninstall it from Add-ons if nothing else uses it.', {
+          addOn: addOn.name,
+        }),
+      );
+    }
   }
   const cascading = data?.roles.filter((role) => role.members > 0 || role.apiKeys > 0) ?? [];
 

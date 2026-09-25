@@ -91,11 +91,14 @@ import {
   type InstalledAppSide,
 } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
+import { AppAddOnsCard } from './AppAddOnsCard.js';
 import { RenameTablesDialog } from './RenameTablesDialog.js';
 import { SampleDataCard } from './SampleData.js';
 
 /** For the app's own pages (`pages/appPageNotice.tsx`), which load it from here. */
 export { SampleDataBanner } from './SampleData.js';
+/** For the page route (`pages/PageRenderer.tsx`), which loads it from here, in this chunk. */
+export { FeaturePageNotice } from './FeaturePageNotice.js';
 import { UninstallAppDialog } from './UninstallAppDialog.js';
 import { UpdateColumnsDialog } from './UpdateColumnsDialog.js';
 
@@ -314,6 +317,10 @@ function Loaded({ app }: { app: InstalledApp }) {
           <SampleDataCard appKey={app.key} connectionName={overview.connection?.name ?? null} />
         </div>
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5">
+          {/* An app that names no add-on has no card. */}
+          {(settings.addOns ?? []).length === 0 ? null : (
+            <AppAddOnsCard appKey={app.key} appName={name} rows={settings.addOns ?? []} />
+          )}
           <ActivityCard appKey={app.key} />
           <DangerZone app={app} name={name} publisher={row?.publisher ?? '—'} onChanged={refresh} />
         </div>

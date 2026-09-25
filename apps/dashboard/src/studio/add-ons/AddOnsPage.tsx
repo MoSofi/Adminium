@@ -32,7 +32,7 @@
  * disabled button, and certainly not a "create them" action that would fail.
  */
 import { useMutation, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Blocks, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
 import {
   Alert,
@@ -52,8 +52,12 @@ import {
   Select,
 } from '@adminium/ui';
 
+import { ApiError } from '../../app/api.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
+import { featureWords } from '../apps/addOnWords.js';
+import { AddOnNeededDialog, type AddOnNeeded } from './AddOnNeededDialog.js';
 import { AddOnBrowser } from './AddOnBrowser.js';
+import { PlanSummary } from './PlanSummary.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { t } from '../../i18n/t.js';
 import {
@@ -76,6 +80,7 @@ import {
   uninstallAddOn,
   upgradeAddOn,
   type AddOnDto,
+  type AddOnUse,
   type CatalogEntry,
   type InstallPlan,
   type StagedPackage,
@@ -88,73 +93,26 @@ type Pending =
   | { kind: 'discard'; entry: CatalogEntry };
 
 /**
- * The plan, rendered as prose an operator can act on.
- *
- * Every branch says what WILL happen rather than what the API returned, because
- * this is the moment consent is given and a field name is not consent.
+ * Who uses an installed add-on, before anyone clicks: "Used by Client Portal
+ * (Required) · Point of Sale (Needed for: Emailed receipts)".
  */
-function PlanSummary({ plan }: { plan: InstallPlan }) {
-  if (!plan.installable) {
-    return (
-      <Alert tone="danger" title={t('studio:addOns.plan.blocked', 'This cannot be installed here')}>
-        <ul className="list-disc ps-4">
-          {plan.problems.map((problem) => (
-            <li key={`${problem.table}.${problem.column ?? ''}`}>{problem.message}</li>
-          ))}
-        </ul>
-      </Alert>
-    );
-  }
-  // A table that EXISTS but lacks columns the add-on needs is refused, and this
-  // says why rather than offering a button that fails: creating a table an
-  // add-on asked for is one thing, altering one the operator already owns is a
-  // different one that install will not do on their behalf.
-  const incomplete = plan.reuse.filter((table) => table.missingColumns.length > 0);
-  if (incomplete.length > 0) {
-    return (
-      <Alert
-        tone="danger"
-        title={t('studio:addOns.plan.needsColumns', 'This add-on needs columns you do not have')}
-      >
-        {t(
-          'studio:addOns.plan.needsColumnsBody',
-          'Adminium will not add columns to tables you already own. Add them yourself, then install.',
-        )}{' '}
-        <strong>
-          {incomplete
-            .map((table) => `${table.ref} (${table.missingColumns.join(', ')})`)
-            .join('; ')}
-        </strong>
-      </Alert>
-    );
-  }
-  if (plan.create.length > 0) {
-    // Named, and named BEFORE consent. Installing this writes to the operator's
-    // own database, which is the single most consequential thing on this page.
-    return (
-      <Alert
-        tone="warn"
-        title={t('studio:addOns.plan.willCreate', 'This will create tables in your database')}
-      >
-        {t(
-          'studio:addOns.plan.willCreateBody',
-          'Installing creates these tables. Uninstalling later leaves them, and their data, alone.',
-        )}{' '}
-        <strong>{plan.create.map((table) => table.ref).join(', ')}</strong>
-      </Alert>
-    );
-  }
-  if (!plan.touchesData) {
-    return (
-      <p className="text-sm text-fg-muted">
-        {t('studio:addOns.plan.noData', 'This add-on reads and writes no tables of its own.')}
-      </p>
-    );
-  }
+function UsedByLine({ uses }: { uses: readonly AddOnUse[] }) {
   return (
-    <p className="text-sm text-fg-muted">
-      {t('studio:addOns.plan.reuse', 'This add-on will use tables you already have:')}{' '}
-      <strong>{plan.reuse.map((table) => table.ref).join(', ')}</strong>
+    <p className="text-xs text-fg-muted" data-part="add-on-used-by">
+      {t('studio:addOnNeeded.usedByLine', 'Used by {apps}', {
+        apps: uses
+          .map((use) =>
+            use.need === 'requires'
+              ? t('studio:addOnNeeded.useRequired', '{app} (Required)', { app: use.appName })
+              : use.need === 'feature'
+                ? t('studio:addOnNeeded.useFeature', '{app} (Needed for: {features})', {
+                    app: use.appName,
+                    features: featureWords(use.features),
+                  })
+                : t('studio:addOnNeeded.useSuggested', '{app} (Suggested)', { app: use.appName }),
+          )
+          .join(' · '),
+      })}
     </p>
   );
 }
@@ -616,6 +574,17 @@ export function AddOnsPage() {
   );
   const [progress, setProgress] = useState<{ pct: number; message: string | null } | null>(null);
   const [vetoed, setVetoed] = useState(false);
+  /** An app needs the add-on: refused (it requires it) or warned (a feature of it stops). */
+  const [needed, setNeeded] = useState<{ needed: AddOnNeeded; confirm?: () => void } | null>(null);
+
+  /*
+   * "Open its settings" on an app's page lands here on `#add-on-<key>`: the
+   * add-on's row is brought into view once the list has painted.
+   */
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id.startsWith('add-on-')) document.getElementById(id)?.scrollIntoView?.({ block: 'start' });
+  }, []);
 
   const refresh = async (): Promise<void> => {
     await Promise.all([
@@ -628,7 +597,7 @@ export function AddOnsPage() {
    * One place that turns a thrown request into page state. Resolves to what
    * the request returned, or `undefined` once its failure is on the page.
    */
-  const run = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
+  const run = async <T,>(fn: () => Promise<T>, refusedAs?: Omit<AddOnNeeded, 'uses'>): Promise<T | undefined> => {
     setBusy(true);
     setError(null);
     try {
@@ -636,10 +605,74 @@ export function AddOnsPage() {
       await refresh();
       return result;
     } catch (caught) {
+      /*
+       * The server's own guard: an app requires it. The page read who uses
+       * it before the click, so this is a list that changed in between — the
+       * same dialog, from the server's list, rather than a bare message.
+       */
+      if (refusedAs !== undefined && caught instanceof ApiError && caught.code === 'ADD_ON_REQUIRED_BY') {
+        const apps = ((caught.details as { apps?: { app: string; name: string; status: string }[] } | undefined)?.apps ?? []);
+        setNeeded({
+          needed: {
+            ...refusedAs,
+            uses: apps.map((app) => ({ app: app.app, appName: app.name, status: app.status, need: 'requires', range: null, features: [] })),
+          },
+        });
+        await refresh();
+        return undefined;
+      }
       setError(caught instanceof Error ? caught.message : String(caught));
       return undefined;
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** Uninstall: refused while an app requires it, warned while an app's feature uses it. */
+  const askUninstall = (addOn: AddOnDto): void => {
+    const uses = addOn.usedBy ?? [];
+    const target = { key: addOn.key, name: addOn.name, version: addOn.version };
+    const requiring = uses.filter((use) => use.need === 'requires');
+    const featured = uses.filter((use) => use.need === 'feature');
+    if (requiring.length > 0) {
+      setNeeded({ needed: { action: 'uninstall', addOn: target, uses: requiring } });
+    } else if (featured.length > 0) {
+      setNeeded({
+        needed: { action: 'uninstall', addOn: target, uses: featured },
+        confirm: () => {
+          setNeeded(null);
+          void run(() => uninstallAddOn(addOn.key), { action: 'uninstall', addOn: target });
+        },
+      });
+    } else {
+      setPending({ kind: 'uninstall', addOn });
+    }
+  };
+
+  /** Switching it off for one app: refused when that app requires it, warned when a feature of it stops. */
+  const toggleAttachment = (addOn: AddOnDto, attachedTo: string, enabled: boolean): void => {
+    const target = { key: addOn.key, name: addOn.name, version: addOn.version };
+    const go = () =>
+      void run(() => setAddOnEnabled(addOn.key, attachedTo, !enabled), { action: 'switch-off', addOn: target, host: attachedTo });
+    if (!enabled) {
+      go();
+      return;
+    }
+    const uses = (addOn.usedBy ?? []).filter((use) => use.app === attachedTo);
+    const requiring = uses.filter((use) => use.need === 'requires');
+    const featured = uses.filter((use) => use.need === 'feature');
+    if (requiring.length > 0) {
+      setNeeded({ needed: { action: 'switch-off', addOn: target, uses: requiring, host: attachedTo } });
+    } else if (featured.length > 0) {
+      setNeeded({
+        needed: { action: 'switch-off', addOn: target, uses: featured, host: attachedTo },
+        confirm: () => {
+          setNeeded(null);
+          go();
+        },
+      });
+    } else {
+      go();
     }
   };
 
@@ -782,7 +815,7 @@ export function AddOnsPage() {
           ) : (
             <ul className="flex flex-col gap-4">
               {installed.map((addOn) => (
-                <li key={addOn.key} className="flex flex-col gap-2">
+                <li key={addOn.key} id={`add-on-${addOn.key}`} className="flex flex-col gap-2">
                   <span className="flex items-center gap-2">
                     <strong>{addOn.name}</strong>
                     <Badge tone="neutral">{addOn.version}</Badge>
@@ -821,6 +854,8 @@ export function AddOnsPage() {
                     </p>
                   )}
 
+                  {(addOn.usedBy ?? []).length === 0 ? null : <UsedByLine uses={addOn.usedBy ?? []} />}
+
                   <div className="flex flex-wrap gap-2">
                     {addOn.attachments.map((attachment) => (
                       <Button
@@ -828,15 +863,7 @@ export function AddOnsPage() {
                         size="sm"
                         variant={attachment.enabled ? 'secondary' : 'ghost'}
                         disabled={busy}
-                        onClick={() => {
-                          void run(() =>
-                            setAddOnEnabled(
-                              addOn.key,
-                              attachment.attachedTo,
-                              !attachment.enabled,
-                            ),
-                          );
-                        }}
+                        onClick={() => toggleAttachment(addOn, attachment.attachedTo, attachment.enabled)}
                       >
                         {attachment.attachedTo}
                         {attachment.enabled
@@ -879,7 +906,7 @@ export function AddOnsPage() {
                       size="sm"
                       variant="destructiveSoft"
                       disabled={busy}
-                      onClick={() => setPending({ kind: 'uninstall', addOn })}
+                      onClick={() => askUninstall(addOn)}
                     >
                       {t('studio:addOns.installed.uninstall', 'Uninstall')}
                     </Button>
@@ -957,11 +984,16 @@ export function AddOnsPage() {
               onClick={() => {
                 const current = pending;
                 setPending(null);
-                void run<unknown>(() => {
-                  if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
-                  if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key);
-                  return discardStaged(current.entry.key, current.entry.version);
-                });
+                void run<unknown>(
+                  () => {
+                    if (current.kind === 'disconnect') return disconnectAddOn(current.addOn.key);
+                    if (current.kind === 'uninstall') return uninstallAddOn(current.addOn.key);
+                    return discardStaged(current.entry.key, current.entry.version);
+                  },
+                  current.kind === 'uninstall'
+                    ? { action: 'uninstall', addOn: { key: current.addOn.key, name: current.addOn.name, version: current.addOn.version } }
+                    : undefined,
+                );
               }}
             >
               {pending.kind === 'disconnect'
@@ -972,6 +1004,10 @@ export function AddOnsPage() {
             </Button>
           </ModalFooter>
         </Modal>
+      )}
+
+      {needed === null ? null : (
+        <AddOnNeededDialog needed={needed.needed} busy={busy} onClose={() => setNeeded(null)} onConfirm={needed.confirm} />
       )}
 
       {catalog.addOns.some((entry) => entry.upgradeTo !== null) && (

@@ -592,8 +592,19 @@ function StepRow({ label, value, state }: { label: string; value: string; state:
 
 const STEP_LIST = 'overflow-hidden rounded-[14px] border border-border bg-surface shadow-sm';
 
-/** While the install request runs. */
-export function Installing({ appName, connectionName }: { appName: string; connectionName: string }) {
+/**
+ * While the install request runs. The add-ons it needs go first — installed,
+ * updated or connected before the app's tables, which may be built on them.
+ */
+export function Installing({
+  appName,
+  connectionName,
+  addOnSteps = [],
+}: {
+  appName: string;
+  connectionName: string;
+  addOnSteps?: readonly { key: string; label: string }[];
+}) {
   return (
     <div className="flex max-w-[520px] flex-col gap-3.5" aria-busy="true">
       <div>
@@ -606,6 +617,9 @@ export function Installing({ appName, connectionName }: { appName: string; conne
         </p>
       </div>
       <ul className={STEP_LIST}>
+        {addOnSteps.map((step) => (
+          <StepRow key={step.key} label={step.label} value="" state="wait" />
+        ))}
         <StepRow label={t('studio:hostedApps.install.running.tables', 'Tables')} value="" state="wait" />
         <StepRow label={t('studio:hostedApps.install.running.pages', 'Pages')} value="" state="wait" />
       </ul>
@@ -613,9 +627,9 @@ export function Installing({ appName, connectionName }: { appName: string; conne
   );
 }
 
-/** Which of the install's steps a stopped install got through. */
+/** Which of the install's steps a stopped install got through; -1 is the add-ons, before the tables. */
 function stoppedAt(stage: string): number {
-  return stage === 'tables' || stage === 'introspect' ? 0 : stage === 'pages' ? 1 : 2;
+  return stage === 'add-ons' ? -1 : stage === 'tables' || stage === 'introspect' ? 0 : stage === 'pages' ? 1 : 2;
 }
 
 /** A 409 `APP_INSTALL_INCOMPLETE`, and the two ways on from it. */
@@ -639,7 +653,9 @@ export function InstallStopped({
         ? t('studio:hostedApps.install.stopped.failed', 'failed')
         : t('studio:hostedApps.install.stopped.notStarted', 'not started');
   const body =
-    details.stage === 'tables'
+    details.stage === 'add-ons'
+      ? t('studio:appAddOns.stopped.atAddOns', 'Installing the add-ons it needs failed, so nothing after that ran.')
+      : details.stage === 'tables'
       ? t('studio:hostedApps.install.stopped.atTables', 'Creating the tables failed, so nothing after that ran.')
       : details.stage === 'introspect'
         ? t(
@@ -667,6 +683,38 @@ export function InstallStopped({
         </div>
       </div>
       <ul className={STEP_LIST}>
+        {/* What the add-on steps did before the stop: kept, and not redone by "Try again". */}
+        {(details.addOns?.installed ?? []).map((addOn) => (
+          <StepRow
+            key={`i:${addOn.key}`}
+            label={t('studio:appAddOns.running.install', 'Installing {addOn}', { addOn: addOn.name })}
+            state="done"
+            value={`v${addOn.version}`}
+          />
+        ))}
+        {(details.addOns?.updated ?? []).map((addOn) => (
+          <StepRow
+            key={`u:${addOn.key}`}
+            label={t('studio:appAddOns.running.update', 'Updating {addOn}', { addOn: addOn.name })}
+            state="done"
+            value={`${addOn.from} → ${addOn.to}`}
+          />
+        ))}
+        {(details.addOns?.attached ?? []).map((addOn) => (
+          <StepRow
+            key={`a:${addOn.key}`}
+            label={t('studio:appAddOns.running.attach', 'Connecting {addOn}', { addOn: addOn.name })}
+            state="done"
+            value={t('studio:appAddOns.running.connected', 'connected')}
+          />
+        ))}
+        {details.stage === 'add-ons' ? (
+          <StepRow
+            label={t('studio:appAddOns.title', 'Add-ons')}
+            state="fail"
+            value={t('studio:hostedApps.install.stopped.failed', 'failed')}
+          />
+        ) : null}
         <StepRow
           label={t('studio:hostedApps.install.running.tables', 'Tables')}
           state={stateOf(0)}

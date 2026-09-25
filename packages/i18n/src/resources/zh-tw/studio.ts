@@ -3051,5 +3051,122 @@ export default {
       "noEmail": "尚未設定電子郵件，因此不會向客人寄送確認。"
     },
     "createConfirmed": "新增至 {table}，並收到確認郵件"
+  },
+  "addOnNeeded": {
+    "appDisabled": "已關閉——仍然需要它",
+    "appInstalling": "安裝尚未完成——仍然需要它",
+    "close": "關閉",
+    "confirm": {
+      "switchOff": "仍然關閉",
+      "uninstall": "仍然解除安裝"
+    },
+    "lead": {
+      "feature": "{app} 的 {features} 將關閉。",
+      "switchOff": "無法為 {app} 關閉 {addOn}。{app} 需要它。",
+      "uninstall": "無法解除安裝 {addOn}。{count, plural, other {{apps} 需要它。}}"
+    },
+    "note": {
+      "feature": "{apps} 的其餘部分不需要它也能運作。",
+      "switchOff": "若要關閉它，請先解除安裝 {app}。",
+      "uninstall": "若要解除安裝它，請先解除安裝 {apps}。"
+    },
+    "openApp": "開啟 {app}",
+    "subtitle": "v{version}",
+    "subtitleNamed": "{addOn} · v{version}",
+    "title": {
+      "switchOff": "為 {app} 關閉",
+      "switchOffAsk": "為 {app} 關閉？",
+      "uninstall": "解除安裝 {addOn}",
+      "uninstallAsk": "解除安裝 {addOn}？"
+    },
+    "useFeature": "{app}（用於：{features}）",
+    "useRequired": "{app}（必要）",
+    "useSuggested": "{app}（建議）",
+    "usedBy": "使用者",
+    "usedByLine": "使用者：{apps}"
+  },
+  "appAddOns": {
+    "alsoUsedBy": "{apps} 也在使用",
+    "block": {
+      "download": "請先下載 {addOn}：它在附加元件目錄中，尚未在此伺服器上。",
+      "noVersion": "{app} 需要 {addOn} {version}，但這裡沒有這樣的版本。",
+      "problem": "無法隨 {app} 安裝 {addOn}。原因見其所在列。",
+      "tooOld": "{app} 需要 {addOn} {version}。",
+      "unavailable": "{app} 需要 {addOn}，但這裡無法取得。",
+      "untick": "這裡無法將 {addOn} 與 {app} 一起使用。取消勾選即可在不含它的情況下安裝 {app}。"
+    },
+    "card": {
+      "connect": "連接",
+      "connected": "已將 {addOn} 連接到 {app}",
+      "consentConnect": "它將連接到 {app}。",
+      "featureOff": "{features} 已關閉：在安裝並連接 {addOn} 之前，其頁面不會出現在側邊欄中。",
+      "install": "安裝",
+      "installed": "已安裝 {addOn} 並連接到 {app}",
+      "metaAbsent": "未安裝 · v{version} · {source}",
+      "metaInstalled": "已安裝 · v{version} · {source}",
+      "metaOld": "已安裝 · v{version}",
+      "metaUnavailable": "未安裝 · {source}",
+      "notConnected": "未連接到 {app}",
+      "openSettings": "開啟其設定"
+    },
+    "done": {
+      "installed": "{count, plural, other {同時安裝了：{names}。設定位於 {addOns} 中。}}",
+      "updated": "{count, plural, other {同時更新了：{names}。設定位於 {addOns} 中。}}"
+    },
+    "download": "下載",
+    "downloading": "正在下載… {pct}%",
+    "grant": "{roles} 將能變更其設定，這些設定由它服務的所有應用程式共用。",
+    "howTo": "如何新增附加元件",
+    "intro": "{count, plural, other {{app} 可搭配以下附加元件使用。}}",
+    "meta": "v{version} · {source}",
+    "needsFloor": "{app} 需要 {version} 或更新版本",
+    "needsRange": "{app} 需要 {range}",
+    "orLater": "{version} 或更新版本",
+    "pill": {
+      "feature": "用於：{features}",
+      "required": "必要",
+      "suggested": "建議"
+    },
+    "plan": {
+      "creates": "{count, plural, other {將在 {connection} 中建立 {count} 張資料表：{tables}}}"
+    },
+    "running": {
+      "attach": "正在連接 {addOn}",
+      "connected": "已連接",
+      "install": "正在安裝 {addOn}",
+      "update": "正在更新 {addOn}"
+    },
+    "shared": "附加元件是共用的。你安裝的其他應用程式也可以使用它們。",
+    "source": {
+      "bundled": "隨 Adminium 附帶",
+      "catalog": "來自附加元件目錄",
+      "none": "此 Adminium 未附帶，附加元件目錄中也沒有可用的版本",
+      "off": "此 Adminium 未附帶，且附加元件目錄已關閉",
+      "upload": "已上傳到此 Adminium"
+    },
+    "status": {
+      "attached": "已連接到 {app}",
+      "downloadFirst": "從附加元件目錄下載後即會安裝",
+      "tooOld": "已安裝 v{installed}——{need}",
+      "unavailable": "{addOn} 在此 Adminium 上無法使用",
+      "willConnect": "已安裝 · v{version} · 將連接到 {app}",
+      "willInstall": "將被安裝",
+      "wontConnect": "已安裝 · v{version} · 不會連接"
+    },
+    "stopped": {
+      "atAddOns": "安裝所需的附加元件失敗，因此之後的步驟皆未執行。"
+    },
+    "title": "附加元件",
+    "uninstall": {
+      "kept": "{addOn} 將保持安裝。如果沒有其他項目使用它，可在「附加元件」中解除安裝。",
+      "link": "它與 {addOn} 的連接"
+    },
+    "updateToo": "一併更新"
+  },
+  "featurePage": {
+    "ask": "管理應用程式的人員可以安裝它。",
+    "body": "{count, plural, other {此頁面只能搭配此應用程式在這裡尚未擁有的附加元件使用，因此不在側邊欄中。附加元件安裝並連接到應用程式後，它就會回來。}}",
+    "open": "開啟應用程式的設定",
+    "title": "{page} 需要附加元件"
   }
 } as const;

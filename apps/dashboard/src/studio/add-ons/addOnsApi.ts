@@ -64,6 +64,23 @@ export interface AddOnDto {
   /** The stored NON-SECRET values. A credential is never read back. */
   settingValues: Record<string, unknown>;
   bundles: { path: string; url: string; integrity: string }[];
+  /**
+   * The installed apps that name it, and how — read before any click, so a
+   * refusal or a feature that stops can be said first. Absent from an older
+   * server.
+   */
+  usedBy?: AddOnUse[];
+}
+
+/** One installed app's need of an add-on. Mirrors `appNeedDto`. */
+export interface AddOnUse {
+  app: string;
+  appName: string;
+  /** `installed`, `disabled` or `installing` — a switched-off app still holds its need. */
+  status: string;
+  need: 'requires' | 'feature' | 'suggests';
+  range: string | null;
+  features: { id: string; label: Record<string, string> }[];
 }
 
 export interface AddOnSettingDeclaration {
@@ -162,6 +179,17 @@ export async function installAddOn(input: {
   attachTo: string[];
 }): Promise<{ addOn: AddOnDto; plan: InstallPlan }> {
   return api.post('/api/v1/add-ons', input);
+}
+
+/**
+ * Mount an installed add-on on one more app (`POST /add-ons/:key/attachments`),
+ * or switch it back on there. `change` is null when it already was.
+ */
+export async function attachAddOn(
+  key: string,
+  app: string,
+): Promise<{ addOn: AddOnDto; change: 'attached' | 'enabled' | null }> {
+  return api.post(`/api/v1/add-ons/${encodeURIComponent(key)}/attachments`, { app });
 }
 
 export async function setAddOnEnabled(

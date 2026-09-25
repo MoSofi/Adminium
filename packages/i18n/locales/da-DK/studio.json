@@ -3041,5 +3041,122 @@
       "noEmail": "E-mail er ikke sat op, så gæster får ingen bekræftelse."
     },
     "createConfirmed": "Tilføje til {table} og få en bekræftelsesmail"
+  },
+  "addOnNeeded": {
+    "appDisabled": "Slået fra – den har stadig brug for den",
+    "appInstalling": "Installationen er ikke færdig – den har stadig brug for den",
+    "close": "Luk",
+    "confirm": {
+      "switchOff": "Slå den fra alligevel",
+      "uninstall": "Afinstallér alligevel"
+    },
+    "lead": {
+      "feature": "{features} i {app} slås fra.",
+      "switchOff": "{addOn} kan ikke slås fra for {app}. {app} har brug for den.",
+      "uninstall": "{addOn} kan ikke afinstalleres. {count, plural, one {{apps} har brug for den.} other {{apps} har brug for den.}}"
+    },
+    "note": {
+      "feature": "Resten af {apps} virker uden den.",
+      "switchOff": "Afinstallér {app} først for at slå den fra.",
+      "uninstall": "Afinstallér {apps} først for at afinstallere den."
+    },
+    "openApp": "Åbn {app}",
+    "subtitle": "v{version}",
+    "subtitleNamed": "{addOn} · v{version}",
+    "title": {
+      "switchOff": "Slå fra for {app}",
+      "switchOffAsk": "Slå fra for {app}?",
+      "uninstall": "Afinstallér {addOn}",
+      "uninstallAsk": "Afinstallér {addOn}?"
+    },
+    "useFeature": "{app} (Kræves til: {features})",
+    "useRequired": "{app} (Påkrævet)",
+    "useSuggested": "{app} (Foreslået)",
+    "usedBy": "Bruges af",
+    "usedByLine": "Bruges af {apps}"
+  },
+  "appAddOns": {
+    "alsoUsedBy": "Bruges også af {apps}",
+    "block": {
+      "download": "Download {addOn} først: den findes i tilføjelseskataloget, men ikke på denne server endnu.",
+      "noVersion": "{app} har brug for {addOn} {version}, og ingen sådan version er tilgængelig her.",
+      "problem": "{addOn} kan ikke installeres sammen med {app}. Dens række siger hvorfor.",
+      "tooOld": "{app} har brug for {addOn} {version}.",
+      "unavailable": "{app} har brug for {addOn}, som ikke er tilgængelig her.",
+      "untick": "{addOn} kan ikke bruges med {app} her. Fjern fluebenet for at installere {app} uden den."
+    },
+    "card": {
+      "connect": "Forbind",
+      "connected": "{addOn} forbundet til {app}",
+      "consentConnect": "Den bliver forbundet til {app}.",
+      "featureOff": "{features} er slået fra: siderne er ikke i sidepanelet, før {addOn} er installeret og forbundet.",
+      "install": "Installér",
+      "installed": "{addOn} installeret og forbundet til {app}",
+      "metaAbsent": "Ikke installeret · v{version} · {source}",
+      "metaInstalled": "Installeret · v{version} · {source}",
+      "metaOld": "Installeret · v{version}",
+      "metaUnavailable": "Ikke installeret · {source}",
+      "notConnected": "Ikke forbundet til {app}",
+      "openSettings": "Åbn dens indstillinger"
+    },
+    "done": {
+      "installed": "Også installeret: {names}. {count, plural, one {Dens indstillinger findes} other {Deres indstillinger findes}} under {addOns}.",
+      "updated": "Også opdateret: {names}. {count, plural, one {Dens indstillinger findes} other {Deres indstillinger findes}} under {addOns}."
+    },
+    "download": "Download den",
+    "downloading": "Downloader … {pct} %",
+    "grant": "{roles} kan ændre dens indstillinger, som deles af alle de apps, den betjener.",
+    "howTo": "Sådan tilføjer du en tilføjelse",
+    "intro": "{app} fungerer med {count, plural, one {denne tilføjelse} other {disse tilføjelser}}.",
+    "meta": "v{version} · {source}",
+    "needsFloor": "{app} kræver {version} eller nyere",
+    "needsRange": "{app} kræver {range}",
+    "orLater": "{version} eller nyere",
+    "pill": {
+      "feature": "Kræves til: {features}",
+      "required": "Påkrævet",
+      "suggested": "Foreslået"
+    },
+    "plan": {
+      "creates": "Opretter {count, plural, one {# tabel} other {# tabeller}} i {connection}: {tables}"
+    },
+    "running": {
+      "attach": "Forbinder {addOn}",
+      "connected": "forbundet",
+      "install": "Installerer {addOn}",
+      "update": "Opdaterer {addOn}"
+    },
+    "shared": "Tilføjelser deles. Alle andre apps, du installerer, kan også bruge dem.",
+    "source": {
+      "bundled": "Følger med Adminium",
+      "catalog": "Fra tilføjelseskataloget",
+      "none": "Følger ikke med denne Adminium, og tilføjelseskataloget har ingen version, den kan bruge",
+      "off": "Følger ikke med denne Adminium, og tilføjelseskataloget er slået fra",
+      "upload": "Uploadet til denne Adminium"
+    },
+    "status": {
+      "attached": "Allerede forbundet til {app}",
+      "downloadFirst": "Installeres, når den er downloadet fra tilføjelseskataloget",
+      "tooOld": "Installeret v{installed} – {need}",
+      "unavailable": "{addOn} er ikke tilgængelig i denne Adminium",
+      "willConnect": "Installeret · v{version} · bliver forbundet til {app}",
+      "willInstall": "Bliver installeret",
+      "wontConnect": "Installeret · v{version} · bliver ikke forbundet"
+    },
+    "stopped": {
+      "atAddOns": "Installationen af de tilføjelser, den har brug for, mislykkedes, så intet efter det blev kørt."
+    },
+    "title": "Tilføjelser",
+    "uninstall": {
+      "kept": "{addOn} forbliver installeret. Afinstallér den under Tilføjelser, hvis intet andet bruger den.",
+      "link": "Dens forbindelse til {addOn}"
+    },
+    "updateToo": "Opdatér den også"
+  },
+  "featurePage": {
+    "ask": "En person, der administrerer apps, kan installere den.",
+    "body": "Denne side virker kun med {count, plural, one {en tilføjelse} other {tilføjelser}}, som appen ikke har her endnu, så den er ikke i sidepanelet. Den kommer tilbage, når {count, plural, one {den} other {de}} er installeret og forbundet til appen.",
+    "open": "Åbn appens indstillinger",
+    "title": "{page} kræver en tilføjelse"
   }
 }

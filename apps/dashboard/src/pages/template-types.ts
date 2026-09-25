@@ -31,12 +31,6 @@ export interface PageTemplateAdapters {
   openRecord: (recordId: string | null) => void;
   /** Undo-toast hook for template-run mutations (mutation → undoToken → toast). */
   notifyUndoable: (options: { title: string; undoToken: string | null; onUndone?: () => void }) => void;
-  /**
-   * Whether `onEvent` can open a link's address: an `@` address (`@staff`,
-   * the owning app's staff screens) only when this page has one. A page's
-   * own link is not drawn when this says no. Absent: no `@` address opens.
-   */
-  linkAvailable?: ((href: string) => boolean) | undefined;
 }
 
 export interface PageTemplateProps {

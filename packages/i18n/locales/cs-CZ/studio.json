@@ -3041,5 +3041,122 @@
       "noEmail": "E-mail není nastaven, takže hosté nedostanou potvrzení."
     },
     "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail"
+  },
+  "addOnNeeded": {
+    "appDisabled": "Vypnutá – stále ho potřebuje",
+    "appInstalling": "Instalace není dokončená – stále ho potřebuje",
+    "close": "Zavřít",
+    "confirm": {
+      "switchOff": "Přesto vypnout",
+      "uninstall": "Přesto odinstalovat"
+    },
+    "lead": {
+      "feature": "{features} v aplikaci {app} se vypne.",
+      "switchOff": "{addOn} nelze pro {app} vypnout. {app} ho potřebuje.",
+      "uninstall": "{addOn} nelze odinstalovat. {count, plural, one {{apps} ho potřebuje.} few {{apps} ho potřebují.} many {{apps} ho potřebují.} other {{apps} ho potřebují.}}"
+    },
+    "note": {
+      "feature": "Zbytek aplikace {apps} funguje i bez něj.",
+      "switchOff": "Chcete-li ho vypnout, nejprve odinstalujte {app}.",
+      "uninstall": "Chcete-li ho odinstalovat, nejprve odinstalujte {apps}."
+    },
+    "openApp": "Otevřít {app}",
+    "subtitle": "v{version}",
+    "subtitleNamed": "{addOn} · v{version}",
+    "title": {
+      "switchOff": "Vypnout pro {app}",
+      "switchOffAsk": "Vypnout pro {app}?",
+      "uninstall": "Odinstalovat {addOn}",
+      "uninstallAsk": "Odinstalovat {addOn}?"
+    },
+    "useFeature": "{app} (Potřebné pro: {features})",
+    "useRequired": "{app} (Povinné)",
+    "useSuggested": "{app} (Doporučené)",
+    "usedBy": "Používá",
+    "usedByLine": "Používá: {apps}"
+  },
+  "appAddOns": {
+    "alsoUsedBy": "Používá ho také: {apps}",
+    "block": {
+      "download": "Nejprve stáhněte {addOn}: je v katalogu doplňků, ale na tomto serveru zatím není.",
+      "noVersion": "{app} potřebuje {addOn} {version} a žádná taková verze tu není k dispozici.",
+      "problem": "{addOn} nelze nainstalovat s {app}. Důvod je uveden v jeho řádku.",
+      "tooOld": "{app} potřebuje {addOn} {version}.",
+      "unavailable": "{app} potřebuje {addOn}, který tu není k dispozici.",
+      "untick": "{addOn} tu nelze s {app} použít. Zrušte jeho zaškrtnutí a nainstalujte {app} bez něj."
+    },
+    "card": {
+      "connect": "Připojit",
+      "connected": "{addOn} připojen k {app}",
+      "consentConnect": "Bude připojen k {app}.",
+      "featureOff": "{features} je vypnuto: jeho stránky nejsou v postranním panelu, dokud nebude {addOn} nainstalován a připojen.",
+      "install": "Nainstalovat",
+      "installed": "{addOn} nainstalován a připojen k {app}",
+      "metaAbsent": "Nenainstalováno · v{version} · {source}",
+      "metaInstalled": "Nainstalováno · v{version} · {source}",
+      "metaOld": "Nainstalováno · v{version}",
+      "metaUnavailable": "Nenainstalováno · {source}",
+      "notConnected": "Nepřipojeno k {app}",
+      "openSettings": "Otevřít jeho nastavení"
+    },
+    "done": {
+      "installed": "Nainstalováno také: {names}. {count, plural, one {Jeho nastavení najdete} few {Jejich nastavení najdete} many {Jejich nastavení najdete} other {Jejich nastavení najdete}} v sekci {addOns}.",
+      "updated": "Aktualizováno také: {names}. {count, plural, one {Jeho nastavení najdete} few {Jejich nastavení najdete} many {Jejich nastavení najdete} other {Jejich nastavení najdete}} v sekci {addOns}."
+    },
+    "download": "Stáhnout",
+    "downloading": "Stahování… {pct} %",
+    "grant": "{roles} bude moci měnit jeho nastavení, které sdílejí všechny aplikace, jimž slouží.",
+    "howTo": "Jak přidat doplněk",
+    "intro": "{app} spolupracuje s {count, plural, one {tímto doplňkem} few {těmito doplňky} many {těmito doplňky} other {těmito doplňky}}.",
+    "meta": "v{version} · {source}",
+    "needsFloor": "{app} potřebuje verzi {version} nebo novější",
+    "needsRange": "{app} potřebuje {range}",
+    "orLater": "{version} nebo novější",
+    "pill": {
+      "feature": "Potřebné pro: {features}",
+      "required": "Povinné",
+      "suggested": "Doporučené"
+    },
+    "plan": {
+      "creates": "Vytvoří {count, plural, one {# tabulku} few {# tabulky} many {# tabulky} other {# tabulek}} v {connection}: {tables}"
+    },
+    "running": {
+      "attach": "Připojuje se {addOn}",
+      "connected": "připojeno",
+      "install": "Instaluje se {addOn}",
+      "update": "Aktualizuje se {addOn}"
+    },
+    "shared": "Doplňky jsou sdílené. Může je používat i každá další aplikace, kterou nainstalujete.",
+    "source": {
+      "bundled": "Dodává se s Adminiem",
+      "catalog": "Z katalogu doplňků",
+      "none": "Nedodává se s tímto Adminiem a katalog doplňků nemá žádnou použitelnou verzi",
+      "off": "Nedodává se s tímto Adminiem a katalog doplňků je vypnutý",
+      "upload": "Nahráno do tohoto Adminia"
+    },
+    "status": {
+      "attached": "Už je připojen k {app}",
+      "downloadFirst": "Nainstaluje se, jakmile se stáhne z katalogu doplňků",
+      "tooOld": "Nainstalováno v{installed} – {need}",
+      "unavailable": "{addOn} není v tomto Adminiu k dispozici",
+      "willConnect": "Nainstalováno · v{version} · bude připojen k {app}",
+      "willInstall": "Bude nainstalován",
+      "wontConnect": "Nainstalováno · v{version} · nebude připojen"
+    },
+    "stopped": {
+      "atAddOns": "Instalace potřebných doplňků selhala, takže nic dalšího neproběhlo."
+    },
+    "title": "Doplňky",
+    "uninstall": {
+      "kept": "{addOn} zůstane nainstalován. Pokud ho nic jiného nepoužívá, odinstalujte ho v sekci Doplňky.",
+      "link": "Jeho propojení s {addOn}"
+    },
+    "updateToo": "Aktualizovat také"
+  },
+  "featurePage": {
+    "ask": "Může ho nainstalovat někdo, kdo spravuje aplikace.",
+    "body": "Tato stránka funguje jen s {count, plural, one {doplňkem} few {doplňky} many {doplňky} other {doplňky}}, který tu aplikace zatím nemá, proto není v postranním panelu. Vrátí se, jakmile bude {count, plural, one {nainstalován a připojen} few {nainstalovány a připojeny} many {nainstalovány a připojeny} other {nainstalovány a připojeny}} k aplikaci.",
+    "open": "Otevřít nastavení aplikace",
+    "title": "{page} potřebuje doplněk"
   }
 }

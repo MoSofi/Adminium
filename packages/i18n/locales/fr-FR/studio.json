@@ -3041,5 +3041,122 @@
       "noEmail": "L’e-mail n’est pas configuré : les clients ne recevront pas de confirmation."
     },
     "createConfirmed": "Ajouter à {table} et recevoir un e-mail de confirmation"
+  },
+  "addOnNeeded": {
+    "appDisabled": "Désactivée — elle en a toujours besoin",
+    "appInstalling": "Son installation n’est pas terminée — elle en a toujours besoin",
+    "close": "Fermer",
+    "confirm": {
+      "switchOff": "Désactiver quand même",
+      "uninstall": "Désinstaller quand même"
+    },
+    "lead": {
+      "feature": "{features} de {app} sera désactivé.",
+      "switchOff": "{addOn} ne peut pas être désactivé pour {app}. {app} en a besoin.",
+      "uninstall": "{addOn} ne peut pas être désinstallé. {count, plural, one {{apps} en a besoin.} other {{apps} en ont besoin.}}"
+    },
+    "note": {
+      "feature": "Le reste de {apps} fonctionne sans lui.",
+      "switchOff": "Pour le désactiver, désinstallez d’abord {app}.",
+      "uninstall": "Pour le désinstaller, désinstallez d’abord {apps}."
+    },
+    "openApp": "Ouvrir {app}",
+    "subtitle": "v{version}",
+    "subtitleNamed": "{addOn} · v{version}",
+    "title": {
+      "switchOff": "Désactiver pour {app}",
+      "switchOffAsk": "Désactiver pour {app} ?",
+      "uninstall": "Désinstaller {addOn}",
+      "uninstallAsk": "Désinstaller {addOn} ?"
+    },
+    "useFeature": "{app} (Nécessaire pour : {features})",
+    "useRequired": "{app} (Requis)",
+    "useSuggested": "{app} (Suggéré)",
+    "usedBy": "Utilisé par",
+    "usedByLine": "Utilisé par {apps}"
+  },
+  "appAddOns": {
+    "alsoUsedBy": "Aussi utilisé par {apps}",
+    "block": {
+      "download": "Téléchargez d’abord {addOn} : il est dans le catalogue de modules, pas encore sur ce serveur.",
+      "noVersion": "{app} a besoin de {addOn} {version}, et aucune version de ce type n’est disponible ici.",
+      "problem": "{addOn} ne peut pas être installé avec {app}. Sa ligne indique pourquoi.",
+      "tooOld": "{app} a besoin de {addOn} {version}.",
+      "unavailable": "{app} a besoin de {addOn}, qui n’est pas disponible ici.",
+      "untick": "{addOn} ne peut pas être utilisé avec {app} ici. Décochez-le pour installer {app} sans lui."
+    },
+    "card": {
+      "connect": "Connecter",
+      "connected": "{addOn} connecté à {app}",
+      "consentConnect": "Il sera connecté à {app}.",
+      "featureOff": "{features} est désactivé : ses pages ne sont pas dans la barre latérale tant que {addOn} n’est pas installé et connecté.",
+      "install": "Installer",
+      "installed": "{addOn} installé et connecté à {app}",
+      "metaAbsent": "Non installé · v{version} · {source}",
+      "metaInstalled": "Installé · v{version} · {source}",
+      "metaOld": "Installé · v{version}",
+      "metaUnavailable": "Non installé · {source}",
+      "notConnected": "Non connecté à {app}",
+      "openSettings": "Ouvrir ses réglages"
+    },
+    "done": {
+      "installed": "Également installé : {names}. {count, plural, one {Ses réglages sont} other {Leurs réglages sont}} dans {addOns}.",
+      "updated": "Également mis à jour : {names}. {count, plural, one {Ses réglages sont} other {Leurs réglages sont}} dans {addOns}."
+    },
+    "download": "Le télécharger",
+    "downloading": "Téléchargement… {pct} %",
+    "grant": "{roles} pourra modifier ses réglages, partagés par toutes les apps qu’il sert.",
+    "howTo": "Comment ajouter un module",
+    "intro": "{app} fonctionne avec {count, plural, one {ce module} other {ces modules}}.",
+    "meta": "v{version} · {source}",
+    "needsFloor": "{app} a besoin de la version {version} ou ultérieure",
+    "needsRange": "{app} a besoin de {range}",
+    "orLater": "{version} ou ultérieure",
+    "pill": {
+      "feature": "Nécessaire pour : {features}",
+      "required": "Requis",
+      "suggested": "Suggéré"
+    },
+    "plan": {
+      "creates": "Crée {count, plural, one {# table} other {# tables}} dans {connection} : {tables}"
+    },
+    "running": {
+      "attach": "Connexion de {addOn}",
+      "connected": "connecté",
+      "install": "Installation de {addOn}",
+      "update": "Mise à jour de {addOn}"
+    },
+    "shared": "Les modules sont partagés. Toute autre app que vous installez peut aussi les utiliser.",
+    "source": {
+      "bundled": "Fourni avec Adminium",
+      "catalog": "Du catalogue de modules",
+      "none": "N’est pas fourni avec cet Adminium, et le catalogue de modules n’a aucune version utilisable",
+      "off": "N’est pas fourni avec cet Adminium, et le catalogue de modules est désactivé",
+      "upload": "Téléversé dans cet Adminium"
+    },
+    "status": {
+      "attached": "Déjà connecté à {app}",
+      "downloadFirst": "Sera installé une fois téléchargé depuis le catalogue de modules",
+      "tooOld": "Installé v{installed} — {need}",
+      "unavailable": "{addOn} n’est pas disponible sur cet Adminium",
+      "willConnect": "Installé · v{version} · sera connecté à {app}",
+      "willInstall": "Sera installé",
+      "wontConnect": "Installé · v{version} · ne sera pas connecté"
+    },
+    "stopped": {
+      "atAddOns": "L’installation des modules nécessaires a échoué, donc rien d’autre n’a été exécuté."
+    },
+    "title": "Modules",
+    "uninstall": {
+      "kept": "{addOn} reste installé. Désinstallez-le depuis Modules si rien d’autre ne l’utilise.",
+      "link": "Sa connexion à {addOn}"
+    },
+    "updateToo": "Le mettre à jour aussi"
+  },
+  "featurePage": {
+    "ask": "Une personne qui gère les apps peut l’installer.",
+    "body": "Cette page ne fonctionne qu’avec {count, plural, one {un module} other {des modules}} que cette app n’a pas encore ici ; elle n’est donc pas dans la barre latérale. Elle revient dès que {count, plural, one {il est installé et connecté} other {ils sont installés et connectés}} à l’app.",
+    "open": "Ouvrir les réglages de l’app",
+    "title": "{page} a besoin d’un module"
   }
 }

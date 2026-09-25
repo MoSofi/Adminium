@@ -207,6 +207,82 @@ export interface AppSettingsView {
     label?: string;
     help?: string;
   }[];
+  /** The add-ons the app names, each with its state and source. Absent for an app that names none. */
+  addOns?: AppAddOnRow[];
+}
+
+// ── The add-ons an app names ────────────────────────────────────────────────
+
+/** A text in every language the app speaks, keyed by tag (`en-US`). */
+export type ManifestWords = Record<string, string>;
+
+/** One app that uses an add-on, and how. Mirrors the server's `appNeedWire`. */
+export interface AppNeed {
+  app: string;
+  appName: string;
+  /** `installed`, `disabled` or `installing` — a switched-off app still holds its need. */
+  status: string;
+  need: 'requires' | 'feature' | 'suggests';
+  range: string | null;
+  features: { id: string; label: ManifestWords }[];
+}
+
+/**
+ * One add-on the app names, resolved against this server. Mirrors
+ * `appAddOnRow` (`apps/server/src/routes/apps/schema.ts`). `state` and
+ * `source` are apart because the screen shows both: "Installed · v1.1.0 ·
+ * Comes with Adminium".
+ */
+export interface AppAddOnRow {
+  key: string;
+  name: string;
+  need: 'requires' | 'feature' | 'suggests';
+  range: string;
+  reason: ManifestWords;
+  /** Ticked on the check: always when required, as the manifest says when suggested. */
+  checked: boolean;
+  features: { id: string; label: ManifestWords }[];
+  state: 'attached' | 'installed' | 'outdated' | 'absent' | 'unavailable';
+  source: 'bundled' | 'catalog' | 'upload' | null;
+  installedVersion: string | null;
+  offeredVersion: string | null;
+  satisfiesRange: boolean;
+  /** Whether the offered version's bytes are on this server; false means "download it first". */
+  staged: boolean;
+  enabled: boolean;
+  /** What installing the app does to it: null (nothing), attach, install or update. */
+  action: 'attach' | 'install' | 'update' | null;
+  /** The other apps that use it. */
+  usedBy: AppNeed[];
+  /** Its own install plan (install or update). Absent from the settings read. */
+  plan?: AppAddOnPlan | null;
+  problems: { code: string; message: string }[];
+}
+
+/** An add-on's own install plan, as its consent reads it. */
+export interface AppAddOnPlan {
+  addOnKey: string;
+  version: string;
+  installable: boolean;
+  touchesData: boolean;
+  create: { ref: string; columns: { ref: string; type: string }[] }[];
+  reuse: { ref: string; missingColumns: string[] }[];
+  problems: { code: string; message: string; table: string; column?: string }[];
+  requiresSchemaChange: boolean;
+}
+
+/** What the install did to the add-ons — the done line. */
+export interface AddOnsDone {
+  installed: { key: string; name: string; version: string }[];
+  updated: { key: string; name: string; from: string; to: string }[];
+  attached: { key: string; name: string; version: string }[];
+}
+
+/** What the install body says about one add-on: install or connect it at `version`, and update it when ticked. */
+export interface AddOnChoice {
+  key: string;
+  version: string;
+  update?: boolean;
 }
 
 /** Mirrors `appOverviewReply`. */
@@ -506,6 +582,14 @@ export interface AppInstallPlan {
   tables?: PlannedAppTable[];
   /** Short name → real table. Absent from an older server. */
   names?: Record<string, string>;
+  /** The add-ons the app names, each with its state, source and own plan. Absent for an app that names none. */
+  addOns?: AppAddOnRow[];
+  /**
+   * The add-on settings the app's roles would be given (`addOn:<key>:settings`),
+   * shown before anyone agrees: those settings are shared by every app the
+   * add-on serves. Absent when none, and from an older server.
+   */
+  addOnGrants?: { role: string; roleName: string; addOn: string; grant: 'settings' }[];
 }
 
 export type TableClass = 'new' | 'own-leftover' | 'shared' | 'taken';
@@ -570,6 +654,8 @@ export interface InstalledAppResult extends InstalledApp {
   pages?: { created: string[]; recomposed: string[]; kept: string[] };
   /** The public endpoints saved, and the guests' key if one was made. */
   publicAccess?: { endpoints: string[]; keyId: string | null; skipped: { ref: string; reason: string }[] };
+  /** The add-ons installed, updated or connected with the app. Absent for an app that names none. */
+  addOns?: AddOnsDone;
 }
 
 /**
@@ -583,6 +669,8 @@ export interface InstallStoppedDetails {
   created: string[];
   pending: string[];
   cause: string;
+  /** What the add-on steps did before the stop: kept, and not redone by "Try again". */
+  addOns?: AddOnsDone;
 }
 
 export function installApp(
@@ -594,6 +682,8 @@ export function installApp(
     planChecksum?: string;
     /** False declines the public access the app asks for. */
     publicAccess?: boolean;
+    /** The add-ons to install, connect or update with the app. */
+    addOns?: AddOnChoice[];
   } & InstallAnswers,
 ): Promise<InstalledAppResult> {
   return api.post<InstalledAppResult>('/api/v1/apps/install', input);
@@ -628,6 +718,8 @@ export interface UninstallPlan {
   rules?: number;
   /** Discarding data is Super Admin's alone. */
   canDropTables: boolean;
+  /** The add-ons connected to the app: they stay installed, only their link to it goes. */
+  addOns?: { key: string; name: string; version: string }[];
 }
 
 export function uninstallPlanQuery(key: string) {

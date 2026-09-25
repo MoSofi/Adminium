@@ -19,7 +19,7 @@ import type { AppSection } from '../app/bootstrap.js';
 import { createQueryClient } from '../app/query.js';
 import { createAppRouter } from '../app/router.js';
 import { jsonResponse, makeBootstrap, makeCrudEnvelope, makeDashboardEnvelope } from '../test/fixtures.js';
-import { andWhere, linkPiecesOf, searchWithout, validatePageSearch } from './linkFilters.js';
+import { andWhere, linkPiecesOf, searchWithout } from './linkFilters.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -130,12 +130,12 @@ afterEach(() => {
 
 describe('the address of a filtered link', () => {
   it('keeps every other key, and reads a piece only as text', () => {
-    expect(validatePageSearch({ tab: 2, 'f.mrr': 5, 'f.paid': true, 'f.status': ['eq:a', { x: 1 }], 'f.bad': { x: 1 } })).toEqual({
-      tab: 2,
-      'f.mrr': '5',
-      'f.paid': 'true',
-      'f.status': ['eq:a'],
-    });
+    // The router reads `?f.mrr=5` as a number and `?f.paid=true` as a boolean: spelled back as text.
+    expect(linkPiecesOf({ tab: 2, 'f.mrr': 5, 'f.paid': true, 'f.status': ['eq:a', { x: 1 }], 'f.bad': { x: 1 } })).toEqual([
+      { column: 'mrr', raw: '5' },
+      { column: 'paid', raw: 'true' },
+      { column: 'status', raw: 'eq:a' },
+    ]);
     expect(linkPiecesOf({ tab: 2, 'f.status': ['eq:a', 'neq:b'], 'f.mrr': 'gt:0', 'f.': 'x' })).toEqual([
       { column: 'status', raw: 'eq:a' },
       { column: 'status', raw: 'neq:b' },

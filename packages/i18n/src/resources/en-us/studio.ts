@@ -3051,5 +3051,122 @@ export default {
       "noEmail": "Email is not set up, so guests will not be sent a confirmation."
     },
     "createConfirmed": "Add to {table}, and get a confirmation email"
+  },
+  "addOnNeeded": {
+    "appDisabled": "Switched off — it still needs it",
+    "appInstalling": "Its install has not finished — it still needs it",
+    "close": "Close",
+    "confirm": {
+      "switchOff": "Switch it off anyway",
+      "uninstall": "Uninstall anyway"
+    },
+    "lead": {
+      "feature": "{app}’s {features} will switch off.",
+      "switchOff": "{addOn} can’t be switched off for {app}. {app} needs it.",
+      "uninstall": "{addOn} can’t be uninstalled. {count, plural, one {{apps} needs it.} other {{apps} need it.}}"
+    },
+    "note": {
+      "feature": "The rest of {apps} works without it.",
+      "switchOff": "To switch it off, uninstall {app} first.",
+      "uninstall": "To uninstall it, uninstall {apps} first."
+    },
+    "openApp": "Open {app}",
+    "subtitle": "v{version}",
+    "subtitleNamed": "{addOn} · v{version}",
+    "title": {
+      "switchOff": "Switch off for {app}",
+      "switchOffAsk": "Switch off for {app}?",
+      "uninstall": "Uninstall {addOn}",
+      "uninstallAsk": "Uninstall {addOn}?"
+    },
+    "useFeature": "{app} (Needed for: {features})",
+    "useRequired": "{app} (Required)",
+    "useSuggested": "{app} (Suggested)",
+    "usedBy": "Used by",
+    "usedByLine": "Used by {apps}"
+  },
+  "appAddOns": {
+    "alsoUsedBy": "Also used by {apps}",
+    "block": {
+      "download": "Download {addOn} first: it is in the add-on catalogue, not on this server yet.",
+      "noVersion": "{app} needs {addOn} {version}, and no such version is available here.",
+      "problem": "{addOn} can’t be installed with {app}. Its row says why.",
+      "tooOld": "{app} needs {addOn} {version}.",
+      "unavailable": "{app} needs {addOn}, which isn’t available here.",
+      "untick": "{addOn} can’t be used with {app} here. Untick it to install {app} without it."
+    },
+    "card": {
+      "connect": "Connect",
+      "connected": "{addOn} connected to {app}",
+      "consentConnect": "It will be connected to {app}.",
+      "featureOff": "{features} is off: its pages are not in the sidebar until {addOn} is installed and connected.",
+      "install": "Install",
+      "installed": "{addOn} installed and connected to {app}",
+      "metaAbsent": "Not installed · v{version} · {source}",
+      "metaInstalled": "Installed · v{version} · {source}",
+      "metaOld": "Installed · v{version}",
+      "metaUnavailable": "Not installed · {source}",
+      "notConnected": "Not connected to {app}",
+      "openSettings": "Open its settings"
+    },
+    "done": {
+      "installed": "Also installed: {names}. {count, plural, one {Its settings are} other {Their settings are}} under {addOns}.",
+      "updated": "Also updated: {names}. {count, plural, one {Its settings are} other {Their settings are}} under {addOns}."
+    },
+    "download": "Download it",
+    "downloading": "Downloading… {pct}%",
+    "grant": "{roles} will be able to change its settings, which every app it serves shares.",
+    "howTo": "How to add an add-on",
+    "intro": "{app} works with {count, plural, one {this add-on} other {these add-ons}}.",
+    "meta": "v{version} · {source}",
+    "needsFloor": "{app} needs {version} or later",
+    "needsRange": "{app} needs {range}",
+    "orLater": "{version} or later",
+    "pill": {
+      "feature": "Needed for: {features}",
+      "required": "Required",
+      "suggested": "Suggested"
+    },
+    "plan": {
+      "creates": "Creates {count, plural, one {# table} other {# tables}} in {connection}: {tables}"
+    },
+    "running": {
+      "attach": "Connecting {addOn}",
+      "connected": "connected",
+      "install": "Installing {addOn}",
+      "update": "Updating {addOn}"
+    },
+    "shared": "Add-ons are shared. Any other app you install can use them too.",
+    "source": {
+      "bundled": "Comes with Adminium",
+      "catalog": "From the add-on catalogue",
+      "none": "Doesn’t come with this Adminium, and the add-on catalogue has no version it can use",
+      "off": "Doesn’t come with this Adminium, and the add-on catalogue is off",
+      "upload": "Uploaded to this Adminium"
+    },
+    "status": {
+      "attached": "Already connected to {app}",
+      "downloadFirst": "Will be installed, once it is downloaded from the add-on catalogue",
+      "tooOld": "Installed v{installed} — {need}",
+      "unavailable": "{addOn} isn’t available on this Adminium",
+      "willConnect": "Installed · v{version} · will be connected to {app}",
+      "willInstall": "Will be installed",
+      "wontConnect": "Installed · v{version} · won’t be connected"
+    },
+    "stopped": {
+      "atAddOns": "Installing the add-ons it needs failed, so nothing after that ran."
+    },
+    "title": "Add-ons",
+    "uninstall": {
+      "kept": "{addOn} stays installed. Uninstall it from Add-ons if nothing else uses it.",
+      "link": "Its link to {addOn}"
+    },
+    "updateToo": "Update it too"
+  },
+  "featurePage": {
+    "ask": "Someone who manages apps can install it.",
+    "body": "This page works only with {count, plural, one {an add-on} other {add-ons}} this app does not have here yet, so it is not in the sidebar. It comes back once {count, plural, one {it is} other {they are}} installed and connected to the app.",
+    "open": "Open the app’s settings",
+    "title": "{page} needs an add-on"
   }
 } as const;

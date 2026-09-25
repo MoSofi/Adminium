@@ -3051,5 +3051,122 @@ export default {
       "noEmail": "E-Mail ist nicht eingerichtet, daher erhalten Gäste keine Bestätigung."
     },
     "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten"
+  },
+  "addOnNeeded": {
+    "appDisabled": "Ausgeschaltet – braucht es trotzdem",
+    "appInstalling": "Die Installation ist nicht abgeschlossen – braucht es trotzdem",
+    "close": "Schließen",
+    "confirm": {
+      "switchOff": "Trotzdem ausschalten",
+      "uninstall": "Trotzdem deinstallieren"
+    },
+    "lead": {
+      "feature": "{features} in {app} wird ausgeschaltet.",
+      "switchOff": "{addOn} kann für {app} nicht ausgeschaltet werden. {app} braucht es.",
+      "uninstall": "{addOn} kann nicht deinstalliert werden. {count, plural, one {{apps} braucht es.} other {{apps} brauchen es.}}"
+    },
+    "note": {
+      "feature": "Der Rest von {apps} funktioniert ohne es.",
+      "switchOff": "Um es auszuschalten, deinstallieren Sie zuerst {app}.",
+      "uninstall": "Um es zu deinstallieren, deinstallieren Sie zuerst {apps}."
+    },
+    "openApp": "{app} öffnen",
+    "subtitle": "v{version}",
+    "subtitleNamed": "{addOn} · v{version}",
+    "title": {
+      "switchOff": "Für {app} ausschalten",
+      "switchOffAsk": "Für {app} ausschalten?",
+      "uninstall": "{addOn} deinstallieren",
+      "uninstallAsk": "{addOn} deinstallieren?"
+    },
+    "useFeature": "{app} (Benötigt für: {features})",
+    "useRequired": "{app} (Erforderlich)",
+    "useSuggested": "{app} (Empfohlen)",
+    "usedBy": "Verwendet von",
+    "usedByLine": "Verwendet von {apps}"
+  },
+  "appAddOns": {
+    "alsoUsedBy": "Auch verwendet von {apps}",
+    "block": {
+      "download": "Laden Sie zuerst {addOn} herunter: Es ist im Add-on-Katalog, aber noch nicht auf diesem Server.",
+      "noVersion": "{app} braucht {addOn} {version}, und eine solche Version ist hier nicht verfügbar.",
+      "problem": "{addOn} kann nicht mit {app} installiert werden. Der Grund steht in seiner Zeile.",
+      "tooOld": "{app} braucht {addOn} {version}.",
+      "unavailable": "{app} braucht {addOn}, das hier nicht verfügbar ist.",
+      "untick": "{addOn} kann hier nicht mit {app} verwendet werden. Entfernen Sie das Häkchen, um {app} ohne es zu installieren."
+    },
+    "card": {
+      "connect": "Verbinden",
+      "connected": "{addOn} mit {app} verbunden",
+      "consentConnect": "Es wird mit {app} verbunden.",
+      "featureOff": "{features} ist aus: Die Seiten stehen erst in der Seitenleiste, wenn {addOn} installiert und verbunden ist.",
+      "install": "Installieren",
+      "installed": "{addOn} installiert und mit {app} verbunden",
+      "metaAbsent": "Nicht installiert · v{version} · {source}",
+      "metaInstalled": "Installiert · v{version} · {source}",
+      "metaOld": "Installiert · v{version}",
+      "metaUnavailable": "Nicht installiert · {source}",
+      "notConnected": "Nicht mit {app} verbunden",
+      "openSettings": "Einstellungen öffnen"
+    },
+    "done": {
+      "installed": "Ebenfalls installiert: {names}. {count, plural, one {Die Einstellungen finden Sie} other {Die Einstellungen finden Sie}} unter {addOns}.",
+      "updated": "Ebenfalls aktualisiert: {names}. {count, plural, one {Die Einstellungen finden Sie} other {Die Einstellungen finden Sie}} unter {addOns}."
+    },
+    "download": "Herunterladen",
+    "downloading": "Wird heruntergeladen … {pct} %",
+    "grant": "{roles} kann seine Einstellungen ändern, die alle Apps teilen, für die es arbeitet.",
+    "howTo": "So fügen Sie ein Add-on hinzu",
+    "intro": "{app} arbeitet mit {count, plural, one {diesem Add-on} other {diesen Add-ons}}.",
+    "meta": "v{version} · {source}",
+    "needsFloor": "{app} braucht {version} oder neuer",
+    "needsRange": "{app} braucht {range}",
+    "orLater": "{version} oder neuer",
+    "pill": {
+      "feature": "Benötigt für: {features}",
+      "required": "Erforderlich",
+      "suggested": "Empfohlen"
+    },
+    "plan": {
+      "creates": "Legt {count, plural, one {# Tabelle} other {# Tabellen}} in {connection} an: {tables}"
+    },
+    "running": {
+      "attach": "{addOn} wird verbunden",
+      "connected": "verbunden",
+      "install": "{addOn} wird installiert",
+      "update": "{addOn} wird aktualisiert"
+    },
+    "shared": "Add-ons werden geteilt. Jede andere App, die Sie installieren, kann sie ebenfalls nutzen.",
+    "source": {
+      "bundled": "Im Lieferumfang von Adminium",
+      "catalog": "Aus dem Add-on-Katalog",
+      "none": "Nicht in diesem Adminium enthalten, und der Add-on-Katalog hat keine passende Version",
+      "off": "Nicht in diesem Adminium enthalten, und der Add-on-Katalog ist ausgeschaltet",
+      "upload": "In dieses Adminium hochgeladen"
+    },
+    "status": {
+      "attached": "Bereits mit {app} verbunden",
+      "downloadFirst": "Wird installiert, sobald es aus dem Add-on-Katalog heruntergeladen ist",
+      "tooOld": "Installiert v{installed} – {need}",
+      "unavailable": "{addOn} ist in diesem Adminium nicht verfügbar",
+      "willConnect": "Installiert · v{version} · wird mit {app} verbunden",
+      "willInstall": "Wird installiert",
+      "wontConnect": "Installiert · v{version} · wird nicht verbunden"
+    },
+    "stopped": {
+      "atAddOns": "Die Installation der benötigten Add-ons ist fehlgeschlagen, daher lief nichts danach."
+    },
+    "title": "Add-ons",
+    "uninstall": {
+      "kept": "{addOn} bleibt installiert. Deinstallieren Sie es unter „Add-ons“, wenn nichts anderes es nutzt.",
+      "link": "Die Verbindung zu {addOn}"
+    },
+    "updateToo": "Ebenfalls aktualisieren"
+  },
+  "featurePage": {
+    "ask": "Jemand, der Apps verwaltet, kann es installieren.",
+    "body": "Diese Seite funktioniert nur mit {count, plural, one {einem Add-on} other {Add-ons}}, das der App hier noch fehlt, daher steht sie nicht in der Seitenleiste. Sie kehrt zurück, sobald {count, plural, one {es} other {sie}} installiert und mit der App verbunden {count, plural, one {ist} other {sind}}.",
+    "open": "Einstellungen der App öffnen",
+    "title": "{page} braucht ein Add-on"
   }
 } as const;

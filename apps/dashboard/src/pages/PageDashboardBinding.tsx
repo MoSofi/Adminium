@@ -21,15 +21,42 @@
  * `PageDashboard`; in edit mode it swaps in the builder (palette, inspector,
  * add/duplicate/remove, save/reset) over a demo-data working draft.
  */
-import { useMemo } from 'react';
-import type { WidgetDataState } from '@adminium/widgets';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
+import type { WidgetDataState, WidgetEvent } from '@adminium/widgets';
 
 import { extractBindings } from '../api/widgetData.js';
+import { bootstrapQuery } from '../app/bootstrap.js';
 import { DashboardBuilder } from './dashboard-builder/index.js';
+import { STAFF_HREF, openStaffTarget, staffTargetFor } from './staffLink.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageDashboardBinding({ page, adapters, canEditLayout, currency }: PageTemplateProps) {
   const dashboard = adapters.dashboard;
+  const router = useRouter();
+  /*
+   * `@staff`: the owning app's staff screens, opened where the sidebar opens
+   * them. Resolved here, in the dashboard template's own chunk, rather than in
+   * the page host every template shares: only a dashboard draws a page link.
+   */
+  const { data: bootstrap } = useQuery(bootstrapQuery());
+  const staff = useMemo(() => (bootstrap === undefined ? null : staffTargetFor(bootstrap, page.id)), [bootstrap, page.id]);
+  const linkAvailable = useCallback((href: string) => (href.startsWith('@') ? href === STAFF_HREF && staff !== null : true), [staff]);
+  const onEvent = useCallback(
+    (event: WidgetEvent) => {
+      if (event.type === 'drill-through' && event.href.startsWith('@')) {
+        // Another `@` address names something this host does not know: it
+        // opens nothing (and `linkAvailable` kept its button from being drawn).
+        if (event.href === STAFF_HREF && staff !== null) openStaffTarget(staff, (href) => router.history.push(href));
+        return undefined;
+      }
+      // Forward the host's result so optimistic widgets (kanban) get the
+      // mutate promise and can roll back a rejected move.
+      return adapters.onEvent(event);
+    },
+    [adapters, router, staff],
+  );
   const { requests, invalid } = useMemo(() => extractBindings(page), [page]);
 
   const states = useMemo(() => {
@@ -50,14 +77,12 @@ export function PageDashboardBinding({ page, adapters, canEditLayout, currency }
       states={states}
       day={adapters.dashboardDay ?? null}
       // An `@staff` link is drawn only when the owning app has staff screens.
-      {...(adapters.linkAvailable === undefined ? {} : { linkAvailable: adapters.linkAvailable })}
+      linkAvailable={linkAvailable}
       // The connection's currency: a money card that names none reads in it.
       {...(currency === undefined || currency === null ? {} : { currency })}
       onEvent={(instanceId, event) => {
         void instanceId;
-        // Forward the host's result so optimistic widgets (kanban) get the
-        // mutate promise and can roll back a rejected move.
-        return adapters.onEvent(event);
+        return onEvent(event);
       }}
     />
   );

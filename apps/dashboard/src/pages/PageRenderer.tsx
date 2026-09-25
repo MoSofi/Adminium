@@ -18,7 +18,7 @@
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from '@tanstack/react-router';
 import { FileQuestion, PackageOpen, ShieldAlert } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Card, CardBody, CardHeader, IconTile, MonoText, Skeleton } from '@adminium/ui';
 import { WidgetErrorBoundary, isDeletePreview, type ColumnFacts, type WidgetEvent } from '@adminium/widgets';
 import { pageLayoutSchema, type PageEnvelope } from '@adminium/engine/config';
@@ -46,9 +46,14 @@ import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
 import { PageHostContext, type PageHost } from './pageHost.js';
 import { DEFAULT_TEMPLATE_SURFACE, templateSurface } from './surfaceDefaults.js';
-import { STAFF_HREF, openStaffTarget, staffTargetFor } from './staffLink.js';
 import { resolvePageTemplate, type PageTemplateAdapters, type PageTemplateComponent } from './templates.js';
 import { useUndoToast } from './toasts.js';
+
+// Through the app's settings page, already its own chunk: a chunk of the
+// notice's own would cost the entry a line in its preload table.
+const FeaturePageNotice = lazy(() =>
+  import('../studio/apps/AppSettingsPage.js').then((module) => ({ default: module.FeaturePageNotice })),
+);
 
 export function PageRenderer() {
   const params = useParams({ strict: false });
@@ -62,6 +67,15 @@ export function PageRenderer() {
   // A page of a switched-off app: its URL says so, rather than "no such page".
   if (item === null && isDisabledAppPage(bootstrap, slug)) {
     return <StatePage stateId="app-disabled" fullPage={false} />;
+  }
+  // A page whose feature waits on an add-on: out of the sidebar, and its URL says what it needs.
+  const waiting = item === null ? bootstrap.featurePages?.find((page) => page.slug === slug) : undefined;
+  if (waiting !== undefined) {
+    return (
+      <Suspense fallback={null}>
+        <FeaturePageNotice page={waiting} />
+      </Suspense>
+    );
   }
   // Unknown slug → branded 404 with NO pages round trip.
   if (item === null) return <NotFoundPage />;
@@ -369,13 +383,6 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
     [openRecord, page.source.table, page.source.connectionId, bootstrap, router],
   );
 
-  // `@staff`: the owning app's staff screens, where the sidebar would open them.
-  const staff = useMemo(() => staffTargetFor(bootstrap, slug), [bootstrap, slug]);
-  const linkAvailable = useCallback(
-    (href: string) => (href.startsWith('@') ? href === STAFF_HREF && staff !== null : true),
-    [staff],
-  );
-
   const invalidateAfterMutation = useCallback(() => {
     if (crud !== null) {
       void queryClient.invalidateQueries({ queryKey: ['data', crud.connectionId, crud.table] });
@@ -386,12 +393,8 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
   const onEvent = useCallback(
     (event: WidgetEvent) => {
       if (event.type === 'drill-through') {
-        if (event.href === STAFF_HREF) {
-          if (staff !== null) openStaffTarget(staff, (href) => router.history.push(href));
-          return;
-        }
-        // Another `@` address names something this host does not know: it
-        // opens nothing (and `linkAvailable` kept its button from being drawn).
+        // An `@` address (`@staff`) is the dashboard binding's to open
+        // (`staffLink.ts`); one that reaches here is never a route.
         if (event.href.startsWith('@')) return;
         router.history.push(event.href);
         return;
@@ -434,7 +437,7 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
         });
       return promise;
     },
-    [router, openRecordFor, crud, invalidateAfterMutation, notifyUndoable, staff],
+    [router, openRecordFor, crud, invalidateAfterMutation, notifyUndoable],
   );
 
   return useMemo<PageTemplateAdapters>(
@@ -445,9 +448,8 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
       onEvent,
       openRecord,
       notifyUndoable,
-      linkAvailable,
     }),
-    [crud, hasLayout, dashboard, withDay, day, onEvent, openRecord, notifyUndoable, linkAvailable],
+    [crud, hasLayout, dashboard, withDay, day, onEvent, openRecord, notifyUndoable],
   );
 }
 

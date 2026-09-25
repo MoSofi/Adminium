@@ -3051,5 +3051,122 @@ export default {
       "noEmail": "البريد الإلكتروني غير مُعد، لذلك لن يتلقى الضيوف تأكيدًا."
     },
     "createConfirmed": "الإضافة إلى {table} وتلقي بريد تأكيد"
+  },
+  "addOnNeeded": {
+    "appDisabled": "متوقف — لكنه ما زال يحتاجها",
+    "appInstalling": "لم يكتمل تثبيته — لكنه ما زال يحتاجها",
+    "close": "إغلاق",
+    "confirm": {
+      "switchOff": "إيقافها على أي حال",
+      "uninstall": "إلغاء التثبيت على أي حال"
+    },
+    "lead": {
+      "feature": "سيتوقف {features} في {app}.",
+      "switchOff": "لا يمكن إيقاف {addOn} لـ {app}، لأن {app} يحتاجها.",
+      "uninstall": "لا يمكن إلغاء تثبيت {addOn}. {count, plural, one {يحتاجها {apps}.} two {يحتاجها {apps}.} few {يحتاجها {apps}.} many {يحتاجها {apps}.} other {يحتاجها {apps}.}}"
+    },
+    "note": {
+      "feature": "باقي {apps} يعمل بدونها.",
+      "switchOff": "لإيقافها، ألغِ تثبيت {app} أولًا.",
+      "uninstall": "لإلغاء تثبيتها، ألغِ تثبيت {apps} أولًا."
+    },
+    "openApp": "فتح {app}",
+    "subtitle": "الإصدار {version}",
+    "subtitleNamed": "{addOn} · الإصدار {version}",
+    "title": {
+      "switchOff": "إيقاف لـ {app}",
+      "switchOffAsk": "إيقاف لـ {app}؟",
+      "uninstall": "إلغاء تثبيت {addOn}",
+      "uninstallAsk": "إلغاء تثبيت {addOn}؟"
+    },
+    "useFeature": "{app} (مطلوبة لـ: {features})",
+    "useRequired": "{app} (مطلوبة)",
+    "useSuggested": "{app} (مقترحة)",
+    "usedBy": "تستخدمها",
+    "usedByLine": "تستخدمها: {apps}"
+  },
+  "appAddOns": {
+    "alsoUsedBy": "تستخدمها أيضًا: {apps}",
+    "block": {
+      "download": "نزّل {addOn} أولًا: فهي في كتالوج الإضافات وليست على هذا الخادم بعد.",
+      "noVersion": "يحتاج {app} إلى {addOn} {version}، ولا يتوفر إصدار كهذا هنا.",
+      "problem": "لا يمكن تثبيت {addOn} مع {app}. السبب مذكور في صفها.",
+      "tooOld": "يحتاج {app} إلى {addOn} {version}.",
+      "unavailable": "يحتاج {app} إلى {addOn}، وهي غير متاحة هنا.",
+      "untick": "لا يمكن استخدام {addOn} مع {app} هنا. ألغِ تحديدها لتثبيت {app} بدونها."
+    },
+    "card": {
+      "connect": "ربط",
+      "connected": "تم ربط {addOn} بـ {app}",
+      "consentConnect": "سيتم ربطها بـ {app}.",
+      "featureOff": "{features} متوقف: لن تظهر صفحاته في الشريط الجانبي حتى يتم تثبيت {addOn} وربطها.",
+      "install": "تثبيت",
+      "installed": "تم تثبيت {addOn} وربطها بـ {app}",
+      "metaAbsent": "غير مثبّتة · الإصدار {version} · {source}",
+      "metaInstalled": "مثبّتة · الإصدار {version} · {source}",
+      "metaOld": "مثبّتة · الإصدار {version}",
+      "metaUnavailable": "غير مثبّتة · {source}",
+      "notConnected": "غير مربوطة بـ {app}",
+      "openSettings": "فتح إعداداتها"
+    },
+    "done": {
+      "installed": "تم التثبيت أيضًا: {names}. {count, plural, one {إعداداتها} two {إعداداتهما} few {إعداداتها} many {إعداداتها} other {إعداداتها}} في {addOns}.",
+      "updated": "تم التحديث أيضًا: {names}. {count, plural, one {إعداداتها} two {إعداداتهما} few {إعداداتها} many {إعداداتها} other {إعداداتها}} في {addOns}."
+    },
+    "download": "تنزيلها",
+    "downloading": "جارٍ التنزيل… {pct}٪",
+    "grant": "سيتمكن {roles} من تغيير إعداداتها، وهي مشتركة بين كل التطبيقات التي تخدمها.",
+    "howTo": "كيفية إضافة إضافة",
+    "intro": "يعمل {app} مع {count, plural, one {هذه الإضافة} two {هاتين الإضافتين} few {هذه الإضافات} many {هذه الإضافات} other {هذه الإضافات}}.",
+    "meta": "الإصدار {version} · {source}",
+    "needsFloor": "يحتاج {app} إلى الإصدار {version} أو أحدث",
+    "needsRange": "يحتاج {app} إلى {range}",
+    "orLater": "{version} أو أحدث",
+    "pill": {
+      "feature": "مطلوبة لـ: {features}",
+      "required": "مطلوبة",
+      "suggested": "مقترحة"
+    },
+    "plan": {
+      "creates": "تنشئ {count, plural, zero {# جداول} one {جدولًا واحدًا} two {جدولين} few {# جداول} many {# جدولًا} other {# جدول}} في {connection}: {tables}"
+    },
+    "running": {
+      "attach": "جارٍ ربط {addOn}",
+      "connected": "تم الربط",
+      "install": "جارٍ تثبيت {addOn}",
+      "update": "جارٍ تحديث {addOn}"
+    },
+    "shared": "الإضافات مشتركة. يمكن لأي تطبيق آخر تثبّته أن يستخدمها أيضًا.",
+    "source": {
+      "bundled": "تأتي مع Adminium",
+      "catalog": "من كتالوج الإضافات",
+      "none": "لا تأتي مع Adminium هذا، ولا يوجد في كتالوج الإضافات إصدار يمكن استخدامه",
+      "off": "لا تأتي مع Adminium هذا، وكتالوج الإضافات متوقف",
+      "upload": "مرفوعة إلى Adminium هذا"
+    },
+    "status": {
+      "attached": "مربوطة بالفعل بـ {app}",
+      "downloadFirst": "سيتم تثبيتها بعد تنزيلها من كتالوج الإضافات",
+      "tooOld": "مثبّتة الإصدار {installed} — {need}",
+      "unavailable": "{addOn} غير متاحة على Adminium هذا",
+      "willConnect": "مثبّتة · الإصدار {version} · سيتم ربطها بـ {app}",
+      "willInstall": "سيتم تثبيتها",
+      "wontConnect": "مثبّتة · الإصدار {version} · لن يتم ربطها"
+    },
+    "stopped": {
+      "atAddOns": "فشل تثبيت الإضافات التي يحتاجها، لذا لم يُنفَّذ أي شيء بعد ذلك."
+    },
+    "title": "الإضافات",
+    "uninstall": {
+      "kept": "تبقى {addOn} مثبّتة. ألغِ تثبيتها من الإضافات إن لم يكن هناك ما يستخدمها.",
+      "link": "ربطه بـ {addOn}"
+    },
+    "updateToo": "حدّثها أيضًا"
+  },
+  "featurePage": {
+    "ask": "يمكن لمن يدير التطبيقات تثبيتها.",
+    "body": "تعمل هذه الصفحة فقط مع {count, plural, one {إضافة} two {إضافتين} few {إضافات} many {إضافات} other {إضافات}} ليست لدى هذا التطبيق هنا بعد، لذلك لا تظهر في الشريط الجانبي. ستعود بمجرد تثبيت {count, plural, one {الإضافة} two {الإضافتين} few {الإضافات} many {الإضافات} other {الإضافات}} وربطها بالتطبيق.",
+    "open": "فتح إعدادات التطبيق",
+    "title": "تحتاج {page} إلى إضافة"
   }
 } as const;

@@ -11,16 +11,24 @@
  * An app with no staff screens resolves to nothing, and the page draws no
  * link at all rather than one that goes nowhere.
  */
-import { appSectionsOf, findPageBySlug, type BootstrapData } from '../app/bootstrap.js';
+import { appPagesOf, appSectionsOf, hiddenPagesOf, type BootstrapData } from '../app/bootstrap.js';
 
 export const STAFF_HREF = '@staff';
 
 /** Where `@staff` goes for one page: a dashboard route, or an address of its own. */
 export type StaffTarget = { external: false; href: string } | { external: true; href: string };
 
-/** The staff screens of the app that owns `slug`, or null (no app, or an app without them). */
-export function staffTargetFor(bootstrap: BootstrapData, slug: string): StaffTarget | null {
-  const appKey = findPageBySlug(bootstrap, slug)?.appKey;
+/**
+ * The staff screens of the app that owns the page `pageId`, or null (no app,
+ * or an app without them). Looked up by the page's id, because the dashboard
+ * binding that asks — the only template with a page link — has the page
+ * document, not its address.
+ */
+export function staffTargetFor(bootstrap: BootstrapData, pageId: string): StaffTarget | null {
+  const item = [...bootstrap.nav.groups.flatMap((group) => group.items), ...appPagesOf(bootstrap), ...hiddenPagesOf(bootstrap)].find(
+    (candidate) => candidate.pageId === pageId,
+  );
+  const appKey = item?.appKey;
   if (appKey === undefined || appKey === null) return null;
   const staff = appSectionsOf(bootstrap).find((section) => section.appKey === appKey)?.staff ?? null;
   if (staff === null) return null;

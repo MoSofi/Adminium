@@ -19,9 +19,25 @@ import { useCallback, useSyncExternalStore } from 'react';
 import type { CrudApi, CrudFilter, CrudListParams, PageCrudLinkFilter } from '@adminium/widgets';
 
 import { api } from '../app/api.js';
-import { LINK_FILTER_PREFIX, spell, type PageSearch } from './pageSearch.js';
 
-export { LINK_FILTER_PREFIX, validatePageSearch, type PageSearch } from './pageSearch.js';
+/** The search-param prefix a filter piece rides under (`?f.<column>=<op>:<value>`). */
+export const LINK_FILTER_PREFIX = 'f.';
+
+/**
+ * The records page's search, as the router parsed it. `/p/$slug` has no
+ * validator of its own on purpose: the router is in the entry chunk, and the
+ * one thing a validator would do here — read `?f.x=5` or `?f.x=true`, which
+ * the router's parser turns into a number and a boolean, back as the text of
+ * a piece — {@link linkPiecesOf} does in this lazily loaded module instead.
+ */
+export type PageSearch = Record<string, unknown>;
+
+/** A piece's value as text; null for what no piece can be (an object, a list inside a list). */
+function spell(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return null;
+}
 
 /** Pieces sent at most (the server uses the first eight and says so of the rest). */
 const PIECES_MAX = 32;

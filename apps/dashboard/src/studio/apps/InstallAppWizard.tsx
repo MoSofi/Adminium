@@ -47,7 +47,8 @@
  *  be a second copy of the shelf, asking a question the click already answered.
  */
 import { useState, type ReactNode } from 'react';
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
 import {
   Alert,
   Badge,
@@ -68,6 +69,7 @@ import {
 import {
   Check,
   ChevronDown,
+  CircleAlert,
   ChevronRight,
   Database,
   ExternalLink,
@@ -75,6 +77,7 @@ import {
   GitCompareArrows,
   LayoutPanelLeft,
   Package,
+  Puzzle,
   RotateCcw,
   Sprout,
   Table2,
@@ -82,7 +85,16 @@ import {
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
+import { addOnCatalogQuery, downloadAddOn, getAddOnJob } from '../add-ons/addOnsApi.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import {
+  AddOnsInstallCard,
+  addOnBlock,
+  addOnChoicesOf,
+  addOnStepsOf,
+  type AddOnPicks,
+} from './AddOnsInstallCard.js';
+import { namesList, sentence } from './addOnWords.js';
 import {
   APPS_QUERY_KEY,
   APP_CATALOG_QUERY_KEY,
@@ -91,6 +103,8 @@ import {
   planApp,
   sha512Of,
   uploadApp,
+  type AddOnsDone,
+  type AppAddOnRow,
   type AppInstallPlan,
   type InstallAnswers,
   type InstallStoppedDetails,
@@ -217,9 +231,18 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   const [addSample, setAddSample] = useState(false);
   // Ticked by default: the app's customer screens need it to work.
   const [allowPublic, setAllowPublic] = useState(true);
+  // The Add-ons card's ticks and "Update it too", by add-on key.
+  const [addOnPicks, setAddOnPicks] = useState<AddOnPicks>({ ticked: {}, update: {} });
+  const [downloading, setDownloading] = useState<{ key: string; pct: number } | null>(null);
   const answers = answersOf(picks, renameTo, prefix);
   const dirty = JSON.stringify(answers) !== JSON.stringify(checked);
   const connectionName = connections.find((connection) => connection.id === connectionId)?.name ?? '';
+  const addOnRows: readonly AppAddOnRow[] = plan?.addOns ?? [];
+  const appName = staged?.name ?? '';
+  // What holds the install on the add-ons' account, in words; null when nothing does.
+  const addOnHint = addOnRows.length === 0 ? null : addOnBlock(appName, addOnRows, addOnPicks);
+  // Whether the catalogue is on, for the words under an add-on that cannot be had.
+  const catalogue = useQuery({ ...addOnCatalogQuery, enabled: addOnRows.some((row) => row.state === 'unavailable') });
 
   const stepIndex = STEP_IDS.indexOf(step);
   const steps: Step[] = [
@@ -293,6 +316,9 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
         ...(plan?.publicAccess === undefined
           ? {}
           : { publicAccess: allowPublic && !publicAccessBlocked(plan.publicAccess) }),
+        // Every add-on the install acts on, at the version the check showed:
+        // a version that moved since answers SCHEMA_DRIFT, and is checked again.
+        ...(addOnRows.length === 0 ? {} : { addOns: addOnChoicesOf(addOnRows, addOnPicks) }),
         ...checked,
       });
     },
@@ -318,6 +344,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
           created: details.created ?? [],
           pending: details.pending ?? [],
           cause: details.cause ?? cause.message,
+          ...(details.addOns === undefined ? {} : { addOns: details.addOns }),
         });
         setError(null);
         return;
@@ -326,10 +353,40 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
       // The check is stale, so show the fresh one in its place.
       // Re-run, then say why the check changed: the re-plan's own success would
       // otherwise clear the message the moment the new check arrived.
-      if (cause instanceof ApiError && cause.code === 'SCHEMA_DRIFT') {
+      if (cause instanceof ApiError && (cause.code === 'SCHEMA_DRIFT' || cause.code.startsWith('ADD_ON_'))) {
         preview.mutate(checked, { onSuccess: () => setError(cause.message) });
       }
     },
+  });
+
+  /**
+   * An add-on in the catalogue but not on this server: downloaded first, as a
+   * job, then the check is made again — its own plan can only be read once its
+   * bytes are here.
+   */
+  const download = useMutation({
+    mutationFn: async (row: AppAddOnRow) => {
+      if (row.offeredVersion === null) throw new Error('no version');
+      setDownloading({ key: row.key, pct: 0 });
+      const { jobId } = await downloadAddOn(row.key, row.offeredVersion);
+      for (;;) {
+        const job = await getAddOnJob(jobId);
+        setDownloading({ key: row.key, pct: job.progress?.pct ?? 0 });
+        if (job.status === 'succeeded') return;
+        if (job.status === 'failed' || job.status === 'cancelled') {
+          throw new Error(
+            job.lastError ?? t('studio:addOns.job.failed', 'The download did not finish. Nothing was installed.'),
+          );
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    },
+    onSuccess: () => {
+      setError(null);
+      preview.mutate(checked);
+    },
+    onError: (cause: Error) => setError(cause.message),
+    onSettled: () => setDownloading(null),
   });
 
   /** Pick what to do with a taken table. A pick with nothing to type re-checks at once. */
@@ -350,7 +407,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
     if (pick !== 'alt-prefix') preview.mutate(answersOf(nextPicks, nextRename, nextPrefix));
   };
 
-  const busy = upload.isPending || preview.isPending || install.isPending;
+  const busy = upload.isPending || preview.isPending || install.isPending || download.isPending;
   const checking = step === 'plan' && plan !== null && hasTables(plan);
 
   return (
@@ -570,7 +627,11 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
       ) : null}
 
       {checking && install.isPending ? (
-        <Installing appName={staged?.name ?? ''} connectionName={connectionName} />
+        <Installing
+          appName={staged?.name ?? ''}
+          connectionName={connectionName}
+          addOnSteps={addOnStepsOf(addOnRows, addOnPicks)}
+        />
       ) : null}
 
       {checking && !install.isPending && stopped !== null ? (
@@ -611,10 +672,26 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             }}
             busy={busy}
           />
-          {plan.publicAccess !== undefined || plan.sampleData === true ? (
+          {plan.publicAccess !== undefined || plan.sampleData === true || addOnRows.length > 0 ? (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(272px,1fr))] gap-3">
               {plan.publicAccess === undefined ? null : (
                 <PublicAccessInstallCard access={plan.publicAccess} checked={allowPublic} onChange={setAllowPublic} />
+              )}
+              {/* An app that names no add-on has no card, and installs as before. */}
+              {addOnRows.length === 0 ? null : (
+                <AddOnsInstallCard
+                  appName={appName}
+                  connectionName={connectionName}
+                  rows={addOnRows}
+                  picks={addOnPicks}
+                  onTick={(key, next) => setAddOnPicks((picks) => ({ ...picks, ticked: { ...picks.ticked, [key]: next } }))}
+                  onUpdate={(key, next) => setAddOnPicks((picks) => ({ ...picks, update: { ...picks.update, [key]: next } }))}
+                  catalogueOn={catalogue.data?.onlineEnabled ?? null}
+                  downloading={downloading}
+                  onDownload={(row) => download.mutate(row)}
+                  busy={busy}
+                  grants={plan.addOnGrants}
+                />
               )}
               {plan.sampleData === true ? <SampleInstallCard checked={addSample} onChange={setAddSample} /> : null}
             </div>
@@ -774,6 +851,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
               ) : null}
             </ul>
           )}
+          {result.addOns === undefined ? null : <AddOnsDoneLine done={result.addOns} />}
           {sample.error === null ? null : (
             <Alert role="alert" tone="danger" title={t('studio:sampleData.addFailed', 'The sample data was not added')}>
               {sample.error.message}{' '}
@@ -819,7 +897,16 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
           * from the marketplace card it was opened from, and an upload learns
           * it from the bundle's manifest once the file has gone up.
           */}
-        {checking && stopped === null && !install.isPending && plan !== null ? (
+        {checking && stopped === null && !install.isPending && plan !== null && addOnHint !== null ? (
+          // The add-ons' refusal wins over the table hint: it is the one that holds Install.
+          <span
+            data-part="add-on-hint"
+            className="inline-flex items-center gap-[7px] text-[12.5px] font-semibold text-danger"
+          >
+            <CircleAlert aria-hidden className="size-3.5 shrink-0" />
+            {addOnHint}
+          </span>
+        ) : checking && stopped === null && !install.isPending && plan !== null ? (
           <CheckHint plan={plan} picks={picks} dirty={dirty} />
         ) : (
           <span className="text-sm text-fg-subtle">
@@ -878,6 +965,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
                 setRenameTo({});
                 setPrefix('');
                 setOpenRows({});
+                setAddOnPicks({ ticked: {}, update: {} });
                 preview.mutate({});
               }}
             >
@@ -895,7 +983,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
 
           {step === 'plan' && !(checking && (dirty || stopped !== null || install.isPending)) ? (
             <Button
-              disabled={busy || plan === null || !plan.installable}
+              disabled={busy || plan === null || !plan.installable || addOnHint !== null}
               onClick={() => install.mutate()}
             >
               {install.isPending ? <Spinner size="sm" /> : null}
@@ -966,6 +1054,62 @@ function PlanAlerts({ plan }: { plan: AppInstallPlan }) {
     )}
 
     </>
+  );
+}
+
+/**
+ * "Also installed: Invoices & Receipts. Its settings are under Add-ons." — and
+ * "Also updated:" for an add-on the install moved on. An add-on only connected
+ * is not news here: it was already installed, and its settings already listed.
+ */
+function AddOnsDoneLine({ done }: { done: AddOnsDone }) {
+  const router = useRouter({ warn: false }) as ReturnType<typeof useRouter> | null;
+  if (done.installed.length === 0 && done.updated.length === 0) return null;
+  const link = (
+    <a
+      href="/studio/add-ons"
+      className="font-bold text-accent"
+      onClick={(event) => {
+        if (router === null) return;
+        event.preventDefault();
+        void router.navigate({ to: '/studio/add-ons' });
+      }}
+    >
+      {t('studio:appAddOns.title', 'Add-ons')}
+    </a>
+  );
+  const names = (list: readonly { name: string }[]) => (
+    <span className="font-bold text-fg">{namesList(list.map((addOn) => addOn.name))}</span>
+  );
+  return (
+    <div
+      data-part="done-add-ons"
+      className="flex items-start gap-2.5 rounded-[12px] bg-surface-3 px-[15px] py-3 text-[12.5px] leading-[1.5] text-fg-muted"
+    >
+      <Puzzle aria-hidden className="mt-px size-4 shrink-0 text-fg-muted" />
+      <p className="flex flex-col gap-1">
+        {done.installed.length === 0 ? null : (
+          <span>
+            {sentence(
+              'studio:appAddOns.done.installed',
+              'Also installed: {names}. {count, plural, one {Its settings are} other {Their settings are}} under {addOns}.',
+              { names: names(done.installed), addOns: link },
+              { count: done.installed.length },
+            )}
+          </span>
+        )}
+        {done.updated.length === 0 ? null : (
+          <span>
+            {sentence(
+              'studio:appAddOns.done.updated',
+              'Also updated: {names}. {count, plural, one {Its settings are} other {Their settings are}} under {addOns}.',
+              { names: names(done.updated), addOns: link },
+              { count: done.updated.length },
+            )}
+          </span>
+        )}
+      </p>
+    </div>
   );
 }
 

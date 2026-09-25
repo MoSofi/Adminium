@@ -297,6 +297,12 @@ export interface BootstrapData {
    */
   disabledAppPages?: NavItem[];
   /**
+   * Pages of an app whose feature waits on an add-on it does not have here —
+   * in no sidebar, read only by the page route, which says what the page needs
+   * instead of a 404. Absent when there are none, and from an older server.
+   */
+  featurePages?: FeaturePage[];
+  /**
    * The project folder this server runs, absent on every other server. Read
    * through `project/client.ts`.
    */
@@ -409,6 +415,9 @@ export interface UnavailableApp {
   /** Where it opens on its own, for `external`. */
   href?: string;
 }
+
+/** A page withheld until its feature's add-ons are here: the feature, and the add-on keys it still needs. */
+export type FeaturePage = NavItem & { feature: string; needs: string[] };
 
 /** Whether a page belongs to a switched-off app — see the field's note. */
 export function isDisabledAppPage(bootstrap: BootstrapData, slug: string): boolean {
