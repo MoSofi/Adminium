@@ -281,6 +281,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.default' ||
           item.op === 'column.options' ||
           item.op === 'column.required' ||
+          item.op === 'column.requiredWhen' ||
           item.op === 'column.validation' ||
           item.op === 'column.copy' ||
           item.op === 'column.sequence' ||

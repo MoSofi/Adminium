@@ -72,6 +72,8 @@ export interface FormColumnFactReply {
   ordinal?: number;
   filledBy: 'database' | 'adminium' | null;
   required: boolean;
+  /** Asked for only while another column of the record holds one of `in`. */
+  requiredWhen?: { column: string; in: (string | number | boolean)[] } | undefined;
   writable: boolean;
   /** Inline values carry their words in the reader's language. */
   options?: { list: string } | { values: { value: string; label?: string; tone?: string }[] } | undefined;
@@ -90,6 +92,7 @@ function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
     facts[name] = {
       filledBy: column.filledBy,
       required: column.required,
+      ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
       writable: column.writable,
       // The RULE, not its answers: a named list is resolved where the reader's
       // language is known (`api/optionLists.ts`).

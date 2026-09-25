@@ -209,6 +209,18 @@ describe('column facts — what the server says about the table right now', () =
     expect(isRequired(createdAt, fact({ required: true }))).toBe(true);
   });
 
+  it('asks for a column while another holds one of the values its rule lists', () => {
+    const person = spec({ name: 'person_id', label: 'Person', logicalType: 'integer', nullable: true });
+    const when = fact({ requiredWhen: { column: 'kind', in: ['away', 'sick'] } });
+    expect(isRequired(person, when)).toBe(false);
+    expect(isRequired(person, when, { kind: 'office' })).toBe(false);
+    expect(isRequired(person, when, { kind: null })).toBe(false);
+    expect(isRequired(person, when, { kind: 'sick' })).toBe(true);
+    // A switch holds a boolean; a number column may hold its value as text.
+    expect(isRequired(person, fact({ requiredWhen: { column: 'done', in: [true] } }), { done: true })).toBe(true);
+    expect(isRequired(person, fact({ requiredWhen: { column: 'tier', in: [2] } }), { tier: '2' })).toBe(true);
+  });
+
   it('still hides one that the database or Adminium fills', () => {
     expect(controlForColumn(createdAt, fact({ filledBy: 'database' }))).toBe('hidden');
     expect(controlForColumn(createdAt, fact({ filledBy: 'adminium' }))).toBe('hidden');

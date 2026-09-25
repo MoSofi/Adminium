@@ -63855,6 +63855,35 @@
                                     "required": {
                                       "type": "boolean"
                                     },
+                                    "requiredWhen": {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string"
+                                        },
+                                        "in": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "number"
+                                              },
+                                              {
+                                                "type": "boolean"
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "in"
+                                      ],
+                                      "additionalProperties": false
+                                    },
                                     "options": {
                                       "anyOf": [
                                         {
@@ -64022,6 +64051,35 @@
                               },
                               "required": {
                                 "type": "boolean"
+                              },
+                              "requiredWhen": {
+                                "type": "object",
+                                "properties": {
+                                  "column": {
+                                    "type": "string"
+                                  },
+                                  "in": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "boolean"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "column",
+                                  "in"
+                                ],
+                                "additionalProperties": false
                               },
                               "options": {
                                 "anyOf": [

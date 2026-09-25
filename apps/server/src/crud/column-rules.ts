@@ -48,6 +48,7 @@ import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
 import { formulaColumns, type FormulaExpr } from '@adminium/manifest';
 
 import type {
+  ColumnRequiredWhen,
   ColumnStampRule,
   ColumnValidation,
   EffectiveColumn,
@@ -60,6 +61,7 @@ import type {
   TableCapacityRule,
 } from '../connections/effective-schema.js';
 import { isNowType, renderNow } from './instants.js';
+import { sameValue } from './write-values.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 import type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
@@ -126,6 +128,8 @@ export interface ColumnCheck {
   options?: readonly string[];
   /** An admin's `column.required` — the one "required" the server enforces. */
   requiredByRule?: boolean;
+  /** `column.requiredWhen`: required only while another column of the row holds one of `in`. */
+  requiredWhen?: ColumnRequiredWhen;
   /** An admin's `column.validation`. */
   validation?: ColumnValidation;
 }
@@ -543,6 +547,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     if (values !== undefined) check.enumValues = values;
     if (options !== undefined) check.options = options;
     if (column.requiredByRule === true) check.requiredByRule = true;
+    if (column.requiredWhen !== undefined) check.requiredWhen = column.requiredWhen;
     if (column.validation !== undefined) check.validation = column.validation;
     // A check with nothing to say is still cheap, but keeping it out is what
     // makes "this table has no rules" provable.
@@ -550,6 +555,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       values !== undefined ||
       options !== undefined ||
       check.requiredByRule === true ||
+      check.requiredWhen !== undefined ||
       check.validation !== undefined ||
       checkableType(column.logicalType)
     ) {
@@ -970,19 +976,24 @@ function issueFor(check: ColumnCheck, value: unknown, dialect: Dialect): FieldIs
   }
 }
 
+/** Whether a column holds no answer: nothing, or only spaces. */
+const blank = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+
 /**
  * The issues in one row, or `null` when there are none.
  *
  * Only SUPPLIED keys are judged, on a create as much as on an update: what an
  * absent key means is the database's business (a default, a trigger, a NOT
  * NULL refusal), and pre-judging it is the preflight this module refuses to
- * have.
+ * have. The one exception is an admin's own "required" rule, which is asked
+ * of the row as the write leaves it — `stored` is the row as it is, on an
+ * update.
  */
 export function checkRow(
   rules: TableRules | null,
   action: WriteAction,
   values: Row,
-  ctx: { dialect: Dialect },
+  ctx: { dialect: Dialect; stored?: Row | null },
 ): FieldIssues | null {
   if (rules === null) return null;
   let issues: FieldIssues | null = null;
@@ -1015,8 +1026,22 @@ export function checkRow(
      */
     if (check.requiredByRule === true && !filled.has(check.column)) {
       const value = supplied ? values[check.column] : undefined;
-      const empty = value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
-      if (empty && (action === 'create' || supplied)) add(check.column, { code: 'required' });
+      if (blank(value) && (action === 'create' || supplied)) add(check.column, { code: 'required' });
+    }
+    /*
+     * Required only while another column of the row holds a listed value (an
+     * away event names who is away). Judged on the row as the write leaves
+     * it, whenever the write touches either column: emptying this one, or
+     * moving the other to a listed value over an empty one. A change to
+     * neither leaves a row as it was, and is not judged.
+     */
+    const when = check.requiredWhen;
+    if (when !== undefined && !filled.has(check.column)) {
+      const touched = action === 'create' || supplied || Object.prototype.hasOwnProperty.call(values, when.column);
+      if (touched) {
+        const row = action === 'create' ? values : { ...(ctx.stored ?? {}), ...values };
+        if (blank(row[check.column]) && when.in.some((listed) => sameValue(row[when.column], listed))) add(check.column, { code: 'required' });
+      }
     }
     if (!supplied) continue;
     const issue = issueFor(check, values[check.column], ctx.dialect);

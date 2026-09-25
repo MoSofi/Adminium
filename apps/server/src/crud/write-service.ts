@@ -1322,7 +1322,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     stored: Row | null,
     mapError: ((error: unknown) => never) | undefined,
   ): Promise<CheckedRow> {
-    const issues = mergeIssues(checkRow(rules, action, values, { dialect: target.dialect }), await boundIssues(rules, action, target, context, values, stored));
+    const issues = mergeIssues(checkRow(rules, action, values, { dialect: target.dialect, stored }), await boundIssues(rules, action, target, context, values, stored));
     if (issues === null) return brand(values);
     const error = refusal(issues);
     if (mapError !== undefined) mapError(error);
@@ -2136,7 +2136,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
         const worked = await formulate(rules, action, target, values, record);
-        const issues = mergeIssues(checkRow(rules, action, worked, { dialect: target.dialect }), await boundIssues(rules, action, target, context, worked, record));
+        const issues = mergeIssues(checkRow(rules, action, worked, { dialect: target.dialect, stored: record }), await boundIssues(rules, action, target, context, worked, record));
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
         return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(worked)), record), issues };

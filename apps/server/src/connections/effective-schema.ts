@@ -277,6 +277,12 @@ export interface ColumnValidation {
   maxLength?: number;
 }
 
+/** `column.requiredWhen`: another column of the row, and the values of it that make this one required. */
+export interface ColumnRequiredWhen {
+  column: string;
+  in: (string | number | boolean)[];
+}
+
 export interface EffectiveColumn extends ColumnModel {
   label?: string;
   hidden?: boolean;
@@ -297,6 +303,8 @@ export interface EffectiveColumn extends ColumnModel {
   options?: ColumnOptions;
   /** An admin's `column.required`. The column's own NOT NULL is separate. */
   requiredByRule?: boolean;
+  /** `column.requiredWhen`: required only while another column of the row holds one of `in`. */
+  requiredWhen?: ColumnRequiredWhen;
   validation?: ColumnValidation;
   /*
    * ─── Decided by Adminium ────────────────────────────────────────────────
@@ -983,6 +991,11 @@ export function applyOverrides(
         const column = columnOf(table, row.columnName);
         // Only `true` is storable, so the row's presence IS the rule.
         if (column !== undefined) column.requiredByRule = value.required === true;
+        break;
+      }
+      case 'column.requiredWhen': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.requiredWhen = value as unknown as ColumnRequiredWhen;
         break;
       }
       case 'column.validation': {

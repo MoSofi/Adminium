@@ -81,6 +81,8 @@ export type RemapOverride =
     }
   /** `required: true` only — "not required" is the absence of the row. */
   | { op: 'column.required'; tableName: string; columnName: string; value: { required: true } }
+  /** Required only while another column of the row holds one of `in`. Kept whole through a save. */
+  | { op: 'column.requiredWhen'; tableName: string; columnName: string; value: { column: string; in: (string | number | boolean)[] } }
   | {
       op: 'column.validation';
       tableName: string;
@@ -173,6 +175,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.default',
   'column.options',
   'column.required',
+  'column.requiredWhen',
   'column.validation',
   'column.copy',
   'column.sequence',

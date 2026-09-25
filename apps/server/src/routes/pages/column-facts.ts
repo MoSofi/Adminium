@@ -54,6 +54,12 @@ export interface ColumnFact {
   /** NOT NULL (or a rule), and nothing fills it — so the dialog must ask. */
   required: boolean;
   /**
+   * Asked for only while another column of the row holds one of `in`
+   * (`column.requiredWhen`): the dialog marks the field required as the
+   * person picks that value, and the server refuses the write otherwise.
+   */
+  requiredWhen?: { column: string; in: (string | number | boolean)[] };
+  /**
    * The answers this column accepts, when an admin fixed them with
    * `column.options` (phase C). A LIST travels as its key, never as a copy of
    * a 249-row list (D16) — the client resolves it once and caches it. Inline
@@ -192,6 +198,9 @@ function blockFor(
         filledBy === null &&
         !column.isGenerated &&
         (!column.nullable || column.requiredByRule === true),
+      ...(column.requiredWhen === undefined || filledBy !== null || column.isGenerated
+        ? {}
+        : { requiredWhen: { column: column.requiredWhen.column, in: [...column.requiredWhen.in] } }),
       ...(column.options === undefined ? {} : { options: column.options }),
       ...(column.validation === undefined ? {} : { validation: column.validation }),
       ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),

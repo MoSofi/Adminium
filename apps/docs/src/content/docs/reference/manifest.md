@@ -321,6 +321,7 @@ change or delete is theirs from then on.
 | `options` | `{ "list": "<name>" }` or `{ "values": [{ "value", "label"?, "tone"? }] }` | The allowed values. `list` names one of the app's [option lists](#option-lists), or a built-in list: `builtin:countries`, `builtin:us-states`, `builtin:gender`. Inline `values` take 1–500 entries. An inline value's `label` is a [label](#conventions): a keyed one follows the reader's language in the form's choices, the filters, the list and dashboard cards, falling back to `en-US`. An app's option list keeps its `en-US` words. |
 | `enumLabels` | `{ "labels": { "<value>": label }, "tones"?: { "<value>": "<tone>" } }` | Display labels (and badge tones) for an enum's values. Each label is a [label](#conventions): a keyed one follows the reader's language on pages (the list, the record and the form), and on dashboard cards, falling back to `en-US`. A page that sets its own labels or tones for the column keeps them. |
 | `required` | `true` | The server requires a value on every write. |
+| `requiredWhen` | `{ "column", "in" }` | The server requires a value only while another column of the same row holds one of the values in `in` (1–32): an away event names who is away, an event in the office names nobody. See [Required for some values](#required-for-some-values). |
 | `validation` | `{ "format"?, "min"?, "max"?, "minLength"?, "maxLength"? }` | `format` is `email`, `url` or `phone`. |
 | `copy` | `{ "via", "from", "mode"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. |
 | `default` | `{ "from" }` | A value filled on a create that leaves the column empty, read when the row is made. See [Values from elsewhere](#values-from-elsewhere). |
@@ -358,7 +359,33 @@ rounding to a `scale` apply on each of them. History keeps what it brings: an im
 data are not [stamped](#stamps), not [capped](#totals-and-balances), and not held to `notAfter` or
 `notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
 `notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
-`notBefore` is judged when the date is written, and when its `via` link changes.
+`notBefore` is judged when the date is written, and when its `via` link changes. `required` and
+`requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
+`VALIDATION_FAILED`, the field's code `required`. The public API answers any refused value with its
+one `400` `PUBLIC_WRITE_REFUSED`, naming no column.
+
+#### Required for some values
+
+`requiredWhen` asks for a column only while another column of the same row holds one of some
+values:
+
+```json
+{ "ref": "person_id", "type": "fk", "references": "people", "nullable": true,
+  "rules": { "requiredWhen": { "column": "kind", "in": ["away", "sick"] } } }
+```
+
+The row is judged as the write leaves it, whenever the write touches either column: a create or an
+update that leaves `person_id` empty while `kind` is `away` or `sick` is refused, and so is moving
+an event whose `person_id` is empty to `away`. A write that changes neither column is not judged,
+so a row stored before the rule can still be edited. Empty means no value, or only spaces. On a
+create, `kind` is the value the write gives it; a database default is not read. The record form
+marks the field required as soon as the other column holds one of the values.
+
+`column` is another column of the same table, and every value in `in` must fit it (a value of an
+enum, a number for a number column, `true` or `false` for a `bool`). The rule's own column must be
+`nullable`: one that is never empty is simply `required`. A column cannot take both `required` and
+`requiredWhen`, and a column Adminium fills (`copy`, `default`, `sequence`, `format`, `code`,
+`rollup`, `formula`, `stamp`) takes no `requiredWhen`, because nobody is asked for it.
 
 ```json
 { "ref": "subtotal", "type": "money", "default": 0,
@@ -420,6 +447,7 @@ An expression is a number, a column of the same row by its ref (`"qty"`), or one
 | `{ "round": a }` or `{ "round": [a, places] }` | `a` rounded half away from zero, to the column's scale or to `places` (0–4). |
 | `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
 | `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
+| `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](#hours-between-two-moments). |
 
 A condition is one of:
 
@@ -455,10 +483,35 @@ How a formula is worked out:
 
 A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float`. It reads only
 columns of its own table, and every column it counts with holds a number; `eq`, `neq` and
-`isNull` may name any column. It may not read itself, formulas may not read each other in a
-circle, and an expression nests at most 8 deep. A value a writer sends to a formula column is
-dropped. Anything that reads another row is a `copy` or a `rollup`, which already keep in step
-when that other row changes.
+`isNull` may name any column, and `hoursBetween` names two different `timestamptz` columns. It
+may not read itself, formulas may not read each other in a circle, and an expression nests at most
+8 deep. A value a writer sends to a formula column is dropped. Anything that reads another row is a
+`copy` or a `rollup`, which already keep in step when that other row changes.
+
+#### Hours between two moments
+
+`hoursBetween` works a time entry's hours out from its start and its stop:
+
+```json
+{ "ref": "hours", "type": "decimal", "scale": 2, "nullable": true,
+  "rules": { "formula": { "hoursBetween": ["started_at", "stopped_at"] } } }
+```
+
+09:15 → 11:45 is `2.50`; 22:30 → 01:15 the next day is `2.75`. The hours are exact and rounded
+once to the column's scale, like any formula, and they can be counted with further:
+`{ "mul": [{ "hoursBetween": ["started_at", "stopped_at"] }, "rate"] }` is the pay at a rate. An
+update that moves only the stop works the hours out again from the start as stored.
+
+- **The time that passed.** Hours are real elapsed time. A column that keeps a zone (Postgres
+  `timestamptz`, MySQL `TIMESTAMP`) holds the moment itself. One that keeps none (MySQL `DATETIME`,
+  which is what an app's `timestamptz` column becomes on MySQL, Postgres `timestamp`, and SQLite
+  text) is read on the Adminium server's clock, the clock Adminium writes such times on. So on a
+  server in Europe/London, 00:30 → 03:30 on the night the clocks go forward is `2.00`, and
+  00:30 → 02:30 on the night they go back is `3.00`, on every engine. Run the server in the zone the
+  times are kept in.
+- **Empty for a missing or backwards span.** An empty start or stop leaves the hours empty. So
+  does a stop before its start: a negative number of hours would quietly take pay off a total, so
+  the entry shows no hours until it is corrected. A stop equal to the start is `0.00`.
 
 #### Numbers without gaps
 
@@ -774,7 +827,7 @@ What the app may add to a part, and nothing else:
 
 - columns of its own, with any rules;
 - a label, and the rules that label or narrow a part's column: `enumLabels`, `personal`,
-  `validation`, `required`, `options`, `notAfter` and `notBefore`;
+  `validation`, `required`, `requiredWhen`, `options`, `notAfter` and `notBefore`;
 - a `copy` in front of a column the part fills with a `default` (a client's own tax rate before the
   add-on's default rate): the part's default still answers when the copy comes back empty;
 - in the states: more `lock.except` columns (its own columns that stay writable), `roles` on a

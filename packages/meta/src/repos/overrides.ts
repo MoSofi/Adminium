@@ -35,6 +35,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.default',
   'column.options',
   'column.required',
+  'column.requiredWhen',
   'column.validation',
   'column.copy',
   'column.sequence',

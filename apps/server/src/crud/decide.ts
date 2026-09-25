@@ -101,7 +101,9 @@ export function needsStored(rules: TableRules | null): boolean {
     // A move is judged on the row as it is, and a lock on what the write changes.
     rules?.states !== undefined ||
     (rules?.stateParents?.length ?? 0) > 0 ||
-    (rules?.bounds ?? []).some((bound) => bound.notBefore !== undefined)
+    (rules?.bounds ?? []).some((bound) => bound.notBefore !== undefined) ||
+    // A column required while another holds a value is judged on the row as the write leaves it.
+    (rules?.checks ?? []).some((check) => check.requiredWhen !== undefined)
   );
 }
 

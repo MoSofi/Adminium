@@ -43,7 +43,7 @@ export function FormPreview({
         columns.flatMap((fact) => {
           const name = fact.spec.name;
           return typeof name === 'string'
-            ? [[name, { filledBy: fact.filledBy, required: fact.required, writable: fact.writable }]]
+            ? [[name, { filledBy: fact.filledBy, required: fact.required, ...(fact.requiredWhen === undefined ? {} : { requiredWhen: fact.requiredWhen }), writable: fact.writable }]]
             : [];
         }),
       ),

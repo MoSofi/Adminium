@@ -34,6 +34,11 @@ export interface ColumnFact {
   filledBy: 'database' | 'adminium' | null;
   /** NOT NULL (or a rule) and nothing fills it: the form has to ask. */
   required: boolean;
+  /**
+   * Asked for only while another column of the record holds one of `in` (an
+   * away event names who is away). The server refuses the write otherwise.
+   */
+  requiredWhen?: { column: string; in: readonly (string | number | boolean)[] } | undefined;
   /** False for a generated column: shown, never sent. */
   writable: boolean;
   /**
@@ -225,10 +230,23 @@ export function formColumns(
  * against every default, every generated expression and every fill, which the
  * stored spec's `hasDefault` boolean cannot express (it folds five default
  * kinds into one bit and says nothing about who fills the column).
+ *
+ * `values` are the record as the form holds it: a column required only while
+ * another holds a listed value is required once the person picks one.
  */
-export function isRequired(column: GridColumnSpec, fact?: ColumnFact | undefined): boolean {
-  if (fact !== undefined) return fact.required;
+export function isRequired(column: GridColumnSpec, fact?: ColumnFact | undefined, values?: Readonly<Record<string, unknown>>): boolean {
+  if (fact !== undefined) return fact.required || requiredNow(fact, values);
   return !column.nullable && !column.hasDefault && !column.readOnly;
+}
+
+/** Whether the other column a `requiredWhen` names holds one of its values. */
+function requiredNow(fact: ColumnFact, values: Readonly<Record<string, unknown>> | undefined): boolean {
+  const when = fact.requiredWhen;
+  if (when === undefined || values === undefined) return false;
+  const held = values[when.column];
+  if (held === null || held === undefined || held === '') return false;
+  // A form holds a choice as its text, a switch as a boolean.
+  return when.in.some((listed) => String(listed) === String(held));
 }
 
 /** Mono type tag next to the label (`varchar`, `enum`, `→ team_members`). */

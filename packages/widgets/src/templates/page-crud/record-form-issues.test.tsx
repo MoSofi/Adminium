@@ -98,6 +98,44 @@ describe('a required field the person left blank', () => {
   });
 });
 
+describe('a field required only for some values of another', () => {
+  const EVENT = [
+    spec({ name: 'id', label: 'ID', primaryKey: true, hasDefault: true, nullable: false }),
+    spec({ name: 'kind', label: 'Kind', logicalType: 'enum', enumValues: ['office', 'away'], nullable: false }),
+    spec({ name: 'person', label: 'Person', logicalType: 'varchar', maxLength: 80 }),
+  ];
+  const facts: ColumnFacts = {
+    id: fact({ filledBy: 'database' }),
+    kind: fact({ required: true }),
+    person: fact({ requiredWhen: { column: 'kind', in: ['away'] } }),
+  };
+
+  it('is asked for once the other holds a listed value, and nothing is sent without it', async () => {
+    const { onSubmit } = form({ columns: EVENT, facts, initialValues: { kind: 'away' } });
+    expect(screen.getByLabelText(/Person/).getAttribute('aria-required')).toBe('true');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('This field is required.')).toBeTruthy();
+    await userEvent.type(screen.getByLabelText(/Person/), 'Ann');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ kind: 'away', person: 'Ann' });
+  });
+
+  it('is optional while the other holds any other value', async () => {
+    const { onSubmit } = form({ columns: EVENT, facts, initialValues: { kind: 'office' } });
+    expect(screen.getByLabelText(/Person/).getAttribute('aria-required')).not.toBe('true');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ kind: 'office', person: null });
+  });
+
+  it('refuses an edit that leaves it empty on a record holding a listed value', async () => {
+    const { onSubmit } = form({ columns: EVENT, facts, mode: 'edit', initialValues: { id: 1, kind: 'away', person: null } });
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('This field is required.')).toBeTruthy();
+  });
+});
+
 describe('a value the server refused', () => {
   it('renders under the column the server named', () => {
     form({ errors: { full_name: 'Choose one of the listed values.' } });

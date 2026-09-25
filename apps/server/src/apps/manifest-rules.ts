@@ -68,6 +68,7 @@ export type RuleOp =
   | 'column.options'
   | 'column.enumLabels'
   | 'column.required'
+  | 'column.requiredWhen'
   | 'column.validation'
   | 'column.copy'
   | 'column.sequence'
@@ -179,6 +180,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
     });
   }
   if (rules.required === true) out.push({ op: 'column.required', value: { required: true } });
+  if (rules.requiredWhen !== undefined) out.push({ op: 'column.requiredWhen', value: { column: rules.requiredWhen.column, in: [...rules.requiredWhen.in] } });
   if (rules.validation !== undefined) out.push({ op: 'column.validation', value: { ...rules.validation } });
   if (rules.copy !== undefined) out.push({ op: 'column.copy', value: { ...rules.copy } });
   if (rules.sequence !== undefined) out.push({ op: 'column.sequence', value: { ...rules.sequence } });

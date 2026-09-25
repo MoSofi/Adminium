@@ -529,6 +529,18 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
    * column's own NOT NULL still decides.
    */
   z.object({ op: z.literal('column.required'), value: z.object({ required: z.literal(true) }) }),
+  /*
+   * Required only while another column of the same row holds one of `in`
+   * (`person_id` when `kind` is `away`): the row as a write leaves it is
+   * judged, whichever of the two columns the write changes.
+   */
+  z.object({
+    op: z.literal('column.requiredWhen'),
+    value: z.object({
+      column: ruleColumn,
+      in: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(32),
+    }),
+  }),
   z.object({
     op: z.literal('column.validation'),
     value: z.object({
