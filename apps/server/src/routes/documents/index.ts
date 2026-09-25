@@ -17,7 +17,10 @@
  * A document is built from the tables its profile MAPS, which is usually more
  * than one — an invoice reads the order AND its lines, often a customer too.
  * So "may this caller read this document" is not one grant, it is every mapped
- * table's read grant, resolved together (D16). A caller holding `orders:read`
+ * table's read grant, resolved together. A statement reads more again: its
+ * source tables (a client's invoices and payments) are what it lists, so
+ * they are asked too — the same set on every door that shows or draws one
+ * (`documentReads`). A caller holding `orders:read`
  * and not `order_lines:read` gets the row REDACTED, not hidden: its existence
  * is a fact the record page must not lie about, and its contents are not
  * theirs to read.
@@ -61,6 +64,8 @@ import { recordKeyOf } from '../public/documents.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { providerOf } from '../../documents/provider.js';
 import { mappedTables, type ProfileMapping } from '../../documents/subject.js';
+import { outboundKey } from '../../documents/compose.js';
+import type { SnapshotView } from '../../crud/identifiers.js';
 import { syncProfileTrigger } from '../../documents/trigger-sync.js';
 import type { FileStore } from '../../files/store.js';
 import { DOCUMENT_RENDER_KIND } from '../../jobs/document-render.js';
@@ -117,6 +122,46 @@ const NO_SECRETS = {
   },
 };
 
+/**
+ * Every table a document drawn by this profile reads: the ones its mapping
+ * names, and a statement's source tables — the invoices and payments it
+ * lists are as much its contents as the client row. The one set every staff
+ * door asks read on, so a statement never shows through one door what
+ * another would refuse.
+ */
+async function documentReads(profile: DocumentProfile, viewOf: () => Promise<SnapshotView | null>): Promise<readonly string[]> {
+  const statement = (profile.options as { statement?: StatementSources }).statement;
+  const mapping = profile.mapping as ProfileMapping;
+  const reads = new Set(mappedTables(mapping, profile.table));
+  if (statement !== undefined) {
+    reads.add(statement.documents.table);
+    reads.add(statement.payments.table);
+  }
+  /*
+   * A linked row's column whose mapping does not name its table (an older
+   * profile) is read all the same: the table is the one the row's foreign
+   * key points at, found in the schema — loaded only when such a mapping
+   * exists. A key the schema cannot resolve reads nothing, so asks nothing.
+   */
+  const unnamed = Object.values(mapping).filter((mapped) => 'ref' in mapped && mapped.table === undefined);
+  if (unnamed.length > 0) {
+    const view = await viewOf();
+    let base = null;
+    try {
+      base = view?.table(profile.table) ?? null;
+    } catch {
+      base = null;
+    }
+    if (view !== null && base !== null) {
+      for (const mapped of unnamed) {
+        const target = 'ref' in mapped ? outboundKey(view, base, mapped.ref)?.tableId : undefined;
+        if (target !== undefined) reads.add(target);
+      }
+    }
+  }
+  return [...reads];
+}
+
 /** The same answer for an app, a table, a kind and a row that are not there — or not the caller's to read. */
 function notFound(): never {
   throw new NotFoundError('No such document for this app.');
@@ -126,10 +171,14 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
   const documents = documentsRepo(deps.meta);
   const profiles = documentProfilesRepo(deps.meta);
 
+  /** The connection's schema, loaded only when asked (a linked table a mapping does not name). */
+  const viewOf = (connectionId: string) => async (): Promise<SnapshotView | null> =>
+    await loadSnapshotView(deps.meta, connectionId).catch(() => null);
+
   /**
    * May this caller read this document's CONTENTS?
    *
-   * The answer for a profile-backed row is "every mapped table, all of them";
+   * The answer for a profile-backed row is "every table it reads, all of them";
    * for a profile-less intent it is "you asked for it, or you administer
    * add-ons". Both branches return a boolean AND the table that refused, so a
    * 403 can name it instead of saying no.
@@ -157,7 +206,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     }
 
     const canRead = await canReadTableFor(deps.meta, userId, row.connectionId);
-    for (const table of mappedTables(profile.mapping as ProfileMapping, profile.table)) {
+    for (const table of await documentReads(profile, viewOf(row.connectionId))) {
       if (!(await canRead(table))) return { ok: false, table };
     }
     return { ok: true };
@@ -506,7 +555,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         const profile = await profiles.findById(request.body.profileId);
         if (profile === null) throw new NotFoundError('That document mapping does not exist.');
 
-        // The caller's grants over every table the mapping reads, checked
+        // The caller's grants over every table the document reads, checked
         // BEFORE anything is enqueued — a job that would be refused at read
         // time should never reach the queue.
         const canRead = await canReadTableFor(
@@ -514,7 +563,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
           request.user?.id ?? null,
           profile.connectionId,
         );
-        for (const table of mappedTables(profile.mapping as ProfileMapping, profile.table)) {
+        for (const table of await documentReads(profile, viewOf(profile.connectionId))) {
           if (!(await canRead(table))) {
             throw new ForbiddenError(`This document reads ${table}, which you may not read.`);
           }
@@ -600,12 +649,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         // Every table the document reads, as the record page asks it.
         if (profile !== null) {
           const canRead = await canReadTableFor(deps.meta, request.user?.id ?? null, connectionId);
-          const statement = (profile.options as { statement?: StatementSources }).statement;
-          const reads = [
-            ...mappedTables(profile.mapping as ProfileMapping, profile.table),
-            ...(statement === undefined ? [] : [statement.documents.table, statement.payments.table]),
-          ];
-          for (const table of reads) if (!(await canRead(table))) notFound();
+          for (const table of await documentReads(profile, async () => view)) if (!(await canRead(table))) notFound();
         }
 
         // Declared, readable — and switched on?

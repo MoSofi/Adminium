@@ -3351,11 +3351,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
            * is drawn — a caller who cannot read a row must not be able to make
            * a document out of it, which would be a read through a side door.
            * And a document is a signed-in person's own: a resource with no
-           * claim draws nothing, whatever it reads.
+           * claim and no parent draws nothing, whatever it reads.
            */
           const found = await resolveResource(request, reply, ok, body.ref, 'read');
           if (found === null) return reply;
-          if (ok.session === null || found.resource.claim === null) {
+          if (ok.session === null || !documentAccess.personal(found.resource, ok.session)) {
             return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
           }
           const profile = await documentAccess.profileForRender(ok.key, found.resource, body);
@@ -3375,7 +3375,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               : fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
           }
           const row = await runList({
-            db: found.db,
+            // A child's row only under a parent this session reaches, as its record read asks.
+            db: readerFor(found, found.table, found.visibility),
             view: found.view,
             table: found.table,
             params: { limit: 1, offset: 0, count: 'none' },

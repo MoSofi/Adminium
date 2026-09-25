@@ -13,12 +13,14 @@
  *  - its profile belongs to the key's owner: the app that made the key (a
  *    profile its install made), or, for an operator's own key, a profile an
  *    operator made;
- *  - a resource on the key reads the row's table, carries a claim, is reached
- *    by this session at the level it asks, and DECLARES the kind — the app's
+ *  - a resource on the key reads the row's table, is a person's own — it
+ *    carries a claim, or is visible with a parent that does — is reached by
+ *    this session at the level it asks, and DECLARES the kind — the app's
  *    entry lists it in `documents`, or the operator switched the key's
  *    documents flag on;
- *  - the row itself is inside that resource's mandatory filter and this
- *    session's claim, asked of the database the way a record read asks it.
+ *  - the row itself is one that resource's record list shows this session:
+ *    inside its mandatory filter and this session's claim, and for a child,
+ *    under a parent the session reaches (the same EXISTS a record read asks).
  *
  * A document drawn from values (an intent) carries the claim and the key that
  * asked for it, and only that key's sessions with that claim see it.
@@ -58,7 +60,7 @@ import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { appDocumentOff } from '../../documents/app-documents.js';
 import { outboundKey, type ReadFilter } from '../../documents/compose.js';
 import { compileFilter } from '../../crud/filters.js';
-import { visibilityOf, visibleCondition, type VisibilityStep } from '../../public-api/visible-with.js';
+import { parentOf, readerFor, visibilityOf, visibleCondition, type VisibilityStep } from '../../public-api/visible-with.js';
 import { STATEMENT_PERIODS, type StatementSources } from '../../documents/statement.js';
 import type { ProfileMapping } from '../../documents/subject.js';
 import { claimPredicateFor, combinePredicates, type PublicSessionContext } from '../../public-api/claim.js';
@@ -259,11 +261,15 @@ export function createDocumentAccess(deps: {
     return out;
   }
 
-  /** Whether a session reads this resource's rows as a person's own. */
+  /**
+   * Whether a session reads this resource's rows as a person's own: by its
+   * own claim, or through a parent that is (a payment is a client's because
+   * its invoice is). Which of the rows are theirs is `open`'s to narrow.
+   */
   function personal(resource: CompiledResource, session: PublicSessionContext): boolean {
     if (resource.kind !== 'records' || !resource.actions.has('read')) return false;
-    // A resource with no claim is everybody's: its rows' documents are nobody's to list.
-    if (resource.claim === null) return false;
+    // A resource with no claim and no parent is everybody's: its rows' documents are nobody's to list.
+    if (resource.claim === null && parentOf(resource) === null) return false;
     if (!claimPredicateFor(resource, session).reachable) return false;
     return resource.level !== 'verified' || session.level === 'verified';
   }
@@ -392,7 +398,13 @@ export function createDocumentAccess(deps: {
     predicate: RecordFilter | null;
   }
 
-  /** The database, the table and the predicate a resource's rows are read under, or null. */
+  /**
+   * The database, the table and the predicate a resource's rows are read
+   * under, or null — exactly as its record list reads them: its filter and
+   * claim, and for a child a handle that ANDs its parent chain's EXISTS into
+   * the one SELECT (and refuses any other). A parent this session does not
+   * reach is null, the 404.
+   */
   async function open(ok: PublicAccess & { session: PublicSessionContext }, resource: CompiledResource): Promise<Opened | null> {
     const view = await deps.viewFor(ok.key.connectionId);
     if (view === null) return null;
@@ -410,8 +422,10 @@ export function createDocumentAccess(deps: {
     }
     const claim = claimPredicateFor(resource, ok.session);
     if (!claim.reachable) return null;
+    const visibility = visibilityOf({ scope: ok.key.scope, resource, session: ok.session, view });
+    if (!visibility.reachable) return null;
     return {
-      db: handle.db,
+      db: readerFor({ db: handle.db, dialect: handle.dialect, view }, table, visibility),
       dialect: handle.dialect,
       view,
       table,

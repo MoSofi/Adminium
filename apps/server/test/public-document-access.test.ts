@@ -43,6 +43,11 @@ describe('a person\'s own resource', () => {
     expect(access.personal(resource({ claim: null }), session())).toBe(false);
   });
 
+  it('is one visible with a parent, whose rows are the person\'s through it', () => {
+    const child = resource({ ref: 'payments_claimed', claim: null, visibleWith: { ref: 'invoices_claimed', localColumn: 'invoice_id', foreignColumn: 'id' } as never });
+    expect(access.personal(child, session())).toBe(true);
+  });
+
   it('is not one opened through another identity', () => {
     expect(access.personal(resource({ claim: { column: 'client_id', ref: 'staff_claimed' } as never }), session())).toBe(false);
   });
