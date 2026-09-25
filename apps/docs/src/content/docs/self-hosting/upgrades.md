@@ -118,7 +118,7 @@ downgrade, restore the pre-upgrade backup — which is why step 1 is step 1.
 ## Pin your version
 
 ```bash title=".env"
-ADMINIUM_VERSION=0.3.2
+ADMINIUM_VERSION=0.3.3
 ```
 
 ```bash
