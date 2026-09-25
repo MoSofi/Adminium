@@ -104,7 +104,12 @@ export interface TimeWindow {
 export const TIME_WINDOW_MAX_MINUTES = 1440;
 
 /** One state `writable_when` asks of a column: one of these values, still ahead, or inside a window. */
-export type WritableState = readonly (string | number | boolean)[] | 'from-now' | TimeWindow;
+/**
+ * The state a row must be in to be changed: one of some values (`null` for
+ * "still empty"), `from-now` (a time still ahead), `from-today` (a date today
+ * or later, on the venue's calendar) or a time window.
+ */
+export type WritableState = readonly (string | number | boolean | null)[] | 'from-now' | 'from-today' | TimeWindow;
 
 export function isTimeWindow(when: WritableState): when is TimeWindow {
   return typeof when === 'object' && !Array.isArray(when);
@@ -126,6 +131,11 @@ export function aheadWithin(table: ResolvedTable, column: string, minutes: numbe
  * "Still ahead": a time after now, spelled as the column keeps one — the
  * state `writable_when: {column: 'from-now'}` asks a row to be in.
  */
+/** A date today or later on the venue's calendar (a time: from the start of today there). */
+export function fromToday(table: ResolvedTable, column: string, timezone: string, now: Date = new Date()): RecordFilter {
+  return mandatoryAt({ fixed: null, relative: [{ column, op: 'from-today' }] }, table, timezone, now) ?? nothing(table);
+}
+
 export function afterNow(table: ResolvedTable, column: string, now: Date = new Date()): RecordFilter {
   const found = table.columns.get(column);
   if (found === undefined || (found.logicalType !== 'timestamp' && found.logicalType !== 'timestamptz')) return nothing(table);

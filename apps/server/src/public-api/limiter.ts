@@ -51,6 +51,9 @@
  *     pubkey:<keyId>:read    600 a minute
  *     pubkey:<keyId>:write    60 a minute
  *     pubkey:<keyId>:claim    60 a minute (each claim is a guess at a person)
+ *     pubkey:<keyId>:link    120 a minute (sign-in links asked for)
+ *     pubkey:<keyId>:linkVerify 300 a minute (links opened, codes typed)
+ *     pubkey:<keyId>:token   120 a minute (rows opened by a shared link)
  *
  * — the write rung a tenth of the read one, since a busy page reads far more
  * than it writes. A server key is one backend, whose endpoint rate is already
@@ -72,7 +75,7 @@
  * resource with no `rate` — every scope that predates this feature — keeps the
  * class limits above exactly as they were.
  *
- * The flood guard still runs first and still caps one address at 400 a
+ * The flood guard still runs first and still caps one address at 450 a
  * minute, and the core `public` bucket caps it at 600 (`plugins/core.ts`):
  * an endpoint's "5,000 a minute" is reachable by a server key's fleet, never
  * by one address. A request's COST can exceed one — a batch spends its row
@@ -121,6 +124,23 @@ export const PUBLIC_LIMITS = {
    * not per address, and a stolen staff cookie is still held to this.
    */
   'public-staff-claim': { max: 30, windowMs: 60_000 },
+  /**
+   * Asking for a sign-in link by address (and "Email me a new link"). Its
+   * own rung, never the claim's: the per-address caps keep a mailbox from
+   * being flooded, and this keeps one visitor from asking for every address.
+   */
+  'public-link': { max: 5, windowMs: 60_000 },
+  /**
+   * Opening a link (the name on its page, then Continue) and typing its code
+   * on another device. A link's token cannot be guessed; the code has its
+   * own tries and the per-address day lock.
+   */
+  'public-link-verify': { max: 10, windowMs: 60_000 },
+  /**
+   * Opening a row shared by link. Each is a guess at an 80-bit code, so a
+   * visitor gets few; a guess costs the same whatever it hits.
+   */
+  'public-token': { max: 10, windowMs: 60_000 },
 } as const;
 
 export type PublicLimit = keyof typeof PUBLIC_LIMITS;
@@ -132,13 +152,15 @@ export type PublicLimit = keyof typeof PUBLIC_LIMITS;
  * make the server do — a random-token flood costs a `findByPrefix` round trip
  * per request — so it must sit above everything a legitimate address can spend
  * after resolution, or it would bind before the limits it guards: the anonymous
- * rung's four classes (120 + 20 + 5 + 10) plus one claimed session's (120 + 20 +
- * 10) is 305, and a kiosk's claims (30) on the same address make 335 — 365
- * counted the way the ladder test counts, every class twice. And below the
- * core `public` backstop (600, `plugins/core.ts`), which
- * does not collapse IPv6 and so is no bound at all against a /64.
+ * rung's classes (120 + 20 + 5 + 10 for reads, writes, claims and codes; 5 + 10
+ * for sign-in links asked for and opened; 10 for rows opened by a shared link)
+ * plus one claimed session's (120 + 20 + 10) is 330, and a kiosk's claims (30)
+ * on the same address make 360 — 415 counted the way the ladder test counts,
+ * every class twice. And below the core `public` backstop (600,
+ * `plugins/core.ts`), which does not collapse IPv6 and so is no bound at all
+ * against a /64.
  */
-export const PUBLIC_FLOOD_GUARD = { max: 400, windowMs: 60_000 } as const;
+export const PUBLIC_FLOOD_GUARD = { max: 450, windowMs: 60_000 } as const;
 
 /** The whole-key rung for a browser key: every visitor together. */
 export const PUBLIC_KEY_LIMITS = {
@@ -150,6 +172,15 @@ export const PUBLIC_KEY_LIMITS = {
    * stop the bookings.
    */
   claim: { max: 60, windowMs: 60_000 },
+  /**
+   * Sign-in links asked for, and links opened or codes typed, each on a rung
+   * of its own — so a flood of one never stops the others, and neither stops
+   * the lookups a claim rung counts.
+   */
+  link: { max: 120, windowMs: 60_000 },
+  linkVerify: { max: 300, windowMs: 60_000 },
+  /** Shared links opened, every visitor together. */
+  token: { max: 120, windowMs: 60_000 },
 } as const;
 
 export type PublicKeySide = keyof typeof PUBLIC_KEY_LIMITS;
@@ -280,7 +311,9 @@ export function floodKeyFor(ip: string): string {
  * map — the same reason `plugins/core.ts` embeds it.
  */
 export function rateKeyFor(limit: PublicLimit, id: RateIdentity): string {
-  if (id.sessionId !== undefined && limit !== 'public-claim' && limit !== 'public-staff-claim') return `${limit}|pubs:${id.sessionId}`;
+  // A claim, and a sign-in link, count per address whatever session the caller holds.
+  const bySession = limit !== 'public-claim' && limit !== 'public-staff-claim' && limit !== 'public-link' && limit !== 'public-link-verify' && limit !== 'public-token';
+  if (id.sessionId !== undefined && bySession) return `${limit}|pubs:${id.sessionId}`;
   if (id.staffSessionId !== undefined) return `${limit}|staff:${id.keyId}:${id.staffSessionId}`;
   return `${limit}|pub:${id.keyId}:ip:${rateAddress(id.ip)}`;
 }

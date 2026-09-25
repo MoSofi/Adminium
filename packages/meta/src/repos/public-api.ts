@@ -605,7 +605,7 @@ export interface CreatePublicSessionInput {
   expiresAt: number;
   /** `lookup` (default) | `verified`. */
   level?: string;
-  /** `claim` (default) | `account`. */
+  /** `claim` (default) | `account` | `link` (opened by an emailed sign-in link). */
   kind?: string;
   /** What the session is about — for a claim, the claimed row. */
   subject?: string | null;
@@ -683,6 +683,21 @@ export function publicSessionsRepo(meta: MetaDb) {
 
     async touch(id: string, at: number = Date.now()): Promise<void> {
       await db.updateTable('adminium_public_sessions').set({ lastSeenAt: at }).where('id', '=', id).execute();
+    },
+
+    /**
+     * Seen now, and alive until `expiresAt`: a session that lasts while it
+     * is used (a sign-in link's, idle for half an hour). Only a session that
+     * has not already lapsed is moved — a late request never brings one back.
+     */
+    async slide(id: string, expiresAt: number, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_sessions')
+        .set({ lastSeenAt: at, expiresAt })
+        .where('id', '=', id)
+        .where('expiresAt', '>', at)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
     },
 
     async remove(tokenHash: string): Promise<boolean> {

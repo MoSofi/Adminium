@@ -126,6 +126,7 @@ export const BOOKING_CONFIRMATION_TEMPLATE_KEY = 'booking-confirmation';
 /** The code that raises a found session to verified, and the notice an address change sends the old one. */
 export const SIGN_IN_CODE_TEMPLATE_KEY = 'sign-in-code';
 export const EMAIL_CHANGED_TEMPLATE_KEY = 'email-changed';
+export { SIGN_IN_LINK_TEMPLATE_KEY } from '../public-api/sign-in-link.js';
 
 /**
  * Inline last resort for the `notification` key, used ONLY when no row exists

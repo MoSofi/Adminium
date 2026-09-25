@@ -9779,6 +9779,46 @@
     "status": "mt",
     "srcHash": "fe39426e50b6"
   },
+  "email.signInLink.action": {
+    "status": "mt",
+    "srcHash": "ada2e9e96fa9"
+  },
+  "email.signInLink.codeIntro": {
+    "status": "mt",
+    "srcHash": "67b8b755ce4d"
+  },
+  "email.signInLink.codeLabel": {
+    "status": "mt",
+    "srcHash": "adac69379a62"
+  },
+  "email.signInLink.footer": {
+    "status": "src",
+    "srcHash": "401110dbbabf"
+  },
+  "email.signInLink.heading": {
+    "status": "mt",
+    "srcHash": "7988828af62c"
+  },
+  "email.signInLink.intro": {
+    "status": "mt",
+    "srcHash": "ca9e8b4f990d"
+  },
+  "email.signInLink.name": {
+    "status": "mt",
+    "srcHash": "293b706c3406"
+  },
+  "email.signInLink.notice": {
+    "status": "mt",
+    "srcHash": "75a348b364cb"
+  },
+  "email.signInLink.preheader": {
+    "status": "mt",
+    "srcHash": "4e715d5d6774"
+  },
+  "email.signInLink.subject": {
+    "status": "mt",
+    "srcHash": "04d97454d77b"
+  },
   "email.starters.digest.boxLabel": {
     "status": "mt",
     "srcHash": "e0803f5831c6"

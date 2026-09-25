@@ -32,7 +32,7 @@ export interface CreatePublicChallengeInput {
   codeHash: string;
   expiresAt: number;
   sessionId: string | null;
-  /** `verify` | `email-change`. */
+  /** `verify` | `email-change` | `link` (a sign-in link and its code) | `link-mail` (an app email's link). */
   purpose: string;
   /** The new address of an `email-change`, encrypted. */
   newDestinationEnc?: string | null;
@@ -95,6 +95,56 @@ export function publicChallengesRepo(meta: MetaDb) {
         await trx.insertInto('adminium_public_challenges').values(row).execute();
       });
       return row;
+    },
+
+    /**
+     * The sign-in links still open for one address on one key, newest first:
+     * not used, not expired, not taken back. A link is never closed by the
+     * next one sent — up to three live together, each on its own.
+     */
+    async openLinks(subject: string, keyId: string, at: number = Date.now()): Promise<PublicChallenge[]> {
+      return db
+        .selectFrom('adminium_public_challenges')
+        .selectAll()
+        .where('subject', '=', subject)
+        .where('keyId', '=', keyId)
+        .where('purpose', '=', 'link')
+        .where('consumedAt', 'is', null)
+        .where('expiresAt', '>', at)
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .execute();
+    },
+
+    /** How many sign-in links are live for one address, on any key. */
+    async liveLinks(subject: string, at: number = Date.now()): Promise<number> {
+      const row = await db
+        .selectFrom('adminium_public_challenges')
+        .select((eb) => eb.fn.countAll<number | string | bigint>().as('n'))
+        .where('subject', '=', subject)
+        .where('purpose', '=', 'link')
+        .where('consumedAt', 'is', null)
+        .where('expiresAt', '>', at)
+        .executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+
+    /**
+     * Take back every open sign-in link to one address on these keys (its
+     * owner's address changed) — asked for (`link`) or carried by the app's
+     * own email (`link-mail`).
+     */
+    async revokeLinks(subject: string, keyIds: readonly string[], at: number = Date.now()): Promise<number> {
+      if (keyIds.length === 0) return 0;
+      const res = await db
+        .updateTable('adminium_public_challenges')
+        .set({ consumedAt: at })
+        .where('subject', '=', subject)
+        .where('purpose', 'in', ['link', 'link-mail'])
+        .where('keyId', 'in', [...keyIds])
+        .where('consumedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows);
     },
 
     /** The session's open code for a purpose: not used, not expired. */

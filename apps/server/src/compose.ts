@@ -131,6 +131,8 @@ import { createAutomations, decorateAutomations } from './automations/register.j
 import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
 import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
+import { createSignInLinkMinter } from './public-api/sign-in-link-minter.js';
+import { addressKey } from './public-api/claim-code.js';
 import { withOutboxMoves } from './outbox/moves.js';
 import {
   AUTOMATION_POLL_CRON,
@@ -826,6 +828,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     outboxProducers.reset();
   };
   app.decorate('outbox', outboxProducers);
+  let signInLinkMinter: ReturnType<typeof createSignInLinkMinter> | undefined;
   const outboxSender = createOutboxSender({
     meta,
     manager,
@@ -847,6 +850,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     emit: (event) => emitRecordEvent(app, event),
     // A template's `attach`: the sender draws (or reuses) the document through the same pipeline as every door.
     documents: () => documents,
+    // `{{signInLink}}`: a one-use link for the recipient's own identity row, minted at send time.
+    // Made at the first send: the public views it reads are composed further down.
+    signInLinks: {
+      mint: (input) =>
+        (signInLinkMinter ??= createSignInLinkMinter({ meta, manager, views: publicViews, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET), addressSecret: addressKey(env.ADMINIUM_SECRET) })).mint(input),
+    },
     announce: (connectionId, table, row) => {
       publishChildWrite(app, { connectionId, table, action: 'update', pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
     },

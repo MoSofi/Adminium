@@ -852,5 +852,17 @@ export default {
     "notice": "如果不是您本人操作，請立即與我們聯絡。",
     "noticePhone": "如果不是您本人操作，請立即撥打 {phone} 與我們聯絡。",
     "footer": "{appName}"
+  },
+  "signInLink": {
+    "name": "登入連結",
+    "subject": "你的 {appName} 登入連結",
+    "preheader": "僅可使用一次，有效期 {minutes} 分鐘。",
+    "heading": "登入 {appName}",
+    "intro": "點按按鈕即可登入。此連結僅可使用一次，有效期 {minutes} 分鐘。",
+    "action": "登入",
+    "codeIntro": "要在另一部裝置上登入？請在那裡輸入此驗證碼。",
+    "codeLabel": "驗證碼",
+    "notice": "如果不是你本人要求的，可以忽略這封郵件：沒有它，任何人都無法登入。",
+    "footer": "{appName}"
   }
 } as const;

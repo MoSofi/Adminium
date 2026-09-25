@@ -852,5 +852,17 @@ export default {
     "notice": "Wenn Sie das nicht waren, melden Sie sich bitte sofort bei uns.",
     "noticePhone": "Wenn Sie das nicht waren, rufen Sie uns bitte sofort unter {phone} an.",
     "footer": "{appName}"
+  },
+  "signInLink": {
+    "name": "Anmeldelink",
+    "subject": "Ihr Anmeldelink für {appName}",
+    "preheader": "Er funktioniert einmal, {minutes} Minuten lang.",
+    "heading": "Bei {appName} anmelden",
+    "intro": "Tippen Sie auf die Schaltfläche, um sich anzumelden. Der Link funktioniert einmal, {minutes} Minuten lang.",
+    "action": "Anmelden",
+    "codeIntro": "Melden Sie sich auf einem anderen Gerät an? Geben Sie dort stattdessen diesen Code ein.",
+    "codeLabel": "Code",
+    "notice": "Wenn Sie ihn nicht angefordert haben, können Sie diese E-Mail ignorieren: Ohne sie kann sich niemand anmelden.",
+    "footer": "{appName}"
   }
 } as const;

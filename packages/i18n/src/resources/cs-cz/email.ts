@@ -852,5 +852,17 @@ export default {
     "notice": "Pokud jste to nebyli vy, ihned nás kontaktujte.",
     "noticePhone": "Pokud jste to nebyli vy, ihned nám zavolejte na číslo {phone}.",
     "footer": "{appName}"
+  },
+  "signInLink": {
+    "name": "Přihlašovací odkaz",
+    "subject": "Váš přihlašovací odkaz do {appName}",
+    "preheader": "Funguje jednou, po dobu {minutes} minut.",
+    "heading": "Přihlásit se do {appName}",
+    "intro": "Stiskněte tlačítko a přihlaste se. Odkaz funguje jednou, po dobu {minutes} minut.",
+    "action": "Přihlásit se",
+    "codeIntro": "Přihlašujete se na jiném zařízení? Zadejte tam místo toho tento kód.",
+    "codeLabel": "Kód",
+    "notice": "Pokud jste o něj nežádali, můžete tento e-mail ignorovat: bez něj se nikdo nepřihlásí.",
+    "footer": "{appName}"
   }
 } as const;

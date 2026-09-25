@@ -42,6 +42,7 @@ import { endpointIssues, type PublicEndpointDefinition, type PublicMethod } from
 import { EndpointSaveRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import { generatePublishableKey, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
+import { guestBase } from '../public-api/guest-base.js';
 import { roleSlugFor } from './manifest-roles.js';
 import { mapTableRefs } from './real-refs.js';
 
@@ -72,7 +73,7 @@ export interface PlannedPublicEndpoint {
 export interface PublicAccessPlan {
   endpoints: PlannedPublicEndpoint[];
   /** What would stop the key working, though the install goes ahead. */
-  warnings: { code: 'PUBLIC_API_OFF' | 'ORIGIN_SELF_MISSING' | 'NO_TIME_ZONE' | 'NO_EMAIL'; message: string }[];
+  warnings: { code: 'PUBLIC_API_OFF' | 'ORIGIN_SELF_MISSING' | 'NO_TIME_ZONE' | 'NO_EMAIL' | 'NO_PUBLIC_ADDRESS'; message: string }[];
 }
 
 /**
@@ -107,6 +108,8 @@ function definitionOf(
   idOf: (ref: string) => string = (other) => other,
   /** The ref of the identity endpoint a `claimedBy` entry is opened through. */
   identityRef?: string,
+  /** The parent endpoint a `visibleWith` entry's rows are visible with, and the columns that link them. */
+  parent?: { ref: string; localColumn: string; foreignColumn: string },
 ): PublicEndpointDefinition {
   const declared = manifest.requiredSchema?.tables.find((table) => table.ref === entry.table);
   const key = primaryKey[0] ?? 'id';
@@ -141,23 +144,48 @@ function definitionOf(
     filters: (entry.filters ?? []).map((filter) => ({ ...filter })),
     pagination: { default_limit: 50, max_limit: 200, order: `${order}.asc` },
     // Signed in to reach it — except a create a session is optional on.
-    auth: { role: entry.claim !== undefined || (entry.claimedBy !== undefined && entry.claimedBy.optional !== true) ? 'authenticated' : 'anon' },
+    auth: {
+      role:
+        entry.claim !== undefined || entry.visibleWith !== undefined || (entry.claimedBy !== undefined && entry.claimedBy.optional !== true)
+          ? 'authenticated'
+          : 'anon',
+    },
     rate_limit: { requests: 60, window: '1m' },
     response: { shape: 'object', envelope: 'data' },
-    ...(entry.writable === undefined ? {} : { writable: [...entry.writable] }),
+    // A child writes only what it names: never the default of every column shown.
+    ...(entry.writable === undefined ? (entry.visibleWith === undefined ? {} : { writable: [] }) : { writable: [...entry.writable] }),
     ...(entry.writableValues === undefined ? {} : { writable_values: { ...entry.writableValues } }),
+    ...(entry.requires === undefined ? {} : { requires: [...entry.requires] }),
+    ...(entry.files === undefined ? {} : { files: [...entry.files] }),
     ...(entry.writableWhen === undefined ? {} : { writable_when: { ...entry.writableWhen } }),
     ...(entry.defaults === undefined ? {} : { defaults: { ...entry.defaults } }),
-    ...(entry.claim === undefined || !('match' in entry.claim)
+    ...(entry.claim === undefined
       ? {}
-      : {
-          identity: {
-            strategy: 'lookup',
-            match: [...entry.claim.match],
-            column: key,
-            ...(entry.claim.verify === undefined ? {} : { verify: entry.claim.verify, email: entry.claim.email }),
-          },
-        }),
+      : 'by' in entry.claim
+        ? {
+            // A row shared by link: its code opens it, while not stopped or expired.
+            identity: {
+              strategy: 'token',
+              match: [entry.claim.column],
+              column: key,
+              ...(entry.claim.expires === undefined ? {} : { expires: entry.claim.expires }),
+              ...(entry.claim.stopped === undefined ? {} : { stopped: entry.claim.stopped }),
+            },
+          }
+        : 'match' in entry.claim
+        ? {
+            identity: {
+              strategy: 'lookup',
+              match: [...entry.claim.match],
+              column: key,
+              ...(entry.claim.verify === undefined ? {} : { verify: entry.claim.verify, email: entry.claim.email }),
+            },
+          }
+        : {
+            // Signed in by an emailed link: the address is what the job looks a person up by.
+            identity: { strategy: 'email-link', match: [entry.claim.email], column: key, verify: 'email-link', email: entry.claim.email },
+          }),
+    ...(parent === undefined ? {} : { visible_with: { ...parent } }),
     // A person's own rows: opened by the value the identity's session carries.
     ...(entry.claimedBy === undefined
       ? {}
@@ -220,9 +248,9 @@ export function planPublicEndpoints(
     const base =
       entry.kind === 'availability'
         ? `${real}_availability`
-        : entry.claim !== undefined || (entry.claimedBy !== undefined && entry.level !== 'verified')
+        : entry.claim !== undefined || ((entry.claimedBy !== undefined || entry.visibleWith !== undefined) && entry.level !== 'verified')
           ? `${real}_claimed`
-          : entry.claimedBy !== undefined
+          : entry.claimedBy !== undefined || entry.visibleWith !== undefined
             ? `${real}_verified`
             : real;
     let ref = base;
@@ -236,9 +264,35 @@ export function planPublicEndpoints(
     const at = entries.findIndex((other) => other.claim !== undefined && other.table === by.table && (other.key ?? 'customer') === (entry.key ?? 'customer'));
     return at === -1 ? undefined : refs[at];
   };
+  const declared = (short: string) => manifest.requiredSchema?.tables.find((table) => table.ref === short);
+  const keyOf = (short: string) => declared(short)?.columns.find((column) => column.role === 'pk')?.ref ?? 'id';
+  const pointsAt = (from: string, column: string, to: string) => {
+    const found = declared(from)?.columns.find((c) => c.ref === column) as { type?: string; references?: string } | undefined;
+    return found?.type === 'fk' && found.references === to;
+  };
+  /*
+   * The parent endpoint a `visibleWith` entry reads through — the one GET
+   * entry on that table on the same key — and the columns that link them:
+   * this table's key to the parent (a line's `invoice_id`), or the parent's
+   * key to this table (a proposal's `terms_version_id`).
+   */
+  const parentOf = (entry: PublicAccessEntry): { ref: string; localColumn: string; foreignColumn: string } | undefined => {
+    const v = entry.visibleWith;
+    if (v === undefined) return undefined;
+    const at = entries.findIndex((other) => other !== entry && other.table === v.table && (other.key ?? 'customer') === (entry.key ?? 'customer') && other.methods.includes('GET'));
+    if (at === -1) return undefined;
+    const ref = refs[at] as string;
+    return pointsAt(entry.table, v.via, v.table)
+      ? { ref, localColumn: v.via, foreignColumn: keyOf(v.table) }
+      : { ref, localColumn: keyOf(entry.table), foreignColumn: v.via };
+  };
+  /** The table the key's person is claimed on: what a child's denormalised copy points at. */
+  const identityTableOf = (entry: PublicAccessEntry) =>
+    entries.find((other) => other.claim !== undefined && (other.key ?? 'customer') === (entry.key ?? 'customer'))?.table;
   return entries.map((entry, index) => {
     const real = names[entry.table] ?? entry.table;
     const ref = refs[index] as string;
+    const parent = parentOf(entry);
     const pending = false;
     const planned: PlannedPublicEndpoint = {
       ref,
@@ -256,9 +310,21 @@ export function planPublicEndpoints(
     };
     if (pending) return planned;
     // What the app's own key may hold is known from the entry alone.
-    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry)), entry.methods, new Set()).map(
+    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry), parent), entry.methods, new Set()).map(
       (issue) => issue.message,
     );
+    /*
+     * A child's copy of its person (`client_id` on a note) is the desk's, not
+     * an authority: filled from the parent, never taken from a browser.
+     */
+    const identityTable = identityTableOf(entry);
+    if (entry.visibleWith !== undefined && identityTable !== undefined) {
+      for (const column of entry.writable ?? []) {
+        if (pointsAt(entry.table, column, identityTable)) {
+          safety.push(`"${entry.table}.${column}" points at the signed-in person's own table, so it is filled from the parent and never written publicly`);
+        }
+      }
+    }
     if (view === null) return { ...planned, issues: safety };
     const table = view.model.tables.find((candidate) => candidate.name === real);
     if (table === undefined) {
@@ -270,12 +336,15 @@ export function planPublicEndpoints(
     const idOf = (short: string) => found(short) ?? short;
     // The live-model check every nested table gets: named, but not here, is an issue.
     const unfound = nestedRefs(entry, found).missing.map((short) => `"${entry.table}" names "${short}", which this app does not have here`);
-    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry));
-    // A claim this server cannot open yet is refused, never installed as a door with no lock.
-    const unopened = entry.claim !== undefined && !('match' in entry.claim) ? [`"${entry.table}" signs people in a way this Adminium does not support`] : [];
-    const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety, ...unopened, ...unfound];
+    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry), parent);
+    const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety, ...unfound];
     return { ...planned, select: definition.select, issues, definition };
   });
+}
+
+/** Whether an app signs its people in by an emailed link. */
+export function signsInByLink(manifest: Manifest): boolean {
+  return manifest.kind === 'app' && (manifest.publicAccess ?? []).some((entry) => entry.claim !== undefined && 'verify' in entry.claim && entry.claim.verify === 'email-link');
 }
 
 /** What would stop an app's key working on this instance, said before install. */
@@ -285,10 +354,25 @@ export async function publicAccessWarnings(
   configuredOrigins: readonly string[],
   /** The app confirms guests' bookings by email. */
   sendsEmail = false,
+  /** The app (by key) signs its people in by an emailed link: the link needs mail and an address to point at. */
+  signIn?: { appKey: string; byLink: boolean },
 ): Promise<PublicAccessPlan['warnings']> {
   const out: PublicAccessPlan['warnings'] = [];
-  if (sendsEmail && !(await isEmailConfigured(meta, null))) {
-    out.push({ code: 'NO_EMAIL', message: 'Email is not set up, so guests will not be sent a confirmation.' });
+  const byLink = signIn?.byLink === true;
+  if ((sendsEmail || byLink) && !(await isEmailConfigured(meta, null))) {
+    out.push({
+      code: 'NO_EMAIL',
+      message: byLink
+        ? 'Email is not set up, so nobody can be sent a sign-in link.'
+        : 'Email is not set up, so guests will not be sent a confirmation.',
+    });
+  }
+  // A sign-in link names the app's own public address — never the address a request came in on.
+  if (byLink && signIn !== undefined && (await guestBase({ meta }, signIn.appKey)) === null) {
+    out.push({
+      code: 'NO_PUBLIC_ADDRESS',
+      message: 'This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.',
+    });
   }
   if (!(await settingsRepo(meta).get('publicApi.enabled'))) {
     out.push({ code: 'PUBLIC_API_OFF', message: 'The public API is switched off, so these endpoints will not answer until it is on.' });
@@ -365,8 +449,9 @@ export async function installPublicAccess(input: {
     // An update never makes again a key the operator took back.
     if (input.withheld?.has(purpose) === true) continue;
     const binding = staffBindingOf(manifest, purpose, input);
-    // A second key the manifest does not declare (the check refuses that) is never made unbound.
-    if (purpose !== CUSTOMER_KEY_PURPOSE && binding === null) continue;
+    // A second key the manifest does not declare (the check refuses that) is never made unbound —
+    // except a shared link's own key, which no staff signs in: its token is its lock.
+    if (purpose !== CUSTOMER_KEY_PURPOSE && binding === null && !opensByToken(manifest, purpose)) continue;
     const generated = generatePublishableKey('browser');
     const { key } = await input.service.createKey({
       connectionId: input.connectionId,
@@ -384,6 +469,14 @@ export async function installPublicAccess(input: {
     keys[purpose] = key.id;
   }
   return { endpoints: saved, keyId: keys[CUSTOMER_KEY_PURPOSE] ?? null, keys, skipped };
+}
+
+/** A key the manifest declares with no staff binding: it opens one row by a shared link, and reads. */
+function opensByToken(manifest: Manifest, purpose: string): boolean {
+  if (manifest.kind !== 'app') return false;
+  const declared = manifest.publicKeys?.[purpose];
+  if (declared === undefined || declared.requiresStaff !== undefined) return false;
+  return (manifest.publicAccess ?? []).some((entry) => (entry.key ?? CUSTOMER_KEY_PURPOSE) === purpose && entry.claim !== undefined && 'by' in entry.claim);
 }
 
 /**

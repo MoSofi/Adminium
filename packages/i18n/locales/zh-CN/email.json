@@ -842,5 +842,17 @@
     "notice": "如果不是您本人操作，请立即联系我们。",
     "noticePhone": "如果不是您本人操作，请立即致电 {phone} 联系我们。",
     "footer": "{appName}"
+  },
+  "signInLink": {
+    "name": "登录链接",
+    "subject": "你的 {appName} 登录链接",
+    "preheader": "仅可使用一次，有效期 {minutes} 分钟。",
+    "heading": "登录 {appName}",
+    "intro": "点击按钮即可登录。此链接仅可使用一次，有效期 {minutes} 分钟。",
+    "action": "登录",
+    "codeIntro": "在另一台设备上登录？请在那里输入此验证码。",
+    "codeLabel": "验证码",
+    "notice": "如果不是你本人请求的，可以忽略此邮件：没有它，任何人都无法登录。",
+    "footer": "{appName}"
   }
 }

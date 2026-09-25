@@ -852,5 +852,17 @@ export default {
     "notice": "If this wasn’t you, contact us straight away.",
     "noticePhone": "If this wasn’t you, ring us on {phone}.",
     "footer": "{appName}"
+  },
+  "signInLink": {
+    "name": "Sign-in link",
+    "subject": "Your sign-in link for {appName}",
+    "preheader": "It works once, for {minutes} minutes.",
+    "heading": "Sign in to {appName}",
+    "intro": "Press the button to sign in. The link works once, for {minutes} minutes.",
+    "action": "Sign in",
+    "codeIntro": "Signing in on another device? Type this code there instead.",
+    "codeLabel": "Code",
+    "notice": "If you didn’t ask for it, you can ignore this email: nobody can sign in without it.",
+    "footer": "{appName}"
   }
 } as const;

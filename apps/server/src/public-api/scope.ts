@@ -70,9 +70,14 @@ export type PublicResponseShape = (typeof PUBLIC_RESPONSE_SHAPES)[number];
  * Claim tiers. `lookup` is possession-of-a-reference and is permitted only on
  * tables the operator has NOT marked sensitive. `email-code` needs SMTP.
  * `external` is declared and unimplemented so the durable path is additive
- * rather than a rewrite.
+ * rather than a rewrite. `email-link`: the person types only an address and
+ * a one-use link is emailed to it; a session is opened by the link alone,
+ * never by `POST /public/claim` (which would be an address lookup). `token`:
+ * an unguessable code in one column opens that one row, while it has not
+ * expired or been stopped (a handover page shared by link), on a key that
+ * only reads.
  */
-export const CLAIM_STRATEGIES = ['lookup', 'email-code', 'external'] as const;
+export const CLAIM_STRATEGIES = ['lookup', 'email-code', 'external', 'email-link', 'token'] as const;
 export type ClaimStrategy = (typeof CLAIM_STRATEGIES)[number];
 
 /**
@@ -137,8 +142,11 @@ export const writableWhenSchema = z
   .record(
     columnSchema,
     z.union([
-      z.array(scalarSchema).min(1).max(32),
+      // `null` among the values: the column is still empty (a payment not yet claimed as sent).
+      z.array(z.union([scalarSchema, z.null()])).min(1).max(32),
       z.literal('from-now'),
+      // A date today or later, on the venue's calendar (an offer still in date).
+      z.literal('from-today'),
       z.object({ within: z.number().int().min(1).max(TIME_WINDOW_MAX_MINUTES) }).strict(),
     ]),
   )
@@ -167,6 +175,16 @@ const claimScopeSchema = z
     optional: z.literal(true).optional(),
   })
   .strict();
+
+/**
+ * Rows readable only where a PARENT resource of the same scope reads the row
+ * they belong to: `localColumn` of this table equals `foreignColumn` of the
+ * parent's table — either this table's foreign key to the parent, or the
+ * parent's foreign key to this one. Compiled into an EXISTS over the parent's
+ * whole scope (its claim, its conditions, its own parent), two steps at most
+ * (`visible-with.ts`).
+ */
+const visibleWithSchema = z.object({ ref: refSchema, localColumn: columnSchema, foreignColumn: columnSchema }).strict();
 
 const resourceSchema = z
   .object({
@@ -202,6 +220,8 @@ const resourceSchema = z
      */
     defaults: z.record(columnSchema, z.unknown()).default({}),
     claim: claimScopeSchema.optional(),
+    /** Readable only with a parent resource's row — see {@link visibleWithSchema}. */
+    visibleWith: visibleWithSchema.optional(),
     /** Operator flag: this table carries data a `lookup` claim may not gate. */
     sensitive: z.boolean().default(false),
     limit: z.number().int().min(1).max(LIMIT_CEILING).default(50),
@@ -235,6 +255,13 @@ const resourceSchema = z
     confirm: z.record(z.string(), z.unknown()).optional(),
     /** The only values a caller may write into these columns. */
     writableValues: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
+    /** Columns a write here must fill: a write without one is refused, never stored half. */
+    requires: z.array(columnSchema).min(1).max(8).optional(),
+    /**
+     * File columns a signed-in person may download: the file the row's column
+     * names, read through this resource's whole scope (`GET /public/files`).
+     */
+    files: z.array(columnSchema).min(1).max(8).optional(),
     /**
      * The state a row must be IN for an update to touch it — ANDed into the
      * UPDATE, never into a read. `from-now`: a time still ahead; `{within}`:
@@ -329,11 +356,19 @@ export const publicScopeDocumentSchema = z
         ref: refSchema,
         /** Columns the claimant must match, ALL of them, equality only. */
         match: z.array(columnSchema).min(1),
-        /** A code emailed to the claimed row's `email` column raises a session to `verified`. */
-        verify: z.literal('email-code').optional(),
+        /**
+         * `email-code`: a code emailed to the claimed row's `email` column raises
+         * a found session to `verified`. `email-link` (strategy `email-link`):
+         * sessions come only from an emailed link, already `verified`.
+         */
+        verify: z.enum(['email-code', 'email-link']).optional(),
         email: columnSchema.optional(),
         /** Every claim start carries a proof of work. */
         humanCheck: z.literal(true).optional(),
+        /** `token`: the date or time after which the link opens nothing. */
+        expires: columnSchema.optional(),
+        /** `token`: the yes/no that stops the link at once. */
+        stopped: columnSchema.optional(),
       })
       .strict()
       .optional(),
@@ -363,6 +398,15 @@ export const publicScopeDocumentSchema = z
 const derivedScopeDocumentSchema = publicScopeDocumentSchema.extend({ resources: z.array(resourceSchema) });
 
 export type PublicScopeDocument = z.infer<typeof publicScopeDocumentSchema>;
+export type VisibleWith = z.infer<typeof visibleWithSchema>;
+
+/** How many `visibleWith` steps a resource may be from the resource its person claims. */
+export const VISIBLE_WITH_MAX_STEPS = 2;
+/**
+ * What a child does: reads, makes rows, and changes the rows it reaches — the
+ * EXISTS rides in the UPDATE's own WHERE. It never replaces or removes one.
+ */
+const VISIBLE_WITH_ACTIONS: ReadonlySet<PublicAction> = new Set(['read', 'create', 'batch', 'update']);
 export type PublicScopeResource = z.infer<typeof resourceSchema>;
 
 /* ---------------------------------------------------------------- compiling */
@@ -401,6 +445,10 @@ export interface CompiledResource {
   where: ScopeWhere;
   /** The only values a caller may write into these columns. */
   writableValues: Readonly<Record<string, readonly (string | number | boolean)[]>>;
+  /** Columns every write here must fill (absent in a resource built by hand: none). */
+  requires?: readonly string[];
+  /** File columns a signed-in person may download (absent: none). */
+  files?: readonly string[];
   /** The state a row must be in for an update to touch it. */
   writableWhen: Readonly<Record<string, WritableState>>;
   /** The session level this resource needs. */
@@ -418,6 +466,11 @@ export interface CompiledResource {
   /** The settings switches a write here needs on. */
   requireSetting: readonly { table: string; column: string; when?: 'anonymous' | undefined }[];
   claim: z.infer<typeof claimScopeSchema> | null;
+  /**
+   * The parent whose visible rows this resource's rows belong to; null (or
+   * absent, in a resource built by hand) for none.
+   */
+  visibleWith?: VisibleWith | null;
   sensitive: boolean;
   /** The cap. A caller may ask for fewer rows, never more. */
   limit: number;
@@ -642,6 +695,23 @@ export function compileScope(
     for (const c of r.orderable) check(c, 'SCOPE_ORDERABLE_UNKNOWN_COLUMN');
     for (const c of r.writable) check(c, 'SCOPE_WRITABLE_UNKNOWN_COLUMN');
     for (const c of Object.keys(r.writableWhen ?? {})) check(c, 'SCOPE_WRITABLE_WHEN_UNKNOWN_COLUMN');
+    /*
+     * A file is a person's own, downloaded through the row that names it: a
+     * column the resource shows, on a resource a claim or a parent opens.
+     */
+    for (const c of r.files ?? []) {
+      if (!r.expose.includes(c)) {
+        issues.push({ code: 'SCOPE_FILES_NOT_EXPOSED', message: `"${c}" offers its file for download, so it is one of the columns shown`, ref: r.ref, column: c });
+      }
+    }
+    if ((r.files ?? []).length > 0 && ((r.claim === undefined && r.visibleWith === undefined) || r.claim?.optional === true)) {
+      issues.push({ code: 'SCOPE_FILES_UNCLAIMED', message: `ref "${r.ref}" offers files, which are a signed-in person's own: it needs a claim or a parent`, ref: r.ref });
+    }
+    for (const c of r.requires ?? []) {
+      if (!r.writable.includes(c)) {
+        issues.push({ code: 'SCOPE_REQUIRES_NOT_WRITABLE', message: `"${c}" must be filled by a write here, but is not writable`, ref: r.ref, column: c });
+      }
+    }
     for (const c of Object.keys(r.writableValues ?? {})) {
       if (!r.writable.includes(c)) {
         issues.push({ code: 'SCOPE_WRITABLE_VALUES_NOT_WRITABLE', message: `"${c}" lists the values a caller may write, but is not writable`, ref: r.ref, column: c });
@@ -846,7 +916,7 @@ export function compileScope(
      * whole table, published. Sometimes that is right — a menu, a course
      * catalogue — so this refuses only when the resource is also `sensitive`.
      */
-    if (doc.side === 'customer' && r.sensitive && r.where.length === 0 && !r.claim) {
+    if (doc.side === 'customer' && r.sensitive && r.where.length === 0 && !r.claim && !r.visibleWith) {
       issues.push({
         code: 'SCOPE_SENSITIVE_UNSCOPED',
         message: `ref "${r.ref}" is marked sensitive but has neither a mandatory predicate nor a claim`,
@@ -905,7 +975,7 @@ export function compileScope(
       }
       if (doc.claim.strategy === 'lookup' && target.sensitive) {
         for (const r of doc.resources) {
-          if (r.ref === target.ref || !r.sensitive || r.claim === undefined || r.level === 'verified') continue;
+          if (r.ref === target.ref || !r.sensitive || (r.claim === undefined && r.visibleWith === undefined) || r.level === 'verified') continue;
           issues.push({
             code: 'SCOPE_CLAIM_TIER_TOO_WEAK',
             message: `ref "${r.ref}" is sensitive and opened by a lookup claim, so it needs a verified session`,
@@ -921,7 +991,30 @@ export function compileScope(
        * with a stranger's details, which would leave two matching rows and
        * lock the real person out of every claim.
        */
-      if (doc.claim.verify !== undefined) {
+      /*
+       * A token opens its row to whoever holds the link: the key reads, and
+       * nothing through it changes a row — the page it serves is a
+       * read-only handover.
+       */
+      if (doc.claim.strategy === 'token') {
+        for (const r of doc.resources) {
+          if (r.actions.some((action) => action !== 'read')) {
+            issues.push({ code: 'SCOPE_CLAIM_TOKEN_READ_ONLY', message: `"${r.ref}" is opened by a shared link, so it only reads`, ref: r.ref });
+          }
+        }
+        if (doc.claim.match.length !== 1) {
+          issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHAPE', message: 'a shared link matches one column: the token' });
+        }
+        const cols = columnsOf?.(target.table) ?? null;
+        for (const column of [doc.claim.expires, doc.claim.stopped]) {
+          if (column !== undefined && cols !== null && !cols.has(column)) {
+            issues.push({ code: 'SCOPE_CLAIM_UNKNOWN_COLUMN', message: `"${column}" is not a column of ${target.table}`, column });
+          }
+        }
+      } else if (doc.claim.expires !== undefined || doc.claim.stopped !== undefined) {
+        issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHAPE', message: 'only a shared link expires or is stopped' });
+      }
+      if (doc.claim.verify !== undefined || doc.claim.strategy === 'token') {
         const guarded = new Set([...(doc.claim.email === undefined ? [] : [doc.claim.email]), ...doc.claim.match]);
         for (const r of doc.resources) {
           if (r.table !== target.table) continue;
@@ -945,6 +1038,17 @@ export function compileScope(
           message: `a code is emailed to the claimed row, so the claim names a column of ${target.table} holding the address`,
           ...(doc.claim.email === undefined ? {} : { column: doc.claim.email }),
         });
+      }
+      /*
+       * A link identity is one thing: the strategy, the verify and the proof
+       * say it together. A link emailed on request is only as hard to farm as
+       * the request, so the request always asks the human check.
+       */
+      if ((doc.claim.strategy === 'email-link') !== (doc.claim.verify === 'email-link')) {
+        issues.push({ code: 'SCOPE_CLAIM_LINK_MISMATCH', message: 'a sign-in link is both the strategy and the verify of a claim, or neither' });
+      }
+      if (doc.claim.strategy === 'email-link' && doc.claim.humanCheck !== true) {
+        issues.push({ code: 'SCOPE_CLAIM_LINK_PROOF', message: 'a sign-in link is emailed on request, so the request asks the human check' });
       }
       const cols = columnsOf?.(target.table) ?? null;
       for (const c of doc.claim.match) {
@@ -990,6 +1094,8 @@ export function compileScope(
     }
   }
 
+  issues.push(...visibleWithIssues(doc, columnsOf));
+
   if (issues.length > 0) throw new ScopeCompileError(issues);
 
   /*
@@ -1023,6 +1129,8 @@ export function compileScope(
         ),
       },
       writableValues: { ...(r.writableValues ?? {}) },
+      requires: [...(r.requires ?? [])],
+      files: [...(r.files ?? [])],
       writableWhen: { ...(r.writableWhen ?? {}) },
       level: r.level ?? 'lookup',
       onClaim: r.onClaim === undefined ? null : { clear: [...r.onClaim.clear] },
@@ -1032,6 +1140,7 @@ export function compileScope(
       anonymous: r.anonymous === undefined ? null : { ...r.anonymous },
       requireSetting: (r.requireSetting ?? []).map((setting) => ({ ...setting })),
       claim: r.claim ?? null,
+      visibleWith: r.visibleWith === undefined ? null : { ...r.visibleWith },
       sensitive: r.sensitive,
       limit: r.limit,
       defaultLimit: r.defaultLimit ?? r.limit,
@@ -1061,6 +1170,93 @@ export function compileScope(
   };
 }
 
+/**
+ * Every refusal a `visibleWith` resource can meet, judged over the whole
+ * document because a child is only as closed as the chain above it.
+ *
+ * The chain must reach a resource a person claims (a real claim, not an
+ * optional one) in at most two steps, each parent must READ, and a child
+ * reads and may create — it never changes or removes a row, and none of the
+ * options that count a person's own rows (`rank`, `maxOpen`, `onClaim`,
+ * `anonymous`) apply, since each of those reads `claim` and would count the
+ * whole table. A create needs the child to point at its parent through a
+ * column the caller writes: a child the parent points at cannot be made by a
+ * guest (the parent would have to be changed to name it).
+ */
+function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLookup | undefined): ScopeIssue[] {
+  const issues: ScopeIssue[] = [];
+  const byRef = new Map(doc.resources.map((r) => [r.ref, r]));
+  for (const r of doc.resources) {
+    const link = r.visibleWith;
+    if (link === undefined) continue;
+    const push = (code: string, message: string, column?: string) =>
+      issues.push(column === undefined ? { code, message, ref: r.ref } : { code, message, ref: r.ref, column });
+    if (r.claim !== undefined) push('SCOPE_VISIBLE_WITH_AND_CLAIM', `ref "${r.ref}" is opened by a claim and by a parent — pick one`);
+    const changes = r.actions.filter((action) => !VISIBLE_WITH_ACTIONS.has(action));
+    if (changes.length > 0) {
+      push('SCOPE_VISIBLE_WITH_CHANGES', `ref "${r.ref}" is visible with a parent, so it reads, creates and changes rows; it may not ${changes.join(', ')}`);
+    }
+    for (const option of ['rank', 'maxOpen', 'onClaim', 'anonymous'] as const) {
+      if (r[option] !== undefined) push('SCOPE_VISIBLE_WITH_OPTION', `ref "${r.ref}" is visible with a parent, so "${option}" does not apply`);
+    }
+    if ((r.actions.includes('create') || r.actions.includes('batch')) && !r.writable.includes(link.localColumn)) {
+      push('SCOPE_VISIBLE_WITH_CREATE_UNLINKED', `ref "${r.ref}" creates rows, so "${link.localColumn}" must be the column a caller names its parent by`, link.localColumn);
+    }
+    const own = columnsOf?.(r.table) ?? null;
+    if (own !== null && !own.has(link.localColumn)) {
+      push('SCOPE_VISIBLE_WITH_UNKNOWN_COLUMN', `"${link.localColumn}" is not a column of ${r.table}`, link.localColumn);
+    }
+
+    const parent = byRef.get(link.ref);
+    if (parent === undefined) {
+      push('SCOPE_VISIBLE_WITH_UNKNOWN_REF', `ref "${r.ref}" is visible with "${link.ref}", which this scope does not declare`);
+      continue;
+    }
+    const theirs = columnsOf?.(parent.table) ?? null;
+    if (theirs !== null && !theirs.has(link.foreignColumn)) {
+      push('SCOPE_VISIBLE_WITH_UNKNOWN_COLUMN', `"${link.foreignColumn}" is not a column of ${parent.table}`, link.foreignColumn);
+    }
+    // Walk up: every parent reads, the chain ends on a claimed resource, two steps at most.
+    let steps = 0;
+    let at: (typeof doc.resources)[number] | undefined = r;
+    const seen = new Set<string>();
+    let problem: 'unreadable' | 'deep' | 'unclaimed' | 'missing' | null = null;
+    while (at?.visibleWith !== undefined) {
+      if (seen.has(at.ref) || steps >= VISIBLE_WITH_MAX_STEPS) {
+        problem = 'deep';
+        break;
+      }
+      seen.add(at.ref);
+      steps += 1;
+      const up: (typeof doc.resources)[number] | undefined = byRef.get(at.visibleWith.ref);
+      if (up === undefined) {
+        problem = 'missing';
+        break;
+      }
+      if (!up.actions.includes('read') || up.kind === 'availability') {
+        problem = 'unreadable';
+        break;
+      }
+      at = up;
+    }
+    if (problem === null && (at?.claim === undefined || at.claim.optional === true)) problem = 'unclaimed';
+    if (problem === 'deep') push('SCOPE_VISIBLE_WITH_TOO_DEEP', `ref "${r.ref}" is more than ${String(VISIBLE_WITH_MAX_STEPS)} steps from the resource its person claims`);
+    if (problem === 'unreadable') push('SCOPE_VISIBLE_WITH_PARENT_UNREADABLE', `ref "${r.ref}" is visible with a parent this scope does not read rows of`);
+    if (problem === 'unclaimed') push('SCOPE_VISIBLE_WITH_UNCLAIMED', `ref "${r.ref}" is visible with parents that lead to no claimed person`);
+    /*
+     * A change carries its parent's EXISTS in the UPDATE itself, and MySQL
+     * refuses an UPDATE whose WHERE reads the table it changes: a changing
+     * child is never under a parent on its own table.
+     */
+    if (r.actions.includes('update')) {
+      for (let up = byRef.get(link.ref), n = 0; up !== undefined && n < VISIBLE_WITH_MAX_STEPS; up = up.visibleWith === undefined ? undefined : byRef.get(up.visibleWith.ref), n += 1) {
+        if (up.table === r.table) push('SCOPE_VISIBLE_WITH_SELF_CHANGE', `ref "${r.ref}" changes rows of the table its parent reads, which one statement cannot do on every database`);
+      }
+    }
+  }
+  return issues;
+}
+
 /** Flat conditions → the dashboard's own filter grammar, ANDed. */
 function toRecordFilter(where: readonly z.infer<typeof mandatoryConditionSchema>[]): RecordFilter | null {
   if (where.length === 0) return null;
@@ -1086,7 +1282,7 @@ export function publicConfigOf(scope: CompiledScope): {
   timezone: string;
   currency: string | null;
   /** `verify` says a found session can be raised by an emailed code (the page offers the step). */
-  claim: { strategy: ClaimStrategy; ref: string; match: string[]; verify?: 'email-code' } | null;
+  claim: { strategy: ClaimStrategy; ref: string; match: string[]; verify?: 'email-code' | 'email-link' } | null;
   /**
    * A capability, not a rule about rows — the page needs to know whether it
    * may offer "email me a copy" at all, and hiding that would make it

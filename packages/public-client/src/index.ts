@@ -115,6 +115,11 @@ export const PUBLIC_ERROR_CODES = [
    */
   'APP_DISABLED',
   'SURFACE_OFF',
+  /**
+   * A sign-in link (or a shared link) that cannot open anything any more: used,
+   * expired, stopped or taken back (410). Offer "Email me a new link".
+   */
+  'LINK_EXPIRED',
   /** Not from the server: the network never answered. */
   'PUBLIC_NETWORK_UNAVAILABLE',
 ] as const;
@@ -185,6 +190,15 @@ export class PublicApiError extends Error {
     return this.code === 'PUBLIC_API_DISABLED';
   }
 
+  /**
+   * True when the session found the person but this needs them VERIFIED: ask
+   * for the emailed code (`requestCode`), or — on an app that signs people in
+   * by link — sign in again by link.
+   */
+  get needsVerifiedSession(): boolean {
+    return this.code === 'PUBLIC_CLAIM_LEVEL';
+  }
+
   /** On a `PUBLIC_TOO_EARLY` refusal, the times it carries; null on any other. */
   get tooEarly(): PublicTooEarly | null {
     if (this.code !== 'PUBLIC_TOO_EARLY') return null;
@@ -238,11 +252,19 @@ export interface PublicConfig {
    */
   currency: string | null;
   claim: {
-    strategy: 'lookup' | 'email-code' | 'external';
+    /**
+     * `email-link`: the person asks for a link by address (`requestLink`), and
+     * nothing else signs them in. `token`: a shared link opens one row
+     * (`openShared`). `lookup` finds a person by their details (`claim`).
+     */
+    strategy: 'lookup' | 'email-code' | 'external' | 'email-link' | 'token';
     ref: string;
     match: string[];
-    /** A found session can be raised to `verified` by a code emailed to the person. */
-    verify?: 'email-code';
+    /**
+     * `email-code`: a found session can be raised to `verified` by a code
+     * emailed to the person. `email-link`: sessions come only from a link.
+     */
+    verify?: 'email-code' | 'email-link';
   } | null;
   /**
    * Whether this key may ask for a document to be drawn.
@@ -404,9 +426,49 @@ export interface PublicDocument {
   hasContent: boolean;
 }
 
+/** Which documents to list, newest first: one row's, one kind, a page at a time. */
+export interface DocumentListOptions {
+  /** With `id`: only the documents of that row of that ref. */
+  ref?: string;
+  id?: string | number;
+  kind?: string;
+  /** 1–100; the server's 50 when absent. */
+  limit?: number;
+  /** The `next` of the page before. */
+  cursor?: string;
+  signal?: AbortSignal;
+}
+
+/** A page of documents, and the cursor to the next — null on the last. */
+export interface DocumentPage {
+  data: PublicDocument[];
+  next: string | null;
+}
+
+/**
+ * A document drawn from a row the claim reaches, named by the KIND the key's
+ * entry declares (an app's key). A statement names its period in one of three
+ * words — never dates, which the server works out.
+ */
+export interface RenderForRow {
+  kind: string;
+  ref: string;
+  id: string | number;
+  period?: 'all' | 'year' | '12m';
+  locale?: string;
+}
+
 export interface PublicDocuments {
-  /** Every document this claim reaches. Empty without a claim, never an error. */
-  list: (signal?: AbortSignal) => Promise<PublicDocument[]>;
+  /**
+   * The documents this claim reaches. With no argument (or a signal), the
+   * first page as an array — as before; with options, a {@link DocumentPage}
+   * whose `next` asks for the following one. Empty without a claim, never an
+   * error.
+   */
+  list: {
+    (signal?: AbortSignal): Promise<PublicDocument[]>;
+    (options: DocumentListOptions): Promise<DocumentPage>;
+  };
   get: (id: string, signal?: AbortSignal) => Promise<PublicDocument>;
   /**
    * Ask for one to be drawn — from a row this claim reaches, or from values.
@@ -418,13 +480,14 @@ export interface PublicDocuments {
   render: (
     input:
       | { profileId: string; ref: string; id: string | number; locale?: string }
+      | RenderForRow
       | {
           kind: string;
           locale?: string;
           fields: Record<string, unknown>;
           collections: Record<string, Record<string, unknown>[]>;
         },
-  ) => Promise<PublicDocument>;
+  ) => Promise<PublicDocument & { reused: boolean }>;
   /**
    * Send a copy to the address this session was claimed with.
    *
@@ -452,6 +515,29 @@ export interface SlotAvailability {
   /** `HH:mm` on the tenant's clock; {@link fromTenantLocal} turns it into the instant to book. */
   time: string;
   state: 'free' | 'full';
+}
+
+/** A sign-in link's email is on its way — to the address typed, if it is anyone's. */
+export interface LinkRequested {
+  /** The address as typed, masked (`l•••@e•••.com`). The same answer for any address. */
+  sentTo: string;
+}
+
+/**
+ * What a sign-in link's page reads from `location.hash`: the token, and where
+ * to go once signed in — a path under the app, never a URL.
+ */
+export interface LinkFragment {
+  token: string;
+  to: string | null;
+}
+
+/** A file of a row this session reaches, as downloaded. */
+export interface PrivateFile {
+  blob: Blob;
+  filename: string | null;
+  /** An image or a PDF the page may draw; anything else is a download. */
+  inline: boolean;
 }
 
 export interface PublicClient {
@@ -505,6 +591,48 @@ export interface PublicClient {
    * {@link VerifyCodeResult}).
    */
   verifyCode: (input: { purpose?: CodeRequest['purpose']; code: string }) => Promise<VerifyCodeResult>;
+  /**
+   * Email a sign-in link (and a code for another device) to an address.
+   * Answers the same for every address — whether it is a client's is never
+   * said. Throws `PUBLIC_CODE_UNAVAILABLE` when this server cannot send mail.
+   */
+  requestLink: (input: { email: string; lang?: string }) => Promise<LinkRequested>;
+  /**
+   * The first name a link's page greets its person by, spending nothing; null
+   * for a link used, expired or taken back. Reading it signs nobody in.
+   */
+  peekLink: (token: string) => Promise<string | null>;
+  /**
+   * Continue: use the link, once, and hold a VERIFIED session. False for a
+   * link used, expired or taken back — offer "Email me a new link".
+   */
+  openLink: (token: string) => Promise<boolean>;
+  /**
+   * The code from the email, typed on another device. A wrong code is an
+   * ordinary result, with the tries left; a code path locked for the day
+   * throws `PUBLIC_CLAIM_LOCKED` (the link in the email still works).
+   */
+  verifyLinkCode: (input: { email: string; code: string }) => Promise<VerifyCodeResult>;
+  /** "Email me a new link", from an old one: to that link's own address, always the same answer. */
+  resendLink: (token: string) => Promise<void>;
+  /**
+   * Open a row shared by link with the code from its fragment: `opened` holds
+   * a session on it, `unknown` is a code that opens nothing, `closed` a link
+   * stopped or expired.
+   */
+  openShared: (token: string) => Promise<'opened' | 'unknown' | 'closed'>;
+  /**
+   * A file a row of this session names, by the ref, the row's id and the
+   * column the key offers for download. Fetched with the session, so it is
+   * handed back as a Blob — a plain link would carry neither the key nor the
+   * session.
+   */
+  file: (ref: string, id: string | number, column: string, signal?: AbortSignal) => Promise<PrivateFile>;
+  /**
+   * The settings an add-on the app needs marks for a browser (payment
+   * instructions), for a VERIFIED session; `PUBLIC_REF_NOT_FOUND` otherwise.
+   */
+  addOnSettings: (key: string, signal?: AbortSignal) => Promise<Record<string, unknown>>;
   signOut: () => Promise<void>;
   /** Is a claim session currently held? */
   isClaimed: () => boolean;
@@ -531,6 +659,27 @@ export interface PublicClient {
 }
 
 const WRAPPED_KEYS = new Set(['data', 'page', 'cursor']);
+
+/** An AbortSignal rather than options — the older form of `documents.list`. */
+function isSignal(value: AbortSignal | DocumentListOptions): value is AbortSignal {
+  return typeof (value as AbortSignal).aborted === 'boolean' && typeof (value as AbortSignal).addEventListener === 'function';
+}
+
+/**
+ * A sign-in link's (or a shared link's) fragment — `#<token>` or
+ * `#<token>&to=<path>` — as its page reads `location.hash`. `to` is kept only
+ * when it is a plain path under the app (letters, digits, `-._~/`), never a
+ * URL: a page must not send a person off-site from a link it did not make.
+ * Null when the fragment holds no token.
+ */
+export function linkFromFragment(hash: string): LinkFragment | null {
+  const [token = '', ...rest] = hash.replace(/^#/, '').split('&');
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(token)) return null;
+  const raw = rest.find((part) => part.startsWith('to='))?.slice(3);
+  const to = raw === undefined ? null : raw.replace(/^\//, '');
+  const safe = to !== null && /^[A-Za-z0-9][A-Za-z0-9._~-]*(\/[A-Za-z0-9][A-Za-z0-9._~-]*)*$/.test(to);
+  return { token, to: safe ? to : null };
+}
 
 /**
  * Every list shape as one {@link ListResult}, read off the
@@ -582,12 +731,34 @@ export function createPublicClient(
     asked.clear();
   };
 
+  /** The error a refused reply carries, as the client throws it. */
+  const errorOf = async (res: Response): Promise<PublicApiError> => {
+    let code: PublicErrorCode = 'PUBLIC_UPSTREAM_UNAVAILABLE';
+    let message = `HTTP ${String(res.status)}`;
+    let params: Record<string, unknown> | undefined;
+    try {
+      const body = (await res.json()) as {
+        error?: { code?: string; message?: string; params?: Record<string, unknown> };
+      };
+      const got = body.error?.code;
+      if (typeof got === 'string' && (PUBLIC_ERROR_CODES as readonly string[]).includes(got)) {
+        code = got as PublicErrorCode;
+      }
+      if (typeof body.error?.message === 'string') message = body.error.message;
+      if (typeof body.error?.params === 'object' && body.error.params !== null) params = body.error.params;
+    } catch {
+      /* a non-JSON error body — the status is all there is */
+    }
+    const retry = res.headers.get('retry-after');
+    return new PublicApiError(code, res.status, message, retry === null ? undefined : Number(retry), params);
+  };
+
   /** One request, with the reply's headers — `list()` reads `X-Next-Cursor`. */
   const send = async <T>(
     path: string,
     init: RequestInit = {},
     extra: Record<string, string> = {},
-  ): Promise<{ body: T; headers: Headers }> => {
+  ): Promise<{ body: T; headers: Headers; status: number }> => {
     const csrf = typeof csrfToken === 'function' ? csrfToken() : csrfToken;
     const writes = init.method !== undefined && !SAFE_METHODS.has(init.method.toUpperCase());
     const headers: Record<string, string> = {
@@ -613,33 +784,8 @@ export function createPublicClient(
       );
     }
 
-    if (!res.ok) {
-      let code: PublicErrorCode = 'PUBLIC_UPSTREAM_UNAVAILABLE';
-      let message = `HTTP ${String(res.status)}`;
-      let params: Record<string, unknown> | undefined;
-      try {
-        const body = (await res.json()) as {
-          error?: { code?: string; message?: string; params?: Record<string, unknown> };
-        };
-        const got = body.error?.code;
-        if (typeof got === 'string' && (PUBLIC_ERROR_CODES as readonly string[]).includes(got)) {
-          code = got as PublicErrorCode;
-        }
-        if (typeof body.error?.message === 'string') message = body.error.message;
-        if (typeof body.error?.params === 'object' && body.error.params !== null) params = body.error.params;
-      } catch {
-        /* a non-JSON error body — the status is all there is */
-      }
-      const retry = res.headers.get('retry-after');
-      throw new PublicApiError(
-        code,
-        res.status,
-        message,
-        retry === null ? undefined : Number(retry),
-        params,
-      );
-    }
-    return { body: (await res.json()) as T, headers: res.headers };
+    if (!res.ok) throw await errorOf(res);
+    return { body: (await res.json()) as T, headers: res.headers, status: res.status };
   };
 
   const request = async <T>(path: string, init: RequestInit = {}, extra?: Record<string, string>): Promise<T> =>
@@ -882,6 +1028,112 @@ export function createPublicClient(
       return { ok: true, level, expiresAt, ended, ...(email === undefined ? {} : { email }) };
     },
 
+    async requestLink(input) {
+      const out = await withProof('claim', null, (proof) =>
+        request<{ data: LinkRequested }>(
+          '/api/v1/public/claim/link',
+          { method: 'POST', body: JSON.stringify(input.lang === undefined ? { email: input.email } : { email: input.email, lang: input.lang }) },
+          proof,
+        ),
+      );
+      return out.data;
+    },
+
+    async peekLink(token) {
+      try {
+        const out = await request<{ data: { firstName: string } }>('/api/v1/public/claim/link/peek', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+        });
+        return out.data.firstName;
+      } catch (error) {
+        if (error instanceof PublicApiError && error.code === 'LINK_EXPIRED') return null;
+        throw error;
+      }
+    },
+
+    async openLink(token) {
+      try {
+        const out = await request<{ data: { session: string; expiresAt: number } }>('/api/v1/public/claim/link/verify', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+        });
+        holdSession({ token: out.data.session, level: 'verified', expiresAt: out.data.expiresAt });
+        return true;
+      } catch (error) {
+        if (error instanceof PublicApiError && error.code === 'LINK_EXPIRED') return false;
+        throw error;
+      }
+    },
+
+    async verifyLinkCode(input) {
+      let out: { data: { session: string; expiresAt: number } };
+      try {
+        out = await request('/api/v1/public/claim/link/verify', {
+          method: 'POST',
+          body: JSON.stringify({ email: input.email, code: input.code }),
+        });
+      } catch (error) {
+        if (error instanceof PublicApiError && error.code === 'PUBLIC_CODE_WRONG') {
+          const left = error.params['triesLeft'];
+          return { ok: false, triesLeft: typeof left === 'number' ? left : 0 };
+        }
+        throw error;
+      }
+      holdSession({ token: out.data.session, level: 'verified', expiresAt: out.data.expiresAt });
+      return { ok: true, level: 'verified', expiresAt: out.data.expiresAt, ended: false };
+    },
+
+    async resendLink(token) {
+      await withProof('claim', null, (proof) =>
+        request<{ data: Record<string, never> }>('/api/v1/public/claim/link/resend', { method: 'POST', body: JSON.stringify({ token }) }, proof),
+      );
+    },
+
+    async openShared(token) {
+      try {
+        const out = await request<{ data: { session: string; expiresAt: number } }>('/api/v1/public/claim/token', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+        });
+        holdSession({ token: out.data.session, level: 'lookup', expiresAt: out.data.expiresAt });
+        return 'opened';
+      } catch (error) {
+        if (error instanceof PublicApiError && error.code === 'PUBLIC_REF_NOT_FOUND') return 'unknown';
+        if (error instanceof PublicApiError && error.code === 'LINK_EXPIRED') return 'closed';
+        throw error;
+      }
+    },
+
+    async file(ref, id, column, signal) {
+      const path = `/api/v1/public/files/${encodeURIComponent(ref)}/${encodeURIComponent(String(id))}/${encodeURIComponent(column)}`;
+      const headers: Record<string, string> = {
+        authorization: `Bearer ${key}`,
+        ...(session === null ? {} : { [SESSION_HEADER]: session.token }),
+      };
+      let res: Response;
+      try {
+        res = await doFetch(`${baseUrl}${path}`, { headers, ...(signal === undefined ? {} : { signal }) });
+      } catch (cause) {
+        throw new PublicApiError('PUBLIC_NETWORK_UNAVAILABLE', 0, `could not reach ${baseUrl}: ${cause instanceof Error ? cause.message : String(cause)}`);
+      }
+      if (!res.ok) throw await errorOf(res);
+      const disposition = res.headers.get('content-disposition') ?? '';
+      const named = /filename\*=UTF-8''([^;]+)/.exec(disposition)?.[1];
+      return {
+        blob: await res.blob(),
+        filename: named === undefined ? null : decodeURIComponent(named),
+        inline: disposition.startsWith('inline'),
+      };
+    },
+
+    async addOnSettings(addOnKey, signal) {
+      const init: RequestInit = {};
+      if (signal !== undefined) init.signal = signal;
+      const out = await request<{ data: { settings: Record<string, unknown> } }>(`/api/v1/public/add-ons/${encodeURIComponent(addOnKey)}/settings`, init);
+      return out.data.settings;
+    },
+
     async signOut() {
       if (session === null) return;
       try {
@@ -925,12 +1177,23 @@ export function createPublicClient(
     },
 
     documents: {
-      async list(signal?: AbortSignal) {
+      list: (async (options?: AbortSignal | DocumentListOptions) => {
+        const paged = options !== undefined && !isSignal(options);
+        const signal = paged ? options.signal : options;
         const init: RequestInit = {};
         if (signal !== undefined) init.signal = signal;
-        const out = await request<{ data: PublicDocument[] }>('/api/v1/public/documents', init);
-        return out.data;
-      },
+        const p = new URLSearchParams();
+        if (paged) {
+          if (options.ref !== undefined) p.set('ref', options.ref);
+          if (options.id !== undefined) p.set('id', String(options.id));
+          if (options.kind !== undefined) p.set('kind', options.kind);
+          if (options.limit !== undefined) p.set('limit', String(options.limit));
+          if (options.cursor !== undefined) p.set('cursor', options.cursor);
+        }
+        const query = p.toString();
+        const out = await send<{ data: PublicDocument[] }>(`/api/v1/public/documents${query === '' ? '' : `?${query}`}`, init);
+        return paged ? { data: out.body.data, next: out.headers.get('x-next-cursor') } : out.body.data;
+      }) as PublicDocuments['list'],
 
       async get(id: string, signal?: AbortSignal) {
         const init: RequestInit = {};
@@ -943,11 +1206,12 @@ export function createPublicClient(
       },
 
       async render(input) {
-        const out = await request<{ data: PublicDocument }>('/api/v1/public/documents/render', {
+        // 201 is a new document; 200 the one already drawn for this row, unchanged since.
+        const out = await send<{ data: PublicDocument }>('/api/v1/public/documents/render', {
           method: 'POST',
           body: JSON.stringify(input),
         });
-        return out.data;
+        return { ...out.body.data, reused: out.status === 200 };
       },
 
       async email(id: string) {

@@ -146,7 +146,7 @@ import {
   writeManifestRoles,
   type RolesResult,
 } from '../../apps/manifest-roles.js';
-import { installPublicAccess, planPublicEndpoints, publicAccessWarnings, staffBindingOf } from '../../apps/manifest-public.js';
+import { installPublicAccess, planPublicEndpoints, publicAccessWarnings, signsInByLink, staffBindingOf } from '../../apps/manifest-public.js';
 import { installOutbox, removeOutbox, templateProblems, type OutboxResult } from '../../apps/manifest-outbox.js';
 import { installAppDocuments, uninstallAppDocuments } from '../../documents/app-documents.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
@@ -877,6 +877,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         connectionId,
         deps.publicAccess?.origins ?? [],
         (manifest.publicAccess ?? []).some((entry) => entry.confirm !== undefined) || manifest.outbox !== undefined,
+        { appKey: manifest.key, byLink: signsInByLink(manifest) },
       ),
       canGrant: typeof request.can !== 'function' || (await request.can(PERMISSIONS.apiKeysManage)),
     };

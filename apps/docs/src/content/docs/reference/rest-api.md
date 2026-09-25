@@ -122,7 +122,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 7 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
-| `/api/v1/public/*` | 19 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public/*` | 26 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-endpoints/*` | 5 | Build the endpoints a key can be granted — source, columns, filters, methods and limits |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
@@ -613,6 +613,13 @@ POST /api/v1/public/records/{ref}/batch
 POST /api/v1/public/claim
 POST /api/v1/public/claim/code
 POST /api/v1/public/claim/verify
+POST /api/v1/public/claim/token
+POST /api/v1/public/claim/link
+POST /api/v1/public/claim/link/resend
+POST /api/v1/public/claim/link/peek
+POST /api/v1/public/claim/link/verify
+GET /api/v1/public/files/{ref}/{rowId}/{column}
+GET /api/v1/public/add-ons/{key}/settings
 GET /api/v1/public/challenge
 POST /api/v1/public/documents/render
 GET /api/v1/public/documents

@@ -93,6 +93,7 @@
  * refusal), and the sweep tries again a change that failed for another
  * reason, for a day after the send.
  */
+import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import type { AppManifest, OutboxProducer } from '@adminium/manifest';
 import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
@@ -338,10 +339,7 @@ export function routeFor(box: LiveOutbox, routes: Readonly<Record<string, string
 export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   /** Where the app's guest side lives: its own host, else the server's public address, else nowhere. */
   async function guestBase(appKey: string): Promise<string | null> {
-    const host = await deps.hostFor?.(appKey);
-    if (host !== undefined) return `https://${host}`;
-    const origin = await settingsRepo(deps.meta).get('system.publicOrigin');
-    return typeof origin === 'string' && origin !== '' ? `${origin.replace(/\/+$/, '')}/apps/${appKey}/customer` : null;
+    return guestBaseOf({ meta: deps.meta, hostFor: deps.hostFor }, appKey);
   }
 
   /** Where the app's staff side lives, ending in `/` so a route follows: its own host, else the server's public address, else nowhere. */

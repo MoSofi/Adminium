@@ -125,6 +125,11 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    */
   'sign-in-code',
   'email-changed',
+  /*
+   * A client signing in by address alone: a one-use link to the app's own
+   * guest side, and the same sign-in as a code for another device.
+   */
+  'sign-in-link',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -161,6 +166,7 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    * nothing, which drops its paragraph.
    */
   'email-changed': ['appName', 'name', 'newEmail', 'phoneLine', 'contactLine'],
+  'sign-in-link': ['appName', 'link', 'code', 'minutes'],
 };
 
 /**
@@ -196,6 +202,7 @@ const VAR = {
   newEmail: '{{newEmail}}',
   phoneLine: '{{phoneLine}}',
   contactLine: '{{contactLine}}',
+  link: '{{link}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -536,6 +543,41 @@ function emailChangedTemplate(t: Translate): BuiltinEmailTemplate {
 }
 
 /**
+ * A sign-in link: the button is the whole point, the code is for the person
+ * reading on one device and signing in on another. The link opens a page
+ * that asks them to continue — a mail scanner that follows it signs nobody in.
+ */
+function signInLinkTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'sign-in-link',
+    name: t('email:signInLink.name', { defaultValue: 'Sign-in link' }),
+    subject: t('email:signInLink.subject', { appName: VAR.appName, defaultValue: 'Your sign-in link for {appName}' }),
+    preheader: t('email:signInLink.preheader', { minutes: VAR.minutes, defaultValue: 'It works once, for {minutes} minutes.' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:signInLink.heading', { appName: VAR.appName, defaultValue: 'Sign in to {appName}' })),
+      paragraph(
+        'intro',
+        t('email:signInLink.intro', {
+          minutes: VAR.minutes,
+          defaultValue: 'Press the button to sign in. The link works once, for {minutes} minutes.',
+        }),
+      ),
+      button(t('email:signInLink.action', { defaultValue: 'Sign in' }), VAR.link),
+      paragraph('other-device', t('email:signInLink.codeIntro', { defaultValue: 'Signing in on another device? Type this code there instead.' })),
+      { block: 'email.box', id: 'code', data: { label: t('email:signInLink.codeLabel', { defaultValue: 'Code' }), value: VAR.code } },
+      paragraph(
+        'notice',
+        t('email:signInLink.notice', {
+          defaultValue: 'If you didn’t ask for it, you can ignore this email: nobody can sign in without it.',
+        }),
+      ),
+    ],
+    footer: t('email:signInLink.footer', { appName: VAR.appName, defaultValue: '{appName}' }),
+  };
+}
+
+/**
  * Every built-in, rendered through one recipient-locale translator. Exported
  * for the seed and for tests that need the exact bytes without a database.
  */
@@ -548,6 +590,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     bookingConfirmationTemplate(t),
     signInCodeTemplate(t),
     emailChangedTemplate(t),
+    signInLinkTemplate(t),
   ];
 }
 

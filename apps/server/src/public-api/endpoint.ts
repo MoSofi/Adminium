@@ -147,6 +147,15 @@ const claimSchema = z
   .strict();
 
 /**
+ * Rows readable only where another endpoint of the same key reads the row
+ * they belong to: `localColumn` here equals `foreignColumn` there. Either
+ * this table points at the parent, or the parent points here.
+ */
+const visibleWithSchema = z
+  .object({ ref: endpointRefSchema, localColumn: columnSchema, foreignColumn: columnSchema })
+  .strict();
+
+/**
  * The claim a customer makes AGAINST this endpoint. An endpoint-only
  * key: it becomes the derived document's `claim { strategy, ref, match }`
  * plus this resource's own `claim.column`, which is the column whose value
@@ -157,9 +166,16 @@ const identitySchema = z
     strategy: z.enum(CLAIM_STRATEGIES),
     match: z.array(columnSchema).min(1),
     column: columnSchema,
-    /** A code emailed to the row's `email` column raises the session to `verified`. */
-    verify: z.literal('email-code').optional(),
+    /**
+     * `email-code`: a code emailed to the row's `email` column raises the
+     * session to `verified`. `email-link` (strategy `email-link`): a link
+     * emailed to that address is the only way in, and opens at `verified`.
+     */
+    verify: z.enum(['email-code', 'email-link']).optional(),
     email: columnSchema.optional(),
+    /** `token`: the date or time after which the link opens nothing, and the yes/no that stops it. */
+    expires: columnSchema.optional(),
+    stopped: columnSchema.optional(),
   })
   .strict();
 
@@ -214,6 +230,8 @@ export const publicEndpointDefinitionSchema = z
     searchable: z.array(columnSchema).optional(),
     orderable: z.array(columnSchema).optional(),
     claim: claimSchema.optional(),
+    /** Readable only with a parent endpoint's row (a draft's lines stay as hidden as the draft). */
+    visible_with: visibleWithSchema.optional(),
     identity: identitySchema.optional(),
     sensitive: z.boolean().optional(),
     /**
@@ -236,6 +254,10 @@ export const publicEndpointDefinitionSchema = z
     confirm: publicConfirmSchema.optional(),
     /** The only values a caller may write into these columns (`status: [cancelled]`). */
     writable_values: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
+    /** Columns a write here must fill: accepting a proposal carries the typed name. */
+    requires: z.array(columnSchema).min(1).max(8).optional(),
+    /** File columns a signed-in person may download, through the row that names the file. */
+    files: z.array(columnSchema).min(1).max(8).optional(),
     /**
      * The state a row must be in for an update to touch it — part of the
      * UPDATE, never of a read: a finished visit still lists, and cannot be
@@ -342,6 +364,13 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
     if (def.claim.optional !== undefined) claim['optional'] = def.claim.optional;
     out['claim'] = claim;
   }
+  if (def.visible_with !== undefined) {
+    out['visible_with'] = {
+      ref: def.visible_with.ref,
+      localColumn: def.visible_with.localColumn,
+      foreignColumn: def.visible_with.foreignColumn,
+    };
+  }
   if (def.identity !== undefined) {
     out['identity'] = {
       strategy: def.identity.strategy,
@@ -349,6 +378,8 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       column: def.identity.column,
       ...(def.identity.verify === undefined ? {} : { verify: def.identity.verify }),
       ...(def.identity.email === undefined ? {} : { email: def.identity.email }),
+      ...(def.identity.expires === undefined ? {} : { expires: def.identity.expires }),
+      ...(def.identity.stopped === undefined ? {} : { stopped: def.identity.stopped }),
     };
   }
   if (def.sensitive !== undefined) out['sensitive'] = def.sensitive;
@@ -356,6 +387,8 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.kind !== undefined) out['kind'] = def.kind;
   if (def.confirm !== undefined) out['confirm'] = { ...def.confirm };
   if (def.writable_values !== undefined) out['writable_values'] = { ...def.writable_values };
+  if (def.requires !== undefined) out['requires'] = [...def.requires];
+  if (def.files !== undefined) out['files'] = [...def.files];
   if (def.writable_when !== undefined) out['writable_when'] = { ...def.writable_when };
   if (def.level !== undefined) out['level'] = def.level;
   if (def.human_check !== undefined) out['human_check'] = def.human_check;
@@ -564,9 +597,12 @@ export function definitionToResource(
     count: 'none',
   };
   if (claim !== undefined) resource.claim = claim;
+  if (def.visible_with !== undefined) resource.visibleWith = { ...def.visible_with };
   if (def.kind === 'availability') resource.kind = 'availability';
   if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
   if (def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };
+  if (def.requires !== undefined) resource.requires = [...def.requires];
+  if (def.files !== undefined) resource.files = [...def.files];
   if (def.writable_when !== undefined) resource.writableWhen = { ...def.writable_when };
   if (def.level !== undefined) resource.level = def.level;
   if (def.human_check !== undefined) resource.humanCheck = true;
@@ -653,11 +689,18 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
 
   if (def.select.length === 0) push('ENDPOINT_SELECT_EMPTY', 'select at least one column');
 
-  if (def.auth.role === 'authenticated' && def.claim === undefined && def.identity === undefined) {
+  if (def.auth.role === 'authenticated' && def.claim === undefined && def.identity === undefined && def.visible_with === undefined) {
     push(
       'ENDPOINT_AUTHENTICATED_WITHOUT_CLAIM',
-      'an authenticated endpoint needs a claim column, a claim via another endpoint, or an identity',
+      'an authenticated endpoint needs a claim column, a claim via another endpoint, an identity, or a parent it is visible with',
     );
+  }
+  // A child is a signed-in person's own rows, through its parent: never open to anyone.
+  if (def.visible_with !== undefined && def.auth.role !== 'authenticated') {
+    push('ENDPOINT_VISIBLE_WITH_ANON', 'an endpoint visible with a parent is a signed-in person’s rows, so it is authenticated');
+  }
+  if (def.visible_with !== undefined && def.identity !== undefined) {
+    push('ENDPOINT_IDENTITY_WITH_CLAIM', 'an identity endpoint is opened by its own claim, not by a parent');
   }
   if (def.identity !== undefined && def.claim !== undefined) {
     push('ENDPOINT_IDENTITY_WITH_CLAIM', 'an identity endpoint carries its own claim column — remove `claim`');
@@ -721,6 +764,16 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
         }
       }
     }
+  }
+
+  /*
+   * A child's create runs inside a transaction the route opens, so its
+   * references are checked where the write happens. A slot or a person's
+   * time is held by a named lock that MySQL refuses to take inside an open
+   * transaction, so a guarded table is not a creating child.
+   */
+  if (def.visible_with !== undefined && (methods.has('POST') || methods.has('BATCH')) && (table.table.capacity !== undefined || table.table.booking !== undefined)) {
+    push('ENDPOINT_VISIBLE_WITH_GUARDED', `${def.source} holds a booking limit, so rows visible with a parent cannot be created here`);
   }
 
   if (def.kind === 'availability') {
@@ -825,6 +878,9 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     if (timed !== null && type !== undefined && type !== 'timestamp' && type !== 'timestamptz') {
       push('ENDPOINT_WRITABLE_WHEN_NOT_A_TIME', `"${column}" is not a time, so "${timed}" cannot apply`, column);
     }
+    if (when === 'from-today' && type !== undefined && !DAY_TYPES.has(type)) {
+      push('ENDPOINT_FILTER_NOT_A_DAY', `"${column}" is not a date or a time, so "from-today" cannot apply`, column);
+    }
   }
 
   if (methods.has('DELETE') && def.allow_cascade !== true) {
@@ -858,11 +914,12 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
 
 /**
  * The definition as a one-resource scope document, compiled. Claim wiring
- * that needs ANOTHER endpoint (`claim.via.ref`, a claim column with no
- * identity endpoint in the same key) is a property of a key, not of this
- * endpoint, and is checked when a key's document is derived.
+ * that needs ANOTHER endpoint (`claim.via.ref`, a parent it is visible with,
+ * a claim column with no identity endpoint in the same key) is a property of
+ * a key, not of this endpoint, and is checked when a key's document is
+ * derived.
  */
-const KEY_LEVEL_CODES = new Set(['SCOPE_CLAIM_VIA_UNKNOWN_REF', 'SCOPE_TIMEZONE_INVALID']);
+const KEY_LEVEL_CODES = new Set(['SCOPE_CLAIM_VIA_UNKNOWN_REF', 'SCOPE_VISIBLE_WITH_UNKNOWN_REF', 'SCOPE_TIMEZONE_INVALID']);
 
 function scopeIssuesOf(
   ref: string,
@@ -891,13 +948,29 @@ function scopeIssuesOf(
       match: [...def.identity.match],
       ...(def.identity.verify === undefined ? {} : { verify: def.identity.verify }),
       ...(def.identity.email === undefined ? {} : { email: def.identity.email }),
+      ...(def.identity.expires === undefined ? {} : { expires: def.identity.expires }),
+      ...(def.identity.stopped === undefined ? {} : { stopped: def.identity.stopped }),
       ...(def.human_check === undefined ? {} : { humanCheck: true as const }),
     };
   }
+  /*
+   * A shared link's code is a secret by nature — never shown, never listed —
+   * and still the one column its claim compares: the claim alone may name it.
+   */
+  const claimable = new Set(visible);
+  if (def.identity?.strategy === 'token') {
+    for (const column of [...def.identity.match, def.identity.expires, def.identity.stopped]) {
+      if (column !== undefined && table.columns.has(column)) claimable.add(column);
+    }
+  }
+  const lookup = (t: string) => {
+    if (t !== def.source) return null;
+    return claimable;
+  };
   try {
     // Secret columns are left out of the lookup, so naming one in any list
     // is refused as an unknown column — the same answer `/data` gives.
-    compileScope(document, (t) => (t === def.source ? visible : null));
+    compileScope(document, lookup);
     return [];
   } catch (error) {
     if (!(error instanceof ScopeCompileError)) throw error;

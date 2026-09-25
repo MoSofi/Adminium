@@ -842,5 +842,17 @@
     "notice": "Hvis det ikke var dig, så kontakt os med det samme.",
     "noticePhone": "Hvis det ikke var dig, så ring til os med det samme på {phone}.",
     "footer": "{appName}"
+  },
+  "signInLink": {
+    "name": "Loginlink",
+    "subject": "Dit loginlink til {appName}",
+    "preheader": "Det virker én gang, i {minutes} minutter.",
+    "heading": "Log ind på {appName}",
+    "intro": "Tryk på knappen for at logge ind. Linket virker én gang, i {minutes} minutter.",
+    "action": "Log ind",
+    "codeIntro": "Logger du ind på en anden enhed? Indtast denne kode der i stedet.",
+    "codeLabel": "Kode",
+    "notice": "Hvis du ikke har bedt om det, kan du se bort fra denne e-mail: ingen kan logge ind uden den.",
+    "footer": "{appName}"
   }
 }

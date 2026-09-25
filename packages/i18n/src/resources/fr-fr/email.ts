@@ -852,5 +852,17 @@ export default {
     "notice": "Si ce n’était pas vous, contactez-nous immédiatement.",
     "noticePhone": "Si ce n’était pas vous, appelez-nous immédiatement au {phone}.",
     "footer": "{appName}"
+  },
+  "signInLink": {
+    "name": "Lien de connexion",
+    "subject": "Votre lien de connexion à {appName}",
+    "preheader": "Il fonctionne une fois, pendant {minutes} minutes.",
+    "heading": "Se connecter à {appName}",
+    "intro": "Appuyez sur le bouton pour vous connecter. Le lien fonctionne une fois, pendant {minutes} minutes.",
+    "action": "Se connecter",
+    "codeIntro": "Vous vous connectez sur un autre appareil ? Saisissez-y plutôt ce code.",
+    "codeLabel": "Code",
+    "notice": "Si vous ne l’avez pas demandé, vous pouvez ignorer cet e-mail : personne ne peut se connecter sans lui.",
+    "footer": "{appName}"
   }
 } as const;

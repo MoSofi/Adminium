@@ -171,6 +171,8 @@ export function deriveScopeDocument(
         match: [...spec.match],
         ...(spec.verify === undefined ? {} : { verify: spec.verify }),
         ...(spec.email === undefined ? {} : { email: spec.email }),
+        ...(spec.expires === undefined ? {} : { expires: spec.expires }),
+        ...(spec.stopped === undefined ? {} : { stopped: spec.stopped }),
         // Every claim through this identity is proved to be a person's.
         ...(identity.definition.human_check === undefined ? {} : { humanCheck: true as const }),
       };
@@ -271,22 +273,24 @@ export function wideningOf(before: unknown, after: PublicScopeDocument): Widenin
     const columns = r.expose.filter((c) => !shown.has(c));
     // Rows widen when a condition that held before no longer does — on reads, or on writes.
     const limits = writeLimits(r);
+    // A parent it was visible with, dropped or changed, lets its rows out from under the parent's scope.
+    const parentChanged = prior?.visibleWith !== undefined && JSON.stringify(prior.visibleWith) !== JSON.stringify(r.visibleWith);
     const rows =
       prior !== undefined &&
-      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous));
+      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous) || parentChanged);
     if (methods.length > 0 || columns.length > 0 || rows) out.push({ ref: r.ref, methods, columns, rows });
   }
   return out;
 }
 
-/** Does a stored document name `ref` anywhere — a resource, the claim, or a `via` hop? */
+/** Does a stored document name `ref` anywhere — a resource, the claim, a `via` hop, or a parent? */
 export function documentMentions(document: unknown, ref: string): boolean {
   if (typeof document !== 'object' || document === null) return false;
   const doc = document as { claim?: { ref?: unknown }; resources?: unknown };
   if (doc.claim?.ref === ref) return true;
   if (!Array.isArray(doc.resources)) return false;
-  return (doc.resources as { ref?: unknown; claim?: { via?: { ref?: unknown } } }[]).some(
-    (r) => r.ref === ref || r.claim?.via?.ref === ref,
+  return (doc.resources as { ref?: unknown; claim?: { via?: { ref?: unknown } }; visibleWith?: { ref?: unknown } }[]).some(
+    (r) => r.ref === ref || r.claim?.via?.ref === ref || r.visibleWith?.ref === ref,
   );
 }
 

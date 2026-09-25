@@ -23,7 +23,7 @@
  * runtime guard that could rot.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import type { DocumentRow, MetaDb, RecordRef } from '@adminium/meta';
 import {
@@ -56,9 +56,46 @@ import {
   type PublicViews,
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
-import { afterNow, aheadWithin, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
+import { afterNow, aheadWithin, fromToday, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
+import {
+  linkPeekReply,
+  linkResendReply,
+  linkStartBody,
+  linkStartReply,
+  linkTokenBody,
+  linkVerifyBody,
+  linkVerifyReply,
+  publicConfigReplyWithLink,
+  tokenClaimBody,
+  type LinkErrorCode,
+} from '../../public-api/link-schema.js';
+import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
+import { hashToken, normaliseToken, stillOpen, tokenClaimOf, tokenSessionOpen, type TokenClaim } from '../../public-api/token-claim.js';
+import { addOnSettingsParams, addOnSettingsReply, publicAddOnSettings } from '../../public-api/add-on-settings.js';
+import { fileIdOf, privateFileHeaders, privateFileParams } from '../../public-api/private-file.js';
+import { createIdentityEmailWatch, listenToRecordEvents } from '../../public-api/identity-email-watch.js';
+import {
+  LINK_CODE_FAILURES_DAY,
+  LINK_SESSION_IDLE_MS,
+  LINK_SESSION_MAX_MS,
+  SIGN_IN_LINK_JOB_KIND,
+  firstNameOf,
+  hashLinkToken,
+  linkIdentityOf,
+  linkSubject,
+  openLink,
+  personOfChallenge,
+  registerSignInLinkJob,
+  runSignInLinkJob,
+  startPayload,
+  tryLinkCode,
+  type LinkIdentity,
+  type SignInLinkDeps,
+  type SignInLinkJob,
+} from '../../public-api/sign-in-link.js';
+import { parentOf, readerFor, referencesAllowed, visibilityOf, visibleCondition, type Visibility } from '../../public-api/visible-with.js';
 import {
   CLAIM_SESSION_TTL_MS,
   KIOSK_SESSION_TTL_MS,
@@ -125,6 +162,7 @@ import {
 } from '../../crud/write-service.js';
 import { writeStores } from '../../crud/write-stores.js';
 import { audited } from '../../audit/coverage.js';
+import { OutboxMoveRefused } from '../../outbox/moves.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
 import {
@@ -148,7 +186,6 @@ import {
   publicCodeReply,
   publicVerifyBody,
   publicVerifyReply,
-  publicConfigReply,
   publicErrorReply,
   publicAvailabilityQuery,
   publicAvailabilityReply,
@@ -167,6 +204,7 @@ import {
 import type { PublicErrorCode } from './schema.js';
 import {
   createPublicRateLimiter,
+  type PublicKeySide,
   type PublicLimit,
   type PublicRateLimiter,
   type RateDecision,
@@ -241,13 +279,20 @@ class PublicSlotRefused extends Error {
 function updatableState(
   resource: CompiledResource,
   table: ResolvedTable,
+  timezone: string,
   now: Date = new Date(),
   windows: 'with' | 'without' = 'with',
 ): RecordFilter | null {
   const conditions: RecordFilter[] = Object.entries(resource.writableWhen).flatMap(([column, when]): RecordFilter[] => {
     if (when === 'from-now') return [afterNow(table, column, now)];
+    if (when === 'from-today') return [fromToday(table, column, timezone, now)];
     if (isTimeWindow(when)) return windows === 'with' ? [aheadWithin(table, column, when.within, now)] : [];
-    return [{ column, op: 'in', value: [...when] }];
+    // `null` is "still empty": a value never equals null, so it is asked apart.
+    const values = when.filter((value): value is string | number | boolean => value !== null);
+    const empty = when.length !== values.length;
+    const among: RecordFilter[] = values.length === 0 ? [] : [{ column, op: 'in', value: values }];
+    const either: RecordFilter[] = [...among, ...(empty ? [{ column, op: 'is_null' } as RecordFilter] : [])];
+    return either.length === 1 ? [either[0] as RecordFilter] : [{ or: either }];
   });
   return conditions.length === 0 ? null : conditions.length === 1 ? (conditions[0] as RecordFilter) : { and: conditions };
 }
@@ -286,8 +331,38 @@ function proofOwed(
  * the mask.
  */
 function readsOwnPii(resource: CompiledResource, session: PublicSessionContext | null): boolean {
-  return resource.claim !== null && resource.claim.optional !== true && resource.level === 'verified' && session?.level === 'verified';
+  // A child's rows are theirs only through a parent they reach: the same rule, one step removed.
+  const own = (resource.claim !== null && resource.claim.optional !== true) || parentOf(resource) !== null;
+  return own && resource.level === 'verified' && session?.level === 'verified';
 }
+
+/**
+ * The first column a resource's `requires` names that a write left empty,
+ * or null. Accepting a proposal carries the name typed as a signature; a
+ * write without it is refused, never stored half.
+ */
+function unfilled(resource: CompiledResource, values: Readonly<Record<string, unknown>>): string | null {
+  for (const column of resource.requires ?? []) {
+    const value = values[column];
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return column;
+  }
+  return null;
+}
+
+/** The columns of a table that point at another row. */
+function references(view: SnapshotView, table: ResolvedTable): string[] {
+  return view.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id).flatMap((relation) => relation.from.columns);
+}
+
+/** The whole-key rung each class also counts on, for a browser key. */
+const KEY_RUNGS: Partial<Record<PublicLimit, PublicKeySide>> = {
+  'public-read': 'read',
+  'public-claim': 'claim',
+  'public-write': 'write',
+  'public-link': 'link',
+  'public-link-verify': 'linkVerify',
+  'public-token': 'token',
+};
 
 /** The booking guard's refusals a guest is told, by the code they are told. */
 const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
@@ -427,10 +502,17 @@ async function claimedRowKey(
   return null;
 }
 
+/** The app's own customer host, from the surfaces' cached domain map, when this server has one. */
+function hostForOf(app: FastifyInstance): ((appKey: string) => Promise<string | undefined>) | undefined {
+  const cache = app.surfaceSettings;
+  if (cache === null || cache === undefined) return undefined;
+  return async (appKey) => customerHostIn((await cache.read()).domains, appKey);
+}
+
 function fail(
   reply: FastifyReply,
   status: number,
-  code: PublicErrorCode,
+  code: PublicErrorCode | LinkErrorCode,
   message: string,
   params?: Record<string, unknown>,
 ): FastifyReply {
@@ -516,6 +598,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const views = deps.views ?? createPublicViews(meta);
   const viewFor = views.viewFor;
   const resolver = deps.resolver ?? createPublicResolver(meta, views);
+  /** What the sign-in link's job and routes share. */
+  const linkDeps: SignInLinkDeps = { meta, manager, views, crypto: addressCrypto, addressSecret, codeSecret };
   const keyTouches = createTouchThrottle();
   const sessionTouches = createTouchThrottle();
   /** `last_used_at`, at most once a minute per key. */
@@ -727,7 +811,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const settings = await request.server.surfaceSettings.read();
       // The public side's key stops with the public side; another (a kiosk's)
       // with the staff side its screen is served from.
-      const availability = availabilityOf(settings, key.managedBy, key.purpose === CUSTOMER_KEY_PURPOSE ? 'customer' : 'staff');
+      // A shared link's key is the public side's too: it stops with the pages it serves.
+      const side = key.purpose === CUSTOMER_KEY_PURPOSE || key.requiresStaff === null ? 'customer' : 'staff';
+      const availability = availabilityOf(settings, key.managedBy, side);
       if (availability !== 'ok') {
         fail(
           reply,
@@ -763,6 +849,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * 404 either way.
      */
     let session: PublicSessionContext | null = null;
+    /** When a sign-in link's session began: it lasts while used, up to a cap. */
+    let slidesFrom: number | null = null;
     if (sessionToken !== null) {
       const row = await sessions.findValid(hashPublishableKey(sessionToken));
       // A session is bound to the key that minted it. Presenting one alongside
@@ -770,7 +858,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       if (row !== null && row.keyId === key.keyId) {
         const grant = parseGrant(row.grants);
         if (grant !== null) session = { id: row.id, keyId: row.keyId, grant, level: row.level === 'verified' ? 'verified' : 'lookup' };
+        if (grant !== null && row.kind === 'link') slidesFrom = row.createdAt;
       }
+    }
+    /*
+     * A row shared by link is asked again on every request: stopped, expired
+     * or given a new code, and the session reaches nothing from this moment.
+     */
+    const shared = tokenClaimOf(key.scope);
+    if (session !== null && shared !== null && !(await sharedRowOpen(key, session, shared))) {
+      if (sessionToken !== null) await sessions.remove(hashPublishableKey(sessionToken));
+      session = null;
     }
 
     /*
@@ -820,7 +918,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 403, 'PUBLIC_PROOF_REQUIRED', 'Prove this is a person first.');
       return null;
     }
-    const rung = opts.keyWide === false ? null : limit === 'public-read' ? 'read' : limit === 'public-claim' ? 'claim' : limit === 'public-write' ? 'write' : null;
+    const rung = opts.keyWide === false ? null : KEY_RUNGS[limit] ?? null;
     if (key.kind === 'browser' && rung !== null && !admit(reply, limiter.hitKey(key.keyId, rung))) {
       return null;
     }
@@ -829,9 +927,26 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 403, 'PUBLIC_PROOF_REQUIRED', 'Prove this is a person first.');
       return null;
     }
-    if (session !== null && sessionTouches.due(session.id)) void sessions.touch(session.id);
+    if (session !== null && sessionTouches.due(session.id)) {
+      const at = Date.now();
+      // A link's session lasts half an hour from the last request, and never past its cap.
+      void (slidesFrom === null ? sessions.touch(session.id, at) : sessions.slide(session.id, Math.min(at + LINK_SESSION_IDLE_MS, slidesFrom + LINK_SESSION_MAX_MS), at));
+    }
 
     return { key, session };
+  };
+
+  /** Whether a shared link's session still opens its row; anything unreadable is closed. */
+  const sharedRowOpen = async (key: ResolvedKey, session: PublicSessionContext, claim: TokenClaim): Promise<boolean> => {
+    try {
+      const view = await viewFor(key.connectionId);
+      const identity = key.scope.byRef.get(claim.ref);
+      if (view === null || identity === undefined) return false;
+      const { db } = await manager.data(key.connectionId);
+      return await tokenSessionOpen({ db, table: view.table(identity.table), claim, grant: session.grant, timezone: key.scope.timezone });
+    } catch {
+      return false;
+    }
   };
 
   /**
@@ -860,9 +975,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
    * not change later. Asked with the update's own `now`, so the two agree.
    */
   const tooEarlyFor = async (
-    found: { resource: CompiledResource; db: Kysely<SourceDatabase>; view: SnapshotView; table: ResolvedTable; dialect: Dialect; predicate: RecordFilter | null },
+    found: {
+      resource: CompiledResource;
+      db: Kysely<SourceDatabase>;
+      view: SnapshotView;
+      table: ResolvedTable;
+      dialect: Dialect;
+      predicate: RecordFilter | null;
+      visibility: Visibility & { reachable: true };
+    },
     pk: Record<string, unknown>,
     now: Date,
+    timezone: string,
   ): Promise<{ at: string; from: string } | null> => {
     const [window, ...more] = Object.entries(found.resource.writableWhen).flatMap(([column, when]) =>
       isTimeWindow(when) ? [{ column, within: when.within }] : [],
@@ -870,11 +994,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     if (window === undefined || more.length > 0) return null;
     const conditions: RecordFilter[] = [
       ...Object.entries(pk).map(([column, value]) => ({ column, op: 'eq', value }) as RecordFilter),
-      ...[found.predicate, updatableState(found.resource, found.table, now, 'without')].filter((c): c is RecordFilter => c !== null),
+      ...[found.predicate, updatableState(found.resource, found.table, timezone, now, 'without')].filter((c): c is RecordFilter => c !== null),
       aheadWithin(found.table, window.column, window.within, now, 'beyond'),
     ];
     const ctx = { view: found.view, table: found.table, canReadPii: false, dynamic: found.db.dynamic, dialect: found.dialect };
-    const row = (await found.db
+    // A child's row is the caller's only through its parent, here as in the UPDATE.
+    const row = (await readerFor(found, found.table, found.visibility)
       .selectFrom(found.table.id)
       .select(sql<unknown>`${sql.ref(window.column)}`.as('at'))
       .where((eb) => compileFilter(eb as never, ctx, { and: conditions }))
@@ -968,6 +1093,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
       return null;
     }
+    // A child is a signed-in person's rows through its parent: none without a
+    // session, and it never replaces or removes a row (the scope compiler says so too).
+    if (parentOf(resource) !== null && (ok.session === null || (action !== 'read' && action !== 'create' && action !== 'batch' && action !== 'update'))) {
+      fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+      return null;
+    }
     /*
      * A session that found the person but has not confirmed the emailed code
      * is told so, and only once it holds a session this resource would take:
@@ -988,6 +1119,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       table = view.table(resource.table);
     } catch {
       fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The resource is unavailable.');
+      return null;
+    }
+    /*
+     * Rows visible with a parent: reachable only while every parent up the
+     * chain is, for this session — else the one 404, the same answer as an
+     * unknown ref.
+     */
+    const visibility = visibilityOf({ scope: ok.key.scope, resource, session: ok.session, view });
+    if (!visibility.reachable) {
+      fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
       return null;
     }
     /*
@@ -1028,6 +1169,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       table,
       db,
       dialect,
+      visibility: visibility as Visibility & { reachable: true },
       // A calendar filter (`today`) is worked out now, on the venue's clock.
       predicate: combinePredicates(mandatoryAt(resource.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null),
     };
@@ -1073,6 +1215,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   };
 
   return async (app) => {
+    // A link's job on the shared queue, and the watch on a signed-in person's address.
+    if (app.hasDecorator('jobs')) registerSignInLinkJob(app.jobs.registry, { ...linkDeps, logger: app.log, hostFor: hostForOf(app) });
+    listenToRecordEvents(app, createIdentityEmailWatch({ meta, manager, views, addressSecret, logger: app.log }));
     if (deps.stats !== undefined) {
       const stats = deps.stats;
       app.addHook('onResponse', async (request, reply) => {
@@ -1147,7 +1292,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         config: { rateLimitBucket: 'public' },
         schema: {
           response: {
-            200: publicConfigReply,
+            200: publicConfigReplyWithLink,
             401: publicErrorReply,
             // A staff-bound key without its staff member on this screen.
             403: publicErrorReply,
@@ -1232,7 +1377,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
 
         const result = await runList({
-          db,
+          // A child's rows through its parent chain; any other resource reads as it always has.
+          db: readerFor({ db, dialect, view }, table, found.visibility),
           view,
           table,
           params: {
@@ -1438,7 +1584,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
 
         const result = await runList({
-          db: found.db,
+          db: readerFor(found, found.table, found.visibility),
           view: found.view,
           table: found.table,
           params: { limit: 1, count: 'none' },
@@ -1496,6 +1642,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (values === null) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
+        const missing = unfilled(found.resource, values);
+        if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this write needs is missing.', { column: missing });
         // A signed-in person may hold only so many open rows: a found session
         // cannot fill someone's diary in their name.
         if ((await openRowsFull(found, ok.session)) === true) {
@@ -1533,71 +1681,102 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // The venue's clock is the key's scope's, as for every public date.
           timezone: ok.key.scope.timezone,
         };
+        const announceCreate = async (row: Row): Promise<void> => {
+          const createdPk = Object.fromEntries(found.table.primaryKey.map((c) => [c, row[c]]));
+          const createdRef: RecordRef = {
+            connectionId: ok.key.connectionId,
+            table: found.table.id,
+            pk: createdPk,
+            label: pkLabel(found.table, createdPk),
+          };
+          await auditWrite(
+            request,
+            ok,
+            'public.record.create',
+            { ref: request.params.ref, table: found.resource.table },
+            createdRef,
+          );
+          await touchKey(ok.key.keyId);
+          /*
+           * The UNPROJECTED row, deliberately. What comes back to the
+           * anonymous caller is narrowed to `expose`, because a create must
+           * not return more than a read of the same row would — but the
+           * stream's subscribers are signed-in staff holding a table-read
+           * grant, and narrowing THEIR frame to a customer scope's `expose`
+           * would hand the dashboard a half-row it would have to refetch to
+           * complete. The publisher masks it for PII and secrets on the way
+           * out, which is the check that applies here.
+           */
+          invalidateWidgetData(app, ok.key.connectionId, found.table.id);
+          publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
+            connectionId: ok.key.connectionId,
+            table: found.table,
+            action: 'create',
+            pk: createdPk,
+            row,
+          });
+          /*
+           * The sign-ups a rule most needs to see. A public create never
+           * reached `routes/data`, so before this a "when a record is
+           * created in users" rule was blind to exactly the rows 28's public
+           * surface and 33's live-chat make. No undo window: nobody can take
+           * an anonymous caller's write back.
+           */
+          await emitRecordEvent(app, {
+            connectionId: ok.key.connectionId,
+            table: found.table,
+            action: 'create',
+            entity: createdRef,
+            before: null,
+            after: row,
+            origin: 'public',
+          });
+        };
         let inserted: Row;
         try {
-          inserted = await writes.create({
-            target,
-            values,
-            context: publicWriteContext(request, ok.key.keyId),
+          const create = (on: WriteTarget, announce: (row: Row) => Promise<void>, recheck?: (values: Row) => Promise<void>) =>
+            writes.create({
+              target: on,
+              values,
+              context: publicWriteContext(request, ok.key.keyId),
+              ...(recheck === undefined ? {} : { recheck }),
+              /*
+               * A constraint violation is not spelled out. `routes/data` maps
+               * unique/FK failures to friendly shapes naming the constraint and
+               * the columns — exactly the detail that tells an anonymous caller
+               * which values already exist, which is a membership oracle.
+               */
+              mapError: refuseWrite,
+              announce,
+            });
+          if (parentOf(found.resource) === null) {
+            inserted = await create(target, announceCreate);
+          } else {
             /*
-             * A constraint violation is not spelled out. `routes/data` maps
-             * unique/FK failures to friendly shapes naming the constraint and
-             * the columns — exactly the detail that tells an anonymous caller
-             * which values already exist, which is a membership oracle.
+             * A child's create: every reference it makes is checked on the
+             * write's own transaction — before the INSERT, and again after any
+             * before hook changed the values — and the write joins it. Heard
+             * of only once it has committed.
              */
-            mapError: refuseWrite,
-            announce: async (row) => {
-              const createdPk = Object.fromEntries(found.table.primaryKey.map((c) => [c, row[c]]));
-              const createdRef: RecordRef = {
-                connectionId: ok.key.connectionId,
-                table: found.table.id,
-                pk: createdPk,
-                label: pkLabel(found.table, createdPk),
-              };
-              await auditWrite(
-                request,
-                ok,
-                'public.record.create',
-                { ref: request.params.ref, table: found.resource.table },
-                createdRef,
+            const supplied = new Set(Object.keys(request.body.values));
+            const allowed = (db: Kysely<SourceDatabase>, row: Row) =>
+              referencesAllowed({ db, dialect: found.dialect, view: found.view, scope: ok.key.scope, session: ok.session, resource: found.resource, table: found.table, values: row, supplied });
+            let made = null as Row | null;
+            // The write service's own transaction: it holds a series without gaps before it opens.
+            inserted = await writes.transaction(target, [values], async (tdb) => {
+              if (!(await allowed(tdb, values))) throw new PublicWriteRefused();
+              return create(
+                { ...target, db: tdb },
+                async (row) => {
+                  made = row;
+                },
+                async (changed) => {
+                  if (!(await allowed(tdb, changed))) throw new PublicWriteRefused();
+                },
               );
-              await touchKey(ok.key.keyId);
-              /*
-               * The UNPROJECTED row, deliberately. What comes back to the
-               * anonymous caller is narrowed to `expose`, because a create must
-               * not return more than a read of the same row would — but the
-               * stream's subscribers are signed-in staff holding a table-read
-               * grant, and narrowing THEIR frame to a customer scope's `expose`
-               * would hand the dashboard a half-row it would have to refetch to
-               * complete. The publisher masks it for PII and secrets on the way
-               * out, which is the check that applies here.
-               */
-              invalidateWidgetData(app, ok.key.connectionId, found.table.id);
-              publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
-                connectionId: ok.key.connectionId,
-                table: found.table,
-                action: 'create',
-                pk: createdPk,
-                row,
-              });
-              /*
-               * The sign-ups a rule most needs to see. A public create never
-               * reached `routes/data`, so before this a "when a record is
-               * created in users" rule was blind to exactly the rows 28's public
-               * surface and 33's live-chat make. No undo window: nobody can take
-               * an anonymous caller's write back.
-               */
-              await emitRecordEvent(app, {
-                connectionId: ok.key.connectionId,
-                table: found.table,
-                action: 'create',
-                entity: createdRef,
-                before: null,
-                after: row,
-                origin: 'public',
-              });
-            },
-          });
+            });
+            if (made !== null) await announceCreate(made);
+          }
         } catch (error) {
           // Nothing was made: what the caps counted for it is taken back.
           await release?.();
@@ -1606,6 +1785,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          // A move an app's outbox refuses: named for the desk, never for a public caller.
+          if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
 
@@ -1662,6 +1843,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (values === null) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
+        const missing = unfilled(found.resource, values);
+        if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this change needs is missing.', { column: missing });
+        // A child's references are fixed when it is made: a change never moves it under another parent.
+        if (parentOf(found.resource) !== null && references(found.view, found.table).some((column) => Object.prototype.hasOwnProperty.call(values, column))) {
+          return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+        }
         /*
          * PUT REPLACES THE WRITABLE SET: the body names every column
          * this caller may write — a nullable one may be null — and a missing
@@ -1693,8 +1880,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * matches nothing, and is not changed.
          */
         const now = new Date();
-        const predicate = combinePredicates(found.predicate, updatableState(found.resource, found.table, now));
-        const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
+        const predicate = combinePredicates(found.predicate, updatableState(found.resource, found.table, ok.key.scope.timezone, now));
+        const scoped = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
           predicate === null
             ? query
             : (query.where as (factory: (eb: never) => unknown) => Q)((eb) =>
@@ -1710,6 +1897,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   predicate,
                 ),
               );
+        // A child's row changes only while its parent chain is the caller's: the EXISTS rides in the UPDATE.
+        const steps = found.visibility.steps;
+        const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
+          steps.length === 0
+            ? scoped(query)
+            : (scoped(query).where as (expression: unknown) => Q)(visibleCondition(found, found.table.name, steps));
         const target: WriteTarget = {
           connectionId: ok.key.connectionId,
           view: found.view,
@@ -1788,6 +1981,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          // A move an app's outbox refuses: named for the desk, never for a public caller.
+          if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
 
@@ -1796,7 +1991,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // for a row in any other state. The one exception is the caller's own
         // row that only its time window refused: that is told when it opens.
         if (outcome.count === 0) {
-          const early = await tooEarlyFor(found, pk, now);
+          const early = await tooEarlyFor(found, pk, now, ok.key.scope.timezone);
           if (early !== null) return fail(reply, 409, 'PUBLIC_TOO_EARLY', 'Too early for this change; `at` is the time it waits for.', early);
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
         }
@@ -1980,6 +2175,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          // A move an app's outbox refuses: named for the desk, never for a public caller.
+          if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
         if (count === 0) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
@@ -2053,6 +2250,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (named.length === 0) {
             const values = prepareValues(resource, raw, ok.session, 'create', found.dialect);
             if (values === null) return refuseRow(index, 'That column is not writable here.');
+            if (unfilled(resource, values) !== null) return refuseRow(index, 'A value this write needs is missing.');
             inserts.push({ index, values });
             continue;
           }
@@ -2067,11 +2265,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
           const values = prepareValues(resource, rest, ok.session, 'update', found.dialect);
           if (values === null) return refuseRow(index, 'That column is not writable here.');
+          if (unfilled(resource, values) !== null) return refuseRow(index, 'A value this write needs is missing.');
+          // Refused by the scope compiler already; stated here too, where the batch's rows are written.
+          if (parentOf(resource) !== null) return refuseRow(index, 'A row may carry its whole key only to update it.');
           updates.push({ index, pk, values });
         }
 
         // Only updates are in this batch's WHERE: the state a row must be in joins the scope there.
-        const predicate = combinePredicates(found.predicate, updatableState(resource, table));
+        const predicate = combinePredicates(found.predicate, updatableState(resource, table, ok.key.scope.timezone));
         const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
           predicate === null
             ? query
@@ -2118,6 +2319,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           preparedUpdates = await writes.beforeEach('update', target, context, planned);
         } catch (error) {
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          // A move an app's outbox refuses: named for the desk, never for a public caller.
+          if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           // A table whose rows each hold a time slot takes them one at a time.
           if (error instanceof GuardedBatchError) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
@@ -2131,10 +2334,26 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
         let written: { created: Row[]; updated: { pk: Row; after: Row | null }[] };
         try {
-          written = await found.db.transaction().execute(async (trx) => {
-            const tdb = trx as unknown as typeof found.db;
+          // The write service's own transaction, holding every series without gaps the new rows number in first.
+          written = await writes.transaction(target, preparedInserts.map((row) => row.values), async (tdb) => {
             const created: Row[] = [];
-            for (const row of preparedInserts) {
+            for (const [i, row] of preparedInserts.entries()) {
+              // A child's rows: every reference each one makes, checked here, on this transaction.
+              if (parentOf(resource) !== null) {
+                const raw = rows[(inserts[i] as { index: number }).index] ?? {};
+                const allowed = await referencesAllowed({
+                  db: tdb,
+                  dialect: found.dialect,
+                  view: found.view,
+                  scope: ok.key.scope,
+                  session: ok.session,
+                  resource,
+                  table,
+                  values: row.values,
+                  supplied: new Set(Object.keys(raw)),
+                });
+                if (!allowed) throw new PublicWriteRefused();
+              }
               created.push(await insertRow(tdb, found.dialect, table, row.values));
             }
             const updated: { pk: Row; after: Row | null }[] = [];
@@ -2287,7 +2506,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     ) => {
       const claim = ok.key.scope.claim;
       const session = ok.session;
-      if (claim === null || claim === undefined || claim.verify === undefined || claim.email === undefined) {
+      // The code that raises a FOUND session. A person signed in by link never had a found session.
+      if (claim === null || claim === undefined || claim.verify !== 'email-code' || claim.email === undefined) {
         fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
         return null;
       }
@@ -2540,6 +2760,387 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+
+    /* ------------------------------------------------------- a row shared by link */
+    /*
+     * The code from the link's fragment opens that one row and what the key
+     * declares with it — read-only, while the row is not stopped or expired.
+     * An unknown code is the one 404; one stopped or expired is 410. Guessing
+     * is held by the visitor's own rung (ten a minute) against 80 bits.
+     */
+    app.options('/public/claim/token', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/claim/token',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          body: tokenClaimBody,
+          response: { 200: publicClaimReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 410: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-token');
+        if (ok === null) return reply;
+        const claim = tokenClaimOf(ok.key.scope);
+        if (claim === null) return fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        const found = await resolveResource(request, reply, ok, claim.ref, 'read', { bypassClaimGate: true });
+        if (found === null) return reply;
+        const grant = await resolveClaim({
+          db: found.db,
+          table: found.table,
+          resource: found.resource,
+          scope: ok.key.scope,
+          match: { [claim.column]: request.body.token },
+          view: found.view,
+          dialect: found.dialect,
+        });
+        if (grant === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such link.');
+        const row = (await found.db
+          .selectFrom(found.table.id)
+          .selectAll()
+          .where(found.db.dynamic.ref(grant.column), '=', grant.value as never)
+          .executeTakeFirst()) as Row | undefined;
+        const now = new Date();
+        if (row === undefined || !stillOpen(row, claim, found.table, ok.key.scope.timezone, now)) {
+          return fail(reply, 410, 'LINK_EXPIRED', 'This link has been stopped or has expired.');
+        }
+        const minted = generatePublicSessionToken();
+        const expiresAt = now.getTime() + CLAIM_SESSION_TTL_MS;
+        await sessions.create({
+          keyId: ok.key.keyId,
+          tokenHash: minted.tokenHash,
+          // The code it was opened with, hashed: a new code on the row closes this session.
+          grants: JSON.stringify({ ...grant, token: hashToken(normaliseToken(found.table, claim.column, request.body.token)) }),
+          expiresAt,
+          kind: 'token',
+          subject: subjectOf(ok.key.connectionId, found.table.id, grant.column, grant.value),
+        });
+        await auditWrite(request, ok, 'public.claim.token', { ref: claim.ref });
+        return reply.send({ data: { session: minted.token, expiresAt } });
+      },
+    );
+
+    /* --------------------------------------------------- the emailed sign-in link */
+    /*
+     * Four routes, one rule: nothing a caller sees depends on whether the
+     * address belongs to anyone. `/claim/link` and `/resend` answer 202 before
+     * any of that is known — the job does the rest — and `/peek` and
+     * `/verify` answer one 410 for every link that cannot open a session.
+     */
+    app.options('/public/claim/link', { schema: { hide: true } }, preflight);
+    app.options('/public/claim/link/peek', { schema: { hide: true } }, preflight);
+    app.options('/public/claim/link/verify', { schema: { hide: true } }, preflight);
+    app.options('/public/claim/link/resend', { schema: { hide: true } }, preflight);
+
+    /**
+     * The key's link identity, and whether a link could be sent at all — mail
+     * set up, and a public address to point it at. Asked the same way for
+     * every request, before anything about an address; `null` has answered.
+     */
+    const linkReady = async (reply: FastifyReply, ok: { key: ResolvedKey }): Promise<{ identity: LinkIdentity; base: string | null } | null> => {
+      const identity = linkIdentityOf(ok.key.scope);
+      if (identity === null) {
+        fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        return null;
+      }
+      if (!(await isEmailConfigured(meta, null))) {
+        fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A sign-in link cannot be sent right now. Get in touch instead.');
+        return null;
+      }
+      const base = ok.key.managedBy === null ? null : await guestBase({ meta, hostFor: hostForOf(app) }, ok.key.managedBy);
+      return { identity, base };
+    };
+
+    /** The language a link's email is written in: the one asked for, else the browser's, else the server's. */
+    const linkLocale = async (request: FastifyRequest, lang: string | undefined): Promise<string> =>
+      (lang === undefined ? null : negotiateLocale(lang)) ?? negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
+
+    /** Queue what an address decides, after this request has answered. */
+    const queueLinkWork = async (payload: SignInLinkJob): Promise<void> => {
+      if (app.hasDecorator('jobs')) {
+        await app.jobs.enqueue({ kind: SIGN_IN_LINK_JOB_KIND, payload: payload as unknown as Record<string, unknown> });
+        return;
+      }
+      // A server with no queue (a route test) does it just after answering.
+      setImmediate(() => {
+        void runSignInLinkJob({ ...linkDeps, logger: app.log, hostFor: hostForOf(app) }, payload).catch((error: unknown) => {
+          app.log.warn({ err: error }, 'sign-in link work failed');
+        });
+      });
+    };
+
+    /** The identity's table, for reading a link's person. */
+    const linkFound = async (reply: FastifyReply, ok: { key: ResolvedKey }, identity: LinkIdentity) => {
+      const view = await viewFor(ok.key.connectionId);
+      let table: ResolvedTable | null = null;
+      try {
+        table = view === null ? null : view.table(identity.resource.table);
+      } catch {
+        table = null;
+      }
+      if (view === null || table === null) {
+        fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The resource is unavailable.');
+        return null;
+      }
+      let handle;
+      try {
+        handle = await manager.data(ok.key.connectionId);
+      } catch (error) {
+        if (!(error instanceof ConnectionDisabledError)) throw error;
+        fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The resource is unavailable.');
+        return null;
+      }
+      return { db: handle.db, dialect: handle.dialect, view, table, timezone: ok.key.scope.timezone };
+    };
+
+    /** A session for the person a link opened: verified from the start, pinned to their row. */
+    const openLinkSession = async (
+      request: FastifyRequest,
+      reply: FastifyReply,
+      ok: { key: ResolvedKey; session: PublicSessionContext | null },
+      identity: LinkIdentity,
+      table: ResolvedTable,
+      person: Row,
+      how: 'link' | 'code',
+    ): Promise<FastifyReply> => {
+      const value = person[identity.column];
+      if (value === null || value === undefined) return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
+      const minted = generatePublicSessionToken();
+      const now = Date.now();
+      const expiresAt = now + LINK_SESSION_IDLE_MS;
+      await sessions.create(
+        {
+          keyId: ok.key.keyId,
+          tokenHash: minted.tokenHash,
+          grants: JSON.stringify({ ref: identity.ref, column: identity.column, value }),
+          expiresAt,
+          level: 'verified',
+          kind: 'link',
+          // The person, by their row: what ends every session of theirs when their address changes.
+          subject: subjectOf(ok.key.connectionId, table.id, identity.column, value),
+        },
+        now,
+      );
+      await auditWrite(request, ok, 'public.claim.link.verified', { ref: identity.ref, how });
+      return reply.send({ data: { session: minted.token, expiresAt, level: 'verified' as const } });
+    };
+
+    app.post(
+      '/public/claim/link',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          body: linkStartBody,
+          response: { 202: linkStartReply, 400: publicErrorReply, 401: publicErrorReply, 403: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-link', { proof: 'claim' });
+        if (ok === null) return reply;
+        const ready = await linkReady(reply, ok);
+        if (ready === null) return reply;
+        const address = request.body.email;
+        // The shape of an address only: nothing about whose it is.
+        if (!plausibleAddress(address)) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That address cannot be used.');
+        const answer = { data: { sentTo: maskAddress(address) } };
+        if (ready.base === null) {
+          // Nowhere to point a link: nothing is sent, and the desk is told why.
+          request.log.warn({ keyId: ok.key.keyId, app: ok.key.managedBy }, 'sign-in link not sent: the app has no public address (map a customer domain or set the public origin)');
+          await auditWrite(request, ok, 'public.claim.link.no-address', { ref: ready.identity.ref });
+          return reply.code(202).send(answer);
+        }
+        await queueLinkWork(startPayload(addressCrypto, ok.key.keyId, address, await linkLocale(request, request.body.lang)));
+        return reply.code(202).send(answer);
+      },
+    );
+
+    app.post(
+      '/public/claim/link/resend',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          body: linkTokenBody,
+          response: { 202: linkResendReply, 401: publicErrorReply, 403: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        // "Email me a new link": a link asked for like any other, to that link's own address only.
+        const ok = await gate(request, reply, 'public-link', { proof: 'claim' });
+        if (ok === null) return reply;
+        const ready = await linkReady(reply, ok);
+        if (ready === null) return reply;
+        if (ready.base !== null) {
+          await queueLinkWork({ mode: 'resend', keyId: ok.key.keyId, tokenHash: hashLinkToken(request.body.token), locale: await linkLocale(request, undefined) });
+        }
+        return reply.code(202).send({ data: {} });
+      },
+    );
+
+    app.post(
+      '/public/claim/link/peek',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          body: linkTokenBody,
+          response: { 200: linkPeekReply, 401: publicErrorReply, 403: publicErrorReply, 410: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        // The Continue page's greeting: the first name, nothing spent, no one signed in.
+        const ok = await gate(request, reply, 'public-link-verify');
+        if (ok === null) return reply;
+        const identity = linkIdentityOf(ok.key.scope);
+        if (identity === null) return fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        const found = await linkFound(reply, ok, identity);
+        if (found === null) return reply;
+        const opened = await openLink({ deps: linkDeps, keyId: ok.key.keyId, token: request.body.token, identity, found, now: Date.now() });
+        if (opened === null) return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
+        return reply.send({ data: { firstName: firstNameOf(opened.person, identity) } });
+      },
+    );
+
+    app.post(
+      '/public/claim/link/verify',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          body: linkVerifyBody,
+          response: { 200: linkVerifyReply, 401: publicErrorReply, 403: publicErrorReply, 410: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-link-verify');
+        if (ok === null) return reply;
+        const identity = linkIdentityOf(ok.key.scope);
+        if (identity === null) return fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        const found = await linkFound(reply, ok, identity);
+        if (found === null) return reply;
+        const now = Date.now();
+        const body = request.body;
+
+        if ('token' in body) {
+          const opened = await openLink({ deps: linkDeps, keyId: ok.key.keyId, token: body.token, identity, found, now });
+          // Used once: a second press, or a second tab, finds it used.
+          if (opened === null || !(await challenges.consume(opened.challenge.id, now))) {
+            return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
+          }
+          return openLinkSession(request, reply, ok, identity, found.table, opened.person, 'link');
+        }
+
+        /*
+         * The code, on another device. Counted by the address typed — a
+         * client's and a stranger's alike, since a stranger's address holds
+         * the same decoy links a client's holds real ones — and locked after
+         * ten wrong codes a day. The lock is this path's only: the link in the
+         * mailbox still works.
+         */
+        const subject = linkSubject(hashAddress(addressSecret, body.email));
+        if ((await challenges.failuresSince(subject, now - DAY_MS)) >= LINK_CODE_FAILURES_DAY) {
+          return fail(reply, 403, 'PUBLIC_CLAIM_LOCKED', 'Too many tries today. Use the link in the email instead.');
+        }
+        const open = await challenges.openLinks(subject, ok.key.keyId, now);
+        const tried = open.length === 0 ? ({ outcome: 'expired' } as const) : await tryLinkCode({ meta, codeSecret, open, code: body.code, now });
+        if (tried.outcome === 'expired') return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'That code has expired. Ask for a new link.');
+        if (tried.outcome === 'wrong') return fail(reply, 403, 'PUBLIC_CODE_WRONG', 'That code isn’t right.', { triesLeft: tried.triesLeft });
+        const opened = await personOfChallenge({ deps: linkDeps, identity, found }, tried.challenge);
+        if (opened === null) return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'That code has expired. Ask for a new link.');
+        return openLinkSession(request, reply, ok, identity, found.table, opened.person, 'code');
+      },
+    );
+
+    /* ----------------------------------------------------------- a private file */
+    /*
+     * The file a column of a row names, read through the resource's whole
+     * scope (`private-file.ts`). Everything that is not the caller's — no such
+     * ref, a column not offered, a row outside the scope, a column naming no
+     * Adminium file, a file gone or of another connection — is the one 404.
+     */
+    app.options('/public/files/:ref/:rowId/:column', { schema: { hide: true } }, preflight);
+    app.get(
+      '/public/files/:ref/:rowId/:column',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: { params: privateFileParams, response: { 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'read');
+        if (found === null) return reply;
+        const column = request.params.column;
+        const none = () => fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const storage = deps.storage;
+        if (storage === undefined || !(found.resource.files ?? []).includes(column)) return none();
+        let pk;
+        try {
+          pk = parseRecordId(found.table, request.params.rowId);
+        } catch {
+          return none();
+        }
+        const byKey: RecordFilter[] = Object.entries(pk).map(([name, value]) => ({ column: name, op: 'eq', value }) as RecordFilter);
+        const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
+        let value: unknown;
+        try {
+          // The row as the list would read it: the scope, the claim, the parent chain, the key.
+          const result = await runList({
+            db: readerFor(found, found.table, found.visibility),
+            view: found.view,
+            table: found.table,
+            params: { limit: 1, count: 'none' },
+            canReadPii: readsOwnPii(found.resource, ok.session),
+            dialect: found.dialect,
+            mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
+            exposeColumns: [column],
+          });
+          value = result.data[0]?.[column];
+        } catch {
+          return none();
+        }
+        const fileId = fileIdOf(value);
+        if (fileId === null) return none();
+        const file = await filesRepo(meta).findById(fileId);
+        if (file === null || file.deletedAt !== null || file.entityConnectionId !== ok.key.connectionId) return none();
+        let opened;
+        try {
+          opened = await storage.open(file);
+        } catch {
+          return none();
+        }
+        await touchKey(ok.key.keyId);
+        reply.headers({ ...privateFileHeaders(file), 'content-length': String(opened.sizeBytes) });
+        // The typed reply describes the error shapes only; the bytes leave through the raw send.
+        return reply.send(opened.stream as unknown as never);
+      },
+    );
+
+    /* ------------------------------------------------ an add-on's public settings */
+    /*
+     * What a signed-in client may read of an add-on the app needs: the settings
+     * its author marked for a browser (payment instructions). Never before a
+     * verified sign-in on the app's own key — the customer config, public,
+     * says only that the add-on is there.
+     */
+    app.options('/public/add-ons/:key/settings', { schema: { hide: true } }, preflight);
+    app.get(
+      '/public/add-ons/:key/settings',
+      {
+        config: { rateLimitBucket: 'public' },
+        schema: {
+          params: addOnSettingsParams,
+          response: { 200: addOnSettingsReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read');
+        if (ok === null) return reply;
+        if (ok.session === null || ok.key.managedBy === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        if (ok.session.level !== 'verified') return fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
+        const settings = await publicAddOnSettings(meta, ok.key.managedBy, request.params.key);
+        if (settings === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        await touchKey(ok.key.keyId);
+        return reply.send({ data: { settings } });
+      },
+    );
 
     /* ------------------------------------------------------------ human check */
 
