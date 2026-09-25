@@ -39,7 +39,7 @@ import { SELF_ORIGIN_SENTINEL } from '../config/env.js';
 import { isEmailConfigured } from '../email/send.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { endpointIssues, type PublicEndpointDefinition, type PublicMethod } from '../public-api/endpoint.js';
-import { EndpointSaveRefused, type EndpointService } from '../public-api/endpoint-service.js';
+import { EndpointSaveRefused, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import { generatePublishableKey, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
 import { guestBase } from '../public-api/guest-base.js';
@@ -450,7 +450,8 @@ export async function installPublicAccess(input: {
     } catch (error) {
       // An update may not widen the key the operator allowed at install:
       // the endpoint stays as it was, and the reply says why.
-      if (!input.livePurposes.has(entry.key) || !(error instanceof EndpointSaveRefused)) throw error;
+      if (!(error instanceof EndpointSaveRefused)) throw error;
+      if (!input.livePurposes.has(entry.key)) throw refusedInPlainWords(error.issues);
       skipped.push({ ref: entry.ref, reason: error.issues.map((issue) => issue.message).join('; ') });
     }
   }
@@ -466,22 +467,33 @@ export async function installPublicAccess(input: {
     // except a shared link's own key, which no staff signs in: its token is its lock.
     if (purpose !== CUSTOMER_KEY_PURPOSE && binding === null && !opensByToken(manifest, purpose)) continue;
     const generated = generatePublishableKey('browser');
-    const { key } = await input.service.createKey({
-      connectionId: input.connectionId,
-      name: purpose === CUSTOMER_KEY_PURPOSE ? `${input.appName} · guests` : `${input.appName} · ${purpose}`,
-      access: planned.filter((entry) => entry.key === purpose).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
-      secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(input.crypto, generated.token) },
-      appKey: manifest.key,
-      origins: [],
-      kind: 'browser',
-      actorId: input.actorId,
-      managedBy: manifest.key,
-      purpose,
-      ...(binding === null ? {} : binding),
-    });
-    keys[purpose] = key.id;
+    let made: Awaited<ReturnType<EndpointService['createKey']>>;
+    try {
+      made = await input.service.createKey({
+        connectionId: input.connectionId,
+        name: purpose === CUSTOMER_KEY_PURPOSE ? `${input.appName} · guests` : `${input.appName} · ${purpose}`,
+        access: planned.filter((entry) => entry.key === purpose).map((entry) => ({ ref: entry.ref, methods: entry.methods })),
+        secret: { prefix: generated.prefix, tokenHash: generated.tokenHash, tokenEncrypted: sealPublishableKey(input.crypto, generated.token) },
+        appKey: manifest.key,
+        origins: [],
+        kind: 'browser',
+        actorId: input.actorId,
+        managedBy: manifest.key,
+        purpose,
+        ...(binding === null ? {} : binding),
+      });
+    } catch (error) {
+      // Refused beside the connection's other keys (one writes the link a child here is read by, say): the install stops, in words.
+      throw error instanceof KeyCreateRefused ? refusedInPlainWords(error.issues) : error;
+    }
+    keys[purpose] = made.key.id;
   }
   return { endpoints: saved, keyId: keys[CUSTOMER_KEY_PURPOSE] ?? null, keys, skipped };
+}
+
+/** A refusal as the install says it: the sentences, never the codes. */
+function refusedInPlainWords(issues: readonly { message: string }[]): Error {
+  return new Error(`The public access this app asks for cannot be made: ${issues.map((issue) => issue.message).join('; ')}`);
 }
 
 /** A key the manifest declares with no staff binding: it opens one row by a shared link, and reads. */

@@ -127,6 +127,15 @@ interface KeyExtras {
   issues: ScopeIssue[];
 }
 
+/** A stored document, or null when it does not parse (a document that does not parse serves nothing). */
+function parseJsonOrNull(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 const NO_EXTRAS: KeyExtras = { connectionId: null, access: [], issues: [] };
 
 /** Strips `tokenHash` and `tokenEncrypted` — no secret leaves this mapper. */
@@ -504,6 +513,16 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
         if (request.body.name !== undefined) patch.name = request.body.name;
         if (request.body.document !== undefined) {
           const { timezone } = await compileOrThrow(row.connectionId, request.body.document);
+          // The keys riding this scope serve the new document beside the connection's other keys.
+          const crossed = await service.scopeLinkIssues({
+            connectionId: row.connectionId,
+            scopeId: row.id,
+            document: JSON.parse(request.body.document) as unknown,
+            before: parseJsonOrNull(row.document),
+          });
+          if (crossed.length > 0) {
+            throw new ValidationFailedError('The scope document did not compile.', { issues: crossed.map((i) => ({ ...i })) });
+          }
           patch.document = request.body.document;
           patch.timezone = timezone;
         }
@@ -682,6 +701,10 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
         // inherit grants nobody gave it.
         const scope = handWritten(await scopes.findById(body.scopeId as string));
         if (scope === null) throw new NotFoundError('Scope not found.', { id: body.scopeId });
+        const crossed = await service.scopeLinkIssues({ connectionId: scope.connectionId, scopeId: scope.id, document: parseJsonOrNull(scope.document) });
+        if (crossed.length > 0) {
+          throw new ValidationFailedError('The key could not be made on this scope.', { issues: crossed.map((i) => ({ ...i })) });
+        }
 
         const row = await keys.create({
           name: body.name,

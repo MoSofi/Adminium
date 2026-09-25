@@ -71,7 +71,14 @@ import {
   type PublicMethod,
 } from './endpoint.js';
 import { DECIDED_COLUMN_OPS, managedEditIssues, managedGrantIssues } from './managed-key.js';
-import { compileScope, type InheritedTenantConfig, type PublicScopeDocument, type ScopeIssue } from './scope.js';
+import {
+  compileScope,
+  linkWrittenByAnotherKeyIssues,
+  type InheritedTenantConfig,
+  type NeighbourKey,
+  type PublicScopeDocument,
+  type ScopeIssue,
+} from './scope.js';
 
 /* ------------------------------------------------------------------ errors */
 
@@ -184,6 +191,17 @@ export interface EndpointServiceDeps {
   maxAttempts?: number;
 }
 
+/** A live key a person may hold, with the document it serves. */
+interface HeldKey extends NeighbourKey {
+  id: string;
+  scopeId: string;
+}
+
+/** The issues in `after` that `before` did not have, the key each names included. */
+function newlyRaised(before: readonly ScopeIssue[], after: readonly ScopeIssue[]): ScopeIssue[] {
+  return after.filter((a) => !before.some((b) => b.code === a.code && b.message === a.message));
+}
+
 interface AffectedKey {
   ref: KeyRef;
   kind: PublicKeyKind;
@@ -284,6 +302,50 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     return out;
   }
 
+  /**
+   * The connection's live keys a person may hold, hand-written scopes' keys
+   * included, each with the document it serves. A server key is left out:
+   * it never reaches a browser, so what it writes the operator's own backend
+   * writes, and nobody signs in on it beside another key.
+   */
+  async function heldKeys(connectionId: string, at: number): Promise<HeldKey[]> {
+    const out: HeldKey[] = [];
+    for (const scope of await scopes.listByConnection(connectionId)) {
+      const document = parseJson(scope.document);
+      for (const key of await keys.listByScope(scope.id)) {
+        if (key.kind === 'server' || key.revokedAt !== null || (key.expiresAt !== null && key.expiresAt <= at)) continue;
+        out.push({ id: key.id, scopeId: scope.id, name: key.name, document });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Where a document and another key of the connection together let a person
+   * re-point a row and read what it now points at (`linkWrittenByAnotherKeyIssues`).
+   * The keys riding the same scope serve the same document, which its own
+   * compile has already judged.
+   */
+  function linkIssuesAcross(document: unknown, self: { id: string | null; scopeId: string | null }, held: readonly HeldKey[]): ScopeIssue[] {
+    return linkWrittenByAnotherKeyIssues(
+      document,
+      held.filter((k) => k.id !== self.id && k.scopeId !== self.scopeId),
+    );
+  }
+
+  /**
+   * What a hand-written scope's document would raise against the
+   * connection's other keys, for a key made on it or a document saved over
+   * it: only what `document` raises that `before` (the scope's document now)
+   * did not. Pass no `before` for a new key.
+   */
+  async function scopeLinkIssues(input: { connectionId: string; scopeId: string; document: unknown; before?: unknown }): Promise<ScopeIssue[]> {
+    const held = await heldKeys(input.connectionId, now());
+    const self = { id: null, scopeId: input.scopeId };
+    const after = linkIssuesAcross(input.document, self, held);
+    return input.before === undefined ? after : newlyRaised(linkIssuesAcross(input.before, self, held), after);
+  }
+
   /** The columns of `source` Adminium decides (copied, coded, numbered, totalled, stamped, a balance, a late flag). */
   async function decidedColumns(connectionId: string, source: string): Promise<Set<string>> {
     const rows = (await overridesRepo(meta).listForConnection(connectionId)).filter((o) => o.status === 'active' && o.tableName === source);
@@ -356,6 +418,26 @@ export function createEndpointService(deps: EndpointServiceDeps) {
         }
       }
       writes.push({ key, document: next.document });
+    }
+
+    /*
+     * Each rewritten key against every other key a person may hold, as they
+     * will all stand after the save — refused, like the rest, only for what
+     * the save brings in.
+     */
+    if (writes.length > 0) {
+      const held = await heldKeys(connectionId, at);
+      const rewritten = new Map(writes.map((w) => [w.key.ref.id, w.document]));
+      const afterSave = held.map((k) => (rewritten.has(k.id) ? { ...k, document: rewritten.get(k.id) } : k));
+      for (const w of [...writes]) {
+        if (w.key.kind === 'server') continue;
+        const self = { id: w.key.ref.id, scopeId: w.key.ref.scopeId };
+        const added = newlyRaised(linkIssuesAcross(w.key.storedDocument, self, held), linkIssuesAcross(w.document, self, afterSave));
+        if (added.length === 0) continue;
+        introduced.push(...added);
+        breaking.push(w.key.ref);
+        writes.splice(writes.indexOf(w), 1);
+      }
     }
 
     const check: SaveCheck = {
@@ -570,6 +652,9 @@ export function createEndpointService(deps: EndpointServiceDeps) {
       if (issues.length === 0) {
         issues.push(...forDerived(derivedDocumentIssues(derivation.document, view, inherited)));
       }
+      if (kind !== 'server') {
+        issues.push(...linkIssuesAcross(derivation.document, { id: null, scopeId: null }, await heldKeys(connectionId, now())));
+      }
       if (issues.length > 0) throw new KeyCreateRefused(dedupeIssues(issues));
 
       // Store the generated endpoints the key is granted. Outside any
@@ -642,7 +727,7 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     throw new PublicApiContended('the public API changed under this key create too many times; try again');
   }
 
-  return { checkEndpoint, saveEndpoint, removeEndpoint, renameEndpoint, createKey };
+  return { checkEndpoint, saveEndpoint, removeEndpoint, renameEndpoint, createKey, scopeLinkIssues };
 }
 
 export type EndpointService = ReturnType<typeof createEndpointService>;

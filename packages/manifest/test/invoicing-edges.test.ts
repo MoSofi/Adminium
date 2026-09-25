@@ -309,6 +309,16 @@ describe('public access, the rarer refusals', () => {
     expectIssue(m, '"projects.status" is not a bool of this app');
   });
 
+  it('keeps a child\'s link unwritten on every key of the app, not only its own', () => {
+    // A project read through the invoice that names it, on the guests' key; the link written on the
+    // shared link's key. One person may hold a session on each and re-point their invoice.
+    const m = valid();
+    const access = m['publicAccess'] as Doc[];
+    access.push({ table: 'projects', methods: ['GET'], select: ['status'], visibleWith: { table: 'invoices', via: 'project_id' }, level: 'verified' });
+    access.push({ table: 'invoices', methods: ['GET'], select: ['number'], key: 'handover', writable: ['project_id'] });
+    expectIssue(m, '"invoices.project_id" is the link a child reads its rows by, so no browser writes it');
+  });
+
   it('refuses an off switch on a shared link\'s key, which nothing would read', () => {
     const m = valid();
     const handover = (m['publicKeys'] as Doc)['handover'] as Doc;

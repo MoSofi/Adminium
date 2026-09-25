@@ -1267,18 +1267,12 @@ function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLooku
      * where the parent points AT the child (a proposal naming its terms), a
      * caller who could write that column on any door of this key would
      * re-point their own row at someone else's child and read it. So nothing
-     * on the key writes it, chooses its values or fills it by default.
+     * on the key writes it, chooses its values or fills it by default. The
+     * other keys of the connection are held to the same rule when a key is
+     * saved (`linkWrittenByAnotherKeyIssues`).
      */
     for (const door of doc.resources) {
-      if (!sameTable(door.table, parent.table)) continue;
-      // A door that only reads writes no row of its table, whatever columns it lists; any other action may.
-      const changes = door.actions.some((action) => action !== 'read');
-      const writes =
-        changes &&
-        (door.writable.includes(link.foreignColumn) ||
-          Object.prototype.hasOwnProperty.call(door.writableValues ?? {}, link.foreignColumn) ||
-          Object.prototype.hasOwnProperty.call(door.defaults, link.foreignColumn));
-      if (writes) {
+      if (writesLink(door, { parentTable: parent.table, column: link.foreignColumn })) {
         push(
           'SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE',
           `"${link.foreignColumn}" is the link "${r.ref}" reads its rows by, so "${door.ref}" may not write it`,
@@ -1321,6 +1315,104 @@ function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLooku
     if (r.actions.includes('update')) {
       for (let up = byRef.get(link.ref), n = 0; up !== undefined && n < VISIBLE_WITH_MAX_STEPS; up = up.visibleWith === undefined ? undefined : byRef.get(up.visibleWith.ref), n += 1) {
         if (sameTable(up.table, r.table)) push('SCOPE_VISIBLE_WITH_SELF_CHANGE', `ref "${r.ref}" changes rows of the table its parent reads, which one statement cannot do on every database`);
+      }
+    }
+  }
+  return issues;
+}
+
+/** A column of a parent's table that a child's rows are read by. */
+interface ParentLink {
+  /** The child resource reading through it. */
+  child: string;
+  parentTable: string;
+  column: string;
+}
+
+type LinkDoor = Pick<PublicScopeResource, 'table' | 'actions' | 'writable' | 'writableValues' | 'defaults'>;
+
+/**
+ * Whether a door writes the column a child is read by: it changes rows of the
+ * parent's table, and names the column as one it writes, chooses the values
+ * of or fills by default. A door that only reads writes no row of its table,
+ * whatever columns it lists; any other action may.
+ */
+function writesLink(door: LinkDoor, link: Pick<ParentLink, 'parentTable' | 'column'>): boolean {
+  if (!sameTable(door.table, link.parentTable)) return false;
+  if (!door.actions.some((action) => action !== 'read')) return false;
+  return (
+    door.writable.includes(link.column) ||
+    Object.prototype.hasOwnProperty.call(door.writableValues ?? {}, link.column) ||
+    Object.prototype.hasOwnProperty.call(door.defaults, link.column)
+  );
+}
+
+/** Every child of a document whose parent it declares, and the parent's column it is read by. */
+function parentLinks(resources: readonly PublicScopeResource[]): ParentLink[] {
+  const byRef = new Map(resources.map((r) => [r.ref, r]));
+  return resources.flatMap((r): ParentLink[] => {
+    const link = r.visibleWith;
+    const parent = link === undefined ? undefined : byRef.get(link.ref);
+    return link === undefined || parent === undefined ? [] : [{ child: r.ref, parentTable: parent.table, column: link.foreignColumn }];
+  });
+}
+
+/**
+ * A stored document's resources. One that no longer parses gives none: its
+ * key answers nothing until it is saved again, and that save is checked.
+ */
+function resourcesOf(document: unknown): PublicScopeResource[] {
+  const parsed = derivedScopeDocumentSchema.safeParse(document);
+  return parsed.success ? parsed.data.resources : [];
+}
+
+/** Another live key of the same connection, as a refusal names it. */
+export interface NeighbourKey {
+  /** The key's name, as the operator sees it in the list of keys. */
+  name: string;
+  /** Its stored scope document. */
+  document: unknown;
+}
+
+export const LINK_WRITTEN_BY_ANOTHER_KEY = 'SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE_BY_KEY';
+
+/**
+ * The parent-link rule of {@link visibleWithIssues}, across keys.
+ *
+ * A session belongs to one key, but one person may hold a session on each of
+ * two keys of a connection — an app's own and one an operator made by hand,
+ * say — and a row re-pointed through one key is then read through the other.
+ * So a key's document is refused where one of its doors writes the link a
+ * child on another key of the connection is read by, and where one of its
+ * children is read by a link a door on another key writes. Whichever of the
+ * two is saved second is the one refused.
+ */
+export function linkWrittenByAnotherKeyIssues(document: unknown, others: readonly NeighbourKey[]): ScopeIssue[] {
+  const own = resourcesOf(document);
+  const ownLinks = parentLinks(own);
+  const issues: ScopeIssue[] = [];
+  for (const other of others) {
+    const theirs = resourcesOf(other.document);
+    for (const link of ownLinks) {
+      for (const door of theirs) {
+        if (!writesLink(door, link)) continue;
+        issues.push({
+          code: LINK_WRITTEN_BY_ANOTHER_KEY,
+          message: `"${link.column}" is the link "${link.child}" reads its rows by, and "${door.ref}" on the key "${other.name}" writes it: a person signed in on both keys could point their own row at another person's`,
+          ref: link.child,
+          column: link.column,
+        });
+      }
+    }
+    for (const link of parentLinks(theirs)) {
+      for (const door of own) {
+        if (!writesLink(door, link)) continue;
+        issues.push({
+          code: LINK_WRITTEN_BY_ANOTHER_KEY,
+          message: `"${link.column}" is the link "${link.child}" on the key "${other.name}" reads its rows by, so "${door.ref}" may not write it: a person signed in on both keys could point their own row at another person's`,
+          ref: door.ref,
+          column: link.column,
+        });
       }
     }
   }
