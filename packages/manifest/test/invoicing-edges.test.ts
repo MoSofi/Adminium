@@ -377,6 +377,15 @@ describe('the shape\'s own checks and conformance, the rarer paths', () => {
     expect(conformance(m)).toContain('the lock is the shape\'s');
   });
 
+  it('lets an app put a copy in front of a column the shape fills from a setting, and nowhere else', () => {
+    let m = valid();
+    (columnOf(m, 'invoices', 'tax_rate')['rules'] as Doc)['copy'] = { via: 'client_id', from: 'contact_name' };
+    expect(conformance(m)).toBe('');
+    m = valid();
+    (columnOf(m, 'invoices', 'ladder') as Doc)['rules'] = { copy: { via: 'client_id', from: 'contact_name' } };
+    expect(conformance(m)).toContain('"invoices.ladder" adds a copy rule the shape does not keep');
+  });
+
   it('maps part names inside a fingerprint and a reference lock before comparing', () => {
     const withHash = (shape: Doc) => {
       const doc = (shape['parts'] as Record<string, { columns: Doc[]; states: Doc }>)['document']!;

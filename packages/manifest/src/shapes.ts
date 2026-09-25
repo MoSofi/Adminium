@@ -16,6 +16,9 @@
  *  - add columns of its own;
  *  - relabel, and add display rules (`enumLabels`, `personal`) and narrowing
  *    ones (`validation`, `required`) to the part's columns;
+ *  - put a `copy` in front of a column the part fills from a setting (a
+ *    client's own tax rate before the add-on's default): the part's fill
+ *    still answers whenever the copy comes back empty;
  *  - add to a lock's exceptions (its own columns a client may still write),
  *    give a move to some roles only, tie more child tables to the state, and
  *    empty more of its own columns when a child is created.
@@ -158,7 +161,8 @@ export function shapeConformanceIssues(
         }
       }
       for (const name of Object.keys(haveRules)) {
-        if (wantRules[name] === undefined && !ADDABLE_RULES.has(name)) {
+        const copyBeforeFill = name === 'copy' && wantRules['default'] !== undefined && wantRules['copy'] === undefined;
+        if (wantRules[name] === undefined && !ADDABLE_RULES.has(name) && !copyBeforeFill) {
           mismatch(`${here}.rules.${name}`, `"${table.ref}.${want.ref}" adds a ${name} rule the shape does not keep`);
         }
       }
