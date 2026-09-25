@@ -13,9 +13,13 @@
  * origin the hooks understand and the rules do not would be two answers to the
  * same question.
  *
- * `write-service.ts` re-exports all three, so every existing importer is
- * unaffected.
+ * `write-service.ts` re-exports them all, so every existing importer is
+ * unaffected. `WriteContext` followed for the same reason: the outbox tells its
+ * own writes apart by their context, and the service asks it.
  */
+import type { FastifyRequest } from 'fastify';
+
+import type { Row } from './mask.js';
 
 /** The three things a write does to a row. */
 export type WriteAction = 'create' | 'update' | 'delete';
@@ -38,4 +42,22 @@ export interface WriteActor {
   id: string | null;
   /** What the audit trail shows: a name, a key label, a rule's name. */
   label: string;
+}
+
+export interface WriteContext {
+  origin: WriteOrigin;
+  /**
+   * How many hook and automation writes deep this one is: 0 for a person's
+   * write. The same counter automations keep (`crud/after-record-write.ts`).
+   */
+  hops: number;
+  actor: WriteActor | null;
+  /** The HTTP request behind the write, when there is one. */
+  request: FastifyRequest | null;
+  /**
+   * The signed-in person's own row, on a public write made in a session: a
+   * stamp of `claim` reads their email or name from it. Absent, such a stamp
+   * writes nothing.
+   */
+  claimed?: Row | null | undefined;
 }

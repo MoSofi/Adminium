@@ -33,7 +33,7 @@ import { addOnSettingsRepo, settingsRepo, type DocumentProfile, type MetaDb } fr
 
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
-import { compileFilter, type RecordFilter } from '../crud/filters.js';
+import { compileFilter } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { wallTimesAsInstants } from '../crud/instants.js';
 import { fetchByPk } from '../crud/records.js';
@@ -41,9 +41,12 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
-import { DocumentReadError, type RenderDeps, type SourceRead } from './render.js';
+import { DocumentReadError, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
 import { dayOf, dayOn, readStatement, scaled, unscaled, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
 import type { ProfileMapping } from './subject.js';
+
+// The filter type lives with the renderer, which reads it too; importers still find it here.
+export type { ReadFilter } from './render.js';
 
 /** Lines read per round trip, and the most one document may list. */
 const LINES_PAGE = 200;
@@ -405,13 +408,6 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
  * compiled against that table and ANDed into its query. A table with no entry
  * is read whole — the caller decided which tables need one.
  */
-/**
- * What a public reader may read of one table: a filter, nothing (the table
- * whole), or a narrowing already built — rows visible only with a parent,
- * which no single-table filter can say.
- */
-export type ReadFilter = RecordFilter | null | ((query: unknown) => unknown);
-
 export function narrowingOf(
   db: Kysely<SourceDatabase>,
   view: SnapshotView,

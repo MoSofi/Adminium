@@ -8,7 +8,7 @@
  * They are told apart by the context OBJECT they write with, kept in a set no
  * request can reach: a label or an origin could be spelled by anyone.
  */
-import type { WriteContext } from '../crud/write-service.js';
+import type { WriteContext } from '../crud/write-context.js';
 
 /** Each outbox context, and the one table — the outbox's own — its writes are to. */
 const ours = new WeakMap<WriteContext, string>();

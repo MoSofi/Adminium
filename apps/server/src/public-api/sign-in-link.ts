@@ -50,7 +50,7 @@ import type { DsnCrypto } from '@adminium/meta';
 import { compileFilter } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
-import { enqueueEmail } from '../email/send.js';
+import { SIGN_IN_LINK_TEMPLATE_KEY, enqueueEmail } from '../email/send.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { appContact } from '../outbox/sender.js';
 import { CODE_TRIES, DAY_MS, codeBinding, codeMatches, hashAddress, hashCode, newCode } from './claim-code.js';
@@ -59,8 +59,6 @@ import { mandatoryAt } from './relative-filters.js';
 import type { PublicViews } from './runtime.js';
 import { compileScope, type CompiledResource, type CompiledScope, type TableColumnLookup } from './scope.js';
 
-/** The email template a link goes out in (seeded by `email/builtins.ts`). */
-export const SIGN_IN_LINK_TEMPLATE_KEY = 'sign-in-link';
 /** The challenge purpose a link and its code are stored under. */
 export const LINK_PURPOSE = 'link';
 /**

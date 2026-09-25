@@ -118,30 +118,14 @@ import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
 import { normalizeWriteValue, sameValue } from './write-values.js';
-import type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
+import type { WriteAction, WriteActor, WriteContext, WriteOrigin } from './write-context.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
 // it and this module reads the rules — see `write-context.ts`. Re-exported so
-// every caller still finds them here.
-export type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
+// every caller still finds them here. `WriteContext` joined them because the
+// outbox's own context (`outbox/context.ts`) is read here and names it.
+export type { WriteAction, WriteActor, WriteContext, WriteOrigin } from './write-context.js';
 
-export interface WriteContext {
-  origin: WriteOrigin;
-  /**
-   * How many hook and automation writes deep this one is: 0 for a person's
-   * write. The same counter automations keep (`crud/after-record-write.ts`).
-   */
-  hops: number;
-  actor: WriteActor | null;
-  /** The HTTP request behind the write, when there is one. */
-  request: FastifyRequest | null;
-  /**
-   * The signed-in person's own row, on a public write made in a session: a
-   * stamp of `claim` reads their email or name from it. Absent, such a stamp
-   * writes nothing.
-   */
-  claimed?: Row | null | undefined;
-}
 
 /**
  * The origins whose value for a `code` column is never taken: a code is an

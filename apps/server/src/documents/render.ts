@@ -73,7 +73,7 @@ import {
   type RecordRef,
 } from '@adminium/meta';
 
-import type { ReadFilter } from './compose.js';
+import type { RecordFilter } from '../crud/filters.js';
 import type { FileStore } from '../files/store.js';
 import { providerByKey, providersFor, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EmailLogger } from '../email/send.js';
@@ -85,6 +85,13 @@ import {
 } from './provider.js';
 import type { StatementPeriod, StatementRead } from './statement.js';
 import { buildSubject, mappedTables, type ProfileMapping } from './subject.js';
+
+/**
+ * What a public reader may read of one table: a filter, nothing (the table
+ * whole), or a narrowing already built — rows visible only with a parent,
+ * which no single-table filter can say.
+ */
+export type ReadFilter = RecordFilter | null | ((query: unknown) => unknown);
 
 export { DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION };
 
