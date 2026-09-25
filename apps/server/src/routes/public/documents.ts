@@ -54,7 +54,11 @@ import type { ConnectionManager, SourceDatabase } from '../../connections/manage
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
 import type { RecordFilter } from '../../crud/filters.js';
-import { STATEMENT_PERIODS } from '../../documents/statement.js';
+import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
+import { appDocumentOff } from '../../documents/app-documents.js';
+import { outboundKey } from '../../documents/compose.js';
+import { STATEMENT_PERIODS, type StatementSources } from '../../documents/statement.js';
+import type { ProfileMapping } from '../../documents/subject.js';
 import { claimPredicateFor, combinePredicates, type PublicSessionContext } from '../../public-api/claim.js';
 import { mandatoryAt } from '../../public-api/relative-filters.js';
 import type { ResolvedKey } from '../../public-api/resolve.js';
@@ -72,6 +76,14 @@ export const DOCUMENT_RENDER_LIMITS = {
   visitor: { max: 30, windowMs: 60_000 },
   key: { max: 240, windowMs: 60_000 },
 } as const;
+
+/**
+ * How many documents drawn from values one list request reads, at most, to
+ * find a session's own: they are matched by a claim kept as JSON, so each is
+ * read to be compared. Past this the list stops and says what it found.
+ */
+export const INTENT_SCAN_MAX = 1_000;
+const INTENT_PAGE = 200;
 
 /** How many rows of one resource a claim may reach before the list refuses rather than cuts. */
 export const CLAIM_ROWS_MAX = 50_000;
@@ -121,13 +133,62 @@ export function decodeDocumentCursor(raw: string | undefined): DocumentCursor | 
   if (raw === undefined || raw === '') return undefined;
   try {
     const parsed: unknown = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
-    if (Array.isArray(parsed) && typeof parsed[0] === 'number' && typeof parsed[1] === 'string' && parsed[1].length <= 40) {
+    // A time a column can hold: a whole, non-negative, safe number.
+    if (Array.isArray(parsed) && Number.isSafeInteger(parsed[0]) && (parsed[0] as number) >= 0 && typeof parsed[1] === 'string' && parsed[1].length <= 40) {
       return { createdAt: parsed[0], id: parsed[1] };
     }
   } catch {
     // fall through
   }
   return null;
+}
+
+/** A value the key column's type can hold, or null: never a query the database refuses. */
+function keyValue(value: unknown, logicalType: string): unknown {
+  if (logicalType === 'integer' || logicalType === 'bigint') {
+    const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : '';
+    if (!/^-?\d{1,16}$/.test(text)) return null;
+    const n = Number(text);
+    return Number.isSafeInteger(n) ? n : null;
+  }
+  if (logicalType === 'uuid') {
+    return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
+  }
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
+  return typeof value === 'string' && value.length <= 200 ? value : null;
+}
+
+/**
+ * A row's key from what a caller sent — one value, or a JSON object or list
+ * for a key of several columns — each part checked against its column's type.
+ * Null when it cannot be one: a text on a number key, a number too large to
+ * hold. The caller answers that exactly as an unknown row, on every engine,
+ * rather than letting the database refuse it with an error of its own.
+ */
+export function recordKeyOf(table: ResolvedTable, raw: unknown): Record<string, unknown> | null {
+  const columns = table.primaryKey;
+  if (columns.length === 0) return null;
+  let parts: Record<string, unknown>;
+  if (columns.length === 1) {
+    parts = { [columns[0]!]: raw };
+  } else {
+    let parsed: unknown;
+    try {
+      parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch {
+      return null;
+    }
+    if (Array.isArray(parsed) && parsed.length === columns.length) parts = Object.fromEntries(columns.map((c, i) => [c, parsed[i]]));
+    else if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) parts = parsed as Record<string, unknown>;
+    else return null;
+  }
+  const out: Record<string, unknown> = {};
+  for (const column of columns) {
+    const value = keyValue(parts[column], table.columns.get(column)?.logicalType ?? 'text');
+    if (value === null) return null;
+    out[column] = value;
+  }
+  return out;
 }
 
 /** Newest first, the register's own order. */
@@ -157,6 +218,11 @@ export function createDocumentAccess(deps: {
   viewFor: (connectionId: string) => Promise<SnapshotView | null>;
   /** How long the kinds an app's entries declare are remembered; an update narrows within it. */
   ttlMs?: number | undefined;
+  /**
+   * The add-on runtime, so an app's key draws only while the add-on is
+   * attached to the app and its feature on. Absent: not asked.
+   */
+  runtime?: (() => AddOnRuntimeState | null) | undefined;
 }) {
   const ttl = deps.ttlMs ?? 10_000;
   const declaredCache = new Map<string, { at: number; value: ReadonlyMap<string, ReadonlySet<string>> }>();
@@ -198,6 +264,78 @@ export function createDocumentAccess(deps: {
     if (resource.claim === null) return false;
     if (!claimPredicateFor(resource, session).reachable) return false;
     return resource.level !== 'verified' || session.level === 'verified';
+  }
+
+  /** Whether a session may read this resource's rows at all: readable, reached, at its level. */
+  function readable(resource: CompiledResource, session: PublicSessionContext): boolean {
+    if (resource.kind !== 'records' || !resource.actions.has('read')) return false;
+    if (!claimPredicateFor(resource, session).reachable) return false;
+    return resource.level !== 'verified' || session.level === 'verified';
+  }
+
+  /**
+   * What this session may read of the tables a document reads beside its
+   * own row and its lines: a statement's documents and payments, and the rows
+   * its linked slots read (a client's company).
+   *
+   * A table this key serves at all is held to the key: the session must read
+   * it through one of its resources — reached, at the level it asks — and
+   * only the rows those resources show are read (their filters and claims,
+   * ORed). Short of the level it is `level` (the same answer a record read
+   * gives); with no resource that opens it, `none` (the 404). A statement's
+   * sources must be served by the key. A linked table the key does not serve
+   * at all is part of the document as its author mapped it, read whole — as
+   * its lines are.
+   */
+  async function sourceAccess(
+    ok: PublicAccess & { session: PublicSessionContext },
+    profile: DocumentProfile,
+  ): Promise<{ state: 'ok'; filters: Map<string, RecordFilter | null> } | { state: 'level' | 'none' }> {
+    const view = await deps.viewFor(ok.key.connectionId);
+    if (view === null) return { state: 'none' };
+    const needed = new Map<string, 'statement' | 'linked'>();
+    const statement = (profile.options as { statement?: StatementSources }).statement;
+    if (statement !== undefined) {
+      needed.set(statement.documents.table, 'statement');
+      needed.set(statement.payments.table, 'statement');
+    }
+    let base: ResolvedTable | null = null;
+    try {
+      base = view.table(profile.table);
+    } catch {
+      return { state: 'none' };
+    }
+    for (const mapped of Object.values(profile.mapping as ProfileMapping)) {
+      if (!('ref' in mapped)) continue;
+      const target = mapped.table ?? outboundKey(view, base, mapped.ref)?.tableId;
+      if (target !== undefined && !needed.has(target)) needed.set(target, 'linked');
+    }
+
+    const filters = new Map<string, RecordFilter | null>();
+    for (const [tableId, why] of needed) {
+      const serving = [...ok.key.scope.byRef.values()].filter((r) => r.table === tableId && r.kind === 'records' && r.actions.has('read'));
+      if (serving.length === 0) {
+        if (why === 'statement') return { state: 'none' };
+        continue;
+      }
+      const open = serving.filter((r) => readable(r, ok.session));
+      if (open.length === 0) {
+        const short = serving.some((r) => claimPredicateFor(r, ok.session).reachable && r.level === 'verified');
+        return { state: short ? 'level' : 'none' };
+      }
+      let table: ResolvedTable;
+      try {
+        table = view.table(tableId);
+      } catch {
+        return { state: 'none' };
+      }
+      const predicates: (RecordFilter | null)[] = open.map((r) => {
+        const claim = claimPredicateFor(r, ok.session);
+        return combinePredicates(mandatoryAt(r.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null);
+      });
+      filters.set(tableId, predicates.some((p) => p === null) ? null : predicates.length === 1 ? predicates[0]! : { or: predicates as RecordFilter[] });
+    }
+    return { state: 'ok', filters };
   }
 
   /** The profiles this key's owner made on its connection. */
@@ -313,15 +451,7 @@ export function createDocumentAccess(deps: {
     if (row.connectionId !== ok.key.connectionId) return null;
 
     // Drawn from values: the claim and the key that asked for it.
-    if (row.profileId === null) {
-      const claim = row.claim;
-      if (claim === null) return null;
-      if (claim.column !== session.grant.column || String(claim.value) !== String(session.grant.value)) return null;
-      // A claim from before keys were recorded was only ever made through an
-      // operator's own key; an app's key never reads one.
-      if (claim.keyId === undefined ? ok.key.managedBy !== null : claim.keyId !== ok.key.keyId) return null;
-      return row;
-    }
+    if (row.profileId === null) return intentIsOwn(ok.key, session, row) ? row : null;
 
     const profile = await documentProfilesRepo(deps.meta).findById(row.profileId);
     // A document's connection is its profile's; the connection was asked above.
@@ -330,6 +460,8 @@ export function createDocumentAccess(deps: {
 
     const declared = await declaredKinds(ok.key);
     const withSession = { key: ok.key, session };
+    // What it was drawn from beside its row, this session must be able to read.
+    if ((await sourceAccess(withSession, profile)).state !== 'ok') return null;
     for (const resource of ok.key.scope.byRef.values()) {
       if (resource.table !== row.entityTable) continue;
       const kinds = declared.get(resource.ref);
@@ -338,6 +470,21 @@ export function createDocumentAccess(deps: {
       if (await reaches(withSession, resource, row.entity.pk)) return row;
     }
     return null;
+  }
+
+  /**
+   * Whether a document drawn from values is this session's own: the key's
+   * documents door is open, the claim is this session's (column, value and
+   * the identity it was made through, when recorded), and it was asked for
+   * through this key — or, for a claim from before keys were recorded, through
+   * an operator's own key, the only kind that could ask then.
+   */
+  function intentIsOwn(key: ResolvedKey, session: PublicSessionContext, row: DocumentRow): boolean {
+    const claim = row.claim;
+    if (claim === null || !key.scope.documents.create) return false;
+    if (claim.column !== session.grant.column || String(claim.value) !== String(session.grant.value)) return false;
+    if (claim.ref !== undefined && claim.ref !== session.grant.ref) return false;
+    return claim.keyId === undefined ? key.managedBy === null : claim.keyId === key.keyId;
   }
 
   /**
@@ -355,64 +502,75 @@ export function createDocumentAccess(deps: {
     const profiles = await ownProfiles(ok.key);
     const register = documentsRepo(deps.meta);
 
-    // Per table: the rows reached, and the kinds some resource on it declares.
-    const perTable = new Map<string, { keys: Set<string>; kinds: Set<string> | null }>();
+    /*
+     * PER RESOURCE, never per table: each resource lists the documents of the
+     * kinds IT declares for the rows IT reaches. Two resources on one table
+     * (a client's own invoices, and the invoices they referred) must not
+     * cross — the referred row's invoice is not the referrer's to see just
+     * because some resource declares invoices.
+     */
+    const want = query.limit + 1;
+    const found = new Map<string, DocumentRow>();
+    const readableProfiles = new Map<string, boolean>();
+    const mayRead = async (profile: DocumentProfile): Promise<boolean> => {
+      let known = readableProfiles.get(profile.id);
+      if (known === undefined) {
+        known = (await sourceAccess(withSession, profile)).state === 'ok';
+        readableProfiles.set(profile.id, known);
+      }
+      return known;
+    };
     for (const resource of ok.key.scope.byRef.values()) {
       if (query.ref !== undefined && resource.ref !== query.ref) continue;
-      const kinds = declared.get(resource.ref);
-      if (kinds === undefined || !personal(resource, session)) continue;
-      if (query.kind !== undefined && kinds !== null && !kinds.has(query.kind)) continue;
-      const entry = perTable.get(resource.table) ?? { keys: new Set<string>(), kinds: new Set<string>() };
-      entry.kinds = entry.kinds === null || kinds === null ? null : new Set([...entry.kinds, ...kinds]);
-      for (const key of await reachedKeys(withSession, resource, query.id)) entry.keys.add(key);
-      perTable.set(resource.table, entry);
-    }
-
-    const want = query.limit + 1;
-    const found: DocumentRow[] = [];
-    for (const [table, entry] of perTable) {
-      const kinds = query.kind !== undefined ? [query.kind] : entry.kinds === null ? undefined : [...entry.kinds];
-      const profileIds = profiles.filter((p) => p.table === table && (kinds === undefined || kinds.includes(p.kind))).map((p) => p.id);
-      const keys = [...entry.keys];
+      const declaredHere = declared.get(resource.ref);
+      if (declaredHere === undefined || !personal(resource, session)) continue;
+      if (query.kind !== undefined && declaredHere !== null && !declaredHere.has(query.kind)) continue;
+      const kinds = query.kind !== undefined ? [query.kind] : declaredHere === null ? undefined : [...declaredHere];
+      const candidates = profiles.filter((p) => p.table === resource.table && (kinds === undefined || kinds.includes(p.kind)));
+      const profileIds: string[] = [];
+      for (const profile of candidates) if (await mayRead(profile)) profileIds.push(profile.id);
+      if (profileIds.length === 0) continue;
+      const keys = await reachedKeys(withSession, resource, query.id);
       for (let at = 0; at < keys.length; at += IDS_CHUNK) {
-        found.push(
-          ...(await register.listForRows({
-            connectionId: ok.key.connectionId,
-            entityTable: table,
-            entityIds: keys.slice(at, at + IDS_CHUNK),
-            profileIds,
-            kinds,
-            after: query.after,
-            limit: want,
-          })),
-        );
+        const rows = await register.listForRows({
+          connectionId: ok.key.connectionId,
+          entityTable: resource.table,
+          entityIds: keys.slice(at, at + IDS_CHUNK),
+          profileIds,
+          kinds,
+          after: query.after,
+          limit: want,
+        });
+        for (const row of rows) found.set(row.id, row);
       }
     }
 
-    // Documents drawn from values for this session's claim on this key —
-    // an operator's key's door; never narrowed to a row.
+    /*
+     * Documents drawn from values for this session's claim on this key — an
+     * operator's key's door; never narrowed to a row. Their claim is JSON, so
+     * each is read to be compared: at most INTENT_SCAN_MAX of them per request.
+     */
     if (query.ref === undefined && query.id === undefined && ok.key.scope.documents.create) {
       let after = query.after;
       let matched = 0;
-      for (;;) {
-        const batch = await register.listClaimedIntents({ connectionId: ok.key.connectionId, after, limit: 200 });
+      for (let scanned = 0; scanned < INTENT_SCAN_MAX; ) {
+        const batch = await register.listClaimedIntents({ connectionId: ok.key.connectionId, after, limit: INTENT_PAGE });
+        scanned += batch.length;
         for (const row of batch) {
-          const claim = row.claim;
-          if (claim === null || claim.column !== session.grant.column || String(claim.value) !== String(session.grant.value)) continue;
-          if (claim.keyId === undefined ? ok.key.managedBy !== null : claim.keyId !== ok.key.keyId) continue;
+          if (!intentIsOwn(ok.key, session, row)) continue;
           if (query.kind !== undefined && row.kind !== query.kind) continue;
-          found.push(row);
+          found.set(row.id, row);
           matched += 1;
         }
-        if (batch.length < 200 || matched >= want) break;
+        if (batch.length < INTENT_PAGE || matched >= want) break;
         const last = batch.at(-1)!;
         after = { createdAt: last.createdAt, id: last.id };
       }
     }
 
-    found.sort(newer);
-    const rows = found.slice(0, query.limit);
-    const next = found.length > query.limit && rows.length > 0 ? encodeDocumentCursor(rows.at(-1)!) : null;
+    const sorted = [...found.values()].sort(newer);
+    const rows = sorted.slice(0, query.limit);
+    const next = sorted.length > query.limit && rows.length > 0 ? encodeDocumentCursor(rows.at(-1)!) : null;
     return { rows, next };
   }
 
@@ -434,10 +592,20 @@ export function createDocumentAccess(deps: {
     if (profile === null || !profile.enabled) return null;
     if (profile.connectionId !== key.connectionId || profile.ownerApp !== key.managedBy || profile.table !== resource.table) return null;
     if (declared !== null && !declared.has(profile.kind)) return null;
+    // An app's document is drawn only while its add-on — and its feature — is on.
+    if (key.managedBy !== null && deps.runtime !== undefined) {
+      const installed = await manifestsRepo(deps.meta, NO_SECRETS).findByKey(key.managedBy);
+      const manifest = installed?.document as AppManifest | undefined;
+      if (manifest?.kind !== 'app') return null;
+      const names = await appTablesRepo(deps.meta).realNames(key.connectionId, key.managedBy);
+      const table = (await deps.viewFor(key.connectionId))?.model.tables.find((t) => t.id === profile.table)?.name;
+      const ref = Object.entries(names).find(([, real]) => real === table)?.[0] ?? '';
+      if ((await appDocumentOff({ meta: deps.meta, manifest, profile, table: ref, runtime: deps.runtime })) !== null) return null;
+    }
     return profile;
   }
 
-  return { declaredKinds, visibleDocument, listVisible, profileForRender, personal };
+  return { declaredKinds, visibleDocument, listVisible, profileForRender, personal, sourceAccess };
 }
 
 export type DocumentAccess = ReturnType<typeof createDocumentAccess>;

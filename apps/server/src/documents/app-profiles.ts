@@ -35,10 +35,11 @@
  * So is one whose mapping names a table the install did not make. A profile
  * is either made whole or not at all.
  */
-import type { AppDocument, AppManifest, ShapeDefinition, SlotMapping as ManifestSlotMapping } from '@adminium/manifest';
+import type { AppDocument, AppManifest, ColumnRules, ShapeDefinition, SlotMapping as ManifestSlotMapping } from '@adminium/manifest';
 import { shapeDefinitionSchema, shapeKey } from '@adminium/manifest';
 import { documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
+import type { BalanceAfter } from './compose.js';
 import type { StatementSource, StatementSources } from './statement.js';
 import type { ProfileMapping, SlotMapping } from './subject.js';
 import { syncProfileTrigger } from './trigger-sync.js';
@@ -82,6 +83,7 @@ export async function installedShapes(meta: MetaDb): Promise<InstalledShapes> {
 
 type AppTable = AppManifest['requiredSchema']['tables'][number];
 type StatementBlock = NonNullable<AppDocument['statement']>;
+type RollupRule = NonNullable<ColumnRules['rollup']>;
 
 /** A profile the manifest asks for, in the app's own table and column names. */
 export interface PlannedProfile {
@@ -92,6 +94,8 @@ export interface PlannedProfile {
   name: string;
   mapping: Record<string, ManifestSlotMapping>;
   statement?: StatementBlock | undefined;
+  /** The app's feature this document belongs to (`addOns.features`), when its entry names one. */
+  feature?: string | undefined;
   /** Where it came from: the shape the table is built on, the app's own entry, or both. */
   from: 'shape' | 'app' | 'shape+app';
 }
@@ -171,6 +175,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       extended.mapping = { ...extended.mapping, ...entry.mapping };
       extended.name = nameOf(entry.name);
       if (entry.statement !== undefined) extended.statement = entry.statement;
+      if (entry.feature !== undefined) extended.feature = entry.feature;
       extended.from = 'shape+app';
       continue;
     }
@@ -185,6 +190,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       name: nameOf(entry.name),
       mapping: { ...entry.mapping },
       ...(entry.statement === undefined ? {} : { statement: entry.statement }),
+      ...(entry.feature === undefined ? {} : { feature: entry.feature }),
       from: 'app',
     });
   }
@@ -198,7 +204,7 @@ export interface StoredProfile {
   name: string;
   table: string;
   mapping: ProfileMapping;
-  options: { numberColumn?: string; statement?: StatementSources };
+  options: { numberColumn?: string; statement?: StatementSources; balanceAfter?: BalanceAfter };
   orderBy: string | null;
 }
 
@@ -220,6 +226,7 @@ export function storedProfile(
   if (own === undefined || table === null) return { reason: `"${plan.table}" is not a table the install made` };
 
   const mapping: ProfileMapping = {};
+  let balanceAfter: BalanceAfter | undefined;
   let orderBy: string | null = null;
   for (const [slot, source] of Object.entries(plan.mapping)) {
     if ('collection' in source) {
@@ -240,12 +247,38 @@ export function storedProfile(
       const linked = references === undefined ? null : realId(references);
       if (linked === null) return { reason: `"${plan.table}.${source.via}" does not point at a table the install made` };
       mapping[slot] = { ref: source.via, column: source.column, table: linked };
+      /*
+       * A slot reading the linked row's BALANCE, where that balance is kept by
+       * a rollup over this very table (a receipt reading its invoice's
+       * balance): the document prints the balance as it stood right after
+       * this row, not as it stands when drawn — so a receipt printed again
+       * after a later payment still says what was left at this one. Ordered
+       * by this table's day (a payment's `paid_on`), then its key.
+       */
+      const rollup = tableOf(references!)
+        ?.columns.map((column) => (column.rules as { rollup?: RollupRule } | undefined)?.rollup)
+        .find((r) => r !== undefined && r.from === plan.table && r.via === source.via && r.balance?.column === source.column);
+      if (rollup?.balance !== undefined) {
+        const day = own.columns.find((column) => column.type === 'date')?.ref;
+        balanceAfter = {
+          via: source.via,
+          column: source.column,
+          of: rollup.balance.of,
+          ...(rollup.balance.minus === undefined ? {} : { minus: [...rollup.balance.minus] }),
+          sum: rollup.sum,
+          ...(rollup.times === undefined ? {} : { times: rollup.times }),
+          ...(rollup.where === undefined ? {} : { where: { ...rollup.where } }),
+          ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
+          ...(day === undefined ? {} : { date: day }),
+        };
+      }
     } else {
       mapping[slot] = { column: source.column };
     }
   }
 
   const options: StoredProfile['options'] = {};
+  if (balanceAfter !== undefined) options.balanceAfter = balanceAfter;
   // A row numbered when it was made (a formatted number) carries the document's number.
   const numbered = own.columns.find((column) => (column.rules as { format?: unknown } | undefined)?.format !== undefined);
   if (numbered !== undefined) options.numberColumn = numbered.ref;
@@ -276,10 +309,59 @@ export interface AppProfilesResult {
   updated: { id: string; kind: string; table: string }[];
   removed: string[];
   skipped: SkippedProfile[];
+  /**
+   * Documents an attached add-on does not draw — the app asks for a kind the
+   * add-on has never heard of. When any is here NOTHING was written: the
+   * caller refuses the install (`installAppDocuments` does).
+   */
+  refused: SkippedProfile[];
+}
+
+/**
+ * Which add-ons the app can use right now, and what they draw.
+ *
+ * `attached`: the add-ons attached to the app and switched on — a document
+ * whose add-on (or whose feature's add-ons) is not among them is the feature
+ * being off, and is skipped, never refused. `kindsOf`: the kinds an add-on's
+ * loaded provider draws, or null when none is loaded (skipped the same way:
+ * nothing can be checked, and nothing could be drawn).
+ */
+export interface AddOnAvailability {
+  attached: ReadonlySet<string>;
+  kindsOf: (addOnKey: string) => ReadonlySet<string> | null;
+}
+
+/**
+ * Whether a planned document can be drawn for the app now: every add-on it
+ * needs is attached — its own, and those of the feature it belongs to — and
+ * the add-on draws its kind. `off` is the feature being off; `unknown` is the
+ * app asking for a kind the attached add-on does not draw.
+ */
+export function availabilityOf(
+  plan: { addOn: string; kind: string; feature?: string | undefined },
+  manifest: AppManifest,
+  availability: AddOnAvailability,
+): { state: 'on' } | { state: 'off' | 'unknown'; reason: string } {
+  const feature = plan.feature === undefined ? undefined : manifest.addOns?.features?.find((f) => f.id === plan.feature);
+  const needed = [plan.addOn, ...(feature?.requires ?? [])];
+  const missing = needed.find((key) => !availability.attached.has(key));
+  if (missing !== undefined) {
+    return {
+      state: 'off',
+      reason:
+        plan.feature === undefined
+          ? `the "${missing}" add-on is not attached to the app, so this document is off`
+          : `the "${missing}" add-on is not attached to the app, so its feature "${plan.feature}" is off`,
+    };
+  }
+  const kinds = availability.kindsOf(plan.addOn);
+  if (kinds === null) return { state: 'off', reason: `the "${plan.addOn}" add-on draws no documents right now` };
+  if (!kinds.has(plan.kind)) return { state: 'unknown', reason: `the "${plan.addOn}" add-on does not draw a "${plan.kind}" document` };
+  return { state: 'on' };
 }
 
 /** Options the app decides; an operator's own (locale, paper, formats…) are kept across an update. */
-const APP_OPTIONS = ['numberColumn', 'statement'] as const;
+const APP_OPTIONS = ['numberColumn', 'statement', 'balanceAfter'] as const;
 
 /**
  * Make (install) or bring up to date (update) an app's document profiles on
@@ -292,14 +374,32 @@ export async function makeAppProfiles(input: {
   connectionId: string;
   realId: (ref: string) => string | null;
   shapes: InstalledShapes;
+  /**
+   * What the app's add-ons can draw. Absent: every planned profile is made
+   * (an installed add-on is enough), as before attachments were checked.
+   */
+  availability?: AddOnAvailability | undefined;
   createdBy?: string | null | undefined;
   at?: number | undefined;
 }): Promise<AppProfilesResult> {
   const at = input.at ?? Date.now();
   const repo = documentProfilesRepo(input.meta);
   const appKey = input.manifest.key;
-  const { planned, skipped } = planAppProfiles(input.manifest, input.shapes);
-  const result: AppProfilesResult = { made: [], updated: [], removed: [], skipped: [...skipped] };
+  const plan = planAppProfiles(input.manifest, input.shapes);
+  const result: AppProfilesResult = { made: [], updated: [], removed: [], skipped: [...plan.skipped], refused: [] };
+
+  /*
+   * Checked for EVERY profile before anything is written: a kind the attached
+   * add-on does not draw refuses the whole set, so an install never ends with
+   * half its documents made. A feature that is off is only a skip.
+   */
+  const planned: PlannedProfile[] = [];
+  for (const candidate of plan.planned) {
+    const verdict = input.availability === undefined ? ({ state: 'on' } as const) : availabilityOf(candidate, input.manifest, input.availability);
+    if (verdict.state === 'on') planned.push(candidate);
+    else (verdict.state === 'off' ? result.skipped : result.refused).push({ kind: candidate.kind, table: candidate.table, reason: verdict.reason });
+  }
+  if (result.refused.length > 0) return result;
 
   const owned = await repo.listOwnedBy(input.connectionId, appKey);
   const everyone = await repo.list({ connectionId: input.connectionId });

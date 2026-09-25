@@ -231,9 +231,13 @@ describe.each(LEGS)('documents for an app\'s own rows on %s', (dialect, reachabl
     // A failed render of her own invoice.
     expect(await seen(await drawnFor(profile('invoice').id, 'invoice', { table, id: 1 }, { failed: true }))).toBe(404);
 
-    // Drawn from values for her claim: on this key it is hers; on another key, or with no key recorded, it is not.
+    /*
+     * Drawn from values for her claim, on this very key: still not shown —
+     * drawing from values is an operator key's door, and this key's is shut.
+     * Nor on another key, nor with no key recorded.
+     */
     const own = await drawnFor(null, 'invoice', null, { claim: { column: 'id', value: '1', keyId: h.keyId } });
-    expect(await seen(own)).toBe(200);
+    expect(await seen(own)).toBe(404);
     expect(await seen(own, 'ben')).toBe(404);
     expect(await seen(await drawnFor(null, 'invoice', null, { claim: { column: 'id', value: '1', keyId: 'pbk_another' } }))).toBe(404);
     expect(await seen(await drawnFor(null, 'invoice', null, { claim: { column: 'id', value: '1' } }))).toBe(404);

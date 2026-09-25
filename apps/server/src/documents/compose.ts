@@ -26,20 +26,23 @@
  * resolve at all.
  */
 
+import type { Dialect } from '@adminium/engine';
 import type { Kysely } from 'kysely';
 
 import { addOnSettingsRepo, settingsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
+import { compileFilter, type RecordFilter } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import { wallTimesAsInstants } from '../crud/instants.js';
 import { fetchByPk } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
 import { DocumentReadError, type RenderDeps, type SourceRead } from './render.js';
-import { dayOn, readStatement, type StatementPeriod, type StatementSources } from './statement.js';
+import { dayOf, dayOn, readStatement, scaled, unscaled, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
 import type { ProfileMapping } from './subject.js';
 
 /** Lines read per round trip, and the most one document may list. */
@@ -69,6 +72,20 @@ export function outboundKey(view: SnapshotView, table: ResolvedTable, column: st
 }
 
 /**
+ * A row as a document reads it: a `date` column is its DAY (`YYYY-MM-DD`) —
+ * a driver hands one back as the server's local midnight, which is no instant
+ * at all — and on SQLite a timestamp's wall time is the instant it denotes.
+ * The subject then prints a moment on the venue's day (`subject.ts`).
+ */
+function spelled(row: Record<string, unknown>, table: ResolvedTable, dialect: Dialect): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...wallTimesAsInstants(row, table.columns, dialect) };
+  for (const [name, column] of table.columns) {
+    if (column.logicalType === 'date' && out[name] instanceof Date) out[name] = dayOf(out[name]);
+  }
+  return out;
+}
+
+/**
  * The columns of linked rows a mapping reads, one query per foreign key: a
  * document naming the client's company, address and tax number reads the
  * client row once. Keyed `<fk>.<column>`, the way `buildSubject` asks.
@@ -79,6 +96,8 @@ async function readLookups(
   table: ResolvedTable,
   row: Readonly<Record<string, unknown>>,
   mapping: ProfileMapping,
+  dialect: Dialect,
+  narrow?: Narrowing,
 ): Promise<Record<string, unknown>> {
   const wanted = new Map<string, Set<string>>();
   for (const mapped of Object.values(mapping)) {
@@ -103,14 +122,18 @@ async function readLookups(
     // that slot empty, which a required slot reports by name.
     const readable = [...columns].filter((column) => linked.columns.has(column));
     if (readable.length === 0) continue;
-    const found = (await db
+    let query = db
       .selectFrom(linked.id as never)
       .select(readable as never)
-      .where(target.column as never, '=', value as never)
-      .limit(1)
-      .executeTakeFirst()) as Record<string, unknown> | undefined;
+      .where(target.column as never, '=', value as never);
+    // A public reader sees a linked row only as far as their own access to
+    // its table goes: outside it, the slot stays empty.
+    const narrowing = narrow?.(linked.id) ?? null;
+    if (narrowing !== null) query = narrowing(query) as typeof query;
+    const found = (await query.limit(1).executeTakeFirst()) as Record<string, unknown> | undefined;
     if (found === undefined) continue;
-    for (const column of readable) out[`${fk}.${column}`] = found[column];
+    const read = spelled(found, linked, dialect);
+    for (const column of readable) out[`${fk}.${column}`] = read[column];
   }
   return out;
 }
@@ -128,6 +151,7 @@ async function readLines(
   fkColumn: string,
   parentValue: unknown,
   orderBy: string | null,
+  dialect: Dialect,
 ): Promise<Record<string, unknown>[]> {
   if (!child.columns.has(fkColumn)) return [];
   const rows: Record<string, unknown>[] = [];
@@ -139,7 +163,7 @@ async function readLines(
     if (orderBy !== null && child.columns.has(orderBy)) query = query.orderBy(orderBy as never, 'asc');
     for (const pk of child.primaryKey) query = query.orderBy(pk as never, 'asc');
     const page = (await query.limit(LINES_PAGE).offset(offset).execute()) as Record<string, unknown>[];
-    rows.push(...page);
+    rows.push(...page.map((line) => spelled(line, child, dialect)));
     if (rows.length > DOCUMENT_MAX_LINES) {
       throw new DocumentReadError(`more than ${String(DOCUMENT_MAX_LINES)} lines in ${child.name}`);
     }
@@ -155,11 +179,106 @@ function rowCurrency(table: ResolvedTable, row: Readonly<Record<string, unknown>
   return typeof value === 'string' && /^[A-Za-z]{3}$/.test(value.trim()) ? value.trim().toUpperCase() : null;
 }
 
+/**
+ * A linked row's balance as it stood right after THIS row — a receipt's
+ * "balance left" (see `app-profiles.ts`): the linked row's `of`, less its
+ * `minus` columns, less this table's rows for it that its rollup counts, in
+ * (date, key) order up to and including this one.
+ */
+export interface BalanceAfter {
+  /** The slot's foreign key and column, as the mapping names them. */
+  via: string;
+  column: string;
+  of: string;
+  minus?: readonly string[] | undefined;
+  sum: string;
+  times?: string | undefined;
+  where?: { column: string; eq: string | number | boolean } | undefined;
+  unlessSet?: string | undefined;
+  /** This table's day the rows are ordered by (a payment's `paid_on`); else by key alone. */
+  date?: string | undefined;
+}
+
 /** What an app's profile carries beyond the mapping (see `app-profiles.ts`). */
 interface ProfileOptions {
   /** The row's own formatted number is the document's; the register's counter is not used. */
   numberColumn?: string;
   statement?: StatementSources;
+  balanceAfter?: BalanceAfter;
+}
+
+/** The most rows one balance-after reads; past it the render fails rather than guesses. */
+const BALANCE_ROWS_MAX = 5_000;
+
+/** A stored bool (true, 1, '1', 't'), across the drivers' spellings. */
+function truthy(value: unknown): boolean {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') return ['1', 't', 'true'].includes(value.toLowerCase());
+  return false;
+}
+
+/** One row's place in (date, key) order: an undated row comes after every dated one. */
+function orderOf(row: Readonly<Record<string, unknown>>, date: string | undefined, key: string): [string, string] {
+  const day = date === undefined ? '' : (dayOf(row[date]) ?? '9999-99-99');
+  return [day, String(row[key] ?? '')];
+}
+
+function before(a: [string, string], b: [string, string]): boolean {
+  if (a[0] !== b[0]) return a[0] < b[0];
+  const [x, y] = [Number(a[1]), Number(b[1])];
+  if (Number.isFinite(x) && Number.isFinite(y) && a[1] !== '' && b[1] !== '') return x <= y;
+  return a[1] <= b[1];
+}
+
+/** The linked row's balance right after this row, as decimal text; null when it cannot be read. */
+async function balanceAfter(
+  db: Kysely<SourceDatabase>,
+  view: SnapshotView,
+  table: ResolvedTable,
+  row: Readonly<Record<string, unknown>>,
+  spec: BalanceAfter,
+  narrow?: Narrowing,
+): Promise<string | null> {
+  const linkValue = row[spec.via];
+  const key = table.primaryKey[0];
+  if (linkValue === null || linkValue === undefined || key === undefined) return null;
+  const target = outboundKey(view, table, spec.via);
+  if (target === null) return null;
+  const linked = view.table(target.tableId);
+  const heads = [spec.of, ...(spec.minus ?? [])];
+  if (heads.some((column) => !linked.columns.has(column))) return null;
+  let head = db
+    .selectFrom(linked.id as never)
+    .select(heads as never)
+    .where(target.column as never, '=', linkValue as never);
+  const narrowing = narrow?.(linked.id) ?? null;
+  if (narrowing !== null) head = narrowing(head) as typeof head;
+  const found = (await head.limit(1).executeTakeFirst()) as Record<string, unknown> | undefined;
+  if (found === undefined) return null;
+
+  const wanted = [key, spec.sum, spec.times, spec.where?.column, spec.unlessSet, spec.date].filter((c): c is string => c !== undefined);
+  if (wanted.some((column) => !table.columns.has(column))) return null;
+  const siblings = (await db
+    .selectFrom(table.id as never)
+    .select([...new Set(wanted)] as never)
+    .where(spec.via as never, '=', linkValue as never)
+    .limit(BALANCE_ROWS_MAX + 1)
+    .execute()) as Record<string, unknown>[];
+  if (siblings.length > BALANCE_ROWS_MAX) throw new DocumentReadError(`more than ${String(BALANCE_ROWS_MAX)} rows in ${table.name}`);
+
+  const mine = orderOf(row, spec.date, key);
+  let balance = scaled(found[spec.of]) ?? 0n;
+  for (const column of spec.minus ?? []) balance -= scaled(found[column]) ?? 0n;
+  for (const sibling of siblings) {
+    const where = spec.where;
+    if (where !== undefined && (typeof where.eq === 'boolean' ? truthy(sibling[where.column]) !== where.eq : String(sibling[where.column]) !== String(where.eq))) continue;
+    if (spec.unlessSet !== undefined && sibling[spec.unlessSet] !== null && sibling[spec.unlessSet] !== undefined && sibling[spec.unlessSet] !== '') continue;
+    if (!before(orderOf(sibling, spec.date, key), mine)) continue;
+    const amount = scaled(sibling[spec.sum]) ?? 0n;
+    const times = spec.times === undefined ? null : scaled(sibling[spec.times]);
+    balance -= times === null ? amount : (amount * times) / 1_000_000n;
+  }
+  return unscaled(balance);
 }
 
 export interface DocumentPipelineDeps {
@@ -263,9 +382,9 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
      * `tables` is the mapped-table list the ROUTE resolved grants over; the
      * read itself follows the mapping, so it is named and not used here.
      */
-    readSource: async ({ profile, pk, period, at }): Promise<SourceRead | null> => {
+    readSource: async ({ profile, pk, period, at, readFilters }): Promise<SourceRead | null> => {
       const view = await loadSnapshotView(deps.meta, profile.connectionId);
-      const { db } = await deps.manager.data(profile.connectionId);
+      const { db, dialect } = await deps.manager.data(profile.connectionId);
       return await readProfileSource({
         db: db as Kysely<SourceDatabase>,
         view,
@@ -274,8 +393,32 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
         period,
         at,
         facts: await connectionFacts(deps.meta, profile.connectionId),
+        dialect,
+        ...(readFilters === undefined ? {} : { narrow: narrowingOf(db as Kysely<SourceDatabase>, view, dialect, readFilters) }),
       });
     },
+  };
+}
+
+/**
+ * A public reader's filters as a {@link Narrowing}: each table's filter
+ * compiled against that table and ANDed into its query. A table with no entry
+ * is read whole — the caller decided which tables need one.
+ */
+export function narrowingOf(
+  db: Kysely<SourceDatabase>,
+  view: SnapshotView,
+  dialect: Dialect,
+  filters: ReadonlyMap<string, RecordFilter | null>,
+): Narrowing {
+  return (tableId) => {
+    const filter = filters.get(tableId) ?? null;
+    if (filter === null) return null;
+    const table = view.table(tableId);
+    // Server-side and never shown: a filter on a personal column still applies.
+    const ctx = { view, table, canReadPii: true, dynamic: db.dynamic, dialect };
+    return (query) =>
+      (query as { where: (build: (eb: never) => unknown) => unknown }).where((eb) => compileFilter(eb, ctx, filter));
   };
 }
 
@@ -292,14 +435,19 @@ export async function readProfileSource(input: {
   period?: StatementPeriod | undefined;
   at: number;
   facts: { currency: string; timezone: string };
+  /** A public reader's narrowing of the linked and statement tables. */
+  narrow?: Narrowing | undefined;
+  /** How this connection's driver spells days and times. */
+  dialect: Dialect;
 }): Promise<SourceRead | null> {
-  const { db, view, profile, facts } = input;
+  const { db, view, profile, facts, dialect } = input;
   const table = view.table(profile.table);
 
-  const row = (await fetchByPk(db, table, input.pk as never)) as Record<string, unknown> | undefined;
+  const stored = (await fetchByPk(db, table, input.pk as never)) as Record<string, unknown> | undefined;
   // The row was deleted between the trigger and the job — the undo
   // window's ordinary outcome, and a SKIP rather than a failure.
-  if (row === undefined) return null;
+  if (stored === undefined) return null;
+  const row = spelled(stored, table, dialect);
 
   /*
    * Child rows, one query per mapped collection.
@@ -327,6 +475,7 @@ export async function readProfileSource(input: {
       mapped.collection.fkColumn,
       row[parentKey],
       mapped.collection.orderBy ?? profile.orderBy ?? null,
+      dialect,
     );
   }
 
@@ -342,7 +491,24 @@ export async function readProfileSource(input: {
           clientKey: row[parentKey],
           period: input.period ?? 'all',
           today: dayOn(input.at, facts.timezone),
+          ...(input.narrow === undefined ? {} : { narrow: input.narrow }),
         });
+
+  /*
+   * The linked rows' columns, and — for a receipt — the balance as it stood
+   * right after this row rather than as it stands now: a receipt drawn again
+   * after a later payment still says what was left at this one.
+   */
+  const lookupsWithBalance = async (): Promise<Record<string, unknown>> => {
+    const lookups = await readLookups(db, view, table, row, mapping, dialect, input.narrow);
+    const spec = options.balanceAfter;
+    if (spec !== undefined) {
+      const left = await balanceAfter(db, view, table, row, spec, input.narrow);
+      if (left !== null) lookups[`${spec.via}.${spec.column}`] = left;
+      else delete lookups[`${spec.via}.${spec.column}`];
+    }
+    return lookups;
+  };
 
   /*
    * The connection's OWN timezone (0018), not the server's: a document dated
@@ -353,7 +519,7 @@ export async function readProfileSource(input: {
   return {
     row,
     collections,
-    lookups: await readLookups(db, view, table, row, mapping),
+    lookups: await lookupsWithBalance(),
     entity: {
       connectionId: profile.connectionId,
       table: profile.table,

@@ -56,6 +56,13 @@ const PAGE = 500;
 /** Decimals every amount is summed at; more than any currency or column here keeps. */
 const SUM_SCALE = 6;
 
+/**
+ * A narrowing a public reader brings for one table: given the table's rows
+ * query, the same query with that reader's own filter ANDed in. Null: the
+ * table is read whole (a staff render, read with its own grants).
+ */
+export type Narrowing = (tableId: string) => ((query: unknown) => unknown) | null;
+
 export class StatementTooLargeError extends Error {
   constructor(table: string) {
     super(`the statement lists more than ${String(STATEMENT_MAX_ROWS)} rows of ${table}`);
@@ -146,6 +153,7 @@ async function readSource(
   source: StatementSource,
   clientKey: unknown,
   kind: Entry['kind'],
+  narrow?: Narrowing,
 ): Promise<Entry[]> {
   const table = view.table(source.table);
   // Every column named must be a column of the table the snapshot knows:
@@ -164,6 +172,8 @@ async function readSource(
       .selectFrom(table.id as never)
       .select(columns as never)
       .where(source.via as never, '=', clientKey as never);
+    const narrowing = narrow?.(table.id) ?? null;
+    if (narrowing !== null) query = narrowing(query) as typeof query;
     query = query.orderBy(source.date as never, 'asc');
     for (const pk of table.primaryKey) query = query.orderBy(pk as never, 'asc');
     const rows = (await query.limit(PAGE).offset(offset).execute()) as Record<string, unknown>[];
@@ -223,11 +233,13 @@ export async function readStatement(input: {
   period: StatementPeriod;
   /** Today on the connection's clock. */
   today: string;
+  /** What a public reader may see of each source (see {@link Narrowing}). */
+  narrow?: Narrowing | undefined;
 }): Promise<StatementRead> {
   const { from, to } = periodBounds(input.period, input.today);
   const entries = [
-    ...(await readSource(input.db, input.view, input.sources.documents, input.clientKey, 'document')),
-    ...(await readSource(input.db, input.view, input.sources.payments, input.clientKey, 'payment')),
+    ...(await readSource(input.db, input.view, input.sources.documents, input.clientKey, 'document', input.narrow)),
+    ...(await readSource(input.db, input.view, input.sources.payments, input.clientKey, 'payment', input.narrow)),
   ].filter((entry) => entry.date <= to);
 
   let opening = 0n;

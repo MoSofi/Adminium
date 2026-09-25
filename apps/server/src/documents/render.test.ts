@@ -36,7 +36,7 @@ import {
 
 import type { AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { FileStore } from '../files/store.js';
-import { renderDocument, type RenderDeps, type SourceRead } from './render.js';
+import { documentLocale, renderDocument, type RenderDeps, type SourceRead } from './render.js';
 
 const T0 = 1_750_000_000_000;
 
@@ -375,12 +375,46 @@ describe('the render pipeline', () => {
     expect(await sequences.peek(profile.id)).toBe(1);
   });
 
+  /** The source read for one row: its own entity, so the register tells rows apart. */
+  const rowSource = ({ pk }: { pk: Readonly<Record<string, unknown>> }) =>
+    Promise.resolve({ ...SOURCE, entity: { ...ENTITY, pk: { ...pk }, label: String(pk.id) } });
+
   it('numbers consecutively across renders of one profile', async () => {
     const profile = await makeProfile();
-    const one = await renderDocument(deps(), { profileId: profile.id, pk: { id: 1 } });
-    const two = await renderDocument(deps(), { profileId: profile.id, pk: { id: 2 } });
+    const one = await renderDocument(deps({ readSource: rowSource }), { profileId: profile.id, pk: { id: 1 } });
+    const two = await renderDocument(deps({ readSource: rowSource }), { profileId: profile.id, pk: { id: 2 } });
     expect(one.status === 'rendered' && one.document.number).toBe('INV-1');
     expect(two.status === 'rendered' && two.document.number).toBe('INV-2');
+  });
+
+  it('a row drawn again keeps its number, whatever language it is drawn in; a voided one is replaced', async () => {
+    const profile = await makeProfile();
+    const draw = (locale: string) => renderDocument(deps({ readSource: rowSource }), { profileId: profile.id, pk: { id: 7 }, locale });
+    const numbers: (string | null)[] = [];
+    let last = null as Awaited<ReturnType<typeof draw>> | null;
+    for (const locale of ['en-US', 'fr-FR', 'de', 'zz', 'qq-QQ', 'en-GB']) {
+      last = await draw(locale);
+      numbers.push(last.status === 'rendered' ? last.document.number : null);
+    }
+    expect(new Set(numbers)).toEqual(new Set(['INV-1']));
+    expect(await sequences.peek(profile.id)).toBe(2);
+    if (last?.status !== 'rendered') throw new Error('not drawn');
+    await documents.markVoided(last.document.id, 'operator');
+    // Every rendered copy of it voided: the next draw is a new document.
+    for (const row of await documents.list({ profileId: profile.id })) if (row.status === 'rendered') await documents.markVoided(row.id, 'operator');
+    const fresh = await draw('en-US');
+    expect(fresh.status === 'rendered' && fresh.document.number).toBe('INV-2');
+  });
+
+  it('draws only in a language documents are written in', () => {
+    expect(documentLocale('fr-FR', undefined)).toBe('fr-FR');
+    expect(documentLocale('EN-gb', undefined)).toBe('en-US');
+    expect(documentLocale('de', undefined)).toBe('de-DE');
+    expect(documentLocale('zh-Hant-HK', undefined)).toBe('zh-TW');
+    expect(documentLocale('zh', undefined)).toBe('zh-CN');
+    expect(documentLocale('zz', 'da-DK')).toBe('da-DK');
+    expect(documentLocale('not a tag!', 'viewer')).toBe('en-US');
+    expect(documentLocale(undefined, 'cs')).toBe('cs-CZ');
   });
 
   it('hands the provider its own settings and nothing else', async () => {

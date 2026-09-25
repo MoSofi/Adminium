@@ -1534,6 +1534,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           storage,
           runtime: () => addOnRuntime,
+          // An app's staff screen draws through the same pipeline as every other door.
+          pipeline: documents,
           enqueue: (input) => jobs.enqueue(input as never),
         }),
       );
@@ -1638,6 +1640,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
           catalog: appCatalog,
           addOns: { installer: addOnInstaller, catalog: addOnCatalog, bundledDir: resolve(BUNDLED_ADD_ONS_DIR) },
+          // Which add-ons are loaded now: an app's documents are on only while theirs is.
+          addOnRuntime: () => addOnRuntime,
           sampleData: sampleDataDeps,
           // What an app's guests may call: endpoints and a browser key made
           // through the same service the API keys page saves with.

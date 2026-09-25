@@ -18,6 +18,8 @@
 
 import { z } from 'zod';
 
+import { STATEMENT_PERIODS } from '../../documents/statement.js';
+
 export const documentIdParams = z.object({ id: z.string().min(1).max(36) }).strict();
 
 /** A `RecordRef` as a query string: `<connectionId>|<table>|<pkJson>`. */
@@ -91,8 +93,41 @@ export const documentRenderBody = z
     /** The source row's primary key. */
     pk: z.record(z.string(), z.unknown()),
     locale: z.string().max(16).optional(),
+    /** A statement's period: everything, this year, or the last twelve months — never a date. */
+    period: z.enum(STATEMENT_PERIODS).optional(),
   })
   .strict();
+
+// --- an app's own screen asks for a document --------------------------------
+
+export const appDocumentParams = z.object({ key: z.string().min(1).max(80) }).strict();
+
+/**
+ * `POST /apps/:key/documents/render`: a kind of document for one of the app's
+ * rows, named the way the app names it — its table ref and the row's key.
+ */
+export const appDocumentRenderBody = z
+  .object({
+    kind: z.string().regex(/^[a-z][a-z0-9-]*$/).max(40),
+    /** The app's own name for the table (`invoices`), not the real one. */
+    ref: z.string().regex(/^[a-z][a-z0-9_]*$/).max(64),
+    /** The row's primary key, by column. */
+    pk: z.record(z.string().max(128), z.union([z.string().max(200), z.number()])),
+    period: z.enum(STATEMENT_PERIODS).optional(),
+    locale: z.string().max(35).optional(),
+  })
+  .strict();
+
+export const appDocumentRenderReply = z.object({
+  id: z.string(),
+  /** Where the bytes are, for the person who asked (the register's own content route). */
+  contentUrl: z.string(),
+  /** The HTML copy, sandboxed for printing. */
+  printUrl: z.string(),
+  /** True when an unchanged row answered with the document already drawn. */
+  reused: z.boolean(),
+  document: documentReply,
+});
 
 export const documentRenderReply = z.object({ jobId: z.string() });
 

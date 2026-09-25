@@ -126,10 +126,33 @@ function toLines(value: unknown): string[] {
   return text === '' ? [] : text.split('\n').filter((line) => line !== '');
 }
 
-/** An ISO day, however the driver spelled the column. */
-function toDate(value: unknown): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
+/** A moment's day on a clock, as `YYYY-MM-DD`. */
+function dayIn(at: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+  } catch {
+    return at.toISOString().slice(0, 10);
+  }
+}
+
+/** An instant spelled as text: a date, a time, and its zone (`Z` or an offset). */
+const INSTANT = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}(:?\d{2})?)$/i;
+
+/**
+ * An ISO day. A plain day is already one; a MOMENT (a timestamp's instant, as
+ * a `Date` or as zoned text) is the day it fell on at the venue — `timezone`,
+ * the connection's clock — never the UTC day: a payment voided at 00:30 in
+ * Berlin was voided on that Berlin day. A plain `date` column reaches here as
+ * its day already (the source read spells it so), because a driver's `Date`
+ * for a day is the server's local midnight, not an instant at the venue.
+ */
+function toDate(value: unknown, timezone = 'UTC'): string {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : dayIn(value, timezone);
   const text = toText(value);
+  if (INSTANT.test(text.trim())) {
+    const at = new Date(text.trim().replace(' ', 'T'));
+    if (!Number.isNaN(at.getTime())) return dayIn(at, timezone);
+  }
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
 }
 
@@ -140,7 +163,7 @@ function toDate(value: unknown): string {
  * minor units of that currency, so ¥1,200 is 1200 and 1.250 KWD is 1250 —
  * never a hundredth of either.
  */
-export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2): unknown {
+export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2, timezone = 'UTC'): unknown {
   switch (type) {
     case 'money':
       return toMinorUnits(value, moneyScale);
@@ -153,7 +176,7 @@ export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2): unkn
     case 'text[]':
       return toLines(value);
     case 'date':
-      return toDate(value);
+      return toDate(value, timezone);
     case 'collection':
       // Rows are coerced column by column by the caller; a collection slot
       // itself never holds a scalar.
@@ -231,6 +254,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
   const collections: Record<string, readonly Readonly<Record<string, unknown>>[]> = {};
   const missing: string[] = [];
   const scale = currencyScale(input.currency);
+  const zone = input.now.timezone;
 
   for (const slot of input.slots) {
     const mapped = input.mapping[slot.id];
@@ -252,7 +276,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
             const out: Record<string, unknown> = {};
             for (const column of slot.columns ?? []) {
               if (row[column.id] === undefined) continue;
-              out[column.id] = coerceSlot(column.type, row[column.id], scale);
+              out[column.id] = coerceSlot(column.type, row[column.id], scale, zone);
             }
             return out;
           });
@@ -272,7 +296,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
         for (const column of columns) {
           const source = mapped.collection.columns[column.id];
           if (source === undefined) continue;
-          out[column.id] = coerceSlot(column.type, row[source], scale);
+          out[column.id] = coerceSlot(column.type, row[source], scale, zone);
         }
         return out;
       });
@@ -294,7 +318,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
        */
       const typed = input.values?.[slot.id];
       if (typed !== undefined && typed !== null && typed !== '') {
-        const value = coerceSlot(slot.type, typed, scale);
+        const value = coerceSlot(slot.type, typed, scale, zone);
         if (value !== null && value !== '') {
           fields[slot.id] = value;
           continue;
@@ -311,7 +335,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
           ? input.lookups?.[`${mapped.ref}.${mapped.column}`]
           : undefined;
 
-    const value = coerceSlot(slot.type, raw, scale);
+    const value = coerceSlot(slot.type, raw, scale, zone);
     if (slot.required && (value === null || value === '' )) {
       missing.push(slot.id);
       continue;

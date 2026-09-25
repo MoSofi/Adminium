@@ -146,7 +146,8 @@ import {
 } from '../../apps/manifest-roles.js';
 import { installPublicAccess, planPublicEndpoints, publicAccessWarnings, staffBindingOf } from '../../apps/manifest-public.js';
 import { installOutbox, removeOutbox, templateProblems, type OutboxResult } from '../../apps/manifest-outbox.js';
-import { installedShapes, makeAppProfiles, removeAppProfiles } from '../../documents/app-profiles.js';
+import { installAppDocuments, uninstallAppDocuments } from '../../documents/app-documents.js';
+import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import type { EndpointService } from '../../public-api/endpoint-service.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import type { DsnCrypto } from '@adminium/meta';
@@ -259,6 +260,8 @@ export interface AppRoutesDeps {
   catalog?: AppCatalogClient | undefined;
   /** Tests only; production compares minimums with the running version. */
   serverVersion?: string | undefined;
+  /** The add-ons loaded now: an app's documents are made only while their add-on is. */
+  addOnRuntime?: (() => AddOnRuntimeState | null) | undefined;
   /**
    * The add-on installer, for the add-ons an app needs: the add-on store, its
    * schema target and the runtime rebuild — the same ones the add-on routes
@@ -998,14 +1001,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * that cannot be made (its add-on is not here) is said, never half-made.
        */
       if (connectionId !== null && manifest.kind === 'app') {
-        const realNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
-        const model = await deps.publicAccess?.viewFor(connectionId);
-        const documents = await makeAppProfiles({
+        const documents = await installAppDocuments({
           meta: deps.meta,
           manifest,
           connectionId,
-          realId: (ref) => model?.model.tables.find((table) => table.name === (realNames[ref] ?? ref))?.id ?? null,
-          shapes: await installedShapes(deps.meta),
+          view: (await deps.publicAccess?.viewFor(connectionId)) ?? null,
+          names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key)),
+          runtime: deps.addOnRuntime ?? (() => null),
           createdBy: userId,
         });
         if (documents.skipped.length > 0) {
@@ -3330,7 +3332,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         // Its emails: the outbox definition, and the templates nobody edited.
         const emailsRemoved = await removeOutbox(deps.meta, key);
         // The document profiles it made; an operator's own stay.
-        if (plan.connectionId !== null) await removeAppProfiles(deps.meta, plan.connectionId, key);
+        if (plan.connectionId !== null) await uninstallAppDocuments(deps.meta, plan.connectionId, key);
         /*
          * 5. Its tables: dropped only when asked, with the key typed back, and
          *    only the ones this app made and nothing else names. Every other

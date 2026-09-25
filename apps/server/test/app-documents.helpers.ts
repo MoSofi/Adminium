@@ -44,6 +44,7 @@ export function invoiceShape(): Record<string, unknown> {
           { ref: 'number', type: 'text', maxLength: 24, nullable: true },
           { ref: 'total', type: 'decimal', scale: 'currency', nullable: true },
           { ref: 'currency', type: 'text', maxLength: 3, nullable: true },
+          { ref: 'balance', type: 'decimal', scale: 'currency', nullable: true },
         ],
       },
       lines: {
@@ -56,7 +57,13 @@ export function invoiceShape(): Record<string, unknown> {
         ],
       },
       payments: {
-        columns: [id, { ref: 'invoice_id', type: 'fk', references: 'document' }, { ref: 'amount', type: 'decimal', scale: 'currency' }],
+        columns: [
+          id,
+          { ref: 'invoice_id', type: 'fk', references: 'document' },
+          { ref: 'amount', type: 'decimal', scale: 'currency' },
+          { ref: 'paid_on', type: 'date', nullable: true },
+          { ref: 'voided_at', type: 'timestamptz', nullable: true },
+        ],
       },
     },
     documentProfiles: [
@@ -74,7 +81,13 @@ export function invoiceShape(): Record<string, unknown> {
         kind: 'receipt',
         part: 'payments',
         name: 'Receipt',
-        mapping: { amount: { column: 'amount' }, invoiceNumber: { via: 'invoice_id', column: 'number' } },
+        mapping: {
+          amount: { column: 'amount' },
+          invoiceNumber: { via: 'invoice_id', column: 'number' },
+          balanceAfter: { via: 'invoice_id', column: 'balance' },
+          issuedAt: { column: 'paid_on' },
+          voidedOn: { column: 'voided_at' },
+        },
       },
     ],
   };
@@ -90,9 +103,12 @@ export function studioTables(): Record<string, unknown>[] {
   Object.assign(find('invoice_lines'), { builtOn: 'invoices/invoice@1', part: 'lines' });
   columns('invoice_lines').push({ ref: 'description', type: 'text', maxLength: 200, nullable: true });
   Object.assign(find('payments'), { builtOn: 'invoices/invoice@1', part: 'payments' });
+  // A client who referred another's invoice: a second way to reach an invoice row.
+  columns('invoices').push({ ref: 'referrer_id', type: 'fk', references: 'clients', nullable: true });
   columns('payments').push(
     { ref: 'client_id', type: 'fk', references: 'clients', nullable: true },
     { ref: 'paid_on', type: 'date', nullable: true },
+    { ref: 'voided_at', type: 'timestamptz', nullable: true },
   );
   tables.push({
     ref: 'requests',
@@ -148,8 +164,18 @@ const KINDS: Record<string, { id: string; type: string; required: boolean; colum
     { id: 'lines', type: 'collection', required: false, columns: [{ id: 'description', type: 'text' }, { id: 'amount', type: 'money' }] },
   ],
   receipt: [
+    { id: 'number', type: 'text', required: false },
     { id: 'amount', type: 'money', required: true },
     { id: 'invoiceNumber', type: 'text', required: false },
+    { id: 'balanceAfter', type: 'money', required: false },
+    { id: 'issuedAt', type: 'date', required: false },
+    { id: 'voidedOn', type: 'date', required: false },
+    { id: 'lines', type: 'collection', required: false, columns: [{ id: 'description', type: 'text' }, { id: 'amount', type: 'money' }] },
+  ],
+  'insurer-receipt': [
+    { id: 'insurer', type: 'text', required: true },
+    { id: 'patient', type: 'text', required: false },
+    { id: 'amount', type: 'money', required: true },
   ],
   statement: [
     { id: 'clientName', type: 'text', required: false },
@@ -175,12 +201,15 @@ const KINDS: Record<string, { id: string; type: string; required: boolean; colum
   ],
 };
 
+/** A till receipt is drawn for an 80 mm roll first. */
+const PAPER: Record<string, string[]> = { receipt: ['receipt-80mm', 'a4'] };
+
 /** A provider that prints the subject it is given, and counts its draws. */
 export function standInProvider() {
   const drawn: { kind: string; subject: Record<string, unknown> }[] = [];
   const module = {
     key: 'invoices',
-    kinds: () => Object.keys(KINDS).map((id) => ({ id, formats: ['html'] as const, paper: ['a4'] })),
+    kinds: () => Object.keys(KINDS).map((id) => ({ id, formats: ['html'] as const, paper: PAPER[id] ?? ['a4'] })),
     describe: (kind: string) => ({ slots: KINDS[kind] ?? [] }),
     render: (input: { kind: string; subject: Record<string, unknown> }) => {
       drawn.push({ kind: input.kind, subject: input.subject });
@@ -216,6 +245,10 @@ export function memoryStorage(): FileStore {
       return Promise.resolve({ sizeBytes: buffer.byteLength, sha256: 'x', storageKey: `documents/${input.id}`, destinationId: null, storage: 'local' });
     },
     read: (file: { storageKey: string }) => Promise.resolve(Readable.from([bytes.get(file.storageKey) ?? Buffer.alloc(0)])),
+    open: (file: { storageKey: string }) => {
+      const held = bytes.get(file.storageKey) ?? Buffer.alloc(0);
+      return Promise.resolve({ stream: Readable.from([held]), sizeBytes: held.byteLength });
+    },
   } as unknown as FileStore;
 }
 
@@ -233,7 +266,7 @@ export async function registerInvoicesAddOn(meta: MetaDb): Promise<void> {
     version: '1.0.0',
     kind: 'add-on',
     source: 'file',
-    // A whole add-on manifest: an app install checks it before connecting it.
+    // A whole add-on manifest: an app install checks it before connecting it, and connects it.
     document: addOnManifest('invoices', { addOn: { attaches: [{ app: 'studio' }], slots: [], shapes: [invoiceShape()] } }),
   });
 }
@@ -255,13 +288,34 @@ export interface StudioHarness extends InvoicingHarness {
 }
 
 /** Installs the studio on `dialect`, makes its profiles, and hands back a way to serve its public side. */
-export async function installStudio(dialect: Dialect): Promise<StudioHarness> {
+/**
+ * The studio with two harder public sides: `referrer` shows a client's own
+ * invoices in euros only, and adds a second entry on invoices — the invoices
+ * a client referred, declaring statements only — and
+ * `verified` asks a confirmed session for invoices, while a found one still
+ * opens the client row and its statement.
+ */
+export function hostileManifest(variant: 'referrer' | 'verified'): Record<string, unknown> {
+  const manifest = studioManifest();
+  const entries = manifest['publicAccess'] as Record<string, unknown>[];
+  if (variant === 'referrer') {
+    // Her own invoices only in euros: a filter a statement of hers must keep.
+    entries[1] = { ...entries[1], filters: [{ column: 'currency', op: 'eq', value: 'EUR' }] };
+    entries.splice(2, 0, { table: 'invoices', methods: ['GET'], select: ['id', 'status'], claimedBy: { table: 'clients', column: 'referrer_id' }, documents: ['statement'] });
+  } else {
+    entries[0] = { ...entries[0], claim: { match: ['email'], verify: 'email-code', email: 'email' }, writable: [] };
+    entries[1] = { ...entries[1], level: 'verified' };
+  }
+  return manifest;
+}
+
+export async function installStudio(dialect: Dialect, manifest: Record<string, unknown> = studioManifest()): Promise<StudioHarness> {
   // The add-on first: an app that needs it is refused without it.
-  const h = await installInvoicing(dialect, studioManifest(), registerInvoicesAddOn);
+  const h = await installInvoicing(dialect, manifest, registerInvoicesAddOn);
   const realId = await realIdOf(h.meta, h.connectionId, h.real);
   const made = await makeAppProfiles({
     meta: h.meta,
-    manifest: studioManifest() as never,
+    manifest: manifest as never,
     connectionId: h.connectionId,
     realId,
     shapes: await installedShapes(h.meta),

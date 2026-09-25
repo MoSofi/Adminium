@@ -27,6 +27,7 @@
 import { z } from 'zod';
 
 import { renderDocument, type RenderDeps } from '../documents/render.js';
+import { STATEMENT_PERIODS } from '../documents/statement.js';
 import type { JobRegistry } from './registry.js';
 
 export const DOCUMENT_RENDER_KIND = 'document.render';
@@ -41,6 +42,8 @@ export const documentRenderPayloadSchema = z
     actorKind: z.enum(['user', 'system', 'api-key']).default('system'),
     /** Overrides the profile's own locale option, for a per-request language. */
     locale: z.string().max(16).optional(),
+    /** A statement's period; the other kinds ignore it. */
+    period: z.enum(STATEMENT_PERIODS).optional(),
   })
   .strict();
 
@@ -60,6 +63,7 @@ export function registerDocumentRenderHandler(registry: JobRegistry, deps: Rende
         actorKind: payload.actorKind,
         jobId: ctx.jobId,
         ...(payload.locale === undefined ? {} : { locale: payload.locale }),
+        ...(payload.period === undefined ? {} : { period: payload.period }),
       });
 
       switch (outcome.status) {

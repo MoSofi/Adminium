@@ -59,6 +59,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { DOCUMENT_LOCALE_IDS } from '@adminium/add-on-contracts';
 import {
   auditRepo,
   documentSequencesRepo,
@@ -72,6 +73,7 @@ import {
   type RecordRef,
 } from '@adminium/meta';
 
+import type { RecordFilter } from '../crud/filters.js';
 import type { FileStore } from '../files/store.js';
 import { providerByKey, providersFor, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EmailLogger } from '../email/send.js';
@@ -109,6 +111,12 @@ export interface RenderDeps {
     period?: StatementPeriod | undefined;
     /** The render's own clock, so a statement's "today" is the render's. */
     at: number;
+    /**
+     * What a public caller may read of the tables the document reads beside
+     * its own row, by table id: a filter narrows those rows, null reads them
+     * whole. Absent: a staff or triggered render, read with its own grants.
+     */
+    readFilters?: ReadonlyMap<string, RecordFilter | null> | undefined;
   }) => Promise<SourceRead | null>;
   /** The add-on's own non-secret settings. */
   settingsFor: (addOnKey: string) => Promise<Record<string, unknown>>;
@@ -183,6 +191,8 @@ export interface RenderRequest {
   reuse?: boolean;
   /** A statement's period (`all` when absent). */
   period?: StatementPeriod | undefined;
+  /** What a public caller may read beside the row (see `RenderDeps.readSource`). */
+  readFilters?: ReadonlyMap<string, RecordFilter | null> | undefined;
 }
 
 export type RenderOutcome =
@@ -191,6 +201,37 @@ export type RenderOutcome =
   | { status: 'failed'; document: DocumentRow | null; error: string };
 
 const MIME = { html: 'text/html; charset=utf-8', pdf: 'application/pdf' } as const;
+
+/**
+ * The language a document is drawn in: one of the languages documents are
+ * written in, never whatever a caller typed.
+ *
+ * The asked-for language is made canonical (`EN-gb` → `en-GB`) and matched to
+ * a document language — exactly, else by its language alone (`de` → `de-DE`,
+ * `en-GB` → `en-US`; Chinese by its script or region). Anything else — an
+ * unknown or malformed tag — falls back to the profile's own language, then
+ * US English. Bounded on purpose: each language is a different file, and a
+ * caller free to name any tag could ask for a new one on every request.
+ */
+export function documentLocale(requested: string | undefined, fallback: string | undefined): string {
+  for (const candidate of [requested, fallback]) {
+    if (candidate === undefined || candidate === '' || candidate === 'viewer') continue;
+    let canonical: string | undefined;
+    try {
+      canonical = Intl.getCanonicalLocales(candidate)[0];
+    } catch {
+      continue;
+    }
+    if (canonical === undefined) continue;
+    const exact = DOCUMENT_LOCALE_IDS.find((id) => id === canonical);
+    if (exact !== undefined) return exact;
+    const language = canonical.split('-')[0]!.toLowerCase();
+    if (language === 'zh') return /-(Hant|TW|HK|MO)\b/.test(canonical) ? 'zh-TW' : 'zh-CN';
+    const same = DOCUMENT_LOCALE_IDS.find((id) => id.split('-')[0] === language);
+    if (same !== undefined) return same;
+  }
+  return 'en-US';
+}
 
 /** JSON with sorted keys and dates as ISO text, so one row hashes one way on every driver. */
 function canonical(value: unknown): string {
@@ -327,7 +368,7 @@ export async function renderDocument(
   const tables = mappedTables(profile.mapping as ProfileMapping, profile.table);
   let source: SourceRead | null;
   try {
-    source = await deps.readSource({ profile, pk: request.pk, tables, period: request.period, at });
+    source = await deps.readSource({ profile, pk: request.pk, tables, period: request.period, at, readFilters: request.readFilters });
   } catch (cause) {
     if (!(cause instanceof DocumentReadError) && !(cause instanceof Error && cause.name === 'StatementTooLargeError')) throw cause;
     // Too much to draw honestly: said, never drawn with lines missing.
@@ -359,7 +400,7 @@ export async function renderDocument(
     literals?: Record<string, unknown>;
     prefix?: string;
   };
-  const locale = request.locale ?? (options.locale === 'viewer' ? 'en-US' : options.locale) ?? 'en-US';
+  const locale = documentLocale(request.locale, options.locale);
   const outline = provider.describe(profile.kind);
   const kind = provider.kinds().find((entry) => entry.id === profile.kind);
   const formats = (options.formats ?? kind?.formats ?? ['html']) as ('html' | 'pdf')[];
@@ -385,12 +426,18 @@ export async function renderDocument(
     if (stored !== null) return { status: 'rendered', document: stored, reused: true };
   }
 
-  // The number the document prints: the row's own, or the register's next.
+  /*
+   * The number the document prints: the row's own; else the number this
+   * profile already gave this row — a document drawn again (a new language,
+   * an edited row) is the same document, and carries its number rather than
+   * taking a new one; else the register's next.
+   */
   const sequences = documentSequencesRepo(deps.meta);
   const prefix = options.prefix ?? '';
   const ownNumber = source.ownNumber;
+  const carried = ownNumber === undefined ? await documents.numberFor(profile.id, source.entity) : null;
   let number: string | null =
-    ownNumber !== undefined ? ownNumber : `${prefix}${String(await sequences.peek(profile.id))}`;
+    ownNumber !== undefined ? ownNumber : (carried ?? `${prefix}${String(await sequences.peek(profile.id))}`);
 
   const subjectFor = (printed: string | null) =>
     buildSubject({
@@ -465,7 +512,7 @@ export async function renderDocument(
   }
 
   // 6 — the number, claimed only now that the draw succeeded (D11).
-  if (ownNumber === undefined) {
+  if (ownNumber === undefined && carried === null) {
     const claimed = `${prefix}${String(await sequences.claim(profile.id, at))}`;
     if (claimed !== number) {
       // Another render took the peeked number: draw again with the one claimed.
@@ -598,7 +645,7 @@ export async function renderIntent(
   }
   const { addOnKey, provider } = offering[0]!;
 
-  const locale = request.locale ?? 'en-US';
+  const locale = documentLocale(request.locale, undefined);
   const facts = (await deps.connectionFacts?.(request.connectionId)) ?? {
     currency: 'USD',
     timezone: 'UTC',

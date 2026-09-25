@@ -31,11 +31,14 @@
  * to `system:manifests:manage`.
  */
 
+import type { AppManifest } from '@adminium/manifest';
 import {
+  appTablesRepo,
   auditRepo,
   documentProfilesRepo,
   documentsRepo,
   filesRepo,
+  manifestsRepo,
   type DocumentProfile,
   type DocumentRow,
   type MetaDb,
@@ -45,10 +48,16 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { providersFor, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { audited } from '../../audit/coverage.js';
+import { appDocumentOff, appProfileFor } from '../../documents/app-documents.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
   DOCUMENT_RENDER_VERSION,
+  renderDocument,
+  type RenderDeps,
 } from '../../documents/render.js';
+import type { StatementSources } from '../../documents/statement.js';
+import { recordKeyOf } from '../public/documents.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { providerOf } from '../../documents/provider.js';
 import { mappedTables, type ProfileMapping } from '../../documents/subject.js';
@@ -59,6 +68,9 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { canReadTableFor } from '../../rbac/table-grants.js';
 import { AppError, ForbiddenError, NotFoundError } from '../../errors.js';
 import {
+  appDocumentParams,
+  appDocumentRenderBody,
+  appDocumentRenderReply,
   documentIdParams,
   documentKindsReply,
   documentProfileCreateBody,
@@ -85,6 +97,29 @@ export interface DocumentRoutesDeps {
     runAt?: number;
     dedupeKey?: string;
   }) => Promise<{ id: string }>;
+  /**
+   * The document pipeline, for the one route that draws while the caller
+   * waits (an app's own screen). Absent: that route answers that documents
+   * cannot be drawn here.
+   */
+  pipeline?: RenderDeps | undefined;
+}
+
+/** Where this server mounts its API (`routes/index.ts`), for the links a reply hands out. */
+const API_PREFIX = '/api/v1';
+
+const NO_SECRETS = {
+  encrypt: (): string => {
+    throw new Error('documents never store a credential');
+  },
+  decrypt: (): string => {
+    throw new Error('documents never read a credential');
+  },
+};
+
+/** The same answer for an app, a table, a kind and a row that are not there — or not the caller's to read. */
+function notFound(): never {
+  throw new NotFoundError('No such document for this app.');
 }
 
 export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod {
@@ -493,6 +528,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
             requestedBy: request.user?.id ?? null,
             actorKind: 'user',
             ...(request.body.locale === undefined ? {} : { locale: request.body.locale }),
+            ...(request.body.period === undefined ? {} : { period: request.body.period }),
           },
           // NO DELAY. The undo window exists for a write somebody might take
           // back; pressing Make is the taking of an action, not a side effect
@@ -500,6 +536,120 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
           runAt: Date.now(),
         });
         return { jobId: job.id };
+      },
+    );
+
+    /*
+     * AN APP'S OWN SCREEN ASKS FOR A DOCUMENT.
+     *
+     * The staff side of an installed app — a till printing a receipt, a desk
+     * sending an invoice — names what it knows: its own table name, the row,
+     * the kind. The document is the app's own profile for that kind on that
+     * table, drawn now (or the one already drawn, while the row is unchanged)
+     * and handed back with where its bytes are.
+     *
+     * The record page's rule, exactly: signed in, and able to read every
+     * table the document reads. Anything that is not there or not theirs — no
+     * such app on its connection, a kind the app does not declare for that
+     * table, a row that does not exist, a table they may not read — is the one
+     * 404, so the route answers no question a record read would not. The add-on
+     * being detached (or the app's feature for it switched off) is said as
+     * such: 409 FEATURE_OFF, since the page should say "not available" rather
+     * than "not found".
+     */
+    app.post(
+      '/apps/:key/documents/render',
+      {
+        preHandler: app.requireAuth,
+        // The pipeline writes `document.rendered` itself, with the number.
+        config: { audit: audited('rbac') },
+        schema: {
+          params: appDocumentParams,
+          body: appDocumentRenderBody,
+          response: { 200: appDocumentRenderReply, 201: appDocumentRenderReply },
+        },
+      },
+      async (request, reply) => {
+        const pipeline = deps.pipeline;
+        if (pipeline === undefined) {
+          throw new AppError(503, 'DOCUMENTS_UNAVAILABLE', 'Documents cannot be drawn on this server.');
+        }
+        const { key } = request.params;
+        const body = request.body;
+        const installed = await manifestsRepo(deps.meta, NO_SECRETS).findByKey(key);
+        const manifest = installed?.document as AppManifest | undefined;
+        const connectionId = installed?.row.connectionId ?? null;
+        if (installed === null || installed === undefined || installed.row.kind !== 'app' || installed.row.status !== 'installed' || connectionId === null || manifest?.kind !== 'app') {
+          notFound();
+        }
+
+        // The table by the app's own name, then its real one on the connection.
+        const own = manifest.requiredSchema.tables.find((t) => t.ref === body.ref);
+        if (own === undefined) notFound();
+        const names = await appTablesRepo(deps.meta).realNames(connectionId, key);
+        const view = await loadSnapshotView(deps.meta, connectionId).catch(() => null);
+        const real = names[body.ref];
+        const tableId = real === undefined ? undefined : view?.model.tables.find((t) => t.name === real)?.id;
+        if (view === null || tableId === undefined) notFound();
+
+        // A kind the app declares for this table: its own entry, or its shape's profile.
+        const entry = (manifest.documents ?? []).some((d) => d.table === body.ref && d.kind === body.kind);
+        const profile = await appProfileFor(deps.meta, connectionId, key, tableId, body.kind);
+        if (!entry && (own.builtOn === undefined || profile === null)) notFound();
+
+        // Every table the document reads, as the record page asks it.
+        if (profile !== null) {
+          const canRead = await canReadTableFor(deps.meta, request.user?.id ?? null, connectionId);
+          const statement = (profile.options as { statement?: StatementSources }).statement;
+          const reads = [
+            ...mappedTables(profile.mapping as ProfileMapping, profile.table),
+            ...(statement === undefined ? [] : [statement.documents.table, statement.payments.table]),
+          ];
+          for (const table of reads) if (!(await canRead(table))) notFound();
+        }
+
+        // Declared, readable — and switched on?
+        const off =
+          profile === null
+            ? { addOn: (manifest.documents ?? []).find((d) => d.table === body.ref && d.kind === body.kind)?.addOn ?? '', feature: null, reason: 'this document was not made for the app, because its add-on was not available when the app was installed' }
+            : await appDocumentOff({ meta: deps.meta, manifest, profile, table: body.ref, runtime: deps.runtime });
+        if (off !== null || profile === null || !profile.enabled) {
+          throw new AppError(409, 'FEATURE_OFF', `This document is not available for ${manifest.name} right now: ${off?.reason ?? 'its profile is switched off'}.`, {
+            addOn: off?.addOn ?? profile?.addOnKey ?? null,
+            feature: off?.feature ?? null,
+          });
+        }
+
+        // The row: its key as its column holds it, and there.
+        const table = view.table(tableId);
+        const single = table.primaryKey.length === 1 ? body.pk[table.primaryKey[0]!] : JSON.stringify(body.pk);
+        const pk = recordKeyOf(table, single);
+        if (pk === null) notFound();
+
+        const outcome = await renderDocument(pipeline, {
+          profileId: profile.id,
+          pk,
+          requestedBy: request.user?.id ?? null,
+          actorKind: 'user',
+          reuse: true,
+          ...(body.period === undefined ? {} : { period: body.period }),
+          ...(body.locale === undefined ? {} : { locale: body.locale }),
+        });
+        if (outcome.status === 'skipped') {
+          if (outcome.reason === 'row-gone') notFound();
+          throw new AppError(409, 'FEATURE_OFF', `This document is not available for ${manifest.name} right now: its add-on draws nothing.`, { addOn: profile.addOnKey, feature: null });
+        }
+        if (outcome.status === 'failed') {
+          throw new AppError(422, 'DOCUMENT_NOT_DRAWN', `The document could not be drawn: ${outcome.error}`, { documentId: outcome.document?.id ?? null });
+        }
+        const id = outcome.document.id;
+        return reply.code(outcome.reused === true ? 200 : 201).send({
+          id,
+          contentUrl: `${API_PREFIX}/documents/${encodeURIComponent(id)}/content`,
+          printUrl: `${API_PREFIX}/documents/${encodeURIComponent(id)}/print`,
+          reused: outcome.reused === true,
+          document: toReply(outcome.document),
+        });
       },
     );
 

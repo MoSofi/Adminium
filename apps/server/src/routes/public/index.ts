@@ -134,6 +134,7 @@ import {
   createDocumentAccess,
   decodeDocumentCursor,
   publicDocumentRenderRequest,
+  recordKeyOf,
   publicDocumentsListQuery,
 } from './documents.js';
 import type { FileStore } from '../../files/store.js';
@@ -2587,7 +2588,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * `./documents.ts`: the same connection, the key's own profiles, and a
      * resource that declares the kind and reaches the row.
      */
-    const documentAccess = createDocumentAccess({ meta, manager, viewFor });
+    const documentAccess = createDocumentAccess({ meta, manager, viewFor, runtime: deps.documents?.runtime });
     const visibleDocument = documentAccess.visibleDocument;
 
     /**
@@ -2640,6 +2641,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             201: publicDocumentReply,
             400: publicErrorReply,
             401: publicErrorReply,
+            403: publicErrorReply,
             404: publicErrorReply,
             429: publicErrorReply,
             503: publicErrorReply,
@@ -2647,13 +2649,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         },
       },
       async (request, reply) => {
-        // A read's gate without the key-wide write rung; the render's own rungs follow.
-        const ok = await gate(request, reply, 'public-read', { keyWide: false });
+        const body = request.body;
+        /*
+         * Two doors, two limits. A document of a signed-in person's own row
+         * gates as a read without the key-wide write rung, then spends the
+         * render's own rungs. A document drawn from values — which anybody
+         * holding the key may ask for, and which stores a file every time —
+         * stays on the write class, per address and for the whole key.
+         */
+        const fromRow = 'ref' in body;
+        const ok = fromRow ? await gate(request, reply, 'public-read', { keyWide: false }) : await gate(request, reply, 'public-write');
         if (ok === null) return reply;
         if (deps.documents === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
-        if (!renderAdmitted(request, reply, ok)) return reply;
+        if (fromRow && !renderAdmitted(request, reply, ok)) return reply;
 
-        const body = request.body;
         if ('ref' in body) {
           /*
            * The PERSISTED shape. The claim must reach the row before anything
@@ -2669,7 +2678,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
           const profile = await documentAccess.profileForRender(ok.key, found.resource, body);
           if (profile === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
-          const recordId = parseRecordId(found.table, String(body.id));
+          // A key its column cannot hold is an unknown row, on every engine.
+          const recordId = recordKeyOf(found.table, body.id);
+          if (recordId === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+          /*
+           * What the document reads beside its row — a statement's invoices
+           * and payments, a linked client — only as far as this session reads
+           * those tables: at their level, through their filters.
+           */
+          const access = await documentAccess.sourceAccess({ key: ok.key, session: ok.session }, profile);
+          if (access.state !== 'ok') {
+            return access.state === 'level'
+              ? fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.')
+              : fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+          }
           const row = await runList({
             db: found.db,
             view: found.view,
@@ -2705,6 +2727,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             pk: recordId,
             actorKind: 'api-key',
             reuse: true,
+            readFilters: access.filters,
             ...(body.period === undefined ? {} : { period: body.period }),
             ...(body.locale === undefined ? {} : { locale: body.locale }),
           });
@@ -2728,7 +2751,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const claim =
           ok.session === null
             ? undefined
-            : { column: ok.session.grant.column, value: String(ok.session.grant.value), keyId: ok.key.keyId };
+            : { column: ok.session.grant.column, value: String(ok.session.grant.value), keyId: ok.key.keyId, ref: ok.session.grant.ref };
         const outcome = await renderIntent(deps.documents, {
           kind: body.kind,
           ...(body.locale === undefined ? {} : { locale: body.locale }),
@@ -2780,11 +2803,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           const resource = ok.key.scope.byRef.get(q.ref);
           const view = resource === undefined ? null : await viewFor(ok.key.connectionId);
           if (resource === undefined || view === null) return reply.send({ data: [] });
+          let table;
           try {
-            only = parseRecordId(view.table(resource.table), String(q.id));
+            table = view.table(resource.table);
           } catch {
             return reply.send({ data: [] });
           }
+          // A key its column cannot hold lists nothing, as an unknown row does.
+          const key = recordKeyOf(table, q.id);
+          if (key === null) return reply.send({ data: [] });
+          only = key;
         }
         let page;
         try {

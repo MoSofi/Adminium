@@ -84,6 +84,8 @@ export interface DocumentClaim {
   column: string;
   value: string;
   keyId?: string | undefined;
+  /** The identity (the resource) the claim was made through. */
+  ref?: string | undefined;
 }
 
 /** Where a page of a claim's documents ends: the last row's time and id. */
@@ -283,6 +285,30 @@ export function documentsRepo(meta: MetaDb) {
       .orderBy('id', 'desc')
       .executeTakeFirst();
     return row === undefined ? null : hydrate(row, false);
+  }
+
+  /**
+   * The number a profile already gave one row: the newest rendered (not
+   * voided) document of that profile for that row. A document drawn again —
+   * in another language, after an edit — is the same document and keeps its
+   * number; only a voided one is replaced by a new number.
+   */
+  async function numberFor(
+    profileId: string,
+    entity: { table: string; pk: Readonly<Record<string, unknown>> },
+  ): Promise<string | null> {
+    const row = await db
+      .selectFrom('adminium_documents')
+      .select('number')
+      .where('profileId', '=', profileId)
+      .where('entityTable', '=', clampKey(entity.table))
+      .where('entityId', '=', entityKeyOf(entity.pk))
+      .where('status', '=', 'rendered')
+      .where('number', 'is not', null)
+      .orderBy('createdAt', 'desc')
+      .orderBy('id', 'desc')
+      .executeTakeFirst();
+    return row?.number ?? null;
   }
 
   /**
@@ -526,6 +552,7 @@ export function documentsRepo(meta: MetaDb) {
     listExpiredBefore,
     create,
     findReusable,
+    numberFor,
     markRendered,
     markFailed,
     markVoided,

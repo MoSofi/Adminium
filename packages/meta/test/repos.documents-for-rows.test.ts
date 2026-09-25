@@ -101,6 +101,22 @@ for (const dialect of TEST_DIALECTS) {
       expect((await register.listClaimedIntents({ connectionId: a, limit: 10, after: { createdAt: found[0]!.createdAt, id: found[0]!.id } })).map((d) => d.id)).toEqual([first]);
     });
 
+    it('finds the number a profile already gave a row, never a voided one\'s', async () => {
+      const { a, invoice, receipt, register, draw } = await world();
+      const entity = { table: TABLE, pk: { id: 4 } };
+      expect(await register.numberFor(invoice.id, entity)).toBeNull();
+      const first = await draw(invoice.id, 'invoice', a, 4, T0 + 1000);
+      expect(await register.numberFor(invoice.id, entity)).toBe('N-4');
+      // Another profile's, or another row's, is not this one's.
+      expect(await register.numberFor(receipt.id, entity)).toBeNull();
+      expect(await register.numberFor(invoice.id, { table: TABLE, pk: { id: 5 } })).toBeNull();
+      // A failed draw has no number; a voided one gives its number up.
+      await draw(invoice.id, 'invoice', a, 4, T0 + 2000, false);
+      expect(await register.numberFor(invoice.id, entity)).toBe('N-4');
+      await register.markVoided(first, 'operator');
+      expect(await register.numberFor(invoice.id, entity)).toBeNull();
+    });
+
     it('keeps the subject a render printed, and a profile\'s line order across a patch', async () => {
       const { a, invoice, register, meta } = await world();
       const row = await register.create(
