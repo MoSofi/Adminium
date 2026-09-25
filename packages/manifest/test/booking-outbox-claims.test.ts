@@ -556,6 +556,15 @@ describe('the outbox and its templates', () => {
     );
   });
 
+  it('lists every variable the sender fills, and nothing it cannot', () => {
+    // The sender's own name, an add-on's public setting, and a column with a digit in it.
+    const listed = ['appName', 'manage_url', 'recipient.first_name', 'addOn.barcode-labels.shopName', 'patient.address_line2', 'practice.practice_phone'];
+    expect(validateManifest(changed((d) => (d.emailTemplates[0]!.vars = listed))).ok).toBe(true);
+    for (const wrong of ['AppName', 'app name', 'patient.', '.name', 'addOn.Invoices.x', '2fa.code']) {
+      expect(issuesOf(changed((d) => (d.emailTemplates[0]!.vars = [wrong]))), wrong).toContain('a variable such as patient.name');
+    }
+  });
+
   it('never sends an unescaped html block, and always has US English', () => {
     expect(issuesOf(changed((d) => (d.emailTemplates[0]!.locales['en-US'].blocks[0]!.block = 'email.html')))).toContain('may not use the html block');
     expect(issuesOf(changed((d) => delete (d.emailTemplates[0]!.locales as Record<string, unknown>)['en-US']))).toContain('a template includes en-US');
