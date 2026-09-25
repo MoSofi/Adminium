@@ -82,6 +82,11 @@ function manifest(): Record<string, unknown> {
         { ref: 'owner', type: 'text', maxLength: 40, nullable: true, rules: { requiredWhen: { column: 'phase', in: ['away'] } } },
       ],
     },
+    {
+      // A number, which a rule kept from before reads as a yes or a no.
+      ref: 'levels',
+      columns: [id, { ref: 'level', type: 'int', nullable: true }, { ref: 'owner', type: 'text', maxLength: 40, nullable: true }],
+    },
   ]);
 }
 
@@ -296,6 +301,25 @@ for (const [dialect, available] of LEGS) {
       expect([false, 0]).toContain((await row('flags', calm['id']))!['urgent']);
       // A word that is no yes and no no is refused, on SQLite too.
       await expect(w.create('flags', { urgent: 'maybe' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { fields: { urgent: { code: 'invalid' } } } });
+    });
+
+    it('keeps a number a number where a rule reads it as a yes or a no, and takes no such rule where the database has yes and no', async () => {
+      const { h, row } = await harness();
+      const model = parseDatabaseModel((await snapshotsRepo(h.meta).latest(h.connectionId))!.schema);
+      const levels = model.tables.find((t) => t.name === h.real('levels'))!;
+      const owner = levels.columns.find((c) => c.name === 'owner')!;
+      // One written around the check, as a rule from before it was: the number is still written as a number.
+      await overridesRepo(h.meta).create({ connectionId: h.connectionId, op: 'column.requiredWhen', tableName: levels.id, columnName: 'owner', value: { column: 'level', in: [true] }, origin: 'user' });
+      const w = await writerFor(h);
+      for (const level of [1, 0]) {
+        const made = await w.create('levels', { level, owner: 'Ann' });
+        expect(Number((await row('levels', made['id']))!['level'])).toBe(level);
+      }
+      // Postgres and MySQL have their own yes and no: a number column takes no rule that lists one.
+      const yesNo = columnRuleIssue('column.requiredWhen', { column: 'level', in: [true] }, owner, model);
+      if (dialect === 'sqlite') expect(yesNo).toBeNull();
+      else expect(yesNo).toBe('true is not a value level can hold.');
+      expect(columnRuleIssue('column.requiredWhen', { column: 'level', in: [1] }, owner, model)).toBeNull();
     });
 
     it('judges a create that leaves the other column out by its database default', async () => {

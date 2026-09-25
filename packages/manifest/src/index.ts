@@ -89,6 +89,7 @@ export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js'
 
 export {
   OUTBOX_WRITTEN,
+  rulesReading,
   OUTBOX_HELD,
   OUTBOX_SKIP_REASONS,
   OUTBOX_STATUSES,

@@ -45,6 +45,7 @@ import {
 } from 'kysely';
 import {
   ddlTypeFor,
+  fillsNowWhenAdded,
   IDENTIFIER_RE,
   type ColumnModel,
   type DdlStep,
@@ -116,6 +117,23 @@ export interface CompileContext {
    * — in either order. Postgres and MySQL get a `drop-fk` step instead.
    */
   withoutForeignKeys?: boolean | undefined;
+  /** The moment whose zone offset {@link mysqlServerNow} reads; the current one when absent. */
+  now?: Date | undefined;
+}
+
+/**
+ * The Adminium server's wall clock, as a MySQL expression: what `renderNow`
+ * writes into a `DATETIME` on a create, for the rows an added column fills.
+ *
+ * An expression rather than the time itself, so the statement a plan shows is
+ * the one its apply re-makes (D2's checksum covers the SQL). The session is in
+ * UTC, so it is UTC's clock moved by this server's offset — the offset at the
+ * moment of the plan; a plan made before the clocks change and applied after
+ * them no longer matches, and is made again.
+ */
+export function mysqlServerNow(now: Date): string {
+  const offset = -now.getTimezoneOffset();
+  return offset === 0 ? 'UTC_TIMESTAMP(3)' : `UTC_TIMESTAMP(3) + INTERVAL ${String(offset)} MINUTE`;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +233,9 @@ export function renderDefault(
        * instead (`implicitFillFor` in `crud/column-rules.ts`, the `column.default`
        * an app's `default: "now"` installs). A row written outside Adminium
        * that leaves the column out gets nothing there: empty, or refused when
-       * the column may not be empty — never a time off by the offset.
+       * the column may not be empty — never a time off by the offset. A
+       * required one added to a table fills the rows already there
+       * (`fillsNowWhenAdded`, the `add-column` case below).
        */
       if (dialect === 'mysql' && (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz')) return null;
       return dialect === 'sqlite' ? "(datetime('now', 'localtime'))" : 'CURRENT_TIMESTAMP';
@@ -509,13 +529,17 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
           ? ` REFERENCES ${tableRef(ctx.relation.to.tableId, dialect)} (${ctx.relation.to.columns.map((c) => quoteIdent(c, dialect)).join(', ')})` +
             (ctx.relation.onDelete === null ? '' : ` ON DELETE ${fkAction(ctx.relation.onDelete)}`)
           : '';
+      // A required MySQL time given `now` goes in empty, and the rows already
+      // there are filled; the plan's next step makes it required.
+      const fills = fillsNowWhenAdded(column, dialect);
       const statements = [
         raw(
-          `ALTER TABLE ${t} ADD COLUMN ${columnDefinition(column, table, dialect, {
+          `ALTER TABLE ${t} ADD COLUMN ${columnDefinition(fills ? { ...column, nullable: true } : column, table, dialect, {
             typeOverride: ctx.fkColumnTypes?.[column.name],
           })}${link}${clause}`,
         ),
       ];
+      if (fills) statements.push(raw(`UPDATE ${t} SET ${quoteIdent(column.name, dialect)} = ${mysqlServerNow(ctx.now ?? new Date())}`));
       // An enum column carries its CHECK (D32) as part of becoming an enum.
       const values = ctx.enumValues?.[column.name];
       if (values !== undefined && values.length > 0) {

@@ -1181,6 +1181,26 @@ export function checkRow(
   return issues;
 }
 
+/**
+ * The rules with every `requiredWhen` left out — what the outbox's own writes
+ * to its own table are judged by. A rule that watches a column the outbox
+ * writes (a note required once a message is `sent`) is refused where it is
+ * made, by the manifest and by Studio; one kept from before, or written
+ * around both, must not refuse the write that marks a message sent and leave
+ * it stuck.
+ */
+export function withoutRequiredWhen(rules: TableRules | null): TableRules | null {
+  if (rules === null || !rules.checks.some((check) => check.requiredWhen !== undefined)) return rules;
+  return {
+    ...rules,
+    checks: rules.checks.map((check) => {
+      if (check.requiredWhen === undefined) return check;
+      const { requiredWhen: _when, requiredWhenDefault: _default, requiredWhenFolds: _folds, ...rest } = check;
+      return rest;
+    }),
+  };
+}
+
 /** The columns a formula is worked out from, through the formulas it reads. */
 function inputsOf(formulas: readonly ColumnFormula[], formula: ColumnFormula, seen = new Set<string>()): string[] {
   const out: string[] = [];

@@ -44,7 +44,7 @@ list follows the type:
 |---|---|---|
 | Nothing | every column | The column is empty unless somebody fills it. |
 | A value | every column | The value you type, checked against the column's own type before it is sent. |
-| The current date and time | dates, times and timestamps | `CURRENT_TIMESTAMP` — the database's clock, not your browser's. On MySQL a timestamp gets no database default: it is a `DATETIME` kept on the Adminium server's clock, which the database's UTC session cannot fill, so Adminium fills it on every record it creates, and a row created outside Adminium gets nothing there. |
+| The current date and time | dates, times and timestamps | `CURRENT_TIMESTAMP` — the database's clock, not your browser's. On MySQL a timestamp gets no database default: it is a `DATETIME` kept on the Adminium server's clock, which the database's UTC session cannot fill, so Adminium fills it on every record it creates, and a row created outside Adminium gets nothing there. Added to a table that has rows, the column goes in empty, every row there is given the Adminium server's current time, and only then is it made required: the review shows both steps. |
 | A new unique id | uuid, text and varchar, **PostgreSQL only** | `gen_random_uuid()`. MySQL and SQLite have no equivalent that Adminium can read back after an insert. |
 | Count up from the last row | the table's own integer key | An identity column on PostgreSQL, `AUTO_INCREMENT` on MySQL, the rowid on SQLite. |
 
@@ -85,7 +85,8 @@ you which one you have.
 
 - **A `NOT NULL` column with no default, on a table that already has rows.** The
   existing rows would have no value. Give the column a starting value under
-  **Starts as**, or make it nullable.
+  **Starts as**, or make it nullable. (*The current date and time* is a
+  starting value on MySQL too: the rows already there get the current time.)
 - **Adminium's own `adminium_*` tables**, and migration ledgers like
   `_prisma_migrations`. If you chose same-database meta storage, these sit
   beside your data — and they are not yours to edit through Adminium.

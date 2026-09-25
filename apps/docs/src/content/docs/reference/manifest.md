@@ -298,7 +298,9 @@ the Adminium server's clock, and the database — whose sessions Adminium keeps 
 fill UTC's. A row written to that table outside Adminium, leaving the column out, gets nothing: it
 stays empty, or is refused when the column may not be empty. Adminium also fills a MySQL `DATETIME`
 whose database default is `CURRENT_TIMESTAMP` (a table made before, or one of your own) on its own
-creates. On Postgres and SQLite the database's own default is kept as well.
+creates, with the server's own time: before, the database filled it with UTC's time, so on a server
+not in UTC a row Adminium makes now differs from one another program stamps. On Postgres and SQLite
+the database's own default is kept as well.
 
 #### Decimal places
 
@@ -332,7 +334,7 @@ change or delete is theirs from then on.
 | `required` | `true` | The server requires a value on every write. |
 | `requiredWhen` | `{ "column", "in" }` | The server requires a value only while another column of the same row holds one of the values in `in` (1–32): an away event names who is away, an event in the office names nobody. See [Required for some values](#required-for-some-values). |
 | `validation` | `{ "format"?, "min"?, "max"?, "minLength"?, "maxLength"? }` | `format` is `email`, `url` or `phone`. |
-| `copy` | `{ "via", "from", "mode"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. |
+| `copy` | `{ "via", "from", "mode"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. A column kept from readers is copied only into one kept the same way: a `secret` into a `secret`, a `personal` column into a `personal` one (or a `secret`), and a shared link's code never. The same holds for a stamp that copies a column of its row, and for a formula's inputs. |
 | `default` | `{ "from" }` | A value filled on a create that leaves the column empty, read when the row is made. See [Values from elsewhere](#values-from-elsewhere). |
 | `sequence` | `{ "start"?, "gapless"?, "startSetting"?, "scope"? }` | The next number in a running series. Without `gapless`, the column's own counter; `start` is at least 1. With `"gapless": true`, a number with no gaps and none repeated. See [Numbers without gaps](#numbers-without-gaps). |
 | `format` | `{ "from", "prefix"?, "prefixSetting"?, "pad"? }` | A `text` column written from a gapless number of the same row: the prefix, then the digits padded with zeros (`INV-0042`). See [Numbers without gaps](#numbers-without-gaps). |
@@ -366,8 +368,10 @@ message would race Adminium for the column, and a rule that refuses a value woul
 Adminium writes, so every message the desk makes would be refused, or stuck. Its `to` and
 `language`, which Adminium writes when it looks the address up, take none that decide a value, nor
 `options`, `required` or `requiredWhen` (a desk leaves `to` empty to have it looked up); a
-`validation` of the address a person types is fine. The install names the column, and a Studio save
-refuses the same rules on an installed outbox's columns.
+`validation` of the address a person types is fine. Nor may another column's rule read one of them
+where the read could refuse Adminium's write: a note `requiredWhen` the status is `sent`, a `formula`
+worked out from `effectAt`, a `notBefore` bound on `sentAt`. The install names the column, and a
+Studio save refuses the same rules on an installed outbox's columns.
 
 Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
 table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
@@ -1509,12 +1513,16 @@ nothing fills (a secret column, a personal column of a linked row, a link the ro
 misspelt name) is not sent: it is `failed`, and its error names the variable. `recipient.name` and
 `recipient.first_name` are always filled, empty when the recipient has no name on file.
 
-A `code` column (a project's `share_token`) opens a page to whoever holds it, so an email carries
-it only to the person it belongs to: the message goes to the address the `recipient` row keeps, and
-the row with the code is that person's row or links to it (`project.client_id` is the recipient).
+The code a shared link opens a row with (a `claim: { "by": "token" }` column, a project's
+`share_token`) opens a page to whoever holds it, so an email carries it only to the person it belongs
+to: the message goes to the address the `recipient` row keeps, and the row with the code is that
+person's row or links to it by the recipient's `via` column where it has one (`project.client_id`),
+else by every link it has to the recipient's table, all naming them. Any other `code` column (a
+booking's reference) is printed like any other value.
 A message addressed by hand to another address, or one linking one client and another client's
-project, is `failed` with a sentence naming the code. A person or an API key making a message may
-link it only to rows they can read.
+project, is `failed` with a sentence naming the code. A person or an API key making a message (by
+hand, or by an import they started), or queueing a held or failed one to go, may link it only to
+rows they can read.
 
 Templates are sent through an outbox, so a manifest with `emailTemplates` and no `outbox` is
 refused. The install's check step warns when the server cannot send email.

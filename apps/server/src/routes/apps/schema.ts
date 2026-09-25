@@ -241,25 +241,18 @@ export const appInstallPlanDto = z.object({
    */
   requiresSchemaChange: z.boolean(),
   /**
-   * The columns a REUSED table is missing, as plan 35's `addColumns` edit —
-   * what the update screen offers to run (with the exact statement shown)
-   * instead of stopping at `COLUMNS_REQUIRED`. Empty lists when nothing is
-   * missing. `blocked` columns cannot be added this way, and the update still
-   * refuses while any remain.
-   */
-  /**
-   * What is wrong with the manifest's PAGES, from the manifest alone — an
-   * unbound calendar, a binding to a table it does not declare, a table that
-   * cannot back its template. Reported, never a refusal: the install goes on
-   * and such a page arrives empty. The app's own CI is where they are refused.
-   */
-  /**
    * The manifest's rules the install will skip because they would show a
    * column kept from readers — a secret, or masked personal data — of a
    * table it reuses: only an operator shows one, in Studio. Never a
    * refusal; absent when there is none.
    */
   ruleWarnings: z.array(z.object({ table: z.string(), column: z.string(), message: z.string() })).optional(),
+  /**
+   * What is wrong with the manifest's PAGES, from the manifest alone — an
+   * unbound calendar, a binding to a table it does not declare, a table that
+   * cannot back its template. Reported, never a refusal: the install goes on
+   * and such a page arrives empty. The app's own CI is where they are refused.
+   */
   pageWarnings: z.array(
     z.object({
       page: z.string(),
@@ -268,6 +261,13 @@ export const appInstallPlanDto = z.object({
       table: z.string().optional(),
     }),
   ),
+  /**
+   * The columns a REUSED table is missing, as plan 35's `addColumns` edit —
+   * what the update screen offers to run (with the exact statement shown)
+   * instead of stopping at `COLUMNS_REQUIRED`. Empty lists when nothing is
+   * missing. `blocked` columns cannot be added this way, and the update still
+   * refuses while any remain.
+   */
   missingColumnsEdit: z.object({
     addColumns: z.array(
       z.object({

@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { sql } from 'kysely';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { desiredTableSchema, parseDatabaseModel } from '@adminium/engine';
+import { desiredTableSchema, parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
 import {
   appOutboxesRepo,
@@ -50,6 +50,7 @@ import { createSampleDataService, findSampleApp, normaliseValue, type SampleData
 import type { FileStore } from '../src/files/store.js';
 import { sha512Integrity } from '../src/add-ons/store.js';
 import { runIntrospection } from '../src/connections/introspect.js';
+import { applyServerEdit, planServerEdit } from '../src/schema-ddl/programmatic.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
@@ -2668,6 +2669,79 @@ for (const [dialect, available] of legs) {
       await expect(h.run(`INSERT INTO pos_payments (amount, method, shift_id) VALUES (3, 'card', 999)`)).rejects.toThrow();
       const [row] = (await h.app.inject({ method: 'GET', url: '/apps' })).json().apps;
       expect(row.version).toBe('1.1.0');
+    }, 90_000);
+
+    it('adds a required time filled with now to a table that has rows, by an update and in the schema editor', async () => {
+      const h = (open = await harness(dialect));
+      await stage(h);
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+      await h.run(`INSERT INTO pos_shifts (opened_at) VALUES (CURRENT_TIMESTAMP)`);
+      // 1.1.0: a shift keeps when it was last looked at, stamped now, never empty.
+      const next = {
+        ...MANIFEST,
+        version: '1.1.0',
+        requiredSchema: {
+          prefixed: true,
+          tables: TABLES.map((t) =>
+            t.ref === 'shifts' ? { ...t, columns: [...t.columns, { ref: 'checked_at', type: 'timestamptz', default: 'now' }] } : t,
+          ),
+        },
+      };
+      await stageManifest(h, next);
+      const planned = (await post(h, '/apps/plan', { version: '1.1.0' })).json().plan;
+      expect(planned.problems).toEqual([]);
+      const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { planChecksum: planned.checksum } });
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect(Object.keys(await h.columns('pos_shifts'))).toContain('checked_at');
+
+      // The schema editor's "add column": required, the current time, on the same table.
+      await runIntrospection({ manager: h.manager, meta: h.meta, connectionId: h.connectionId });
+      const deps = { meta: h.meta, manager: h.manager, crypto: dsnCryptoFromSecret(TEST_SECRET) };
+      const build = (model: DatabaseModel) => ({
+        addColumns: [
+          {
+            table: model.tables.find((t) => t.name === 'pos_shifts')!.id,
+            column: {
+              name: 'closed_at',
+              logicalType: 'timestamptz' as const,
+              nullable: false,
+              default: { kind: 'now' as const },
+              maxLength: null,
+              numericPrecision: null,
+              numericScale: null,
+              comment: null,
+            },
+          },
+        ],
+      });
+      const plan = await planServerEdit(deps, h.connectionId, build, { superAdmin: false });
+      expect(plan.refusals).toEqual([]);
+      if (dialect === 'mysql') {
+        // Added empty, the rows there given this server's time, then required — and the review says so.
+        expect(plan.steps.map((s) => [s.kind, s.hazard, s.summary])).toEqual([
+          ['add-column', 'rewrite', 'Add column closed_at (datetime), giving every row already there the current time'],
+          ['set-not-null', 'rewrite', 'Require closed_at on every row'],
+        ]);
+        expect(plan.steps[0]!.sql[1]).toMatch(/^UPDATE `pos_shifts` SET `closed_at` = UTC_TIMESTAMP\(3\)/);
+      } else {
+        // Postgres and SQLite give the column the database's own `now`, as before.
+        expect(plan.steps.map((s) => s.kind)).toEqual(['add-column']);
+      }
+      // SQLite cannot add a column whose default is a clock, rows or none; that is not this change.
+      if (dialect === 'sqlite') return;
+      const before = Date.now();
+      await applyServerEdit(deps, h.connectionId, build, { superAdmin: false, createdBy: null });
+      const after = Date.now();
+      // The row that was there has the time, on this server's clock where the column keeps no zone.
+      const [row] = await h.rows(
+        dialect === 'mysql' ? "SELECT DATE_FORMAT(closed_at, '%Y-%m-%d %H:%i:%s') AS closed_at FROM pos_shifts" : 'SELECT closed_at FROM pos_shifts',
+      );
+      const at = row!['closed_at'];
+      const stamped = dialect === 'postgres' ? slotInstant(at)!.getTime() : new Date(String(at).replace(' ', 'T')).getTime();
+      expect(stamped).toBeGreaterThanOrEqual(before - 1000);
+      expect(stamped).toBeLessThanOrEqual(after + 1000);
+      // And it is required from now on.
+      await expect(h.run(`INSERT INTO pos_shifts (opened_at, closed_at) VALUES (CURRENT_TIMESTAMP, NULL)`)).rejects.toThrow();
     }, 90_000);
 
     it('grows a choice column on update and keeps refusing what is not on it', async () => {

@@ -19,6 +19,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { diffModels, type DatabaseModel } from '@adminium/engine';
+import { rulesReading } from '@adminium/manifest';
 
 import {
   MetaValidationError,
@@ -33,7 +34,8 @@ import {
 
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { outboxWrittenColumns } from '../../outbox/moves.js';
-import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
+import { shareCodesOn } from '../../public-api/share-codes.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
 import { applyOverrides, columnPolicyFor } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
@@ -387,15 +389,32 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           op: item.op,
         });
       }
+      // Nor a rule of another column that reads one where the read can refuse Adminium's own write.
+      for (const item of body.overrides) {
+        if (item.status === 'disabled' || item.columnName == null) continue;
+        const shaped = item.op === 'column.requiredWhen' ? { requiredWhen: item.value } : item.op === 'column.copy' ? { copy: item.value } : item.op === 'column.bounds' || item.op === 'column.formula' ? item.value : undefined;
+        for (const { rule, reads } of rulesReading(shaped)) {
+          const column = written.get(`${item.tableName}\u0000${reads}`);
+          if (column === undefined || reads === item.columnName) continue;
+          const kept = before.some(
+            (row) => row.status === 'active' && row.op === item.op && row.tableName === item.tableName && row.columnName === item.columnName && isDeepStrictEqual(row.value, item.value),
+          );
+          if (kept) continue;
+          throw new ValidationFailedError(
+            `"${item.columnName}" has a ${rule} rule that reads "${reads}", the outbox's ${column.name}, which Adminium writes as it sends, so its own writes would be refused.`,
+            { table: item.tableName, column: item.columnName, op: item.op },
+          );
+        }
+      }
 
       /*
        * The same guard for a secret. A column is shown once `column.secret`
-       * says it is none, or once a `code` rule claims a column its name made
-       * a secret (`effective-schema.ts`, `settleSecrets`): either shows a
-       * value no reader saw before, so a save that makes any column stop
-       * being a secret requires Super Admin. Judged on the whole model before
-       * and after, so a code rule an app installed and this save keeps opens
-       * nothing new.
+       * says it is none (`effective-schema.ts`, `settleSecrets`; a `code`
+       * rule by itself shows nothing): that shows a value no reader saw
+       * before, so a save that makes any column stop being a secret requires
+       * Super Admin. Judged on the whole model before and after, so a
+       * `secret: false` an app installed and this save keeps opens nothing
+       * new.
        */
       const secretsUnder = (rows: readonly SchemaOverride[]): Set<string> => {
         const out = new Set<string>();
@@ -419,6 +438,28 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
             origin: origins.get(`${item.op}|${item.tableName}|${item.columnName ?? ''}`)?.shift() ?? 'user',
           }) as unknown as SchemaOverride,
       );
+      /*
+       * A rule that lands a column kept from readers (a secret, personal data,
+       * a shared link's code) in one that is not — a copy, a stamp's copy, a
+       * formula — shows it past every guard above. Refused when the save
+       * brings it, or when the save makes its source kept while it lands it
+       * in the open; one that was already so is left for its owner to fix.
+       */
+      const afterSave = applyOverrides(model, proposed);
+      const beforeSave = applyOverrides(model, before);
+      const codes = await shareCodesOn(meta, connectionId);
+      for (const item of proposed) {
+        if (item.status === 'disabled' || item.columnName === null) continue;
+        if (item.op !== 'column.copy' && item.op !== 'column.stamp' && item.op !== 'column.formula') continue;
+        const at = { table: item.tableName, column: item.columnName };
+        const issue = keptColumnIssue(item.op, item.value, at, afterSave, codes);
+        if (issue === null) continue;
+        const kept = before.some(
+          (row) => row.status === 'active' && row.op === item.op && row.tableName === item.tableName && row.columnName === item.columnName && isDeepStrictEqual(row.value, item.value),
+        );
+        if (kept && keptColumnIssue(item.op, item.value, at, beforeSave, codes) !== null) continue;
+        throw new ValidationFailedError(issue, { table: item.tableName, column: item.columnName, op: item.op });
+      }
       const stillSecret = secretsUnder(proposed);
       if ([...secretsUnder(before)].some((key) => !stillSecret.has(key)) && !(await app.rbac.resolve(request)).superAdmin) {
         throw new ForbiddenError('Showing a column that is kept secret requires Super Admin.');

@@ -298,7 +298,7 @@ function dayOf(text: string, clock: Clock): string {
  */
 function nowCompare(column: ResolvedColumn, op: 'gt' | 'gte' | 'lt' | 'lte', clock: Clock): FilterCondition[] {
   if (column.logicalType === 'date') throw new Refused('wrong-operator');
-  return [{ column: column.name, op, value: calendarBoundValue(column, clock.now, clock.dialect, clock.timezone) }];
+  return [{ column: column.name, op, value: boundOf(column, clock.now, clock) }];
 }
 
 /** The instant a venue day starts, spelled as the column keeps a value. */
@@ -306,6 +306,17 @@ function dayStart(column: ResolvedColumn, day: string, clock: Clock): unknown {
   if (column.logicalType === 'date') return day;
   const instant = wallTimeToInstant(`${day} 00:00`, clock.timezone);
   if (instant === null) throw new Refused('bad-value');
+  return boundOf(column, instant, clock);
+}
+
+/**
+ * An instant as a filter carries it for this column. For a column that keeps
+ * a zone on MySQL, the instant with its zone: the filter spells it as UTC's
+ * wall time itself, and reads a time with no zone on this server's clock
+ * (`crud/filters.ts`), as a write does.
+ */
+function boundOf(column: ResolvedColumn, instant: Date, clock: Clock): unknown {
+  if (column.logicalType === 'timestamptz' && clock.dialect === 'mysql') return instant.toISOString();
   return calendarBoundValue(column, instant, clock.dialect, clock.timezone);
 }
 

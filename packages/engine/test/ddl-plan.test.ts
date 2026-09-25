@@ -262,7 +262,7 @@ describe('Refusals', () => {
     expect(plan.refusals.map((r) => r.code)).toContain('NEEDS_DEFAULT');
   });
 
-  it('counts a MySQL time column’s `now` as no default: the rows already there would get none', () => {
+  it('adds a required MySQL time given `now` empty, then requires it: the rows already there are filled between', () => {
     const before = model([tbl({ name: 't' })]);
     const after = [
       tbl({
@@ -275,9 +275,27 @@ describe('Refusals', () => {
     ];
     const plan = (dialect: 'mysql' | 'postgres') =>
       planDdl({ actual: before, desired: after, dialect, serverVersion: dialect === 'mysql' ? '8.0.35' : '16.0', tableHasRows: () => true });
-    // A DATETIME there, which Adminium fills on its own writes: the database is given no `now`.
-    expect(plan('mysql').refusals.map((r) => r.code)).toContain('NEEDS_DEFAULT');
+    // A DATETIME there, which the database is given no `now` for: the server fills the rows it holds.
+    const mysql = plan('mysql');
+    expect(mysql.refusals).toEqual([]);
+    expect(mysql.steps.map((s) => [s.kind, s.column, s.hazard])).toEqual([
+      ['add-column', 'seen_at', 'rewrite'],
+      ['set-not-null', 'seen_at', 'rewrite'],
+    ]);
+    expect(mysql.steps[0]!.summary).toContain('giving every row already there the current time');
+    expect(mysql.steps[1]!.dependsOn).toEqual([mysql.steps[0]!.id]);
+    // Postgres keeps its own default, one step.
     expect(plan('postgres').refusals).toEqual([]);
+    expect(plan('postgres').steps.map((s) => s.kind)).toEqual(['add-column']);
+    // A column that may be empty needs no fill.
+    const optional = planDdl({
+      actual: before,
+      desired: [tbl({ name: 't', columns: [after[0]!.columns[0]!, { ...after[0]!.columns[1]!, nullable: true }] })],
+      dialect: 'mysql',
+      serverVersion: '8.0.35',
+      tableHasRows: () => true,
+    });
+    expect(optional.steps.map((s) => [s.kind, s.hazard])).toEqual([['add-column', 'safe']]);
   });
 
   it('refuses a comment on sqlite, which has no comment syntax', () => {

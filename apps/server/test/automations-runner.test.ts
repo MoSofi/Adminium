@@ -291,6 +291,43 @@ describe('42 — the runner walks the owner’s first example', () => {
     expect(outcome.trace.steps.some((step) => step.log?.startsWith('created '))).toBe(true);
   });
 
+  it('gives a deleted row’s actions the row as it was, and its trace only what the trace keeps', async () => {
+    const rule = await automationsRepo(t.meta).create(
+      {
+        connectionId,
+        name: 'Goodbye',
+        enabled: true,
+        trigger: { kind: 'record', event: 'deleted', connectionId, table: 'main.users', watch: false },
+        graph: {
+          version: 1,
+          nodes: [
+            { id: 'n1', kind: 'trigger', title: 'Trigger' },
+            { id: 'n2', kind: 'action', title: 'Say goodbye', onError: false, action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' } } },
+          ],
+        },
+      },
+      now,
+    );
+    sqlite.prepare('DELETE FROM users WHERE id = ?').run(7);
+    const outcome = await walkRule(deps(), {
+      rule,
+      runId: 'arun_gone',
+      event: {
+        ...event(),
+        event: 'record.deleted',
+        // What the trace keeps (the address masked), and the row itself.
+        snapshot: { id: 7, email: 'j•••@acme.io', full_name: 'Jordan Ellis' },
+        values: { id: 7, email: 'jordan@acme.io', full_name: 'Jordan Ellis', status: 'new' },
+      },
+    });
+    if (outcome.kind !== 'finished') throw new Error('expected a finished run');
+    expect(outcome.status).toBe('succeeded');
+    expect(sent.map((m) => [m.to, m.text.includes('Hello Jordan Ellis.')])).toEqual([['jordan@acme.io', true]]);
+    // The trace's trigger line reads the row as the trace keeps it: no address, no name.
+    expect(outcome.trace.steps[0]?.kind).toBe('trigger');
+    expect(outcome.trace.steps[0]?.log).toBe('record = 7 · new');
+  });
+
   it('a record deleted mid-wait ends the run skipped, not failed', async () => {
     const rule = await makeRule();
     const first = await walk(rule, null);

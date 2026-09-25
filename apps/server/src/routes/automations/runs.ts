@@ -165,13 +165,19 @@ export function automationRunsRoutes(deps: AutomationRunsRoutesDeps): FastifyPlu
           run: {
             ...row(run, ruleNames),
             trace: run.trace,
-            triggerEvent: run.triggerEvent,
+            triggerEvent: withoutValues(run.triggerEvent),
             error: run.error,
           },
         };
       },
     );
   };
+}
+
+/** A run's trigger as Workflow Logs may read it: never a deleted row's values (`triggerEvent.values`). */
+function withoutValues(event: AutomationRun['triggerEvent']): Omit<AutomationRun['triggerEvent'], 'values'> {
+  const { values: _values, ...served } = event;
+  return served;
 }
 
 function parseCursor(raw: string | undefined): { startedAt: number; id: string } | null {

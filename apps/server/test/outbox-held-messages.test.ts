@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { OutboxProducer } from '@adminium/manifest';
-import { addOnSettingsRepo, appTablesRepo, documentSequencesRepo, emailTemplatesRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, appTablesRepo, documentSequencesRepo, emailTemplatesRepo, manifestsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { encryptSecret, decryptSecret } from '../src/config/secrets.js';
 import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
@@ -932,7 +932,10 @@ for (const [dialect, reachable] of LEGS) {
       // An import brings a sent third reminder: nothing was sent for it, so nothing is paused.
       const other = await create('projects', { name: 'Imported', status: 'active' });
       const old = await invoice({ project_id: other['id'] });
-      const imported: WriteContext = { origin: 'import', hops: 0, actor: { kind: 'user', id: 'usr_imp', label: 'Importer' }, request: null };
+      // Whoever starts an import may link a message only to rows they may read.
+      const importer = await usersRepo(meta).create({ email: 'importer@north-studio.dev', name: 'Importer' });
+      await rolesRepo(meta).assignToUser(importer.id, (await rolesRepo(meta).findBySlug('super-admin'))!.id);
+      const imported: WriteContext = { origin: 'import', hops: 0, actor: { kind: 'user', id: importer.id, label: 'Importer' }, request: null };
       await writes.create({
         target: await target('messages'),
         values: { kind: 'invoice-rung-3', status: 'sent', sent_at: new Date(clock).toISOString(), invoice_id: old['id'], client_id: ann['id'] },

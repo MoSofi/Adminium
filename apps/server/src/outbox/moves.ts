@@ -28,9 +28,10 @@
  * sentence where the outbox offers no `held` — and one that says it went
  * comes back `sent`.
  *
- * A person (or an API key) who makes a message may link it only to rows they
- * may read: every link they set — the client, the project, the invoice —
- * asks `table:<linked>:read`. The email reads those rows, and a desk that
+ * A person (or an API key) who makes a message — by hand or by an import they
+ * started — or who queues a held or failed one to go, may link it only to
+ * rows they may read: every link it has — the client, the project, the
+ * invoice — asks `table:<linked>:read`. The email reads those rows, and a desk that
  * could queue a message about any project would read any project's name,
  * and more, back out of it (`sender.ts` keeps codes to their owner apart).
  *
@@ -49,6 +50,7 @@ import { slotInstant } from '../crud/capacity-guard.js';
 import type { BeforeWriteEvent, HookTiming, RecordHooks, WriteAction, WriteContext, WriteTarget } from '../crud/write-service.js';
 import { sameValue } from '../crud/write-values.js';
 import { AppError, ForbiddenError } from '../errors.js';
+import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import { isOutboxWrite } from './context.js';
 import type { LiveOutbox } from './producers.js';
 import { addressFor, referenced } from './recipient.js';
@@ -156,15 +158,33 @@ function historyWaits(box: LiveOutbox, target: WriteTarget, values: Row): void {
 }
 
 /**
- * A person or an API key making a message links it only to rows they may
- * read: the email reads them, and would otherwise tell a desk what it may
- * not see. A rule, the public side and history are not a person choosing.
+ * What the person or API key behind a write may do, or null when no person
+ * chose it (a rule, the public side, the undo of a delete). An import runs as
+ * a job, with no request: the person who started it is its actor, and is
+ * asked instead.
  */
-async function refuseUnreadableLinks(box: LiveOutbox, event: BeforeWriteEvent): Promise<void> {
-  const { context, target, values } = event;
+async function askerOf(context: BeforeWriteEvent['context'], meta: MetaDb): Promise<((permission: string) => Promise<boolean>) | null> {
+  if (context.origin === 'public') return null;
+  const actor = context.actor;
+  if (actor?.kind !== 'user' && actor?.kind !== 'api-key') return null;
   const request = context.request;
-  if (request === null || typeof request.can !== 'function' || context.origin === 'public') return;
-  if (context.actor?.kind !== 'user' && context.actor?.kind !== 'api-key') return;
+  if (request !== null && typeof request.can === 'function') return (permission) => request.can(permission);
+  if (context.origin !== 'import' || actor.kind !== 'user' || actor.id === null) return null;
+  const set = await resolvePermissionSet(meta, { kind: 'user', id: actor.id, label: actor.label });
+  return (permission) => Promise.resolve(permissionSetAllows(set, permission));
+}
+
+/**
+ * A person or an API key making a message — or queueing a held or failed one
+ * to go — links it only to rows they may read: the email reads them, and
+ * would otherwise tell a desk what it may not see. A rule, the public side
+ * and the undo of a delete are not a person choosing; an import is the
+ * person who started it.
+ */
+async function refuseUnreadableLinks(box: LiveOutbox, event: BeforeWriteEvent, meta: MetaDb, values: Row): Promise<void> {
+  const { context, target } = event;
+  const can = await askerOf(context, meta);
+  if (can === null) return;
   const definition = box.definition;
   const columns = new Set([
     ...Object.values(definition.links ?? {}),
@@ -175,7 +195,7 @@ async function refuseUnreadableLinks(box: LiveOutbox, event: BeforeWriteEvent): 
     if (!target.table.columns.has(column) || empty(values[column])) continue;
     const linked = referenced(target.view, target.table.id, column);
     if (linked === undefined) continue;
-    if (!(await request.can(`table:${target.connectionId}:${linked}:read`))) {
+    if (!(await can(`table:${target.connectionId}:${linked}:read`))) {
       throw new ForbiddenError(`"${column}" links a row you may not read, so a message about it is not yours to make.`, 'TABLE_FORBIDDEN', { column, table: linked });
     }
   }
@@ -204,7 +224,7 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   if (action === 'delete') return;
 
   if (action === 'create') {
-    await refuseUnreadableLinks(box, event);
+    await refuseUnreadableLinks(box, event, deps.meta, values);
     // History — an import, a deleted row put back by its undo — comes back as it was, but never goes by itself.
     if (context.origin === 'import' || context.origin === 'undo') {
       historyWaits(box, target, values);
@@ -277,7 +297,9 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   }
   // → queued: an approval (from held) or a second try (from failed). A second
   // try keeps when the first went and why it failed: the sender reads a queued
-  // row that says when it went and records no failure as sent already.
+  // row that says when it went and records no failure as sent already. Whoever
+  // sends it on its way may read every row it links, as whoever makes one must.
+  await refuseUnreadableLinks(box, event, deps.meta, { ...record, ...values });
   if (cols.skipReason !== undefined && !empty(record[cols.skipReason])) values[cols.skipReason] = null;
   if (from !== 'held') return;
   if (cols.approvedBy !== undefined) values[cols.approvedBy] = context.actor?.label ?? null;

@@ -214,6 +214,25 @@ for (const dialect of TEST_DIALECTS) {
       expect(done?.trace?.steps[0]?.name).toBe('Trigger');
     });
 
+    it('keeps a deleted row’s values only while its run has yet to end', async () => {
+      const rule = await makeRule({ enabled: true });
+      const deleted = { ...EVENT, event: 'record.deleted' as const, values: { id: 7, email: 'jordan@acme.io' } };
+      const begin = (key: string) => runs.begin({ automationId: rule.id, dedupeKey: key, origin: 'dashboard', triggerEvent: deleted, wakeAt: T0 + 60_000 }, T0);
+      const ran = await begin('ran');
+      const undone = await begin('undone');
+      if (!ran || !undone) throw new Error('expected two runs');
+      expect((await runs.findById(ran.id))?.triggerEvent.values).toEqual({ id: 7, email: 'jordan@acme.io' });
+      await runs.start(ran.id);
+      await runs.finish(ran.id, { status: 'succeeded', trace: TRACE, durationMs: 1 }, T0 + 1);
+      await runs.skipPending(undone.id, { trace: TRACE });
+      for (const id of [ran.id, undone.id]) {
+        const run = await runs.findById(id);
+        expect(run?.triggerEvent.values).toBeUndefined();
+        // What the trace keeps stays.
+        expect(run?.triggerEvent.snapshot).toEqual({ id: 7, email: '•••' });
+      }
+    });
+
     it('skips a pending run for undo, and refuses to skip one that already started (D7)', async () => {
       const rule = await makeRule({ enabled: true });
       const make = async (key: string) =>

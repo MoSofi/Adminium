@@ -69,6 +69,7 @@ const model = {
         { name: 'customer_id', logicalType: 'varchar', nullable: false, isPrimaryKey: true, semantics: null },
         { name: 'company_name', logicalType: 'varchar', nullable: false, isPrimaryKey: false, semantics: null },
         { name: 'balance', logicalType: 'decimal', nullable: true, isPrimaryKey: false, semantics: null },
+        { name: 'placed_at', logicalType: 'timestamptz', nullable: true, isPrimaryKey: false, semantics: null },
         {
           name: 'phone',
           logicalType: 'varchar',
@@ -149,6 +150,17 @@ describe('filter DSL compiler', () => {
       expect(compiled.sql).not.toContain('ilike');
       expect(compiled.parameters).toEqual(['%acme%']);
     }
+  });
+
+  it('reads a time with no zone, for a column that keeps one, on this server’s clock — as a write does', () => {
+    const at = new Date(2026, 8, 25, 11, 45);
+    const iso = `${at.toISOString().slice(0, 19)}Z`;
+    // Postgres gets the instant with its zone, never a text its session zone would read.
+    expect(compile({ column: 'placed_at', op: 'gte', value: '2026-09-25 11:45' }).parameters).toEqual([iso]);
+    expect(compile({ column: 'placed_at', op: 'between', value: ['2026-09-25 11:45', '2026-09-25T12:00:00Z'] }).parameters).toEqual([iso, '2026-09-25T12:00:00Z']);
+    expect(compile({ column: 'placed_at', op: 'in', value: ['2026-09-25 11:45'] }).parameters).toEqual([iso]);
+    // MySQL gets the same instant as UTC's wall time, its session's.
+    expect(compile({ column: 'placed_at', op: 'eq', value: '2026-09-25 11:45' }, false, 'mysql').parameters).toEqual([at.toISOString().slice(0, 19).replace('T', ' ')]);
   });
 
   it('never lets a client value reach the SQL text (hostile value stays a parameter)', () => {

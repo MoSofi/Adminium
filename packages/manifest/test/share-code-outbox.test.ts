@@ -62,6 +62,31 @@ describe('the columns Adminium writes as it sends', () => {
     expect(issuesText(m)).toBe('');
   });
 
+  it('refuses a rule of another column that reads one where the read could refuse Adminium’s write', () => {
+    const noted = (rules: Record<string, unknown>) => {
+      const m = valid();
+      (tableOf(m, 'messages')['columns'] as Doc[]).push(
+        { ref: 'skip_note', type: 'text', maxLength: 200, nullable: true, rules },
+        { ref: 'hours', type: 'decimal', scale: 2, nullable: true },
+        { ref: 'follow_up', type: 'timestamptz', nullable: true },
+      );
+      return m;
+    };
+    // Required once a message is sent: the write that marks it sent would be refused.
+    expect(issuesText(noted({ requiredWhen: { column: 'status', in: ['sent'] } }))).toContain(
+      '"messages.skip_note" has a requiredWhen rule that reads "status", the outbox\'s status, which Adminium writes as it sends, so its own writes would be refused',
+    );
+    // A formula worked out from when it went, and a date kept after it.
+    const formula = noted({});
+    columnOf(formula, 'messages', 'hours')['rules'] = { formula: { hoursBetween: ['due', 'effect_at'] } };
+    expect(issuesText(formula)).toContain('"messages.hours" has a formula rule that reads "effect_at", the outbox\'s effectAt');
+    const bounded = noted({});
+    columnOf(bounded, 'messages', 'follow_up')['rules'] = { notBefore: { column: 'effect_at' } };
+    expect(issuesText(bounded)).toContain('"messages.follow_up" has a notBefore rule that reads "effect_at", the outbox\'s effectAt');
+    // Watching a column only people write is fine.
+    expect(issuesText(noted({ requiredWhen: { column: 'kind', in: ['invoice-sent'] } }))).toBe('');
+  });
+
   it('leaves a rule that only labels one alone', () => {
     const m = valid();
     columnOf(m, 'messages', 'status')['rules'] = { enumLabels: { labels: { queued: 'Waiting' } } };
@@ -87,6 +112,37 @@ describe('a shared link’s code', () => {
     m = valid();
     (m['publicAccess'] as Doc[]).push({ table: 'projects', methods: ['GET'], select: ['status'] });
     expect(issuesText(m)).toBe('');
+  });
+
+  it('is never copied, nor is a secret or personal data copied where it is not kept the same way', () => {
+    const copying = (from: string, rules: Record<string, unknown> = {}) => {
+      const m = valid();
+      (tableOf(m, 'messages')['columns'] as Doc[]).push({ ref: 'copied', type: 'text', maxLength: 254, nullable: true, rules: { copy: { via: 'project_id', from }, ...rules } });
+      return m;
+    };
+    expect(issuesText(copying('share_token'))).toContain('"projects.share_token" is the code a shared link opens its row with, so no column copies it');
+    expect(issuesText(copying('share_token', { secret: true }))).toContain('is the code a shared link opens its row with');
+    // A secret lands only in a secret; personal data in personal data (or a secret).
+    const withNote = (rules: Record<string, unknown>) => {
+      const m = copying('studio_note', rules);
+      (tableOf(m, 'projects')['columns'] as Doc[]).push({ ref: 'studio_note', type: 'text', maxLength: 200, nullable: true, rules: { secret: true } });
+      return m;
+    };
+    expect(issuesText(withNote({}))).toContain('"projects.studio_note" is a secret, so no column copies it');
+    expect(issuesText(withNote({ secret: true }))).toBe('');
+    const personal = valid();
+    (tableOf(personal, 'projects')['columns'] as Doc[]).push({ ref: 'contact_phone', type: 'text', maxLength: 40, nullable: true, rules: { personal: true } });
+    (tableOf(personal, 'messages')['columns'] as Doc[]).push(
+      { ref: 'phone', type: 'text', maxLength: 40, nullable: true, rules: { copy: { via: 'project_id', from: 'contact_phone' } } },
+      { ref: 'kept_phone', type: 'text', maxLength: 40, nullable: true, rules: { copy: { via: 'project_id', from: 'contact_phone' }, personal: true } },
+    );
+    const text = issuesText(personal);
+    expect(text).toContain('"projects.contact_phone" is personal data, so no column copies it');
+    expect(text.match(/contact_phone/g)?.length).toBe(1);
+    // A stamp of a column of its row, and a formula's inputs, the same.
+    const stamped = valid();
+    (tableOf(stamped, 'projects')['columns'] as Doc[]).push({ ref: 'first_token', type: 'text', maxLength: 16, nullable: true, rules: { stamp: { set: { copy: 'share_token' }, on: 'create' } } });
+    expect(issuesText(stamped)).toContain('"projects.share_token" is the code a shared link opens its row with, so no column copies it');
   });
 
   it('may say whether it is a secret, as a column says whether it is personal', () => {

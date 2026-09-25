@@ -33,7 +33,7 @@
  */
 import { z } from 'zod';
 
-import type { DatabaseModel, Relation, TableModel } from '../schema-model.js';
+import type { ColumnModel, DatabaseModel, Relation, TableModel } from '../schema-model.js';
 import {
   diffTableDefinitions,
   isEmptyDefinitionDiff,
@@ -96,6 +96,29 @@ export interface PlanInput {
    * this from capped exact counts; unknown (`null`) is treated as "yes".
    */
   tableHasRows?: (tableId: string) => boolean | null;
+}
+
+/**
+ * A required time column given `now`, added on MySQL: added empty, every row
+ * already there given the current time, then made required.
+ *
+ * MySQL is given no `now` on such a column (a `DATETIME` there, which Adminium
+ * reads on its own server's clock while the database's session is in UTC), so
+ * the database has nothing to fill the rows a table already holds. It used to
+ * be refused as a column with no default, which stopped a Studio "add column"
+ * on any table with rows. The server compiles the fill on the clock Adminium's
+ * own `now` is written on (`compile.ts`).
+ */
+export function fillsNowWhenAdded(
+  column: Pick<ColumnModel, 'default' | 'logicalType' | 'nullable'>,
+  dialect: HazardContext['dialect'],
+): boolean {
+  return (
+    dialect === 'mysql' &&
+    !column.nullable &&
+    column.default?.kind === 'now' &&
+    (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz')
+  );
 }
 
 let stepCounter = 0;
@@ -555,17 +578,30 @@ function planAlters(
   const lastColumnName = desired.columns[desired.columns.length - 1]?.name;
   for (const name of diff.addedColumns) {
     const column = desired.columns.find((c) => c.name === name);
+    if (column !== undefined && fillsNowWhenAdded(column, ctx.dialect)) {
+      /*
+       * Two steps, so the review shows what really happens: the column goes in
+       * empty and every row already there is given the current time, then it
+       * is made required. MySQL commits each statement as it runs, so they
+       * cannot share a transaction; a failure between them leaves the column
+       * added and not yet required, and the ledger says which step stopped.
+       */
+      const added = make('add-column', id, ctx, {
+        column: name,
+        summary: `Add column ${name} (${column.dbType}), giving every row already there the current time`,
+        detail: { columnNullable: true, hasDefault: false, fillsRows: true, isLastPosition: name === lastColumnName },
+      });
+      emit(added);
+      emit(make('set-not-null', id, ctx, { column: name, summary: `Require ${name} on every row`, dependsOn: [added.step.id] }));
+      continue;
+    }
     emit(
       make('add-column', id, ctx, {
         column: name,
         summary: `Add column ${name}${column === undefined ? '' : ` (${column.dbType})`}`,
         detail: {
           columnNullable: column?.nullable ?? true,
-          // MySQL is given no `now` on a time column (a DATETIME there): Adminium
-          // fills it on its own writes, and a row already in the table gets none.
-          hasDefault:
-            (column?.default ?? null) !== null &&
-            !(ctx.dialect === 'mysql' && column?.default?.kind === 'now' && (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz')),
+          hasDefault: (column?.default ?? null) !== null,
           isLastPosition: name === lastColumnName,
         },
       }),

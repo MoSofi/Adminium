@@ -37,7 +37,9 @@ const BOS = 'BOSPROJECTLINK26';
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120, rules?: Record<string, unknown>) => ({ ref, type: 'text', maxLength, nullable: true, ...(rules === undefined ? {} : { rules }) });
 const fk = (ref: string, references: string) => ({ ref, type: 'fk', references, nullable: true });
-const KINDS = ['handover', 'note', 'typo'];
+const KINDS = ['handover', 'note', 'typo', 'receipt'];
+/** A project's reference: a code Adminium makes, which no link opens anything with. */
+const REF = 'K7Q2M9XA';
 
 function manifest(): Record<string, unknown> {
   const template = (kind: string, ...paras: string[]) => ({
@@ -50,7 +52,16 @@ function manifest(): Record<string, unknown> {
       { ref: 'clients', columns: [id, { ref: 'email', type: 'text', maxLength: 254, unique: true }, text('name')] },
       {
         ref: 'projects',
-        columns: [id, fk('client_id', 'clients'), text('name'), text('share_token', 16, { code: { length: 16 }, secret: false }), text('studio_note', 200, { secret: true })],
+        columns: [
+          id,
+          fk('client_id', 'clients'),
+          // Who sent the client our way: a second link to a client, never the one the project is for.
+          fk('referrer_id', 'clients'),
+          text('name'),
+          text('share_token', 16, { code: { length: 16 }, secret: false }),
+          text('ref', 8, { code: { length: 8 } }),
+          text('studio_note', 200, { secret: true }),
+        ],
       },
       {
         ref: 'messages',
@@ -78,7 +89,11 @@ function manifest(): Record<string, unknown> {
       template('handover', 'Hi {{recipient.first_name}}, {{project.name}} is done.', 'Open the handover: {{manage_url}}#{{project.share_token}}'),
       template('note', 'A note on {{project.name}}: {{project.studio_note}}'),
       template('typo', 'Hi {{recipient.first_name}}, {{project.nmae}} is done.'),
+      template('receipt', 'Thank you. Your reference is {{project.ref}}.'),
     ],
+    // `share_token` is the code a shared link opens a project with; `ref` opens nothing.
+    publicKeys: { handover: {} },
+    publicAccess: [{ table: 'projects', methods: ['GET'], select: ['name'], claim: { by: 'token', column: 'share_token' }, key: 'handover' }],
   };
 }
 
@@ -132,9 +147,11 @@ describe.each(LEGS)('an email with a variable nothing fills — %s', (dialect, a
     await h.rows(`INSERT INTO ${h.real('clients')} (email, name) VALUES ('bo@other.studio.dev', 'Bo Chen')`);
     // A client with no name on file.
     await h.rows(`INSERT INTO ${h.real('clients')} (email) VALUES ('cy@client.studio.dev')`);
-    await h.rows(`INSERT INTO ${h.real('projects')} (client_id, name, share_token, studio_note) VALUES (1, 'Studio identity', '${TOKEN}', 'owes us lunch')`);
+    await h.rows(`INSERT INTO ${h.real('projects')} (client_id, name, share_token, ref, studio_note) VALUES (1, 'Studio identity', '${TOKEN}', '${REF}', 'owes us lunch')`);
     await h.rows(`INSERT INTO ${h.real('projects')} (client_id, name, share_token) VALUES (2, 'Bo’s launch', '${BOS}')`);
     await h.rows(`INSERT INTO ${h.real('projects')} (client_id, name, share_token) VALUES (3, 'Cy’s menu', 'CYSMENUHANDOVER1')`);
+    // Bo's project, which Ann sent Bo to.
+    await h.rows(`INSERT INTO ${h.real('projects')} (client_id, referrer_id, name, share_token) VALUES (2, 1, 'Bo’s rebrand', 'BOSREBRANDLINK26')`);
   }, 120_000);
 
   afterAll(async () => {
@@ -185,6 +202,50 @@ describe.each(LEGS)('an email with a variable nothing fills — %s', (dialect, a
     expect(sent.find((m) => m.to === 'Ann@client.studio.dev')!.text).toContain(`#${TOKEN}`);
   });
 
+  it.skipIf(!available)('prints a reference no link opens anything with, wherever the desk sends it', async () => {
+    const before = (await mail()).length;
+    // A receipt the desk typed an address for, and one linking another client's project.
+    const typed = await queue('receipt', 1, 'front-desk@north-studio.dev');
+    const another = await queue('receipt', 1, null, 2);
+    await sender.sendApp('studio', now);
+    expect(await message(typed)).toEqual({ status: 'sent', error: null });
+    expect(await message(another)).toEqual({ status: 'sent', error: null });
+    const sent = (await mail()).slice(before);
+    expect(sent.map((m) => m.to).sort()).toEqual(['bo@other.studio.dev', 'front-desk@north-studio.dev']);
+    for (const m of sent) expect(m.text).toContain(`Your reference is ${REF}.`);
+  });
+
+  it.skipIf(!available)('carries a shared link’s code only by the link that names the client, not another link to them', async () => {
+    const before = (await mail()).length;
+    // To Ann, at her own address, about Bo's project — which links Ann only as who referred Bo.
+    const referred = await queue('handover', 4, null, 1);
+    await sender.sendApp('studio', now);
+    expect(await message(referred)).toEqual({ status: 'failed', error: codeWithheldSentence(['project.share_token']) });
+    expect((await mail()).slice(before)).toEqual([]);
+    // To Bo, whose project it is, it goes.
+    const owner = await queue('handover', 4, null, 2);
+    await sender.sendApp('studio', now);
+    expect(await message(owner)).toEqual({ status: 'sent', error: null });
+    expect((await mail()).slice(before).map((m) => m.text).join('\n')).toContain('#BOSREBRANDLINK26');
+  });
+
+  it.skipIf(!available)('marks a message failed under a rule kept from before that watches its status', async () => {
+    const messages = (await writerFor(h)).targetOf('messages').table.id;
+    // Written around every check, as a rule from before them would be.
+    const made = await overridesRepo(meta).create({ connectionId: h.connectionId, op: 'column.requiredWhen', tableName: messages, columnName: 'project_id', value: { column: 'status', in: ['failed'] }, origin: 'user' });
+    try {
+      const views = createPublicViews(meta);
+      const writes = createWriteService({ sequences: documentSequencesRepo(meta) });
+      const producers = createOutboxProducers({ meta, manager: h.manager, viewFor: views.viewFor, writes });
+      const fresh = createOutboxSender({ meta, manager: h.manager, viewFor: views.viewFor, writes, live: () => producers.live(), secret: TEST_SECRET, hostFor: async () => 'portal.north-studio.dev' });
+      const mid = await queue('handover', null);
+      await fresh.sendApp('studio', now);
+      expect(await message(mid)).toEqual({ status: 'failed', error: 'Not sent: nothing fills {{project.name}}, {{project.share_token}}' });
+    } finally {
+      await overridesRepo(meta).delete(made.id);
+    }
+  });
+
   it.skipIf(!available)('greets a client with no name on file rather than failing', async () => {
     const mid = await queue('handover', 3, 'cy@client.studio.dev', 3);
     await sender.sendApp('studio', now);
@@ -223,6 +284,34 @@ describe.each(LEGS)('an email with a variable nothing fills — %s', (dialect, a
     expect(refused).toBeInstanceOf(ForbiddenError);
     expect((refused as ForbiddenError).message).toBe('"project_id" links a row you may not read, so a message about it is not yours to make.');
     await expect(judgeMove(box!, event(() => true), { meta })).resolves.toBeUndefined();
+
+    // An import runs with no request: the person who started it is asked.
+    const clerk = await usersRepo(meta).create({ email: 'clerk@north-studio.dev', name: 'Clerk' });
+    const lead = await usersRepo(meta).create({ email: 'lead@north-studio.dev', name: 'Lead' });
+    await rolesRepo(meta).assignToUser(lead.id, (await rolesRepo(meta).findBySlug('super-admin'))!.id);
+    const imported = (userId: string) => ({
+      action: 'create' as const,
+      target,
+      values: { kind: 'handover', status: 'queued', client_id: 1, project_id: 2 },
+      record: null,
+      context: { origin: 'import' as const, hops: 0, actor: { kind: 'user' as const, id: userId, label: userId }, request: null },
+    });
+    const byClerk = await judgeMove(box!, imported(clerk.id), { meta }).catch((error: unknown) => error);
+    expect(byClerk).toBeInstanceOf(ForbiddenError);
+    await expect(judgeMove(box!, imported(lead.id), { meta })).resolves.toBeUndefined();
+
+    // Queueing a failed or held message to go asks the same of whoever queues it.
+    for (const from of ['failed', 'held']) {
+      const again = (reads: (permission: string) => boolean) => ({
+        ...event(reads),
+        action: 'update' as const,
+        values: { status: 'queued' },
+        record: { id: 9, kind: 'handover', status: from, client_id: 1, project_id: 2, to_address: 'ann@client.studio.dev' },
+      });
+      const requeued = await judgeMove(box!, again((permission) => !permission.includes(projectsId)), { meta }).catch((error: unknown) => error);
+      expect(requeued, from).toBeInstanceOf(ForbiddenError);
+      await expect(judgeMove(box!, again(() => true), { meta })).resolves.toBeUndefined();
+    }
   });
 
   it.skipIf(!available)('takes no Studio rule on a column Adminium writes as it sends', async () => {
@@ -255,6 +344,34 @@ describe.each(LEGS)('an email with a variable nothing fills — %s', (dialect, a
       }
       // A check of the address a person types stays theirs to add.
       expect((await put([...current, { op: 'column.validation', tableName: messages, columnName: 'to_address', value: { format: 'email' } }])).statusCode).toBe(200);
+      // Nor a rule of another column that reads one: a link required once the message went.
+      const watching = await put([...current, { op: 'column.requiredWhen', tableName: messages, columnName: 'project_id', value: { column: 'status', in: ['sent'] } }]);
+      expect(watching.statusCode, watching.body).toBe(422);
+      expect(watching.body).toContain('has a requiredWhen rule that reads \\"status\\", the outbox\'s status');
+      // Watching a column only people write is theirs to add.
+      const byKind = await put([...current, { op: 'column.requiredWhen', tableName: messages, columnName: 'project_id', value: { column: 'kind', in: ['handover'] } }]);
+      expect(byKind.statusCode, byKind.body).toBe(200);
+      expect((await put(current)).statusCode).toBe(200);
+
+      // A rule never lands a column kept from readers in one that is not.
+      const projects = (await writerFor(h)).targetOf('projects').table.id;
+      for (const [op, value, said] of [
+        ['column.copy', { via: 'client_id', from: 'email' }, 'is personal data, so no column copies it'],
+        ['column.stamp', { set: { copy: 'studio_note' }, on: 'create' }, 'is a secret, so no column copies it'],
+        ['column.stamp', { set: { copy: 'share_token' }, on: 'create' }, 'is the code a shared link opens its row with, so no column copies it'],
+      ] as const) {
+        const refused = await put([...current, { op, tableName: projects, columnName: 'name', value }]);
+        expect(refused.statusCode, `${op} ${refused.body}`).toBe(422);
+        expect(refused.body).toContain(said);
+      }
+      // Into a column kept the same way, it is.
+      const intoSecret = await put([
+        ...current,
+        { op: 'column.secret', tableName: projects, columnName: 'name', value: { secret: true } },
+        { op: 'column.stamp', tableName: projects, columnName: 'name', value: { set: { copy: 'studio_note' }, on: 'create' } },
+      ]);
+      expect(intoSecret.statusCode, intoSecret.body).toBe(200);
+      expect((await put(current)).statusCode).toBe(200);
     } finally {
       await served.close();
     }

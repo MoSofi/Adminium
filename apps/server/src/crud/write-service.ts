@@ -92,6 +92,7 @@ import {
   requiredGuardsOf,
   tableRulesFor,
   withoutReadOnly,
+  withoutRequiredWhen,
   type ColumnCode,
   type RequiredGuard,
   type FieldIssues,
@@ -149,6 +150,11 @@ function withoutTypedCodes(rules: TableRules | null, context: WriteContext, valu
   const out = { ...values };
   for (const code of codes) delete out[code.column];
   return out;
+}
+
+/** The rules a write is judged by: the outbox's own writes to its own table skip a `requiredWhen` (`withoutRequiredWhen`). */
+function judgedBy(rules: TableRules | null, target: WriteTarget, context: WriteContext): TableRules | null {
+  return isOutboxWrite(context, target.table.id) ? withoutRequiredWhen(rules) : rules;
 }
 
 /** The context of a write that a signed-in person or an API key asked for. */
@@ -465,14 +471,18 @@ function requiredWhere(query: AnyUpdate, table: ResolvedTable, dialect: Dialect,
  * zone is the instant it names on this server's clock (`zonedWriteValue`),
  * so the database's session zone never decides it and a formula counting
  * hours reads the moment that is stored; and a yes or a no — in a boolean
- * column, or in one a `requiredWhen` reads as one (SQLite keeps an app's
- * boolean as a number) — is `true` or `false`, stored as that answer on
- * every engine and compared as it by every rule.
+ * column, or on SQLite in a number one a `requiredWhen` reads as one (SQLite
+ * keeps an app's boolean as a number) — is `true` or `false`, stored as that
+ * answer on every engine and compared as it by every rule. A number column
+ * on Postgres or MySQL keeps its numbers, whatever a rule lists: `true` is
+ * no integer there.
  */
-function spelledForColumn(rules: TableRules | null, column: ResolvedColumn, value: unknown, venueLocal = false): unknown {
+function spelledForColumn(rules: TableRules | null, column: ResolvedColumn, value: unknown, dialect: Dialect, venueLocal = false): unknown {
   if (typeof value === 'string' && column.logicalType === 'timestamp') return normalizeWriteValue(column, value);
   if (column.logicalType === 'timestamptz') return venueLocal ? value : zonedWriteValue(column, value);
-  const yesNo = column.logicalType === 'boolean' || (rules?.checks ?? []).some((check) => check.requiredWhen?.column === column.name && check.requiredWhen.in.some((listed) => typeof listed === 'boolean'));
+  const yesNo =
+    column.logicalType === 'boolean' ||
+    (dialect === 'sqlite' && (rules?.checks ?? []).some((check) => check.requiredWhen?.column === column.name && check.requiredWhen.in.some((listed) => typeof listed === 'boolean')));
   if (!yesNo || typeof value === 'boolean') return value;
   return booleanOf(value) ?? value;
 }
@@ -1383,9 +1393,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     stored: Row | null,
     mapError: ((error: unknown) => never) | undefined,
   ): Promise<CheckedRow> {
-    const issues = mergeIssues(checkRow(rules, action, values, { dialect: target.dialect, stored }), await boundIssues(rules, action, target, context, values, stored));
+    const judged = judgedBy(rules, target, context);
+    const issues = mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored }), await boundIssues(rules, action, target, context, values, stored));
     // What the check read of the stored row goes with the values, for the statement to hold it to.
-    if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(rules, action, values, stored)));
+    if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
     const error = refusal(issues);
     if (mapError !== undefined) mapError(error);
     throw error;
@@ -1452,7 +1463,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const column = target.table.columns.get(name);
       if (column === undefined) continue;
       // A venue-local time was read on the venue's clock just above, never on this server's.
-      const spelled = spelledForColumn(rules, column, value, (rules?.venueLocal ?? []).includes(name));
+      const spelled = spelledForColumn(rules, column, value, target.dialect, (rules?.venueLocal ?? []).includes(name));
       if (spelled === value) continue;
       out ??= { ...values };
       out[name] = spelled;
@@ -1922,7 +1933,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       for (const row of rows) {
         // No stored row here: an update's formulas are worked out by a path that reads one (`beforeEach`).
         const values = await formulate(rules, action, target, await prepareValues(rules, action, target, context, row, now, memo), null);
-        const issue = mergeIssues(checkRow(rules, action, values, { dialect: target.dialect }), await boundIssues(rules, action, target, context, values, null));
+        const issue = mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect }), await boundIssues(rules, action, target, context, values, null));
         issues.push(issue);
         out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null) : null);
       }
@@ -2202,10 +2213,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
         const worked = await formulate(rules, action, target, values, record);
-        const issues = mergeIssues(checkRow(rules, action, worked, { dialect: target.dialect, stored: record }), await boundIssues(rules, action, target, context, worked, record));
+        const judged = judgedBy(rules, target, context);
+        const issues = mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record }), await boundIssues(rules, action, target, context, worked, record));
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
-        const guarded = brand(attachRequiredGuards(worked, requiredGuards(rules, action, worked, record)));
+        const guarded = brand(attachRequiredGuards(worked, requiredGuards(judged, action, worked, record)));
         return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, guarded), record), issues };
       };
       const start = (values: Row): Promise<Row> =>

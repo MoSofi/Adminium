@@ -18,7 +18,7 @@
  * server runs them; only the clock is the test's.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { documentSequencesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { documentSequencesRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { encryptSecret, decryptSecret } from '../src/config/secrets.js';
 import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
@@ -159,6 +159,7 @@ for (const [dialect, reachable] of LEGS) {
     let writes: ReturnType<typeof createWriteService>;
     const clock = at('2026-10-02T12:00:00Z');
     const desk: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy Ferreira' }, request: null };
+    // Who started the import: it may link a message only to rows they may read (made in `beforeAll`).
     const imported: WriteContext = { origin: 'import', hops: 0, actor: { kind: 'user', id: 'usr_imp', label: 'Importer' }, request: null };
     const undone: WriteContext = { origin: 'undo', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy Ferreira' }, request: null };
 
@@ -221,6 +222,9 @@ for (const [dialect, reachable] of LEGS) {
     beforeAll(async () => {
       h = await installInvoicing(dialect, manifest());
       meta = h.meta;
+      const importer = await usersRepo(meta).create({ email: 'importer@north-studio.dev', name: 'Importer' });
+      await rolesRepo(meta).assignToUser(importer.id, (await rolesRepo(meta).findBySlug('super-admin'))!.id);
+      imported.actor = { kind: 'user', id: importer.id, label: 'Importer' };
       await meta.db.updateTable('adminium_connections').set({ timezone: 'Europe/London', currency: 'GBP' }).where('id', '=', h.connectionId).execute();
       await settingsRepo(meta).set('email.smtp', {
         host: 'localhost',

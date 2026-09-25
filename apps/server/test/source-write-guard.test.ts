@@ -21,6 +21,7 @@ const SRC = join(import.meta.dirname, '..', 'src');
 const ALLOWED: Record<string, string> = {
   'crud/write-service.ts': 'the write service itself',
   'schema-ddl/sqlite-rebuild.ts': 'a schema change: rows are copied into the rebuilt table unchanged',
+  'schema-ddl/compile.ts': 'a schema change: a required MySQL time added to a table gives the rows already there the current time',
   'routes/desktop-local-db/handlers.ts': "the desktop app's placeholder rows in a database it has just created",
   'apps/sample-data.ts':
     "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service",

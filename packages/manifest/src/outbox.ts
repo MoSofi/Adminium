@@ -27,6 +27,7 @@
 import { z } from 'zod';
 
 import type { AddOnNeeds } from './add-ons.js';
+import { formulaColumns, type FormulaExpr } from './formula.js';
 import {
   bcp47TagSchema,
   refSchema,
@@ -347,6 +348,28 @@ export const OUTBOX_WRITTEN = {
   language: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
 } as const satisfies Record<string, readonly string[]>;
 
+/**
+ * The columns of its own row one column's rules read where the read can
+ * refuse a write of that row: a `requiredWhen`'s watched column, a
+ * `notBefore`'s bound (or its link), a `copy`'s link, a formula's inputs (a
+ * result the column cannot hold is refused). The manifest's rule shape, which
+ * is also the value of the override each is kept as (`column.requiredWhen`,
+ * `column.bounds`, `column.copy`, `column.formula`).
+ */
+export function rulesReading(rules: unknown): { rule: 'requiredWhen' | 'notBefore' | 'copy' | 'formula'; reads: string }[] {
+  if (typeof rules !== 'object' || rules === null) return [];
+  const r = rules as { requiredWhen?: { column?: unknown }; notBefore?: { column?: unknown; via?: unknown }; copy?: { via?: unknown }; formula?: unknown };
+  const out: ReturnType<typeof rulesReading> = [];
+  if (typeof r.requiredWhen?.column === 'string') out.push({ rule: 'requiredWhen', reads: r.requiredWhen.column });
+  const bound = r.notBefore?.via ?? r.notBefore?.column;
+  if (typeof bound === 'string') out.push({ rule: 'notBefore', reads: bound });
+  if (typeof r.copy?.via === 'string') out.push({ rule: 'copy', reads: r.copy.via });
+  if (typeof r.formula === 'object' && r.formula !== null) {
+    for (const reads of formulaColumns(r.formula as FormulaExpr)) out.push({ rule: 'formula', reads });
+  }
+  return out;
+}
+
 /** Everything in `outbox` and `emailTemplates` that names something undeclared, or does not fit. */
 export function outboxIssues(
   m: {
@@ -448,6 +471,26 @@ export function outboxIssues(
       out.push({
         path: at('columns', name),
         message: `"${box.table}.${ref}" is the outbox's ${name}, which Adminium writes, so it takes no ${found.join(' or ')} rule`,
+      });
+    }
+  }
+  /*
+   * Nor may a rule of ANOTHER column read one of them where the read can
+   * refuse a write: a `skip_note` required while the status is `sent` refuses
+   * the very write that marks a message sent, and the message is stuck.
+   */
+  const written = new Map<string, string>();
+  for (const name of Object.keys(OUTBOX_WRITTEN) as (keyof typeof OUTBOX_WRITTEN)[]) {
+    const ref = box.columns[name];
+    if (ref !== undefined) written.set(ref, name);
+  }
+  for (const column of index.table(box.table)?.columns ?? []) {
+    for (const { rule, reads } of rulesReading((column as { rules?: unknown }).rules)) {
+      const name = written.get(reads);
+      if (name === undefined || reads === column.ref) continue;
+      out.push({
+        path: at('columns', name),
+        message: `"${box.table}.${column.ref}" has a ${rule} rule that reads "${reads}", the outbox's ${name}, which Adminium writes as it sends, so its own writes would be refused`,
       });
     }
   }

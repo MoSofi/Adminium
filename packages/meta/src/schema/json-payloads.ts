@@ -1424,7 +1424,14 @@ export const automationTriggerEventSchema = z.object({
   /** Loop guard: refused above 3. */
   hops: z.number().int().min(0).max(16).default(0),
   record: recordRefSchema.nullable(),
+  /** The row as the trace keeps it: masked, no code (read in Workflow Logs). */
   snapshot: z.record(z.string(), z.unknown()).nullable(),
+  /**
+   * A DELETED row as it was, for the run's actions — there is no row left to
+   * read again. Never served (the runs route leaves it out) and cleared once
+   * the run ends; the trace reads `snapshot`.
+   */
+  values: z.record(z.string(), z.unknown()).nullish(),
   occurredAt: z.number().int(),
 });
 export type AutomationTriggerEvent = z.infer<typeof automationTriggerEventSchema>;

@@ -37,16 +37,20 @@
  * row, a visit's time range without an end.
  *
  * ── A CODE ─────────────────────────────────────────────────────────────────
- * A code Adminium makes (`code` rule: a project's `share_token`) opens a page
- * to whoever holds it, so an email carries one only to the person it belongs
+ * The code a shared link opens a row with (a project's `share_token`: a
+ * `claim: { by: 'token' }`, `public-api/share-codes.ts`) opens a page to
+ * whoever holds it, so an email carries one only to the person it belongs
  * to: the message goes to the address the recipient's own row keeps (as the
  * sign-in link does), and the row the code is on is that person's — it is
- * their row, or it links to it (`project.client_id` is the recipient). A
- * message a person addressed by hand to another address, one that links one
- * client and another client's project, or one sent to a setting's address
- * carries no code: it fails, with a sentence naming the variable, and never
- * hands a link to someone it does not belong to. The practice's settings row
- * is nobody's, and its codes never go.
+ * their row, or it links to it by the link the recipient is named by
+ * (`project.client_id`). A message a person addressed by hand to another
+ * address, one that links one client and another client's project, or one
+ * sent to a setting's address carries no such code: it fails, with a
+ * sentence naming the variable, and never hands a link to someone it does not
+ * belong to. The practice's settings row is nobody's, and its links' codes
+ * never go. A code no link opens anything with — a booking's reference, which
+ * a receipt prints for whoever the desk sends it to — is printed like any
+ * other value.
  *
  * ── WHERE IT GOES ─────────────────────────────────────────────────────────
  * The row's own address. A row that names none — one a desk queued by hand,
@@ -116,6 +120,7 @@
  * reason, for a day after the send.
  */
 import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
+import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import type { AppManifest, OutboxProducer } from '@adminium/manifest';
 import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
@@ -483,7 +488,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   /** Everything a template may read for one row, and the codes it held back (`{{project.share_token}}`). */
   async function variables(
     box: LiveOutbox,
-    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms> },
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes },
     row: Row,
     addressed: Addressed | null,
     /** Whose codes the email may carry: the recipient, when it goes to their own address on file; else nobody's. */
@@ -492,14 +497,20 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const { db, view, forms } = ctx;
     const vars: Record<string, string> = {};
     const withheld = new Set<string>();
-    /** Whether a row is the code holder's: their own, or one that links to them. */
+    /**
+     * Whether a row is the code holder's: their own, or one that links to
+     * them — by the link the outbox names its recipient by (`client_id`) where
+     * the row has one, else by every link it has to their table, all agreeing.
+     * A project with an owner and a referrer is the owner's.
+     */
     const holders = (table: ResolvedTable, record: Row): boolean => {
       if (holder === null) return false;
       const key = table.primaryKey[0];
       if (table.id === holder.table && key !== undefined && String(record[key]) === String(holder.id)) return true;
-      return [...table.columns.keys()].some(
-        (column) => record[column] !== null && record[column] !== undefined && String(record[column]) === String(holder.id) && referenced(view, table.id, column) === holder.table,
-      );
+      const links = [...table.columns.keys()].filter((column) => referenced(view, table.id, column) === holder.table);
+      const via = box.definition.recipient.via;
+      const deciding = links.includes(via) ? [via] : links;
+      return deciding.length > 0 && deciding.every((column) => record[column] !== null && record[column] !== undefined && String(record[column]) === String(holder.id));
     };
     // A column Adminium masks (an email, a phone) is never read into an email
     // from a linked row: the address a message goes to is looked up apart.
@@ -507,8 +518,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       // A row that keeps its own currency (an invoice in euros on a pound connection) prints its money in it.
       const own = table.columns.has('currency') ? record['currency'] : null;
       const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
-      // A code goes only to the person whose row it is on — never from the settings row, which is nobody's.
-      const codes = settingsRow || !holders(table, record) ? new Set(table.table.columns.filter((c) => c.code !== undefined).map((c) => c.name)) : new Set<string>();
+      // A shared link's code goes only to the person whose row it is on — never from the settings row, which is nobody's.
+      // A reference a `code` rule makes that no link opens anything with (a booking's) goes to anyone the message goes to.
+      const codes = settingsRow || !holders(table, record) ? (ctx.shareCodes.get(table.id.slice(table.id.lastIndexOf('.') + 1)) ?? new Set<string>()) : new Set<string>();
       if (table.columns.has('starts_at')) vars[`${prefix}.time_range`] = '';
       for (const column of table.columns.values()) {
         if (column.secret || (column.masked && !settingsRow)) continue;
@@ -722,7 +734,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
    */
   async function prepare(
     box: LiveOutbox,
-    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; zone: string; currency: string | null; now: number },
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; zone: string; currency: string | null; now: number; shareCodes: ShareCodes },
     row: Row,
   ): Promise<Outcome | Prepared> {
     const cols = box.definition.columns;
@@ -828,6 +840,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const due = cols.due === undefined ? undefined : outbox.columns.get(cols.due);
     const target = { view, outbox, db, dialect };
     const at = new Date(now).toISOString();
+    /** The codes shared links open rows with here, read once a message is about to be made. */
+    let shareCodes: ShareCodes | undefined;
     /**
      * Sent already: it says when it went and records no failure. (A message
      * that failed keeps when it was tried, with the reason, and a person may
@@ -900,7 +914,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           if (moved !== null) settled.push(moved);
           continue;
         }
-        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now }, row);
+        shareCodes ??= await shareCodesOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
+        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes }, row);
         if ('status' in ready) {
           const values: Row = { [cols.status]: ready.status };
           if (cols.error !== undefined) values[cols.error] = ready.error;

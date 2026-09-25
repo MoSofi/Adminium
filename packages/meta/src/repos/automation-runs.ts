@@ -158,6 +158,15 @@ export function automationRunsRepo(meta: MetaDb) {
     return row ? decode(row) : null;
   }
 
+  /** A deleted row's values leave a run as it ends: only its actions needed them, and the trace keeps `snapshot`. */
+  async function forgetValues(id: string): Promise<void> {
+    const row = await db.selectFrom('adminium_automation_runs').select('triggerEvent').where('id', '=', id).executeTakeFirst();
+    if (row === undefined) return;
+    const { values, ...kept } = automationTriggerEventSchema.parse(readJson(row.triggerEvent));
+    if (values === undefined || values === null) return;
+    await db.updateTable('adminium_automation_runs').set({ triggerEvent: packJson(kept) }).where('id', '=', id).execute();
+  }
+
   return {
     findById,
 
@@ -256,6 +265,7 @@ export function automationRunsRepo(meta: MetaDb) {
         })
         .where('id', '=', id)
         .executeTakeFirst();
+      await forgetValues(id);
       return affected(res.numUpdatedRows) === 1;
     },
 
@@ -295,7 +305,9 @@ export function automationRunsRepo(meta: MetaDb) {
         .where('id', '=', id)
         .where('status', '=', 'pending')
         .executeTakeFirst();
-      return affected(res.numUpdatedRows) === 1;
+      if (affected(res.numUpdatedRows) !== 1) return false;
+      await forgetValues(id);
+      return true;
     },
 
     /** Newest first, keyset-paginated — the Workflow Logs list (D22). */

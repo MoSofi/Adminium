@@ -324,6 +324,8 @@ export function classifyStep(
     hasDefault?: boolean;
     /** `add-column`/`set-not-null`: is the position the last one? (MySQL INSTANT). */
     isLastPosition?: boolean;
+    /** `add-column` only: every row already there is given a value (`fillsNowWhenAdded`). */
+    fillsRows?: boolean;
   } = {},
 ): HazardVerdict {
   const { dialect } = ctx;
@@ -402,6 +404,13 @@ export function classifyStep(
         };
       }
       if (lite) return { hazard: 'safe', rationale: 'SQLite adds a column by appending to the schema.' };
+      if (my && detail.fillsRows === true && nonEmpty(ctx)) {
+        return {
+          hazard: 'rewrite',
+          rationale:
+            "The column is added empty, then every row already in the table is given the current time on the Adminium server's clock, as Adminium stamps a new row; the next step makes it required.",
+        };
+      }
       if (my) {
         const anywhere = atLeastVersion(ctx.serverVersion, '8.0.29');
         const lastOnly = atLeastVersion(ctx.serverVersion, '8.0.12');

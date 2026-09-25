@@ -36,6 +36,7 @@ import {
   columnDefinition,
   compileStep,
   mysqlAlgorithmClause,
+  mysqlServerNow,
   quoteIdent,
   quoteLiteral,
   renderDefault,
@@ -182,6 +183,19 @@ describe('default rendering', () => {
     // which the database's UTC session cannot fill: Adminium fills it itself.
     expect(renderDefault(d, 'mysql')).toBeNull();
     expect(renderDefault({ logicalType: 'timestamp', default: { kind: 'now' } }, 'mysql')).toBeNull();
+  });
+
+  it('spells this server’s clock for MySQL as UTC’s moved by the offset, so a plan and its apply match', () => {
+    // The offset of the moment asked about: a summer and a winter day in the process's zone.
+    const summer = new Date(2026, 6, 1, 12);
+    const winter = new Date(2026, 0, 1, 12);
+    const spelled = (at: Date): string => {
+      const offset = -at.getTimezoneOffset();
+      return offset === 0 ? 'UTC_TIMESTAMP(3)' : `UTC_TIMESTAMP(3) + INTERVAL ${String(offset)} MINUTE`;
+    };
+    expect(mysqlServerNow(summer)).toBe(spelled(summer));
+    expect(mysqlServerNow(winter)).toBe(spelled(winter));
+    expect(mysqlServerNow(summer)).toBe(mysqlServerNow(new Date(summer.getTime() + 60_000)));
   });
 
   it('refuses a database-generated uuid off postgres (D31)', () => {

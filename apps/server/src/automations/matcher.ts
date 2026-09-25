@@ -300,6 +300,9 @@ export function triggerEventFor(
     // record unmasked — it has to address the email. No code is kept
     // either: the trace's readers may not read the table (`keptRow`).
     snapshot: keptRow(image, event.table),
+    // A deleted row cannot be read again, so its actions get it as it was;
+    // never served, and dropped when the run ends (`values`).
+    ...(event.action === 'delete' ? { values: image } : {}),
     occurredAt: event.occurredAt ?? Date.now(),
   };
 }

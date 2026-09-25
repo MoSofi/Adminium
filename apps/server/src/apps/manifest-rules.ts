@@ -73,8 +73,9 @@ import {
 import { installedShapes } from '../documents/app-profiles.js';
 import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
-import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
-import { columnsShown } from '../connections/effective-schema.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, keptColumnIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
+import { applyOverrides, columnsShown } from '../connections/effective-schema.js';
+import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { roleSlugFor } from './manifest-roles.js';
 
 export type RuleOp =
@@ -545,6 +546,8 @@ export async function writeManifestRules(input: {
 
   /** Targets whose rule the operator changed, switched off or removed: never written again. */
   const released = new Set<string>();
+  /** The codes shared links open rows with on the connection, read when a rule needs them. */
+  let codes: ShareCodes | undefined;
   for (const record of records) {
     const kept: AppTableRule[] = [];
     // Rules an earlier version wrote: kept, replaced, or taken back — only
@@ -664,6 +667,15 @@ export async function writeManifestRules(input: {
           model,
           knownLists,
         );
+        if (issue !== null) {
+          skip(issue);
+          continue;
+        }
+      }
+      // A copy, a stamp's copy or a formula never lands a column kept from readers in one that is not.
+      if (rule.op === 'column.copy' || rule.op === 'column.stamp' || rule.op === 'column.formula') {
+        codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: manifest.kind === 'app' ? manifest : null });
+        const issue = keptColumnIssue(rule.op, rule.value, { table: rule.table, column: rule.column }, applyOverrides(model, active), codes);
         if (issue !== null) {
           skip(issue);
           continue;

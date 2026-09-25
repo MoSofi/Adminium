@@ -176,13 +176,15 @@ message is **failed**, and its error names the variable, so the template or the 
 `recipient.name` and `recipient.first_name` are always there, empty when the client has no name on
 file.
 
-A code Adminium makes, such as a handover link's, goes only to the person it belongs to: the
-message goes to the address their own row keeps (looked up, or typed exactly as it is stored), and
-the row with the code is theirs or links to them. Addressed by hand to anyone else, or linking one
-client and another client's project, the message is **failed**: "Not sent:
+The code a shared link opens a row with, such as a handover link's, goes only to the person it
+belongs to: the message goes to the address their own row keeps (looked up, or typed exactly as it
+is stored), and the row with the code is theirs or links to them by the link that names them (a
+project's client, not the client who referred them). Addressed by hand to anyone else, or linking
+one client and another client's project, the message is **failed**: "Not sent:
 {{project.share_token}} is a code, and goes only to the address on file of the person it belongs
-to". A notice sent to one of your settings' addresses never carries a code. The desk may link a
-message only to rows it can read.
+to". A notice sent to one of your settings' addresses never carries such a code. A code no link
+opens anything with, such as a booking's reference, is printed wherever the message goes. The desk,
+or the person whose import makes a message, may link it only to rows they can read.
 
 | Variable | What it holds |
 |---|---|

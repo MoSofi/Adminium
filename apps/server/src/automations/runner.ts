@@ -443,8 +443,10 @@ async function openSource(
   const view: SnapshotView = await loadSnapshotView(deps.meta, record.connectionId);
   const { db, dialect } = await deps.manager.data(record.connectionId);
   const table = view.table(record.table);
-  // A `deleted` trigger is about a row that is SUPPOSED to be gone, so its
-  // snapshot is the run's record — there is nothing to re-read.
+  // A `deleted` trigger is about a row that is SUPPOSED to be gone, so the row
+  // as it was is the run's record — there is nothing to re-read. Its values,
+  // not the trace's masked `snapshot` (a code there reads `[code]`); a run
+  // begun before the values were carried has only the snapshot.
   if (event.event === 'record.deleted') {
     return {
       connectionId: record.connectionId,
@@ -453,7 +455,7 @@ async function openSource(
       dialect,
       table,
       record,
-      row: (event.snapshot ?? {}) as Row,
+      row: (event.values ?? event.snapshot ?? {}) as Row,
     };
   }
   const row = await fetchByPk(db, table, record.pk as Row);

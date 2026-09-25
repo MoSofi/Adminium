@@ -20,6 +20,60 @@
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
 import { formulaColumns, formulaExprSchema, momentColumns, type States } from '@adminium/manifest';
 
+import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
+
+/**
+ * Why a rule may not land a column that is kept from readers in this one, or
+ * null. A `copy` of a linked row's column, a stamp that copies a column of its
+ * row and a formula's inputs all put a value where the rules that keep it —
+ * a secret left out of every answer, personal data masked, the code a shared
+ * link opens its row with never shown — do not reach: past the Super Admin
+ * gate on showing a secret, an install's word never to show one on a table it
+ * reuses, the audit's and the outbox's redaction and the public refusals.
+ * So the source must be kept no better than the column it lands in: a secret
+ * in a secret, personal data in personal data or a secret. A shared link's
+ * code lands nowhere.
+ *
+ * Judged on the model as the save leaves it (`applyOverrides`), with the
+ * connection's share codes (`public-api/share-codes.ts`).
+ */
+export function keptColumnIssue(
+  op: string,
+  raw: unknown,
+  at: { table: string; column: string },
+  model: EffectiveModel,
+  shareCodes: ReadonlyMap<string, ReadonlySet<string>>,
+): string | null {
+  const value = (raw ?? {}) as Value;
+  const here = model.tables.find((table) => table.id === at.table);
+  if (here === undefined) return null;
+  const sources: { table: string; column: string }[] = [];
+  if (op === 'column.copy' && typeof value['via'] === 'string' && typeof value['from'] === 'string') {
+    const relation = model.relations.find((r) => r.through === null && r.from.tableId === at.table && r.from.columns.length === 1 && r.from.columns[0] === value['via']);
+    if (relation !== undefined) sources.push({ table: relation.to.tableId, column: value['from'] });
+  } else if (op === 'column.stamp') {
+    const set = value['set'] as Value | string | undefined;
+    if (typeof set === 'object' && set !== null && typeof set['copy'] === 'string') sources.push({ table: at.table, column: set['copy'] });
+  } else if (op === 'column.formula') {
+    const parsed = formulaExprSchema.safeParse(value['formula']);
+    if (parsed.success) for (const column of formulaColumns(parsed.data)) sources.push({ table: at.table, column });
+  }
+  const into = columnPolicyFor(here);
+  for (const source of sources) {
+    const table = model.tables.find((candidate) => candidate.id === source.table);
+    if (table === undefined || (source.table === at.table && source.column === at.column)) continue;
+    const kept = columnPolicyFor(table);
+    const named = JSON.stringify(`${table.name}.${source.column}`);
+    const verb = op === 'column.formula' ? 'no formula reads it' : 'no column copies it';
+    if (shareCodes.get(table.name)?.has(source.column) === true) return `${named} is the code a shared link opens its row with, so ${verb}.`;
+    if (kept.secret.has(source.column) && !into.secret.has(at.column)) return `${named} is a secret, so ${verb} unless it is one too.`;
+    if (kept.masked.has(source.column) && !into.masked.has(at.column) && !into.secret.has(at.column)) {
+      return `${named} is personal data, so ${verb} unless it is marked personal too.`;
+    }
+  }
+  return null;
+}
+
 /** The lists that live in code rather than the store (D6, Appendix D). */
 export const BUILTIN_OPTION_LISTS = ['builtin:countries', 'builtin:us-states', 'builtin:gender'] as const;
 
@@ -214,8 +268,9 @@ export function columnRuleIssue(
             : other.logicalType === 'boolean'
               ? typeof listed === 'boolean'
               : NUMERIC_TYPES.has(other.logicalType)
-                ? // SQLite, and a MySQL `tinyint`, keep a boolean as a number.
-                  typeof listed === 'number' || typeof listed === 'boolean'
+                ? // SQLite keeps an app's boolean as a number; Postgres and MySQL have their own
+                  // (a MySQL `tinyint(1)` reads as one), and a number column there keeps numbers.
+                  typeof listed === 'number' || (typeof listed === 'boolean' && model.dialect === 'sqlite')
                 : typeof listed === 'string';
         if (!fits) return `${JSON.stringify(listed)} is not a value ${other.name} can hold.`;
       }

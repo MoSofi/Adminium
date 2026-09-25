@@ -14,7 +14,7 @@ import type { Dialect } from '@adminium/engine';
 import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
-import { bindWriteValue } from './write-values.js';
+import { bindWriteValue, zonedWriteValue } from './write-values.js';
 
 export const FILTER_OPS = [
   'eq',
@@ -241,13 +241,20 @@ function compileILike(eb: Eb, dialect: Dialect, ref: Ref, pattern: string): Expr
  * filter arrives as `true`/`false` — which better-sqlite3 refuses to bind at
  * all ("can only bind numbers, strings, …"); SQLite keeps booleans as 1 and
  * 0, as every write to it does (`bindValue` in the write service). An instant
- * compared with a MySQL `TIMESTAMP` is spelled the way one is written there:
- * an ISO one is refused inside an UPDATE, and read in the session's zone
- * anywhere else (`bindWriteValue`).
+ * compared with a column that keeps a zone is the instant a write would
+ * store: a time with no zone is read on this server's clock
+ * (`zonedWriteValue`), never in the database session's zone, and on MySQL
+ * the instant is spelled the way a `TIMESTAMP` is written there — an ISO one
+ * is refused inside an UPDATE, and read in the session's zone anywhere else
+ * (`bindWriteValue`).
  */
 function bindable(ctx: CompileFilterContext, column: ResolvedColumn, value: unknown): unknown {
-  if (ctx.dialect === 'mysql' && column.logicalType === 'timestamptz') {
-    return Array.isArray(value) ? value.map((item) => bindWriteValue(column, item, ctx.dialect)) : bindWriteValue(column, value, ctx.dialect);
+  if (column.logicalType === 'timestamptz') {
+    const instant = (item: unknown): unknown => {
+      const zoned = zonedWriteValue(column, item);
+      return ctx.dialect === 'mysql' ? bindWriteValue(column, zoned, ctx.dialect) : zoned;
+    };
+    return Array.isArray(value) ? value.map(instant) : instant(value);
   }
   if (ctx.dialect !== 'sqlite') return value;
   if (typeof value === 'boolean') return value ? 1 : 0;
