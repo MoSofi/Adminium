@@ -81774,6 +81774,36 @@
                         "sampleData": {
                           "type": "boolean"
                         },
+                        "addOnGrants": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "role": {
+                                "type": "string"
+                              },
+                              "roleName": {
+                                "type": "string"
+                              },
+                              "addOn": {
+                                "type": "string"
+                              },
+                              "grant": {
+                                "type": "string",
+                                "enum": [
+                                  "settings"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "role",
+                              "roleName",
+                              "addOn",
+                              "grant"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "publicAccess": {
                           "type": "object",
                           "properties": {

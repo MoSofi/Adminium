@@ -312,6 +312,14 @@ export const appInstallPlanDto = z.object({
   /** The app ships sample data, which can be added once it is installed. */
   sampleData: z.boolean().optional(),
   /**
+   * The add-on settings the app's roles would be given (`addOn:<key>:settings`),
+   * for the check step to show before anyone agrees: those settings are
+   * shared by every app the add-on serves. Absent when none.
+   */
+  addOnGrants: z
+    .array(z.object({ role: z.string(), roleName: z.string(), addOn: z.string(), grant: z.literal('settings') }))
+    .optional(),
+  /**
    * What the app's guests could do through the public API, as it asks, for
    * the check step to show and the installer to allow or not. Absent for an
    * app asking for none.

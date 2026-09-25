@@ -121,6 +121,55 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
   return out;
 }
 
+/**
+ * The app's roles whose name is already a role it does not own — an
+ * operator's own role, a built-in one, or another app's. Installing would
+ * merge the app's grants into that role, where they would outlive the app
+ * (switching it off suspends only roles it owns; uninstalling deletes only
+ * those). Refused by name at the check, never merged.
+ */
+export async function roleSlugProblems(meta: MetaDb, manifest: Manifest): Promise<{ role: string; code: 'ROLE_INVALID'; message: string }[]> {
+  if (manifest.kind !== 'app') return [];
+  const out: { role: string; code: 'ROLE_INVALID'; message: string }[] = [];
+  for (const declared of manifest.roles ?? []) {
+    const slug = roleSlugFor(manifest.key, declared.key);
+    const held = await rolesRepo(meta).findBySlug(slug);
+    if (held === null || held.appKey === manifest.key) continue;
+    out.push({
+      role: declared.key,
+      code: 'ROLE_INVALID',
+      message:
+        `The role "${declared.key}": the role name "${slug}" is taken by ` +
+        `${held.appKey === null ? 'a role of this workspace' : `the app "${held.appKey}"`}, so the app cannot make its own. ` +
+        'Rename that role, then install again.',
+    });
+  }
+  return out;
+}
+
+/** An app role's name found on a role the app does not own; the install stops rather than merge. */
+export class RoleTakenError extends Error {
+  constructor(readonly slug: string) {
+    super(`The role name "${slug}" is taken by a role this app does not own.`);
+  }
+}
+
+/**
+ * The add-on settings the app's roles would hold — shown on the install check,
+ * so whoever installs sees that a till's role may edit the letterhead every
+ * app shares before it can.
+ */
+export function addOnGrantsOf(manifest: Manifest): { role: string; roleName: string; addOn: string; grant: 'settings' }[] {
+  if (manifest.kind !== 'app') return [];
+  const roles = manifest.roles ?? [];
+  return roles.flatMap((role) =>
+    grantsOf(role, roles).flatMap((grant) => {
+      const match = ADD_ON_SETTINGS.exec(grant);
+      return match === null ? [] : [{ role: roleSlugFor(manifest.key, role.key), roleName: role.name, addOn: match[1]!, grant: 'settings' as const }];
+    }),
+  );
+}
+
 export interface RolesResult {
   /** Slugs of roles made now. */
   created: string[];
@@ -172,17 +221,61 @@ export async function writeManifestRoles(input: {
     }
   };
   const before = seeded.size;
+  let changed = false;
+
+  /** Take one app-given grant back from the role: that action only, the row if nothing is left. */
+  const revokeGrant = async (roleId: string, grant: string): Promise<void> => {
+    const table = TABLE.exec(grant);
+    const page = PAGE.exec(grant);
+    const narrow = async (kind: 'table' | 'page', ref: string, action: string): Promise<void> => {
+      const existing = await permissions.find(roleId, kind, ref);
+      if (existing === null) return;
+      const actions = { ...(existing.actions as Record<string, unknown>), [action]: false };
+      const anyLeft = Object.entries(actions).some(([name, value]) => name !== 'updateLimit' && value === true);
+      if (anyLeft) await permissions.grant(roleId, kind, ref, actions as never);
+      else await permissions.revoke(roleId, kind, ref);
+    };
+    if (table !== null) {
+      const id = tableId(table[1]!);
+      if (id !== null) await narrow('table', `${connectionId}/${id}`, table[2]!);
+    } else if (page !== null) {
+      const target = await pagesRepo(meta).findBySlug(connectionId, page[1]!);
+      if (target !== null) await narrow('page', target.id, page[2]!);
+    } else if (APP.test(grant)) {
+      await permissions.revoke(roleId, 'app', manifest.key);
+    } else if (ADD_ON_SETTINGS.test(grant)) {
+      const row = matrixRowsFromGrants([grant]).rows[0];
+      if (row !== undefined) await permissions.revoke(roleId, row.resourceKind, row.resourceRef);
+    }
+  };
 
   for (const declared of manifest.roles ?? []) {
     const slug = roleSlugFor(manifest.key, declared.key);
     let role = await roles.findBySlug(slug);
     let fresh = false;
+    // Never another's role: its grants would outlive this app.
+    if (role !== null && role.appKey !== manifest.key) throw new RoleTakenError(slug);
     if (role === null) {
       role = await roles.create({ slug, name: declared.name, appKey: manifest.key, screensOnly: declared.screensOnly === true });
       result.created.push(slug);
       fresh = true;
     }
-    for (const grant of grantsOf(declared, manifest.roles ?? [])) {
+    const wanted = grantsOf(declared, manifest.roles ?? []);
+    /*
+     * WHAT AN EARLIER VERSION GAVE AND THIS ONE NO LONGER ASKS FOR is taken
+     * back — the ledger says the app gave it, and the role is the app's own.
+     * Otherwise a grant a release dropped (an add-on's settings) would stay
+     * with the role for as long as the app is installed.
+     */
+    for (const pair of [...seeded].filter((entry) => entry.startsWith(`${slug}|`))) {
+      const grant = pair.slice(slug.length + 1);
+      if (wanted.includes(grant)) continue;
+      // A role made a moment ago holds nothing to take back; the entry is stale.
+      if (!fresh) await revokeGrant(role.id, grant);
+      seeded.delete(pair);
+      changed = true;
+    }
+    for (const grant of wanted) {
       const pair = `${slug}|${grant}`;
       // A role made a moment ago has been given nothing, whatever the ledger
       // remembers of an earlier install's role of the same name.
@@ -225,7 +318,7 @@ export async function writeManifestRoles(input: {
     }
     await writeLimits(role.id, limitsOf(declared, manifest.roles ?? []));
   }
-  if (seeded.size !== before) await settings.set(SEEDED_APP_ROLE_GRANTS_KEY, [...seeded].sort());
+  if (changed || seeded.size !== before) await settings.set(SEEDED_APP_ROLE_GRANTS_KEY, [...seeded].sort());
   return result;
 }
 

@@ -119,7 +119,10 @@ import {
 } from '../../jobs/add-on-acquire.js';
 import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
-import { addOnSettingsPermission, PERMISSIONS } from '../../rbac/permissions.js';
+import { settingValueIssues } from '../../apps/settings-values.js';
+import { addOnSettingsGrantHeld } from '../../rbac/add-on-grant.js';
+import { PERMISSIONS } from '../../rbac/permissions.js';
+import { getPrincipal } from '../../rbac/principal.js';
 import { APP_VERSION } from '../../version.js';
 import {
   addOnBundleParams,
@@ -1128,9 +1131,16 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.requireAuth,
         schema: { response: { 200: addOnListReply } },
       },
-      async () => {
-        // One read of every app's needs for the whole list, not one per row.
-        const needs = await needsByAddOn(deps.meta);
+      async (request) => {
+        /*
+         * WHO USES WHAT is for those who manage add-ons: this list is read by
+         * every signed-in person (a host reads it on each page load), and the
+         * apps an instance runs, with their status, are not theirs to map.
+         * Everyone else gets an empty list. One read of every app's needs for
+         * the whole list, not one per row.
+         */
+        const mayManage = typeof request.can !== 'function' || (await request.can(PERMISSIONS.manifestsManage));
+        const needs = mayManage ? await needsByAddOn(deps.meta) : new Map<string, AppNeed[]>();
         return {
           addOns: await Promise.all(
             (await manifests.list('add-on')).map((installed) => toDto(installed, needs.get(installed.row.manifestKey) ?? [])),
@@ -1547,12 +1557,16 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
      * upgrades and removes add-ons — code that runs in this process — so a
      * person who only keeps an add-on's letterhead up to date holds the
      * per-add-on grant `addOn:<key>:settings` instead (an app role may carry
-     * it). Checked for THIS key: the grant for one add-on edits no other.
+     * it). Checked for THIS key: the grant for one add-on edits no other —
+     * and an app role's grant counts only while that app has the add-on
+     * connected and switched on (see `rbac/add-on-grant.ts`).
      */
     const manifestsGuard = app.rbac.require(PERMISSIONS.manifestsManage);
     async function settingsGuard(request: FastifyRequest, reply: FastifyReply): Promise<void> {
       const { key } = request.params as { key: string };
-      if (typeof request.can === 'function' && (await request.can(addOnSettingsPermission(key)))) return;
+      if (typeof request.can === 'function' && (await request.can(PERMISSIONS.manifestsManage))) return;
+      const principal = getPrincipal(request);
+      if (principal !== null && (await addOnSettingsGrantHeld(deps.meta, principal, key))) return;
       await manifestsGuard(request, reply);
     }
 
@@ -1582,6 +1596,26 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const installed = await manifests.findByKey(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
         const manifest = parseManifest(installed.document, installed.row.manifestKey);
+
+        /*
+         * EVERY VALUE AGAINST ITS DECLARATION, whoever saves it: text is text,
+         * an enum one of its values, a number in its bounds, nothing too large,
+         * and no key the add-on does not declare. These values are shared by
+         * every app the add-on serves, and read by renderers and browsers.
+         * A secret key is left to the repo, which refuses it by name.
+         */
+        const secrets = new Set((manifest.settings ?? []).filter((setting) => setting.secret === true).map((setting) => setting.key));
+        const issues = settingValueIssues(
+          manifest.settings ?? [],
+          Object.fromEntries(Object.entries(request.body.values).filter(([name]) => !secrets.has(name))),
+          { unknown: 'refuse' },
+        );
+        if (issues.length > 0) {
+          throw new ValidationFailedError(issues.map((issue) => issue.message).join(' '), {
+            code: 'SETTING_INVALID',
+            issues,
+          });
+        }
 
         let saved;
         try {

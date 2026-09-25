@@ -503,6 +503,12 @@ export async function upgradeAddOn(
     hosts?: readonly HostApp[];
     /** The app whose own install asks for this version (see {@link upgradeRangeRefusal}). */
     except?: string | undefined;
+    /**
+     * False: keep the earlier versions on disk. An app's install or update
+     * that upgrades an add-on keeps them until it has finished, so an update
+     * that stops part way can still be put back.
+     */
+    prune?: boolean;
   },
 ): Promise<{ installed: InstalledManifest; from: string; to: string; pruned: string[] }> {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
@@ -555,13 +561,9 @@ export async function upgradeAddOn(
   await manifests.setVersion(installed.row.id, { version: to, document: manifest });
 
   // Older directories are pruned only AFTER the upgrade verified, so a failure
-  // anywhere above leaves the running version on disk.
-  const pruned: string[] = [];
-  for (const old of await deps.store.versions(key)) {
-    if (compareSemver(old, to) >= 0) continue;
-    await deps.store.removeVersion(key, old);
-    pruned.push(old);
-  }
+  // anywhere above leaves the running version on disk — and, for an upgrade
+  // made by an app's update, only once that whole update is done.
+  const pruned = input.prune === false ? [] : await pruneOlderVersions(deps, key, to);
 
   await auditRepo(deps.meta).append({
     actorKind: 'user',
@@ -573,6 +575,17 @@ export async function upgradeAddOn(
   });
   await deps.rebuildRuntime?.();
   return { installed: (await manifests.findByKey(key))!, from, to, pruned };
+}
+
+/** Remove the versions of `key` on disk older than `keep`; the ones removed. */
+export async function pruneOlderVersions(deps: Pick<AddOnInstallerDeps, 'store'>, key: string, keep: string): Promise<string[]> {
+  const pruned: string[] = [];
+  for (const old of await deps.store.versions(key)) {
+    if (compareSemver(old, keep) >= 0) continue;
+    await deps.store.removeVersion(key, old);
+    pruned.push(old);
+  }
+  return pruned;
 }
 
 /**

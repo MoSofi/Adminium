@@ -121,6 +121,11 @@ export function addOnSettingsPermission(addOnKey: string): string {
  */
 const ADD_ON_SETTINGS_REF_PREFIX = 'add-on/';
 
+/** The matrix row ref an add-on's settings grant is stored under. */
+export function addOnSettingsRef(addOnKey: string): string {
+  return `${ADD_ON_SETTINGS_REF_PREFIX}${addOnKey}`;
+}
+
 export type ParsedGrant =
   | { kind: 'system'; area: string; verb: string }
   | { kind: 'table'; connectionId: string; table: string; action: TableAction | '*' }

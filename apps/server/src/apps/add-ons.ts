@@ -53,6 +53,7 @@ import {
   installAddOn,
   parseAddOnDocument,
   planAddOn,
+  pruneOlderVersions,
   upgradeAddOn,
   upgradeRangeRefusal,
   type Actor,
@@ -509,6 +510,24 @@ export function tablesComingFromAddOns(rows: readonly AppAddOnRow[]): { ref: str
     );
 }
 
+/**
+ * Table name → the installed add-on that declares it. An add-on's tables are
+ * its own whoever else names them: an app may not rename one out of the way,
+ * take it over, or drop it with itself. Nothing records which connection an
+ * add-on's tables went to, so callers match these names against the tables
+ * that are really there.
+ */
+export async function addOnTablesByName(installer: Pick<AddOnInstallerDeps, 'meta' | 'credentialCrypto'>): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const installed of await manifestsRepo(installer.meta, installer.credentialCrypto).list('add-on')) {
+    const tables = (installed.document as { requiredSchema?: { tables?: { ref?: unknown }[] } } | null)?.requiredSchema?.tables ?? [];
+    for (const table of tables) {
+      if (typeof table.ref === 'string' && !out.has(table.ref)) out.set(table.ref, installed.row.manifestKey);
+    }
+  }
+  return out;
+}
+
 /** What the add-on half of an install did — the done line. */
 export interface AddOnsDone {
   installed: { key: string; name: string; version: string }[];
@@ -546,6 +565,8 @@ export async function runAddOnSteps(
         via,
         hosts: [input.host],
         except: input.host.key,
+        // Kept until the app's own install or update is done (see below).
+        prune: false,
       });
       await attachAddOn(deps.installer, { key: step.key, host: input.host.key, hostApp: input.host, actor: input.actor, via });
       done.updated.push({ key: step.key, name: step.name, from: step.from ?? '', to: step.version });
@@ -573,6 +594,23 @@ export async function runAddOnSteps(
     });
   }
   return done;
+}
+
+/**
+ * Once an app's install or update is DONE, the add-on versions older than the
+ * installed ones go from disk — kept until then, so an update that stopped
+ * part way leaves the version the running app works with where it can be put
+ * back. Every add-on the app names, so a resumed update tidies what an
+ * earlier attempt upgraded.
+ */
+export async function pruneNamedAddOns(installer: AddOnInstallerDeps, manifest: Manifest): Promise<void> {
+  const needs = addOnNeedsOf(manifest);
+  const manifests = manifestsRepo(installer.meta, installer.credentialCrypto);
+  for (const key of new Set([...(needs?.requires ?? []), ...(needs?.suggests ?? [])].map((need) => need.key))) {
+    const installed = await manifests.findByKey(key);
+    if (installed === null || installed.row.kind !== 'add-on') continue;
+    await pruneOlderVersions(installer, key, installed.row.version);
+  }
 }
 
 /** The add-on steps earlier attempts of THIS install took, read back from the ledger. */

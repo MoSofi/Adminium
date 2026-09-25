@@ -12,23 +12,36 @@ import type { Manifest } from '@adminium/manifest';
 
 type DeclaredSetting = NonNullable<Manifest['settings']>[number];
 
+/**
+ * The longest text or JSON value a setting may hold: room for a logo as a
+ * data URL, and a bound on what one save may put in a row every screen reads.
+ */
+export const SETTING_VALUE_MAX = 256 * 1024;
+
 /** Why each value that does not fit its declaration does not fit. Empty when all do. */
 export function settingValueIssues(
   declared: readonly DeclaredSetting[],
   changes: Readonly<Record<string, unknown>>,
+  /** `refuse`: a key the manifest does not declare is an issue (the add-on settings door). */
+  opts: { unknown?: 'drop' | 'refuse' } = {},
 ): { key: string; message: string }[] {
   const byKey = new Map(declared.map((setting) => [setting.key, setting]));
   const issues: { key: string; message: string }[] = [];
   for (const [key, value] of Object.entries(changes)) {
     const setting = byKey.get(key);
-    // Undeclared keys are dropped by the store, not refused (see the repo).
-    if (setting === undefined) continue;
+    // Undeclared keys are dropped by the store (see the repo), unless the
+    // caller refuses them.
+    if (setting === undefined) {
+      if (opts.unknown === 'refuse') issues.push({ key, message: `"${key}" is not a setting of this add-on.` });
+      continue;
+    }
     // Null clears a value back to its default.
     if (value === null) continue;
     switch (setting.type) {
       case 'string':
       case 'file':
         if (typeof value !== 'string') issues.push({ key, message: `"${key}" must be text.` });
+        else if (value.length > SETTING_VALUE_MAX) issues.push({ key, message: `"${key}" is longer than a setting may be.` });
         break;
       case 'boolean':
         if (typeof value !== 'boolean') issues.push({ key, message: `"${key}" must be true or false.` });
@@ -48,6 +61,7 @@ export function settingValueIssues(
         }
         break;
       case 'json':
+        if (JSON.stringify(value).length > SETTING_VALUE_MAX) issues.push({ key, message: `"${key}" is larger than a setting may be.` });
         break;
     }
   }

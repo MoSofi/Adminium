@@ -76,11 +76,13 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { AddOnCatalogError, lenientMinimum, pickLocalized, type CatalogClient } from '../../add-ons/catalog.js';
 import type { AddOnInstallerDeps } from '../../add-ons/install.js';
 import {
+  addOnTablesByName,
   addOnsKeptBy,
   appHost,
   attachedRangeRefusal,
   decideAddOnSteps,
   namesAddOns,
+  pruneNamedAddOns,
   resolveAppAddOns,
   runAddOnSteps,
   stepsAlreadyTaken,
@@ -134,7 +136,14 @@ import {
 } from '../../apps/sample-data.js';
 import { ownRules, removeManifestRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
 import { formIssues, layoutTables } from '../../apps/manifest-page-config.js';
-import { forgetAppRoleGrants, roleIssues, writeManifestRoles, type RolesResult } from '../../apps/manifest-roles.js';
+import {
+  addOnGrantsOf,
+  forgetAppRoleGrants,
+  roleIssues,
+  roleSlugProblems,
+  writeManifestRoles,
+  type RolesResult,
+} from '../../apps/manifest-roles.js';
 import { installPublicAccess, planPublicEndpoints, publicAccessWarnings, staffBindingOf } from '../../apps/manifest-public.js';
 import { installOutbox, removeOutbox, templateProblems, type OutboxResult } from '../../apps/manifest-outbox.js';
 import { installedShapes, makeAppProfiles, removeAppProfiles } from '../../documents/app-profiles.js';
@@ -670,6 +679,28 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     const coming = tablesComingFromAddOns(addOnRows ?? []).filter((table) => !found.some((t) => t.ref === table.ref));
     const tables = [...found, ...coming];
     const dialect = live?.dialect;
+    /*
+     * AN ADD-ON'S TABLES ARE HELD, like another app's: one that is here (or
+     * that a required add-on is about to make) is never offered to be renamed
+     * out of the way, and a table of the same name is a collision the
+     * operator resolves with a different prefix. Nothing records which
+     * connection an add-on's tables went to, so only the ones really here
+     * count — a same-named table on another database is no business of this
+     * plan.
+     */
+    const addOnTables = await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto });
+    const addOnHolders = [
+      ...found.flatMap((table) => {
+        const holder = addOnTables.get(table.ref);
+        return holder === undefined || holder === manifest.key ? [] : [{ appKey: holder, table: table.ref, shape: null, state: 'created' }];
+      }),
+      ...coming.map((table) => ({
+        appKey: addOnRows?.find((row) => row.plan?.create.some((t) => t.ref === table.ref))?.key ?? 'an add-on',
+        table: table.ref,
+        shape: null,
+        state: 'created',
+      })),
+    ];
 
     if (own.length === 0 && manifest.kind === 'app') {
       const installedHere = (await manifests.list('app')).some(
@@ -692,7 +723,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             {
               prefix,
               records,
-              others: others.map((r) => ({ appKey: r.appKey, table: r.tableName, shape: r.shape, state: r.state })),
+              others: [
+                ...others.map((r) => ({ appKey: r.appKey, table: r.tableName, shape: r.shape, state: r.state })),
+                ...addOnHolders,
+              ],
               choices: answers.choices,
               altPrefix: answers.altPrefix,
               dialect,
@@ -710,6 +744,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       ...pageConfigProblems(manifest),
       ...templateProblems(manifest).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
       ...roleIssues(manifest).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
+      ...(await roleSlugProblems(deps.meta, manifest)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
     ];
     const plan: InstallPlan =
       pageProblems.length === 0
@@ -759,6 +794,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0),
         missingColumnsEdit: missingColumnsEdit(plan, manifest),
         sampleData: manifest.kind === 'app' && manifest.sampleData !== undefined,
+        ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest) }),
         pageWarnings:
           manifest.kind === 'app'
             ? checkManifestPages(manifest).map((issue) => ({
@@ -2020,6 +2056,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           prior.row.connectionId === (connectionId ?? null);
 
         /*
+         * A ROW REPLACED IS AN UPDATE BY ANOTHER DOOR: the add-ons mounted on
+         * this app stay mounted (their links are keyed by the app's key), so
+         * the new version is held to their binding ranges exactly as an update
+         * is — never left running outside one.
+         */
+        if (prior !== undefined) {
+          const outOfRange = await attachedRangeRefusal({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key, version);
+          if (outOfRange !== null) throw outOfRange;
+        }
+
+        /*
          * THE ADD-ONS IT NEEDS, DECIDED BEFORE ANYTHING IS WRITTEN: a required
          * one that cannot be had, one out of range nobody ticked to update,
          * one whose bytes are not here yet, one whose own plan is refused —
@@ -2154,6 +2201,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           stage = 'finish';
           await placeFromManifest(manifest, userId);
           await manifests.setStatus(rowId, 'installed');
+          // The add-ons' earlier versions, kept while the install could still stop.
+          const installer = addOnDeps();
+          if (installer !== undefined && namesAddOns(manifest)) await pruneNamedAddOns(installer.installer, manifest);
           await deps.installed.refresh();
           // Its placement and its status are what the surface gate reads.
           request.server.surfaceSettings?.invalidate();
@@ -2353,36 +2403,79 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             );
           }
         }
+        /*
+         * THE ORDER, AND WHY IT CAN BE FINISHED.
+         *
+         * Add-ons installed or connected for it first (its new tables may
+         * point at theirs), then its tables, then the add-ons it UPDATES — an
+         * update makes no table, so nothing of the app's waits on one — and
+         * the app's own row moves last. Stopped anywhere, the running version
+         * is still inside the range of every add-on it runs on, the add-ons'
+         * earlier versions are still on disk, and updating again finishes:
+         * each step already taken is found done.
+         */
         const addOnInstaller = addOnDeps();
-        let addOnsDone: AddOnsDone | undefined;
-        if (addOnSteps.length > 0 && addOnInstaller !== undefined) {
-          addOnsDone = await runAddOnSteps(addOnInstaller, {
-            steps: addOnSteps,
+        let addOnsDone: AddOnsDone | undefined = namesAddOns(manifest) ? { installed: [], updated: [], attached: [] } : undefined;
+        const earlySteps = addOnSteps.filter((step) => step.action !== 'update');
+        const lateSteps = addOnSteps.filter((step) => step.action === 'update');
+        const runSteps = async (steps: readonly AddOnStep[]): Promise<void> => {
+          if (steps.length === 0 || addOnInstaller === undefined) return;
+          const done = await runAddOnSteps(addOnInstaller, {
+            steps,
             host: appHost(manifest, connectionId),
             connectionId,
             actor: { id: userId, label: userLabel },
             manifestRowId: installed.row.id,
           });
-        } else if (namesAddOns(manifest)) {
-          addOnsDone = { installed: [], updated: [], attached: [] };
-        }
-        if (wanted.length > 0 && connectionId !== null) {
-          const made = await createTables(
-            key,
-            manifest,
-            connectionId,
-            'updated',
-            { superAdmin: await isSuperAdmin(request), createdBy: userId },
-            addOnSteps.length > 0 ? undefined : request.body?.planChecksum,
-            request.body?.choices === undefined ? {} : { choices: request.body.choices },
-            // Planned against the add-ons' tables as they now are.
-            addOnSteps.length > 0 ? undefined : addOnRows,
+          addOnsDone = {
+            installed: [...(addOnsDone?.installed ?? []), ...done.installed],
+            updated: [...(addOnsDone?.updated ?? []), ...done.updated],
+            attached: [...(addOnsDone?.attached ?? []), ...done.attached],
+          };
+        };
+        let stage: 'add-ons' | 'tables' | 'add-on-updates' | 'finish' = 'add-ons';
+        try {
+          await runSteps(earlySteps);
+          stage = 'tables';
+          if (wanted.length > 0 && connectionId !== null) {
+            const made = await createTables(
+              key,
+              manifest,
+              connectionId,
+              'updated',
+              { superAdmin: await isSuperAdmin(request), createdBy: userId },
+              addOnSteps.length > 0 ? undefined : request.body?.planChecksum,
+              request.body?.choices === undefined ? {} : { choices: request.body.choices },
+              // Planned against the add-ons' tables as they now are.
+              addOnSteps.length > 0 ? undefined : addOnRows,
+            );
+            applied = { created: made.created, reused: made.reused };
+            names = made.names;
+          }
+          stage = 'add-on-updates';
+          await runSteps(lateSteps);
+          stage = 'finish';
+          await manifests.setVersion(installed.row.id, { version: to, document: manifest });
+        } catch (error) {
+          // A refusal before anything was written stays the refusal it is.
+          if (earlySteps.length === 0 && stage !== 'add-on-updates' && stage !== 'finish' && error instanceof AppError && error.statusCode < 500) {
+            throw error;
+          }
+          const message = error instanceof Error ? error.message : String(error);
+          await auditAppEvent(
+            'app.update-failed',
+            { key, from, to, stage, message, ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }) },
+            userId,
+            userLabel,
           );
-          applied = { created: made.created, reused: made.reused };
-          names = made.names;
+          throw new AppError(
+            409,
+            'APP_UPDATE_INCOMPLETE',
+            `Updating "${key}" to ${to} stopped at the ${stage} step: ${message} ` +
+              `Nothing was undone and ${from} is still running. Update it again to finish.`,
+            { stage, from, to, cause: message, ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }) },
+          );
         }
-
-        await manifests.setVersion(installed.row.id, { version: to, document: manifest });
         await deps.installed.refresh();
         // New pages are added, untouched ones rebuilt for this version, and
         // any page an operator edited is left exactly as it is.
@@ -2409,6 +2502,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           await deps.store.removeVersion(key, old);
           pruned.push(old);
         }
+        // And the add-ons' earlier versions, kept until now.
+        if (addOnInstaller !== undefined) await pruneNamedAddOns(addOnInstaller.installer, manifest);
 
         await auditAppEvent(
           'app.updated',
@@ -2491,6 +2586,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         roles.push({ role, members: members.map((m) => m.userId), apiKeys: apiKeys.map((k) => k.id) });
       }
       const recordsRepo = appTablesRepo(deps.meta);
+      // An add-on's table is never an app's to drop, even one the app made first.
+      const addOnTables = await addOnTablesByName({ meta: deps.meta, credentialCrypto: deps.credentialCrypto });
       const records =
         connectionId === null
           ? []
@@ -2524,7 +2621,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           record,
           // Made by this app, and no other app's record names it.
           droppable:
-            record.owned && record.state === 'created' && !others.some((other) => other.tableName === record.tableName),
+            record.owned &&
+            record.state === 'created' &&
+            !others.some((other) => other.tableName === record.tableName) &&
+            !addOnTables.has(record.tableName),
         })),
         hosts: Object.entries(domains)
           .filter(([, target]) => target.appKey === key)
