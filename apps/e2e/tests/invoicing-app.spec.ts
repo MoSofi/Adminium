@@ -20,13 +20,14 @@
  * path's formulas and numbers, the outbox's producers and the worker that
  * sends, the SMTP sink that receives, and the document pipeline.
  *
- * ── WHAT IS STILL LANDING ──────────────────────────────────────────────────
- * The steps that need pieces not on main yet are written below as
- * `test.fixme`, with their assertions, so they switch on as those land: a
- * client signing in by an emailed link and accepting a proposal (its
- * fingerprint), states and locks refusing, and the install checking the
- * app's tables against the installed shape.
+ * ── THE CLIENT'S SIDE ──────────────────────────────────────────────────────
+ * The last step is the client's: an emailed sign-in link that lands in the
+ * SMTP sink, a verified session that reads only the client's own rows (and
+ * lines only through them), their invoice's document, and a proposal they
+ * accept, sealed with its fingerprint once.
  */
+import { createHash } from 'node:crypto';
+
 import { expect, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
 import { bundleOf } from './appBundle.js';
@@ -382,6 +383,24 @@ const SAMPLE = {
 
 // ── helpers ───────────────────────────────────────────────────────────────
 
+/** The nonce a human check asks for: sha256(salt + nonce) starting with that many zero bits. */
+function solve(salt: string, difficulty: number): string {
+  for (let n = 0; ; n += 1) {
+    const nonce = n.toString(36);
+    const digest = createHash('sha256').update(`${salt}${nonce}`).digest();
+    let bits = 0;
+    for (const byte of digest) {
+      if (byte === 0) {
+        bits += 8;
+        continue;
+      }
+      bits += Math.clz32(byte) - 24;
+      break;
+    }
+    if (bits >= difficulty) return nonce;
+  }
+}
+
 async function ok<T>(response: APIResponse, status = 200): Promise<T> {
   expect(response.status(), await response.text()).toBe(status);
   return (await response.json()) as T;
@@ -463,6 +482,8 @@ async function uploadAndInstall(staff: APIRequestContext, connectionId: string, 
     'package.json': JSON.stringify({ name: `@adminium-apps/${KEY}`, version: String(manifest['version']) }),
     'manifest.json': JSON.stringify(manifest),
     'staff/index.html': '<!doctype html><html><body data-app="e2e-ledger-staff"></body></html>',
+    // A client's side, where one is declared: the page a sign-in link opens, and the key it reads.
+    ...(manifest['publicAccess'] === undefined ? {} : { 'customer/index.html': '<!doctype html><html><body data-app="e2e-ledger-customer"></body></html>' }),
     'seeds/ledger.sample.json': JSON.stringify(SAMPLE),
   });
   await ok(
@@ -739,19 +760,24 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     expect(unsigned['fingerprint']).not.toBe(signed['fingerprint']);
   });
 
-  // Lanes P (sign-in by emailed link, children only as visible as their parent) and W (a fingerprint stamped on acceptance).
-  test.fixme('lets a client sign in by an emailed link, see only their own, and accept a proposal with its fingerprint', async ({ page, playwright }) => {
+  // The client's own side: signed in by an emailed link, their rows only, a proposal accepted and sealed.
+  test('lets a client sign in by an emailed link, see only their own, and accept a proposal with its fingerprint', async ({ page, playwright }) => {
+    // The link goes out through the job worker to the SMTP sink, on the worker's own clock.
+    test.setTimeout(180_000);
     await page.goto('/');
     connectionId = await seededConnectionId(page);
     const staff = page.request;
     await ok(await staff.put('/api/v1/public-api', { data: { enabled: true } }));
+    // A sign-in link names the server's public address, never a request's host: the operator sets it.
+    const priorOrigin = (await ok<{ publicOrigin: string | null }>(await staff.get('/api/v1/settings/email'))).publicOrigin;
+    await ok(await staff.put('/api/v1/settings/email', { data: { publicOrigin: BASE_URL } }));
     // v1.1.0 adds the client's side: an emailed-link identity, their invoices, the lines only through them, and proposals they accept.
     const proposals = PROPOSALS;
     const portal = appManifest(
       '1.1.0',
       {
         publicAccess: [
-          { table: 'clients', methods: ['GET'], select: ['id', 'name', 'company'], claim: { verify: 'email-link', email: 'email' }, humanCheck: true, level: 'verified' },
+          { table: 'clients', methods: ['GET'], select: ['id', 'name', 'company'], claim: { verify: 'email-link', email: 'email' }, humanCheck: true },
           { table: 'invoices', methods: ['GET'], select: ['id', 'number', 'status', 'total', 'balance'], claimedBy: { table: 'clients', column: 'client_id' }, level: 'verified', documents: ['invoice'] },
           { table: 'invoice_lines', methods: ['GET'], select: ['id', 'description', 'amount'], visibleWith: { table: 'invoices', via: 'document_id' }, level: 'verified' },
           {
@@ -788,11 +814,17 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
       storageState: { cookies: [], origins: [] },
       extraHTTPHeaders: { authorization: `Bearer ${config.publishableKey}`, origin: BASE_URL },
     });
+    /** A human check solved, as the client's page solves one before each claim step. */
+    const proof = async () => {
+      const challenge = (await ok<{ data: { id: string; salt: string; difficulty: number } }>(await guest.get('/api/v1/public/challenge?purpose=claim'))).data;
+      return { 'x-adminium-proof': `${challenge.id}.${solve(challenge.salt, challenge.difficulty)}` };
+    };
     // A lookup is refused for an emailed-link identity; the link request answers the same for anyone.
-    const lookup = await guest.post('/api/v1/public/claim', { data: { match: { email: CLEO.email } } });
+    const lookup = await guest.post('/api/v1/public/claim', { headers: await proof(), data: { match: { email: CLEO.email } } });
     expect(await codeOf(lookup)).toBe('PUBLIC_CLAIM_UNAVAILABLE');
-    expect((await guest.post('/api/v1/public/claim/link', { data: { email: CLEO.email, lang: 'en-US' } })).status()).toBe(202);
-    expect((await guest.post('/api/v1/public/claim/link', { data: { email: 'nobody@ledger.dev', lang: 'en-US' } })).status()).toBe(202);
+    const asked = await guest.post('/api/v1/public/claim/link', { headers: await proof(), data: { email: CLEO.email, lang: 'en-US' } });
+    const stranger = await guest.post('/api/v1/public/claim/link', { headers: await proof(), data: { email: 'nobody@ledger.dev', lang: 'en-US' } });
+    expect([asked.status(), stranger.status()]).toEqual([202, 202]);
     const mail = await mailTo(anonymous, (m) => m.to.includes(CLEO.email) && m.text.includes('/c#'), 'Cleo’s sign-in link');
     const token = /\/c#([A-Za-z0-9_-]{20,})/.exec(mail.text)![1]!;
     const signedIn = await ok<{ data: { session: string; level: string } }>(await guest.post('/api/v1/public/claim/link/verify', { data: { token } }));
@@ -803,7 +835,7 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     const invoices = await ok<{ data: Row[] }>(await guest.get('/api/v1/public/records/e2e_ledger_invoices_verified', { headers: session }));
     expect(invoices.data.map((i) => i['id'])).toEqual([hers['id']]);
     // Lines only through her own invoices.
-    const lines = await ok<{ data: Row[] }>(await guest.get('/api/v1/public/records/e2e_ledger_invoice_lines', { headers: session }));
+    const lines = await ok<{ data: Row[] }>(await guest.get('/api/v1/public/records/e2e_ledger_invoice_lines_verified', { headers: session }));
     expect(lines.data.map((l) => l['description'])).toEqual(['Design']);
     // Her invoice's document, drawn from the row.
     const doc = await ok<{ data: { id: string; number: string } }>(
@@ -830,6 +862,7 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     expect(twice.status()).toBe(404);
     const stored = (await ok<{ data: Row }>(await staff.get(`${data('proposals')}/${String(proposal['id'])}`))).data;
     expect([stored['signed_name'], stored['fingerprint']]).toEqual(['Cleo Park', accepted.data['fingerprint']]);
+    await ok(await staff.put('/api/v1/settings/email', { data: { publicOrigin: priorOrigin } }));
     await anonymous.dispose();
     await guest.dispose();
   });
