@@ -18,11 +18,12 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { Manifest } from '@adminium/manifest';
+import type { Manifest, Outbox } from '@adminium/manifest';
 import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
 import { isEmailBlockKind } from '../email/render.js';
+import { withRealTables } from '../outbox/producers.js';
 import { canonicalJson } from './sample-data.js';
 
 type AppManifest = Extract<Manifest, { kind: 'app' }>;
@@ -144,7 +145,7 @@ export async function installOutbox(input: {
       appKey: manifest.key,
       manifestId: input.manifestId,
       connectionId: input.connectionId,
-      definition: canonicalJson(outboxDefinition(manifest.outbox, input.realId)),
+      definition: canonicalJson(withRealTables(outboxDefinition(manifest.outbox, input.realId) as Outbox, input.realId)),
     });
   }
 

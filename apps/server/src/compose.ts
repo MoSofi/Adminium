@@ -109,7 +109,7 @@ import { hasCodePage, type ClientBuild } from './project/client-build.js';
 import { PAGES_DIR } from './project/paths.js';
 import { createProjectClientHost } from './project/client-host.js';
 import { applyProjectPages } from './project/project-pages.js';
-import { createWriteService } from './crud/write-service.js';
+import { NO_RECORD_HOOKS, createWriteService } from './crud/write-service.js';
 import { createDestinationResolver } from './files/destinations.js';
 import { createFileReconciler } from './files/reconcile.js';
 import { FILES_DIR } from './files/drivers/local.js';
@@ -130,7 +130,8 @@ import { automationRunsRoutes } from './routes/automations/runs.js';
 import { createAutomations, decorateAutomations } from './automations/register.js';
 import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
-import { publishChildWrite } from './crud/after-record-write.js';
+import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
+import { withOutboxMoves } from './outbox/moves.js';
 import {
   AUTOMATION_POLL_CRON,
   AUTOMATION_SCHEDULE_JITTER_MS,
@@ -792,7 +793,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const widgetDataCache = new WidgetDataCache();
   app.decorate('widgetDataCache', widgetDataCache);
   const recordWrites = createWriteService({
-    ...(hookRunner === null ? {} : { hooks: () => hookRunner }),
+    // An app's outbox table takes only the moves a person may make: a sent message is never queued again.
+    hooks: () => withOutboxMoves(hookRunner ?? NO_RECORD_HOOKS, { meta, outboxes: () => outboxProducers.all() }),
     // A running number counts in the meta store; a venue's clock is its connection's.
     ...writeStores(meta),
     // An update of a table an app's email watches for a change reads the row first.
@@ -810,8 +812,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     viewFor: (connectionId) => publicViews.viewFor(connectionId),
     writes: recordWrites,
     logger: app.log,
-    announce: (connectionId, table, row) => {
-      publishChildWrite(app, { connectionId, table, action: 'create', pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
+    announce: (connectionId, table, row, action = 'create') => {
+      publishChildWrite(app, { connectionId, table, action, pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
     },
     // A row was queued: send it now rather than at the next minute's sweep.
     onQueued: (appKey) => {
@@ -836,6 +838,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
       return Object.entries(settings.domains).find(([, target]) => target.appKey === appKey && target.side === 'customer' && target.instance === undefined)?.[0];
     },
+    // The app's staff side on its own host, for a notice's link to the desk.
+    staffHostFor: async (appKey) => {
+      const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
+      return Object.entries(settings.domains).find(([, target]) => target.appKey === appKey && target.side === 'staff' && target.instance === undefined)?.[0];
+    },
+    // The change a sent message makes reaches the rules, the other producers and every screen.
+    emit: (event) => emitRecordEvent(app, event),
     announce: (connectionId, table, row) => {
       publishChildWrite(app, { connectionId, table, action: 'update', pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
     },

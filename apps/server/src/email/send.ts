@@ -194,6 +194,33 @@ export interface EnqueueEmailInput {
   always?: boolean | undefined;
   /** The row to tell when the message fails for good. */
   report?: EmailSendReport | undefined;
+  /**
+   * Wording a person wrote in place of the template's (a held reminder edited
+   * before it was approved). The body is plain text: paragraphs split on
+   * blank lines, drawn as ONE text block in place of the template's blocks,
+   * its variables filled in one pass and escaped like any other — never an
+   * HTML block. Line breaks in the subject become spaces.
+   */
+  override?: { subject?: string | null | undefined; body?: string | null | undefined } | undefined;
+}
+
+/** The template with a person's wording in place of its own; unchanged where they wrote nothing. */
+export function withOverride<T extends { subject: string; blocks: readonly Record<string, unknown>[] }>(source: T, override: EnqueueEmailInput['override']): T {
+  if (override === undefined) return source;
+  const subject = typeof override.subject === 'string' ? override.subject.replaceAll(/[\r\n]+/g, ' ').trim() : '';
+  const paras =
+    typeof override.body === 'string'
+      ? override.body
+          .replaceAll(/\r\n?/g, '\n')
+          .split(/\n[ \t]*\n/)
+          .map((para) => para.trim())
+          .filter((para) => para !== '')
+      : [];
+  return {
+    ...source,
+    ...(subject === '' ? {} : { subject }),
+    ...(paras.length === 0 ? {} : { blocks: [{ block: 'email.text', id: 'override-1', data: { paras } }] }),
+  };
 }
 
 // --- composition-root runtime -------------------------------------------------------
@@ -496,8 +523,9 @@ export async function enqueueEmail(
   }
 
   const locale = input.locale ?? (await recipientLocale(meta, null));
-  const row = await resolveTemplate(meta, input, locale, deps.logger);
-  if (row === null) return null;
+  const found = await resolveTemplate(meta, input, locale, deps.logger);
+  if (found === null) return null;
+  const row = withOverride(found, input.override);
 
   const prepared = await prepareEmail(meta, row);
   for (const gone of prepared.missing) {
