@@ -48,8 +48,10 @@
  * A `queued` row goes once its due moment has come (a row with none goes at
  * once): a batched message waits for its window to close, and a message a
  * producer queued for later waits for its day. A `held` row never goes until
- * a person approves it — and approving one whose day is still ahead sends it
- * now. Just before a row goes it is judged again, as the minute scan judges
+ * a person approves it — and approving one whose day is still ahead, or was
+ * never worked out, sends it now. A row an import or an undo brings in is
+ * never `queued` (`moves.ts`): it waits for a person like a held one. Just
+ * before a row goes it is judged again, as the minute scan judges
  * it: skipped when the row it is about no longer needs it (paid, void),
  * skipped as overtaken when a later message of its group has come due, and
  * kept back when its due has moved ahead.

@@ -1281,7 +1281,7 @@ A producer may also say:
 | `supersede` | A group name (kebab-case, up to 40 characters). When a message of the group comes due for a row, the earlier ones not yet sent are skipped as overtaken, so an invoice never has two reminders ready at once. Needs `due`. |
 | `dropWhen` | 1–4 conditions on the row the message is about: `{ "column", <one test>, "reason" }`, the test being `eq`, `in`, `isNull`, `lte` or `gte`. While one holds, its waiting messages are skipped with the `reason`: `paid`, `void` or `no-longer-needed`. Only a message that waits (`hold`, or `due`) can be dropped. |
 | `recipient` | `{ "setting" }`: send to the address a setting holds (a studio's own `reply_to`), never to the person the row links. The setting is `{ "table", "column" }` of the settings row, or `{ "addOn", "setting" }` of a required add-on. |
-| `batchMinutes` | 1–240: one message per linked row in each window of this many minutes. The first event opens a message due at the window's end; every event while it still waits is taken in by it (five versions posted in ten minutes make one email). Not on a `before` producer. |
+| `batchMinutes` | 1–240: one message per linked row in each window of this many minutes. The first event opens a message due at the window's end; every event while it still waits is taken in by it (five versions posted in ten minutes make one email). The window's end is its due, so it takes no `due`; it may still be dropped (`dropWhen`) or overtaken (`supersede`) while it waits. Not on a `before` producer. |
 | `onSent` | `{ "table", "via"?, "set" }`: a change made once the message has gone. Without `via`, `table` is the row the message is about; with it, `via` is that row's foreign key to `table`. `set` maps columns to values (`null` empties a nullable column). |
 
 `due.days` is one of:
@@ -1310,6 +1310,11 @@ they are written. A sample row never has a message at all. An imported row is a 
 minute's look-over still makes its `before` reminder when the moment comes, and a held producer's
 messages for it (an imported sent invoice gets its reminders).
 
+A message row an import or an undo brings back never goes by itself: nothing here made it and
+nobody approved it. One that arrives `queued` comes in `held` for a person to approve, or `failed`
+with a sentence saying why where the outbox has no `held` (queue it again to send it); one that
+says it went, with a sent time and no error, comes in `sent`.
+
 ### Held messages
 
 A producer with `hold` writes its messages `held`, each with its own due moment, and nothing is
@@ -1331,7 +1336,8 @@ What a person may do to a message, through any screen or the data API:
 
 - **Approve** a held one: it becomes `queued`. They may rewrite it first: `bodyOverride` is sent
   in place of the template's blocks, as plain paragraphs, and `subjectOverride` in place of its
-  subject. `approvedBy` records who approved it. One approved before its day goes at once.
+  subject. `approvedBy` records who approved it. One approved before its day, or with no day
+  worked out, goes at once.
 - **Skip** a held or queued one: it becomes `skipped`, with the reason `by-hand`.
 - **Queue again** a failed one.
 

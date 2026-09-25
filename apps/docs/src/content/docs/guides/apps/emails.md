@@ -74,7 +74,9 @@ file", so you can see that an email was due.
 - **An import** or **an undo.** They restore what happened, and send nothing about it when they
   are written. An imported row is a real one, though: a reminder before its moment is still
   queued when the moment comes, and an imported sent invoice still gets its
-  [held](#held-messages) reminders.
+  [held](#held-messages) reminders. A message row they bring back never goes by itself: one that
+  was waiting to go comes back held for a person to approve (or failed, to queue again, where
+  the app has no held messages).
 - **A disabled app.** Nothing is queued while it is off. See
   [Disable and enable](/guides/apps/settings/#disable-and-enable).
 
@@ -122,7 +124,7 @@ sent until a person approves it.
 
 - **Approve** a held message and it becomes `queued`. You may reword it first, its subject and its
   text, which is then sent as plain paragraphs in place of the template's. Who approved it is
-  recorded. One approved before its day goes at once.
+  recorded. One approved before its day, or with no day worked out, goes at once.
 - **Skip** a held or queued message: it becomes `skipped`, with the reason "by hand".
 - **Queue again** a failed one.
 

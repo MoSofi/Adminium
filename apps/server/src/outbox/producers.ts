@@ -46,7 +46,9 @@
  *  - SUPERSEDES: once a later message of a group has come due for a row, the
  *    earlier ones not yet sent are skipped as overtaken — so one invoice
  *    never has two reminders ready at once.
- * The sender judges all three again just before it sends.
+ * The sender judges all three again just before it sends. A batch still
+ * waiting for its window to close is dropped and overtaken too, but never
+ * re-dated: its window is its day.
  *
  * ── WHAT NEVER PRODUCES ────────────────────────────────────────────────────
  * History: an import, sample data and an undo announce no record event, so
@@ -531,8 +533,9 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
   async function judge(box: LiveOutbox, view: SnapshotView, now: number): Promise<void> {
     const definition = box.definition;
     const cols = definition.columns;
+    // A batch is dropped and overtaken like any message, but never re-dated: its window is its day.
     const judged = (definition.producers ?? []).filter(
-      (producer) => producer.batchMinutes === undefined && (producer.due !== undefined || producer.dropWhen !== undefined || producer.supersede !== undefined),
+      (producer) => (producer.batchMinutes === undefined && producer.due !== undefined) || producer.dropWhen !== undefined || producer.supersede !== undefined,
     );
     if (judged.length === 0) return;
     const handle = await deps.manager.data(box.connectionId);
@@ -647,7 +650,10 @@ export interface Verdict {
  * ahead, or queued by a person's approval. `send` judges rows about to go:
  * dropped and overtaken the same way, and a row whose due has moved ahead
  * is re-dated rather than sent. A queued row of a producer that holds was
- * approved by a person: it is dropped or overtaken, never re-dated.
+ * approved by a person: it is dropped or overtaken, never re-dated. Nor is a
+ * batch, whose due is the end of its window: it is dropped and overtaken
+ * like any message, or the manifest's `dropWhen` and `supersede` on it would
+ * say something that never happens.
  */
 export async function verdictsFor(
   ctx: {
@@ -680,7 +686,9 @@ export async function verdictsFor(
   const judged: Row[] = [];
   for (const row of rows) {
     const producer = producerOf(definition, row[cols.kind]);
-    if (producer === undefined || producer.batchMinutes !== undefined) continue;
+    if (producer === undefined) continue;
+    // A batch is due when its window closes, whatever its producer's `due` reads.
+    const batched = producer.batchMinutes !== undefined;
     const status = row[cols.status];
     const due = slotInstant(cols.due === undefined ? null : row[cols.due])?.getTime() ?? null;
     const approved = status === 'queued' && producer.hold === true;
@@ -695,7 +703,7 @@ export async function verdictsFor(
       out.set(row, { skip: reason });
       continue;
     }
-    if (producer.due !== undefined && !approved && linked !== null && cols.due !== undefined) {
+    if (producer.due !== undefined && !approved && !batched && linked !== null && cols.due !== undefined) {
       const next = await dueFor(producer.due, linked.row, linked.table.columns.get(producer.due.date), ctx.zone, ctx.read);
       const moved = next === null ? due !== null : due === null || Math.abs(next - due) >= 1_000;
       // About to go: a due now AHEAD, or one that can no longer be worked out, holds it back.

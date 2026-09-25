@@ -243,6 +243,18 @@ describe('the outbox, the rarer refusals', () => {
     expectIssue(m, 'one message overtakes another when it comes due: name its due');
   });
 
+  it('takes a batch\'s window as its due, and no other', () => {
+    let m = valid();
+    producers(m)[0]!['batchMinutes'] = 10;
+    expectIssue(m, 'a batch comes due when its window closes, so it takes no due of its own');
+    m = valid();
+    delete producers(m)[0]!['due'];
+    producers(m)[0]!['batchMinutes'] = 10;
+    // Overtaken and dropped like any message that waits: its window is its wait.
+    expect(issuesText(m)).not.toContain('name its due');
+    expect(issuesText(m)).not.toContain('only a message that waits');
+  });
+
   it('fits a drop condition\'s values, and an onSent change to its table', () => {
     let m = valid();
     (producers(m)[0]!['dropWhen'] as Doc[])[1]!['eq'] = 'paid';

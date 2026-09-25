@@ -5,7 +5,8 @@
  * A person (or an API key, an import's update, a rule, an undo) may:
  *  - approve a held message: held → queued. Who approved it is written in
  *    `approved_by`; the address is looked up again, as the person is now; a
- *    message approved before its day goes at once (its due moves to now);
+ *    message approved before its day, or with no day worked out, goes at
+ *    once (its due moves to now);
  *  - reword a held message of a producer that holds (`subject_override`,
  *    `body_override`) — before or as it is approved, and at no other time:
  *    never on a new row, a queued one, or one addressed by hand, so a
@@ -20,8 +21,12 @@
  * message is and what it is about (its kind, its links) is fixed once it is
  * made. A new row a person makes starts queued, or held when its kind is one
  * a producer holds (a reminder nobody approved is never sent); history — an
- * import, an app's sample data, the undo of a delete — may bring any row as
- * it was, and nothing a sent row of history asks for is ever done.
+ * import, the undo of a delete — may bring any row as it was, and nothing a
+ * sent row of history asks for is ever done. But no row of history goes by
+ * itself: one brought in `queued` was made by no producer and approved by
+ * nobody here, so it waits for a person — `held`, or `failed` with a
+ * sentence where the outbox offers no `held` — and one that says it went
+ * comes back `sent`.
  *
  * It runs as a before hook of the write service, after the project's own
  * hooks, for every stored outbox's table — a switched-off app's too, whose
@@ -104,6 +109,45 @@ export function withOutboxMoves(inner: RecordHooks, deps: OutboxMovesDeps): Reco
   };
 }
 
+/** What the error column says of a message history brought in queued, where the outbox offers no `held`. */
+export const BROUGHT_IN_QUEUED = 'Brought in by an import or an undo: queue it again to send it';
+
+/** Whether a status column may hold this value: its option list says so, or — with none known — a producer holds. */
+function offers(box: LiveOutbox, target: WriteTarget, value: string): boolean {
+  const column = target.table.table.columns.find((candidate) => candidate.name === box.definition.columns.status);
+  const options = column?.enumRef == null ? undefined : target.view?.model?.enums?.find((candidate) => candidate.id === column.enumRef)?.values;
+  if (options !== undefined) return options.includes(value);
+  return (box.definition.producers ?? []).some((producer) => producer.hold === true);
+}
+
+/**
+ * A row history brings in `queued` — an import, the undo of a delete — was
+ * made by no producer and approved by nobody here, and the sender sends
+ * every queued row: it would go as if the outbox had made it. So it waits
+ * for a person: `held`, which a person approves like any held message; or,
+ * where the outbox offers no `held`, `failed` with a sentence saying why,
+ * which a person may queue again. A queued row that says it went (when, and
+ * no failure) went: it comes back `sent`, as the sender would put it back.
+ * Every other row comes back as it was.
+ */
+function historyWaits(box: LiveOutbox, target: WriteTarget, values: Row): void {
+  const cols = box.definition.columns;
+  const status = values[cols.status];
+  // An empty status takes the column's default, most likely `queued`: judged as queued.
+  if (!empty(status) && status !== 'queued') return;
+  const went = cols.sentAt !== undefined && !empty(values[cols.sentAt]) && (cols.error === undefined || empty(values[cols.error]) || values[cols.error] === '');
+  if (went) {
+    values[cols.status] = 'sent';
+    return;
+  }
+  if (offers(box, target, 'held')) {
+    values[cols.status] = 'held';
+    return;
+  }
+  values[cols.status] = 'failed';
+  if (cols.error !== undefined) values[cols.error] = BROUGHT_IN_QUEUED;
+}
+
 /** Refuse what a person may not do to a message, and fill in what an approval or a skip writes. */
 export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: Pick<OutboxMovesDeps, 'meta' | 'now'>): Promise<void> {
   const { action, values, record, context, target } = event;
@@ -127,8 +171,11 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   if (action === 'delete') return;
 
   if (action === 'create') {
-    // History — an import, an app's sample data, a deleted row put back by its undo — comes back as it was.
-    if (context.origin === 'import' || context.origin === 'undo') return;
+    // History — an import, a deleted row put back by its undo — comes back as it was, but never goes by itself.
+    if (context.origin === 'import' || context.origin === 'undo') {
+      historyWaits(box, target, values);
+      return;
+    }
     const status = values[cols.status];
     if (!empty(status) && status !== 'queued' && status !== 'held') {
       refuse(cols.status, 'A new message starts queued or held: only Adminium marks one sent, failed or skipped.', { to: status });
@@ -201,10 +248,12 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   if (from !== 'held') return;
   if (cols.approvedBy !== undefined) values[cols.approvedBy] = context.actor?.label ?? null;
   const now = deps.now?.() ?? Date.now();
-  // Approved before its day: it goes now.
+  // Approved before its day, or with no day at all (one that could not be
+  // worked out): it goes now. The sender waits for an empty due only while
+  // nobody has decided; an approval is that decision.
   if (cols.due !== undefined) {
     const due = slotInstant(has(cols.due) ? values[cols.due] : record[cols.due]);
-    if (due !== null && due.getTime() > now) values[cols.due] = new Date(now).toISOString();
+    if (due === null || due.getTime() > now) values[cols.due] = new Date(now).toISOString();
   }
   // A producer's message is addressed as the person is now, not as they were
   // when it was made; one a person wrote and addressed by hand keeps its address.
