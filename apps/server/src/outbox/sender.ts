@@ -74,6 +74,16 @@
  * already — queued again by a door that skipped the moves' check — and is
  * put back to `sent`, never sent twice.
  *
+ * ── A DOCUMENT IT CARRIES ──────────────────────────────────────────────────
+ * A template that says `attach: { kind, link }` carries a document of the row
+ * that link names: the app's profile of that kind draws it (or hands back the
+ * one already drawn while the row is unchanged), right after the row is
+ * claimed and before its email is queued. The PDF where the add-on made one,
+ * else the HTML print copy (text a PDF cannot set: Arabic, Chinese). No
+ * document — the add-on detached, its feature off, the add-on refusing, the
+ * file too large — and the message is `failed`, saying why: it never goes
+ * without what it was meant to carry.
+ *
  * ── AFTER IT IS SENT ───────────────────────────────────────────────────────
  * A producer's `onSent` change (the third reminder pauses the project) is made
  * AFTER the message's status is committed, through the ordinary write, and
@@ -83,8 +93,8 @@
  * refusal), and the sweep tries again a change that failed for another
  * reason, for a day after the send.
  */
-import type { OutboxProducer } from '@adminium/manifest';
-import { addOnSettingsRepo, appOutboxesRepo, connectionTenantConfig, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import type { AppManifest, OutboxProducer } from '@adminium/manifest';
+import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
@@ -96,7 +106,10 @@ import type { Row } from '../crud/mask.js';
 import type { RecordWriteService, UpdateRecordInput } from '../crud/write-service.js';
 import { normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
+import { appDocumentOff, appProfileFor } from '../documents/app-documents.js';
+import { renderDocument, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
+import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
 import { bcp47, formatTag } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
@@ -127,6 +140,10 @@ interface AppFacts {
   requires: string[];
   /** Its client side's routes, by name: where a sign-in link may lead. */
   routes: Record<string, string>;
+  /** The document each of its templates carries, by template key. */
+  attach: Record<string, { kind: string; link: string }>;
+  /** The manifest as installed, for whether a document is switched on. */
+  manifest: AppManifest | null;
 }
 /** The longest `error` sentence written, so a narrow column still takes it. */
 const ERROR_MAX = 120;
@@ -149,6 +166,11 @@ export interface OutboxSenderDeps {
    * the other producers (a paused project's notice) and the screens hear it.
    */
   emit?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
+  /**
+   * The document pipeline, for an email that carries a document (a
+   * template's `attach`); with none, such an email fails and says so.
+   */
+  documents?: (() => RenderDeps | undefined) | undefined;
   /** Mints `{{signInLink}}`; with none, the variable is empty. */
   signInLinks?: SignInLinkMinter | undefined;
   /** The mail layer's secret; the composition's own when absent. */
@@ -352,9 +374,16 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const needs = (manifest?.['addOns'] as { requires?: { key?: unknown }[] } | undefined)?.requires ?? [];
     const customer = ((manifest?.['frontends'] as { side?: unknown; routes?: unknown }[] | undefined) ?? []).find((frontend) => frontend.side === 'customer');
     const routes = typeof customer?.routes === 'object' && customer.routes !== null ? (customer.routes as Record<string, unknown>) : {};
+    const attach: AppFacts['attach'] = {};
+    for (const template of (manifest?.['emailTemplates'] as { key?: unknown; attach?: { kind?: unknown; link?: unknown } }[] | undefined) ?? []) {
+      const wanted = template.attach;
+      if (typeof template.key === 'string' && typeof wanted?.kind === 'string' && typeof wanted.link === 'string') attach[template.key] = { kind: wanted.kind, link: wanted.link };
+    }
     const facts: AppFacts = {
       requires: needs.flatMap((need) => (typeof need.key === 'string' ? [need.key] : [])),
       routes: Object.fromEntries(Object.entries(routes).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
+      attach,
+      manifest: manifest?.['kind'] === 'app' ? (manifest as unknown as AppManifest) : null,
     };
     factsCache.set(manifestId, { at: Date.now(), facts });
     return facts;
@@ -777,6 +806,24 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         if (ready.language !== undefined && cols.language !== undefined) claim[cols.language] = ready.language;
         const claimed = await settle(box, target, pk, claim, unchanged(row));
         if (claimed === null) continue;
+        // The document the email carries, drawn (or the one already drawn) now:
+        // an email that should carry one never goes without it.
+        const wanted = (await appFacts(box.row.manifestId)).attach[ready.email.templateKey];
+        let attachments: EmailSendAttachmentRef[] = [];
+        if (wanted !== undefined) {
+          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale).catch((error: unknown) => {
+            deps.logger?.warn({ err: error, appKey: box.appKey }, 'the document an app email carries could not be drawn');
+            return { error: 'The document could not be drawn' };
+          });
+          if ('error' in drawn) {
+            const values: Row = { [cols.status]: 'failed' };
+            if (cols.error !== undefined) values[cols.error] = sentence(drawn.error);
+            if (cols.sentAt !== undefined) values[cols.sentAt] = null;
+            settled.push((await settle(box, target, pk, values, sentAtWindow)) ?? claimed);
+            continue;
+          }
+          attachments = [drawn.attachment];
+        }
         let job: unknown = null;
         let why = 'Email is not set up on this server';
         try {
@@ -784,6 +831,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
             { meta: deps.meta, logger: deps.logger === undefined ? undefined : { info: () => undefined, warn: deps.logger.warn.bind(deps.logger) }, secret: deps.secret },
             {
               ...ready.email,
+              ...(attachments.length === 0 ? {} : { attachments }),
               report: { app: box.appKey, connectionId: box.connectionId, table: outbox.id, pk: { [key]: row[key] as string | number }, sentAt: now },
               // One claim, one email: queued twice for it, the mail queue keeps one.
               dedupeKey: `app-outbox:${box.appKey}:${outbox.id}:${String(row[key])}:${String(now)}`,
@@ -845,6 +893,59 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         })
         .catch((failure: unknown) => deps.logger?.warn({ err: failure, appKey: box.appKey }, 'the retry of an app email’s change could not be queued'));
     }
+  }
+
+  /**
+   * The document a message carries: the app's own profile of that kind for
+   * the row the message links, drawn — or, while the row is unchanged, the one
+   * drawn before (the same reuse as the staff and public doors, so a second
+   * email of an unchanged invoice carries the same document and takes no new
+   * number). The PDF when the add-on made one (Latin text), else its HTML print
+   * copy. Every reason there is none is said, and the email does not go.
+   */
+  async function documentFor(
+    box: LiveOutbox,
+    view: SnapshotView,
+    row: Row,
+    wanted: { kind: string; link: string },
+    locale: string | undefined,
+  ): Promise<{ attachment: EmailSendAttachmentRef } | { error: string }> {
+    const pipeline = deps.documents?.();
+    if (pipeline === undefined) return { error: 'Documents cannot be drawn on this server' };
+    const column = box.definition.links?.[wanted.link];
+    const id = column === undefined ? undefined : row[column];
+    if (column === undefined || id === null || id === undefined) return { error: 'The message names no row to draw its document for' };
+    const tableId = referenced(view, box.definition.table, column);
+    if (tableId === undefined) return { error: 'The message names no row to draw its document for' };
+    const table = view.table(tableId);
+    const key = table.primaryKey[0];
+    const facts = await appFacts(box.row.manifestId);
+    const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => record.tableName === table.name)?.ref;
+    const profile = await appProfileFor(deps.meta, box.connectionId, box.appKey, tableId, wanted.kind);
+    if (profile === null || key === undefined || ref === undefined || facts.manifest === null) {
+      return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed` };
+    }
+    if (!profile.enabled) return { error: `The ${wanted.kind} is not available: its profile is switched off` };
+    const off = await appDocumentOff({ meta: deps.meta, manifest: facts.manifest, profile, table: ref, runtime: pipeline.runtime });
+    if (off !== null) return { error: `The ${wanted.kind} is not available: ${off.reason}` };
+    const outcome = await renderDocument(pipeline, {
+      profileId: profile.id,
+      pk: { [key]: id },
+      requestedBy: null,
+      actorKind: 'system',
+      reuse: true,
+      ...(locale === undefined ? {} : { locale: locale.replace(/_/g, '-') }),
+    });
+    if (outcome.status === 'skipped') {
+      return { error: outcome.reason === 'row-gone' ? `The ${wanted.kind} could not be drawn: its row is gone` : `The ${wanted.kind} is not available: its add-on draws nothing` };
+    }
+    if (outcome.status === 'failed') return { error: `The ${wanted.kind} could not be drawn: ${outcome.error}` };
+    const fileId = outcome.document.fileId ?? outcome.document.htmlFileId;
+    const file = fileId === null ? null : await filesRepo(deps.meta).findById(fileId);
+    if (file === null || file.deletedAt !== null) return { error: `The ${wanted.kind} was drawn, but its file is gone` };
+    const cap = await settingsRepo(deps.meta).get('email.maxAttachmentBytes');
+    if (typeof cap === 'number' && file.sizeBytes > cap) return { error: `The ${wanted.kind} is larger than an email may carry` };
+    return { attachment: { fileId: file.id, filename: file.filename } };
   }
 
   /** Make one message's change and write what became of it; throws only when it should be tried again. */

@@ -79,6 +79,7 @@ const OWN_PRINCIPALS = [
   ['e2e-generated@adminium.local', 'E2E Generated App Admin'],
   ['e2e-enrich@adminium.local', 'E2E Enrich Admin'],
   ['e2e-booking@adminium.local', 'E2E Booking App Admin'],
+  ['e2e-invoicing@adminium.local', 'E2E Invoicing App Admin'],
 ];
 const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';

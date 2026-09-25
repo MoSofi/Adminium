@@ -845,6 +845,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     // The change a sent message makes reaches the rules, the other producers and every screen.
     emit: (event) => emitRecordEvent(app, event),
+    // A template's `attach`: the sender draws (or reuses) the document through the same pipeline as every door.
+    documents: () => documents,
     announce: (connectionId, table, row) => {
       publishChildWrite(app, { connectionId, table, action: 'update', pk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c]])), row });
     },

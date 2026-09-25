@@ -196,6 +196,8 @@ export interface EnqueueEmailInput {
   report?: EmailSendReport | undefined;
   /** Collapses a second queueing of the same message while the first is pending or running. */
   dedupeKey?: string | undefined;
+  /** Library files this one message carries besides the template's own (a drawn document). */
+  attachments?: readonly EmailSendAttachmentRef[] | undefined;
   /**
    * Wording a person wrote in place of the template's (a held reminder edited
    * before it was approved). The body is plain text: paragraphs split on
@@ -556,7 +558,7 @@ export async function enqueueEmail(
       locale,
       rendered,
       from: prepared.from,
-      attachments: [...prepared.attachments, ...generated],
+      attachments: [...prepared.attachments, ...generated, ...(input.attachments ?? [])],
       report: input.report,
       ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
     },
