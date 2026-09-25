@@ -270,7 +270,20 @@ export interface DocumentSubject {
   locale: string;
   /** ISO-4217. */
   currency: string;
-  business: { name: string; lines: readonly string[]; logoDataUrl?: string };
+  /**
+   * The letterhead, from the rendering add-on's own settings. The last three
+   * are optional and additive: a business's tax number, how to pay it, and a
+   * line for the foot of the page — an older server never sends them, and a
+   * provider draws each only when it is there.
+   */
+  business: {
+    name: string;
+    lines: readonly string[];
+    logoDataUrl?: string;
+    taxNumber?: string;
+    paymentInstructions?: string;
+    footer?: string;
+  };
   /** `null` for request-shaped intents. */
   entity: RecordRef | null;
   /** `null` until minted; a re-render carries the number it already has. */
@@ -290,6 +303,9 @@ export const documentSubjectSchema = z
         name: z.string().min(1),
         lines: z.array(z.string()),
         logoDataUrl: z.string().optional(),
+        taxNumber: z.string().max(80).optional(),
+        paymentInstructions: z.string().max(2000).optional(),
+        footer: z.string().max(500).optional(),
       })
       .strict(),
     entity: z
