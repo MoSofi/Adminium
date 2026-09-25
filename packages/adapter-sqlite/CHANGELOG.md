@@ -1,5 +1,13 @@
 # @adminium/adapter-sqlite
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [a038c9a]
+- Updated dependencies [e1742aa]
+  - @adminium/engine@0.3.2
+
 ## 0.3.1
 
 ### Patch Changes

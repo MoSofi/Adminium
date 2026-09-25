@@ -1,5 +1,15 @@
 # @adminium/manifest
 
+## 0.3.2
+
+### Patch Changes
+
+- ba84748: An app's document can leave rows out of a list it prints. A `collection` in a document mapping takes `where` (keep only the rows whose column holds one of the values) and `unless` (leave out a row whose column is true or set), the same words a statement's sources use, so a till receipt can skip voided lines with `"unless": "voided"`. Both must name a column of the listed table, or the manifest is refused.
+- ba84748: An app's staff screen can send values for the slots its app lets a request fill when it asks for a document, so a label sheet can print as many labels as the screen asks for: `POST /api/v1/apps/<key>/documents/render` takes `values`, by slot id, and a document entry in the manifest lists the slots a request may fill in `requestValues` (up to 8, each one it does not map). Only those are taken: a slot the entry does not list, one that reads a column, one the add-on fills itself (the date, the number, the currency), one that holds money, a percentage, an address or a date, one the document's own typed values fill, or a value the slot cannot hold is refused with 400 and names the slot, and nothing is drawn. An app that lists a slot its add-on keeps for itself is refused at install. A document drawn with values names the slots they filled, is never emailed on its own (someone settles it, as with a customer's own request), and a later print of the same row takes nothing from it. The same values give back the same document; different ones draw it again.
+- 2a3e2e3: Two public keys on one database can no longer be set up so that a person signed in on both changes where their own row points through one key and reads another person's rows through the other. Where one key reads rows by a column of their parent (a proposal naming its terms), a key, endpoint, scope or app install that would let another key write that column is refused and says which key and column. Server keys, which no person holds, are not affected.
+- e9b4473: An app's email template can list every variable Adminium fills in its `vars`: `appName`, an add-on's public setting (`addOn.<key>.<setting>`), and columns with a number in their name. Before, the list refused them even though the template could use them.
+- @adminium/add-on-contracts@0.3.2
+
 ## 0.3.1
 
 ### Patch Changes

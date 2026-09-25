@@ -1,5 +1,13 @@
 # @adminium/engine
 
+## 0.3.2
+
+### Patch Changes
+
+- a038c9a: Removing an index in Studio drops that index by its own name on every database. It used to guess a name, so the drop failed on any index Adminium had not named itself.
+- e1742aa: On SQLite, a change that has to rebuild a table with a unique column no longer fails with "object name reserved for internal use". An app update that adds a column or a choice value to such a table now goes through, and the column stays unique afterwards. Turning "Unique" off in the table designer now really lets duplicates in; before, the rebuild put the unique back and said the change was applied. A rebuild now puts a partial unique index (`WHERE deleted_at IS NULL`) and an index on an expression back as they were, and refuses, naming the column or the index, rather than quietly lose a column's collation (`COLLATE NOCASE`), a unique's `ON CONFLICT` rule, or a partial index on a column the change drops.
+- @adminium/widgets@0.3.2
+
 ## 0.3.1
 
 ### Patch Changes

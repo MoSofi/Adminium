@@ -1,5 +1,38 @@
 # @adminium/server
 
+## 0.3.2
+
+### Patch Changes
+
+- ba84748: Connecting an add-on to an app that is already installed now switches on the app's documents that add-on draws straight away. Before, an app that only suggests the add-on (a clinic's receipt for the insurer, printed by Invoices & Receipts) said the document was off until the app was updated again. This covers connecting the add-on from its page or the app's add-ons card, installing it onto the app, and switching it back on for the app. Only the documents that need that add-on are made, and only those missing: a document profile you renamed or remapped stays as you left it, one you deleted is not brought back by connecting some other add-on, and nothing is ever removed on the way. An app update no longer removes the app's document profiles when its tables cannot be read at that moment. Switching the add-on off for the app turns the document off again, as before, and now also on the general render route and in an automation step, not only on the app's own screen. An app update that changes nothing about a document, or connecting an add-on again, no longer makes the next print of an unchanged row a new document with a new number.
+- 8bbbb08: The add-ons that come bundled with Adminium are now 1.0.4: Invoices & Receipts with its invoice and quote shapes, statements, reminders and receipts that say what the money was for (a visit's date, who attended, a reference, a till's itemised lines), Holiday Calendars for the Client Portal, Barcode Labels for Point of Sale with a label count, and every add-on's app ranges for the versions that ship.
+- ba84748: An app's document can leave rows out of a list it prints. A `collection` in a document mapping takes `where` (keep only the rows whose column holds one of the values) and `unless` (leave out a row whose column is true or set), the same words a statement's sources use, so a till receipt can skip voided lines with `"unless": "voided"`. Both must name a column of the listed table, or the manifest is refused.
+- ba84748: Printing a document that exists only as HTML — a receipt in Arabic, Chinese or another script the PDF cannot draw — now opens it in the tab, ready for the browser's print dialog, instead of downloading an `.html` file. The page is shown sandboxed: its own styles and inline images draw, and it can run no script and load nothing. Downloading a document is unchanged.
+  
+  A document that exists as a PDF prints as its PDF, served the way the download serves it, without the sandbox a PDF viewer may not open in. The file name an add-on gives a document is cleaned before it reaches the download: line breaks, quotes and other control characters are dropped, and the full name is sent for browsers that read it.
+- ba84748: An app's staff screen can send values for the slots its app lets a request fill when it asks for a document, so a label sheet can print as many labels as the screen asks for: `POST /api/v1/apps/<key>/documents/render` takes `values`, by slot id, and a document entry in the manifest lists the slots a request may fill in `requestValues` (up to 8, each one it does not map). Only those are taken: a slot the entry does not list, one that reads a column, one the add-on fills itself (the date, the number, the currency), one that holds money, a percentage, an address or a date, one the document's own typed values fill, or a value the slot cannot hold is refused with 400 and names the slot, and nothing is drawn. An app that lists a slot its add-on keeps for itself is refused at install. A document drawn with values names the slots they filled, is never emailed on its own (someone settles it, as with a customer's own request), and a later print of the same row takes nothing from it. The same values give back the same document; different ones draw it again.
+- a038c9a: Removing an index in Studio drops that index by its own name on every database. It used to guess a name, so the drop failed on any index Adminium had not named itself.
+- ba8a4f2: MySQL `TIMESTAMP` columns hold the right instant whatever zone the database server or Adminium runs in. Writing a date and time to one through the API or a form no longer fails, and "still ahead", time windows, "from today", filters, reminders and an app email's due and sent times compare against the right hour. Values read back are no longer shifted, and an undo puts back the time it read. Adminium's connections to MySQL and MariaDB now run their session in UTC, so `NOW()`, `CURRENT_TIMESTAMP` and triggers inside Adminium's own statements run in UTC too. A `DATETIME` column that defaults to `CURRENT_TIMESTAMP` or updates on `CURRENT_TIMESTAMP` gets the UTC time for rows Adminium writes. `{"$generate":"now"}` in a public scope writes this server's clock into a column with no zone, the way a column rule's `now` does.
+- 2a3e2e3: Two public keys on one database can no longer be set up so that a person signed in on both changes where their own row points through one key and reads another person's rows through the other. Where one key reads rows by a column of their parent (a proposal naming its terms), a key, endpoint, scope or app install that would let another key write that column is refused and says which key and column. Server keys, which no person holds, are not affected.
+- e1742aa: On SQLite, a change that has to rebuild a table with a unique column no longer fails with "object name reserved for internal use". An app update that adds a column or a choice value to such a table now goes through, and the column stays unique afterwards. Turning "Unique" off in the table designer now really lets duplicates in; before, the rebuild put the unique back and said the change was applied. A rebuild now puts a partial unique index (`WHERE deleted_at IS NULL`) and an index on an expression back as they were, and refuses, naming the column or the index, rather than quietly lose a column's collation (`COLLATE NOCASE`), a unique's `ON CONFLICT` rule, or a partial index on a column the change drops.
+- Updated dependencies [ba84748]
+- Updated dependencies [ba84748]
+- Updated dependencies [a038c9a]
+- Updated dependencies [ba8a4f2]
+- Updated dependencies [2a3e2e3]
+- Updated dependencies [e1742aa]
+- Updated dependencies [e9b4473]
+  - @adminium/manifest@0.3.2
+  - @adminium/meta@0.3.2
+  - @adminium/engine@0.3.2
+  - @adminium/adapter-mysql@0.3.2
+  - @adminium/adapter-postgres@0.3.2
+  - @adminium/adapter-sqlite@0.3.2
+  - @adminium/llm@0.3.2
+  - @adminium/schema-import@0.3.2
+  - @adminium/add-on-contracts@0.3.2
+  - @adminium/i18n@0.3.2
+
 ## 0.3.1
 
 ### Patch Changes

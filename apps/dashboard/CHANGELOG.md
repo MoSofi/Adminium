@@ -1,5 +1,21 @@
 # @adminium/dashboard
 
+## 0.3.2
+
+### Patch Changes
+
+- ba84748: Saving a document profile in Studio keeps what the editor does not show: the order of a list's lines, the rows it leaves out, and a linked row's table.
+- e1742aa: On SQLite, a change that has to rebuild a table with a unique column no longer fails with "object name reserved for internal use". An app update that adds a column or a choice value to such a table now goes through, and the column stays unique afterwards. Turning "Unique" off in the table designer now really lets duplicates in; before, the rebuild put the unique back and said the change was applied. A rebuild now puts a partial unique index (`WHERE deleted_at IS NULL`) and an index on an expression back as they were, and refuses, naming the column or the index, rather than quietly lose a column's collation (`COLLATE NOCASE`), a unique's `ON CONFLICT` rule, or a partial index on a column the change drops.
+- Updated dependencies [a038c9a]
+- Updated dependencies [e1742aa]
+  - @adminium/engine@0.3.2
+  - @adminium/add-on-contracts@0.3.2
+  - @adminium/charts@0.3.2
+  - @adminium/i18n@0.3.2
+  - @adminium/tokens@0.3.2
+  - @adminium/ui@0.3.2
+  - @adminium/widgets@0.3.2
+
 ## 0.3.1
 
 ### Patch Changes
