@@ -1947,9 +1947,23 @@ export default {
         "stampByOrigin": "« {public} » côté public, « {staff} » côté équipe",
         "rollupWhere": "en ne comptant que les lignes où {column} vaut {value}",
         "rollupBalance": "et tient {balance} = {of} − {minus} − ce total",
-        "rollupCap": "Une écriture qui ferait passer le solde sous zéro est refusée."
+        "rollupCap": "Une écriture qui ferait passer le solde sous zéro est refusée.",
+        "stampToday": "la date",
+        "stampClaim": "{column} de la personne connectée",
+        "stampAddDays": "{date} plus {days} jours",
+        "stampAddDaysColumn": "{date} plus les jours indiqués par {column}",
+        "stampHashOf": "une empreinte de la ligne",
+        "stampFilled": "Défini sur {what} quand {column} est rempli pour la première fois",
+        "sequenceGapless": "Le numéro suivant dans l’ordre, sans trou ni doublon",
+        "sequenceScope": "compté séparément pour chaque {scope}",
+        "formula": "Calculé à partir de {columns} à chaque écriture",
+        "format": "Écrit sous la forme {example}, à partir du numéro de {from}",
+        "scale": "Arrondi à {places} décimales",
+        "scaleCurrency": "Arrondi aux décimales de sa devise"
       },
-      "venueLocal": "Une heure écrite ici sans fuseau est l’heure locale de l’établissement."
+      "venueLocal": "Une heure écrite ici sans fuseau est l’heure locale de l’établissement.",
+      "fillFromCurrency": "La devise de la connexion",
+      "fillFromSetting": "Un réglage : {setting}"
     },
     "saveFailed": "Échec de l’enregistrement : {message}",
     "subtitle": "{tables} tables · {applied} remplacements appliqués",

@@ -48,6 +48,11 @@ export {
   prefixFor,
   appReferenceIssues,
   columnRulesSchema,
+  stampSetSchema,
+  stampTriggerSchema,
+  shapeDefinitionSchema,
+  shapePartSchema,
+  shapeDefinitionIssues,
   capacitySchema,
   navGroupSchema,
   publicAccessSchema,
@@ -66,12 +71,15 @@ export {
   type I18nMessage,
   type RequiredTable,
   type RequiredColumn,
+  type RequiredTableShape,
+  type ShapeDefinition,
 } from './schema.js';
 export { roleLimitSchema, roleLimitsSchema, type RoleLimit } from './roles.js';
 
 export {
   validateManifest,
   parseManifest,
+  manifestWarnings,
   type ValidateManifestResult,
   type ValidateManifestOptions,
   type ManifestIssue,
@@ -80,15 +88,61 @@ export {
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
 
 export {
+  OUTBOX_HELD,
+  OUTBOX_SKIP_REASONS,
   OUTBOX_STATUSES,
   emailTemplateSchema,
+  outboxProducerSchema,
   outboxSchema,
   type EmailTemplate,
   type Outbox,
   type OutboxProducer,
 } from './outbox.js';
 
-export { CUSTOMER_KEY, publicKeySchema, type PublicKey } from './public-access.js';
+export { CUSTOMER_KEY, claimKind, claimSchema, publicKeySchema, type Claim, type PublicKey } from './public-access.js';
+
+export {
+  FORMULA_MAX_DEPTH,
+  currencyScale,
+  evaluateFormula,
+  formulaColumns,
+  formulaConditionSchema,
+  formulaCycle,
+  formulaExprSchema,
+  formulaOrder,
+  holds as formulaHolds,
+  ratioText,
+  toRatio,
+  type FormulaCondition,
+  type FormulaExpr,
+} from './formula.js';
+
+export {
+  moveTarget,
+  stateChildSchema,
+  stateConditionSchema,
+  stateMoveSchema,
+  statesSchema,
+  type StateChild,
+  type StateCondition,
+  type StateMove,
+  type States,
+} from './states.js';
+
+export { addOnsSchema, namedAddOns, requiresAddOn, type AddOnNeeds } from './add-ons.js';
+
+export { appDocumentSchema, slotMappingSchema, type AppDocument, type SlotMapping } from './documents.js';
+
+export {
+  shapeConformanceIssues,
+  shapeKey,
+  type ShapeColumn,
+  type ShapeDefinitionView,
+  type ShapeIssue,
+  type ShapePart,
+} from './shapes.js';
+
+export { addOnSettingRefSchema, settingSourceSchema, type SettingSource } from './refs.js';
 
 export { parseSemverRange, satisfiesSemverRange } from './semver.js';
 

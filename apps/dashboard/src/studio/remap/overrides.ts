@@ -62,10 +62,12 @@ export type RemapOverride =
       tableName: string;
       columnName: string;
       value: {
-        kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none';
+        kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none' | 'from';
         text?: string;
         userField?: 'id' | 'name';
         onUpdate?: boolean;
+        /** `from` only: the connection's currency, a settings column, or an add-on's setting. */
+        from?: 'connection.currency' | { table: string; column: string } | { addOn: string; setting: string };
       };
     }
   | {
@@ -101,8 +103,19 @@ export type RemapOverride =
       columnName: string;
       value: { via: string; from: string; mode?: 'default' | 'always' };
     }
-  | { op: 'column.sequence'; tableName: string; columnName: string; value: { start?: number } }
+  | {
+      op: 'column.sequence';
+      tableName: string;
+      columnName: string;
+      value: { start?: number; gapless?: true; startSetting?: Record<string, string>; scope?: string };
+    }
   | { op: 'column.code'; tableName: string; columnName: string; value: { prefix?: string; length: number } }
+  /** A number with a prefix, written from a running number of the row. Kept whole through a save. */
+  | { op: 'column.format'; tableName: string; columnName: string; value: Record<string, unknown> }
+  /** A value worked out from the row's other columns. Kept whole through a save. */
+  | { op: 'column.formula'; tableName: string; columnName: string; value: { formula: unknown } }
+  /** The places a decimal keeps. */
+  | { op: 'column.scale'; tableName: string; columnName: string; value: { scale: number | 'currency' } }
   | {
       op: 'column.rollup';
       tableName: string;
@@ -116,6 +129,8 @@ export type RemapOverride =
   | { op: 'table.capacity'; tableName: string; value: Record<string, unknown> }
   /** Booking people, one per table. Kept whole through a save; not edited here. */
   | { op: 'table.booking'; tableName: string; value: Record<string, unknown> }
+  /** A document's states, moves and locks, one per table. Kept whole through a save; not edited here. */
+  | { op: 'table.states'; tableName: string; value: Record<string, unknown> }
   | {
       op: 'relation.add';
       tableName: string;
@@ -156,6 +171,9 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.rollup',
   'column.venueLocal',
   'column.stamp',
+  'column.format',
+  'column.formula',
+  'column.scale',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

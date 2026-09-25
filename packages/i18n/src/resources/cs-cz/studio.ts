@@ -1947,9 +1947,23 @@ export default {
         "stampByOrigin": "„{public}“ z veřejné strany, „{staff}“ od personálu",
         "rollupWhere": "počítají se jen řádky, kde {column} je {value}",
         "rollupBalance": "a udržuje {balance} = {of} − {minus} − tento součet",
-        "rollupCap": "Zápis, který by snížil zůstatek pod nulu, je odmítnut."
+        "rollupCap": "Zápis, který by snížil zůstatek pod nulu, je odmítnut.",
+        "stampToday": "datum",
+        "stampClaim": "{column} přihlášené osoby",
+        "stampAddDays": "{date} plus {days} dní",
+        "stampAddDaysColumn": "{date} plus počet dní podle {column}",
+        "stampHashOf": "otisk řádku",
+        "stampFilled": "Nastaví se na {what}, když se {column} poprvé vyplní",
+        "sequenceGapless": "Další číslo v pořadí, bez mezer a bez opakování",
+        "sequenceScope": "počítá se zvlášť pro každé {scope}",
+        "formula": "Vypočítá se z {columns} při každém zápisu",
+        "format": "Zapisuje se jako {example} podle čísla v {from}",
+        "scale": "Zaokrouhleno na {places} desetinných míst",
+        "scaleCurrency": "Zaokrouhleno na desetinná místa své měny"
       },
-      "venueLocal": "Čas zapsaný sem bez časového pásma je místním časem provozovny."
+      "venueLocal": "Čas zapsaný sem bez časového pásma je místním časem provozovny.",
+      "fillFromCurrency": "Měna připojení",
+      "fillFromSetting": "Nastavení: {setting}"
     },
     "saveFailed": "Uložení se nezdařilo: {message}",
     "subtitle": "{tables} tabulek · použito {applied} úprav",

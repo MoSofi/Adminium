@@ -1947,9 +1947,23 @@ export default {
         "stampByOrigin": "公开端为“{public}”，员工端为“{staff}”",
         "rollupWhere": "只统计 {column} 为 {value} 的行",
         "rollupBalance": "并保持 {balance} = {of} − {minus} − 此合计",
-        "rollupCap": "会使余额低于零的写入将被拒绝。"
+        "rollupCap": "会使余额低于零的写入将被拒绝。",
+        "stampToday": "当天日期",
+        "stampClaim": "已登录者的 {column}",
+        "stampAddDays": "{date} 加 {days} 天",
+        "stampAddDaysColumn": "{date} 加上 {column} 给出的天数",
+        "stampHashOf": "该行的指纹",
+        "stampFilled": "当 {column} 首次填写时设为{what}",
+        "sequenceGapless": "按顺序的下一个编号，不跳号也不重复",
+        "sequenceScope": "按每个 {scope} 分别计数",
+        "formula": "每次写入时由 {columns} 算出",
+        "format": "按 {from} 中的编号写成 {example}",
+        "scale": "四舍五入到 {places} 位小数",
+        "scaleCurrency": "四舍五入到其货币的小数位数"
       },
-      "venueLocal": "在此写入的不带时区的时间即为场所的本地时间。"
+      "venueLocal": "在此写入的不带时区的时间即为场所的本地时间。",
+      "fillFromCurrency": "连接的货币",
+      "fillFromSetting": "一项设置：{setting}"
     },
     "saveFailed": "保存失败：{message}",
     "subtitle": "{tables} 张表 · 已应用 {applied} 项覆盖",

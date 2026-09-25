@@ -242,6 +242,45 @@ describe('the columns Adminium decides', () => {
       'column.venueLocal:body',
     ]);
   });
+
+  it('says the worked-out values, prefixed numbers, stamps and places an invoicing app installs, and keeps them through a save', async () => {
+    const harness = installFetch({
+      overridesRows: () => [
+        row('column.formula', 'body', { formula: { add: ['id', { coalesce: ['author', 0] }] } }, 'ovr_formula'),
+        row('column.scale', 'body', { scale: 'currency' }, 'ovr_scale'),
+        row('column.format', 'order_ref', { from: 'id', prefix: 'INV-', pad: 4 }, 'ovr_format'),
+        row('column.sequence', 'id', { gapless: true, scope: 'author' }, 'ovr_gapless'),
+        row(
+          'column.stamp',
+          'body',
+          { set: { addDays: { date: 'created_at', days: 'author', map: { a: 7 } } }, on: [{ column: 'author', values: ['sent'] }, { column: 'id', filled: true }] },
+          'ovr_days',
+        ),
+      ],
+    });
+    await openColumn(/Body/);
+    const decided = await screen.findByTestId('rules-decided');
+    expect(decided.textContent).toContain('Worked out from id, author on every write');
+    expect(decided.textContent).toContain('Rounded to the decimal places of its currency');
+    expect(decided.textContent).toContain(
+      'Set to created_at plus the days author gives when author becomes sent; Set to created_at plus the days author gives when id is first filled',
+    );
+    await userEvent.click(await screen.findByRole('button', { name: /Order ref/ }));
+    const other = await screen.findByTestId('rules-decided');
+    expect(other.textContent).toContain('Written as INV-0001, from the number in id');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove this rule' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Save overrides' }));
+    await waitFor(() => expect(harness.putBodies.length).toBeGreaterThan(0));
+    const { overrides } = harness.putBodies.at(-1) as { overrides: { op: string; columnName?: string }[] };
+    // The prefixed number went; every other rule kept its column.
+    expect(overrides.map((o) => `${o.op}:${o.columnName ?? ''}`).sort()).toEqual([
+      'column.formula:body',
+      'column.scale:body',
+      'column.sequence:id',
+      'column.stamp:body',
+    ]);
+  });
 });
 
 describe('an app’s words for its allowed values', () => {

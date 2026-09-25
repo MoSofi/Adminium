@@ -19895,6 +19895,14 @@
     "status": "mt",
     "srcHash": "b6384725c4d7"
   },
+  "studio.remap.rules.decided.format": {
+    "status": "mt",
+    "srcHash": "44ef76f80a5a"
+  },
+  "studio.remap.rules.decided.formula": {
+    "status": "mt",
+    "srcHash": "1a8a9b4aeccf"
+  },
   "studio.remap.rules.decided.help": {
     "status": "mt",
     "srcHash": "7f2ecd1f374c"
@@ -19923,9 +19931,33 @@
     "status": "mt",
     "srcHash": "a1614d6b24de"
   },
+  "studio.remap.rules.decided.scale": {
+    "status": "mt",
+    "srcHash": "b9ec47e6a841"
+  },
+  "studio.remap.rules.decided.scaleCurrency": {
+    "status": "mt",
+    "srcHash": "b4bdeb710b33"
+  },
   "studio.remap.rules.decided.sequence": {
     "status": "mt",
     "srcHash": "a76b0745aaf4"
+  },
+  "studio.remap.rules.decided.sequenceGapless": {
+    "status": "mt",
+    "srcHash": "6c9001a0ac80"
+  },
+  "studio.remap.rules.decided.sequenceScope": {
+    "status": "mt",
+    "srcHash": "9659db867f1d"
+  },
+  "studio.remap.rules.decided.stampAddDays": {
+    "status": "mt",
+    "srcHash": "11e0e1fee92c"
+  },
+  "studio.remap.rules.decided.stampAddDaysColumn": {
+    "status": "mt",
+    "srcHash": "dfab334d9345"
   },
   "studio.remap.rules.decided.stampByOrigin": {
     "status": "mt",
@@ -19935,13 +19967,29 @@
     "status": "mt",
     "srcHash": "69c847cc1b0f"
   },
+  "studio.remap.rules.decided.stampClaim": {
+    "status": "mt",
+    "srcHash": "1112dee16361"
+  },
   "studio.remap.rules.decided.stampCreate": {
     "status": "mt",
     "srcHash": "9fda8dad1fdd"
   },
+  "studio.remap.rules.decided.stampFilled": {
+    "status": "mt",
+    "srcHash": "5d38b97e20a5"
+  },
+  "studio.remap.rules.decided.stampHashOf": {
+    "status": "mt",
+    "srcHash": "1d76b764403d"
+  },
   "studio.remap.rules.decided.stampNow": {
     "status": "mt",
     "srcHash": "266cd12c614e"
+  },
+  "studio.remap.rules.decided.stampToday": {
+    "status": "mt",
+    "srcHash": "5356a0b59fa4"
   },
   "studio.remap.rules.decided.stampUserId": {
     "status": "mt",
@@ -19966,6 +20014,14 @@
   "studio.remap.rules.fillDefault": {
     "status": "mt",
     "srcHash": "90dcfa02d632"
+  },
+  "studio.remap.rules.fillFromCurrency": {
+    "status": "mt",
+    "srcHash": "40d6b9ea55ba"
+  },
+  "studio.remap.rules.fillFromSetting": {
+    "status": "mt",
+    "srcHash": "da29f56698e6"
   },
   "studio.remap.rules.fillHelp": {
     "status": "mt",

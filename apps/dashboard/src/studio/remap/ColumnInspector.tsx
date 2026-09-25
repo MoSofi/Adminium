@@ -168,6 +168,9 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const rollupKey = overrideKey({ op: 'column.rollup', ...target, value: { from: '', via: '', sum: '' } });
   const venueLocalKey = overrideKey({ op: 'column.venueLocal', ...target, value: { venueLocal: true } });
   const stampKey = overrideKey({ op: 'column.stamp', ...target, value: { set: 'now', on: 'create' } });
+  const formulaKey = overrideKey({ op: 'column.formula', ...target, value: { formula: 0 } });
+  const formatKey = overrideKey({ op: 'column.format', ...target, value: {} });
+  const scaleKey = overrideKey({ op: 'column.scale', ...target, value: { scale: 2 } });
   const venueLocal = buffer.get(venueLocalKey)?.item.op === 'column.venueLocal';
   // The buffer's baseline is every stored row, so no entry is no rule — and
   // one dropped in this session is gone until it is saved or reverted.
@@ -180,18 +183,61 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const code = decidedOf<NonNullable<EffectiveColumn['code']>>(codeKey, 'column.code');
   const rollup = decidedOf<NonNullable<EffectiveColumn['rollup']>>(rollupKey, 'column.rollup');
   const stamp = decidedOf<StampRule>(stampKey, 'column.stamp');
+  const formula = decidedOf<{ formula: unknown }>(formulaKey, 'column.formula');
+  const format = decidedOf<{ from: string; prefix?: string; prefixSetting?: Record<string, string>; pad?: number }>(formatKey, 'column.format');
+  const scale = decidedOf<{ scale: number | 'currency' }>(scaleKey, 'column.scale');
   /** What a stamp writes, in words. */
-  const stampWhat = (set: StampRule['set']): string =>
-    typeof set === 'object'
-      ? t('studio:remap.rules.decided.stampByOrigin', '“{public}” from the public side, “{staff}” from staff', {
+  const stampWhat = (set: StampRule['set']): string => {
+    if (typeof set === 'object') {
+      if ('byOrigin' in set) {
+        return t('studio:remap.rules.decided.stampByOrigin', '“{public}” from the public side, “{staff}” from staff', {
           public: set.byOrigin.public,
           staff: set.byOrigin.staff,
-        })
-      : set === 'now'
-        ? t('studio:remap.rules.decided.stampNow', 'the time')
+        });
+      }
+      if ('claim' in set) return t('studio:remap.rules.decided.stampClaim', 'the signed-in person’s {column}', { column: set.claim });
+      if ('addDays' in set) {
+        return typeof set.addDays.days === 'number'
+          ? t('studio:remap.rules.decided.stampAddDays', '{date} plus {days} days', { date: set.addDays.date, days: set.addDays.days })
+          : t('studio:remap.rules.decided.stampAddDaysColumn', '{date} plus the days {column} gives', { date: set.addDays.date, column: set.addDays.days });
+      }
+      return t('studio:remap.rules.decided.stampHashOf', 'a fingerprint of the row');
+    }
+    return set === 'now'
+      ? t('studio:remap.rules.decided.stampNow', 'the time')
+      : set === 'today'
+        ? t('studio:remap.rules.decided.stampToday', 'the date')
         : set === 'user-name'
           ? t('studio:remap.rules.decided.stampUserName', 'the name of whoever does it')
           : t('studio:remap.rules.decided.stampUserId', 'the id of whoever does it');
+  };
+  /** When a stamp is written, in words: each of its moments. */
+  const stampWhen = (rule: StampRule): string =>
+    (Array.isArray(rule.on) ? rule.on : [rule.on])
+      .map((on) =>
+        on === 'create'
+          ? t('studio:remap.rules.decided.stampCreate', 'Set to {what} when the row is created', { what: stampWhat(rule.set) })
+          : 'filled' in on
+            ? t('studio:remap.rules.decided.stampFilled', 'Set to {what} when {column} is first filled', { what: stampWhat(rule.set), column: on.column })
+            : t('studio:remap.rules.decided.stampChange', 'Set to {what} when {column} becomes {values}', {
+                what: stampWhat(rule.set),
+                column: on.column,
+                values: on.values.map(String).join(', '),
+              }),
+      )
+      .join('; ');
+  /** The columns a formula reads, in the order it names them. */
+  const formulaReads = (expr: unknown): string[] => {
+    const out: string[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof node === 'string') {
+        if (!out.includes(node)) out.push(node);
+      } else if (Array.isArray(node)) node.forEach(walk);
+      else if (typeof node === 'object' && node !== null) Object.values(node).forEach(walk);
+    };
+    walk(expr);
+    return out;
+  };
   /** A child table by its display name, else its own. */
   const tableName = (id: string) => {
     const found = tableById(model, id);
@@ -468,6 +514,21 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
             <option value="literal">{t('studio:remap.rules.fillLiteral', 'A fixed value')}</option>
             <option value="database">{t('studio:remap.rules.fillDb', 'The database fills it (a trigger)')}</option>
             <option value="none">{t('studio:remap.rules.fillNone', 'Nothing — leave it empty')}</option>
+            {/* An app's fill from elsewhere is said, and kept, but not made here. */}
+            {fill?.kind === 'from' ? (
+              <option value="from">
+                {fill.from === 'connection.currency'
+                  ? t('studio:remap.rules.fillFromCurrency', 'The connection’s currency')
+                  : t('studio:remap.rules.fillFromSetting', 'A setting: {setting}', {
+                      setting:
+                        typeof fill.from === 'object' && 'setting' in fill.from
+                          ? `${fill.from.addOn}.${fill.from.setting}`
+                          : typeof fill.from === 'object'
+                            ? fill.from.column
+                            : '',
+                    })}
+              </option>
+            ) : null}
           </Select>
         </FormField>
 
@@ -641,7 +702,14 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
           </div>
         ) : null}
 
-        {copy !== undefined || sequence !== undefined || code !== undefined || rollup !== undefined || stamp !== undefined ? (
+        {copy !== undefined ||
+        sequence !== undefined ||
+        code !== undefined ||
+        rollup !== undefined ||
+        stamp !== undefined ||
+        formula !== undefined ||
+        format !== undefined ||
+        scale !== undefined ? (
           <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3" data-testid="rules-decided">
             <div className="flex flex-col">
               <span className="text-body-sm font-semibold text-fg">
@@ -672,9 +740,20 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                 ? null
                 : {
                     key: sequenceKey,
-                    text: t('studio:remap.rules.decided.sequence', 'The next number in order, from {start}', {
-                      start: sequence.start ?? 1,
-                    }),
+                    text: [
+                      (sequence as { gapless?: true }).gapless === true
+                        ? t('studio:remap.rules.decided.sequenceGapless', 'The next number in order, with no gaps and none repeated')
+                        : t('studio:remap.rules.decided.sequence', 'The next number in order, from {start}', {
+                            start: sequence.start ?? 1,
+                          }),
+                      (sequence as { scope?: string }).scope === undefined
+                        ? null
+                        : t('studio:remap.rules.decided.sequenceScope', 'counted separately for each {scope}', {
+                            scope: (sequence as { scope?: string }).scope,
+                          }),
+                    ]
+                      .filter((part) => part !== null)
+                      .join('; '),
                   },
               rollup === undefined
                 ? null
@@ -711,20 +790,32 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                       .filter((part) => part !== null)
                       .join('; '),
                   },
-              stamp === undefined
+              stamp === undefined ? null : { key: stampKey, text: stampWhen(stamp) },
+              formula === undefined
                 ? null
                 : {
-                    key: stampKey,
+                    key: formulaKey,
+                    text: t('studio:remap.rules.decided.formula', 'Worked out from {columns} on every write', {
+                      columns: formulaReads(formula.formula).join(', '),
+                    }),
+                  },
+              format === undefined
+                ? null
+                : {
+                    key: formatKey,
+                    text: t('studio:remap.rules.decided.format', 'Written as {example}, from the number in {from}', {
+                      example: `${format.prefixSetting === undefined ? (format.prefix ?? '') : '…'}${'1'.padStart(format.pad ?? 1, '0')}`,
+                      from: format.from,
+                    }),
+                  },
+              scale === undefined
+                ? null
+                : {
+                    key: scaleKey,
                     text:
-                      stamp.on === 'create'
-                        ? t('studio:remap.rules.decided.stampCreate', 'Set to {what} when the row is created', {
-                            what: stampWhat(stamp.set),
-                          })
-                        : t('studio:remap.rules.decided.stampChange', 'Set to {what} when {column} becomes {values}', {
-                            what: stampWhat(stamp.set),
-                            column: stamp.on.column,
-                            values: stamp.on.values.map(String).join(', '),
-                          }),
+                      scale.scale === 'currency'
+                        ? t('studio:remap.rules.decided.scaleCurrency', 'Rounded to the decimal places of its currency')
+                        : t('studio:remap.rules.decided.scale', 'Rounded to {places} decimal places', { places: scale.scale }),
                   },
               code === undefined
                 ? null

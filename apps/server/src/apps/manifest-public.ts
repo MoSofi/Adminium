@@ -124,7 +124,7 @@ function definitionOf(
     ...(entry.writableValues === undefined ? {} : { writable_values: { ...entry.writableValues } }),
     ...(entry.writableWhen === undefined ? {} : { writable_when: { ...entry.writableWhen } }),
     ...(entry.defaults === undefined ? {} : { defaults: { ...entry.defaults } }),
-    ...(entry.claim === undefined
+    ...(entry.claim === undefined || !('match' in entry.claim)
       ? {}
       : {
           identity: {
@@ -222,7 +222,7 @@ export function planPublicEndpoints(
       methods: [...entry.methods],
       select: entry.select ?? [],
       writable: entry.writable ?? [],
-      claim: entry.claim === undefined ? null : [...entry.claim.match],
+      claim: entry.claim === undefined ? null : 'match' in entry.claim ? [...entry.claim.match] : [],
       kind: entry.kind === 'availability' ? 'availability' : 'records',
       confirms: entry.confirm !== undefined,
       key: entry.key ?? CUSTOMER_KEY_PURPOSE,
@@ -244,7 +244,9 @@ export function planPublicEndpoints(
     }
     const idOf = (short: string) => view.model.tables.find((t) => t.name === (names[short] ?? short))?.id ?? short;
     const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry));
-    const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety];
+    // A claim this server cannot open yet is refused, never installed as a door with no lock.
+    const unopened = entry.claim !== undefined && !('match' in entry.claim) ? [`"${entry.table}" signs people in a way this Adminium does not support`] : [];
+    const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety, ...unopened];
     return { ...planned, select: definition.select, issues, definition };
   });
 }
@@ -370,7 +372,7 @@ export function staffBindingOf(
 ): { requiresStaff: KeyStaffBinding; enabledBy: KeyEnabledBy | null } | null {
   if (purpose === CUSTOMER_KEY_PURPOSE || manifest.kind !== 'app') return null;
   const declared = manifest.publicKeys?.[purpose];
-  if (declared === undefined) return null;
+  if (declared?.requiresStaff === undefined) return null;
   return {
     requiresStaff: { appKey: manifest.key, roleSlug: roleSlugFor(manifest.key, declared.requiresStaff.role) },
     enabledBy: declared.enabledBy === undefined ? null : { table: idOfTable(input, declared.enabledBy.table), column: declared.enabledBy.column },

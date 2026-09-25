@@ -14,6 +14,6 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     ...workers(),
-    coverage: coverage({ statements: 96, branches: 86 }),
+    coverage: coverage({ statements: 97, branches: 91 }),
   },
 });

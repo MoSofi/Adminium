@@ -258,6 +258,21 @@ export function isCurrentCatalogFormat(document: unknown): boolean {
 }
 
 /**
+ * `compatibility.minAdminiumVersion` read out of a document that did NOT
+ * validate, or null. Every block of a manifest is `.strict()`, so a release
+ * using a field this server does not know yet fails the parse; reading its
+ * floor first lets the refusal say "needs a newer Adminium" rather than
+ * "unrecognized key".
+ */
+export function lenientMinimum(document: unknown): string | null {
+  if (typeof document !== 'object' || document === null) return null;
+  const compatibility = (document as { compatibility?: unknown }).compatibility;
+  if (typeof compatibility !== 'object' || compatibility === null) return null;
+  const minimum = (compatibility as { minAdminiumVersion?: unknown }).minAdminiumVersion;
+  return typeof minimum === 'string' && /^\d+\.\d+\.\d+/.test(minimum) ? minimum : null;
+}
+
+/**
  * Whether this server meets a release's declared minimum — the one rule behind
  * every `REQUIRES_NEWER_ADMINIUM` refusal, for add-ons and for apps.
  *

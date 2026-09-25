@@ -1947,9 +1947,23 @@ export default {
         "stampByOrigin": "«{public}» من الجانب العام، و«{staff}» من الموظفين",
         "rollupWhere": "مع احتساب الصفوف التي يكون فيها {column} هو {value} فقط",
         "rollupBalance": "ويحافظ على {balance} = {of} − {minus} − هذا المجموع",
-        "rollupCap": "تُرفض أي كتابة تجعل الرصيد أقل من الصفر."
+        "rollupCap": "تُرفض أي كتابة تجعل الرصيد أقل من الصفر.",
+        "stampToday": "التاريخ",
+        "stampClaim": "{column} الخاص بالشخص المسجِّل دخوله",
+        "stampAddDays": "{date} مضافًا إليه {days} يومًا",
+        "stampAddDaysColumn": "{date} مضافًا إليه الأيام التي يحددها {column}",
+        "stampHashOf": "بصمة للصف",
+        "stampFilled": "يُضبط على {what} عندما يُملأ {column} لأول مرة",
+        "sequenceGapless": "الرقم التالي بالترتيب، بلا فجوات ولا تكرار",
+        "sequenceScope": "يُعدّ بشكل منفصل لكل {scope}",
+        "formula": "يُحسب من {columns} عند كل كتابة",
+        "format": "يُكتب بالشكل {example} من الرقم في {from}",
+        "scale": "يُقرَّب إلى {places} منازل عشرية",
+        "scaleCurrency": "يُقرَّب إلى المنازل العشرية لعملته"
       },
-      "venueLocal": "الوقت المكتوب هنا دون منطقة زمنية هو الوقت المحلي للمكان."
+      "venueLocal": "الوقت المكتوب هنا دون منطقة زمنية هو الوقت المحلي للمكان.",
+      "fillFromCurrency": "عملة الاتصال",
+      "fillFromSetting": "إعداد: {setting}"
     },
     "saveFailed": "فشل الحفظ: {message}",
     "subtitle": "{tables} جدولًا · {applied} تجاوزًا مطبَّقًا",

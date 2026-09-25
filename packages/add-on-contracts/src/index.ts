@@ -56,6 +56,7 @@ export {
   consumesSchema,
   hostApiVersionSchema,
   i18nMessageSchema,
+  isSemverRange,
   navGroupKeySchema,
   providesSchema,
   slotFillSchema,

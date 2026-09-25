@@ -15,6 +15,16 @@
  * second step, a code emailed to the row's own address, which raises the
  * session from `lookup` to `verified`; an entry that says `level: 'verified'`
  * refuses a session that has not taken it.
+ *
+ * Two more ways to claim. `verify: 'email-link'`: the person types only
+ * their address and Adminium emails a one-use link (and a code for another
+ * device); the session opens at `verified` from the link, and a typed
+ * address alone opens nothing. `by: 'token'`: an unguessable code in a
+ * column opens that one row, with no email at all (a handover page shared by
+ * link) — on a key of its own, since a key has one identity.
+ *
+ * An entry with `visibleWith` reaches a child's rows only where the parent
+ * entry reaches the parent row: a draft's lines stay as hidden as the draft.
  */
 import { z } from 'zod';
 
@@ -51,6 +61,43 @@ const relativeFilterSchema = z.union([
 ]);
 
 const valuesSchema = z.array(scalarSchema).min(1).max(32);
+/** The states a row may be changed from: values, and `null` for "still empty". */
+const whenValuesSchema = z.array(z.union([scalarSchema, z.null()])).min(1).max(32);
+
+/**
+ * Proving you know a row's details, e.g. `{match: [code, mobile]}`. With
+ * `verify`, a code sent to the row's `email` column raises the session to
+ * `verified`.
+ */
+const lookupClaimSchema = z
+  .object({
+    match: z.array(refSchema).min(1).max(3),
+    verify: z.literal('email-code').optional(),
+    email: refSchema.optional(),
+  })
+  .strict()
+  .refine((c) => (c.verify === undefined) === (c.email === undefined), {
+    message: 'an emailed code names the column holding the address, and only it does',
+    path: ['email'],
+  });
+
+/** Signing in by a link emailed to the address in `email`. */
+const linkClaimSchema = z.object({ verify: z.literal('email-link'), email: refSchema }).strict();
+
+/** Opening one row by the code in `column`, while it has not expired or been stopped. */
+const tokenClaimSchema = z
+  .object({ by: z.literal('token'), column: refSchema, expires: refSchema.optional(), stopped: refSchema.optional() })
+  .strict();
+
+export const claimSchema = z.union([lookupClaimSchema, linkClaimSchema, tokenClaimSchema]);
+export type Claim = z.infer<typeof claimSchema>;
+
+/** How an identity entry claims: by details, by an emailed link, or by a token. */
+export function claimKind(claim: Claim): 'lookup' | 'link' | 'token' {
+  if ('by' in claim) return 'token';
+  if ('match' in claim) return 'lookup';
+  return 'link';
+}
 
 /**
  * A time no more than `within` minutes ahead — a past time always passes. A
@@ -69,23 +116,8 @@ export const publicAccessSchema = z
     filters: z.array(z.union([valueFilterSchema, relativeFilterSchema])).optional(),
     /** Values the server writes, whatever the browser sends (`status: confirmed`). */
     defaults: z.record(refSchema, z.union([z.string(), z.number(), z.boolean()])).optional(),
-    /**
-     * Proving you know a row's details, e.g. `{match: [code, mobile]}`. With
-     * `verify`, a code sent to the row's `email` column raises the session to
-     * `verified`.
-     */
-    claim: z
-      .object({
-        match: z.array(refSchema).min(1).max(3),
-        verify: z.literal('email-code').optional(),
-        email: refSchema.optional(),
-      })
-      .strict()
-      .refine((c) => (c.verify === undefined) === (c.email === undefined), {
-        message: 'an emailed code names the column holding the address, and only it does',
-        path: ['email'],
-      })
-      .optional(),
+    /** How a person proves who they are on this key (see {@link claimSchema}). */
+    claim: claimSchema.optional(),
     /**
      * The rows of a claimed person: `column` holds the key of the row the key's
      * identity entry on `table` claims. `optional` on a create lets it go
@@ -94,6 +126,16 @@ export const publicAccessSchema = z
     claimedBy: z.object({ table: refSchema, column: refSchema, optional: z.literal(true).optional() }).strict().optional(),
     /** The session this entry needs: `verified` once the emailed code is confirmed. */
     level: z.enum(['lookup', 'verified']).optional(),
+    /**
+     * Rows readable only where a parent entry (the one on `table`, on the same
+     * key) reads the row they belong to. `via` is this table's foreign key to
+     * the parent, or the parent's foreign key to this table.
+     */
+    visibleWith: z.object({ table: refSchema, via: refSchema }).strict().optional(),
+    /** File columns a claimed person may download (the file the row names, never by its id). */
+    files: z.array(refSchema).min(1).max(8).optional(),
+    /** The kinds of document a claimed person may list and open for these rows. */
+    documents: z.array(z.string().regex(/^[a-z][a-z0-9-]*$/, 'a document kind')).min(1).max(8).optional(),
     /**
      * Rows a person must prove more to see. An identity marked sensitive shows
      * only its own `select` on a lookup; each entry it claims must then say
@@ -113,7 +155,9 @@ export const publicAccessSchema = z
      * refused with that time (`PUBLIC_TOO_EARLY`), even when `select` leaves
      * it out — naming the window is agreeing to that.
      */
-    writableWhen: z.record(refSchema, z.union([valuesSchema, z.literal('from-now'), timeWindowSchema])).optional(),
+    writableWhen: z
+      .record(refSchema, z.union([whenValuesSchema, z.literal('from-now'), z.literal('from-today'), timeWindowSchema]))
+      .optional(),
     /** A proof-of-work the browser solves before the write (or the claim) is taken. */
     humanCheck: z.literal(true).optional(),
     /** A create answers where the new row stands: the rows ordered at or before it. */
@@ -179,7 +223,11 @@ export type PublicAccess = z.infer<typeof publicAccessSchema>;
  */
 export const publicKeySchema = z
   .object({
-    requiresStaff: z.object({ role: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a role key') }).strict(),
+    /**
+     * Required, except on a key whose identity is a token: that key opens one
+     * row to whoever holds its link, and reads nothing else.
+     */
+    requiresStaff: z.object({ role: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a role key') }).strict().optional(),
     enabledBy: settingRefSchema.optional(),
   })
   .strict();
@@ -206,7 +254,21 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
 
   for (const [name, key] of Object.entries(ctx.publicKeys ?? {})) {
     const at = ['publicKeys', name];
-    const role = ctx.roles.find((candidate) => candidate.key === key.requiresStaff.role);
+    if (key.requiresStaff === undefined) {
+      // No one signs this key in: it may only open one row by its token, and read.
+      const identity = entries.find((entry) => (entry.key ?? CUSTOMER_KEY) === name && entry.claim !== undefined);
+      if (identity?.claim === undefined || claimKind(identity.claim) !== 'token') {
+        out.push({ path: [...at, 'requiresStaff'], message: `a key no staff signs in opens one row by its token: "${name}" needs an entry that claims by token` });
+      }
+      entries.forEach((entry, i) => {
+        if ((entry.key ?? CUSTOMER_KEY) === name && entry.methods.some((method) => method !== 'GET')) {
+          out.push({ path: ['publicAccess', i, 'methods'], message: `"${name}" opens a row to whoever holds its link, so it only reads` });
+        }
+      });
+      if (!entries.some((entry) => entry.key === name)) out.push({ path: at, message: `no entry is served through "${name}"` });
+      continue;
+    }
+    const role = ctx.roles.find((candidate) => candidate.key === key.requiresStaff!.role);
     if (role === undefined) {
       out.push({ path: [...at, 'requiresStaff', 'role'], message: `"${key.requiresStaff.role}" is not one of the app's roles` });
     } else if (role.screensOnly !== true || role.cloneFrom !== undefined || (role.permissions ?? []).some((grant) => grant !== 'app:@:staff')) {
@@ -258,7 +320,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       }
     }
     for (const ref of [
-      ...(entry.claim?.match ?? []),
+      ...(entry.claim !== undefined && 'match' in entry.claim ? entry.claim.match : []),
       ...(entry.filters ?? []).map((f) => f.column),
       ...Object.keys(entry.defaults ?? {}),
     ]) {
@@ -302,11 +364,36 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     }
 
     if (entry.claim !== undefined) {
+      const claim = entry.claim;
       if (entry.claimedBy !== undefined) out.push({ path: at('claimedBy'), message: 'an identity is not also claimed by another' });
-      if (entry.claim.email !== undefined) {
-        const email = column(entry.claim.email);
-        if (email === undefined) out.push({ path: at('claim', 'email'), message: `"${entry.table}" has no column "${entry.claim.email}"` });
+      if (entry.visibleWith !== undefined) out.push({ path: at('visibleWith'), message: 'an identity is not also visible through another' });
+      if ('email' in claim && claim.email !== undefined) {
+        const email = column(claim.email);
+        if (email === undefined) out.push({ path: at('claim', 'email'), message: `"${entry.table}" has no column "${claim.email}"` });
         else if (email.type !== 'text') out.push({ path: at('claim', 'email'), message: `"${entry.table}.${email.ref}" is not a text column` });
+      }
+      const kind = claimKind(claim);
+      // Anyone can type an address: the link is only as hard to farm as its request.
+      if (kind === 'link' && entry.humanCheck !== true) {
+        out.push({ path: at('humanCheck'), message: 'a sign-in link is emailed on request, so the request asks the human check' });
+      }
+      if (kind === 'token' && 'by' in claim) {
+        const token = column(claim.column) as (ReturnType<typeof column> & { rules?: { code?: { length: number } } }) | undefined;
+        if (token === undefined) out.push({ path: at('claim', 'column'), message: `"${entry.table}" has no column "${claim.column}"` });
+        else if (token.type !== 'text' || (token.rules?.code?.length ?? 0) < 16) {
+          out.push({ path: at('claim', 'column'), message: `"${entry.table}.${claim.column}" is the link's secret: a text column Adminium fills with a 16-character code` });
+        }
+        if (claim.expires !== undefined) {
+          const found = column(claim.expires);
+          if (found === undefined) out.push({ path: at('claim', 'expires'), message: `"${entry.table}" has no column "${claim.expires}"` });
+          else if (found.type !== 'date' && found.type !== 'timestamptz') out.push({ path: at('claim', 'expires'), message: `"${entry.table}.${claim.expires}" is not a date` });
+        }
+        if (claim.stopped !== undefined && column(claim.stopped)?.type !== 'bool') {
+          out.push({ path: at('claim', 'stopped'), message: `"${entry.table}.${claim.stopped}" is not a bool of this app` });
+        }
+        if (key === CUSTOMER_KEY || ctx.publicKeys?.[key]?.requiresStaff !== undefined) {
+          out.push({ path: at('key'), message: 'a token opens its row to whoever holds the link, on a key of its own that no staff signs in' });
+        }
       }
     }
 
@@ -342,15 +429,52 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       }
     } else {
       for (const name of ['level', 'onClaim', 'maxOpen'] as const) {
+        if (name === 'level' && entry.visibleWith !== undefined) continue;
         if (entry[name] !== undefined) out.push({ path: at(name), message: `${name} applies to an entry with claimedBy` });
       }
+    }
+
+    // A session opened by an emailed link is verified, and every entry it reads says so.
+    const root = rootIdentity(entries, i, identities);
+    if (root !== undefined && root.claim !== undefined && claimKind(root.claim) === 'link' && entry.claim === undefined && entry.level !== 'verified') {
+      out.push({ path: at('level'), message: `the "${key}" key signs people in by an emailed link, so this entry is read at level "verified"` });
+    }
+
+    if (entry.visibleWith !== undefined) {
+      const v = entry.visibleWith;
+      if (entry.claimedBy !== undefined) out.push({ path: at('visibleWith'), message: 'an entry is claimed or visible with a parent, not both' });
+      const parents = entries.filter((other) => other !== entry && other.table === v.table && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'));
+      if (parents.length === 0) {
+        out.push({ path: at('visibleWith', 'table'), message: `no entry reads "${v.table}" on the "${key}" key` });
+      } else if (parents.length > 1) {
+        out.push({ path: at('visibleWith', 'table'), message: `more than one entry reads "${v.table}" on the "${key}" key, so the parent is not clear` });
+      }
+      const down = column(v.via);
+      const up = index.column(v.table, v.via);
+      const pointsUp = down?.type === 'fk' && down.references === v.table;
+      const pointsDown = up?.type === 'fk' && up.references === entry.table;
+      if (!pointsUp && !pointsDown) {
+        out.push({ path: at('visibleWith', 'via'), message: `neither "${entry.table}.${v.via}" points at "${v.table}" nor "${v.table}.${v.via}" at "${entry.table}"` });
+      }
+      if (entry.methods.includes('PATCH')) out.push({ path: at('methods'), message: 'an entry visible with a parent reads, and may create; it changes nothing' });
+      if (hops(entries, i) > 2) out.push({ path: at('visibleWith'), message: 'an entry is at most two steps from the entry its person claims' });
+      if (root === undefined) out.push({ path: at('visibleWith'), message: 'the entries it is visible with lead to no claimed person' });
+    }
+    for (const ref of entry.files ?? []) {
+      const found = column(ref);
+      if (found === undefined) out.push({ path: at('files'), message: `"${entry.table}" has no column "${ref}"` });
+      else if (found.type !== 'text') out.push({ path: at('files'), message: `"${entry.table}.${ref}" is not a text column holding a file` });
+      if (entry.select !== undefined && !entry.select.includes(ref)) out.push({ path: at('files'), message: `"${ref}" is not one of the columns the entry shows` });
+    }
+    if ((entry.files !== undefined || entry.documents !== undefined) && entry.claimedBy === undefined && entry.visibleWith === undefined && entry.claim === undefined) {
+      out.push({ path: at(entry.files !== undefined ? 'files' : 'documents'), message: 'files and documents are a signed-in person\'s own: the entry needs a claim' });
     }
 
     // A proved create opened by a claim is only as proved as the claim: the identity asks one too.
     if (entry.humanCheck === true && entry.claimedBy !== undefined && identity !== undefined && identity.entry.humanCheck !== true) {
       out.push({ path: at('humanCheck'), message: `the "${key}" key's identity asks no proof, so this entry's proof could be skipped by claiming first` });
     }
-    if (entry.level === 'verified' && identity !== undefined && identity.entry.claim?.verify === undefined) {
+    if (entry.level === 'verified' && identity !== undefined && identity.entry.claim !== undefined && claimKind(identity.entry.claim) !== 'link' && !('verify' in identity.entry.claim && identity.entry.claim.verify !== undefined)) {
       out.push({ path: at('level'), message: `the "${key}" key's identity sends no code, so no session is ever verified` });
     }
     if (entry.sensitive === true && entry.claimedBy !== undefined && entry.level !== 'verified') {
@@ -385,11 +509,17 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         out.push({ path: at('writableWhen', ref), message: `"${entry.table}" has no column "${ref}"` });
       } else if (when === 'from-now') {
         if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"from-now" needs a timestamptz, and "${ref}" is not one` });
+      } else if (when === 'from-today') {
+        if (found.type !== 'date') out.push({ path: at('writableWhen', ref), message: `"from-today" needs a date, and "${ref}" is not one` });
       } else if (!Array.isArray(when)) {
         if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"within" needs a timestamptz, and "${ref}" is not one` });
       } else {
         for (const value of when) {
-          if (!valueFits(found, value)) out.push({ path: at('writableWhen', ref), message: `${JSON.stringify(value)} is not a value of "${entry.table}.${ref}"` });
+          if (value === null) {
+            if (found.nullable !== true) out.push({ path: at('writableWhen', ref), message: `"${entry.table}.${ref}" is never empty` });
+          } else if (!valueFits(found, value)) {
+            out.push({ path: at('writableWhen', ref), message: `${JSON.stringify(value)} is not a value of "${entry.table}.${ref}"` });
+          }
         }
       }
     }
@@ -474,4 +604,38 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     }
   });
   return out;
+}
+
+/**
+ * The identity entry an entry's person is claimed through: its own claim,
+ * its key's identity for a claimed entry, or — for one visible with a parent —
+ * whatever its parent leads to. `undefined` when the chain ends nowhere.
+ */
+function rootIdentity(
+  entries: readonly PublicAccess[],
+  index: number,
+  identities: ReadonlyMap<string, { entry: PublicAccess; index: number }>,
+  seen: ReadonlySet<number> = new Set(),
+): PublicAccess | undefined {
+  const entry = entries[index]!;
+  const key = entry.key ?? CUSTOMER_KEY;
+  if (entry.claim !== undefined) return entry;
+  if (entry.claimedBy !== undefined) return identities.get(key)?.entry;
+  if (entry.visibleWith === undefined || seen.has(index)) return undefined;
+  const parent = entries.findIndex(
+    (other, i) => i !== index && other.table === entry.visibleWith!.table && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'),
+  );
+  return parent === -1 ? undefined : rootIdentity(entries, parent, identities, new Set([...seen, index]));
+}
+
+/** How many `visibleWith` steps an entry is from a claimed entry (a loop counts as too many). */
+function hops(entries: readonly PublicAccess[], index: number, seen: ReadonlySet<number> = new Set()): number {
+  const entry = entries[index]!;
+  if (entry.visibleWith === undefined) return 0;
+  if (seen.has(index)) return Number.POSITIVE_INFINITY;
+  const key = entry.key ?? CUSTOMER_KEY;
+  const parent = entries.findIndex(
+    (other, i) => i !== index && other.table === entry.visibleWith!.table && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'),
+  );
+  return parent === -1 ? 1 : 1 + hops(entries, parent, new Set([...seen, index]));
 }

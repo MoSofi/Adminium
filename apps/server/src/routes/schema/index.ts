@@ -29,7 +29,7 @@ import {
 } from '@adminium/meta';
 
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
-import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue } from '../../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
@@ -287,7 +287,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.code' ||
           item.op === 'column.rollup' ||
           item.op === 'column.venueLocal' ||
-          item.op === 'column.stamp'
+          item.op === 'column.stamp' ||
+          item.op === 'column.format' ||
+          item.op === 'column.formula' ||
+          item.op === 'column.scale'
         ) {
           const column = table.columns.find((c) => c.name === item.columnName);
           // `columnName` was proved above; this is for the type checker.
@@ -308,6 +311,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         if (item.op === 'table.booking') {
           const issue = bookingRuleIssue(item.value, table, model);
+          if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
+        }
+        if (item.op === 'table.states') {
+          const issue = statesRuleIssue(item.value, table, model);
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'relation.add') {

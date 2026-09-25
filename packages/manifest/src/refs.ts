@@ -28,6 +28,20 @@ export const textOrLabels = z.union([z.string().min(1).max(256), labelsSchema]);
 export const settingRefSchema = z.object({ table: refSchema, column: refSchema }).strict();
 
 /**
+ * A value read from a setting when a rule runs: a column of the app's own
+ * one-row settings table, or a setting of an add-on the app requires
+ * (`{addOn: "invoices", setting: "default_tax_rate"}`), kept by Adminium.
+ */
+export const addOnSettingRefSchema = z
+  .object({
+    addOn: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'an add-on key'),
+    setting: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a setting key is snake_case'),
+  })
+  .strict();
+export const settingSourceSchema = z.union([settingRefSchema, addOnSettingRefSchema]);
+export type SettingSource = z.infer<typeof settingSourceSchema>;
+
+/**
  * A number the manifest states, or one the app's own settings row holds — so
  * a venue can change its capacity without a new release. `{table, column}`
  * reads the one row of that (one-row) table at write time.

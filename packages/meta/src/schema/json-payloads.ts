@@ -377,8 +377,42 @@ const capacitySetting = z.object({ table: z.string().min(1).max(256), column: z.
 const capacityNumber = z.union([z.number().int().nonnegative(), capacitySetting]);
 const capacityTime = z.union([z.string().regex(/^\d{2}:\d{2}$/), capacitySetting]);
 
+/**
+ * Where a rule reads a value when it runs: a column of a one-row settings
+ * table (its id in the snapshot), or a setting of an add-on.
+ */
+const ruleSetting = z.union([
+  capacitySetting,
+  z.object({ addOn: z.string().min(1).max(80), setting: z.string().min(1).max(80) }),
+]);
+
 /** A column of the booking table, or of a table the booking rule names. */
 const bookingName = z.string().min(1).max(128);
+
+/** A column name inside a rule. */
+const ruleColumn = z.string().min(1).max(128);
+/** A table a rule names, by its id in the snapshot. */
+const ruleTable = z.string().min(1).max(256);
+const hashChild = z.object({ table: ruleTable, via: ruleColumn, columns: z.array(ruleColumn).min(1).max(24), orderBy: ruleColumn.optional() });
+const stampTrigger = z.union([
+  z.literal('create'),
+  z.object({
+    column: ruleColumn,
+    values: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(16),
+  }),
+  z.object({ column: ruleColumn, filled: z.literal(true) }),
+]);
+const stateName = z.string().min(1).max(64);
+const stateCondition = z.object({
+  column: ruleColumn,
+  eq: z.union([z.string().max(256), z.number(), z.boolean()]).optional(),
+  in: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(32).optional(),
+  isNull: z.boolean().optional(),
+  gt: z.number().optional(),
+  gte: z.number().optional(),
+  lt: z.number().optional(),
+  lte: z.number().optional(),
+});
 /** A table the booking rule reads, by its id in the snapshot. */
 const bookingTable = z.string().min(1).max(256);
 /** A weekly-hours table's columns: the weekday and `HH:MM` text times. */
@@ -445,8 +479,12 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
        * `database` and `none` store no value and exist to be SAID: `database`
        * is "a trigger or an expression fills this, leave it alone" and `none`
        * switches an implicit fill off (D14). Both are settings, not values.
+       * `from` fills a create from elsewhere: the connection's currency, a
+       * settings row, or an add-on's setting (after a copy that came back empty).
        */
-      kind: z.enum(['now', 'uuid', 'literal', 'current-user', 'database', 'none']),
+      kind: z.enum(['now', 'uuid', 'literal', 'current-user', 'database', 'none', 'from']),
+      /** `from` only. */
+      from: z.union([z.literal('connection.currency'), ruleSetting]).optional(),
       /** `literal` only. */
       text: z.string().max(1024).optional(),
       /** `current-user` only. */
@@ -521,7 +559,17 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   }),
   z.object({
     op: z.literal('column.sequence'),
-    value: z.object({ start: z.number().int().min(1).optional() }),
+    value: z.object({
+      start: z.number().int().min(1).optional(),
+      /**
+       * Taken inside the write that creates the row, so the series never skips
+       * or repeats; `scope` numbers per parent row (its foreign key column),
+       * `startSetting` reads the first number from a setting.
+       */
+      gapless: z.literal(true).optional(),
+      startSetting: ruleSetting.optional(),
+      scope: ruleColumn.optional(),
+    }),
   }),
   z.object({
     op: z.literal('column.code'),
@@ -530,8 +578,35 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         .string()
         .regex(/^[A-Z][A-Z0-9]{0,5}-?$/)
         .optional(),
-      length: z.number().int().min(4).max(12),
+      length: z.number().int().min(4).max(16),
     }),
+  }),
+  /** A text column written from a running number of the row: prefix + padded digits (`INV-2042`). */
+  z.object({
+    op: z.literal('column.format'),
+    value: z.object({
+      from: ruleColumn,
+      prefix: z.string().regex(/^[A-Za-z0-9_/.-]{0,12}$/).optional(),
+      prefixSetting: ruleSetting.optional(),
+      pad: z.number().int().min(0).max(12).optional(),
+    }),
+  }),
+  /**
+   * A value worked out from the row's other columns on every write (a line's
+   * amount, a document's total). The expression's grammar is the manifest's
+   * `formula`, checked in full where a rule is written; here only its outline.
+   */
+  z.object({
+    op: z.literal('column.formula'),
+    value: z.object({ formula: z.union([z.number(), z.string().min(1).max(128), z.record(z.string(), z.unknown())]) }),
+  }),
+  /**
+   * The places a decimal keeps: 0–4, or `currency` — the decimals of the row's
+   * own currency column, else the connection's. Totals and formulas round to it.
+   */
+  z.object({
+    op: z.literal('column.scale'),
+    value: z.object({ scale: z.union([z.number().int().min(0).max(4), z.literal('currency')]) }),
   }),
   /*
    * A wall time with no zone, read on the venue's clock: a booking's "7 pm"
@@ -550,16 +625,31 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     op: z.literal('column.stamp'),
     value: z.object({
       set: z.union([
-        z.enum(['now', 'user-name', 'user-id']),
+        z.enum(['now', 'today', 'user-name', 'user-id']),
         z.object({ byOrigin: z.object({ public: z.string().min(1).max(256), staff: z.string().min(1).max(256) }) }),
-      ]),
-      on: z.union([
-        z.literal('create'),
+        /** A column of the signed-in person's own row; `staff` says what a staff write stamps instead. */
+        z.object({ claim: ruleColumn, staff: z.enum(['user-name', 'user-id']).optional() }),
+        /** A date so many days after another; `map` gives each value of a choice column its days. */
         z.object({
-          column: z.string().min(1).max(128),
-          values: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(16),
+          addDays: z.object({
+            date: ruleColumn,
+            days: z.union([ruleColumn, z.number().int().min(0).max(3650)]),
+            map: z.record(z.string(), z.number().int().min(0).max(3650)).optional(),
+          }),
+        }),
+        /** A fingerprint: SHA-256 of the named columns, child rows and a linked row, canonically. */
+        z.object({
+          hashOf: z.object({
+            columns: z.array(ruleColumn).min(1).max(24),
+            children: z.array(hashChild).max(4).optional(),
+            linked: z
+              .array(z.object({ via: ruleColumn, table: ruleTable, columns: z.array(ruleColumn).min(1).max(24), children: z.array(hashChild).max(4).optional() }))
+              .max(4)
+              .optional(),
+          }),
         }),
       ]),
+      on: z.union([stampTrigger, z.array(stampTrigger).min(2).max(3)]),
     }),
   }),
   z.object({
@@ -651,6 +741,58 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
           when: z.object({ column: bookingName, to: z.string().min(1) }),
         })
         .optional(),
+    }),
+  }),
+  /*
+   * A document's life, kept for every writer: its states and the moves
+   * between them, what stays open once it is locked, the child tables tied to
+   * its state (each by its id in the snapshot), and when it may never be
+   * deleted.
+   */
+  z.object({
+    op: z.literal('table.states'),
+    value: z.object({
+      column: ruleColumn,
+      initial: stateName,
+      moves: z.record(
+        stateName,
+        z
+          .array(
+            z.union([
+              stateName,
+              z.object({
+                to: stateName,
+                requires: z
+                  .object({
+                    children: z.record(ruleTable, z.number().int().min(1).max(1000)).optional(),
+                    where: z.array(stateCondition).min(1).max(8).optional(),
+                  })
+                  .optional(),
+                roles: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),
+              }),
+            ]),
+          )
+          .max(16),
+      ),
+      lock: z.object({ when: z.array(stateName).min(1).max(16), except: z.array(ruleColumn).max(32).optional() }).optional(),
+      children: z
+        .record(
+          ruleTable,
+          z.object({
+            via: ruleColumn,
+            lock: z.literal(true).optional(),
+            parentIn: z.array(stateName).min(1).max(16).optional(),
+            clearOnCreate: z.array(ruleColumn).min(1).max(8).optional(),
+          }),
+        )
+        .optional(),
+      lockedWhenReferencedBy: z
+        .array(z.object({ table: ruleTable, via: ruleColumn, in: z.array(stateName).min(1).max(16) }))
+        .min(1)
+        .max(4)
+        .optional(),
+      noDelete: z.object({ when: z.union([z.literal('numbered'), z.array(stateName).min(1).max(16)]) }).optional(),
+      onlyLater: z.array(ruleColumn).min(1).max(8).optional(),
     }),
   }),
   z.object({

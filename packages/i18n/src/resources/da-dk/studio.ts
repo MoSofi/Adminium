@@ -1947,9 +1947,23 @@ export default {
         "stampByOrigin": "“{public}” fra den offentlige side, “{staff}” fra personalet",
         "rollupWhere": "tæller kun rækker, hvor {column} er {value}",
         "rollupBalance": "og holder {balance} = {of} − {minus} − denne sum",
-        "rollupCap": "En ændring, der ville bringe saldoen under nul, afvises."
+        "rollupCap": "En ændring, der ville bringe saldoen under nul, afvises.",
+        "stampToday": "datoen",
+        "stampClaim": "den indloggede persons {column}",
+        "stampAddDays": "{date} plus {days} dage",
+        "stampAddDaysColumn": "{date} plus de dage, {column} angiver",
+        "stampHashOf": "et fingeraftryk af rækken",
+        "stampFilled": "Sættes til {what}, når {column} udfyldes første gang",
+        "sequenceGapless": "Det næste nummer i rækkefølge, uden huller og uden gentagelser",
+        "sequenceScope": "tælles for sig for hver {scope}",
+        "formula": "Udregnes ud fra {columns} ved hver skrivning",
+        "format": "Skrives som {example} ud fra nummeret i {from}",
+        "scale": "Afrundet til {places} decimaler",
+        "scaleCurrency": "Afrundet til valutaens decimaler"
       },
-      "venueLocal": "Et tidspunkt skrevet her uden tidszone er stedets egen tid."
+      "venueLocal": "Et tidspunkt skrevet her uden tidszone er stedets egen tid.",
+      "fillFromCurrency": "Forbindelsens valuta",
+      "fillFromSetting": "En indstilling: {setting}"
     },
     "saveFailed": "Lagring mislykkedes: {message}",
     "subtitle": "{tables} tabeller · {applied} tilsidesættelser anvendt",

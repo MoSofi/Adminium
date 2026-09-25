@@ -26,7 +26,15 @@ import type { ScopeIssue } from './scope.js';
 export const KEY_MANAGED_UNSAFE = 'KEY_MANAGED_UNSAFE';
 
 /** The override ops whose column Adminium decides; a guest never writes one. */
-export const DECIDED_COLUMN_OPS: readonly string[] = ['column.copy', 'column.code', 'column.sequence', 'column.rollup', 'column.stamp'];
+export const DECIDED_COLUMN_OPS: readonly string[] = [
+  'column.copy',
+  'column.code',
+  'column.sequence',
+  'column.rollup',
+  'column.stamp',
+  'column.formula',
+  'column.format',
+];
 
 const WRITE_METHODS: ReadonlySet<PublicMethod> = new Set(['POST', 'PATCH', 'PUT', 'DELETE', 'BATCH']);
 const NEVER: ReadonlySet<PublicMethod> = new Set(['PUT', 'DELETE', 'BATCH']);

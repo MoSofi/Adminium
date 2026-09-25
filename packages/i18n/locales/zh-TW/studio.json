@@ -1937,9 +1937,23 @@
         "stampByOrigin": "公開端為「{public}」，員工端為「{staff}」",
         "rollupWhere": "只統計 {column} 為 {value} 的列",
         "rollupBalance": "並保持 {balance} = {of} − {minus} − 此合計",
-        "rollupCap": "會使餘額低於零的寫入將被拒絕。"
+        "rollupCap": "會使餘額低於零的寫入將被拒絕。",
+        "stampToday": "當天日期",
+        "stampClaim": "已登入者的 {column}",
+        "stampAddDays": "{date} 加 {days} 天",
+        "stampAddDaysColumn": "{date} 加上 {column} 給出的天數",
+        "stampHashOf": "該列的指紋",
+        "stampFilled": "當 {column} 首次填寫時設為{what}",
+        "sequenceGapless": "按順序的下一個編號，不跳號也不重複",
+        "sequenceScope": "按每個 {scope} 分別計數",
+        "formula": "每次寫入時由 {columns} 算出",
+        "format": "按 {from} 中的編號寫成 {example}",
+        "scale": "四捨五入到 {places} 位小數",
+        "scaleCurrency": "四捨五入到其貨幣的小數位數"
       },
-      "venueLocal": "在此寫入的不帶時區的時間即為場所的當地時間。"
+      "venueLocal": "在此寫入的不帶時區的時間即為場所的當地時間。",
+      "fillFromCurrency": "連線的貨幣",
+      "fillFromSetting": "一項設定：{setting}"
     },
     "saveFailed": "儲存失敗：{message}",
     "subtitle": "{tables} 個資料表 · 已套用 {applied} 項覆寫",

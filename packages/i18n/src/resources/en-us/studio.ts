@@ -1947,9 +1947,23 @@ export default {
         "stampByOrigin": "“{public}” from the public side, “{staff}” from staff",
         "rollupWhere": "counting only rows where {column} is {value}",
         "rollupBalance": "and keeps {balance} = {of} − {minus} − this total",
-        "rollupCap": "A write that would take the balance below zero is refused."
+        "rollupCap": "A write that would take the balance below zero is refused.",
+        "stampToday": "the date",
+        "stampClaim": "the signed-in person’s {column}",
+        "stampAddDays": "{date} plus {days} days",
+        "stampAddDaysColumn": "{date} plus the days {column} gives",
+        "stampHashOf": "a fingerprint of the row",
+        "stampFilled": "Set to {what} when {column} is first filled",
+        "sequenceGapless": "The next number in order, with no gaps and none repeated",
+        "sequenceScope": "counted separately for each {scope}",
+        "formula": "Worked out from {columns} on every write",
+        "format": "Written as {example}, from the number in {from}",
+        "scale": "Rounded to {places} decimal places",
+        "scaleCurrency": "Rounded to the decimal places of its currency"
       },
-      "venueLocal": "A time written here without a zone is the venue’s own time."
+      "venueLocal": "A time written here without a zone is the venue’s own time.",
+      "fillFromCurrency": "The connection’s currency",
+      "fillFromSetting": "A setting: {setting}"
     },
     "saveFailed": "Save failed: {message}",
     "subtitle": "{tables} tables · {applied} overrides applied",

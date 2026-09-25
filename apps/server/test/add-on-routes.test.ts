@@ -1857,6 +1857,39 @@ describe('acquisition routes', () => {
       await app.close();
     });
 
+    it('says a package written for a newer Adminium needs one, even when this one cannot read its manifest', async () => {
+      /*
+       * Every block of a manifest is strict, so a package using a field this
+       * server does not know yet fails the parse. Its own floor, read before
+       * the parse is worded, is the true reason — never "not a valid manifest".
+       */
+      const app = await buildApp([], undefined, { serverVersion: '0.3.0' });
+      const newer = (floor: string) =>
+        packageTarball({
+          'manifest.json': JSON.stringify({
+            ...manifestFor('holiday-calendars'),
+            compatibility: { minAdminiumVersion: floor, requires: [] },
+            addOn: { ...(manifestFor('holiday-calendars') as { addOn: object }).addOn, aFieldFromTheFuture: true },
+          }),
+          'package.json': JSON.stringify({ name: '@adminiumjs/add-on-holiday-calendars' }),
+          'dist/client.js': 'export const register = () => {};',
+        });
+
+      const ahead = await sideload(app, newer('0.9.0'));
+      expect(ahead.statusCode).toBe(422);
+      expect(ahead.json().error).toMatchObject({
+        message: '"holiday-calendars" needs Adminium 0.9.0 or later; this server is 0.3.0. Upgrade Adminium before uploading it.',
+        details: { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: '0.9.0', serverVersion: '0.3.0' },
+      });
+
+      // A floor this server meets: the manifest really is wrong, and says where.
+      const broken = await sideload(app, newer('0.2.0'));
+      expect(broken.statusCode).toBe(422);
+      expect(broken.json().error.message).toBe('The manifest in this package is not a valid add-on manifest.');
+      expect(await store.keys()).toEqual([]);
+      await app.close();
+    });
+
     it('refuses a package that needs a newer Adminium, and stages nothing', async () => {
       /*
        * THE BYPASS THIS CLOSES. A floor only the catalogue checks is not a

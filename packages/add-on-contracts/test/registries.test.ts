@@ -13,6 +13,7 @@ import {
   SLOT_IDS,
   SLOT_REGISTRY,
   addOnBlockSchema,
+  isSemverRange,
   hasContractVersion,
   isContractId,
   isSlotId,
@@ -162,6 +163,25 @@ const DHL_BLOCK = {
 describe('addOn block schema', () => {
   it('accepts a well-formed block', () => {
     expect(addOnBlockSchema.safeParse(DHL_BLOCK).success).toBe(true);
+  });
+
+  it('reads an attach range the way the manifest does, so a 0.x app can be named with >=', () => {
+    // In 0.x `^0.2.0` stops before 0.3.0; an add-on meaning "0.2 and later" writes `>=0.2.0`.
+    for (const range of ['^1.0.0', '~0.2.1', '0.2.0', '*', '>=0.2.0', '>=0.2.0 <1.0.0', '^0.1.0 || >=0.2.0', '>=0.3.0-rc.1']) {
+      expect(isSemverRange(range), range).toBe(true);
+      expect(addOnBlockSchema.safeParse({ ...DHL_BLOCK, attaches: [{ app: 'printing', range }] }).success, range).toBe(true);
+    }
+    for (const range of ['', 'latest', '>= 0.2.0', '1.0', '>=0.2.0 ||', '^^1.0.0']) {
+      expect(isSemverRange(range), range).toBe(false);
+      expect(addOnBlockSchema.safeParse({ ...DHL_BLOCK, attaches: [{ app: 'printing', range }] }).success, range).toBe(false);
+    }
+  });
+
+  it('takes shapes with a name and a version, leaving their parts to the manifest to check', () => {
+    const shapes = [{ name: 'invoice', version: 1, parts: { document: { columns: [] } } }];
+    expect(addOnBlockSchema.safeParse({ ...DHL_BLOCK, shapes }).success).toBe(true);
+    expect(addOnBlockSchema.safeParse({ ...DHL_BLOCK, shapes: [{ name: 'Invoice', version: 1 }] }).success).toBe(false);
+    expect(addOnBlockSchema.safeParse({ ...DHL_BLOCK, shapes: [{ name: 'invoice', version: 0 }] }).success).toBe(false);
   });
 
   it('accepts a block that fills a slot and provides no contract at all', () => {

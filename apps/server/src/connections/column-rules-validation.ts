@@ -18,6 +18,7 @@
  * contradicted by the database.
  */
 import type { ColumnModel, DatabaseModel, LogicalType, TableModel } from '@adminium/engine';
+import { formulaColumns, formulaExprSchema, type States } from '@adminium/manifest';
 
 /** The lists that live in code rather than the store (D6, Appendix D). */
 export const BUILTIN_OPTION_LISTS = ['builtin:countries', 'builtin:us-states', 'builtin:gender'] as const;
@@ -50,7 +51,10 @@ export function columnRuleIssue(
     | 'column.code'
     | 'column.rollup'
     | 'column.venueLocal'
-    | 'column.stamp',
+    | 'column.stamp'
+    | 'column.format'
+    | 'column.formula'
+    | 'column.scale',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -87,6 +91,17 @@ export function columnRuleIssue(
       }
       if (kind === 'literal' && typeof value['text'] !== 'string') {
         return 'A fixed starting value needs the value itself.';
+      }
+      if (kind === 'from') {
+        const from = value['from'];
+        if (from === 'connection.currency') {
+          if (!TEXTUAL_TYPES.has(column.logicalType)) return `A currency is three letters: ${name} is ${column.logicalType}.`;
+        } else if (typeof from === 'object' && from !== null && 'table' in from) {
+          const issue = settingIssue(from as Value, model);
+          if (issue !== null) return issue;
+        } else if (typeof from !== 'object' || from === null) {
+          return 'A value filled from elsewhere names where: the connection\'s currency, a settings column or an add-on setting.';
+        }
       }
       // `onUpdate` means "fill it again when the row changes", which only a
       // clock and an actor can answer. On a literal or a uuid it would rewrite
@@ -183,7 +198,63 @@ export function columnRuleIssue(
       if (!NUMERIC_TYPES.has(column.logicalType) && !TEXTUAL_TYPES.has(column.logicalType)) {
         return `A running number needs a number or text column; ${name} is ${column.logicalType}.`;
       }
+      if (value['gapless'] === true) {
+        if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') {
+          return `A number without gaps is a whole number; ${name} is ${column.logicalType}.`;
+        }
+        const table = model.tables.find((candidate) => candidate.columns.includes(column));
+        if (value['scope'] !== undefined && table?.columns.some((c) => c.name === String(value['scope'])) !== true) {
+          return `${table?.name ?? 'This table'} has no column ${JSON.stringify(value['scope'])} to number within.`;
+        }
+        const start = value['startSetting'];
+        if (typeof start === 'object' && start !== null && 'table' in start) {
+          const issue = settingIssue(start as Value, model);
+          if (issue !== null) return issue;
+        }
+      } else if (value['scope'] !== undefined || value['startSetting'] !== undefined) {
+        return 'A running number per parent, or one that starts at a setting, is numbered without gaps.';
+      }
       return null;
+    }
+
+    case 'column.format': {
+      if (column.isGenerated || column.isPrimaryKey) return `${name} is filled by the database, so Adminium cannot write it.`;
+      if (!TEXTUAL_TYPES.has(column.logicalType)) return `A number with a prefix needs a text column; ${name} is ${column.logicalType}.`;
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const from = table?.columns.find((c) => c.name === String(value['from']));
+      if (from === undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(value['from'])} to number from.`;
+      if (!NUMERIC_TYPES.has(from.logicalType)) return `${from.name} is not a number, so it cannot be written with a prefix.`;
+      const width = String(value['prefix'] ?? '').length + Number(value['pad'] ?? 0);
+      if (column.maxLength !== null && column.maxLength < width) return `${name} holds ${String(column.maxLength)} characters, fewer than the prefix and the padding.`;
+      const setting = value['prefixSetting'];
+      if (typeof setting === 'object' && setting !== null && 'table' in setting) {
+        const issue = settingIssue(setting as Value, model);
+        if (issue !== null) return issue;
+      }
+      return null;
+    }
+
+    case 'column.formula': {
+      if (column.isGenerated || column.isPrimaryKey) return `${name} is filled by the database, so Adminium cannot work it out.`;
+      if (!NUMERIC_TYPES.has(column.logicalType) || column.logicalType === 'float') {
+        // SQLite keeps every decimal as a REAL, and reports it as float.
+        if (!(column.logicalType === 'float' && model.dialect === 'sqlite')) {
+          return `A worked-out value needs a decimal or whole-number column; ${name} is ${column.logicalType}.`;
+        }
+      }
+      const parsed = formulaExprSchema.safeParse(value['formula']);
+      if (!parsed.success) return 'The formula is not one Adminium can work out.';
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      for (const ref of formulaColumns(parsed.data)) {
+        if (ref === column.name) return `${name} cannot be worked out from itself.`;
+        if (table?.columns.some((c) => c.name === ref) !== true) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(ref)} for the formula.`;
+      }
+      return null;
+    }
+
+    case 'column.scale': {
+      const decimal = column.logicalType === 'decimal' || column.logicalType === 'float';
+      return decimal ? null : `Decimal places need a decimal column; ${name} is ${column.logicalType}.`;
     }
 
     case 'column.code': {
@@ -208,19 +279,44 @@ export function columnRuleIssue(
     case 'column.stamp': {
       if (column.isGenerated || column.isPrimaryKey) return `${name} is filled by the database, so Adminium cannot stamp it.`;
       const set = value['set'];
-      if (set === 'now') {
-        // SQLite keeps a timestamp as text, and reports it as text.
-        const clock =
-          NOW_TYPES.has(column.logicalType) ||
-          (model.dialect === 'sqlite' && (column.logicalType === 'text' || column.logicalType === 'varchar'));
-        if (!clock) return `A time stamp needs a date-and-time column; ${name} is ${column.logicalType}.`;
+      // SQLite keeps a date and a timestamp as text, and reports them as text.
+      const sqliteText = model.dialect === 'sqlite' && (column.logicalType === 'text' || column.logicalType === 'varchar');
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const dated = typeof set === 'object' && set !== null && 'addDays' in set;
+      if (set === 'now' || set === 'today' || dated) {
+        const clock = NOW_TYPES.has(column.logicalType) || sqliteText;
+        if (!clock) return `A date stamp needs a date or date-and-time column; ${name} is ${column.logicalType}.`;
       } else if (!TEXTUAL_TYPES.has(column.logicalType) && column.logicalType !== 'enum') {
         return `A stamp that names someone needs a text column; ${name} is ${column.logicalType}.`;
       }
-      const on = value['on'];
-      if (typeof on === 'object' && on !== null) {
+      if (dated) {
+        const days = (set as { addDays: Value }).addDays;
+        for (const part of [days['date'], typeof days['days'] === 'string' ? days['days'] : undefined]) {
+          if (part !== undefined && table?.columns.some((c) => c.name === String(part)) !== true) {
+            return `${table?.name ?? 'This table'} has no column ${JSON.stringify(part)} to count days from.`;
+          }
+        }
+      }
+      if (typeof set === 'object' && set !== null && 'hashOf' in set) {
+        if (column.maxLength !== null && column.maxLength < 64) return `A fingerprint is 64 characters; ${name} holds ${String(column.maxLength)}.`;
+        const hash = (set as { hashOf: Value }).hashOf;
+        for (const part of (hash['columns'] as unknown[] | undefined) ?? []) {
+          if (table?.columns.some((c) => c.name === String(part)) !== true) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(part)} to fingerprint.`;
+        }
+        const children = [
+          ...(((hash['children'] as Value[] | undefined) ?? [])),
+          ...(((hash['linked'] as Value[] | undefined) ?? []).flatMap((link) => [link, ...(((link['children'] as Value[] | undefined) ?? []))])),
+        ];
+        for (const child of children) {
+          if (!model.tables.some((candidate) => candidate.id === String(child['table']))) {
+            return `There is no table ${JSON.stringify(child['table'])} to fingerprint.`;
+          }
+        }
+      }
+      const triggers = Array.isArray(value['on']) ? (value['on'] as unknown[]) : [value['on']];
+      for (const on of triggers) {
+        if (typeof on !== 'object' || on === null) continue;
         const watched = String((on as Value)['column']);
-        const table = model.tables.find((candidate) => candidate.columns.includes(column));
         if (watched === column.name) return `A stamp watches another column, not ${name} itself.`;
         if (table !== undefined && !table.columns.some((c) => c.name === watched)) {
           return `${table.name} has no column ${JSON.stringify(watched)} to watch.`;
@@ -274,6 +370,58 @@ export function columnRuleIssue(
       return null;
     }
   }
+}
+
+/** Why a setting a rule reads (`{table, column}` of a settings row, by its id) is not there, or `null`. */
+function settingIssue(setting: Value, model: DatabaseModel): string | null {
+  const source = model.tables.find((candidate) => candidate.id === String(setting['table']));
+  if (source?.columns.some((c) => c.name === String(setting['column'])) !== true) {
+    return `There is no column ${JSON.stringify(setting['column'])} in ${JSON.stringify(setting['table'])} to read.`;
+  }
+  return null;
+}
+
+/**
+ * Why a table's states cannot be kept, or `null`: the state column, every
+ * column a move or the lock names, and every child table it ties to the
+ * state (by its id) with the foreign key back, must exist in the live snapshot.
+ */
+export function statesRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+  // The shape was proved by the store's own schema (`validateOverrideInput`),
+  // which knows a table here is its id in the snapshot (`main.studio_lines`).
+  const states = (raw ?? {}) as States;
+  if (typeof states.column !== 'string' || typeof states.moves !== 'object' || states.moves === null) {
+    return 'The states are not written the way Adminium keeps them.';
+  }
+  const own = (name: string) => table.columns.some((c) => c.name === name);
+  const conditions = Object.values(states.moves).flatMap((moves) => moves.flatMap((move) => (typeof move === 'string' ? [] : (move.requires?.where ?? []))));
+  for (const name of [states.column, ...(states.lock?.except ?? []), ...(states.onlyLater ?? []), ...conditions.map((c) => c.column)]) {
+    if (!own(name)) return `${table.name} has no column ${JSON.stringify(name)}.`;
+  }
+  const linked = (id: string, via: string) => {
+    const child = model.tables.find((candidate) => candidate.id === id);
+    if (child === undefined) return `There is no table ${JSON.stringify(id)} to tie to the state.`;
+    if (!child.columns.some((c) => c.name === via)) return `${child.name} has no column ${JSON.stringify(via)}.`;
+    return null;
+  };
+  for (const [id, child] of Object.entries(states.children ?? {})) {
+    const issue = linked(id, child.via);
+    if (issue !== null) return issue;
+    for (const name of child.clearOnCreate ?? []) if (!own(name)) return `${table.name} has no column ${JSON.stringify(name)}.`;
+  }
+  for (const moves of Object.values(states.moves)) {
+    for (const move of moves) {
+      if (typeof move === 'string') continue;
+      for (const id of Object.keys(move.requires?.children ?? {})) {
+        if (states.children?.[id] === undefined) return `A move asks for rows of ${JSON.stringify(id)}, which is not tied to the state.`;
+      }
+    }
+  }
+  for (const ref of states.lockedWhenReferencedBy ?? []) {
+    const issue = linked(ref.table, ref.via);
+    if (issue !== null) return issue;
+  }
+  return null;
 }
 
 /**

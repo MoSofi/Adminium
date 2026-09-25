@@ -1947,9 +1947,23 @@ export default {
         "stampByOrigin": "„{public}“ von der öffentlichen Seite, „{staff}“ vom Personal",
         "rollupWhere": "nur Zeilen, in denen {column} {value} ist",
         "rollupBalance": "und hält {balance} = {of} − {minus} − diese Summe",
-        "rollupCap": "Eine Änderung, die den Saldo unter null bringen würde, wird abgelehnt."
+        "rollupCap": "Eine Änderung, die den Saldo unter null bringen würde, wird abgelehnt.",
+        "stampToday": "das Datum",
+        "stampClaim": "{column} der angemeldeten Person",
+        "stampAddDays": "{date} plus {days} Tage",
+        "stampAddDaysColumn": "{date} plus die Tage, die {column} angibt",
+        "stampHashOf": "ein Fingerabdruck der Zeile",
+        "stampFilled": "Wird auf {what} gesetzt, wenn {column} zum ersten Mal ausgefüllt wird",
+        "sequenceGapless": "Die nächste Nummer der Reihe nach, ohne Lücken und ohne Wiederholung",
+        "sequenceScope": "für jedes {scope} getrennt gezählt",
+        "formula": "Bei jedem Schreiben aus {columns} berechnet",
+        "format": "Geschrieben als {example}, aus der Nummer in {from}",
+        "scale": "Auf {places} Nachkommastellen gerundet",
+        "scaleCurrency": "Auf die Nachkommastellen seiner Währung gerundet"
       },
-      "venueLocal": "Eine hier ohne Zeitzone geschriebene Zeit ist die Ortszeit des Lokals."
+      "venueLocal": "Eine hier ohne Zeitzone geschriebene Zeit ist die Ortszeit des Lokals.",
+      "fillFromCurrency": "Die Währung der Verbindung",
+      "fillFromSetting": "Eine Einstellung: {setting}"
     },
     "saveFailed": "Speichern fehlgeschlagen: {message}",
     "subtitle": "{tables} Tabellen · {applied} Überschreibungen angewendet",

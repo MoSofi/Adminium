@@ -87,6 +87,7 @@ import {
   CATALOG_ENABLED_SETTING,
   catalogSchema,
   isCurrentCatalogFormat,
+  lenientMinimum,
   meetsMinimum,
   pickLocalized,
   type CatalogClient,
@@ -234,7 +235,7 @@ function parseManifest(document: unknown, key: string): AddOnManifest {
  * function because the package has no name to put in a refusal until this has
  * read one.
  */
-function uploadedManifest(bytes: Buffer): AddOnManifest {
+function uploadedManifest(bytes: Buffer, serverVersion: string): AddOnManifest {
   let document: unknown;
   try {
     document = JSON.parse(bytes.toString('utf8'));
@@ -246,6 +247,17 @@ function uploadedManifest(bytes: Buffer): AddOnManifest {
   }
   const result = validateManifest(document);
   if (!result.ok) {
+    // A NEWER ADD-ON, NOT A BROKEN ONE: a manifest using a field this server
+    // does not know yet fails the strict parse, and its own floor says why.
+    const minimum = lenientMinimum(document);
+    if (minimum !== null && !meetsMinimum(minimum, serverVersion)) {
+      const key = typeof (document as { key?: unknown }).key === 'string' ? (document as { key: string }).key : null;
+      throw new ValidationFailedError(
+        `${key === null ? 'This add-on' : `"${key}"`} needs Adminium ${minimum} or later; this server is ` +
+          `${serverVersion}. Upgrade Adminium before uploading it.`,
+        { reason: 'REQUIRES_NEWER_ADMINIUM', minAdminiumVersion: minimum, serverVersion },
+      );
+    }
     throw new ValidationFailedError('The manifest in this package is not a valid add-on manifest.', {
       issues: result.issues,
     });
@@ -528,7 +540,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         tarball,
         expectedIntegrity,
         identify: (bytes) => {
-          const manifest = uploadedManifest(bytes);
+          const manifest = uploadedManifest(bytes, serverVersion);
           read.manifest = manifest;
           if (asserted.key !== undefined && asserted.key !== manifest.key) {
             throw new ValidationFailedError(

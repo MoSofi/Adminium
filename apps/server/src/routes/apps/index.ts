@@ -73,7 +73,7 @@ import type { FastifyRequest } from 'fastify';
 import type { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
-import { AddOnCatalogError, pickLocalized } from '../../add-ons/catalog.js';
+import { AddOnCatalogError, lenientMinimum, pickLocalized } from '../../add-ons/catalog.js';
 import {
   APP_CATALOG_ENABLED_SETTING,
   appCatalogSchema,
@@ -356,15 +356,6 @@ export function planChecksum(plan: InstallPlan, existing: readonly ExistingTable
 /** A stored status, narrowed; anything unrecognised reads as `error`. */
 function statusOf(value: string): 'installing' | 'installed' | 'disabled' | 'error' {
   return value === 'installing' || value === 'installed' || value === 'disabled' ? value : 'error';
-}
-
-/** `compatibility.minAdminiumVersion` out of an unvalidated document, or null. */
-function lenientMinimum(document: unknown): string | null {
-  if (typeof document !== 'object' || document === null) return null;
-  const compatibility = (document as { compatibility?: unknown }).compatibility;
-  if (typeof compatibility !== 'object' || compatibility === null) return null;
-  const minimum = (compatibility as { minAdminiumVersion?: unknown }).minAdminiumVersion;
-  return typeof minimum === 'string' && /^\d+\.\d+\.\d+/.test(minimum) ? minimum : null;
 }
 
 /**

@@ -25,10 +25,12 @@ export interface EffectiveColumn extends ColumnModel {
    * caller, which is why the inspector says so where it edits them.
    */
   fill?: {
-    kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none';
+    kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none' | 'from';
     text?: string;
     userField?: 'id' | 'name';
     onUpdate?: boolean;
+    /** `from` only: the connection's currency, a settings column, or an add-on's setting. */
+    from?: 'connection.currency' | { table: string; column: string } | { addOn: string; setting: string };
   };
   options?:
     | { list: string }
@@ -63,9 +65,20 @@ export interface EffectiveColumn extends ColumnModel {
 }
 
 /** `column.stamp`: what is written, and when. */
+/** When a stamp is written: on create, when a column changes to a value, or when one is first filled. */
+export type StampTrigger = 'create' | { column: string; values: (string | number | boolean)[] } | { column: string; filled: true };
+
 export interface StampRule {
-  set: 'now' | 'user-name' | 'user-id' | { byOrigin: { public: string; staff: string } };
-  on: 'create' | { column: string; values: (string | number | boolean)[] };
+  set:
+    | 'now'
+    | 'today'
+    | 'user-name'
+    | 'user-id'
+    | { byOrigin: { public: string; staff: string } }
+    | { claim: string; staff?: 'user-name' | 'user-id' }
+    | { addDays: { date: string; days: string | number; map?: Record<string, number> } }
+    | { hashOf: Record<string, unknown> };
+  on: StampTrigger | StampTrigger[];
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {

@@ -30,7 +30,25 @@ export const CONNECT_KINDS = ['none', 'api-key', 'oauth2'] as const;
 export const connectKindSchema = z.enum(CONNECT_KINDS);
 export type ConnectKind = (typeof CONNECT_KINDS)[number];
 
-const SEMVER_RANGE = /^[\^~]?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$|^\*$/;
+const VERSION = String.raw`(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?`;
+const COMPARATOR = new RegExp(`^(>=|<=|>|<|=|\\^|~)?${VERSION}$`);
+
+/**
+ * A semver range over an app's version: `^0.2.0`, `~0.2.1`, `0.2.0`, `*`,
+ * `>=0.2.0`, `>=0.2.0 <1.0.0` (spaces join, `||` separates alternatives).
+ * The same grammar `@adminium/manifest`'s `parseSemverRange` reads — written
+ * again here because that package imports this one, not the reverse. In 0.x
+ * `^0.2.0` stops before 0.3.0, so an add-on that means "0.2 and later" writes
+ * `>=0.2.0`.
+ */
+export function isSemverRange(range: string): boolean {
+  if (range.length === 0 || range.length > 120) return false;
+  return range.split('||').every((alternative) => {
+    const words = alternative.trim().split(/\s+/);
+    if (words.length === 1 && words[0] === '*') return true;
+    return words.length > 0 && words.every((word) => word !== '' && COMPARATOR.test(word));
+  });
+}
 
 /**
  * Exact hostname — no wildcards, no bare IPs, no ports, no scheme (D14).
@@ -45,7 +63,7 @@ export const attachTargetSchema = z
   .object({
     /** A known app key, or `"*"` when the contract is not host-specific. */
     app: z.union([z.literal('*'), z.string().regex(/^[a-z][a-z0-9-]{1,79}$/)]),
-    range: z.string().regex(SEMVER_RANGE, 'range must be a simple semver range or "*"').optional(),
+    range: z.string().refine(isSemverRange, 'range must be a semver range such as "^1.0.0", ">=0.2.0" or "*"').optional(),
     /** Only for `record.editor.panel`: which host tables the panel mounts on. */
     table: z.string().regex(/^[a-z][a-z0-9_]*$/).optional(),
   })
@@ -239,6 +257,22 @@ export const addOnBlockSchema = z
     navGroups: z.array(addOnNavGroupSchema).min(1).optional(),
     /** Required once `pages` is present; see {@link hostApiVersionSchema}. */
     hostApi: hostApiVersionSchema.optional(),
+    /**
+     * Shapes apps build their own tables on (an invoice with its lines and
+     * payments). Only the name and version are typed here: a part's columns
+     * and rules are the manifest's own vocabulary, which this package cannot
+     * import, so `@adminium/manifest` checks the rest of each entry.
+     */
+    shapes: z
+      .array(
+        z.looseObject({
+          name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a shape name is kebab-case'),
+          version: z.number().int().min(1).max(99),
+        }),
+      )
+      .min(1)
+      .max(8)
+      .optional(),
   })
   .strict()
   // A ref is a URL segment, so two pages sharing one is two screens at one

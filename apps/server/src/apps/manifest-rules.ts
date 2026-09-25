@@ -14,8 +14,18 @@
  * The rules written are the four an operator can set in the column inspector
  * — the allowed values, the labels of a database enum, required and
  * validation — and the ones Adminium decides for every write: a copied price,
- * a running number, a code, a stamp. A total over child rows joins them with the
- * write path's rollup. The app's names for its tables and columns — in every
+ * a running number, a code, a stamp, a value worked out by a formula, a
+ * prefixed number, a fill from a setting. A total over child rows joins them
+ * with the write path's rollup, and a document's states with the table's
+ * booking and capacity guards.
+ *
+ * EVERY TABLE A RULE NAMES IS STORED BY ITS REAL ID. A rule names tables at
+ * any depth — a rollup's child, the settings row a number starts from, the
+ * child tables a state locks, the rows a fingerprint covers — and an app with
+ * prefixed tables writes them all by their short names. One mapper
+ * (`realRuleValue`) rewrites each of them, so no rule ever queries a table by
+ * a name that does not exist, and the live-model checks below refuse one it
+ * cannot find. The app's names for its tables and columns — in every
  * language it speaks — and the column that names a row where another links to
  * it are written the same way: the operator's rename wins, and an unchanged
  * one goes with the app.
@@ -27,7 +37,7 @@
 import { createHash } from 'node:crypto';
 
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
-import type { BookingRule, ColumnRules, Manifest } from '@adminium/manifest';
+import type { BookingRule, ColumnRules, Manifest, States } from '@adminium/manifest';
 import {
   MetaValidationError,
   appTablesRepo,
@@ -42,9 +52,9 @@ import {
 } from '@adminium/meta';
 
 import { canonicalJson } from './sample-data.js';
-import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue } from '../connections/column-rules-validation.js';
+import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
 
-type RuleOp =
+export type RuleOp =
   | 'column.options'
   | 'column.enumLabels'
   | 'column.required'
@@ -55,17 +65,22 @@ type RuleOp =
   | 'column.rollup'
   | 'column.venueLocal'
   | 'column.stamp'
+  | 'column.default'
+  | 'column.format'
+  | 'column.formula'
+  | 'column.scale'
   | 'column.pii'
   | 'column.label'
   | 'table.capacity'
   | 'table.booking'
+  | 'table.states'
   | 'table.label'
   | 'table.keyField';
 
 /** Ops that name things rather than rule a write: no column-rule check applies. */
 const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
-const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.label', 'table.keyField']);
+const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.label', 'table.keyField']);
 
 interface DesiredRule {
   ref: string;
@@ -156,6 +171,9 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.rollup !== undefined) out.push({ op: 'column.rollup', value: { ...rules.rollup } });
   if (rules.venueLocal === true) out.push({ op: 'column.venueLocal', value: { venueLocal: true } });
   if (rules.stamp !== undefined) out.push({ op: 'column.stamp', value: { ...rules.stamp } });
+  if (rules.default !== undefined) out.push({ op: 'column.default', value: { kind: 'from', from: rules.default.from } });
+  if (rules.format !== undefined) out.push({ op: 'column.format', value: { ...rules.format } });
+  if (rules.formula !== undefined) out.push({ op: 'column.formula', value: { formula: rules.formula } });
   if (rules.personal !== undefined) out.push({ op: 'column.pii', value: { masked: rules.personal } });
   return out;
 }
@@ -189,6 +207,79 @@ export function bookingValue(booking: BookingRule, realId: (ref: string) => stri
     ...(booking.noticeMinutes === undefined ? {} : { noticeMinutes: setting(booking.noticeMinutes) }),
     ...(cancel === undefined ? {} : { cancel: { ...cancel, hours: setting(cancel.hours) } }),
   };
+}
+
+/**
+ * A rule's value with every table it names — at any depth — replaced by the
+ * real table's id: a rollup's child, a `{table, column}` setting (an add-on's
+ * setting names no table and is left as it is), the tables a fingerprint
+ * reads, and every table a document's states tie to the state.
+ */
+export function realRuleValue(op: RuleOp, value: Record<string, unknown>, realId: (ref: string) => string): Record<string, unknown> {
+  const setting = (source: unknown): unknown =>
+    typeof source === 'object' && source !== null && 'table' in source
+      ? { ...(source as Record<string, unknown>), table: realId(String((source as { table: string }).table)) }
+      : source;
+  switch (op) {
+    case 'column.rollup':
+      return { ...value, from: realId(String(value['from'])) };
+    case 'column.default':
+      return value['from'] === undefined ? value : { ...value, from: setting(value['from']) };
+    case 'column.sequence':
+      return value['startSetting'] === undefined ? value : { ...value, startSetting: setting(value['startSetting']) };
+    case 'column.format':
+      return value['prefixSetting'] === undefined ? value : { ...value, prefixSetting: setting(value['prefixSetting']) };
+    case 'column.stamp': {
+      const set = value['set'];
+      if (typeof set !== 'object' || set === null || !('hashOf' in set)) return value;
+      const hash = (set as { hashOf: Record<string, unknown> }).hashOf;
+      const child = (c: Record<string, unknown>) => ({ ...c, table: realId(String(c['table'])) });
+      const children = hash['children'] as Record<string, unknown>[] | undefined;
+      const linked = hash['linked'] as Record<string, unknown>[] | undefined;
+      return {
+        ...value,
+        set: {
+          hashOf: {
+            ...hash,
+            ...(children === undefined ? {} : { children: children.map(child) }),
+            ...(linked === undefined
+              ? {}
+              : {
+                  linked: linked.map((l) => ({
+                    ...child(l),
+                    ...(l['children'] === undefined ? {} : { children: (l['children'] as Record<string, unknown>[]).map(child) }),
+                  })),
+                }),
+          },
+        },
+      };
+    }
+    case 'table.capacity':
+      return Object.fromEntries(Object.entries(value).map(([key, part]) => [key, setting(part)]));
+    case 'table.states': {
+      const states = value as unknown as States;
+      const byReal = <T>(record: Readonly<Record<string, T>>) => Object.fromEntries(Object.entries(record).map(([ref, v]) => [realId(ref), v]));
+      return {
+        ...states,
+        moves: Object.fromEntries(
+          Object.entries(states.moves).map(([from, moves]) => [
+            from,
+            moves.map((move) =>
+              typeof move === 'string' || move.requires?.children === undefined
+                ? move
+                : { ...move, requires: { ...move.requires, children: byReal(move.requires.children) } },
+            ),
+          ]),
+        ),
+        ...(states.children === undefined ? {} : { children: byReal(states.children) }),
+        ...(states.lockedWhenReferencedBy === undefined
+          ? {}
+          : { lockedWhenReferencedBy: states.lockedWhenReferencedBy.map((ref) => ({ ...ref, table: realId(ref.table) })) }),
+      };
+    }
+    default:
+      return value;
+  }
 }
 
 /** A rule's value, hashed the same however the store's JSON column ordered its keys. */
@@ -267,11 +358,6 @@ export async function writeManifestRules(input: {
   };
   /** An app table's short name → its id in the snapshot; '' when it is not there (the check refuses it). */
   const realId = (ref: string) => realOf(ref)?.id ?? '';
-  /** A setting `{table: <ref>, column}` pointed at the real table. */
-  const settingOf = (value: unknown) =>
-    typeof value === 'object' && value !== null && 'table' in value
-      ? { ...(value as { table: string; column: string }), table: realId((value as { table: string }).table) }
-      : value;
   const desired: DesiredRule[] = [];
   for (const table of manifest.requiredSchema?.tables ?? []) {
     const real = realOf(table.ref);
@@ -318,19 +404,24 @@ export async function writeManifestRules(input: {
           },
         });
       }
+      // The places a decimal keeps: SQLite stores every decimal as a REAL
+      // and remembers none, so the rule carries them on every engine.
+      if (column.scale !== undefined) {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.scale', value: { scale: column.scale } });
+      }
       if (column.rules === undefined) continue;
       for (const rule of opsForRules(manifest.key, column.rules)) {
-        const value =
-          rule.op === 'column.rollup' ? { ...rule.value, from: realOf(String(rule.value['from']))?.id ?? '' } : rule.value;
-        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: rule.op, value });
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: rule.op, value: realRuleValue(rule.op, rule.value, realId) });
       }
     }
     if (table.capacity !== undefined) {
-      const value = Object.fromEntries(Object.entries(table.capacity).map(([key, setting]) => [key, settingOf(setting)]));
-      desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.capacity', value });
+      desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.capacity', value: realRuleValue('table.capacity', { ...table.capacity }, realId) });
     }
     if (table.booking !== undefined) {
       desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.booking', value: bookingValue(table.booking, realId) });
+    }
+    if (table.states !== undefined) {
+      desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.states', value: realRuleValue('table.states', { ...table.states }, realId) });
     }
   }
 
@@ -407,15 +498,16 @@ export async function writeManifestRules(input: {
         skip(`"${table.name}" has no column "${String(rule.value['column'])}".`);
         continue;
       }
-      if (rule.op === 'table.capacity' || rule.op === 'table.booking') {
-        const issue = (rule.op === 'table.capacity' ? capacityRuleIssue : bookingRuleIssue)(rule.value, table, model);
+      if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states') {
+        const check = rule.op === 'table.capacity' ? capacityRuleIssue : rule.op === 'table.booking' ? bookingRuleIssue : statesRuleIssue;
+        const issue = check(rule.value, table, model);
         if (issue !== null) {
           skip(issue);
           continue;
         }
       } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && column !== undefined) {
         const issue = columnRuleIssue(
-          rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.label' | 'table.keyField'>,
+          rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.label' | 'table.keyField'>,
           rule.value,
           column,
           model,
