@@ -10,8 +10,8 @@ import { describe, expect, it } from 'vitest';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../src/crud/identifiers.js';
 import { wideningOf } from '../src/public-api/derive.js';
 import { endpointIssues } from '../src/public-api/endpoint.js';
-import { afterNow, aheadWithin, mandatoryAt, type ScopeWhere } from '../src/public-api/relative-filters.js';
-import { compileScope } from '../src/public-api/scope.js';
+import { afterNow, aheadWithin, beforeToday, mandatoryAt, type ScopeWhere } from '../src/public-api/relative-filters.js';
+import { compileScope, writableWhenSchema } from '../src/public-api/scope.js';
 
 const column = (name: string, logicalType: string): ResolvedColumn => ({ name, logicalType }) as unknown as ResolvedColumn;
 
@@ -80,6 +80,22 @@ describe('a filter on the venue’s calendar', () => {
         { column: 'on_day', op: 'lt', value: '2026-08-04' },
       ],
     });
+  });
+
+  it('is before today on the venue’s calendar for `before-today` (an offer out of date), and nothing for a column that is no day', () => {
+    const before = (day: string) => ({
+      and: [
+        { column: 'on_day', op: 'gte', value: '1000-01-01' },
+        { column: 'on_day', op: 'lt', value: day },
+      ],
+    });
+    expect(beforeToday(table, 'on_day', 'Europe/London', now)).toEqual(before('2026-07-28'));
+    expect(beforeToday(table, 'on_day', 'Asia/Tokyo', now)).toEqual(before('2026-07-29'));
+    // An upper bound on a time or a non-day could let a misread row through: nothing passes instead.
+    expect(beforeToday(table, 'starts_at', 'Europe/London', now)).toEqual({ column: 'id', op: 'is_null' });
+    expect(beforeToday(table, 'status', 'Europe/London', now)).toEqual({ column: 'id', op: 'is_null' });
+    // A scope names it as it names `from-today`: the manifest's `writableWhen` reaches the server as written.
+    expect(writableWhenSchema.safeParse({ valid_until: 'before-today' }).success).toBe(true);
   });
 
   it('spells a time for a column with no zone as the write path does: the server’s wall clock', () => {

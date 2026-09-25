@@ -102,5 +102,7 @@ export const prepareValues = (
     for (const column of resource.onClaim?.clear ?? []) out[column] = null;
     out[resource.claim.column] = session.grant.value;
   }
+  // The same for a claim through another table's column: the row is the claimed person's, never a value they chose.
+  if (session !== null && resource.claim?.via !== undefined) out[resource.claim.via.localColumn] = session.grant.value;
   return out;
 };

@@ -107,9 +107,10 @@ export const TIME_WINDOW_MAX_MINUTES = 1440;
 /**
  * The state a row must be in to be changed: one of some values (`null` for
  * "still empty"), `from-now` (a time still ahead), `from-today` (a date today
- * or later, on the venue's calendar) or a time window.
+ * or later, on the venue's calendar), `before-today` (a date before today
+ * there) or a time window.
  */
-export type WritableState = readonly (string | number | boolean | null)[] | 'from-now' | 'from-today' | TimeWindow;
+export type WritableState = readonly (string | number | boolean | null)[] | 'from-now' | 'from-today' | 'before-today' | TimeWindow;
 
 export function isTimeWindow(when: WritableState): when is TimeWindow {
   return typeof when === 'object' && !Array.isArray(when);
@@ -134,6 +135,33 @@ export function aheadWithin(table: ResolvedTable, column: string, minutes: numbe
 /** A date today or later on the venue's calendar (a time: from the start of today there). */
 export function fromToday(table: ResolvedTable, column: string, timezone: string, now: Date = new Date()): RecordFilter {
   return mandatoryAt({ fixed: null, relative: [{ column, op: 'from-today' }] }, table, timezone, now) ?? nothing(table);
+}
+
+/** The earliest day every engine keeps in a date column (MySQL's floor). */
+const FIRST_DAY = '1000-01-01';
+
+/**
+ * A date before today on the venue's calendar — `from-today`'s other side. An
+ * empty value is neither.
+ *
+ * A DATE column only. `from-today` is a lower bound, so a value spelled in a
+ * way the comparison misreads is refused; this is an upper bound, and the same
+ * misreading would let a row through. A time compared as text is exactly that
+ * risk (MySQL reads a `Z` bound in the session's zone), so a time is refused
+ * here outright. And a floor: SQLite ranks any number below any text, so a day
+ * kept as a number (some tools store epochs in a date column) would otherwise
+ * always be "before today".
+ */
+export function beforeToday(table: ResolvedTable, column: string, timezone: string, now: Date = new Date()): RecordFilter {
+  const found = table.columns.get(column);
+  if (found === undefined || found.logicalType !== 'date') return nothing(table);
+  const today = venueClock(now, timezone).day;
+  return {
+    and: [
+      { column, op: 'gte', value: FIRST_DAY },
+      { column, op: 'lt', value: today },
+    ],
+  };
 }
 
 export function afterNow(table: ResolvedTable, column: string, now: Date = new Date()): RecordFilter {

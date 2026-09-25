@@ -147,6 +147,8 @@ export const writableWhenSchema = z
       z.literal('from-now'),
       // A date today or later, on the venue's calendar (an offer still in date).
       z.literal('from-today'),
+      // A date before today, on the venue's calendar (an offer out of date, which may be asked about again).
+      z.literal('before-today'),
       z.object({ within: z.number().int().min(1).max(TIME_WINDOW_MAX_MINUTES) }).strict(),
     ]),
   )
@@ -796,6 +798,35 @@ export function compileScope(
         column: r.claim.column,
       });
     }
+    // A claim through another table's column gates the rows just the same: a caller who could write it would file a row under someone else.
+    if (r.claim?.via !== undefined && writable.has(r.claim.via.localColumn)) {
+      issues.push({
+        code: 'SCOPE_CLAIM_COLUMN_WRITABLE',
+        message: `"${r.claim.via.localColumn}" gates this resource for a claimed session and must not be writable`,
+        ref: r.ref,
+        column: r.claim.via.localColumn,
+      });
+    }
+    /*
+     * A row changeable only once its date is past (an offer out of date) must
+     * not let the same caller move that date: they would write it forward and
+     * the row would be in date again, on its old terms.
+     */
+    for (const [column, when] of Object.entries(r.writableWhen ?? {})) {
+      if (when !== 'before-today') continue;
+      const reachable =
+        writable.has(column) ||
+        Object.prototype.hasOwnProperty.call(r.writableValues ?? {}, column) ||
+        Object.prototype.hasOwnProperty.call(r.defaults, column);
+      if (reachable) {
+        issues.push({
+          code: 'SCOPE_WRITABLE_WHEN_COLUMN_WRITABLE',
+          message: `"${column}" decides when this row may change ("before-today"), so it must not be writable`,
+          ref: r.ref,
+          column,
+        });
+      }
+    }
 
     /*
      * `$generate` SENTINELS — the shape, and the one place they may not sit.
@@ -1021,7 +1052,7 @@ export function compileScope(
       if (doc.claim.verify !== undefined || doc.claim.strategy === 'token') {
         const guarded = new Set([...(doc.claim.email === undefined ? [] : [doc.claim.email]), ...doc.claim.match]);
         for (const r of doc.resources) {
-          if (r.table !== target.table) continue;
+          if (!sameTable(r.table, target.table)) continue;
           for (const column of r.writable ?? []) {
             if (!guarded.has(column)) continue;
             issues.push({
@@ -1187,6 +1218,17 @@ export function compileScope(
  * column the caller writes: a child the parent points at cannot be made by a
  * guest (the parent would have to be changed to name it).
  */
+/**
+ * Whether two names name one table. A scope may spell a table with its schema
+ * or without (`public.proposals`, `proposals`) and the snapshot finds both, so
+ * a rule that compared the strings would let a door through by spelling it the
+ * other way. The table's own name decides, whatever the schema: two schemas
+ * with a table of one name count as one, which refuses more, never less.
+ */
+function sameTable(a: string, b: string): boolean {
+  return a === b || a.slice(a.lastIndexOf('.') + 1) === b.slice(b.lastIndexOf('.') + 1);
+}
+
 function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLookup | undefined): ScopeIssue[] {
   const issues: ScopeIssue[] = [];
   const byRef = new Map(doc.resources.map((r) => [r.ref, r]));
@@ -1228,11 +1270,14 @@ function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLooku
      * on the key writes it, chooses its values or fills it by default.
      */
     for (const door of doc.resources) {
-      if (door.table !== parent.table) continue;
+      if (!sameTable(door.table, parent.table)) continue;
+      // A door that only reads writes no row of its table, whatever columns it lists; any other action may.
+      const changes = door.actions.some((action) => action !== 'read');
       const writes =
-        door.writable.includes(link.foreignColumn) ||
-        Object.prototype.hasOwnProperty.call(door.writableValues ?? {}, link.foreignColumn) ||
-        Object.prototype.hasOwnProperty.call(door.defaults, link.foreignColumn);
+        changes &&
+        (door.writable.includes(link.foreignColumn) ||
+          Object.prototype.hasOwnProperty.call(door.writableValues ?? {}, link.foreignColumn) ||
+          Object.prototype.hasOwnProperty.call(door.defaults, link.foreignColumn));
       if (writes) {
         push(
           'SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE',
@@ -1275,7 +1320,7 @@ function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLooku
      */
     if (r.actions.includes('update')) {
       for (let up = byRef.get(link.ref), n = 0; up !== undefined && n < VISIBLE_WITH_MAX_STEPS; up = up.visibleWith === undefined ? undefined : byRef.get(up.visibleWith.ref), n += 1) {
-        if (up.table === r.table) push('SCOPE_VISIBLE_WITH_SELF_CHANGE', `ref "${r.ref}" changes rows of the table its parent reads, which one statement cannot do on every database`);
+        if (sameTable(up.table, r.table)) push('SCOPE_VISIBLE_WITH_SELF_CHANGE', `ref "${r.ref}" changes rows of the table its parent reads, which one statement cannot do on every database`);
       }
     }
   }

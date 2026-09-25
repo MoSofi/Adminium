@@ -86,7 +86,11 @@ describe('a child its parent points at', () => {
 
   it('is refused by the scope compiler when anything on the key writes the pointing column', () => {
     expect(compiled(doc({}))).toEqual([]);
+    // A door that only reads writes nothing, whatever columns a derived document lists for it.
+    expect(compiled(doc({ actions: ['read'], writable: ['terms_version_id'] }))).toEqual([]);
     expect(compiled(doc({ actions: ['read', 'update'], writable: ['terms_version_id'] }))).toContain('SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE');
+    // A whole-row replace writes it as surely as an update.
+    expect(compiled(doc({ actions: ['read', 'replace'], writable: ['terms_version_id'] }))).toContain('SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE');
     expect(compiled(doc({ actions: ['read', 'update'], writable: ['terms_version_id'], writableValues: { terms_version_id: [2] } }))).toContain(
       'SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE',
     );
@@ -94,6 +98,10 @@ describe('a child its parent points at', () => {
     const second = doc({});
     second.resources.push({ ref: 'proposals_new', table: 'public.proposals', actions: ['create'], expose: ['id'], writable: ['terms_version_id'] } as never);
     expect(compiled(second)).toContain('SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE');
+    // Spelled without its schema, the same table: the snapshot finds both, so the rule must too.
+    const spelled = doc({});
+    spelled.resources.push({ ref: 'proposals_edit', table: 'proposals', actions: ['read', 'update'], expose: ['id'], writable: ['terms_version_id'] } as never);
+    expect(compiled(spelled)).toContain('SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE');
     const defaulted = doc({});
     defaulted.resources.push({ ref: 'proposals_new', table: 'public.proposals', actions: ['create'], expose: ['id'], writable: ['signed_name'], defaults: { terms_version_id: 2 } } as never);
     expect(compiled(defaulted)).toContain('SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE');

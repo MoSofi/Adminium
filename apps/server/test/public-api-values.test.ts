@@ -167,6 +167,12 @@ describe('the claim writes itself in, last', () => {
     expect(out?.['conversation_id']).toBe('conv_7');
   });
 
+  it('supplies a claim through another table’s column the same way', () => {
+    // Rows owned through `via` hold the grant in their own column: a caller never picks it.
+    const r = resource({ claim: { via: { ref: 'conversation', localColumn: 'conversation_id', foreignColumn: 'id' } }, defaults: { conversation_id: 'conv_everyone' } });
+    expect(prepareValues(r, { body: 'x' }, session('conv_7'), 'create', 'sqlite')?.['conversation_id']).toBe('conv_7');
+  });
+
   it('writes nothing extra for an unclaimed session on a claim-free resource', () => {
     const r = resource({ claim: null, defaults: {} });
     expect(prepareValues(r, { body: 'x' }, null, 'create', 'sqlite')).toEqual({ body: 'x' });

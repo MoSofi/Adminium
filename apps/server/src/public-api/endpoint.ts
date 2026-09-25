@@ -881,6 +881,10 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     if (when === 'from-today' && type !== undefined && !DAY_TYPES.has(type)) {
       push('ENDPOINT_FILTER_NOT_A_DAY', `"${column}" is not a date or a time, so "from-today" cannot apply`, column);
     }
+    // An upper bound on a day: only a date column compares safely on every engine (`beforeToday`).
+    if (when === 'before-today' && type !== undefined && type !== 'date') {
+      push('ENDPOINT_FILTER_NOT_A_DATE', `"${column}" is not a date, so "before-today" cannot apply`, column);
+    }
   }
 
   if (methods.has('DELETE') && def.allow_cascade !== true) {

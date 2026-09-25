@@ -331,6 +331,52 @@ describe('compileScope — writing yourself out of scope', () => {
       ),
     ).toContain('SCOPE_CLAIM_COLUMN_WRITABLE');
   });
+
+  it('refuses a writable column a claim reaches through', () => {
+    // A caller who could write it would file a row under somebody else's customer.
+    const through = (writable: string[]) =>
+      issuesOf(
+        doc({
+          resources: [
+            { ref: 'customers', table: 'public.customers', actions: ['read'], expose: ['id', 'name'] },
+            {
+              ref: 'orders',
+              table: 'public.orders',
+              actions: ['read', 'create'],
+              expose: ['id', 'customer_id', 'status'],
+              writable,
+              claim: { via: { ref: 'customers', localColumn: 'customer_id', foreignColumn: 'id' } },
+            },
+          ],
+        }),
+      );
+    expect(through(['customer_id', 'status'])).toContain('SCOPE_CLAIM_COLUMN_WRITABLE');
+    expect(through(['status'])).not.toContain('SCOPE_CLAIM_COLUMN_WRITABLE');
+  });
+
+  it('refuses a door that may change a row only once its date is past, and may also move that date', () => {
+    const door = (extra: Record<string, unknown>) =>
+      issuesOf(
+        doc({
+          resources: [
+            {
+              ref: 'orders',
+              table: 'public.orders',
+              actions: ['read', 'update'],
+              expose: ['id', 'status', 'placed_at'],
+              writable: ['status'],
+              writableWhen: { placed_at: 'before-today' },
+              ...extra,
+            },
+          ],
+        }),
+      );
+    expect(door({})).not.toContain('SCOPE_WRITABLE_WHEN_COLUMN_WRITABLE');
+    // Written forward, the row would be in date again, on its old terms.
+    expect(door({ writable: ['status', 'placed_at'] })).toContain('SCOPE_WRITABLE_WHEN_COLUMN_WRITABLE');
+    expect(door({ writableValues: { placed_at: ['2099-01-01'] }, writable: ['status', 'placed_at'] })).toContain('SCOPE_WRITABLE_WHEN_COLUMN_WRITABLE');
+    expect(door({ defaults: { placed_at: '2099-01-01' } })).toContain('SCOPE_WRITABLE_WHEN_COLUMN_WRITABLE');
+  });
 });
 
 describe('compileScope — `$generate` defaults', () => {

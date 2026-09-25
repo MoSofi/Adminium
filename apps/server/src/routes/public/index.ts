@@ -56,7 +56,7 @@ import {
   type PublicViews,
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
-import { afterNow, aheadWithin, fromToday, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
+import { afterNow, aheadWithin, beforeToday, fromToday, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -283,6 +283,7 @@ function updatableState(
   const conditions: RecordFilter[] = Object.entries(resource.writableWhen).flatMap(([column, when]): RecordFilter[] => {
     if (when === 'from-now') return [afterNow(table, column, now)];
     if (when === 'from-today') return [fromToday(table, column, timezone, now)];
+    if (when === 'before-today') return [beforeToday(table, column, timezone, now)];
     if (isTimeWindow(when)) return windows === 'with' ? [aheadWithin(table, column, when.within, now)] : [];
     // `null` is "still empty": a value never equals null, so it is asked apart.
     const values = when.filter((value): value is string | number | boolean => value !== null);

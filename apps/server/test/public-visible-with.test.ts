@@ -86,6 +86,15 @@ function portalManifest(): Record<string, unknown> {
         requires: ['body'],
         visibleWith: { table: 'deliverables', via: 'deliverable_id' },
       },
+      // A proposal gone out of date may be asked about again — and only one that has.
+      {
+        table: 'proposals',
+        methods: ['PATCH'],
+        select: ['id', 'signed_name'],
+        claimedBy: { table: 'clients', column: 'client_id' },
+        writable: ['signed_name'],
+        writableWhen: { status: ['sent'], valid_until: 'before-today' },
+      },
     ],
   };
 }
@@ -315,6 +324,22 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
     // Once: it is no longer empty.
     expect((await sign(1, { signed_name: 'Someone Else' })).statusCode).toBe(404);
     expect((await h.rows(`select signed_name from ${h.real('proposals')} where id = 1`))[0]!['signed_name']).toBe('Ada Lovelace');
+  });
+
+  it.skipIf(!available)('changes a proposal through a before-today door only once its date is past', async () => {
+    const ask = (id: number) =>
+      served.composed.app.inject({ method: 'PATCH', url: `/api/v1/public/records/${ref('proposals', 'claimed_2')}/${String(id)}`, headers: served.headers(ada), payload: { values: { signed_name: 'asked again' } } });
+    // Sent with no date at all (id 5): neither in date nor out of it.
+    await h.rows(`insert into ${h.real('proposals')} (client_id, status) values (1, 'sent')`);
+    expect((await ask(1)).statusCode).toBe(404); // still in date
+    expect((await ask(5)).statusCode).toBe(404); // no date
+    expect((await ask(3)).statusCode).toBe(404); // Ben's, and none of hers
+    expect((await ask(4)).statusCode).toBe(200); // out of date since yesterday
+    if (dialect === 'sqlite') {
+      // A day kept as a number (a tool that stores epochs) sorts below any text on SQLite: never "before today".
+      await h.rows(`update ${h.real('proposals')} set valid_until = 4102444800000 where id = 5`);
+      expect((await ask(5)).statusCode).toBe(404);
+    }
   });
 
   it.skipIf(!available)('checks every row of a batch the same way, all or none', async () => {
