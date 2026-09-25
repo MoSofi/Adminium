@@ -161,7 +161,8 @@ export interface SampleIssue {
 /**
  * Everything wrong with a bundle for this manifest: a table it does not
  * declare, a column the table does not have, a label used twice, a `@ref` to
- * a row that comes later or not at all, an `@asset` it does not list.
+ * a row that comes later or not at all, an `@asset` it does not list, a
+ * number without gaps the row does not spell `null`.
  */
 export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): SampleIssue[] {
   const issues: SampleIssue[] = [];
@@ -177,8 +178,15 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
       continue;
     }
     const columns = new Set(shape.columns.map((column) => column.ref));
+    // A number Adminium gives without gaps: a sample row names it, empty, or the load numbers it into the real series.
+    const gapless = shape.columns.filter((column) => column.rules?.sequence?.gapless === true).map((column) => column.ref);
     for (const [r, row] of table.rows.entries()) {
       const at = `tables.${String(t)}.rows.${String(r)}`;
+      for (const column of gapless) {
+        if (row[column] !== null) {
+          issues.push({ path: `${at}.${column}`, message: `"${column}" is numbered without gaps: a sample row spells it null, so it stays off the real series.` });
+        }
+      }
       for (const [column, value] of Object.entries(row)) {
         if (column === '@label') {
           if (typeof value !== 'string' || !label.safeParse(value).success) {

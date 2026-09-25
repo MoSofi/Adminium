@@ -9,6 +9,7 @@ import {
   validateManifest,
   type Manifest,
 } from '../src/index.js';
+import { valid } from './invoicing-fixture.js';
 
 const MANIFEST = {
   kind: 'app',
@@ -146,6 +147,24 @@ describe('adminium.sample/1', () => {
     expect(isoDurationMs('P2W')).toBe(14 * 86_400_000);
     expect(isoDurationMs('PT1.5S')).toBe(1500);
     expect(() => isoDurationMs('P')).toThrow();
+  });
+});
+
+describe('numbers without gaps', () => {
+  const studio = () => {
+    const result = validateManifest(valid());
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    return result.manifest as Manifest;
+  };
+  const bundleOf = (rows: Record<string, unknown>[]) =>
+    sampleBundleSchema.parse({ format: 'adminium.sample/1', app: 'studio', tables: [{ ref: 'invoices', rows }] });
+
+  it('asks every sample row to spell its gapless number null, so the load never numbers it into the real series', () => {
+    expect(sampleBundleIssues(bundleOf([{ number_seq: null, number: 'INV-S2041' }]), studio())).toEqual([]);
+    expect(sampleBundleIssues(bundleOf([{ number: 'INV-S2042' }, { number_seq: 7, number: 'INV-S2043' }]), studio())).toEqual([
+      { path: 'tables.0.rows.0.number_seq', message: '"number_seq" is numbered without gaps: a sample row spells it null, so it stays off the real series.' },
+      { path: 'tables.0.rows.1.number_seq', message: '"number_seq" is numbered without gaps: a sample row spells it null, so it stays off the real series.' },
+    ]);
   });
 });
 
