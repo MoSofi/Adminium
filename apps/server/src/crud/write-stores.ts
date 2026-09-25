@@ -18,7 +18,7 @@ import type { WriteServiceOptions } from './write-service.js';
  * and its default terms before anyone opens the settings page. A secret is
  * never read by a rule.
  */
-async function addOnSetting(meta: MetaDb, addOnKey: string, setting: string): Promise<unknown> {
+export async function addOnSetting(meta: MetaDb, addOnKey: string, setting: string): Promise<unknown> {
   const saved = (await addOnSettingsRepo(meta).valuesFor(addOnKey))[setting];
   if (saved !== undefined && saved !== null) return saved;
   const row = await meta.db

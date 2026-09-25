@@ -20,11 +20,12 @@
  * ones not yet sent.
  */
 import type { Outbox, OutboxProducer, SettingSource } from '@adminium/manifest';
-import { addOnSettingsRepo, type MetaDb } from '@adminium/meta';
+import type { MetaDb } from '@adminium/meta';
 import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import { slotInstant } from '../crud/capacity-guard.js';
+import { addOnSetting } from '../crud/write-stores.js';
 import type { ResolvedColumn } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
@@ -43,7 +44,8 @@ export type SettingReader = (source: SettingSource) => Promise<unknown>;
 
 /**
  * A setting as stored: the app's own settings row (its first row), or an
- * add-on's settings in the meta store. A list kept as JSON text (a SQLite
+ * add-on's settings in the meta store — the saved value, else the default the
+ * add-on declares (the write path's own reader, `crud/write-stores.ts`). A list kept as JSON text (a SQLite
  * `json` column, a text column) is read as the list.
  */
 export function settingReader(meta: MetaDb, db: Kysely<SourceDatabase>): SettingReader {
@@ -53,7 +55,9 @@ export function settingReader(meta: MetaDb, db: Kysely<SourceDatabase>): Setting
     let found = memo.get(key);
     if (found === undefined) {
       found = (async () => {
-        if ('addOn' in source) return parsed((await addOnSettingsRepo(meta).valuesFor(source.addOn))[source.setting]);
+        // The saved value, else the add-on's declared default: a ladder nobody
+        // has saved yet is the one the add-on ships, not "no days".
+        if ('addOn' in source) return parsed(await addOnSetting(meta, source.addOn, source.setting));
         const row = (await db.selectFrom(source.table as never).select(source.column as never).limit(1).executeTakeFirst()) as Row | undefined;
         return parsed(row?.[source.column]);
       })();

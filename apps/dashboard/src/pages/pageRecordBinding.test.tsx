@@ -158,12 +158,27 @@ interface Fixture {
   projectActions?: unknown[];
   /** `POST /api/v1/project/actions/:id`. */
   actionReply?: () => Response;
+  /** `GET /api/v1/connections/conn_1/schema` — the tables' states; absent answers 404. */
+  schemaReply?: () => Response;
+  /** `DELETE` of the customer record. */
+  deleteReply?: () => Response;
+  /** `GET` of order 21. */
+  orderReply?: () => Response;
 }
 
 function stubFetch(fixture: Fixture = {}) {
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
+    if (url.startsWith('/api/v1/connections/conn_1/schema') && fixture.schemaReply !== undefined) {
+      return Promise.resolve(fixture.schemaReply());
+    }
+    if (url.startsWith('/api/v1/data/conn_1/public.customers/1') && method === 'DELETE' && fixture.deleteReply !== undefined) {
+      return Promise.resolve(fixture.deleteReply());
+    }
+    if (url.startsWith('/api/v1/data/conn_1/public.orders/21') && method === 'GET' && fixture.orderReply !== undefined) {
+      return Promise.resolve(fixture.orderReply());
+    }
     if (url.startsWith('/api/v1/bootstrap')) {
       const bootstrap = fixture.bootstrap?.() ?? makeBootstrap();
       // The table→slug map's inputs: each page names its source table.
@@ -927,5 +942,99 @@ describe('a choice column reads in the person’s language', () => {
     await renderAt('/p/customers', { pageReply: () => jsonResponse(200, { data: recordEnvelope() }) });
     await screen.findByText('Northwind');
     expect(screen.getByText('active')).toBeDefined();
+  });
+});
+
+/*
+ * A DOCUMENT'S STATES on the record page: a locked row's fields read-only, no
+ * Delete where the server would refuse one, a child row read-only while its
+ * parent's state closes it — and a refused delete said in words. The server's
+ * 409 stays the authority; these are the same facts drawn before the click.
+ */
+describe('a document’s states on the record page', () => {
+  const states = (over: Record<string, unknown> = {}) => ({
+    column: 'status',
+    initial: 'draft',
+    moves: {},
+    lock: { when: ['active'], except: ['phone'] },
+    ...over,
+  });
+  const schema = (customers: Record<string, unknown>, orders: Record<string, unknown> = {}) => () =>
+    jsonResponse(200, {
+      model: {
+        tables: [
+          { id: 'public.customers', name: 'customers', columns: [{ name: 'id' }, { name: 'name' }, { name: 'status' }, { name: 'phone' }], ...customers },
+          { id: 'public.orders', name: 'orders', columns: [{ name: 'id' }, { name: 'customer_id' }, { name: 'total' }], ...orders },
+        ],
+      },
+    });
+  const tiedOrders = { stateParents: [{ table: 'public.customers', key: 'id', via: 'customer_id', column: 'status', lockedIn: ['active'], lock: true }] };
+
+  it('draws a locked row read-only, says since when, hides Delete and closes its children', async () => {
+    const user = userEvent.setup();
+    await renderAt('/p/customers/r/1', { schemaReply: schema({ states: states() }, tiedOrders) });
+    expect(await screen.findByText('Locked once active')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+    // The related tab offers no new line under a locked parent.
+    await screen.findByText('$120');
+    expect(screen.queryByRole('button', { name: 'New row' })).toBeNull();
+    // Edit still opens — the state and the exceptions stay open, the rest is read-only.
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog');
+    // A read-only field is drawn as its value, not an input; the exception stays an input.
+    expect(within(dialog).queryByRole('textbox', { name: /Name/ })).toBeNull();
+    expect(within(dialog).getByRole('textbox', { name: /Phone/ })).toBeDefined();
+  });
+
+  it('offers everything on a row its states leave open', async () => {
+    await renderAt('/p/customers/r/1', { schemaReply: schema({ states: states({ lock: { when: ['closed'] } }) }) });
+    expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('Northwind');
+    expect(await screen.findByRole('button', { name: 'Delete' })).toBeDefined();
+    expect(screen.queryByText(/Locked once/)).toBeNull();
+  });
+
+  it('hides Delete on a numbered row', async () => {
+    await renderAt('/p/customers/r/1', {
+      schemaReply: schema({
+        states: states({ lock: { when: ['closed'] }, noDelete: { when: 'numbered' } }),
+        columns: [{ name: 'id', sequence: { gapless: true } }, { name: 'name' }, { name: 'status' }, { name: 'phone' }],
+      }),
+    });
+    expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('Northwind');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull());
+  });
+
+  it('draws a child read-only while its parent’s state closes it', async () => {
+    const ordersWithDetail = () => {
+      const base = ordersEnvelope();
+      return jsonResponse(200, { data: { ...base, config: { ...base.config, keyField: 'id', detail: { template: 'page-record', tabs: [] } } } });
+    };
+    await renderAt('/p/orders/r/21', {
+      ordersReply: ordersWithDetail,
+      orderReply: () => jsonResponse(200, { data: ORDERS[0] }),
+      schemaReply: schema({ states: states() }, tiedOrders),
+    });
+    expect(await screen.findByRole('heading', { level: 2 })).toBeDefined();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+  });
+
+  it('says a refused delete in words', async () => {
+    const user = userEvent.setup();
+    await renderAt('/p/customers/r/1', {
+      schemaReply: schema({ states: states({ lock: { when: ['closed'] } }) }),
+      deleteReply: () =>
+        jsonResponse(409, { error: { code: 'DELETE_REFUSED', message: 'This customers row cannot be deleted.', requestId: 'req_t' } }),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    const confirmInput = (await waitFor(() => {
+      const input = document.querySelector('[data-part="confirm-input"]');
+      expect(input).not.toBeNull();
+      return input;
+    })) as HTMLInputElement;
+    const confirmDialog = confirmInput.closest('[role="dialog"]') as HTMLElement;
+    await user.type(confirmInput, 'Northwind');
+    await user.click(within(confirmDialog).getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText('This record cannot be deleted. Void it instead.')).toBeDefined();
   });
 });

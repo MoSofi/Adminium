@@ -1991,5 +1991,9 @@ export default {
       "male": "Mand",
       "other": "Andet"
     }
+  },
+  "record": {
+    "lockedHint": "Låst, når den er {state}",
+    "deleteRefused": "Denne post kan ikke slettes. Annullér den i stedet."
   }
 } as const;

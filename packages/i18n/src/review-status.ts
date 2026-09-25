@@ -46,13 +46,13 @@ export interface LocaleReview extends ReviewCoverage {
 
 /** GENERATED — see the module docblock. `en_US` is the source and never tracked. */
 export const REVIEW_STATUS: Record<TrackedLocaleId, LocaleReview> = {
-  de_DE: { tracked: 7079, reviewed: 0, mt: 7016, outdated: 63, shipReady: false },
-  fr_FR: { tracked: 7079, reviewed: 0, mt: 7016, outdated: 63, shipReady: false },
-  cs_CZ: { tracked: 7079, reviewed: 0, mt: 7016, outdated: 63, shipReady: false },
-  da_DK: { tracked: 7079, reviewed: 0, mt: 7016, outdated: 63, shipReady: false },
-  zh_CN: { tracked: 7079, reviewed: 0, mt: 7016, outdated: 63, shipReady: false },
-  zh_TW: { tracked: 7079, reviewed: 0, mt: 7016, outdated: 63, shipReady: false },
-  ar_EG: { tracked: 7079, reviewed: 0, mt: 7016, outdated: 63, shipReady: false },
+  de_DE: { tracked: 7083, reviewed: 0, mt: 7020, outdated: 63, shipReady: false },
+  fr_FR: { tracked: 7083, reviewed: 0, mt: 7020, outdated: 63, shipReady: false },
+  cs_CZ: { tracked: 7083, reviewed: 0, mt: 7020, outdated: 63, shipReady: false },
+  da_DK: { tracked: 7083, reviewed: 0, mt: 7020, outdated: 63, shipReady: false },
+  zh_CN: { tracked: 7083, reviewed: 0, mt: 7020, outdated: 63, shipReady: false },
+  zh_TW: { tracked: 7083, reviewed: 0, mt: 7020, outdated: 63, shipReady: false },
+  ar_EG: { tracked: 7083, reviewed: 0, mt: 7020, outdated: 63, shipReady: false },
 };
 
 /**

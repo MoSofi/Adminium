@@ -1980,6 +1980,10 @@ export default {
         "confirmHelp": "一旦更改，此规则就归你：应用或附加组件的任何更新都不会恢复它。",
         "keep": "保留",
         "switchOff": "关闭"
+      },
+      "bounds": {
+        "notAfter": "不晚于今天",
+        "notBefore": "不早于 {column}"
       }
     },
     "saveFailed": "保存失败：{message}",

@@ -1991,5 +1991,9 @@ export default {
       "male": "Male",
       "other": "Other"
     }
+  },
+  "record": {
+    "lockedHint": "Locked once {state}",
+    "deleteRefused": "This record cannot be deleted. Void it instead."
   }
 } as const;

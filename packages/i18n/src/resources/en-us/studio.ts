@@ -1980,6 +1980,10 @@ export default {
         "confirmHelp": "Once you change it, the rule is yours: no update of the app or the add-on puts it back.",
         "keep": "Keep it",
         "switchOff": "Switch it off"
+      },
+      "bounds": {
+        "notAfter": "Never later than today",
+        "notBefore": "Never before {column}"
       }
     },
     "saveFailed": "Save failed: {message}",

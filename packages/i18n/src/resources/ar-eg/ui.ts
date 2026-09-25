@@ -1991,5 +1991,9 @@ export default {
       "male": "ذكر",
       "other": "آخر"
     }
+  },
+  "record": {
+    "lockedHint": "مقفل بمجرد أن يصبح {state}",
+    "deleteRefused": "لا يمكن حذف هذا السجل. ألغِه بدلًا من ذلك."
   }
 } as const;

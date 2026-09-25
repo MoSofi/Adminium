@@ -1980,6 +1980,10 @@ export default {
         "confirmHelp": "بمجرد تغييرها تصبح القاعدة لك: لن يعيدها أي تحديث للتطبيق أو للإضافة.",
         "keep": "الإبقاء عليها",
         "switchOff": "إيقافها"
+      },
+      "bounds": {
+        "notAfter": "ليس بعد اليوم أبدًا",
+        "notBefore": "ليس قبل {column} أبدًا"
       }
     },
     "saveFailed": "فشل الحفظ: {message}",

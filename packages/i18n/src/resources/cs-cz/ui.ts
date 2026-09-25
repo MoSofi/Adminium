@@ -1991,5 +1991,9 @@ export default {
       "male": "Muž",
       "other": "Jiné"
     }
+  },
+  "record": {
+    "lockedHint": "Zamčeno, jakmile je {state}",
+    "deleteRefused": "Tento záznam nelze smazat. Místo toho ho stornujte."
   }
 } as const;

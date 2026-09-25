@@ -200,6 +200,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
   const formatKey = overrideKey({ op: 'column.format', ...target, value: {} });
   const scaleKey = overrideKey({ op: 'column.scale', ...target, value: { scale: 2 } });
   const normalizeKey = overrideKey({ op: 'column.normalize', ...target, value: { normalize: 'trim' } });
+  const boundsKey = overrideKey({ op: 'column.bounds', ...target, value: {} });
   const venueLocal = buffer.get(venueLocalKey)?.item.op === 'column.venueLocal';
   // The buffer's baseline is every stored row, so no entry is no rule — and
   // one dropped in this session is gone until it is saved or reverted.
@@ -216,6 +217,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
   const format = decidedOf<{ from: string; prefix?: string; prefixSetting?: Record<string, string>; pad?: number }>(formatKey, 'column.format');
   const scale = decidedOf<{ scale: number | 'currency' }>(scaleKey, 'column.scale');
   const normalize = decidedOf<{ normalize: 'trim' | 'email' }>(normalizeKey, 'column.normalize');
+  const bounds = decidedOf<{ notAfter?: 'today'; notBefore?: { column: string; via?: string } }>(boundsKey, 'column.bounds');
   // A document's states, shown on the column they move.
   const statesKey = overrideKey({ op: 'table.states', tableName: table.id, value: {} });
   const statesEntry = buffer.get(statesKey);
@@ -753,6 +755,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
         format !== undefined ||
         scale !== undefined ||
         normalize !== undefined ||
+        bounds !== undefined ||
         states !== undefined ? (
           <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3" data-testid="rules-decided">
             <div className="flex flex-col">
@@ -877,6 +880,21 @@ export function ColumnInspector({ model, table, column, buffer, fieldError, shap
                     text: t('studio:remap.rules.decided.code', 'A random code like {example}', {
                       example: `${code.prefix ?? ''}${'X'.repeat(code.length)}`,
                     }),
+                  },
+              bounds === undefined
+                ? null
+                : {
+                    key: boundsKey,
+                    text: [
+                      bounds.notAfter === 'today' ? t('studio:remap.rules.bounds.notAfter', 'Never later than today') : null,
+                      bounds.notBefore === undefined
+                        ? null
+                        : t('studio:remap.rules.bounds.notBefore', 'Never before {column}', {
+                            column: bounds.notBefore.via === undefined ? bounds.notBefore.column : `${bounds.notBefore.via} → ${bounds.notBefore.column}`,
+                          }),
+                    ]
+                      .filter((part) => part !== null)
+                      .join('; '),
                   },
               states === undefined
                 ? null

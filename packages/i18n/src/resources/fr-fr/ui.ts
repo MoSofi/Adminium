@@ -1991,5 +1991,9 @@ export default {
       "male": "Homme",
       "other": "Autre"
     }
+  },
+  "record": {
+    "lockedHint": "Verrouillé une fois {state}",
+    "deleteRefused": "Cet enregistrement ne peut pas être supprimé. Annulez-le plutôt."
   }
 } as const;

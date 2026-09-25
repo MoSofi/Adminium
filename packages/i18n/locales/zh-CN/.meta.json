@@ -20267,6 +20267,14 @@
     "srcHash": "39a7a6e9fa13",
     "status": "mt"
   },
+  "studio.remap.rules.bounds.notAfter": {
+    "status": "mt",
+    "srcHash": "7b2ddb0fecaa"
+  },
+  "studio.remap.rules.bounds.notBefore": {
+    "status": "mt",
+    "srcHash": "7a34a4b811c0"
+  },
   "studio.remap.rules.decided.code": {
     "status": "mt",
     "srcHash": "4c6ed71a0d85"
@@ -23174,6 +23182,14 @@
   "ui.pagination.rowsPerPage": {
     "srcHash": "af2f9c1b510e",
     "status": "mt"
+  },
+  "ui.record.deleteRefused": {
+    "status": "mt",
+    "srcHash": "84bcc4b2479f"
+  },
+  "ui.record.lockedHint": {
+    "status": "mt",
+    "srcHash": "3236c7daf265"
   },
   "ui.state.empty": {
     "srcHash": "e892255d168b",

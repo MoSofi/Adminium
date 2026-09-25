@@ -1980,6 +1980,10 @@ export default {
         "confirmHelp": "Sobald Sie sie ändern, gehört die Regel Ihnen: Kein Update der App oder des Add-ons stellt sie wieder her.",
         "keep": "Beibehalten",
         "switchOff": "Ausschalten"
+      },
+      "bounds": {
+        "notAfter": "Nie später als heute",
+        "notBefore": "Nie vor {column}"
       }
     },
     "saveFailed": "Speichern fehlgeschlagen: {message}",

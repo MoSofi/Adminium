@@ -1970,6 +1970,10 @@
         "confirmHelp": "一旦變更，此規則就屬於你：應用程式或附加元件的任何更新都不會還原它。",
         "keep": "保留",
         "switchOff": "關閉"
+      },
+      "bounds": {
+        "notAfter": "不晚於今天",
+        "notBefore": "不早於 {column}"
       }
     },
     "saveFailed": "儲存失敗：{message}",

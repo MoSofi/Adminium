@@ -23,9 +23,9 @@
  * - breadcrumb/back + document title, delete → back to the list with the
  *   undo toast at app level, and the deleted-record 404 state in-outlet.
  */
-import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseCrudAttachmentsConfig, parseCrudDetailConfig } from '@adminium/engine/config';
 // The DEEP path, not `@adminium/engine/config`: that barrel is entry-resident
 // (its blocks are read on first paint) and a re-export through it would pull
@@ -44,7 +44,7 @@ import {
 } from '@adminium/widgets';
 import { streamChannel } from '@adminium/widgets/binding';
 
-import { api } from '../app/api.js';
+import { api, ApiError } from '../app/api.js';
 import { bootstrapQuery, findPageBySlug, flattenNav, slugForTable } from '../app/bootstrap.js';
 import { hrefForPage } from '../app/links.js';
 import { createCrudApi } from '../api/crud.js';
@@ -78,6 +78,7 @@ import {
   withFkDisplay,
   withLookups,
 } from './columnSpecs.js';
+import { childWritable, deleteRefused, lockedFields, lockedIn, stateFactsQuery, stateOf, type TableStateFacts } from './recordLocks.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageRecordBinding({
@@ -207,7 +208,8 @@ export function PageRecordBinding({
             // the child page would refuse.
             canCreate:
               result.canCreate !== false &&
-              (result.page.config as { readOnly?: unknown }).readOnly !== true,
+              (result.page.config as { readOnly?: unknown }).readOnly !== true &&
+              childOpen(table),
           };
         } catch {
           // A page we cannot read degrades the tab to derived columns — the
@@ -220,7 +222,16 @@ export function PageRecordBinding({
       // create posts to the child table with the caller's session.
       api: (table: string) => listApiFor(table),
     };
-  }, [bootstrap, connectionId, queryClient]);
+    // Read through a ref: the tab resolves once, the record's state can move.
+    function childOpen(table: string): boolean {
+      const { facts, row } = lockRef.current;
+      const self = facts?.get(sourceTable ?? '') ?? null;
+      const child = facts?.get(table);
+      if (self === null || child === undefined || row === null) return true;
+      const tie = child.stateParents.find((parent) => parent.table === self.id);
+      return tie === undefined || childWritable(tie, stateOf(self, row));
+    }
+  }, [bootstrap, connectionId, queryClient, sourceTable]);
 
   /**
    * Per-record activity over the WS-A entity filter. Same UX gate as the
@@ -460,9 +471,71 @@ export function PageRecordBinding({
     sourceTable ?? crud?.table,
     useCallback(() => setActionRuns((n) => n + 1), []),
   );
+  /*
+   * A DOCUMENT'S STATES, drawn before the click: a locked row's fields
+   * read-only, no Delete where the server would refuse one, a child row
+   * read-only while its parent's state closes it. The server's 409 stays the
+   * authority — a refused delete is said in words when it comes.
+   */
+  const [row, setRow] = useState<Readonly<Record<string, unknown>> | null>(null);
+  useEffect(() => {
+    setRow(null);
+  }, [recordId]);
+  const stateFacts = useQuery({ ...stateFactsQuery(connectionId ?? ''), enabled: connectionId !== null });
+  const facts: TableStateFacts | null = stateFacts.data?.get(sourceTable ?? crud?.table ?? '') ?? null;
+  const lockRef = useRef<{ facts: ReadonlyMap<string, TableStateFacts> | undefined; row: Readonly<Record<string, unknown>> | null }>({ facts: undefined, row: null });
+  lockRef.current = { facts: stateFacts.data, row };
+  // This row's parents, read for their state: a line of a sent invoice takes no change.
+  const parentStates = useQueries({
+    queries: (facts?.stateParents ?? []).map((parent) => {
+      const key = row?.[parent.via];
+      // By its snapshot id, which the data API always answers to.
+      const table = parent.table;
+      return {
+        queryKey: ['record-locks', 'parent', connectionId, table, String(key)],
+        enabled: connectionId !== null && key !== null && key !== undefined,
+        queryFn: async () => {
+          const found = await createCrudApi(connectionId ?? '', table).get(String(key));
+          const value = found.data[parent.column];
+          return value === null || value === undefined ? null : String(value);
+        },
+      };
+    }),
+  });
+  const parentClosed = (facts?.stateParents ?? []).some((parent, index) => {
+    const state = parentStates[index]?.data;
+    return state !== undefined && !childWritable(parent, state);
+  });
+  const locked = facts === null || row === null ? null : lockedFields(facts, row);
+  const lockedState = facts === null || row === null ? null : lockedIn(facts, row);
+  const pageColumns = useMemo(
+    () => (locked === null ? shownColumns : shownColumns.map((column) => (locked(column.name) ? { ...column, readOnly: true } : column))),
+    [locked, shownColumns],
+  );
+  const noDelete = facts !== null && row !== null && deleteRefused(facts, row);
+
   const recordApi = useMemo(() => {
     const base = boundCrud ?? crud;
-    return actionRuns === 0 || base === null ? base : (Object.create(base) as typeof base);
+    if (base === null) return base;
+    // The row as it loads (its state decides the rest), and a refused delete in words.
+    const api = Object.create(base) as typeof base;
+    api.get = async (...args: Parameters<typeof base.get>) => {
+      const result = await base.get(...args);
+      setRow(result.data);
+      return result;
+    };
+    api.remove = async (...args: Parameters<typeof base.remove>) => {
+      try {
+        return await base.remove(...args);
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 'DELETE_REFUSED') {
+          throw new Error(t('ui:record.deleteRefused', 'This record cannot be deleted. Void it instead.'));
+        }
+        throw error;
+      }
+    };
+    return api;
+    // `actionRuns` makes a new object after a project action, so the record is read again.
   }, [boundCrud, crud, actionRuns]);
   const recordActions = useMemo(() => {
     if (recordId === undefined || projectActions.record.length === 0) return documentActions;
@@ -511,16 +584,16 @@ export function PageRecordBinding({
       />
       <PageRecord
         api={recordApi ?? crud}
-        columns={shownColumns}
+        columns={pageColumns}
         source={{ connectionId, table: sourceTable ?? crud.table }}
         recordId={recordId}
         keyField={keyField}
-        readOnly={readOnly}
+        readOnly={readOnly || parentClosed}
         // Grants-driven affordances: the envelope's `readOnly` blanks
         // everything structurally; these blank per-action on the caller's
         // table grants. Undefined keeps the widget's permissive default.
         canUpdate={canUpdate}
-        canDelete={canDelete}
+        canDelete={noDelete ? false : canDelete}
         // PII fields reveal only for callers the server sent clear values to.
         canUnmask={canUnmask}
         // The link relations the table can write through: chips on the record,
@@ -548,7 +621,16 @@ export function PageRecordBinding({
          * table — an affordance that cannot do anything is worse than no
          * affordance, because it invites a click and then explains itself.
          */
-        {...(documentPanels.length === 0 ? {} : { panels: documentPanels })}
+        {...(lockedState === null && documentPanels.length === 0
+          ? {}
+          : {
+              panels: [
+                ...(lockedState === null
+                  ? []
+                  : [{ id: 'record-locked', title: t('ui:record.lockedHint', 'Locked once {state}', { state: lockedState }), content: null }]),
+                ...documentPanels,
+              ],
+            })}
         {...(recordActions.length === 0 ? {} : { actions: recordActions })}
         onEvent={adapters.onEvent}
         onDeleted={handleDeleted}

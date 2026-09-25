@@ -1980,6 +1980,10 @@ export default {
         "confirmHelp": "Dès que vous la modifiez, la règle vous appartient : aucune mise à jour de l’app ou de l’add-on ne la rétablit.",
         "keep": "La garder",
         "switchOff": "La désactiver"
+      },
+      "bounds": {
+        "notAfter": "Jamais après aujourd’hui",
+        "notBefore": "Jamais avant {column}"
       }
     },
     "saveFailed": "Échec de l’enregistrement : {message}",

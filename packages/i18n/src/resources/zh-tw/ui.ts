@@ -1991,5 +1991,9 @@ export default {
       "male": "男",
       "other": "其他"
     }
+  },
+  "record": {
+    "lockedHint": "一旦為 {state} 即鎖定",
+    "deleteRefused": "無法刪除此記錄。請改為作廢。"
   }
 } as const;

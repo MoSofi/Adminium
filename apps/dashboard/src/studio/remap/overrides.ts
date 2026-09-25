@@ -118,6 +118,13 @@ export type RemapOverride =
   | { op: 'column.scale'; tableName: string; columnName: string; value: { scale: number | 'currency' } }
   /** A text value stored trimmed, or trimmed and in lower case. */
   | { op: 'column.normalize'; tableName: string; columnName: string; value: { normalize: 'trim' | 'email' } }
+  /** A date kept within bounds: never after today, never before another date (its own, or a linked row's). */
+  | {
+      op: 'column.bounds';
+      tableName: string;
+      columnName: string;
+      value: { notAfter?: 'today'; notBefore?: { column: string; via?: string } };
+    }
   | {
       op: 'column.rollup';
       tableName: string;
@@ -177,6 +184,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.formula',
   'column.scale',
   'column.normalize',
+  'column.bounds',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

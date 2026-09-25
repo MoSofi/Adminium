@@ -1991,5 +1991,9 @@ export default {
       "male": "Männlich",
       "other": "Divers"
     }
+  },
+  "record": {
+    "lockedHint": "Gesperrt, sobald {state}",
+    "deleteRefused": "Dieser Datensatz kann nicht gelöscht werden. Stornieren Sie ihn stattdessen."
   }
 } as const;

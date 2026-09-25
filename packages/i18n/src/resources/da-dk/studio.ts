@@ -1980,6 +1980,10 @@ export default {
         "confirmHelp": "Når du ændrer den, er reglen din: ingen opdatering af appen eller tilføjelsen sætter den tilbage.",
         "keep": "Behold den",
         "switchOff": "Slå den fra"
+      },
+      "bounds": {
+        "notAfter": "Aldrig senere end i dag",
+        "notBefore": "Aldrig før {column}"
       }
     },
     "saveFailed": "Lagring mislykkedes: {message}",

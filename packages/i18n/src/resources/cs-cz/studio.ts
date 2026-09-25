@@ -1980,6 +1980,10 @@ export default {
         "confirmHelp": "Jakmile ho změníte, pravidlo je vaše: žádná aktualizace aplikace ani doplňku ho nevrátí.",
         "keep": "Ponechat",
         "switchOff": "Vypnout"
+      },
+      "bounds": {
+        "notAfter": "Nikdy později než dnes",
+        "notBefore": "Nikdy před {column}"
       }
     },
     "saveFailed": "Uložení se nezdařilo: {message}",
