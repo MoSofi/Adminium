@@ -36,6 +36,10 @@
  * added at. A set with `"@skip": true` leaves the row out (a payment for a
  * visit that has not happened yet).
  *
+ * `"@onlyIfEmpty": true` is for a table that holds one row, the app's own
+ * settings: the row is added only when the table has none, and otherwise its
+ * `@label` names the row already there — the operator's own settings stay.
+ *
  * Pure: a format and its checks, no I/O. The server resolves the directives.
  */
 import { z } from 'zod';
@@ -94,7 +98,7 @@ export const byClockSchema = z
 export type ByClock = z.infer<typeof byClockSchema>;
 
 /** The keys of a row that are directives about the row, not columns. */
-export const ROW_DIRECTIVES: ReadonlySet<string> = new Set(['@label', '@byClock']);
+export const ROW_DIRECTIVES: ReadonlySet<string> = new Set(['@label', '@byClock', '@onlyIfEmpty']);
 
 export const sampleBundleSchema = z
   .object({
@@ -194,6 +198,10 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
           } else if (seen.has(value)) {
             issues.push({ path: `${at}.@label`, message: `The label "${value}" is used twice.` });
           }
+          continue;
+        }
+        if (column === '@onlyIfEmpty') {
+          if (value !== true) issues.push({ path: `${at}.@onlyIfEmpty`, message: '"@onlyIfEmpty" is true, or absent.' });
           continue;
         }
         if (column === '@byClock') {

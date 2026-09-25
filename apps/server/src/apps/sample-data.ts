@@ -38,6 +38,7 @@ import {
   byClockSchema,
   isoDurationMs,
   prefixFor,
+  ROW_DIRECTIVES,
   sampleBundleIssues,
   sampleBundleSchema,
   sampleDirective,
@@ -297,7 +298,7 @@ export function resolveSampleRow(row: Readonly<Record<string, unknown>>, ctx: Re
 function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Row {
   const out: Row = {};
   for (const [column, value] of Object.entries(row)) {
-    if (column === '@label' || column === '@byClock') continue;
+    if (ROW_DIRECTIVES.has(column)) continue;
     const found = sampleDirective(value);
     if (found === null) {
       out[column] = value;
@@ -640,6 +641,21 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 continue;
               }
               const values = spellInstants(resolvedRow, resolved, handle.dialect);
+              /*
+               * A row only for an empty table — the app's one settings row — is
+               * left out when the operator already has one; the rows after it
+               * point at theirs, which the sample never takes as its own.
+               */
+              if (row['@onlyIfEmpty'] === true) {
+                const existing = (await db.selectFrom(resolved.id as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
+                if (existing !== undefined) {
+                  const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, existing[column]]));
+                  const named = row['@label'];
+                  if (typeof named === 'string') labels.set(named, resolved.primaryKey.length === 1 ? existing[resolved.primaryKey[0]!] : key);
+                  done += 1;
+                  continue;
+                }
+              }
               if (resolved.primaryKey.some((column) => values[column] !== undefined)) explicitKeys.add(resolved.name);
               /*
                * A code or a running number the table already holds — a row

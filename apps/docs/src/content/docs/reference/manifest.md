@@ -1107,7 +1107,17 @@ statuses match the time it is added at:
 Each set holds columns of the table, and may use directives. A set with `"@skip": true` leaves the
 row out altogether: a payment for a visit that has not happened yet. A later `@ref` to a row left
 out fails. Every table that keeps totals is settled once all the sample rows are in, so a sample
-visit's balance is right from the start.
+visit's balance is right from the start. The totals so far are also settled before each table's
+rows go in, so a row that copies a total from an earlier table (a stage invoice copying its quote's
+subtotal) reads it worked out.
+
+A row may also carry `"@onlyIfEmpty": true`, for a table that holds one row, such as the app's own
+settings. The row is added only when the table is empty. When the operator already has a row there,
+the sample leaves theirs alone, and a `@ref` to the sample row's label points at theirs.
+
+A number Adminium gives without gaps (`sequence.gapless`) must be `null` in every sample row, so
+the sample never takes numbers from the real series. Give sample rows their own spelling in the
+formatted column instead, such as `INV-S2041`.
 
 Adminium keeps track of the rows it added in a ledger table named `<key>_sample_data` (with `-` in
 the key written as `_`), so avoid a table of that name.

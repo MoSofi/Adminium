@@ -201,6 +201,11 @@ describe('days, working days and the clock', () => {
     }
   });
 
+  it('knows @onlyIfEmpty as a row directive, true or absent', () => {
+    expect(sampleBundleIssues(bundleWith({ '@onlyIfEmpty': true }), manifest())).toEqual([]);
+    expect(sampleBundleIssues(bundleWith({ '@onlyIfEmpty': 'yes' }), manifest()).map((i) => i.message)).toEqual(['"@onlyIfEmpty" is true, or absent.']);
+  });
+
   it('knows @byClock as a row directive: its time, its sets, their columns', () => {
     const clock = { at: 'added_at', before: { name: 'Old tea' }, around: { '@skip': true } };
     expect(sampleBundleIssues(bundleWith({ added_at: { '@day': 0, '@time': '09:00' }, '@byClock': clock }), manifest())).toEqual([]);
