@@ -72,7 +72,15 @@ const PARTS = {
         rules: { format: { from: 'number_seq', prefixSetting: { addOn: ADD_ON, setting: 'prefix_invoice' }, pad: 4 } },
       },
       { ref: 'status', type: 'enum', enum: ['draft', 'sent', 'void'], default: 'draft' },
-      { ref: 'due_on', type: 'date', nullable: true },
+      { ref: 'terms', type: 'enum', enum: ['net7', 'net14', 'net30'], default: 'net14' },
+      // The day it is sent, on the venue's calendar; due the terms' days after it.
+      { ref: 'issued_on', type: 'date', nullable: true, rules: { stamp: { set: 'today', on: { column: 'status', values: ['sent'] } } } },
+      {
+        ref: 'due_on',
+        type: 'date',
+        nullable: true,
+        rules: { stamp: { set: { addDays: { date: 'issued_on', days: 'terms', map: { net7: 7, net14: 14, net30: 30 } } }, on: { column: 'status', values: ['sent'] } } },
+      },
       { ref: 'tax_rate', type: 'decimal', scale: 3, nullable: true },
       money('subtotal', { rollup: { from: 'lines', via: 'document_id', sum: 'amount' } }),
       money('tax', { formula: { round: { div: [{ mul: [{ coalesce: ['subtotal', 0] }, { coalesce: ['tax_rate', 0] }] }, 100] } } }),
@@ -313,6 +321,32 @@ function appManifest(version = VERSION, extra: Record<string, unknown> = {}, mor
   };
 }
 
+/** v1.1.0's proposals: accepting one seals a fingerprint of the signed name and its lines. */
+const PROPOSALS: Record<string, unknown>[] = [
+  {
+    ref: 'proposals',
+    columns: [
+      id,
+      { ref: 'client_id', type: 'fk', references: 'clients' },
+      { ref: 'status', type: 'enum', enum: ['draft', 'sent', 'accepted'], default: 'draft' },
+      { ref: 'signed_name', type: 'text', maxLength: 120, nullable: true },
+      {
+        ref: 'fingerprint',
+        type: 'text',
+        maxLength: 64,
+        nullable: true,
+        rules: {
+          stamp: {
+            set: { hashOf: { columns: ['signed_name'], children: [{ table: 'proposal_lines', via: 'proposal_id', columns: ['position', 'amount'], orderBy: 'position' }] } },
+            on: [{ column: 'status', values: ['accepted'] }, { column: 'signed_name', filled: true }],
+          },
+        },
+      },
+    ],
+  },
+  { ref: 'proposal_lines', columns: [id, { ref: 'proposal_id', type: 'fk', references: 'proposals' }, { ref: 'position', type: 'int', default: 0 }, money('amount')] },
+];
+
 /** A small business's history: last month's invoices, a payment, and the studio's own settings row only if it has none. */
 const SAMPLE = {
   format: 'adminium.sample/1',
@@ -369,6 +403,19 @@ const dayOfMonth = (value: unknown): number => {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? Number(text.slice(8, 10)) : new Date(text).getDate();
 };
 const cents = (value: unknown): number => Math.round(num(value) * 100);
+/** A `date` column's day as `YYYY-MM-DD`, however the data API spells it (see `dayOfMonth`). */
+const dayOf = (value: unknown): string => {
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const at = new Date(text);
+  return `${String(at.getFullYear())}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
+};
+/** Today on the venue's calendar, or so many days after it. */
+const venueDay = (offset = 0): string => {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + offset)).toISOString().slice(0, 10);
+};
 
 async function sink(request: APIRequestContext): Promise<SinkMessage[]> {
   return (await (await request.get(`${SINK_URL}/messages`)).json()) as SinkMessage[];
@@ -540,6 +587,9 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     // ── sending it makes its three reminders, held; a person approves one; the worker sends it ─
     const sent = await edit('invoices', first['id'], { status: 'sent' });
     expect(sent['sent_at']).not.toBeNull();
+    // Issued today where the venue is, and due the terms' fourteen days after — over the due date typed as a draft.
+    expect(dayOf(sent['issued_on'])).toBe(venueDay(0));
+    expect(dayOf(sent['due_on'])).toBe(venueDay(14));
     const held = async () => (await rows('messages')).filter((m) => m['invoice_id'] === first['id']).sort((a, b) => String(a['kind']).localeCompare(String(b['kind'])));
     await expect.poll(async () => (await held()).map((m) => [m['kind'], m['status'], m['to_address']]), { timeout: 30_000 }).toEqual(
       RUNGS.map((kind) => [kind, 'held', CLEO.email]),
@@ -595,7 +645,7 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
    */
 
   // Lane I (install checks tables against the installed shape).
-  test.fixme('refuses an app whose table differs from the installed shape, naming the column', async ({ page }) => {
+  test('refuses an app whose table differs from the installed shape, naming the column', async ({ page }) => {
     await page.goto('/');
     connectionId = await seededConnectionId(page);
     const staff = page.request;
@@ -607,14 +657,16 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     const { plan, install } = await uploadAndInstall(staff, connectionId, drifted);
     expect(plan.installable).toBe(false);
     const refused = await install();
-    expect(refused.status()).toBe(422);
+    const said = await refused.text();
+    // Refused before anything is written: the app and the add-on disagree, and no choice on the plan reconciles them.
+    expect(refused.status(), said).toBe(409);
     expect(await codeOf(refused)).toBe('SHAPE_MISMATCH');
-    expect(await refused.text()).toContain('invoices.number');
+    expect(said).toContain('invoices.number');
     expect(await tablesOf(staff, connectionId)).toEqual({});
   });
 
   // Lane W (states and locks, for every writer).
-  test.fixme('keeps an invoice to its states: no empty send, no edit once sent, no delete once numbered', async ({ page }) => {
+  test('keeps an invoice to its states: no empty send, no edit once sent, no delete once numbered', async ({ page }) => {
     await page.goto('/');
     connectionId = await seededConnectionId(page);
     const staff = page.request;
@@ -641,13 +693,49 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     // Back to draft is not a move; a numbered invoice is never deleted.
     const back = await staff.patch(`${data('invoices')}/${String(invoice['id'])}`, { data: { values: { status: 'draft' } } });
     expect(await codeOf(back)).toBe('STATE_MOVE_REFUSED');
-    const gone = await staff.delete(`${data('invoices')}/${String(invoice['id'])}`);
+    // Confirmed past the question about its lines: still never deleted.
+    const gone = await staff.delete(`${data('invoices')}/${String(invoice['id'])}?confirm=true`);
     expect(gone.status()).toBe(409);
     expect(await codeOf(gone)).toBe('DELETE_REFUSED');
     // Paid in part, it cannot be voided.
     await add('payments', { document_id: invoice['id'], amount: 10, paid_on: '2026-01-12' });
     const voided = await staff.patch(`${data('invoices')}/${String(invoice['id'])}`, { data: { values: { status: 'void' } } });
     expect(await codeOf(voided)).toBe('STATE_MOVE_REFUSED');
+  });
+
+  // The fingerprint half of the client's acceptance, as staff accept on the client's word.
+  test('seals a proposal accepted at the desk with a fingerprint of what was accepted', async ({ page }) => {
+    await page.goto('/');
+    connectionId = await seededConnectionId(page);
+    const staff = page.request;
+    const { install } = await uploadAndInstall(staff, connectionId, appManifest('1.1.0', {}, PROPOSALS));
+    await ok(await install());
+    const tables = await tablesOf(staff, connectionId);
+    const data = (table: string) => `/api/v1/data/${connectionId}/${encodeURIComponent(tables[table]!)}`;
+    const add = async (table: string, values: Row) => (await ok<{ data: Row }>(await staff.post(data(table), { data: { values } }), 201)).data;
+    const accept = async (rowId: unknown, values: Row) =>
+      (await ok<{ data: Row }>(await staff.patch(`${data('proposals')}/${String(rowId)}`, { data: { values } }))).data;
+    const client = await add('clients', CLEO);
+    /** A sent proposal with two lines of these amounts. */
+    const proposal = async (amounts: number[]) => {
+      const made = await add('proposals', { client_id: client['id'], status: 'sent' });
+      for (const [i, amount] of amounts.entries()) await add('proposal_lines', { proposal_id: made['id'], position: i + 1, amount });
+      return made;
+    };
+    const one = await proposal([1200, 800]);
+    const sealed = await accept(one['id'], { status: 'accepted', signed_name: 'Cleo Park' });
+    expect(sealed['fingerprint']).toMatch(/^[0-9a-f]{64}$/);
+    // The same words and lines: the same fingerprint. A cent more on a line, or another name: another.
+    const same = await accept((await proposal([1200, 800]))['id'], { status: 'accepted', signed_name: 'Cleo Park' });
+    expect(same['fingerprint']).toBe(sealed['fingerprint']);
+    const dearer = await accept((await proposal([1200, 800.01]))['id'], { status: 'accepted', signed_name: 'Cleo Park' });
+    expect(dearer['fingerprint']).not.toBe(sealed['fingerprint']);
+    // Accepted first and signed later: sealed when the name is first filled, over the name.
+    const later = await proposal([1200, 800]);
+    const unsigned = await accept(later['id'], { status: 'accepted' });
+    const signed = await accept(later['id'], { signed_name: 'Cleo Park' });
+    expect(signed['fingerprint']).toBe(sealed['fingerprint']);
+    expect(unsigned['fingerprint']).not.toBe(signed['fingerprint']);
   });
 
   // Lanes P (sign-in by emailed link, children only as visible as their parent) and W (a fingerprint stamped on acceptance).
@@ -657,30 +745,7 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     const staff = page.request;
     await ok(await staff.put('/api/v1/public-api', { data: { enabled: true } }));
     // v1.1.0 adds the client's side: an emailed-link identity, their invoices, the lines only through them, and proposals they accept.
-    const proposals = [
-      {
-        ref: 'proposals',
-        columns: [
-          id,
-          { ref: 'client_id', type: 'fk', references: 'clients' },
-          { ref: 'status', type: 'enum', enum: ['draft', 'sent', 'accepted'], default: 'draft' },
-          { ref: 'signed_name', type: 'text', maxLength: 120, nullable: true },
-          {
-            ref: 'fingerprint',
-            type: 'text',
-            maxLength: 64,
-            nullable: true,
-            rules: {
-              stamp: {
-                set: { hashOf: { columns: ['signed_name'], children: [{ table: 'proposal_lines', via: 'proposal_id', columns: ['position', 'amount'], orderBy: 'position' }] } },
-                on: [{ column: 'status', values: ['accepted'] }, { column: 'signed_name', filled: true }],
-              },
-            },
-          },
-        ],
-      },
-      { ref: 'proposal_lines', columns: [id, { ref: 'proposal_id', type: 'fk', references: 'proposals' }, { ref: 'position', type: 'int', default: 0 }, money('amount')] },
-    ];
+    const proposals = PROPOSALS;
     const portal = appManifest(
       '1.1.0',
       {
