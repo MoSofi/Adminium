@@ -10,8 +10,9 @@
  *    providers to make that a real choice rather than a lookup;
  *  - the register row exists BEFORE the bytes, so a crash leaves a record of
  *    an attempt rather than silence;
- *  - the number is claimed AFTER a successful render, so a failure burns none
- *    (D11);
+ *  - the number is PRINTED — drawn with the number the register would hand
+ *    out next — and claimed only AFTER a successful draw, so a failure burns
+ *    none (D11); a race for it draws again with the number actually claimed;
  *  - a disabled profile, a vanished provider and a deleted row are SKIPS with
  *    reasons, not failures — none of the three is anybody's error.
  */
@@ -207,6 +208,51 @@ describe('the render pipeline', () => {
     // The bytes are a real file row, attached to the source record.
     const file = await filesRepo(meta).findById(outcome.document.htmlFileId!);
     expect(file?.kind).toBe('document');
+  });
+
+  it('PRINTS the number: the provider draws the number the register then claims', async () => {
+    const provider = makeProvider('invoices');
+    const profile = await makeProfile();
+    const outcome = await renderDocument(deps({ runtime: () => runtimeWith(provider) }), { profileId: profile.id, pk: { id: 4118 } });
+    if (outcome.status !== 'rendered') throw new Error(outcome.status);
+    expect((provider.calls[0] as { subject: { number: string } }).subject.number).toBe('INV-1');
+    expect(outcome.document.number).toBe('INV-1');
+    // The register's frozen subject says what the document says.
+    expect((outcome.document.subject as { number: string }).number).toBe('INV-1');
+  });
+
+  it('draws AGAIN with the claimed number when another render took the one it drew', async () => {
+    const provider = makeProvider('invoices');
+    const profile = await makeProfile();
+    let raced = false;
+    const racing = {
+      ...provider.module,
+      render: async (input: unknown) => {
+        // Another render claims the peeked number while this one is drawing.
+        if (!raced) {
+          raced = true;
+          await sequences.claim(profile.id, T0);
+        }
+        return await provider.module.render(input);
+      },
+    };
+    const outcome = await renderDocument(deps({ runtime: () => runtimeWith({ key: 'invoices', module: racing }) }), { profileId: profile.id, pk: { id: 4118 } });
+    if (outcome.status !== 'rendered') throw new Error(outcome.status);
+    expect(provider.calls.map((call) => (call as { subject: { number: string } }).subject.number)).toEqual(['INV-1', 'INV-2']);
+    expect(outcome.document.number).toBe('INV-2');
+  });
+
+  it('prints the ROW\'s own number and never touches the register for it', async () => {
+    const provider = makeProvider('invoices');
+    const profile = await makeProfile();
+    const outcome = await renderDocument(
+      deps({ runtime: () => runtimeWith(provider), readSource: () => Promise.resolve({ ...SOURCE, ownNumber: 'INV-2041' }) }),
+      { profileId: profile.id, pk: { id: 4118 } },
+    );
+    if (outcome.status !== 'rendered') throw new Error(outcome.status);
+    expect((provider.calls[0] as { subject: { number: string } }).subject.number).toBe('INV-2041');
+    expect(outcome.document.number).toBe('INV-2041');
+    expect(await sequences.peek(profile.id)).toBe(1);
   });
 
   it('FREEZES the subject into the row, coerced to the wire law', async () => {

@@ -25,17 +25,28 @@
  * for every amount a currency can express.
  */
 
+import { currencyScale } from '@adminium/manifest';
 import type { RecordRef } from '@adminium/meta';
 
-/** One slot's source, as the profile records it. */
+/**
+ * One slot's source, as the profile records it.
+ *
+ * `{ref, column}` reads a column of the row a foreign key points at: `ref` is
+ * the foreign key column of the document's own row. `table` is that row's
+ * table when the profile was made knowing it (an app's install does), so the
+ * grants a reader needs can be named without the schema at hand; the read
+ * itself always follows the foreign key the snapshot declares.
+ */
 export type SlotMapping =
   | { column: string }
-  | { ref: string; column: string }
+  | { ref: string; column: string; table?: string | undefined }
   | {
       collection: {
         table: string;
         fkColumn: string;
         columns: Record<string, string>;
+        /** The column the lines are listed by (a line's position); then by key. */
+        orderBy?: string | undefined;
       };
     };
 
@@ -67,22 +78,24 @@ const DECIMAL = /^([+−-]?)(\d*)(?:[.,](\d*))?$/;
 /**
  * Decimal text → integer minor units, by string arithmetic.
  *
- * A third decimal rounds half away from zero, which is the same rule
- * `money.ts` uses in all three trees that compute a total — so a value the
- * pipeline coerces and a value a person typed reach the provider identically.
+ * `scale` is how many decimals the currency's minor unit has: 2 for euros,
+ * 0 for yen, 3 for Kuwaiti dinars. A decimal past it rounds half away from
+ * zero, which is the same rule `money.ts` uses in all three trees that
+ * compute a total — so a value the pipeline coerces and a value a person
+ * typed reach the provider identically.
  */
-export function toMinorUnits(value: unknown): number | null {
+export function toMinorUnits(value: unknown, scale = 2): number | null {
   if (value === null || value === undefined || value === '') return null;
   const text = typeof value === 'string' ? value : String(value);
   const match = DECIMAL.exec(text.trim().replace(/[\s_']/g, ''));
   if (match === null) return null;
   const [, sign, whole = '', frac = ''] = match;
   if (whole === '' && frac === '') return null;
-  const digits = (frac + '000').slice(0, 3);
+  const digits = (frac + '0'.repeat(scale + 1)).slice(0, scale + 1);
   const minor =
-    Number(whole === '' ? '0' : whole) * 100 +
-    Number(digits.slice(0, 2)) +
-    (Number(digits[2]) >= 5 ? 1 : 0);
+    Number(whole === '' ? '0' : whole) * 10 ** scale +
+    (scale === 0 ? 0 : Number(digits.slice(0, scale))) +
+    (Number(digits[scale]) >= 5 ? 1 : 0);
   if (!Number.isFinite(minor)) return null;
   return sign === '-' || sign === '−' ? -minor : minor;
 }
@@ -120,11 +133,17 @@ function toDate(value: unknown): string {
   return /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : text;
 }
 
-/** Coerce one value to what the wire law says a slot of this type carries. */
-export function coerceSlot(type: SlotType, value: unknown): unknown {
+/**
+ * Coerce one value to what the wire law says a slot of this type carries.
+ *
+ * `moneyScale` is the decimals of the DOCUMENT's currency: money is integer
+ * minor units of that currency, so ¥1,200 is 1200 and 1.250 KWD is 1250 —
+ * never a hundredth of either.
+ */
+export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2): unknown {
   switch (type) {
     case 'money':
-      return toMinorUnits(value);
+      return toMinorUnits(value, moneyScale);
     case 'percent':
       return toBasisPoints(value);
     case 'number': {
@@ -211,6 +230,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
   const fields: Record<string, unknown> = {};
   const collections: Record<string, readonly Readonly<Record<string, unknown>>[]> = {};
   const missing: string[] = [];
+  const scale = currencyScale(input.currency);
 
   for (const slot of input.slots) {
     const mapped = input.mapping[slot.id];
@@ -232,7 +252,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
             const out: Record<string, unknown> = {};
             for (const column of slot.columns ?? []) {
               if (row[column.id] === undefined) continue;
-              out[column.id] = coerceSlot(column.type, row[column.id]);
+              out[column.id] = coerceSlot(column.type, row[column.id], scale);
             }
             return out;
           });
@@ -252,7 +272,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
         for (const column of columns) {
           const source = mapped.collection.columns[column.id];
           if (source === undefined) continue;
-          out[column.id] = coerceSlot(column.type, row[source]);
+          out[column.id] = coerceSlot(column.type, row[source], scale);
         }
         return out;
       });
@@ -274,7 +294,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
        */
       const typed = input.values?.[slot.id];
       if (typed !== undefined && typed !== null && typed !== '') {
-        const value = coerceSlot(slot.type, typed);
+        const value = coerceSlot(slot.type, typed, scale);
         if (value !== null && value !== '') {
           fields[slot.id] = value;
           continue;
@@ -291,7 +311,7 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
           ? input.lookups?.[`${mapped.ref}.${mapped.column}`]
           : undefined;
 
-    const value = coerceSlot(slot.type, raw);
+    const value = coerceSlot(slot.type, raw, scale);
     if (slot.required && (value === null || value === '' )) {
       missing.push(slot.id);
       continue;
@@ -319,6 +339,8 @@ export function mappedTables(mapping: ProfileMapping, base: string): readonly st
   const tables = new Set<string>([base]);
   for (const mapped of Object.values(mapping)) {
     if ('collection' in mapped) tables.add(mapped.collection.table);
+    // A column of a linked row is read from that row's table too.
+    else if ('ref' in mapped && mapped.table !== undefined) tables.add(mapped.table);
   }
   return [...tables];
 }

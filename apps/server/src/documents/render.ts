@@ -31,14 +31,33 @@
  *      BEFORE the bytes, with status `failed`, so a crash between here and
  *      the end leaves a record of an attempt rather than silence.
  *   5. Render. A refusal from the provider is DATA — it lands on the row.
- *   6. Store the bytes.
- *   7. CLAIM THE NUMBER — last, and only now (D11). A failed render burns no
- *      number, which is why the sequence is not touched before step 5.
+ *   6. Claim the number, then store the bytes.
  *
- * Step 7 after step 6 is deliberate too: bytes with no number can be given a
- * number by a retry, and a number with no bytes is a hole in a register
- * somebody has to explain.
+ * ─── THE NUMBER IS PRINTED, AND A FAILED DRAW STILL BURNS NONE ─────────────
+ *
+ * A document has to show its own number, so the number must exist before
+ * the provider draws. But a render that fails must not burn one either. So
+ * the draw uses the number the register WOULD hand out next (a peek), and the
+ * claim comes after a successful draw: when the claim returns that same
+ * number — the ordinary case — the bytes are already right; when another
+ * render took it in between, the document is drawn once more with the number
+ * actually claimed. A failure before the claim costs nothing; only a failure
+ * of that second draw leaves a gap, which the register allows.
+ *
+ * A row that carries its OWN number (an invoice numbered when it was made)
+ * prints that, and the register's counter is never touched: two numbers for
+ * one invoice is the one thing a numbered document may not have.
+ *
+ * ─── AN UNCHANGED ROW IS DRAWN ONCE ────────────────────────────────────────
+ *
+ * Every render records a reuse key — the profile, the row, and a hash of
+ * everything the document was drawn from. A caller that asks for reuse (the
+ * public surface, where a client presses "download" as often as they like)
+ * gets the stored document back while that key still matches, instead of a
+ * new file and a new register row per click.
  */
+
+import { createHash } from 'node:crypto';
 
 import {
   auditRepo,
@@ -62,6 +81,7 @@ import {
   DOCUMENT_RENDER_VERSION,
   renderingProviderOf,
 } from './provider.js';
+import type { StatementPeriod, StatementRead } from './statement.js';
 import { buildSubject, mappedTables, type ProfileMapping } from './subject.js';
 
 export { DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION };
@@ -85,6 +105,10 @@ export interface RenderDeps {
     profile: DocumentProfile;
     pk: Readonly<Record<string, unknown>>;
     tables: readonly string[];
+    /** A statement's period; the others ignore it. */
+    period?: StatementPeriod | undefined;
+    /** The render's own clock, so a statement's "today" is the render's. */
+    at: number;
   }) => Promise<SourceRead | null>;
   /** The add-on's own non-secret settings. */
   settingsFor: (addOnKey: string) => Promise<Record<string, unknown>>;
@@ -94,9 +118,14 @@ export interface RenderDeps {
    * Takes the add-on key so the ADD-ON'S own letterhead settings win over the
    * workspace's name — they are the ones somebody typed for documents.
    */
-  business: (
-    addOnKey?: string,
-  ) => Promise<{ name: string; lines: readonly string[]; logoDataUrl?: string }>;
+  business: (addOnKey?: string) => Promise<{
+    name: string;
+    lines: readonly string[];
+    logoDataUrl?: string;
+    taxNumber?: string;
+    paymentInstructions?: string;
+    footer?: string;
+  }>;
   now?: () => number;
   /**
    * The connection's own currency and timezone, for a render that does NOT
@@ -121,9 +150,24 @@ export interface SourceRead {
   collections: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
   lookups: Readonly<Record<string, unknown>>;
   entity: RecordRef;
-  /** The connection's own currency and timezone. */
+  /** The row's own currency when it carries one, else the connection's; and the connection's timezone. */
   currency: string;
   timezone: string;
+  /**
+   * Present when the profile numbers documents by the row's own number: the
+   * number (null while the row has none yet). Absent: the register counts.
+   */
+  ownNumber?: string | null | undefined;
+  /** A statement's period, read by its own function. */
+  statement?: StatementRead | undefined;
+}
+
+/** The source could not be read as the document needs it (too many lines, say). */
+export class DocumentReadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DocumentReadError';
+  }
 }
 
 export interface RenderRequest {
@@ -135,14 +179,48 @@ export interface RenderRequest {
   jobId?: string | null;
   /** Overrides the profile's own locale option. */
   locale?: string;
+  /** Answer with the stored document while the row is unchanged. */
+  reuse?: boolean;
+  /** A statement's period (`all` when absent). */
+  period?: StatementPeriod | undefined;
 }
 
 export type RenderOutcome =
-  | { status: 'rendered'; document: DocumentRow }
+  | { status: 'rendered'; document: DocumentRow; reused?: boolean }
   | { status: 'skipped'; reason: string }
   | { status: 'failed'; document: DocumentRow | null; error: string };
 
 const MIME = { html: 'text/html; charset=utf-8', pdf: 'application/pdf' } as const;
+
+/** JSON with sorted keys and dates as ISO text, so one row hashes one way on every driver. */
+function canonical(value: unknown): string {
+  if (value === undefined) return 'null';
+  if (value instanceof Date) return JSON.stringify(value.toISOString());
+  if (typeof value === 'bigint') return JSON.stringify(value.toString());
+  if (value instanceof Uint8Array) return JSON.stringify(Buffer.from(value).toString('base64'));
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * What makes a render reusable: the profile as it is now (an edited mapping
+ * is a different document), the row and everything read around it, and the
+ * letterhead and settings it would be drawn with. The profile id leads, so a
+ * key is never shared between two profiles however their data compares.
+ */
+export function reuseKeyOf(profile: DocumentProfile, parts: Record<string, unknown>): string {
+  const hash = createHash('sha256')
+    .update(canonical({ profile: profile.id, edited: profile.updatedAt, ...parts }))
+    .digest('hex');
+  return `${profile.id}:${hash}`;
+}
 
 
 /**
@@ -247,7 +325,14 @@ export async function renderDocument(
 
   // 3 — the source row, with the requester's grants.
   const tables = mappedTables(profile.mapping as ProfileMapping, profile.table);
-  const source = await deps.readSource({ profile, pk: request.pk, tables });
+  let source: SourceRead | null;
+  try {
+    source = await deps.readSource({ profile, pk: request.pk, tables, period: request.period, at });
+  } catch (cause) {
+    if (!(cause instanceof DocumentReadError) && !(cause instanceof Error && cause.name === 'StatementTooLargeError')) throw cause;
+    // Too much to draw honestly: said, never drawn with lines missing.
+    return { status: 'failed', document: null, error: cause.message };
+  }
   if (source === null) {
     // The row was deleted between the trigger and the job — the undo window's
     // ordinary outcome, and one the register records rather than swallows.
@@ -272,30 +357,62 @@ export async function renderDocument(
     paper?: string;
     formats?: string[];
     literals?: Record<string, unknown>;
+    prefix?: string;
   };
   const locale = request.locale ?? (options.locale === 'viewer' ? 'en-US' : options.locale) ?? 'en-US';
   const outline = provider.describe(profile.kind);
-  const built = buildSubject({
-    slots: outline.slots,
-    mapping: profile.mapping as ProfileMapping,
-    row: source.row,
-    collections: source.collections,
-    lookups: source.lookups,
-    // The values somebody typed into the mapping rather than pointing at a
-    // column. Absent on every profile made before the editor offered them,
-    // which `buildSubject` reads as "nothing typed".
-    ...(options.literals === undefined ? {} : { values: options.literals }),
-    now: { iso: new Date(at).toISOString(), timezone: source.timezone },
-    locale,
-    currency: source.currency,
-    business: await deps.business(profile.addOnKey),
-    entity: source.entity,
-    number: null,
-  });
-
   const kind = provider.kinds().find((entry) => entry.id === profile.kind);
   const formats = (options.formats ?? kind?.formats ?? ['html']) as ('html' | 'pdf')[];
   const paper = (options.paper ?? kind?.paper[0] ?? 'a4') as string;
+  const settings = await deps.settingsFor(profile.addOnKey);
+  const business = await deps.business(profile.addOnKey);
+
+  const reuseKey = reuseKeyOf(profile, {
+    pk: source.entity.pk,
+    row: source.row,
+    collections: source.collections,
+    lookups: source.lookups,
+    statement: source.statement ?? null,
+    currency: source.currency,
+    settings,
+    business,
+    locale,
+    formats,
+    paper,
+  });
+  if (request.reuse === true) {
+    const stored = await documents.findReusable(profile.connectionId, reuseKey);
+    if (stored !== null) return { status: 'rendered', document: stored, reused: true };
+  }
+
+  // The number the document prints: the row's own, or the register's next.
+  const sequences = documentSequencesRepo(deps.meta);
+  const prefix = options.prefix ?? '';
+  const ownNumber = source.ownNumber;
+  let number: string | null =
+    ownNumber !== undefined ? ownNumber : `${prefix}${String(await sequences.peek(profile.id))}`;
+
+  const subjectFor = (printed: string | null) =>
+    buildSubject({
+      slots: outline.slots,
+      mapping: profile.mapping as ProfileMapping,
+      row: source.row,
+      collections: source.collections,
+      lookups: source.lookups,
+      // The values somebody typed into the mapping rather than pointing at a
+      // column, and a statement's figures: both fill only slots nothing maps.
+      ...(options.literals === undefined && source.statement === undefined
+        ? {}
+        : { values: { ...(options.literals ?? {}), ...(source.statement?.fields ?? {}) } }),
+      ...(source.statement === undefined ? {} : { collectionValues: source.statement.collections }),
+      now: { iso: new Date(at).toISOString(), timezone: source.timezone },
+      locale,
+      currency: source.currency,
+      business,
+      entity: source.entity,
+      number: printed,
+    });
+  let built = subjectFor(number);
 
   const document = await documents.create(
     {
@@ -310,6 +427,7 @@ export async function renderDocument(
       requestedBy: request.requestedBy ?? null,
       actorKind: request.actorKind ?? 'system',
       jobId: request.jobId ?? null,
+      reuseKey,
     },
     at,
   );
@@ -323,42 +441,45 @@ export async function renderDocument(
   }
 
   // 5 — render. A refusal is DATA and lands on the row.
-  let produced: unknown;
-  try {
-    produced = await provider.render({
-      kind: profile.kind,
-      subject: built.subject,
-      formats,
-      paper,
-      settings: await deps.settingsFor(profile.addOnKey),
-    });
-  } catch (cause) {
-    const error = cause instanceof Error ? cause.message : String(cause);
-    return { status: 'failed', document: await documents.markFailed(document.id, error), error };
+  const draw = async (subject: typeof built.subject): Promise<{ produced: RenderedDocument[] } | { error: string }> => {
+    let produced: unknown;
+    try {
+      produced = await provider.render({ kind: profile.kind, subject, formats, paper, settings });
+    } catch (cause) {
+      return { error: cause instanceof Error ? cause.message : String(cause) };
+    }
+    if (!Array.isArray(produced)) {
+      const refusal = produced as { code?: string; detail?: string; dropped?: string[] };
+      return {
+        error: [refusal.code ?? 'INVALID_SUBJECT', refusal.detail, (refusal.dropped ?? []).join(' ')]
+          .filter((part) => part !== undefined && part !== '')
+          .join(': '),
+      };
+    }
+    return { produced: produced as RenderedDocument[] };
+  };
+
+  let drawn = await draw(built.subject);
+  if ('error' in drawn) {
+    return { status: 'failed', document: await documents.markFailed(document.id, drawn.error), error: drawn.error };
   }
 
-  if (!Array.isArray(produced)) {
-    const refusal = produced as { code?: string; detail?: string; dropped?: string[] };
-    const error = [refusal.code ?? 'INVALID_SUBJECT', refusal.detail, (refusal.dropped ?? []).join(' ')]
-      .filter((part) => part !== undefined && part !== '')
-      .join(': ');
-    return { status: 'failed', document: await documents.markFailed(document.id, error), error };
+  // 6 — the number, claimed only now that the draw succeeded (D11).
+  if (ownNumber === undefined) {
+    const claimed = `${prefix}${String(await sequences.claim(profile.id, at))}`;
+    if (claimed !== number) {
+      // Another render took the peeked number: draw again with the one claimed.
+      number = claimed;
+      built = subjectFor(number);
+      drawn = await draw(built.subject);
+      if ('error' in drawn) {
+        const error = `${drawn.error} (number ${number} was claimed and is not reused)`;
+        return { status: 'failed', document: await documents.markFailed(document.id, error), error };
+      }
+    }
   }
 
-  // 6 — the bytes.
-  const stored = await storeRendered(
-    deps,
-    produced as RenderedDocument[],
-    source.entity,
-    request.requestedBy ?? null,
-    at,
-  );
-
-  // 7 — the number, LAST (D11).
-  const sequences = documentSequencesRepo(deps.meta);
-  const prefix = (profile.options as { prefix?: string }).prefix ?? '';
-  const claimed = await sequences.claim(profile.id, at);
-  const number = `${prefix}${String(claimed)}`;
+  const stored = await storeRendered(deps, drawn.produced, source.entity, request.requestedBy ?? null, at);
 
   const done = await documents.markRendered(
     document.id,
@@ -367,6 +488,7 @@ export async function renderDocument(
       fileId: stored.pdf ?? null,
       htmlFileId: stored.html ?? null,
       format: stored.pdf !== undefined ? 'pdf' : 'html',
+      subject: built.subject as unknown as Record<string, unknown>,
     },
     at,
   );
@@ -427,7 +549,7 @@ export interface IntentRequest {
   /** The connection whose currency and number sequence this borrows (D11). */
   connectionId: string | null;
   /** Stamped LAST, so a failure leaves no claimable row. */
-  claim?: { column: string; value: string } | undefined;
+  claim?: { column: string; value: string; keyId?: string | undefined } | undefined;
   requestedBy?: string | null;
   actorKind?: string;
 }

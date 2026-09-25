@@ -63,7 +63,7 @@ export interface DocumentRow {
   jobId: string | null;
   requestedBy: string | null;
   actorKind: string;
-  claim: { column: string; value: string } | null;
+  claim: DocumentClaim | null;
   renderedAt: number | null;
   voidedAt: number | null;
   voidReason: string | null;
@@ -72,6 +72,24 @@ export interface DocumentRow {
   reuseKey: string | null;
   /** True when this read withheld `subject`, `entity` and `claim`. */
   redacted: boolean;
+}
+
+/**
+ * Who may read an intent document through the public surface: the claim's
+ * column and value, and (since documents were scoped to their key) the
+ * publishable key that asked for it. A claim written before then has no
+ * `keyId`, and the route decides what that means.
+ */
+export interface DocumentClaim {
+  column: string;
+  value: string;
+  keyId?: string | undefined;
+}
+
+/** Where a page of a claim's documents ends: the last row's time and id. */
+export interface DocumentCursor {
+  createdAt: number;
+  id: string;
 }
 
 /** The 0016 clamp, applied on the WRITE side and again on the query side. */
@@ -118,7 +136,7 @@ function hydrate(row: Selectable<AdminiumDocumentsTable>, redacted: boolean): Do
     jobId: row.jobId,
     requestedBy: row.requestedBy,
     actorKind: row.actorKind,
-    claim: redacted ? null : readJsonOrNull<{ column: string; value: string }>(row.claim),
+    claim: redacted ? null : readJsonOrNull<DocumentClaim>(row.claim),
     renderedAt: row.renderedAt,
     voidedAt: row.voidedAt,
     voidReason: row.voidReason,
@@ -140,7 +158,7 @@ export interface CreateDocumentInput {
   requestedBy?: string | null | undefined;
   actorKind?: string | undefined;
   jobId?: string | null | undefined;
-  claim?: { column: string; value: string } | null | undefined;
+  claim?: DocumentClaim | null | undefined;
   delivery?: string | null | undefined;
   reuseKey?: string | null | undefined;
 }
@@ -205,7 +223,7 @@ export function documentsRepo(meta: MetaDb) {
      */
     const wanted = filter.claim;
     return hydrated.filter((_, at) => {
-      const claim = readJsonOrNull<{ column: string; value: string }>(rows[at]!.claim);
+      const claim = readJsonOrNull<DocumentClaim>(rows[at]!.claim);
       return claim !== null && claim.column === wanted.column && claim.value === wanted.value;
     });
   }
@@ -282,6 +300,12 @@ export function documentsRepo(meta: MetaDb) {
       htmlFileId: string | null;
       format: string;
       delivery?: string | null;
+      /**
+       * The subject as it was drawn, when it differs from the one frozen at
+       * create: the number is printed, so the subject that carries it is the
+       * true record of what the document says.
+       */
+      subject?: Record<string, unknown> | undefined;
     },
     at = Date.now(),
   ): Promise<DocumentRow | null> {
@@ -295,6 +319,7 @@ export function documentsRepo(meta: MetaDb) {
       renderedAt: at,
     };
     if (input.delivery !== undefined) values.delivery = input.delivery;
+    if (input.subject !== undefined) values.subject = packJson(input.subject);
     const rows = await db
       .updateTable('adminium_documents')
       .set(values as never)
@@ -345,10 +370,7 @@ export function documentsRepo(meta: MetaDb) {
    * invoice could not be made" from a sentence the operator says into a status
    * a stranger discovers.
    */
-  async function stampClaim(
-    id: string,
-    claim: { column: string; value: string },
-  ): Promise<DocumentRow | null> {
+  async function stampClaim(id: string, claim: DocumentClaim): Promise<DocumentRow | null> {
     const rows = await db
       .updateTable('adminium_documents')
       .set({ claim: packJson(claim) } as never)
@@ -368,6 +390,108 @@ export function documentsRepo(meta: MetaDb) {
       .where('id', '=', id)
       .executeTakeFirst();
     return affected(rows.numUpdatedRows) === 0 ? null : await findById(id);
+  }
+
+  /**
+   * One page of the documents drawn for rows a claim reaches — the public
+   * surface's list, asked as a query rather than filtered after one.
+   *
+   * The caller has already worked out WHICH rows (`entityIds`, the keys of
+   * the rows its claim reads on `entityTable`) and which profiles are the
+   * key's own; this narrows the register to exactly those, rendered ones
+   * only, newest first, and keeps the LATEST document per profile and row: a
+   * row drawn again after it changed is one document to its reader, not two
+   * with the same number. Keyset-paged on (createdAt, id), so a page never
+   * shifts under a reader while new documents are drawn.
+   */
+  async function listForRows(filter: {
+    connectionId: string;
+    entityTable: string;
+    entityIds: readonly string[];
+    profileIds: readonly string[];
+    kinds?: readonly string[] | undefined;
+    after?: DocumentCursor | undefined;
+    limit: number;
+  }): Promise<DocumentRow[]> {
+    if (filter.entityIds.length === 0 || filter.profileIds.length === 0) return [];
+    let query = db
+      .selectFrom('adminium_documents as d')
+      .selectAll('d')
+      .where('d.connectionId', '=', filter.connectionId)
+      .where('d.entityTable', '=', clampKey(filter.entityTable))
+      .where('d.entityId', 'in', filter.entityIds.map(clampKey))
+      .where('d.profileId', 'in', [...filter.profileIds])
+      .where('d.status', '=', 'rendered')
+      .where(({ not, exists, selectFrom, eb }) =>
+        not(
+          exists(
+            selectFrom('adminium_documents as n')
+              .select('n.id')
+              .whereRef('n.connectionId', '=', 'd.connectionId')
+              .whereRef('n.profileId', '=', 'd.profileId')
+              .whereRef('n.entityTable', '=', 'd.entityTable')
+              .whereRef('n.entityId', '=', 'd.entityId')
+              .where('n.status', '=', 'rendered')
+              .where((inner) =>
+                inner.or([
+                  inner('n.createdAt', '>', eb.ref('d.createdAt')),
+                  inner.and([inner('n.createdAt', '=', eb.ref('d.createdAt')), inner('n.id', '>', eb.ref('d.id'))]),
+                ]),
+              ),
+          ),
+        ),
+      );
+    if (filter.kinds !== undefined) {
+      if (filter.kinds.length === 0) return [];
+      query = query.where('d.kind', 'in', [...filter.kinds]);
+    }
+    const after = filter.after;
+    if (after !== undefined) {
+      query = query.where((eb) =>
+        eb.or([
+          eb('d.createdAt', '<', after.createdAt),
+          eb.and([eb('d.createdAt', '=', after.createdAt), eb('d.id', '<', after.id)]),
+        ]),
+      );
+    }
+    const rows = await query
+      .orderBy('d.createdAt', 'desc')
+      .orderBy('d.id', 'desc')
+      .limit(Math.min(Math.max(filter.limit, 1), 500))
+      .execute();
+    return rows.map((row) => hydrate(row as Selectable<AdminiumDocumentsTable>, false));
+  }
+
+  /**
+   * A batch of the request-shaped documents on one connection that carry a
+   * claim, newest first after `after` — for the public list to match against
+   * a session. The claim is JSON, so the match itself is the caller's; this
+   * bounds WHICH rows it reads (one connection, intents only, rendered).
+   */
+  async function listClaimedIntents(filter: {
+    connectionId: string;
+    after?: DocumentCursor | undefined;
+    limit: number;
+  }): Promise<DocumentRow[]> {
+    let query = db
+      .selectFrom('adminium_documents')
+      .selectAll()
+      .where('connectionId', '=', filter.connectionId)
+      .where('profileId', 'is', null)
+      .where('claim', 'is not', null)
+      .where('status', '=', 'rendered');
+    const after = filter.after;
+    if (after !== undefined) {
+      query = query.where((eb) =>
+        eb.or([eb('createdAt', '<', after.createdAt), eb.and([eb('createdAt', '=', after.createdAt), eb('id', '<', after.id)])]),
+      );
+    }
+    const rows = await query
+      .orderBy('createdAt', 'desc')
+      .orderBy('id', 'desc')
+      .limit(Math.min(Math.max(filter.limit, 1), 500))
+      .execute();
+    return rows.map((row) => hydrate(row, false));
   }
 
   /** Every rendered document for one source row — the record page's panel. */
@@ -397,6 +521,8 @@ export function documentsRepo(meta: MetaDb) {
     findById,
     list,
     listForEntity,
+    listForRows,
+    listClaimedIntents,
     listExpiredBefore,
     create,
     findReusable,

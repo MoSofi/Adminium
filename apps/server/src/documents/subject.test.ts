@@ -294,3 +294,45 @@ describe('which tables a profile reads', () => {
     ).toEqual(['public.orders']);
   });
 });
+
+describe('money in the minor units of the document\'s own currency', () => {
+  it('uses the currency\'s decimals, not a fixed two', () => {
+    expect(toMinorUnits('1200', 0)).toBe(1200);
+    expect(toMinorUnits('1200.0000', 0)).toBe(1200);
+    expect(toMinorUnits('1199.5', 0)).toBe(1200);
+    expect(toMinorUnits('1.250', 3)).toBe(1250);
+    expect(toMinorUnits('1.2505', 3)).toBe(1251);
+    expect(toMinorUnits('-0.0015', 3)).toBe(-2);
+  });
+
+  it('coerces every money slot of a subject at its currency\'s scale', () => {
+    const slots = [
+      { id: 'total', type: 'money' as const, required: true },
+      { id: 'lines', type: 'collection' as const, required: false, columns: [{ id: 'amount', type: 'money' as const }] },
+    ];
+    const build = (currency: string) =>
+      buildSubject({
+        slots,
+        mapping: { total: { column: 'total' }, lines: { collection: { table: 't', fkColumn: 'p', columns: { amount: 'amount' } } } },
+        row: { total: '1.250' },
+        collections: { lines: [{ amount: '0.125' }] },
+        now: { iso: '2026-09-25T00:00:00Z', timezone: 'UTC' },
+        locale: 'en-US',
+        currency,
+        business: { name: 'B', lines: [] },
+        entity: null,
+        number: null,
+      }).subject;
+    expect(build('KWD').fields['total']).toBe(1250);
+    expect(build('KWD').collections['lines']?.[0]?.['amount']).toBe(125);
+    expect(build('JPY').fields['total']).toBe(1);
+    expect(build('EUR').fields['total']).toBe(125);
+  });
+
+  it('names a linked row\'s table among those a document reads, when the profile knows it', () => {
+    expect(mappedTables({ client: { ref: 'client_id', column: 'company', table: 'public.clients' } }, 'public.invoices')).toEqual([
+      'public.invoices',
+      'public.clients',
+    ]);
+  });
+});

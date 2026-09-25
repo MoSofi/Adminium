@@ -96730,6 +96730,11 @@
                         "minLength": 1,
                         "maxLength": 40
                       },
+                      "kind": {
+                        "type": "string",
+                        "maxLength": 40,
+                        "pattern": "^[a-z][a-z0-9-]*$"
+                      },
                       "ref": {
                         "type": "string",
                         "minLength": 1,
@@ -96750,10 +96755,17 @@
                         "type": "string",
                         "minLength": 2,
                         "maxLength": 35
+                      },
+                      "period": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "year",
+                          "12m"
+                        ]
                       }
                     },
                     "required": [
-                      "profileId",
                       "ref",
                       "id"
                     ],
@@ -96812,6 +96824,80 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "number": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "delivery": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "locale": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "number"
+                        },
+                        "hasContent": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "number",
+                        "status",
+                        "delivery",
+                        "format",
+                        "locale",
+                        "createdAt",
+                        "hasContent"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           "201": {
             "description": "Default Response",
             "content": {
@@ -97112,6 +97198,35 @@
             "in": "query",
             "name": "id",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "in": "query",
+            "name": "kind",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
           }
         ],
         "responses": {
@@ -97186,6 +97301,45 @@
                   },
                   "required": [
                     "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }

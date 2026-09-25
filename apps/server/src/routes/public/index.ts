@@ -28,9 +28,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DocumentRow, MetaDb, RecordRef } from '@adminium/meta';
 import {
   CUSTOMER_KEY_PURPOSE,
-  documentProfilesRepo,
   filesRepo,
-  documentsRepo,
   auditRepo,
   publicKeysRepo,
   publicChallengesRepo,
@@ -129,6 +127,15 @@ import { writeStores } from '../../crud/write-stores.js';
 import { audited } from '../../audit/coverage.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
+import {
+  ClaimTooWideError,
+  DOCUMENT_RENDER_LIMITS,
+  DOCUMENT_RENDER_REF,
+  createDocumentAccess,
+  decodeDocumentCursor,
+  publicDocumentRenderRequest,
+  publicDocumentsListQuery,
+} from './documents.js';
 import type { FileStore } from '../../files/store.js';
 import {
   PUBLIC_ERROR_CODES,
@@ -154,8 +161,6 @@ import {
   publicWriteBody,
   publicDocumentParams,
   publicDocumentReply,
-  publicDocumentRenderBody,
-  publicDocumentsQuery,
   publicDocumentsReply,
 } from './schema.js';
 import type { PublicErrorCode } from './schema.js';
@@ -2577,85 +2582,29 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     app.options('/public/documents/:id/content', { schema: { hide: true } }, preflight);
     app.options('/public/documents/:id/email', { schema: { hide: true } }, preflight);
 
-    /** The register row, if this session may see it. Null is the 404. */
-    const visibleDocument = async (
+    /*
+     * Who sees which document, and which profile a render may use, live in
+     * `./documents.ts`: the same connection, the key's own profiles, and a
+     * resource that declares the kind and reaches the row.
+     */
+    const documentAccess = createDocumentAccess({ meta, manager, viewFor });
+    const visibleDocument = documentAccess.visibleDocument;
+
+    /**
+     * A render's own rungs, after the gate. A render is counted apart from
+     * the key's writes: one client asking for statements in a loop spends
+     * their own render allowance and the key's render allowance, never the
+     * write allowance every other client's accept and approval share.
+     */
+    const renderAdmitted = (
+      request: FastifyRequest,
+      reply: FastifyReply,
       ok: { key: ResolvedKey; session: PublicSessionContext | null },
-      id: string,
-    ): Promise<DocumentRow | null> => {
-      const session = ok.session;
-      if (session === null) return null;
-      const row = await documentsRepo(meta).findById(id);
-      if (row === null) return null;
-
-      // Its own claim: the intent this caller asked for.
-      if (
-        row.claim !== null &&
-        row.claim.column === session.grant.column &&
-        String(row.claim.value) === String(session.grant.value)
-      ) {
-        return row;
-      }
-
-      /*
-       * Or a row their claim reaches. The document names a TABLE; the scope
-       * names refs. Finding the ref for that table is what lets the EXISTING
-       * predicate do the deciding — the scope's mandatory narrowing AND the
-       * session's claim, exactly as `GET /public/records/:ref` composes them.
-       * A second, weaker rule about who owns a row, written here, is how the
-       * two would come to disagree.
-       */
-      if (row.entityTable === null || row.entity === null) return null;
-      let resource: CompiledResource | undefined;
-      for (const candidate of ok.key.scope.byRef.values()) {
-        if (candidate.table === row.entityTable) resource = candidate;
-      }
-      if (resource === undefined || !resource.actions.has('read')) return null;
-      const claim = claimPredicateFor(resource, session);
-      if (!claim.reachable) return null;
-
-      const view = await viewFor(ok.key.connectionId);
-      if (view === null) return null;
-      let table;
-      try {
-        table = view.table(resource.table);
-      } catch {
-        return null;
-      }
-      let handle;
-      try {
-        handle = await manager.data(ok.key.connectionId);
-      } catch {
-        return null;
-      }
-
-      /*
-       * The row's own key ANDed into the mandatory predicate rather than into
-       * `where`: `where` is the caller's half and is checked against the
-       * scope's `filterable` set, and a primary key need not be filterable for
-       * the server to ask about it.
-       */
-      const pk = row.entity.pk;
-      const byPk = table.primaryKey.map((column) => ({
-        column,
-        op: 'eq' as const,
-        value: pk[column],
-      }));
-      const result = await runList({
-        db: handle.db,
-        view,
-        table,
-        params: { limit: 1, offset: 0, count: 'none' },
-        canReadPii: false,
-        dialect: handle.dialect,
-        mandatory:
-          combinePredicates(
-            combinePredicates(mandatoryAt(resource.where, table, ok.key.scope.timezone), claim.predicate),
-            byPk.length === 1 ? byPk[0]! : { and: byPk },
-          ) ?? undefined,
-        exposeColumns: [...table.primaryKey],
-        searchColumns: [],
-      });
-      return result.data.length > 0 ? row : null;
+    ): boolean => {
+      const visitor = { keyId: ok.key.keyId, ip: request.ip, sessionId: ok.session?.id, ref: DOCUMENT_RENDER_REF, kind: ok.key.kind };
+      if (!admit(reply, limiter.hitEndpoint(visitor, DOCUMENT_RENDER_LIMITS.visitor))) return false;
+      if (ok.key.kind !== 'browser') return true;
+      return admit(reply, limiter.hitEndpoint({ keyId: ok.key.keyId, ip: request.ip, ref: DOCUMENT_RENDER_REF, kind: 'server' }, DOCUMENT_RENDER_LIMITS.key));
     };
 
     const documentView = (row: DocumentRow) => ({
@@ -2685,8 +2634,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       {
         config: { rateLimitBucket: 'public', audit: audited('rbac') },
         schema: {
-          body: publicDocumentRenderBody,
+          body: publicDocumentRenderRequest,
           response: {
+            200: publicDocumentReply,
             201: publicDocumentReply,
             400: publicErrorReply,
             401: publicErrorReply,
@@ -2697,25 +2647,28 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         },
       },
       async (request, reply) => {
-        const ok = await gate(request, reply, 'public-write');
+        // A read's gate without the key-wide write rung; the render's own rungs follow.
+        const ok = await gate(request, reply, 'public-read', { keyWide: false });
         if (ok === null) return reply;
-        if (!ok.key.scope.documents.create || deps.documents === undefined) {
-          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
-        }
+        if (deps.documents === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        if (!renderAdmitted(request, reply, ok)) return reply;
 
         const body = request.body;
-        if ('profileId' in body) {
+        if ('ref' in body) {
           /*
            * The PERSISTED shape. The claim must reach the row before anything
            * is drawn — a caller who cannot read a row must not be able to make
            * a document out of it, which would be a read through a side door.
+           * And a document is a signed-in person's own: a resource with no
+           * claim draws nothing, whatever it reads.
            */
           const found = await resolveResource(request, reply, ok, body.ref, 'read');
           if (found === null) return reply;
-          const profile = await documentProfilesRepo(meta).findById(body.profileId);
-          if (profile === null || profile.table !== found.resource.table || !profile.enabled) {
+          if (ok.session === null || found.resource.claim === null) {
             return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
           }
+          const profile = await documentAccess.profileForRender(ok.key, found.resource, body);
+          if (profile === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
           const recordId = parseRecordId(found.table, String(body.id));
           const row = await runList({
             db: found.db,
@@ -2743,18 +2696,26 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
            * write they made in the dashboard; a public caller pressing "send me
            * a copy" is asking for the thing itself, and waiting a minute to
            * start would be inexplicable, and an e2e case holds that.
+           *
+           * REUSED while the row is unchanged: the same click twice is one
+           * file and one register row, answered 200 the second time.
            */
           const outcome = await renderDocument(deps.documents, {
             profileId: profile.id,
             pk: recordId,
             actorKind: 'api-key',
+            reuse: true,
+            ...(body.period === undefined ? {} : { period: body.period }),
             ...(body.locale === undefined ? {} : { locale: body.locale }),
           });
           if (outcome.status !== 'rendered') {
             return fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The document could not be drawn.');
           }
-          return reply.code(201).send({ data: documentView(outcome.document) });
+          return reply.code(outcome.reused === true ? 200 : 201).send({ data: documentView(outcome.document) });
         }
+
+        // Drawing from values is an operator's door, off unless their key says so.
+        if (!ok.key.scope.documents.create) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
 
         /*
          * The INLINE shape. Everything the caller sends is a value; everything
@@ -2762,10 +2723,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * the currency, the number — is stamped by `renderIntent`, and the row
          * comes out `pending-review` so nothing is emailed unattended.
          */
+        // The key is part of the claim: another key's session with the same
+        // value never reads this document.
         const claim =
           ok.session === null
             ? undefined
-            : { column: ok.session.grant.column, value: String(ok.session.grant.value) };
+            : { column: ok.session.grant.column, value: String(ok.session.grant.value), keyId: ok.key.keyId };
         const outcome = await renderIntent(deps.documents, {
           kind: body.kind,
           ...(body.locale === undefined ? {} : { locale: body.locale }),
@@ -2787,9 +2750,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       {
         config: { rateLimitBucket: 'public' },
         schema: {
-          querystring: publicDocumentsQuery,
+          querystring: publicDocumentsListQuery,
           response: {
             200: publicDocumentsReply,
+            400: publicErrorReply,
             401: publicErrorReply,
             404: publicErrorReply,
             429: publicErrorReply,
@@ -2804,13 +2768,39 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // No session, no claim, nothing visible. Same answer as absence.
           return reply.send({ data: [] });
         }
-        const rows = await documentsRepo(meta).list({ limit: 50 });
-        const visible = [];
-        for (const row of rows) {
-          const seen = await visibleDocument(ok, row.id);
-          if (seen !== null) visible.push(documentView(seen));
+        const q = request.query;
+        const after = decodeDocumentCursor(q.cursor);
+        if (after === null) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That cursor is not one this list gave out.');
+        /*
+         * One row's documents: its key is read the way the record routes read
+         * it, against the resource's own table. An unknown ref lists nothing.
+         */
+        let only: Record<string, unknown> | undefined;
+        if (q.ref !== undefined && q.id !== undefined) {
+          const resource = ok.key.scope.byRef.get(q.ref);
+          const view = resource === undefined ? null : await viewFor(ok.key.connectionId);
+          if (resource === undefined || view === null) return reply.send({ data: [] });
+          try {
+            only = parseRecordId(view.table(resource.table), String(q.id));
+          } catch {
+            return reply.send({ data: [] });
+          }
         }
-        return reply.send({ data: visible });
+        let page;
+        try {
+          page = await documentAccess.listVisible(ok, {
+            ...(q.ref === undefined ? {} : { ref: q.ref }),
+            ...(only === undefined ? {} : { id: only }),
+            ...(q.kind === undefined ? {} : { kind: q.kind }),
+            limit: q.limit ?? 50,
+            ...(after === undefined ? {} : { after }),
+          });
+        } catch (error) {
+          if (!(error instanceof ClaimTooWideError)) throw error;
+          return fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'These documents cannot be listed here.');
+        }
+        if (page.next !== null) reply.header('X-Next-Cursor', page.next);
+        return reply.send({ data: page.rows.map(documentView) });
       },
     );
 

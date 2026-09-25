@@ -104,6 +104,7 @@ export interface PatchDocumentProfileInput {
   trigger?: DocumentProfileTrigger | null | undefined;
   deliver?: Record<string, unknown> | undefined;
   enabled?: boolean | undefined;
+  orderBy?: string | null | undefined;
 }
 
 function hydrate(row: Selectable<AdminiumDocumentProfilesTable>): DocumentProfile {
@@ -208,6 +209,7 @@ export function documentProfilesRepo(meta: MetaDb) {
     }
     if (input.deliver !== undefined) values.deliver = packJson(input.deliver);
     if (input.enabled !== undefined) values.enabled = writeBool(meta, input.enabled);
+    if (input.orderBy !== undefined) values.orderBy = input.orderBy;
 
     const rows = await db
       .updateTable('adminium_document_profiles')
