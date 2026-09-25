@@ -43,6 +43,7 @@ import { EndpointSaveRefused, type EndpointService } from '../public-api/endpoin
 import { generatePublishableKey, sealPublishableKey } from '../public-api/keys.js';
 import { managedGrantIssues } from '../public-api/managed-key.js';
 import { roleSlugFor } from './manifest-roles.js';
+import { mapTableRefs } from './real-refs.js';
 
 type PublicAccessEntry = NonNullable<Extract<Manifest, { kind: 'app' }>['publicAccess']>[number];
 
@@ -74,6 +75,27 @@ export interface PublicAccessPlan {
   warnings: { code: 'PUBLIC_API_OFF' | 'ORIGIN_SELF_MISSING' | 'NO_TIME_ZONE' | 'NO_EMAIL'; message: string }[];
 }
 
+/**
+ * Every table an entry names inside it — the settings a door waits on, a
+ * confirmation's venue, the identity a person's rows are claimed by, the
+ * parent they are seen with — mapped by the one mapper, with those it could
+ * not find.
+ */
+export function nestedRefs(
+  entry: PublicAccessEntry,
+  idOf: (ref: string) => string | undefined,
+): { value: Pick<PublicAccessEntry, 'requireSetting' | 'confirm' | 'claimedBy' | 'visibleWith'>; missing: string[] } {
+  return mapTableRefs(
+    {
+      ...(entry.requireSetting === undefined ? {} : { requireSetting: entry.requireSetting }),
+      ...(entry.confirm === undefined ? {} : { confirm: entry.confirm }),
+      ...(entry.claimedBy === undefined ? {} : { claimedBy: entry.claimedBy }),
+      ...(entry.visibleWith === undefined ? {} : { visibleWith: entry.visibleWith }),
+    },
+    idOf,
+  );
+}
+
 /** The endpoint an entry becomes, against the real table in `view`. */
 function definitionOf(
   manifest: Extract<Manifest, { kind: 'app' }>,
@@ -88,6 +110,8 @@ function definitionOf(
 ): PublicEndpointDefinition {
   const declared = manifest.requiredSchema?.tables.find((table) => table.ref === entry.table);
   const key = primaryKey[0] ?? 'id';
+  // The tables the entry names inside it, through the one mapper (`real-refs.ts`).
+  const nested = nestedRefs(entry, idOf).value;
   if (entry.kind === 'availability') {
     // Free or full per slot: no column of a row is ever read out.
     return {
@@ -152,7 +176,7 @@ function definitionOf(
     ...(entry.maxOpen === undefined ? {} : { max_open: { ...entry.maxOpen } }),
     ...(entry.requireSetting === undefined
       ? {}
-      : { require_setting: entry.requireSetting.map((setting) => ({ ...setting, table: idOf(setting.table) })) }),
+      : { require_setting: (nested.requireSetting ?? []).map((setting) => ({ ...setting })) }),
     ...(entry.anonymous === undefined
       ? {}
       : {
@@ -170,7 +194,7 @@ function definitionOf(
       : {
           confirm: {
             ...entry.confirm,
-            ...(entry.confirm.venue === undefined ? {} : { venue: { ...entry.confirm.venue, table: idOf(entry.confirm.venue.table) } }),
+            ...(nested.confirm?.venue === undefined ? {} : { venue: { ...nested.confirm.venue } }),
           },
         }),
   } as PublicEndpointDefinition;
@@ -242,11 +266,14 @@ export function planPublicEndpoints(
         ? { ...planned, issues: safety }
         : { ...planned, issues: [`"${real}" is not a table of this connection`, ...safety] };
     }
-    const idOf = (short: string) => view.model.tables.find((t) => t.name === (names[short] ?? short))?.id ?? short;
+    const found = (short: string) => view.model.tables.find((t) => t.name === (names[short] ?? short))?.id;
+    const idOf = (short: string) => found(short) ?? short;
+    // The live-model check every nested table gets: named, but not here, is an issue.
+    const unfound = nestedRefs(entry, found).missing.map((short) => `"${entry.table}" names "${short}", which this app does not have here`);
     const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry));
     // A claim this server cannot open yet is refused, never installed as a door with no lock.
     const unopened = entry.claim !== undefined && !('match' in entry.claim) ? [`"${entry.table}" signs people in a way this Adminium does not support`] : [];
-    const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety, ...unopened];
+    const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety, ...unopened, ...unfound];
     return { ...planned, select: definition.select, issues, definition };
   });
 }

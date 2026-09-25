@@ -54,7 +54,8 @@ import { DiffBar } from './DiffBar.js';
 import { RelationsTab } from './RelationsTab.js';
 import { SchemaTree } from './SchemaTree.js';
 import { TableInspector } from './TableInspector.js';
-import { putOverrides, regeneratePages, remapOverridesQuery, remapSchemaQuery } from './api.js';
+import { putOverrides, regeneratePages, remapOverridesQuery,
+  shapeRulesQuery, remapSchemaQuery } from './api.js';
 import { enumValuesFor, tableById, type RemapSelection } from './model.js';
 import { overrideKey, type RemapOverride } from './overrides.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
@@ -103,6 +104,8 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
   const queryClient = useQueryClient();
   const schemaQuery = useQuery(remapSchemaQuery(connectionId));
   const overridesQuery = useQuery(remapOverridesQuery(connectionId));
+  // The rules an add-on's shape set: labelled, and asked about before one goes.
+  const shapeRules = useQuery(shapeRulesQuery(connectionId));
   const buffer = useRemapBuffer(overridesQuery.data?.overrides);
   const toasts = useToastQueue();
 
@@ -175,6 +178,8 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: remapSchemaQuery(connectionId).queryKey }),
         queryClient.invalidateQueries({ queryKey: remapOverridesQuery(connectionId).queryKey }),
+        // A rule changed here is the operator's now, and loses its label.
+        queryClient.invalidateQueries({ queryKey: shapeRulesQuery(connectionId).queryKey }),
       ]);
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) {
@@ -401,6 +406,7 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
                 table={selectedTable}
                 column={selectedColumn}
                 buffer={buffer}
+                shapeRules={shapeRules.data ?? []}
                 fieldError={fieldErrorFor(selectedTable.id, selectedColumn.name)}
               />
             ) : (

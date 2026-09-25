@@ -41,6 +41,13 @@ export interface AppTableRule {
   column: string | null;
   valueHash: string;
   overrideId: string;
+  /**
+   * The operator changed, switched off or deleted it: theirs from then on. Kept
+   * so no later version of the app writes it back.
+   */
+  released?: true;
+  /** The add-on whose shape the rule comes from (`invoices`), when a shape owns it. */
+  shape?: string;
 }
 
 export interface AppTableRecord {
@@ -106,7 +113,17 @@ function parseRules(value: unknown): AppTableRule[] {
     if (typeof e['op'] !== 'string' || typeof e['table'] !== 'string') return [];
     if (typeof e['valueHash'] !== 'string' || typeof e['overrideId'] !== 'string') return [];
     const column = typeof e['column'] === 'string' ? e['column'] : null;
-    return [{ op: e['op'], table: e['table'], column, valueHash: e['valueHash'], overrideId: e['overrideId'] }];
+    return [
+      {
+        op: e['op'],
+        table: e['table'],
+        column,
+        valueHash: e['valueHash'],
+        overrideId: e['overrideId'],
+        ...(e['released'] === true ? { released: true as const } : {}),
+        ...(typeof e['shape'] === 'string' ? { shape: e['shape'] } : {}),
+      },
+    ];
   });
 }
 

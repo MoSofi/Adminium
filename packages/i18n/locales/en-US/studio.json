@@ -1953,11 +1953,24 @@
         "stampByOriginOwn": "“{public}” from the public side, and what staff choose from staff",
         "stampCopy": "the value of {column}",
         "normalizeEmail": "Stored trimmed and in lower case",
-        "normalizeTrim": "Stored without spaces at either end"
+        "normalizeTrim": "Stored without spaces at either end",
+        "states": "Changes only by the moves its rules allow",
+        "statesLock": "the row is locked while it is {states}"
       },
       "venueLocal": "A time written here without a zone is the venue’s own time.",
       "fillFromCurrency": "The connection’s currency",
-      "fillFromSetting": "A setting: {setting}"
+      "fillFromSetting": "A setting: {setting}",
+      "shape": {
+        "setBy": "Set by {addOn}",
+        "confirmTitle": "Switch off a rule set by {addOn}?",
+        "numbers": "Numbers may repeat or skip.",
+        "totals": "Totals will be whatever is typed.",
+        "edits": "Sent invoices can be edited.",
+        "kept": "{addOn} will stop filling this in.",
+        "confirmHelp": "Once you change it, the rule is yours: no update of the app or the add-on puts it back.",
+        "keep": "Keep it",
+        "switchOff": "Switch it off"
+      }
     },
     "saveFailed": "Save failed: {message}",
     "subtitle": "{tables} tables · {applied} overrides applied",

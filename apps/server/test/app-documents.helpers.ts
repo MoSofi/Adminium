@@ -31,6 +31,12 @@ export const ORIGIN = 'https://studio.example.com';
 /** The render clock: Friday 25 September 2026, noon in London, a second later per render. */
 export const NOON = Date.parse('2026-09-25T11:00:00Z');
 
+/** The rules the stand-in shape keeps on its document's number, and the app spells out. */
+const SHAPE_RULES = {
+  number_seq: { sequence: { gapless: true } },
+  number: { format: { from: 'number_seq', prefix: 'INV-', pad: 4 } },
+};
+
 /** The invoice shape the stand-in add-on defines: three parts and two profiles in part names. */
 export function invoiceShape(): Record<string, unknown> {
   const id = { ref: 'id', type: 'int', role: 'pk' };
@@ -41,7 +47,8 @@ export function invoiceShape(): Record<string, unknown> {
       document: {
         columns: [
           id,
-          { ref: 'number', type: 'text', maxLength: 24, nullable: true },
+          { ref: 'number_seq', type: 'int', nullable: true, rules: SHAPE_RULES.number_seq },
+          { ref: 'number', type: 'text', maxLength: 24, nullable: true, rules: SHAPE_RULES.number },
           { ref: 'total', type: 'decimal', scale: 'currency', nullable: true },
           { ref: 'currency', type: 'text', maxLength: 3, nullable: true },
           { ref: 'balance', type: 'decimal', scale: 'currency', nullable: true },
@@ -105,6 +112,25 @@ export function studioTables(): Record<string, unknown>[] {
   Object.assign(find('payments'), { builtOn: 'invoices/invoice@1', part: 'payments' });
   // A client who referred another's invoice: a second way to reach an invoice row.
   columns('invoices').push({ ref: 'referrer_id', type: 'fk', references: 'clients', nullable: true });
+  /*
+   * A table built on a shape keeps the shape's rules on the shape's columns,
+   * exactly (the install refuses anything else, SHAPE_MISMATCH): the number is
+   * the stand-in shape's, and the columns it keeps no rule on carry none here
+   * — these tests write their rows directly.
+   */
+  const reshaped: Record<string, Record<string, unknown> | undefined> = {
+    'invoices.number_seq': SHAPE_RULES.number_seq,
+    'invoices.number': SHAPE_RULES.number,
+    'invoices.total': undefined,
+    'invoices.currency': undefined,
+    'invoice_lines.amount': undefined,
+  };
+  for (const [at, rules] of Object.entries(reshaped)) {
+    const [table, column] = at.split('.') as [string, string];
+    const index = columns(table).findIndex((c) => c['ref'] === column);
+    const { rules: _rules, ...rest } = columns(table)[index]!;
+    columns(table)[index] = rules === undefined ? rest : { ...rest, rules };
+  }
   columns('payments').push(
     { ref: 'client_id', type: 'fk', references: 'clients', nullable: true },
     { ref: 'paid_on', type: 'date', nullable: true },

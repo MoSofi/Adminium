@@ -1963,11 +1963,24 @@ export default {
         "stampByOriginOwn": "„{public}“ z veřejné strany a z personálu to, co zvolí",
         "stampCopy": "hodnota {column}",
         "normalizeEmail": "Ukládá se bez okrajových mezer a malými písmeny",
-        "normalizeTrim": "Ukládá se bez mezer na začátku a na konci"
+        "normalizeTrim": "Ukládá se bez mezer na začátku a na konci",
+        "states": "Mění se jen kroky, které jeho pravidla dovolují",
+        "statesLock": "řádek je zamčený, dokud je {states}"
       },
       "venueLocal": "Čas zapsaný sem bez časového pásma je místním časem provozovny.",
       "fillFromCurrency": "Měna připojení",
-      "fillFromSetting": "Nastavení: {setting}"
+      "fillFromSetting": "Nastavení: {setting}",
+      "shape": {
+        "setBy": "Nastaveno doplňkem {addOn}",
+        "confirmTitle": "Vypnout pravidlo nastavené doplňkem {addOn}?",
+        "numbers": "Čísla se mohou opakovat nebo chybět.",
+        "totals": "Součty budou takové, jaké kdo napíše.",
+        "edits": "Odeslané faktury bude možné upravovat.",
+        "kept": "{addOn} to přestane vyplňovat.",
+        "confirmHelp": "Jakmile ho změníte, pravidlo je vaše: žádná aktualizace aplikace ani doplňku ho nevrátí.",
+        "keep": "Ponechat",
+        "switchOff": "Vypnout"
+      }
     },
     "saveFailed": "Uložení se nezdařilo: {message}",
     "subtitle": "{tables} tabulek · použito {applied} úprav",

@@ -1953,11 +1953,24 @@
         "stampByOriginOwn": "公开端为“{public}”，员工端为员工所选",
         "stampCopy": "{column} 的值",
         "normalizeEmail": "去除首尾空格并以小写保存",
-        "normalizeTrim": "去除首尾空格后保存"
+        "normalizeTrim": "去除首尾空格后保存",
+        "states": "只能按其规则允许的步骤变更",
+        "statesLock": "当其为 {states} 时该行被锁定"
       },
       "venueLocal": "在此写入的不带时区的时间即为场所的本地时间。",
       "fillFromCurrency": "连接的货币",
-      "fillFromSetting": "一项设置：{setting}"
+      "fillFromSetting": "一项设置：{setting}",
+      "shape": {
+        "setBy": "由 {addOn} 设定",
+        "confirmTitle": "关闭由 {addOn} 设定的规则？",
+        "numbers": "编号可能重复或跳号。",
+        "totals": "合计将是手动输入的值。",
+        "edits": "已发送的发票可以被修改。",
+        "kept": "{addOn} 将不再填写此项。",
+        "confirmHelp": "一旦更改，此规则就归你：应用或附加组件的任何更新都不会恢复它。",
+        "keep": "保留",
+        "switchOff": "关闭"
+      }
     },
     "saveFailed": "保存失败：{message}",
     "subtitle": "{tables} 张表 · 已应用 {applied} 项覆盖",

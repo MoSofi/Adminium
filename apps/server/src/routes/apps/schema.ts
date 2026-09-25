@@ -173,6 +173,24 @@ export const addOnsDoneReply = z.object({
   attached: z.array(z.object({ key: z.string(), name: z.string(), version: z.string() })),
 });
 
+export const connectionParams = z.object({ id: z.string().min(1).max(64) });
+
+/** The rules a shape set on a connection, still as it set them (`GET /connections/:id/shape-rules`). */
+export const shapeRulesReply = z.object({
+  rules: z.array(
+    z.object({
+      tableName: z.string(),
+      columnName: z.string().nullable(),
+      op: z.string(),
+      addOn: z.string(),
+      /** The add-on's own name: "Set by Invoices & Receipts". */
+      addOnName: z.string(),
+      /** What switching it off stops guaranteeing: numbers, totals, edits of a sent document, or a kept value. */
+      guarantee: z.enum(['numbers', 'totals', 'edits', 'kept']),
+    }),
+  ),
+});
+
 export const planAppBody = z.object({
   key: appKey,
   version: z.string().min(1).max(64),

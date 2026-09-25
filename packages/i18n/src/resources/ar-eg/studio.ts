@@ -1963,11 +1963,24 @@ export default {
         "stampByOriginOwn": "«{public}» من الجانب العام، وما يختاره الموظفون من جانب الموظفين",
         "stampCopy": "قيمة {column}",
         "normalizeEmail": "يُحفظ بلا مسافات زائدة وبأحرف صغيرة",
-        "normalizeTrim": "يُحفظ بلا مسافات في طرفيه"
+        "normalizeTrim": "يُحفظ بلا مسافات في طرفيه",
+        "states": "لا يتغيّر إلا بالانتقالات التي تسمح بها قواعده",
+        "statesLock": "يكون الصف مقفلًا ما دام {states}"
       },
       "venueLocal": "الوقت المكتوب هنا دون منطقة زمنية هو الوقت المحلي للمكان.",
       "fillFromCurrency": "عملة الاتصال",
-      "fillFromSetting": "إعداد: {setting}"
+      "fillFromSetting": "إعداد: {setting}",
+      "shape": {
+        "setBy": "حدّدها {addOn}",
+        "confirmTitle": "إيقاف قاعدة حدّدها {addOn}؟",
+        "numbers": "قد تتكرر الأرقام أو تُتخطّى.",
+        "totals": "ستكون الإجماليات ما يُكتب يدويًا.",
+        "edits": "يمكن تعديل الفواتير المُرسلة.",
+        "kept": "سيتوقف {addOn} عن ملء هذا الحقل.",
+        "confirmHelp": "بمجرد تغييرها تصبح القاعدة لك: لن يعيدها أي تحديث للتطبيق أو للإضافة.",
+        "keep": "الإبقاء عليها",
+        "switchOff": "إيقافها"
+      }
     },
     "saveFailed": "فشل الحفظ: {message}",
     "subtitle": "{tables} جدولًا · {applied} تجاوزًا مطبَّقًا",

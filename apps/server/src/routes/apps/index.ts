@@ -75,6 +75,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { AddOnCatalogError, lenientMinimum, pickLocalized, type CatalogClient } from '../../add-ons/catalog.js';
 import type { AddOnInstallerDeps } from '../../add-ons/install.js';
+import { builtOnTables, shapeProblems, shapeRecordsFor, shapesForPlan } from '../../apps/app-shapes.js';
 import {
   addOnTablesByName,
   addOnsKeptBy,
@@ -134,7 +135,8 @@ import {
   findSampleApp,
   type SampleDataDeps,
 } from '../../apps/sample-data.js';
-import { ownRules, removeManifestRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
+import { ownRules, removeManifestRules, shapeRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
+import { SCHEMA_REMAP } from '../schema/index.js';
 import { formIssues, layoutTables } from '../../apps/manifest-page-config.js';
 import {
   addOnGrantsOf,
@@ -174,6 +176,8 @@ import {
   appSettingsReply,
   appStatusReply,
   planAppBody,
+  connectionParams,
+  shapeRulesReply,
   renameTablesBody,
   sampleRemoveBody,
   sampleRemovePlanReply,
@@ -395,6 +399,14 @@ export function planChecksum(plan: InstallPlan, existing: readonly ExistingTable
       tables,
     }),
   );
+}
+
+/** A table record's shape fields: the part it is built on and the columns the shape owns, or none. */
+function shapeRecordOf(
+  records: ReadonlyMap<string, { builtOn: string; shapeColumns: string[] }>,
+  ref: string,
+): { builtOn: string; shapeColumns: string[] } | Record<string, never> {
+  return records.get(ref) ?? {};
 }
 
 /** A stored status, narrowed; anything unrecognised reads as `error`. */
@@ -651,7 +663,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
      * whose checksum is exactly what it always was.
      */
     addOnRows?: readonly AppAddOnRow[],
-  ): Promise<{ plan: InstallPlan; dto: AppInstallPlanDto; existing: ExistingTable[] }> {
+  ): Promise<{
+    plan: InstallPlan;
+    dto: AppInstallPlanDto;
+    existing: ExistingTable[];
+    /** Per table built on a shape: the part and the columns the shape owns, for its record. */
+    shapeRecords: Map<string, { builtOn: string; shapeColumns: string[] }>;
+  }> {
     /*
      * WHAT THIS APP ALREADY HAS HERE, AND WHAT OTHERS DO. The table record is
      * read, never written: this also serves `/apps/plan`, which writes
@@ -742,12 +760,19 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     // The refusals the pure planner cannot see: a page slug another app
     // already holds on this connection, and a page's form or layout that
     // names what the app never declared.
+    const shapes =
+      builtOnTables(manifest).length === 0
+        ? null
+        : await shapesForPlan(deps.addOns?.installer, manifest, addOnRows ?? (await addOnRowsFor(manifest, connectionId, false)));
+    const shapeIssues = shapes === null ? [] : shapeProblems(manifest, shapes);
     const pageProblems = [
       ...(await slugProblems(manifest, connectionId)),
       ...pageConfigProblems(manifest),
       ...templateProblems(manifest).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
       ...roleIssues(manifest).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       ...(await roleSlugProblems(deps.meta, manifest)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
+      // The tables built on an add-on's shape, against the shape the install will run on.
+      ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
     ];
     const plan: InstallPlan =
       pageProblems.length === 0
@@ -755,6 +780,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         : { ...pure, problems: [...pure.problems, ...pageProblems], installable: false };
     return {
       plan,
+      shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
       existing: found,
       dto: {
         checksum:
@@ -992,7 +1018,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                 const real = realNames[ref] ?? ref;
                 return model?.model.tables.find((table) => table.name === real)?.id ?? real;
               };
-              return installOutbox({ meta: deps.meta, manifest, manifestId: manifestRowId, connectionId, realId });
+              // With the live model, a table the outbox names that is not there is refused by name.
+              const exists =
+                model === null || model === undefined ? undefined : (id: string) => model.model.tables.some((table) => table.id === id);
+              return installOutbox({ meta: deps.meta, manifest, manifestId: manifestRowId, connectionId, realId, exists });
             })();
       /*
        * The documents its rows print: a profile per shape profile of each
@@ -1114,6 +1143,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         tableName: table.table,
         owned: table.action === 'create' || table.action === 'rename-existing',
         state: table.action === 'share' ? 'shared' : table.action === 'reuse' ? 'adopted' : 'created',
+        ...shapeRecordOf(checked.shapeRecords, table.ref),
       });
     }
     return { ...applied, names: checked.plan.names ?? {} };
@@ -1208,7 +1238,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     expectedChecksum?: string,
     answers: InstallAnswers = {},
     addOnRows?: readonly AppAddOnRow[],
-  ): Promise<{ plan: InstallPlan; existing: ExistingTable[]; target: AppSchemaTarget }> {
+  ): Promise<{
+    plan: InstallPlan;
+    existing: ExistingTable[];
+    target: AppSchemaTarget;
+    shapeRecords: Map<string, { builtOn: string; shapeColumns: string[] }>;
+  }> {
     if (deps.schemaTarget === undefined) {
       throw new ValidationFailedError(
         `"${key}" needs tables, and this server has no connection layer to create them in.`,
@@ -1216,7 +1251,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       );
     }
 
-    const { plan, dto, existing } = await planFor(manifest, connectionId, answers, addOnRows);
+    const { plan, dto, existing, shapeRecords } = await planFor(manifest, connectionId, answers, addOnRows);
     /*
      * THE PLAN THE OPERATOR SAW, OR NONE. Re-planned from the live database a
      * moment ago; a table created, dropped or altered since the check step
@@ -1234,6 +1269,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
      * the update screen offers to run it (48 G8-D6). Every other problem is a
      * plain refusal naming itself.
      */
+    /*
+     * A TABLE THAT IS NOT WHAT ITS SHAPE SAYS is its own refusal, naming the
+     * column: the app and the add-on disagree, and no choice on this screen
+     * reconciles them.
+     */
+    const shapeRefusals = dto.problems.filter((problem) => problem.code === 'SHAPE_MISMATCH' || problem.code === 'SHAPE_UNKNOWN');
+    if (shapeRefusals.length > 0) {
+      throw new AppError(409, 'SHAPE_MISMATCH', `"${key}" cannot be ${verb}: ${shapeRefusals[0]!.message}`, {
+        problems: shapeRefusals,
+      });
+    }
     const onlyMissing = plan.problems.every((problem) => problem.code === 'COLUMNS_REQUIRED');
     /*
      * A context plan turns every column it CAN add into an edit, so a
@@ -1279,7 +1325,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       );
     }
 
-    return { plan, existing, target: deps.schemaTarget };
+    return { plan, existing, target: deps.schemaTarget, shapeRecords };
   }
 
   async function auditAppEvent(
@@ -2157,6 +2203,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                   owned: true,
                   state: 'pending',
                   prefix,
+                  ...shapeRecordOf(tablesPlan.shapeRecords, table.ref),
                 });
                 pending.set(table.ref, record.id);
               }
@@ -2172,6 +2219,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                   state: shared ? 'shared' : 'adopted',
                   prefix,
                   ...(shared ? { shape: manifest.requiredSchema?.tables.find((t) => t.ref === table.ref)?.shape ?? null } : {}),
+                  ...shapeRecordOf(tablesPlan.shapeRecords, table.ref),
                 });
               }
             };
@@ -2547,6 +2595,29 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           to,
           pruned,
         };
+      },
+    );
+
+    /*
+     * THE RULES A SHAPE SET, for the column inspector: each still as the
+     * add-on's shape wrote it, with the add-on's name and what switching it
+     * off stops guaranteeing. Read by the same people who may edit the rules.
+     */
+    app.get(
+      '/connections/:id/shape-rules',
+      {
+        preHandler: app.rbac.require(SCHEMA_REMAP),
+        schema: { params: connectionParams, response: { 200: shapeRulesReply } },
+      },
+      async (request) => {
+        const rules = await shapeRules(deps.meta, request.params.id);
+        const names = new Map<string, string>();
+        for (const addOn of new Set(rules.map((rule) => rule.addOn))) {
+          const installed = await manifests.findByKey(addOn);
+          const name = (installed?.document as { name?: unknown } | null)?.name;
+          names.set(addOn, typeof name === 'string' ? name : addOn);
+        }
+        return { rules: rules.map((rule) => ({ ...rule, addOnName: names.get(rule.addOn) ?? rule.addOn })) };
       },
     );
 

@@ -31,6 +31,8 @@ export interface HarnessOptions {
    * that predates F gets: the picker offers nothing and nothing else changes.
    */
   optionLists?: (() => { key: string; name: string; items: { value: string }[]; origin: string; editable: boolean }[]) | undefined;
+  /** The rules an add-on's shape set (`/shape-rules`). Absent ⇒ none. */
+  shapeRules?: (() => unknown[]) | undefined;
 }
 
 export interface Harness {
@@ -60,6 +62,9 @@ export function installFetch(options: HarnessOptions = {}): Harness {
     }
     if (method === 'GET' && url.endsWith('/option-lists')) {
       return Promise.resolve(jsonResponse(200, { lists: options.optionLists?.() ?? [] }));
+    }
+    if (method === 'GET' && url.endsWith('/shape-rules')) {
+      return Promise.resolve(jsonResponse(200, { rules: options.shapeRules?.() ?? [] }));
     }
     if (method === 'GET' && url.endsWith('/overrides')) {
       return Promise.resolve(jsonResponse(200, { overrides: options.overridesRows?.() ?? [] }));

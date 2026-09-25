@@ -9,7 +9,14 @@
  * skipped when they already keep one for the same column, and each rule the
  * app writes is recorded on its table's record with a hash of its value. An
  * update or an uninstall touches a rule only while that hash still matches;
- * a rule the operator changed, switched off or deleted is theirs from then on.
+ * a rule the operator changed, switched off or deleted is theirs from then on
+ * — and stays theirs: the record keeps it as `released`, so no later version
+ * writes it back (a switched-off rule has no active row to say so, and a
+ * deleted one no row at all).
+ *
+ * A table built on an add-on's shape carries the shape's rules the same way,
+ * each recorded with the add-on it comes from (`shape`), so the column
+ * inspector can say "Set by …" and ask before one is switched off.
  *
  * The rules written are the four an operator can set in the column inspector
  * — the allowed values, the labels of a database enum, required and
@@ -37,7 +44,7 @@
 import { createHash } from 'node:crypto';
 
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
-import type { BookingRule, ColumnRules, Manifest, States } from '@adminium/manifest';
+import type { BookingRule, ColumnRules, Manifest } from '@adminium/manifest';
 import {
   MetaValidationError,
   appTablesRepo,
@@ -51,7 +58,9 @@ import {
   type SchemaOverride,
 } from '@adminium/meta';
 
+import { installedShapes } from '../documents/app-profiles.js';
 import { canonicalJson } from './sample-data.js';
+import { mapTableRefs } from './real-refs.js';
 import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
 
 export type RuleOp =
@@ -84,6 +93,10 @@ const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'table.label', 
 const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.label', 'table.keyField']);
 
 interface DesiredRule {
+  /** The add-on whose shape owns the rule (the table is built on it). */
+  shape?: string;
+  /** Table refs the rule names that this install does not have: it is skipped, by name. */
+  missing?: string[];
   ref: string;
   /** The real table's id in the snapshot (`public.pos_menu_items`). */
   table: string;
@@ -184,104 +197,36 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
  * A booking rule as it is stored: every table it names — top-level or nested
  * (who does what, the order, both hours tables, the closures, each number read
  * from the settings row) — replaced by the real table's id, so a prefixed
- * install never queries a short name.
+ * install never queries a short name. The one mapper (`real-refs.ts`).
  */
 export function bookingValue(booking: BookingRule, realId: (ref: string) => string): Record<string, unknown> {
-  const setting = <T>(value: T): T =>
-    typeof value === 'object' && value !== null && 'table' in value
-      ? ({ ...value, table: realId((value as { table: string }).table) } as T)
-      : value;
-  const { eligible, hours, closures, cancel } = booking;
-  return {
-    ...booking,
-    eligible: {
-      ...eligible,
-      table: realId(eligible.table),
-      ...(eligible.order === undefined ? {} : { order: { ...eligible.order, table: realId(eligible.order.table) } }),
-    },
-    hours: {
-      practice: { ...hours.practice, table: realId(hours.practice.table) },
-      ...(hours.own === undefined ? {} : { own: { ...hours.own, table: realId(hours.own.table) } }),
-    },
-    ...(closures === undefined ? {} : { closures: { ...closures, table: realId(closures.table) } }),
-    grid: setting(booking.grid),
-    ...(booking.windowDays === undefined ? {} : { windowDays: setting(booking.windowDays) }),
-    ...(booking.noticeMinutes === undefined ? {} : { noticeMinutes: setting(booking.noticeMinutes) }),
-    ...(cancel === undefined ? {} : { cancel: { ...cancel, hours: setting(cancel.hours) } }),
-  };
+  return mapTableRefs({ ...booking } as Record<string, unknown>, realId).value;
+}
+
+/** The properties that hold a table ref in one op's value, beside `table` and a `children` object. */
+function refKeysOf(op: RuleOp): readonly string[] {
+  return op === 'column.rollup' ? ['from'] : [];
 }
 
 /**
  * A rule's value with every table it names — at any depth — replaced by the
  * real table's id: a rollup's child, a `{table, column}` setting (an add-on's
  * setting names no table and is left as it is), the tables a fingerprint
- * reads, and every table a document's states tie to the state.
+ * reads, and every table a document's states tie to the state. The one
+ * mapper (`real-refs.ts`), and the refs it could not find.
  */
+export function realRuleRefs(
+  op: RuleOp,
+  value: Record<string, unknown>,
+  realId: (ref: string) => string,
+): { value: Record<string, unknown>; missing: string[] } {
+  if (NAMING_OPS.has(op)) return { value, missing: [] };
+  return mapTableRefs(value, realId, { refKeys: refKeysOf(op) });
+}
+
+/** {@link realRuleRefs}, the value alone. */
 export function realRuleValue(op: RuleOp, value: Record<string, unknown>, realId: (ref: string) => string): Record<string, unknown> {
-  const setting = (source: unknown): unknown =>
-    typeof source === 'object' && source !== null && 'table' in source
-      ? { ...(source as Record<string, unknown>), table: realId(String((source as { table: string }).table)) }
-      : source;
-  switch (op) {
-    case 'column.rollup':
-      return { ...value, from: realId(String(value['from'])) };
-    case 'column.default':
-      return value['from'] === undefined ? value : { ...value, from: setting(value['from']) };
-    case 'column.sequence':
-      return value['startSetting'] === undefined ? value : { ...value, startSetting: setting(value['startSetting']) };
-    case 'column.format':
-      return value['prefixSetting'] === undefined ? value : { ...value, prefixSetting: setting(value['prefixSetting']) };
-    case 'column.stamp': {
-      const set = value['set'];
-      if (typeof set !== 'object' || set === null || !('hashOf' in set)) return value;
-      const hash = (set as { hashOf: Record<string, unknown> }).hashOf;
-      const child = (c: Record<string, unknown>) => ({ ...c, table: realId(String(c['table'])) });
-      const children = hash['children'] as Record<string, unknown>[] | undefined;
-      const linked = hash['linked'] as Record<string, unknown>[] | undefined;
-      return {
-        ...value,
-        set: {
-          hashOf: {
-            ...hash,
-            ...(children === undefined ? {} : { children: children.map(child) }),
-            ...(linked === undefined
-              ? {}
-              : {
-                  linked: linked.map((l) => ({
-                    ...child(l),
-                    ...(l['children'] === undefined ? {} : { children: (l['children'] as Record<string, unknown>[]).map(child) }),
-                  })),
-                }),
-          },
-        },
-      };
-    }
-    case 'table.capacity':
-      return Object.fromEntries(Object.entries(value).map(([key, part]) => [key, setting(part)]));
-    case 'table.states': {
-      const states = value as unknown as States;
-      const byReal = <T>(record: Readonly<Record<string, T>>) => Object.fromEntries(Object.entries(record).map(([ref, v]) => [realId(ref), v]));
-      return {
-        ...states,
-        moves: Object.fromEntries(
-          Object.entries(states.moves).map(([from, moves]) => [
-            from,
-            moves.map((move) =>
-              typeof move === 'string' || move.requires?.children === undefined
-                ? move
-                : { ...move, requires: { ...move.requires, children: byReal(move.requires.children) } },
-            ),
-          ]),
-        ),
-        ...(states.children === undefined ? {} : { children: byReal(states.children) }),
-        ...(states.lockedWhenReferencedBy === undefined
-          ? {}
-          : { lockedWhenReferencedBy: states.lockedWhenReferencedBy.map((ref) => ({ ...ref, table: realId(ref.table) })) }),
-      };
-    }
-    default:
-      return value;
-  }
+  return realRuleRefs(op, value, realId).value;
 }
 
 /** A rule's value, hashed the same however the store's JSON column ordered its keys. */
@@ -297,6 +242,7 @@ const targetOf = (op: string, table: string, column: string | null) => `${op}|${
  * keeps its origin — by the same target, origin `app` and the same value.
  */
 function stillOurs(rule: AppTableRule, byId: Map<string, SchemaOverride>, active: readonly SchemaOverride[]): SchemaOverride | null {
+  if (rule.released === true) return null;
   const row =
     byId.get(rule.overrideId) ??
     active.find(
@@ -360,6 +306,25 @@ export async function writeManifestRules(input: {
   };
   /** An app table's short name → its id in the snapshot; '' when it is not there (the check refuses it). */
   const realId = (ref: string) => realOf(ref)?.id ?? '';
+  /*
+   * WHICH RULES A SHAPE OWNS. A table built on an add-on's shape spells out
+   * the part's rules (the install checked they are the part's); each is
+   * recorded with the add-on it comes from, so the inspector can say so.
+   */
+  const shapes = (manifest.requiredSchema?.tables ?? []).some((table) => table.builtOn !== undefined)
+    ? (await installedShapes(meta)).byKey
+    : new Map<string, never>();
+  const shapeOwned = (table: (typeof manifest.requiredSchema.tables)[number], column: string, op: RuleOp): string | undefined => {
+    if (table.builtOn === undefined || table.part === undefined) return undefined;
+    const part = shapes.get(table.builtOn)?.parts[table.part];
+    if (part === undefined) return undefined;
+    const addOn = table.builtOn.split('/')[0]!;
+    if (op === 'table.states') return part.states === undefined ? undefined : addOn;
+    const want = part.columns.find((c) => c.ref === column);
+    if (want === undefined) return undefined;
+    if (op === 'column.scale') return want.scale === undefined ? undefined : addOn;
+    return opsForRules(manifest.key, (want.rules ?? {}) as ColumnRules).some((rule) => rule.op === op) ? addOn : undefined;
+  };
   const desired: DesiredRule[] = [];
   for (const table of manifest.requiredSchema?.tables ?? []) {
     const real = realOf(table.ref);
@@ -409,21 +374,33 @@ export async function writeManifestRules(input: {
       // The places a decimal keeps: SQLite stores every decimal as a REAL
       // and remembers none, so the rule carries them on every engine.
       if (column.scale !== undefined) {
-        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.scale', value: { scale: column.scale } });
+        const shape = shapeOwned(table, column.ref, 'column.scale');
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.scale', value: { scale: column.scale }, ...(shape === undefined ? {} : { shape }) });
       }
       if (column.rules === undefined) continue;
       for (const rule of opsForRules(manifest.key, column.rules)) {
-        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: rule.op, value: realRuleValue(rule.op, rule.value, realId) });
+        const mapped = realRuleRefs(rule.op, rule.value, realId);
+        const shape = shapeOwned(table, column.ref, rule.op);
+        desired.push({
+          ref: table.ref,
+          table: real.id,
+          column: column.ref,
+          op: rule.op,
+          value: mapped.value,
+          missing: mapped.missing,
+          ...(shape === undefined ? {} : { shape }),
+        });
       }
     }
-    if (table.capacity !== undefined) {
-      desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.capacity', value: realRuleValue('table.capacity', { ...table.capacity }, realId) });
-    }
-    if (table.booking !== undefined) {
-      desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.booking', value: bookingValue(table.booking, realId) });
-    }
-    if (table.states !== undefined) {
-      desired.push({ ref: table.ref, table: real.id, column: '', op: 'table.states', value: realRuleValue('table.states', { ...table.states }, realId) });
+    for (const [op, value] of [
+      ['table.capacity', table.capacity],
+      ['table.booking', table.booking],
+      ['table.states', table.states],
+    ] as const) {
+      if (value === undefined) continue;
+      const mapped = realRuleRefs(op, { ...value } as Record<string, unknown>, realId);
+      const shape = shapeOwned(table, '', op);
+      desired.push({ ref: table.ref, table: real.id, column: '', op, value: mapped.value, missing: mapped.missing, ...(shape === undefined ? {} : { shape }) });
     }
   }
 
@@ -434,16 +411,23 @@ export async function writeManifestRules(input: {
   const knownLists = new Set((await lists.list()).map((list) => list.key));
   const wanted = new Map(desired.map((rule) => [targetOf(rule.op, rule.table, rule.column), rule]));
 
+  /** Targets whose rule the operator changed, switched off or removed: never written again. */
+  const released = new Set<string>();
   for (const record of records) {
     const kept: AppTableRule[] = [];
     // Rules an earlier version wrote: kept, replaced, or taken back — only
     // while they are still the app's.
     for (const rule of record.rules) {
       const row = stillOurs(rule, byId, active);
-      if (row === null) continue; // the operator's now
+      if (row === null) {
+        // The operator's now, and from now on: kept as released, never written again.
+        kept.push({ op: rule.op, table: rule.table, column: rule.column, valueHash: rule.valueHash, overrideId: rule.overrideId, released: true });
+        released.add(targetOf(rule.op, rule.table, rule.column));
+        continue;
+      }
       const want = wanted.get(targetOf(rule.op, rule.table, rule.column));
       if (want !== undefined && ruleHash(want.value) === rule.valueHash) {
-        kept.push({ ...rule, overrideId: row.id });
+        kept.push({ ...rule, overrideId: row.id, ...(want.shape === undefined ? {} : { shape: want.shape }) });
         wanted.delete(targetOf(rule.op, rule.table, rule.column));
         continue;
       }
@@ -459,9 +443,30 @@ export async function writeManifestRules(input: {
       if (!wanted.has(target)) continue;
       wanted.delete(target);
       const skip = (reason: string) => result.skipped.push({ table: rule.table, column: rule.column, op: rule.op, reason });
+      // The live-model check every nested ref gets: a table this install does
+      // not have is never stored, whatever op names it.
+      if ((rule.missing ?? []).length > 0) {
+        skip(`It names ${(rule.missing ?? []).map((ref) => `"${ref}"`).join(', ')}, which this app does not have here.`);
+        continue;
+      }
       const held = active.find((o) => targetOf(o.op, o.tableName, o.columnName) === target);
+      if (released.has(target)) {
+        skip(
+          held !== undefined
+            ? 'The operator already keeps a rule for this column.'
+            : all.some((o) => o.status === 'disabled' && targetOf(o.op, o.tableName, o.columnName) === target)
+              ? 'The operator switched off the rule for this column.'
+              : 'The operator removed the rule for this column.',
+        );
+        continue;
+      }
       if (held !== undefined && held.origin !== 'auto') {
         skip('The operator already keeps a rule for this column.');
+        continue;
+      }
+      // One the operator switched off is still theirs: never a second row beside it.
+      if (all.some((o) => o.status === 'disabled' && o.origin !== 'auto' && targetOf(o.op, o.tableName, o.columnName) === target)) {
+        skip('The operator switched off the rule for this column.');
         continue;
       }
       // Adminium's own guess (introspection masks a column named `phone`) is
@@ -522,12 +527,54 @@ export async function writeManifestRules(input: {
       }
       const row = await overrides.create(request);
       active.push(row);
-      kept.push({ op: rule.op, table: rule.table, column: rule.column, valueHash: ruleHash(rule.value), overrideId: row.id });
+      kept.push({
+        op: rule.op,
+        table: rule.table,
+        column: rule.column,
+        valueHash: ruleHash(rule.value),
+        overrideId: row.id,
+        ...(rule.shape === undefined ? {} : { shape: rule.shape }),
+      });
       result.written += 1;
     }
     await appTablesRepo(meta).setRules(record.id, kept);
   }
   return result;
+}
+
+/** What stops being guaranteed when a shape's rule is switched off — the kind of promise it keeps. */
+export type ShapeGuarantee = 'numbers' | 'totals' | 'edits' | 'kept';
+
+export function guaranteeOf(op: string): ShapeGuarantee {
+  if (op === 'column.sequence' || op === 'column.format') return 'numbers';
+  if (op === 'column.formula' || op === 'column.rollup' || op === 'column.scale') return 'totals';
+  if (op === 'table.states') return 'edits';
+  return 'kept';
+}
+
+/**
+ * The rules on this connection an add-on's shape set and nobody has changed
+ * since: the column inspector labels each "Set by <add-on>" and asks before
+ * one is switched off. Once changed, a rule is the operator's and leaves the
+ * list.
+ */
+export async function shapeRules(
+  meta: MetaDb,
+  connectionId: string,
+): Promise<{ tableName: string; columnName: string | null; op: string; addOn: string; guarantee: ShapeGuarantee }[]> {
+  const all = await overridesRepo(meta).listForConnection(connectionId);
+  const active = all.filter((o) => o.status === 'active');
+  const byId = new Map(all.map((o) => [o.id, o]));
+  const out: { tableName: string; columnName: string | null; op: string; addOn: string; guarantee: ShapeGuarantee }[] = [];
+  for (const record of await appTablesRepo(meta).forConnection(connectionId)) {
+    for (const rule of record.rules) {
+      if (rule.shape === undefined) continue;
+      const row = stillOurs(rule, byId, active);
+      if (row === null) continue;
+      out.push({ tableName: row.tableName, columnName: row.columnName, op: row.op, addOn: rule.shape, guarantee: guaranteeOf(row.op) });
+    }
+  }
+  return out;
 }
 
 /** The app's rules that are still its own, for the uninstall dialog's count. */

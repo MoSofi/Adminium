@@ -84019,6 +84019,88 @@
         }
       }
     },
+    "/api/v1/connections/{id}/shape-rules": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rules": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tableName": {
+                            "type": "string"
+                          },
+                          "columnName": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "op": {
+                            "type": "string"
+                          },
+                          "addOn": {
+                            "type": "string"
+                          },
+                          "addOnName": {
+                            "type": "string"
+                          },
+                          "guarantee": {
+                            "type": "string",
+                            "enum": [
+                              "numbers",
+                              "totals",
+                              "edits",
+                              "kept"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "tableName",
+                          "columnName",
+                          "op",
+                          "addOn",
+                          "addOnName",
+                          "guarantee"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "rules"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apps/{key}/sample-data": {
       "get": {
         "parameters": [

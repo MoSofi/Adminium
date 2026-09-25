@@ -103,7 +103,10 @@ export interface PlanProblem {
     | 'PAGE_FORM_INVALID'
     | 'ROLE_INVALID'
     // An email the app ships that the renderer cannot draw.
-    | 'EMAIL_TEMPLATE_INVALID';
+    | 'EMAIL_TEMPLATE_INVALID'
+    // A table built on an add-on's shape that differs from it, or names a shape the add-on lacks.
+    | 'SHAPE_MISMATCH'
+    | 'SHAPE_UNKNOWN';
   message: string;
   table: string;
   column?: string;

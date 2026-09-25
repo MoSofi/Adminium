@@ -29,6 +29,7 @@ import {
   type EffectiveTable,
   type StampRule,
 } from './model.js';
+import type { ShapeRule } from './api.js';
 import { labelText, type LabelText } from './overrides.js';
 import { useLabelLocale } from './useLabelLocale.js';
 import { overrideKey, type RemapBuffer } from './useRemapBuffer.js';
@@ -45,6 +46,8 @@ export interface ColumnInspectorProps {
   column: EffectiveColumn;
   buffer: RemapBuffer;
   fieldError?: string | undefined;
+  /** The rules an add-on's shape set on this connection, still as it set them. */
+  shapeRules?: readonly ShapeRule[] | undefined;
 }
 
 /** Where a column's answers come from (D19/D20). */
@@ -53,7 +56,32 @@ type OptionsSource = 'any' | 'values' | 'list';
 /** One inline answer as the store keeps it: its label one string, or one per locale. */
 type OptionItem = { value: string; label?: LabelText; tone?: string; description?: string };
 
-export function ColumnInspector({ model, table, column, buffer, fieldError }: ColumnInspectorProps) {
+/** What switching a shape's rule off stops guaranteeing, in words. */
+function guaranteeText(rule: ShapeRule): string {
+  switch (rule.guarantee) {
+    case 'numbers':
+      return t('studio:remap.rules.shape.numbers', 'Numbers may repeat or skip.');
+    case 'totals':
+      return t('studio:remap.rules.shape.totals', 'Totals will be whatever is typed.');
+    case 'edits':
+      return t('studio:remap.rules.shape.edits', 'Sent invoices can be edited.');
+    default:
+      return t('studio:remap.rules.shape.kept', '{addOn} will stop filling this in.', { addOn: rule.addOnName });
+  }
+}
+
+export function ColumnInspector({ model, table, column, buffer, fieldError, shapeRules = [] }: ColumnInspectorProps) {
+  /*
+   * A RULE A SHAPE SET is the operator's to change (it is stored like any app
+   * rule), but it keeps a promise the add-on makes — an unbroken series of
+   * numbers, totals that add up, a sent document that stays as it was sent.
+   * So it says whose it is, and switching it off asks first, naming the
+   * promise. Once changed it is the operator's, and loses the label.
+   */
+  const [confirming, setConfirming] = useState<string | null>(null);
+  useEffect(() => setConfirming(null), [table.id, column.name]);
+  const shapeRuleOf = (op: string, columnName: string | null): ShapeRule | undefined =>
+    shapeRules.find((rule) => rule.tableName === table.id && rule.op === op && rule.columnName === columnName);
   /*
    * The workspace's lists, for the picker below. It is a cached, shared query
    * (`optionListsQuery` owns its options), so opening ten columns in a row
@@ -188,6 +216,13 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const format = decidedOf<{ from: string; prefix?: string; prefixSetting?: Record<string, string>; pad?: number }>(formatKey, 'column.format');
   const scale = decidedOf<{ scale: number | 'currency' }>(scaleKey, 'column.scale');
   const normalize = decidedOf<{ normalize: 'trim' | 'email' }>(normalizeKey, 'column.normalize');
+  // A document's states, shown on the column they move.
+  const statesKey = overrideKey({ op: 'table.states', tableName: table.id, value: {} });
+  const statesEntry = buffer.get(statesKey);
+  const states =
+    statesEntry !== null && statesEntry.item.op === 'table.states' && statesEntry.item.value['column'] === column.name
+      ? (statesEntry.item.value as { lock?: { when?: string[] } })
+      : undefined;
   /** What a stamp writes, in words. */
   const stampWhat = (set: StampRule['set']): string => {
     if (typeof set === 'object') {
@@ -717,7 +752,8 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
         formula !== undefined ||
         format !== undefined ||
         scale !== undefined ||
-        normalize !== undefined ? (
+        normalize !== undefined ||
+        states !== undefined ? (
           <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3" data-testid="rules-decided">
             <div className="flex flex-col">
               <span className="text-body-sm font-semibold text-fg">
@@ -842,16 +878,76 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                       example: `${code.prefix ?? ''}${'X'.repeat(code.length)}`,
                     }),
                   },
-            ].map((rule) =>
-              rule === null ? null : (
-                <div key={rule.key} className="flex items-center justify-between gap-2 text-[12.5px] text-fg">
-                  <span>{rule.text}</span>
-                  <Button size="sm" variant="ghost" onClick={() => buffer.drop(rule.key)}>
-                    {t('studio:remap.rules.decided.remove', 'Remove this rule')}
-                  </Button>
+              states === undefined
+                ? null
+                : {
+                    key: statesKey,
+                    text: [
+                      t('studio:remap.rules.decided.states', 'Changes only by the moves its rules allow'),
+                      (states.lock?.when ?? []).length === 0
+                        ? null
+                        : t('studio:remap.rules.decided.statesLock', 'the row is locked while it is {states}', {
+                            states: (states.lock?.when ?? []).join(', '),
+                          }),
+                    ]
+                      .filter((part) => part !== null)
+                      .join('; '),
+                  },
+            ].map((rule) => {
+              if (rule === null) return null;
+              const [op] = rule.key.split('::');
+              const owner = shapeRuleOf(op ?? '', op === 'table.states' ? null : column.name);
+              return (
+                <div key={rule.key} className="flex flex-col gap-1.5" data-testid={`rule-${op ?? ''}`}>
+                  <div className="flex items-center justify-between gap-2 text-[12.5px] text-fg">
+                    <span className="flex flex-col gap-0.5">
+                      <span>{rule.text}</span>
+                      {owner === undefined ? null : (
+                        <span className="text-[11.5px] text-fg-muted" data-testid="rule-set-by">
+                          {t('studio:remap.rules.shape.setBy', 'Set by {addOn}', { addOn: owner.addOnName })}
+                        </span>
+                      )}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => (owner === undefined ? buffer.drop(rule.key) : setConfirming(rule.key))}
+                    >
+                      {t('studio:remap.rules.decided.remove', 'Remove this rule')}
+                    </Button>
+                  </div>
+                  {owner !== undefined && confirming === rule.key ? (
+                    <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-2.5" role="alertdialog" data-testid="rule-confirm">
+                      <span className="text-[12.5px] font-semibold text-fg">
+                        {t('studio:remap.rules.shape.confirmTitle', 'Switch off a rule set by {addOn}?', { addOn: owner.addOnName })}
+                      </span>
+                      <span className="text-[12.5px] text-fg">{guaranteeText(owner)}</span>
+                      <span className="text-[11.5px] text-fg-muted">
+                        {t(
+                          'studio:remap.rules.shape.confirmHelp',
+                          'Once you change it, the rule is yours: no update of the app or the add-on puts it back.',
+                        )}
+                      </span>
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>
+                          {t('studio:remap.rules.shape.keep', 'Keep it')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setConfirming(null);
+                            buffer.drop(rule.key);
+                          }}
+                        >
+                          {t('studio:remap.rules.shape.switchOff', 'Switch it off')}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              ),
-            )}
+              );
+            })}
           </div>
         ) : null}
       </section>

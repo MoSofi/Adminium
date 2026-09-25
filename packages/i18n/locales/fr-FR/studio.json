@@ -1953,11 +1953,24 @@
         "stampByOriginOwn": "« {public} » côté public, et ce que choisit l’équipe côté équipe",
         "stampCopy": "la valeur de {column}",
         "normalizeEmail": "Enregistré sans espaces aux extrémités et en minuscules",
-        "normalizeTrim": "Enregistré sans espaces au début ni à la fin"
+        "normalizeTrim": "Enregistré sans espaces au début ni à la fin",
+        "states": "Ne change que par les étapes que ses règles permettent",
+        "statesLock": "la ligne est verrouillée tant qu’elle est {states}"
       },
       "venueLocal": "Une heure écrite ici sans fuseau est l’heure locale de l’établissement.",
       "fillFromCurrency": "La devise de la connexion",
-      "fillFromSetting": "Un réglage : {setting}"
+      "fillFromSetting": "Un réglage : {setting}",
+      "shape": {
+        "setBy": "Défini par {addOn}",
+        "confirmTitle": "Désactiver une règle définie par {addOn} ?",
+        "numbers": "Des numéros peuvent se répéter ou manquer.",
+        "totals": "Les totaux seront ce qui est saisi.",
+        "edits": "Les factures envoyées pourront être modifiées.",
+        "kept": "{addOn} cessera de remplir ce champ.",
+        "confirmHelp": "Dès que vous la modifiez, la règle vous appartient : aucune mise à jour de l’app ou de l’add-on ne la rétablit.",
+        "keep": "La garder",
+        "switchOff": "La désactiver"
+      }
     },
     "saveFailed": "Échec de l’enregistrement : {message}",
     "subtitle": "{tables} tables · {applied} remplacements appliqués",

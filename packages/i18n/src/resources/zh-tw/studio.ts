@@ -1963,11 +1963,24 @@ export default {
         "stampByOriginOwn": "公開端為「{public}」，員工端為員工所選",
         "stampCopy": "{column} 的值",
         "normalizeEmail": "去除首尾空格並以小寫儲存",
-        "normalizeTrim": "去除首尾空格後儲存"
+        "normalizeTrim": "去除首尾空格後儲存",
+        "states": "只能按其規則允許的步驟變更",
+        "statesLock": "當其為 {states} 時該列被鎖定"
       },
       "venueLocal": "在此寫入的不帶時區的時間即為場所的當地時間。",
       "fillFromCurrency": "連線的貨幣",
-      "fillFromSetting": "一項設定：{setting}"
+      "fillFromSetting": "一項設定：{setting}",
+      "shape": {
+        "setBy": "由 {addOn} 設定",
+        "confirmTitle": "關閉由 {addOn} 設定的規則？",
+        "numbers": "編號可能重複或跳號。",
+        "totals": "合計將是手動輸入的值。",
+        "edits": "已寄出的發票可以被修改。",
+        "kept": "{addOn} 將不再填寫此項。",
+        "confirmHelp": "一旦變更，此規則就屬於你：應用程式或附加元件的任何更新都不會還原它。",
+        "keep": "保留",
+        "switchOff": "關閉"
+      }
     },
     "saveFailed": "儲存失敗：{message}",
     "subtitle": "{tables} 個資料表 · 已套用 {applied} 項覆寫",

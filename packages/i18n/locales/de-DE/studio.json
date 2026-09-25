@@ -1953,11 +1953,24 @@
         "stampByOriginOwn": "„{public}“ von der öffentlichen Seite, vom Personal das, was es wählt",
         "stampCopy": "der Wert von {column}",
         "normalizeEmail": "Ohne Leerzeichen am Rand und in Kleinbuchstaben gespeichert",
-        "normalizeTrim": "Ohne Leerzeichen am Anfang und Ende gespeichert"
+        "normalizeTrim": "Ohne Leerzeichen am Anfang und Ende gespeichert",
+        "states": "Ändert sich nur durch die Schritte, die seine Regeln erlauben",
+        "statesLock": "die Zeile ist gesperrt, solange sie {states} ist"
       },
       "venueLocal": "Eine hier ohne Zeitzone geschriebene Zeit ist die Ortszeit des Lokals.",
       "fillFromCurrency": "Die Währung der Verbindung",
-      "fillFromSetting": "Eine Einstellung: {setting}"
+      "fillFromSetting": "Eine Einstellung: {setting}",
+      "shape": {
+        "setBy": "Festgelegt von {addOn}",
+        "confirmTitle": "Eine von {addOn} festgelegte Regel ausschalten?",
+        "numbers": "Nummern können sich wiederholen oder fehlen.",
+        "totals": "Summen sind dann, was eingetippt wird.",
+        "edits": "Versendete Rechnungen können geändert werden.",
+        "kept": "{addOn} füllt dies nicht mehr aus.",
+        "confirmHelp": "Sobald Sie sie ändern, gehört die Regel Ihnen: Kein Update der App oder des Add-ons stellt sie wieder her.",
+        "keep": "Beibehalten",
+        "switchOff": "Ausschalten"
+      }
     },
     "saveFailed": "Speichern fehlgeschlagen: {message}",
     "subtitle": "{tables} Tabellen · {applied} Überschreibungen angewendet",

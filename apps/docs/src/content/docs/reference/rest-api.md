@@ -100,7 +100,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
-| `/api/v1/connections/*` | 22 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
+| `/api/v1/connections/*` | 23 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/data/*` | 13 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/documents/*` | 13 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
@@ -334,6 +334,7 @@ POST /api/v1/connections/{id}/schema/adopt
 GET /api/v1/connections/{id}/schema/changes
 PUT /api/v1/connections/{id}/diagram-layout
 POST /api/v1/connections/{id}/generate
+GET /api/v1/connections/{id}/shape-rules
 ```
 
 ### `/data`

@@ -20363,6 +20363,14 @@
     "status": "mt",
     "srcHash": "8454bd67b00e"
   },
+  "studio.remap.rules.decided.states": {
+    "status": "mt",
+    "srcHash": "b5c4a2706914"
+  },
+  "studio.remap.rules.decided.statesLock": {
+    "status": "mt",
+    "srcHash": "ec6cb4c75d1a"
+  },
   "studio.remap.rules.decided.title": {
     "status": "mt",
     "srcHash": "ad1a2eb61087"
@@ -20526,6 +20534,42 @@
   "studio.remap.rules.requiredHelp": {
     "status": "mt",
     "srcHash": "b75b74432461"
+  },
+  "studio.remap.rules.shape.confirmHelp": {
+    "status": "mt",
+    "srcHash": "840200b400e7"
+  },
+  "studio.remap.rules.shape.confirmTitle": {
+    "status": "mt",
+    "srcHash": "141fcd08d2bf"
+  },
+  "studio.remap.rules.shape.edits": {
+    "status": "mt",
+    "srcHash": "91136e8e8957"
+  },
+  "studio.remap.rules.shape.keep": {
+    "status": "mt",
+    "srcHash": "d9f369249799"
+  },
+  "studio.remap.rules.shape.kept": {
+    "status": "mt",
+    "srcHash": "8cebbf9bc873"
+  },
+  "studio.remap.rules.shape.numbers": {
+    "status": "mt",
+    "srcHash": "4765c118c140"
+  },
+  "studio.remap.rules.shape.setBy": {
+    "status": "mt",
+    "srcHash": "21488ea3bf8e"
+  },
+  "studio.remap.rules.shape.switchOff": {
+    "status": "mt",
+    "srcHash": "728aff98fe3a"
+  },
+  "studio.remap.rules.shape.totals": {
+    "status": "mt",
+    "srcHash": "dfcf8119b7f7"
   },
   "studio.remap.rules.title": {
     "status": "mt",

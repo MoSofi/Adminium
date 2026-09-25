@@ -1953,11 +1953,24 @@
         "stampByOriginOwn": "“{public}” fra den offentlige side og det, personalet vælger, fra personalet",
         "stampCopy": "værdien af {column}",
         "normalizeEmail": "Gemmes uden mellemrum i enderne og med små bogstaver",
-        "normalizeTrim": "Gemmes uden mellemrum i begge ender"
+        "normalizeTrim": "Gemmes uden mellemrum i begge ender",
+        "states": "Ændres kun ved de skridt, dens regler tillader",
+        "statesLock": "rækken er låst, mens den er {states}"
       },
       "venueLocal": "Et tidspunkt skrevet her uden tidszone er stedets egen tid.",
       "fillFromCurrency": "Forbindelsens valuta",
-      "fillFromSetting": "En indstilling: {setting}"
+      "fillFromSetting": "En indstilling: {setting}",
+      "shape": {
+        "setBy": "Angivet af {addOn}",
+        "confirmTitle": "Slå en regel angivet af {addOn} fra?",
+        "numbers": "Numre kan gentage sig eller springes over.",
+        "totals": "Totaler bliver det, der tastes ind.",
+        "edits": "Sendte fakturaer kan redigeres.",
+        "kept": "{addOn} holder op med at udfylde dette.",
+        "confirmHelp": "Når du ændrer den, er reglen din: ingen opdatering af appen eller tilføjelsen sætter den tilbage.",
+        "keep": "Behold den",
+        "switchOff": "Slå den fra"
+      }
     },
     "saveFailed": "Lagring mislykkedes: {message}",
     "subtitle": "{tables} tabeller · {applied} tilsidesættelser anvendt",

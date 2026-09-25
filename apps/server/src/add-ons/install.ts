@@ -37,7 +37,7 @@ import {
   type InstallPlan,
   type Manifest,
 } from '@adminium/manifest';
-import { auditRepo, manifestsRepo, type InstalledManifest, type MetaDb } from '@adminium/meta';
+import { auditRepo, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
@@ -484,6 +484,38 @@ export async function upgradeRangeRefusal(
         `Update ${need.appName} first.`,
       { addOn: manifest.key, app: need.app, range: need.range, version: manifest.version },
     );
+  }
+  /*
+   * A SHAPE VERSION AN APP IS BUILT ON STAYS. An app pins `invoice@1`; a new
+   * add-on version may bring `invoice@2` beside it, never instead of it, while
+   * any installed app — switched off or part-installed included — still pins
+   * it. Only that app's own update moves the pin.
+   */
+  const offered = new Set(
+    (manifest.addOn as { shapes?: { name?: unknown; version?: unknown }[] }).shapes?.flatMap((shape) =>
+      typeof shape.name === 'string' && typeof shape.version === 'number' ? [`${manifest.key}/${shape.name}@${String(shape.version)}`] : [],
+    ) ?? [],
+  );
+  const apps = await deps.meta.db
+    .selectFrom('adminium_manifests')
+    .select(['manifestKey', 'manifest'])
+    .where('kind', '=', 'app')
+    .orderBy('manifestKey', 'asc')
+    .execute();
+  for (const app of apps) {
+    if (app.manifestKey === opts.except) continue;
+    const document = readJson<{ name?: unknown; requiredSchema?: { tables?: { ref?: unknown; builtOn?: unknown }[] } } | null>(app.manifest);
+    for (const table of document?.requiredSchema?.tables ?? []) {
+      if (typeof table.builtOn !== 'string' || !table.builtOn.startsWith(`${manifest.key}/`) || offered.has(table.builtOn)) continue;
+      const appName = typeof document?.name === 'string' ? document.name : app.manifestKey;
+      return new AppError(
+        409,
+        'ADD_ON_SHAPE_IN_USE',
+        `${manifest.name} ${manifest.version} no longer has "${table.builtOn.slice(manifest.key.length + 1)}", which ${appName} is built on. ` +
+          `Update ${appName} first.`,
+        { addOn: manifest.key, app: app.manifestKey, shape: table.builtOn, version: manifest.version },
+      );
+    }
   }
   return null;
 }

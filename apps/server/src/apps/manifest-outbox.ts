@@ -23,7 +23,7 @@ import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } 
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
 import { isEmailBlockKind } from '../email/render.js';
-import { withRealTables } from '../outbox/producers.js';
+import { mapTableRefs } from './real-refs.js';
 import { canonicalJson } from './sample-data.js';
 
 type AppManifest = Extract<Manifest, { kind: 'app' }>;
@@ -90,35 +90,20 @@ export function templateProblems(manifest: Manifest): string[] {
 
 /**
  * The outbox as it is stored: every table it names — the log, the person's,
- * the settings row, each producer's and each lead's — replaced by the real
- * table's id.
+ * the settings row, each producer's and each lead's, a gate's and a due date's
+ * setting, the row a sent message changes — replaced by the real table's id.
+ * The one mapper (`real-refs.ts`), which also says what it could not find.
  */
+export function outboxRefs(
+  outbox: NonNullable<AppManifest['outbox']>,
+  realId: (ref: string) => string | undefined,
+): { value: Record<string, unknown>; missing: string[] } {
+  return mapTableRefs({ ...outbox } as Record<string, unknown>, realId);
+}
+
+/** {@link outboxRefs}, the value alone. */
 export function outboxDefinition(outbox: NonNullable<AppManifest['outbox']>, realId: (ref: string) => string): Record<string, unknown> {
-  const setting = <T extends { table: string } | undefined>(value: T): T =>
-    value === undefined ? value : ({ ...value, table: realId(value.table) } as T);
-  return {
-    ...outbox,
-    table: realId(outbox.table),
-    recipient: { ...outbox.recipient, table: realId(outbox.recipient.table) },
-    ...(outbox.settings === undefined ? {} : { settings: setting(outbox.settings) }),
-    ...(outbox.producers === undefined
-      ? {}
-      : {
-          producers: outbox.producers.map((producer) => {
-            if ('onCreate' in producer) return { ...producer, onCreate: { ...producer.onCreate, table: realId(producer.onCreate.table) } };
-            if ('onChange' in producer) return { ...producer, onChange: { ...producer.onChange, table: realId(producer.onChange.table) } };
-            const lead = producer.before.lead;
-            return {
-              ...producer,
-              before: {
-                ...producer.before,
-                table: realId(producer.before.table),
-                lead: { ...lead, table: realId(lead.table), ...(lead.fallback === undefined ? {} : { fallback: setting(lead.fallback) }) },
-              },
-            };
-          }),
-        }),
-  };
+  return outboxRefs(outbox, realId).value;
 }
 
 /**
@@ -131,6 +116,11 @@ export async function installOutbox(input: {
   manifestId: string;
   connectionId: string;
   realId: (ref: string) => string;
+  /**
+   * Whether a real table id is in the live model. Given, a definition naming a
+   * table that is not there is refused by name rather than stored.
+   */
+  exists?: ((id: string) => boolean) | undefined;
 }): Promise<OutboxResult | undefined> {
   const { meta, manifest } = input;
   if (manifest.kind !== 'app') return undefined;
@@ -141,11 +131,21 @@ export async function installOutbox(input: {
 
   if (manifest.outbox === undefined) await outboxes.remove(manifest.key);
   else {
+    const exists = input.exists;
+    const mapped = outboxRefs(manifest.outbox, (ref) => {
+      const real = input.realId(ref);
+      return exists === undefined || exists(real) ? real : undefined;
+    });
+    if (mapped.missing.length > 0) {
+      throw new Error(
+        `The app's outbox names ${mapped.missing.map((ref) => `"${ref}"`).join(', ')}, which this app does not have here.`,
+      );
+    }
     await outboxes.put({
       appKey: manifest.key,
       manifestId: input.manifestId,
       connectionId: input.connectionId,
-      definition: canonicalJson(withRealTables(outboxDefinition(manifest.outbox, input.realId) as Outbox, input.realId)),
+      definition: canonicalJson(mapped.value as Outbox),
     });
   }
 

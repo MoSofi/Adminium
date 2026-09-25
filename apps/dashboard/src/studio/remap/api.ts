@@ -72,6 +72,35 @@ export function remapOverridesQuery(connectionId: string) {
   });
 }
 
+/** A rule an add-on's shape set and nobody has changed since (`GET /connections/:id/shape-rules`). */
+export interface ShapeRule {
+  tableName: string;
+  columnName: string | null;
+  op: string;
+  addOn: string;
+  addOnName: string;
+  /** What switching it off stops guaranteeing. */
+  guarantee: 'numbers' | 'totals' | 'edits' | 'kept';
+}
+
+/**
+ * The rules a shape set on this connection. A reader who may not see them —
+ * or a server that does not answer this yet — gets none: the inspector then
+ * shows every rule as it always did.
+ */
+export function shapeRulesQuery(connectionId: string) {
+  return queryOptions({
+    queryKey: ['studio', 'remap', 'shape-rules', connectionId] as const,
+    queryFn: async () => {
+      try {
+        return (await api.get<{ rules: ShapeRule[] }>(`${base(connectionId)}/shape-rules`)).rules;
+      } catch {
+        return [] as ShapeRule[];
+      }
+    },
+  });
+}
+
 export function putOverrides(connectionId: string, document: OverridesPutDocument): Promise<OverridesReply> {
   return putJson<OverridesReply>(`${base(connectionId)}/overrides`, document);
 }
