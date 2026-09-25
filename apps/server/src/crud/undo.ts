@@ -43,8 +43,11 @@ export interface UndoLinks {
 export interface UndoChildren {
   relationId: string;
   added: Row[];
+  /** Each added row as the write left it: an undo takes it away only while it is still that row. */
+  addedRows?: Row[];
   removed: Row[];
-  changed: { key: Row; before: Row }[];
+  /** `after` is the row as the write left it: an undo puts `before` back only over that. */
+  changed: { key: Row; before: Row; after?: Row }[];
 }
 
 export interface UndoEntry {

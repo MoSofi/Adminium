@@ -329,6 +329,8 @@ change or delete is theirs from then on.
 | `code` | `{ "length", "prefix"? }` | A short random code, unique in the column. `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). |
 | `formula` | an expression | A number worked out from the row's other columns on every write. See [Formulas](#formulas). |
 | `normalize` | `"trim"` or `"email"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case. |
+| `notAfter` | `"today"` | A `date` column is never later than today, in the venue's time zone. A later date is refused (`out-of-range`). |
+| `notBefore` | `{ "column", "via"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). |
 | `rollup` | `{ "from", "via", "sum", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up. `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on" }` | A value Adminium writes when something happens: the moment, or who did it. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |

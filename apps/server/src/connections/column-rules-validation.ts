@@ -55,7 +55,8 @@ export function columnRuleIssue(
     | 'column.format'
     | 'column.formula'
     | 'column.scale'
-    | 'column.normalize',
+    | 'column.normalize'
+    | 'column.bounds',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -251,6 +252,24 @@ export function columnRuleIssue(
         if (table?.columns.some((c) => c.name === ref) !== true) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(ref)} for the formula.`;
       }
       return null;
+    }
+
+    case 'column.bounds': {
+      // SQLite keeps a date as text, and says so.
+      const dated = (c: ColumnModel) => c.logicalType === 'date' || c.logicalType === 'timestamp' || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(c.logicalType));
+      if (!dated(column)) return `Only a date is kept within dates; ${name} is ${column.logicalType}.`;
+      const bound = value['notBefore'] as { column?: unknown; via?: unknown } | undefined;
+      if (bound === undefined) return null;
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      let owner = table;
+      if (typeof bound.via === 'string') {
+        const relation = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === bound.via);
+        if (relation === undefined) return `${JSON.stringify(bound.via)} is not a foreign key of ${table?.name ?? 'this table'}.`;
+        owner = model.tables.find((candidate) => candidate.id === relation.to.tableId);
+      }
+      const other = owner?.columns.find((c) => c.name === bound.column);
+      if (other === undefined) return `${owner?.name ?? 'That table'} has no column ${JSON.stringify(bound.column)}.`;
+      return dated(other) ? null : `${owner?.name ?? 'That table'}.${String(bound.column)} is not a date.`;
     }
 
     case 'column.normalize': {

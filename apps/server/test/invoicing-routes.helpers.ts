@@ -8,6 +8,8 @@
  */
 import { overridesRepo } from '@adminium/meta';
 
+import { createWriteService, type RecordHooks, type WriteServiceOptions } from '../src/crud/write-service.js';
+import { writeStores } from '../src/crud/write-stores.js';
 import { type Dialect, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { asUser, buildDataTestApp, createConnectionViaApi, introspectViaApi, type DataTestContext } from './connections-helpers.js';
 
@@ -26,9 +28,18 @@ export interface DataRoutes {
   close: () => Promise<void>;
 }
 
-export async function dataRoutesOver(h: InvoicingHarness, dialect: Dialect, currency: string | null = 'EUR'): Promise<DataRoutes> {
+export async function dataRoutesOver(
+  h: InvoicingHarness,
+  dialect: Dialect,
+  currency: string | null = 'EUR',
+  /** The hooks every write through the routes runs, as a project's would. */
+  hooks?: RecordHooks,
+): Promise<DataRoutes> {
   const dsns = await h.manager.connections.getDsns(h.connectionId);
-  const t = await buildDataTestApp();
+  // The service reads its stores when a write needs them: they are the test app's own, filled in once it exists.
+  const options: WriteServiceOptions = hooks === undefined ? {} : { hooks: () => hooks };
+  const t = await buildDataTestApp(hooks === undefined ? {} : { writes: createWriteService(options) });
+  Object.assign(options, writeStores(t.meta));
   const connectionId = await createConnectionViaApi(t, dsns!.dataDsn!, 'Studio', dialect);
   await introspectViaApi(t, connectionId);
   await t.grantTable(t.roles.admin, connectionId, '*', { read: true, create: true, update: true, delete: true });

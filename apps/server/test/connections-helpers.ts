@@ -47,6 +47,7 @@ import type { FileReconciler } from '../src/files/reconcile.js';
 import type { RealtimeHub } from '../src/realtime/hub.js';
 import type { AutomationDispatcher } from '../src/crud/after-record-write.js';
 import { WidgetDataCache } from '../src/widget-data/cache.js';
+import type { RecordWriteService } from '../src/crud/write-service.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 import { withoutDefaultDataGrants } from './builtin-grants.js';
 
@@ -170,6 +171,8 @@ export function asUser(user: User): Record<string, string> {
 }
 
 export interface BuildDataTestAppOptions {
+  /** The write service the data routes write through (hooks and all); default: a plain one. */
+  writes?: RecordWriteService | undefined;
   /** Meta DSN handed to the manager for same-db placement checks. */
   metaDsn?: string | undefined;
   now?: (() => number) | undefined;
@@ -273,7 +276,9 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
     async (api) => {
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
-      await api.register(dataRoutes({ manager, meta, undoStore, ...(opts.files === undefined ? {} : { files: opts.files }) }));
+      await api.register(
+        dataRoutes({ manager, meta, undoStore, ...(opts.files === undefined ? {} : { files: opts.files }), ...(opts.writes === undefined ? {} : { writes: opts.writes }) }),
+      );
       await api.register(widgetDataRoutes({ manager, meta, cache: widgetCache }));
       if (opts.extraRoutes !== undefined) {
         await opts.extraRoutes(api as unknown as FastifyInstance, { meta, manager });

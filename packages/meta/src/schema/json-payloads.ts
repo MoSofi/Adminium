@@ -603,6 +603,20 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   /** A text value stored trimmed (`trim`), or trimmed and in lower case (`email`), whoever writes it. */
   z.object({ op: z.literal('column.normalize'), value: z.object({ normalize: z.enum(['trim', 'email']) }) }),
   /**
+   * A date kept within dates: never later than today on the venue's calendar,
+   * and never earlier than another date — of the same row, or (with `via`, a
+   * foreign key of the row) of the row it points at.
+   */
+  z.object({
+    op: z.literal('column.bounds'),
+    value: z
+      .object({
+        notAfter: z.literal('today').optional(),
+        notBefore: z.object({ column: ruleColumn, via: ruleColumn.optional() }).optional(),
+      })
+      .refine((v) => v.notAfter !== undefined || v.notBefore !== undefined, { message: 'a bound says notAfter or notBefore' }),
+  }),
+  /**
    * The places a decimal keeps: 0–4, or `currency` — the decimals of the row's
    * own currency column, else the connection's. Totals and formulas round to it.
    */

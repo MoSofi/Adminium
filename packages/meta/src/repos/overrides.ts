@@ -46,6 +46,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.formula',
   'column.scale',
   'column.normalize',
+  'column.bounds',
 ]);
 
 export interface SchemaOverride {

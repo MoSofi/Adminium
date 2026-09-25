@@ -842,7 +842,8 @@ for (const [dialect, reachable] of LEGS) {
         }
       };
       try {
-        await update('messages', m['id'], { status: 'queued' });
+        // Judged on the row as it was (failed); it is sent by the time the UPDATE runs, so the UPDATE is refused.
+        expect((await refused(update('messages', m['id'], { status: 'queued' }))).code).toBe('STATE_MOVE_REFUSED');
       } finally {
         probeHook = null;
       }
@@ -871,6 +872,30 @@ for (const [dialect, reachable] of LEGS) {
       }
       expect(await rungOf(inv['id'], 1)).toMatchObject({ status: 'skipped', skip: 'by-hand', sent: false });
       expect(await mail()).toHaveLength(count);
+    });
+
+    it('refuses a skip judged on a queued message the sender sent meanwhile: it stays sent, mailed once', async () => {
+      const m = await create('messages', { kind: 'transfer-note', status: 'queued', client_id: ann['id'], to_address: 'ann@client.studio.dev' });
+      const before = (await mail()).length;
+      let raced = false;
+      // The sweep claims and sends the message between the person's read of it and their UPDATE.
+      probeHook = async (e) => {
+        if (!raced && e.context === desk && e.action === 'update') {
+          raced = true;
+          await sender.sendApp('studio', clock);
+        }
+      };
+      let error: AppError;
+      try {
+        error = await refused(update('messages', m['id'], { status: 'skipped' }));
+      } finally {
+        probeHook = null;
+      }
+      expect(error.code).toBe('STATE_MOVE_REFUSED');
+      const row = await msg(m['id']);
+      expect(row['status']).toBe('sent');
+      expect(row['skip_reason']).toBeNull();
+      expect((await mail()).slice(before).filter((x) => x.subject === 'A transfer')).toHaveLength(1);
     });
 
     it('holds a reminder a person makes, fixes what a message is about, and never acts for a sent row of history', async () => {

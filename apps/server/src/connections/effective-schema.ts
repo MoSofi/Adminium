@@ -102,13 +102,107 @@ export interface ColumnRollupRule {
   cap?: true;
 }
 
+/** A child list a fingerprint covers: its rows in `orderBy` order, then by key. */
+export interface HashChild {
+  /** The child table's id in the snapshot. */
+  table: string;
+  via: string;
+  columns: string[];
+  orderBy?: string;
+}
+
+/** What a fingerprint covers: columns of the row, its child rows, and rows it points at. */
+export interface HashOf {
+  columns: string[];
+  children?: HashChild[];
+  linked?: { via: string; table: string; columns: string[]; children?: HashChild[] }[];
+}
+
+/**
+ * What a stamp writes: the moment, today's date on the venue's calendar, who
+ * did it, a word per kind of writer, another column of the row, a column of
+ * the signed-in person's own row, a date so many days after another, or a
+ * fingerprint.
+ */
+export type StampSet =
+  | 'now'
+  | 'today'
+  | 'user-name'
+  | 'user-id'
+  | { byOrigin: { public: string; staff?: string } }
+  | { copy: string }
+  | { claim: string; staff?: 'user-name' | 'user-id' }
+  | { addDays: { date: string; days: string | number; map?: Record<string, number> } }
+  | { hashOf: HashOf };
+
+/** When a stamp is written: on create, when a column changes to a value, or when a column is first filled. */
+export type StampTrigger = 'create' | { column: string; values: (string | number | boolean)[] } | { column: string; filled: true };
+
 /**
  * `column.stamp`: a value written when something happens — the moment, or who
  * did it — on a create, or when another column changes to one of `values`.
  */
 export interface ColumnStampRule {
-  set: 'now' | 'user-name' | 'user-id' | { byOrigin: { public: string; staff: string } };
-  on: 'create' | { column: string; values: (string | number | boolean)[] };
+  set: StampSet;
+  on: StampTrigger | StampTrigger[];
+}
+
+/**
+ * `table.states`: a document's life — its states, the moves between them, what
+ * stays open once it is locked, the child tables tied to its state (each by
+ * its id in the snapshot), and when it may never be deleted.
+ */
+export interface TableStatesRule {
+  column: string;
+  initial: string;
+  moves: Record<string, (string | StateMoveRule)[]>;
+  lock?: { when: string[]; except?: string[] };
+  children?: Record<string, { via: string; lock?: true; parentIn?: string[]; clearOnCreate?: string[] }>;
+  lockedWhenReferencedBy?: { table: string; via: string; in: string[] }[];
+  noDelete?: { when: 'numbered' | string[] };
+  onlyLater?: string[];
+}
+
+/** One move of a state, with what it asks for first and who may make it (role slugs). */
+export interface StateMoveRule {
+  to: string;
+  requires?: {
+    children?: Record<string, number>;
+    where?: { column: string; eq?: string | number | boolean; in?: (string | number | boolean)[]; isNull?: boolean; gt?: number; gte?: number; lt?: number; lte?: number }[];
+  };
+  roles?: string[];
+}
+
+/**
+ * A row of another table that locks this one while it is in some states,
+ * resolved when the model is built: `column` is that table's state column.
+ */
+export interface LockedByReference {
+  table: string;
+  via: string;
+  column: string;
+  in: string[];
+}
+
+/**
+ * A parent whose state this table's rows are tied to (the parent's
+ * `states.children` names this table), resolved when the model is built so a
+ * write to a child row can judge it from the child table alone.
+ */
+export interface StateParent {
+  /** The parent table's id and its one-column key. */
+  table: string;
+  key: string;
+  /** This table's foreign key to the parent. */
+  via: string;
+  /** The parent's state column, and the states it is locked in. */
+  column: string;
+  lockedIn: string[];
+  /** Rows of other tables that lock the parent too. */
+  lockedBy: LockedByReference[];
+  lock?: true;
+  parentIn?: string[];
+  clearOnCreate?: string[];
 }
 
 /** A number or a time the rule states, or a settings table's column read at write time. */
@@ -226,6 +320,10 @@ export interface EffectiveColumn extends ColumnModel {
   scale?: number | 'currency';
   /** `column.venueLocal`: a wall time with no zone is read on the venue's clock. */
   venueLocal?: boolean;
+  /** `column.normalize`: text stored trimmed (`trim`), or trimmed and in lower case (`email`). */
+  normalize?: 'trim' | 'email';
+  /** `column.bounds`: a date never later than today, never earlier than another date. */
+  bounds?: { notAfter?: 'today'; notBefore?: { column: string; via?: string } };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
@@ -239,6 +337,18 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   capacity?: TableCapacityRule;
   /** Booking people (`table.booking`). */
   booking?: TableBookingRule;
+  /**
+   * A document's life (`table.states`). Carried in the model the dashboard
+   * reads, so a record page draws a locked row's fields read-only: a field is
+   * locked when the row's `states.column` is one of `lock.when` (or a row of
+   * `lockedBy` points at it in one of its states) and the field is not in
+   * `lock.except`.
+   */
+  states?: TableStatesRule;
+  /** Rows of other tables that lock this table's rows (`lockedWhenReferencedBy`, resolved). */
+  lockedBy?: LockedByReference[];
+  /** The parents whose state this table's rows are tied to. */
+  stateParents?: StateParent[];
 }
 
 export interface EffectiveRelation extends Relation {
@@ -682,6 +792,50 @@ export interface ApplyOverridesOptions {
   defaultLocale?: string;
 }
 
+/**
+ * Tie every table's states to the tables they reach: a table another's
+ * `lockedWhenReferencedBy` names learns which rows lock it, and a child table
+ * learns its parent's lock and states — so a write to one table can be
+ * judged from that table alone, whichever door it comes through. A reference
+ * to a table that is gone, or that keeps no states, ties nothing.
+ */
+function tieStates(tables: ReadonlyMap<string, EffectiveTable>): void {
+  for (const table of tables.values()) {
+    delete table.lockedBy;
+    delete table.stateParents;
+  }
+  for (const table of tables.values()) {
+    const states = table.states;
+    if (states === undefined) continue;
+    const lockedBy: LockedByReference[] = [];
+    for (const ref of states.lockedWhenReferencedBy ?? []) {
+      const column = tables.get(ref.table)?.states?.column;
+      if (column !== undefined) lockedBy.push({ table: ref.table, via: ref.via, column, in: ref.in });
+    }
+    if (lockedBy.length > 0) table.lockedBy = lockedBy;
+  }
+  for (const table of tables.values()) {
+    const states = table.states;
+    const key = table.primaryKey[0];
+    if (states === undefined || key === undefined || table.primaryKey.length !== 1) continue;
+    for (const [childId, rule] of Object.entries(states.children ?? {})) {
+      const child = tables.get(childId);
+      if (child === undefined || !child.columns.some((c) => c.name === rule.via)) continue;
+      (child.stateParents ??= []).push({
+        table: tableId(table as TableModel),
+        key,
+        via: rule.via,
+        column: states.column,
+        lockedIn: states.lock?.when ?? [],
+        lockedBy: table.lockedBy ?? [],
+        ...(rule.lock === undefined ? {} : { lock: rule.lock }),
+        ...(rule.parentIn === undefined ? {} : { parentIn: rule.parentIn }),
+        ...(rule.clearOnCreate === undefined ? {} : { clearOnCreate: rule.clearOnCreate }),
+      });
+    }
+  }
+}
+
 /** Apply active override rows (already in created_at order) onto a snapshot model. */
 export function applyOverrides(
   model: DatabaseModel,
@@ -739,6 +893,20 @@ export function applyOverrides(
       }
       case 'table.booking': {
         if (table !== undefined) table.booking = value as unknown as TableBookingRule;
+        break;
+      }
+      case 'table.states': {
+        if (table !== undefined) table.states = value as unknown as TableStatesRule;
+        break;
+      }
+      case 'column.normalize': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.normalize = value.normalize as 'trim' | 'email';
+        break;
+      }
+      case 'column.bounds': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.bounds = value as NonNullable<EffectiveColumn['bounds']>;
         break;
       }
       case 'column.venueLocal': {
@@ -876,6 +1044,8 @@ export function applyOverrides(
       }
     }
   }
+
+  tieStates(tables);
 
   // Table labels last, from the ONE precedence-aware resolver — a user
   // `table.label` beats an accepted `llm.label` bundle whichever came first.

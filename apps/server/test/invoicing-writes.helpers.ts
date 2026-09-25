@@ -85,8 +85,14 @@ export function writeTables(): Record<string, unknown>[] {
   });
 }
 
+/**
+ * The app for the money and numbering tests: its tables without the
+ * invoice's states, so a payment can be recorded against a draft and a tax
+ * rate changed after it — what those tests are about. The states have tests
+ * of their own (`invoicing-states.test.ts`).
+ */
 export function writeManifest(): Record<string, unknown> {
-  return invoicingManifest(writeTables());
+  return invoicingManifest(writeTables().map(({ states: _states, ...table }) => table));
 }
 
 /** The write service over the installed tables, reading the meta store's settings as compose wires it. */

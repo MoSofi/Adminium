@@ -81,7 +81,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { getPrincipal } from '../rbac/principal.js';
 import { checkCapacity, touchesGuard, withSlotLock } from './capacity-guard.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
-import { decideRow, needsStored, type DecideContext } from './decide.js';
+import { decideRow, needsStored, stampFires, type DecideContext } from './decide.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   checkRow,
@@ -100,6 +100,10 @@ import { inTransaction, withNamedLock } from './capacity-guard.js';
 import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js';
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
 import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
+import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
+import { attachExpect, attachGuard, dayOf, expectOf, guardOf, guardedDelete, guardedInsert, guardedUpdate, rowMoved, tiedToStates, type ClearColumns } from './states.js';
+import { venueClock } from './venue-time.js';
+import { isOutboxWrite } from '../outbox/context.js';
 import {
   claimSequences,
   generatedCodes,
@@ -131,6 +135,12 @@ export interface WriteContext {
   actor: WriteActor | null;
   /** The HTTP request behind the write, when there is one. */
   request: FastifyRequest | null;
+  /**
+   * The signed-in person's own row, on a public write made in a session: a
+   * stamp of `claim` reads their email or name from it. Absent, such a stamp
+   * writes nothing.
+   */
+  claimed?: Row | null | undefined;
 }
 
 /** The context of a write that a signed-in person or an API key asked for. */
@@ -172,6 +182,15 @@ export interface BeforeWriteEvent {
   /** The row as it is now (update, delete); null for a create. */
   record: Row | null;
   context: WriteContext;
+  /**
+   * What the hook judged the write on, that must still hold when it runs:
+   * each `column = value` joins the UPDATE's own WHERE, so a decision taken
+   * on the row as the hook saw it is never applied to a row that has moved
+   * since (a message the outbox sent meanwhile). An update that then matches
+   * nothing, on a row that is still there, is refused with 409
+   * `STATE_MOVE_REFUSED`. A create has nothing to compare, and ignores it.
+   */
+  expect?: Row;
 }
 
 export interface AfterWriteEvent {
@@ -312,9 +331,40 @@ export async function insertRow(
   table: ResolvedTable,
   checked: CheckedRow,
 ): Promise<Row> {
-  // A number without gaps is taken here, inside the INSERT's own transaction, whoever opened it.
-  return insertNumbered(db, dialect, table, checked, (within, row) => insertOne(within, dialect, table, row as CheckedRow));
+  // A row tied to a document's states is judged here, holding its parent;
+  // a number without gaps is taken here too, inside the INSERT's own
+  // transaction, whoever opened it; and a fingerprint is sealed over the row
+  // as stored.
+  return guardedInsert(db, dialect, table, checked, async (tx) => {
+    const row = await insertNumbered(tx, dialect, table, checked, (within, numbered) => insertOne(within, dialect, table, numbered as CheckedRow));
+    const plan = sealsOf(checked);
+    if (plan !== undefined && table.primaryKey.every((column) => row[column] !== null && row[column] !== undefined)) {
+      await sealRows(tx, table, Object.fromEntries(table.primaryKey.map((column) => [column, row[column]])), plan, writeSeals);
+      return (await fetchByPk(tx, table, Object.fromEntries(table.primaryKey.map((column) => [column, row[column]])))) ?? row;
+    }
+    return row;
+  }, clearColumns);
 }
+
+/**
+ * Empty columns of one row — a parent's `clearOnCreate` when a child of it is
+ * created (a recorded payment clears the client's "I've paid"). Adminium's own
+ * write, beside the statement the writer asked for, in its transaction.
+ */
+const clearColumns: ClearColumns = async (db, table, keyColumn, key, columns) => {
+  await db
+    .updateTable(table)
+    .set(Object.fromEntries(columns.map((column) => [column, null])) as never)
+    .where((eb) => eb(db.dynamic.ref(keyColumn), '=', key))
+    .execute();
+};
+
+/** Write a row's fingerprints (`crud/seal.ts` works them out), beside the statement that sealed it. */
+export const writeSeals: WriteSeals = async (db, table, key, set) => {
+  let update = db.updateTable(table.id).set(set as never);
+  for (const [column, value] of Object.entries(key)) update = update.where((eb) => eb(db.dynamic.ref(column), '=', value));
+  await update.execute();
+};
 
 async function insertOne(db: Db, dialect: Dialect, table: ResolvedTable, checked: CheckedRow): Promise<Row> {
   const values = storable(table, checked, dialect);
@@ -355,8 +405,9 @@ async function insertOne(db: Db, dialect: Dialect, table: ResolvedTable, checked
 
 /** INSERT several rows in one statement, returning nothing (the CSV import's chunk). */
 export async function insertRows(db: Db, dialect: Dialect, table: ResolvedTable, rows: readonly CheckedRow[]): Promise<void> {
-  // Rows that take a number without gaps take it one at a time, each right before its own INSERT.
-  if (rows.some((row) => claimsNumbers(row))) {
+  // Rows that take a number without gaps take it one at a time, each right
+  // before its own INSERT; so do rows judged by a document's states, or sealed.
+  if (rows.some((row) => claimsNumbers(row) || (guardOf(row) !== undefined && tiedToStates(table)) || sealsOf(row) !== undefined)) {
     for (const row of rows) await insertRow(db, dialect, table, row);
     return;
   }
@@ -380,17 +431,57 @@ export async function updateRows(
   match: Row,
   refine?: (query: AnyUpdate) => AnyUpdate,
 ): Promise<number> {
+  const statement = async (tx: Db, set: Record<string, unknown>) => {
+    let query = tx.updateTable(table.id).set(set as never) as unknown as AnyUpdate;
+    for (const [column, value] of Object.entries(match)) {
+      query = query.where((eb) => eb(tx.dynamic.ref(column), '=', value));
+    }
+    if (narrowed !== undefined) query = narrowed(query);
+    const result = await query.executeTakeFirst();
+    return Number(result.numUpdatedRows);
+  };
+  /** Whether the row is still there for the caller, whatever it holds now. */
+  const present = async (tx: Db): Promise<boolean> => {
+    let query = tx.updateTable(table.id).set(same as never) as unknown as AnyUpdate;
+    for (const [column, value] of Object.entries(match)) query = query.where((eb) => eb(tx.dynamic.ref(column), '=', value));
+    if (refine !== undefined) query = refine(query);
+    return Number((await query.executeTakeFirst()).numUpdatedRows) > 0;
+  };
   // Every column the writer sent was Adminium's to decide (a total, a formula
   // sent back by a whole-row form): the key set to itself still answers
   // whether the row is there, through the same WHERE.
-  const set = Object.keys(values).length > 0 ? storable(table, values, dialect) : { [table.primaryKey[0]!]: sql.ref(table.primaryKey[0]!) };
-  let query = db.updateTable(table.id).set(set as never) as unknown as AnyUpdate;
-  for (const [column, value] of Object.entries(match)) {
-    query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
-  }
-  if (refine !== undefined) query = refine(query);
-  const result = await query.executeTakeFirst();
-  return Number(result.numUpdatedRows);
+  const same = { [table.primaryKey[0]!]: sql.ref(table.primaryKey[0]!) };
+  const set = Object.keys(values).length > 0 ? storable(table, values, dialect) : same;
+  const plan = sealsOf(values);
+  const expected = expectOf(values);
+  // What a before hook judged the write on must still hold, in the statement's own WHERE.
+  const narrowed =
+    expected === undefined
+      ? refine
+      : (query: AnyUpdate): AnyUpdate => {
+          let out = refine === undefined ? query : refine(query);
+          for (const [column, value] of Object.entries(expected)) {
+            out = out.where((eb) => (value === null || value === undefined ? eb(eb.ref(column as never), 'is', null) : eb(eb.ref(column as never), '=', value as never)));
+          }
+          return out;
+        };
+  // A row of a document's states is judged holding it; `visible` asks the
+  // caller's own scope whether the row is theirs to hear about, by the same
+  // statement setting nothing.
+  return guardedUpdate(
+    db,
+    dialect,
+    table,
+    values,
+    match,
+    async (tx) => {
+      const count = await statement(tx, set);
+      if (count === 0 && expected !== undefined && (await present(tx))) throw rowMoved(expected);
+      if (count > 0 && plan !== undefined) await sealRows(tx, table, match, plan, writeSeals);
+      return count;
+    },
+    refine === undefined ? undefined : present,
+  );
 }
 
 /**
@@ -402,14 +493,25 @@ export async function deleteRows(
   table: ResolvedTable,
   match: Row,
   refine?: (query: AnyDelete) => AnyDelete,
+  /**
+   * A write that is a person's (or a rule's, or a guest's) — judged by the
+   * table's states: the row prepared for it by the write service carries the
+   * guard. Absent, the row is deleted as it is (an undo of a create, the
+   * sample data's own rows going).
+   */
+  judged?: { dialect: Dialect; prepared: Row } | undefined,
 ): Promise<number> {
-  let query = db.deleteFrom(table.id) as unknown as AnyDelete;
-  for (const [column, value] of Object.entries(match)) {
-    query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
-  }
-  if (refine !== undefined) query = refine(query);
-  const result = await query.executeTakeFirst();
-  return Number(result.numDeletedRows);
+  const run = async (tx: Db) => {
+    let query = tx.deleteFrom(table.id) as unknown as AnyDelete;
+    for (const [column, value] of Object.entries(match)) {
+      query = query.where((eb) => eb(tx.dynamic.ref(column), '=', value));
+    }
+    if (refine !== undefined) query = refine(query);
+    const result = await query.executeTakeFirst();
+    return Number(result.numDeletedRows);
+  };
+  if (judged === undefined) return run(db);
+  return guardedDelete(db, judged.dialect, table, match, guardOf(judged.prepared), run);
 }
 
 /**
@@ -630,6 +732,11 @@ async function fetchHeld(db: Db, target: WriteTarget, pk: Row): Promise<Row | un
   for (const [column, value] of Object.entries(pk)) query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
   if (target.dialect !== 'sqlite') query = query.forUpdate();
   return (await query.executeTakeFirst()) as Row | undefined;
+}
+
+/** A row's key. */
+function pkOf(table: ResolvedTable, row: Row): Row {
+  return Object.fromEntries(table.primaryKey.map((column) => [column, row[column]]));
 }
 
 /**
@@ -965,6 +1072,12 @@ export interface WriteServiceOptions {
    */
   settings?: RuleSettingsReader | undefined;
   /**
+   * The role slugs a writer holds (`any` for Super Admin), for a move only
+   * some roles may make. Without it, such a move is refused: nobody can be
+   * shown to hold the role.
+   */
+  rolesOf?: ((actor: WriteActor | null) => Promise<ReadonlySet<string> | 'any'>) | undefined;
+  /**
    * Whether something after the write compares a table's rows before and
    * after (an app's email queued when a column changes to a value): an
    * update of it then reads the stored row first, so the event carries it.
@@ -1007,8 +1120,38 @@ function refusal(fields: FieldIssues): ValidationFailedError {
 }
 
 /** What DECIDE needs to know about a write. */
-function decideContext(target: WriteTarget, context: WriteContext, now: Date): DecideContext {
-  return { db: target.db, dialect: target.dialect, table: target.table, origin: context.origin, actor: context.actor, now };
+function decideContext(target: WriteTarget, context: WriteContext, now: Date, zone: string | undefined): DecideContext {
+  return {
+    db: target.db,
+    dialect: target.dialect,
+    table: target.table,
+    origin: context.origin,
+    actor: context.actor,
+    now,
+    zone,
+    claimed: context.claimed ?? null,
+  };
+}
+
+/** Text a rule keeps trimmed, or trimmed and in lower case (an address). The same object when nothing changes. */
+function normalizeText(rules: TableRules | null, values: Row): Row {
+  let out: Row | null = null;
+  for (const { column, how } of rules?.normalizes ?? []) {
+    const value = values[column];
+    if (typeof value !== 'string') continue;
+    const next = how === 'email' ? value.trim().toLowerCase() : value.trim();
+    if (next === value) continue;
+    out ??= { ...values };
+    out[column] = next;
+  }
+  return out ?? values;
+}
+
+/** Two refusals as one: a column named twice keeps its first issue. */
+function mergeIssues(a: FieldIssues | null, b: FieldIssues | null): FieldIssues | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return { ...b, ...a };
 }
 
 export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteService {
@@ -1043,12 +1186,116 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     context: WriteContext,
     values: Row,
     now: Date,
-  ): Row => withoutReadOnly(rules, fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor }), context.origin);
+  ): Row => {
+    const out = normalizeText(rules, withoutReadOnly(rules, fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor }), context.origin));
+    // A new document starts in its first state.
+    const states = rules?.states;
+    if (action !== 'create' || states === undefined || Object.prototype.hasOwnProperty.call(out, states.column)) return out;
+    return { ...out, [states.column]: states.initial };
+  };
 
   /** The venue's zone for a table whose rules read a clock; undefined for every other. */
   async function zoneFor(rules: TableRules | null, target: WriteTarget): Promise<string | undefined> {
-    if (rules?.capacity === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0) return undefined;
+    const readsDay = (rules?.stamps ?? []).some((stamp) => stamp.set === 'today') || (rules?.bounds ?? []).some((bound) => bound.notAfter !== undefined);
+    if (rules?.capacity === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay) return undefined;
     return target.timezone ?? (await opts.timezoneOf?.(target.connectionId)) ?? 'UTC';
+  }
+
+  /**
+   * Dates kept within dates (`column.bounds`): never later than today on the
+   * venue's calendar, never earlier than another date — the row's own, or
+   * the row a foreign key points at, read through the write's own handle.
+   * History is not judged: an import brings in what happened.
+   */
+  async function boundIssues(
+    rules: TableRules | null,
+    action: WriteAction,
+    target: WriteTarget,
+    context: WriteContext,
+    values: Row,
+    stored: Row | null,
+  ): Promise<FieldIssues | null> {
+    if ((rules?.bounds?.length ?? 0) === 0 || action === 'delete' || context.origin === 'import' || context.origin === 'undo') return null;
+    let issues: FieldIssues | null = null;
+    const row = { ...(stored ?? {}), ...values };
+    for (const bound of rules!.bounds!) {
+      if (!Object.prototype.hasOwnProperty.call(values, bound.column)) continue;
+      const day = dayOf(values[bound.column]);
+      if (day === null) continue;
+      let refused = false;
+      if (bound.notAfter === 'today') refused = day > venueClock(new Date(), (await zoneFor(rules, target)) ?? 'UTC').day;
+      const before = bound.notBefore;
+      if (!refused && before !== undefined) {
+        let other: unknown = row[before.column];
+        if (before.through !== undefined) {
+          const key = row[before.through.via];
+          other =
+            key === null || key === undefined
+              ? null
+              : (
+                  (await target.db
+                    .selectFrom(before.through.table)
+                    .select(sql<unknown>`${sql.ref(before.column)}`.as('value'))
+                    .where((eb) => eb(target.db.dynamic.ref(before.through!.key), '=', key))
+                    .executeTakeFirst()) as { value?: unknown } | undefined
+                )?.value;
+        }
+        const floor = dayOf(other);
+        refused = floor !== null && day < floor;
+      }
+      if (refused) (issues ??= {})[bound.column] = { code: 'out-of-range' };
+    }
+    return issues;
+  }
+
+  /** CHECK, then the dates a rule keeps within dates; the caller's own refusal when there is one. */
+  async function checkAllOrThrow(
+    rules: TableRules | null,
+    action: WriteAction,
+    target: WriteTarget,
+    context: WriteContext,
+    values: Row,
+    stored: Row | null,
+    mapError: ((error: unknown) => never) | undefined,
+  ): Promise<CheckedRow> {
+    const issues = mergeIssues(checkRow(rules, action, values, { dialect: target.dialect }), await boundIssues(rules, action, target, context, values, stored));
+    if (issues === null) return brand(values);
+    const error = refusal(issues);
+    if (mapError !== undefined) mapError(error);
+    throw error;
+  }
+
+  /**
+   * What a checked row carries to its statement: the guard a document's
+   * states judge it by (whether it is history, the writer's roles, the
+   * columns this write's own rules decided), and the fingerprints it seals.
+   * The outbox's own writes and an undo carry no guard: the outbox keeps its
+   * own moves, and an undo on a table tied to states is refused before it
+   * gets here.
+   */
+  async function carry(
+    rules: TableRules | null,
+    action: WriteAction,
+    target: WriteTarget,
+    context: WriteContext,
+    values: CheckedRow,
+    stored: Row | null,
+  ): Promise<CheckedRow> {
+    if (rules === null || context.origin === 'undo') return values;
+    const history = context.origin === 'import';
+    let out: Row = values;
+    if (tiedToStates(target.table) && !isOutboxWrite(context)) {
+      const roleMoves = Object.values(rules.states?.moves ?? {}).some((moves) => moves.some((move) => typeof move === 'object' && move.roles !== undefined));
+      const roles = !history && action === 'update' && roleMoves ? ((await opts.rolesOf?.(context.actor ?? null)) ?? new Set<string>()) : new Set<string>();
+      const decided = [
+        ...[...(rules.stamps ?? []), ...(rules.seals ?? [])].filter((stamp) => stampFires(stamp, action, values, stored)).map((stamp) => stamp.column),
+        ...(rules.formulas ?? []).map((formula) => formula.column),
+      ];
+      out = attachGuard(out, { history, roles, decided });
+    }
+    const seals = history || action === 'delete' ? [] : (rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored));
+    if (seals.length > 0) out = attachSeals(out, { view: target.view, stamps: seals, currency: await currencyFor(target)() });
+    return brand(out);
   }
 
   /**
@@ -1078,7 +1325,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return out ?? values;
   };
 
-  /** FILL (with the venue's clock), then RESOLVE — a copy, a code, then what a create fills from elsewhere. */
+  /** FILL (with the venue's clock, text normalised, a new document's first state), then RESOLVE — a copy, a code, then what a create fills from elsewhere. */
   const prepareValues = async (
     rules: TableRules | null,
     action: WriteAction,
@@ -1452,21 +1699,6 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (movedBalances(rules, values, record).some((balance) => balance.cappedBy.length > 0)) throw new BalanceBatchError(target.table.name);
   }
 
-  /** Check, or throw the caller's own version of the refusal. */
-  function checkOrThrow(
-    rules: TableRules | null,
-    action: WriteAction,
-    target: WriteTarget,
-    values: Row,
-    mapError: ((error: unknown) => never) | undefined,
-  ): CheckedRow {
-    const issues = checkRow(rules, action, values, { dialect: target.dialect });
-    if (issues === null) return brand(values);
-    const error = refusal(issues);
-    if (mapError !== undefined) mapError(error);
-    throw error;
-  }
-
   async function runBefore(
     hooks: RecordHooks,
     action: WriteAction,
@@ -1477,7 +1709,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   ): Promise<Row> {
     const event: BeforeWriteEvent = { action, target, values: { ...values }, record, context };
     await hooks.before(event);
-    return valuesAfterHooks(target, values, event.values);
+    const out = valuesAfterHooks(target, values, event.values);
+    // What the hook judged on travels with the values to the UPDATE's own WHERE.
+    return action === 'update' && event.expect !== undefined && Object.keys(event.expect).length > 0 ? attachExpect(out, event.expect) : out;
   }
 
   async function statement<T>(run: () => Promise<T>, mapError: ((error: unknown) => never) | undefined): Promise<T> {
@@ -1522,9 +1756,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       for (const row of rows) {
         // No stored row here: an update's formulas are worked out by a path that reads one (`beforeEach`).
         const values = await formulate(rules, action, target, await prepareValues(rules, action, target, context, row, now, memo), null);
-        const issue = checkRow(rules, action, values, { dialect: target.dialect });
+        const issue = mergeIssues(checkRow(rules, action, values, { dialect: target.dialect }), await boundIssues(rules, action, target, context, values, null));
         issues.push(issue);
-        out.push(issue === null ? await numbered(rules, action, target, context, brand(values)) : null);
+        out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null) : null);
       }
       return { rows: out, issues };
     },
@@ -1538,7 +1772,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const filled = localize(rules, target, fill(rules, 'create', target, context, input.values, new Date()), zone);
       const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled), opts.settings);
       // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
-      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, new Date()));
+      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, new Date(), zone));
       // A total, a formula and a number are Adminium's alone, whatever a hook set.
       const hooked = (await hooks.wants('before', 'create', target, context))
         ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
@@ -1546,7 +1780,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const values = await formulate(rules, 'create', target, hooked, null);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       // What a number without gaps needs at its INSERT, read before any lock is taken.
-      const checked = brand(await prepareNumbers(rules, 'create', target, checkOrThrow(rules, 'create', target, values, input.mapError), context.origin, opts.settings));
+      const checked = await carry(
+        rules,
+        'create',
+        target,
+        context,
+        brand(await prepareNumbers(rules, 'create', target, await checkAllOrThrow(rules, 'create', target, context, values, null, input.mapError), context.origin, opts.settings)),
+        null,
+      );
       // Only the codes generated here, and left alone by the hooks, are made again.
       const codes = generatedCodes(rules, filled).filter((code) => values[code.column] === resolved[code.column]);
       const booking = rules?.booking;
@@ -1569,6 +1810,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           await settleRows(rules, within, [{ record: out.row, before: null }], currency, held);
           await settleOwn(rules, within, 'create', out.row, out.values, currency);
         }, input.mapError);
+        // SEAL again over the row's own totals, once they are added up.
+        const sealing = sealsOf(checked);
+        if (sealing !== undefined && keepsOwnTotals(rules)) await sealRows(db, target.table, pkOf(target.table, out.row), sealing, writeSeals);
         // The row as its own totals left it: the INSERT returned it before they were added up.
         return keepsOwnTotals(rules) ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
       };
@@ -1627,7 +1871,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // checked, written in the same statement, and carried into the undo entry.
       if (stored) {
         values = await guardedValue(
-          () => decideRow(rules, 'update', values, before, decideContext(target, context, new Date())),
+          () => decideRow(rules, 'update', values, before, decideContext(target, context, new Date(), zone)),
           input.mapError,
         );
       }
@@ -1639,7 +1883,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // FORMULA, over the stored row: a change of `qty` alone still has the `rate` it multiplies.
       values = await formulate(rules, 'update', target, values, before);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
-      const checkedValues = checkOrThrow(rules, 'update', target, values, input.mapError);
+      // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
+      const checkedValues = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before);
       const capacity = rules?.capacity !== undefined && touchesGuard(rules.capacity, values) ? rules.capacity : undefined;
       const booking = rules?.booking !== undefined && touchesBooking(rules.booking, values) ? rules.booking : undefined;
       // The formulas this change moves: worked out again below from the row as held.
@@ -1694,6 +1939,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             await settleRows(rules, within, [{ record: after, before: prior }], currency, held);
             if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, written, currency, ownBefore);
           }, input.mapError);
+          // SEAL again over the totals the settle just wrote beside the row.
+          const sealing = sealsOf(written);
+          if (sealing !== undefined) await sealRows(db, target.table, pk, sealing, writeSeals);
         }
         if (written !== checkedValues) values = written;
         return changed;
@@ -1732,17 +1980,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       const currency = currencyFor(target);
       const rolls = (rules?.rollupsInto?.length ?? 0) > 0;
+      // A document's states judge the delete — unless the caller's scope could not see the row, which then matches nothing.
+      const judged =
+        input.refine !== undefined && before === null ? undefined : { dialect: target.dialect, prepared: await carry(rules, 'delete', target, context, brand({}), before) };
       const count = rolls
         ? await conflicted(() => atomically(target, async (db) => {
             // The parent the row fed, read — and held — before it goes.
             const gone = (await fetchHeld(db, target, pk)) ?? null;
             const within = { ...target, db };
             const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
-            const removed = await statement(() => deleteRows(db, target.table, pk, input.refine), input.mapError);
+            const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged), input.mapError);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);
             return removed;
           }), input.mapError)
-        : await statement(() => deleteRows(target.db, target.table, pk, input.refine), input.mapError);
+        : await conflicted(() => statement(() => deleteRows(target.db, target.table, pk, input.refine, judged), input.mapError), input.mapError);
       if (count === 0 && input.skipIfNone === true) return 0;
       await input.announce(count, before);
       if (count > 0 && before !== null && (await hooks.wants('after', 'delete', target, context))) {
@@ -1764,13 +2015,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       );
       const now = new Date();
       const memo: CopyMemo = new Map();
-      /** FORMULA over the row as stored, CHECK, then SEQUENCE for a row that passed. */
+      const zone = withRules ? await zoneFor(rules, target) : undefined;
+      /**
+       * FORMULA over the row as stored, CHECK, then SEQUENCE for a row that
+       * passed — carrying what its statement judges it by.
+       */
       const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
         const worked = await formulate(rules, action, target, values, record);
-        const issues = checkRow(rules, action, worked, { dialect: target.dialect });
+        const issues = mergeIssues(checkRow(rules, action, worked, { dialect: target.dialect }), await boundIssues(rules, action, target, context, worked, record));
         // A refused row is not written, so it is given no number.
-        return { values: issues === null ? await numbered(rules, action, target, context, brand(worked)) : brand(worked), issues };
+        if (issues !== null) return { values: brand(worked), issues };
+        return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(worked)), record), issues };
       };
       const start = (values: Row): Promise<Row> =>
         withRules ? prepareValues(rules, action, target, context, values, now, memo) : Promise.resolve(values);
@@ -1778,7 +2034,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const decided = async (values: Row, record: Row | null): Promise<{ values: Row; refused: FieldIssues | null }> => {
         if (!withRules || action === 'delete' || (action === 'update' && !needsStored(rules))) return { values, refused: null };
         try {
-          return { values: await decideRow(rules, action, values, record, decideContext(target, context, now)), refused: null };
+          return { values: await decideRow(rules, action, values, record, decideContext(target, context, now, zone)), refused: null };
         } catch (error) {
           const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
           return { values, refused: { [column]: { code: 'not-allowed' } } };
@@ -1793,7 +2049,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           if (action === 'update' && withRules && movedBalances(rules, filled).some((balance) => balance.cappedBy.length > 0)) {
             refuseMovedBalance(rules, target, filled, await storedOf(row), beforeOpts?.capacity);
           }
-          if (withRules && (action === 'create' || (action === 'update' && needsStored(rules)))) {
+          if (withRules && (action === 'create' || needsStored(rules))) {
             const record = action === 'create' ? null : await storedOf(row);
             const { values, refused } = await decided(filled, record);
             out.push(refused === null ? { ...(await prepare(values, record)), record: undefined } : { values: brand(values), issues: refused, record: undefined });

@@ -44,7 +44,7 @@
 import { createHash } from 'node:crypto';
 
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
-import type { BookingRule, ColumnRules, Manifest } from '@adminium/manifest';
+import type { BookingRule, ColumnRules, Manifest, States } from '@adminium/manifest';
 import {
   MetaValidationError,
   appTablesRepo,
@@ -62,6 +62,7 @@ import { installedShapes } from '../documents/app-profiles.js';
 import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
 import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
+import { roleSlugFor } from './manifest-roles.js';
 
 export type RuleOp =
   | 'column.options'
@@ -79,6 +80,7 @@ export type RuleOp =
   | 'column.formula'
   | 'column.scale'
   | 'column.normalize'
+  | 'column.bounds'
   | 'column.pii'
   | 'column.label'
   | 'table.capacity'
@@ -189,6 +191,12 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.format !== undefined) out.push({ op: 'column.format', value: { ...rules.format } });
   if (rules.formula !== undefined) out.push({ op: 'column.formula', value: { formula: rules.formula } });
   if (rules.normalize !== undefined) out.push({ op: 'column.normalize', value: { normalize: rules.normalize } });
+  if (rules.notAfter !== undefined || rules.notBefore !== undefined) {
+    out.push({
+      op: 'column.bounds',
+      value: { ...(rules.notAfter === undefined ? {} : { notAfter: rules.notAfter }), ...(rules.notBefore === undefined ? {} : { notBefore: { ...rules.notBefore } }) },
+    });
+  }
   if (rules.personal !== undefined) out.push({ op: 'column.pii', value: { masked: rules.personal } });
   return out;
 }
@@ -219,14 +227,25 @@ export function realRuleRefs(
   op: RuleOp,
   value: Record<string, unknown>,
   realId: (ref: string) => string,
+  /** The app's key: a move kept for some of its roles names their role slugs, as the people who hold them do. */
+  appKey?: string,
 ): { value: Record<string, unknown>; missing: string[] } {
   if (NAMING_OPS.has(op)) return { value, missing: [] };
-  return mapTableRefs(value, realId, { refKeys: refKeysOf(op) });
+  const mapped = mapTableRefs(value, realId, { refKeys: refKeysOf(op) });
+  if (op !== 'table.states' || appKey === undefined) return mapped;
+  const states = mapped.value as unknown as States;
+  const moves = Object.fromEntries(
+    Object.entries(states.moves).map(([from, list]) => [
+      from,
+      list.map((move) => (typeof move === 'string' || move.roles === undefined ? move : { ...move, roles: move.roles.map((role) => roleSlugFor(appKey, role)) })),
+    ]),
+  );
+  return { ...mapped, value: { ...states, moves } as unknown as Record<string, unknown> };
 }
 
 /** {@link realRuleRefs}, the value alone. */
-export function realRuleValue(op: RuleOp, value: Record<string, unknown>, realId: (ref: string) => string): Record<string, unknown> {
-  return realRuleRefs(op, value, realId).value;
+export function realRuleValue(op: RuleOp, value: Record<string, unknown>, realId: (ref: string) => string, appKey?: string): Record<string, unknown> {
+  return realRuleRefs(op, value, realId, appKey).value;
 }
 
 /** A rule's value, hashed the same however the store's JSON column ordered its keys. */
@@ -398,7 +417,7 @@ export async function writeManifestRules(input: {
       ['table.states', table.states],
     ] as const) {
       if (value === undefined) continue;
-      const mapped = realRuleRefs(op, { ...value } as Record<string, unknown>, realId);
+      const mapped = realRuleRefs(op, { ...value } as Record<string, unknown>, realId, manifest.key);
       const shape = shapeOwned(table, '', op);
       desired.push({ ref: table.ref, table: real.id, column: '', op, value: mapped.value, missing: mapped.missing, ...(shape === undefined ? {} : { shape }) });
     }

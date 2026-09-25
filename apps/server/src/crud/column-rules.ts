@@ -52,7 +52,10 @@ import type {
   ColumnValidation,
   EffectiveColumn,
   EffectiveTable,
+  LockedByReference,
   RuleSetting,
+  StateParent,
+  TableStatesRule,
   TableBookingRule,
   TableCapacityRule,
 } from '../connections/effective-schema.js';
@@ -182,6 +185,13 @@ export interface ColumnFormula {
   reads: string[];
 }
 
+/** `column.bounds`, resolved: the other date is this row's, or read through a foreign key. */
+export interface DateBound {
+  column: string;
+  notAfter?: 'today';
+  notBefore?: { column: string; through?: { via: string; table: string; key: string } };
+}
+
 /** `column.default { kind: 'from' }`: a create's empty value, filled from elsewhere. */
 export interface ColumnDefaultFrom {
   column: string;
@@ -294,6 +304,17 @@ export interface TableRules {
   defaultsFrom?: ColumnDefaultFrom[];
   /** Numbers without gaps, taken inside the write. */
   gapless?: GaplessSequence[];
+  /** Text stored trimmed, or trimmed and in lower case. */
+  normalizes?: { column: string; how: 'trim' | 'email' }[];
+  /** Dates kept within dates: never after today, never before another date. */
+  bounds?: DateBound[];
+  /** A document's life (`table.states`), and the rows of other tables that lock it. */
+  states?: TableStatesRule;
+  lockedBy?: LockedByReference[];
+  /** The parents whose state this table's rows are tied to. */
+  stateParents?: StateParent[];
+  /** Fingerprints: stamps of `hashOf`, sealed after everything else a write does. */
+  seals?: ColumnStamp[];
   /** The booking guard on this table. */
   capacity?: TableCapacityRule;
   /** Booking people on this table: no overlap per resource. */
@@ -418,6 +439,12 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const gapless: GaplessSequence[] = [];
   const scales: { column: string; scale: Scale }[] = [];
   const defaultsFrom: ColumnDefaultFrom[] = [];
+  const seals: ColumnStamp[] = [];
+  const normalizes: { column: string; how: 'trim' | 'email' }[] = [];
+  const bounds: DateBound[] = [];
+  const states = target.table.table?.states;
+  const lockedBy = target.table.table?.lockedBy ?? [];
+  const stateParents = target.table.table?.stateParents ?? [];
   for (const column of columns) {
     if (column.scale !== undefined) scales.push({ column: column.name, scale: column.scale });
     if (column.venueLocal === true) venueLocal.push(column.name);
@@ -474,7 +501,27 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     if (column.code !== undefined) {
       codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length });
     }
-    if (column.stamp !== undefined) stamps.push({ ...column.stamp, column: column.name, logicalType: column.logicalType });
+    if (column.stamp !== undefined) {
+      const stamp = { ...column.stamp, column: column.name, logicalType: column.logicalType };
+      // A fingerprint is sealed last, over the row as the whole write leaves it.
+      if (typeof stamp.set === 'object' && 'hashOf' in stamp.set) seals.push(stamp);
+      else stamps.push(stamp);
+    }
+    if (column.normalize !== undefined) normalizes.push({ column: column.name, how: column.normalize });
+    if (column.bounds !== undefined) {
+      const bound: DateBound = { column: column.name, ...(column.bounds.notAfter === undefined ? {} : { notAfter: column.bounds.notAfter }) };
+      const before = column.bounds.notBefore;
+      if (before !== undefined && before.via === undefined) bound.notBefore = { column: before.column };
+      if (before?.via !== undefined) {
+        const relation = target.view?.model?.relations.find(
+          (r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === before.via,
+        );
+        if (relation !== undefined) {
+          bound.notBefore = { column: before.column, through: { via: before.via, table: relation.to.tableId, key: relation.to.columns[0] as string } };
+        }
+      }
+      if (bound.notAfter !== undefined || bound.notBefore !== undefined) bounds.push(bound);
+    }
     const values = enumValuesOf(column, enums);
     /*
      * The answers this column accepts, from the rule.
@@ -539,6 +586,11 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     scales.length === 0 &&
     defaultsFrom.length === 0 &&
     gapless.length === 0 &&
+    seals.length === 0 &&
+    normalizes.length === 0 &&
+    bounds.length === 0 &&
+    states === undefined &&
+    stateParents.length === 0 &&
     capacity === undefined &&
     booking === undefined &&
     venueLocal.length === 0
@@ -556,6 +608,11 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(currencyColumn === undefined ? {} : { currencyColumn }),
           ...(defaultsFrom.length === 0 ? {} : { defaultsFrom }),
           ...(gapless.length === 0 ? {} : { gapless, numbered }),
+          ...(seals.length === 0 ? {} : { seals }),
+          ...(normalizes.length === 0 ? {} : { normalizes }),
+          ...(bounds.length === 0 ? {} : { bounds }),
+          ...(states === undefined ? {} : { states, ...(lockedBy.length === 0 ? {} : { lockedBy }) }),
+          ...(stateParents.length === 0 ? {} : { stateParents }),
           ...(capacity === undefined ? {} : { capacity }),
           ...(booking === undefined ? {} : { booking }),
           ...(venueLocal.length === 0 ? {} : { venueLocal }),
@@ -941,6 +998,7 @@ export function checkRow(
     ...(rules.sequences ?? []).map((c) => c.column),
     ...(rules.codes ?? []).map((c) => c.column),
     ...(rules.stamps ?? []).map((c) => c.column),
+    ...(rules.seals ?? []).map((c) => c.column),
     ...(rules.formulas ?? []).map((c) => c.column),
     ...(rules.numbered ?? []),
   ]);

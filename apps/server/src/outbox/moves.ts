@@ -151,6 +151,8 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   // An update. The hooks see only a row the caller could read.
   if (record === null) return;
   const from = String(record[cols.status] ?? '');
+  // Judged on this status: the UPDATE applies only while the row still holds it (a send meanwhile refuses it).
+  event.expect = { ...(event.expect ?? {}), [cols.status]: record[cols.status] ?? null };
   const to = has(cols.status) && !empty(values[cols.status]) ? String(values[cols.status]) : from;
   const moment = (column: string) => ['timestamp', 'timestamptz'].includes(target.table.columns.get(column)?.logicalType ?? '');
   const changed = (column: string | undefined) => column !== undefined && has(column) && !same(values[column], record[column], moment(column));

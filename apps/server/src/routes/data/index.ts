@@ -55,6 +55,8 @@ import {
 import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-errors.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
+import { sealRows, sealsOf } from '../../crud/seal.js';
+import { tiedToStates } from '../../crud/states.js';
 import {
   rowsEqual,
   UndoStore,
@@ -101,6 +103,9 @@ import {
   requestWriteContext,
   uncheckedForUndo,
   updateRows,
+  writeSeals,
+  type CheckedRow,
+  type PlannedRow,
   type PreparedRow,
   type RecordWriteService,
   type WriteAction,
@@ -736,6 +741,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           }
         })();
         undo.added.push(keyOf(written));
+        (undo.addedRows ??= []).push(written);
         settled.push({ action: 'create', record: written, before: null });
         options.events?.push({ table: child.child, action: 'create', pk: keyOf(written), row: written });
       }
@@ -761,8 +767,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         } catch (error) {
           mapDbError(error, child.child);
         }
-        if (before !== undefined) undo.changed.push({ key: change.key, before });
         const after = (await fetchByPk(db, child.child, change.key)) ?? null;
+        if (before !== undefined) undo.changed.push({ key: change.key, before, ...(after === null ? {} : { after }) });
         if (after !== null) settled.push({ action: 'update', record: after, before: before ?? null });
         options.events?.push({ table: child.child, action: 'update', pk: change.key, row: after });
       }
@@ -771,7 +777,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const before = existing.find((row) =>
           child.child.primaryKey.every((name) => String(row[name]) === String(key[name])),
         );
-        await deleteRows(db, child.child, key);
+        // A child row removed is a delete like any other: its before hooks,
+        // and the states of the document it belongs to (a sent invoice's
+        // lines stay), judged where it is deleted.
+        const [prepared] = await writes.beforeEach('delete', target, context, [{ match: key, values: {}, record: before ?? null }]);
+        if (prepared !== undefined && prepared.issues !== null) {
+          throw new ValidationFailedError('Some values were refused.', { fields: prepared.issues, relation: child.relationId });
+        }
+        try {
+          await deleteRows(db, child.child, key, undefined, prepared === undefined ? undefined : { dialect: ctx.dialect, prepared: prepared.values });
+        } catch (error) {
+          mapDbError(error, child.child);
+        }
         if (before !== undefined) {
           undo.removed.push(before);
           settled.push({ action: 'delete', record: before, before: null });
@@ -918,6 +935,22 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       });
     }
 
+    /**
+     * Whether undoing this write would take a document's life back: a write
+     * to a table that keeps states, or to rows tied to one (a sent invoice's
+     * lines, its payments). An undo writes with no rules — it restores
+     * history — so it would put a sent invoice back to draft after its email
+     * went, or a line back onto a locked invoice. Such a write is given no
+     * undo; a mistake is moved on (voided, sent back), never unwritten.
+     */
+    function takesStateBack(ctx: DataContext, children: readonly UndoChildren[]): boolean {
+      if (tiedToStates(ctx.table)) return true;
+      return children.some((child) => {
+        const relation = ctx.view.model.relations.find((candidate) => candidate.id === child.relationId);
+        return relation !== undefined && tiedToStates(ctx.view.table(relation.from.tableId));
+      });
+    }
+
     function issueUndo(
       request: FastifyRequest,
       ctx: DataContext,
@@ -934,8 +967,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
-      // No undo that would delete a row numbered without gaps: see `takesNumberBack`.
-      if (takesNumberBack(ctx, action, children)) return null;
+      // No undo that would delete a row numbered without gaps, or take a document's state back.
+      if (takesNumberBack(ctx, action, children) || takesStateBack(ctx, children)) return null;
       const { token } = undoStore.issue({
         auditId: null,
         userId,
@@ -1086,12 +1119,17 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const { db, dialect } = await manager.data(entry.connectionId);
         const target: WriteTarget = { connectionId: entry.connectionId, view, table, db, dialect };
         // A token issued before the table numbered its rows without gaps: the rule decides now.
-        if (takesNumberBack({ connectionId: entry.connectionId, view, table, db, dialect, unmasked: false, target }, entry.action, entry.children)) {
+        const undone: DataContext = { connectionId: entry.connectionId, view, table, db, dialect, unmasked: false, target };
+        if (takesNumberBack(undone, entry.action, entry.children)) {
           throw new ConflictError(
             'This record has a number from an unbroken series, so creating it cannot be undone. Void it instead.',
             'CONFLICT',
             { reason: 'UNDO_NUMBERED' },
           );
+        }
+        // A token issued before the table kept states: the rule decides now.
+        if (takesStateBack(undone, entry.children)) {
+          throw new ConflictError('This record moves through states, so a change to it cannot be undone.', 'CONFLICT', { reason: 'UNDO_STATES' });
         }
         const context = requestWriteContext(request, 'undo');
         const hookAction = UNDO_WRITE[entry.action];
@@ -1220,19 +1258,41 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       db: Kysely<SourceDatabase>,
       target: WriteTarget,
       entry: UndoEntry,
+      context: WriteContext,
+      conflict: () => never,
     ): Promise<void> {
       for (const children of entry.children) {
         const resolution = resolveChild(target.view, target.table, children.relationId);
         if (!resolution.ok) continue;
         const child = resolution.child.child;
-        for (const key of children.added) {
+        const childTarget: WriteTarget = { ...target, db, table: child };
+        /*
+         * Each child row goes back only while it is still as this write left
+         * it — the conflict rule the parent follows — and through the child
+         * table's before hooks, as any write to it: a message the outbox has
+         * sent since is not put back to held, to be sent a second time.
+         */
+        const still = async (key: Row, image: Row | undefined): Promise<void> => {
+          if (image === undefined) return;
+          const now = await fetchByPk(db, child, key);
+          if (now === undefined || !rowsEqual(now, image, Object.keys(image))) conflict();
+        };
+        const judge = async (action: WriteAction, planned: PlannedRow): Promise<CheckedRow> => {
+          const [prepared] = await writes.beforeEach(action, childTarget, context, [planned], { rules: false });
+          return prepared?.values ?? uncheckedForUndo([planned.values])[0]!;
+        };
+        for (const [i, key] of children.added.entries()) {
+          await still(key, children.addedRows?.[i]);
+          await judge('delete', { match: key, values: {}, record: children.addedRows?.[i] });
           await deleteRows(db, child, key);
         }
         for (const row of children.removed) {
-          await insertRows(db, target.dialect, child, uncheckedForUndo([row]));
+          await insertRows(db, target.dialect, child, [await judge('create', { values: row })]);
         }
         for (const change of children.changed) {
-          await updateRows(db, target.dialect, child, uncheckedForUndo([change.before])[0]!, change.key);
+          await still(change.key, change.after);
+          const current = (await fetchByPk(db, child, change.key)) ?? null;
+          await updateRows(db, target.dialect, child, await judge('update', { match: change.key, values: change.before, record: current }), change.key);
         }
       }
     }
@@ -1278,7 +1338,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               uncheckedForUndo([Object.fromEntries(compareColumns.map((c) => [c, before[c]]))])[0]!;
             await updateRows(tdb, target.dialect, table, restoreValues, pk);
             await undoLinks(tdb, target, entry, before, conflict);
-            await undoChildren(tdb, target, entry);
+            await undoChildren(tdb, target, entry, context, conflict);
             restored.push(pkLabel(table, pk));
             written.push({ pk, before: current ?? null, record: null });
           }
@@ -1298,7 +1358,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await undoLinks(tdb, target, entry, after, conflict);
           // …and the child rows for the same reason, before the parent they
           // point at is gone.
-          await undoChildren(tdb, target, entry);
+          await undoChildren(tdb, target, entry, context, conflict);
           await deleteRows(tdb, table, pk);
           restored.push(pkLabel(table, pk));
           written.push({ pk, before: null, record: current });
@@ -1375,7 +1435,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             }
             try {
               if (action === 'delete') {
-                await deleteRows(tdb, ctx.table, pk);
+                await deleteRows(tdb, ctx.table, pk, undefined, { dialect: ctx.dialect, prepared: prepared[i]!.values });
                 beforeImages.push(before);
                 events.push({ pk, before, after: null });
               } else {
@@ -1915,6 +1975,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           // and the undo compares against this row, not the one inserted.
           if (children.length === 0) return row;
           const key = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
+          // A fingerprint covers the child rows this same save wrote: sealed again, last.
+          await sealRows(tdb, ctx.table, key, sealsOf(prepared.values), writeSeals);
           return (await fetchByPk(tdb, ctx.table, key)) ?? row;
         }, numbered);
 
@@ -2013,6 +2075,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               }),
             );
           }
+          // A fingerprint covers the child rows this same save wrote: sealed again, last.
+          if (children.length > 0) await sealRows(tdb, ctx.table, pk, sealsOf(prepared.values), writeSeals);
           // As its children left it (a total over them has moved).
           return children.length === 0 ? row : ((await fetchByPk(tdb, ctx.table, pk)) ?? row);
         }, numbered);

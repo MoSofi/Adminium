@@ -537,3 +537,30 @@ describe('warnings', () => {
     expect(result.warnings.some((w) => w.path === 'requiredSchema.tables.0.columns.2')).toBe(true);
   });
 });
+
+describe('dates kept within dates', () => {
+  it('bounds a payment by today and by its invoice, and refuses bounds that name nothing', () => {
+    const paidOn = (m: Doc) => columnOf(m, 'payments', 'paid_on');
+    let m = valid();
+    paidOn(m)['rules'] = { notAfter: 'today', notBefore: { column: 'issued_on', via: 'document_id' } };
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    columnOf(m, 'invoices', 'due_on')['rules'] = { ...(columnOf(m, 'invoices', 'due_on')['rules'] as Doc), notBefore: { column: 'issued_on' } };
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    paidOn(m)['rules'] = { notBefore: { column: 'nope', via: 'document_id' } };
+    expectIssue(m, '"invoices" has no column "nope"');
+    m = valid();
+    paidOn(m)['rules'] = { notBefore: { column: 'issued_on', via: 'amount' } };
+    expectIssue(m, '"payments.amount" is not a foreign key');
+    m = valid();
+    paidOn(m)['rules'] = { notBefore: { column: 'total', via: 'document_id' } };
+    expectIssue(m, '"invoices.total" is not a date');
+    m = valid();
+    paidOn(m)['rules'] = { notBefore: { column: 'paid_on' } };
+    expectIssue(m, 'a date is bounded by another column');
+    m = valid();
+    (columnOf(m, 'payments', 'amount') as Doc)['rules'] = { notAfter: 'today' };
+    expectIssue(m, 'only a date is kept within dates');
+  });
+});
