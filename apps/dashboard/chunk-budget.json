@@ -1,5 +1,5 @@
 {
-  "entryJsGzBytes": 298978,
+  "entryJsGzBytes": 298471,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md. `history` is newest-first: it replaced a chain of loweredOn/previousLoweredOn/previouslyLoweredOn/priorLoweredOn keys that had run out of adjectives, and no key beyond the two numbers above is read by anything.",
   "loweredOn": {
@@ -22,6 +22,14 @@
     "whatIsStillThere": "zod is 74.2 KiB raw in the entry, reachable from the boot path through `api/pages.ts` and `api/widgetData.ts` -> @adminium/engine/config. Deferring it MEASURED 22,082 gz bytes — by far the largest remaining lever — and was deliberately not taken here: it makes `parsePageDocument` async and touches the page-document reader's never-crash rules, which is a correctness change, not a bundle change. Recorded so the next pass does not have to re-measure it."
   },
   "history": [
+    {
+      "when": "2026-09-25",
+      "by": "loading the topbar bell's feed on first open, which takes the widgets' `column-spec` module and the i18n formatters out of the entry",
+      "from": 298978,
+      "measured": "296,471 bytes (289.5 KiB gz), down from 298,983 measured on the same inputs — 2,512 bytes gz out of the entry. The ratchet is 296,471 plus the usual 2,000-byte margin.",
+      "why": "CI went RED by a few bytes on afe28b8c. Attributed through the source map against a build of d332dda9 (298,899): the two rounds since added only en-US strings to the entry, `en-us/ui.js` +256 raw (the link-filter chip words, the record-lock hint) and `en-us/common.js` +30 raw; their code (`linkNarrowing.tsx`, `recordLocks.ts`, the template bindings) attributes zero. The entry had been 79 bytes under the ratchet before them. The lever was elsewhere: `Topbar.tsx` imported `formatRelativeTime` from `@adminium/widgets` for the bell feed's row times, which kept all of `families/tables/column-spec.js` (3,547 raw) in the entry and, through it, `@adminium/i18n`'s `format/index.js` (3,219 raw), although the feed only renders once the popover is opened. The feed is `shell/NotificationFeed.tsx` now, behind `lazy()`; attributed again after the change, both modules and 1,272 raw of `Topbar.tsx` are gone from the entry, and the cost is +24 raw in `router.tsx`, +44 in `studio/routes.tsx` and a few bytes elsewhere (the preload lists).",
+      "cost": "One chunk fetch (NotificationFeed 901 B gz, column-spec 1,573 B gz) the first time the bell is opened, behind the same spinner the feed already showed while it loaded. Pages that use the widgets' column helpers now fetch `column-spec` as a shared chunk of its own rather than from the entry."
+    },
     {
       "when": "2026-09-24",
       "by": "moving the Roles & permissions editor's 76 keys out of the eagerly bundled `common` catalogue into a deferred `roles` namespace",

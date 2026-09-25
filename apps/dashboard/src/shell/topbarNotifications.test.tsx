@@ -9,6 +9,9 @@
  * renders the `/me/notifications` rows, marks them read, and follows the
  * server-authored `actionUrl`.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
@@ -173,5 +176,25 @@ describe('the notification bell in the real Topbar', () => {
     expect(await screen.findByText('You’re all caught up.')).toBeDefined();
     // The stale "(M7)" deferral copy is gone for good.
     expect(screen.queryByText(/notification center \(M7\)/)).toBeNull();
+  });
+
+  it('the feed’s last row opens the notification settings and closes the feed', async () => {
+    stubFetch(FEED);
+    renderTopbar();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Notifications' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Notification settings' }));
+
+    expect(historyPush).toHaveBeenCalledWith('/account/notifications');
+    await waitFor(() => expect(screen.queryByText('Report ready: Weekly customers')).toBeNull());
+  });
+
+  it('reaches the feed only through a dynamic import, so the entry chunk does not carry it', () => {
+    // The Topbar is in the entry chunk; a static import of the feed (or of the
+    // widgets package whose formatter the feed uses) would pull both back in.
+    const source = readFileSync(join(process.cwd(), 'src', 'shell', 'Topbar.tsx'), 'utf8');
+    expect(source).not.toMatch(/^import[^;]*from '(?:\.\/NotificationFeed\.js|@adminium\/widgets)'/m);
+    expect(source).toContain("import('./NotificationFeed.js')");
   });
 });

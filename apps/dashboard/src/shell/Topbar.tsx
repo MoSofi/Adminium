@@ -14,7 +14,7 @@
  * does not deserve one — ⌘⇧L (AppShell), the ⌘K palette and the signed-out
  * auth screen all still reach it.
  */
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
 import {
@@ -48,14 +48,8 @@ import {
   useTheme,
   useThemePrefs,
 } from '@adminium/ui';
-import { formatRelativeTime } from '@adminium/widgets';
 
-import {
-  notificationsApi,
-  notificationsQuery,
-  unreadCountQuery,
-  type NotificationDto,
-} from '../api/notifications.js';
+import { notificationsApi, unreadCountQuery, type NotificationDto } from '../api/notifications.js';
 import { holdsSystemAction, type BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
@@ -70,6 +64,23 @@ import {
 import { useDocumentPageTitle } from './documentTitle.js';
 import { RuntimeChipHost } from './RuntimeChipHost.js';
 import { useChordPending } from './ShortcutsProvider.js';
+
+/* The bell's feed loads on first open: the popover is closed on every first
+   paint, and the feed's row times come from the widgets' relative-time
+   formatter, whose module the entry chunk would otherwise carry for every
+   user on every route. */
+const NotificationFeed = lazy(async () => ({
+  default: (await import('./NotificationFeed.js')).NotificationFeed,
+}));
+
+/** The spinner the bell shows while its feed, or the feed's module, loads. */
+function NotificationFeedLoading() {
+  return (
+    <div className="flex items-center justify-center py-8">
+      <Spinner label={t('topbar.notificationsLoading', 'Loading notifications')} />
+    </div>
+  );
+}
 
 export interface TopbarProps {
   bootstrap: BootstrapData;
@@ -116,8 +127,6 @@ function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const unread = useQuery(unreadCountQuery());
-  // Fetched lazily — the feed only loads once the popover opens.
-  const feed = useQuery({ ...notificationsQuery({ limit: 20 }), enabled: open });
   const unreadCount = unread.data ?? 0;
 
   const handleOpenChange = (next: boolean) => {
@@ -168,62 +177,17 @@ function NotificationBell() {
         <div className="border-b border-border px-3.5 py-2.5 text-body-sm font-bold text-fg">
           {t('topbar.notifications', 'Notifications')}
         </div>
-        {feed.isPending ? (
-          <div className="flex items-center justify-center py-8">
-            <Spinner label={t('topbar.notificationsLoading', 'Loading notifications')} />
-          </div>
-        ) : feed.isError ? (
-          <p className="px-3.5 py-6 text-body-sm text-fg-muted" role="alert">
-            {t('topbar.notificationsError', 'Couldn’t load notifications.')}
-          </p>
-        ) : feed.data.items.length === 0 ? (
-          <p className="px-3.5 py-6 text-body-sm text-fg-muted">
-            {t('topbar.notificationsEmpty', 'You’re all caught up.')}
-          </p>
-        ) : (
-          <ul className="nb-scroll m-0 max-h-[360px] list-none overflow-y-auto p-1">
-            {feed.data.items.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => openItem(item)}
-                  className="flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 text-start transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
-                >
-                  <span className="flex w-full items-center gap-2">
-                    {item.readAt === null && (
-                      <span
-                        data-part="notification-unread-dot"
-                        aria-hidden="true"
-                        className="size-1.5 shrink-0 rounded-full bg-accent"
-                      />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-fg">
-                      {item.title}
-                    </span>
-                    <span className="shrink-0 text-caption text-fg-subtle">
-                      {formatRelativeTime(new Date(item.createdAt).toISOString())}
-                    </span>
-                  </span>
-                  {item.body !== null && (
-                    <span className="w-full truncate text-caption text-fg-muted">{item.body}</span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="border-t border-border p-1">
-          <button
-            type="button"
-            onClick={() => {
+        {/* The popover mounts its content only while open, so the feed loads once it opens. */}
+        <Suspense fallback={<NotificationFeedLoading />}>
+          <NotificationFeed
+            loading={<NotificationFeedLoading />}
+            onOpenItem={openItem}
+            onOpenSettings={() => {
               setOpen(false);
               router.history.push('/account/notifications');
             }}
-            className="w-full rounded-md px-2.5 py-2 text-start text-body-sm font-semibold text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-          >
-            {t('nav.notificationSettings', 'Notification settings')}
-          </button>
-        </div>
+          />
+        </Suspense>
       </PopoverContent>
     </Popover>
   );
