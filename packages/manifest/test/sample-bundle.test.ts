@@ -171,6 +171,17 @@ describe('days, working days and the clock', () => {
     ]);
   });
 
+  it('reads a day of a month back, with or without its time, and refuses one in the future', () => {
+    expect(sampleDirective({ '@month': -2, '@dom': 14 })).toEqual({ kind: 'month', months: -2, dom: 14, time: null });
+    expect(sampleDirective({ '@month': 0, '@dom': 31, '@time': '10:00' })).toEqual({ kind: 'month', months: 0, dom: 31, time: '10:00' });
+    expect(sampleBundleIssues(bundleWith({ added_at: { '@month': -5, '@dom': 3 } }), manifest())).toEqual([]);
+    for (const bad of [{ '@month': 1, '@dom': 3 }, { '@month': -1, '@dom': 0 }, { '@month': -1, '@dom': 32 }, { '@month': -1 }, { '@month': -1, '@dom': 3, '@workdays': true }]) {
+      expect(sampleBundleIssues(bundleWith({ added_at: bad }), manifest()).map((i) => i.message)).toEqual([
+        '"added_at" holds a directive that is not well formed.',
+      ]);
+    }
+  });
+
   it('knows @byClock as a row directive: its time, its sets, their columns', () => {
     const clock = { at: 'added_at', before: { name: 'Old tea' }, around: { '@skip': true } };
     expect(sampleBundleIssues(bundleWith({ added_at: { '@day': 0, '@time': '09:00' }, '@byClock': clock }), manifest())).toEqual([]);

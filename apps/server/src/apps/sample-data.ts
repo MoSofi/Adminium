@@ -249,6 +249,21 @@ function zonedWorkday(now: number, timeZone: string, n: number): { y: number; m:
   return { y: at.getUTCFullYear(), m: at.getUTCMonth() + 1, d: at.getUTCDate() };
 }
 
+/**
+ * Day `dom` of the month `months` from this one in `timeZone`: the month's
+ * last day when it has fewer, and today when that day has not come yet.
+ */
+export function zonedMonthDay(now: number, timeZone: string, months: number, dom: number): { y: number; m: number; d: number; today: boolean } {
+  const today = zonedDay(now, timeZone, 0);
+  const first = new Date(Date.UTC(today.y, today.m - 1 + months, 1));
+  const y = first.getUTCFullYear();
+  const m = first.getUTCMonth() + 1;
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const day = { y, m, d: Math.min(dom, last) };
+  const later = day.y * 10_000 + day.m * 100 + day.d >= today.y * 10_000 + today.m * 100 + today.d;
+  return later ? { ...today, today: true } : { ...day, today: false };
+}
+
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /** Half an hour either side of the adding moment is "around" it. */
@@ -307,6 +322,17 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
       case 'date': {
         const day = found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
         out[column] = `${String(day.y).padStart(4, '0')}-${pad2(day.m)}-${pad2(day.d)}`;
+        break;
+      }
+      // History in calendar months: never later than the adding moment.
+      case 'month': {
+        const day = zonedMonthDay(ctx.now, ctx.timeZone, found.months, found.dom);
+        if (found.time === null) {
+          out[column] = `${String(day.y).padStart(4, '0')}-${pad2(day.m)}-${pad2(day.d)}`;
+        } else {
+          const at = zonedWallTime(day, found.time, ctx.timeZone);
+          out[column] = day.today && at.getTime() > ctx.now ? new Date(ctx.now) : at;
+        }
         break;
       }
       case 't':

@@ -18,6 +18,16 @@
  * day 0 on a weekend is the Monday after — so "today's" busy day is never a
  * Saturday.
  *
+ *   `{"@month": -2, "@dom": 14}`   a date in the venue's own zone: that day of
+ *                               the month so many months from this one; with
+ *                               `"@time": "10:00"`, a wall time on it
+ *
+ * `@month` keeps a sample's history in calendar months whatever day it is
+ * added on: a figure "this month" or "in May" reads the same on the 3rd as on
+ * the 28th. A day past the month's end is its last day, and a day in this
+ * month or later that has not come yet is today (at a time not yet come, now):
+ * a month's history never runs into the future.
+ *
  * A row may carry, beside its `@label`, one ROW directive: `@byClock`
  * `{at, before, around, after}` merges one of three sets of columns into the
  * row, by where its time `at` (a column of the row, or a `@day`/`@time`)
@@ -50,6 +60,13 @@ const directive = z.union([
     })
     .strict(),
   z.object({ '@day': z.number().int().min(-366).max(366), '@workdays': z.literal(true).optional() }).strict(),
+  z
+    .object({
+      '@month': z.number().int().min(-120).max(0),
+      '@dom': z.number().int().min(1).max(31),
+      '@time': z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'a time such as 09:30').optional(),
+    })
+    .strict(),
   z.object({ '@t': z.record(z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/), z.string()).refine((m) => Object.keys(m).length > 0) }).strict(),
   z.object({ '@asset': label }).strict(),
 ]);
@@ -101,6 +118,7 @@ export function sampleDirective(value: unknown):
   | { kind: 'ago'; duration: string }
   | { kind: 'wall'; day: number; time: string; workdays: boolean }
   | { kind: 'date'; day: number; workdays: boolean }
+  | { kind: 'month'; months: number; dom: number; time: string | null }
   | { kind: 't'; texts: Record<string, string> }
   | { kind: 'asset'; label: string }
   | null {
@@ -112,6 +130,9 @@ export function sampleDirective(value: unknown):
     return { kind: 'wall', day: record['@day'], time: record['@time'], workdays: record['@workdays'] === true };
   }
   if (typeof record['@day'] === 'number') return { kind: 'date', day: record['@day'], workdays: record['@workdays'] === true };
+  if (typeof record['@month'] === 'number' && typeof record['@dom'] === 'number') {
+    return { kind: 'month', months: record['@month'], dom: record['@dom'], time: typeof record['@time'] === 'string' ? record['@time'] : null };
+  }
   if (typeof record['@t'] === 'object' && record['@t'] !== null) {
     return { kind: 't', texts: record['@t'] as Record<string, string> };
   }

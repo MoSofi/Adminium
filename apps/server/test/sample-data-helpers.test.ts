@@ -13,6 +13,7 @@ import {
   pickText,
   resolveSampleRow,
   sampleFileOf,
+  zonedMonthDay,
   zonedWallTime,
 } from '../src/apps/sample-data.js';
 import type { Manifest } from '@adminium/manifest';
@@ -67,6 +68,51 @@ describe('a sample row, resolved', () => {
 
   it('keeps plain values and drops the label', () => {
     expect(resolveSampleRow({ '@label': 'x', name: 'Tea', tags: ['hot'] }, ctx)).toEqual({ name: 'Tea', tags: ['hot'] });
+  });
+});
+
+describe('a day of a month, from the adding moment', () => {
+  // 3 October 2026, 08:00 in New York (12:00 UTC).
+  const now = Date.parse('2026-10-03T12:00:00Z');
+  const zone = 'America/New_York';
+  const context = { now, timeZone: zone, locale: 'en-US', labels: new Map(), assets: new Map() };
+
+  it('keeps the day of the month, whatever day it is added on', () => {
+    expect(zonedMonthDay(now, zone, -2, 14)).toEqual({ y: 2026, m: 8, d: 14, today: false });
+    expect(zonedMonthDay(now, zone, -9, 20)).toEqual({ y: 2026, m: 1, d: 20, today: false });
+    expect(zonedMonthDay(now, zone, -10, 20)).toEqual({ y: 2025, m: 12, d: 20, today: false });
+  });
+
+  it('takes a short month’s last day, and today for a day not yet come', () => {
+    expect(zonedMonthDay(now, zone, -1, 31)).toEqual({ y: 2026, m: 9, d: 30, today: false });
+    expect(zonedMonthDay(now, zone, -8, 30)).toEqual({ y: 2026, m: 2, d: 28, today: false });
+    expect(zonedMonthDay(now, zone, 0, 2)).toEqual({ y: 2026, m: 10, d: 2, today: false });
+    expect(zonedMonthDay(now, zone, 0, 3)).toEqual({ y: 2026, m: 10, d: 3, today: true });
+    expect(zonedMonthDay(now, zone, 0, 28)).toEqual({ y: 2026, m: 10, d: 3, today: true });
+  });
+
+  it('counts months on the venue’s calendar, not the server’s', () => {
+    // 1 November 02:00 UTC is still 31 October in New York.
+    const edge = Date.parse('2026-11-01T02:00:00Z');
+    expect(zonedMonthDay(edge, zone, -1, 15)).toEqual({ y: 2026, m: 9, d: 15, today: false });
+  });
+
+  it('writes a date, a wall time, and never a time still to come', () => {
+    const row = resolveSampleRow(
+      {
+        issued_on: { '@month': -3, '@dom': 12 },
+        paid_at: { '@month': -1, '@dom': 5, '@time': '10:00' },
+        later: { '@month': 0, '@dom': 20, '@time': '17:00' },
+        earlier: { '@month': 0, '@dom': 20, '@time': '07:30' },
+      },
+      context,
+    );
+    expect(row).toEqual({
+      issued_on: '2026-07-12',
+      paid_at: new Date('2026-09-05T14:00:00Z'),
+      later: new Date(now),
+      earlier: new Date('2026-10-03T11:30:00Z'),
+    });
   });
 });
 
