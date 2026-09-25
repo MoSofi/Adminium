@@ -1432,7 +1432,8 @@ function outboxManifest(version: string, opts: { subject?: string; dropReminder?
   const template = (key: string, subject: string) => ({
     key,
     name: { 'en-US': 'Confirmation', 'de-DE': 'Bestätigung' },
-    vars: ['patient.name'],
+    // `appName` is the sender's own: the practice's name, which it fills for every template.
+    vars: ['patient.name', 'appName'],
     locales: {
       'en-US': { subject, blocks: [{ block: opts.block ?? 'email.heading', data: { text: 'Hello {{patient.name}}' } }, { block: 'email.text', data: { text: 'See you soon.' } }] },
       'de-DE': { subject: `DE ${subject}`, blocks: [{ block: 'email.heading', data: { text: 'Hallo {{patient.name}}' } }] },
@@ -2689,6 +2690,43 @@ for (const [dialect, available] of legs) {
       await h.run(`INSERT INTO pos_payments (amount, method) VALUES (5, 'walk_in')`);
       // The list grew; it did not go away.
       await expect(h.run(`INSERT INTO pos_payments (amount, method) VALUES (5, 'bitcoin')`)).rejects.toThrow();
+    }, 90_000);
+
+    it('updates a table with a unique column and keeps it unique', async () => {
+      const h = (open = await harness(dialect));
+      // SQLite can only add a choice value by rebuilding the table, and a
+      // unique column there comes with an index SQLite made and names itself.
+      const withReceipts = (values: string[], version: string, extra: Record<string, unknown>[] = []) => ({
+        ...MANIFEST,
+        version,
+        requiredSchema: {
+          prefixed: true,
+          tables: TABLES.map((t) =>
+            t.ref === 'payments'
+              ? {
+                  ...t,
+                  columns: [
+                    ...t.columns.map((c) => (c.ref === 'method' ? { ref: 'method', type: 'enum', enum: values } : c)),
+                    { ref: 'receipt_no', type: 'text', maxLength: 20, unique: true },
+                    ...extra,
+                  ],
+                }
+              : t,
+          ),
+        },
+      });
+      await stageManifest(h, withReceipts(['cash', 'card'], '1.0.0'));
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+      await h.run(`INSERT INTO pos_payments (amount, method, receipt_no) VALUES (4.5, 'cash', 'R-1')`);
+      await stageManifest(h, withReceipts(['cash', 'card', 'voucher'], '1.1.0', [{ ref: 'note', type: 'text', maxLength: 80, nullable: true }]));
+      const res = await h.app.inject({ method: 'POST', url: '/apps/pos/update' });
+      expect(res.statusCode, res.body).toBe(200);
+
+      await h.run(`INSERT INTO pos_payments (amount, method, receipt_no, note) VALUES (5, 'voucher', 'R-2', 'gift')`);
+      expect(await h.rows('SELECT receipt_no FROM pos_payments ORDER BY receipt_no')).toEqual([{ receipt_no: 'R-1' }, { receipt_no: 'R-2' }]);
+      // The column is still unique after the table was rebuilt.
+      await expect(h.run(`INSERT INTO pos_payments (amount, method, receipt_no) VALUES (6, 'card', 'R-1')`)).rejects.toThrow();
+      await expect(h.run(`INSERT INTO pos_payments (amount, method, receipt_no) VALUES (6, 'bitcoin', 'R-3')`)).rejects.toThrow();
     }, 90_000);
 
     it('adds a choice column on update and still keeps its values on every write', async () => {

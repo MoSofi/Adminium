@@ -109,6 +109,39 @@ describe('the rebuild actually rebuilds', () => {
     expect(indexes.map((i) => i.name)).toContain('ix_notes_body');
   });
 
+  it('keeps a unique column unique without re-creating the index SQLite named itself', async () => {
+    const { db, raw } = open(`
+      create table notes (id integer primary key, code text unique, body text);
+      insert into notes (code, body) values ('A', 'x');
+    `);
+    // The index alone, with no entry under `uniques`: the constraint has to
+    // come back from the index, because the name cannot be created by hand.
+    const actual = tbl({
+      name: 'notes',
+      columns: [
+        col({ name: 'id', logicalType: 'integer', dbType: 'integer', isPrimaryKey: true, nullable: false, default: { kind: 'autoincrement' } }),
+        col({ name: 'code', logicalType: 'text', dbType: 'text', isUnique: true }),
+        col({ name: 'body', logicalType: 'text', dbType: 'text' }),
+      ],
+      primaryKey: ['id'],
+      indexes: [{ name: 'sqlite_autoindex_notes_1', columns: ['code'], expression: null, unique: true, primary: false, method: null, partial: false }],
+    });
+    const desired = { ...actual, columns: [...actual.columns.slice(0, 2), col({ name: 'body', logicalType: 'text', dbType: 'text', nullable: false })] };
+    // Step 12 sees SQLite's own index back, under whatever number it chose.
+    const rebuilt = { ...desired, indexes: [{ ...actual.indexes[0]!, name: 'sqlite_autoindex_notes_2' }] };
+
+    await runSqliteRebuild({
+      db, actual, desired,
+      columnMapping: rebuildColumnMapping(actual, desired), foreignKeys: [],
+      reintrospect: async () => rebuilt,
+    });
+
+    expect(raw.prepare('select code from notes').all()).toEqual([{ code: 'A' }]);
+    expect(() => raw.prepare("insert into notes (code, body) values ('A', 'y')").run()).toThrow(/UNIQUE/);
+    const indexes = raw.prepare("select name from sqlite_master where type='index' and tbl_name='notes'").all() as { name: string }[];
+    expect(indexes.map((i) => i.name)).toEqual(['sqlite_autoindex_notes_1']);
+  });
+
   it('adds a NOT NULL constraint SQLite has no ALTER for', async () => {
     const { db, raw } = open(`
       create table notes (id integer primary key, body text);

@@ -110,6 +110,15 @@ export interface RebuildInput {
   foreignKeys: readonly Relation[];
 }
 
+/**
+ * Whether an index is one SQLite created itself for a UNIQUE or PRIMARY KEY
+ * constraint. SQLite reserves the prefix: `CREATE INDEX sqlite_autoindex_…`
+ * fails with "object name reserved for internal use".
+ */
+export function isSqliteAutoIndex(name: string): boolean {
+  return name.startsWith('sqlite_autoindex_');
+}
+
 /** The temporary table name. Prefixed so a crashed rebuild is identifiable. */
 export function rebuildTempName(table: string): string {
   return `adminium_rebuild_${table}`;
@@ -181,6 +190,21 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
   }
   for (const unique of desired.uniques) {
     tableConstraints.push(`UNIQUE (${unique.columns.map(q).join(', ')})`);
+  }
+  /*
+   * A unique index SQLite made for itself stands for a UNIQUE constraint, and
+   * the constraint is the only way to get it back: step 8 cannot create an
+   * index under a `sqlite_autoindex_` name — SQLite reserves them. The
+   * introspection lists the constraint under `uniques` as well, so this adds
+   * nothing then; it is here so a model that carries only the index still
+   * keeps the column unique.
+   */
+  const constrained = new Set(desired.uniques.map((u) => u.columns.join('\u0000')));
+  for (const index of desired.indexes) {
+    if (index.primary || !index.unique || !isSqliteAutoIndex(index.name)) continue;
+    if (index.columns.length === 0 || constrained.has(index.columns.join('\u0000'))) continue;
+    constrained.add(index.columns.join('\u0000'));
+    tableConstraints.push(`UNIQUE (${index.columns.map(q).join(', ')})`);
   }
   /*
    * The links, as table constraints. SQLite has no `ADD CONSTRAINT`, so the
@@ -276,6 +300,9 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
   }
   for (const index of desired.indexes) {
     if (index.primary) continue;
+    // Made by the new table's own UNIQUE constraint in step 4, under a name
+    // SQLite refuses to let anyone else create.
+    if (isSqliteAutoIndex(index.name)) continue;
     if (index.expression !== null) {
       // An expression index's text is not in the IR beyond the expression
       // itself; emit it as stored rather than inventing one.
@@ -355,10 +382,16 @@ export function assertRebuildMatches(rebuilt: TableModel, desired: TableModel): 
     differences.push(`primary key is (${gotKey}), expected (${wantKey})`);
   }
 
-  const wantIndexes = new Set(desired.indexes.filter((i) => !i.primary).map((i) => i.name));
-  const gotIndexes = new Set(rebuilt.indexes.filter((i) => !i.primary).map((i) => i.name));
-  for (const name of wantIndexes) {
-    if (!gotIndexes.has(name)) differences.push(`index ${name} was not recreated`);
+  const wantIndexes = desired.indexes.filter((i) => !i.primary);
+  const gotIndexes = rebuilt.indexes.filter((i) => !i.primary);
+  for (const want of wantIndexes) {
+    // SQLite numbers its own indexes in the order the constraints are
+    // written, so one can come back under its neighbour's number. What has to
+    // survive is a unique index on the same columns, whatever it is called.
+    const found = isSqliteAutoIndex(want.name)
+      ? gotIndexes.some((got) => got.unique && got.columns.join(',') === want.columns.join(','))
+      : gotIndexes.some((got) => got.name === want.name);
+    if (!found) differences.push(`index ${want.name} was not recreated`);
   }
 
   if (differences.length > 0) {
