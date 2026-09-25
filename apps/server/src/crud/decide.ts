@@ -70,9 +70,16 @@ function yes(table: ResolvedTable, column: string): true | 1 {
 
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
 
-/** Whether a rule on this table needs the stored row before it can decide. */
+/**
+ * Whether a rule on this table needs the stored row before it can decide —
+ * or work a formula out: a change of `qty` alone still needs the `rate`.
+ */
 export function needsStored(rules: TableRules | null): boolean {
-  return rules?.booking?.cancel !== undefined || (rules?.stamps ?? []).some((stamp) => stamp.on !== 'create');
+  return (
+    rules?.booking?.cancel !== undefined ||
+    (rules?.stamps ?? []).some((stamp) => stamp.on !== 'create') ||
+    (rules?.formulas?.length ?? 0) > 0
+  );
 }
 
 /**

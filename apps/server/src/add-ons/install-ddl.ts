@@ -331,6 +331,14 @@ function declaredTypeOf(
   // is exactly as wide as its codes.
   const code = column.rules?.code;
   if (column.type === 'text' && code !== undefined) return `varchar(${String((code.prefix ?? '').length + code.length)})`;
+  // A decimal that says how many places it keeps is made with exactly those
+  // (`decimal(19, 0)` for a whole-yen amount, 3 for a quantity). `currency`
+  // depends on each row's currency, so the column keeps 4 and the write path
+  // rounds every value to the row's own places. SQLite stays `real`: it keeps
+  // no scale, and is handed values already rounded.
+  if ((column.type === 'decimal' || column.type === 'money') && typeof column.scale === 'number' && dialect !== 'sqlite') {
+    return `decimal(19,${String(column.scale)})`;
+  }
   if (column.type !== 'fk' || column.references === undefined) {
     return columnTypeFor(column.type, dialect, column.role === 'pk');
   }
@@ -497,6 +505,15 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
     // is the REAL name here, so two apps' constraints never share a name —
     // Postgres keeps constraint indexes in one namespace per schema.
     for (const column of table.columns) {
+      // A number without gaps is one row per number (per parent row, with a
+      // scope): the index is what refuses a number twice, and what a claim
+      // inside a caller's MySQL transaction steps past.
+      const sequence = column.rules?.sequence;
+      if (sequence?.gapless === true) {
+        const columns = sequence.scope === undefined ? [column.ref] : [sequence.scope, column.ref];
+        builder = builder.addUniqueConstraint(`uq_${table.ref}_${column.ref}`, columns);
+        continue;
+      }
       if (column.rules?.code === undefined && column.unique !== true) continue;
       builder = builder.addUniqueConstraint(`uq_${table.ref}_${column.ref}`, [column.ref]);
     }

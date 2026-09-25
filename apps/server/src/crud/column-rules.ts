@@ -45,19 +45,21 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
+import { formulaColumns, type FormulaExpr } from '@adminium/manifest';
 
 import type {
   ColumnStampRule,
   ColumnValidation,
   EffectiveColumn,
   EffectiveTable,
+  RuleSetting,
   TableBookingRule,
   TableCapacityRule,
 } from '../connections/effective-schema.js';
 import { isNowType, renderNow } from './instants.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
-import type { WriteAction, WriteActor } from './write-context.js';
+import type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
 
 /** Every reason a value can be refused, on the server and in the dialog. */
 export type IssueCode =
@@ -88,7 +90,7 @@ export type FieldIssues = Record<string, FieldIssue>;
  * implicit fill off. Both arrive from an explicit `column.default` rule
  * (phase C); phase A produces only the implicit fills below.
  */
-export type FillKind = 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none';
+export type FillKind = 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none' | 'from';
 
 export interface ColumnFill {
   column: string;
@@ -145,6 +147,47 @@ export interface ColumnSequence {
   start: number;
 }
 
+/**
+ * `column.sequence` with `gapless`: the next number after the largest the
+ * table (or the parent row, with `scope`) holds, taken inside the write that
+ * creates the row — never from the meta store's counter, which allows gaps.
+ */
+export interface GaplessSequence {
+  column: string;
+  logicalType: LogicalType;
+  start: number;
+  startSetting?: RuleSetting;
+  scope?: string;
+  /** The text column written from the number in the same statement (`INV-0042`). */
+  format?: { column: string; prefix?: string; prefixSetting?: RuleSetting; pad: number };
+  /**
+   * The unique indexes that refuse a number twice in the series (on the
+   * number, or its text; with the scope column for a per-parent series). A
+   * MySQL claim inside a caller's transaction steps past a duplicate of one.
+   */
+  uniqueKeys: string[];
+  /** The row a per-parent series' `scope` points at: held while a number in its series is taken. */
+  scopeParent?: { table: string; column: string };
+}
+
+/** The places a decimal keeps: a number, or the decimals of the row's currency. */
+export type Scale = number | 'currency';
+
+/** `column.formula`: a value worked out from the other columns of the same row. */
+export interface ColumnFormula {
+  column: string;
+  expr: FormulaExpr;
+  scale: Scale;
+  /** The columns it reads directly. */
+  reads: string[];
+}
+
+/** `column.default { kind: 'from' }`: a create's empty value, filled from elsewhere. */
+export interface ColumnDefaultFrom {
+  column: string;
+  from: 'connection.currency' | RuleSetting;
+}
+
 /** `column.code`. */
 export interface ColumnCode {
   column: string;
@@ -168,7 +211,7 @@ export interface TableBalance {
   minus: string[];
   /** The total whose rollup declares it. */
   total: string;
-  scale: number;
+  scale: Scale;
   /**
    * The totals among `total` and `minus` whose rollup says `cap`: a write
    * that moves one of them may not take this balance below zero.
@@ -194,9 +237,19 @@ export interface RollupInto {
   /** Only child rows whose column equals the value are added up. */
   where?: { column: string; eq: string | number | boolean };
   /** Decimal places the total keeps. */
-  scale: number;
+  scale: Scale;
   /** Every balance the parent keeps, worked out again once this total moves. */
   balances: TableBalance[];
+  /**
+   * The parent's formulas, in the order they are worked out: run between the
+   * totals and the balances, so a balance is taken from the total a formula
+   * has just worked out (`total = subtotal + tax`), never the one before.
+   */
+  formulas: ColumnFormula[];
+  /** The parent's own `currency` column, which a `currency` scale reads. */
+  currencyColumn?: string;
+  /** The parent's formula columns that read this total, directly or through another formula. */
+  derived: string[];
   /** Whether a balance this total is part of may not go below zero. */
   capped: boolean;
   /**
@@ -221,8 +274,26 @@ export interface TableRules {
   ownRollups?: RollupInto[];
   /** This table's balances, worked out again when their `of` or `minus` changes. */
   balances?: TableBalance[];
-  /** Columns only a settle writes (totals and balances): dropped from every writer's values. */
+  /**
+   * Columns only Adminium writes — totals, balances and formulas: dropped from
+   * every writer's values.
+   */
   readOnly?: string[];
+  /**
+   * A gapless running number and the text written from it: dropped from every
+   * writer's values but an import's, which brings in history and its numbers.
+   */
+  numbered?: string[];
+  /** Formula columns, in the order they are worked out (each after what it reads). */
+  formulas?: ColumnFormula[];
+  /** Every decimal with a scale rule: rounded to it on every write. */
+  scales?: { column: string; scale: Scale }[];
+  /** The table's own `currency` column, which a `currency` scale reads first. */
+  currencyColumn?: string;
+  /** Values a create fills from the connection, a settings row or an add-on's setting. */
+  defaultsFrom?: ColumnDefaultFrom[];
+  /** Numbers without gaps, taken inside the write. */
+  gapless?: GaplessSequence[];
   /** The booking guard on this table. */
   capacity?: TableCapacityRule;
   /** Booking people on this table: no overlap per resource. */
@@ -283,7 +354,8 @@ function explicitFillFor(column: EffectiveColumn): ColumnFill | null {
     kind: rule.kind,
     ...(rule.text === undefined ? {} : { text: rule.text }),
     ...(rule.userField === undefined ? {} : { userField: rule.userField }),
-    onUpdate: rule.onUpdate === true,
+    // A fill from elsewhere is read when the create runs (`defaultsFrom`), never here.
+    onUpdate: rule.onUpdate === true && rule.kind !== 'from',
     implicit: false,
   };
 }
@@ -343,13 +415,18 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const codes: ColumnCode[] = [];
   const stamps: ColumnStamp[] = [];
   const venueLocal: string[] = [];
+  const gapless: GaplessSequence[] = [];
+  const scales: { column: string; scale: Scale }[] = [];
+  const defaultsFrom: ColumnDefaultFrom[] = [];
   for (const column of columns) {
+    if (column.scale !== undefined) scales.push({ column: column.name, scale: column.scale });
     if (column.venueLocal === true) venueLocal.push(column.name);
     // A secret column is refused by the write path long before this, and a
     // fill that named one would be a way to write it sideways.
     if (target.table.columns.get(column.name)?.secret === true) continue;
     const fill = explicitFillFor(column) ?? implicitFillFor(column);
     if (fill !== null) fills.push(fill);
+    if (column.fill?.kind === 'from' && column.fill.from !== undefined) defaultsFrom.push({ column: column.name, from: column.fill.from });
     if (column.copy !== undefined) {
       // Through a relation the snapshot still has; one it lost copies nothing.
       const relation = target.view?.model?.relations.find(
@@ -370,7 +447,28 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
         });
       }
     }
-    if (column.sequence !== undefined) {
+    if (column.sequence?.gapless === true) {
+      const format = columns.find((other) => other.format?.from === column.name);
+      gapless.push({
+        column: column.name,
+        logicalType: column.logicalType,
+        start: column.sequence.start ?? 1,
+        ...(column.sequence.startSetting === undefined ? {} : { startSetting: column.sequence.startSetting }),
+        ...(column.sequence.scope === undefined ? {} : { scope: column.sequence.scope }),
+        uniqueKeys: seriesKeys(target.table.table, column.sequence.scope, [column.name, ...(format === undefined ? [] : [format.name])]),
+        ...scopeParentOf(target, column.sequence.scope),
+        ...(format?.format === undefined
+          ? {}
+          : {
+              format: {
+                column: format.name,
+                ...(format.format.prefix === undefined ? {} : { prefix: format.format.prefix }),
+                ...(format.format.prefixSetting === undefined ? {} : { prefixSetting: format.format.prefixSetting }),
+                pad: format.format.pad ?? 0,
+              },
+            }),
+      });
+    } else if (column.sequence !== undefined) {
       sequences.push({ column: column.name, logicalType: column.logicalType, start: column.sequence.start ?? 1 });
     }
     if (column.code !== undefined) {
@@ -424,7 +522,10 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const self = target.table.table?.columns === undefined ? undefined : target.table.table;
   const ownRollups: RollupInto[] = self === undefined ? [] : rollupsOf(self);
   const balances = self === undefined ? [] : balancesOf(self);
-  const readOnly = [...ownRollups.map((r) => r.column), ...balances.map((b) => b.column)];
+  const formulas = self === undefined ? [] : formulasOf(self);
+  const readOnly = [...ownRollups.map((r) => r.column), ...balances.map((b) => b.column), ...formulas.map((f) => f.column)];
+  const numbered = gapless.flatMap((sequence) => [sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])]);
+  const currencyColumn = columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
   const capacity = target.table.table?.capacity;
   const booking = target.table.table?.booking;
   const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
@@ -434,6 +535,10 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     !decided &&
     rollupsInto.length === 0 &&
     ownRollups.length === 0 &&
+    formulas.length === 0 &&
+    scales.length === 0 &&
+    defaultsFrom.length === 0 &&
+    gapless.length === 0 &&
     capacity === undefined &&
     booking === undefined &&
     venueLocal.length === 0
@@ -443,8 +548,14 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           checks,
           ...(decided ? { copies, sequences, codes, ...(stamps.length === 0 ? {} : { stamps }) } : {}),
           ...(rollupsInto.length === 0 ? {} : { rollupsInto }),
-          ...(ownRollups.length === 0 ? {} : { ownRollups, readOnly }),
+          ...(ownRollups.length === 0 ? {} : { ownRollups }),
+          ...(readOnly.length === 0 ? {} : { readOnly }),
           ...(balances.length === 0 ? {} : { balances }),
+          ...(formulas.length === 0 ? {} : { formulas }),
+          ...(scales.length === 0 ? {} : { scales }),
+          ...(currencyColumn === undefined ? {} : { currencyColumn }),
+          ...(defaultsFrom.length === 0 ? {} : { defaultsFrom }),
+          ...(gapless.length === 0 ? {} : { gapless, numbered }),
           ...(capacity === undefined ? {} : { capacity }),
           ...(booking === undefined ? {} : { booking }),
           ...(venueLocal.length === 0 ? {} : { venueLocal }),
@@ -466,20 +577,94 @@ function balancesOf(table: EffectiveTable): TableBalance[] {
         of: balance.of,
         minus,
         total: column.name,
-        scale: table.columns.find((c) => c.name === balance.column)?.numericScale ?? column.numericScale ?? 2,
+        scale: scaleOf(table.columns.find((c) => c.name === balance.column) ?? column),
         cappedBy: [column.name, ...minus].filter((name) => capped.has(name)),
       },
     ];
   });
 }
 
+/** The table and key a per-parent series' scope column points at, through a relation the snapshot has. */
+function scopeParentOf(target: { view: SnapshotView; table: ResolvedTable }, scope: string | undefined): { scopeParent?: { table: string; column: string } } {
+  if (scope === undefined) return {};
+  const relation = target.view?.model?.relations.find(
+    (r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === scope,
+  );
+  return relation === undefined ? {} : { scopeParent: { table: relation.to.tableId, column: relation.to.columns[0] as string } };
+}
+
+/**
+ * The names of the unique indexes that hold a series to one row per number:
+ * over the number (or its text) alone, or with the scope column. An index
+ * over other columns too would let a number repeat, so it does not count.
+ */
+function seriesKeys(table: EffectiveTable | undefined, scope: string | undefined, columns: readonly string[]): string[] {
+  const allowed = new Set(scope === undefined ? [] : [scope]);
+  const covers = (keyColumns: readonly string[]) =>
+    keyColumns.every((column) => allowed.has(column) || columns.includes(column)) &&
+    keyColumns.filter((column) => columns.includes(column)).length === 1;
+  const names = new Set<string>();
+  for (const unique of table?.uniques ?? []) if (unique.name !== null && covers(unique.columns)) names.add(unique.name);
+  for (const index of table?.indexes ?? []) if (index.unique && !index.primary && covers(index.columns)) names.add(index.name);
+  return [...names];
+}
+
+/**
+ * The places a total or a balance keeps: its scale rule, else what the
+ * database says (a table no app declared), else 2. SQLite reports no scale at
+ * all, which is why an app's money columns carry the rule on every engine.
+ */
+function scaleOf(column: EffectiveColumn): Scale {
+  return column.scale ?? column.numericScale ?? 2;
+}
+
+/** The places a formula's result is rounded to: its scale rule, else 0 for a whole number and 4 for a decimal. */
+function formulaScale(column: EffectiveColumn): Scale {
+  if (column.scale !== undefined) return column.scale;
+  return column.logicalType === 'integer' || column.logicalType === 'bigint' ? 0 : 4;
+}
+
+/** A table's formulas, each after every formula column it reads. */
+export function formulasOf(table: Pick<EffectiveTable, 'columns'>): ColumnFormula[] {
+  const byName = new Map<string, EffectiveColumn>();
+  for (const column of table.columns) if (column.formula !== undefined) byName.set(column.name, column);
+  if (byName.size === 0) return [];
+  // A cycle is refused where the rule is written; here it stops at the first repeat.
+  const out: ColumnFormula[] = [];
+  const seen = new Set<string>();
+  const visit = (name: string): void => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    const column = byName.get(name)!;
+    const reads = formulaColumns(column.formula!);
+    for (const read of reads) if (byName.has(read)) visit(read);
+    out.push({ column: name, expr: column.formula!, scale: formulaScale(column), reads });
+  };
+  for (const name of byName.keys()) visit(name);
+  return out;
+}
+
+/** The formula columns that read `column`, directly or through another formula. */
+export function derivedFrom(formulas: readonly ColumnFormula[], column: string): string[] {
+  const out = new Set<string>();
+  // In order, so a formula is seen after every formula it reads.
+  for (const formula of formulas) {
+    if (formula.reads.some((read) => read === column || out.has(read))) out.add(formula.column);
+  }
+  return [...out];
+}
+
 /** A table's totals, as the writes to its child rows settle them; none for a table without a one-column key. */
 function rollupsOf(parent: EffectiveTable): RollupInto[] {
   if (parent.primaryKey?.length !== 1) return [];
   const balances = balancesOf(parent);
+  const formulas = formulasOf(parent);
+  const currencyColumn = parent.columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
   const siblings: RollupInto[] = [];
   for (const column of parent.columns) {
-    if (column.rollup !== undefined) siblings.push(rollupOf(parent, column, column.rollup, balances, siblings));
+    if (column.rollup !== undefined) {
+      siblings.push(rollupOf(parent, column, column.rollup, balances, siblings, formulas, currencyColumn));
+    }
   }
   return siblings;
 }
@@ -490,9 +675,14 @@ function rollupsOf(parent: EffectiveTable): RollupInto[] {
  * or as what the balance is worked out from (an invoice's total, lowered by
  * deleting a line after it was paid).
  */
-export function guardedBy(rollup: Pick<RollupInto, 'column' | 'balances'>): TableBalance[] {
+export function guardedBy(rollup: Pick<RollupInto, 'column' | 'balances'> & { derived?: readonly string[] }): TableBalance[] {
+  // Through the parent's formulas too: a line lowers the subtotal, the
+  // subtotal the total a formula works out, and the balance is taken from it.
+  const moves = new Set([rollup.column, ...(rollup.derived ?? [])]);
   return rollup.balances.filter(
-    (balance) => balance.cappedBy.length > 0 && (balance.cappedBy.includes(rollup.column) || balance.of === rollup.column),
+    (balance) =>
+      balance.cappedBy.length > 0 &&
+      (balance.cappedBy.includes(rollup.column) || moves.has(balance.of) || balance.minus.some((column) => moves.has(column))),
   );
 }
 
@@ -503,6 +693,8 @@ function rollupOf(
   rollup: NonNullable<EffectiveColumn['rollup']>,
   balances: TableBalance[],
   siblings: RollupInto[],
+  formulas: ColumnFormula[],
+  currencyColumn: string | undefined,
 ): RollupInto {
   const out: RollupInto = {
     parent: parent.id,
@@ -514,26 +706,39 @@ function rollupOf(
     ...(rollup.times === undefined ? {} : { times: rollup.times }),
     ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
     ...(rollup.where === undefined ? {} : { where: rollup.where }),
-    scale: column.numericScale ?? 2,
+    scale: scaleOf(column),
     balances,
     capped: false,
     siblings,
+    formulas,
+    ...(currencyColumn === undefined ? {} : { currencyColumn }),
+    derived: derivedFrom(formulas, column.name),
   };
   out.capped = guardedBy(out).length > 0;
   return out;
 }
 
 /**
- * The values without the columns only a settle writes. A whole-row edit
- * sends a total back as it read it; dropping it, rather than refusing the
- * edit, keeps every form working and the total the settle's alone.
+ * The values without the columns only Adminium writes: totals and balances
+ * (the settle's), formulas (worked out after the hooks), and a gapless number
+ * with its text (taken inside the write). A whole-row edit sends them back as
+ * it read them; dropping them, rather than refusing the edit, keeps every form
+ * working and the value Adminium's alone.
+ *
+ * An import is history, and keeps the numbers it brings: a studio moving its
+ * past invoices keeps INV-0042 as INV-0042.
  */
-export function withoutReadOnly(rules: TableRules | null, values: Row): Row {
-  const readOnly = rules?.readOnly ?? [];
-  if (!readOnly.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
+export function withoutReadOnly(rules: TableRules | null, values: Row, origin?: WriteOrigin): Row {
+  const dropped = [...(rules?.readOnly ?? []), ...(origin === 'import' ? [] : (rules?.numbered ?? []))];
+  if (!dropped.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
   const out = { ...values };
-  for (const column of readOnly) delete out[column];
+  for (const column of dropped) delete out[column];
   return out;
+}
+
+/** Whether the table numbers its rows without gaps: undoing a create would hand its number out twice. */
+export function numbersWithoutGaps(rules: TableRules | null): boolean {
+  return (rules?.gapless?.length ?? 0) > 0;
 }
 
 // --- filling -----------------------------------------------------------------
@@ -736,6 +941,8 @@ export function checkRow(
     ...(rules.sequences ?? []).map((c) => c.column),
     ...(rules.codes ?? []).map((c) => c.column),
     ...(rules.stamps ?? []).map((c) => c.column),
+    ...(rules.formulas ?? []).map((c) => c.column),
+    ...(rules.numbered ?? []),
   ]);
   for (const check of rules.checks) {
     const supplied = Object.prototype.hasOwnProperty.call(values, check.column);

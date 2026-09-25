@@ -54,7 +54,7 @@ import {
 } from '../../crud/records.js';
 import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-errors.js';
 import { labelColumnFor } from '../../crud/labels.js';
-import { tableRulesFor } from '../../crud/column-rules.js';
+import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
 import {
   rowsEqual,
   UndoStore,
@@ -901,6 +901,23 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       }
     }
 
+    /**
+     * Whether undoing this write would delete a row numbered without gaps: a
+     * create of one, or child rows added to a table that numbers them. An undo
+     * deletes with no rules (it restores history), so INV-0042 would be gone
+     * and — the newest — handed out again to the next invoice. Such a write is
+     * given no undo; a mistake is voided, never unwritten.
+     */
+    function takesNumberBack(ctx: DataContext, action: UndoAction, children: readonly UndoChildren[]): boolean {
+      if (action === 'create' && numbersWithoutGaps(tableRulesFor(ctx.target))) return true;
+      return children.some((child) => {
+        if (child.added.length === 0) return false;
+        const relation = ctx.view.model.relations.find((candidate) => candidate.id === child.relationId);
+        if (relation === undefined) return false;
+        return numbersWithoutGaps(tableRulesFor({ view: ctx.view, table: ctx.view.table(relation.from.tableId) }));
+      });
+    }
+
     function issueUndo(
       request: FastifyRequest,
       ctx: DataContext,
@@ -917,6 +934,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
+      // No undo that would delete a row numbered without gaps: see `takesNumberBack`.
+      if (takesNumberBack(ctx, action, children)) return null;
       const { token } = undoStore.issue({
         auditId: null,
         userId,
@@ -1066,6 +1085,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const table = view.table(entry.tableId);
         const { db, dialect } = await manager.data(entry.connectionId);
         const target: WriteTarget = { connectionId: entry.connectionId, view, table, db, dialect };
+        // A token issued before the table numbered its rows without gaps: the rule decides now.
+        if (takesNumberBack({ connectionId: entry.connectionId, view, table, db, dialect, unmasked: false, target }, entry.action, entry.children)) {
+          throw new ConflictError(
+            'This record has a number from an unbroken series, so creating it cannot be undone. Void it instead.',
+            'CONFLICT',
+            { reason: 'UNDO_NUMBERED' },
+          );
+        }
         const context = requestWriteContext(request, 'undo');
         const hookAction = UNDO_WRITE[entry.action];
         // Before hooks judge the restore like any other write, before the
@@ -1742,7 +1769,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               value: repeat.values[index],
             });
           }
-          const rows = await ctx.db.transaction().execute(async (trx) => {
+          // Holding the series a number without gaps comes from, when the table has one.
+          const rows = await writes.transaction(ctx.target, prepared.map((row) => row.values), async (trx) => {
             const tdb = trx as unknown as Kysely<SourceDatabase>;
             const written: Row[] = [];
             for (const row of prepared) {
@@ -1856,7 +1884,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const written: { relationId: string; before: string[]; after: string[] }[] = [];
         const childWrites: UndoChildren[] = [];
         const childEvents: ChildEvent[] = [];
-        let inserted = await ctx.db.transaction().execute(async (trx) => {
+        const numbered = children.map((requested) => ({ target: childTargetOf(ctx, requested.child, ctx.db), row: {} }));
+        let inserted = await writes.transaction(ctx.target, [prepared.values], async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           const row = await (async () => {
             try {
@@ -1887,7 +1916,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (children.length === 0) return row;
           const key = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
           return (await fetchByPk(tdb, ctx.table, key)) ?? row;
-        });
+        }, numbered);
 
         const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
         undoToken = issueUndo(request, ctx, 'create', [], [inserted], [], [], written, childWrites);
@@ -1956,7 +1985,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const written: UndoLinks[] = [];
         const childWrites: UndoChildren[] = [];
         const childEvents: ChildEvent[] = [];
-        let after = await ctx.db.transaction().execute(async (trx) => {
+        // The series a child row added here takes a number in, held until the save commits.
+        const numbered = children.map((requested) => ({
+          target: childTargetOf(ctx, requested.child, ctx.db),
+          row: { [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] },
+        }));
+        let after = await writes.transaction(ctx.target, [], async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           if (Object.keys(prepared.values).length > 0) {
             try {
@@ -1981,7 +2015,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           }
           // As its children left it (a total over them has moved).
           return children.length === 0 ? row : ((await fetchByPk(tdb, ctx.table, pk)) ?? row);
-        });
+        }, numbered);
 
         undoToken = issueUndo(
           request,

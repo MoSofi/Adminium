@@ -21,7 +21,6 @@ import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter'
 import {
   connectionTenantConfig,
   createSqliteMetaDb,
-  documentSequencesRepo,
   firstRun,
   manifestsRepo,
   overridesRepo,
@@ -43,6 +42,7 @@ import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
+import { writeStores } from '../src/crud/write-stores.js';
 import { createWriteService, type WriteContext, type WriteTarget } from '../src/crud/write-service.js';
 import { normalizeWriteValue } from '../src/crud/write-values.js';
 import type { FileStore } from '../src/files/store.js';
@@ -402,7 +402,8 @@ export async function writerFor(h: InvoicingHarness, timezone = 'Europe/London')
     dialect,
     timezone,
   });
-  const writes = createWriteService({ sequences: documentSequencesRepo(h.meta) });
+  // Every store a write reads — numbers, the connection's currency and clock, settings — as the server has them.
+  const writes = createWriteService(writeStores(h.meta));
   const desk: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy Ferreira' }, request: null };
   const prepared = (ref: string, values: Record<string, unknown>) => {
     const table = targetOf(ref).table;

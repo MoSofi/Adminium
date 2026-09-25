@@ -370,10 +370,12 @@ async function runImport(
             .limit(1)
             .executeTakeFirst()) as Row | undefined;
           if (existing !== undefined) {
-            const checked = await writes.check('update', writeTarget, context, [item.values], HISTORY);
-            const values = checked.rows[0];
-            if (values === null || values === undefined) {
-              refuseRow(item, checked.issues[0] ?? null);
+            // Prepared against the row as it is: a formula over it (a line's
+            // amount, when only its qty is in the file) reads the stored inputs.
+            const [prepared] = await writes.beforeEach('update', writeTarget, context, [{ values: item.values, record: existing }], HISTORY);
+            const values = prepared?.values;
+            if (prepared === undefined || values === undefined || prepared.issues !== null) {
+              refuseRow(item, prepared?.issues ?? null);
               return;
             }
             await updateRows(db, dialect, table, values, match);

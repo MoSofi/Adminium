@@ -36,7 +36,7 @@ import type { Dialect } from '@adminium/engine';
 
 import type { CapacitySetting, TableCapacityRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { ConflictError, ValidationFailedError } from '../errors.js';
+import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import type { ResolvedTable } from './identifiers.js';
 import { venueClock, wallTimeToInstant } from './venue-time.js';
 
@@ -264,7 +264,7 @@ export async function withSlotLock<T>(
 export async function withNamedLock<T>(
   target: Pick<GuardTarget, 'db' | 'dialect'>,
   name: string,
-  busy: 'CAPACITY_BUSY' | 'BOOKING_BUSY',
+  busy: 'CAPACITY_BUSY' | 'BOOKING_BUSY' | 'NUMBER_BUSY',
   write: (db: Db) => Promise<T>,
 ): Promise<T> {
   const { db, dialect } = target;
@@ -283,7 +283,10 @@ export async function withNamedLock<T>(
     const key = `adm:${createHash('sha1').update(name).digest('hex')}`;
     return db.connection().execute(async (conn) => {
       const got = (await sql<{ got: number | null }>`select get_lock(${key}, ${LOCK_WAIT_SECONDS}) as got`.execute(conn)).rows[0]?.got;
-      if (Number(got) !== 1) throw new ConflictError('That time is busy. Try again in a moment.', busy);
+      if (Number(got) !== 1) {
+        if (busy === 'NUMBER_BUSY') throw new AppError(409, busy, 'Another record is taking the next number. Try again in a moment.');
+        throw new ConflictError('That time is busy. Try again in a moment.', busy);
+      }
       try {
         return await conn.transaction().execute(write);
       } finally {
@@ -292,9 +295,10 @@ export async function withNamedLock<T>(
     });
   }
   // SQLite: this process has one connection; BEGIN IMMEDIATE holds off a second.
-  if (db.isTransaction) return write(db);
+  if (inTransaction(db)) return write(db);
   return db.connection().execute(async (conn) => {
     await sql`begin immediate`.execute(conn);
+    OPENED.add(conn);
     try {
       const out = await write(conn);
       await sql`commit`.execute(conn);
@@ -302,8 +306,18 @@ export async function withNamedLock<T>(
     } catch (error) {
       await sql`rollback`.execute(conn);
       throw error;
+    } finally {
+      OPENED.delete(conn);
     }
   });
+}
+
+/** SQLite connections inside a `BEGIN IMMEDIATE` this module opened: kysely does not know they are in a transaction. */
+const OPENED = new WeakSet<object>();
+
+/** Whether a handle is inside a transaction: kysely's own, or one `withNamedLock` opened on SQLite by hand. */
+export function inTransaction(db: Db): boolean {
+  return db.isTransaction || OPENED.has(db);
 }
 
 /* ------------------------------------------------------------ availability */

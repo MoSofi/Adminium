@@ -18,6 +18,7 @@ import type {
   SemanticTag,
   TableModel,
 } from '@adminium/engine';
+import type { FormulaExpr } from '@adminium/manifest';
 import type { SchemaOverride } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
@@ -31,12 +32,21 @@ export interface ColumnOptionItem {
 /** `column.options`: a named list, or the values themselves. */
 export type ColumnOptions = { list: string } | { values: ColumnOptionItem[] };
 
+/**
+ * A setting a rule reads when it runs: a column of the app's one-row settings
+ * table (its id in the snapshot), or one of an add-on's settings in the meta
+ * store.
+ */
+export type RuleSetting = { table: string; column: string } | { addOn: string; setting: string };
+
 /** `column.default`: how Adminium fills the column when nobody does. */
 export interface ColumnFillRule {
-  kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none';
+  kind: 'now' | 'uuid' | 'literal' | 'current-user' | 'database' | 'none' | 'from';
   text?: string;
   userField?: 'id' | 'name';
   onUpdate?: boolean;
+  /** `from` only: where a create's empty value comes from. */
+  from?: 'connection.currency' | RuleSetting;
 }
 
 /** `column.copy`: the value comes from the row `via` points at. */
@@ -44,6 +54,28 @@ export interface ColumnCopyRule {
   via: string;
   from: string;
   mode?: 'default' | 'always';
+}
+
+/**
+ * `column.sequence`: the next number in this column's own counter — or, with
+ * `gapless`, the next number after the largest the table holds, taken inside
+ * the write that creates the row, so the series never skips or repeats.
+ */
+export interface ColumnSequenceRule {
+  start?: number;
+  gapless?: true;
+  /** The first number, read from a setting (it only ever raises `start`). */
+  startSetting?: RuleSetting;
+  /** A foreign key column: each parent row has its own series. */
+  scope?: string;
+}
+
+/** `column.format`: a text column written from a running number of the row (`INV-0042`). */
+export interface ColumnFormatRule {
+  from: string;
+  prefix?: string;
+  prefixSetting?: RuleSetting;
+  pad?: number;
 }
 
 /** `column.code`: a short random code, Crockford base 32. */
@@ -179,10 +211,19 @@ export interface EffectiveColumn extends ColumnModel {
    */
   copy?: ColumnCopyRule;
   /** `column.sequence`: the next number in this column's own counter. */
-  sequence?: { start?: number };
+  sequence?: ColumnSequenceRule;
   code?: ColumnCodeRule;
   rollup?: ColumnRollupRule;
   stamp?: ColumnStampRule;
+  /** `column.format`: the text of a running number, prefixed and padded. */
+  format?: ColumnFormatRule;
+  /** `column.formula`: worked out from the row's other columns on every write. */
+  formula?: FormulaExpr;
+  /**
+   * `column.scale`: the places a decimal keeps — a number, or `currency`: the
+   * decimals of the row's own `currency` column, else the connection's.
+   */
+  scale?: number | 'currency';
   /** `column.venueLocal`: a wall time with no zone is read on the venue's clock. */
   venueLocal?: boolean;
 }
@@ -788,7 +829,22 @@ export function applyOverrides(
       }
       case 'column.sequence': {
         const column = columnOf(table, row.columnName);
-        if (column !== undefined) column.sequence = value as { start?: number };
+        if (column !== undefined) column.sequence = value as unknown as ColumnSequenceRule;
+        break;
+      }
+      case 'column.format': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.format = value as unknown as ColumnFormatRule;
+        break;
+      }
+      case 'column.formula': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.formula = value.formula as FormulaExpr;
+        break;
+      }
+      case 'column.scale': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.scale = value.scale as number | 'currency';
         break;
       }
       case 'column.code': {

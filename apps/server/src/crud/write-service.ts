@@ -17,14 +17,21 @@
  *      then DECIDE — what the change itself makes Adminium write, judged
  *      against the stored row: a stamp, a late cancellation's flag (`crud/decide.ts`);
  *   4. before hooks run, and may change the values or reject the write;
- *   5. CHECK — the filled values are judged; a refusal is 422 with the column named;
- *   6. GUARD — on a table with a booking limit, the slot is locked and its
- *      room counted (`crud/capacity-guard.ts`); 6–8 then run in one transaction;
- *   7. SEQUENCE — a running number is claimed, only now, so a refusal burns none;
- *   8. the statement runs (a create whose generated code collides runs again
- *      with a fresh one), and ROLLUP keeps a parent's total in step with it;
- *   9. the caller announces the write (audit, files, realtime, record events);
- *  10. after hooks run. Their errors are recorded and never undo the write.
+ *   5. FORMULA — every scaled decimal is rounded and every formula the write
+ *      touches is worked out, over the stored row with the new values over it
+ *      (`crud/formulas.ts`), so nothing a hook set survives in one;
+ *   6. CHECK — the filled values are judged; a refusal is 422 with the column named;
+ *   7. GUARD — on a table with a booking limit, the slot is locked and its
+ *      room counted (`crud/capacity-guard.ts`); 7–9 then run in one transaction;
+ *   8. SEQUENCE — a running number is claimed, only now, so a refusal burns none;
+ *      a number without gaps is taken later still, inside the INSERT's own
+ *      transaction (`crud/gapless.ts`);
+ *   9. the statement runs (a create whose generated code collides runs again
+ *      with a fresh one), and SETTLE keeps a parent in step with it: its
+ *      totals over child rows, then the formulas that read them, then its
+ *      balances — in that order, so a balance is taken from the new total;
+ *  10. the caller announces the write (audit, files, realtime, record events);
+ *  11. after hooks run. Their errors are recorded and never undo the write.
  *
  * {@link RecordWriteService.create}, `update` and `delete` hold that order for
  * one row. The multi-row paths (bulk, undo, import) keep their own
@@ -85,9 +92,14 @@ import {
   type ColumnCode,
   type FieldIssues,
   type RollupInto,
+  type Scale,
   type TableBalance,
   type TableRules,
 } from './column-rules.js';
+import { inTransaction, withNamedLock } from './capacity-guard.js';
+import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js';
+import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
+import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import {
   claimSequences,
   generatedCodes,
@@ -300,6 +312,11 @@ export async function insertRow(
   table: ResolvedTable,
   checked: CheckedRow,
 ): Promise<Row> {
+  // A number without gaps is taken here, inside the INSERT's own transaction, whoever opened it.
+  return insertNumbered(db, dialect, table, checked, (within, row) => insertOne(within, dialect, table, row as CheckedRow));
+}
+
+async function insertOne(db: Db, dialect: Dialect, table: ResolvedTable, checked: CheckedRow): Promise<Row> {
   const values = storable(table, checked, dialect);
   if (dialect !== 'mysql') {
     // A row of nothing but defaults (its only sent values were totals, which a
@@ -338,6 +355,11 @@ export async function insertRow(
 
 /** INSERT several rows in one statement, returning nothing (the CSV import's chunk). */
 export async function insertRows(db: Db, dialect: Dialect, table: ResolvedTable, rows: readonly CheckedRow[]): Promise<void> {
+  // Rows that take a number without gaps take it one at a time, each right before its own INSERT.
+  if (rows.some((row) => claimsNumbers(row))) {
+    for (const row of rows) await insertRow(db, dialect, table, row);
+    return;
+  }
   await db
     .insertInto(table.id)
     .values(rows.map((row) => storable(table, row, dialect)) as never)
@@ -358,7 +380,11 @@ export async function updateRows(
   match: Row,
   refine?: (query: AnyUpdate) => AnyUpdate,
 ): Promise<number> {
-  let query = db.updateTable(table.id).set(storable(table, values, dialect) as never) as unknown as AnyUpdate;
+  // Every column the writer sent was Adminium's to decide (a total, a formula
+  // sent back by a whole-row form): the key set to itself still answers
+  // whether the row is there, through the same WHERE.
+  const set = Object.keys(values).length > 0 ? storable(table, values, dialect) : { [table.primaryKey[0]!]: sql.ref(table.primaryKey[0]!) };
+  let query = db.updateTable(table.id).set(set as never) as unknown as AnyUpdate;
   for (const [column, value] of Object.entries(match)) {
     query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
   }
@@ -387,32 +413,142 @@ export async function deleteRows(
 }
 
 /**
+ * The connection's currency, read only when a `currency` scale needs it and
+ * the row names none of its own.
+ */
+export type CurrencyOf = () => Promise<string | null>;
+
+const NO_CURRENCY: CurrencyOf = () => Promise.resolve(null);
+
+/** The parent row a settle works on: its table, key and own currency column. */
+interface SettledRow {
+  table: string;
+  keyColumn: string;
+  currencyColumn?: string | undefined;
+}
+
+/**
+ * The places each scale means for one stored row. A `currency` scale reads
+ * the row's own currency column, so a document keeps the places of the
+ * currency it was written in, whatever the connection says later.
+ */
+async function placesOf(db: Db, row: SettledRow, key: unknown, scales: readonly Scale[], currency: CurrencyOf): Promise<(scale: Scale) => number> {
+  if (!scales.includes('currency')) return (scale) => (typeof scale === 'number' ? scale : 2);
+  let own: unknown = null;
+  if (row.currencyColumn !== undefined) {
+    const found = (await db
+      .selectFrom(row.table)
+      .select(sql<unknown>`${sql.ref(row.currencyColumn)}`.as('currency'))
+      .where((eb) => eb(db.dynamic.ref(row.keyColumn), '=', key))
+      .executeTakeFirst()) as { currency?: unknown } | undefined;
+    own = found?.currency ?? null;
+  }
+  const connection = typeof own === 'string' && own.trim() !== '' ? null : await currency();
+  return (scale) => placesFor(scale, { currency: own }, 'currency', connection);
+}
+
+/** Postgres rounds only a numeric; MySQL and SQLite round what they are given. */
+function roundedSql(dialect: Dialect, value: ReturnType<typeof sql>, places: number) {
+  return dialect === 'postgres' ? sql`round(cast(${value} as numeric), ${sql.lit(places)})` : sql`round(${value}, ${sql.lit(places)})`;
+}
+
+/**
  * Set a parent's total to what its child rows add up to now — `column.rollup`,
  * kept in step with every write to a child. Rounded in SQL to the total's own
  * places, since SQLite adds money up as a float. A child whose `unlessSet`
  * column holds a value (a voided line) adds nothing, nor one that fails the
- * rollup's `where` (a voided payment). Then every balance the parent keeps is
- * worked out again from what is now stored.
+ * rollup's `where` (a voided payment).
  */
-export async function settleRollup(db: Db, dialect: Dialect, rollup: RollupInto, parentKey: unknown): Promise<void> {
+async function rollupStatement(
+  db: Db,
+  dialect: Dialect,
+  rollup: RollupInto,
+  parentKey: unknown,
+  places: number,
+  read: 'locking' | 'plain' = 'locking',
+): Promise<void> {
   const amount = rollup.times === undefined ? sql`${sql.ref(rollup.sum)}` : sql`${sql.ref(rollup.sum)} * ${sql.ref(rollup.times)}`;
-  const total = sql`coalesce(sum(${amount}), 0)`;
-  // Postgres rounds only a numeric; MySQL and SQLite round what they are given.
-  const rounded =
-    dialect === 'postgres'
-      ? sql`round(cast(${total} as numeric), ${sql.lit(rollup.scale)})`
-      : sql`round(${total}, ${sql.lit(rollup.scale)})`;
+  const rounded = roundedSql(dialect, sql`coalesce(sum(${amount}), 0)`, places);
   const conditions = [
     sql`${sql.ref(rollup.via)} = ${parentKey}`,
     ...(rollup.unlessSet === undefined ? [] : [sql`${sql.ref(rollup.unlessSet)} is null`]),
     ...(rollup.where === undefined ? [] : [sql`${sql.ref(rollup.where.column)} = ${bindValue(dialect, rollup.where.eq)}`]),
   ];
+  const added = sql`(select ${rounded} from ${sql.table(rollup.child)} where ${sql.join(conditions, sql` and `)})`;
+  /*
+   * MySQL reads the rows an UPDATE's subquery adds up with shared locks, gap
+   * included — up to the end of the index for the newest parent. Taken BEFORE
+   * a writer's own INSERT (the catch-up below), two writers on two documents
+   * each hold the gap the other must insert into: a deadlock, proved with
+   * concurrent documents. So the catch-up adds up with a plain read (the
+   * parent is already held, so no writer of its rows is in flight) and writes
+   * the figure; the settle after the INSERT keeps the locking read.
+   */
+  const value = read === 'plain' && dialect === 'mysql' ? ((await sql<{ value: unknown }>`select ${added} as value`.execute(db)).rows[0]?.value ?? 0) : added;
   await db
     .updateTable(rollup.parent)
-    .set({ [rollup.column]: sql`(select ${rounded} from ${sql.table(rollup.child)} where ${sql.join(conditions, sql` and `)})` } as never)
+    .set({ [rollup.column]: value } as never)
     .where((eb) => eb(db.dynamic.ref(rollup.parentKey), '=', parentKey))
     .execute();
-  await settleBalances(db, dialect, rollup.parent, rollup.parentKey, rollup.balances, parentKey);
+}
+
+/**
+ * The parent's formulas that read a total just settled, worked out again from
+ * the row as it is now stored — read holding it (`FOR UPDATE`), which on MySQL
+ * is also what reads past the transaction's snapshot to the latest row.
+ */
+async function formulaStatement(
+  db: Db,
+  dialect: Dialect,
+  row: SettledRow,
+  formulas: RollupInto['formulas'],
+  key: unknown,
+  currency: CurrencyOf,
+): Promise<void> {
+  if (formulas.length === 0) return;
+  let query = db
+    .selectFrom(row.table)
+    .selectAll()
+    .where((eb) => eb(db.dynamic.ref(row.keyColumn), '=', key));
+  if (dialect !== 'sqlite') query = query.forUpdate();
+  const stored = (await query.executeTakeFirst()) as Row | undefined;
+  if (stored === undefined) return;
+  const own = row.currencyColumn === undefined ? null : stored[row.currencyColumn];
+  const needsConnection = formulas.some((formula) => formula.scale === 'currency') && !(typeof own === 'string' && own.trim() !== '');
+  const worked = evaluateAll(formulas, stored, row.currencyColumn, needsConnection ? await currency() : null);
+  await db
+    .updateTable(row.table)
+    .set(worked as never)
+    .where((eb) => eb(db.dynamic.ref(row.keyColumn), '=', key))
+    .execute();
+}
+
+/**
+ * SETTLE one parent row, in the one order that is right: the totals over its
+ * child rows, then the formulas that read them (`tax` over `subtotal`,
+ * `total` over both), then its balances — each a statement of its own, so
+ * each reads what the one before it wrote, on every engine. `rollups` are the
+ * totals to add up again (one parent's); `balances` the balances to work out
+ * again afterwards.
+ */
+export async function settleParent(
+  db: Db,
+  dialect: Dialect,
+  rollups: readonly RollupInto[],
+  parentKey: unknown,
+  balances: readonly TableBalance[],
+  currency: CurrencyOf = NO_CURRENCY,
+  read: 'locking' | 'plain' = 'locking',
+): Promise<void> {
+  const first = rollups[0];
+  if (first === undefined) return;
+  const row: SettledRow = { table: first.parent, keyColumn: first.parentKey, currencyColumn: first.currencyColumn };
+  const derived = new Set(rollups.flatMap((rollup) => rollup.derived));
+  const formulas = first.formulas.filter((formula) => derived.has(formula.column));
+  const places = await placesOf(db, row, parentKey, [...rollups.map((r) => r.scale), ...balances.map((b) => b.scale)], currency);
+  for (const rollup of rollups) await rollupStatement(db, dialect, rollup, parentKey, places(rollup.scale), read);
+  await formulaStatement(db, dialect, row, formulas, parentKey, currency);
+  await balanceStatement(db, dialect, row.table, row.keyColumn, balances, parentKey, places);
 }
 
 /**
@@ -430,14 +566,27 @@ export async function settleBalances(
   keyColumn: string,
   balances: readonly TableBalance[],
   key: unknown,
+  opts: { currencyColumn?: string | undefined; currency?: CurrencyOf } = {},
+): Promise<void> {
+  if (balances.length === 0) return;
+  const places = await placesOf(db, { table, keyColumn, currencyColumn: opts.currencyColumn }, key, balances.map((b) => b.scale), opts.currency ?? NO_CURRENCY);
+  await balanceStatement(db, dialect, table, keyColumn, balances, key, places);
+}
+
+async function balanceStatement(
+  db: Db,
+  dialect: Dialect,
+  table: string,
+  keyColumn: string,
+  balances: readonly TableBalance[],
+  key: unknown,
+  places: (scale: Scale) => number,
 ): Promise<void> {
   if (balances.length === 0) return;
   const set: Record<string, unknown> = {};
   for (const balance of balances) {
     const parts = [balance.total, ...balance.minus].map((column) => sql` - coalesce(${sql.ref(column)}, 0)`);
-    const value = sql`coalesce(${sql.ref(balance.of)}, 0)${sql.join(parts, sql``)}`;
-    set[balance.column] =
-      dialect === 'postgres' ? sql`round(cast(${value} as numeric), ${sql.lit(balance.scale)})` : sql`round(${value}, ${sql.lit(balance.scale)})`;
+    set[balance.column] = roundedSql(dialect, sql`coalesce(${sql.ref(balance.of)}, 0)${sql.join(parts, sql``)}`, places(balance.scale));
   }
   await db
     .updateTable(table)
@@ -775,6 +924,20 @@ export interface RecordWriteService {
    */
   settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], opts?: { cap?: boolean }): Promise<void>;
   /**
+   * One transaction for rows prepared by {@link beforeEach} or {@link check},
+   * holding the lock of every series without gaps they take a number in until
+   * it commits. A multi-row path opens its transaction here: on MySQL a named
+   * lock cannot be taken inside a transaction someone else opened, and twenty
+   * writers numbering inside their own would wait on each other's gap locks.
+   */
+  transaction<T>(
+    target: WriteTarget,
+    rows: readonly Row[],
+    run: (db: Kysely<SourceDatabase>) => Promise<T>,
+    /** Child rows the transaction will add, each with what it already knows (its parent's key, on an edit). */
+    children?: readonly { target: WriteTarget; row: Row }[],
+  ): Promise<T>;
+  /**
    * Created or updated rows as their own totals left them, once `afterEach`
    * or `settle` ran: read again from the table that keeps totals on its own
    * rows, and handed back as they are from any other. What a multi-row path
@@ -794,6 +957,13 @@ export interface WriteServiceOptions {
   sequences?: SequenceStore | undefined;
   /** The connection's time zone, looked up only for a table with a rule that reads a clock. */
   timezoneOf?: ((connectionId: string) => Promise<string | null>) | undefined;
+  /**
+   * The meta store's settings a rule reads: the connection's currency (a
+   * `currency` scale, a document's currency) and an add-on's settings (a
+   * default, a prefix, a start). Without one, a `currency` scale keeps 2
+   * places and a fill from an add-on's setting fills nothing.
+   */
+  settings?: RuleSettingsReader | undefined;
   /**
    * Whether something after the write compares a table's rows before and
    * after (an app's email queued when a column changes to a value): an
@@ -846,6 +1016,26 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
   const rulesOf = (target: WriteTarget): TableRules | null => tableRulesFor(target);
 
+  /** The connection's currency, read at most once per write, and only when a `currency` scale asks for it. */
+  const currencyFor = (target: WriteTarget): CurrencyOf => {
+    let memo: Promise<string | null> | undefined;
+    return () => (memo ??= opts.settings?.currency(target.connectionId) ?? Promise.resolve(null));
+  };
+
+  /** Whether any scale of the table is a currency's, so the connection's currency may be needed. */
+  const readsCurrency = (rules: TableRules | null): boolean =>
+    (rules?.scales ?? []).some((s) => s.scale === 'currency') || (rules?.formulas ?? []).some((f) => f.scale === 'currency');
+
+  /**
+   * FORMULA: the scaled decimals rounded and the touched formulas worked out,
+   * over the stored row (an update) with the values over it.
+   */
+  const formulate = async (rules: TableRules | null, action: WriteAction, target: WriteTarget, values: Row, stored: Row | null): Promise<Row> => {
+    if (rules === null || action === 'delete') return values;
+    const currency = readsCurrency(rules) ? await currencyFor(target)() : null;
+    return workOut(rules, action, values, stored, currency);
+  };
+
   const fill = (
     rules: TableRules | null,
     action: WriteAction,
@@ -853,7 +1043,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     context: WriteContext,
     values: Row,
     now: Date,
-  ): Row => withoutReadOnly(rules, fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor }));
+  ): Row => withoutReadOnly(rules, fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor }), context.origin);
 
   /** The venue's zone for a table whose rules read a clock; undefined for every other. */
   async function zoneFor(rules: TableRules | null, target: WriteTarget): Promise<string | undefined> {
@@ -888,7 +1078,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     return out ?? values;
   };
 
-  /** FILL (with the venue's clock), then RESOLVE. */
+  /** FILL (with the venue's clock), then RESOLVE — a copy, a code, then what a create fills from elsewhere. */
   const prepareValues = async (
     rules: TableRules | null,
     action: WriteAction,
@@ -898,17 +1088,35 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     now: Date,
     memo?: CopyMemo,
   ): Promise<Row> =>
-    resolveRow(
+    fillFromElsewhere(
       rules,
       action,
       target,
-      localize(rules, target, fill(rules, action, target, context, values, now), await zoneFor(rules, target)),
-      memo,
+      await resolveRow(
+        rules,
+        action,
+        target,
+        localize(rules, target, fill(rules, action, target, context, values, now), await zoneFor(rules, target)),
+        memo,
+      ),
+      opts.settings,
     );
 
-  /** SEQUENCE, on a row that passed CHECK. */
-  const numbered = async (rules: TableRules | null, action: WriteAction, target: WriteTarget, values: CheckedRow) =>
-    brand(await claimSequences(rules, action, target, values, opts.sequences));
+  /**
+   * SEQUENCE, on a row that passed CHECK: a counted number claimed now, and
+   * what a number without gaps needs at its INSERT attached to the row.
+   */
+  const numbered = async (rules: TableRules | null, action: WriteAction, target: WriteTarget, context: WriteContext, values: CheckedRow) =>
+    brand(
+      await prepareNumbers(
+        rules,
+        action,
+        target,
+        await claimSequences(rules, action, target, values, opts.sequences),
+        context.origin,
+        opts.settings,
+      ),
+    );
 
   /**
    * INSERT, trying again with fresh codes when a code this create generated
@@ -1006,21 +1214,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /**
-   * Hold every parent row whose balance the write will move, in table then
-   * key order; add its totals up again from the rows as they are (what is
-   * stored may lag: a rule added since, a write made elsewhere); and read its
-   * balances. That is the "before" a capped write is judged against. Empty
-   * for a table whose totals keep no balance.
+   * Hold every parent row whose totals the write will move, in table then key
+   * order — whether or not it keeps a balance: two writers adding lines to one
+   * proposal at once would otherwise each add its subtotal up without the
+   * other's line. A parent that keeps a balance has its totals added up again
+   * from the rows as they are (what is stored may lag: a rule added since, a
+   * write made elsewhere) and its balances read: that is the "before" a
+   * capped write is judged against.
    */
   async function holdParents(
     rules: TableRules | null,
     target: WriteTarget,
     rows: readonly { record: Row | null; before: Row | null }[],
+    currency: CurrencyOf,
   ): Promise<Held> {
     const held: Held = new Map();
     const byParent = new Map<string, { rollup: RollupInto; keys: unknown[] }>();
     for (const rollup of rules?.rollupsInto ?? []) {
-      if (rollup.balances.length === 0) continue;
       const entry = byParent.get(rollup.parent) ?? { rollup, keys: [] };
       entry.keys.push(...parentsOf(rollup, rows));
       byParent.set(rollup.parent, entry);
@@ -1028,9 +1238,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     for (const parent of [...byParent.keys()].sort()) {
       const { rollup, keys } = byParent.get(parent)!;
       const found = await holdBalances(target.db, target.dialect, parent, rollup.parentKey, keys, rollup.balances);
+      if (rollup.balances.length === 0) continue;
       for (const key of keys) {
         if (!found.has(String(key))) continue;
-        for (const total of rollup.siblings) await settleRollup(target.db, target.dialect, total, key);
+        // A catch-up before this write's own rows go in: read plainly (see `rollupStatement`).
+        await settleParent(target.db, target.dialect, rollup.siblings, key, rollup.balances, currency, 'plain');
       }
       held.set(parent, await holdBalances(target.db, target.dialect, parent, rollup.parentKey, keys, rollup.balances));
     }
@@ -1038,13 +1250,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /** Hold a row whose own capped balance a write moves; add its totals up again; read its balances. */
-  async function holdOwn(rules: TableRules | null, target: WriteTarget, pk: Row, balances: TableBalance[]): Promise<Row | undefined> {
+  async function holdOwn(
+    rules: TableRules | null,
+    target: WriteTarget,
+    pk: Row,
+    balances: TableBalance[],
+    currency: CurrencyOf,
+  ): Promise<Row | undefined> {
     const own = rules?.ownRollups ?? [];
     const keyColumn = own[0]?.parentKey;
     if (keyColumn === undefined) return undefined;
     const key = pk[keyColumn];
     if ((await holdBalances(target.db, target.dialect, target.table.id, keyColumn, [key], balances)).size === 0) return undefined;
-    for (const rollup of own) await settleRollup(target.db, target.dialect, rollup, key);
+    await settleParent(target.db, target.dialect, own, key, rules?.balances ?? [], currency);
     return (await holdBalances(target.db, target.dialect, target.table.id, keyColumn, [key], balances)).get(String(key));
   }
 
@@ -1058,11 +1276,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     rules: TableRules | null,
     target: WriteTarget,
     rows: readonly { record: Row | null; before: Row | null }[],
+    currency: CurrencyOf,
     cap?: Held | 'strict',
   ): Promise<void> {
     for (const rollup of rules?.rollupsInto ?? []) {
       for (const key of parentsOf(rollup, rows)) {
-        await settleRollup(target.db, target.dialect, rollup, key);
+        await settleParent(target.db, target.dialect, [rollup], key, rollup.balances, currency);
         if (cap === undefined || !rollup.capped) continue;
         const was = cap === 'strict' ? undefined : cap.get(rollup.parent)?.get(String(key));
         const refusal = await capRefusal(target.db, rollup.parent, rollup.parentKey, key, guardedBy(rollup), was);
@@ -1077,8 +1296,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   /** Whether a settle writes to the written row itself: a total over its own child rows, and the balances beside it. */
   const keepsOwnTotals = (rules: TableRules | null): boolean => (rules?.ownRollups?.length ?? 0) > 0;
 
-  /** Whether a written row moves a total that keeps a balance, which is then held while it is written. */
-  const holdsMoney = (rules: TableRules | null): boolean => (rules?.rollupsInto ?? []).some((rollup) => rollup.balances.length > 0);
+  /** Whether a written row moves a parent's total, and the parent is then held while it is written. */
+  const holdsParent = (rules: TableRules | null): boolean => (rules?.rollupsInto?.length ?? 0) > 0;
 
   /**
    * The balances of this table a change of `values` moves: its `of` or a
@@ -1107,17 +1326,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     action: 'create' | 'update',
     row: Row | null,
     values: Row,
+    currency: CurrencyOf,
     before?: Row,
   ): Promise<void> {
     const own = rules?.ownRollups ?? [];
     const key = row?.[own[0]?.parentKey ?? ''];
     if (own.length === 0 || key === null || key === undefined) return;
     const moved = action === 'create' ? (rules?.balances ?? []) : movedBalances(rules, values);
-    if (action === 'create') {
-      for (const rollup of own) await settleRollup(target.db, target.dialect, { ...rollup, balances: [] }, key);
-    }
+    // A new row's totals, and the formulas that read them; its balances just below.
+    if (action === 'create') await settleParent(target.db, target.dialect, own, key, [], currency);
     if (moved.length === 0) return;
-    await settleBalances(target.db, target.dialect, target.table.id, own[0]!.parentKey, moved, key);
+    await settleBalances(target.db, target.dialect, target.table.id, own[0]!.parentKey, moved, key, {
+      currencyColumn: rules?.currencyColumn,
+      currency,
+    });
     if (action === 'update' && before === undefined) return;
     const refusal = await capRefusal(target.db, target.table.id, own[0]!.parentKey, key, moved, before);
     if (refusal !== null) throw refusal;
@@ -1131,28 +1353,29 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * there. A total that keeps a balance is settled holding its parent row, in
    * a transaction of its own when there is none.
    */
-  async function settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], opts?: { cap?: boolean }): Promise<void> {
+  async function settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], settleOpts?: { cap?: boolean }): Promise<void> {
     const rules = rulesOf(target);
     if (rows.length === 0 || !settles(rules)) return;
+    const currency = currencyFor(target);
     const sides = rows.map((row) => (action === 'delete' ? { record: null, before: row.record } : { record: row.record, before: row.before }));
     const run = async (db: Db): Promise<void> => {
       const within = { ...target, db };
-      if (holdsMoney(rules)) await holdParents(rules, within, sides);
-      await settleRows(rules, within, sides, opts?.cap === true ? 'strict' : undefined);
+      if (holdsParent(rules)) await holdParents(rules, within, sides, currency);
+      await settleRows(rules, within, sides, currency, settleOpts?.cap === true ? 'strict' : undefined);
       if (action === 'delete' || (rules?.ownRollups?.length ?? 0) === 0) return;
       for (const row of rows) {
         const key = row.record[rules!.ownRollups![0]!.parentKey];
         if (key === null || key === undefined) continue;
-        // Its own totals too: a restored or edited row may carry child rows written beside it.
-        for (const rollup of rules!.ownRollups!) await settleRollup(db, target.dialect, rollup, key);
+        // Its own totals too, and what they feed: a restored or edited row may carry child rows written beside it.
+        await settleParent(db, target.dialect, rules!.ownRollups!, key, rules?.balances ?? [], currency);
       }
     };
-    await (holdsMoney(rules) || (rules?.balances?.length ?? 0) > 0 ? atomically(target, run) : run(target.db));
+    await (holdsParent(rules) || (rules?.balances?.length ?? 0) > 0 ? atomically(target, run) : run(target.db));
   }
 
   /** One transaction for a write and the totals it moves, unless one is open. */
   async function atomically<T>(target: WriteTarget, run: (db: Db) => Promise<T>): Promise<T> {
-    return target.db.isTransaction ? run(target.db) : target.db.transaction().execute(run);
+    return inTransaction(target.db) ? run(target.db) : target.db.transaction().execute(run);
   }
 
   /**
@@ -1164,6 +1387,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   function movesBooking(rule: NonNullable<TableRules['booking']>, row: Row): boolean {
     if ([rule.start, rule.minutes, rule.resource, rule.kind].some((column) => Object.prototype.hasOwnProperty.call(row, column))) return true;
     return Object.prototype.hasOwnProperty.call(row, rule.countWhere.column) && bookingCounts(rule, row);
+  }
+
+  /**
+   * Whether an update of a child row can move one of these totals: it writes
+   * what a total adds up, links, leaves out or counts — or an input of the
+   * formula that works the added-up column out (a line's qty, under its
+   * amount). Putting lines in another order moves no total.
+   */
+  function movesTotal(rules: TableRules | null, rollups: readonly RollupInto[], row: Row): boolean {
+    const written = new Set(Object.keys(row));
+    for (const formula of touchedFormulas(rules?.formulas ?? [], written)) written.add(formula.column);
+    return rollups.some((rollup) =>
+      [rollup.sum, rollup.times, rollup.via, rollup.unlessSet, rollup.where?.column].some((column) => column !== undefined && written.has(column)),
+    );
   }
 
   /** Whether a multi-row write must be refused: rows that each need their slot held, or a balance kept at zero. */
@@ -1179,7 +1416,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // back a payment the balance had no room for. A parent form's child rows
     // are the exception: written inside the form's transaction, and settled
     // and judged there (`settle` with `cap`).
-    if ((rules?.rollupsInto ?? []).some((rollup) => rollup.capped) && !target.db.isTransaction) {
+    const capped = (rules?.rollupsInto ?? []).filter((rollup) => rollup.capped);
+    if (capped.length > 0 && !target.db.isTransaction && (action !== 'update' || rows.some((row) => movesTotal(rules, capped, row)))) {
       throw new BalanceBatchError(target.table.name);
     }
     if (action === 'delete') return;
@@ -1282,10 +1520,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const out: (CheckedRow | null)[] = [];
       const issues: (FieldIssues | null)[] = [];
       for (const row of rows) {
-        const values = await prepareValues(rules, action, target, context, row, now, memo);
+        // No stored row here: an update's formulas are worked out by a path that reads one (`beforeEach`).
+        const values = await formulate(rules, action, target, await prepareValues(rules, action, target, context, row, now, memo), null);
         const issue = checkRow(rules, action, values, { dialect: target.dialect });
         issues.push(issue);
-        out.push(issue === null ? await numbered(rules, action, target, brand(values)) : null);
+        out.push(issue === null ? await numbered(rules, action, target, context, brand(values)) : null);
       }
       return { rows: out, issues };
     },
@@ -1294,17 +1533,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const { target, context } = input;
       const hooks = current();
       const rules = rulesOf(target);
+      const currency = currencyFor(target);
       const zone = await zoneFor(rules, target);
       const filled = localize(rules, target, fill(rules, 'create', target, context, input.values, new Date()), zone);
-      const resolved = await resolveRow(rules, 'create', target, filled);
+      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled), opts.settings);
       // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, new Date()));
-      // A total is the settle's alone, whatever a hook set.
-      const values = (await hooks.wants('before', 'create', target, context))
-        ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null))
+      // A total, a formula and a number are Adminium's alone, whatever a hook set.
+      const hooked = (await hooks.wants('before', 'create', target, context))
+        ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
         : decided;
+      const values = await formulate(rules, 'create', target, hooked, null);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
-      const checked = checkOrThrow(rules, 'create', target, values, input.mapError);
+      // What a number without gaps needs at its INSERT, read before any lock is taken.
+      const checked = brand(await prepareNumbers(rules, 'create', target, checkOrThrow(rules, 'create', target, values, input.mapError), context.origin, opts.settings));
       // Only the codes generated here, and left alone by the hooks, are made again.
       const codes = generatedCodes(rules, filled).filter((code) => values[code.column] === resolved[code.column]);
       const booking = rules?.booking;
@@ -1319,12 +1561,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           booking !== undefined && need !== null
             ? brand({ ...checked, ...(await guardedValue(() => checkBooking(booking, within, { row: checked, before: null, need, now }), input.mapError)) })
             : checked;
-        // The parents whose balance this row moves, held before it is written.
-        const held = await holdParents(rules, within, [{ record: placed, before: null }]);
-        const out = await insertWithCodes(within, await numbered(rules, 'create', within, placed), codes, input.mapError);
+        // The parents whose totals this row moves, held before it is written.
+        const held = await holdParents(rules, within, [{ record: placed, before: null }], currency);
+        const counted = brand(await claimSequences(rules, 'create', within, placed, opts.sequences));
+        const out = await insertWithCodes(within, counted, codes, input.mapError);
         await guarded(async () => {
-          await settleRows(rules, within, [{ record: out.row, before: null }], held);
-          await settleOwn(rules, within, 'create', out.row, out.values);
+          await settleRows(rules, within, [{ record: out.row, before: null }], currency, held);
+          await settleOwn(rules, within, 'create', out.row, out.values, currency);
         }, input.mapError);
         // The row as its own totals left it: the INSERT returned it before they were added up.
         return keepsOwnTotals(rules) ? { ...out, row: await readAgain(db, target.table, out.row) } : out;
@@ -1334,15 +1577,19 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         day = bookingDay(booking, checked, zone ?? 'UTC');
         if (day === null) await guarded(() => Promise.reject(bookingRefusal('BOOKING_OUT_OF_RANGE', booking.start)), input.mapError);
       }
+      // A number without gaps is taken under the series' lock, held until the row commits.
+      const series = numberLockName(target.table, checked);
       const { row, values: written } = await conflicted(
         () =>
           rules?.capacity !== undefined
             ? withSlotLock(rules.capacity, target, checked, write)
             : day !== null
               ? withBookingLock({ ...target, timezone: zone }, day, write)
-              : settles(rules)
-                ? atomically(target, write)
-                : write(target.db),
+              : series !== null && !inTransaction(target.db)
+                ? withNamedLock(target, series, 'NUMBER_BUSY', write)
+                : settles(rules) || series !== null
+                  ? atomically(target, write)
+                  : write(target.db),
         input.mapError,
       );
       await input.announce(row, written);
@@ -1356,6 +1603,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const { target, context, pk } = input;
       const hooks = current();
       const rules = rulesOf(target);
+      const currency = currencyFor(target);
       let before = input.before ?? null;
       /*
        * The FILLED values, from here on. `UpdateOutcome.values` is what the
@@ -1368,7 +1616,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let values = await prepareValues(rules, 'update', target, context, input.values, new Date());
       const wantsBefore = await hooks.wants('before', 'update', target, context);
       const wantsAfter = await hooks.wants('after', 'update', target, context);
-      // The stored row: for the hooks, and for what Adminium decides from it.
+      // The stored row: for the hooks, and for what Adminium decides and works out from it.
       const stored = needsStored(rules);
       const watched = input.before === undefined && !(wantsBefore || wantsAfter || stored) && (await opts.watched?.(target.connectionId, target.table.id)) === true;
       if ((wantsBefore || wantsAfter || stored || watched) && input.before === undefined) {
@@ -1385,26 +1633,33 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       }
       // A row the caller cannot see is not a hook's business: the UPDATE below
       // matches nothing and the caller answers as it always has.
-      if (wantsBefore && before !== null) values = withoutReadOnly(rules, await runBefore(hooks, 'update', target, context, values, before));
+      if (wantsBefore && before !== null) {
+        values = withoutReadOnly(rules, await runBefore(hooks, 'update', target, context, values, before), context.origin);
+      }
+      // FORMULA, over the stored row: a change of `qty` alone still has the `rate` it multiplies.
+      values = await formulate(rules, 'update', target, values, before);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       const checkedValues = checkOrThrow(rules, 'update', target, values, input.mapError);
       const capacity = rules?.capacity !== undefined && touchesGuard(rules.capacity, values) ? rules.capacity : undefined;
       const booking = rules?.booking !== undefined && touchesBooking(rules.booking, values) ? rules.booking : undefined;
-      // A changed fee (or what is taken off it) moves this row's own balances.
+      // The formulas this change moves: worked out again below from the row as held.
+      const worked = (rules?.formulas ?? []).filter((formula) => Object.prototype.hasOwnProperty.call(checkedValues, formula.column));
+      // A changed fee (or what is taken off it, or a total a formula works out) moves this row's own balances.
       const moved = movedBalances(rules, checkedValues);
-      const rolls = (rules?.rollupsInto?.length ?? 0) > 0 || moved.length > 0;
+      const rolls = (rules?.rollupsInto?.length ?? 0) > 0 || moved.length > 0 || worked.length > 0;
       const now = new Date();
       /** The day the booking lock was named by; the write refuses to go on under a different one. */
       let lockedDay: string | null = null;
       const write = async (db: Db) => {
         const within = { ...target, db, timezone: zone, origin: context.origin };
         // The row as stored, read under the lock: what the guard leaves out
-        // of its sum, and the parent a moved child leaves.
-        // Held too when it feeds a balance: a writer moving it to another
-        // parent meanwhile would leave this one settling the wrong visit.
+        // of its sum, the parent a moved child leaves, and what a formula
+        // reads. Held too when it feeds a parent's total or works a formula
+        // out: a writer moving it meanwhile would leave this one settling the
+        // wrong parent, and a line settled meanwhile a subtotal read too early.
         const prior =
           capacity !== undefined || booking !== undefined || rolls
-            ? ((holdsMoney(rules) ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
+            ? ((holdsParent(rules) || worked.length > 0 ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
             : null;
         if (capacity !== undefined && prior !== null) {
           await guarded(() => checkCapacity(capacity, within, checkedValues, prior), input.mapError);
@@ -1421,18 +1676,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             if (Object.keys(picked).length > 0) written = brand({ ...checkedValues, ...picked });
           }
         }
-        // The parents whose balance the write moves, and this row's own capped
+        // Worked out again from the row as held: a total over child rows may have moved since it was first read.
+        if (worked.length > 0 && prior !== null) {
+          const connection = readsCurrency(rules) ? await currency() : null;
+          written = brand({ ...written, ...evaluateAll(worked, { ...prior, ...written }, rules?.currencyColumn, connection) });
+        }
+        // The parents whose totals the write moves, and this row's own capped
         // balances, held — and read as they are — before the statement.
-        const held = await holdParents(rules, within, [{ record: { ...(prior ?? {}), ...written }, before: prior }]);
+        const held = await holdParents(rules, within, [{ record: { ...(prior ?? {}), ...written }, before: prior }], currency);
         // This row's own balances, when the write really changes what they are worked out from.
         const ownMoved = movedBalances(rules, written, prior);
-        const ownBefore = ownMoved.some((balance) => balance.cappedBy.length > 0) ? await holdOwn(rules, within, pk, ownMoved) : undefined;
+        const ownBefore = ownMoved.some((balance) => balance.cappedBy.length > 0) ? await holdOwn(rules, within, pk, ownMoved, currency) : undefined;
         const changed = await statement(() => updateRows(db, target.dialect, target.table, written, pk, input.refine), input.mapError);
         if (changed > 0 && rolls) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           await guarded(async () => {
-            await settleRows(rules, within, [{ record: after, before: prior }], held);
-            if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, written, ownBefore);
+            await settleRows(rules, within, [{ record: after, before: prior }], currency, held);
+            if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, written, currency, ownBefore);
           }, input.mapError);
         }
         if (written !== checkedValues) values = written;
@@ -1470,15 +1730,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await runBefore(hooks, 'delete', target, context, {}, before);
       }
       const rules = rulesOf(target);
+      const currency = currencyFor(target);
       const rolls = (rules?.rollupsInto?.length ?? 0) > 0;
       const count = rolls
         ? await conflicted(() => atomically(target, async (db) => {
-            // The parent the row fed, read before it goes.
-            const gone = holdsMoney(rules) ? ((await fetchHeld(db, target, pk)) ?? null) : (before ?? ((await fetchByPk(db, target.table, pk)) ?? null));
+            // The parent the row fed, read — and held — before it goes.
+            const gone = (await fetchHeld(db, target, pk)) ?? null;
             const within = { ...target, db };
-            const held = await holdParents(rules, within, [{ record: null, before: gone }]);
+            const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
             const removed = await statement(() => deleteRows(db, target.table, pk, input.refine), input.mapError);
-            if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], held), input.mapError);
+            if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);
             return removed;
           }), input.mapError)
         : await statement(() => deleteRows(target.db, target.table, pk, input.refine), input.mapError);
@@ -1503,11 +1764,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       );
       const now = new Date();
       const memo: CopyMemo = new Map();
-      const prepare = async (values: Row): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
+      /** FORMULA over the row as stored, CHECK, then SEQUENCE for a row that passed. */
+      const prepare = async (values: Row, record: Row | null): Promise<{ values: CheckedRow; issues: FieldIssues | null }> => {
         if (!withRules) return { values: brand(values), issues: null };
-        const issues = checkRow(rules, action, values, { dialect: target.dialect });
+        const worked = await formulate(rules, action, target, values, record);
+        const issues = checkRow(rules, action, worked, { dialect: target.dialect });
         // A refused row is not written, so it is given no number.
-        return { values: issues === null ? await numbered(rules, action, target, brand(values)) : brand(values), issues };
+        return { values: issues === null ? await numbered(rules, action, target, context, brand(worked)) : brand(worked), issues };
       };
       const start = (values: Row): Promise<Row> =>
         withRules ? prepareValues(rules, action, target, context, values, now, memo) : Promise.resolve(values);
@@ -1521,22 +1784,22 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           return { values, refused: { [column]: { code: 'not-allowed' } } };
         }
       };
+      const storedOf = async (row: PlannedRow): Promise<Row | null> =>
+        row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null);
       if (!(await hooks.wants('before', action, target, context))) {
         const out: PreparedRow[] = [];
         for (const row of rows) {
           const filled = await start(row.values);
           if (action === 'update' && withRules && movedBalances(rules, filled).some((balance) => balance.cappedBy.length > 0)) {
-            const record = row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null);
-            refuseMovedBalance(rules, target, filled, record, beforeOpts?.capacity);
+            refuseMovedBalance(rules, target, filled, await storedOf(row), beforeOpts?.capacity);
           }
           if (withRules && (action === 'create' || (action === 'update' && needsStored(rules)))) {
-            const record =
-              action === 'create' ? null : row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null);
+            const record = action === 'create' ? null : await storedOf(row);
             const { values, refused } = await decided(filled, record);
-            out.push(refused === null ? { ...(await prepare(values)), record: undefined } : { values: brand(values), issues: refused, record: undefined });
+            out.push(refused === null ? { ...(await prepare(values, record)), record: undefined } : { values: brand(values), issues: refused, record: undefined });
             continue;
           }
-          out.push({ ...(await prepare(filled)), record: undefined });
+          out.push({ ...(await prepare(filled, null)), record: undefined });
         }
         return out;
       }
@@ -1545,12 +1808,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const filled = await start(row.values);
         let record: Row | null = null;
         if (action !== 'create') {
-          record =
-            row.record !== undefined
-              ? row.record
-              : row.match === undefined
-                ? null
-                : ((await fetchByPk(target.db, target.table, row.match)) ?? null);
+          record = await storedOf(row);
           if (record === null) {
             // The row is gone; the caller reports it. Nothing is checked,
             // because nothing will be written.
@@ -1563,9 +1821,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           prepared.push({ values: brand(settled), record, issues: refused });
           continue;
         }
-        const values = withoutReadOnly(rules, await runBefore(hooks, action, target, context, action === 'delete' ? {} : settled, record));
+        const values = withoutReadOnly(rules, await runBefore(hooks, action, target, context, action === 'delete' ? {} : settled, record), context.origin);
         if (action === 'update') refuseMovedBalance(rules, target, values, record, beforeOpts?.capacity);
-        prepared.push({ ...(await prepare(action === 'delete' ? settled : values)), record });
+        prepared.push({ ...(await prepare(action === 'delete' ? settled : values, record)), record });
       }
       return prepared;
     },
@@ -1581,6 +1839,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
 
     settle,
+
+    transaction: (target, rows, run, children = []) =>
+      withSeriesLocks(
+        target.db,
+        target.dialect,
+        [
+          ...rows.flatMap((row) => numberLockName(target.table, row) ?? []),
+          ...children.flatMap((child) => seriesOf(rulesOf(child.target), child.target.table, child.row)),
+        ],
+        run,
+      ),
 
     async stored(target, rows) {
       if (!keepsOwnTotals(rulesOf(target))) return [...rows];
