@@ -27,7 +27,8 @@ The shape belongs to the add-on, so the app requires it:
 ```
 
 Installing the app then installs or connects the add-on first, before the app's own tables, and
-the add-on cannot be removed while the app is installed. The `range` is the add-on versions your
+the add-on cannot be removed, switched off, or updated outside your `range` while the app is
+installed. Uninstalling the app keeps the add-on. The `range` is the add-on versions your
 tables were built against. Raise `minAdminiumVersion` to the release that reads the fields on this
 page: an older server then asks the operator to upgrade instead of calling the manifest invalid.
 See [Add-ons](/reference/manifest/#add-ons).
@@ -120,7 +121,7 @@ client and a project, and lets a client say "I've paid":
 ```
 
 On the part's own columns you may relabel, and add rules that label or narrow: `enumLabels`,
-`personal`, `validation`, `required` and `options`. You may also put a `copy` in front of a column
+`personal`, `validation`, `required`, `options`, `notAfter` and `notBefore`. You may also put a `copy` in front of a column
 the part fills from a setting, so a client's own tax rate (a `tax_rate` on the app's `clients`
 table) comes first and the add-on's default rate answers when the client has none:
 
@@ -131,7 +132,8 @@ table) comes first and the add-on's default rate answers when the client has non
 ```
 
 Anything else about a part's column (its type, a rule that decides its value) stays exactly as
-the part declares it.
+the part declares it. The install checks this against the add-on it will really run on, and
+refuses a table that differs with `SHAPE_MISMATCH`, naming the column, before anything is written.
 
 ## 4. Keep the part's states
 
@@ -224,8 +226,17 @@ the same kind on the same table adds them to the shape's profile:
 ]
 ```
 
-The statement lists a client's sent invoices and payments over a period, with a running balance.
-Each source's `via` points at the client, so the app adds a `client_id` to its `payments` table,
+A slot the add-on gives a default is filled when nothing else fills it, even when its column is
+mapped but empty on the row: where the issue date's default is `now`, a draft with no issue date
+yet is dated the day it is drawn, on the venue's clock, rather than refused as unmapped. See the
+slot defaults under [Documents](/reference/manifest/#documents).
+
+The studio's own screens print a document with `POST /api/v1/apps/studio/documents/render`,
+naming the kind, the table's ref and the row: `{ "kind": "invoice", "ref": "invoices", "pk": { "id": 42 } }`.
+
+The statement lists a client's sent invoices and payments over a period (everything, this year or
+the last twelve months), with an opening balance and a running balance. It is issued on the day
+it is drawn. Each source's `via` points at the client, so the app adds a `client_id` to its `payments` table,
 copied from the invoice the payment is for:
 
 ```json

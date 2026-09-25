@@ -298,7 +298,7 @@ setting) is not a database default: use the [`default` rule](#column-rules).
 | Value | Places |
 |---|---|
 | `0`–`4` | That many. |
-| `"currency"` | The decimals of the row's own currency: 0 for JPY, 2 for EUR, 3 for KWD. The currency is read from the table's own column named `currency` when the table has one and the row fills it, else from the connection's currency, else 2 places. |
+| `"currency"` | The decimals of the row's own currency: 0 for JPY, 2 for EUR, 3 for KWD. The currency is read from the table's own column named `currency` when the table has one and the row fills it, else from the connection's currency, else 2 places. A value that is not a currency code Adminium knows counts as 2 places. |
 
 ```json
 { "ref": "total", "type": "decimal", "scale": "currency", "nullable": true }
@@ -351,6 +351,14 @@ rate, else the business's). A stamped column takes none of the others.
 Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
 table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
 only.
+
+The rules are kept on every door a row is written through: a form, a bulk edit, an import, an
+automation, the public API and an outbox's `onSent` change. `normalize`, `formula` and the
+rounding to a `scale` apply on each of them. History keeps what it brings: an import and sample
+data are not [stamped](#stamps), not [capped](#totals-and-balances), and not held to `notAfter` or
+`notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
+`notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
+`notBefore` is judged when the date is written, and when its `via` link changes.
 
 ```json
 { "ref": "subtotal", "type": "money", "default": 0,
@@ -480,7 +488,8 @@ and never less than the start. It is taken inside the transaction that inserts t
 insert that fails takes its number back with it and the next create takes the same one. Two
 creates at once never read the same largest number. When one is still taking the next number, the
 other may be answered `409` `NUMBER_BUSY`, to try again. A number a writer sends is dropped, from
-every writer but an import.
+every writer but an import. A numbered row's create is never undone: undo is refused `409`, since a
+number once taken stays taken; void the row instead.
 
 `format` writes the number as text in the same statement:
 
@@ -568,12 +577,17 @@ its own children.
 
 A change is judged against the stored row, so sending a status the row already holds stamps
 nothing again. A create that already holds one of the values (a walk-in written as checked in)
-is stamped too. A stamp wins over a value the writer sent.
+is stamped too. A stamp wins over a value the writer sent. Between its moments a stamped column
+is Adminium's, and a value a writer sends there is dropped, with two exceptions for staff: an
+`addDays` date (the desk may still move a due date) and a `byOrigin` column with no `staff`
+value. A `byOrigin` value that is itself `now`, `today`, `user-name` or `user-id` writes what that
+stamp would.
 
-A public write stamps the time and a `byOrigin` value, but never `user-name` or `user-id`: a
-browser key is nobody. What it knows of the person is their own signed-in row, which is what
-`claim` reads. For an automation, `user-name` is the rule's name. Imports, sample data and undo
-stamp nothing, since a stamp of today's time over history would be false. A stamped column takes
+A public write stamps like any other write, except `user-name` and `user-id`: a browser key is
+nobody, so they write nothing. What it knows of the person is their own signed-in row, which is
+what `claim` reads. For an automation, `user-name` is the rule's name. Imports, sample data and
+undo stamp nothing, since a stamp of today's time over history would be false; an import keeps
+the stamped values it brings. A stamped column takes
 no `copy`, `default`, `sequence`, `format`, `code`, `rollup` or `formula` as well, and a stamp
 watches a column other than its own.
 
@@ -716,8 +730,22 @@ least one of:
 | `clearOnCreate` | 1–8 nullable columns of **this** row, emptied when a child row is created (a recorded payment clears the client's "I've sent it"). |
 
 A move that is not listed is not one the row may make. Columns Adminium keeps (totals, balances,
-formulas, stamps) are Adminium's to write whatever the state. Adding sample data and importing
-past records are history: they write whatever state their rows were in.
+formulas, stamps) are Adminium's to write whatever the state. A new row starts in `initial`. A
+locked row cannot be deleted either, with or without `noDelete`.
+
+The states hold on every write to the table: a form, a bulk edit, an automation, the public API,
+and an outbox's `onSent` change. A refusal is `409`: `STATE_MOVE_REFUSED` for a move the row may
+not make (or a new row that does not start in `initial`), `RECORD_LOCKED` for a change to a locked
+row or to a child row its parent's state does not allow, and `DELETE_REFUSED` for a delete. An
+`onlyLater` column moved earlier, or emptied, is refused `422` with the code `out-of-range`.
+Through the public API each of these is `PUBLIC_WRITE_REFUSED`.
+
+Adding sample data and importing past records are history. A new row they write may start in
+any state, and a child row may follow a parent the same import or sample brought in; a child
+row under a parent that was already there is judged as any other write. An import that updates
+a row already there is judged in full, and a history write empties no `clearOnCreate` column.
+An undo is never given for a write to a table with states, or to its child tables: a mistake is
+moved on (voided, sent back), never unwritten.
 
 ### Tables built on an add-on's shape
 
@@ -746,13 +774,21 @@ What the app may add to a part, and nothing else:
 
 - columns of its own, with any rules;
 - a label, and the rules that label or narrow a part's column: `enumLabels`, `personal`,
-  `validation`, `required` and `options`;
+  `validation`, `required`, `options`, `notAfter` and `notBefore`;
 - a `copy` in front of a column the part fills with a `default` (a client's own tax rate before the
   add-on's default rate): the part's default still answers when the copy comes back empty;
 - in the states: more `lock.except` columns (its own columns that stay writable), `roles` on a
   move, more tables in `children`, and more columns in a child's `clearOnCreate`.
 
 Everything else, from a column's type to a rule that decides a value or a move, is the part's own.
+
+The install checks each table against the shape of the add-on it will really run on: the installed
+add-on, or the version the install brings with the app. A column dropped or retyped, or a rule
+changed, refuses the install or update `409` `SHAPE_MISMATCH`, naming the column, before anything
+is written. The app pins the shape's version: `invoice@1` is checked against the add-on's
+`invoice@1`, whatever else a newer add-on ships beside it. An add-on update that no longer has a
+shape version an installed app is built on is refused `409` `ADD_ON_SHAPE_IN_USE`; update the app
+first. The tables themselves are the app's: two apps built on one shape get two sets of tables.
 
 When the shape sends email, the app sends it too: its [`outbox`](#outbox) has a kind and a
 producer for every kind the shape's outbox sends. The shape's document profiles (an invoice, a
@@ -845,6 +881,28 @@ The manifest is refused when a name is not a column of the right table and type.
 `calendar`, a table with a booking rule is plotted by the booking's `start`; any other table by
 the first date Adminium finds. On a page with a `form`, **Add event** and a click on an empty day
 open that form, with the day filled in.
+
+**Links that open a list filtered.** A link in a layout (a metric card's `href`, the toolbar's
+`link`) may open a records page on some of its rows: `/p/<page ref>?f.<column>=<op>:<value>`, with
+one `f.` piece per column, up to 8. "Overdue" leads to
+`/p/studio-invoices?f.status=eq:sent&f.due_on=before:today`, and the page shows a chip for each
+piece.
+
+| Piece | Rows it keeps |
+|---|---|
+| `eq:<v>`, `neq:<v>`, `in:<a,b>` | The value, not the value, or one of up to 50 values. |
+| `gt:`, `gte:`, `lt:`, `lte:` | A number, or a day. |
+| `before:<day>`, `after:<day>` | A date or time before or after that day. |
+| `before:now`, `after:now` | A time before or after this moment. |
+| `month:this`, `month:last` | A date or time in this or last month. |
+| `set`, `unset` | Has a value, or has none. |
+
+A day is `YYYY-MM-DD`, `today`, or a whole number of days from it: `today-30`, `today+7` (at most
+3660 either way). Days are the venue's: on a time column a day is the whole day where the venue
+is. `now` is for time columns only. The pieces are worked out on the server when the page opens,
+so `today` is always the day it is read. A piece the column cannot take (an unknown column, a
+personal column the reader may not see, `gt` on a yes/no, a value that is not a number) is left
+out, and its chip says so; the page never fails.
 
 **Updates.** A page nobody has edited is rebuilt when the app is updated. A page the operator
 edited is left as they left it. Uninstalling an app does not delete its pages.
@@ -1029,7 +1087,8 @@ What each list does:
   and a foreign key into its tables resolve. One that cannot be had, or is out of range and not
   ticked to update, refuses the install before anything is written. An add-on an installed app
   requires cannot be removed or switched off: that is refused `409` `ADD_ON_REQUIRED_BY`, naming
-  the apps.
+  the apps. Nor can it be updated to a version outside the app's `range`: that is refused `409`
+  `ADD_ON_RANGE`, and the app is updated first.
 - **Suggested.** Offered on the install check, ticked when `checked` says so. The operator may
   leave it out.
 - **Features.** A [page](#pages) that names a feature in `feature` leaves the sidebar while the
@@ -1037,7 +1096,8 @@ What each list does:
   [document](#documents) may name one too.
 
 If a later step of the app's install fails, the add-ons it installed stay: another app may already
-rely on them. Only a required add-on's settings may be read by the app's rules (see
+rely on them. Uninstalling the app keeps them too; only their link to the app goes, and the
+uninstall preview lists them. Only a required add-on's settings may be read by the app's rules (see
 [Values from elsewhere](#values-from-elsewhere)); a role may be given any named add-on's settings
 (see [Roles](#roles)).
 
@@ -1078,6 +1138,19 @@ add-on's manifest, show the ones it draws. Each slot reads one of:
 | `{ "via", "column" }` | A column of the row a foreign key `via` of this table points at: the client's name on an invoice. |
 | `{ "collection": { "table", "via", "orderBy"?, "columns" } }` | A list of child rows, whose foreign key `via` points at this table, in `orderBy` order. `columns` maps the add-on's names for a line's values to the child's columns. |
 
+Some slots have a **default** in the add-on's outline, which fills the slot when nothing else
+does: when it is not mapped, and when the column it is mapped to is empty on this row (a draft
+with no issue date yet).
+
+| Default | Fills the slot with |
+|---|---|
+| `now` | The moment the document is made; a date slot takes that day on the venue's clock. A document drawn again (after an edit, in another language) is the same document and keeps the day it was first made. |
+| `connection` | The document's currency: the row's own `currency` column when it holds one, else the connection's. |
+| `sequence` | The number the document prints. |
+| `setting` | Nothing on the server: it is one of the add-on's own settings, which the add-on reads itself. A required slot with this default still needs a mapping. |
+
+A required slot that nothing fills makes the document fail, naming the slot ("unmapped or empty").
+
 A **statement** is drawn for one row (a client) over a period. It lists the documents and the
 payments that point at that row, with a running balance, so it names two sources rather than one
 list:
@@ -1096,6 +1169,12 @@ foreign key `via` points at the document's table, its date and amount columns, a
 number. `where` is `{ "column", "in": [1–16 values] }`, only rows whose column holds one of them
 (sent invoices, never drafts); a row whose `unless` column is set is left out (a voided payment).
 
+The period is chosen when the statement is drawn, never as dates: `all` (the default), `year`
+(from 1 January) or `12m` (the last twelve months). What came before the period is carried in as
+the opening balance, and rows dated after today are left out. A statement is issued on the day it
+is drawn, on the venue's clock: that fills its issue date (`issuedAt`) unless the profile maps a
+column to it.
+
 A profile is the app's. It is made with the real table names when the app is installed, changed in
 place by an update so documents already issued keep pointing at it, and removed when the app is
 uninstalled. A profile whose add-on is not installed is skipped, with a reason on the install
@@ -1106,6 +1185,15 @@ profiles are made for it at install. An app entry of the same kind on that table
 second profile: its slots are added to the shape's mapping (the app's slot wins on the same name,
 so an invoice can print the client's address from the app's own `clients` table), and its `name`
 replaces the shape's.
+
+The app's staff screens ask for a document by the app's own names:
+`POST /api/v1/apps/<key>/documents/render` with `{ "kind", "ref", "pk", "period"?, "locale"? }`,
+where `ref` is the table's short ref and `pk` the row's key. The document is drawn now, or the one
+already drawn is handed back while the row is unchanged, with `contentUrl` for its bytes and
+`printUrl` for a copy to print. The caller must be signed in and able to read every table the
+document reads, a statement's sources included. An app, kind, row or table they cannot reach is
+the one `404`; an add-on that is detached, or a feature switched off, is `409` `FEATURE_OFF`; a
+document that cannot be drawn (a required slot left empty) is `422` `DOCUMENT_NOT_DRAWN`.
 
 A signed-in person reaches the documents of their own rows through a [public entry's
 `documents`](#public-access).
@@ -1217,7 +1305,10 @@ than `max` hours (1–336). `max` is also how far ahead Adminium looks. A remind
 its moment in `columns.due`.
 
 A source row produces each kind once. A reminder is produced again only when its moment moves; a
-batched message, once its window has closed. Sample data, imports and undo never queue an email.
+batched message, once its window has closed. Sample data, imports and undo fire no producer when
+they are written. A sample row never has a message at all. An imported row is a real one, so the
+minute's look-over still makes its `before` reminder when the moment comes, and a held producer's
+messages for it (an imported sent invoice gets its reminders).
 
 ### Held messages
 
@@ -1255,12 +1346,15 @@ between a write and its producer, or for an imported sent invoice). It judges al
 just before it sends. `skipReason` records why a message was skipped: `overtaken`, `paid`,
 `void`, `no-longer-needed` or `by-hand`.
 
-A held message is made even with no address on file: the address is looked up again when it is
-approved and when it is sent.
+A held message is made even with no address on file (never for a person who opted out of a
+producer that asks `optIn`): the address is looked up again when it is approved and when it is
+sent.
 
 An `onSent` change is made after the message's status is saved, as an ordinary write of that
-row, and is never a reason to send the message again. `effectAt` records when it was made, or
-`effectError` why it was refused.
+row, and is never a reason to send the message again. It is held to the row's rules and
+[states](#states) like any write, made by Adminium itself, which holds no role: a move kept for
+some `roles` is refused to it. `effectAt` records when it was made, or `effectError` why it was
+refused.
 
 ### emailTemplates
 
@@ -1374,7 +1468,9 @@ the row were not there. An entry with `claimedBy` that changes an enum column mu
 A `null` in `writableWhen` pins a value that may be written once: `"signed_name": [null]` takes a
 signature while the column is still empty, and never changes it after. The calendar words pin a
 date: a proposal still in date may be accepted (`"valid_until": "from-today"`), and one past it may
-ask for a new price (`"before-today"`).
+ask for a new price (`"before-today"`). `"before-today"` takes a `date` column only, never a time,
+and the same entry may not write that date: a caller who could move it forward would put the row
+back in date on its old terms.
 
 A window lets a change wait for its time: `"starts_at": { "within": 60 }` takes a check-in up to an
 hour before the visit, or any time after it. A change asked for earlier is refused `409`
@@ -1387,6 +1483,12 @@ that. The refusal is said only for a row the caller's own read reaches, with eve
 guest's address) and optionally `code`, `when`, `party` and `name` (columns the email shows),
 `venue` (`{ "table", "name"?, "address"?, "phone"? }`, the app's one-row venue table) and `link`
 (a path under the customer side, up to 200 characters).
+
+A file in `files` stays private: a browser downloads it only at
+`GET /api/v1/public/files/<ref>/<row>/<column>` (`<ref>` is the entry's endpoint), which reads the
+row exactly as the entry's list would (its filters, its claim, its parent), then serves the file
+that column names, from the key's own database. A row the session cannot reach, an empty column
+or a link to somewhere else serves nothing (`404`), and no other public route serves a file.
 
 An `availability` entry answers free or full and never returns a row. It is `GET` only, and the
 table must declare a [`capacity`](#capacity) or a [`booking`](#booking). On a capacity table it
@@ -1439,6 +1541,13 @@ is a `date` or `timestamptz` after which the link opens nothing; `stopped` a `bo
 it off. A token opens its row to whoever holds the link, so it is served on a
 [key of its own](#publickeys) that no staff signs in, and every entry on that key only reads
 (`GET`).
+
+A session opened by a token is checked against the row on every request: once the row is
+stopped, past `expires`, or given a new code, the link and every session it opened reach nothing,
+at once. Nobody types a code, not staff and not an import. To make a new link, staff with
+`update` on the table call `POST /api/v1/data/<connection>/<table>/<record>/regenerate-code` with
+`{ "column": "share_token" }`: a fresh code is written, and the old one never opens anything
+again.
 
 An entry with `claimedBy` reaches only the claimed person's rows. `table` is the table its key's
 identity claims. `column` is a foreign key of this entry's table pointing at it, or that table's
@@ -1524,8 +1633,15 @@ A row is reached only where the parent entry reaches the row it belongs to, with
 filters and claim. An entry may be at most two steps from the entry its person claims (a
 project's versions, through the project), and the chain must lead to a claimed person. An entry
 with `visibleWith` takes no `claim` or `claimedBy`. It may `PATCH` the rows it reaches, naming
-what it may write in `writable`. On a key whose identity signs in by an emailed link, it says
-`level: "verified"` like every other entry.
+what it may write in `writable`, but not when a parent on its way up is on its own table: one
+statement cannot change such a row on every database. On a key whose identity signs in by an
+emailed link, it says `level: "verified"` like every other entry.
+
+Where `via` is the parent's foreign key (a proposal naming its terms), that column is the link the
+child's rows are read by. No entry on the key that creates or changes the parent's rows may write
+it, choose its values or fill it by default (`writable`, `writableValues`, `defaults`): a browser
+that could would re-point its own row at another person's child and read it. An entry that only
+reads writes nothing, so it does not count.
 
 ### Limits on a stranger's create
 
@@ -1743,7 +1859,7 @@ messages an app built on it sends.
 | `name` | yes | kebab-case. An app names the shape `<add-on key>/<name>@<version>`. |
 | `version` | yes | 1–99. A change an app's tables cannot follow is a new version. |
 | `parts` | yes | At least one, keyed by a snake_case part name: `{ "columns", "states"? }`, with 1–60 [columns](#columns) and optional [states](#states). |
-| `documentProfiles` | no | Up to 8 [documents](#documents), each naming the `part` it is drawn for instead of a `table`, and no `addOn`. |
+| `documentProfiles` | no | Up to 8 [documents](#documents), each naming the `part` it is drawn for instead of a `table`, with no `addOn` and no `feature`. |
 | `outbox` | no | `{ "producers", "templates"? }`: 1–16 [producers](#outbox), whose tables are the shape's parts, and up to 16 templates, each an [email template](#emailtemplates) with a `kind` (the producer's) instead of a `key`. |
 
 A part is checked the way an app's tables are, with the parts of all the add-on's shapes as the

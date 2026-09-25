@@ -32,6 +32,9 @@ What happens when you confirm:
   that a row in the table already has, the sample's value is dropped and the column's own rule
   fills in a fresh one, exactly as for a record a person creates. See
   [Column rules](/guides/schema/column-rules/#filled-in-by-adminium).
+- **Your settings stay yours.** A sample row meant for a table that holds one row, such as the
+  app's own settings, is added only when that table is empty. When you already have a row there,
+  the sample leaves it alone and uses it.
 - **One of a kind stays one of a kind.** Any other column that must be unique (a weekday's opening
   hours, a day already closed) is never worked around: if a sample record would repeat a value
   one of your records holds, nothing is added, and the dialog names the table, the column and the

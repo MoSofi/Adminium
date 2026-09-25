@@ -107,7 +107,10 @@ reaches none of them. Without a session they answer `404`, as if there were noth
   give a reason. The install refuses an app that leaves either out.
 - **What may change.** A guest may change only their own rows, only the columns listed, only to
   the values listed (cancel, never mark a visit seen), and only while the row is in the state the
-  app names (booked, and still ahead). Any other row is `404` to the change, though it still lists.
+  app names (booked, and still ahead). The state can also be a column still empty, so a value is
+  written once (a signature, "I've paid"), or a date that is today or later, or already past (an
+  offer still in date may be accepted; one out of date may be asked about again). Any other row
+  is `404` to the change, though it still lists.
 - **Not too early.** The state can include a time window: a check-in no more than an hour before
   the visit, or any time after it. A change asked for earlier is refused `409` with the code
   `PUBLIC_TOO_EARLY`, and the reply names the row's time and when the window opens, even when the
@@ -185,6 +188,63 @@ only this way:
 
 An address can change once per person a day (`429` `PUBLIC_EMAIL_CHANGE_LIMIT`). With email not
 set up, nothing is changed and the answer is `503` `PUBLIC_CODE_UNAVAILABLE`.
+
+## Signing in with an emailed link
+
+An app can let a person sign in with their address alone, such as a client opening their invoices.
+The page sends the address to `POST /api/v1/public/claim/link`, with a [human
+check](#the-human-check), and Adminium emails a link and a six-digit code for another device:
+
+- **The same answer for any address.** The request answers `202` with the address masked, before
+  anything depends on whose it is. An address that is nobody's gets nothing, and behaves the same
+  in every count and lock, so a stranger learns nothing.
+- **The link** lasts 20 minutes and is used once. It leads to the app's customer side, on its
+  domain or under **Address in email links** ([Links](/guides/apps/emails/#links)), with the token
+  after `#` so no server log holds it. With neither address set, nothing is sent and the server log
+  says why. Opening it shows a page to continue: reading the greeting spends nothing, and only
+  **Continue** uses the link and opens the session. It opens nothing once the person's address has
+  changed.
+- **The session** starts **verified**, the only level such a person has, and every entry it reads
+  asks for verified.
+- **Limits per address:** 3 links in 15 minutes, 10 a day, at most 3 open at once. A new link
+  never cancels an earlier one. Ten wrong codes in a day lock the code path only (`403`
+  `PUBLIC_CLAIM_LOCKED`); the link in the mailbox still works.
+
+A used or expired link answers `410` `LINK_EXPIRED`, and the page offers to email a new one.
+
+## A link that opens one row
+
+An app can share one row by a link that needs no email and no sign-in, such as a handover page a
+client forwards to their printer. The row holds an unguessable 16-character code that Adminium
+makes; the link carries it, and opening it reaches that row and what the app shows with it,
+read-only. The link can have an end date and an off switch in the row.
+
+- The key it is served on is its own, never the guests' key, and everything on it only reads.
+- It is checked on every request: once the row is switched off, past its end date, or given a new
+  code, the link reaches nothing, at once. An unknown code is `404`; one switched off or expired
+  is `410`.
+- **Make a new link** writes a fresh code, and the old link never opens anything again. It needs
+  the right to change the table: `POST /api/v1/data/<connection>/<table>/<id>/regenerate-code`
+  with `{"column": …}`. Nobody types a code, not the desk and not an import.
+
+## Rows reached through their parent
+
+An invoice's lines and payments are not a person's own by a column of their own: they are the
+invoice's. The app can make them exactly as visible as the invoice, so a draft's lines stay as
+hidden as the draft, and a person reaches a line only through an invoice their session reaches.
+Such an entry may also let a person change the rows it reaches, only in the columns it names.
+
+Where the parent names the child (a proposal naming its terms), nothing on the key that writes
+the parent may write that link, or a person could point their own proposal at someone else's
+terms and read them. An endpoint that only reads writes nothing, so it does not count.
+
+## Files and documents
+
+- **Files.** An entry can offer the file a column names for download. It is served only through
+  the row, read as the entry would read it, from the app's own database; a row the session cannot
+  reach, or a file of anyone else's, is `404`. No other public route serves a file.
+- **Documents.** An entry can let a signed-in person list and open the printed documents of the
+  rows it reaches, such as their invoices and statements, and email one to their own address.
 
 ## The human check
 
@@ -287,7 +347,8 @@ The kiosk switch works the same way, for the whole key.
 The keys were made in your name from what the install check showed, so they stay that narrow:
 
 - They may hold **GET** and **POST**. **PATCH** only on an endpoint where a guest has signed in
-  with a claim and so reaches their own rows alone, and never on a column Adminium fills in
+  with a claim and so reaches their own rows alone, or reaches rows only
+  [through such a parent](#rows-reached-through-their-parent), and never on a column Adminium fills in
   itself, such as a copied price, a code, a running number, a total, a stamp of who or when, or a
   late-cancellation flag.
 - They never hold **PUT**, **DELETE** or **BATCH**.

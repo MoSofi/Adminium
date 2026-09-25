@@ -24,7 +24,7 @@ page of the dashboard. Each row holds:
 | Column | What it holds |
 |---|---|
 | Kind | Which email it is, such as a confirmation or a reminder. Each kind is sent with one template. |
-| Status | `queued`, `sent`, `failed` or `skipped`. |
+| Status | `queued`, `sent`, `failed` or `skipped`, and `held` for a message that waits for a person ([below](#held-messages)). |
 | To | The address, copied when the row is queued. |
 | Language | The recipient's language, copied when the row is queued. |
 | Links | The row it is about: a visit, a person. |
@@ -48,7 +48,10 @@ by themselves:
   than the most the app allows. Adminium looks for reminders that have come due once a minute,
   and only while the moment is still ahead.
 
-A producer can be conditional, for example only for a visit whose status is `booked`.
+A producer can be conditional, for example only for a visit whose status is `booked`. It can
+wait some days after a date (a reminder a week after an invoice's due date), gather what happens
+over a few minutes into one message (five versions posted in ten minutes make one email), or
+write to the business's own address from a setting rather than to the person.
 
 Each kind is queued **once** per source row. A visit cancelled, restored and cancelled again is
 told once. A reminder is once per moment: move the visit and it gets a fresh reminder.
@@ -68,7 +71,10 @@ file", so you can see that an email was due.
 
 - **Sample data.** Loading it queues nothing, and a sample record changed later still queues
   nothing. See [Sample data](/guides/apps/sample-data/).
-- **An import** or **an undo.** They restore what happened, and send nothing about it.
+- **An import** or **an undo.** They restore what happened, and send nothing about it when they
+  are written. An imported row is a real one, though: a reminder before its moment is still
+  queued when the moment comes, and an imported sent invoice still gets its
+  [held](#held-messages) reminders.
 - **A disabled app.** Nothing is queued while it is off. See
   [Disable and enable](/guides/apps/settings/#disable-and-enable).
 
@@ -107,6 +113,34 @@ Then the row's status changes, with a sentence in its error column:
 report about the earlier message does not touch the new one.
 
 A disabled app's queued rows wait, and go once it is enabled again.
+
+## Held messages
+
+Some emails should not go by themselves: a reminder that an invoice is overdue is read first. An
+app can make such a message **held**. It is written with the day it comes due, and nothing is
+sent until a person approves it.
+
+- **Approve** a held message and it becomes `queued`. You may reword it first, its subject and its
+  text, which is then sent as plain paragraphs in place of the template's. Who approved it is
+  recorded. One approved before its day goes at once.
+- **Skip** a held or queued message: it becomes `skipped`, with the reason "by hand".
+- **Queue again** a failed one.
+
+Once a minute Adminium looks over the waiting messages. It moves a message's day when what it is
+counted from moves (a new due date), skips the ones no longer needed (the invoice paid or voided),
+and skips an earlier reminder once a later one of the same series has come due, so an invoice
+never has two reminders ready at once. It asks all of this again just before a message goes. A
+held message is written even with no address on file: the address is looked up when it is
+approved and again when it is sent.
+
+A message can also change a row once it has gone, such as marking a project paused. That change
+is an ordinary write, held to the row's rules; if it is refused, the message records why.
+
+## Attachments
+
+A template can carry a document, such as the invoice with the invoice email or a receipt with a
+payment's. It is drawn for the row the message is about when the message is sent. A message
+whose document cannot be drawn fails, with the reason, rather than going without it.
 
 ## The templates
 
