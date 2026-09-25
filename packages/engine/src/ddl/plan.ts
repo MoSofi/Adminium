@@ -561,7 +561,11 @@ function planAlters(
         summary: `Add column ${name}${column === undefined ? '' : ` (${column.dbType})`}`,
         detail: {
           columnNullable: column?.nullable ?? true,
-          hasDefault: (column?.default ?? null) !== null,
+          // MySQL is given no `now` on a time column (a DATETIME there): Adminium
+          // fills it on its own writes, and a row already in the table gets none.
+          hasDefault:
+            (column?.default ?? null) !== null &&
+            !(ctx.dialect === 'mysql' && column?.default?.kind === 'now' && (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz')),
           isLastPosition: name === lastColumnName,
         },
       }),

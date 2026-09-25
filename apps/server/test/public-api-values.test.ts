@@ -141,12 +141,13 @@ describe('$generate resolves on create and never on update', () => {
     expect(out?.['sender_kind']).toBe('customer');
   });
 
-  it('shapes the instant for the dialect it was handed', () => {
+  it('hands every dialect the instant with its zone', () => {
+    // MySQL's `TIMESTAMP` is given its UTC wall time only at the statement
+    // (`bindWriteValue`); until then every reader reads the moment itself.
     const pg = prepareValues(resource(), {}, null, 'create', 'postgres');
     const my = prepareValues(resource(), {}, null, 'create', 'mysql');
-    expect(String(pg?.['created_at'])).toContain('T');
-    expect(String(my?.['created_at'])).not.toContain('T');
-    expect(String(my?.['created_at'])).not.toContain('Z');
+    expect(String(pg?.['created_at'])).toMatch(/T.*Z$/);
+    expect(String(my?.['created_at'])).toMatch(/T.*Z$/);
   });
 });
 

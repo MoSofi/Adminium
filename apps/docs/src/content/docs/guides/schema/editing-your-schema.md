@@ -44,7 +44,7 @@ list follows the type:
 |---|---|---|
 | Nothing | every column | The column is empty unless somebody fills it. |
 | A value | every column | The value you type, checked against the column's own type before it is sent. |
-| The current date and time | dates, times and timestamps | `CURRENT_TIMESTAMP` — the database's clock, not your browser's. |
+| The current date and time | dates, times and timestamps | `CURRENT_TIMESTAMP` — the database's clock, not your browser's. On MySQL a timestamp gets no database default: it is a `DATETIME` kept on the Adminium server's clock, which the database's UTC session cannot fill, so Adminium fills it on every record it creates, and a row created outside Adminium gets nothing there. |
 | A new unique id | uuid, text and varchar, **PostgreSQL only** | `gen_random_uuid()`. MySQL and SQLite have no equivalent that Adminium can read back after an insert. |
 | Count up from the last row | the table's own integer key | An identity column on PostgreSQL, `AUTO_INCREMENT` on MySQL, the rowid on SQLite. |
 

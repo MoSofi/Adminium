@@ -155,6 +155,36 @@ describe('what a rename repairs (D33)', () => {
     expect(rows[0]?.entityTable).toBe('public.clients');
   });
 
+  it('follows a renamed column into the rules of its table that read it, and nowhere else', async () => {
+    const rule = (id: string, op: string, table: string, column: string, value: unknown) =>
+      meta.db
+        .insertInto('adminium_schema_overrides')
+        .values({ id, connectionId, op, tableName: table, columnName: column, value: JSON.stringify(value), origin: 'user', status: 'active', createdAt: 1, updatedAt: 1 } as never)
+        .execute();
+    await rule('ovr_when', 'column.requiredWhen', 'public.events', 'person_id', { column: 'kind', in: ['away'] });
+    await rule('ovr_copy', 'column.copy', 'public.events', 'rate', { via: 'kind', from: 'kind' });
+    await rule('ovr_bound', 'column.bounds', 'public.events', 'ends_on', { notBefore: { column: 'kind' } });
+    // A literal an `eq` compares with is not a column, even when it is spelled like one.
+    await rule('ovr_formula', 'column.formula', 'public.events', 'hours', {
+      formula: { if: [{ eq: ['kind', 'kind'] }, { hoursBetween: ['kind', 'ends_at'] }, { round: ['kind', 2] }] },
+    });
+    // Another table's column of the same name is not this one.
+    await rule('ovr_other', 'column.requiredWhen', 'public.trips', 'person_id', { column: 'kind', in: ['away'] });
+
+    const result = await repairAfterRename({ meta, connectionId, renames: [], columnRenames: [{ table: 'public.events', from: 'kind', to: 'category' }], crypto });
+    const rows = await meta.db.selectFrom('adminium_schema_overrides').select(['id', 'value']).orderBy('id').execute();
+    const value = (id: string) => JSON.parse(rows.find((row) => row.id === id)!.value as string) as unknown;
+    expect(value('ovr_when')).toEqual({ column: 'category', in: ['away'] });
+    // `copy.from` is a column of the linked table: left as it was.
+    expect(value('ovr_copy')).toEqual({ via: 'category', from: 'kind' });
+    expect(value('ovr_bound')).toEqual({ notBefore: { column: 'category' } });
+    expect(value('ovr_formula')).toEqual({
+      formula: { if: [{ eq: ['category', 'kind'] }, { hoursBetween: ['category', 'ends_at'] }, { round: ['category', 2] }] },
+    });
+    expect(value('ovr_other')).toEqual({ column: 'kind', in: ['away'] });
+    expect(result.overrides).toBe(4);
+  });
+
   it('is a no-op when nothing was renamed', async () => {
     expect(await repairAfterRename({ meta, connectionId, renames: [], crypto })).toEqual({
       includedTables: 0,

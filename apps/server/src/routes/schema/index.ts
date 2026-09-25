@@ -239,7 +239,9 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
        * may name a list that exists, and whether it does is a question about
        * the store rather than about the snapshot.
        */
-      const knownLists = new Set((await optionListsRepo(meta).list()).map((list) => list.key));
+      const storedLists = await optionListsRepo(meta).list();
+      const knownLists = new Set(storedLists.map((list) => list.key));
+      const listValues = new Map(storedLists.map((list) => [list.key, list.items.map((item) => item.value)]));
 
       // Validate every op against the vocabulary AND the active snapshot
       // (unknown identifiers → 422) before any write. The four column RULES
@@ -298,7 +300,14 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           const column = table.columns.find((c) => c.name === item.columnName);
           // `columnName` was proved above; this is for the type checker.
           if (column !== undefined) {
-            const issue = columnRuleIssue(item.op, item.value, column, model, knownLists);
+            // The rules saved beside it on the same table, which some rules are judged against.
+            const related = {
+              rules: body.overrides
+                .filter((other) => other !== item && other.tableName === item.tableName && other.status !== 'disabled')
+                .map((other) => ({ op: other.op, columnName: other.columnName ?? null, value: other.value })),
+              lists: listValues,
+            };
+            const issue = columnRuleIssue(item.op, item.value, column, model, knownLists, related);
             if (issue !== null) {
               throw new ValidationFailedError(issue, {
                 table: item.tableName,

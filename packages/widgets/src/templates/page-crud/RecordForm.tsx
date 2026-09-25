@@ -566,7 +566,7 @@ export function RecordForm({
        * server, which answered 500 with no column named. Now the form says so
        * itself, before the request, under the field.
        */
-      if (isRequired(column, fact, values) && isBlank(raw) && !(mode === 'edit' && raw === undefined)) {
+      if (isRequired(column, fact, values, mode === 'edit' ? initialValues : undefined) && isBlank(raw) && !(mode === 'edit' && raw === undefined)) {
         refused[column.name] = t('ui:formDialog.issue.required', 'This field is required.');
         continue;
       }
@@ -785,7 +785,7 @@ export function RecordForm({
     const entry = CONTROL_COMPONENTS[control as keyof typeof CONTROL_COMPONENTS] ?? CONTROL_COMPONENTS.text;
     const Control = entry.component;
 
-    const required = relationId === null && (overrides.required === true || isRequired(column, fact, values));
+    const required = relationId === null && (overrides.required === true || isRequired(column, fact, values, mode === 'edit' ? initialValues : undefined));
     // The server's refusal wins: it saw the value that was actually sent. A
     // link refusal arrives under the RELATION id, which is what the write path
     // names it (`details.fields["<relationId>"]`).
@@ -1055,7 +1055,7 @@ export function RecordForm({
                 // The clear row belongs to an OPTIONAL column only: offering
                 // "No date" on a column the database demands is offering a
                 // refusal (611).
-                ...(isRequired(entry.column, fact, values)
+                ...(isRequired(entry.column, fact, values, mode === 'edit' ? initialValues : undefined)
                   ? {}
                   : {
                       clearLabel: t('ui:formDialog.quick.clear', 'No {field}', {

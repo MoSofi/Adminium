@@ -931,7 +931,43 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
     }
   }
 
+  if (input.actual.dialect === 'mysql') await fillNowOnMysql(input, outcomes);
+
   return { changeId: change.id, status, steps: outcomes, error: failed, repaired };
+}
+
+/**
+ * A time column given `now` on MySQL is made with no default (`renderDefault`:
+ * it is a `DATETIME`, which Adminium reads on this server's clock, and the
+ * database could only fill UTC's). So Adminium fills it on every create
+ * instead — a `column.default` of its own beside each such column the change
+ * made, or set to `now`. Only for steps that SUCCEEDED; a rule already there
+ * is kept.
+ */
+export async function fillNowOnMysql(input: Pick<ApplyServiceInput, 'meta' | 'connectionId' | 'edit'>, outcomes: readonly StepOutcome[]): Promise<void> {
+  const bare = (id: string): string => id.slice(id.lastIndexOf('.') + 1);
+  const wanted = new Map<string, Set<string>>();
+  const want = (table: string, column: { name: string; logicalType: string; default: { kind: string } | null }) => {
+    if (column.default?.kind !== 'now' || (column.logicalType !== 'timestamp' && column.logicalType !== 'timestamptz')) return;
+    const set = wanted.get(bare(table)) ?? new Set<string>();
+    set.add(column.name);
+    wanted.set(bare(table), set);
+  };
+  for (const table of input.edit.upsertTables) for (const column of table.columns) want(table.name, column);
+  for (const added of input.edit.addColumns) want(added.table, added.column);
+  if (wanted.size === 0) return;
+  const overrides = overridesRepo(input.meta);
+  const existing = await overrides.listForConnection(input.connectionId);
+  for (const outcome of outcomes) {
+    if (outcome.outcome !== 'succeeded') continue;
+    const columns = wanted.get(bare(outcome.table));
+    if (columns === undefined) continue;
+    for (const column of outcome.column === null ? [...columns] : columns.has(outcome.column) ? [outcome.column] : []) {
+      if (existing.some((row) => row.op === 'column.default' && row.tableName === outcome.table && row.columnName === column)) continue;
+      const made = await overrides.create({ connectionId: input.connectionId, op: 'column.default', tableName: outcome.table, columnName: column, value: { kind: 'now' }, origin: 'auto' });
+      existing.push(made);
+    }
+  }
 }
 
 /**

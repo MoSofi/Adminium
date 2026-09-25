@@ -27,7 +27,10 @@ import {
   type Relation,
   type TableModel,
 } from '@adminium/engine';
-import { parseDatabaseModel } from '@adminium/engine';
+import { parseDatabaseModel, schemaEditSchema } from '@adminium/engine';
+import { connectionsRepo, createSqliteMetaDb, firstRun, overridesRepo } from '@adminium/meta';
+
+import { fillNowOnMysql } from '../src/schema-ddl/service.js';
 
 import {
   columnDefinition,
@@ -175,6 +178,10 @@ describe('default rendering', () => {
     const d = { logicalType: 'timestamptz' as const, default: { kind: 'now' as const } };
     expect(renderDefault(d, 'postgres')).toBe('CURRENT_TIMESTAMP');
     expect(renderDefault(d, 'sqlite')).toBe("(datetime('now', 'localtime'))");
+    // A time column is a DATETIME on MySQL, kept on the Adminium server's clock,
+    // which the database's UTC session cannot fill: Adminium fills it itself.
+    expect(renderDefault(d, 'mysql')).toBeNull();
+    expect(renderDefault({ logicalType: 'timestamp', default: { kind: 'now' } }, 'mysql')).toBeNull();
   });
 
   it('refuses a database-generated uuid off postgres (D31)', () => {
@@ -807,5 +814,43 @@ describe('columnDefinition keeps a display-only type verbatim (D30)', () => {
     expect(ddlTypeFor({ logicalType: 'decimal', numericPrecision: 12, numericScale: 2 }, 'postgres')).toBe(
       'decimal(12,2)',
     );
+  });
+});
+
+describe('a `now` a Studio change gives a MySQL time column', () => {
+  it('is filled by Adminium: a rule of its own beside each column a step that ran made, and no other', async () => {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const connection = await connectionsRepo(meta, { encrypt: (v: string) => v, decrypt: (v: string) => v }).create({
+      name: 'src',
+      engine: 'mysql',
+      sourceKind: 'dsn',
+      introspectDsn: 'mysql://x',
+      createdBy: null,
+    } as never);
+    const now = { kind: 'now' as const };
+    const edit = schemaEditSchema.parse({
+      baseSnapshotId: 'snap',
+      upsertTables: [
+        { name: 'visits', columns: [{ name: 'id', logicalType: 'integer', nullable: false }, { name: 'seen_at', logicalType: 'timestamptz', default: now }, { name: 'noted_on', logicalType: 'date', default: now }], primaryKey: ['id'] },
+        { name: 'failed', columns: [{ name: 'at', logicalType: 'timestamp', default: now }] },
+      ],
+      addColumns: [{ table: 'shop.orders', column: { name: 'placed_at', logicalType: 'timestamp', default: now } }],
+    });
+    const outcome = (kind: string, table: string, column: string | null, result: 'succeeded' | 'failed') =>
+      ({ id: `${kind}:${table}`, kind, table, column, hazard: 'safe', outcome: result, sql: [], error: null, durationMs: null });
+    await fillNowOnMysql({ meta, connectionId: connection.id, edit }, [
+      outcome('create-table', 'shop.visits', null, 'succeeded'),
+      outcome('create-table', 'shop.failed', null, 'failed'),
+      outcome('add-column', 'shop.orders', 'placed_at', 'succeeded'),
+    ]);
+    // Twice: a rule already there is kept, not doubled.
+    await fillNowOnMysql({ meta, connectionId: connection.id, edit }, [outcome('create-table', 'shop.visits', null, 'succeeded')]);
+    const rules = (await overridesRepo(meta).listForConnection(connection.id)).map((o) => [o.op, `${o.tableName}.${o.columnName ?? ''}`, o.value, o.origin]);
+    expect(rules.sort()).toEqual([
+      ['column.default', 'shop.orders.placed_at', { kind: 'now' }, 'auto'],
+      ['column.default', 'shop.visits.seen_at', { kind: 'now' }, 'auto'],
+    ]);
+    await meta.db.destroy();
   });
 });

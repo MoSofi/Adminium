@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { bindWriteValue, normalizeWriteValue, sameValue } from '../src/crud/write-values.js';
+import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from '../src/crud/write-values.js';
 import type { ResolvedColumn } from '../src/crud/identifiers.js';
 
 function column(logicalType: ResolvedColumn['logicalType']): ResolvedColumn {
@@ -131,6 +131,42 @@ describe('bindWriteValue — an instant as the statement binds it', () => {
       }
       expect(bindWriteValue(column('varchar'), '2026-05-28T20:00:00.000Z', 'mysql')).toBe('2026-05-28T20:00:00.000Z');
     });
+  });
+});
+
+describe('zonedWriteValue — a zone-less time sent for a column that keeps a zone', () => {
+  const zoned = column('timestamptz');
+
+  it("is the instant it names on this server's clock, whatever zone the database's session is in", () => {
+    withTz('Europe/London', () => {
+      expect(zonedWriteValue(zoned, '2026-09-25 11:45:00')).toBe('2026-09-25T10:45:00Z');
+      expect(zonedWriteValue(zoned, '2026-09-25T11:45')).toBe('2026-09-25T10:45:00Z');
+      // A microsecond is kept, not cut to a millisecond.
+      expect(zonedWriteValue(zoned, '2026-01-25 11:45:00.123456')).toBe('2026-01-25T11:45:00.123456Z');
+    });
+    withTz('America/New_York', () => {
+      expect(zonedWriteValue(zoned, '2026-09-25 11:45:00')).toBe('2026-09-25T15:45:00Z');
+    });
+  });
+
+  it('leaves a zoned instant, a day the calendar lacks, another column type and anything else alone', () => {
+    expect(zonedWriteValue(zoned, '2026-09-25T10:45:00Z')).toBe('2026-09-25T10:45:00Z');
+    expect(zonedWriteValue(zoned, '2026-02-30 10:00:00')).toBe('2026-02-30 10:00:00');
+    expect(zonedWriteValue(zoned, '2026-09-25 24:00:00')).toBe('2026-09-25 24:00:00');
+    expect(zonedWriteValue(zoned, 'soon')).toBe('soon');
+    expect(zonedWriteValue(naive, '2026-09-25 11:45:00')).toBe('2026-09-25 11:45:00');
+  });
+});
+
+describe('booleanOf — a yes or a no, however it is spelled', () => {
+  it('reads the words Postgres reads, whatever the case and the spaces', () => {
+    for (const yes of [true, 1, 1n, 'true', ' TRUE ', 't', 'yes', 'y', 'on', '1']) expect(booleanOf(yes), String(yes)).toBe(true);
+    for (const no of [false, 0, 0n, 'false', 'f', 'no', 'N', 'off', '0']) expect(booleanOf(no), String(no)).toBe(false);
+    for (const neither of ['maybe', '', 2, null, undefined, {}]) expect(booleanOf(neither), String(neither)).toBeNull();
+    // And a rule's `true` is met by each of them.
+    expect(sameValue('on', true)).toBe(true);
+    expect(sameValue(' true', true)).toBe(true);
+    expect(sameValue('y', true)).toBe(true);
   });
 });
 

@@ -82,9 +82,17 @@ async function install(db: AnyDb, dialect: 'sqlite' | 'postgres' | 'mysql'): Pro
 
 /** What every engine must do once the tables exist. */
 async function exercise(db: AnyDb, dialect: 'sqlite' | 'postgres' | 'mysql'): Promise<void> {
-  // No id, no defaulted column: exactly what a form that shows only the name sends.
-  await db.insertInto('menu_items').values({ name: 'Latte' }).execute();
-  await db.insertInto('menu_items').values({ name: 'Mocha' }).execute();
+  /*
+   * No id, no defaulted column: exactly what a form that shows only the name
+   * sends. But MySQL is given no `now`: its time column is a DATETIME kept on
+   * the Adminium server's clock, which its UTC session could not fill, so
+   * Adminium fills it on its own writes — and a row written outside Adminium
+   * that leaves it out is refused rather than stamped hours off.
+   */
+  if (dialect === 'mysql') await expect(db.insertInto('menu_items').values({ name: 'Latte' }).execute()).rejects.toThrow(/created_at/);
+  const when = dialect === 'mysql' ? { created_at: '2026-09-25 09:00:00' } : {};
+  await db.insertInto('menu_items').values({ name: 'Latte', ...when }).execute();
+  await db.insertInto('menu_items').values({ name: 'Mocha', ...when }).execute();
   const rows = await db.selectFrom('menu_items').selectAll().orderBy('id').execute();
   expect(rows.map((row) => Number(row['id']))).toEqual([1, 2]);
   const latte = rows[0]!;
@@ -95,7 +103,7 @@ async function exercise(db: AnyDb, dialect: 'sqlite' | 'postgres' | 'mysql'): Pr
   expect(latte['created_at']).not.toBeNull();
 
   // An explicit id is still accepted (BY DEFAULT, not ALWAYS).
-  await db.insertInto('menu_items').values({ id: 50, name: 'Flat white' }).execute();
+  await db.insertInto('menu_items').values({ id: 50, name: 'Flat white', ...when }).execute();
   const explicit = await db.selectFrom('menu_items').select('name').where('id', '=', 50).executeTakeFirst();
   expect(explicit?.['name']).toBe('Flat white');
 
@@ -107,7 +115,7 @@ async function exercise(db: AnyDb, dialect: 'sqlite' | 'postgres' | 'mysql'): Pr
 
   if (dialect !== 'sqlite') {
     // A real varchar(80): the engines that enforce a width refuse 81.
-    await expect(db.insertInto('menu_items').values({ name: 'x'.repeat(81) }).execute()).rejects.toThrow();
+    await expect(db.insertInto('menu_items').values({ name: 'x'.repeat(81), ...when }).execute()).rejects.toThrow();
   }
 }
 
@@ -154,6 +162,8 @@ describe('the manifest column fields for defaults and widths', () => {
     expect(defaultSqlFor({ ref: 'a', type: 'bool', default: true }, 'mysql')).toBe('1');
     expect(defaultSqlFor({ ref: 'a', type: 'timestamptz', default: 'now' }, 'sqlite')).toBe("(datetime('now', 'localtime'))");
     expect(defaultSqlFor({ ref: 'a', type: 'timestamptz', default: 'now' }, 'postgres')).toBe('CURRENT_TIMESTAMP');
+    // A DATETIME on MySQL keeps this server's clock, which its UTC session cannot fill: Adminium does.
+    expect(defaultSqlFor({ ref: 'a', type: 'timestamptz', default: 'now' }, 'mysql')).toBeNull();
     expect(defaultSqlFor({ ref: 'a', type: 'text', maxLength: 9, default: "it's" }, 'postgres')).toBe("'it''s'");
     expect(defaultSqlFor({ ref: 'a', type: 'int' }, 'postgres')).toBeNull();
   });

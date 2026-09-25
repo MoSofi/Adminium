@@ -206,7 +206,18 @@ export function renderDefault(
        * `instants.ts`). A bare `datetime('now')` is UTC's — so a row the
        * database stamped and a row Adminium wrote sat hours apart in the same
        * column. `localtime` makes them one clock.
+       *
+       * MySQL gets NO default on a time column Adminium makes: it is a
+       * `DATETIME` (`ddl/type-map.ts`), which Adminium reads on this server's
+       * clock, and every Adminium session is pinned to UTC — so
+       * `CURRENT_TIMESTAMP` filled UTC's wall clock, hours off wherever the
+       * server is not in UTC. Adminium fills the moment itself on every create
+       * instead (`implicitFillFor` in `crud/column-rules.ts`, the `column.default`
+       * an app's `default: "now"` installs). A row written outside Adminium
+       * that leaves the column out gets nothing there: empty, or refused when
+       * the column may not be empty — never a time off by the offset.
        */
+      if (dialect === 'mysql' && (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz')) return null;
       return dialect === 'sqlite' ? "(datetime('now', 'localtime'))" : 'CURRENT_TIMESTAMP';
     case 'uuid':
       // D31: offered on postgres only, and the validator refuses it elsewhere.

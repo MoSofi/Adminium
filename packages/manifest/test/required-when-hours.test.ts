@@ -133,4 +133,23 @@ describe('hoursBetween', () => {
     expect(evaluateFormula(hours, wall, 2)).toBe(evaluateFormula(hours, { started_at: local(wall.started_at), stopped_at: local(wall.stopped_at) }, 2));
     expect(evaluateFormula(hours, { started_at: '2026-09-25T09:15', stopped_at: '2026-09-25 11:45:00.000' }, 2)).toBe('2.50');
   });
+
+  it('reads what SQLite keeps: seconds since 1970, and a zone after a space', () => {
+    // `unixepoch()` fills a column with seconds; a tool may write the zone after a space.
+    const start = Date.parse('2026-09-25T09:15:00Z') / 1000;
+    expect(evaluateFormula(hours, { started_at: start, stopped_at: '2026-09-25T11:45:00Z' }, 2)).toBe('2.50');
+    expect(evaluateFormula(hours, { started_at: BigInt(start), stopped_at: start + 1800 }, 2)).toBe('0.50');
+    expect(evaluateFormula(hours, { started_at: '2026-09-25 09:15:00 +02:00', stopped_at: '2026-09-25 11:45:00 +0200' }, 2)).toBe('2.50');
+    expect(evaluateFormula(hours, { started_at: '2026-09-25 09:15:00 Z', stopped_at: '2026-09-25T10:15:00-01' }, 2)).toBe('2.00');
+  });
+
+  it('counts nothing from a day or an hour the calendar does not have', () => {
+    // 30 February does not roll over into March: the span is empty.
+    expect(evaluateFormula(hours, { started_at: '2026-02-28 10:00:00', stopped_at: '2026-02-30 10:00:00' }, 2)).toBeNull();
+    expect(evaluateFormula(hours, { started_at: '2026-02-28T10:00:00Z', stopped_at: '2026-02-31T10:00:00+02:00' }, 2)).toBeNull();
+    expect(evaluateFormula(hours, { started_at: '2026-09-25 09:15:00', stopped_at: '2026-09-25 24:30:00' }, 2)).toBeNull();
+    expect(evaluateFormula(hours, { started_at: '2026-09-25 09:15:00', stopped_at: '2026-09-25 10:61:00' }, 2)).toBeNull();
+    // A leap year has its 29 February.
+    expect(evaluateFormula(hours, { started_at: '2028-02-29 10:00:00Z', stopped_at: '2028-02-29 12:00:00Z' }, 2)).toBe('2.00');
+  });
 });

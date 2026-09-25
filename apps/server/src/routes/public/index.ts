@@ -96,6 +96,8 @@ import {
 import { generatePublicSessionToken, hashPublishableKey, keyKindOf } from '../../public-api/keys.js';
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
+import { tableRulesFor } from '../../crud/column-rules.js';
+import { needsStored } from '../../crud/decide.js';
 import { maskRows, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
@@ -2375,8 +2377,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           preparedInserts = await writes.beforeEach('create', target, context, inserts.map((r) => ({ values: r.values })));
           const planned: PlannedRow[] = [];
           const hooked = await writes.wants('before', 'update', target, context);
+          /*
+           * A rule judged on the row as stored (a column required while another
+           * holds a value, a stamp, a formula) reads it through the caller's
+           * scope too: read without it, a refusal would tell a stranger what a
+           * row they cannot see holds.
+           */
+          const judged = hooked || needsStored(tableRulesFor({ view: found.view, table }));
           for (const u of updates) {
-            const record = hooked ? await loadInScope(u.pk) : undefined;
+            const record = judged ? await loadInScope(u.pk) : undefined;
             if (record === null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
             planned.push({ match: u.pk, values: u.values, record });
           }

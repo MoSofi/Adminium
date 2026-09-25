@@ -61,7 +61,7 @@ import type {
   TableCapacityRule,
 } from '../connections/effective-schema.js';
 import { isNowType, renderNow } from './instants.js';
-import { sameValue } from './write-values.js';
+import { booleanOf, sameValue } from './write-values.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 import type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
@@ -130,6 +130,17 @@ export interface ColumnCheck {
   requiredByRule?: boolean;
   /** `column.requiredWhen`: required only while another column of the row holds one of `in`. */
   requiredWhen?: ColumnRequiredWhen;
+  /**
+   * What the database stores in `requiredWhen.column` when a create leaves it
+   * out: its literal default. Absent when it has none Adminium can read.
+   */
+  requiredWhenDefault?: unknown;
+  /**
+   * Whether `requiredWhen.column` is text MySQL compares as it does: without
+   * case, accents or spaces at the end. `AWAY` is `away` to its queries, so it
+   * is to the rule.
+   */
+  requiredWhenFolds?: boolean;
   /** An admin's `column.validation`. */
   validation?: ColumnValidation;
 }
@@ -187,6 +198,13 @@ export interface ColumnFormula {
   scale: Scale;
   /** The columns it reads directly. */
   reads: string[];
+  /**
+   * How large a number the column holds, when the database says: the digits
+   * before the point of a `numeric(p, s)`, or an integer's largest value. A
+   * result past it is refused before the statement, naming what it is worked
+   * out from.
+   */
+  limit?: { digits: number } | { max: bigint };
 }
 
 /** `column.bounds`, resolved: the other date is this row's, or read through a foreign key. */
@@ -385,11 +403,22 @@ function explicitFillFor(column: EffectiveColumn): ColumnFill | null {
   };
 }
 
-function implicitFillFor(column: EffectiveColumn): ColumnFill | null {
+function implicitFillFor(column: EffectiveColumn, dialect: Dialect | undefined): ColumnFill | null {
   if (column.isGenerated) return null;
-  if (column.default !== null) return null;
   const base = { column: column.name, logicalType: column.logicalType, implicit: true } as const;
   const semantic = column.semantics?.primary ?? null;
+  /*
+   * A MySQL `DATETIME` the database fills with `CURRENT_TIMESTAMP` — one made
+   * before Adminium stopped giving it that default, or an operator's own. It
+   * keeps this server's wall clock, and every Adminium session is in UTC, so
+   * the database would fill UTC's: hours off wherever the server is not in
+   * UTC. Adminium fills the moment itself on its own creates (and, for an
+   * `updated_at`, its updates).
+   */
+  if (dialect === 'mysql' && column.logicalType === 'timestamp' && column.default?.kind === 'now') {
+    return { ...base, kind: 'now', onUpdate: semantic === 'updated-at' };
+  }
+  if (column.default !== null) return null;
   if (semantic === 'created-at' && isNowType(column.logicalType)) {
     return { ...base, kind: 'now', onUpdate: false };
   }
@@ -455,7 +484,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     // A secret column is refused by the write path long before this, and a
     // fill that named one would be a way to write it sideways.
     if (target.table.columns.get(column.name)?.secret === true) continue;
-    const fill = explicitFillFor(column) ?? implicitFillFor(column);
+    const fill = explicitFillFor(column) ?? implicitFillFor(column, target.view?.model?.dialect);
     if (fill !== null) fills.push(fill);
     if (column.fill?.kind === 'from' && column.fill.from !== undefined) defaultsFrom.push({ column: column.name, from: column.fill.from });
     if (column.copy !== undefined) {
@@ -547,7 +576,15 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     if (values !== undefined) check.enumValues = values;
     if (options !== undefined) check.options = options;
     if (column.requiredByRule === true) check.requiredByRule = true;
-    if (column.requiredWhen !== undefined) check.requiredWhen = column.requiredWhen;
+    if (column.requiredWhen !== undefined) {
+      check.requiredWhen = column.requiredWhen;
+      const other = columns.find((candidate) => candidate.name === column.requiredWhen?.column);
+      const stored = literalDefault(other?.default);
+      if (stored !== undefined) check.requiredWhenDefault = stored;
+      if (target.view?.model?.dialect === 'mysql' && other !== undefined && other.enumRef === null && FOLDED_TEXT.has(other.logicalType)) {
+        check.requiredWhenFolds = true;
+      }
+    }
     if (column.validation !== undefined) check.validation = column.validation;
     // A check with nothing to say is still cheap, but keeping it out is what
     // makes "this table has no rules" provable.
@@ -687,6 +724,30 @@ function formulaScale(column: EffectiveColumn): Scale {
   return column.logicalType === 'integer' || column.logicalType === 'bigint' ? 0 : 4;
 }
 
+/**
+ * How large a number a formula column holds (see `ColumnFormula.limit`): a
+ * 32-bit integer on every engine for an `integer` (SQLite would take more,
+ * the other two would not), a 64-bit one for a `bigint`, and the declared
+ * digits of a `numeric(p, s)`, which SQLite reports too.
+ */
+function limitOf(column: Pick<EffectiveColumn, 'logicalType' | 'numericPrecision' | 'numericScale'>): ColumnFormula['limit'] {
+  if (column.logicalType === 'integer') return { max: 2_147_483_647n };
+  if (column.logicalType === 'bigint') return { max: 9_223_372_036_854_775_807n };
+  if (column.logicalType === 'decimal' && column.numericPrecision !== null && column.numericPrecision > 0) {
+    return { digits: column.numericPrecision - (column.numericScale ?? 0) };
+  }
+  return undefined;
+}
+
+/** Whether a worked-out value fits the column's limit. */
+function withinLimit(value: unknown, limit: NonNullable<ColumnFormula['limit']>): boolean {
+  const text = String(value).trim().replace(/^[+-]/, '');
+  if (!/^\d+(\.\d+)?$/.test(text)) return true;
+  const whole = text.split('.')[0]!.replace(/^0+/, '');
+  if ('digits' in limit) return whole.length <= limit.digits;
+  return BigInt(whole === '' ? '0' : whole) <= limit.max;
+}
+
 /** A table's formulas, each after every formula column it reads. */
 export function formulasOf(table: Pick<EffectiveTable, 'columns'>): ColumnFormula[] {
   const byName = new Map<string, EffectiveColumn>();
@@ -701,7 +762,8 @@ export function formulasOf(table: Pick<EffectiveTable, 'columns'>): ColumnFormul
     const column = byName.get(name)!;
     const reads = formulaColumns(column.formula!);
     for (const read of reads) if (byName.has(read)) visit(read);
-    out.push({ column: name, expr: column.formula!, scale: formulaScale(column), reads });
+    const limit = limitOf(column);
+    out.push({ column: name, expr: column.formula!, scale: formulaScale(column), reads, ...(limit === undefined ? {} : { limit }) });
   };
   for (const name of byName.keys()) visit(name);
   return out;
@@ -809,7 +871,7 @@ export function numbersWithoutGaps(rules: TableRules | null): boolean {
 function fillValue(fill: ColumnFill, ctx: FillContext): unknown {
   switch (fill.kind) {
     case 'now':
-      return renderNow({ logicalType: fill.logicalType }, ctx.dialect, ctx.now);
+      return renderNow({ logicalType: fill.logicalType }, ctx.now);
     case 'uuid':
       return randomUUID();
     case 'literal':
@@ -883,13 +945,9 @@ function numberIssue(value: unknown): FieldIssue | null {
   return { code: 'invalid' };
 }
 
-const BOOLEANISH = new Set(['true', 'false', 't', 'f', 'yes', 'no', 'on', 'off', '0', '1']);
-
+/** A yes or a no, in any spelling {@link booleanOf} reads — and the write path stores as the answer it names. */
 function booleanIssue(value: unknown): FieldIssue | null {
-  if (typeof value === 'boolean') return null;
-  if (value === 0 || value === 1) return null;
-  if (typeof value === 'string' && BOOLEANISH.has(value.trim().toLowerCase())) return null;
-  return { code: 'invalid' };
+  return booleanOf(value) === null ? { code: 'invalid' } : null;
 }
 
 function jsonIssue(value: unknown): FieldIssue | null {
@@ -979,6 +1037,71 @@ function issueFor(check: ColumnCheck, value: unknown, dialect: Dialect): FieldIs
 /** Whether a column holds no answer: nothing, or only spaces. */
 const blank = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
 
+/** Text columns MySQL compares by their collation, which ignores case (and, by default, accents). */
+const FOLDED_TEXT: ReadonlySet<LogicalType> = new Set<LogicalType>(['text', 'varchar']);
+
+/**
+ * The value a literal database default stores, as the write path reads one:
+ * `'away'::character varying` and `'away'` are `away` (MySQL 8 hands the bare
+ * word), `true` is true, `3` is `3`. `undefined` for no default, or for one
+ * worked out when the row is made (a clock, an expression).
+ */
+export function literalDefault(value: EffectiveColumn['default'] | undefined): unknown {
+  if (value === null || value === undefined || value.kind !== 'literal') return undefined;
+  const text = value.text.trim();
+  const quoted = /^'((?:[^']|'')*)'(?:::.*)?$/s.exec(text);
+  if (quoted !== null) return (quoted[1] ?? '').replace(/''/g, "'");
+  const bare = text.replace(/::.*$/s, '');
+  if (/^null$/i.test(bare)) return null;
+  if (/^(true|false)$/i.test(bare)) return bare.toLowerCase() === 'true';
+  return bare;
+}
+
+/** Whether two texts are one to a MySQL collation: no case, no accents, no spaces at the end. */
+const foldedSame = (a: string, b: string): boolean => a.trimEnd().localeCompare(b.trimEnd(), 'en', { sensitivity: 'base' }) === 0;
+
+/**
+ * Whether a write changes a column: it sends it, and — when the stored row is
+ * known — sends something other than what is stored. A whole-row form sends
+ * every field back as it read it; one it did not change is no change.
+ */
+function changes(values: Row, stored: Row | null | undefined, column: string): boolean {
+  if (!Object.prototype.hasOwnProperty.call(values, column)) return false;
+  if (stored === null || stored === undefined) return true;
+  const [now, was] = [values[column], stored[column]];
+  return !((blank(now) && blank(was)) || sameValue(now, was));
+}
+
+/** Whether a `requiredWhen` lists yes-or-no answers: its other column is read as a boolean. */
+const readsBoolean = (when: ColumnRequiredWhen): boolean => when.in.some((listed) => typeof listed === 'boolean');
+
+/**
+ * The columns Adminium fills as surely as a default — nobody is asked for
+ * them. A running number is claimed only after the check, so it is absent
+ * there.
+ */
+function filledColumns(rules: TableRules): Set<string> {
+  return new Set([
+    ...rules.fills.filter((f) => f.kind !== 'none').map((f) => f.column),
+    ...(rules.copies ?? []).map((c) => c.column),
+    ...(rules.sequences ?? []).map((c) => c.column),
+    ...(rules.codes ?? []).map((c) => c.column),
+    ...(rules.stamps ?? []).map((c) => c.column),
+    ...(rules.seals ?? []).map((c) => c.column),
+    ...(rules.formulas ?? []).map((c) => c.column),
+    ...(rules.numbered ?? []),
+  ]);
+}
+
+/** Whether the other column's value is one the rule lists, as the database would compare it. */
+export function requiredBy(check: Pick<ColumnCheck, 'requiredWhen' | 'requiredWhenFolds'>, value: unknown): boolean {
+  const when = check.requiredWhen;
+  if (when === undefined || blank(value)) return false;
+  return when.in.some(
+    (listed) => sameValue(value, listed) || (check.requiredWhenFolds === true && typeof value === 'string' && typeof listed === 'string' && foldedSame(value, listed)),
+  );
+}
+
 /**
  * The issues in one row, or `null` when there are none.
  *
@@ -987,7 +1110,8 @@ const blank = (value: unknown): boolean => value === null || value === undefined
  * NULL refusal), and pre-judging it is the preflight this module refuses to
  * have. The one exception is an admin's own "required" rule, which is asked
  * of the row as the write leaves it — `stored` is the row as it is, on an
- * update.
+ * update; on a create, a `requiredWhen`'s other column the write leaves out
+ * is read as its database default.
  */
 export function checkRow(
   rules: TableRules | null,
@@ -1001,18 +1125,7 @@ export function checkRow(
     issues ??= {};
     issues[column] ??= issue;
   };
-  // What Adminium decides is filled as surely as a default: a running
-  // number is claimed only after this check, so it is absent here.
-  const filled = new Set([
-    ...rules.fills.filter((f) => f.kind !== 'none').map((f) => f.column),
-    ...(rules.copies ?? []).map((c) => c.column),
-    ...(rules.sequences ?? []).map((c) => c.column),
-    ...(rules.codes ?? []).map((c) => c.column),
-    ...(rules.stamps ?? []).map((c) => c.column),
-    ...(rules.seals ?? []).map((c) => c.column),
-    ...(rules.formulas ?? []).map((c) => c.column),
-    ...(rules.numbered ?? []),
-  ]);
+  const filled = filledColumns(rules);
   for (const check of rules.checks) {
     const supplied = Object.prototype.hasOwnProperty.call(values, check.column);
     /*
@@ -1037,15 +1150,104 @@ export function checkRow(
      */
     const when = check.requiredWhen;
     if (when !== undefined && !filled.has(check.column)) {
-      const touched = action === 'create' || supplied || Object.prototype.hasOwnProperty.call(values, when.column);
-      if (touched) {
-        const row = action === 'create' ? values : { ...(ctx.stored ?? {}), ...values };
-        if (blank(row[check.column]) && when.in.some((listed) => sameValue(row[when.column], listed))) add(check.column, { code: 'required' });
+      const sent = Object.prototype.hasOwnProperty.call(values, when.column);
+      // A yes or a no the rule cannot read is no answer to it (SQLite keeps whatever it is given).
+      if (sent && readsBoolean(when) && !blank(values[when.column]) && booleanOf(values[when.column]) === null) add(when.column, { code: 'invalid' });
+      if (action === 'create' || changes(values, ctx.stored, check.column) || changes(values, ctx.stored, when.column)) {
+        // A create that leaves the other column out gets the database's default there.
+        const base = action === 'create' ? (sent || check.requiredWhenDefault === undefined ? {} : { [when.column]: check.requiredWhenDefault }) : (ctx.stored ?? {});
+        const row = { ...base, ...values };
+        if (blank(row[check.column]) && requiredBy(check, row[when.column])) add(check.column, { code: 'required' });
       }
     }
     if (!supplied) continue;
     const issue = issueFor(check, values[check.column], ctx.dialect);
     if (issue !== null) add(check.column, issue);
   }
+  /*
+   * A worked-out number the column cannot hold — the hours between two
+   * moments centuries apart in a `numeric(6, 2)` — is refused here, on every
+   * engine, rather than by the database (Postgres names no column, MySQL the
+   * formula's, which nobody can edit, and SQLite keeps it). The columns it is
+   * worked out from are named: the ones this write gave, else all of them.
+   */
+  for (const formula of rules.formulas ?? []) {
+    const value = values[formula.column];
+    if (formula.limit === undefined || value === null || value === undefined || withinLimit(value, formula.limit)) continue;
+    const inputs = inputsOf(rules.formulas ?? [], formula);
+    const given = inputs.filter((column) => Object.prototype.hasOwnProperty.call(values, column));
+    for (const column of given.length > 0 ? given : inputs) add(column, { code: 'out-of-range' });
+  }
   return issues;
+}
+
+/** The columns a formula is worked out from, through the formulas it reads. */
+function inputsOf(formulas: readonly ColumnFormula[], formula: ColumnFormula, seen = new Set<string>()): string[] {
+  const out: string[] = [];
+  for (const read of formula.reads) {
+    const through = formulas.find((other) => other.column === read);
+    if (through === undefined) {
+      if (!out.includes(read)) out.push(read);
+    } else if (!seen.has(read)) {
+      seen.add(read);
+      for (const column of inputsOf(formulas, through, seen)) if (!out.includes(column)) out.push(column);
+    }
+  }
+  return out;
+}
+
+/**
+ * What an UPDATE judged by a `requiredWhen` must still find in the row when it
+ * runs: another writer may change the row between the read and the
+ * statement. One writer moves an event to away, having read a person on it;
+ * another empties the person, having read the event in the office. Each
+ * passes on what it read, and together they leave an away event naming
+ * nobody. So a write that moves the other column to a listed value over a
+ * person it did not send asks that the person still be there (`filled`), and
+ * one that empties the column over another column it did not send asks that
+ * the other still hold none of the values (`unlisted`) — in the statement's
+ * own WHERE, where the database compares them as it holds them. A row the
+ * statement then misses is refused as the check would have refused it.
+ */
+export type RequiredGuard =
+  | { column: string; kind: 'filled'; text: boolean }
+  | { column: string; kind: 'unlisted'; other: string; values: readonly (string | number | boolean)[] };
+
+const REQUIRED_GUARDS = Symbol('adminium.requiredGuards');
+
+type Guarded = Row & { [REQUIRED_GUARDS]?: RequiredGuard[] };
+
+/**
+ * The guards an update's values need (see {@link RequiredGuard}); none on a
+ * create or a delete. A column the write sends is written by it, so only one
+ * it leaves out can be changed under it.
+ */
+export function requiredGuards(rules: TableRules | null, action: WriteAction, values: Row, stored: Row | null): RequiredGuard[] {
+  if (rules === null || action !== 'update') return [];
+  const filled = filledColumns(rules);
+  const out: RequiredGuard[] = [];
+  for (const check of rules.checks) {
+    const when = check.requiredWhen;
+    if (when === undefined || filled.has(check.column)) continue;
+    const own = Object.prototype.hasOwnProperty.call(values, check.column);
+    const other = Object.prototype.hasOwnProperty.call(values, when.column);
+    if (!own && changes(values, stored, when.column) && requiredBy(check, values[when.column])) {
+      out.push({ column: check.column, kind: 'filled', text: FOLDED_TEXT.has(check.logicalType) });
+    } else if (!other && changes(values, stored, check.column) && blank(values[check.column])) {
+      out.push({ column: check.column, kind: 'unlisted', other: when.column, values: when.in });
+    }
+  }
+  return out;
+}
+
+/** The values with their guards attached (a copy; the symbol survives every spread on the way to the statement). */
+export function attachRequiredGuards<T extends Row>(row: T, guards: readonly RequiredGuard[]): T {
+  if (guards.length === 0) return row;
+  const out = { ...row } as T & Guarded;
+  out[REQUIRED_GUARDS] = [...guards];
+  return out;
+}
+
+export function requiredGuardsOf(row: Row): RequiredGuard[] | undefined {
+  return (row as Guarded)[REQUIRED_GUARDS];
 }

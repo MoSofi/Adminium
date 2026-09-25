@@ -291,6 +291,15 @@ A default must mean the same thing on Postgres, MySQL and SQLite, so only these 
 A value that comes from somewhere else when the row is made (the connection's currency, a
 setting) is not a database default: use the [`default` rule](#column-rules).
 
+`"now"` is filled by Adminium on every create, through every door, so what the create works out can
+read it (a visit's [hours](#hours-between-two-moments) are there from the start). On MySQL the
+database is given no default for it at all: an app's `timestamptz` is a `DATETIME` there, kept on
+the Adminium server's clock, and the database — whose sessions Adminium keeps in UTC — could only
+fill UTC's. A row written to that table outside Adminium, leaving the column out, gets nothing: it
+stays empty, or is refused when the column may not be empty. Adminium also fills a MySQL `DATETIME`
+whose database default is `CURRENT_TIMESTAMP` (a table made before, or one of your own) on its own
+creates. On Postgres and SQLite the database's own default is kept as well.
+
 #### Decimal places
 
 `scale` says how many places a `decimal` or `money` column keeps after the point:
@@ -380,12 +389,23 @@ values:
   "rules": { "requiredWhen": { "column": "kind", "in": ["away", "sick"] } } }
 ```
 
-The row is judged as the write leaves it, whenever the write touches either column: a create or an
+The row is judged as the write leaves it, whenever the write changes either column: a create or an
 update that leaves `person_id` empty while `kind` is `away` or `sick` is refused, and so is moving
-an event whose `person_id` is empty to `away`. A write that changes neither column is not judged,
-so a row stored before the rule can still be edited. Empty means no value, or only spaces. On a
-create, `kind` is the value the write gives it; a database default is not read. The record form
-marks the field required as soon as the other column holds one of the values.
+an event whose `person_id` is empty to `away`. A write that changes neither column is not judged —
+a column sent back as it is stored, as the record form sends every field, is no change — so a row
+stored before the rule can still be edited. Empty means no value, or only spaces. On a create that
+leaves `kind` out, `kind` is its database default: a trip that is away unless it says otherwise
+asks for a person. The record form marks the field required as soon as the other column holds one
+of the values, and asks nothing of an edit that changes neither.
+
+- **As the database compares.** A `bool` column's yes is a yes in any spelling (`true`, `on`, `y`,
+  `1`, ` TRUE`), and it is stored as the answer it names on every engine; a word that is no yes and
+  no no is refused. On MySQL a plain text column is compared as MySQL compares it, so `AWAY ` is
+  `away` there, and asks for a person; Postgres and SQLite keep `Away` apart from `away`.
+- **Two writers at once.** An update that moves `kind` to `away` over a person it did not send, or
+  empties `person_id` over a `kind` it did not send, asks the database, in the same statement, that
+  what it read is still so. Two people changing one event at the same moment cannot together leave
+  it away with nobody named: the second is refused as the first would have been.
 
 `column` is another column of the same table, and every value in `in` must fit it (a value of an
 enum, a number for a number column, `true` or `false` for a `bool`). The rule's own column must be
@@ -515,9 +535,19 @@ update that moves only the stop works the hours out again from the start as stor
   server in Europe/London, 00:30 → 03:30 on the night the clocks go forward is `2.00`, and
   00:30 → 02:30 on the night they go back is `3.00`, on every engine. Run the server in the zone the
   times are kept in.
-- **Empty for a missing or backwards span.** An empty start or stop leaves the hours empty. So
-  does a stop before its start: a negative number of hours would quietly take pay off a total, so
-  the entry shows no hours until it is corrected. A stop equal to the start is `0.00`.
+- **A time written without a zone.** Sent for a column that keeps a zone, `2026-09-25 11:45` is
+  11:45 on the Adminium server's clock — the moment the hours are counted to and the moment that is
+  stored, whatever zone the database's session is in. A stop stamped `now` is that moment too.
+- **What SQLite keeps.** A start SQLite fills with `unixepoch()` (seconds since 1970) is read as
+  that moment, and so is a text with its zone after a space (`2026-09-25 09:15:00 +02:00`).
+- **Empty for a missing, impossible or backwards span.** An empty start or stop leaves the hours
+  empty, and so does a day or an hour the calendar does not have (30 February stays no time, not 2
+  March). So does a stop before its start: a negative number of hours would quietly take pay off a
+  total, so the entry shows no hours until it is corrected. A stop equal to the start is `0.00`.
+- **Too many to keep.** Hours the column cannot hold (centuries in a `numeric(6, 2)`) are refused,
+  `422` `VALIDATION_FAILED` with the code `out-of-range` on the moments they are counted from, on
+  every engine — never left for the database to refuse or, on SQLite, to keep. Any formula whose
+  result its column cannot hold is refused the same way.
 
 #### Numbers without gaps
 

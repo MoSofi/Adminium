@@ -162,7 +162,7 @@ function stampValue(stamp: ColumnStamp, context: DecideContext, row: Row): unkno
   const word = (name: StampWord): unknown => {
     // A zone-less column keeps the server's wall clock, as a fill does; a text
     // one (a time SQLite was given as text) the instant.
-    if (name === 'now') return renderNow({ logicalType: stamp.logicalType }, context.dialect, context.now) ?? instantFor(context.dialect, context.now);
+    if (name === 'now') return renderNow({ logicalType: stamp.logicalType }, context.now) ?? instantFor(context.now);
     if (name === 'today') return venueClock(context.now, context.zone ?? 'UTC').day;
     return guest ? undefined : who(name);
   };

@@ -128,11 +128,19 @@ describe('a field required only for some values of another', () => {
     expect(onSubmit.mock.calls[0]?.[0]).toEqual({ kind: 'office', person: null });
   });
 
-  it('refuses an edit that leaves it empty on a record holding a listed value', async () => {
-    const { onSubmit } = form({ columns: EVENT, facts, mode: 'edit', initialValues: { id: 1, kind: 'away', person: null } });
+  it('refuses an edit that empties it on a record holding a listed value', async () => {
+    const { onSubmit } = form({ columns: EVENT, facts, mode: 'edit', initialValues: { id: 1, kind: 'away', person: 'Ann' } });
+    await userEvent.clear(screen.getByLabelText(/Person/));
     await userEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByText('This field is required.')).toBeTruthy();
+  });
+
+  it('saves an edit that changes neither column of a record kept from before the rule, as the server does', async () => {
+    const { onSubmit } = form({ columns: EVENT, facts, mode: 'edit', initialValues: { id: 1, kind: 'away', person: null } });
+    expect(screen.getByLabelText(/Person/).getAttribute('aria-required')).not.toBe('true');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(onSubmit).toHaveBeenCalled();
   });
 });
 

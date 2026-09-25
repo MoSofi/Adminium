@@ -37,7 +37,7 @@
  * (`not-repaired` consequence) rather than silently left.
  */
 import type { MetaDb } from '@adminium/meta';
-import { connectionsRepo, pagesRepo, permissionsRepo, publicApiStateRepo } from '@adminium/meta';
+import { connectionsRepo, overridesRepo, pagesRepo, permissionsRepo, publicApiStateRepo } from '@adminium/meta';
 
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
 
@@ -80,6 +80,50 @@ const bare = (id: string): string => id.slice(id.lastIndexOf('.') + 1);
  * renames a table should be told their pages and grants followed, not left to
  * discover it.
  */
+/** A formula with one column renamed; a literal an `eq` compares with is not a column, and is left alone. */
+function renamedInFormula(node: unknown, from: string, to: string): unknown {
+  if (typeof node === 'string') return node === from ? to : node;
+  if (typeof node !== 'object' || node === null) return node;
+  const [op, args] = Object.entries(node)[0] as [string, unknown];
+  const again = (child: unknown) => renamedInFormula(child, from, to);
+  if (op === 'eq' || op === 'neq') {
+    const [column, literal] = args as [unknown, unknown];
+    return { [op]: [again(column), literal] };
+  }
+  // `round`'s places is a number, which `again` leaves as it is.
+  return { [op]: Array.isArray(args) ? args.map(again) : again(args) };
+}
+
+/**
+ * A rule's value with a column of its own table renamed, or the same object
+ * when it names no such column. Only the names that are this table's columns
+ * are touched: a `copy`'s `from` and a `notBefore` read through a link are
+ * columns of another table.
+ */
+export function renamedInRule(op: string, value: unknown, from: string, to: string): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const rule = value as Record<string, unknown>;
+  const same = (name: unknown) => name === from;
+  switch (op) {
+    case 'column.requiredWhen':
+      return same(rule['column']) ? { ...rule, column: to } : value;
+    case 'column.copy':
+      return same(rule['via']) ? { ...rule, via: to } : value;
+    case 'column.bounds': {
+      const before = rule['notBefore'] as Record<string, unknown> | undefined;
+      if (before === undefined) return value;
+      if (before['via'] !== undefined) return same(before['via']) ? { ...rule, notBefore: { ...before, via: to } } : value;
+      return same(before['column']) ? { ...rule, notBefore: { ...before, column: to } } : value;
+    }
+    case 'column.formula': {
+      const next = renamedInFormula(rule['formula'], from, to);
+      return JSON.stringify(next) === JSON.stringify(rule['formula']) ? value : { ...rule, formula: next };
+    }
+    default:
+      return value;
+  }
+}
+
 export async function repairAfterRename(input: RenameRepairInput): Promise<RenameRepairResult> {
   /*
    * ONE TRANSACTION, as the header has always said and the code never did:
@@ -181,6 +225,29 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
       .where('columnName', '=', rename.from)
       .executeTakeFirst();
     result.overrides += Number(updated.numUpdatedRows ?? 0n);
+  }
+
+  // --- rules that NAME a renamed column in what they say ---------------------
+  // A rule on another column of the same table may read this one: the column
+  // a `requiredWhen` watches, the key a `copy` follows, the date a `notBefore`
+  // is held to, a formula's inputs. Left alone, the rule reads a column that
+  // no longer exists — a requirement that never asks, a formula that is
+  // always empty — and nothing says so.
+  if (columnRenames.length > 0) {
+    const overrides = overridesRepo(meta);
+    for (const row of await overrides.listForConnection(connectionId)) {
+      let value: unknown = row.value;
+      for (const rename of columnRenames) {
+        if (rename.table === row.tableName) value = renamedInRule(row.op, value, rename.from, rename.to);
+      }
+      if (value === row.value) continue;
+      await meta.db
+        .updateTable('adminium_schema_overrides')
+        .set({ value: JSON.stringify(value) } as never)
+        .where('id', '=', row.id)
+        .execute();
+      result.overrides += 1;
+    }
   }
 
   // --- page bindings --------------------------------------------------------

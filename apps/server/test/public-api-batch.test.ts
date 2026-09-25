@@ -144,6 +144,29 @@ for (const leg of SOURCE_LEGS) {
       expect(after.find((r) => Number(r['id']) === 2)?.['body']).toBe('b1');
     }, 120_000);
 
+    it('a rule judged on the stored row reads it in scope: a row outside answers as a missing one', async () => {
+      // Bob's second note has a code; alice's scope cannot see it.
+      served = await leg.serve({ ...SPEC, seed: [...SPEC.seed, "INSERT INTO notes (owner, body, code) VALUES ('bob', 'b2', 'kept')"] });
+      const s = served;
+      const token = await setUp(s, ['GET', 'PATCH', 'BATCH']);
+      const list = await s.app.inject({ method: 'GET', url: `/api/v1/public-endpoints?connectionId=${s.connectionId}`, headers: { cookie: s.cookie } });
+      const table = (list.json() as { sources: { id: string }[] }).sources.find((x) => x.id.endsWith('notes'))!.id;
+      // A secret note keeps a code.
+      const rule = await s.app.inject({
+        method: 'PUT',
+        url: `/api/v1/connections/${s.connectionId}/overrides`,
+        headers: { cookie: s.cookie },
+        payload: { overrides: [{ op: 'column.requiredWhen', tableName: table, columnName: 'code', value: { column: 'body', in: ['secret'] } }] },
+      });
+      expect(rule.statusCode, rule.body).toBe(200);
+      const before = await snapshot(s);
+      const outside = await batch(s, token, [{ id: 3, body: 'secret' }]);
+      const missing = await batch(s, token, [{ id: 999, body: 'secret' }]);
+      expect(outside.statusCode).toBe(400);
+      expect(outside.body).toBe(missing.body);
+      expect(await snapshot(s)).toEqual(before);
+    }, 120_000);
+
     it('a keyed row needs PATCH too; a caller never chooses the key of a new row', async () => {
       served = await leg.serve(SPEC);
       const s = served;

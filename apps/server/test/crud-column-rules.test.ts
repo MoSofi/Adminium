@@ -124,13 +124,13 @@ describe('the clock a fill reads', () => {
     else process.env.TZ = TZ;
   });
 
-  it('writes a zoned instant in UTC and a naive one in the server’s own zone', () => {
+  it('writes a zoned instant with its zone, the same on every engine, and a naive one in the server’s own zone', () => {
     process.env.TZ = 'America/New_York'; // UTC−4 on this date: 08:34 local
-    expect(renderNow({ logicalType: 'timestamptz' }, 'postgres', NOW)).toBe('2026-09-06T12:34:56.789Z');
-    expect(renderNow({ logicalType: 'timestamptz' }, 'mysql', NOW)).toBe('2026-09-06 12:34:56.789');
-    expect(renderNow({ logicalType: 'timestamp' }, 'postgres', NOW)).toBe('2026-09-06 08:34:56.789');
-    expect(renderNow({ logicalType: 'date' }, 'postgres', NOW)).toBe('2026-09-06');
-    expect(renderNow({ logicalType: 'time' }, 'postgres', NOW)).toBe('08:34:56');
+    // MySQL's `TIMESTAMP` is given its UTC wall time only at the statement (`bindWriteValue`).
+    expect(renderNow({ logicalType: 'timestamptz' }, NOW)).toBe('2026-09-06T12:34:56.789Z');
+    expect(renderNow({ logicalType: 'timestamp' }, NOW)).toBe('2026-09-06 08:34:56.789');
+    expect(renderNow({ logicalType: 'date' }, NOW)).toBe('2026-09-06');
+    expect(renderNow({ logicalType: 'time' }, NOW)).toBe('08:34:56');
   });
 
   it('puts a late evening on the LOCAL day, not tomorrow’s UTC one', () => {
@@ -140,7 +140,7 @@ describe('the clock a fill reads', () => {
     const evening = new Date('2026-09-06T03:30:00.000Z');
     expect(localDate(evening)).toBe('2026-09-05');
     expect(localTime(evening)).toBe('23:30:00');
-    expect(instantFor('postgres', evening)).toBe('2026-09-06T03:30:00.000Z');
+    expect(instantFor(evening)).toBe('2026-09-06T03:30:00.000Z');
   });
 
   it('spells a naive timestamp the way the ordinary write path spells one', () => {
@@ -152,8 +152,8 @@ describe('the clock a fill reads', () => {
   });
 
   it('writes nothing into a column that cannot hold an instant', () => {
-    expect(renderNow({ logicalType: 'varchar' }, 'postgres', NOW)).toBeNull();
-    expect(renderNow({ logicalType: 'integer' }, 'postgres', NOW)).toBeNull();
+    expect(renderNow({ logicalType: 'varchar' }, NOW)).toBeNull();
+    expect(renderNow({ logicalType: 'integer' }, NOW)).toBeNull();
   });
 });
 

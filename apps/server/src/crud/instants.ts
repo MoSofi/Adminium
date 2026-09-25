@@ -7,13 +7,21 @@
  * column rule's `now` fill are the same instant written the same way, and two
  * copies of this would drift the day one of them learned about `date`.
  *
- * ── WHY A STRING PER DIALECT, NOT A `Date` ─────────────────────────────────
+ * ── WHY A STRING, NOT A `Date`, AND THE SAME ONE ON EVERY ENGINE ──────────
  *
  * No single JavaScript value writes a timestamp on all three engines. `pg` and
  * `mysql2` serialize a `Date`; `better-sqlite3` refuses one outright ("can
- * only bind numbers, strings, bigints, buffers, and null"). And MySQL's
- * `datetime` rejects the `T` and the `Z` an ISO instant carries. So the value
- * is formatted here, per dialect, and the round trip is tested on all three.
+ * only bind numbers, strings, bigints, buffers, and null"). So the value is
+ * text, and the round trip is tested on all three.
+ *
+ * A `timestamptz` is given the ISO instant, zone and all, on every engine, and
+ * keeps it for as long as the write is in progress: a stamp, a formula
+ * counting hours, a bound and a slot guard all read the moment the text
+ * names. MySQL's `TIMESTAMP` refuses the `T` and the `Z`, so its UTC wall time
+ * is spelled only where the value meets the statement (`bindWriteValue` in
+ * `write-values.ts`). It used to be spelled here, without a zone, and every
+ * reader on the way took UTC's wall clock for this server's: a shift stopped
+ * by a stamp an hour after it started counted 0.00 hours in London.
  *
  * ── WHICH CLOCK, AND WHY IT IS NOT ALWAYS UTC ──────────────────────────────
  *
@@ -32,15 +40,11 @@
 import type { Dialect, LogicalType } from '@adminium/engine';
 
 /**
- * The instant, in the form THIS dialect's `timestamptz` column accepts.
- *
- * Exported for the round-trip tests, which is the only way to prove the mysql
- * branch without a mysql server in the loop for every case.
+ * The instant a `timestamptz` column is written with while the write is in
+ * progress: the ISO text, with its zone, on every engine (see the header).
  */
-export function instantFor(dialect: Dialect, now: Date): string {
-  const iso = now.toISOString();
-  // `2026-09-06T12:34:56.789Z` → `2026-09-06 12:34:56.789`, still UTC.
-  return dialect === 'mysql' ? iso.slice(0, 23).replace('T', ' ') : iso;
+export function instantFor(now: Date): string {
+  return now.toISOString();
 }
 
 const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
@@ -80,14 +84,10 @@ export function isNowType(logicalType: LogicalType): boolean {
  * writes nothing rather than the answer that writes an ISO string into a
  * `varchar` somebody happened to call `created`.
  */
-export function renderNow(
-  column: { readonly logicalType: LogicalType },
-  dialect: Dialect,
-  now: Date,
-): string | null {
+export function renderNow(column: { readonly logicalType: LogicalType }, now: Date): string | null {
   switch (column.logicalType) {
     case 'timestamptz':
-      return instantFor(dialect, now);
+      return instantFor(now);
     case 'timestamp':
       return localTimestamp(now);
     case 'date':

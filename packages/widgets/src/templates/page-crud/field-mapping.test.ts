@@ -219,6 +219,22 @@ describe('column facts — what the server says about the table right now', () =
     // A switch holds a boolean; a number column may hold its value as text.
     expect(isRequired(person, fact({ requiredWhen: { column: 'done', in: [true] } }), { done: true })).toBe(true);
     expect(isRequired(person, fact({ requiredWhen: { column: 'tier', in: [2] } }), { tier: '2' })).toBe(true);
+    // A record read back from MySQL or SQLite holds a yes as 1: still a yes, as on the server.
+    const urgent = fact({ requiredWhen: { column: 'urgent', in: [true] } });
+    expect(isRequired(person, urgent, { urgent: 1 })).toBe(true);
+    expect(isRequired(person, urgent, { urgent: 0 })).toBe(false);
+    expect(isRequired(person, fact({ requiredWhen: { column: 'urgent', in: [false] } }), { urgent: 0 })).toBe(true);
+  });
+
+  it('asks nothing of an edit that changes neither column, as the server judges it', () => {
+    const person = spec({ name: 'person_id', label: 'Person', logicalType: 'integer', nullable: true });
+    const when = fact({ requiredWhen: { column: 'kind', in: ['away'] } });
+    const stored = { kind: 'away', person_id: null };
+    expect(isRequired(person, when, { ...stored }, stored)).toBe(false);
+    expect(isRequired(person, when, { kind: 'away', person_id: '' }, stored)).toBe(false);
+    // Moving either column is judged.
+    expect(isRequired(person, when, { kind: 'away', person_id: null }, { kind: 'office', person_id: null })).toBe(true);
+    expect(isRequired(person, when, { kind: 'away', person_id: null }, { kind: 'away', person_id: 7 })).toBe(true);
   });
 
   it('still hides one that the database or Adminium fills', () => {

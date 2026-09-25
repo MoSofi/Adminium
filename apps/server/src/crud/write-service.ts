@@ -84,12 +84,16 @@ import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, t
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { isWriteConflict } from './db-errors.js';
 import {
+  attachRequiredGuards,
   checkRow,
   fillRow,
   guardedBy,
+  requiredGuards,
+  requiredGuardsOf,
   tableRulesFor,
   withoutReadOnly,
   type ColumnCode,
+  type RequiredGuard,
   type FieldIssues,
   type RollupInto,
   type Scale,
@@ -113,11 +117,11 @@ import {
   type CopyMemo,
   type SequenceStore,
 } from './decided-columns.js';
-import type { ResolvedTable, SnapshotView } from './identifiers.js';
+import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
-import { bindWriteValue, normalizeWriteValue, sameValue } from './write-values.js';
+import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin } from './write-context.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
@@ -434,6 +438,51 @@ export async function insertRows(db: Db, dialect: Dialect, table: ResolvedTable,
 }
 
 /**
+ * The conditions a column required by another was judged on
+ * (`RequiredGuard`), in an UPDATE's WHERE: the column still holds an answer,
+ * or the other column still holds none of the values. A value the rule lists
+ * as `true` is `1` to a column that keeps a boolean as a number.
+ */
+function requiredWhere(query: AnyUpdate, table: ResolvedTable, dialect: Dialect, guards: readonly RequiredGuard[]): AnyUpdate {
+  let out = query;
+  for (const guard of guards) {
+    if (guard.kind === 'filled') {
+      out = out.where((eb) => eb(eb.ref(guard.column as never), 'is not', null));
+      if (guard.text) out = out.where((eb) => eb(eb.fn('trim', [eb.ref(guard.column as never)]), '<>', ''));
+      continue;
+    }
+    const numeric = table.columns.get(guard.other)?.logicalType !== 'boolean';
+    const listed = guard.values.map((value) => (typeof value === 'boolean' && (numeric || dialect === 'sqlite') ? (value ? 1 : 0) : value));
+    out = out.where((eb) => eb.or([eb(eb.ref(guard.other as never), 'is', null), eb(eb.ref(guard.other as never), 'not in', listed as never[])]));
+  }
+  return out;
+}
+
+/**
+ * A value as the write carries it for its column, from the moment it is
+ * filled to the statement: a zoned time bound for a zone-less `timestamp` is
+ * this server's wall clock; a zone-less time bound for a column that keeps a
+ * zone is the instant it names on this server's clock (`zonedWriteValue`),
+ * so the database's session zone never decides it and a formula counting
+ * hours reads the moment that is stored; and a yes or a no — in a boolean
+ * column, or in one a `requiredWhen` reads as one (SQLite keeps an app's
+ * boolean as a number) — is `true` or `false`, stored as that answer on
+ * every engine and compared as it by every rule.
+ */
+function spelledForColumn(rules: TableRules | null, column: ResolvedColumn, value: unknown, venueLocal = false): unknown {
+  if (typeof value === 'string' && column.logicalType === 'timestamp') return normalizeWriteValue(column, value);
+  if (column.logicalType === 'timestamptz') return venueLocal ? value : zonedWriteValue(column, value);
+  const yesNo = column.logicalType === 'boolean' || (rules?.checks ?? []).some((check) => check.requiredWhen?.column === column.name && check.requiredWhen.in.some((listed) => typeof listed === 'boolean'));
+  if (!yesNo || typeof value === 'boolean') return value;
+  return booleanOf(value) ?? value;
+}
+
+/** The refusal a guarded update gets when the row it was judged on changed under it. */
+function requiredRefusal(guards: readonly RequiredGuard[]): ValidationFailedError {
+  return new ValidationFailedError('Some values were refused.', { fields: Object.fromEntries(guards.map((guard) => [guard.column, { code: 'required' }])) });
+}
+
+/**
  * UPDATE the rows whose columns equal `match` (a primary key, or the CSV
  * import's match column), optionally narrowed further. Returns the count.
  */
@@ -470,20 +519,30 @@ export async function updateRows(
   const set = Object.keys(values).length > 0 ? storable(table, values, dialect) : same;
   const plan = sealsOf(values);
   const expected = expectOf(values);
+  // What a column required by another was judged on must still hold, in the same WHERE.
+  const required = requiredGuardsOf(values);
+  const stillRequired = required === undefined ? undefined : (query: AnyUpdate): AnyUpdate => requiredWhere(query, table, dialect, required);
   // What a before hook judged the write on must still hold, in the statement's own WHERE.
   const narrowed =
-    expected === undefined
+    expected === undefined && stillRequired === undefined
       ? refine
       : (query: AnyUpdate): AnyUpdate => {
           let out = refine === undefined ? query : refine(query);
-          for (const [column, value] of Object.entries(expected)) {
+          for (const [column, value] of Object.entries(expected ?? {})) {
             const resolved = table.columns.get(column);
             // A moment read back as a Date: on MySQL, spelled as the column holds it.
             const bound = resolved?.logicalType === 'timestamptz' ? bindWriteValue(resolved, value, dialect) : value;
             out = out.where((eb) => (bound === null || bound === undefined ? eb(eb.ref(column as never), 'is', null) : eb(eb.ref(column as never), '=', bound as never)));
           }
-          return out;
+          return stillRequired === undefined ? out : stillRequired(out);
         };
+  /** Whether the row, as it is now, still answers what the required rule judged it on. */
+  const answers = async (tx: Db): Promise<boolean> => {
+    let query = tx.updateTable(table.id).set(same as never) as unknown as AnyUpdate;
+    for (const [column, value] of Object.entries(match)) query = query.where((eb) => eb(tx.dynamic.ref(column), '=', value));
+    if (refine !== undefined) query = refine(query);
+    return Number((await stillRequired!(query).executeTakeFirst()).numUpdatedRows) > 0;
+  };
   // A row of a document's states is judged holding it; `visible` asks the
   // caller's own scope whether the row is theirs to hear about, by the same
   // statement setting nothing.
@@ -495,6 +554,8 @@ export async function updateRows(
     match,
     async (tx) => {
       const count = await statement(tx, set);
+      // Another writer changed the row since it was judged: refused as the check would refuse it now.
+      if (count === 0 && required !== undefined && (await present(tx)) && !(await answers(tx))) throw requiredRefusal(required);
       if (count === 0 && expected !== undefined && (await present(tx))) throw rowMoved(expected);
       if (count > 0 && plan !== undefined) await sealRows(tx, table, match, plan, writeSeals);
       return count;
@@ -848,7 +909,7 @@ function valuesAfterHooks(target: WriteTarget, original: Row, changed: Row): Row
     out[key] =
       column === undefined || original[key] === value
         ? value
-        : bindValue(target.dialect, normalizeWriteValue(column, value));
+        : bindValue(target.dialect, zonedWriteValue(column, normalizeWriteValue(column, value)));
   }
   return out;
 }
@@ -1323,7 +1384,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     mapError: ((error: unknown) => never) | undefined,
   ): Promise<CheckedRow> {
     const issues = mergeIssues(checkRow(rules, action, values, { dialect: target.dialect, stored }), await boundIssues(rules, action, target, context, values, stored));
-    if (issues === null) return brand(values);
+    // What the check read of the stored row goes with the values, for the statement to hold it to.
+    if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(rules, action, values, stored)));
     const error = refusal(issues);
     if (mapError !== undefined) mapError(error);
     throw error;
@@ -1373,7 +1435,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * instant it names where the venue is, and a zoned instant bound for a
    * zone-less column is this server's wall clock — what the data routes have
    * always written, now whoever writes, so a guest's booking and a till's
-   * name the same slot the same way. The same object when nothing changes.
+   * name the same slot the same way. A zone-less time bound for a column that
+   * keeps a zone is the instant it names on this server's clock, and a yes or
+   * a no is `true` or `false` (`spelledForColumn`). The same object when
+   * nothing changes.
    */
   const localize = (rules: TableRules | null, target: WriteTarget, values: Row, zone: string | undefined): Row => {
     let out: Row | null = null;
@@ -1384,10 +1449,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       out[name] = venueLocalValue(column, values[name], zone);
     }
     for (const [name, value] of Object.entries(out ?? values)) {
-      if (typeof value !== 'string') continue;
       const column = target.table.columns.get(name);
-      if (column?.logicalType !== 'timestamp') continue;
-      const spelled = normalizeWriteValue(column, value);
+      if (column === undefined) continue;
+      // A venue-local time was read on the venue's clock just above, never on this server's.
+      const spelled = spelledForColumn(rules, column, value, (rules?.venueLocal ?? []).includes(name));
       if (spelled === value) continue;
       out ??= { ...values };
       out[name] = spelled;
@@ -2140,7 +2205,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const issues = mergeIssues(checkRow(rules, action, worked, { dialect: target.dialect, stored: record }), await boundIssues(rules, action, target, context, worked, record));
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
-        return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(worked)), record), issues };
+        const guarded = brand(attachRequiredGuards(worked, requiredGuards(rules, action, worked, record)));
+        return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, guarded), record), issues };
       };
       const start = (values: Row): Promise<Row> =>
         withRules ? prepareValues(rules, action, target, context, values, now, memo) : Promise.resolve(values);

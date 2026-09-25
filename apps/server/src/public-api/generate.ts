@@ -34,27 +34,25 @@
  * them — is no better off; and they apply only to FUTURE installs, leaving
  * every table already in an operator's database exactly where it was.
  *
- * ── WHERE THE VALUE COMES FROM, AND WHY THE DIALECT IS AN ARGUMENT ──────────
+ * ── WHERE THE VALUE COMES FROM ──────────────────────────────────────────────
  *
- * `uuid` is `randomUUID()` and is the same string everywhere. `now` is not:
- * `install-ddl` maps `timestamptz` to `timestamptz` on postgres, `datetime` on
- * mysql and `text` on sqlite, and those three do not accept the same literal.
- * An ISO instant with its `T` and `Z` is what postgres and sqlite want and is
- * what MySQL's `datetime` rejects outright — it takes `YYYY-MM-DD HH:MM:SS`,
- * with no zone designator, and stores the literal it is given.
+ * `uuid` is `randomUUID()` and is the same string everywhere. `now` is spelled
+ * for its column (`crud/instants.ts`): `install-ddl` maps `timestamptz` to
+ * `timestamptz` on postgres, `datetime` on mysql and `timestamp` on sqlite, and
+ * those do not keep the same thing.
  *
- * A `Date` OBJECT WOULD NOT HAVE SOLVED IT EITHER, which is worth writing down
+ * A `Date` OBJECT WOULD NOT HAVE SOLVED IT, which is worth writing down
  * because it is the first thing anybody tries: `pg` and `mysql2` both serialize
  * one, and `better-sqlite3` refuses one outright ("can only bind numbers,
- * strings, bigints, buffers, and null"). There is no single JavaScript value
- * the three drivers agree on, so this formats a string per dialect and the
- * round trip is tested on all three.
+ * strings, bigints, buffers, and null").
  *
- * WHICH CLOCK. An instant column takes the instant, in UTC, on all three. A
- * `datetime` has no zone to carry one, and Adminium reads it back — as it reads
- * every zone-less `timestamp` — as this server's wall clock; so that is what
- * `now` writes into one when the table's columns are known (`resolveDefaults`).
- * UTC there came back shifted by the server's offset wherever it was not UTC.
+ * WHICH CLOCK. A column that keeps a zone takes the ISO instant, on all three;
+ * MySQL's `TIMESTAMP` refuses the `T` and the `Z`, and is given its UTC wall
+ * time only where the value meets the statement. A `datetime` has no zone to
+ * carry one, and Adminium reads it back — as it reads every zone-less
+ * `timestamp` — as this server's wall clock; so that is what `now` writes into
+ * one when the table's columns are known (`resolveDefaults`). UTC there came
+ * back shifted by the server's offset wherever it was not UTC.
  */
 import { randomUUID } from 'node:crypto';
 
@@ -118,7 +116,7 @@ export function readGenerator(value: unknown): GeneratorReading | null {
 }
 
 /**
- * The instant, in the form THIS dialect's `timestamptz` column accepts.
+ * The instant a `timestamptz` column is written with, the same on every engine.
  *
  * It lives in `crud/instants.ts` now, with the `date` / `time` / naive-
  * `timestamp` spellings a column rule's `now` fill needs, and is re-exported
@@ -171,8 +169,8 @@ export function resolveDefaults(
       out[column] = randomUUID();
     } else {
       const shape = columns?.get(column);
-      instant ??= instantFor(dialect, now);
-      out[column] = (shape === undefined ? null : renderNow(shape, dialect, now)) ?? instant;
+      instant ??= instantFor(now);
+      out[column] = (shape === undefined ? null : renderNow(shape, now)) ?? instant;
     }
   }
   return out;

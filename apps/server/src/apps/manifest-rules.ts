@@ -400,6 +400,17 @@ export async function writeManifestRules(input: {
         const shape = shapeOwned(table, column.ref, 'column.scale');
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.scale', value: { scale: column.scale }, ...(shape === undefined ? {} : { shape }) });
       }
+      /*
+       * `default: "now"` is filled by Adminium, on every create through every
+       * door. On MySQL it has to be: the column is a `DATETIME`, which keeps
+       * this server's wall clock, and the database — its session in UTC —
+       * could only fill UTC's, so the table is made with no default there
+       * (`renderDefault`). On every engine it lets what the create works out
+       * read the moment: a visit's hours, counted from a start nobody typed.
+       */
+      if (column.default === 'now' && column.type === 'timestamptz' && column.rules?.default === undefined) {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.default', value: { kind: 'now' } });
+      }
       if (column.rules === undefined) continue;
       for (const rule of opsForRules(manifest.key, column.rules)) {
         const mapped = realRuleRefs(rule.op, rule.value, realId);

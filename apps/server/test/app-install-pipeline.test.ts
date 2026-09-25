@@ -2517,6 +2517,13 @@ const legs: [Dialect, boolean][] = [
 
 for (const [dialect, available] of legs) {
   describe.skipIf(!available)(`an app install on ${dialect}`, () => {
+    /*
+     * A `default: "now"` (`pos_shifts.opened_at`) is filled by Adminium, with
+     * a rule of its own: on MySQL the column is a DATETIME kept on the
+     * server's clock, which the database's UTC session cannot fill.
+     */
+    const nowFill = 1;
+
     it('creates every table under the prefix, links them by their real names, and records them', async () => {
       const h = (open = await harness(dialect));
       await stage(h);
@@ -3059,7 +3066,7 @@ for (const [dialect, available] of legs) {
       await h.run(`INSERT INTO pos_lines (item_id, note) VALUES (1, 'soy')`);
       // A table dropped outside is made again, not taken for still there.
       expect(res.json().schema.created).toEqual(['pos_shifts']);
-      await h.run('INSERT INTO pos_shifts (id) VALUES (1)');
+      await h.run('INSERT INTO pos_shifts (id, opened_at) VALUES (1, CURRENT_TIMESTAMP)');
     }, 60_000);
 
     it('refuses a drop it may not make before it changes anything', async () => {
@@ -3255,7 +3262,7 @@ for (const [dialect, available] of legs) {
       await stageManifest(h, { ...MANIFEST, requiredSchema: { prefixed: true, tables } });
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules).toMatchObject({ written: 1, skipped: [] });
+      expect(installed.json().rules).toMatchObject({ written: 1 + nowFill, skipped: [] });
 
       const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
       const model = parseDatabaseModel(snapshot.schema);
@@ -3330,11 +3337,15 @@ for (const [dialect, available] of legs) {
       await stageManifest(h, v1);
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules).toEqual({ written: 5, removed: 0, lists: ['pos-zones'], skipped: [] });
+      expect(installed.json().rules).toEqual({ written: 5 + nowFill, removed: 0, lists: ['pos-zones'], skipped: [] });
 
       const overrides = overridesRepo(h.meta);
+      // The shift's opening time, which Adminium fills itself, is a rule of its own.
+      const nowRule = (o: { op: string; columnName: string | null }) => o.op === 'column.default' && o.columnName === 'opened_at';
+      expect((await overrides.listForConnection(h.connectionId)).filter(nowRule).map((o) => [o.value, o.origin])).toEqual([[{ kind: 'now' }, 'app']]);
       const appRules = async () =>
         (await overrides.listForConnection(h.connectionId))
+          .filter((o) => !nowRule(o))
           .map((o) => ({ op: o.op, at: `${o.tableName.split('.').at(-1)!}.${o.columnName ?? ''}`, origin: o.origin, value: o.value }))
           .sort((a, b) => `${a.at}${a.op}`.localeCompare(`${b.at}${b.op}`));
       expect(await appRules()).toEqual([
@@ -3412,12 +3423,12 @@ for (const [dialect, available] of legs) {
         .where('id', '=', state.id)
         .execute();
 
-      // Uninstall takes back the two still as it wrote them.
+      // Uninstall takes back the two still as it wrote them (and, on MySQL, its fill of the opening time).
       const plan = (await h.app.inject({ method: 'GET', url: '/apps/pos/uninstall-plan' })).json();
-      expect(plan.rules).toBe(2);
+      expect(plan.rules).toBe(2 + nowFill);
       const removed = await h.app.inject({ method: 'DELETE', url: '/apps/pos' });
       expect(removed.statusCode, removed.body).toBe(200);
-      expect(removed.json().removed.rules).toBe(2);
+      expect(removed.json().removed.rules).toBe(2 + nowFill);
       expect((await appRules()).map((r) => `${r.at}:${r.op}`)).toEqual([
         'pos_payments.method:column.options',
         'pos_payments.tip:column.required',
@@ -3465,7 +3476,7 @@ for (const [dialect, available] of legs) {
       const overrides = overridesRepo(h.meta);
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules).toMatchObject({ written: 5, skipped: [] });
+      expect(installed.json().rules).toMatchObject({ written: 5 + nowFill, skipped: [] });
       const labels = async () =>
         (await overrides.listForConnection(h.connectionId))
           .filter((o) => o.op === 'table.label' || o.op === 'table.keyField' || o.op === 'column.label')
@@ -3516,7 +3527,7 @@ for (const [dialect, available] of legs) {
       // Uninstall takes back the three still its own; the operator's stays.
       const removed = await h.app.inject({ method: 'DELETE', url: '/apps/pos' });
       expect(removed.statusCode, removed.body).toBe(200);
-      expect(removed.json().removed.rules).toBe(4);
+      expect(removed.json().removed.rules).toBe(4 + nowFill);
       expect((await labels()).map((r) => `${r.at}:${r.op}:${r.origin}`)).toEqual(['pos_payments.method:column.label:user']);
     }, 60_000);
 
@@ -3551,9 +3562,9 @@ for (const [dialect, available] of legs) {
         tones: { waiting: 'warn' },
       });
 
-      await h.run(`insert into pos_shifts (state) values ('waiting')`);
-      await h.run(`insert into pos_shifts (state) values ('waiting')`);
-      await h.run(`insert into pos_shifts (state) values ('seen')`);
+      await h.run(`insert into pos_shifts (state, opened_at) values ('waiting', CURRENT_TIMESTAMP)`);
+      await h.run(`insert into pos_shifts (state, opened_at) values ('waiting', CURRENT_TIMESTAMP)`);
+      await h.run(`insert into pos_shifts (state, opened_at) values ('seen', CURRENT_TIMESTAMP)`);
       const users = usersRepo(h.meta);
       const anna = await users.create({ email: 'anna@test', name: 'Anna' });
       const ada = await users.create({ email: 'ada@test', name: 'Ada' });

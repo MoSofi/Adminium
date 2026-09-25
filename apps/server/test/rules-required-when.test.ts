@@ -13,10 +13,18 @@
  *    an away event is refused, and so is moving an event with nobody named to
  *    away; an update touching neither column is not judged;
  *  - the same on a bulk edit, an import, an automation, and the public API;
- *  - the record form is told when the column is asked for.
+ *  - the record form is told when the column is asked for;
+ *  - a yes in any spelling is a yes, stored as one; a create that leaves the
+ *    other column out is judged on its database default; on MySQL a text
+ *    value is compared as MySQL compares it;
+ *  - a whole-row edit that changes neither column is not judged;
+ *  - two writers that each saw the row before the other changed it cannot
+ *    together leave it breaking the rule (Postgres and MySQL, over real
+ *    parallel connections).
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import { connectionTenantConfig, overridesRepo, snapshotsRepo } from '@adminium/meta';
+import { sql } from 'kysely';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { columnRuleIssue } from '../src/connections/column-rules-validation.js';
@@ -45,6 +53,33 @@ function manifest(): Record<string, unknown> {
         { ref: 'kind', type: 'enum', enum: ['office', 'away', 'sick'], default: 'office' },
         { ref: 'person_id', type: 'fk', references: 'people', nullable: true, rules: { requiredWhen: { column: 'kind', in: ['away', 'sick'] } } },
         { ref: 'note', type: 'text', maxLength: 200, nullable: true },
+      ],
+    },
+    {
+      // An urgent flag names who answers it: a yes in any spelling asks for a person.
+      ref: 'flags',
+      columns: [
+        id,
+        { ref: 'urgent', type: 'bool', default: false },
+        { ref: 'person_id', type: 'fk', references: 'people', nullable: true, rules: { requiredWhen: { column: 'urgent', in: [true] } } },
+      ],
+    },
+    {
+      // A trip is away unless it says otherwise: the database's default is what a create leaves.
+      ref: 'trips',
+      columns: [
+        id,
+        { ref: 'kind', type: 'enum', enum: ['office', 'away'], default: 'away' },
+        { ref: 'person_id', type: 'fk', references: 'people', nullable: true, rules: { requiredWhen: { column: 'kind', in: ['away'] } } },
+      ],
+    },
+    {
+      // A phase kept as plain text, which MySQL compares without case.
+      ref: 'tasks',
+      columns: [
+        id,
+        { ref: 'phase', type: 'text', maxLength: 20, nullable: true },
+        { ref: 'owner', type: 'text', maxLength: 40, nullable: true, rules: { requiredWhen: { column: 'phase', in: ['away'] } } },
       ],
     },
   ]);
@@ -90,7 +125,22 @@ for (const [dialect, available] of LEGS) {
       expect(issue({ column: 'person_id', in: [1] })).toBe('"person_id" is required by another column, not by itself.');
       expect(issue({ column: 'note', in: ['x'] }, 'kind')).toBe('"kind" is never empty already, so it needs no condition to be required.');
       expect(issue({ column: 'note', in: ['x'] }, 'note')).toBe('"note" is required by another column, not by itself.');
-      const stored = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => o.op === 'column.requiredWhen');
+      // What the manifest refuses, the live check refuses too, against the rules saved beside it.
+      const beside = (op: string, columnName: string, value: unknown, lists?: Map<string, string[]>) => ({ rules: [{ op, columnName, value }], lists });
+      const withRules = (related: ReturnType<typeof beside>, value: unknown = { column: 'kind', in: ['away'] }) =>
+        columnRuleIssue('column.requiredWhen', value, column('person_id'), model, undefined, related);
+      expect(withRules(beside('column.required', 'person_id', { required: true }))).toBe('"person_id" is required always, or only when another column says so, not both.');
+      expect(columnRuleIssue('column.required', { required: true }, column('person_id'), model, undefined, beside('column.requiredWhen', 'person_id', { column: 'kind', in: ['away'] }))).toBe(
+        '"person_id" is required always, or only when another column says so, not both.',
+      );
+      expect(withRules(beside('column.copy', 'person_id', { via: 'x', from: 'y' }))).toBe('Adminium fills "person_id", so nobody is asked for it.');
+      expect(withRules(beside('column.default', 'person_id', { kind: 'literal', text: '1' }))).toBe('Adminium fills "person_id", so nobody is asked for it.');
+      expect(withRules(beside('column.default', 'person_id', { kind: 'none' }))).toBeNull();
+      // A value the other column's own list does not have, inline or by key.
+      expect(withRules(beside('column.options', 'note', { values: [{ value: 'late' }] }), { column: 'note', in: ['early'] })).toBe('"early" is not a value note can hold.');
+      expect(withRules(beside('column.options', 'note', { values: [{ value: 'late' }] }), { column: 'note', in: ['late'] })).toBeNull();
+      expect(withRules(beside('column.options', 'note', { list: 'tones' }, new Map([['tones', ['calm']]])), { column: 'note', in: ['loud'] })).toBe('"loud" is not a value note can hold.');
+      const stored = (await overridesRepo(h.meta).listForConnection(h.connectionId)).filter((o) => o.op === 'column.requiredWhen' && o.tableName.endsWith(h.real('events')));
       expect(stored).toHaveLength(1);
       expect(stored[0]!.tableName.endsWith(h.real('events'))).toBe(true);
       expect(stored[0]!.columnName).toBe('person_id');
@@ -231,5 +281,93 @@ for (const [dialect, available] of LEGS) {
       // A column with no such rule says nothing.
       expect(facts!.columns.find((c) => c.spec['name'] === 'note')!.requiredWhen).toBeUndefined();
     });
+
+    it('reads a yes in any spelling as a yes, and stores it as one', async () => {
+      const { w, ann, row } = await harness();
+      for (const spelling of [true, 'true', 'TRUE', ' true', 'on', 'yes', 'y', 1, '1']) {
+        await expect(w.create('flags', { urgent: spelling }), JSON.stringify(spelling)).rejects.toMatchObject(refused);
+      }
+      for (const spelling of ['on', ' true', 'y']) {
+        const made = await w.create('flags', { urgent: spelling, person_id: ann['id'] });
+        // Stored as the answer it names on every engine: SQLite used to keep the text.
+        expect([true, 1]).toContain((await row('flags', made['id']))!['urgent']);
+      }
+      const calm = await w.create('flags', { urgent: 'off' });
+      expect([false, 0]).toContain((await row('flags', calm['id']))!['urgent']);
+      // A word that is no yes and no no is refused, on SQLite too.
+      await expect(w.create('flags', { urgent: 'maybe' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { fields: { urgent: { code: 'invalid' } } } });
+    });
+
+    it('judges a create that leaves the other column out by its database default', async () => {
+      const { w, ann, row } = await harness();
+      // A trip is away unless it says otherwise: one with nobody is refused.
+      await expect(w.create('trips', {})).rejects.toMatchObject(refused);
+      const named = await w.create('trips', { person_id: ann['id'] });
+      expect((await row('trips', named['id']))!['kind']).toBe('away');
+      await w.create('trips', { kind: 'office' });
+    });
+
+    it('compares a text value as the database does', async () => {
+      const { w, row } = await harness();
+      const owner = { code: 'VALIDATION_FAILED', details: { fields: { owner: { code: 'required' } } } };
+      await expect(w.create('tasks', { phase: 'away' })).rejects.toMatchObject(owner);
+      if (dialect === 'mysql') {
+        // `AWAY ` is `away` to every MySQL query: to the rule too.
+        await expect(w.create('tasks', { phase: 'AWAY ' })).rejects.toMatchObject(owner);
+        await expect(w.create('tasks', { phase: 'Away' })).rejects.toMatchObject(owner);
+      } else {
+        // Postgres and SQLite hold `Away` apart from `away`, and so does the rule.
+        const other = await w.create('tasks', { phase: 'Away' });
+        expect((await row('tasks', other['id']))!['phase']).toBe('Away');
+      }
+    });
+
+    it('does not judge a whole-row edit that changes neither column, as the record form sends it', async () => {
+      const { h, w, ann, row } = await harness();
+      // A row kept from before the rule: away, with nobody named.
+      await h.rows(`insert into ${h.real('events')} (kind, note) values ('away', 'Before the rule')`);
+      const [old] = await h.rows(`select id from ${h.real('events')} where note = 'Before the rule'`);
+      await w.update('events', old!['id'], { kind: 'away', person_id: null, note: 'Edited' });
+      expect((await row('events', old!['id']))!['note']).toBe('Edited');
+      // Changing either column is judged.
+      await expect(w.update('events', old!['id'], { kind: 'sick', person_id: null })).rejects.toMatchObject(refused);
+      await w.update('events', old!['id'], { kind: 'away', person_id: ann['id'] });
+    });
+
+    it.skipIf(dialect === 'sqlite')('holds two writers that each saw the row before the other changed it', async () => {
+      const { h, w, ann, row } = await harness();
+      const { db } = await h.manager.data(h.connectionId);
+      const table = h.real('events');
+      /** The writers at their UPDATE, waiting on the held row — read on a connection of its own. */
+      const waiting = async (): Promise<number> => {
+        const query =
+          dialect === 'postgres'
+            ? sql<{ n: number }>`select count(*)::int as n from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'`
+            : sql<{ n: number }>`select count(*) as n from information_schema.processlist where db = database() and command = 'Query' and info like 'update %'`;
+        return Number((await query.execute(db)).rows[0]?.n ?? 0);
+      };
+      /** Both writes read the row as it is, then wait at their UPDATE while a third connection holds it. */
+      const race = async (a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const made = await w.create('events', { kind: 'office', person_id: ann['id'] });
+        let settled: Promise<PromiseSettledResult<unknown>[]> | undefined;
+        await db.transaction().execute(async (tx) => {
+          await sql`select id from ${sql.table(table)} where id = ${made['id']} for update`.execute(tx);
+          settled = Promise.allSettled([w.update('events', made['id'], a), w.update('events', made['id'], b)]);
+          const deadline = Date.now() + 10_000;
+          while ((await waiting()) < 2) {
+            if (Date.now() > deadline) throw new Error('the two writers never reached their UPDATE');
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          }
+        });
+        const outcomes = await settled!;
+        return { outcomes, stored: (await row('events', made['id']))! };
+      };
+      // One moves the event away, having seen a person on it; the other empties the person, having seen it in the office.
+      const { outcomes, stored } = await race({ kind: 'away' }, { person_id: null });
+      expect(outcomes.filter((o) => o.status === 'fulfilled')).toHaveLength(1);
+      const [lost] = outcomes.filter((o): o is PromiseRejectedResult => o.status === 'rejected');
+      expect(lost!.reason).toMatchObject(refused);
+      expect(stored['kind'] === 'away' && stored['person_id'] === null).toBe(false);
+    }, 30_000);
   });
 }

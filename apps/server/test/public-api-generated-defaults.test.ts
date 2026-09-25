@@ -103,18 +103,14 @@ describe('reading a defaults value as a sentinel', () => {
 
 /* ------------------------------------------------------------- the instant */
 
-describe('the instant, per dialect', () => {
+describe('the instant', () => {
   const now = new Date('2026-09-06T12:34:56.789Z');
 
-  it('hands postgres and sqlite the ISO instant', () => {
-    expect(instantFor('postgres', now)).toBe('2026-09-06T12:34:56.789Z');
-    expect(instantFor('sqlite', now)).toBe('2026-09-06T12:34:56.789Z');
-  });
-
-  it("strips the T and the Z for mysql's datetime, and keeps UTC", () => {
-    // The named risk. `datetime` has no zone to carry one, so the literal must
-    // denote the same instant postgres and sqlite are holding.
-    expect(instantFor('mysql', now)).toBe('2026-09-06 12:34:56.789');
+  it('is the ISO instant, zone and all, on every engine', () => {
+    // MySQL's `TIMESTAMP` refuses the T and the Z: it is given the UTC wall
+    // time where the value meets the statement (`bindWriteValue`), and every
+    // reader before that reads the moment this text names.
+    expect(instantFor(now)).toBe('2026-09-06T12:34:56.789Z');
   });
 });
 
@@ -171,10 +167,11 @@ describe('resolving a defaults block', () => {
       ]);
       const defaults = { created_at: { $generate: 'now' }, noted_at: { $generate: 'now' }, on_day: { $generate: 'now' }, note: { $generate: 'now' } };
       expect(resolveDefaults(defaults, 'mysql', now, columns)).toEqual({
-        created_at: '2026-09-06 12:34:56.789',
+        // The instant, zone and all: MySQL's UTC wall time is spelled only at the statement.
+        created_at: '2026-09-06T12:34:56.789Z',
         noted_at: '2026-09-06 08:34:56.789',
         on_day: '2026-09-06',
-        note: '2026-09-06 12:34:56.789',
+        note: '2026-09-06T12:34:56.789Z',
       });
       expect(resolveDefaults(defaults, 'postgres', now, columns)).toMatchObject({
         created_at: '2026-09-06T12:34:56.789Z',
@@ -353,7 +350,7 @@ describe.skipIf(MYSQL_URL === undefined)('generated defaults round-trip on mysql
   it('writes a minted id and instant that `datetime` accepts, and reads both back', async () => {
     /*
      * THE RISK NAMED. An ISO instant with its `T` and `Z` is what the other
-     * two dialects want and what this column refuses; `instantFor` reshapes
+     * two dialects want and what this column refuses; `bindWriteValue` reshapes
      * it, and this is the only place that reshaping is checked against a
      * real MySQL rather than against a string.
      *

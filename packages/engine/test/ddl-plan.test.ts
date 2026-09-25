@@ -262,6 +262,24 @@ describe('Refusals', () => {
     expect(plan.refusals.map((r) => r.code)).toContain('NEEDS_DEFAULT');
   });
 
+  it('counts a MySQL time column’s `now` as no default: the rows already there would get none', () => {
+    const before = model([tbl({ name: 't' })]);
+    const after = [
+      tbl({
+        name: 't',
+        columns: [
+          col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }),
+          col({ name: 'seen_at', logicalType: 'timestamptz', nullable: false, default: { kind: 'now' } }),
+        ],
+      }),
+    ];
+    const plan = (dialect: 'mysql' | 'postgres') =>
+      planDdl({ actual: before, desired: after, dialect, serverVersion: dialect === 'mysql' ? '8.0.35' : '16.0', tableHasRows: () => true });
+    // A DATETIME there, which Adminium fills on its own writes: the database is given no `now`.
+    expect(plan('mysql').refusals.map((r) => r.code)).toContain('NEEDS_DEFAULT');
+    expect(plan('postgres').refusals).toEqual([]);
+  });
+
   it('refuses a comment on sqlite, which has no comment syntax', () => {
     const before = model([tbl({ name: 't', comment: null })]);
     const after = [tbl({ name: 't', comment: 'hello' })];

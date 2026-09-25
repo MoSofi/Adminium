@@ -355,7 +355,7 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
  * for that column and engine — a zoned instant, a naive local timestamp, a
  * date — so a sample row stores exactly what a person's would.
  */
-function spellInstants(values: Row, table: ResolvedTable, dialect: DataHandle['dialect']): Row {
+function spellInstants(values: Row, table: ResolvedTable): Row {
   const out: Row = {};
   for (const [column, value] of Object.entries(values)) {
     if (!(value instanceof Date)) {
@@ -369,7 +369,7 @@ function spellInstants(values: Row, table: ResolvedTable, dialect: DataHandle['d
       out[column] = value.toISOString();
       continue;
     }
-    out[column] = (shape === undefined ? null : renderNow(shape, dialect, value)) ?? value.toISOString();
+    out[column] = (shape === undefined ? null : renderNow(shape, value)) ?? value.toISOString();
   }
   return out;
 }
@@ -640,7 +640,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 done += 1;
                 continue;
               }
-              const values = spellInstants(resolvedRow, resolved, handle.dialect);
+              const values = spellInstants(resolvedRow, resolved);
               /*
                * A row only for an empty table — the app's one settings row — is
                * left out when the operator already has one; the rows after it

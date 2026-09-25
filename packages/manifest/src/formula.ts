@@ -433,32 +433,43 @@ function evaluate(expr: FormulaExpr, row: Readonly<Record<string, unknown>>, sca
 
 const MS_PER_HOUR = 3_600_000n;
 
-/** A time with no zone, as the drivers and a form spell one: `2026-09-25 09:15:00`, `2026-09-25T09:15`. */
-const WALL_TIME = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/;
-/** A moment with a zone: `Z`, `+02:00`, `+0200` or `+02`. */
-const ZONED_TIME = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)(Z|[+-]\d{2}(?::?\d{2})?)$/i;
+/**
+ * A time as the drivers and a form spell one — `2026-09-25 09:15:00`,
+ * `2026-09-25T09:15` — and its zone when it has one: `Z`, `+02:00`, `+0200`
+ * or `+02`, straight after the time or after a space
+ * (`2026-09-25 09:15:00 +02:00`).
+ */
+const TIME = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(?: ?(Z|[+-]\d{2}(?::?\d{2})?))?$/i;
+
+/** Whether the parts name a day and a time the calendar has: no 30 February, no 25 o'clock. */
+function onTheCalendar(y: number, mo: number, d: number, h: number, mi: number, s: number): boolean {
+  if (mo < 1 || mo > 12 || d < 1 || h > 23 || mi > 59 || s > 59) return false;
+  return d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
+}
 
 /**
  * A stored moment as milliseconds since the epoch, or `null` when it is empty
- * or not a time: a `Date` as a driver hands one back, a zoned text as the
- * moment it names, and a zone-less one on this clock (see the header).
+ * or not a time: a `Date` as a driver hands one back; a number as the seconds
+ * since 1970 SQLite's `unixepoch()` fills a column with; a zoned text as the
+ * moment it names, and a zone-less one on this clock (see the header). A day
+ * or an hour the calendar does not have (30 February) is no time, not the one
+ * it would roll over to.
  */
 export function momentOf(value: unknown): number | null {
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.getTime();
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.round(value * 1000) : null;
+  if (typeof value === 'bigint') return Number(value) * 1000;
   if (typeof value !== 'string') return null;
-  const text = value.trim();
-  const zoned = ZONED_TIME.exec(text);
-  if (zoned !== null) {
-    const [, day, time, zone] = zoned as unknown as [string, string, string, string];
-    const offset = /^[+-]\d{2}$/.test(zone) ? `${zone}:00` : /^[+-]\d{4}$/.test(zone) ? `${zone.slice(0, 3)}:${zone.slice(3)}` : zone.toUpperCase();
-    const at = Date.parse(`${day}T${time.replace(/(\.\d{3})\d+$/, '$1')}${offset}`);
-    return Number.isNaN(at) ? null : at;
-  }
-  const wall = WALL_TIME.exec(text);
-  if (wall === null) return null;
-  const [, y, mo, d, h, mi, s = '0', fraction = ''] = wall as unknown as string[];
-  const at = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s), Number(fraction.slice(0, 3).padEnd(3, '0')));
-  return Number.isNaN(at.getTime()) ? null : at.getTime();
+  const found = TIME.exec(value.trim());
+  if (found === null) return null;
+  const [y, mo, d, h, mi, s] = found.slice(1, 7).map((part) => Number(part ?? 0)) as [number, number, number, number, number, number];
+  if (!onTheCalendar(y, mo, d, h, mi, s)) return null;
+  const ms = Number((found[7] ?? '').slice(0, 3).padEnd(3, '0'));
+  const zone = found[8];
+  if (zone === undefined) return new Date(y, mo - 1, d, h, mi, s, ms).getTime();
+  const [, sign, hours, minutes] = /^([+-])(\d{2}):?(\d{2})?$/.exec(zone) ?? [];
+  const offset = sign === undefined ? 0 : (sign === '-' ? -1 : 1) * (Number(hours) * 60 + Number(minutes ?? 0));
+  return Date.UTC(y, mo - 1, d, h, mi, s, ms) - offset * 60_000;
 }
 
 /** Whether a condition holds for the row; a comparison with an empty side does not. */

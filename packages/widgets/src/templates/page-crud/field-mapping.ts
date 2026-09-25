@@ -233,20 +233,53 @@ export function formColumns(
  *
  * `values` are the record as the form holds it: a column required only while
  * another holds a listed value is required once the person picks one.
+ * `stored` is the record as it was loaded, on an edit: as on the server, an
+ * edit that changes neither column is not judged, so a record kept from
+ * before the rule can still be edited in its other fields.
  */
-export function isRequired(column: GridColumnSpec, fact?: ColumnFact | undefined, values?: Readonly<Record<string, unknown>>): boolean {
-  if (fact !== undefined) return fact.required || requiredNow(fact, values);
+export function isRequired(
+  column: GridColumnSpec,
+  fact?: ColumnFact | undefined,
+  values?: Readonly<Record<string, unknown>>,
+  stored?: Readonly<Record<string, unknown>>,
+): boolean {
+  if (fact !== undefined) return fact.required || requiredNow(column.name, fact, values, stored);
   return !column.nullable && !column.hasDefault && !column.readOnly;
 }
 
-/** Whether the other column a `requiredWhen` names holds one of its values. */
-function requiredNow(fact: ColumnFact, values: Readonly<Record<string, unknown>> | undefined): boolean {
+const emptyValue = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+
+/** A yes or a no as a form or a database holds one: a switch's boolean, `1` or `0`, `'true'`. */
+function yesOrNo(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  const word = String(value).trim().toLowerCase();
+  return ['true', 't', 'yes', 'y', 'on', '1'].includes(word) ? true : ['false', 'f', 'no', 'n', 'off', '0'].includes(word) ? false : null;
+}
+
+/** Whether a value the form holds is one a `requiredWhen` lists. */
+function listedValue(listed: string | number | boolean, held: unknown): boolean {
+  // A switch holds a boolean, a database may hand one back as 1 or 0.
+  if (typeof listed === 'boolean') return yesOrNo(held) === listed;
+  // A form holds a choice as its text.
+  return String(listed) === String(held);
+}
+
+/** Whether the other column a `requiredWhen` names holds one of its values, on a write that touches either. */
+function requiredNow(
+  name: string,
+  fact: ColumnFact,
+  values: Readonly<Record<string, unknown>> | undefined,
+  stored: Readonly<Record<string, unknown>> | undefined,
+): boolean {
   const when = fact.requiredWhen;
   if (when === undefined || values === undefined) return false;
+  if (stored !== undefined) {
+    const same = (column: string) => (emptyValue(values[column]) && emptyValue(stored[column])) || String(values[column]) === String(stored[column]);
+    if (same(name) && same(when.column)) return false;
+  }
   const held = values[when.column];
-  if (held === null || held === undefined || held === '') return false;
-  // A form holds a choice as its text, a switch as a boolean.
-  return when.in.some((listed) => String(listed) === String(held));
+  if (emptyValue(held)) return false;
+  return when.in.some((listed) => listedValue(listed, held));
 }
 
 /** Mono type tag next to the label (`varchar`, `enum`, `→ team_members`). */
