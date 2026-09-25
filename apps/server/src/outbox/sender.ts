@@ -39,7 +39,8 @@
  * ── WHAT IS NEVER SENT ─────────────────────────────────────────────────────
  * An address that is not one (`skipped`); an address on a reserved domain —
  * `example.*`, `.test`, `.invalid`, `.localhost`, `.example` — which is what
- * every sample address uses (`skipped`); a template with an HTML block, whose
+ * every sample address uses (`skipped`); a row the app's sample ledger lists,
+ * whatever its address (`skipped`); a template with an HTML block, whose
  * values would go out unescaped with what a stranger typed in them
  * (`failed`); anything of an app that is switched off (left `queued` until
  * it is switched on).
@@ -119,7 +120,7 @@ import { recipientLocale } from '../i18n/server-i18n.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { outboxContext, outboxEffectContext } from './context.js';
-import { verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
+import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence } from './timing.js';
@@ -629,6 +630,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const cols = box.definition.columns;
     const kind = String(row[cols.kind] ?? '');
     const producer = producerOf(box.definition, kind);
+    // A message the app's sample brought in is sample data like the rest: never sent, whatever address it carries.
+    const key = Object.fromEntries(ctx.outbox.primaryKey.map((column) => [column, row[column]]));
+    if (await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key)) return { status: 'skipped', error: 'Sample data (never sent)' };
     const { addressed, to: found, lookedUp } = await addressOf(ctx, box, producer, row);
     if (!plausibleAddress(found)) return { status: 'skipped', error: 'No email on file' };
     if (reservedAddress(found)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };

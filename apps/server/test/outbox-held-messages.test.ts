@@ -680,6 +680,14 @@ for (const [dialect, reachable] of LEGS) {
       expect(await messages(crashed['id'])).toHaveLength(3);
       expect(await sender.sendApp('studio', at('2026-10-02T12:01:00Z'))).toBe(0);
       expect(await mail()).toHaveLength(before);
+
+      // A sample that brings a message queued, to a real address: sample data like the rest, never sent.
+      await rows(`INSERT INTO studio.messages (kind, status, to_address, invoice_id) VALUES ('invoice-sent', 'queued', 'ann.real@north-studio.dev', ${String(sample)})`);
+      const brought = Number((await rows(`SELECT max(id) AS id FROM studio.messages`))[0]!['id']);
+      await rows(`INSERT INTO studio_sample_rows (seq, table_ref, pk) VALUES (2, 'messages', '{"id":${String(brought)}}')`);
+      await sender.sendApp('studio', at('2026-10-02T12:02:00Z'));
+      expect(await mail()).toHaveLength(before);
+      expect((await rows(`SELECT status, error FROM studio.messages WHERE id = ${String(brought)}`))[0]).toMatchObject({ status: 'skipped', error: 'Sample data (never sent)' });
       await rows(`DELETE FROM studio_sample_rows`);
     });
 

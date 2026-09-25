@@ -225,6 +225,22 @@ export interface OutboxProducers {
   reset(): void;
 }
 
+/** Whether a row is one the app added as sample data: its sample ledger lists it. */
+export async function isSampleRow(meta: MetaDb, db: Kysely<SourceDatabase>, box: LiveOutbox, table: ResolvedTable, key: Row): Promise<boolean> {
+  const records = await appTablesRepo(meta).forInstall(box.connectionId, box.appKey);
+  const ledger = records.find((record) => record.role === 'sample-ledger' && record.state === 'created');
+  const ref = records.find((record) => record.tableName === table.name)?.ref;
+  if (ledger === undefined || ref === undefined) return false;
+  const found = await db
+    .selectFrom(ledger.tableName as never)
+    .select(sql`1`.as('one'))
+    .where('table_ref' as never, '=', ref as never)
+    .where('pk' as never, '=', canonicalJson(key) as never)
+    .executeTakeFirst()
+    .catch(() => undefined);
+  return found !== undefined;
+}
+
 export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
   let cached: { at: number; list: (LiveOutbox & { installed: boolean })[] } | null = null;
 
@@ -268,21 +284,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     return (await stored()).filter((box) => box.installed);
   }
 
-  /** Whether a row is one the app added as sample data. */
-  async function isSample(db: Kysely<SourceDatabase>, box: LiveOutbox, table: ResolvedTable, key: Row): Promise<boolean> {
-    const records = await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey);
-    const ledger = records.find((record) => record.role === 'sample-ledger' && record.state === 'created');
-    const ref = records.find((record) => record.tableName === table.name)?.ref;
-    if (ledger === undefined || ref === undefined) return false;
-    const found = await db
-      .selectFrom(ledger.tableName as never)
-      .select(sql`1`.as('one'))
-      .where('table_ref' as never, '=', ref as never)
-      .where('pk' as never, '=', canonicalJson(key) as never)
-      .executeTakeFirst()
-      .catch(() => undefined);
-    return found !== undefined;
-  }
+  const isSample = (db: Kysely<SourceDatabase>, box: LiveOutbox, table: ResolvedTable, key: Row) => isSampleRow(deps.meta, db, box, table, key);
 
   /**
    * The settings row's switch, as the public switches read theirs: on only
