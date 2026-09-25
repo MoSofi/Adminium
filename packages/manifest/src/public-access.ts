@@ -148,6 +148,12 @@ export const publicAccessSchema = z
     /** The only values a browser may write into these columns. */
     writableValues: z.record(refSchema, valuesSchema).optional(),
     /**
+     * Columns a write through this entry must fill: accepting a proposal
+     * carries the name typed as a signature, and a write without it is
+     * refused rather than stored half.
+     */
+    requires: z.array(refSchema).min(1).max(8).optional(),
+    /**
      * The state a row must be IN to be changed — part of the update itself,
      * never of a read, so a finished visit still lists but cannot be moved.
      * `from-now` on a time: only while it is still ahead. `{within: 60}` on a
@@ -336,8 +342,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     const identity = identities.get(key);
 
     // A change to an existing row, from a browser, only behind a claim: the
-    // guest reaches their own row and nothing else.
-    if (patches && entry.claim === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true)) {
+    // guest reaches their own row (or a child of it) and nothing else.
+    if (patches && entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true)) {
       out.push({ path: at('methods'), message: 'PATCH is allowed only with a claim' });
     }
     // Nothing a server decides may be written by a browser.
@@ -459,7 +465,9 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       if (!pointsUp && !pointsDown) {
         out.push({ path: at('visibleWith', 'via'), message: `neither "${entry.table}.${v.via}" points at "${v.table}" nor "${v.table}.${v.via}" at "${entry.table}"` });
       }
-      if (entry.methods.includes('PATCH')) out.push({ path: at('methods'), message: 'an entry visible with a parent reads, and may create; it changes nothing' });
+      if (entry.methods.includes('PATCH') && entry.writable === undefined) {
+        out.push({ path: at('writable'), message: 'a change through an entry visible with a parent names what it may write' });
+      }
       if (hops(entries, i) > 2) out.push({ path: at('visibleWith'), message: 'an entry is at most two steps from the entry its person claims' });
       if (root === undefined) out.push({ path: at('visibleWith'), message: 'the entries it is visible with lead to no claimed person' });
     }
@@ -496,6 +504,9 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       }
     }
 
+    for (const ref of entry.requires ?? []) {
+      if (!writable.has(ref)) out.push({ path: at('requires'), message: `"${ref}" is not writable, so a write cannot fill it` });
+    }
     for (const [ref, values] of Object.entries(entry.writableValues ?? {})) {
       if (!writable.has(ref)) out.push({ path: at('writableValues', ref), message: `"${ref}" is not writable` });
       const found = column(ref);

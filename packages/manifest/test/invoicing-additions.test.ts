@@ -209,7 +209,7 @@ describe('claims by link and by token, visibleWith, files and documents', () => 
     expectIssue(m, '"handover" opens a row to whoever holds its link, so it only reads');
   });
 
-  it('finds the parent entry of visibleWith, in either direction, and refuses a PATCH through it', () => {
+  it('finds the parent entry of visibleWith, in either direction, and changes a child only through a writable list', () => {
     let m = valid();
     (entryOf(m, 'invoice_lines')['visibleWith'] as Doc)['via'] = 'position';
     expectIssue(m, 'neither "invoice_lines.position" points at "invoices" nor "invoices.position" at "invoice_lines"');
@@ -218,13 +218,25 @@ describe('claims by link and by token, visibleWith, files and documents', () => 
     expectIssue(m, 'neither "invoice_lines.document_id" points at "proposals"');
     m = valid();
     entryOf(m, 'invoice_lines')['methods'] = ['GET', 'PATCH'];
-    expectIssue(m, 'an entry visible with a parent reads, and may create; it changes nothing');
+    expectIssue(m, 'a change through an entry visible with a parent names what it may write');
+    m = valid();
+    Object.assign(entryOf(m, 'invoice_lines'), { methods: ['GET', 'PATCH'], writable: ['description'] });
+    expect(issuesText(m)).toBe('');
   });
 
   it('keeps files to text columns the entry shows', () => {
     const m = valid();
     entryOf(m, 'projects', 'handover')['select'] = ['status'];
     expectIssue(m, '"handover_file" is not one of the columns the entry shows');
+  });
+
+  it('requires a column only a write through the entry may fill', () => {
+    let m = valid();
+    entryOf(m, 'proposals')['requires'] = ['signed_name'];
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    entryOf(m, 'proposals')['requires'] = ['status'];
+    expectIssue(m, '"status" is not writable, so a write cannot fill it');
   });
 
   it('checks writableWhen null on a nullable column and from-today on a date', () => {
