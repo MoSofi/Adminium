@@ -56,7 +56,9 @@ import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
 import type { RecordFilter } from '../../crud/filters.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { appDocumentOff } from '../../documents/app-documents.js';
-import { outboundKey } from '../../documents/compose.js';
+import { outboundKey, type ReadFilter } from '../../documents/compose.js';
+import { compileFilter } from '../../crud/filters.js';
+import { visibilityOf, visibleCondition, type VisibilityStep } from '../../public-api/visible-with.js';
 import { STATEMENT_PERIODS, type StatementSources } from '../../documents/statement.js';
 import type { ProfileMapping } from '../../documents/subject.js';
 import { claimPredicateFor, combinePredicates, type PublicSessionContext } from '../../public-api/claim.js';
@@ -266,10 +268,11 @@ export function createDocumentAccess(deps: {
     return resource.level !== 'verified' || session.level === 'verified';
   }
 
-  /** Whether a session may read this resource's rows at all: readable, reached, at its level. */
-  function readable(resource: CompiledResource, session: PublicSessionContext): boolean {
+  /** Whether a session may read this resource's rows at all: readable, reached (through its parents too), at its level. */
+  function readable(resource: CompiledResource, session: PublicSessionContext, key: ResolvedKey, view: SnapshotView): boolean {
     if (resource.kind !== 'records' || !resource.actions.has('read')) return false;
     if (!claimPredicateFor(resource, session).reachable) return false;
+    if (!visibilityOf({ scope: key.scope, resource, session, view }).reachable) return false;
     return resource.level !== 'verified' || session.level === 'verified';
   }
 
@@ -290,7 +293,7 @@ export function createDocumentAccess(deps: {
   async function sourceAccess(
     ok: PublicAccess & { session: PublicSessionContext },
     profile: DocumentProfile,
-  ): Promise<{ state: 'ok'; filters: Map<string, RecordFilter | null> } | { state: 'level' | 'none' }> {
+  ): Promise<{ state: 'ok'; filters: Map<string, ReadFilter> } | { state: 'level' | 'none' }> {
     const view = await deps.viewFor(ok.key.connectionId);
     if (view === null) return { state: 'none' };
     const needed = new Map<string, 'statement' | 'linked'>();
@@ -311,14 +314,14 @@ export function createDocumentAccess(deps: {
       if (target !== undefined && !needed.has(target)) needed.set(target, 'linked');
     }
 
-    const filters = new Map<string, RecordFilter | null>();
+    const filters = new Map<string, ReadFilter>();
     for (const [tableId, why] of needed) {
       const serving = [...ok.key.scope.byRef.values()].filter((r) => r.table === tableId && r.kind === 'records' && r.actions.has('read'));
       if (serving.length === 0) {
         if (why === 'statement') return { state: 'none' };
         continue;
       }
-      const open = serving.filter((r) => readable(r, ok.session));
+      const open = serving.filter((r) => readable(r, ok.session, ok.key, view));
       if (open.length === 0) {
         const short = serving.some((r) => claimPredicateFor(r, ok.session).reachable && r.level === 'verified');
         return { state: short ? 'level' : 'none' };
@@ -329,13 +332,50 @@ export function createDocumentAccess(deps: {
       } catch {
         return { state: 'none' };
       }
-      const predicates: (RecordFilter | null)[] = open.map((r) => {
+      const readers = open.map((r) => {
         const claim = claimPredicateFor(r, ok.session);
-        return combinePredicates(mandatoryAt(r.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null);
+        const visibility = visibilityOf({ scope: ok.key.scope, resource: r, session: ok.session, view });
+        return {
+          predicate: combinePredicates(mandatoryAt(r.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null),
+          steps: visibility.reachable ? visibility.steps : [],
+        };
       });
-      filters.set(tableId, predicates.some((p) => p === null) ? null : predicates.length === 1 ? predicates[0]! : { or: predicates as RecordFilter[] });
+      const predicates = readers.map((reader) => reader.predicate);
+      if (readers.every((reader) => reader.steps.length === 0)) {
+        filters.set(tableId, predicates.some((p) => p === null) ? null : predicates.length === 1 ? predicates[0]! : { or: predicates as RecordFilter[] });
+      } else {
+        // A child's rows: only those whose parents the person reaches, by an EXISTS a filter cannot say.
+        filters.set(tableId, await parentNarrowing(ok.key, view, table, readers));
+      }
     }
     return { state: 'ok', filters };
+  }
+
+  /**
+   * The narrowing of a table some of whose readers are visible with a
+   * parent: a row passes when any reader shows it — its own conditions and,
+   * for a child, its parent chain's EXISTS, correlated on the table's name as
+   * every document read names it.
+   */
+  async function parentNarrowing(
+    key: ResolvedKey,
+    view: SnapshotView,
+    table: ResolvedTable,
+    readers: readonly { predicate: RecordFilter | null; steps: readonly VisibilityStep[] }[],
+  ): Promise<(query: unknown) => unknown> {
+    const { db, dialect } = await deps.manager.data(key.connectionId);
+    const ctx = { view, table, canReadPii: true, dynamic: db.dynamic, dialect };
+    return (query) =>
+      (query as { where: (build: (eb: never) => unknown) => unknown }).where((eb: never) => {
+        const builder = eb as unknown as { and: (list: unknown[]) => unknown; or: (list: unknown[]) => unknown; val: (value: unknown) => unknown } & ((a: unknown, op: string, b: unknown) => unknown);
+        const each = readers.map((reader) => {
+          const parts: unknown[] = [];
+          if (reader.predicate !== null) parts.push(compileFilter(eb, ctx, reader.predicate));
+          if (reader.steps.length > 0) parts.push(visibleCondition({ db, dialect, view }, table.name, reader.steps));
+          return parts.length === 0 ? builder(builder.val(1), '=', 1) : builder.and(parts);
+        });
+        return builder.or(each);
+      });
   }
 
   /** The profiles this key's owner made on its connection. */

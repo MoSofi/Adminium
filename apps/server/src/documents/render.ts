@@ -73,7 +73,7 @@ import {
   type RecordRef,
 } from '@adminium/meta';
 
-import type { RecordFilter } from '../crud/filters.js';
+import type { ReadFilter } from './compose.js';
 import type { FileStore } from '../files/store.js';
 import { providerByKey, providersFor, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EmailLogger } from '../email/send.js';
@@ -116,7 +116,7 @@ export interface RenderDeps {
      * its own row, by table id: a filter narrows those rows, null reads them
      * whole. Absent: a staff or triggered render, read with its own grants.
      */
-    readFilters?: ReadonlyMap<string, RecordFilter | null> | undefined;
+    readFilters?: ReadonlyMap<string, ReadFilter> | undefined;
   }) => Promise<SourceRead | null>;
   /** The add-on's own non-secret settings. */
   settingsFor: (addOnKey: string) => Promise<Record<string, unknown>>;
@@ -192,7 +192,7 @@ export interface RenderRequest {
   /** A statement's period (`all` when absent). */
   period?: StatementPeriod | undefined;
   /** What a public caller may read beside the row (see `RenderDeps.readSource`). */
-  readFilters?: ReadonlyMap<string, RecordFilter | null> | undefined;
+  readFilters?: ReadonlyMap<string, ReadFilter> | undefined;
 }
 
 export type RenderOutcome =

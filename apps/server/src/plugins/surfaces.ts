@@ -682,11 +682,13 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       );
       const values = await settingsOf(appKey);
       const addOns = await addOnsOf(appKey, 'customer');
+      const shared = await sharedLinkKeysFor(appKey, connectionId);
       return {
         baseUrl: '',
         publishableKey: openPublishableKey(crypto, key.tokenEncrypted),
         appName,
         ...(addOns === null ? {} : { addOns }),
+        ...(Object.keys(shared).length === 0 ? {} : { publicKeys: shared }),
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
       };
@@ -749,6 +751,32 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const key = await keys.newestLiveByAppAndConnection(appKey, 'customer', connectionId, Date.now(), purpose);
         const binding = key === null ? null : keyStaffBinding(key);
         if (key === null || key.managedBy !== appKey || binding === null || binding.appKey !== appKey || !held.has(binding.roleSlug)) continue;
+        out[purpose] = openPublishableKey(crypto, key.tokenEncrypted);
+      }
+      return out;
+    }
+
+    /**
+     * The app's keys that open one row by a shared link (a handover page), by
+     * purpose — for its public side, beside its own key. Such a key is bound
+     * to no staff member and only reads; what it opens is the row whose
+     * unguessable code the visitor brings in the link's fragment, so the key
+     * is a handle, never the secret. A staff-bound key (a kiosk's) is never
+     * here.
+     */
+    async function sharedLinkKeysFor(appKey: string, connectionId: string | null): Promise<Record<string, string>> {
+      const metaDb = opts.metaDb;
+      const crypto = opts.crypto;
+      if (metaDb === undefined || crypto === undefined) return {};
+      const keys = publicKeysRepo(metaDb);
+      const out: Record<string, string> = {};
+      for (const purpose of await keys.purposesByApp(appKey)) {
+        if (purpose === CUSTOMER_KEY_PURPOSE) continue;
+        const key =
+          connectionId === null
+            ? await keys.newestLiveByApp(appKey, 'customer', Date.now(), purpose)
+            : await keys.newestLiveByAppAndConnection(appKey, 'customer', connectionId, Date.now(), purpose);
+        if (key === null || key.managedBy !== appKey || keyStaffBinding(key) !== null || key.tokenEncrypted === null) continue;
         out[purpose] = openPublishableKey(crypto, key.tokenEncrypted);
       }
       return out;

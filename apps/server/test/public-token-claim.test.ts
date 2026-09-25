@@ -7,10 +7,12 @@
  * only; stopping it, its expiry or a new code closes every session at once;
  * an unknown code is the one 404, and guessing is held to a few a minute.
  */
-import { publicKeysRepo } from '@adminium/meta';
+import { publicKeysRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { createPublicViews } from '../src/public-api/runtime.js';
 import { compileScope, ScopeCompileError, type PublicScopeDocument } from '../src/public-api/scope.js';
+import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
@@ -28,6 +30,8 @@ function manifest(): Record<string, unknown> {
           { ref: 'share_token', type: 'text', maxLength: 16, nullable: true, rules: { code: { length: 16 } } },
           { ref: 'share_expires_on', type: 'date', nullable: true },
           { ref: 'share_stopped', type: 'bool', default: false },
+          // A code shown on screen (not a secret): the desk sees it, and still never picks it.
+          { ref: 'ref_code', type: 'text', maxLength: 8, nullable: true, rules: { code: { length: 6 } } },
         ],
       },
       {
@@ -79,7 +83,7 @@ describe.each(LEGS)('a row shared by link — %s', (dialect, available) => {
     if (!available) return;
     h = await installInvoicing(dialect, manifest());
     const t = (short: string) => h.real(short);
-    await h.rows(`insert into ${t('projects')} (name, share_token, share_stopped) values ('Harbour rebrand', '${TOKEN}', ${dialect === 'postgres' ? 'false' : '0'})`);
+    await h.rows(`insert into ${t('projects')} (name, share_token, ref_code, share_stopped) values ('Harbour rebrand', '${TOKEN}', 'ABC123', ${dialect === 'postgres' ? 'false' : '0'})`);
     await h.rows(`insert into ${t('projects')} (name, share_token, share_stopped) values ('Other studio job', '${OTHER}', ${dialect === 'postgres' ? 'false' : '0'})`);
     await h.rows(`insert into ${t('deliverables')} (project_id, title, status) values (1, 'Logo files', 'approved')`);
     await h.rows(`insert into ${t('deliverables')} (project_id, title, status) values (1, 'Draft poster', 'draft')`);
@@ -144,7 +148,44 @@ describe.each(LEGS)('a row shared by link — %s', (dialect, available) => {
     await h.rows(`update ${h.real('projects')} set share_expires_on = null where id = 1`);
   });
 
+  it.skipIf(!available)('takes a new code only from the server’s “make a new link”, and never a code the desk types', async () => {
+    const desk = await usersRepo(h.meta).create({ email: 'desk@studio.dev', name: 'Desk', passwordHash: await adminPasswordHash() });
+    await rolesRepo(h.meta).assignToUser(desk.id, (await rolesRepo(h.meta).findBySlug('super-admin'))!.id);
+    const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'desk@studio.dev', password: ADMIN_PASSWORD } });
+    const cookie = sessionCookie(login.headers['set-cookie']);
+    const projects = (await createPublicViews(h.meta).viewFor(h.connectionId))!.table(h.real('projects')).id;
+    const url = (rest: string) => `/api/v1/data/${h.connectionId}/${encodeURIComponent(projects)}${rest}`;
+    const codeOf = async () => String((await h.rows(`select share_token from ${h.real('projects')} where id = 1`))[0]!['share_token']);
+    const before = await codeOf();
+    const session = await sessionOf(before);
+    // The link's secret, typed by the desk: refused, as every secret column is.
+    const typed = await served.composed.app.inject({ method: 'PATCH', url: url('/1'), headers: { cookie }, payload: { values: { share_token: 'CHOSENBYDESK0000' } } });
+    expect(typed.statusCode).toBe(422);
+    expect(await codeOf()).toBe(before);
+    // A code shown on screen: a whole-record form sending it back still saves, and the value is not taken.
+    const shown = String((await h.rows(`select ref_code from ${h.real('projects')} where id = 1`))[0]!['ref_code']);
+    const patched = await served.composed.app.inject({ method: 'PATCH', url: url('/1'), headers: { cookie }, payload: { values: { ref_code: 'MINE01', name: 'Harbour rebrand' } } });
+    expect(patched.statusCode, patched.body).toBe(200);
+    expect(String((await h.rows(`select ref_code from ${h.real('projects')} where id = 1`))[0]!['ref_code'])).toBe(shown);
+    const created = await served.composed.app.inject({ method: 'POST', url: url(''), headers: { cookie }, payload: { values: { name: 'New job', ref_code: 'MINE02' } } });
+    expect(created.statusCode, created.body).toBe(201);
+    expect((created.json() as { data: { ref_code: string } }).data.ref_code).toMatch(/^[0-9A-Z]{6}$/);
+    expect((created.json() as { data: { ref_code: string } }).data.ref_code).not.toBe('MINE02');
+    // Made again by the server: the old link and its session close at once.
+    const made = await served.composed.app.inject({ method: 'POST', url: url('/1/regenerate-code'), headers: { cookie }, payload: { column: 'share_token' } });
+    expect(made.statusCode, made.body).toBe(200);
+    const after = await codeOf();
+    expect(after).not.toBe(before);
+    expect(after).toMatch(/^[0-9A-Z]{16}$/);
+    expect(await titles(session)).toBe(404);
+    expect((await open(before)).statusCode).toBe(404);
+    expect(await titles(await sessionOf(after))).toEqual(['Logo files']);
+    // A column Adminium makes no code for.
+    expect((await served.composed.app.inject({ method: 'POST', url: url('/1/regenerate-code'), headers: { cookie }, payload: { column: 'name' } })).statusCode).toBe(422);
+  });
+
   it.skipIf(!available)('closes every session when the row takes a new code', async () => {
+    await h.rows(`update ${h.real('projects')} set share_token = '${TOKEN}' where id = 1`);
     const session = await sessionOf(TOKEN);
     await h.rows(`update ${h.real('projects')} set share_token = 'NEWC0DE000000000' where id = 1`);
     expect(await titles(session)).toBe(404);

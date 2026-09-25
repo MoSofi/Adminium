@@ -277,7 +277,8 @@ describe.each(LEGS)('signing in by an emailed link — %s', (dialect, available)
     for (let i = 0; i < 10; i += 1) {
       const ben = await send('/claim/link/verify', { email: 'ben@example.org', code: String(wrong).padStart(6, '0') }, { proof: false });
       const stranger = await send('/claim/link/verify', { email: 'bex@example.org', code: String(wrong).padStart(6, '0') }, { proof: false });
-      expect(ben.statusCode, ben.body).toBe(403);
+      // Five wrong (each code tried five times), then nothing left to try — the same for both.
+      expect(served.codeOf(ben), ben.body).toBe(i < 5 ? 'PUBLIC_CODE_WRONG' : 'PUBLIC_CODE_EXPIRED');
       expect(stranger.body).toBe(ben.body);
     }
     const locked = await send('/claim/link/verify', { email: 'ben@example.org', code: right }, { proof: false });

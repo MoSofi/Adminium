@@ -94,10 +94,20 @@ export interface OutboxDispatcher {
   onRecordEvent(event: RecordWriteEvent): Promise<void>;
 }
 
+/**
+ * What ends a signed-in person's sessions and takes back their sign-in
+ * links when the desk changes the address they sign in by; decorated by
+ * compose (`public-api/identity-email-watch.ts`). Never throws.
+ */
+export interface PublicIdentityListener {
+  onRecordEvent(event: RecordWriteEvent): Promise<void>;
+}
+
 declare module 'fastify' {
   interface FastifyInstance {
     automations: AutomationDispatcher;
     outbox: OutboxDispatcher;
+    publicIdentities: PublicIdentityListener;
     /** The ONE widget-data result cache `routes/widget-data` serves from (compose). */
     widgetDataCache: WidgetDataCache;
   }
@@ -153,6 +163,8 @@ export interface AfterRecordWriteInput extends RecordWriteEvent {
 export async function emitRecordEvent(app: FastifyInstance, event: RecordWriteEvent): Promise<void> {
   // An app's emails are queued whether or not any rule exists; the producers never throw.
   if (app.hasDecorator('outbox')) await app.outbox.onRecordEvent(event);
+  // A person's sign-in address changed by the desk: their sessions and links end. Never throws.
+  if (app.hasDecorator('publicIdentities')) await app.publicIdentities.onRecordEvent(event);
   if (!app.hasDecorator('automations')) return;
   await app.automations.onRecordEvent(event);
 }

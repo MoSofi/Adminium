@@ -78,6 +78,8 @@ export const LINK_SENDS_DAY = 10;
 export const LINK_LIVE_MAX = 3;
 /** Wrong codes a day that lock an address's code path (never its links). */
 export const LINK_CODE_FAILURES_DAY = 10;
+/** How long after it was sent a link may ask for a new one (once). */
+export const LINK_RESEND_WITHIN_MS = DAY_MS;
 /** A link's session lasts this long idle, and never longer than the cap. */
 export const LINK_SESSION_IDLE_MS = 30 * 60_000;
 export const LINK_SESSION_MAX_MS = 12 * 60 * 60_000;
@@ -155,7 +157,15 @@ function identityQuery(db: Kysely<SourceDatabase>, view: SnapshotView, table: Re
   return query;
 }
 
-/** The one person whose address this is, or null for nobody — or for two, which is nobody's. */
+/**
+ * The one person whose address this is, or null for nobody — or for two,
+ * which is nobody's.
+ *
+ * The database finds the candidates, and the address's own keyed hash
+ * decides: a MySQL collation reads `adà@` as `ada@`, and a look-alike
+ * spelling must be a stranger's address — counted, capped and answered as
+ * one — never a second way to mail a client.
+ */
 export async function personByAddress(input: {
   db: Kysely<SourceDatabase>;
   view: SnapshotView;
@@ -164,11 +174,17 @@ export async function personByAddress(input: {
   timezone: string;
   dialect: Parameters<typeof compileFilter>[1]['dialect'];
   address: string;
+  addressSecret: Buffer;
 }): Promise<Row | null> {
-  const rows = (await identityQuery(input.db, input.view, input.table, input.identity, input.timezone, input.dialect)
+  const typed = hashAddress(input.addressSecret, input.address);
+  const candidates = (await identityQuery(input.db, input.view, input.table, input.identity, input.timezone, input.dialect)
     .where(sql`lower(trim(${sql.ref(input.identity.email)}))`, '=', input.address.trim().toLowerCase() as never)
-    .limit(2)
+    .limit(20)
     .execute()) as Row[];
+  const rows = candidates.filter((row) => {
+    const email = row[input.identity.email];
+    return typeof email === 'string' && hashAddress(input.addressSecret, email) === typed;
+  });
   return rows.length === 1 ? (rows[0] as Row) : null;
 }
 
@@ -290,11 +306,15 @@ export async function runSignInLinkJob(deps: SignInLinkDeps, job: SignInLinkJob)
   if (job.mode === 'start') {
     address = deps.crypto.decrypt(job.address);
   } else {
-    // "Email me a new link": to that link's own address, while it is still the person's.
+    /*
+     * "Email me a new link": to that link's own address, while it is still
+     * the person's — once per link, and only within a day of it being sent,
+     * so a forwarded old email is not a lever to keep mailing its owner.
+     */
     const earlier = await challenges.findByTokenHash(job.tokenHash);
     if (earlier === null || !OPENING_PURPOSES.has(earlier.purpose) || earlier.keyId !== keyed.keyId) return;
     const pointer = openPointer(deps.crypto, earlier.newDestinationEnc);
-    if (pointer === null) return;
+    if (pointer === null || !(await challenges.takeResend(earlier.id, LINK_RESEND_WITHIN_MS, now))) return;
     const row = await personByKey({ ...found, value: pointer });
     const current = row?.[identity.email];
     if (row === null || typeof current !== 'string' || hashAddress(deps.addressSecret, current) !== earlier.destinationHash) return;
@@ -314,10 +334,10 @@ export async function runSignInLinkJob(deps: SignInLinkDeps, job: SignInLinkJob)
     deps.logger?.info({ keyId: keyed.keyId, resent }, 'sign-in link held: this address has had as many as it may for now');
     return;
   }
-  const person = known ?? (await personByAddress({ ...found, address }));
+  const person = known ?? (await personByAddress({ ...found, address, addressSecret: deps.addressSecret }));
   const { token, hash } = newLinkToken();
   const code = newCode();
-  const challenge = await challenges.create(
+  await challenges.create(
     {
       keyId: keyed.keyId,
       ref: identity.ref,
@@ -334,30 +354,30 @@ export async function runSignInLinkJob(deps: SignInLinkDeps, job: SignInLinkJob)
   );
   if (person === null) return;
 
+  /*
+   * From here a failure sends nothing and closes nothing: the real link stays
+   * open as a stranger's decoy stays open, so no answer a caller can reach
+   * afterwards — a code typed, a link peeked — tells a client from a stranger.
+   */
   const base = keyed.managedBy === null ? null : await guestBase({ meta: deps.meta, hostFor: deps.hostFor }, keyed.managedBy);
   const to = person[identity.email];
   if (base === null || typeof to !== 'string') {
-    await challenges.consume(challenge.id, now);
     deps.logger?.warn({ keyId: keyed.keyId, app: keyed.managedBy }, 'sign-in link not sent: the app has no public address');
     return;
   }
   const contact = keyed.managedBy === null ? null : await appContact(deps.meta, deps.manager, keyed.managedBy, keyed.connectionId);
-  const queued = await enqueueEmail(
-    { meta: deps.meta, ...(deps.logger === undefined ? {} : { logger: deps.logger as never }) },
-    {
-      to: to.trim(),
-      templateKey: SIGN_IN_LINK_TEMPLATE_KEY,
-      locale: job.locale,
-      vars: {
-        appName: contact?.name ?? String((await settingsRepo(deps.meta).get('branding.appName')) ?? 'Adminium'),
-        link: `${base}/c#${token}`,
-        code,
-        minutes: String(LINK_TTL_MS / 60_000),
-      },
-    },
-  );
-  // Nothing could be queued: the link dies here rather than wait for a mail that never comes.
-  if (queued === null) await challenges.consume(challenge.id, now);
+  const vars = {
+    appName: contact?.name ?? String((await settingsRepo(deps.meta).get('branding.appName')) ?? 'Adminium'),
+    link: `${base}/c#${token}`,
+    code,
+    minutes: String(LINK_TTL_MS / 60_000),
+  };
+  const logger = deps.logger === undefined ? {} : { logger: deps.logger as never };
+  const send = (locale: string) => enqueueEmail({ meta: deps.meta, ...logger }, { to: to.trim(), templateKey: SIGN_IN_LINK_TEMPLATE_KEY, locale, vars });
+  // A language whose template is switched off still signs its person in: in US English.
+  if ((await send(job.locale)) === null && job.locale !== 'en_US' && (await send('en_US')) === null) {
+    deps.logger?.warn({ keyId: keyed.keyId, app: keyed.managedBy }, 'sign-in link not sent: no sign-in link template could be sent');
+  }
 }
 
 /** Registers the job on the shared queue — internal: only the link routes enqueue it. */
@@ -405,12 +425,12 @@ export async function personOfChallenge(
 }
 
 /**
- * A code typed on another device, against the links open for an address:
- * one try is charged BEFORE anything is compared — on the newest link that
- * still has tries — and the code is then compared with every open link's
- * that still takes tries, so a right code from an older email works and a
- * wrong one costs one try, not three. A decoy's code matches nothing a person
- * was sent.
+ * A code typed on another device, against the links open for an address.
+ * Every open code takes one of its five tries BEFORE it is compared, and only
+ * a code that took one is compared — so no code is ever compared more than
+ * five times, however many links are open or guesses in flight, and a right
+ * code from an older email still works. (The day's count of guesses is the
+ * route's, taken first.) A decoy's code matches nothing a person was sent.
  */
 export async function tryLinkCode(input: {
   meta: MetaDb;
@@ -420,23 +440,19 @@ export async function tryLinkCode(input: {
   now: number;
 }): Promise<{ outcome: 'right'; challenge: PublicChallenge } | { outcome: 'wrong'; triesLeft: number } | { outcome: 'expired' }> {
   const challenges = publicChallengesRepo(input.meta);
-  let charged: { challenge: PublicChallenge; tries: number } | null = null;
+  const charged: { challenge: PublicChallenge; tries: number }[] = [];
   for (const challenge of input.open) {
     const tries = await challenges.charge(challenge.id, CODE_TRIES);
-    if (tries !== null) {
-      charged = { challenge, tries };
-      break;
-    }
+    if (tries !== null) charged.push({ challenge, tries });
   }
-  if (charged === null) return { outcome: 'expired' };
+  if (charged.length === 0) return { outcome: 'expired' };
   let matched: PublicChallenge | null = null;
-  for (const challenge of input.open) {
-    // Every open code compared, whichever matches: the time taken says nothing about which.
-    const alive = challenge.id === charged.challenge.id || challenge.attempts < CODE_TRIES;
-    if (codeMatches(input.codeSecret, codeBinding(challenge), input.code, challenge.codeHash) && alive && matched === null) matched = challenge;
+  for (const { challenge } of charged) {
+    // Every charged code compared, whichever matches: the time taken says nothing about which.
+    if (codeMatches(input.codeSecret, codeBinding(challenge), input.code, challenge.codeHash) && matched === null) matched = challenge;
   }
   // A code out of tries takes no more (`charge` refuses it), but its LINK is not
   // used up: guessing at a person's code must never void the link in their mailbox.
-  if (matched === null) return { outcome: 'wrong', triesLeft: Math.max(CODE_TRIES - charged.tries, 0) };
+  if (matched === null) return { outcome: 'wrong', triesLeft: Math.max(CODE_TRIES - Math.min(...charged.map((c) => c.tries)), 0) };
   return (await challenges.consume(matched.id, input.now)) ? { outcome: 'right', challenge: matched } : { outcome: 'expired' };
 }

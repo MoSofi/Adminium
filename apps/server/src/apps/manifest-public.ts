@@ -317,6 +317,19 @@ export function planPublicEndpoints(
      * A child's copy of its person (`client_id` on a note) is the desk's, not
      * an authority: filled from the parent, never taken from a browser.
      */
+    /*
+     * A child the parent points at is read by the parent's column: nothing on
+     * the key may write that column, or a person re-points their own row at
+     * another person's child.
+     */
+    if (entry.visibleWith !== undefined && parent !== undefined && pointsAt(entry.visibleWith.table, entry.visibleWith.via, entry.table) && !pointsAt(entry.table, entry.visibleWith.via, entry.visibleWith.table)) {
+      const via = entry.visibleWith.via;
+      for (const other of entries) {
+        if (other.table !== entry.visibleWith.table || (other.key ?? 'customer') !== (entry.key ?? 'customer')) continue;
+        const writes = (other.writable ?? []).includes(via) || Object.prototype.hasOwnProperty.call(other.writableValues ?? {}, via) || Object.prototype.hasOwnProperty.call(other.defaults ?? {}, via);
+        if (writes) safety.push(`"${entry.visibleWith.table}.${via}" is the link a child reads its rows by, so no browser writes it`);
+      }
+    }
     const identityTable = identityTableOf(entry);
     if (entry.visibleWith !== undefined && identityTable !== undefined) {
       for (const column of entry.writable ?? []) {

@@ -145,6 +145,8 @@ function resolveMapping(
   const out: { index: number; from: string; column: ResolvedColumn }[] = [];
   for (const entry of mapping.columns) {
     if (entry.to === null) continue; // "Don't import"
+    // A code (a shared link's token) is Adminium's to make, never a file's to bring.
+    if (table.table.columns.find((column) => column.name === entry.to)?.code !== undefined) continue;
     const index = byName.get(entry.from.trim());
     if (index === undefined) {
       throw new Error(`mapped source column ${JSON.stringify(entry.from)} is not in the file header`);

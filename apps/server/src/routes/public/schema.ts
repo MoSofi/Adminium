@@ -96,11 +96,19 @@ export const publicConfigReply = z.object({
     currency: z.string().nullable(),
     claim: z
       .object({
-        strategy: z.enum(['lookup', 'email-code', 'external']),
+        /**
+         * `email-link`: the person asks for a link by address and nothing
+         * else opens a session. `token`: a shared link opens one row
+         * (`POST /public/claim/token`).
+         */
+        strategy: z.enum(['lookup', 'email-code', 'external', 'email-link', 'token']),
         ref: z.string(),
         match: z.array(z.string()),
-        /** A found session can be raised to `verified` by a code emailed to the person. */
-        verify: z.literal('email-code').optional(),
+        /**
+         * `email-code`: a found session can be raised to `verified` by a code
+         * emailed to the person. `email-link`: sessions come only from a link.
+         */
+        verify: z.enum(['email-code', 'email-link']).optional(),
       })
       .nullable(),
     /**
@@ -336,6 +344,8 @@ export const PUBLIC_ERROR_CODES = [
    */
   'APP_DISABLED',
   'SURFACE_OFF',
+  /** A sign-in or shared link that opens nothing any more: used, expired, stopped or taken back (410). */
+  'LINK_EXPIRED',
 ] as const;
 export type PublicErrorCode = (typeof PUBLIC_ERROR_CODES)[number];
 
@@ -380,3 +390,47 @@ export const PUBLIC_BATCH_MAX = 500;
 export const publicBatchBody = z.object({
   rows: z.array(z.record(z.string(), z.unknown())).max(PUBLIC_BATCH_MAX * 4),
 });
+
+// --- signing in by an emailed link, and a row shared by link --------------
+
+/** A link's token as the page read it from the fragment: 32 bytes, base64url. */
+const tokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'a sign-in link token');
+
+/** `POST /public/claim/link` — the address, and the language the email is written in. */
+export const linkStartBody = z
+  .object({
+    email: z.string().min(3).max(254),
+    /** A language tag (`fr`, `pt-BR`); the browser's own when absent. */
+    lang: z.string().min(2).max(35).optional(),
+  })
+  .strict();
+
+/** The same answer for any address: where it went, masked as the caller typed it. */
+export const linkStartReply = z.object({ data: z.object({ sentTo: z.string() }) });
+
+/** `POST /public/claim/link/peek` and `/resend`: the token alone. */
+export const linkTokenBody = z.object({ token: tokenSchema }).strict();
+
+/** `POST /public/claim/link/verify`: the link's token, or the address and the code on another device. */
+export const linkVerifyBody = z.union([
+  z.object({ token: tokenSchema }).strict(),
+  z.object({ email: z.string().min(3).max(254), code: z.string().min(1).max(12) }).strict(),
+]);
+
+/** The name the link's page greets its person by — the first name, and nothing else. */
+export const linkPeekReply = z.object({ data: z.object({ firstName: z.string() }) });
+
+export const linkVerifyReply = z.object({
+  data: z.object({
+    /** `adm_pubs_…`, sent back in `x-adminium-public-session`. */
+    session: z.string(),
+    expiresAt: z.number().int(),
+    level: z.literal('verified'),
+  }),
+});
+
+/** `POST /public/claim/token`: the code from a shared link's fragment, as typed or pasted. */
+export const tokenClaimBody = z.object({ token: z.string().min(8).max(40) }).strict();
+
+/** A resend always answers the same: nothing about the link or its person. */
+export const linkResendReply = z.object({ data: z.object({}) });

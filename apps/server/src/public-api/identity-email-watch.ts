@@ -16,7 +16,6 @@
  * changed, and is left alone (see the lane report: imports and undo emit no
  * record event at all).
  */
-import type { FastifyInstance } from 'fastify';
 import {
   publicChallengesRepo,
   publicKeysRepo,
@@ -27,7 +26,7 @@ import {
 } from '@adminium/meta';
 
 import type { ConnectionManager } from '../connections/manager.js';
-import type { OutboxDispatcher, RecordWriteEvent } from '../crud/after-record-write.js';
+import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { emailChangedLines, translatorForLocale } from '../email/builtins.js';
 import { EMAIL_CHANGED_TEMPLATE_KEY, enqueueEmail } from '../email/send.js';
@@ -163,24 +162,4 @@ export function createIdentityEmailWatch(deps: IdentityEmailWatchDeps): Identity
       }
     },
   };
-}
-
-const LISTENING = Symbol.for('adminium.public.identity-email-watch');
-
-/**
- * Hear every record event. The server has two consumers of them — the app
- * outbox and the rule engine — and no list to join, so this rides the outbox
- * dispatcher: its own call first, unchanged, then the watch. Once per server.
- */
-export function listenToRecordEvents(app: FastifyInstance, watch: IdentityEmailWatch): boolean {
-  if (!app.hasDecorator('outbox')) return false;
-  const outbox = app.outbox as OutboxDispatcher & { [LISTENING]?: true };
-  if (outbox[LISTENING] === true) return true;
-  const inner = outbox.onRecordEvent.bind(outbox);
-  outbox.onRecordEvent = async (event) => {
-    await inner(event);
-    await watch.onRecordEvent(event);
-  };
-  outbox[LISTENING] = true;
-  return true;
 }

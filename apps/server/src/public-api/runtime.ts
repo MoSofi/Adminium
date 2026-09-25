@@ -142,7 +142,7 @@ export interface TouchThrottle {
  */
 export function createTouchThrottle(
   intervalMs: number = PUBLIC_TOUCH_INTERVAL_MS,
-  now: () => number = Date.now,
+  now: () => number = () => Date.now(),
 ): TouchThrottle {
   const last = new Map<string, number>();
   return {

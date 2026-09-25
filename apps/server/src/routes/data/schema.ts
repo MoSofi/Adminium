@@ -117,6 +117,9 @@ export const claimLockReply = z.object({
   failures: z.number().int(),
 });
 
+/** `POST /data/:connectionId/:table/:recordId/regenerate-code`: the code column to make again. */
+export const regenerateCodeBody = z.object({ column: z.string().min(1).max(128) }).strict();
+
 export const claimLockClearedReply = z.object({
   /** Wrong codes that stop counting now. */
   cleared: z.number().int(),

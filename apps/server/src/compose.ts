@@ -133,6 +133,7 @@ import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, r
 import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
 import { createSignInLinkMinter } from './public-api/sign-in-link-minter.js';
 import { addressKey } from './public-api/claim-code.js';
+import { createIdentityEmailWatch } from './public-api/identity-email-watch.js';
 import { withOutboxMoves } from './outbox/moves.js';
 import {
   AUTOMATION_POLL_CRON,
@@ -828,6 +829,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     outboxProducers.reset();
   };
   app.decorate('outbox', outboxProducers);
+  /*
+   * A signed-in person's address changed through any write that announces
+   * itself: their sessions end, their open sign-in links are taken back and
+   * the old address is told. The views are read when an event arrives, by
+   * which time they exist.
+   */
+  app.decorate(
+    'publicIdentities',
+    createIdentityEmailWatch({ meta, manager, views: { viewFor: (connectionId) => publicViews.viewFor(connectionId) }, addressSecret: addressKey(env.ADMINIUM_SECRET), logger: app.log }),
+  );
   let signInLinkMinter: ReturnType<typeof createSignInLinkMinter> | undefined;
   const outboxSender = createOutboxSender({
     meta,
@@ -1447,7 +1458,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(
         schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
       );
-      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites }));
+      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler, writes: recordWrites, secret: env.ADMINIUM_SECRET }));
       // M7 data-io + reports/notifications (T5/T6): exports and imports share
       // the jobs pipeline wired above; scheduled reports ride the same registry
       // via the poll schedule below.

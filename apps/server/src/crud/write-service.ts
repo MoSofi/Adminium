@@ -143,6 +143,26 @@ export interface WriteContext {
   claimed?: Row | null | undefined;
 }
 
+/**
+ * The origins whose value for a `code` column is never taken: a code is an
+ * unguessable secret (a shared link's token), so a person never picks it —
+ * a create makes one, a change leaves it be, and only the server's own "make
+ * a new link" (an `action`) replaces it. A whole-record form that sends the
+ * code back unchanged still saves: the value is dropped, not refused, as
+ * every read-only column is. An undo restores what was there, and imports
+ * are held to it in the import job (sample loads keep their own codes).
+ */
+const CODE_BLIND_ORIGINS: ReadonlySet<WriteOrigin> = new Set(['dashboard', 'bulk', 'public', 'automation']);
+
+function withoutTypedCodes(rules: TableRules | null, context: WriteContext, values: Row): Row {
+  const codes = rules?.codes ?? [];
+  if (codes.length === 0 || !CODE_BLIND_ORIGINS.has(context.origin)) return values;
+  if (!codes.some((code) => Object.prototype.hasOwnProperty.call(values, code.column))) return values;
+  const out = { ...values };
+  for (const code of codes) delete out[code.column];
+  return out;
+}
+
 /** The context of a write that a signed-in person or an API key asked for. */
 export function requestWriteContext(request: FastifyRequest, origin: WriteOrigin): WriteContext {
   const principal = getPrincipal(request);
@@ -1343,7 +1363,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         rules,
         action,
         target,
-        localize(rules, target, fill(rules, action, target, context, values, now), await zoneFor(rules, target)),
+        localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)),
         memo,
       ),
       opts.settings,
@@ -1769,7 +1789,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       const currency = currencyFor(target);
       const zone = await zoneFor(rules, target);
-      const filled = localize(rules, target, fill(rules, 'create', target, context, input.values, new Date()), zone);
+      const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), new Date()), zone);
       const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled), opts.settings);
       // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, new Date(), zone));

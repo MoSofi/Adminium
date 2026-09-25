@@ -700,6 +700,10 @@ export function compileScope(
      * column the resource shows, on a resource a claim or a parent opens.
      */
     for (const c of r.files ?? []) {
+      // A caller who wrote the column would choose which file the next download serves.
+      if (r.writable.includes(c)) {
+        issues.push({ code: 'SCOPE_FILES_WRITABLE', message: `"${c}" is offered for download, so a caller never writes it`, ref: r.ref, column: c });
+      }
       if (!r.expose.includes(c)) {
         issues.push({ code: 'SCOPE_FILES_NOT_EXPOSED', message: `"${c}" offers its file for download, so it is one of the columns shown`, ref: r.ref, column: c });
       }
@@ -1215,6 +1219,27 @@ function visibleWithIssues(doc: PublicScopeDocument, columnsOf: TableColumnLooku
     const theirs = columnsOf?.(parent.table) ?? null;
     if (theirs !== null && !theirs.has(link.foreignColumn)) {
       push('SCOPE_VISIBLE_WITH_UNKNOWN_COLUMN', `"${link.foreignColumn}" is not a column of ${parent.table}`, link.foreignColumn);
+    }
+    /*
+     * The parent's side of the link is what the child's rows are read by:
+     * where the parent points AT the child (a proposal naming its terms), a
+     * caller who could write that column on any door of this key would
+     * re-point their own row at someone else's child and read it. So nothing
+     * on the key writes it, chooses its values or fills it by default.
+     */
+    for (const door of doc.resources) {
+      if (door.table !== parent.table) continue;
+      const writes =
+        door.writable.includes(link.foreignColumn) ||
+        Object.prototype.hasOwnProperty.call(door.writableValues ?? {}, link.foreignColumn) ||
+        Object.prototype.hasOwnProperty.call(door.defaults, link.foreignColumn);
+      if (writes) {
+        push(
+          'SCOPE_VISIBLE_WITH_PARENT_LINK_WRITABLE',
+          `"${link.foreignColumn}" is the link "${r.ref}" reads its rows by, so "${door.ref}" may not write it`,
+          link.foreignColumn,
+        );
+      }
     }
     // Walk up: every parent reads, the chain ends on a claimed resource, two steps at most.
     let steps = 0;

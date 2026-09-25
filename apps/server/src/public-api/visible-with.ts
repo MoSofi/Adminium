@@ -233,11 +233,45 @@ export async function referencesAllowed(input: {
   if (link === null || session === null) return false;
   if (absent(values[link.localColumn])) return false;
 
+  /*
+   * The link to the parent first, and against the parent the child declares
+   * alone — never another reader of that table (a public portfolio would
+   * otherwise let a note be made under anyone's work), and whether or not
+   * the database knows the column as a foreign key.
+   */
+  const declared = scope.byRef.get(link.ref);
+  if (declared === undefined) return false;
+  const parentTable = view.linkTable(tableIdOf(view, declared.table) ?? '');
+  if (parentTable === null) return false;
+  const parentVisibility = visibilityOf({ scope, resource: declared, session, view, ...(input.now === undefined ? {} : { now: input.now }) });
+  if (!parentVisibility.reachable || (declared.level === 'verified' && session.level !== 'verified')) return false;
+  const parentClaim = claimPredicateFor(declared, session);
+  if (!parentClaim.reachable) return false;
+  {
+    const alias = 'adm_parent';
+    let query = db
+      .selectFrom(`${parentTable.id} as ${alias}` as never)
+      .select(sql.lit(1).as('one'))
+      .where(sql.ref(`${alias}.${link.foreignColumn}`), '=', values[link.localColumn] as never);
+    const predicate = combinePredicates(mandatoryAt(declared.where, parentTable, scope.timezone, input.now), parentClaim.predicate);
+    if (predicate !== null) {
+      const filterCtx = { view, table: parentTable, canReadPii: true, dynamic: db.dynamic, dialect };
+      query = query.where((eb) => compileFilter(eb as never, filterCtx, predicate));
+    }
+    if (parentVisibility.steps.length > 0) query = query.where(visibleCondition({ db, dialect, view }, alias, parentVisibility.steps));
+    // Held for share where the database can: a parent withdrawn now waits for this row.
+    const held = dialect === 'sqlite' ? query.limit(1) : query.limit(1).forShare();
+    if ((await held.executeTakeFirst()) === undefined) return false;
+  }
+
   const identity = scope.claim?.ref === undefined ? undefined : scope.byRef.get(scope.claim.ref);
   const identityTable = identity === undefined ? null : tableIdOf(view, identity.table);
-  const outgoing = view.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id);
+  // The link itself is checked above, against its own parent only.
+  const outgoing = view.model.relations.filter(
+    (relation) => relation.through === null && relation.from.tableId === table.id && !(relation.from.columns.length === 1 && relation.from.columns[0] === link.localColumn),
+  );
   // What the row points at directly, one column to one column: the other side of a diamond.
-  const direct = outgoing.flatMap((relation) =>
+  const direct = view.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id).flatMap((relation) =>
     relation.from.columns.length === 1 && relation.to.columns.length === 1 && !absent(values[relation.from.columns[0] as string])
       ? [{ column: relation.from.columns[0] as string, table: relation.to.tableId, to: relation.to.columns[0] as string, value: values[relation.from.columns[0] as string] }]
       : [],

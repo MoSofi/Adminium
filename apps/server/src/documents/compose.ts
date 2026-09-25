@@ -405,15 +405,23 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
  * compiled against that table and ANDed into its query. A table with no entry
  * is read whole — the caller decided which tables need one.
  */
+/**
+ * What a public reader may read of one table: a filter, nothing (the table
+ * whole), or a narrowing already built — rows visible only with a parent,
+ * which no single-table filter can say.
+ */
+export type ReadFilter = RecordFilter | null | ((query: unknown) => unknown);
+
 export function narrowingOf(
   db: Kysely<SourceDatabase>,
   view: SnapshotView,
   dialect: Dialect,
-  filters: ReadonlyMap<string, RecordFilter | null>,
+  filters: ReadonlyMap<string, ReadFilter>,
 ): Narrowing {
   return (tableId) => {
     const filter = filters.get(tableId) ?? null;
     if (filter === null) return null;
+    if (typeof filter === 'function') return filter;
     const table = view.table(tableId);
     // Server-side and never shown: a filter on a personal column still applies.
     const ctx = { view, table, canReadPii: true, dynamic: db.dynamic, dialect };

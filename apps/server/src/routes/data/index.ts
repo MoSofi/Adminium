@@ -29,7 +29,9 @@ import type { Kysely } from 'kysely';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
-import { DAY_MS, PERSON_FAILURES_DAY, subjectOf } from '../../public-api/claim-code.js';
+import { DAY_MS, PERSON_FAILURES_DAY, addressKey, hashAddress, subjectOf } from '../../public-api/claim-code.js';
+import { linkSubject } from '../../public-api/sign-in-link.js';
+import { generateCode, isUniqueViolation } from '../../crud/decided-columns.js';
 import { audited } from '../../audit/coverage.js';
 import { parseDefinition } from '../../public-api/endpoint.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
@@ -138,6 +140,7 @@ import {
   referencesReply,
   claimLockClearedReply,
   claimLockReply,
+  regenerateCodeBody,
   undoParams,
   undoReply,
 } from './schema.js';
@@ -171,6 +174,11 @@ export interface DataRoutesDeps {
   files?: FileReconciler | undefined;
   /** Where every write goes, with the project's hooks. A service with no hooks otherwise. */
   writes?: RecordWriteService | undefined;
+  /**
+   * The server's secret, to name a sign-in-link person's code lock by their
+   * address as the public side keys it. Absent: only locks kept by the row.
+   */
+  secret?: string | undefined;
 }
 
 interface DataContext {
@@ -1527,15 +1535,22 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * the same as the claim route writes (`subjectOf`), whichever key or
      * endpoint the person came through.
      */
-    async function claimSubjectsOf(ctx: DataContext, row: Row): Promise<string[]> {
+    async function claimSubjectsOf(ctx: DataContext, row: Row): Promise<{ rows: string[]; addresses: string[] }> {
       const subjects = new Set<string>();
+      const addresses = new Set<string>();
       for (const stored of await publicEndpointsRepo(meta).listByConnection(ctx.connectionId)) {
         const parsed = parseDefinition(stored.definition);
         if (!parsed.ok || parsed.definition.source !== ctx.table.id || parsed.definition.identity === undefined) continue;
-        const column = parsed.definition.identity.column;
+        const identity = parsed.definition.identity;
+        const column = identity.column;
         if (row[column] !== undefined && row[column] !== null) subjects.add(subjectOf(ctx.connectionId, ctx.table.id, column, row[column]));
+        // Signed in by an emailed link: the code path's lock is kept by the address, as the public side counts it.
+        const email = identity.email === undefined ? undefined : row[identity.email];
+        if (identity.verify === 'email-link' && typeof email === 'string' && deps.secret !== undefined) {
+          addresses.add(linkSubject(hashAddress(addressKey(deps.secret), email)));
+        }
       }
-      return [...subjects];
+      return { rows: [...subjects], addresses: [...addresses] };
     }
 
     /*
@@ -1554,7 +1569,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         const since = Date.now() - DAY_MS;
         let failures = 0;
-        for (const subject of await claimSubjectsOf(ctx, row)) failures = Math.max(failures, await publicChallengesRepo(meta).failuresSince(subject, since));
+        const { rows, addresses } = await claimSubjectsOf(ctx, row);
+        for (const subject of rows) failures = Math.max(failures, await publicChallengesRepo(meta).failuresSince(subject, since));
+        for (const subject of addresses) failures = Math.max(failures, await publicChallengesRepo(meta).dailyTries(subject));
         return { locked: failures >= PERSON_FAILURES_DAY, failures };
       },
     );
@@ -1568,7 +1585,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const row = await fetchByPk(ctx.db, ctx.table, pk);
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         let cleared = 0;
-        for (const subject of await claimSubjectsOf(ctx, row)) cleared += await publicChallengesRepo(meta).clearSubject(subject);
+        const { rows, addresses } = await claimSubjectsOf(ctx, row);
+        for (const subject of [...rows, ...addresses]) cleared += await publicChallengesRepo(meta).clearSubject(subject);
         await app.rbac.audit(request, {
           category: 'data',
           action: 'public.claim.lock.clear',
@@ -1577,6 +1595,53 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           changes: { after: { cleared } },
         });
         return { cleared };
+      },
+    );
+
+    // --- a shared link's code, made again ------------------------------------------
+
+    /*
+     * "Make a new link": a fresh code in a column Adminium fills with one (a
+     * handover page's share token). Nobody types a code — not the desk, not
+     * an import — so this is the one way to change it, and the old link
+     * stops opening anything at the next request made with it. No undo: the
+     * old secret never comes back.
+     */
+    app.post(
+      '/data/:connectionId/:table/:recordId/regenerate-code',
+      {
+        config: { audit: audited('rbac') },
+        schema: { params: dataRecordParams, body: regenerateCodeBody, response: { 200: recordMutationReply } },
+      },
+      async (request) => {
+        const ctx = await contextFor(request, 'update');
+        const pk = parseRecordId(ctx.table, request.params.recordId);
+        const column = request.body.column;
+        const rule = ctx.table.table.columns.find((candidate) => candidate.name === column)?.code;
+        if (rule === undefined) throw new ValidationFailedError('This column holds no code Adminium makes.', { column });
+        assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, { [column]: '' }, {});
+        const before = await fetchByPk(ctx.db, ctx.table, pk);
+        if (before === undefined) throw new NotFoundError('Record not found.', { pk });
+        // A server action: the one writer whose value for a code column is taken.
+        const context: WriteContext = { ...requestWriteContext(request, 'dashboard'), origin: 'action' };
+        for (let attempt = 0; ; attempt += 1) {
+          try {
+            const outcome = await writes.update({
+              target: ctx.target,
+              pk,
+              values: { [column]: generateCode(rule.prefix ?? '', rule.length) },
+              before,
+              context,
+              announce: async (result) => {
+                await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, result.after ?? before);
+              },
+            });
+            return { data: maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), undoToken: null };
+          } catch (error) {
+            // Another row holds the same code: made again, a few times at most.
+            if (!isUniqueViolation(error) || attempt >= 2) mapDbError(error, ctx.table);
+          }
+        }
       },
     );
 

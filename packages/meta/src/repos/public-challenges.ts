@@ -12,6 +12,8 @@
  * Comparing a code is the caller's: it reads the hash and compares in
  * constant time. Nothing here matches on a code in SQL.
  */
+import { createHash } from 'node:crypto';
+
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 
@@ -40,6 +42,23 @@ export interface CreatePublicChallengeInput {
   subject: string | null;
   /** A sign-in link's token, as its SHA-256; absent for a code alone. */
   tokenHash?: string | null;
+}
+
+/** The purpose of an address's count of codes typed today (see `chargeDailyTry`). */
+export const DAILY_TRIES_PURPOSE = 'link-tries';
+const DAY_MS = 24 * 60 * 60_000;
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/**
+ * The one row an address's count for a day lives in, named by the address
+ * and the day: two first guesses at once insert the same row, and the second
+ * finds it there — never a second count beside the first.
+ */
+function dailyId(subject: string, day: number): string {
+  const digest = createHash('sha256').update(`${subject}|${String(day)}`).digest();
+  let out = 'pch_';
+  for (let i = 0; i < 26; i += 1) out += CROCKFORD[(digest[i] as number) % 32];
+  return out;
 }
 
 export function publicChallengesRepo(meta: MetaDb) {
@@ -127,6 +146,80 @@ export function publicChallengesRepo(meta: MetaDb) {
         .where('expiresAt', '>', at)
         .executeTakeFirst();
       return Number(row?.n ?? 0);
+    },
+
+    /**
+     * One code typed on another device, counted against its address for the
+     * day, and only while fewer than `max` have been: true when it was
+     * counted. A conditional step on one row, so thirty guesses at once count
+     * ten between them — never thirty that each read nine.
+     */
+    async chargeDailyTry(subject: string, keyId: string, max: number, at: number = Date.now()): Promise<boolean> {
+      const day = Math.floor(at / DAY_MS);
+      const id = dailyId(subject, day);
+      try {
+        await db
+          .insertInto('adminium_public_challenges')
+          .values({
+            id,
+            keyId,
+            ref: '',
+            destinationHash: '',
+            codeHash: '',
+            attempts: 0,
+            consumedAt: day * DAY_MS,
+            expiresAt: (day + 1) * DAY_MS,
+            createdAt: day * DAY_MS,
+            sessionId: null,
+            purpose: DAILY_TRIES_PURPOSE,
+            newDestinationEnc: null,
+            subject,
+            clearedAt: null,
+            tokenHash: null,
+          })
+          .execute();
+      } catch (error) {
+        // Made by a guess a moment before this one: counted on that row.
+        if ((await findById(id)) === null) throw error;
+      }
+      const res = await db
+        .updateTable('adminium_public_challenges')
+        .set({ attempts: sql<number>`attempts + 1` })
+        .where('id', '=', id)
+        .where('attempts', '<', max)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /** A counted try given back: the code was right. */
+    async refundDailyTry(subject: string, at: number = Date.now()): Promise<void> {
+      await db
+        .updateTable('adminium_public_challenges')
+        .set({ attempts: sql<number>`attempts - 1` })
+        .where('id', '=', dailyId(subject, Math.floor(at / DAY_MS)))
+        .where('attempts', '>', 0)
+        .execute();
+    },
+
+    /** How many codes were typed against an address today. */
+    async dailyTries(subject: string, at: number = Date.now()): Promise<number> {
+      return (await findById(dailyId(subject, Math.floor(at / DAY_MS))))?.attempts ?? 0;
+    },
+
+    /**
+     * A link asks for a new one: once, and only within `withinMs` of being
+     * sent. True when this is that once — the link's pointer to its person is
+     * taken with it, so the old link opens nothing from here on either.
+     */
+    async takeResend(id: string, withinMs: number, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_challenges')
+        .set({ newDestinationEnc: null, consumedAt: sql<number>`coalesce(consumed_at, ${at})` })
+        .where('id', '=', id)
+        .where('newDestinationEnc', 'is not', null)
+        .where('createdAt', '>=', at - withinMs)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
     },
 
     /**
@@ -305,13 +398,19 @@ export function publicChallengesRepo(meta: MetaDb) {
 
     /** The desk lifts a person's lock: their wrong codes so far stop counting. */
     async clearSubject(subject: string, at: number = Date.now()): Promise<number> {
+      // An address's count of codes typed today starts again from nothing.
+      const counts = await db
+        .deleteFrom('adminium_public_challenges')
+        .where('subject', '=', subject)
+        .where('purpose', '=', DAILY_TRIES_PURPOSE)
+        .executeTakeFirst();
       const res = await db
         .updateTable('adminium_public_challenges')
         .set({ clearedAt: at })
         .where('subject', '=', subject)
         .where('clearedAt', 'is', null)
         .executeTakeFirst();
-      return Number(res.numUpdatedRows);
+      return Number(res.numUpdatedRows) + Number(counts.numDeletedRows);
     },
 
     /** Housekeeping: rows older than the longest window any cap reads. */

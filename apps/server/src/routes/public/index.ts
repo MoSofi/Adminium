@@ -59,23 +59,10 @@ import { publicConfigOf, type CompiledResource, type PublicAction } from '../../
 import { afterNow, aheadWithin, fromToday, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
-import {
-  linkPeekReply,
-  linkResendReply,
-  linkStartBody,
-  linkStartReply,
-  linkTokenBody,
-  linkVerifyBody,
-  linkVerifyReply,
-  publicConfigReplyWithLink,
-  tokenClaimBody,
-  type LinkErrorCode,
-} from '../../public-api/link-schema.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
 import { hashToken, normaliseToken, stillOpen, tokenClaimOf, tokenSessionOpen, type TokenClaim } from '../../public-api/token-claim.js';
 import { addOnSettingsParams, addOnSettingsReply, publicAddOnSettings } from '../../public-api/add-on-settings.js';
 import { fileIdOf, privateFileHeaders, privateFileParams } from '../../public-api/private-file.js';
-import { createIdentityEmailWatch, listenToRecordEvents } from '../../public-api/identity-email-watch.js';
 import {
   LINK_CODE_FAILURES_DAY,
   LINK_SESSION_IDLE_MS,
@@ -86,6 +73,7 @@ import {
   linkIdentityOf,
   linkSubject,
   openLink,
+  personByKey,
   personOfChallenge,
   registerSignInLinkJob,
   runSignInLinkJob,
@@ -186,7 +174,16 @@ import {
   publicCodeReply,
   publicVerifyBody,
   publicVerifyReply,
+  publicConfigReply,
   publicErrorReply,
+  linkPeekReply,
+  linkResendReply,
+  linkStartBody,
+  linkStartReply,
+  linkTokenBody,
+  linkVerifyBody,
+  linkVerifyReply,
+  tokenClaimBody,
   publicAvailabilityQuery,
   publicAvailabilityReply,
   publicListQuery,
@@ -512,7 +509,7 @@ function hostForOf(app: FastifyInstance): ((appKey: string) => Promise<string | 
 function fail(
   reply: FastifyReply,
   status: number,
-  code: PublicErrorCode | LinkErrorCode,
+  code: PublicErrorCode,
   message: string,
   params?: Record<string, unknown>,
 ): FastifyReply {
@@ -587,13 +584,47 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const audit = auditRepo(meta);
   const writes = deps.writes ?? createWriteService(writeStores(meta));
 
-  /** A public write is anonymous: the key is the only name it has. */
-  const publicWriteContext = (request: FastifyRequest, keyId: string): WriteContext => ({
+  /**
+   * A public write is anonymous: the key is the only name it has. Made in a
+   * session, it carries the signed-in person's own row as well — what a
+   * `claim` stamp writes from (the name they sign with, their address) —
+   * read through the identity the session was claimed on, and nothing when
+   * that row cannot be read as exactly one.
+   */
+  const publicWriteContext = async (
+    request: FastifyRequest,
+    ok: { key: ResolvedKey; session: PublicSessionContext | null },
+  ): Promise<WriteContext> => ({
     origin: 'public',
     hops: 0,
-    actor: { kind: 'public', id: null, label: `public:${keyId}` },
+    actor: { kind: 'public', id: null, label: `public:${ok.key.keyId}` },
     request,
+    claimed: await claimedRowOf(ok),
   });
+
+  /** The signed-in person's row, or null. */
+  const claimedRowOf = async (ok: { key: ResolvedKey; session: PublicSessionContext | null }): Promise<Row | null> => {
+    const session = ok.session;
+    if (session === null) return null;
+    const identity = ok.key.scope.byRef.get(session.grant.ref);
+    if (identity === undefined) return null;
+    try {
+      const view = await viewFor(ok.key.connectionId);
+      if (view === null) return null;
+      const table = view.table(identity.table);
+      if (!table.columns.has(session.grant.column)) return null;
+      const { db } = await manager.data(ok.key.connectionId);
+      const rows = (await db
+        .selectFrom(table.id)
+        .selectAll()
+        .where(db.dynamic.ref(session.grant.column), '=', session.grant.value as never)
+        .limit(2)
+        .execute()) as Row[];
+      return rows.length === 1 ? (rows[0] as Row) : null;
+    } catch {
+      return null;
+    }
+  };
 
   const views = deps.views ?? createPublicViews(meta);
   const viewFor = views.viewFor;
@@ -929,11 +960,41 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     }
     if (session !== null && sessionTouches.due(session.id)) {
       const at = Date.now();
-      // A link's session lasts half an hour from the last request, and never past its cap.
-      void (slidesFrom === null ? sessions.touch(session.id, at) : sessions.slide(session.id, Math.min(at + LINK_SESSION_IDLE_MS, slidesFrom + LINK_SESSION_MAX_MS), at));
+      /*
+       * A link's session is its person's while their address is the one the
+       * link went to — asked again once a minute, since an import or a direct
+       * change announces nothing that could end it sooner.
+       */
+      if (slidesFrom !== null && !(await linkSessionStillTheirs(key, session))) {
+        if (sessionToken !== null) await sessions.remove(hashPublishableKey(sessionToken));
+        session = null;
+      } else {
+        // A link's session lasts half an hour from the last request, and never past its cap.
+        void (slidesFrom === null ? sessions.touch(session.id, at) : sessions.slide(session.id, Math.min(at + LINK_SESSION_IDLE_MS, slidesFrom + LINK_SESSION_MAX_MS), at));
+      }
     }
 
     return { key, session };
+  };
+
+  /** Whether a link's session still belongs to its person: their address still the one it went to. */
+  const linkSessionStillTheirs = async (key: ResolvedKey, session: PublicSessionContext): Promise<boolean> => {
+    const addr = (session.grant as { addr?: unknown }).addr;
+    const identity = linkIdentityOf(key.scope);
+    // A session from before the address was kept in it: nothing to compare, and it lapses in half an hour.
+    if (typeof addr !== 'string' || identity === null) return typeof addr !== 'string';
+    try {
+      const view = await viewFor(key.connectionId);
+      if (view === null) return false;
+      const { db, dialect } = await manager.data(key.connectionId);
+      const value = session.grant.value;
+      if (typeof value !== 'string' && typeof value !== 'number') return false;
+      const person = await personByKey({ db, view, table: view.table(identity.resource.table), identity, timezone: key.scope.timezone, dialect, value });
+      const email = person?.[identity.email];
+      return typeof email === 'string' && hashAddress(addressSecret, email) === addr;
+    } catch {
+      return false;
+    }
   };
 
   /** Whether a shared link's session still opens its row; anything unreadable is closed. */
@@ -1217,7 +1278,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   return async (app) => {
     // A link's job on the shared queue, and the watch on a signed-in person's address.
     if (app.hasDecorator('jobs')) registerSignInLinkJob(app.jobs.registry, { ...linkDeps, logger: app.log, hostFor: hostForOf(app) });
-    listenToRecordEvents(app, createIdentityEmailWatch({ meta, manager, views, addressSecret, logger: app.log }));
     if (deps.stats !== undefined) {
       const stats = deps.stats;
       app.addHook('onResponse', async (request, reply) => {
@@ -1292,7 +1352,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         config: { rateLimitBucket: 'public' },
         schema: {
           response: {
-            200: publicConfigReplyWithLink,
+            200: publicConfigReply,
             401: publicErrorReply,
             // A staff-bound key without its staff member on this screen.
             403: publicErrorReply,
@@ -1733,12 +1793,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
         };
         let inserted: Row;
+        const context = await publicWriteContext(request, ok);
         try {
           const create = (on: WriteTarget, announce: (row: Row) => Promise<void>, recheck?: (values: Row) => Promise<void>) =>
             writes.create({
               target: on,
               values,
-              context: publicWriteContext(request, ok.key.keyId),
+              context,
               ...(recheck === undefined ? {} : { recheck }),
               /*
                * A constraint violation is not spelled out. `routes/data` maps
@@ -1846,7 +1907,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this change needs is missing.', { column: missing });
         // A child's references are fixed when it is made: a change never moves it under another parent.
-        if (parentOf(found.resource) !== null && references(found.view, found.table).some((column) => Object.prototype.hasOwnProperty.call(values, column))) {
+        const link = parentOf(found.resource);
+        if (link !== null && [...references(found.view, found.table), link.localColumn].some((column) => Object.prototype.hasOwnProperty.call(values, column))) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         }
         /*
@@ -1924,7 +1986,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             target,
             pk,
             values,
-            context: publicWriteContext(request, ok.key.keyId),
+            context: await publicWriteContext(request, ok),
             refine: inScope,
             // Only a hook reads the row first, and it reads it inside the
             // scope, so a hook never sees (and a refusal never reveals) a row
@@ -2124,7 +2186,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           count = await writes.delete({
             target,
             pk,
-            context: publicWriteContext(request, ok.key.keyId),
+            context: await publicWriteContext(request, ok),
             refine: inScope,
             load: async () => {
               let query = found.db.selectFrom(found.table.id).selectAll();
@@ -2291,7 +2353,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           dialect: found.dialect,
           timezone: ok.key.scope.timezone,
         };
-        const context = publicWriteContext(request, ok.key.keyId);
+        const context = await publicWriteContext(request, ok);
 
         /*
          * Fill, before hooks and column rules, per row, before the transaction.
@@ -2717,7 +2779,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           target,
           pk,
           values: { [person.claim.email]: newAddress },
-          context: publicWriteContext(request, ok.key.keyId),
+          context: await publicWriteContext(request, ok),
           mapError: refuseWrite,
           announce: async () => {
             // Named by the row, never by the address.
@@ -2899,20 +2961,24 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       reply: FastifyReply,
       ok: { key: ResolvedKey; session: PublicSessionContext | null },
       identity: LinkIdentity,
-      table: ResolvedTable,
+      found: { db: Kysely<SourceDatabase>; dialect: Dialect; view: SnapshotView; table: ResolvedTable; timezone: string },
       person: Row,
       how: 'link' | 'code',
     ): Promise<FastifyReply> => {
+      const table = found.table;
       const value = person[identity.column];
-      if (value === null || value === undefined) return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
+      const email = person[identity.email];
+      if (value === null || value === undefined || typeof email !== 'string') return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
       const minted = generatePublicSessionToken();
       const now = Date.now();
       const expiresAt = now + LINK_SESSION_IDLE_MS;
+      // The address it was opened for rides in the session, and is asked again as it is used.
+      const addr = hashAddress(addressSecret, email);
       await sessions.create(
         {
           keyId: ok.key.keyId,
           tokenHash: minted.tokenHash,
-          grants: JSON.stringify({ ref: identity.ref, column: identity.column, value }),
+          grants: JSON.stringify({ ref: identity.ref, column: identity.column, value, addr }),
           expiresAt,
           level: 'verified',
           kind: 'link',
@@ -2921,6 +2987,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         },
         now,
       );
+      /*
+       * Asked once more now the session exists: a change of address that
+       * landed between the link's check and this moment ended every session
+       * of theirs but this one, which it could not yet see.
+       */
+      const again = typeof value === 'string' || typeof value === 'number' ? await personByKey({ ...found, identity, value }) : null;
+      const still = again?.[identity.email];
+      if (typeof still !== 'string' || hashAddress(addressSecret, still) !== addr) {
+        await sessions.remove(minted.tokenHash);
+        return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
+      }
       await auditWrite(request, ok, 'public.claim.link.verified', { ref: identity.ref, how });
       return reply.send({ data: { session: minted.token, expiresAt, level: 'verified' as const } });
     };
@@ -3024,7 +3101,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (opened === null || !(await challenges.consume(opened.challenge.id, now))) {
             return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
           }
-          return openLinkSession(request, reply, ok, identity, found.table, opened.person, 'link');
+          return openLinkSession(request, reply, ok, identity, found, opened.person, 'link');
         }
 
         /*
@@ -3035,16 +3112,19 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * mailbox still works.
          */
         const subject = linkSubject(hashAddress(addressSecret, body.email));
-        if ((await challenges.failuresSince(subject, now - DAY_MS)) >= LINK_CODE_FAILURES_DAY) {
+        // Counted before anything is compared, by a conditional step: guesses in flight together count once each.
+        if (!(await challenges.chargeDailyTry(subject, ok.key.keyId, LINK_CODE_FAILURES_DAY, now))) {
           return fail(reply, 403, 'PUBLIC_CLAIM_LOCKED', 'Too many tries today. Use the link in the email instead.');
         }
         const open = await challenges.openLinks(subject, ok.key.keyId, now);
         const tried = open.length === 0 ? ({ outcome: 'expired' } as const) : await tryLinkCode({ meta, codeSecret, open, code: body.code, now });
+        // A right code is no wrong one: the day's count is given back.
+        if (tried.outcome === 'right') await challenges.refundDailyTry(subject, now);
         if (tried.outcome === 'expired') return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'That code has expired. Ask for a new link.');
         if (tried.outcome === 'wrong') return fail(reply, 403, 'PUBLIC_CODE_WRONG', 'That code isn’t right.', { triesLeft: tried.triesLeft });
         const opened = await personOfChallenge({ deps: linkDeps, identity, found }, tried.challenge);
         if (opened === null) return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'That code has expired. Ask for a new link.');
-        return openLinkSession(request, reply, ok, identity, found.table, opened.person, 'code');
+        return openLinkSession(request, reply, ok, identity, found, opened.person, 'code');
       },
     );
 
