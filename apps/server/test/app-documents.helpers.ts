@@ -9,6 +9,7 @@
  * returns it as the document's bytes: a test reads "what was printed" from
  * the file a client downloads.
  */
+import { addOnManifest } from './app-add-ons.helpers.js';
 import { Readable } from 'node:stream';
 
 import { manifestsRepo, publicKeysRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
@@ -232,7 +233,8 @@ export async function registerInvoicesAddOn(meta: MetaDb): Promise<void> {
     version: '1.0.0',
     kind: 'add-on',
     source: 'file',
-    document: { kind: 'add-on', key: 'invoices', version: '1.0.0', addOn: { shapes: [invoiceShape()] } },
+    // A whole add-on manifest: an app install checks it before connecting it.
+    document: addOnManifest('invoices', { addOn: { attaches: [{ app: 'studio' }], slots: [], shapes: [invoiceShape()] } }),
   });
 }
 
@@ -254,8 +256,8 @@ export interface StudioHarness extends InvoicingHarness {
 
 /** Installs the studio on `dialect`, makes its profiles, and hands back a way to serve its public side. */
 export async function installStudio(dialect: Dialect): Promise<StudioHarness> {
-  const h = await installInvoicing(dialect, studioManifest());
-  await registerInvoicesAddOn(h.meta);
+  // The add-on first: an app that needs it is refused without it.
+  const h = await installInvoicing(dialect, studioManifest(), registerInvoicesAddOn);
   const realId = await realIdOf(h.meta, h.connectionId, h.real);
   const made = await makeAppProfiles({
     meta: h.meta,

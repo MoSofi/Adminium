@@ -73,7 +73,23 @@ import type { FastifyRequest } from 'fastify';
 import type { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
-import { AddOnCatalogError, lenientMinimum, pickLocalized } from '../../add-ons/catalog.js';
+import { AddOnCatalogError, lenientMinimum, pickLocalized, type CatalogClient } from '../../add-ons/catalog.js';
+import type { AddOnInstallerDeps } from '../../add-ons/install.js';
+import {
+  addOnsKeptBy,
+  appHost,
+  attachedRangeRefusal,
+  decideAddOnSteps,
+  namesAddOns,
+  resolveAppAddOns,
+  runAddOnSteps,
+  stepsAlreadyTaken,
+  tablesComingFromAddOns,
+  type AddOnChoice,
+  type AddOnStep,
+  type AddOnsDone,
+  type AppAddOnRow,
+} from '../../apps/add-ons.js';
 import {
   APP_CATALOG_ENABLED_SETTING,
   appCatalogSchema,
@@ -121,6 +137,7 @@ import { formIssues, layoutTables } from '../../apps/manifest-page-config.js';
 import { forgetAppRoleGrants, roleIssues, writeManifestRoles, type RolesResult } from '../../apps/manifest-roles.js';
 import { installPublicAccess, planPublicEndpoints, publicAccessWarnings, staffBindingOf } from '../../apps/manifest-public.js';
 import { installOutbox, removeOutbox, templateProblems, type OutboxResult } from '../../apps/manifest-outbox.js';
+import { installedShapes, makeAppProfiles, removeAppProfiles } from '../../documents/app-profiles.js';
 import type { EndpointService } from '../../public-api/endpoint-service.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import type { DsnCrypto } from '@adminium/meta';
@@ -233,6 +250,21 @@ export interface AppRoutesDeps {
   catalog?: AppCatalogClient | undefined;
   /** Tests only; production compares minimums with the running version. */
   serverVersion?: string | undefined;
+  /**
+   * The add-on installer, for the add-ons an app needs: the add-on store, its
+   * schema target and the runtime rebuild — the same ones the add-on routes
+   * hold, because installing an add-on with an app IS installing an add-on.
+   * Absent, an app that requires an add-on is refused (nothing can install
+   * one here) and an app that names none installs exactly as before.
+   */
+  addOns?:
+    | {
+        installer: AddOnInstallerDeps;
+        catalog?: CatalogClient | undefined;
+        /** Where the bundled add-on tarballs are; defaults to the boot seed's own rule. */
+        bundledDir?: string | undefined;
+      }
+    | undefined;
 }
 
 /**
@@ -504,6 +536,59 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   type InstalledApp = Awaited<ReturnType<typeof manifests.list>>[number];
 
   /**
+   * The add-ons an app names, resolved against this server — or every one of
+   * them unavailable, on a composition with no add-on installer.
+   */
+  async function addOnRowsFor(manifest: Manifest, connectionId: string | null, withPlans: boolean): Promise<AppAddOnRow[]> {
+    if (!namesAddOns(manifest)) return [];
+    if (deps.addOns !== undefined) {
+      return resolveAppAddOns(
+        { ...deps.addOns, serverVersion },
+        { manifest, connectionId, withPlans },
+      );
+    }
+    const needs = manifest.kind === 'app' ? manifest.addOns : undefined;
+    return [...(needs?.requires ?? []), ...(needs?.suggests ?? [])].map((entry) => ({
+      key: entry.key,
+      name: entry.key,
+      need: (needs?.requires ?? []).some((n) => n.key === entry.key) ? ('requires' as const) : ('suggests' as const),
+      range: entry.range,
+      reason: entry.reason,
+      checked: false,
+      features: [],
+      state: 'unavailable' as const,
+      source: null,
+      installedVersion: null,
+      offeredVersion: null,
+      satisfiesRange: false,
+      staged: false,
+      enabled: false,
+      action: null,
+      usedBy: [],
+      plan: null,
+      problems: [{ code: 'ADD_ON_UNAVAILABLE', message: 'This server cannot install add-ons.' }],
+    }));
+  }
+
+  /** What an install would do to its add-ons, as part of the plan's checksum. */
+  function addOnIdentity(rows: readonly AppAddOnRow[]): unknown {
+    return rows.map((row) => [
+      row.key,
+      row.state,
+      row.action,
+      row.installedVersion,
+      row.offeredVersion,
+      row.plan === null || row.plan === undefined ? null : [row.plan.create.map((t) => t.ref), row.plan.reuse.map((t) => t.ref)],
+      row.problems.map((p) => p.code),
+    ]);
+  }
+
+  /** The add-on installer's deps, once. */
+  function addOnDeps() {
+    return deps.addOns === undefined ? undefined : { ...deps.addOns, serverVersion };
+  }
+
+  /**
    * An install's tables that still carry the plain names they were made or
    * found with, now that the app is prefixed — every one of them, and what
    * each would be called. Null when there is nothing to rename.
@@ -547,6 +632,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     manifest: Manifest,
     connectionId: string,
     answers: InstallAnswers = {},
+    /**
+     * The add-ons named by the app, resolved. Their planned tables count as
+     * there (a foreign key into one resolves), and what the install would do
+     * to them is part of the plan's identity. Absent for an app naming none,
+     * whose checksum is exactly what it always was.
+     */
+    addOnRows?: readonly AppAddOnRow[],
   ): Promise<{ plan: InstallPlan; dto: AppInstallPlanDto; existing: ExistingTable[] }> {
     /*
      * WHAT THIS APP ALREADY HAS HERE, AND WHAT OTHERS DO. The table record is
@@ -573,7 +665,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       if (choice.action === 'rename-existing') names.add(choice.to);
     }
     const live = await deps.schemaTarget?.read(connectionId, names);
-    const tables = live?.tables ?? [];
+    const found = live?.tables ?? [];
+    // The tables a required add-on is about to create, where none of that name is there yet.
+    const coming = tablesComingFromAddOns(addOnRows ?? []).filter((table) => !found.some((t) => t.ref === table.ref));
+    const tables = [...found, ...coming];
     const dialect = live?.dialect;
 
     if (own.length === 0 && manifest.kind === 'app') {
@@ -622,9 +717,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         : { ...pure, problems: [...pure.problems, ...pageProblems], installable: false };
     return {
       plan,
-      existing: tables,
+      existing: found,
       dto: {
-        checksum: planChecksum(plan, tables),
+        checksum:
+          addOnRows === undefined || addOnRows.length === 0
+            ? planChecksum(plan, tables)
+            : sha256Hex(JSON.stringify([planChecksum(plan, tables), addOnIdentity(addOnRows)])),
         ...(plan.tables === undefined
           ? {}
           : {
@@ -857,6 +955,27 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               };
               return installOutbox({ meta: deps.meta, manifest, manifestId: manifestRowId, connectionId, realId });
             })();
+      /*
+       * The documents its rows print: a profile per shape profile of each
+       * table built on an add-on's shape, and per entry of its own
+       * `documents`, owned by the app. An update changes them in place; one
+       * that cannot be made (its add-on is not here) is said, never half-made.
+       */
+      if (connectionId !== null && manifest.kind === 'app') {
+        const realNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
+        const model = await deps.publicAccess?.viewFor(connectionId);
+        const documents = await makeAppProfiles({
+          meta: deps.meta,
+          manifest,
+          connectionId,
+          realId: (ref) => model?.model.tables.find((table) => table.name === (realNames[ref] ?? ref))?.id ?? null,
+          shapes: await installedShapes(deps.meta),
+          createdBy: userId,
+        });
+        if (documents.skipped.length > 0) {
+          request.log.info({ skipped: documents.skipped, app: manifest.key }, 'app document profiles skipped');
+        }
+      }
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
       let made: Awaited<ReturnType<typeof installPublicAccess>> | undefined;
       if (publicAccess && connectionId !== null && deps.publicAccess !== undefined && manifest.kind === 'app') {
@@ -941,8 +1060,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     opts: { superAdmin: boolean; createdBy: string | null },
     expectedChecksum?: string,
     answers: InstallAnswers = {},
+    addOnRows?: readonly AppAddOnRow[],
   ): Promise<{ created: string[]; reused: string[]; names: Record<string, string> }> {
-    const checked = await checkedPlan(key, manifest, connectionId, verb, expectedChecksum, answers);
+    const checked = await checkedPlan(key, manifest, connectionId, verb, expectedChecksum, answers, addOnRows);
     const applied = await applyTables(checked, manifest, connectionId, opts);
     // Record what an update found and made, the same way an install does.
     const records = appTablesRepo(deps.meta);
@@ -1049,6 +1169,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     verb: 'installed' | 'updated',
     expectedChecksum?: string,
     answers: InstallAnswers = {},
+    addOnRows?: readonly AppAddOnRow[],
   ): Promise<{ plan: InstallPlan; existing: ExistingTable[]; target: AppSchemaTarget }> {
     if (deps.schemaTarget === undefined) {
       throw new ValidationFailedError(
@@ -1057,7 +1178,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       );
     }
 
-    const { plan, dto, existing } = await planFor(manifest, connectionId, answers);
+    const { plan, dto, existing } = await planFor(manifest, connectionId, answers, addOnRows);
     /*
      * THE PLAN THE OPERATOR SAW, OR NONE. Re-planned from the live database a
      * moment ago; a table created, dropped or altered since the check step
@@ -1780,12 +1901,25 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           const refused = updateRefusal(manifest, installed.row.version);
           if (refused !== null) throw refused;
         }
-        const { dto } = await planFor(manifest, connectionId, {
-          ...(choices === undefined ? {} : { choices }),
-          ...(altPrefix === undefined ? {} : { altPrefix }),
-        });
+        // The add-ons it names, each with its own plan: their consent is part of the app's.
+        const addOns = await addOnRowsFor(manifest, connectionId, true);
+        const { dto } = await planFor(
+          manifest,
+          connectionId,
+          {
+            ...(choices === undefined ? {} : { choices }),
+            ...(altPrefix === undefined ? {} : { altPrefix }),
+          },
+          addOns,
+        );
         const publicAccess = await publicAccessOf(manifest, connectionId, dto.names ?? {}, request);
-        return { plan: publicAccess === undefined ? dto : { ...dto, publicAccess } };
+        return {
+          plan: {
+            ...dto,
+            ...(publicAccess === undefined ? {} : { publicAccess }),
+            ...(addOns.length === 0 ? {} : { addOns }),
+          },
+        };
       },
     );
 
@@ -1885,11 +2019,20 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           prior.row.version === version &&
           prior.row.connectionId === (connectionId ?? null);
 
+        /*
+         * THE ADD-ONS IT NEEDS, DECIDED BEFORE ANYTHING IS WRITTEN: a required
+         * one that cannot be had, one out of range nobody ticked to update,
+         * one whose bytes are not here yet, one whose own plan is refused —
+         * each stops the install here, with nothing written.
+         */
+        const addOnRows = await addOnRowsFor(manifest, connectionId ?? null, true);
+        const addOnSteps: AddOnStep[] = decideAddOnSteps(manifest.name, addOnRows, (request.body.addOns ?? []) as AddOnChoice[]);
+
         // A resume re-plans against tables it made itself, so the reviewed
         // checksum no longer describes the database — by design.
-        const checked =
+        let checked =
           wanted.length > 0 && connectionId !== undefined
-            ? await checkedPlan(key, manifest, connectionId, 'installed', resuming ? undefined : reviewed, answers)
+            ? await checkedPlan(key, manifest, connectionId, 'installed', resuming ? undefined : reviewed, answers, addOnRows)
             : undefined;
 
         // Re-installing the same key replaces the row rather than adding a
@@ -1919,16 +2062,42 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         await deps.installed.refresh();
 
         const tableRecords = appTablesRepo(deps.meta);
-        let stage: 'tables' | 'pages' | 'finish' = 'tables';
+        let stage: 'add-ons' | 'tables' | 'pages' | 'finish' = 'add-ons';
         let applied: { created: string[]; reused: string[] } | undefined;
         let writtenPages: Awaited<ReturnType<typeof writePages>>;
+        let addOnsDone: AddOnsDone | undefined;
         try {
-          if (checked !== undefined && connectionId !== undefined) {
+          /*
+           * THE ADD-ONS FIRST, into the app's own database, so its tables can
+           * be built on them. Kept if anything after fails: they are shared.
+           */
+          const addOnInstaller = addOnDeps();
+          if (addOnSteps.length > 0 && addOnInstaller !== undefined) {
+            await runAddOnSteps(addOnInstaller, {
+              steps: addOnSteps,
+              host: appHost(manifest, connectionId ?? null),
+              connectionId: connectionId ?? null,
+              actor: { id: userId, label: userLabel },
+              manifestRowId: rowId,
+            });
+            // Their tables exist now: the app's plan is read again from the
+            // database, so a foreign key into one is made with its real type.
+            if (checked !== undefined && connectionId !== undefined && tablesComingFromAddOns(addOnRows).length > 0) {
+              checked = await checkedPlan(key, manifest, connectionId, 'installed', undefined, answers);
+            }
+          }
+          // The done line: every step this install took, this attempt or an earlier one.
+          if (addOnInstaller !== undefined && namesAddOns(manifest)) {
+            addOnsDone = await stepsAlreadyTaken(addOnInstaller, key, rowId);
+          }
+          stage = 'tables';
+          const tablesPlan = checked;
+          if (tablesPlan !== undefined && connectionId !== undefined) {
             await tableRecords.attach(connectionId, key, rowId);
             const pending = new Map<string, string>();
             const prefix = manifest.requiredSchema?.prefixed === true ? (answers.altPrefix ?? prefixFor(key)) : null;
             const recordTables = async (): Promise<void> => {
-              for (const table of checked.plan.create) {
+              for (const table of tablesPlan.plan.create) {
                 // Owned: the live read a moment ago did not find it.
                 const record = await tableRecords.record({
                   appKey: key,
@@ -1942,8 +2111,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                 });
                 pending.set(table.ref, record.id);
               }
-              for (const table of checked.plan.reuse) {
-                const shared = checked.plan.tables?.find((t) => t.ref === table.ref)?.action === 'share';
+              for (const table of tablesPlan.plan.reuse) {
+                const shared = tablesPlan.plan.tables?.find((t) => t.ref === table.ref)?.action === 'share';
                 await tableRecords.record({
                   appKey: key,
                   manifestId: rowId,
@@ -1958,7 +2127,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               }
             };
             applied = await applyTables(
-              checked,
+              tablesPlan,
               manifest,
               connectionId,
               { superAdmin: await isSuperAdmin(request), createdBy: userId },
@@ -1979,7 +2148,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             connectionId ?? null,
             userId,
             true,
-            checked?.plan.names,
+            tablesPlan?.plan.names,
             grantsPublicAccess,
           );
           stage = 'finish';
@@ -1993,14 +2162,21 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             connectionId === undefined ? [] : await tableRecords.forInstall(connectionId, key);
           const created = records.filter((r) => r.state === 'created').map((r) => r.ref);
           const pendingRefs = records.filter((r) => r.state === 'pending').map((r) => r.ref);
-          const table = error instanceof AddOnInstallError ? (error.table ?? null) : null;
+          const table = error instanceof AddOnInstallError && stage !== 'add-ons' ? (error.table ?? null) : null;
+          // What the add-on steps did before the stop: kept, and not redone by "Try again".
+          const addOnInstaller = addOnDeps();
+          const keptAddOns = addOnInstaller === undefined ? undefined : await stepsAlreadyTaken(addOnInstaller, key, rowId);
           // Every table exists, so what failed inside the table step was the
           // re-read of the schema that follows the creates.
           const where = stage === 'tables' && pendingRefs.length === 0 && table === null ? 'introspect' : stage;
           const message = error instanceof Error ? error.message : String(error);
+          const addOnsKept =
+            keptAddOns === undefined || keptAddOns.installed.length + keptAddOns.updated.length + keptAddOns.attached.length === 0
+              ? {}
+              : { addOns: keptAddOns };
           await auditAppEvent(
             'app.install-failed',
-            { key, version, stage: where, table, created, pending: pendingRefs, message },
+            { key, version, stage: where, table, created, pending: pendingRefs, message, ...addOnsKept },
             userId,
             userLabel,
           );
@@ -2008,7 +2184,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             `Installing "${key}" stopped at the ${where} step: ${message} ` +
               'Nothing was removed. Install it again to finish from where it stopped.',
             'APP_INSTALL_INCOMPLETE',
-            { stage: where, table, created, pending: pendingRefs, cause: message },
+            { stage: where, table, created, pending: pendingRefs, cause: message, ...addOnsKept },
           );
         }
 
@@ -2049,6 +2225,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
           ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
           ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
+          ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
         };
       },
     );
@@ -2124,6 +2301,18 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
 
         /*
+         * AN ADD-ON MOUNTED ON THIS APP MUST STILL WORK WITH IT. A new version
+         * outside an attached add-on's (binding) range is refused, naming the
+         * add-on — never a silent detach, which would take a feature away
+         * without anyone deciding to.
+         */
+        const outOfRange = await attachedRangeRefusal({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key, to);
+        if (outOfRange !== null) throw outOfRange;
+        // The add-ons the NEW version names, decided before anything moves.
+        const addOnRows = await addOnRowsFor(manifest, installed.row.connectionId, true);
+        const addOnSteps = decideAddOnSteps(manifest.name, addOnRows, (request.body?.addOns ?? []) as AddOnChoice[]);
+
+        /*
          * Tables against the connection the installed row ALREADY has, never a
          * new one: switching databases is an uninstall and an install, where
          * the operator is asked. New tables are created; a table missing columns
@@ -2147,15 +2336,47 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
            * checksum, and what they chose for a new table whose name is taken.
            * A different PREFIX is not an update's to choose — the app's tables
            * stay where they are; that is an uninstall and an install.
+           *
+           * With add-ons to install first, the checked plan is made BEFORE
+           * they move (it refuses with nothing written), and the tables are
+           * then planned again against the add-ons' tables as they are.
            */
+          if (addOnSteps.length > 0) {
+            await checkedPlan(
+              key,
+              manifest,
+              connectionId,
+              'updated',
+              request.body?.planChecksum,
+              request.body?.choices === undefined ? {} : { choices: request.body.choices },
+              addOnRows,
+            );
+          }
+        }
+        const addOnInstaller = addOnDeps();
+        let addOnsDone: AddOnsDone | undefined;
+        if (addOnSteps.length > 0 && addOnInstaller !== undefined) {
+          addOnsDone = await runAddOnSteps(addOnInstaller, {
+            steps: addOnSteps,
+            host: appHost(manifest, connectionId),
+            connectionId,
+            actor: { id: userId, label: userLabel },
+            manifestRowId: installed.row.id,
+          });
+        } else if (namesAddOns(manifest)) {
+          addOnsDone = { installed: [], updated: [], attached: [] };
+        }
+        if (wanted.length > 0 && connectionId !== null) {
           const made = await createTables(
             key,
             manifest,
             connectionId,
             'updated',
             { superAdmin: await isSuperAdmin(request), createdBy: userId },
-            request.body?.planChecksum,
+            addOnSteps.length > 0 ? undefined : request.body?.planChecksum,
             request.body?.choices === undefined ? {} : { choices: request.body.choices },
+            // Planned against the add-ons' tables as they now are.
+            addOnSteps.length > 0 ? undefined : addOnRows,
           );
           applied = { created: made.created, reused: made.reused };
           names = made.names;
@@ -2223,6 +2444,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             ...(writtenPages?.roles === undefined ? {} : { roles: writtenPages.roles }),
             ...(writtenPages?.publicAccess === undefined ? {} : { publicAccess: writtenPages.publicAccess }),
             ...(writtenPages?.outbox === undefined ? {} : { outbox: writtenPages.outbox }),
+            ...(addOnsDone === undefined ? {} : { addOns: addOnsDone }),
           },
           from,
           to,
@@ -2285,9 +2507,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               (record) => record.appKey !== key && record.state !== 'dropped' && record.state !== 'released',
             );
       const domains = await settingsRepo(deps.meta).get('surfaces.domains');
+      // The add-ons connected to it: kept, only their link to it goes.
+      const addOns = await addOnsKeptBy({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key);
       return {
         key,
         connectionId,
+        addOns,
         pages: {
           removed: pageRows.filter((page) => isUntouched(page.config)),
           kept: pageRows.filter((page) => !isUntouched(page.config)),
@@ -2427,6 +2652,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           tables: plan.tables.map((entry) => ({ table: entry.record.tableName, droppable: entry.droppable })),
           hosts: plan.hosts,
           canDropTables: await isSuperAdmin(request),
+          ...(plan.addOns.length === 0 ? {} : { addOns: plan.addOns }),
         };
       },
     );
@@ -2436,6 +2662,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     /** This app's settings, read from the STORE — a page about to write must not see a cached copy. */
     async function settingsView(row: InstalledApp) {
       const key = row.row.manifestKey;
+      const document = row.document as Manifest | null;
+      const addOns = document === null ? [] : (await addOnRowsFor(document, row.row.connectionId, false)).map(({ plan: _plan, ...rest }) => rest);
       const [apps, domains] = await Promise.all([
         settingsRepo(deps.meta).get('surfaces.apps'),
         settingsRepo(deps.meta).get('surfaces.domains'),
@@ -2455,6 +2683,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         placement: entry.staff ?? ('internal' as const),
         connectionId: entry.connectionId ?? null,
         off: entry.off ?? [],
+        ...(addOns.length === 0 ? {} : { addOns }),
         values: settingValuesWithDefaults(declaredSettings(row), await addOnSettingsRepo(deps.meta).valuesFor(key)),
         declared: declaredSettings(row)
           .filter((setting) => setting.secret !== true)
@@ -3000,6 +3229,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             : await removeManifestRules(deps.meta, plan.tables.map((entry) => entry.record), plan.connectionId);
         // Its emails: the outbox definition, and the templates nobody edited.
         const emailsRemoved = await removeOutbox(deps.meta, key);
+        // The document profiles it made; an operator's own stay.
+        if (plan.connectionId !== null) await removeAppProfiles(deps.meta, plan.connectionId, key);
         /*
          * 5. Its tables: dropped only when asked, with the key typed back, and
          *    only the ones this app made and nothing else names. Every other
@@ -3018,6 +3249,14 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         for (const entry of kept) await appTablesRepo(deps.meta).setState(entry.record.id, 'released');
         // Its own settings go with it; a reinstall starts from the manifest's defaults.
         await addOnSettingsRepo(deps.meta).clear(key);
+        /*
+         * Its links to add-ons go; the add-ons stay installed — they are
+         * shared, and removing one is its own decision, made in Add-ons. The
+         * link rows belong to the ADD-ONS' manifest rows, so the app row's
+         * cascade below would not take them.
+         */
+        const detached = await manifests.detachHost(key);
+        if (detached > 0) await deps.addOns?.installer.rebuildRuntime?.();
 
         /*
          * The row goes FIRST, then the bytes. The reverse order would leave a
@@ -3067,7 +3306,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           rules: rulesRemoved,
           emails: emailsRemoved,
         };
-        const keptSummary = { pages: plan.pages.kept.length, tables: kept.map((entry) => entry.record.tableName) };
+        const keptSummary = {
+          pages: plan.pages.kept.length,
+          tables: kept.map((entry) => entry.record.tableName),
+          ...(plan.addOns.length === 0 ? {} : { addOns: plan.addOns.map((addOn) => addOn.key) }),
+        };
         await auditAppEvent(
           'app.uninstalled',
           {

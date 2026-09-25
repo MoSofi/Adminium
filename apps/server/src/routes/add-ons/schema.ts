@@ -42,6 +42,22 @@ export const addOnBundleParams = z.object({
   '*': z.string().min(1).max(200),
 });
 
+/** A feature of an app that works only with an add-on: its id and its label per language. */
+export const featureNeedDto = z.object({ id: z.string(), label: z.record(z.string(), z.string()) });
+
+/** One installed app's need of an add-on. */
+export const appNeedDto = z.object({
+  app: hostKey,
+  appName: z.string(),
+  /** `installed`, `disabled` or `installing` — a switched-off app still holds its need. */
+  status: z.string(),
+  /** `requires` (it cannot run without), `feature` (a feature stops), `suggests`. */
+  need: z.enum(['requires', 'feature', 'suggests']),
+  /** The add-on versions the app works with. */
+  range: z.string().nullable(),
+  features: z.array(featureNeedDto),
+});
+
 /** One host this add-on is mounted on, and whether it is on there. */
 export const addOnAttachmentDto = z.object({
   attachedTo: hostKey,
@@ -135,6 +151,13 @@ export const addOnDto = z.object({
       integrity: z.string().regex(/^sha256-[A-Za-z0-9+/]+={0,2}$/),
     }),
   ),
+  /**
+   * The installed apps that name this add-on, and how — read BEFORE a click,
+   * so the page can say "Point of Sale's Emailed receipts will switch off"
+   * instead of learning it from a refusal. An app that `requires` it (in any
+   * status, a switched-off one included) makes removing it a 409.
+   */
+  usedBy: z.array(appNeedDto),
 });
 
 export const addOnListReply = z.object({ addOns: z.array(addOnDto) });
@@ -177,6 +200,12 @@ export const installPlanDto = z.object({
    * install can proceed at all.
    */
   requiresSchemaChange: z.boolean(),
+  /**
+   * Advice that does not stop the install: the manifest names app keys this
+   * server does not know (every published add-on names apps an instance may
+   * never install).
+   */
+  warnings: z.array(z.string()).optional(),
 });
 
 export const installPlanReply = z.object({ plan: installPlanDto });
@@ -208,7 +237,20 @@ export const patchAddOnBody = z.object({
   enabled: z.boolean(),
 });
 
-export const patchAddOnReply = z.object({ addOn: addOnDto });
+export const patchAddOnReply = z.object({
+  addOn: addOnDto,
+  /** Switched off for an app that used it for a feature: the features that stop. */
+  features: z.array(appNeedDto).optional(),
+});
+
+/** `POST /add-ons/:key/attachments` — mount an installed add-on on one more host. */
+export const attachAddOnBody = z.object({ app: hostKey }).strict();
+
+export const attachAddOnReply = z.object({
+  addOn: addOnDto,
+  /** `attached` (a new host), `enabled` (switched back on there), or null (already so). */
+  change: z.enum(['attached', 'enabled']).nullable(),
+});
 
 export const uninstallAddOnReply = z.object({
   key: addOnKey,
@@ -219,6 +261,8 @@ export const uninstallAddOnReply = z.object({
    */
   tablesKept: z.boolean(),
   packageRemoved: z.boolean(),
+  /** The apps that used it for a feature, and the features that stopped. */
+  features: z.array(appNeedDto).optional(),
 });
 
 /**

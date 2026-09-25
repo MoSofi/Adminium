@@ -644,9 +644,11 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const venue = bound === null || opts.metaDb === undefined ? null : await connectionTenantConfig(opts.metaDb, bound);
         const staffKeys = user === null || bound === null ? {} : await staffKeysFor(appKey, bound, user.id);
         const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id);
+        const addOns = await addOnsOf(appKey, 'staff');
         return {
           connectionId: bound,
           appName,
+          ...(addOns === null ? {} : { addOns }),
           ...(Object.keys(staffKeys).length === 0 ? {} : { publicKeys: staffKeys }),
           ...(access === null ? {} : { access }),
           ...(tables === null ? {} : { tables }),
@@ -679,10 +681,12 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         appKey,
       );
       const values = await settingsOf(appKey);
+      const addOns = await addOnsOf(appKey, 'customer');
       return {
         baseUrl: '',
         publishableKey: openPublishableKey(crypto, key.tokenEncrypted),
         appName,
+        ...(addOns === null ? {} : { addOns }),
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
       };
@@ -771,6 +775,59 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     }
 
     /**
+     * THE ADD-ONS THIS APP HAS, as its own screens need them: the ones attached
+     * to it, switched on for it, and installed.
+     *
+     * The STAFF side gets each one's version and its `publicSettings` — the
+     * settings its author marked for a browser (a letterhead, a tax label),
+     * with their defaults — and never a `secret` one, even were a manifest to
+     * list it (the validator already refuses that; this does not rely on it).
+     *
+     * The CUSTOMER side gets `{ present: true }` and nothing more. Its config
+     * is PUBLIC — served with no sign-in, to anyone who asks — so a setting
+     * there would be published: a studio's payment instructions scraped
+     * beside its name is the raw material of a payment-diversion email. What a
+     * signed-in client may read comes through a claimed read instead.
+     *
+     * Null when none is attached, so an app with no add-ons gets exactly the
+     * document it always got.
+     */
+    async function addOnsOf(appKey: string, side: SurfaceSide): Promise<Record<string, unknown> | null> {
+      const metaDb = opts.metaDb;
+      if (metaDb === undefined) return null;
+      const rows = await metaDb.db
+        .selectFrom('adminium_manifest_attachments as a')
+        .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
+        .select(['m.manifestKey as key', 'm.version as version', 'm.manifest as manifest'])
+        .where('a.attachedTo', '=', appKey)
+        .where('a.disabledAt', 'is', null)
+        .where('m.kind', '=', 'add-on')
+        .where('m.status', '=', 'installed')
+        .orderBy('m.manifestKey', 'asc')
+        .execute();
+      if (rows.length === 0) return null;
+      const out: Record<string, unknown> = {};
+      for (const row of rows) {
+        if (side === 'customer') {
+          out[row.key] = { present: true };
+          continue;
+        }
+        const document = readJson<{
+          settings?: Manifest['settings'];
+          addOn?: { publicSettings?: string[] };
+        } | null>(row.manifest);
+        const declared = (document?.settings ?? []).filter((setting) => setting.secret !== true);
+        const shown = new Set((document?.addOn?.publicSettings ?? []).filter((name) => declared.some((setting) => setting.key === name)));
+        const values = settingValuesWithDefaults(declared, await addOnSettingsRepo(metaDb).valuesFor(row.key));
+        out[row.key] = {
+          version: row.version,
+          settings: Object.fromEntries(Object.entries(values).filter(([name]) => shown.has(name))),
+        };
+      }
+      return out;
+    }
+
+    /**
      * Short name → real table, for an app whose tables Adminium named (a
      * prefix, or a rename). The app reads it at boot instead of the names it
      * was built with. Null when nothing is recorded, so an app installed
@@ -818,6 +875,13 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         }
         return;
       }
+      /*
+       * NO REFERRER LEAVES A SURFACE. Its URLs can carry a person's own link
+       * (a sign-in or a share token), and a click out of the page would hand
+       * the whole address to whoever it links to. Set first, so a refusal
+       * page carries it too.
+       */
+      void reply.header('referrer-policy', 'no-referrer');
       const surface = known.find((s) => s.appKey === mapping.appKey && s.side === mapping.side);
       const path = pathOf(request.url);
       if (surface === undefined) {
@@ -913,6 +977,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       // dashboard's own 404 to answer, which is what any other unknown path gets.
       if (connectionId === null) return;
 
+      void reply.header('referrer-policy', 'no-referrer');
       if (await app.surfaceGate(surface, request, reply)) return reply;
 
       if (parsed.rest === 'surface-config.json') {
@@ -986,6 +1051,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
           return;
         }
 
+        void reply.header('referrer-policy', 'no-referrer');
         if (await app.surfaceGate(surface, request, reply)) return reply;
 
         if (parsed.rest === 'surface-config.json') {
@@ -1005,6 +1071,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     for (const surface of surfaces) {
       await app.register(async (scope) => {
         scope.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
+          void reply.header('referrer-policy', 'no-referrer');
           if (await app.surfaceGate(surface, request, reply)) return reply;
         });
 

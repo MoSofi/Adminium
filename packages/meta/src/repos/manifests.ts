@@ -309,6 +309,40 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     },
 
     /**
+     * Every add-on attached to one host, on or off, with its row — what an
+     * app's uninstall keeps (the add-ons stay; only the links go).
+     */
+    async attachedToHost(attachedTo: string): Promise<InstalledManifest[]> {
+      const rows = await db
+        .selectFrom('adminium_manifest_attachments as a')
+        .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
+        .selectAll('m')
+        .where('a.attachedTo', '=', attachedTo)
+        .where('m.kind', '=', 'add-on')
+        .orderBy('m.manifestKey', 'asc')
+        .execute();
+      const out: InstalledManifest[] = [];
+      for (const row of rows) out.push(hydrate(row, await attachmentsFor(row.id)));
+      return out;
+    },
+
+    /**
+     * Take every add-on off one host: the rows that say "mounted on this app".
+     *
+     * They belong to the ADD-ON's manifest row, so deleting the host app's own
+     * row cascades none of them — without this an uninstalled app's key would
+     * still be listed as a host, and a later app installed under the same key
+     * would inherit add-ons nobody attached to it. Idempotent.
+     */
+    async detachHost(attachedTo: string): Promise<number> {
+      const res = await db
+        .deleteFrom('adminium_manifest_attachments')
+        .where('attachedTo', '=', attachedTo)
+        .executeTakeFirst();
+      return Number(res.numDeletedRows ?? 0n);
+    },
+
+    /**
      * Uninstall: delete the manifest row. Attachments and credentials follow by
      * FK cascade; every table the add-on BROUGHT stays, because nothing here
      * touches the data source.

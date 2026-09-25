@@ -190,10 +190,14 @@ describe('the add-on routes call the hooks at all', () => {
       new URL('../src/routes/add-ons/index.ts', import.meta.url),
       'utf8',
     );
-    // Install, upgrade, enable/disable, uninstall, and an upload of the
-    // installed version (files put back after a data directory was lost) —
-    // five rebuild sites.
-    expect(routes.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(5);
+    // Enable/disable, uninstall, and an upload of the installed version (files
+    // put back after a data directory was lost) in the routes; install,
+    // upgrade and attach in the installer both the add-on and the app routes
+    // call — six rebuild sites.
+    expect(routes.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(3);
+    const installer = await readFile(new URL('../src/add-ons/install.ts', import.meta.url), 'utf8');
+    expect(installer.match(/deps\.rebuildRuntime\?\.\(\)/g) ?? []).toHaveLength(3);
+    expect(routes).toContain('rebuildRuntime: deps.rebuildRuntime');
     expect(routes).toContain('deps.onAddOnRemoved?.(key)');
 
     const compose = await readFile(new URL('../src/compose.ts', import.meta.url), 'utf8');

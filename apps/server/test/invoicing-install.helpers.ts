@@ -32,10 +32,11 @@ import {
 import { expect } from 'vitest';
 
 import { createInstalledApps } from '../src/apps/installed.js';
+import { createAddOnSchemaTarget } from '../src/add-ons/schema-target.js';
 import { createAppSchemaTarget } from '../src/apps/schema-target.js';
 import { createAppStore } from '../src/apps/store.js';
 import type { SampleDataDeps } from '../src/apps/sample-data.js';
-import { sha512Integrity } from '../src/add-ons/store.js';
+import { createAddOnStore, sha512Integrity } from '../src/add-ons/store.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -267,6 +268,15 @@ async function buildApp(meta: MetaDb, manager: ConnectionManager, dataDir: strin
       directoryKeys: () => [],
       serverVersion: '0.4.0',
       schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(TEST_SECRET) }),
+      // The add-ons an app needs install through the same installer the add-on routes use.
+      addOns: {
+        installer: {
+          meta,
+          store: createAddOnStore({ dataDir }),
+          credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v },
+          schemaTarget: createAddOnSchemaTarget({ meta, manager, credentialCrypto: { encrypt: (v) => v, decrypt: (v) => v } }),
+        },
+      },
       sampleData,
       publicAccess: {
         service: createEndpointService({ meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(meta, cid)) ?? undefined }),
@@ -282,7 +292,12 @@ async function buildApp(meta: MetaDb, manager: ConnectionManager, dataDir: strin
 }
 
 /** A fresh database on `dialect`, with the app staged, planned and installed. */
-export async function installInvoicing(dialect: Dialect, manifest = invoicingManifest()): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
+export async function installInvoicing(
+  dialect: Dialect,
+  manifest = invoicingManifest(),
+  /** Run on the fresh meta store before the app goes in: an add-on the app needs, say. */
+  before?: (meta: MetaDb) => Promise<void>,
+): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
   const dataDir = await mkdtemp(join(tmpdir(), 'invoicing-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
@@ -330,6 +345,7 @@ export async function installInvoicing(dialect: Dialect, manifest = invoicingMan
   const connection = await manager.connections.create({ name: 'Studio', engine: dialect, introspectDsn: dsn, dataDsn: dsn });
   await runIntrospection({ manager, meta, connectionId: connection.id });
   const app = await buildApp(meta, manager, dataDir, user.id);
+  await before?.(meta);
 
   const tarball = packageTarball({
     'manifest.json': JSON.stringify(manifest),

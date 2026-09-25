@@ -65,10 +65,8 @@
 import {
   compareSemver,
   isAddOnManifest,
-  planInstall,
   validateManifest,
   type AddOnManifest,
-  type InstallPlan,
 } from '@adminium/manifest';
 import {
   SecretSettingRefused,
@@ -80,6 +78,7 @@ import {
   type InstalledManifest,
   type MetaDb,
 } from '@adminium/meta';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import {
@@ -93,6 +92,15 @@ import {
   type CatalogClient,
 } from '../../add-ons/catalog.js';
 import { addOnHttpClientFor } from '../../add-ons/egress.js';
+import {
+  addOnManifestFromStore,
+  attachAddOn,
+  installAddOn,
+  planAddOn,
+  upgradeAddOn,
+  type Actor,
+} from '../../add-ons/install.js';
+import { needsByAddOn, needsOf, type AppNeed } from '../../add-ons/needs.js';
 import {
   AddOnOAuthError,
   createOAuthFlowStore,
@@ -111,7 +119,7 @@ import {
 } from '../../jobs/add-on-acquire.js';
 import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
-import { PERMISSIONS } from '../../rbac/permissions.js';
+import { addOnSettingsPermission, PERMISSIONS } from '../../rbac/permissions.js';
 import { APP_VERSION } from '../../version.js';
 import {
   addOnBundleParams,
@@ -141,9 +149,10 @@ import {
   patchAddOnReply,
   uninstallAddOnReply,
   type AddOnDto,
-  type InstallPlanDto,
   addOnSettingsBody,
   addOnSettingsReply,
+  attachAddOnBody,
+  attachAddOnReply,
 } from './schema.js';
 
 /** Sideload cap: the largest first-party dist is ~300 KB (own sizing). */
@@ -293,6 +302,19 @@ function asOAuthRefusal(error: unknown): never {
   throw error;
 }
 
+/** 409 `ADD_ON_REQUIRED_BY`: the apps that cannot run without the add-on, named. */
+function requiredByError(key: string, requiring: readonly AppNeed[], verb: 'removed' | 'switched off'): AppError {
+  const names = requiring.map((need) => need.appName);
+  const list = names.length === 1 ? names[0]! : `${names.slice(0, -1).join(', ')} and ${names.at(-1)!}`;
+  return new AppError(
+    409,
+    'ADD_ON_REQUIRED_BY',
+    `"${key}" can’t be ${verb}: ${list} ${names.length === 1 ? 'needs' : 'need'} it. ` +
+      `Uninstall ${names.length === 1 ? 'that app' : 'those apps'} first.`,
+    { addOn: key, apps: requiring.map((need) => ({ app: need.app, name: need.appName, status: need.status })) },
+  );
+}
+
 export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
   const manifests = manifestsRepo(deps.meta, deps.credentialCrypto);
   const serverVersion = deps.serverVersion ?? APP_VERSION;
@@ -329,7 +351,24 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
     ];
   }
 
-  async function toDto(installed: InstalledManifest): Promise<AddOnDto> {
+  /** Who did it, for the audit rows the shared installer writes. */
+  function actorOf(request: FastifyRequest): Actor {
+    return { id: request.user?.id ?? null, label: request.user?.email ?? 'unknown' };
+  }
+
+  /** The app needs a reply carries, in the wire shape. */
+  function needsDto(needs: readonly AppNeed[]) {
+    return needs.map((need) => ({
+      app: need.app,
+      appName: need.appName,
+      status: need.status,
+      need: need.need,
+      range: need.range,
+      features: need.features.map((feature) => ({ id: feature.id, label: { ...feature.label } })),
+    }));
+  }
+
+  async function toDto(installed: InstalledManifest, usedBy?: readonly AppNeed[]): Promise<AddOnDto> {
     const manifest = parseManifest(installed.document, installed.row.manifestKey);
     const block: AddOnBlock = manifest.addOn;
     // `credentialStatus` deliberately, not `getCredential`: a LIST must never
@@ -415,75 +454,18 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           }),
         )
       ).filter((bundle): bundle is { path: string; url: string; integrity: string } => bundle !== null),
+      usedBy: needsDto(usedBy ?? (await needsOf(deps.meta, manifest.key))),
     };
   }
 
-  /**
-   * Runs the planner against whatever the data source currently has.
-   *
-   * Returns the plan BESIDE its DTO rather than only the DTO: `applyInstall`
-   * takes the plan, and rebuilding one from the wire shape would be a second
-   * place for the two to disagree about what is being created.
-   */
-  async function planFor(
-    manifest: AddOnManifest,
-    attachTo: readonly string[] = [],
-  ): Promise<{ plan: InstallPlan; dto: InstallPlanDto }> {
-    const tables = (await deps.schemaTarget?.read(attachTo)) ?? [];
-    const plan = planInstall(manifest, { tables });
-    const requiresSchemaChange =
-      plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0);
-    const dto: InstallPlanDto = {
-      addOnKey: plan.addOnKey,
-      version: plan.version,
-      installable: plan.installable,
-      touchesData: plan.touchesData,
-      create: plan.create.map((t) => ({
-        ref: t.ref,
-        columns: t.columns.map((c) => ({ ref: c.ref, type: c.type })),
-      })),
-      reuse: plan.reuse.map((t) => ({ ref: t.ref, missingColumns: t.missingColumns })),
-      references: plan.references,
-      problems: plan.problems.map((p) => ({
-        code: p.code,
-        message: p.message,
-        table: p.table,
-        ...(p.column === undefined ? {} : { column: p.column }),
-      })),
-      requiresSchemaChange,
-    };
-    return { plan, dto };
-  }
-
-  /** Reads and re-verifies a staged package, then parses its manifest. */
-  async function manifestFromStore(key: string, version: string): Promise<AddOnManifest> {
-    try {
-      // The TOCTOU close: the tree is checked against the per-file pin recorded
-      // at unpack before anything reads it.
-      await deps.store.verifyTree(key, version);
-    } catch (error) {
-      const reason = (error as { reason?: string }).reason ?? 'UNKNOWN';
-      if (reason === 'TREE_MISSING') {
-        throw new NotFoundError(
-          `No verified package for "${key}@${version}" is staged on this instance. ` +
-            'Download it from the catalog, or upload its tarball, before installing.',
-        );
-      }
-      throw new ValidationFailedError(
-        `The staged package for "${key}@${version}" no longer matches the bytes that were ` +
-          'verified when it was downloaded, so it will not be installed.',
-        { reason },
-      );
-    }
-    const bytes = await deps.store.readFile(key, version, 'manifest.json');
-    let document: unknown;
-    try {
-      document = JSON.parse(bytes.toString('utf8'));
-    } catch {
-      throw new ValidationFailedError(`The manifest in "${key}@${version}" is not readable JSON.`);
-    }
-    return parseManifest(document, key);
-  }
+  /** The installer's dependencies: the same ones for every door that installs. */
+  const installer = {
+    meta: deps.meta,
+    store: deps.store,
+    credentialCrypto: deps.credentialCrypto,
+    schemaTarget: deps.schemaTarget,
+    rebuildRuntime: deps.rebuildRuntime,
+  };
 
   /** The connect block of an oauth2 manifest, narrowed. */
   function connectOf(manifest: AddOnManifest): OAuthConnect {
@@ -1116,85 +1098,13 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // Re-validate, re-check `attaches`, re-hash. An upgrade is NOT a
         // reinstall — the hosts it is mounted on and the credential it was
         // given both survive it, which is why it is a version bump on the
-        // existing row rather than an uninstall/install pair.
-        const { key } = request.params;
-        const installed = await manifests.findByKey(key);
-        if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
-
-        const from = installed.row.version;
-        const staged = (await deps.store.versions(key)).filter(
-          (candidate) => compareSemver(candidate, from) > 0,
-        );
-        const to = staged[0];
-        if (to === undefined) {
-          throw new NotFoundError(
-            `No newer version of "${key}" is staged. Download one first.`,
-          );
-        }
-
-        // Re-hash, re-validate: the staged tree is checked against its
-        // unpack-time pin and the manifest through the FULL validator, so an
-        // upgrade cannot smuggle past the publisher gate what an install could
-        // not.
-        const manifest = await manifestFromStore(key, to);
-        if (manifest.key !== key) {
-          throw new ValidationFailedError(
-            `The staged package declares key "${manifest.key}", not "${key}".`,
-          );
-        }
-
-        // Re-check `attaches`: a new version may have DROPPED a host this
-        // instance is currently mounted on, and upgrading into that would leave
-        // an attachment the manifest no longer claims to support.
-        const declared = new Set(manifest.addOn.attaches.map((a) => a.app));
-        const orphaned = declared.has('*')
-          ? []
-          : installed.attachments.map((a) => a.attachedTo).filter((host) => !declared.has(host));
-        if (orphaned.length > 0) {
-          throw new ValidationFailedError(
-            `"${key}" ${to} no longer attaches to ${orphaned.join(', ')}, which this instance ` +
-              'has it mounted on.',
-            { orphaned, declared: [...declared] },
-          );
-        }
-
-        const { dto: upgradePlan } = await planFor(manifest, installed.attachments.map((a) => a.attachedTo));
-        if (!upgradePlan.installable || upgradePlan.requiresSchemaChange) {
-          throw new ValidationFailedError(
-            `"${key}" ${to} cannot be applied to this instance.`,
-            {
-              problems: upgradePlan.problems,
-              requiresSchemaChange: upgradePlan.requiresSchemaChange,
-            },
-          );
-        }
-
-        await manifests.setVersion(installed.row.id, { version: to, document: manifest });
-
-        // D11: older directories are pruned only AFTER the upgrade verified,
-        // so a failure anywhere above leaves the running version on disk.
-        const pruned: string[] = [];
-        for (const old of await deps.store.versions(key)) {
-          if (compareSemver(old, to) >= 0) continue;
-          await deps.store.removeVersion(key, old);
-          pruned.push(old);
-        }
-
-        await auditRepo(deps.meta).append({
-          actorKind: 'user',
-          actorId: request.user?.id ?? null,
-          actorLabel: request.user?.email ?? 'unknown',
-          category: 'add-on',
-          action: 'add-on.upgraded',
-          changes: { after: { key, from, to, pruned } },
+        // existing row rather than an uninstall/install pair. The body is the
+        // installer's, shared with an app install's "update it too".
+        const { installed, from, to, pruned } = await upgradeAddOn(installer, {
+          key: request.params.key,
+          actor: actorOf(request),
         });
-
-        // A new version may provide a different contract, or none. Rebuilt
-        // whole, so an upgrade takes effect without a restart.
-        await deps.rebuildRuntime?.();
-
-        const after = await manifests.findByKey(key);
-        return { addOn: await toDto(after!), from, to, pruned };
+        return { addOn: await toDto(installed), from, to, pruned };
       },
     );
 
@@ -1218,7 +1128,15 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.requireAuth,
         schema: { response: { 200: addOnListReply } },
       },
-      async () => ({ addOns: await Promise.all((await manifests.list('add-on')).map(toDto)) }),
+      async () => {
+        // One read of every app's needs for the whole list, not one per row.
+        const needs = await needsByAddOn(deps.meta);
+        return {
+          addOns: await Promise.all(
+            (await manifests.list('add-on')).map((installed) => toDto(installed, needs.get(installed.row.manifestKey) ?? [])),
+          ),
+        };
+      },
     );
 
     app.get(
@@ -1237,7 +1155,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             `No package for "${request.params.key}" is staged on this instance.`,
           );
         }
-        return { plan: (await planFor(await manifestFromStore(request.params.key, version))).dto };
+        const { manifest, warnings } = await addOnManifestFromStore(installer, request.params.key, version);
+        return { plan: (await planAddOn(installer, manifest, { attachTo: [], warnings })).dto };
       },
     );
 
@@ -1250,102 +1169,41 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const { key, version, attachTo } = request.body;
-
-        if ((await manifests.findByKey(key)) !== null) {
-          throw new ConflictError(
-            `"${key}" is already installed. Uninstall it first, or upgrade it instead.`,
-          );
-        }
-
-        const manifest = await manifestFromStore(key, version);
-
-        // Check `attaches` against what the caller asked for. A manifest
-        // declaring `app: '*'` attaches anywhere; otherwise the host must be
-        // named. This is the gate that stops an add-on being mounted somewhere
-        // its author never claimed it works.
-        const declared = new Set(manifest.addOn.attaches.map((a) => a.app));
-        const anywhere = declared.has('*');
-        const refused = anywhere ? [] : attachTo.filter((host) => !declared.has(host));
-        if (refused.length > 0) {
-          throw new ValidationFailedError(
-            `"${key}" does not declare that it attaches to ${refused.join(', ')}.`,
-            { declared: [...declared], refused },
-          );
-        }
-
-        const { plan: rawPlan, dto: plan } = await planFor(manifest, attachTo);
-        if (!plan.installable) {
-          throw new ValidationFailedError(
-            `"${key}" cannot be installed on this instance.`,
-            { problems: plan.problems },
-          );
-        }
-
-        // A table that EXISTS but is missing columns the add-on needs is still
-        // refused, and deliberately: creating a table an add-on asked
-        // for is one conversation, and altering one the operator already owns
-        // is a different one that is theirs to have. The planner reports it as
-        // a partial match, and the message names the columns rather than
-        // offering to add them.
-        const incomplete = plan.reuse.filter((t) => t.missingColumns.length > 0);
-        if (incomplete.length > 0) {
-          throw new ValidationFailedError(
-            `"${key}" needs columns that tables in this database do not have. Adding columns to ` +
-              'tables you already own is not something an install will do.',
-            { code: 'ADD_ON_COLUMNS_REQUIRED', incomplete },
-          );
-        }
-
-        // The DDL. Runs BEFORE the meta row is written, so a failure
-        // leaves nothing registered — and every create is `IF NOT EXISTS`, so
-        // a retry after a partial failure completes the install rather than
-        // colliding with it. That ordering is what MySQL's lack of
-        // transactional DDL leaves available.
-        let created: string[] = [];
-        if (plan.create.length > 0) {
-          if (deps.schemaTarget === undefined) {
-            throw new ValidationFailedError(
-              `"${key}" needs tables this instance cannot create, because no data source is ` +
-                'wired into the add-on installer here.',
-              { code: 'ADD_ON_DDL_REQUIRED', create: plan.create.map((t) => t.ref) },
-            );
-          }
-          ({ created } = await deps.schemaTarget.apply(rawPlan, manifest, attachTo));
-        }
-
-        const installed = await manifests.install({
-          manifestKey: key,
-          version,
-          kind: 'add-on',
-          source: 'marketplace',
-          document: manifest,
-          installedBy: request.user?.id ?? null,
-          attachTo,
-        });
-
-        await auditRepo(deps.meta).append({
-          actorKind: 'user',
-          actorId: request.user?.id ?? null,
-          actorLabel: request.user?.email ?? 'unknown',
-          category: 'add-on',
-          action: 'add-on.installed',
-          changes: {
-            after: { key, version, attachTo, tables: plan.reuse.map((t) => t.ref), created },
-          },
-        });
-
         /*
-         * THE REBUILD THAT MAKES ROUND TRIP POSSIBLE.
-         *
-         * Without it a provider installed at 10am is unreachable until the
-         * process restarts — and the round trip's `install-without-restart`
-         * step, which has been in the script since wave 26, could never have
-         * passed. `runtime.ts` has claimed this behaviour all along;
-         * `compose.ts` built the state once, at boot, and nothing rebuilt it.
+         * The shared install: verify, check the hosts it is mounted on
+         * (declared, in range, its scopes within their tables), plan, create
+         * its tables, then the meta row — the same body an app install runs
+         * for the add-ons it needs. An add-on with pages is mounted on the
+         * dashboard as well, or its page would reach no rail.
          */
-        await deps.rebuildRuntime?.();
-
+        const { installed, plan } = await installAddOn(installer, {
+          key,
+          version,
+          attachTo,
+          actor: actorOf(request),
+        });
         return { addOn: await toDto(installed), plan };
+      },
+    );
+
+    app.post(
+      '/add-ons/:key/attachments',
+      {
+        /*
+         * `manifests.manage`, like install: mounting an add-on on another host
+         * runs its code against that host's data.
+         */
+        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        config: { audit: audited('rbac') },
+        schema: { params: addOnKeyParams, body: attachAddOnBody, response: { 200: attachAddOnReply } },
+      },
+      async (request) => {
+        const { installed, change } = await attachAddOn(installer, {
+          key: request.params.key,
+          host: request.body.app,
+          actor: actorOf(request),
+        });
+        return { addOn: await toDto(installed), change };
       },
     );
 
@@ -1639,6 +1497,18 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const installed = await manifests.findByKey(request.params.key);
         if (installed === null) throw new NotFoundError(`"${request.params.key}" is not installed.`);
 
+        /*
+         * SWITCHED OFF UNDER AN APP THAT REQUIRES IT — refused, for that app's
+         * attachment only: every other app's switch stays free. A switched-off
+         * app still holds its requirement; only uninstalling it releases it.
+         */
+        const host = request.body.attachedTo;
+        const needs = (await needsOf(deps.meta, request.params.key)).filter((need) => need.app === host);
+        if (!request.body.enabled) {
+          const requiring = needs.filter((need) => need.need === 'requires');
+          if (requiring.length > 0) throw requiredByError(request.params.key, requiring, 'switched off');
+        }
+
         const changed = await manifests.setAttachmentEnabled(
           installed.row.id,
           request.body.attachedTo,
@@ -1667,14 +1537,29 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         await deps.rebuildRuntime?.();
 
         const after = await manifests.findByKey(request.params.key);
-        return { addOn: await toDto(after!) };
+        const features = request.body.enabled ? [] : needs.filter((need) => need.need === 'feature');
+        return { addOn: await toDto(after!), ...(features.length === 0 ? {} : { features: needsDto(features) }) };
       },
     );
+
+    /*
+     * THE SETTINGS, AND NOTHING ELSE. `manifests.manage` also installs,
+     * upgrades and removes add-ons — code that runs in this process — so a
+     * person who only keeps an add-on's letterhead up to date holds the
+     * per-add-on grant `addOn:<key>:settings` instead (an app role may carry
+     * it). Checked for THIS key: the grant for one add-on edits no other.
+     */
+    const manifestsGuard = app.rbac.require(PERMISSIONS.manifestsManage);
+    async function settingsGuard(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+      const { key } = request.params as { key: string };
+      if (typeof request.can === 'function' && (await request.can(addOnSettingsPermission(key)))) return;
+      await manifestsGuard(request, reply);
+    }
 
     app.put(
       '/add-ons/:key/settings',
       {
-        preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
+        preHandler: [app.requireAuth, settingsGuard],
         config: { audit: audited('rbac') },
         schema: {
           params: addOnKeyParams,
@@ -1746,6 +1631,17 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         const installed = await manifests.findByKey(key);
         if (installed === null) throw new NotFoundError(`"${key}" is not installed.`);
 
+        /*
+         * NOT FROM UNDER AN APP THAT REQUIRES IT. Every app row counts —
+         * switched off, or an install that stopped part way — because each
+         * will look for it again. An app that only uses it for a feature does
+         * not stop the removal; the reply names the features that stop.
+         */
+        const needs = await needsOf(deps.meta, key);
+        const requiring = needs.filter((need) => need.need === 'requires');
+        if (requiring.length > 0) throw requiredByError(key, requiring, 'removed');
+        const features = needs.filter((need) => need.need === 'feature');
+
         // In the order that makes the promise true: the meta rows go
         // (credentials with them, by cascade), and NOTHING touches the data
         // source. Tables the add-on brought stay, with their rows.
@@ -1790,7 +1686,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         // is at least consistent with itself.
         await deps.rebuildRuntime?.();
 
-        return { key, tablesKept: true, packageRemoved };
+        return { key, tablesKept: true, packageRemoved, ...(features.length === 0 ? {} : { features: needsDto(features) }) };
       },
     );
   };

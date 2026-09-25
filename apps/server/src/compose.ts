@@ -1590,6 +1590,29 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Installing an app. Registered on the same
       // terms as the surfaces admin above: with nothing installed the list is
       // empty, which is a different thing from a namespace that 404s.
+      /*
+       * The add-on installer, built once: the add-on routes install with it,
+       * and so does an app install for the add-ons the app needs — one body,
+       * one schema target, one catalogue client.
+       */
+      const addOnInstaller = {
+        meta,
+        store: addOnStore,
+        credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+        // Where an add-on's tables are planned against and created.
+        schemaTarget: createAddOnSchemaTarget({
+          meta,
+          manager,
+          credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+        }),
+        rebuildRuntime: () => rebuildAddOnRuntime(),
+      };
+      // The same client the acquisition jobs use, so the routes' gate check
+      // and the jobs' cannot disagree about whether browsing is on.
+      const addOnCatalog = createCatalogClient({
+        meta,
+        networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+      });
       await api.register(
         appRoutes({
           meta,
@@ -1605,6 +1628,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           // the operator picked instead of one inferred from a host.
           schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
           catalog: appCatalog,
+          addOns: { installer: addOnInstaller, catalog: addOnCatalog, bundledDir: resolve(BUNDLED_ADD_ONS_DIR) },
           sampleData: sampleDataDeps,
           // What an app's guests may call: endpoints and a browser key made
           // through the same service the API keys page saves with.
@@ -1650,18 +1674,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             await addOnSettingsRepo(meta).clear(key);
           },
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
-          // Where an add-on's tables are planned against and created.
-          schemaTarget: createAddOnSchemaTarget({
-            meta,
-            manager,
-            credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
-          }),
-          // The same client the acquisition jobs use, so the routes' gate check
-          // and the jobs' cannot disagree about whether browsing is on.
-          catalog: createCatalogClient({
-            meta,
-            networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
-          }),
+          schemaTarget: addOnInstaller.schemaTarget,
+          catalog: addOnCatalog,
         }),
       );
       await api.register(rolesRoutes);

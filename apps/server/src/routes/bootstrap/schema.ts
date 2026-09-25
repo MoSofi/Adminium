@@ -367,6 +367,22 @@ export const bootstrapReply = z.object({
      * is switched off" rather than on a 404.
      */
     disabledAppPages: z.array(bootstrapNavItem),
+    /**
+     * Pages of an app that work only with an add-on it does not have here
+     * (the page's `feature` in its manifest, the feature's `requires`). In no
+     * sidebar; listed so a bookmark lands on "needs <add-on>" rather than on
+     * a page that cannot work. Absent when there are none.
+     */
+    featurePages: z
+      .array(
+        bootstrapNavItem.extend({
+          /** The manifest's feature id. */
+          feature: z.string(),
+          /** The add-on keys the feature still needs here. */
+          needs: z.array(z.string()),
+        }),
+      )
+      .optional(),
     /** Only on a server that runs a project folder (`adminium start` in a project, `adminium dev`). */
     project: bootstrapProject.optional(),
   }),

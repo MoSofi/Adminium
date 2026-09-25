@@ -10,6 +10,8 @@
  *   `table:@<ref>:<action>`   read | create | update | delete | export | import | read_pii
  *   `page:@<pageRef>:<action>` view | edit
  *   `app:@:staff`              the app's own staff screens
+ *   `addOn:<key>:settings`     one add-on's non-secret settings — only an add-on
+ *                              the app requires or suggests, never "every add-on"
  *
  * `read_pii` shows the table's personal columns in clear (crud/mask.ts): a
  * reception that rings patients holds it on the patients table.
@@ -34,6 +36,8 @@ import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest } from '@adminium/manifest';
 import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type TableActions, type UpdateLimit } from '@adminium/meta';
 
+import { matrixRowsFromGrants } from '../rbac/permissions.js';
+
 type ManifestRole = NonNullable<Extract<Manifest, { kind: 'app' }>['roles']>[number];
 
 /** `adminium_roles.slug` is `str(40)`. */
@@ -44,6 +48,7 @@ const SEEDED_APP_ROLE_GRANTS_KEY = 'system.seededAppRoleGrants';
 const TABLE = /^table:@([A-Za-z0-9_]+):(read|create|update|delete|export|import|read_pii)$/;
 const PAGE = /^page:@([a-z][a-z0-9-]*):(view|edit)$/;
 const APP = /^app:@:staff$/;
+const ADD_ON_SETTINGS = /^addOn:([a-z][a-z0-9-]{1,79}):settings$/;
 
 export function roleSlugFor(appKey: string, roleKey: string): string {
   return `${appKey}-${roleKey}`;
@@ -100,6 +105,14 @@ export function roleIssues(manifest: Manifest): { role: string; code: 'IDENTIFIE
         if (!tables.has(table[1]!)) refuse(`"${grant}" names a table the app does not declare`);
       } else if (page !== null) {
         if (!pages.has(page[1]!)) refuse(`"${grant}" names a page the app does not declare`);
+      } else if (ADD_ON_SETTINGS.test(grant)) {
+        /*
+         * One add-on's settings, and only one the app names: an app may not
+         * hand its roles the letterhead of an add-on it has nothing to do with.
+         */
+        const addOn = ADD_ON_SETTINGS.exec(grant)![1]!;
+        const named = [...(manifest.addOns?.requires ?? []), ...(manifest.addOns?.suggests ?? [])].some((need) => need.key === addOn);
+        if (!named) refuse(`"${grant}" names an add-on the app neither requires nor suggests`);
       } else if (!APP.test(grant)) {
         refuse(`"${grant}" is not a grant an app can give (table:@…, page:@… or app:@:staff)`);
       }
@@ -200,6 +213,10 @@ export async function writeManifestRoles(input: {
         await permissions.grant(role.id, 'page', target.id, actions as never);
       } else if (APP.test(grant)) {
         await permissions.grant(role.id, 'app', manifest.key, { staff: true });
+      } else if (ADD_ON_SETTINGS.test(grant)) {
+        const row = matrixRowsFromGrants([grant]).rows[0];
+        if (row === undefined) continue;
+        await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
       } else {
         continue;
       }

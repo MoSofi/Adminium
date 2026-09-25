@@ -26,6 +26,7 @@ import {
   settingsRepo,
   SYSTEM_ACTION_KEYS,
   userPrefsRepo,
+  type MetaDb,
   type PageNavRow,
   type SystemActionKey,
   type User,
@@ -244,6 +245,52 @@ export function buildNavTree(
   disabledApp.sort((a, b) => a.order - b.order || a.slug.localeCompare(b.slug));
 
   return { nav: { groups }, hidden, paused, disabledApp, appItems, configVersion };
+}
+
+/**
+ * App key → the slugs of its pages whose feature is unmet here, each with the
+ * feature and the add-ons it still needs. A feature is met when every add-on
+ * it requires is installed, attached to the app and switched on there.
+ */
+export async function unmetFeaturePages(
+  ctx: { meta: MetaDb },
+  apps: readonly { manifestKey: string; manifest: unknown }[],
+): Promise<Map<string, Map<string, { feature: string; needs: string[] }>>> {
+  const out = new Map<string, Map<string, { feature: string; needs: string[] }>>();
+  for (const app of apps) {
+    const document = readJson<{
+      addOns?: { features?: { id?: unknown; requires?: unknown }[] };
+      pages?: { ref?: unknown; feature?: unknown }[];
+    } | null>(app.manifest);
+    const pages = (document?.pages ?? []).filter(
+      (page): page is { ref: string; feature: string } => typeof page.ref === 'string' && typeof page.feature === 'string',
+    );
+    if (pages.length === 0) continue;
+    const attached = new Set(
+      (
+        await ctx.meta.db
+          .selectFrom('adminium_manifest_attachments as a')
+          .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
+          .select('m.manifestKey as key')
+          .where('a.attachedTo', '=', app.manifestKey)
+          .where('a.disabledAt', 'is', null)
+          .where('m.kind', '=', 'add-on')
+          .where('m.status', '=', 'installed')
+          .execute()
+      ).map((row: { key: string }) => row.key),
+    );
+    const slugs = new Map<string, { feature: string; needs: string[] }>();
+    for (const page of pages) {
+      const feature = (document?.addOns?.features ?? []).find((candidate) => candidate.id === page.feature);
+      const requires = Array.isArray(feature?.requires) ? feature.requires.filter((key): key is string => typeof key === 'string') : [];
+      // A feature the manifest does not describe is not one this server can
+      // judge met; the page is withheld rather than shown working.
+      const needs = feature === undefined ? [page.feature] : requires.filter((key) => !attached.has(key));
+      if (needs.length > 0) slugs.set(page.ref, { feature: page.feature, needs });
+    }
+    if (slugs.size > 0) out.set(app.manifestKey, slugs);
+  }
+  return out;
 }
 
 /** An installed app, as its section needs it. */
@@ -583,6 +630,14 @@ export async function bootstrapHandler(
       .execute(),
   ]);
 
+  /*
+   * PAGES OF A FEATURE THAT IS NOT THERE. An app's page may name a `feature`
+   * that works only with certain add-ons; while any of them is not attached
+   * to the app (and switched on for it), the page leaves the sidebar and is
+   * listed apart, saying which add-ons it needs.
+   */
+  const unmet = await unmetFeaturePages(ctx, appRows);
+
   // Permission filter: drop rows the caller may not view. The
   // per-request `request.can` cache resolves the permission set once;
   // super-admins bypass inside it. The `typeof` guard mirrors routes/pages —
@@ -624,8 +679,9 @@ export async function bootstrapHandler(
       navGroups,
     };
   });
+  const withheld = visibleRows.filter((row) => row.appKey != null && unmet.get(row.appKey)?.has(row.slug) === true);
   const { nav, hidden, paused, disabledApp, appItems } = buildNavTree(
-    visibleRows,
+    visibleRows.filter((row) => !withheld.includes(row)),
     new Map(connectionRows.map((row) => [row.id, { name: row.name, currency: row.currency }])),
     pausedConnectionIds,
     prefs.locale,
@@ -672,6 +728,15 @@ export async function bootstrapHandler(
         ? buildUnavailableApps(request.server.surfaces, placements, prefs.locale)
         : [],
       disabledAppPages: disabledApp,
+      ...(withheld.length === 0
+        ? {}
+        : {
+            featurePages: [
+              ...buildNavTree(withheld, new Map(), new Set(), prefs.locale, new Set(), new Set(withheld.map((row) => row.appKey!))).appItems.values(),
+            ]
+              .flat()
+              .map(({ item }) => ({ ...item, ...unmet.get(item.appKey!)!.get(item.slug)! })),
+          }),
       appSections: buildAppSections({
         apps: sectionApps,
         appItems,

@@ -48,13 +48,21 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { applyInstall, type ApplyInstallResult, type ExistingTable } from './install-ddl.js';
 
 export interface AddOnSchemaTarget {
-  /** The tables the planner diffs against; empty when nothing is connected. */
-  read(attachTo: readonly string[]): Promise<ExistingTable[]>;
+  /**
+   * The tables the planner diffs against; empty when nothing is connected.
+   *
+   * `connectionId`, when given, IS the answer to "whose database": an add-on
+   * installed with an app goes into the app's connection, which the operator
+   * chose — the app's row may not even exist yet to be inferred from, and the
+   * sole-connection guess would be wrong on an instance with two.
+   */
+  read(attachTo: readonly string[], connectionId?: string): Promise<ExistingTable[]>;
   /** Creates what the plan says to create, then refreshes the snapshot. */
   apply(
     plan: InstallPlan,
     manifest: AddOnManifest,
     attachTo: readonly string[],
+    connectionId?: string,
   ): Promise<ApplyInstallResult>;
 }
 
@@ -276,14 +284,14 @@ export async function applyPlanTo(
 
 export function createAddOnSchemaTarget(deps: AddOnSchemaTargetDeps): AddOnSchemaTarget {
   return {
-    async read(attachTo) {
-      const connectionId = await resolveConnectionId(deps, attachTo);
+    async read(attachTo, explicit) {
+      const connectionId = explicit ?? (await resolveConnectionId(deps, attachTo));
       if (connectionId === null) return [];
       return readExistingTables(deps, connectionId);
     },
 
-    async apply(plan, manifest, attachTo) {
-      const connectionId = await resolveConnectionId(deps, attachTo);
+    async apply(plan, manifest, attachTo, explicit) {
+      const connectionId = explicit ?? (await resolveConnectionId(deps, attachTo));
       if (connectionId === null) {
         throw new ValidationFailedError(
           `"${manifest.key}" needs tables, and this instance has no database connection to ` +

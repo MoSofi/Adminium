@@ -86,6 +86,93 @@ export const installAnswers = {
   altPrefix: z.string().min(2).max(40).optional(),
 };
 
+/**
+ * What the install does with one add-on the app names: install or connect it
+ * at `version` — the one the check offered — and, for one installed at a
+ * version the app does not work with, `update: true` ("Update it too").
+ */
+export const appAddOnChoice = z
+  .object({
+    key: appKey,
+    version: z.string().min(1).max(64),
+    update: z.boolean().optional(),
+  })
+  .strict();
+
+/** One app that uses an add-on, and how. */
+const appNeedWire = z.object({
+  app: appKey,
+  appName: z.string(),
+  status: z.string(),
+  need: z.enum(['requires', 'feature', 'suggests']),
+  range: z.string().nullable(),
+  features: z.array(z.object({ id: z.string(), label: z.record(z.string(), z.string()) })),
+});
+
+/** An add-on's own install plan, as its consent dialog reads it. */
+const addOnPlanWire = z.object({
+  addOnKey: z.string(),
+  version: z.string(),
+  installable: z.boolean(),
+  touchesData: z.boolean(),
+  create: z.array(z.object({ ref: z.string(), columns: z.array(z.object({ ref: z.string(), type: z.string() })) })),
+  reuse: z.array(z.object({ ref: z.string(), missingColumns: z.array(z.string()) })),
+  references: z.array(
+    z.object({
+      fromTable: z.string(),
+      fromColumn: z.string(),
+      to: z.string(),
+      resolution: z.enum(['internal', 'host', 'unresolved']),
+    }),
+  ),
+  problems: z.array(z.object({ code: z.string(), message: z.string(), table: z.string(), column: z.string().optional() })),
+  requiresSchemaChange: z.boolean(),
+  warnings: z.array(z.string()).optional(),
+});
+
+/**
+ * One add-on the app names, resolved against this server. `state` and
+ * `source` are kept apart because the screen shows both: "Installed · v1.1.0 ·
+ * Comes with Adminium".
+ */
+export const appAddOnRow = z.object({
+  key: appKey,
+  name: z.string(),
+  /** `requires`, `feature` (a feature of the app needs it) or `suggests`. */
+  need: z.enum(['requires', 'feature', 'suggests']),
+  range: z.string(),
+  /** Why the app wants it, per language (the manifest's words, not a translation key). */
+  reason: z.record(z.string(), z.string()),
+  /** Ticked on the check: always when required, as the manifest says when suggested. */
+  checked: z.boolean(),
+  features: z.array(z.object({ id: z.string(), label: z.record(z.string(), z.string()) })),
+  state: z.enum(['attached', 'installed', 'outdated', 'absent', 'unavailable']),
+  source: z.enum(['bundled', 'catalog', 'upload']).nullable(),
+  installedVersion: z.string().nullable(),
+  offeredVersion: z.string().nullable(),
+  /** Whether the INSTALLED version falls in the app's range. */
+  satisfiesRange: z.boolean(),
+  /** Whether the offered version's bytes are on this server; false means "download it first". */
+  staged: z.boolean(),
+  /** Connected to this app and switched on there. */
+  enabled: z.boolean(),
+  /** What installing the app does to it: null (nothing), attach, install or update. */
+  action: z.enum(['attach', 'install', 'update']).nullable(),
+  /** The other apps that use it — "Also used by" beside "Update it too". */
+  usedBy: z.array(appNeedWire),
+  /** Its own install plan (install or update). Absent from the settings read. */
+  plan: addOnPlanWire.nullable().optional(),
+  /** What stands in the way. Any one refuses the install when the add-on is required or ticked. */
+  problems: z.array(z.object({ code: z.string(), message: z.string() })),
+});
+
+/** What the install or update did to the add-ons — the done line ("Also installed: …"). */
+export const addOnsDoneReply = z.object({
+  installed: z.array(z.object({ key: z.string(), name: z.string(), version: z.string() })),
+  updated: z.array(z.object({ key: z.string(), name: z.string(), from: z.string(), to: z.string() })),
+  attached: z.array(z.object({ key: z.string(), name: z.string(), version: z.string() })),
+});
+
 export const planAppBody = z.object({
   key: appKey,
   version: z.string().min(1).max(64),
@@ -253,6 +340,11 @@ export const appInstallPlanDto = z.object({
       canGrant: z.boolean(),
     })
     .optional(),
+  /**
+   * The add-ons the app names, each with its state, its source and its own
+   * plan. Absent for an app that names none — its check is exactly as before.
+   */
+  addOns: z.array(appAddOnRow).optional(),
 });
 
 export const appInstallPlanReply = z.object({ plan: appInstallPlanDto });
@@ -286,6 +378,12 @@ export const installAppBody = z.object({
    * box starts ticked — for an app that asks for any.
    */
   publicAccess: z.boolean().optional(),
+  /**
+   * The add-ons to install, connect or update with the app. A required one
+   * that needs only installing or connecting is done without being listed; a
+   * suggested one only when listed; an update only with `update: true`.
+   */
+  addOns: z.array(appAddOnChoice).max(16).optional(),
   ...installAnswers,
 });
 
@@ -400,6 +498,8 @@ export const installedAppReply = z.object({
       }),
     })
     .optional(),
+  /** The add-ons installed, updated or connected along with the app. Absent for an app that names none. */
+  addOns: addOnsDoneReply.optional(),
 });
 
 export const appListReply = z.object({
@@ -528,6 +628,8 @@ export const updateAppBody = z
   .object({
     planChecksum: z.string().min(1).max(128).optional(),
     choices: installAnswers.choices,
+    /** As the install's: the add-ons the new version needs, installed, connected or updated first. */
+    addOns: z.array(appAddOnChoice).max(16).optional(),
   })
   // A POST with no body at all arrives as null.
   .nullish();
@@ -601,6 +703,8 @@ export const appSettingsReply = z.object({
       help: z.string().optional(),
     }),
   ),
+  /** The add-ons the app names, each with its state and source. Absent for an app that names none. */
+  addOns: z.array(appAddOnRow).optional(),
 });
 
 /**
@@ -737,6 +841,11 @@ export const uninstallPlanReply = z.object({
   rules: z.number(),
   /** Discarding data is Super Admin's alone; the dialog offers the drop only when this is true. */
   canDropTables: z.boolean(),
+  /**
+   * The add-ons connected to the app. They stay installed — they are shared —
+   * and only their link to this app goes (the Kept line).
+   */
+  addOns: z.array(z.object({ key: z.string(), name: z.string(), version: z.string() })).optional(),
 });
 
 /** Uninstall. Dropping the app's own tables needs the app's key typed back. */
@@ -763,6 +872,13 @@ export const uninstallAppReply = z.object({
     })
     .optional(),
   /** What stayed: pages someone edited, and every table not dropped. */
-  kept: z.object({ pages: z.number(), tables: z.array(z.string()) }).optional(),
+  kept: z
+    .object({
+      pages: z.number(),
+      tables: z.array(z.string()),
+      /** Add-ons that stay installed; their link to this app is gone. */
+      addOns: z.array(z.string()).optional(),
+    })
+    .optional(),
   dropped: z.array(z.string()).optional(),
 });
