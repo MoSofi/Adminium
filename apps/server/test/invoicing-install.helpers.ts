@@ -230,6 +230,8 @@ export interface InvoicingHarness {
   dialect: Dialect;
   app: Awaited<ReturnType<typeof buildApp>>;
   rows: (statement: string) => Promise<Record<string, unknown>[]>;
+  /** Where the app's package was stored. */
+  dataDir: string;
   /** The real name of one of the app's tables. */
   real: (ref: string) => string;
   close: () => Promise<void>;
@@ -297,6 +299,8 @@ export async function installInvoicing(
   manifest = invoicingManifest(),
   /** Run on the fresh meta store before the app goes in: an add-on the app needs, say. */
   before?: (meta: MetaDb) => Promise<void>,
+  /** More files in the app's package: its sample bundle, say. */
+  files: Record<string, string> = {},
 ): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
   const dataDir = await mkdtemp(join(tmpdir(), 'invoicing-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -350,6 +354,7 @@ export async function installInvoicing(
   const tarball = packageTarball({
     'manifest.json': JSON.stringify(manifest),
     'staff/index.html': '<!doctype html><html><body data-app="studio"></body></html>',
+    ...files,
   });
   const staged = await app.inject({
     method: 'POST',
@@ -372,6 +377,7 @@ export async function installInvoicing(
     connectionId: connection.id,
     dialect,
     app,
+    dataDir,
     reply: install.json() as Record<string, unknown>,
     rows: async (statement) => (await sql.raw<Record<string, unknown>>(statement).execute(handle.db)).rows,
     real: (ref) => `${prefix}${ref}`,

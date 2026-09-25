@@ -621,6 +621,15 @@ export function createSampleDataService(deps: SampleDataDeps) {
           let seq = 0;
           let done = 0;
           for (const table of bundle.tables) {
+            /*
+             * The totals so far, before the next table: its rows may copy one
+             * (a stage of a quote copies the quote's subtotal), and a copy
+             * reads the row as it stands. Settled again at the end, once
+             * every child row is in.
+             */
+            for (const { target: parent, rows } of totals.values()) {
+              await writes.settle('create', parent, rows.map((row) => ({ record: row.record, before: null })));
+            }
             const resolved = view.table(names[table.ref] ?? table.ref);
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
             for (const row of table.rows) {
