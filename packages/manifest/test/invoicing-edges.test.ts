@@ -200,6 +200,19 @@ describe('text stored normalised, stamps that copy or leave staff their choice, 
 });
 
 describe('the outbox, the rarer refusals', () => {
+  it('gates a producer by a switch of the settings row', () => {
+    let m = valid();
+    (m['requiredSchema'] as { tables: Doc[] }).tables[0]!['columns'] = [
+      ...((m['requiredSchema'] as { tables: Doc[] }).tables[0]!['columns'] as Doc[]),
+      { ref: 'notify_sent', type: 'bool', default: true },
+    ];
+    producers(m)[1]!['gate'] = { setting: { table: 'settings', column: 'notify_sent' } };
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    producers(m)[1]!['gate'] = { setting: { table: 'settings', column: 'reply_to' } };
+    expectIssue(m, '"settings.reply_to" must be a bool');
+  });
+
   it('types the new outbox columns', () => {
     let m = valid();
     ((m['outbox'] as Doc)['columns'] as Doc)['effectAt'] = 'to';

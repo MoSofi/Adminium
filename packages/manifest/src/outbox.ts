@@ -98,8 +98,12 @@ const producerBase = {
   kind: z.string().min(1).max(40),
   /** The outbox column that links the queued row to the row that produced it. */
   link: refSchema,
-  /** Paused while the settings row's `enabled` column is false. */
-  gate: z.literal('enabled').optional(),
+  /**
+   * Paused while the settings row's `enabled` column is false — or, naming
+   * one, while that bool of the settings row is false (each of a studio's
+   * notices has its own switch).
+   */
+  gate: z.union([z.literal('enabled'), z.object({ setting: settingRefSchema }).strict()]).optional(),
   /** Skipped for a recipient whose `recipient.optIn` column is false. */
   optIn: z.literal(true).optional(),
   /** Written `held`: sent only once someone approves it. */
@@ -451,6 +455,8 @@ export function outboxIssues(
     if (box.kinds[producer.kind] === undefined) out.push({ path: here('kind'), message: `"${producer.kind}" is not one of the outbox's kinds` });
     if (producer.gate === 'enabled' && box.settings?.enabled === undefined) {
       out.push({ path: here('gate'), message: 'the outbox names no settings column to be gated by' });
+    } else if (typeof producer.gate === 'object') {
+      col(producer.gate.setting.table, producer.gate.setting.column, ['bool'], here('gate', 'setting'), 'a bool');
     }
     if (producer.optIn === true && r.optIn === undefined) {
       out.push({ path: here('optIn'), message: 'the recipient names no opt-in column' });
