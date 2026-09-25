@@ -153,10 +153,13 @@ export const publicAccessSchema = z
      * `from-now` on a time: only while it is still ahead. `{within: 60}` on a
      * time: no more than 60 minutes ahead, and a change made earlier is
      * refused with that time (`PUBLIC_TOO_EARLY`), even when `select` leaves
-     * it out — naming the window is agreeing to that.
+     * it out — naming the window is agreeing to that. On a date,
+     * `from-today` is today or later on the venue's calendar and
+     * `before-today` is past (a proposal still in date may be accepted; one
+     * past it may ask for a new price).
      */
     writableWhen: z
-      .record(refSchema, z.union([whenValuesSchema, z.literal('from-now'), z.literal('from-today'), timeWindowSchema]))
+      .record(refSchema, z.union([whenValuesSchema, z.literal('from-now'), z.literal('from-today'), z.literal('before-today'), timeWindowSchema]))
       .optional(),
     /** A proof-of-work the browser solves before the write (or the claim) is taken. */
     humanCheck: z.literal(true).optional(),
@@ -509,8 +512,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         out.push({ path: at('writableWhen', ref), message: `"${entry.table}" has no column "${ref}"` });
       } else if (when === 'from-now') {
         if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"from-now" needs a timestamptz, and "${ref}" is not one` });
-      } else if (when === 'from-today') {
-        if (found.type !== 'date') out.push({ path: at('writableWhen', ref), message: `"from-today" needs a date, and "${ref}" is not one` });
+      } else if (when === 'from-today' || when === 'before-today') {
+        if (found.type !== 'date') out.push({ path: at('writableWhen', ref), message: `"${when}" needs a date, and "${ref}" is not one` });
       } else if (!Array.isArray(when)) {
         if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"within" needs a timestamptz, and "${ref}" is not one` });
       } else {

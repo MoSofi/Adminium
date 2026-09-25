@@ -1959,7 +1959,11 @@ export default {
         "formula": "Vypočítá se z {columns} při každém zápisu",
         "format": "Zapisuje se jako {example} podle čísla v {from}",
         "scale": "Zaokrouhleno na {places} desetinných míst",
-        "scaleCurrency": "Zaokrouhleno na desetinná místa své měny"
+        "scaleCurrency": "Zaokrouhleno na desetinná místa své měny",
+        "stampByOriginOwn": "„{public}“ z veřejné strany a z personálu to, co zvolí",
+        "stampCopy": "hodnota {column}",
+        "normalizeEmail": "Ukládá se bez okrajových mezer a malými písmeny",
+        "normalizeTrim": "Ukládá se bez mezer na začátku a na konci"
       },
       "venueLocal": "Čas zapsaný sem bez časového pásma je místním časem provozovny.",
       "fillFromCurrency": "Měna připojení",

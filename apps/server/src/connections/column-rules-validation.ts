@@ -54,7 +54,8 @@ export function columnRuleIssue(
     | 'column.stamp'
     | 'column.format'
     | 'column.formula'
-    | 'column.scale',
+    | 'column.scale'
+    | 'column.normalize',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -252,6 +253,10 @@ export function columnRuleIssue(
       return null;
     }
 
+    case 'column.normalize': {
+      return TEXTUAL_TYPES.has(column.logicalType) ? null : `Only text is stored trimmed or in lower case; ${name} is ${column.logicalType}.`;
+    }
+
     case 'column.scale': {
       const decimal = column.logicalType === 'decimal' || column.logicalType === 'float';
       return decimal ? null : `Decimal places need a decimal column; ${name} is ${column.logicalType}.`;
@@ -288,6 +293,11 @@ export function columnRuleIssue(
         if (!clock) return `A date stamp needs a date or date-and-time column; ${name} is ${column.logicalType}.`;
       } else if (!TEXTUAL_TYPES.has(column.logicalType) && column.logicalType !== 'enum') {
         return `A stamp that names someone needs a text column; ${name} is ${column.logicalType}.`;
+      }
+      if (typeof set === 'object' && set !== null && 'copy' in set) {
+        const source = String((set as { copy: unknown }).copy);
+        if (source === column.name) return `A stamp copies another column, not ${name} itself.`;
+        if (table?.columns.some((c) => c.name === source) !== true) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(source)} to copy.`;
       }
       if (dated) {
         const days = (set as { addDays: Value }).addDays;

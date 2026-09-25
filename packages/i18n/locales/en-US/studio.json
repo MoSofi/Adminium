@@ -1949,7 +1949,11 @@
         "formula": "Worked out from {columns} on every write",
         "format": "Written as {example}, from the number in {from}",
         "scale": "Rounded to {places} decimal places",
-        "scaleCurrency": "Rounded to the decimal places of its currency"
+        "scaleCurrency": "Rounded to the decimal places of its currency",
+        "stampByOriginOwn": "“{public}” from the public side, and what staff choose from staff",
+        "stampCopy": "the value of {column}",
+        "normalizeEmail": "Stored trimmed and in lower case",
+        "normalizeTrim": "Stored without spaces at either end"
       },
       "venueLocal": "A time written here without a zone is the venue’s own time.",
       "fillFromCurrency": "The connection’s currency",

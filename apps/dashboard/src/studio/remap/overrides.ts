@@ -116,6 +116,8 @@ export type RemapOverride =
   | { op: 'column.formula'; tableName: string; columnName: string; value: { formula: unknown } }
   /** The places a decimal keeps. */
   | { op: 'column.scale'; tableName: string; columnName: string; value: { scale: number | 'currency' } }
+  /** A text value stored trimmed, or trimmed and in lower case. */
+  | { op: 'column.normalize'; tableName: string; columnName: string; value: { normalize: 'trim' | 'email' } }
   | {
       op: 'column.rollup';
       tableName: string;
@@ -174,6 +176,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.format',
   'column.formula',
   'column.scale',
+  'column.normalize',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

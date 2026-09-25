@@ -19907,6 +19907,14 @@
     "status": "mt",
     "srcHash": "7f2ecd1f374c"
   },
+  "studio.remap.rules.decided.normalizeEmail": {
+    "status": "mt",
+    "srcHash": "5409c4cb8fea"
+  },
+  "studio.remap.rules.decided.normalizeTrim": {
+    "status": "mt",
+    "srcHash": "e77ca7285362"
+  },
   "studio.remap.rules.decided.remove": {
     "status": "mt",
     "srcHash": "558f30c29f6d"
@@ -19963,6 +19971,10 @@
     "status": "mt",
     "srcHash": "45f8c801c087"
   },
+  "studio.remap.rules.decided.stampByOriginOwn": {
+    "status": "mt",
+    "srcHash": "6f28c1f961ff"
+  },
   "studio.remap.rules.decided.stampChange": {
     "status": "mt",
     "srcHash": "69c847cc1b0f"
@@ -19970,6 +19982,10 @@
   "studio.remap.rules.decided.stampClaim": {
     "status": "mt",
     "srcHash": "1112dee16361"
+  },
+  "studio.remap.rules.decided.stampCopy": {
+    "status": "mt",
+    "srcHash": "537b81f6ffb9"
   },
   "studio.remap.rules.decided.stampCreate": {
     "status": "mt",

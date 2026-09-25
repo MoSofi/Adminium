@@ -74,7 +74,8 @@ export interface StampRule {
     | 'today'
     | 'user-name'
     | 'user-id'
-    | { byOrigin: { public: string; staff: string } }
+    | { byOrigin: { public: string; staff?: string } }
+    | { copy: string }
     | { claim: string; staff?: 'user-name' | 'user-id' }
     | { addDays: { date: string; days: string | number; map?: Record<string, number> } }
     | { hashOf: Record<string, unknown> };

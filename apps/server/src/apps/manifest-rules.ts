@@ -69,6 +69,7 @@ export type RuleOp =
   | 'column.format'
   | 'column.formula'
   | 'column.scale'
+  | 'column.normalize'
   | 'column.pii'
   | 'column.label'
   | 'table.capacity'
@@ -174,6 +175,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.default !== undefined) out.push({ op: 'column.default', value: { kind: 'from', from: rules.default.from } });
   if (rules.format !== undefined) out.push({ op: 'column.format', value: { ...rules.format } });
   if (rules.formula !== undefined) out.push({ op: 'column.formula', value: { formula: rules.formula } });
+  if (rules.normalize !== undefined) out.push({ op: 'column.normalize', value: { normalize: rules.normalize } });
   if (rules.personal !== undefined) out.push({ op: 'column.pii', value: { masked: rules.personal } });
   return out;
 }

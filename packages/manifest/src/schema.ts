@@ -267,7 +267,11 @@ const hashChildSchema = z
  *
  *  - `now` (a timestamptz), `today` (a date, on the venue's calendar),
  *    `user-name`, `user-id`;
- *  - `byOrigin`: one value for a public write, another for staff;
+ *  - `byOrigin`: one value for a public write, another for staff — or, with no
+ *    `staff`, whatever the staff writer chose (a desk records how a client
+ *    approved; the portal always says "portal");
+ *  - `copy`: another column of the same row as it stands at that moment (a
+ *    client's first answer, kept when they edit it later);
  *  - `claim`: a column of the signed-in person's own row (their email, their
  *    name) on a public write; on a staff write, `staff` says what instead;
  *  - `addDays`: a date so many days after another (`due_on` = `issued_on` +
@@ -277,8 +281,9 @@ const hashChildSchema = z
  */
 export const stampSetSchema = z.union([
   z.enum(['now', 'today', 'user-name', 'user-id']),
-  z.object({ byOrigin: z.object({ public: z.string().min(1), staff: z.string().min(1) }).strict() }).strict(),
+  z.object({ byOrigin: z.object({ public: z.string().min(1), staff: z.string().min(1).optional() }).strict() }).strict(),
   z.object({ claim: refSchema, staff: z.enum(['user-name', 'user-id']).optional() }).strict(),
+  z.object({ copy: refSchema }).strict(),
   z
     .object({
       addDays: z
@@ -410,6 +415,12 @@ export const columnRulesSchema = z
       .optional(),
     /** A value Adminium works out from the row's other columns (see `formula.ts`). */
     formula: formulaExprSchema.optional(),
+    /**
+     * How a text value is stored whoever writes it: `trim` without spaces at
+     * either end, `email` trimmed and in lower case — so a unique address and
+     * a person signing in with it agree on every database.
+     */
+    normalize: z.enum(['trim', 'email']).optional(),
     rollup: z
       .object({
         /** The child table, its foreign key back to this row, and what to add up. */
@@ -1149,6 +1160,9 @@ export function appReferenceIssues(
       if (racing.length > 1 && rules.stamp === undefined) {
         out.push({ path: here(), message: `a column is decided by one rule, and this one has ${racing.join(', ')}` });
       }
+      if (rules.normalize !== undefined && column.type !== 'text') {
+        out.push({ path: here('normalize'), message: 'only text is stored trimmed or in lower case' });
+      }
       if (rules.default !== undefined) {
         const from = rules.default.from;
         if (from === 'connection.currency') {
@@ -1256,9 +1270,14 @@ export function appReferenceIssues(
         } else if ((set === 'user-name' || set === 'user-id') && column.type !== 'text') {
           out.push({ path: here('stamp', 'set'), message: `a "${set}" stamp needs a text column` });
         } else if (typeof set === 'object' && 'byOrigin' in set) {
-          for (const value of [set.byOrigin.public, set.byOrigin.staff]) {
+          for (const value of [set.byOrigin.public, ...(set.byOrigin.staff === undefined ? [] : [set.byOrigin.staff])]) {
             if (!valueFits(column, value)) out.push({ path: here('stamp', 'set'), message: `"${value}" is not a value of "${table.ref}.${column.ref}"` });
           }
+        } else if (typeof set === 'object' && 'copy' in set) {
+          const source = index.column(table.ref, set.copy);
+          if (source === undefined) out.push({ path: here('stamp', 'set', 'copy'), message: `"${table.ref}" has no column "${set.copy}"` });
+          else if (source.ref === column.ref) out.push({ path: here('stamp', 'set', 'copy'), message: 'a stamp copies another column' });
+          else if (source.type !== column.type) out.push({ path: here('stamp', 'set', 'copy'), message: `"${table.ref}.${set.copy}" is a ${source.type}, and "${column.ref}" a ${column.type}` });
         } else if (typeof set === 'object' && 'claim' in set) {
           if (column.type !== 'text') out.push({ path: here('stamp', 'set'), message: 'a stamp from the signed-in person needs a text column' });
           if (![...identityTables].some((identity) => has(identity, set.claim))) {
@@ -1455,7 +1474,7 @@ export const appManifestSchema = z
     /** The app's emails: its outbox table and what queues rows in it (see `outbox.ts`). */
     outbox: outboxSchema.optional(),
     /** The templates the outbox sends, in each language the app ships. */
-    emailTemplates: z.array(emailTemplateSchema).max(16).optional(),
+    emailTemplates: z.array(emailTemplateSchema).max(32).optional(),
     sampleData: sampleDataSchema.optional(),
     /** The add-ons the app needs, suggests, or needs for a feature (see `add-ons.ts`). */
     addOns: addOnsSchema.optional(),

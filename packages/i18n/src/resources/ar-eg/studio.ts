@@ -1959,7 +1959,11 @@ export default {
         "formula": "يُحسب من {columns} عند كل كتابة",
         "format": "يُكتب بالشكل {example} من الرقم في {from}",
         "scale": "يُقرَّب إلى {places} منازل عشرية",
-        "scaleCurrency": "يُقرَّب إلى المنازل العشرية لعملته"
+        "scaleCurrency": "يُقرَّب إلى المنازل العشرية لعملته",
+        "stampByOriginOwn": "«{public}» من الجانب العام، وما يختاره الموظفون من جانب الموظفين",
+        "stampCopy": "قيمة {column}",
+        "normalizeEmail": "يُحفظ بلا مسافات زائدة وبأحرف صغيرة",
+        "normalizeTrim": "يُحفظ بلا مسافات في طرفيه"
       },
       "venueLocal": "الوقت المكتوب هنا دون منطقة زمنية هو الوقت المحلي للمكان.",
       "fillFromCurrency": "عملة الاتصال",

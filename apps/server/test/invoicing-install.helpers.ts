@@ -88,7 +88,7 @@ export function invoicingTables(): Record<string, unknown>[] {
       ref: 'clients',
       columns: [
         id,
-        { ref: 'email', type: 'text', maxLength: 254, unique: true },
+        { ref: 'email', type: 'text', maxLength: 254, unique: true, rules: { normalize: 'email' } },
         { ref: 'name', type: 'text', maxLength: 120, nullable: true },
         { ref: 'tax_rate', type: 'decimal', scale: 3, nullable: true },
       ],
@@ -161,6 +161,14 @@ export function invoicingTables(): Record<string, unknown>[] {
         { ref: 'client_id', type: 'fk', references: 'clients' },
         { ref: 'status', type: 'enum', enum: ['draft', 'sent', 'accepted'], default: 'draft' },
         { ref: 'signed_name', type: 'text', maxLength: 120, nullable: true },
+        {
+          ref: 'first_signed_name',
+          type: 'text',
+          maxLength: 120,
+          nullable: true,
+          rules: { stamp: { set: { copy: 'signed_name' }, on: { column: 'signed_name', filled: true } } },
+        },
+        { ref: 'accepted_how', type: 'enum', enum: ['portal', 'email', 'call'], nullable: true, rules: { stamp: { set: { byOrigin: { public: 'portal' } }, on: { column: 'status', values: ['accepted'] } } } },
         {
           ref: 'fingerprint',
           type: 'text',

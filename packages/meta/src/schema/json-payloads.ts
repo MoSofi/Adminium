@@ -600,6 +600,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     op: z.literal('column.formula'),
     value: z.object({ formula: z.union([z.number(), z.string().min(1).max(128), z.record(z.string(), z.unknown())]) }),
   }),
+  /** A text value stored trimmed (`trim`), or trimmed and in lower case (`email`), whoever writes it. */
+  z.object({ op: z.literal('column.normalize'), value: z.object({ normalize: z.enum(['trim', 'email']) }) }),
   /**
    * The places a decimal keeps: 0–4, or `currency` — the decimals of the row's
    * own currency column, else the connection's. Totals and formulas round to it.
@@ -626,7 +628,10 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z.object({
       set: z.union([
         z.enum(['now', 'today', 'user-name', 'user-id']),
-        z.object({ byOrigin: z.object({ public: z.string().min(1).max(256), staff: z.string().min(1).max(256) }) }),
+        /** No `staff`: a staff writer's own value stands. */
+        z.object({ byOrigin: z.object({ public: z.string().min(1).max(256), staff: z.string().min(1).max(256).optional() }) }),
+        /** Another column of the same row, as it stands when the stamp is written. */
+        z.object({ copy: ruleColumn }),
         /** A column of the signed-in person's own row; `staff` says what a staff write stamps instead. */
         z.object({ claim: ruleColumn, staff: z.enum(['user-name', 'user-id']).optional() }),
         /** A date so many days after another; `map` gives each value of a choice column its days. */

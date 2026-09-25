@@ -154,6 +154,51 @@ describe('states, the rarer refusals', () => {
   });
 });
 
+describe('text stored normalised, stamps that copy or leave staff their choice, dates before today', () => {
+  it('normalises only text', () => {
+    let m = valid();
+    (columnOf(m, 'clients', 'email') as Doc)['rules'] = { normalize: 'email' };
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    (columnOf(m, 'invoices', 'number_seq')['rules'] as Doc)['normalize'] = 'trim';
+    expectIssue(m, 'only text is stored trimmed or in lower case');
+  });
+
+  it('copies another column of the same type, and lets staff keep their own value', () => {
+    let m = valid();
+    columnOf(m, 'proposals', 'signed_email')['rules'] = { stamp: { set: { copy: 'signed_name' }, on: 'create' } };
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    columnOf(m, 'proposals', 'signed_email')['rules'] = { stamp: { set: { copy: 'signed_email' }, on: 'create' } };
+    expectIssue(m, 'a stamp copies another column');
+    m = valid();
+    columnOf(m, 'proposals', 'signed_email')['rules'] = { stamp: { set: { copy: 'client_id' }, on: 'create' } };
+    expectIssue(m, '"proposals.client_id" is a fk, and "signed_email" a text');
+    m = valid();
+    columnOf(m, 'proposals', 'signed_email')['rules'] = { stamp: { set: { copy: 'nope' }, on: 'create' } };
+    expectIssue(m, '"proposals" has no column "nope"');
+    m = valid();
+    columnOf(m, 'invoices', 'ladder')['rules'] = { stamp: { set: { byOrigin: { public: 'firm' } }, on: 'create' } };
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    columnOf(m, 'invoices', 'ladder')['rules'] = { stamp: { set: { byOrigin: { public: 'nope' } }, on: 'create' } };
+    expectIssue(m, '"nope" is not a value of "invoices.ladder"');
+  });
+
+  it('takes before-today on a date only, and more than sixteen templates', () => {
+    let m = valid();
+    (entryOf(m, 'proposals')['writableWhen'] as Doc)['valid_until'] = 'before-today';
+    expect(issuesText(m)).toBe('');
+    m = valid();
+    (entryOf(m, 'proposals')['writableWhen'] as Doc)['status'] = 'before-today';
+    expectIssue(m, '"before-today" needs a date, and "status" is not one');
+    m = valid();
+    const templates = m['emailTemplates'] as Doc[];
+    for (let i = 0; i < 20; i++) templates.push({ ...structuredClone(templates[0]!), key: `studio-extra-${String(i)}` });
+    expect(issuesText(m)).toBe('');
+  });
+});
+
 describe('the outbox, the rarer refusals', () => {
   it('types the new outbox columns', () => {
     let m = valid();

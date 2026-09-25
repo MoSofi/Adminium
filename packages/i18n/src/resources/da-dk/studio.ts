@@ -1959,7 +1959,11 @@ export default {
         "formula": "Udregnes ud fra {columns} ved hver skrivning",
         "format": "Skrives som {example} ud fra nummeret i {from}",
         "scale": "Afrundet til {places} decimaler",
-        "scaleCurrency": "Afrundet til valutaens decimaler"
+        "scaleCurrency": "Afrundet til valutaens decimaler",
+        "stampByOriginOwn": "“{public}” fra den offentlige side og det, personalet vælger, fra personalet",
+        "stampCopy": "værdien af {column}",
+        "normalizeEmail": "Gemmes uden mellemrum i enderne og med små bogstaver",
+        "normalizeTrim": "Gemmes uden mellemrum i begge ender"
       },
       "venueLocal": "Et tidspunkt skrevet her uden tidszone er stedets egen tid.",
       "fillFromCurrency": "Forbindelsens valuta",

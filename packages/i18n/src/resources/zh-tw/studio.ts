@@ -1959,7 +1959,11 @@ export default {
         "formula": "每次寫入時由 {columns} 算出",
         "format": "按 {from} 中的編號寫成 {example}",
         "scale": "四捨五入到 {places} 位小數",
-        "scaleCurrency": "四捨五入到其貨幣的小數位數"
+        "scaleCurrency": "四捨五入到其貨幣的小數位數",
+        "stampByOriginOwn": "公開端為「{public}」，員工端為員工所選",
+        "stampCopy": "{column} 的值",
+        "normalizeEmail": "去除首尾空格並以小寫儲存",
+        "normalizeTrim": "去除首尾空格後儲存"
       },
       "venueLocal": "在此寫入的不帶時區的時間即為場所的當地時間。",
       "fillFromCurrency": "連線的貨幣",

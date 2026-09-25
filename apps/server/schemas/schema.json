@@ -40,6 +40,7 @@
               "column.code",
               "column.format",
               "column.formula",
+              "column.normalize",
               "column.scale",
               "column.venueLocal",
               "column.stamp",

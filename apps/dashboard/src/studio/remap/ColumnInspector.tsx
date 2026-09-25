@@ -171,6 +171,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const formulaKey = overrideKey({ op: 'column.formula', ...target, value: { formula: 0 } });
   const formatKey = overrideKey({ op: 'column.format', ...target, value: {} });
   const scaleKey = overrideKey({ op: 'column.scale', ...target, value: { scale: 2 } });
+  const normalizeKey = overrideKey({ op: 'column.normalize', ...target, value: { normalize: 'trim' } });
   const venueLocal = buffer.get(venueLocalKey)?.item.op === 'column.venueLocal';
   // The buffer's baseline is every stored row, so no entry is no rule — and
   // one dropped in this session is gone until it is saved or reverted.
@@ -186,15 +187,21 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
   const formula = decidedOf<{ formula: unknown }>(formulaKey, 'column.formula');
   const format = decidedOf<{ from: string; prefix?: string; prefixSetting?: Record<string, string>; pad?: number }>(formatKey, 'column.format');
   const scale = decidedOf<{ scale: number | 'currency' }>(scaleKey, 'column.scale');
+  const normalize = decidedOf<{ normalize: 'trim' | 'email' }>(normalizeKey, 'column.normalize');
   /** What a stamp writes, in words. */
   const stampWhat = (set: StampRule['set']): string => {
     if (typeof set === 'object') {
       if ('byOrigin' in set) {
-        return t('studio:remap.rules.decided.stampByOrigin', '“{public}” from the public side, “{staff}” from staff', {
-          public: set.byOrigin.public,
-          staff: set.byOrigin.staff,
-        });
+        return set.byOrigin.staff === undefined
+          ? t('studio:remap.rules.decided.stampByOriginOwn', '“{public}” from the public side, and what staff choose from staff', {
+              public: set.byOrigin.public,
+            })
+          : t('studio:remap.rules.decided.stampByOrigin', '“{public}” from the public side, “{staff}” from staff', {
+              public: set.byOrigin.public,
+              staff: set.byOrigin.staff,
+            });
       }
+      if ('copy' in set) return t('studio:remap.rules.decided.stampCopy', 'the value of {column}', { column: set.copy });
       if ('claim' in set) return t('studio:remap.rules.decided.stampClaim', 'the signed-in person’s {column}', { column: set.claim });
       if ('addDays' in set) {
         return typeof set.addDays.days === 'number'
@@ -709,7 +716,8 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
         stamp !== undefined ||
         formula !== undefined ||
         format !== undefined ||
-        scale !== undefined ? (
+        scale !== undefined ||
+        normalize !== undefined ? (
           <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3" data-testid="rules-decided">
             <div className="flex flex-col">
               <span className="text-body-sm font-semibold text-fg">
@@ -816,6 +824,15 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                       scale.scale === 'currency'
                         ? t('studio:remap.rules.decided.scaleCurrency', 'Rounded to the decimal places of its currency')
                         : t('studio:remap.rules.decided.scale', 'Rounded to {places} decimal places', { places: scale.scale }),
+                  },
+              normalize === undefined
+                ? null
+                : {
+                    key: normalizeKey,
+                    text:
+                      normalize.normalize === 'email'
+                        ? t('studio:remap.rules.decided.normalizeEmail', 'Stored trimmed and in lower case')
+                        : t('studio:remap.rules.decided.normalizeTrim', 'Stored without spaces at either end'),
                   },
               code === undefined
                 ? null

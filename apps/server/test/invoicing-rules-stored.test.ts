@@ -64,6 +64,9 @@ for (const [dialect, available] of LEGS) {
       expect(rule('column.default', 'invoices', 'tax_rate').value).toEqual({ kind: 'from', from: { table: idOf('settings'), column: 'tax_rate' } });
       expect(rule('column.copy', 'invoices', 'tax_rate').value).toEqual({ via: 'client_id', from: 'tax_rate' });
 
+      expect(rule('column.normalize', 'clients', 'email').value).toEqual({ normalize: 'email' });
+      expect(rule('column.stamp', 'proposals', 'first_signed_name').value).toEqual({ set: { copy: 'signed_name' }, on: { column: 'signed_name', filled: true } });
+      expect(rule('column.stamp', 'proposals', 'accepted_how').value).toEqual({ set: { byOrigin: { public: 'portal' } }, on: { column: 'status', values: ['accepted'] } });
       expect(rule('column.stamp', 'invoices', 'due_on').value).toMatchObject({ set: { addDays: { date: 'issued_on', days: 'terms' } } });
       // A fingerprint's child rows are read from the real child table.
       expect(rule('column.stamp', 'proposals', 'fingerprint').value).toEqual({

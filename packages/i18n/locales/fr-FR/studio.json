@@ -1949,7 +1949,11 @@
         "formula": "Calculé à partir de {columns} à chaque écriture",
         "format": "Écrit sous la forme {example}, à partir du numéro de {from}",
         "scale": "Arrondi à {places} décimales",
-        "scaleCurrency": "Arrondi aux décimales de sa devise"
+        "scaleCurrency": "Arrondi aux décimales de sa devise",
+        "stampByOriginOwn": "« {public} » côté public, et ce que choisit l’équipe côté équipe",
+        "stampCopy": "la valeur de {column}",
+        "normalizeEmail": "Enregistré sans espaces aux extrémités et en minuscules",
+        "normalizeTrim": "Enregistré sans espaces au début ni à la fin"
       },
       "venueLocal": "Une heure écrite ici sans fuseau est l’heure locale de l’établissement.",
       "fillFromCurrency": "La devise de la connexion",

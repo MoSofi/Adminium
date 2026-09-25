@@ -1949,7 +1949,11 @@
         "formula": "Bei jedem Schreiben aus {columns} berechnet",
         "format": "Geschrieben als {example}, aus der Nummer in {from}",
         "scale": "Auf {places} Nachkommastellen gerundet",
-        "scaleCurrency": "Auf die Nachkommastellen seiner Währung gerundet"
+        "scaleCurrency": "Auf die Nachkommastellen seiner Währung gerundet",
+        "stampByOriginOwn": "„{public}“ von der öffentlichen Seite, vom Personal das, was es wählt",
+        "stampCopy": "der Wert von {column}",
+        "normalizeEmail": "Ohne Leerzeichen am Rand und in Kleinbuchstaben gespeichert",
+        "normalizeTrim": "Ohne Leerzeichen am Anfang und Ende gespeichert"
       },
       "venueLocal": "Eine hier ohne Zeitzone geschriebene Zeit ist die Ortszeit des Lokals.",
       "fillFromCurrency": "Die Währung der Verbindung",
