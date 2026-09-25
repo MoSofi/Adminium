@@ -67,6 +67,10 @@ export interface DocumentProfile {
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
+  /** The app whose install made this profile; null for an operator's own. */
+  ownerApp: string | null;
+  /** The column a document's lines are listed by. */
+  orderBy: string | null;
 }
 
 /**
@@ -89,6 +93,8 @@ export interface CreateDocumentProfileInput {
   deliver?: Record<string, unknown> | undefined;
   enabled?: boolean | undefined;
   createdBy?: string | null | undefined;
+  ownerApp?: string | null | undefined;
+  orderBy?: string | null | undefined;
 }
 
 export interface PatchDocumentProfileInput {
@@ -116,6 +122,8 @@ function hydrate(row: Selectable<AdminiumDocumentProfilesTable>): DocumentProfil
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    ownerApp: row.ownerApp,
+    orderBy: row.orderBy,
   };
 }
 
@@ -179,6 +187,8 @@ export function documentProfilesRepo(meta: MetaDb) {
       createdBy: input.createdBy ?? null,
       createdAt: at,
       updatedAt: at,
+      ownerApp: input.ownerApp ?? null,
+      orderBy: input.orderBy ?? null,
     };
     await db.insertInto('adminium_document_profiles').values(row).execute();
     return (await findById(row.id))!;
@@ -238,7 +248,29 @@ export function documentProfilesRepo(meta: MetaDb) {
     return affected(rows.numUpdatedRows);
   }
 
-  return { findById, list, listTriggeredBy, create, patch, remove, setEnabledForAddOn };
+  /** The profiles one app's install made on a connection. */
+  async function listOwnedBy(connectionId: string, appKey: string): Promise<DocumentProfile[]> {
+    const rows = await db
+      .selectFrom('adminium_document_profiles')
+      .selectAll()
+      .where('connectionId', '=', connectionId)
+      .where('ownerApp', '=', appKey)
+      .orderBy('name', 'asc')
+      .execute();
+    return rows.map(hydrate);
+  }
+
+  /** Remove the profiles one app's install made; an operator's own are never touched. */
+  async function removeOwnedBy(connectionId: string, appKey: string): Promise<number> {
+    const rows = await db
+      .deleteFrom('adminium_document_profiles')
+      .where('connectionId', '=', connectionId)
+      .where('ownerApp', '=', appKey)
+      .executeTakeFirst();
+    return affected(rows.numDeletedRows);
+  }
+
+  return { findById, list, listTriggeredBy, listOwnedBy, create, patch, remove, removeOwnedBy, setEnabledForAddOn };
 }
 
 export type DocumentProfilesRepo = ReturnType<typeof documentProfilesRepo>;

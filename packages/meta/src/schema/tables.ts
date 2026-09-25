@@ -776,6 +776,10 @@ export interface AdminiumDocumentProfilesTable {
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
+  /** The app whose install made this profile (wave 0044); NULL for an operator's own. */
+  ownerApp: string | null;
+  /** The column a document's lines are listed by (wave 0044). */
+  orderBy: string | null;
 }
 
 /**
@@ -823,6 +827,8 @@ export interface AdminiumDocumentsTable {
   voidedAt: Ts | null;
   voidReason: string | null;
   createdAt: Ts;
+  /** Profile, row, a hash of its values and any period: a render to reuse (wave 0044). */
+  reuseKey: string | null;
 }
 
 /**
@@ -1221,6 +1227,10 @@ export interface AdminiumAppTablesTable {
   shape: string | null;
   /** JSON array of the column rules the installer wrote. */
   rules: JsonColumn | null;
+  /** `<addOn>/<shape>@<version>#<part>` for a table built on an add-on's shape (wave 0044). */
+  builtOn: string | null;
+  /** JSON array of the column names the shape owns (wave 0044). */
+  shapeColumns: string | null;
   createdAt: Ts;
   updatedAt: Ts;
   releasedAt: Ts | null;
@@ -1266,6 +1276,8 @@ export interface AdminiumPublicChallengesTable {
   subject: string | null;
   /** Set when the desk lifts the lock; a cleared row no longer counts toward it. */
   clearedAt: Ts | null;
+  /** A sign-in link's token, as its SHA-256 (wave 0044); NULL for a code alone. */
+  tokenHash: string | null;
 }
 
 /** An installed app's outbox (wave 0042), its table names made real. */

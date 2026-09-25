@@ -38,6 +38,8 @@ export interface CreatePublicChallengeInput {
   newDestinationEnc?: string | null;
   /** The claimed row the code was sent for. */
   subject: string | null;
+  /** A sign-in link's token, as its SHA-256; absent for a code alone. */
+  tokenHash?: string | null;
 }
 
 export function publicChallengesRepo(meta: MetaDb) {
@@ -50,6 +52,12 @@ export function publicChallengesRepo(meta: MetaDb) {
 
   return {
     findById,
+
+    /** The challenge a sign-in link's token belongs to, by the token's SHA-256; used or not. */
+    async findByTokenHash(tokenHash: string): Promise<PublicChallenge | null> {
+      const row = await db.selectFrom('adminium_public_challenges').selectAll().where('tokenHash', '=', tokenHash).executeTakeFirst();
+      return row ?? null;
+    },
 
     /**
      * A new code for a session and purpose. Every code still open for that
@@ -72,6 +80,7 @@ export function publicChallengesRepo(meta: MetaDb) {
         newDestinationEnc: input.newDestinationEnc ?? null,
         subject: input.subject,
         clearedAt: null,
+        tokenHash: input.tokenHash ?? null,
       };
       await db.transaction().execute(async (trx) => {
         if (input.sessionId !== null) {

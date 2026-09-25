@@ -57,6 +57,13 @@ export interface AppTableRecord {
   prefix: string | null;
   shape: string | null;
   rules: AppTableRule[];
+  /**
+   * The add-on shape and part the table is built on, `invoices/invoice@1#document`,
+   * as checked at install; null for a table of the app's own.
+   */
+  builtOn: string | null;
+  /** The columns that shape owns. */
+  shapeColumns: string[];
   createdAt: number;
   updatedAt: number;
   releasedAt: number | null;
@@ -74,6 +81,19 @@ export interface RecordAppTableInput {
   role?: AppTableRole;
   prefix?: string | null;
   shape?: string | null;
+  builtOn?: string | null;
+  shapeColumns?: readonly string[] | null;
+}
+
+/** A stored list of column names, parsed; anything else reads as none. */
+function parseNames(value: string | null): string[] {
+  if (value === null) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((name): name is string => typeof name === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 function parseRules(value: unknown): AppTableRule[] {
@@ -105,6 +125,8 @@ function toRecord(row: Selectable<AdminiumAppTablesTable>): AppTableRecord {
     prefix: row.prefix,
     shape: row.shape,
     rules: parseRules(row.rules),
+    builtOn: row.builtOn,
+    shapeColumns: parseNames(row.shapeColumns),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     releasedAt: row.releasedAt,
@@ -191,6 +213,8 @@ export function appTablesRepo(meta: MetaDb) {
             role: input.role ?? held.role,
             prefix: input.prefix ?? held.prefix,
             shape: input.shape ?? held.shape,
+            ...(input.builtOn === undefined ? {} : { builtOn: input.builtOn }),
+            ...(input.shapeColumns === undefined ? {} : { shapeColumns: input.shapeColumns === null ? null : JSON.stringify(input.shapeColumns) }),
             releasedAt: null,
             updatedAt: at,
           })
@@ -212,6 +236,8 @@ export function appTablesRepo(meta: MetaDb) {
         prefix: input.prefix ?? null,
         shape: input.shape ?? null,
         rules: null,
+        builtOn: input.builtOn ?? null,
+        shapeColumns: input.shapeColumns === undefined || input.shapeColumns === null ? null : JSON.stringify(input.shapeColumns),
         createdAt: at,
         updatedAt: at,
         releasedAt: null,

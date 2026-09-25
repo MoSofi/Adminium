@@ -68,6 +68,8 @@ export interface DocumentRow {
   voidedAt: number | null;
   voidReason: string | null;
   createdAt: number;
+  /** Profile, row, a hash of its values and any period: what makes a render reusable. */
+  reuseKey: string | null;
   /** True when this read withheld `subject`, `entity` and `claim`. */
   redacted: boolean;
 }
@@ -121,6 +123,7 @@ function hydrate(row: Selectable<AdminiumDocumentsTable>, redacted: boolean): Do
     voidedAt: row.voidedAt,
     voidReason: row.voidReason,
     createdAt: row.createdAt,
+    reuseKey: row.reuseKey,
     redacted,
   };
 }
@@ -139,6 +142,7 @@ export interface CreateDocumentInput {
   jobId?: string | null | undefined;
   claim?: { column: string; value: string } | null | undefined;
   delivery?: string | null | undefined;
+  reuseKey?: string | null | undefined;
 }
 
 /** Optional fields carry `| undefined`; see `CreateDocumentProfileInput`. */
@@ -239,9 +243,28 @@ export function documentsRepo(meta: MetaDb) {
       voidedAt: null,
       voidReason: null,
       createdAt: at,
+      reuseKey: input.reuseKey ?? null,
     };
     await db.insertInto('adminium_documents').values(row).execute();
     return (await findById(row.id))!;
+  }
+
+  /**
+   * The newest rendered, unvoided document with this reuse key on this
+   * connection: the row it was drawn from has not changed since, so its file
+   * answers a second request as well as a new render would.
+   */
+  async function findReusable(connectionId: string, reuseKey: string): Promise<DocumentRow | null> {
+    const row = await db
+      .selectFrom('adminium_documents')
+      .selectAll()
+      .where('connectionId', '=', connectionId)
+      .where('reuseKey', '=', reuseKey)
+      .where('status', '=', 'rendered')
+      .orderBy('createdAt', 'desc')
+      .orderBy('id', 'desc')
+      .executeTakeFirst();
+    return row === undefined ? null : hydrate(row, false);
   }
 
   /**
@@ -376,6 +399,7 @@ export function documentsRepo(meta: MetaDb) {
     listForEntity,
     listExpiredBefore,
     create,
+    findReusable,
     markRendered,
     markFailed,
     markVoided,
