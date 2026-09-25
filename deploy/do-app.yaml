@@ -83,7 +83,7 @@ spec:
         # resolves the tag on every deploy, so `latest` upgrades the engine — and
         # migrates the managed meta store — on a deploy triggered for anything
         # else. Take a database backup before bumping this.
-        tag: 0.3.0
+        tag: 0.3.1
       http_port: 4600
       # 512 MB, which is enough: this is the limit on THIS CONTAINER, and App
       # Platform's own runtime and edge are not charged to it. Adminium is

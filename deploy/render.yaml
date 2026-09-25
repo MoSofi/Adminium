@@ -20,7 +20,7 @@ services:
       # An exact version, never `latest` (deploy/README.md): a Blueprint redeploy
       # resolves the tag again, so `latest` upgrades the engine — and migrates the
       # meta store — on a deploy you triggered for something else. Bump it here.
-      url: ghcr.io/mosofi/adminium:0.3.0
+      url: ghcr.io/mosofi/adminium:0.3.1
     # 512 MB is enough here, and that is a property of the platform rather than
     # of Adminium. This number is the limit on THIS CONTAINER: Render's
     # orchestrator, the container runtime and the TLS edge run outside it, so
