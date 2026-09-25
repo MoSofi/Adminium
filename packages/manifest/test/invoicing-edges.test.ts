@@ -297,6 +297,13 @@ describe('public access, the rarer refusals', () => {
     expectIssue(m, '"projects.status" is not a bool of this app');
   });
 
+  it('refuses an off switch on a shared link\'s key, which nothing would read', () => {
+    const m = valid();
+    const handover = (m['publicKeys'] as Doc)['handover'] as Doc;
+    handover['enabledBy'] = { table: 'projects', column: 'share_stopped' };
+    expectIssue(m, '"handover" opens a row by its link, which is switched off in that row, not by a setting');
+  });
+
   it('keeps a link identity\'s address in a text column', () => {
     let m = valid();
     (entryOf(m, 'clients')['claim'] as Doc)['email'] = 'id';
