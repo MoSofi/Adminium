@@ -3,17 +3,25 @@
  * WHAT A PERSON MAY DO TO A MESSAGE — the moves of an outbox row's status.
  *
  * A person (or an API key, an import's update, a rule, an undo) may:
- *  - approve a held message: held → queued, with the wording edited
- *    (`subject_override`, `body_override`). Who approved it is written in
+ *  - approve a held message: held → queued. Who approved it is written in
  *    `approved_by`; the address is looked up again, as the person is now; a
  *    message approved before its day goes at once (its due moves to now);
+ *  - reword a held message of a producer that holds (`subject_override`,
+ *    `body_override`) — before or as it is approved, and at no other time:
+ *    never on a new row, a queued one, or one addressed by hand, so a
+ *    person's wording only ever goes where Adminium addresses it;
  *  - skip a held or queued one: → skipped, the reason `by-hand`;
  *  - queue a failed one again: failed → queued.
  * Only Adminium marks a message sent or failed — when it sends it — and a
  * sent message stays as it was sent: never queued again, never re-addressed
- * or re-worded. So no writer can send a reminder twice, or mark one sent
- * that never went. A new row a person makes starts queued or held; an import
- * (history, an app's sample data) may bring any.
+ * or re-worded. What Adminium writes (when it went, who approved it, why it
+ * was skipped or failed, what its effect did) is never a person's: a value
+ * that would change it is refused, one that repeats it is dropped. What a
+ * message is and what it is about (its kind, its links) is fixed once it is
+ * made. A new row a person makes starts queued, or held when its kind is one
+ * a producer holds (a reminder nobody approved is never sent); history — an
+ * import, an app's sample data, the undo of a delete — may bring any row as
+ * it was, and nothing a sent row of history asks for is ever done.
  *
  * It runs as a before hook of the write service, after the project's own
  * hooks, for every stored outbox's table — a switched-off app's too, whose
@@ -100,21 +108,43 @@ export function withOutboxMoves(inner: RecordHooks, deps: OutboxMovesDeps): Reco
 export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: Pick<OutboxMovesDeps, 'meta' | 'now'>): Promise<void> {
   const { action, values, record, context, target } = event;
   const cols = box.definition.columns;
-  // What only Adminium writes: when it sent, who approved, what the effect did.
-  const adminiums = [cols.sentAt, cols.approvedBy, cols.effectAt, cols.effectError].filter((column): column is string => column !== undefined);
+  const definition = box.definition;
+  // What only Adminium writes: when it sent, who approved, why it skipped or failed, what the effect did.
+  const adminiums = [cols.sentAt, cols.approvedBy, cols.effectAt, cols.effectError, cols.skipReason, cols.error].filter((column): column is string => column !== undefined);
+  const overrides = [cols.subjectOverride, cols.bodyOverride].filter((column): column is string => column !== undefined);
+  // What a message is, and what it is about.
+  const identity = [
+    cols.kind,
+    ...Object.values(definition.links ?? {}),
+    definition.recipient.via,
+    ...(definition.recipient.fallback === undefined ? [] : [definition.recipient.fallback.via]),
+  ].filter((column) => target.table.columns.has(column));
   const has = (column: string) => Object.prototype.hasOwnProperty.call(values, column);
+  const refuse = (column: string, message: string, extra: Record<string, unknown> = {}): never => {
+    throw new OutboxMoveRefused(message, { column, ...extra });
+  };
+  const byAdminium = (column: string) => refuse(column, `"${column}" is written by Adminium, not by hand.`);
   if (action === 'delete') return;
 
   if (action === 'create') {
-    // History — an import, an app's sample data — may bring a message in any state.
-    if (context.origin === 'import') return;
+    // History — an import, an app's sample data, a deleted row put back by its undo — comes back as it was.
+    if (context.origin === 'import' || context.origin === 'undo') return;
     const status = values[cols.status];
     if (!empty(status) && status !== 'queued' && status !== 'held') {
-      throw new OutboxMoveRefused('A new message starts queued or held: only Adminium marks one sent, failed or skipped.', { column: cols.status, to: status });
+      refuse(cols.status, 'A new message starts queued or held: only Adminium marks one sent, failed or skipped.', { to: status });
     }
-    for (const column of [...adminiums, ...(cols.skipReason === undefined ? [] : [cols.skipReason])]) {
-      if (has(column) && !empty(values[column])) throw new OutboxMoveRefused(`"${column}" is written by Adminium, not by hand.`, { column });
+    for (const column of adminiums) {
+      if (!has(column)) continue;
+      if (!empty(values[column])) byAdminium(column);
+      delete values[column];
     }
+    for (const column of overrides) {
+      if (!has(column)) continue;
+      if (!empty(values[column])) refuse(column, 'A message is reworded only while it waits for approval, not when it is made.');
+      delete values[column];
+    }
+    // A reminder a producer holds waits for a person, whoever makes it.
+    if (producerOf(definition, values[cols.kind])?.hold === true) values[cols.status] = 'held';
     return;
   }
 
@@ -125,38 +155,47 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   const moment = (column: string) => ['timestamp', 'timestamptz'].includes(target.table.columns.get(column)?.logicalType ?? '');
   const changed = (column: string | undefined) => column !== undefined && has(column) && !same(values[column], record[column], moment(column));
 
+  // Adminium's own columns: refused when changed, dropped when repeated — never written by a person.
   for (const column of adminiums) {
-    if (changed(column)) throw new OutboxMoveRefused(`"${column}" is written by Adminium, not by hand.`, { column });
+    if (changed(column)) byAdminium(column);
+    delete values[column];
+  }
+  for (const column of identity) {
+    if (changed(column)) refuse(column, `"${column}" says what the message is and what it is about, so it is fixed once the message is made.`);
   }
   if (from === 'sent') {
-    const owned = [cols.kind, cols.status, cols.to, cols.language, cols.due, cols.error, cols.skipReason, cols.subjectOverride, cols.bodyOverride];
+    const owned = [cols.status, cols.to, cols.language, cols.due, ...overrides];
     const touched = owned.find((column) => changed(column));
     if (touched !== undefined) {
-      throw new OutboxMoveRefused('This message was sent, so it stays as it was sent: it is never queued, re-addressed or re-worded again.', { column: touched, from, to });
+      refuse(touched, 'This message was sent, so it stays as it was sent: it is never queued, re-addressed or re-worded again.', { from, to });
     }
     return;
   }
-  if (to === from) {
-    // No move: a reason is Adminium's or a skip's, never written on its own.
-    if (changed(cols.skipReason)) throw new OutboxMoveRefused(`"${cols.skipReason!}" is written when a message is skipped.`, { column: cols.skipReason! });
-    return;
+  const producer = producerOf(definition, record[cols.kind]);
+  const held = producer?.hold === true;
+  // Rewording: a held message of a producer that holds, which Adminium addresses.
+  for (const column of overrides) {
+    if (changed(column) && (!held || from !== 'held')) refuse(column, 'Only a message waiting for approval can be reworded, before or as it is approved.', { from, to });
   }
-  if (!(PERSON_MOVES[from] ?? []).includes(to)) {
+  // A held reminder goes where Adminium addresses it, never where a person types.
+  if (held && changed(cols.to)) refuse(cols.to, 'This message goes to the address on file, looked up when it is sent.');
+  if (to !== from && !(PERSON_MOVES[from] ?? []).includes(to)) {
     const message =
       to === 'sent' || to === 'failed'
         ? 'Only Adminium marks a message sent or failed, when it sends it.'
         : `A message that is ${from || 'without a status'} can't be made ${to} by hand.`;
-    throw new OutboxMoveRefused(message, { column: cols.status, from, to });
+    refuse(cols.status, message, { from, to });
   }
+  if (to === from) return;
 
   if (to === 'skipped') {
     if (cols.skipReason !== undefined) values[cols.skipReason] = 'by-hand';
     return;
   }
-  // → queued: an approval (from held) or a second try (from failed).
+  // → queued: an approval (from held) or a second try (from failed). A second
+  // try keeps when the first went and why it failed: the sender reads a queued
+  // row that says when it went and records no failure as sent already.
   if (cols.skipReason !== undefined && !empty(record[cols.skipReason])) values[cols.skipReason] = null;
-  // A second try starts afresh: it has not been sent.
-  if (from === 'failed' && cols.sentAt !== undefined && !empty(record[cols.sentAt])) values[cols.sentAt] = null;
   if (from !== 'held') return;
   if (cols.approvedBy !== undefined) values[cols.approvedBy] = context.actor?.label ?? null;
   const now = deps.now?.() ?? Date.now();
@@ -167,12 +206,11 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   }
   // A producer's message is addressed as the person is now, not as they were
   // when it was made; one a person wrote and addressed by hand keeps its address.
-  const merged: Row = { ...record, ...values };
-  const producer = producerOf(box.definition, merged[cols.kind]);
   if (producer === undefined) return;
+  const merged: Row = { ...record, ...values };
   const addressed = await addressFor(
     { db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db) },
-    box.definition,
+    definition,
     producer,
     merged,
   );

@@ -84,19 +84,19 @@
  * reason, for a day after the send.
  */
 import type { OutboxProducer } from '@adminium/manifest';
-import { addOnSettingsRepo, appOutboxesRepo, connectionTenantConfig, settingsRepo, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, appOutboxesRepo, connectionTenantConfig, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
-import { slotInstant, withNamedLock } from '../crud/capacity-guard.js';
+import { slotInstant } from '../crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
-import type { RecordWriteService } from '../crud/write-service.js';
+import type { RecordWriteService, UpdateRecordInput } from '../crud/write-service.js';
 import { normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
-import { enqueueEmail, type EmailSendReport } from '../email/send.js';
+import { enqueueEmail, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import { AppError } from '../errors.js';
 import { bcp47, formatTag } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
@@ -104,12 +104,14 @@ import type { JobRegistry } from '../jobs/registry.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
 import { outboxContext } from './context.js';
 import { verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
-import { addressFor, normalAddress, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
+import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence } from './timing.js';
 
 /** The job that sends one app's queued rows now. */
 export const OUTBOX_SEND_JOB_KIND = 'app-outbox-send';
+/** The retry of the change a sent message makes (`onSent`), when making it failed for a passing reason. */
+export const OUTBOX_EFFECT_JOB_KIND = 'app-outbox-effect';
 /** The once-a-minute sweep over every app's queued rows. */
 export const OUTBOX_SWEEP_SCHEDULE_NAME = 'app-outbox-sweep';
 /** Rows sent per app per pass; the next pass takes the rest. */
@@ -128,12 +130,6 @@ interface AppFacts {
 }
 /** The longest `error` sentence written, so a narrow column still takes it. */
 const ERROR_MAX = 120;
-/**
- * How long after a send its `onSent` change is still tried: the sweep's
- * retries, and no further — an app update that adds an effect never applies
- * it to messages sent long before.
- */
-export const EFFECT_RETRY_MS = DAY_MS;
 
 export interface OutboxSenderDeps {
   meta: MetaDb;
@@ -166,6 +162,8 @@ export interface OutboxSender {
   sweep(now?: number): Promise<number>;
   /** A message sent for a row could not be delivered after every try. */
   markUndelivered(report: EmailSendReport, error: unknown): Promise<void>;
+  /** The retry job of a sent message's change. */
+  retryEffect(input: { app: string; pk: string | number; sentAt: number }): Promise<void>;
 }
 
 declare module 'fastify' {
@@ -180,7 +178,27 @@ declare module 'fastify' {
  * a row that named no address — written back with a `sent`, so the log says
  * where it went.
  */
-type Outcome = { status: 'sent' | 'failed' | 'skipped'; error: string | null; to?: string; language?: string };
+type Outcome = { status: 'failed' | 'skipped'; error: string | null };
+
+/** A row made ready to go: its email, and what the claim writes back (the address and language looked up). */
+interface Prepared {
+  to: string;
+  email: Omit<EnqueueEmailInput, 'report' | 'dedupeKey'>;
+  recordTo?: string;
+  language?: string;
+}
+
+type AnyUpdateQuery = Parameters<NonNullable<UpdateRecordInput['refine']>>[0];
+
+/** Every `{{name}}` a template reads, wherever it is written in it. */
+export function placeholders(parts: readonly unknown[]): Set<string> {
+  return new Set([...JSON.stringify(parts).matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g)].map((match) => match[1]!));
+}
+
+/** A person's wording with every `{{name}}` the template does not read taken out. */
+export function onlyReads(text: string, reads: ReadonlySet<string>): string {
+  return text.replaceAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g, (whole, name: string) => (reads.has(name) ? whole : ''));
+}
 
 /**
  * Whether an address is on a domain reserved for examples and tests (RFC 2606,
@@ -388,12 +406,14 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   ): Promise<Record<string, string>> {
     const { db, view, forms } = ctx;
     const vars: Record<string, string> = {};
-    const put = (prefix: string, table: ResolvedTable, record: Row) => {
+    // A column Adminium masks (an email, a phone) is never read into an email
+    // from a linked row: the address a message goes to is looked up apart.
+    const put = (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) => {
       // A row that keeps its own currency (an invoice in euros on a pound connection) prints its money in it.
       const own = table.columns.has('currency') ? record['currency'] : null;
       const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
       for (const column of table.columns.values()) {
-        if (column.secret) continue;
+        if (column.secret || (column.masked && !settingsRow)) continue;
         const value = record[column.name];
         const name = `${prefix}.${column.name}`;
         if (value === null || value === undefined) {
@@ -467,7 +487,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (settings !== undefined) {
       const record = (await db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
       if (record !== undefined) {
-        put('practice', view.table(settings.table), record);
+        // The app's own settings row: its phone is the practice's, not a person's.
+        put('practice', view.table(settings.table), record, true);
         if (settings.name !== undefined) practiceName = record[settings.name];
       }
     }
@@ -515,9 +536,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
 
   /**
    * `{{signInLink}}`: only for the person the outbox's recipient names, found
-   * through the row's own recipient link, when the address the message goes
-   * to is that person's current one — and only when the email reads it, so
-   * no live link is made for nothing. Empty otherwise.
+   * through the row's own recipient link, and only when the message goes to
+   * that person's address AS STORED — the same characters, or the same ASCII
+   * letters in another case (the link then goes to the stored spelling). An
+   * address that differs in anything else — a look-alike letter that
+   * lower-cases to the same text, an old address, one a person typed — gets an
+   * empty link. Minted only when the email reads it, so no live link is made
+   * for nothing.
    */
   async function signInLink(
     box: LiveOutbox,
@@ -526,50 +551,58 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     to: string,
     addressed: Addressed | null,
     producer: OutboxProducer | undefined,
-  ): Promise<string> {
-    if (deps.signInLinks === undefined || addressed?.bySetting === true) return '';
+  ): Promise<{ link: string; to: string }> {
+    const none = { link: '', to };
+    if (deps.signInLinks === undefined || addressed?.bySetting === true) return none;
     const recipient = box.definition.recipient;
     const identity = addressed?.identity ?? (await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]));
-    if (identity === null) return '';
-    const current = normalAddress(identity[recipient.email]);
-    if (current === '' || current !== normalAddress(to)) return '';
+    if (identity === null) return none;
+    const stored = identity[recipient.email];
+    if (!plausibleAddress(stored)) return none;
+    const exact = stored.trim();
+    const ascii = (text: string) => /^[\x21-\x7e]+$/.test(text);
+    const same = exact === to || (ascii(exact) && ascii(to) && exact.toLowerCase() === to.toLowerCase());
+    if (!same) return none;
     const key = ctx.view.table(recipient.table).primaryKey[0];
     const id = key === undefined ? undefined : identity[key];
-    if (key === undefined || (typeof id !== 'string' && typeof id !== 'number')) return '';
+    if (key === undefined || (typeof id !== 'string' && typeof id !== 'number')) return none;
     const base = await guestBase(box.appKey);
-    if (base === null) return '';
+    if (base === null) return none;
     const target = routeFor(box, (await appFacts(box.row.manifestId)).routes, row, producer);
     try {
-      return (
-        (await deps.signInLinks.mint({
-          appKey: box.appKey,
-          connectionId: box.connectionId,
-          table: recipient.table,
-          pk: { [key]: id },
-          email: current,
-          base,
-          now: ctx.now,
-          ...(target === undefined ? {} : { to: target }),
-        })) ?? ''
-      );
+      const link = await deps.signInLinks.mint({
+        appKey: box.appKey,
+        connectionId: box.connectionId,
+        table: recipient.table,
+        pk: { [key]: id },
+        email: ascii(exact) ? exact.toLowerCase() : exact,
+        base,
+        now: ctx.now,
+        ...(target === undefined ? {} : { to: target }),
+      });
+      return link === null ? none : { link, to: exact };
     } catch (error) {
       deps.logger?.warn({ err: error, appKey: box.appKey }, 'a sign-in link could not be made; the email goes without one');
-      return '';
+      return none;
     }
   }
 
-  /** One row: its message queued, or the reason it is not. */
-  async function deliver(
+  /**
+   * One row, made ready to go: where to, in which words — or the reason it
+   * will not go (`skipped`, `failed`). Nothing is written and nothing queued
+   * here: the row is claimed, and its message queued, only once this is done.
+   */
+  async function prepare(
     box: LiveOutbox,
     ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; zone: string; currency: string | null; now: number },
     row: Row,
-  ): Promise<Outcome> {
+  ): Promise<Outcome | Prepared> {
     const cols = box.definition.columns;
     const kind = String(row[cols.kind] ?? '');
     const producer = producerOf(box.definition, kind);
-    const { addressed, to, lookedUp } = await addressOf(ctx, box, producer, row);
-    if (!plausibleAddress(to)) return { status: 'skipped', error: 'No email on file' };
-    if (reservedAddress(to)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
+    const { addressed, to: found, lookedUp } = await addressOf(ctx, box, producer, row);
+    if (!plausibleAddress(found)) return { status: 'skipped', error: 'No email on file' };
+    if (reservedAddress(found)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
     const templateKey = box.definition.kinds[kind];
     if (templateKey === undefined) return { status: 'failed', error: sentence(`No email is set for "${kind}"`) };
 
@@ -580,9 +613,12 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       (typeof language === 'string' && language !== '' ? negotiateLocale(language.replace(/_/g, '-')) : null) ?? (await recipientLocale(deps.meta, null));
     const template = await resolveEmailTemplate(deps.meta, templateKey, locale);
     if (template === null) return { status: 'failed', error: 'The email is switched off, or has no text' };
+    // A person's wording may read only what the template itself reads: never
+    // another column of a linked row, however it is spelled.
+    const reads = placeholders([template.subject, template.preheader, template.blocks, template.footer]);
     const text = (column: string | undefined) => {
       const value = column === undefined ? undefined : row[column];
-      return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+      return typeof value === 'string' && value.trim() !== '' ? onlyReads(value, reads) : undefined;
     };
     const override = { subject: text(cols.subjectOverride), body: text(cols.bodyOverride) };
     // A person's wording replaces the blocks; the template's own are sent only without it.
@@ -593,26 +629,57 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // The nearest template language writes the words; the recipient's own tag the clock.
     const forms = valueForms({ locale: formatTag(typeof language === 'string' ? language : null, locale), zone: ctx.zone, currency: ctx.currency, now: ctx.now });
     const vars = await variables(box, { ...ctx, forms }, row, addressed);
-    const reads = JSON.stringify([template.subject, template.blocks, template.footer, override]).includes('signInLink');
-    vars['signInLink'] = reads ? await signInLink(box, ctx, row, to.trim(), addressed, producer) : '';
-    const key = ctx.outbox.primaryKey[0];
-    const report: EmailSendReport | undefined =
-      key === undefined
-        ? undefined
-        : { app: box.appKey, connectionId: box.connectionId, table: ctx.outbox.id, pk: { [key]: row[key] as string | number }, sentAt: ctx.now };
-    const job = await enqueueEmail(
-      { meta: deps.meta, logger: deps.logger === undefined ? undefined : { info: () => undefined, warn: deps.logger.warn.bind(deps.logger) }, secret: deps.secret },
-      { to: to.trim(), templateKey, locale, vars, report, ...(override.subject === undefined && override.body === undefined ? {} : { override }) },
-    );
-    if (job === null) return { status: 'failed', error: 'Email is not set up on this server' };
-    if (!lookedUp || (typeof row[cols.to] === 'string' && (row[cols.to] as string).trim() === to.trim())) return { status: 'sent', error: null };
-    return { status: 'sent', error: null, to: to.trim(), ...(typeof language === 'string' && language !== '' && language !== own ? { language } : {}) };
+    let to = found.trim();
+    vars['signInLink'] = '';
+    if (reads.has('signInLink')) {
+      const minted = await signInLink(box, ctx, row, to, addressed, producer);
+      vars['signInLink'] = minted.link;
+      to = minted.to;
+    }
+    const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
+    return {
+      to,
+      email: { to, templateKey, locale, vars, ...(override.subject === undefined && override.body === undefined ? {} : { override }) },
+      ...(written === to ? {} : { recordTo: to }),
+      ...(lookedUp && typeof language === 'string' && language !== '' && language !== own ? { language } : {}),
+    };
   }
 
+  /** A write of the outbox's own to one row, only while `still` holds; the row as written, or null. */
+  async function settle(
+    box: LiveOutbox,
+    target: { view: SnapshotView; outbox: ResolvedTable; db: Kysely<SourceDatabase>; dialect: Awaited<ReturnType<ConnectionManager['data']>>['dialect'] },
+    pk: Row,
+    values: Row,
+    still: (query: Parameters<NonNullable<Parameters<RecordWriteService['update']>[0]['refine']>>[0]) => ReturnType<NonNullable<Parameters<RecordWriteService['update']>[0]['refine']>>,
+  ): Promise<Row | null> {
+    const result = await deps.writes.update({
+      target: { connectionId: box.connectionId, view: target.view, table: target.outbox, db: target.db, dialect: target.dialect },
+      pk,
+      values,
+      context: outboxContext(box.appKey),
+      refine: still,
+      skipIfNone: true,
+      announce: async () => {},
+    });
+    return result.count > 0 ? result.after : null;
+  }
+
+  /**
+   * One app's rows that have come due, each on its own: judged, made ready,
+   * then CLAIMED — marked sent in a statement of its own, only while it is
+   * still queued as it was read — and only then handed to the mail queue. So
+   * a row a person skipped while its email was being made is not sent; two
+   * senders never both send one row; and one row that fails (a bad column, a
+   * refused write, a broken setting) takes nobody else's status back with it.
+   * A crash between the claim and the mail queue loses that one email rather
+   * than sending it twice: the row reads sent.
+   */
   async function sendBox(box: LiveOutbox, now: number): Promise<number> {
     const view = await deps.viewFor(box.connectionId);
     if (view === null) return 0;
     const handle = await deps.manager.data(box.connectionId);
+    const { db, dialect } = handle;
     const outbox = view.table(box.definition.table);
     const key = outbox.primaryKey[0];
     if (key === undefined) return 0;
@@ -620,132 +687,206 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const tenant = await connectionTenantConfig(deps.meta, box.connectionId);
     const zone = tenant?.timezone ?? 'UTC';
     const due = cols.due === undefined ? undefined : outbox.columns.get(cols.due);
+    const target = { view, outbox, db, dialect };
+    const at = new Date(now).toISOString();
     /**
      * Sent already: it says when it went and records no failure. (A message
-     * that failed for good keeps when it was tried, with the reason, and a
-     * person may queue it again.)
+     * that failed keeps when it was tried, with the reason, and a person may
+     * queue it again.)
      */
     const sentBefore = (row: Row): boolean =>
       cols.sentAt !== undefined &&
       row[cols.sentAt] !== null &&
       row[cols.sentAt] !== undefined &&
       (cols.error === undefined || row[cols.error] === null || row[cols.error] === undefined || row[cols.error] === '');
-    const settled: Row[] = [];
-    await withNamedLock({ db: handle.db, dialect: handle.dialect }, `outbox|${box.connectionId}|${box.appKey}`, 'CAPACITY_BUSY', async (db) => {
-      let query = db.selectFrom(outbox.id as never).selectAll().where(cols.status as never, '=', 'queued' as never);
-      // Only what has come due: a batch whose window is open, a message for a later day, wait.
-      if (due !== undefined) {
-        const spelled = normalizeWriteValue(due, new Date(now).toISOString());
-        query = query.where((eb) => eb.or([eb(sql.ref(due.name), 'is', null), eb(sql.ref(due.name), '<=', spelled)]));
+    /** While the row is still queued as it was read: same address, same wording. */
+    const unchanged = (row: Row) => (query: AnyUpdateQuery) => {
+      let still = query.where(sql.ref(cols.status), '=', 'queued');
+      for (const column of [cols.to, cols.subjectOverride, cols.bodyOverride]) {
+        if (column === undefined) continue;
+        const value = row[column];
+        still = value === null || value === undefined ? still.where(sql.ref(column), 'is', null) : still.where(sql.ref(column), '=', value as string);
       }
-      const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
-      // Judged again, all together, just before they go.
-      const verdicts = await verdictsFor({ db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db), now }, rows, 'send');
-      for (const row of rows) {
-        const values: Row = {};
+      return still;
+    };
+    const sentAtWindow = (query: AnyUpdateQuery) => {
+      let still = query.where(sql.ref(cols.status), '=', 'sent');
+      const sentAt = cols.sentAt === undefined ? undefined : outbox.columns.get(cols.sentAt);
+      if (sentAt === undefined) return still;
+      const spelled = (ms: number) => normalizeWriteValue(sentAt, new Date(ms).toISOString());
+      still = still.where(sql.ref(sentAt.name), '>', spelled(now - 1_000)).where(sql.ref(sentAt.name), '<', spelled(now + 1_000));
+      return still;
+    };
+
+    let query = db.selectFrom(outbox.id as never).selectAll().where(cols.status as never, '=', 'queued' as never);
+    // Only what has come due: a batch whose window is open, a message for a later
+    // day, wait — and so does one whose day cannot be worked out yet.
+    if (due !== undefined) {
+      const spelled = normalizeWriteValue(due, at);
+      const timed = [...new Set((box.definition.producers ?? []).filter((p) => p.due !== undefined || p.batchMinutes !== undefined).map((p) => p.kind))];
+      query = query.where((eb) =>
+        eb.or([
+          eb(sql.ref(due.name), '<=', spelled),
+          timed.length === 0 ? eb(sql.ref(due.name), 'is', null) : eb.and([eb(sql.ref(due.name), 'is', null), eb(sql.ref(cols.kind), 'not in', timed)]),
+        ]),
+      );
+    }
+    const rows = (await query.orderBy(key as never).limit(OUTBOX_BATCH).execute()) as Row[];
+    // Judged again, all together, just before they go.
+    const verdicts = await verdictsFor({ db, view, outbox, definition: box.definition, zone, read: settingReader(deps.meta, db), now }, rows, 'send');
+    const settled: Row[] = [];
+    for (const row of rows) {
+      const pk = { [key]: row[key] };
+      try {
         const verdict = verdicts.get(row);
         if (sentBefore(row)) {
-          // Sent already, and put back to queued by a door that skipped the moves' check.
+          // Sent already, and queued again by a door that skipped the moves' check.
           deps.logger?.warn({ appKey: box.appKey, pk: row[key] }, 'a sent app email was queued again; it is not sent twice');
-          values[cols.status] = 'sent';
-        } else if (verdict?.skip !== undefined) {
-          values[cols.status] = 'skipped';
+          const back = await settle(box, target, pk, { [cols.status]: 'sent' }, (q) => q.where(sql.ref(cols.status), '=', 'queued'));
+          if (back !== null) settled.push(back);
+          continue;
+        }
+        if (verdict?.skip !== undefined) {
+          const values: Row = { [cols.status]: 'skipped' };
           if (cols.skipReason !== undefined) values[cols.skipReason] = verdict.skip;
           else if (cols.error !== undefined) values[cols.error] = skipSentence(verdict.skip);
-        } else if (verdict?.due !== undefined && verdict.due !== null && due !== undefined) {
-          values[due.name] = normalizeWriteValue(due, new Date(verdict.due).toISOString());
-        } else {
-          let outcome: Outcome;
-          try {
-            outcome = await deliver(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now }, row);
-          } catch (error) {
-            deps.logger?.warn({ err: error, appKey: box.appKey }, 'an app email could not be prepared');
-            outcome = { status: 'failed', error: 'The email could not be prepared' };
-          }
-          values[cols.status] = outcome.status;
-          if (cols.error !== undefined) values[cols.error] = outcome.error;
-          if (cols.sentAt !== undefined && outcome.status === 'sent') values[cols.sentAt] = new Date(now).toISOString();
-          if (outcome.to !== undefined) values[cols.to] = outcome.to;
-          if (outcome.language !== undefined && cols.language !== undefined) values[cols.language] = outcome.language;
+          const skipped = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued'));
+          if (skipped !== null) settled.push(skipped);
+          continue;
         }
-        const result = await deps.writes.update({
-          target: { connectionId: box.connectionId, view, table: outbox, db, dialect: handle.dialect },
-          pk: { [key]: row[key] },
-          values,
-          context: outboxContext(box.appKey),
-          // Only while it is still queued: nobody else has settled it meanwhile.
-          refine: (query) => query.where(sql.ref(cols.status), '=', 'queued'),
-          skipIfNone: true,
-          announce: async () => {},
-        });
-        if (result.count > 0 && result.after !== null) settled.push(result.after);
+        if (verdict?.due !== undefined && due !== undefined) {
+          // Its day moved ahead, or can no longer be worked out: it waits.
+          const values = { [due.name]: verdict.due === null ? null : normalizeWriteValue(due, new Date(verdict.due).toISOString()) };
+          const moved = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued'));
+          if (moved !== null) settled.push(moved);
+          continue;
+        }
+        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now }, row);
+        if ('status' in ready) {
+          const values: Row = { [cols.status]: ready.status };
+          if (cols.error !== undefined) values[cols.error] = ready.error;
+          const done = await settle(box, target, pk, values, unchanged(row));
+          if (done !== null) settled.push(done);
+          continue;
+        }
+        // The claim: sent, now, only while nobody changed it since it was read.
+        const claim: Row = { [cols.status]: 'sent' };
+        if (cols.sentAt !== undefined) claim[cols.sentAt] = at;
+        if (cols.error !== undefined) claim[cols.error] = null;
+        if (ready.recordTo !== undefined) claim[cols.to] = ready.recordTo;
+        if (ready.language !== undefined && cols.language !== undefined) claim[cols.language] = ready.language;
+        const claimed = await settle(box, target, pk, claim, unchanged(row));
+        if (claimed === null) continue;
+        let job: unknown = null;
+        let why = 'Email is not set up on this server';
+        try {
+          job = await enqueueEmail(
+            { meta: deps.meta, logger: deps.logger === undefined ? undefined : { info: () => undefined, warn: deps.logger.warn.bind(deps.logger) }, secret: deps.secret },
+            {
+              ...ready.email,
+              report: { app: box.appKey, connectionId: box.connectionId, table: outbox.id, pk: { [key]: row[key] as string | number }, sentAt: now },
+              // One claim, one email: queued twice for it, the mail queue keeps one.
+              dedupeKey: `app-outbox:${box.appKey}:${outbox.id}:${String(row[key])}:${String(now)}`,
+            },
+          );
+        } catch (error) {
+          deps.logger?.warn({ err: error, appKey: box.appKey }, 'an app email could not be queued');
+          why = 'The email could not be queued';
+        }
+        if (job === null) {
+          // Claimed and never queued: it did not go.
+          const values: Row = { [cols.status]: 'failed' };
+          if (cols.error !== undefined) values[cols.error] = why;
+          if (cols.sentAt !== undefined) values[cols.sentAt] = null;
+          settled.push((await settle(box, target, pk, values, sentAtWindow)) ?? claimed);
+          continue;
+        }
+        settled.push(claimed);
+        // The status is committed and the email queued: now the change it makes.
+        await effectOf(box, view, claimed, now);
+      } catch (error) {
+        // This row alone: it fails, with a reason, and the others go on.
+        deps.logger?.warn({ err: error, appKey: box.appKey, pk: row[key] }, 'an app email could not be prepared');
+        const values: Row = { [cols.status]: 'failed' };
+        if (cols.error !== undefined) values[cols.error] = 'The email could not be prepared';
+        const failed = await settle(box, target, pk, values, (q) => q.where(sql.ref(cols.status), '=', 'queued')).catch(() => null);
+        if (failed !== null) settled.push(failed);
       }
-    });
+    }
     for (const row of settled) deps.announce?.(box.connectionId, outbox, row);
-    // The status is committed: now the changes a sent message makes.
-    await effects(box, view, now, settled);
     return settled.length;
   }
 
   /**
-   * The `onSent` changes of sent messages: the ones just sent, and — where
-   * the outbox keeps `effect_at` and `effect_error` — every one sent in the
-   * last day with neither, so a change that failed for a passing reason is
-   * tried again by the sweep. A refusal is written on the message and never
-   * tried again; nothing here throws.
+   * The `onSent` change of a message the sender itself just sent — never of
+   * a row that arrived `sent` (an import, sample data, an undo): nothing was
+   * sent for it. Made once (`effect_at`), or refused once (`effect_error`);
+   * a failure that is not a refusal (the database, the network) is handed to
+   * a job that tries again, a few times. Nothing here throws.
    */
-  async function effects(box: LiveOutbox, view: SnapshotView, now: number, justSent: readonly Row[]): Promise<void> {
-    const definition = box.definition;
-    const cols = definition.columns;
-    const kinds = new Set((definition.producers ?? []).flatMap((producer) => (producer.onSent === undefined ? [] : [producer.kind])));
-    if (kinds.size === 0) return;
-    const outbox = view.table(definition.table);
+  async function effectOf(box: LiveOutbox, view: SnapshotView, row: Row, sentAt: number): Promise<void> {
+    const cols = box.definition.columns;
+    const producer = (box.definition.producers ?? []).find((candidate) => candidate.kind === row[cols.kind] && candidate.onSent !== undefined);
+    if (producer === undefined) return;
+    const key = view.table(box.definition.table).primaryKey[0];
+    if (key === undefined) return;
+    try {
+      await applyEffect(box, view, producer, row);
+    } catch (error) {
+      deps.logger?.warn({ err: error, appKey: box.appKey }, 'the change an app email makes once sent failed; it is tried again');
+      if (cols.effectAt === undefined || cols.effectError === undefined) return;
+      await jobsRepo(deps.meta)
+        .enqueue({
+          kind: OUTBOX_EFFECT_JOB_KIND,
+          payload: { app: box.appKey, pk: row[key] as string | number, sentAt },
+          runAt: Date.now() + 60_000,
+          maxAttempts: 5,
+          dedupeKey: `${OUTBOX_EFFECT_JOB_KIND}:${box.appKey}:${String(row[key])}:${String(sentAt)}`,
+        })
+        .catch((failure: unknown) => deps.logger?.warn({ err: failure, appKey: box.appKey }, 'the retry of an app email’s change could not be queued'));
+    }
+  }
+
+  /** Make one message's change and write what became of it; throws only when it should be tried again. */
+  async function applyEffect(box: LiveOutbox, view: SnapshotView, producer: OutboxProducer, row: Row): Promise<void> {
+    const cols = box.definition.columns;
+    const outbox = view.table(box.definition.table);
     const key = outbox.primaryKey[0];
     if (key === undefined) return;
     const handle = await deps.manager.data(box.connectionId);
     const marks = cols.effectAt !== undefined && cols.effectError !== undefined;
-    let rows: Row[] = justSent.filter((row) => row[cols.status] === 'sent' && kinds.has(String(row[cols.kind])));
-    if (marks && cols.sentAt !== undefined) {
-      const sentAt = outbox.columns.get(cols.sentAt);
-      const since = sentAt === undefined ? new Date(now - EFFECT_RETRY_MS).toISOString() : normalizeWriteValue(sentAt, new Date(now - EFFECT_RETRY_MS).toISOString());
-      rows = (await handle.db
-        .selectFrom(outbox.id as never)
-        .selectAll()
-        .where(cols.status as never, '=', 'sent' as never)
-        .where(cols.kind as never, 'in', [...kinds] as never)
-        .where(cols.effectAt! as never, 'is', null as never)
-        .where(cols.effectError! as never, 'is', null as never)
-        .where(cols.sentAt as never, '>=', since as never)
-        .orderBy(key as never)
-        .limit(OUTBOX_BATCH)
-        .execute()) as Row[];
-    } else if (marks) {
-      rows = rows.filter((row) => row[cols.effectAt!] === null && row[cols.effectError!] === null);
-    }
-    for (const row of rows) {
-      const producer = (definition.producers ?? []).find((candidate) => candidate.kind === row[cols.kind] && candidate.onSent !== undefined);
-      if (producer?.onSent === undefined) continue;
-      let mark: Row;
-      try {
-        const refused = await effect(box, view, handle, producer, row);
-        mark = refused === null ? { [cols.effectAt ?? '']: new Date(now).toISOString() } : { [cols.effectError ?? '']: sentence(refused) };
-      } catch (error) {
-        // Not a refusal: the database, the network. Tried again by the next sweep.
-        deps.logger?.warn({ err: error, appKey: box.appKey }, 'the change an app email makes once sent failed; it is tried again');
-        continue;
-      }
-      if (!marks) continue;
-      const result = await deps.writes.update({
-        target: { connectionId: box.connectionId, view, table: outbox, db: handle.db, dialect: handle.dialect },
-        pk: { [key]: row[key] },
-        values: mark,
-        context: outboxContext(box.appKey),
-        refine: (query) => query.where(sql.ref(cols.effectAt!), 'is', null).where(sql.ref(cols.effectError!), 'is', null),
-        skipIfNone: true,
-        announce: async () => {},
-      });
-      if (result.count > 0 && result.after !== null) deps.announce?.(box.connectionId, outbox, result.after);
-    }
+    if (marks && (row[cols.effectAt!] !== null && row[cols.effectAt!] !== undefined || (row[cols.effectError!] !== null && row[cols.effectError!] !== undefined))) return;
+    const refused = await effect(box, view, handle, producer, row);
+    if (!marks) return;
+    const mark: Row = refused === null ? { [cols.effectAt!]: new Date().toISOString() } : { [cols.effectError!]: sentence(refused) };
+    const result = await deps.writes.update({
+      target: { connectionId: box.connectionId, view, table: outbox, db: handle.db, dialect: handle.dialect },
+      pk: { [key]: row[key] },
+      values: mark,
+      context: outboxContext(box.appKey),
+      refine: (query) => query.where(sql.ref(cols.effectAt!), 'is', null).where(sql.ref(cols.effectError!), 'is', null),
+      skipIfNone: true,
+      announce: async () => {},
+    });
+    if (result.count > 0 && result.after !== null) deps.announce?.(box.connectionId, outbox, result.after);
+  }
+
+  /** The retry job: the change of a message the sender sent at `sentAt`, if still not made. */
+  async function retryEffect(input: { app: string; pk: string | number; sentAt: number }): Promise<void> {
+    const box = (await deps.live()).find((candidate) => candidate.appKey === input.app);
+    if (box === undefined) return;
+    const view = await deps.viewFor(box.connectionId);
+    if (view === null) return;
+    const cols = box.definition.columns;
+    const outbox = view.table(box.definition.table);
+    const { db } = await deps.manager.data(box.connectionId);
+    const row = await rowOf(db, view, outbox.id, input.pk);
+    // Still the message that was sent then.
+    const sentAt = cols.sentAt === undefined ? null : slotInstant(row?.[cols.sentAt]);
+    if (row === null || row[cols.status] !== 'sent' || sentAt === null || Math.abs(sentAt.getTime() - input.sentAt) >= 1_000) return;
+    const producer = (box.definition.producers ?? []).find((candidate) => candidate.kind === row[cols.kind] && candidate.onSent !== undefined);
+    if (producer === undefined) return;
+    await applyEffect(box, view, producer, row);
   }
 
   /**
@@ -842,6 +983,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const detail = error instanceof Error ? error.message : String(error);
     const values: Row = { [cols.status]: 'failed' };
     if (cols.error !== undefined) values[cols.error] = sentence(`Not delivered: ${detail}`);
+    // With no column to say it failed, it forgets when it went: a person may queue it again.
+    else if (cols.sentAt !== undefined) values[cols.sentAt] = null;
     const result = await deps.writes.update({
       target: { connectionId: report.connectionId, view, table: outbox, db: handle.db, dialect: handle.dialect },
       pk: report.pk,
@@ -863,7 +1006,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (result.count > 0 && result.after !== null) deps.announce?.(report.connectionId, outbox, result.after);
   }
 
-  return { sendApp, sweep, markUndelivered };
+  return { sendApp, sweep, markUndelivered, retryEffect };
 }
 
 /**
@@ -900,12 +1043,24 @@ export async function appContact(
   }
 }
 
-/** The send job: one app's queued rows, now. Internal — only the producers queue it. */
+/**
+ * The send job (one app's queued rows, now; queued by the producers) and the
+ * retry of a sent message's change (queued by the sender). Both internal.
+ */
 export function registerOutboxSendHandler(registry: JobRegistry, sender: OutboxSender): void {
   registry.registerJobHandler(
     OUTBOX_SEND_JOB_KIND,
     z.object({ app: z.string().min(1).max(64) }).strict(),
     async (payload) => ({ settled: await sender.sendApp(payload.app) }),
+    { internal: true },
+  );
+  registry.registerJobHandler(
+    OUTBOX_EFFECT_JOB_KIND,
+    z.object({ app: z.string().min(1).max(64), pk: z.union([z.string(), z.number()]), sentAt: z.number() }).strict(),
+    async (payload) => {
+      await sender.retryEffect(payload);
+      return {};
+    },
     { internal: true },
   );
 }

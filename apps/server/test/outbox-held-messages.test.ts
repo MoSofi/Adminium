@@ -22,7 +22,7 @@ import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
 import { slotInstant } from '../src/crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../src/crud/identifiers.js';
 import type { Row } from '../src/crud/mask.js';
-import { HookRejectedError, createWriteService, type RecordHooks, type WriteContext } from '../src/crud/write-service.js';
+import { HookRejectedError, createWriteService, type BeforeWriteEvent, type RecordHooks, type WriteContext } from '../src/crud/write-service.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
 import { AppError } from '../src/errors.js';
@@ -41,7 +41,7 @@ const fk = (ref: string, references: string, nullable = true) => ({ ref, type: '
 const money = (ref: string, rules?: Record<string, unknown>) => ({ ref, type: 'decimal', scale: 2, nullable: true, ...(rules === undefined ? {} : { rules }) });
 const instant = (ref: string) => ({ ref, type: 'timestamptz', nullable: true });
 
-const KINDS = ['invoice-sent', 'invoice-rung-1', 'invoice-rung-2', 'invoice-rung-3', 'client-says-paid', 'new-work', 'payment-receipt', 'transfer-note'];
+const KINDS = ['invoice-sent', 'invoice-rung-1', 'invoice-rung-2', 'invoice-rung-3', 'client-says-paid', 'new-work', 'payment-receipt', 'transfer-note', 'late-note'];
 
 function studioTables(): Record<string, unknown>[] {
   return [
@@ -64,6 +64,7 @@ function studioTables(): Record<string, unknown>[] {
         money('paid', { rollup: { from: 'payments', via: 'invoice_id', sum: 'amount', balance: { column: 'balance', of: 'total' } } }),
         money('balance'),
         { ref: 'client_paid', type: 'bool', default: false },
+        { ref: 'nudge', type: 'bool', default: false },
         text('currency', 3),
       ],
     },
@@ -168,6 +169,13 @@ export function studioManifest(): Record<string, unknown> {
         { kind: 'new-work', link: 'deliverable_id', onCreate: { table: 'deliverable_versions', via: 'deliverable_id' }, batchMinutes: 10 },
         { kind: 'payment-receipt', link: 'settlement_id', onCreate: { table: 'settlements' } },
         { kind: 'transfer-note', link: 'transfer_id', onCreate: { table: 'transfers' } },
+        // Due some days after the due date, the days read from the ladder — the sixth, which it may not have.
+        {
+          kind: 'late-note',
+          link: 'invoice_id',
+          onChange: { table: 'invoices', column: 'nudge', to: true },
+          due: { date: 'due_on', days: { setting: LADDERS, byColumn: 'ladder', index: 5 } },
+        },
       ],
     },
     emailTemplates: [
@@ -184,8 +192,9 @@ export function studioManifest(): Record<string, unknown> {
       template('invoice-rung-3', 'Pause the work', 'Invoice {{invoice.id}} is very late; the work pauses.'),
       template('client-says-paid', 'Paid, they say', '{{client.name}} says invoice {{invoice.id}} is paid.', 'Open it: {{signInLink}}', 'At the desk: {{staff_url}}invoices/{{invoice.id}}'),
       template('new-work', 'New work to review', 'New work on {{deliverable.title}}.'),
-      template('payment-receipt', 'Payment received', 'We received {{settlement.amount}} for invoice {{invoice.id}}.'),
+      template('payment-receipt', 'Payment received', 'We received {{settlement.amount}} for invoice {{invoice.id}}.', 'Receipt for {{client.email}}.'),
       template('transfer-note', 'A transfer', 'A transfer between invoices.'),
+      template('late-note', 'Your invoice is late', 'Invoice {{invoice.id}} is late.'),
     ],
   };
 }
@@ -206,6 +215,10 @@ for (const [dialect, reachable] of LEGS) {
     const minted: { pk: Record<string, unknown>; email: string; to?: string }[] = [];
     let staffHost: string | undefined;
     const emitted: RecordWriteEvent[] = [];
+    /** Runs inside a person's write to the messages, before it is judged: another writer landing meanwhile. */
+    let probeHook: ((e: BeforeWriteEvent) => Promise<void>) | null = null;
+    /** Runs while a sign-in link is made: something happening while an email is being made. */
+    let onMint: (() => Promise<void>) | null = null;
     const desk: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy Ferreira' }, request: null };
 
     const table = (ref: string): ResolvedTable => view.table(view.model.tables.find((t) => t.name === h.real(ref))!.id);
@@ -262,6 +275,7 @@ for (const [dialect, reachable] of LEGS) {
           effectError: (row['effect_error'] as string | null) ?? null,
         }),
       );
+    const msg = async (mid: unknown) => (await rows(`SELECT * FROM studio.messages WHERE id = ${String(mid)}`))[0]!;
     const rungsOf = async (invoice: unknown) => (await messages(invoice)).filter((m) => m.kind.startsWith('invoice-rung-'));
     const rungOf = async (invoice: unknown, n: number) => (await rungsOf(invoice)).find((m) => m.kind === `invoice-rung-${String(n)}`)!;
 
@@ -312,8 +326,13 @@ for (const [dialect, reachable] of LEGS) {
       view = (await views.viewFor(h.connectionId))!;
       // The write lane's states stand-in: a finished project is never paused.
       const finished: RecordHooks = {
-        wants: async (timing, action, t) => timing === 'before' && action === 'update' && t.table.name === h.real('projects'),
+        wants: async (timing, action, t) =>
+          (timing === 'before' && action === 'update' && t.table.name === h.real('projects')) || (probeHook !== null && timing === 'before' && t.table.name === h.real('messages')),
         before: async (e) => {
+          if (e.target.table.name === h.real('messages')) {
+            if (probeHook !== null) await probeHook(e);
+            return;
+          }
           if (e.record?.['status'] === 'done' && e.values['status'] !== undefined) throw new HookRejectedError('This project is done, so it cannot be paused.', 'states');
         },
         after: async () => {},
@@ -326,6 +345,7 @@ for (const [dialect, reachable] of LEGS) {
       producers = createOutboxProducers({ meta, manager: h.manager, viewFor: views.viewFor, writes });
       const links: SignInLinkMinter = {
         mint: async (input) => {
+          if (onMint !== null) await onMint();
           minted.push({ pk: input.pk, email: input.email, ...(input.to === undefined ? {} : { to: input.to }) });
           return `${input.base}/c#link-${String(input.pk['id'])}-${String(minted.length)}`;
         },
@@ -452,7 +472,8 @@ for (const [dialect, reachable] of LEGS) {
       const c = await invoice({});
       await send(c);
       const first = await rungOf(c['id'], 1);
-      await update('messages', first.id, { status: 'skipped', skip_reason: 'paid' });
+      expect((await refused(update('messages', first.id, { status: 'skipped', skip_reason: 'paid' }))).code).toBe('STATE_MOVE_REFUSED');
+      await update('messages', first.id, { status: 'skipped' });
       expect(await rungOf(c['id'], 1)).toMatchObject({ status: 'skipped', skip: 'by-hand' });
       expect((await refused(update('messages', first.id, { status: 'queued' }))).code).toBe('STATE_MOVE_REFUSED');
       const second = await rungOf(c['id'], 2);
@@ -733,6 +754,207 @@ for (const [dialect, reachable] of LEGS) {
       const moved = await create('transfers', { from_invoice_id: inv['id'], to_invoice_id: inv['id'] });
       const [note] = await rows(`SELECT invoice_id, client_id, status, error FROM studio.messages WHERE transfer_id = ${String(moved['id'])}`);
       expect([note!['invoice_id'] ?? null, note!['client_id'] ?? null, note!['status'], note!['error']]).toEqual([null, null, 'skipped', 'No email on file']);
+    });
+
+    it('sends each row on its own: one that fails takes nobody else back with it, and nothing is mailed twice', async () => {
+      const a = await create('messages', { kind: 'transfer-note', status: 'queued', client_id: ann['id'], to_address: 'ann@client.studio.dev' });
+      const b = await create('messages', { kind: 'transfer-note', status: 'queued', client_id: ben['id'], to_address: 'ben@client.studio.dev' });
+      const before = (await mail()).length;
+      // Marking one row sent is refused (a narrow column, a constraint, a project's own hook).
+      probeHook = async (e) => {
+        if (e.action === 'update' && Number(e.record?.['id']) === Number(b['id']) && e.values['status'] === 'sent') {
+          throw new HookRejectedError('refused', 'probe');
+        }
+      };
+      try {
+        for (let pass = 0; pass < 3; pass += 1) await sender.sendApp('studio', clock).catch(() => undefined);
+      } finally {
+        probeHook = null;
+      }
+      expect((await mail()).slice(before).filter((m) => m.subject === 'A transfer').map((m) => m.to)).toEqual(['ann@client.studio.dev']);
+      expect((await msg(a['id']))['status']).toBe('sent');
+      expect([(await msg(b['id']))['status'], (await msg(b['id']))['error']]).toEqual(['failed', 'The email could not be prepared']);
+      // The mail job knows which message it is: a second queueing of the same send is collapsed.
+      const keys = (await meta.db.selectFrom('adminium_jobs').select(['dedupeKey']).where('kind', '=', 'email.send').execute()).map((job) => job.dedupeKey ?? '');
+      expect(keys.filter((key) => new RegExp(`^app-outbox:studio:.+:${String(a['id'])}:\\d+$`).test(key))).toHaveLength(1);
+
+      // A column the sender reads is gone (the database answers with an error): that row fails, the other goes, once.
+      const c = await create('messages', { kind: 'transfer-note', status: 'queued', client_id: ann['id'], to_address: 'ann@client.studio.dev' });
+      const d = await create('messages', { kind: 'client-says-paid', status: 'queued', client_id: ann['id'] });
+      const count = (await mail()).length;
+      await rows(`ALTER TABLE studio.settings RENAME COLUMN reply_to TO reply_to_gone`);
+      try {
+        for (let pass = 0; pass < 3; pass += 1) await sender.sendApp('studio', clock).catch(() => undefined);
+      } finally {
+        await rows(`ALTER TABLE studio.settings RENAME COLUMN reply_to_gone TO reply_to`);
+      }
+      expect((await mail()).slice(count).filter((m) => m.subject === 'A transfer')).toHaveLength(1);
+      expect([(await msg(c['id']))['status'], (await msg(d['id']))['status']]).toEqual(['sent', 'failed']);
+    });
+
+    it('keeps a person’s wording to what the template reads, only on a held reminder, and never lets it choose the address', async () => {
+      // No wording on a new row, nor on a row a person addresses.
+      expect((await refused(create('messages', { kind: 'transfer-note', status: 'queued', client_id: ann['id'], to_address: 'mallory@evil-probe.dev', body_override: '{{client.email}}' }))).code).toBe(
+        'STATE_MOVE_REFUSED',
+      );
+      const typed = await create('messages', { kind: 'transfer-note', status: 'queued', client_id: ann['id'], to_address: 'mallory@evil-probe.dev' });
+      expect((await refused(update('messages', typed['id'], { body_override: '{{client.email}}' }))).code).toBe('STATE_MOVE_REFUSED');
+      await update('messages', typed['id'], { status: 'skipped' });
+
+      const inv = await invoice({});
+      await send(inv);
+      const first = await rungOf(inv['id'], 1);
+      // A held reminder is addressed by Adminium: a typed address is refused.
+      expect((await refused(update('messages', first.id, { to_address: 'mallory@evil-probe.dev' }))).code).toBe('STATE_MOVE_REFUSED');
+      const before = (await mail()).length;
+      await update('messages', first.id, { status: 'queued', body_override: 'For {{client.email}} / {{client.name}}: invoice {{invoice.id}}.' });
+      // Approved and queued: its wording is settled.
+      expect((await refused(update('messages', first.id, { body_override: 'changed' }))).code).toBe('STATE_MOVE_REFUSED');
+      await sender.sendApp('studio', clock);
+      const sent = (await mail()).slice(before).find((m) => m.subject === 'A gentle nudge');
+      expect(sent!.to).toBe('ann@client.studio.dev');
+      expect(sent!.text).toContain(`For  / : invoice ${String(inv['id'])}.`);
+      expect(sent!.text).not.toContain('ann@client.studio.dev');
+      expect(sent!.text).not.toContain('Ann Lee');
+
+      // A template that names a masked column of a linked row reads it as nothing.
+      const paid = await create('settlements', { document_id: inv['id'], amount: 5 });
+      const count = (await mail()).length;
+      await sender.sendApp('studio', clock);
+      const receipt = (await mail()).slice(count).find((m) => m.subject === 'Payment received')!;
+      expect(receipt.text).not.toContain('ann@client.studio.dev');
+      expect((await rows(`SELECT status FROM studio.messages WHERE settlement_id = ${String(paid['id'])}`))[0]!['status']).toBe('sent');
+    });
+
+    it('lets a message sent meanwhile stay sent: a stale second try or a skip during the send sends nothing twice', async () => {
+      // Failed for good, then two people queue it again at once: the second lands after the sender sent it.
+      const m = await create('messages', { kind: 'transfer-note', status: 'queued', client_id: ann['id'], to_address: 'ann@client.studio.dev' });
+      await sender.sendApp('studio', clock);
+      await sender.markUndelivered({ app: 'studio', connectionId: h.connectionId, table: table('messages').id, pk: { id: m['id'] as number }, sentAt: clock }, new Error('550'));
+      expect((await msg(m['id']))['status']).toBe('failed');
+      const before = (await mail()).length;
+      let raced = false;
+      probeHook = async (e) => {
+        if (!raced && e.context === desk && e.action === 'update') {
+          raced = true;
+          await rows(`UPDATE studio.messages SET status = 'queued' WHERE id = ${String(m['id'])}`);
+          await sender.sendApp('studio', clock + 60_000);
+        }
+      };
+      try {
+        await update('messages', m['id'], { status: 'queued' });
+      } finally {
+        probeHook = null;
+      }
+      await sender.sendApp('studio', clock + 120_000);
+      expect((await mail()).slice(before).filter((x) => x.subject === 'A transfer')).toHaveLength(1);
+      expect((await msg(m['id']))['status']).toBe('sent');
+      // When it went is Adminium's: a person's value for it is refused, never written.
+      const again = await create('messages', { kind: 'transfer-note', status: 'queued', client_id: ann['id'], to_address: 'ann@client.studio.dev' });
+      await sender.sendApp('studio', clock);
+      await sender.markUndelivered({ app: 'studio', connectionId: h.connectionId, table: table('messages').id, pk: { id: again['id'] as number }, sentAt: clock }, new Error('550'));
+      expect((await refused(update('messages', again['id'], { status: 'queued', sent_at: null }))).code).toBe('STATE_MOVE_REFUSED');
+
+      // Approved, then skipped while its email is being made: it does not go.
+      const inv = await invoice({});
+      await send(inv);
+      const first = await rungOf(inv['id'], 1);
+      await update('messages', first.id, { status: 'queued' });
+      const count = (await mail()).length;
+      onMint = async () => {
+        await update('messages', first.id, { status: 'skipped' });
+      };
+      try {
+        await sender.sendApp('studio', clock);
+      } finally {
+        onMint = null;
+      }
+      expect(await rungOf(inv['id'], 1)).toMatchObject({ status: 'skipped', skip: 'by-hand', sent: false });
+      expect(await mail()).toHaveLength(count);
+    });
+
+    it('holds a reminder a person makes, fixes what a message is about, and never acts for a sent row of history', async () => {
+      const project = await create('projects', { name: 'Hand made', status: 'active' });
+      const inv = await invoice({ project_id: project['id'] });
+      const made = await create('messages', { kind: 'invoice-rung-3', status: 'queued', invoice_id: inv['id'], client_id: ann['id'] });
+      expect((await msg(made['id']))['status']).toBe('held');
+      const before = (await mail()).length;
+      await sender.sendApp('studio', clock);
+      expect((await mail()).slice(before).filter((m) => m.subject === 'Pause the work')).toEqual([]);
+      expect((await rows(`SELECT status FROM studio.projects WHERE id = ${String(project['id'])}`))[0]!['status']).toBe('active');
+      // What it is and what it is about stay as made.
+      expect((await refused(update('messages', made['id'], { kind: 'transfer-note' }))).code).toBe('STATE_MOVE_REFUSED');
+      expect((await refused(update('messages', made['id'], { invoice_id: (await invoice({}))['id'] }))).code).toBe('STATE_MOVE_REFUSED');
+
+      // An import brings a sent third reminder: nothing was sent for it, so nothing is paused.
+      const other = await create('projects', { name: 'Imported', status: 'active' });
+      const old = await invoice({ project_id: other['id'] });
+      const imported: WriteContext = { origin: 'import', hops: 0, actor: { kind: 'user', id: 'usr_imp', label: 'Importer' }, request: null };
+      await writes.create({
+        target: await target('messages'),
+        values: { kind: 'invoice-rung-3', status: 'sent', sent_at: new Date(clock).toISOString(), invoice_id: old['id'], client_id: ann['id'] },
+        context: imported,
+        announce: async () => {},
+      });
+      await sender.sendApp('studio', clock);
+      await sender.sweep(clock + 60_000);
+      expect((await rows(`SELECT status FROM studio.projects WHERE id = ${String(other['id'])}`))[0]!['status']).toBe('active');
+
+      // The undo of a delete puts a sent message back exactly as it was.
+      const undo: WriteContext = { origin: 'undo', hops: 0, actor: { kind: 'user', id: 'usr_ivy', label: 'Ivy Ferreira' }, request: null };
+      const back = await writes.create({
+        target: await target('messages'),
+        values: { kind: 'transfer-note', status: 'sent', sent_at: new Date(clock).toISOString(), client_id: ann['id'], to_address: 'ann@client.studio.dev' },
+        context: undo,
+        announce: async () => {},
+      });
+      expect((await msg(back['id']))['status']).toBe('sent');
+      await sender.sendApp('studio', clock);
+      expect((await mail()).slice(before).filter((m) => m.subject === 'A transfer' || m.subject === 'Pause the work')).toEqual([]);
+    });
+
+    it('mints a sign-in link only for the address as stored: never for a look-alike, and an ASCII case change goes to the stored spelling', async () => {
+      const kim = await create('clients', { email: 'kim@kpmg-probe.dev', name: 'Kim' });
+      const inv = await invoice({ client_id: kim['id'] });
+      const minted0 = minted.length;
+      const before = (await mail()).length;
+      const invoiceMail = async () => (await mail()).slice(before).filter((m) => m.subject === `Invoice ${String(inv['id'])}`);
+      // U+212A KELVIN SIGN lower-cases to an ASCII k.
+      await create('messages', { kind: 'invoice-sent', status: 'queued', client_id: kim['id'], invoice_id: inv['id'], to_address: 'kim@Kpmg-probe.dev' });
+      await sender.sendApp('studio', clock);
+      expect(minted).toHaveLength(minted0);
+      const lookalike = await invoiceMail();
+      expect(lookalike.map((m) => [m.to, m.text.includes('c#link')])).toEqual([['kim@Kpmg-probe.dev', false]]);
+
+      await create('messages', { kind: 'invoice-sent', status: 'queued', client_id: kim['id'], invoice_id: inv['id'], to_address: 'Kim@KPMG-probe.dev' });
+      await sender.sendApp('studio', clock);
+      expect(minted.slice(minted0).map((m) => m.email)).toEqual(['kim@kpmg-probe.dev']);
+      const cased = (await invoiceMail()).at(-1)!;
+      expect([cased.to, cased.text.includes('c#link')]).toEqual(['kim@kpmg-probe.dev', true]);
+    });
+
+    it('keeps a message whose day cannot be worked out waiting, and sends it once its day is known and has come', async () => {
+      const inv = await invoice({ due_on: '2026-10-01' });
+      await update('invoices', inv['id'], { nudge: true });
+      const note = (await messages(inv['id'])).find((m) => m.kind === 'late-note')!;
+      expect([note.status, note.due]).toEqual(['queued', null]);
+      const before = (await mail()).length;
+      const late = async () => (await mail()).slice(before).filter((m) => m.subject === 'Your invoice is late');
+      await producers.scan(clock);
+      await sender.sendApp('studio', clock);
+      expect(await late()).toEqual([]);
+      // The ladder gains a sixth day: the scan works the day out (1 October + 2 days, 09:00 in London).
+      await rows(`UPDATE studio.settings SET ladders = '{"gentle":[7,21,45],"standard":[3,14,30,1,1,2],"firm":[1,7,21]}'`);
+      try {
+        await producers.scan(at('2026-10-02T12:00:00Z'));
+        expect((await messages(inv['id'])).find((m) => m.kind === 'late-note')!.due).toBe('2026-10-03T08:00:00.000Z');
+        await sender.sendApp('studio', at('2026-10-03T07:00:00Z'));
+        expect(await late()).toEqual([]);
+        await sender.sendApp('studio', at('2026-10-03T08:00:00Z'));
+        expect((await late()).map((m) => m.to)).toEqual(['ann@client.studio.dev']);
+      } finally {
+        await rows(`UPDATE studio.settings SET ladders = '{"gentle":[7,21,45],"standard":[3,14,30],"firm":[1,7,21]}'`);
+      }
     });
 
     it('makes one "new work" email of five versions posted in ten minutes', async () => {

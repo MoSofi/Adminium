@@ -33,8 +33,6 @@ export interface Addressed {
 
 export const plausibleAddress = (value: unknown): value is string => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
-/** An address as compared: trimmed, lower-case. */
-export const normalAddress = (value: unknown): string => (typeof value === 'string' ? value.trim().toLowerCase() : '');
 
 /** The table a column's foreign key points at. */
 export function referenced(view: SnapshotView, tableId: string, column: string): string | undefined {

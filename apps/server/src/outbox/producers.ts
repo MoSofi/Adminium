@@ -684,7 +684,9 @@ export async function verdictsFor(
     const status = row[cols.status];
     const due = slotInstant(cols.due === undefined ? null : row[cols.due])?.getTime() ?? null;
     const approved = status === 'queued' && producer.hold === true;
-    const judge = mode === 'send' ? status === 'queued' : status === 'held' || (status === 'queued' && (approved || (due !== null && due > now)));
+    // Waiting: held; approved; for later; or of a producer with a day not yet worked out.
+    const judge =
+      mode === 'send' ? status === 'queued' : status === 'held' || (status === 'queued' && (approved || (due !== null && due > now) || (due === null && producer.due !== undefined)));
     if (!judge) continue;
     judged.push(row);
     const linked = await aboutRow(producer, row);
@@ -696,8 +698,8 @@ export async function verdictsFor(
     if (producer.due !== undefined && !approved && linked !== null && cols.due !== undefined) {
       const next = await dueFor(producer.due, linked.row, linked.table.columns.get(producer.due.date), ctx.zone, ctx.read);
       const moved = next === null ? due !== null : due === null || Math.abs(next - due) >= 1_000;
-      // About to go: only a due now AHEAD holds it back.
-      if (mode === 'send' ? next !== null && next > now && moved : moved) out.set(row, { due: next });
+      // About to go: a due now AHEAD, or one that can no longer be worked out, holds it back.
+      if (mode === 'send' ? moved && (next === null || next > now) : moved) out.set(row, { due: next });
     }
   }
 

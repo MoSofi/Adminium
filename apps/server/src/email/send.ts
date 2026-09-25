@@ -194,6 +194,8 @@ export interface EnqueueEmailInput {
   always?: boolean | undefined;
   /** The row to tell when the message fails for good. */
   report?: EmailSendReport | undefined;
+  /** Collapses a second queueing of the same message while the first is pending or running. */
+  dedupeKey?: string | undefined;
   /**
    * Wording a person wrote in place of the template's (a held reminder edited
    * before it was approved). The body is plain text: paragraphs split on
@@ -556,6 +558,7 @@ export async function enqueueEmail(
       from: prepared.from,
       attachments: [...prepared.attachments, ...generated],
       report: input.report,
+      ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
     },
   );
 }
