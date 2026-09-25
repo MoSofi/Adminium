@@ -765,10 +765,15 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
     }
 
     case 'drop-index': {
-      const name = step.column ?? `ix_${bareName(step.table)}`;
-      return dialect === 'mysql'
-        ? [raw(`ALTER TABLE ${t} DROP INDEX ${quoteIdent(name, dialect)}`)]
-        : [raw(`DROP INDEX ${quoteIdent(name, dialect)}`)];
+      // The index's own name, as the plan carries it. A guessed name drops
+      // nothing, or another index: refuse instead.
+      const name = step.constraint ?? step.column;
+      if (name === null || name === '') throw new DdlCompileError('dropping an index needs its name', step);
+      if (dialect === 'mysql') return [raw(`ALTER TABLE ${t} DROP INDEX ${quoteIdent(name, dialect)}`)];
+      // Postgres keeps an index in its table's schema.
+      const dot = step.table.lastIndexOf('.');
+      const schema = dialect === 'postgres' && dot > 0 ? `${quoteIdent(step.table.slice(0, dot), dialect)}.` : '';
+      return [raw(`DROP INDEX ${schema}${quoteIdent(name, dialect)}`)];
     }
 
     case 'set-pk': {

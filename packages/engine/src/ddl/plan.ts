@@ -467,7 +467,8 @@ function planAlters(
     );
   }
   for (const i of diff.indexesRemoved) {
-    emit(make('drop-index', id, ctx, { summary: `Drop index ${i.name ?? i.columns.join(', ')}` }));
+    // The index's own name travels with the step: the compiler must never guess one.
+    emit(make('drop-index', id, ctx, { constraint: i.name ?? null, summary: `Drop index ${i.name ?? i.columns.join(', ')}` }));
   }
   if (diff.pkChanged !== null && diff.pkChanged.from.length > 0) {
     emit(make('drop-pk', id, ctx, { summary: `Drop primary key (${diff.pkChanged.from.join(', ')})` }));

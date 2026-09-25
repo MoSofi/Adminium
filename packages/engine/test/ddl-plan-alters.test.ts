@@ -136,6 +136,8 @@ describe('planAlters — constraints', () => {
     });
     expect(kinds(plan)).toEqual(['drop-unique', 'drop-check', 'drop-index']);
     expect(plan.hazard).toBe('safe');
+    // The index goes by its own name, never one the compiler would have to guess.
+    expect(plan.steps.find((step) => step.kind === 'drop-index')?.constraint).toBe('i_slug');
   });
 
   /*

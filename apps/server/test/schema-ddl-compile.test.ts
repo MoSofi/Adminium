@@ -389,6 +389,20 @@ describe('compiled statements per step kind', () => {
     expect(my.sql).not.toContain('public');
   });
 
+  it('drops an index by its own name, in its schema on postgres, and refuses to guess one', () => {
+    const step: DdlStep = {
+      id: 's1', kind: 'drop-index', table: 'public.notes', column: null, constraint: 'notes_by_author', hazard: 'safe',
+      requiresSuperAdmin: false, summary: '', rationale: 'x', consequences: [], dependsOn: [],
+      outsideTransaction: false, refusal: null,
+    };
+    const sql = (dialect: 'postgres' | 'mysql' | 'sqlite', s: DdlStep) =>
+      compileStep(s, { db: compilerFor(dialect), dialect, serverVersion: null })[0]!.sql;
+    expect(sql('postgres', step)).toBe('DROP INDEX "public"."notes_by_author"');
+    expect(sql('mysql', step)).toBe('ALTER TABLE `notes` DROP INDEX `notes_by_author`');
+    expect(sql('sqlite', { ...step, table: 'main.notes' })).toBe('DROP INDEX "notes_by_author"');
+    expect(() => sql('postgres', { ...step, constraint: null })).toThrow(/needs its name/);
+  });
+
   it('emits a CHECK for an enum column (D32) rather than a native type', () => {
     const enumTable = tbl({
       name: 't',
