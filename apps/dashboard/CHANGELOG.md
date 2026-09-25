@@ -1,5 +1,87 @@
 # @adminium/dashboard
 
+## 0.3.1
+
+### Patch Changes
+
+- 3788045: Installing an app shows the add-ons it needs or suggests and installs, updates or connects them with it; an app's settings list its add-ons; an add-on an app needs cannot be removed or switched off from the Add-ons page; a page whose add-on is missing says so.
+- 7426bc4: An app's manifest can now describe what an invoicing app needs, and Adminium
+  stores it with the app's other rules.
+  
+  - **Worked-out values.** A column may say `rules.formula`: a line's amount
+    from its quantity, rate and discount, a document's tax and total. The
+    arithmetic is exact — never through a floating-point number — and rounds
+    once, to the column's new `scale` (0–4 decimal places, or `"currency"`:
+    the decimals of the row's own currency, so a JPY total has none and a KWD
+    total three).
+  - **Numbers without gaps.** `sequence.gapless` numbers rows with no gaps and
+    none repeated, optionally per parent row (`scope`) and from a setting
+    (`startSetting`); `rules.format` writes the number with its prefix
+    (`INV-2042`).
+  - **Fills from elsewhere.** `rules.default.from` fills a value on create from
+    the connection's currency, a column of the app's settings row, or a setting
+    of an add-on the app requires.
+  - **States.** A table may declare `states`: the moves between them, what
+    stays open once a row is locked, child tables tied to its state, and when a
+    row may never be deleted.
+  - **More stamps.** Today's date on the venue's calendar, the signed-in
+    person's own details, a date so many days after another, and a fingerprint
+    of the row and its lines. A stamp may also be written when a column is
+    first filled.
+  - **Add-ons an app needs.** `addOns` lists the add-ons an app requires or
+    suggests, and the features that need them; `documents` lists the document
+    profiles an app ships for its own tables. An add-on may define `shapes`
+    that apps build their tables on (`builtOn`).
+  - **Public access.** New claim kinds (a sign-in link emailed to the address,
+    and a share link by token), `visibleWith` for child rows that are only as
+    visible as their parent, `files` and `documents` a signed-in person may
+    open, and conditions that a value is still empty (`null`) or a date is
+    today or later (`from-today`).
+  - **Held emails.** An app's outbox may hold what it produces until someone
+    approves it, date it for later, let a later reminder overtake an earlier
+    one, drop reminders that are no longer needed, and change a linked row once
+    an email has gone.
+  
+  The validator now also returns `warnings` beside its issues: advice that
+  never refuses a manifest. The first says when a column will be required at
+  install because it is neither nullable nor given a default.
+  
+  Uploading an add-on built for a newer Adminium now says which version it
+  needs, instead of refusing its manifest as not valid. An add-on's `attaches`
+  range may use any semver range, such as `>=0.2.0`.
+  
+  The column inspector in Studio describes each of these rules in words.
+- b1e2d35: A page link's filters can count days from today (`gte:today-30`) and compare a time to now (`before:now`), and every list template — inbox, master-detail, directory, board, calendar, scheduler, files and logs — applies them and shows them as chips.
+- 85e813a: A few more words an app's manifest may use:
+  
+  - `rules.normalize`: a text value stored trimmed (`trim`), or trimmed and in
+    lower case (`email`), whoever writes it — so an address kept unique and a
+    person signing in with it agree on every database.
+  - A stamp may copy another column of the same row as it stands when the stamp
+    is written (`{copy: <column>}`), and a `byOrigin` stamp may leave staff
+    their own choice by naming only the public side's value.
+  - A public entry's `writableWhen` may say a date is `before-today`.
+  - An app may ship up to 32 email templates.
+- 9733a1c: A dashboard card's window can reach forward ("due today or later"), a page link can carry filters the list applies and shows as chips, a page can link to its app's staff screens, and KPI cards gain seven icons.
+- f8af340: The record page draws a locked row read-only and hides Delete where the row cannot be deleted; Studio keeps and shows a date's bounds; reminders are dated by an add-on's default ladder until one is saved.
+- 4ca20c3: An app's table can be built on an add-on's shape: the install checks it against the installed add-on's pinned shape (409 SHAPE_MISMATCH naming the column), records which columns the shape owns, and the column inspector marks the shape's rules as set by the add-on and asks before one is switched off — after which it stays the operator's.
+- Updated dependencies [3788045]
+- Updated dependencies [c440bee]
+- Updated dependencies [7426bc4]
+- Updated dependencies [b1e2d35]
+- Updated dependencies [85e813a]
+- Updated dependencies [9733a1c]
+- Updated dependencies [94b24f9]
+- Updated dependencies [f8af340]
+- Updated dependencies [4ca20c3]
+  - @adminium/i18n@0.3.1
+  - @adminium/add-on-contracts@0.3.1
+  - @adminium/widgets@0.3.1
+  - @adminium/charts@0.3.1
+  - @adminium/engine@0.3.1
+  - @adminium/tokens@0.3.1
+  - @adminium/ui@0.3.1
+
 ## 0.3.0
 
 ### Patch Changes

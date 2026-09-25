@@ -1,5 +1,116 @@
 # @adminium/server
 
+## 0.3.1
+
+### Patch Changes
+
+- e874d0f: An app's own staff screen can ask for a document of a row it can read (`POST /apps/:key/documents/render`), a staff statement takes its period, and an app ships document profiles for its own tables — made only while the add-on that draws them is attached.
+- d370990: An app can require or suggest add-ons: installing it installs or connects them first, an add-on an app needs cannot be removed or switched off, and an app's role may be given one add-on's settings.
+- b417b26: A document slot left empty takes the default its add-on declares: the day the document is made on the venue's clock, the connection's currency, or the number it prints. A draft invoice with no issue date yet now draws instead of failing as unmapped, a document drawn again keeps the day it was first made, and a statement is issued on the day it is drawn. An empty number column prints as empty, not 0.
+- d332dda: A document's states hold on every write (moves, requirements, roles, locks, child rows, no-delete, dates that only move later); a payment's date may be bounded by today and by its invoice (`notAfter`, `notBefore`); an accepted document is sealed with a fingerprint; a hook may make its judgement part of the update (`expect`).
+- d597a6f: An app's clients can list and draw the documents of their own rows — invoices, quotes and statements with a running balance — each printed with its number, its currency's decimals and the letterhead's tax number, payment details and footer.
+- 2fc9acf: Documents hold to what a person may read. A signed-in client now lists, opens and draws the documents of rows they reach through a parent (a payment's receipt under their own invoice), and never those under anyone else's. On the staff side, every door that shows or draws a statement asks read on the invoices and payments it lists, and a linked row's table is asked even where an older mapping does not name it.
+- 6b59baf: Formula columns are worked out on every write, in the row's currency's decimals, and a document's totals settle before the formulas that read them and the balance; gapless numbers are taken inside each create's own transaction on all three engines, never repeat or skip, and a numbered row cannot be undone away.
+- fe3b7a5: An app's emails can wait for a person: reminders are made held and due on their day, a later one overtakes the earlier ones, paying or voiding drops them, and a person approves, edits, sends early or skips each; a sent email can change its row, and an email can name a setting's address, a sign-in link and the desk's own address.
+- 7426bc4: An app's manifest can now describe what an invoicing app needs, and Adminium
+  stores it with the app's other rules.
+  
+  - **Worked-out values.** A column may say `rules.formula`: a line's amount
+    from its quantity, rate and discount, a document's tax and total. The
+    arithmetic is exact — never through a floating-point number — and rounds
+    once, to the column's new `scale` (0–4 decimal places, or `"currency"`:
+    the decimals of the row's own currency, so a JPY total has none and a KWD
+    total three).
+  - **Numbers without gaps.** `sequence.gapless` numbers rows with no gaps and
+    none repeated, optionally per parent row (`scope`) and from a setting
+    (`startSetting`); `rules.format` writes the number with its prefix
+    (`INV-2042`).
+  - **Fills from elsewhere.** `rules.default.from` fills a value on create from
+    the connection's currency, a column of the app's settings row, or a setting
+    of an add-on the app requires.
+  - **States.** A table may declare `states`: the moves between them, what
+    stays open once a row is locked, child tables tied to its state, and when a
+    row may never be deleted.
+  - **More stamps.** Today's date on the venue's calendar, the signed-in
+    person's own details, a date so many days after another, and a fingerprint
+    of the row and its lines. A stamp may also be written when a column is
+    first filled.
+  - **Add-ons an app needs.** `addOns` lists the add-ons an app requires or
+    suggests, and the features that need them; `documents` lists the document
+    profiles an app ships for its own tables. An add-on may define `shapes`
+    that apps build their tables on (`builtOn`).
+  - **Public access.** New claim kinds (a sign-in link emailed to the address,
+    and a share link by token), `visibleWith` for child rows that are only as
+    visible as their parent, `files` and `documents` a signed-in person may
+    open, and conditions that a value is still empty (`null`) or a date is
+    today or later (`from-today`).
+  - **Held emails.** An app's outbox may hold what it produces until someone
+    approves it, date it for later, let a later reminder overtake an earlier
+    one, drop reminders that are no longer needed, and change a linked row once
+    an email has gone.
+  
+  The validator now also returns `warnings` beside its issues: advice that
+  never refuses a manifest. The first says when a column will be required at
+  install because it is neither nullable nor given a default.
+  
+  Uploading an add-on built for a newer Adminium now says which version it
+  needs, instead of refusing its manifest as not valid. An add-on's `attaches`
+  range may use any semver range, such as `>=0.2.0`.
+  
+  The column inspector in Studio describes each of these rules in words.
+- b1e2d35: A page link's filters can count days from today (`gte:today-30`) and compare a time to now (`before:now`), and every list template — inbox, master-detail, directory, board, calendar, scheduler, files and logs — applies them and shows them as chips.
+- 85e813a: A few more words an app's manifest may use:
+  
+  - `rules.normalize`: a text value stored trimmed (`trim`), or trimmed and in
+    lower case (`email`), whoever writes it — so an address kept unique and a
+    person signing in with it agree on every database.
+  - A stamp may copy another column of the same row as it stands when the stamp
+    is written (`{copy: <column>}`), and a `byOrigin` stamp may leave staff
+    their own choice by naming only the public side's value.
+  - A public entry's `writableWhen` may say a date is `before-today`.
+  - An app may ship up to 32 email templates.
+- ad4e4fc: An app's email can carry a document: a template's `attach` draws (or reuses) the linked row's document and attaches the PDF, or the print copy where the text is not Latin; a message whose document cannot be drawn fails with the reason and is never sent without it.
+- 36b94b6: An app's outbox sends only what it made or a person approved. A message an import or an undo brings back waiting to go now waits for a person (held, or failed to queue again) instead of going by itself; one approved with no day worked out goes at once instead of never; and a batched message is dropped or overtaken like any other while its window is open. A batch takes its window as its due, so a manifest may no longer give it another.
+- ba9e337: A message row an app's sample data brings in is never sent, whatever address it carries.
+- 9733a1c: A dashboard card's window can reach forward ("due today or later"), a page link can carry filters the list applies and shows as chips, a page can link to its app's staff screens, and KPI cards gain seven icons.
+- 8b52535: An app's public door may ask that a date be before today (`writableWhen: 'before-today'`), an out-of-date offer that may be asked about again. It applies to a date column only, a day stored as a number never counts as past, and the door may not write that date itself. A door that only reads no longer counts as writing the link a child row is read by.
+- 8b52535: Public access holds tighter: a column a claim reaches through (`claim.via`) can no longer be made writable, and a signed-in create fills it from the session, so a caller cannot file a row under someone else. A table named with or without its schema is now one table to the rule that keeps a child's link unwritable.
+- 94b24f9: An app's clients can sign in by an emailed link, open a row shared by a link's code, read rows only as far as their parent is theirs, and download their own private files; the public client gains the link, shared-link, file, documents and add-on settings calls.
+- f8af340: The record page draws a locked row read-only and hides Delete where the row cannot be deleted; Studio keeps and shows a date's bounds; reminders are dated by an add-on's default ladder until one is saved.
+- a68cde7: Sample rows that copy a total an earlier table keeps (a stage invoice copying its quote's subtotal) now read it settled, instead of loading at nothing.
+- 47cd78c: Sample data can date a row by a day of a month (`{"@month": -2, "@dom": 14}`), so history counted in calendar months keeps its shape whatever day it is added on.
+- eb78d63: A sample row can say `"@onlyIfEmpty": true` — an app's own settings row is added only when the operator has none, and never stops the add or takes theirs over.
+- 4ca20c3: An app's table can be built on an add-on's shape: the install checks it against the installed add-on's pinned shape (409 SHAPE_MISMATCH naming the column), records which columns the shape owns, and the column inspector marks the shape's rules as set by the add-on and asks before one is switched off — after which it stays the operator's.
+- Updated dependencies [d370990]
+- Updated dependencies [3788045]
+- Updated dependencies [c440bee]
+- Updated dependencies [d332dda]
+- Updated dependencies [d597a6f]
+- Updated dependencies [7426bc4]
+- Updated dependencies [b1e2d35]
+- Updated dependencies [85e813a]
+- Updated dependencies [5310571]
+- Updated dependencies [36b94b6]
+- Updated dependencies [9733a1c]
+- Updated dependencies [709f318]
+- Updated dependencies [94b24f9]
+- Updated dependencies [f8af340]
+- Updated dependencies [64f6162]
+- Updated dependencies [47cd78c]
+- Updated dependencies [eb78d63]
+- Updated dependencies [c519311]
+- Updated dependencies [4ca20c3]
+  - @adminium/meta@0.3.1
+  - @adminium/i18n@0.3.1
+  - @adminium/add-on-contracts@0.3.1
+  - @adminium/manifest@0.3.1
+  - @adminium/engine@0.3.1
+  - @adminium/llm@0.3.1
+  - @adminium/adapter-mysql@0.3.1
+  - @adminium/adapter-postgres@0.3.1
+  - @adminium/adapter-sqlite@0.3.1
+  - @adminium/schema-import@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes

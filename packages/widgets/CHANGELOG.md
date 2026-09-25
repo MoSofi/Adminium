@@ -1,5 +1,24 @@
 # @adminium/widgets
 
+## 0.3.1
+
+### Patch Changes
+
+- b1e2d35: A page link's filters can count days from today (`gte:today-30`) and compare a time to now (`before:now`), and every list template — inbox, master-detail, directory, board, calendar, scheduler, files and logs — applies them and shows them as chips.
+- 9733a1c: A dashboard card's window can reach forward ("due today or later"), a page link can carry filters the list applies and shows as chips, a page can link to its app's staff screens, and KPI cards gain seven icons.
+- Updated dependencies [3788045]
+- Updated dependencies [7426bc4]
+- Updated dependencies [b1e2d35]
+- Updated dependencies [85e813a]
+- Updated dependencies [9733a1c]
+- Updated dependencies [94b24f9]
+- Updated dependencies [f8af340]
+- Updated dependencies [4ca20c3]
+  - @adminium/i18n@0.3.1
+  - @adminium/charts@0.3.1
+  - @adminium/tokens@0.3.1
+  - @adminium/ui@0.3.1
+
 ## 0.3.0
 
 ### Patch Changes
