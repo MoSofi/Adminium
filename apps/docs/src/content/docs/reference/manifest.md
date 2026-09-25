@@ -1128,6 +1128,7 @@ invoice, receipt or statement, drawn by an add-on that renders documents. Up to 
 | `mapping` | yes | From each of the add-on's slots (letters, digits and `_`, starting with a letter) to where its value comes from. See below. |
 | `statement` | no | Makes the document a statement. See below. |
 | `feature` | no | One of the app's [`addOns.features`](#add-ons). |
+| `requestValues` | no | 1–8 slots the app's own screen may fill when it asks for the document (a label sheet's `count`). Each must be a slot the entry does not map; when the add-on is attached, its outline must have the slot, with no default, holding a number or a text. See below. |
 
 The slots are the add-on's words (`number`, `issuedAt`, `items`): a shape's own profiles, in the
 add-on's manifest, show the ones it draws. Each slot reads one of:
@@ -1187,8 +1188,13 @@ so an invoice can print the client's address from the app's own `clients` table)
 replaces the shape's.
 
 The app's staff screens ask for a document by the app's own names:
-`POST /api/v1/apps/<key>/documents/render` with `{ "kind", "ref", "pk", "period"?, "locale"? }`,
-where `ref` is the table's short ref and `pk` the row's key. The document is drawn now, or the one
+`POST /api/v1/apps/<key>/documents/render` with `{ "kind", "ref", "pk", "period"?, "locale"?, "values"? }`,
+where `ref` is the table's short ref and `pk` the row's key. `values` fills the slots the entry
+lists in `requestValues`, by slot id, typed by the add-on's outline (`{ "count": 12 }`); a value for
+any other slot, for one a value typed into the profile fills, or one its type cannot hold is `400`
+`DOCUMENT_VALUE_REFUSED`, naming the slot, and nothing is drawn. A document drawn with values
+lists the slots they filled under `requestValues` in its subject, is never emailed on its own
+(`pending-review`, as a stranger's is), and a later draw of the same row takes nothing from it. The document is drawn now, or the one
 already drawn is handed back while the row is unchanged, with `contentUrl` for its bytes and
 `printUrl` for a copy to print. The caller must be signed in and able to read every table the
 document reads, a statement's sources included. An app, kind, row or table they cannot reach is

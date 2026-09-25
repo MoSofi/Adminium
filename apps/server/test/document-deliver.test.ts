@@ -257,6 +257,23 @@ describe('the four ways it does not go, each written to the row', () => {
     expect(outcome).toBe('not-sent:no-email');
   });
 
+  it('`not-sent:no-email` when the address slot was filled by the request that drew it', async () => {
+    // A person settling it decides whether, never where — and neither does the caller who asked for it.
+    await configureSmtp(meta);
+    const fileId = await seedFile(meta);
+    const subject = { fields: { customerEmail: 'somebody@elsewhere.test' }, requestValues: ['customerEmail'], business: { name: 'Acme', lines: [] } };
+    const document = await documentsRepo(meta).markRendered(
+      (await seedDocument(meta, { subject })).id,
+      { number: 'INV-1', fileId, htmlFileId: null, format: 'pdf' },
+      Date.now(),
+    );
+    const outcome = await emailDocument(
+      { meta, secret: TEST_SECRET },
+      { document: document!, profile: await seedProfile(meta, { emailSlot: 'customerEmail' }) },
+    );
+    expect(outcome).toBe('not-sent:no-email');
+  });
+
   it('`not-sent:no-file` when the document has no bytes to attach', async () => {
     // A `failed` render leaves a row with a number and no file. Emailing it
     // would be an email about a document that does not exist.

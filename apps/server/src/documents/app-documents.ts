@@ -6,7 +6,9 @@
  * The install and uninstall routes call the two functions at the top; the
  * add-on routes call `attachAppDocuments` when an add-on is connected to an app
  * already installed; the staff route that draws a document for an app's own
- * screen asks `appDocumentOff`.
+ * screen asks `appDocumentOff`, and every other door that draws with a
+ * profile — the generic render route, the render pipeline an automation step
+ * and a queued job run — asks `ownedDocumentOff`.
  *
  * ─── A DOCUMENT IS A FEATURE ───────────────────────────────────────────────
  *
@@ -57,14 +59,18 @@ export async function addOnAvailability(
   runtime: () => AddOnRuntimeState | null,
 ): Promise<AddOnAvailability> {
   const attached = new Set((await manifestsRepo(meta, NO_SECRETS).enabledForHost(appKey)).map((m) => m.row.manifestKey));
+  const providerOf = (addOnKey: string) => {
+    const state = runtime();
+    const entry = state === null ? null : providerByKey(state, DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION, addOnKey);
+    return entry === null ? null : renderingProviderOf(entry.module);
+  };
   return {
     attached,
     kindsOf: (addOnKey) => {
-      const state = runtime();
-      const entry = state === null ? null : providerByKey(state, DOCUMENT_RENDER_CONTRACT, DOCUMENT_RENDER_VERSION, addOnKey);
-      const provider = entry === null ? null : renderingProviderOf(entry.module);
+      const provider = providerOf(addOnKey);
       return provider === null ? null : new Set(provider.kinds().map((kind) => kind.id));
     },
+    slotsOf: (addOnKey, kind) => providerOf(addOnKey)?.describe(kind).slots ?? null,
   };
 }
 
@@ -106,7 +112,7 @@ export async function installAppDocuments(input: {
     throw new AppError(
       422,
       'DOCUMENT_KIND_UNKNOWN',
-      `This app asks for documents its add-ons do not draw: ${result.refused.map((r) => `"${r.table}" ${r.kind ?? ''} — ${r.reason}`).join('; ')}.`,
+      `This app asks for documents its add-ons cannot draw as it asks: ${result.refused.map((r) => `"${r.table}" ${r.kind ?? ''} — ${r.reason}`).join('; ')}.`,
       { refused: result.refused },
     );
   }
@@ -115,13 +121,20 @@ export async function installAppDocuments(input: {
 
 /**
  * An add-on connected to apps that are already installed — attached, installed
- * onto them, or switched back on there: make each app's documents now, the
- * install's step run again for the app as it stands.
+ * onto them, or switched back on there: make each app's documents that need
+ * THAT add-on, where they are missing.
  *
  * Without this only an install or an update made them, so an app that merely
  * SUGGESTS the add-on, installed before it was connected, kept the document
  * off until its next update. Idempotent, so connecting again changes nothing
  * — and mends an app connected before this ran.
+ *
+ * Only what is missing, and only for this add-on: a profile already there is
+ * the operator's as they left it (renamed, remapped, given a trigger), and
+ * connecting some other add-on makes nothing of theirs come back or change.
+ * Nothing is ever removed here — bringing profiles up to date and taking back
+ * what the app no longer asks for are the install's and the update's. And
+ * when the app's tables cannot be read, nothing is done at all.
  *
  * It never refuses: the add-on is already connected when this runs. A kind the
  * add-on does not draw is left off, listed under `refused`, with nothing
@@ -132,6 +145,8 @@ export async function installAppDocuments(input: {
  */
 export async function attachAppDocuments(input: {
   meta: MetaDb;
+  /** The add-on that was connected. */
+  addOnKey: string;
   /** The hosts the add-on was just connected to. */
   hosts: readonly string[];
   runtime: () => AddOnRuntimeState | null;
@@ -153,6 +168,19 @@ export async function attachAppDocuments(input: {
       continue;
     }
     const view = await loadSnapshotView(input.meta, connectionId).catch(() => null);
+    if (view === null) {
+      out.push({
+        app: host,
+        result: {
+          made: [],
+          updated: [],
+          removed: [],
+          skipped: [{ kind: null, table: '', reason: "the app's tables could not be read, so its documents were left as they are" }],
+          refused: [],
+        },
+      });
+      continue;
+    }
     const result = await makeAppProfiles({
       meta: input.meta,
       manifest,
@@ -160,6 +188,7 @@ export async function attachAppDocuments(input: {
       realId: realIdIn(view, await appTablesRepo(input.meta).realNames(connectionId, host)),
       shapes: await installedShapes(input.meta),
       availability: await addOnAvailability(input.meta, host, input.runtime),
+      only: { addOn: input.addOnKey },
       createdBy: input.createdBy,
     });
     out.push({ app: host, result });
@@ -185,6 +214,34 @@ export async function appDocumentOff(input: {
   const plan = { addOn: input.profile.addOnKey, kind: input.profile.kind, feature: entry?.feature };
   const verdict = availabilityOf(plan, input.manifest, await addOnAvailability(input.meta, input.manifest.key, input.runtime));
   return verdict.state === 'on' ? null : { addOn: plan.addOn, feature: plan.feature ?? null, reason: verdict.reason };
+}
+
+/**
+ * Why a profile an app owns cannot be drawn now, or null when it can — or
+ * when no app owns it. For the doors that draw with a profile by its id
+ * rather than by the app's own names: the generic render route and the
+ * pipeline itself, which a queued job and an automation step run. The same
+ * verdict the app's own screen gets: its add-on (and its feature's) attached
+ * and switched on. An app that is gone, or whose tables cannot be read to
+ * tell which of its documents this is, counts as off.
+ */
+export async function ownedDocumentOff(
+  meta: MetaDb,
+  profile: DocumentProfile,
+  runtime: () => AddOnRuntimeState | null,
+): Promise<{ addOn: string; feature: string | null; reason: string } | null> {
+  if (profile.ownerApp === null) return null;
+  const installed = await manifestsRepo(meta, NO_SECRETS).findByKey(profile.ownerApp);
+  const manifest = installed?.document as AppManifest | undefined;
+  if (installed === null || manifest?.kind !== 'app') {
+    return { addOn: profile.addOnKey, feature: null, reason: `the app "${profile.ownerApp}" is not installed` };
+  }
+  const view = await loadSnapshotView(meta, profile.connectionId).catch(() => null);
+  if (view === null) return { addOn: profile.addOnKey, feature: null, reason: "the app's tables cannot be read right now" };
+  const names = await appTablesRepo(meta).realNames(profile.connectionId, profile.ownerApp);
+  const real = view.model.tables.find((table) => table.id === profile.table)?.name;
+  const ref = Object.entries(names).find(([, name]) => name === real)?.[0] ?? '';
+  return await appDocumentOff({ meta, manifest, profile, table: ref, runtime });
 }
 
 /** The app's own profile for a kind of document on one of its tables, or null. */

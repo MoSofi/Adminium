@@ -124,7 +124,9 @@ function localeIdFor(tag: string): string | undefined {
 /** `subject.fields[slot]`, when it is a usable address. */
 function addressFrom(document: DocumentRow, slot: string | null | undefined): string | null {
   if (slot === null || slot === undefined || slot === '') return null;
-  const subject = document.subject as { fields?: Record<string, unknown> } | null;
+  const subject = document.subject as { fields?: Record<string, unknown>; requestValues?: unknown } | null;
+  // Never an address a request sent: the document would go wherever the caller said.
+  if (Array.isArray(subject?.requestValues) && subject.requestValues.includes(slot)) return null;
   const value = subject?.fields?.[slot];
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();

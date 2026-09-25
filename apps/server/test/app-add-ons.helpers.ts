@@ -40,6 +40,7 @@ import { addOnRoutes } from '../src/routes/add-ons/index.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { documentRoutes } from '../src/routes/documents/index.js';
 import { createDocumentPipeline } from '../src/documents/compose.js';
+import type { RenderDeps } from '../src/documents/render.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { memoryStorage } from './memory-storage.helpers.js';
 import { TEST_SECRET } from './helpers.js';
@@ -146,6 +147,8 @@ export interface Harness {
   install: (key: string, version: string, extra?: Record<string, unknown>) => Promise<{ statusCode: number; json: () => Body; body: string }>;
   tableNames: () => Promise<string[]>;
   rows: (statement: string) => Promise<Record<string, unknown>[]>;
+  /** The document pipeline the routes draw with, when `documents` was asked for. */
+  pipeline: RenderDeps | null;
   close: () => Promise<void>;
 }
 
@@ -278,10 +281,11 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
       ...(runtime === undefined ? {} : { addOnRuntime: runtime }),
     }),
   );
+  let pipeline: RenderDeps | null = null;
   if (runtime !== undefined) {
     // Imported here: that module imports this one.
     const storage = memoryStorage();
-    const pipeline = createDocumentPipeline({ meta, manager, storage, runtime });
+    pipeline = createDocumentPipeline({ meta, manager, storage, runtime });
     await app.register(documentRoutes({ meta, storage, runtime, enqueue: () => Promise.resolve({ id: 'job_1' }), pipeline }));
   }
   await app.ready();
@@ -356,6 +360,7 @@ export async function addOnHarness(dialect: Dialect, opts: HarnessOptions = {}):
       }
     },
     rows: async (statement) => (await sql.raw<Record<string, unknown>>(statement).execute(handle.db)).rows,
+    pipeline,
     close: async () => {
       await app.close();
       await manager.disposeAll().catch(() => undefined);

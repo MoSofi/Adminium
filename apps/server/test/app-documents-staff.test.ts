@@ -260,7 +260,7 @@ describe.each(LEGS)('an app\'s own documents on %s', (dialect, reachable) => {
     const printed = await app.inject({ method: 'GET', url: printUrl, headers });
     expect(printed.statusCode).toBe(200);
     expect(printed.headers['content-type']).toBe('text/html; charset=utf-8');
-    expect(printed.headers['content-disposition']).toMatch(/^inline; filename="receipt\.html"$/);
+    expect(printed.headers['content-disposition']).toBe("inline; filename=\"receipt.html\"; filename*=UTF-8''receipt.html");
     expect(printed.headers['x-content-type-options']).toBe('nosniff');
     // Drawn with its own styles and inline images; no script, no fetch, no form, no origin of ours.
     const policy = String(printed.headers['content-security-policy']).split(';').map((d) => d.trim());
@@ -272,7 +272,7 @@ describe.each(LEGS)('an app\'s own documents on %s', (dialect, reachable) => {
     // The content route is the download it always was.
     const content = await app.inject({ method: 'GET', url: contentUrl, headers });
     expect(content.statusCode).toBe(200);
-    expect(content.headers['content-disposition']).toMatch(/^attachment; filename="receipt\.html"$/);
+    expect(content.headers['content-disposition']).toBe("attachment; filename=\"receipt.html\"; filename*=UTF-8''receipt.html");
     expect(content.headers['x-content-type-options']).toBe('nosniff');
     expect(content.headers['content-security-policy']).toBeUndefined();
   });

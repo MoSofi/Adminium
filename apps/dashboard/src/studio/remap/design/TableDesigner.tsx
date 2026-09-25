@@ -278,11 +278,20 @@ export function TableDesigner({
     table.uniques.some((u) => u.columns.length === 1 && u.columns[0] === name);
 
   const toggleUnique = (name: string, on: boolean): void => {
+    const alone = (columns: readonly string[]): boolean => columns.length === 1 && columns[0] === name;
     onChange({
       ...table,
       uniques: on
         ? [...table.uniques, { name: null, columns: [name] }]
-        : table.uniques.filter((u) => !(u.columns.length === 1 && u.columns[0] === name)),
+        : table.uniques.filter((u) => !alone(u.columns)),
+      /*
+       * Off, the index SQLite made for the constraint goes with it: it is the
+       * constraint's, not an index anyone chose, and left in the list it read
+       * as the unique still being asked for.
+       */
+      indexes: on
+        ? table.indexes
+        : table.indexes.filter((i) => !(i.unique && (i.name ?? '').startsWith('sqlite_autoindex_') && alone(i.columns))),
     });
   };
 

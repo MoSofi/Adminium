@@ -21,6 +21,8 @@
  *
  *   1. Load the profile. Disabled or gone → SKIP with a reason, never a
  *      failure: an operator who turned a profile off has not caused an error.
+ *      Nor has one whose app has its add-on switched off: an app's document
+ *      is drawn only while its feature is on, whichever door asks.
  *   2. Find the provider BY THE PROFILE'S ADD-ON KEY. Not `resolveProvider`,
  *      which picks the lowest key and would render an invoice through a
  * barcode add-on (trap 11).
@@ -55,6 +57,15 @@
  * public surface, where a client presses "download" as often as they like)
  * gets the stored document back while that key still matches, instead of a
  * new file and a new register row per click.
+ *
+ * ─── A REQUEST'S OWN VALUES ARE THE REQUEST'S ─────────────────────────────
+ *
+ * The app's own screen may send values for the few slots the app lists
+ * (`requestValues`: a label sheet's count), and for nothing else. A document
+ * drawn with them is that request's: the register row names the slots they
+ * filled, its key says so, it is never emailed on its own (a person settles
+ * it, as a stranger's is), and a later draw of the same row never takes
+ * anything from it — so no request can make a day, or anything else, stick.
  */
 
 import { createHash } from 'node:crypto';
@@ -63,6 +74,7 @@ import { currencyScale } from '@adminium/manifest';
 
 import { DOCUMENT_LOCALE_IDS } from '@adminium/add-on-contracts';
 import {
+  ASKED_KEY_MARK,
   auditRepo,
   documentSequencesRepo,
   documentsRepo,
@@ -80,6 +92,7 @@ import type { FileStore } from '../files/store.js';
 import { providerByKey, providersFor, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EmailLogger } from '../email/send.js';
 import { AppError } from '../errors.js';
+import { ownedDocumentOff } from './app-documents.js';
 import { emailDocument, type DocumentDelivery } from './deliver.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
@@ -204,12 +217,14 @@ export interface RenderRequest {
   /** What a public caller may read beside the row (see `RenderDeps.readSource`). */
   readFilters?: ReadonlyMap<string, ReadFilter> | undefined;
   /**
-   * Values for slots the profile does not map, from whoever asked — a label
-   * sheet's count, from the screen that prints it. Typed by the outline like
-   * the profile's own typed values, and over them; never over a mapped column.
-   * A slot the outline does not have, a list, a mapped slot or a value its
-   * type cannot hold is refused (400, naming the slot) before anything is
-   * written.
+   * Values from whoever asked, for the slots the profile lets a request fill
+   * (`options.requestValues`, from the app's manifest) — a label sheet's
+   * count, from the screen that prints it — typed by the outline. Anything
+   * else is refused (400, naming the slot) before anything is written: a slot
+   * not listed, one the outline does not have, a mapped one, one the
+   * profile's own typed values fill, one the add-on fills itself (a
+   * `default`), one that is not a number or a text, or a value its type
+   * cannot hold.
    */
   values?: Readonly<Record<string, string | number | boolean>> | undefined;
 }
@@ -225,29 +240,43 @@ export class DocumentValueError extends AppError {
 
 /**
  * A request's values, each typed as its slot's type — or the first one that
- * cannot be. Typed here, before the reuse key is made, so `"12"` and `12`
- * are the same sheet.
+ * may not be sent, or cannot be typed. Typed here, before the reuse key is
+ * made, so `"12"` and `12` are the same sheet.
+ *
+ * FAIL-SAFE: a slot is accepted only when the profile lists it, and then only
+ * while the outline still says what made it safe to list — no default, a
+ * number or a text — since an add-on update may have changed the outline
+ * since the app was installed. A profile nobody listed any slot on (every
+ * operator's own) takes no value from a request at all.
  */
 function typedValues(
   values: Readonly<Record<string, string | number | boolean>>,
   slots: readonly SubjectSlot[],
-  mapping: ProfileMapping,
-  kind: string,
+  profile: { kind: string; mapping: ProfileMapping; requestValues: readonly string[]; literals: Readonly<Record<string, unknown>> },
   currency: string,
   timezone: string,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [id, value] of Object.entries(values)) {
     const slot = slots.find((candidate) => candidate.id === id);
-    if (slot === undefined) throw new DocumentValueError(id, `A ${kind} has no slot "${id}".`);
-    if (slot.type === 'collection') throw new DocumentValueError(id, `"${id}" is a list, and a list cannot be sent as a value.`);
-    if (mapping[id] !== undefined) {
+    if (slot === undefined) throw new DocumentValueError(id, `A ${profile.kind} has no slot "${id}".`);
+    if (profile.mapping[id] !== undefined) {
       throw new DocumentValueError(id, `"${id}" is read from the row, so a value sent for it would print something the row does not say.`);
     }
-    const typed = coerceSlot(slot.type, value, currencyScale(currency), timezone);
-    if (typed === null || typed === '' || (slot.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(String(typed)))) {
-      throw new DocumentValueError(id, `"${id}" cannot hold ${JSON.stringify(value)}.`);
+    if (!profile.requestValues.includes(id)) {
+      throw new DocumentValueError(id, `"${id}" is not a value this ${profile.kind} takes from whoever asks for it.`);
     }
+    if (profile.literals[id] !== undefined && profile.literals[id] !== null && profile.literals[id] !== '') {
+      throw new DocumentValueError(id, `"${id}" is typed into the document's profile, and a request does not change it.`);
+    }
+    if (slot.default !== undefined) {
+      throw new DocumentValueError(id, `"${id}" is filled by the add-on itself (${slot.default}), so a request may not fill it.`);
+    }
+    if (slot.type !== 'number' && slot.type !== 'text') {
+      throw new DocumentValueError(id, `"${id}" holds ${slot.type}, and a request may fill only a number or a text.`);
+    }
+    const typed = coerceSlot(slot.type, value, currencyScale(currency), timezone);
+    if (typed === null || typed === '') throw new DocumentValueError(id, `"${id}" cannot hold ${JSON.stringify(value)}.`);
     out[id] = typed;
   }
   return out;
@@ -318,7 +347,9 @@ export function reuseKeyOf(profile: DocumentProfile, parts: Record<string, unkno
   const hash = createHash('sha256')
     .update(canonical({ profile: profile.id, edited: profile.updatedAt, ...parts }))
     .digest('hex');
-  return `${profile.id}:${hash}`;
+  // A request's values mark the key, which is how the register leaves such a
+  // document out of what a later draw of the row reads (`drawnFor`).
+  return parts['values'] === undefined ? `${profile.id}:${hash}` : `${profile.id}${ASKED_KEY_MARK}${hash}`;
 }
 
 
@@ -385,6 +416,28 @@ export async function renderDocument(
   const profile = await profiles.findById(request.profileId);
   if (profile === null) return { status: 'skipped', reason: 'profile-gone' };
   if (!profile.enabled) return { status: 'skipped', reason: 'profile-disabled' };
+  /*
+   * An app's document, with the app's add-on (or its feature's) switched off
+   * or detached: off, on every door — not only the app's own screen, which
+   * asks before it gets here, but the generic route, a queued job and an
+   * automation step, which name the profile by id.
+   */
+  const off = await ownedDocumentOff(deps.meta, profile, deps.runtime);
+  if (off !== null) {
+    await audit.append(
+      {
+        actorKind: request.actorKind === 'user' ? 'user' : 'system',
+        actorId: request.requestedBy ?? null,
+        actorLabel: request.requestedBy ?? 'system',
+        category: 'data',
+        action: 'document.skipped',
+        connectionId: profile.connectionId,
+        changes: { after: { profileId: profile.id, addOnKey: profile.addOnKey, reason: 'feature-off' } },
+      },
+      at,
+    );
+    return { status: 'skipped', reason: 'feature-off' };
+  }
 
   // 2 — the provider the PROFILE names.
   const runtime = deps.runtime();
@@ -457,6 +510,7 @@ export async function renderDocument(
     formats?: string[];
     literals?: Record<string, unknown>;
     prefix?: string;
+    requestValues?: string[];
   };
   const locale = documentLocale(request.locale, options.locale);
   const outline = provider.describe(profile.kind);
@@ -468,7 +522,23 @@ export async function renderDocument(
   const values =
     request.values === undefined || Object.keys(request.values).length === 0
       ? undefined
-      : typedValues(request.values, outline.slots, profile.mapping as ProfileMapping, profile.kind, source.currency, source.timezone);
+      : typedValues(
+          request.values,
+          outline.slots,
+          {
+            kind: profile.kind,
+            mapping: profile.mapping as ProfileMapping,
+            requestValues: Array.isArray(options.requestValues) ? options.requestValues : [],
+            literals: options.literals ?? {},
+          },
+          source.currency,
+          source.timezone,
+        );
+  // What the register says the request filled: the slot ids, beside what was printed.
+  const recorded = (subject: typeof built.subject): Record<string, unknown> =>
+    values === undefined
+      ? (subject as unknown as Record<string, unknown>)
+      : { ...(subject as unknown as Record<string, unknown>), requestValues: Object.keys(values).sort() };
 
   const reuseKey = reuseKeyOf(profile, {
     // Only when sent: a key that always held them would miss every document
@@ -515,11 +585,12 @@ export async function renderDocument(
       lookups: source.lookups,
       // The values somebody typed into the mapping rather than pointing at a
       // column, and a statement's figures: both fill only slots nothing maps.
-      // A request's own values stand over the profile's, as its language does;
-      // a statement's figures are read from the data, and stand over both.
+      // A request's own values fill only slots neither of those does (they
+      // are refused over a typed one); a statement's figures are read from
+      // the data, and stand over both.
       ...(options.literals === undefined && values === undefined && source.statement === undefined
         ? {}
-        : { values: { ...(options.literals ?? {}), ...(values ?? {}), ...(source.statement?.fields ?? {}) } }),
+        : { values: { ...(values ?? {}), ...(options.literals ?? {}), ...(source.statement?.fields ?? {}) } }),
       ...(source.statement === undefined ? {} : { collectionValues: source.statement.collections }),
       ...(drawnBefore === undefined || drawnBefore === null ? {} : { drawnBefore: drawnBefore as Record<string, unknown> }),
       now: { iso: new Date(at).toISOString(), timezone: source.timezone },
@@ -538,7 +609,7 @@ export async function renderDocument(
       kind: profile.kind,
       connectionId: profile.connectionId,
       entity: source.entity,
-      subject: built.subject as unknown as Record<string, unknown>,
+      subject: recorded(built.subject),
       locale,
       format: formats.includes('pdf') ? 'pdf' : 'html',
       requestedBy: request.requestedBy ?? null,
@@ -605,7 +676,7 @@ export async function renderDocument(
       fileId: stored.pdf ?? null,
       htmlFileId: stored.html ?? null,
       format: stored.pdf !== undefined ? 'pdf' : 'html',
-      subject: built.subject as unknown as Record<string, unknown>,
+      subject: recorded(built.subject),
     },
     at,
   );
@@ -640,6 +711,11 @@ export async function renderDocument(
    * every document from every mapping that never wanted one.
    */
   const deliver = (profile.deliver ?? {}) as DocumentDelivery;
+  if (values !== undefined && deliver.emailSlot !== null && deliver.emailSlot !== undefined && deliver.emailSlot !== '') {
+    // Drawn with a request’s values: a person settles it, as a stranger’s request is.
+    await documents.markDelivery(document.id, 'pending-review');
+    return { status: 'rendered', document: (await documents.findById(document.id)) ?? done! };
+  }
   if (deliver.emailSlot !== null && deliver.emailSlot !== undefined && deliver.emailSlot !== '') {
     await emailDocument(
       {

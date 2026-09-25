@@ -39,6 +39,14 @@ import { affected, packJson, readJson, readJsonOrNull } from './util.js';
 
 export type DocumentStatus = 'rendered' | 'failed' | 'voided' | 'skipped';
 
+/**
+ * What stands between a profile's id and the hash in the reuse key of a
+ * document drawn with a request's own values (`<profile>:asked:<hash>`, where
+ * every other key is `<profile>:<hash>`). Such a document is that request's,
+ * and `drawnFor` never hands it to a later draw.
+ */
+export const ASKED_KEY_MARK = ':asked:';
+
 export interface DocumentRow {
   id: string;
   profileId: string | null;
@@ -315,6 +323,10 @@ export function documentsRepo(meta: MetaDb) {
    * The newest rendered (not voided) document of a profile for one row — the
    * document a new draw of that row is drawing AGAIN. What it printed on its
    * own (the day it was made, say) is what the new draw prints too.
+   *
+   * Never one drawn with a request's own values ({@link ASKED_KEY_MARK}): what
+   * a request sent is that request's, and a later draw taking anything from
+   * it would let a request make a value stick.
    */
   async function drawnFor(
     profileId: string,
@@ -327,6 +339,7 @@ export function documentsRepo(meta: MetaDb) {
       .where('entityTable', '=', clampKey(entity.table))
       .where('entityId', '=', entityKeyOf(entity.pk))
       .where('status', '=', 'rendered')
+      .where((eb) => eb.or([eb('reuseKey', 'is', null), eb('reuseKey', 'not like', `%${ASKED_KEY_MARK}%`)]))
       .orderBy('createdAt', 'desc')
       .orderBy('id', 'desc')
       .executeTakeFirst();

@@ -247,10 +247,17 @@ export function diffTableDefinitions(
   };
 
   const uniques = diffConstraints(actual.uniques, desired.uniques);
-  // Primary-key indexes are the PK's business, not the index list's.
+  /*
+   * Primary-key indexes are the PK's business, not the index list's — and the
+   * index SQLite makes for a UNIQUE constraint (`sqlite_autoindex_…`) is that
+   * constraint's, diffed under `uniques`. Left in, a unique turned off (and its
+   * index taken out of the list with it) planned a DROP INDEX SQLite refuses
+   * for an index a constraint owns.
+   */
+  const listed = (i: { name: string; primary: boolean }) => !i.primary && !i.name.startsWith('sqlite_autoindex_');
   const indexes = diffConstraints(
-    actual.indexes.filter((i) => !i.primary).map((i) => ({ name: i.name, columns: i.columns, unique: i.unique })),
-    desired.indexes.filter((i) => !i.primary).map((i) => ({ name: i.name, columns: i.columns, unique: i.unique })),
+    actual.indexes.filter(listed).map((i) => ({ name: i.name, columns: i.columns, unique: i.unique })),
+    desired.indexes.filter(listed).map((i) => ({ name: i.name, columns: i.columns, unique: i.unique })),
   );
 
   /*

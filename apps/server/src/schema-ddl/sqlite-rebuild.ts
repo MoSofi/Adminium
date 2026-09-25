@@ -108,6 +108,12 @@ export interface RebuildInput {
    * `TableModel` has no foreign keys to compare.
    */
   foreignKeys: readonly Relation[];
+  /**
+   * The table's own `CREATE TABLE` text, read in step 1. It shows a collation
+   * or an `ON CONFLICT` the model cannot carry, which the rebuild then refuses
+   * to lose (`refuseWhatCannotBeCarried`). Absent: not checked.
+   */
+  tableSql?: string | null | undefined;
 }
 
 /**
@@ -117,6 +123,161 @@ export interface RebuildInput {
  */
 export function isSqliteAutoIndex(name: string): boolean {
   return name.startsWith('sqlite_autoindex_');
+}
+
+/** One identifier as SQLite spells it: bare, or quoted any of its three ways. */
+const IDENT = String.raw`(?:"(?:[^"]|"")+"|\x60[^\x60]+\x60|\[[^\]]+\]|[A-Za-z_][\w$]*)`;
+
+function unquote(name: string): string {
+  if (name.startsWith('"')) return name.slice(1, -1).replaceAll('""', '"');
+  if (name.startsWith('`') || name.startsWith('[')) return name.slice(1, -1);
+  return name;
+}
+
+/**
+ * The columns of a stored `CREATE INDEX` that is nothing but a list of plain
+ * columns — or null when it says more: a `WHERE`, an expression, an order, a
+ * collation. Only the first kind can be written again from the model.
+ */
+export function plainIndexColumns(text: string): string[] | null {
+  const match = new RegExp(
+    String.raw`^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?${IDENT}(?:\s*\.\s*${IDENT})?\s+ON\s+${IDENT}\s*\(([^()]*)\)\s*;?\s*$`,
+    'i',
+  ).exec(text);
+  if (match === null) return null;
+  const columns: string[] = [];
+  for (const part of match[1]!.split(',')) {
+    const one = new RegExp(String.raw`^\s*(${IDENT})\s*$`).exec(part);
+    if (one === null) return null;
+    columns.push(unquote(one[1]!));
+  }
+  return columns;
+}
+
+/** Whether SQL text names a column, as a whole identifier in any spelling (SQLite ignores case). */
+function namesIdentifier(text: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const spellings = [`"${escaped.replaceAll('"', '""')}"`, `\`${escaped}\``, String.raw`\[${escaped}\]`, escaped];
+  return new RegExp(String.raw`(^|[^\w$])(${spellings.join('|')})(?![\w$])`, 'i').test(text);
+}
+
+/**
+ * SQL text with its string literals and everything inside parentheses blanked
+ * to spaces, so what is left is what stands at the top of one definition.
+ */
+function topLevel(text: string): string {
+  let out = '';
+  let depth = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (ch === "'") {
+      const end = text.indexOf("'", i + 1);
+      const stop = end === -1 ? text.length - 1 : end;
+      out += ' '.repeat(stop - i + 1);
+      i = stop;
+      continue;
+    }
+    if (ch === '(') depth += 1;
+    out += depth > 0 ? ' ' : ch;
+    if (ch === ')') depth = Math.max(0, depth - 1);
+  }
+  return out;
+}
+
+/** The definitions between a CREATE TABLE's outer parentheses, split at their top-level commas. */
+function tableDefinitions(createSql: string): string[] {
+  const open = createSql.indexOf('(');
+  if (open === -1) return [];
+  const parts: string[] = [];
+  let depth = 0;
+  let start = open + 1;
+  let quote: string | null = null;
+  for (let i = open + 1; i < createSql.length; i += 1) {
+    const ch = createSql[i]!;
+    if (quote !== null) {
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+    else if (ch === '[') quote = ']';
+    else if (ch === '(') depth += 1;
+    else if (ch === ')') {
+      if (depth === 0) {
+        parts.push(createSql.slice(start, i));
+        break;
+      }
+      depth -= 1;
+    } else if (ch === ',' && depth === 0) {
+      parts.push(createSql.slice(start, i));
+      start = i + 1;
+    }
+  }
+  return parts.map((part) => part.trim()).filter((part) => part !== '');
+}
+
+/**
+ * Refuse a rebuild that would quietly change how the table compares or
+ * resolves, because the model has no words for it: a column's collation other
+ * than BINARY (`COLLATE NOCASE` makes "A" and "a" one value, and a unique on
+ * that column says so), and an `ON CONFLICT` other than the default ABORT (a
+ * unique that REPLACEs the row it clashes with). Written back from the model,
+ * the table would compare case by case and fail where it used to replace —
+ * and step 12 could not see it. Only columns the rebuild copies count: one it
+ * drops takes its rules with it.
+ */
+export function refuseWhatCannotBeCarried(createSql: string, copied: ReadonlySet<string>): void {
+  const constraintHead = /^(CONSTRAINT|PRIMARY|UNIQUE|CHECK|FOREIGN)\b/i;
+  const collate = new RegExp(String.raw`\bCOLLATE\s+(${IDENT})`, 'gi');
+  const conflict = /\bON\s+CONFLICT\s+(ROLLBACK|ABORT|FAIL|IGNORE|REPLACE)\b/i;
+  const copiedAs = (name: string): string | undefined => [...copied].find((c) => c.toLowerCase() === name.toLowerCase());
+  const refuse = (column: string, what: string, rebuilt: string): never => {
+    throw new SqliteRebuildError(
+      `the column "${column}" has ${what}, which this change cannot keep: SQLite makes the change by rebuilding the table, ` +
+        `and rebuilt, ${rebuilt}. Change this table outside Adminium, or take the ${what.startsWith('COLLATE') ? 'collation' : 'clause'} off first.`,
+      'SCHEMA_UNPARSEABLE',
+      { column },
+    );
+  };
+  const checkCollation = (column: string, text: string): void => {
+    for (const found of text.matchAll(collate)) {
+      const name = unquote(found[1]!).toUpperCase();
+      if (name === 'BINARY') continue;
+      refuse(
+        column,
+        `COLLATE ${name}`,
+        `"${column}" would compare byte by byte instead` + (name === 'NOCASE' ? ': "A" and "a" would be two values, and a unique on it would let both in' : ''),
+      );
+    }
+  };
+  const checkConflict = (column: string, text: string): void => {
+    const resolution = conflict.exec(text)?.[1]?.toUpperCase();
+    if (resolution === undefined || resolution === 'ABORT') return;
+    const was = resolution === 'REPLACE' ? 'replacing the row it clashes with' : resolution === 'IGNORE' ? 'being passed over' : `being handled by ${resolution}`;
+    refuse(column, `ON CONFLICT ${resolution}`, `a row that clashes on "${column}" would be refused instead of ${was}`);
+  };
+
+  for (const definition of tableDefinitions(createSql)) {
+    if (constraintHead.test(definition)) {
+      // A table constraint: its columns are the ones in its own parentheses.
+      const inner = /\(([^()]*)\)/.exec(definition)?.[1] ?? '';
+      const column = inner
+        .split(',')
+        .map((part) => new RegExp(String.raw`^\s*(${IDENT})`).exec(part)?.[1])
+        .filter((name): name is string => name !== undefined)
+        .map((name) => copiedAs(unquote(name)))
+        .find((name) => name !== undefined);
+      if (column === undefined) continue;
+      checkCollation(column, inner);
+      checkConflict(column, topLevel(definition));
+      continue;
+    }
+    const head = new RegExp(String.raw`^(${IDENT})`).exec(definition)?.[1];
+    const column = head === undefined ? undefined : copiedAs(unquote(head));
+    if (column === undefined) continue;
+    const rest = topLevel(definition.slice(head!.length));
+    checkCollation(column, rest);
+    checkConflict(column, rest);
+  }
 }
 
 /** The temporary table name. Prefixed so a crashed rebuild is identifiable. */
@@ -138,6 +299,13 @@ export function readSchemaObjectsSql(table: string, db: Db): CompiledQuery {
         `WHERE tbl_name = ${quoteLiteral(table, 'sqlite')} ` +
         `AND type IN ('index', 'trigger', 'view') AND sql IS NOT NULL`,
     )
+    .compile(db);
+}
+
+/** SQL for the rest of step 1 — the table's own `CREATE TABLE` text. */
+export function readTableSql(table: string, db: Db): CompiledQuery {
+  return sql
+    .raw(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ${quoteLiteral(table, 'sqlite')}`)
     .compile(db);
 }
 
@@ -165,6 +333,19 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
 
   const statements: CompiledQuery[] = [];
 
+  /*
+   * The columns this rebuild copies under their own name. One it drops or
+   * renames is one an index's stored text can no longer be trusted to name.
+   */
+  const kept = new Set(
+    actual.columns.map((c) => c.name).filter((name) => columnMapping[name] === name),
+  );
+  if (input.tableSql !== undefined && input.tableSql !== null) {
+    // Copied at all, under any name: its rows come across, its collation would not.
+    const copiedFrom = new Set(Object.values(columnMapping).filter((from): from is string => from !== null));
+    refuseWhatCannotBeCarried(input.tableSql, copiedFrom);
+  }
+
   // --- step 4: CREATE TABLE new_x (…) in the desired shape -----------------
   const columnDefs = desired.columns.map((column) => {
     const parts = [columnDefinition(column, desired, dialect)];
@@ -188,23 +369,15 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
   if (desired.primaryKey.length > 0 && !inlineKey) {
     tableConstraints.push(`PRIMARY KEY (${desired.primaryKey.map(q).join(', ')})`);
   }
+  /*
+   * `uniques` is the one source of a UNIQUE constraint. The index SQLite made
+   * for one (`sqlite_autoindex_…`) is never read as one: the designer leaves
+   * it in the index list when a unique is turned off, and a rebuild that made
+   * the constraint back from it reported the change applied with the column
+   * still unique.
+   */
   for (const unique of desired.uniques) {
     tableConstraints.push(`UNIQUE (${unique.columns.map(q).join(', ')})`);
-  }
-  /*
-   * A unique index SQLite made for itself stands for a UNIQUE constraint, and
-   * the constraint is the only way to get it back: step 8 cannot create an
-   * index under a `sqlite_autoindex_` name — SQLite reserves them. The
-   * introspection lists the constraint under `uniques` as well, so this adds
-   * nothing then; it is here so a model that carries only the index still
-   * keeps the column unique.
-   */
-  const constrained = new Set(desired.uniques.map((u) => u.columns.join('\u0000')));
-  for (const index of desired.indexes) {
-    if (index.primary || !index.unique || !isSqliteAutoIndex(index.name)) continue;
-    if (index.columns.length === 0 || constrained.has(index.columns.join('\u0000'))) continue;
-    constrained.add(index.columns.join('\u0000'));
-    tableConstraints.push(`UNIQUE (${index.columns.map(q).join(', ')})`);
   }
   /*
    * The links, as table constraints. SQLite has no `ADD CONSTRAINT`, so the
@@ -284,8 +457,10 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
   for (const object of objects) {
     if (object.sql === null) continue;
     if (object.type === 'index') {
-      // Rebuild from the model rather than the text: a column this rebuild
-      // renamed would leave the stored text naming a column that is gone.
+      // Re-made below, from the desired model: a column this rebuild renamed
+      // would leave the stored text naming a column that is gone. Only an
+      // index the model cannot describe is re-made from its text, and only
+      // while that text still holds.
       continue;
     }
     if (oldName !== newName && object.sql.includes(oldName)) {
@@ -303,6 +478,34 @@ export function compileSqliteRebuild(input: RebuildInput): CompiledQuery[] {
     // Made by the new table's own UNIQUE constraint in step 4, under a name
     // SQLite refuses to let anyone else create.
     if (isSqliteAutoIndex(index.name)) continue;
+    /*
+     * An index already there says in its stored text what the model cannot:
+     * a `WHERE` (a unique only among the live rows), an expression
+     * (`lower(email)`), an order or a collation. Introspection reads such an
+     * index as its plain columns, or none, so one re-made from the model came
+     * back covering every row — or could not be written at all. So it is
+     * re-made from its own text while the text still holds: the table keeps
+     * its name, and every column the text names is copied under its own. An
+     * index that is nothing but plain columns is re-made from the model as
+     * before, which follows a renamed column.
+     */
+    const stored = objects.find((o) => o.type === 'index' && o.name === index.name && o.sql !== null);
+    if (stored !== undefined && plainIndexColumns(stored.sql!) === null) {
+      const before = actual.indexes.find((i) => i.name === index.name);
+      const unchanged =
+        before !== undefined && before.unique === index.unique && before.columns.join('\u0000') === index.columns.join('\u0000');
+      const touched = actual.columns.map((c) => c.name).find((name) => !kept.has(name) && namesIdentifier(stored.sql!, name));
+      if (oldName !== newName || !unchanged || touched !== undefined) {
+        throw new SqliteRebuildError(
+          `the index "${index.name}" ${touched === undefined ? 'says more than a plain list of columns' : `reads "${touched}", which this change drops or renames, and says more than a plain list of columns`} ` +
+            `(${stored.sql!.trim()}), so this rebuild cannot re-create it as it was. Drop the index, apply the change, and create it again.`,
+          'SCHEMA_UNPARSEABLE',
+          { object: index.name, ...(touched === undefined ? {} : { column: touched }) },
+        );
+      }
+      statements.push(raw(stored.sql!));
+      continue;
+    }
     if (index.expression !== null) {
       // An expression index's text is not in the IR beyond the expression
       // itself; emit it as stored rather than inventing one.
@@ -382,16 +585,28 @@ export function assertRebuildMatches(rebuilt: TableModel, desired: TableModel): 
     differences.push(`primary key is (${gotKey}), expected (${wantKey})`);
   }
 
-  const wantIndexes = desired.indexes.filter((i) => !i.primary);
+  /*
+   * SQLite's own indexes are compared as the constraints they stand for, from
+   * `uniques` alone — never as index names, which SQLite numbers in the order
+   * the constraints are written. A unique asked for must be there, as a unique
+   * index on the same columns over every row (not a partial one); a unique
+   * that was not asked for must not be — a unique turned off that came back is
+   * a change that did not happen.
+   */
   const gotIndexes = rebuilt.indexes.filter((i) => !i.primary);
-  for (const want of wantIndexes) {
-    // SQLite numbers its own indexes in the order the constraints are
-    // written, so one can come back under its neighbour's number. What has to
-    // survive is a unique index on the same columns, whatever it is called.
-    const found = isSqliteAutoIndex(want.name)
-      ? gotIndexes.some((got) => got.unique && got.columns.join(',') === want.columns.join(','))
-      : gotIndexes.some((got) => got.name === want.name);
-    if (!found) differences.push(`index ${want.name} was not recreated`);
+  const sameColumns = (a: readonly string[], b: readonly string[]) => a.join('\u0000') === b.join('\u0000');
+  for (const want of desired.indexes) {
+    if (want.primary || isSqliteAutoIndex(want.name)) continue;
+    if (!gotIndexes.some((got) => got.name === want.name)) differences.push(`index ${want.name} was not recreated`);
+  }
+  for (const want of desired.uniques) {
+    const found = gotIndexes.some((got) => got.unique && !got.partial && sameColumns(got.columns, want.columns));
+    if (!found) differences.push(`the unique on (${want.columns.join(', ')}) was not recreated`);
+  }
+  for (const got of rebuilt.uniques) {
+    if (!desired.uniques.some((want) => sameColumns(want.columns, got.columns))) {
+      differences.push(`a unique on (${got.columns.join(', ')}) is there, and was not asked for`);
+    }
   }
 
   if (differences.length > 0) {
@@ -470,21 +685,27 @@ export async function runSqliteRebuild(input: RunRebuildInput): Promise<void> {
   // Step 1: the indexes and triggers that must come back afterwards. Skipping
   // this is how a rebuild silently drops them.
   const objects = (await run(readSchemaObjectsSql(actual.name, db).sql)) as SqliteSchemaObject[];
+  // …and the table's own text, for what the model cannot say about it.
+  const [table] = (await run(readTableSql(actual.name, db).sql)) as { sql: string | null }[];
+
+  // Compiled before anything runs: a rebuild that refuses leaves the table untouched.
+  const statements = compileSqliteRebuild({
+    db,
+    actual,
+    desired,
+    columnMapping: input.columnMapping,
+    objects,
+    enumValues: input.enumValues,
+    foreignKeys: input.foreignKeys,
+    tableSql: table?.sql ?? null,
+  });
 
   // Steps 2 and 11 bracket the transaction — the pragma is inert inside one.
   await run(REBUILD_PRAGMAS.before);
   try {
     await run('BEGIN');
     try {
-      for (const query of compileSqliteRebuild({
-        db,
-        actual,
-        desired,
-        columnMapping: input.columnMapping,
-        objects,
-        enumValues: input.enumValues,
-        foreignKeys: input.foreignKeys,
-      })) {
+      for (const query of statements) {
         const rows = await run(query.sql);
         // Step 9's result is the point of step 9. `PRAGMA foreign_key_check`
         // returns one row per violating row and an empty result is the only

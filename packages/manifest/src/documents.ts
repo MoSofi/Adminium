@@ -86,6 +86,13 @@ export const appDocumentSchema = z
     statement: z.object({ documents: statementSourceSchema, payments: statementSourceSchema }).strict().optional(),
     /** The feature this document belongs to (see `addOns.features`). */
     feature: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),
+    /**
+     * The slots the app's own screen may fill when it asks for the document
+     * (a label sheet's `count`), and no others: a slot nothing maps, with no
+     * default, holding a number or a text. Anything a request sends for a slot
+     * not listed here is refused.
+     */
+    requestValues: z.array(slotId).min(1).max(8).optional(),
   })
   .strict();
 export type AppDocument = z.infer<typeof appDocumentSchema>;
@@ -144,6 +151,11 @@ export function appDocumentIssues(
       return;
     }
     out.push(...mappingIssues(doc.table, doc.mapping, ctx.index, at));
+    (doc.requestValues ?? []).forEach((slot, n) => {
+      if (doc.requestValues!.indexOf(slot) !== n) out.push({ path: at('requestValues', n), message: `"${slot}" is listed twice` });
+      // A mapped slot prints the row; a value sent for it would print something the row does not say.
+      else if (doc.mapping[slot] !== undefined) out.push({ path: at('requestValues', n), message: `"${slot}" is mapped, so a request may not fill it` });
+    });
     if (doc.statement !== undefined) {
       for (const part of ['documents', 'payments'] as const) {
         const s = doc.statement[part];

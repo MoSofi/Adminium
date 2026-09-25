@@ -42,7 +42,7 @@ import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
 import { DocumentReadError, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
-import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
+import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type BalanceAfter, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
 import type { ProfileMapping, SlotMapping } from './subject.js';
 
 // The filter type lives with the renderer, which reads it too; importers still find it here.
@@ -190,26 +190,6 @@ function rowCurrency(table: ResolvedTable, row: Readonly<Record<string, unknown>
   if (!table.columns.has('currency')) return null;
   const value = row['currency'];
   return typeof value === 'string' && /^[A-Za-z]{3}$/.test(value.trim()) ? value.trim().toUpperCase() : null;
-}
-
-/**
- * A linked row's balance as it stood right after THIS row — a receipt's
- * "balance left" (see `app-profiles.ts`): the linked row's `of`, less its
- * `minus` columns, less this table's rows for it that its rollup counts, in
- * (date, key) order up to and including this one.
- */
-export interface BalanceAfter {
-  /** The slot's foreign key and column, as the mapping names them. */
-  via: string;
-  column: string;
-  of: string;
-  minus?: readonly string[] | undefined;
-  sum: string;
-  times?: string | undefined;
-  where?: { column: string; eq: string | number | boolean } | undefined;
-  unlessSet?: string | undefined;
-  /** This table's day the rows are ordered by (a payment's `paid_on`); else by key alone. */
-  date?: string | undefined;
 }
 
 /** What an app's profile carries beyond the mapping (see `app-profiles.ts`). */

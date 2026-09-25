@@ -373,10 +373,12 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
    * here, not left for the app's next update. Run after the runtime rebuild,
    * which is what knows the kinds the add-on draws; run whether or not the
    * connection changed, so connecting again mends an app connected before.
+   * Only the documents that need THIS add-on, and only the ones missing: what
+   * an operator changed or deleted is theirs.
    */
-  async function makeAppDocuments(request: FastifyRequest, hosts: readonly string[]): Promise<void> {
+  async function makeAppDocuments(request: FastifyRequest, addOnKey: string, hosts: readonly string[]): Promise<void> {
     if (deps.runtime === undefined || hosts.length === 0) return;
-    const made = await attachAppDocuments({ meta: deps.meta, hosts, runtime: deps.runtime, createdBy: request.user?.id ?? null });
+    const made = await attachAppDocuments({ meta: deps.meta, addOnKey, hosts, runtime: deps.runtime, createdBy: request.user?.id ?? null });
     for (const { app, result } of made) {
       if (result.skipped.length + result.refused.length === 0) continue;
       request.log.info({ app, skipped: result.skipped, refused: result.refused }, 'app document profiles skipped');
@@ -1216,7 +1218,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           attachTo,
           actor: actorOf(request),
         });
-        await makeAppDocuments(request, attachTo);
+        await makeAppDocuments(request, key, attachTo);
         return { addOn: await toDto(installed), plan };
       },
     );
@@ -1238,7 +1240,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           host: request.body.app,
           actor: actorOf(request),
         });
-        await makeAppDocuments(request, [request.body.app]);
+        await makeAppDocuments(request, request.params.key, [request.body.app]);
         return { addOn: await toDto(installed), change };
       },
     );
@@ -1573,7 +1575,7 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         await deps.rebuildRuntime?.();
         // Switched back on: the app's documents it draws, if the app was
         // installed while it was off. Switched off, they stay and are off.
-        if (request.body.enabled) await makeAppDocuments(request, [request.body.attachedTo]);
+        if (request.body.enabled) await makeAppDocuments(request, request.params.key, [request.body.attachedTo]);
 
         const after = await manifests.findByKey(request.params.key);
         const features = request.body.enabled ? [] : needs.filter((need) => need.need === 'feature');

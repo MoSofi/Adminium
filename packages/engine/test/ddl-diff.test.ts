@@ -180,6 +180,15 @@ describe('diffTableDefinitions — the gap diffModels leaves', () => {
     expect(diffTableDefinitions(a, b).indexesRemoved).toHaveLength(0);
   });
 
+  it('diffs SQLite’s own index for a unique as that unique, never as an index', () => {
+    const own = { name: 'sqlite_autoindex_t_1', columns: ['code'], expression: null, unique: true, primary: false, method: null, partial: false };
+    const a = tbl({ name: 't', uniques: [{ name: own.name, columns: ['code'] }], indexes: [own] });
+    // The unique turned off, and its index taken out of the list with it.
+    const d = diffTableDefinitions(a, tbl({ name: 't' }));
+    expect(d.uniquesRemoved).toHaveLength(1);
+    expect(d.indexesRemoved).toHaveLength(0);
+  });
+
   it('reports an FK referential-action change as a change, not an add plus a remove', () => {
     const from = { tableId: 'public.orders', columns: ['customer_id'] };
     const to = { tableId: 'public.customers', columns: ['id'] };

@@ -126,6 +126,26 @@ export function unscaled(value: bigint): string {
 }
 
 /**
+ * A linked row's balance as it stood right after THIS row — a receipt's
+ * "balance left" (see `app-profiles.ts`): the linked row's `of`, less its
+ * `minus` columns, less this table's rows for it that its rollup counts, in
+ * (date, key) order up to and including this one.
+ */
+export interface BalanceAfter {
+  /** The slot's foreign key and column, as the mapping names them. */
+  via: string;
+  column: string;
+  of: string;
+  minus?: readonly string[] | undefined;
+  sum: string;
+  times?: string | undefined;
+  where?: { column: string; eq: string | number | boolean } | undefined;
+  unlessSet?: string | undefined;
+  /** This table's day the rows are ordered by (a payment's `paid_on`); else by key alone. */
+  date?: string | undefined;
+}
+
+/**
  * Whether a row stays in a list that leaves rows out by their own columns: a
  * statement's sources, and a document's child list. `where` keeps only a row
  * whose column holds one of its values; `unless` drops a row whose column is

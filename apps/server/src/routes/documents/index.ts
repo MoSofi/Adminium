@@ -51,7 +51,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { providersFor, type AddOnRuntimeState } from '../../add-ons/runtime.js';
 import { audited } from '../../audit/coverage.js';
-import { appDocumentOff, appProfileFor } from '../../documents/app-documents.js';
+import { appDocumentOff, appProfileFor, ownedDocumentOff } from '../../documents/app-documents.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
@@ -557,6 +557,15 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
             throw new ForbiddenError(`This document reads ${table}, which you may not read.`);
           }
         }
+        // An app's document with its add-on switched off for the app is off
+        // here too, as it is on the app's own door (and the job skips it).
+        const off = await ownedDocumentOff(deps.meta, profile, deps.runtime);
+        if (off !== null) {
+          throw new AppError(409, 'FEATURE_OFF', `This document is not available right now: ${off.reason}.`, {
+            addOn: off.addOn,
+            feature: off.feature,
+          });
+        }
 
         const job = await deps.enqueue({
           kind: DOCUMENT_RENDER_KIND,
@@ -807,7 +816,11 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     if (file === null) throw new NotFoundError('This document has no bytes.');
 
     const rendered = opts.print === true && /^text\/html\b/i.test(file.mime);
-    if (opts.print === true) {
+    const pdf = file.mime === 'application/pdf';
+    // A PDF is served as the content route serves it: a PDF viewer is no
+    // page, and one may not open at all under a sandbox. Anything else the
+    // print route hands out is sandboxed, whatever type it claims.
+    if (opts.print === true && !pdf) {
       /*
        * The print copy, sandboxed. These bytes came out of an add-on and are
        * full of customer-supplied text; served same-origin they would be a
@@ -835,10 +848,7 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       // route, because HTML served same-origin from a document an add-on drew
       // is a stored-XSS primitive. `/print` is the one place it renders, and
       // only under the sandbox above.
-      .header(
-        'content-disposition',
-        `${(opts.inline && file.mime === 'application/pdf') || rendered ? 'inline' : 'attachment'}; filename="${file.filename.replace(/"/g, '')}"`,
-      )
+      .header('content-disposition', documentDisposition((opts.inline && pdf) || rendered ? 'inline' : 'attachment', file.filename, pdf))
       .header('x-content-type-options', 'nosniff')
       // sha256 is the content's identity — a free, exact ETag.
       .header('etag', `"${file.sha256}"`)
@@ -847,6 +857,22 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       .header('cache-control', 'private, max-age=0, must-revalidate')
       .send(opened.stream);
   }
+}
+
+/**
+ * A `Content-Disposition` for a name an add-on chose. The name is the
+ * add-on's, so nothing in it may reach the header as it is: line breaks and
+ * every other control character are dropped, quotes and backslashes become
+ * `_`, and a name left empty is `document`. The plain `filename` is that name
+ * in ASCII (`_` for the rest) for old clients; `filename*` carries it whole,
+ * percent-encoded (RFC 5987), for every browser that reads it.
+ */
+function documentDisposition(disposition: 'inline' | 'attachment', filename: string, pdf: boolean): string {
+  // eslint-disable-next-line no-control-regex -- the control characters are what this removes
+  const cleaned = filename.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, '').replace(/["\\]/g, '_').trim();
+  const name = cleaned.replace(/^[.\s]+$/, '') === '' ? `document.${pdf ? 'pdf' : 'html'}` : cleaned;
+  const ascii = name.replace(/[^\x20-\x7e]/g, '_');
+  return `${disposition}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
 }
 
 /** The get/void reply — the same shape as a list row. */

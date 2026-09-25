@@ -114,8 +114,8 @@ describe('the rebuild actually rebuilds', () => {
       create table notes (id integer primary key, code text unique, body text);
       insert into notes (code, body) values ('A', 'x');
     `);
-    // The index alone, with no entry under `uniques`: the constraint has to
-    // come back from the index, because the name cannot be created by hand.
+    // Listed as introspection lists it: the constraint under `uniques`, and the
+    // index SQLite made for it, whose name cannot be created by hand.
     const actual = tbl({
       name: 'notes',
       columns: [
@@ -124,11 +124,16 @@ describe('the rebuild actually rebuilds', () => {
         col({ name: 'body', logicalType: 'text', dbType: 'text' }),
       ],
       primaryKey: ['id'],
+      uniques: [{ name: 'sqlite_autoindex_notes_1', columns: ['code'] }],
       indexes: [{ name: 'sqlite_autoindex_notes_1', columns: ['code'], expression: null, unique: true, primary: false, method: null, partial: false }],
     });
     const desired = { ...actual, columns: [...actual.columns.slice(0, 2), col({ name: 'body', logicalType: 'text', dbType: 'text', nullable: false })] };
     // Step 12 sees SQLite's own index back, under whatever number it chose.
-    const rebuilt = { ...desired, indexes: [{ ...actual.indexes[0]!, name: 'sqlite_autoindex_notes_2' }] };
+    const rebuilt = {
+      ...desired,
+      uniques: [{ name: 'sqlite_autoindex_notes_2', columns: ['code'] }],
+      indexes: [{ ...actual.indexes[0]!, name: 'sqlite_autoindex_notes_2' }],
+    };
 
     await runSqliteRebuild({
       db, actual, desired,
@@ -140,6 +145,36 @@ describe('the rebuild actually rebuilds', () => {
     expect(() => raw.prepare("insert into notes (code, body) values ('A', 'y')").run()).toThrow(/UNIQUE/);
     const indexes = raw.prepare("select name from sqlite_master where type='index' and tbl_name='notes'").all() as { name: string }[];
     expect(indexes.map((i) => i.name)).toEqual(['sqlite_autoindex_notes_1']);
+  });
+
+  it('never makes a unique back from SQLite’s own index alone, and says so when one comes back', async () => {
+    const { db, raw } = open(`
+      create table notes (id integer primary key, code text unique, body text);
+      insert into notes (code, body) values ('A', 'x');
+    `);
+    // The unique turned off: gone from `uniques`, its index still in the list.
+    const actual = tbl({
+      name: 'notes',
+      columns: [
+        col({ name: 'id', logicalType: 'integer', dbType: 'integer', isPrimaryKey: true, nullable: false, default: { kind: 'autoincrement' } }),
+        col({ name: 'code', logicalType: 'text', dbType: 'text' }),
+        col({ name: 'body', logicalType: 'text', dbType: 'text' }),
+      ],
+      primaryKey: ['id'],
+      indexes: [{ name: 'sqlite_autoindex_notes_1', columns: ['code'], expression: null, unique: true, primary: false, method: null, partial: false }],
+    });
+    await runSqliteRebuild({ db, actual, desired: actual, columnMapping: rebuildColumnMapping(actual, actual), foreignKeys: [] });
+    raw.prepare("insert into notes (code, body) values ('A', 'y')").run();
+    expect(raw.prepare("select name from sqlite_master where type='index' and tbl_name='notes'").all()).toEqual([]);
+
+    // A unique that step 12 finds and the plan did not ask for is a mismatch.
+    const { db: again } = open('create table notes (id integer primary key, code text, body text);');
+    await expect(
+      runSqliteRebuild({
+        db: again, actual, desired: actual, columnMapping: rebuildColumnMapping(actual, actual), foreignKeys: [],
+        reintrospect: async () => ({ ...actual, uniques: [{ name: 'sqlite_autoindex_notes_1', columns: ['code'] }] }),
+      }),
+    ).rejects.toThrow(/a unique on \(code\) is there, and was not asked for/);
   });
 
   it('adds a NOT NULL constraint SQLite has no ALTER for', async () => {

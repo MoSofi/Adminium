@@ -337,6 +337,22 @@ describe('addOns and documents', () => {
     expect(validateManifest(m).ok).toBe(false);
   });
 
+  it('lets a request fill only the slots an entry lists, never one it maps', () => {
+    let m = valid();
+    (m['documents'] as Doc[])[0]!['requestValues'] = ['count'];
+    expect(validateManifest(m).ok, issuesText(m)).toBe(true);
+    m = valid();
+    (m['documents'] as Doc[])[0]!['mapping'] = { name: { column: 'name' } };
+    (m['documents'] as Doc[])[0]!['requestValues'] = ['count', 'name', 'count'];
+    expectIssue(m, 'documents.0.requestValues.1: "name" is mapped, so a request may not fill it');
+    expectIssue(m, 'documents.0.requestValues.2: "count" is listed twice');
+    for (const wrong of [[], Array.from({ length: 9 }, (_, n) => `s${String(n)}`), ['1count']]) {
+      m = valid();
+      (m['documents'] as Doc[])[0]!['requestValues'] = wrong;
+      expect(validateManifest(m).ok, JSON.stringify(wrong)).toBe(false);
+    }
+  });
+
   it('keeps builtOn and part together, and apart from a shared shape', () => {
     let m = valid();
     delete tableOf(m, 'payments')['part'];

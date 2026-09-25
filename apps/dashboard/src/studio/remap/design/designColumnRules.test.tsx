@@ -294,6 +294,43 @@ describe('retyping a column (B8)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// A unique turned off on SQLite
+// ---------------------------------------------------------------------------
+
+describe('turning a unique off on SQLite', () => {
+  it('takes the index SQLite made for it out of the list too', async () => {
+    /*
+     * SQLite keeps a UNIQUE constraint as an index it names itself
+     * (`sqlite_autoindex_…`), and the schema lists both. Turning "Unique" off
+     * took the constraint out of `uniques` and left its index in `indexes`,
+     * so the edit still carried the unique it was meant to remove.
+     */
+    const own = { name: 'sqlite_autoindex_order_notes_1', columns: ['body'], expression: null, unique: true, primary: false, method: null, partial: false };
+    const base = makeModel();
+    const sqlite: EffectiveModel = {
+      ...base,
+      dialect: 'sqlite',
+      tables: base.tables.map((table) =>
+        table.name === 'order_notes' ? { ...table, uniques: [{ name: own.name, columns: ['body'] }], indexes: [own] } : table,
+      ),
+    };
+    const harness = installFetch({ schema: () => makeSchemaReply(sqlite), onPlan: () => jsonResponse(200, EMPTY_PLAN) });
+    await openDesign();
+    await userEvent.click(screen.getByRole('button', { name: 'order_notes' }));
+
+    const unique = screen.getAllByLabelText('Unique')[2]!;
+    expect(unique.getAttribute('aria-checked') ?? String((unique as HTMLInputElement).checked)).toBe('true');
+    await userEvent.click(unique);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Review changes' }));
+    await waitFor(() => expect(harness.planBodies).toHaveLength(1));
+    const table = (harness.planBodies[0] as { upsertTables: { uniques: unknown[]; indexes: { name: string }[] }[] }).upsertTables[0]!;
+    expect(table.uniques).toEqual([]);
+    expect(table.indexes.map((i) => i.name)).not.toContain(own.name);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Key generation, answered honestly per engine
 // ---------------------------------------------------------------------------
 

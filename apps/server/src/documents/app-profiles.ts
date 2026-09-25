@@ -34,6 +34,16 @@
  * table is built on) is skipped, with a reason the install reply can show.
  * So is one whose mapping names a table the install did not make. A profile
  * is either made whole or not at all.
+ *
+ * ─── NOTHING IS REMOVED ON A GUESS ─────────────────────────────────────────
+ *
+ * An update removes what the new version no longer asks for — but only when
+ * every one of the app's tables could be found. A table that cannot be
+ * resolved (the schema could not be read just then) makes every profile look
+ * unasked for, and removing them would take the operator's options and
+ * trigger rules with them for a condition that passes. Connecting an add-on
+ * never removes or changes anything at all: it only makes what is missing
+ * (`only`).
  */
 import { isDeepStrictEqual } from 'node:util';
 
@@ -41,9 +51,8 @@ import type { AppDocument, AppManifest, ColumnRules, ShapeDefinition, SlotMappin
 import { shapeDefinitionSchema, shapeKey } from '@adminium/manifest';
 import { documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
-import type { BalanceAfter } from './compose.js';
-import type { StatementSource, StatementSources } from './statement.js';
-import type { ProfileMapping, SlotMapping } from './subject.js';
+import type { BalanceAfter, StatementSource, StatementSources } from './statement.js';
+import type { ProfileMapping, SlotMapping, SubjectSlot } from './subject.js';
 import { syncProfileTrigger } from './trigger-sync.js';
 
 /** The shapes the installed add-ons define, by `<addOn>/<name>@<version>`. */
@@ -98,6 +107,8 @@ export interface PlannedProfile {
   statement?: StatementBlock | undefined;
   /** The app's feature this document belongs to (`addOns.features`), when its entry names one. */
   feature?: string | undefined;
+  /** The slots the app's own screen may fill when it asks for the document (`requestValues`). */
+  requestValues?: string[] | undefined;
   /** Where it came from: the shape the table is built on, the app's own entry, or both. */
   from: 'shape' | 'app' | 'shape+app';
 }
@@ -178,6 +189,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       extended.name = nameOf(entry.name);
       if (entry.statement !== undefined) extended.statement = entry.statement;
       if (entry.feature !== undefined) extended.feature = entry.feature;
+      if (entry.requestValues !== undefined) extended.requestValues = [...entry.requestValues];
       extended.from = 'shape+app';
       continue;
     }
@@ -193,6 +205,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       mapping: { ...entry.mapping },
       ...(entry.statement === undefined ? {} : { statement: entry.statement }),
       ...(entry.feature === undefined ? {} : { feature: entry.feature }),
+      ...(entry.requestValues === undefined ? {} : { requestValues: [...entry.requestValues] }),
       from: 'app',
     });
   }
@@ -206,7 +219,7 @@ export interface StoredProfile {
   name: string;
   table: string;
   mapping: ProfileMapping;
-  options: { numberColumn?: string; statement?: StatementSources; balanceAfter?: BalanceAfter };
+  options: { numberColumn?: string; statement?: StatementSources; balanceAfter?: BalanceAfter; requestValues?: string[] };
   orderBy: string | null;
 }
 
@@ -283,6 +296,8 @@ export function storedProfile(
 
   const options: StoredProfile['options'] = {};
   if (balanceAfter !== undefined) options.balanceAfter = balanceAfter;
+  // The only slots a request for this document may fill; the draw refuses any other.
+  if (plan.requestValues !== undefined) options.requestValues = [...plan.requestValues];
   // A row numbered when it was made (a formatted number) carries the document's number.
   const numbered = own.columns.find((column) => (column.rules as { format?: unknown } | undefined)?.format !== undefined);
   if (numbered !== undefined) options.numberColumn = numbered.ref;
@@ -333,6 +348,30 @@ export interface AppProfilesResult {
 export interface AddOnAvailability {
   attached: ReadonlySet<string>;
   kindsOf: (addOnKey: string) => ReadonlySet<string> | null;
+  /** The slots a kind's outline has, when the add-on's provider is loaded; else null. */
+  slotsOf?: ((addOnKey: string, kind: string) => readonly SubjectSlot[] | null) | undefined;
+}
+
+/**
+ * Why a request may not fill one of the slots an app lists in
+ * `requestValues`, or null when it may: the slot is on the outline, nothing
+ * maps it, the add-on fills it with nothing of its own (no `default` — the
+ * day, the number, the currency), and it holds a number or a text. Not money
+ * or a percent (the add-on prints a figure it works out), not an address
+ * (the document could be sent to it), not a date, not a list.
+ */
+export function requestValueIssue(
+  slot: string,
+  plan: { addOn: string; kind: string; mapping: Readonly<Record<string, unknown>> },
+  slots: readonly SubjectSlot[] | null,
+): string | null {
+  if (plan.mapping[slot] !== undefined) return `"${slot}" is mapped, so a request may not fill it`;
+  if (slots === null) return null;
+  const outline = slots.find((candidate) => candidate.id === slot);
+  if (outline === undefined) return `the "${plan.addOn}" add-on's ${plan.kind} has no slot "${slot}"`;
+  if (outline.default !== undefined) return `"${slot}" is filled by the add-on itself (${outline.default}), so a request may not fill it`;
+  if (outline.type !== 'number' && outline.type !== 'text') return `"${slot}" holds ${outline.type}, and a request may fill only a number or a text`;
+  return null;
 }
 
 /**
@@ -365,7 +404,7 @@ export function availabilityOf(
 }
 
 /** Options the app decides; an operator's own (locale, paper, formats…) are kept across an update. */
-const APP_OPTIONS = ['numberColumn', 'statement', 'balanceAfter'] as const;
+const APP_OPTIONS = ['numberColumn', 'statement', 'balanceAfter', 'requestValues'] as const;
 
 /**
  * Make (install) or bring up to date (update) an app's document profiles on
@@ -383,6 +422,14 @@ export async function makeAppProfiles(input: {
    * (an installed add-on is enough), as before attachments were checked.
    */
   availability?: AddOnAvailability | undefined;
+  /**
+   * An add-on just connected to the app: only the documents that need it (its
+   * own, and those of a feature that requires it), and only the ones missing.
+   * Nothing is changed and nothing removed — a profile the operator renamed,
+   * remapped or deleted is theirs. Absent: the install's and the update's
+   * whole sync.
+   */
+  only?: { addOn: string } | undefined;
   createdBy?: string | null | undefined;
   at?: number | undefined;
 }): Promise<AppProfilesResult> {
@@ -390,18 +437,35 @@ export async function makeAppProfiles(input: {
   const repo = documentProfilesRepo(input.meta);
   const appKey = input.manifest.key;
   const plan = planAppProfiles(input.manifest, input.shapes);
-  const result: AppProfilesResult = { made: [], updated: [], removed: [], skipped: [...plan.skipped], refused: [] };
+  const only = input.only;
+  const needs = (candidate: PlannedProfile): boolean => {
+    if (only === undefined || candidate.addOn === only.addOn) return true;
+    const feature = candidate.feature === undefined ? undefined : input.manifest.addOns?.features?.find((f) => f.id === candidate.feature);
+    return feature?.requires.includes(only.addOn) === true;
+  };
+  const result: AppProfilesResult = { made: [], updated: [], removed: [], skipped: only === undefined ? [...plan.skipped] : [], refused: [] };
 
   /*
    * Checked for EVERY profile before anything is written: a kind the attached
    * add-on does not draw refuses the whole set, so an install never ends with
-   * half its documents made. A feature that is off is only a skip.
+   * half its documents made — as does a slot the app lets a request fill that
+   * the add-on's outline says no request may. A feature that is off is only a
+   * skip.
    */
   const planned: PlannedProfile[] = [];
-  for (const candidate of plan.planned) {
+  for (const candidate of plan.planned.filter(needs)) {
     const verdict = input.availability === undefined ? ({ state: 'on' } as const) : availabilityOf(candidate, input.manifest, input.availability);
-    if (verdict.state === 'on') planned.push(candidate);
-    else (verdict.state === 'off' ? result.skipped : result.refused).push({ kind: candidate.kind, table: candidate.table, reason: verdict.reason });
+    if (verdict.state !== 'on') {
+      (verdict.state === 'off' ? result.skipped : result.refused).push({ kind: candidate.kind, table: candidate.table, reason: verdict.reason });
+      continue;
+    }
+    const slots = input.availability?.slotsOf?.(candidate.addOn, candidate.kind) ?? null;
+    const issue = (candidate.requestValues ?? []).map((slot) => requestValueIssue(slot, candidate, slots)).find((found) => found !== null);
+    if (issue !== undefined) {
+      result.refused.push({ kind: candidate.kind, table: candidate.table, reason: issue });
+      continue;
+    }
+    planned.push(candidate);
   }
   if (result.refused.length > 0) return result;
 
@@ -426,6 +490,8 @@ export async function makeAppProfiles(input: {
     }
     if (mine !== undefined) {
       kept.add(mine.id);
+      // Connected, not updated: the profile there is the operator's as it stands.
+      if (only !== undefined) continue;
       const options: Record<string, unknown> = { ...mine.options };
       for (const key of APP_OPTIONS) delete options[key];
       Object.assign(options, stored.options);
@@ -470,6 +536,12 @@ export async function makeAppProfiles(input: {
       const real = input.realId(skip.table);
       return real === profile.table && (skip.kind === null || skip.kind === profile.kind);
     });
+  if (only !== undefined) return result;
+  const unresolved = input.manifest.requiredSchema.tables.find((table) => input.realId(table.ref) === null);
+  if (unresolved !== undefined) {
+    result.skipped.push({ kind: null, table: unresolved.ref, reason: `"${unresolved.ref}" could not be found on the connection, so no document of the app was removed` });
+    return result;
+  }
   for (const profile of owned) {
     if (kept.has(profile.id) || stillAsked(profile)) continue;
     await removeProfile(input.meta, profile);
