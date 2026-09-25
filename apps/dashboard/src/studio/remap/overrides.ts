@@ -51,6 +51,7 @@ export type RemapOverride =
     }
   | { op: 'column.pii'; tableName: string; columnName: string; value: { masked: boolean; kind?: string } }
   | { op: 'column.hidden'; tableName: string; columnName: string; value: { hidden: boolean } }
+  | { op: 'column.secret'; tableName: string; columnName: string; value: { secret: boolean } }
   /*
    * ─── The four column RULES (plan 50 phase C) ─────────────────────────────
    * Unlike the ops above, these change what the WRITE PATH does rather than
@@ -171,6 +172,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.semanticType',
   'column.enumLabels',
   'column.pii',
+  'column.secret',
   'column.hidden',
   'column.default',
   'column.options',

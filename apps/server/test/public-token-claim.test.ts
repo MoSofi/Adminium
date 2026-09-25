@@ -30,7 +30,7 @@ function manifest(): Record<string, unknown> {
           { ref: 'share_token', type: 'text', maxLength: 16, nullable: true, rules: { code: { length: 16 } } },
           { ref: 'share_expires_on', type: 'date', nullable: true },
           { ref: 'share_stopped', type: 'bool', default: false },
-          // A code shown on screen (not a secret): the desk sees it, and still never picks it.
+          // A code shown on screen: the desk sees it, and still never picks it.
           { ref: 'ref_code', type: 'text', maxLength: 8, nullable: true, rules: { code: { length: 6 } } },
         ],
       },
@@ -158,9 +158,9 @@ describe.each(LEGS)('a row shared by link — %s', (dialect, available) => {
     const codeOf = async () => String((await h.rows(`select share_token from ${h.real('projects')} where id = 1`))[0]!['share_token']);
     const before = await codeOf();
     const session = await sessionOf(before);
-    // The link's secret, typed by the desk: refused, as every secret column is.
-    const typed = await served.composed.app.inject({ method: 'PATCH', url: url('/1'), headers: { cookie }, payload: { values: { share_token: 'CHOSENBYDESK0000' } } });
-    expect(typed.statusCode).toBe(422);
+    // The link's code, typed by the desk: the desk sees it, and still never picks it.
+    const typed = await served.composed.app.inject({ method: 'PATCH', url: url('/1'), headers: { cookie }, payload: { values: { share_token: 'CHOSENBYDESK0000', name: 'Harbour rebrand' } } });
+    expect(typed.statusCode, typed.body).toBe(200);
     expect(await codeOf()).toBe(before);
     // A code shown on screen: a whole-record form sending it back still saves, and the value is not taken.
     const shown = String((await h.rows(`select ref_code from ${h.real('projects')} where id = 1`))[0]!['ref_code']);

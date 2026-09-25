@@ -83,6 +83,7 @@ export type RuleOp =
   | 'column.normalize'
   | 'column.bounds'
   | 'column.pii'
+  | 'column.secret'
   | 'column.label'
   | 'table.capacity'
   | 'table.booking'
@@ -200,6 +201,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
     });
   }
   if (rules.personal !== undefined) out.push({ op: 'column.pii', value: { masked: rules.personal } });
+  if (rules.secret !== undefined) out.push({ op: 'column.secret', value: { secret: rules.secret } });
   return out;
 }
 
@@ -533,9 +535,9 @@ export async function writeManifestRules(input: {
           skip(issue);
           continue;
         }
-      } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && column !== undefined) {
+      } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
         const issue = columnRuleIssue(
-          rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.label' | 'table.keyField'>,
+          rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.label' | 'table.keyField'>,
           rule.value,
           column,
           model,

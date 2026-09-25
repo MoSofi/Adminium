@@ -463,6 +463,12 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   }),
   z.object({ op: z.literal('column.hidden'), value: z.object({ hidden: z.boolean() }) }),
   /*
+   * Whether the column is a secret no response carries, overriding the
+   * classifier's guess from its name — an app's `share_token` that holds the
+   * link it sends is `false`, and any column can be made one with `true`.
+   */
+  z.object({ op: z.literal('column.secret'), value: z.object({ secret: z.boolean() }) }),
+  /*
    * ─── The four column RULES ───────────────────────────────────────────────
    *
    * An override row is `(op, value)` with `value` as JSON, so these need no

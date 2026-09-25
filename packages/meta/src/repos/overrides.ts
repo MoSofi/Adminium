@@ -31,6 +31,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.semanticType',
   'column.enumLabels',
   'column.pii',
+  'column.secret',
   'column.hidden',
   'column.default',
   'column.options',

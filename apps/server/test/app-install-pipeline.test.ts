@@ -2072,12 +2072,12 @@ function senderManifest() {
     return t;
   });
   const text = 'Hi {{recipient.first_name}}: {{appointment.starts_at.relative_day}}, {{appointment.time_range}}, with {{clinician.name}}. Fee {{appointment.fee}}. Call {{practice.phone}}. Manage: {{manage_url}}';
-  // An optional value alone in its own blocks: gone when the visit has none. A name no row has stays loud.
+  // An optional value alone in its own blocks: gone when the visit has none. (A name no row has fails the message: outbox-unfilled-variable.test.ts.)
   const blocks = [
     { block: 'email.text', data: { text } },
     { block: 'email.quote', data: { text: '{{appointment.reason}}' } },
     { block: 'email.list', data: { items: ['Why: {{appointment.reason}}', '{{appointment.reason}}', 'Ends {{appointment.cancelled_at.time}}Z'] } },
-    { block: 'email.text', data: { paras: ['{{appointment.reason}}', 'Typo: {{appointment.nope}}'] } },
+    { block: 'email.text', data: { paras: ['{{appointment.reason}}', 'See you soon.'] } },
   ];
   const template = (key: string) => ({
     key,
@@ -2199,13 +2199,14 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
       expect(message!.text).toContain(piece);
     }
     // Her visit has no reason: the quote and the reason's own item and paragraph are left out,
-    // a sentence around it keeps its words, and a name no row has is still printed as written.
+    // a sentence around it keeps its words, and nothing goes out as `{{…}}`.
     expect(message!.text).not.toContain('{{appointment.reason}}');
     expect(message!.text).not.toContain('{{appointment.cancelled_at');
     expect(message!.text).not.toContain('“”');
     expect(message!.text).toContain('• Why:\n');
     expect(message!.text).toContain('Ends Z');
-    expect(message!.text).toContain('Typo: {{appointment.nope}}');
+    expect(message!.text).toContain('See you soon.');
+    expect(message!.text).not.toContain('{{');
 
     // Undelivered for good: the row says so, and the desk may queue it again.
     await sender.markUndelivered(message!.report!, new Error('550 5.1.1 mailbox unavailable'));

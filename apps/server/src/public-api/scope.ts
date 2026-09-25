@@ -1040,6 +1040,22 @@ export function compileScope(
         if (doc.claim.match.length !== 1) {
           issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHAPE', message: 'a shared link matches one column: the token' });
         }
+        /*
+         * The code opens the row and is never read back through it — not
+         * shown, and not filtered, searched or ordered by, which would read it
+         * a character at a time. A code column is no secret to the staff who
+         * read the table (`effective-schema.ts`), so this is what keeps it
+         * off the page it opens.
+         */
+        for (const r of doc.resources) {
+          if (!sameTable(r.table, target.table)) continue;
+          for (const column of doc.claim.match) {
+            const lists = [r.expose, r.filterable, r.searchable, r.orderable].filter((list) => list.includes(column));
+            if (lists.length > 0) {
+              issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHOWN', message: `"${r.ref}" shows "${column}", the code its shared link opens it with`, ref: r.ref, column });
+            }
+          }
+        }
         const cols = columnsOf?.(target.table) ?? null;
         for (const column of [doc.claim.expires, doc.claim.stopped]) {
           if (column !== undefined && cols !== null && !cols.has(column)) {

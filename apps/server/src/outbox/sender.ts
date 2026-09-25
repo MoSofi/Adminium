@@ -26,8 +26,11 @@
  * A column that holds nothing reads as an empty value, not an unknown one: a
  * paragraph (or a list item) holding only a visit's optional reason is then
  * left out of the email, where it would otherwise print `{{…}}` to a patient.
- * A name no row has is still printed as it was written — that is a mistake in
- * the template, and a loud one gets fixed.
+ * A name nothing fills — no row has it, the row has no such link, or the
+ * column is kept from emails — is never sent as `{{…}}`: the row is `failed`,
+ * with a sentence naming the variable. It is a mistake in the template (or a
+ * row missing what it needs), and a message that says so gets fixed; a mail
+ * that says "open the handover: …#{{project.share_token}}" has already gone.
  *
  * ── WHERE IT GOES ─────────────────────────────────────────────────────────
  * The row's own address. A row that names none — one a desk queued by hand,
@@ -112,7 +115,7 @@ import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
 import { appDocumentOff, appProfileFor } from '../documents/app-documents.js';
 import { renderDocument, type RenderDeps } from '../documents/render.js';
-import { enqueueEmail, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
+import { enqueueEmail, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
 import { bcp47, formatTag } from '../i18n/bcp47.js';
@@ -219,6 +222,18 @@ type AnyUpdateQuery = Parameters<NonNullable<UpdateRecordInput['refine']>>[0];
 /** Every `{{name}}` a template reads, wherever it is written in it. */
 export function placeholders(parts: readonly unknown[]): Set<string> {
   return new Set([...JSON.stringify(parts).matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g)].map((match) => match[1]!));
+}
+
+/**
+ * Why an email that names a value nobody holds is not sent: a column hidden
+ * from emails (a secret, a personal column of a linked row), a link the row
+ * does not have, a name no row has. The variable is named, so the template —
+ * or the row — is what gets fixed.
+ */
+export function unfilledSentence(names: readonly string[]): string {
+  const listed = names.slice(0, 3).map((name) => `{{${name}}}`).join(', ');
+  const more = names.length > 3 ? ` and ${String(names.length - 3)} more` : '';
+  return sentence(`Not sent: nothing fills ${listed}${more}`);
 }
 
 /** A person's wording with every `{{name}}` the template does not read taken out. */
@@ -669,6 +684,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       vars['signInLink'] = minted.link;
       to = minted.to;
     }
+    // Every name the email will print has its value — or it does not go, rather than go with `{{…}}` in it.
+    const sent = withOverride({ subject: template.subject, blocks: template.blocks as readonly Record<string, unknown>[] }, override);
+    const unfilled = [...placeholders([sent.subject, template.preheader, sent.blocks, template.footer])].filter((name) => !Object.hasOwn(vars, name));
+    if (unfilled.length > 0) return { status: 'failed', error: unfilledSentence(unfilled) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
     return {
       to,

@@ -72,7 +72,7 @@ export function shapeKey(addOn: string, shape: { name: string; version: number }
 }
 
 /** Rules an app may add to a part's column: they label or narrow, never decide. */
-const ADDABLE_RULES: ReadonlySet<string> = new Set(['enumLabels', 'personal', 'validation', 'required', 'requiredWhen', 'options', 'notAfter', 'notBefore']);
+const ADDABLE_RULES: ReadonlySet<string> = new Set(['enumLabels', 'personal', 'secret', 'validation', 'required', 'requiredWhen', 'options', 'notAfter', 'notBefore']);
 
 /** JSON with sorted keys, so two spellings of one value compare equal. */
 function canonical(value: unknown): string {

@@ -256,6 +256,8 @@ export { labelsSchema };
  *  - `venueLocal`: a wall time with no zone is read in the venue's zone.
  *  - `personal`: whether the column is personal data, overriding the guess
  *    Adminium makes from its name.
+ *  - `secret`: whether the column is a secret no response ever carries,
+ *    overriding the same guess (a `…token…` name reads as one).
  */
 /** A child list a fingerprint covers: its rows in `orderBy` order, then by key. */
 const hashChildSchema = z
@@ -477,6 +479,14 @@ export const columnRulesSchema = z
      * mark it otherwise.
      */
     personal: z.boolean().optional(),
+    /**
+     * Whether the column is a secret no response ever carries, when the app
+     * knows better than a guess from its name: a `share_token` whose `code`
+     * is the link a studio sends is shown to the staff who read the table.
+     * A `code` column is not taken for a secret by its name alone; `true`
+     * makes it one, as it makes any other column one.
+     */
+    secret: z.boolean().optional(),
     /**
      * A date that may never be later than today, on the venue's calendar — a
      * payment is recorded when it came in, not when it might.

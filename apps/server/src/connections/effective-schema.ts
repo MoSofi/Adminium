@@ -844,6 +844,55 @@ function tieStates(tables: ReadonlyMap<string, EffectiveTable>): void {
   }
 }
 
+/**
+ * Which columns are secrets, once every rule is in.
+ *
+ * The classifier guesses a secret from a column's name (`…token…`,
+ * `…password…`), and a secret is carried by no response, to anyone. A column
+ * with a `code` rule is not taken for one by its name: Adminium made its value
+ * to be handed on — a studio's `share_token` is the link it sends — so the
+ * rule wins over the guess, and the staff who read the table see it. What a
+ * public caller is offered is decided apart (`public-api/endpoint.ts`,
+ * `public-api/scope.ts`): a code is shown there only where an entry names it,
+ * and a shared link's never.
+ *
+ * `column.secret` (an app's `secret`) says it outright, either way, over the
+ * guess and the rule alike; a column the operator tagged `secret` stays one
+ * whatever its rules. A column that is not a secret after all loses what the
+ * guess made of it: its tag, and the mask introspection wrote for it — a mask
+ * a person or an app wrote, or one for a kind of personal data, stays.
+ */
+function settleSecrets(
+  tables: Iterable<EffectiveTable>,
+  said: ReadonlyMap<EffectiveColumn, boolean>,
+  maskedForSecret: ReadonlySet<EffectiveColumn>,
+): void {
+  for (const table of tables) {
+    for (const column of table.columns) {
+      const semantics = column.semantics ?? null;
+      const guessed = semantics !== null && (semantics.flags.secret || semantics.primary === 'secret');
+      const tagged = semantics?.primary === 'secret' && semantics.source === 'override';
+      const secret = said.get(column) ?? (tagged || (guessed && column.code === undefined));
+      if (secret) {
+        if (!guessed || semantics?.flags.secret !== true) {
+          column.semantics = {
+            ...(semantics ?? { primary: 'secret', format: null, pair: null, confidence: 1, source: 'override' }),
+            flags: { pii: semantics?.flags.pii ?? null, secret: true, maskedByDefault: true },
+          };
+        }
+        continue;
+      }
+      if (semantics === null || !guessed) continue;
+      column.semantics = {
+        ...semantics,
+        primary: semantics.primary === 'secret' ? 'plain' : semantics.primary,
+        flags: { ...semantics.flags, secret: false, maskedByDefault: semantics.flags.pii !== null && semantics.flags.maskedByDefault },
+      };
+      if (maskedForSecret.has(column)) delete column.masked;
+    }
+  }
+}
+
 /** Apply active override rows (already in created_at order) onto a snapshot model. */
 export function applyOverrides(
   model: DatabaseModel,
@@ -859,6 +908,9 @@ export function applyOverrides(
   const tables = new Map<string, EffectiveTable>(effective.tables.map((t) => [tableId(t as TableModel), t]));
   const columnOf = (table: EffectiveTable | undefined, name: string | null): EffectiveColumn | undefined =>
     table?.columns.find((c) => c.name === name);
+  // What `column.secret` says of a column, and the masks introspection wrote for a secret guess alone.
+  const secretSaid = new Map<EffectiveColumn, boolean>();
+  const maskedForSecret = new Set<EffectiveColumn>();
 
   // Provenance user > llm for COLUMN labels too: a user `column.label` row
   // locks its column against the llm bundle regardless of created_at order.
@@ -964,6 +1016,9 @@ export function applyOverrides(
         const column = columnOf(table, row.columnName);
         if (column === undefined) break;
         column.masked = value.masked === true;
+        // Introspection masks every column its classifier guessed a secret, naming no kind of personal data.
+        if (row.origin === 'auto' && value.masked === true && typeof value.kind !== 'string') maskedForSecret.add(column);
+        else maskedForSecret.delete(column);
         if (column.semantics !== null && typeof value.kind === 'string') {
           column.semantics = {
             ...column.semantics,
@@ -975,6 +1030,11 @@ export function applyOverrides(
       case 'column.hidden': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.hidden = value.hidden === true;
+        break;
+      }
+      case 'column.secret': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) secretSaid.set(column, value.secret === true);
         break;
       }
       case 'column.default': {
@@ -1058,6 +1118,7 @@ export function applyOverrides(
     }
   }
 
+  settleSecrets(tables.values(), secretSaid, maskedForSecret);
   tieStates(tables);
 
   // Table labels last, from the ONE precedence-aware resolver — a user

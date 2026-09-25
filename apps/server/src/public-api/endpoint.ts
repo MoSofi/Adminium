@@ -486,7 +486,9 @@ function decidedColumnsOf(table: ResolvedTable): Set<string> {
 
 /**
  * Columns a PUBLIC caller may not even be offered: secret ones are invisible
- * everywhere (`SnapshotView.column`), so they are treated as absent.
+ * everywhere (`SnapshotView.column`), so they are treated as absent. A code
+ * Adminium makes is not a secret — staff see it — and is offered only where a
+ * definition names it: the defaults below leave it out.
  */
 function visibleColumns(table: ResolvedTable): Set<string> {
   const out = new Set<string>();
@@ -792,6 +794,9 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
   for (const column of def.select) {
     if (!visible.has(column)) {
       push('ENDPOINT_SELECT_UNKNOWN_COLUMN', `"${column}" is not a column of ${def.source}`, column);
+    } else if (def.identity?.strategy === 'token' && def.identity.match.includes(column)) {
+      // Staff may read a shared link's code; the page it opens never shows it.
+      push('ENDPOINT_SELECT_TOKEN', `"${column}" is the code a shared link opens its row with, so it is never shown`, column);
     }
   }
 
@@ -1036,7 +1041,9 @@ export const GENERATED_DEFAULTS = {
  * - DELETE is left off a table another table references with a cascading
  *   ON DELETE, kept by the owner.
  *
- * `select` is every column that is neither secret nor masked as personal data.
+ * `select` is every column that is neither secret nor masked as personal data,
+ * nor a code Adminium makes (a shared link's, a booking reference): a code is
+ * shown to the public only where the owner names it.
  * Returns null when nothing would be selectable.
  */
 export function defaultDefinitionFor(
@@ -1045,8 +1052,9 @@ export function defaultDefinitionFor(
   ref: string,
 ): PublicEndpointDefinition | null {
   const masked = maskedColumns(table);
+  const coded = new Set(table.table.columns.filter((c) => c.code !== undefined).map((c) => c.name));
   const select = [...table.columns.values()]
-    .filter((c) => !c.secret && !masked.has(c.name))
+    .filter((c) => !c.secret && !masked.has(c.name) && !coded.has(c.name))
     .map((c) => c.name);
   if (select.length === 0) return null;
 

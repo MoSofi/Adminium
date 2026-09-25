@@ -31,6 +31,7 @@
               "column.enumLabels",
               "column.pii",
               "column.hidden",
+              "column.secret",
               "column.default",
               "column.options",
               "column.required",

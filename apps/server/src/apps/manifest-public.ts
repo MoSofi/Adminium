@@ -130,7 +130,8 @@ function definitionOf(
       kind: 'availability',
     } as PublicEndpointDefinition;
   }
-  const select = entry.select ?? (declared?.columns ?? []).map((column) => column.ref);
+  // No `select`: every column, but a code Adminium makes or a column the app keeps secret — shown only where named.
+  const select = entry.select ?? (declared?.columns ?? []).filter((column) => column.rules?.code === undefined && column.rules?.secret !== true).map((column) => column.ref);
   // Ordered by the key when it is shown, else by the first column shown: an
   // order never reveals a column the endpoint does not.
   const order = select.includes(key) || select.length === 0 ? key : (select[0] as string);

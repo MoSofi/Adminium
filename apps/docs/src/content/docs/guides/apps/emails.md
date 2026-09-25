@@ -169,8 +169,11 @@ same reason.
 
 A template reads variables as `{{name}}`. A column that holds nothing reads as empty: a
 paragraph, list item or quote holding only it is left out of the email, so an optional value
-(a visit's reason) sits best in a block of its own. A name that no row has is printed as written,
-so a mistake in a template shows rather than vanishing. A column marked secret is never offered.
+(a visit's reason) sits best in a block of its own. A column marked secret is never offered, and
+a personal column of a linked row neither. An email that names something nothing fills (one of
+those, a link the message does not have, a misspelt name) is never sent with `{{…}}` in it: the
+message is **failed**, and its error names the variable, so the template or the row gets fixed. A
+code Adminium makes, such as a handover link's, is offered like any other column.
 
 | Variable | What it holds |
 |---|---|

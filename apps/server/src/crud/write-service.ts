@@ -1415,6 +1415,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         target,
         localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)),
         memo,
+        context.origin === 'undo',
       ),
       opts.settings,
     );
@@ -1870,7 +1871,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const currency = currencyFor(target);
       const zone = await zoneFor(rules, target);
       const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), new Date()), zone);
-      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled), opts.settings);
+      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo'), opts.settings);
       // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
       const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, new Date(), zone));
       // A total, a formula and a number are Adminium's alone, whatever a hook set.
@@ -1889,7 +1890,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         null,
       );
       // Only the codes generated here, and left alone by the hooks, are made again.
-      const codes = generatedCodes(rules, filled).filter((code) => values[code.column] === resolved[code.column]);
+      const codes = generatedCodes(rules, filled, context.origin === 'undo').filter((code) => values[code.column] === resolved[code.column]);
       const booking = rules?.booking;
       const need = booking === undefined ? null : bookingNeed(booking, checked, null);
       const now = new Date();

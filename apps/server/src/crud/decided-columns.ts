@@ -25,7 +25,10 @@
  *    accepted: a statement that fails after its claim leaves one.
  *
  * A value the writer supplied always wins over a code or a number, so a
- * sample row keeps its `S-1042`.
+ * sample row keeps its `S-1042`. An EMPTY code is none: a sample row or an
+ * import that brings `share_token: null` gets one made, as a create that
+ * leaves the column out does — a shared link with no code opens nothing. Only
+ * an undo puts an empty one back, as it was.
  */
 import { randomInt } from 'node:crypto';
 
@@ -55,6 +58,13 @@ export function generateCode(prefix: string, length: number): string {
 
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
 
+/** Whether the writer gave a code: a value, not a column left out, `null` or `''` (unless an undo keeps those). */
+function codeGiven(values: Row, column: string, keepEmpty: boolean): boolean {
+  if (!has(values, column)) return false;
+  const value = values[column];
+  return keepEmpty || (value !== null && value !== undefined && value !== '');
+}
+
 /** Reads shared by the rows of one multi-row write: the same menu item is read once. */
 export type CopyMemo = Map<string, unknown>;
 
@@ -73,6 +83,8 @@ export async function resolveRow(
   target: ResolveTarget,
   values: Row,
   memo: CopyMemo = new Map(),
+  /** An undo: an empty code is put back as it was. */
+  keepEmptyCodes = false,
 ): Promise<Row> {
   if (rules === null || action === 'delete') return values;
   let out: Row | null = null;
@@ -100,7 +112,7 @@ export async function resolveRow(
   }
   if (action === 'create') {
     for (const code of rules.codes ?? []) {
-      if (has(values, code.column)) continue;
+      if (codeGiven(values, code.column, keepEmptyCodes)) continue;
       out ??= { ...values };
       out[code.column] = generateCode(code.prefix, code.length);
     }
@@ -109,8 +121,8 @@ export async function resolveRow(
 }
 
 /** The codes this create generated (not sent), to be made again after a collision. */
-export function generatedCodes(rules: TableRules | null, sent: Row): ColumnCode[] {
-  return (rules?.codes ?? []).filter((code) => !has(sent, code.column));
+export function generatedCodes(rules: TableRules | null, sent: Row, keepEmptyCodes = false): ColumnCode[] {
+  return (rules?.codes ?? []).filter((code) => !codeGiven(sent, code.column, keepEmptyCodes));
 }
 
 /** The same values with each generated code made again. */

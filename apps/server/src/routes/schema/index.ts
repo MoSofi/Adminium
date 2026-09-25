@@ -30,7 +30,7 @@ import {
 
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
-import { applyOverrides } from '../../connections/effective-schema.js';
+import { applyOverrides, columnPolicyFor } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
 import {
@@ -353,6 +353,30 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       }
 
       const before = await overrides.listForConnection(connectionId);
+
+      /*
+       * The same guard for a secret. A column is shown once `column.secret`
+       * says it is none, or once a `code` rule claims a column its name made
+       * a secret (`effective-schema.ts`, `settleSecrets`): either shows a
+       * value no reader saw before, so a save that makes any column stop
+       * being a secret requires Super Admin. Judged on the whole model before
+       * and after, so a code rule an app installed and this save keeps opens
+       * nothing new.
+       */
+      const secretsUnder = (rows: readonly SchemaOverride[]): Set<string> => {
+        const out = new Set<string>();
+        for (const table of applyOverrides(model, rows).tables) {
+          for (const name of columnPolicyFor(table).secret) out.add(`${table.id}\u0000${name}`);
+        }
+        return out;
+      };
+      const proposed = body.overrides.map(
+        (item) => ({ ...item, columnName: item.columnName ?? null, status: item.status ?? 'active', origin: 'user' }) as unknown as SchemaOverride,
+      );
+      const stillSecret = secretsUnder(proposed);
+      if ([...secretsUnder(before)].some((key) => !stillSecret.has(key)) && !(await app.rbac.resolve(request)).superAdmin) {
+        throw new ForbiddenError('Showing a column that is kept secret requires Super Admin.');
+      }
       /*
        * WHERE EACH RULE CAME FROM SURVIVES A SAVE.
        *

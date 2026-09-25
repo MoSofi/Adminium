@@ -226,6 +226,8 @@ read-only. The link can have an end date and an off switch in the row.
 - **Make a new link** writes a fresh code, and the old link never opens anything again. It needs
   the right to change the table: `POST /api/v1/data/<connection>/<table>/<id>/regenerate-code`
   with `{"column": …}`. Nobody types a code, not the desk and not an import.
+- Staff who read the table see the code, and the new one when they make a new link, so the desk
+  can copy the link it sends. The page the link opens never shows it.
 
 ## Rows reached through their parent
 

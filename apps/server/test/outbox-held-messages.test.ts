@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { OutboxProducer } from '@adminium/manifest';
-import { addOnSettingsRepo, appTablesRepo, documentSequencesRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, appTablesRepo, documentSequencesRepo, emailTemplatesRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { encryptSecret, decryptSecret } from '../src/config/secrets.js';
 import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
@@ -184,7 +184,7 @@ export function studioManifest(): Record<string, unknown> {
         'Invoice {{invoice.id}}',
         'Hi {{recipient.first_name}}, invoice {{invoice.id}} for {{invoice.total}} is attached.',
         'Open it: {{signInLink}}',
-        'How to pay: {{addOn.invoices.payment_instructions}} {{addOn.invoices.bank_note}} {{addOn.shipping.carrier}}',
+        'How to pay: {{addOn.invoices.payment_instructions}}',
         { block: 'email.button', data: { label: 'See the work', url: '{{manage_url}}#{{invoice.id}}' } },
       ),
       template('invoice-rung-1', 'A gentle nudge', 'Hi {{recipient.first_name}}, invoice {{invoice.id}} is waiting.', 'Open it: {{signInLink}}'),
@@ -192,7 +192,7 @@ export function studioManifest(): Record<string, unknown> {
       template('invoice-rung-3', 'Pause the work', 'Invoice {{invoice.id}} is very late; the work pauses.'),
       template('client-says-paid', 'Paid, they say', '{{client.name}} says invoice {{invoice.id}} is paid.', 'Open it: {{signInLink}}', 'At the desk: {{staff_url}}invoices/{{invoice.id}}'),
       template('new-work', 'New work to review', 'New work on {{deliverable.title}}.'),
-      template('payment-receipt', 'Payment received', 'We received {{settlement.amount}} for invoice {{invoice.id}}.', 'Receipt for {{client.email}}.'),
+      template('payment-receipt', 'Payment received', 'We received {{settlement.amount}} for invoice {{invoice.id}}.'),
       template('transfer-note', 'A transfer', 'A transfer between invoices.'),
       template('late-note', 'Your invoice is late', 'Invoice {{invoice.id}} is late.'),
     ],
@@ -409,7 +409,7 @@ for (const [dialect, reachable] of LEGS) {
       expect(invoiceMail.map((m) => [m.to, m.subject])).toEqual([['ann@client.studio.dev', `Invoice ${String(a['id'])}`]]);
       // Money in the connection's pounds; how to pay from the required add-on's PUBLIC setting only.
       expect(invoiceMail[0]!.text).toContain(`invoice ${String(a['id'])} for £100.00 is attached`);
-      expect(invoiceMail[0]!.text).toContain('How to pay: Bank 12-34-56 {{addOn.invoices.bank_note}} {{addOn.shipping.carrier}}');
+      expect(invoiceMail[0]!.text).toContain('How to pay: Bank 12-34-56');
       expect(invoiceMail[0]!.text).not.toContain('hush-note');
       expect(invoiceMail[0]!.text).not.toContain('Parcel Co');
       // A button built from the guest side's page and a column.
@@ -825,13 +825,23 @@ for (const [dialect, reachable] of LEGS) {
       expect(sent!.text).not.toContain('ann@client.studio.dev');
       expect(sent!.text).not.toContain('Ann Lee');
 
-      // A template that names a masked column of a linked row reads it as nothing.
+      // A template that names what no email reads — a masked column of a linked row, an add-on's
+      // setting it does not list, an add-on the app does not require — is never sent with `{{…}}` in it.
+      await emailTemplatesRepo(meta).upsert('studio-payment-receipt', 'en_US', {
+        name: 'payment-receipt',
+        subject: 'Payment received',
+        blocks: [{ id: 'b1', block: 'email.text', data: { text: 'Receipt for {{client.email}}: {{addOn.invoices.bank_note}} {{addOn.shipping.carrier}} {{invoice.id}}' } }],
+        enabled: true,
+      });
       const paid = await create('settlements', { document_id: inv['id'], amount: 5 });
       const count = (await mail()).length;
       await sender.sendApp('studio', clock);
-      const receipt = (await mail()).slice(count).find((m) => m.subject === 'Payment received')!;
-      expect(receipt.text).not.toContain('ann@client.studio.dev');
-      expect((await rows(`SELECT status FROM studio.messages WHERE settlement_id = ${String(paid['id'])}`))[0]!['status']).toBe('sent');
+      expect((await mail()).slice(count).filter((m) => m.subject === 'Payment received')).toEqual([]);
+      expect((await rows(`SELECT status, error FROM studio.messages WHERE settlement_id = ${String(paid['id'])}`))[0]).toMatchObject({
+        status: 'failed',
+        error: 'Not sent: nothing fills {{client.email}}, {{addOn.invoices.bank_note}}, {{addOn.shipping.carrier}}',
+      });
+      for (const m of await mail()) for (const hidden of ['hush-note', 'Parcel Co']) expect(m.text).not.toContain(hidden);
     });
 
     it('lets a message sent meanwhile stay sent: a stale second try or a skip during the send sends nothing twice', async () => {

@@ -327,7 +327,7 @@ change or delete is theirs from then on.
 | `default` | `{ "from" }` | A value filled on a create that leaves the column empty, read when the row is made. See [Values from elsewhere](#values-from-elsewhere). |
 | `sequence` | `{ "start"?, "gapless"?, "startSetting"?, "scope"? }` | The next number in a running series. Without `gapless`, the column's own counter; `start` is at least 1. With `"gapless": true`, a number with no gaps and none repeated. See [Numbers without gaps](#numbers-without-gaps). |
 | `format` | `{ "from", "prefix"?, "prefixSetting"?, "pad"? }` | A `text` column written from a gapless number of the same row: the prefix, then the digits padded with zeros (`INV-0042`). See [Numbers without gaps](#numbers-without-gaps). |
-| `code` | `{ "length", "prefix"? }` | A short random code, unique in the column. `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). |
+| `code` | `{ "length", "prefix"? }` | A short random code, unique in the column. `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). A create that leaves it out or empty gets one, a sample row or an import too; a code they bring is kept. Staff who read the table see it, even when its name reads like a secret (`share_token`); the public sees it only where an entry's `select` names it. |
 | `formula` | an expression | A number worked out from the row's other columns on every write. See [Formulas](#formulas). |
 | `normalize` | `"trim"` or `"email"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case. |
 | `notAfter` | `"today"` | A `date` column is never later than today, in the venue's time zone. A later date is refused (`out-of-range`). |
@@ -336,6 +336,7 @@ change or delete is theirs from then on.
 | `stamp` | `{ "set", "on" }` | A value Adminium writes when something happens: the moment, or who did it. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
 | `personal` | `true` or `false` | Whether the column is personal data, overriding the guess Adminium makes from the column's name. |
+| `secret` | `true` or `false` | Whether the column is a secret no response carries, to anyone, overriding the guess Adminium makes from the column's name (`api_token`, `password_hash`). An entry in [public access](#public-access) that names no `select` leaves a `secret` column out, and a `code` column too. |
 
 Tones are the dashboard's badge colours: `neutral`, `accent`, `info`, `pos`, `warn` and `danger`.
 
@@ -348,6 +349,11 @@ a primary key cannot take `sequence` or `code`.
 One rule decides a column. The one pair allowed is a `copy` with a `default` behind it: the copy
 comes first, and the default fills the column when the copy comes back empty (a client's own tax
 rate, else the business's). A stamped column takes none of the others.
+
+The [outbox's](#outbox) own columns that Adminium writes (`status`, `sentAt`, `error`,
+`skipReason`, `approvedBy`, `effectAt` and `effectError`) take none of these rules: a stamp of who
+approved a message would race Adminium for the column, and every message the desk makes would be
+refused. The install names the column.
 
 Every name a rule uses is checked against the manifest: `copy.via` must be a foreign key of the
 table, `rollup.via` must point back at this table, and so on. `normalize` is for `text` columns
@@ -1463,7 +1469,9 @@ A template reads variables as `{{name}}`: each link by its name (`appointment.*`
 key further, such as `appointment.clinician.*`), `recipient.name` and `recipient.first_name`,
 `practice.*`, `appName`, `manage_url` and `booking_url`. A time has the forms `.date`, `.time`,
 `.day_month` and `.relative_day` ("tomorrow"), in the recipient's language and the venue's zone.
-The guide lists [every variable](/guides/apps/emails/).
+The guide lists [every variable](/guides/apps/emails/). A message whose email names a variable
+nothing fills (a secret column, a personal column of a linked row, a link the row does not have, a
+misspelt name) is not sent: it is `failed`, and its error names the variable.
 
 Templates are sent through an outbox, so a manifest with `emailTemplates` and no `outbox` is
 refused. The install's check step warns when the server cannot send email.
@@ -1609,7 +1617,9 @@ it off. A token opens its row to whoever holds the link, so it is served on a
 
 A session opened by a token is checked against the row on every request: once the row is
 stopped, past `expires`, or given a new code, the link and every session it opened reach nothing,
-at once. Nobody types a code, not staff and not an import. To make a new link, staff with
+at once. Nobody types a code, not staff and not an import. Staff who read the table see the code
+and can copy the link; the entry the link opens never shows it, so its `select` cannot name the
+`column`. To make a new link, staff with
 `update` on the table call `POST /api/v1/data/<connection>/<table>/<record>/regenerate-code` with
 `{ "column": "share_token" }`: a fresh code is written, and the old one never opens anything
 again.
