@@ -10,7 +10,9 @@
  * as it was read back. It is made on the first add, recorded with role
  * `sample-ledger`, excluded from CRUD and endpoints by an override, and left
  * out of page generation. Files the sample added are ledger rows too
- * (`table_ref = '@file'`).
+ * (`table_ref = '@file'`), and so are the rows a removal kept
+ * (`'@kept:<ref>'`): a `table_ref` starting with `@` is bookkeeping, never a
+ * sample row — the outbox's exact match on the ref already passes it by.
  *
  * ── ADD ────────────────────────────────────────────────────────────────────
  * The bundle is checked first; its images go to the Files library (and to the
@@ -19,15 +21,25 @@
  * but with no hooks and no automations — a demo booking must not send email.
  * A failure anywhere rolls the whole add back.
  *
+ * A row the last removal kept is not written twice: a bundle row with the
+ * same identity (its `@label`, or the key it names itself) takes the kept row
+ * back instead — its entry returns to the ledger and the other sample rows
+ * point at it. Only while it reads exactly as the sample wrote it, over every
+ * column the ledger hashed: a row the operator changed since, or a key the
+ * database handed to another row, is theirs, and the sample writes its own
+ * copy beside it. The row itself is never written to (bar the totals a table
+ * keeps, settled as for every sample row). Kept entries nothing took back
+ * leave the ledger when the add is done.
+ *
  * ── REMOVE ─────────────────────────────────────────────────────────────────
  * A preview first: how many per table; which sample rows the operator's own
  * records still point at (kept, with the rows they point at in turn); which
  * the operator changed since (kept when they ask). Then, in ONE transaction,
- * the rest are deleted in reverse order, then the whole ledger: a row that
- * stays is the operator's from then on — their records use it, or they
- * changed it — so the app reads "not loaded" and adding sample data again
- * starts afresh. A reference the scan missed makes the database refuse, and
- * nothing is removed.
+ * the rest are deleted in reverse order, then their ledger entries: a row
+ * that stays is the operator's from then on — their records use it, or they
+ * changed it — so the app reads "not loaded". Its entry stays as `@kept:`, the
+ * one thing that lets the next add take it back rather than copy it. A
+ * reference the scan missed makes the database refuse, and nothing is removed.
  */
 import { createHash } from 'node:crypto';
 import { basename, extname } from 'node:path';
@@ -50,6 +62,7 @@ import {
   auditRepo,
   connectionTenantConfig,
   filesRepo,
+  isId,
   jobsRepo,
   newId,
   readJson,
@@ -95,6 +108,10 @@ export interface SampleApp {
 }
 
 const FILE_REF = '@file';
+/** A row a removal kept, as its ledger entry remembers it: `@kept:<ref>`. */
+const KEPT_PREFIX = '@kept:';
+/** The ledger's `table_ref` width. */
+const REF_WIDTH = 64;
 
 // ── pure helpers ──────────────────────────────────────────────────────────
 
@@ -409,6 +426,47 @@ interface LedgerRow {
   created_at: number | string;
 }
 
+/** An entry for a sample row now: not a file, not a row a removal kept. */
+const isSampleRow = (row: LedgerRow): boolean => !row.table_ref.startsWith('@');
+
+/**
+ * A sample row's identity across adds: its `@label`, or else the key it names
+ * itself, spelled one way whatever the engine hands back; null when it has
+ * neither, and so cannot be recognised.
+ */
+function identityOf(ref: string, label: string | null, key: Row | null, table: ResolvedTable): string | null {
+  if (label !== null) return `${ref}\u0000label\u0000${label}`;
+  if (key === null || table.primaryKey.length === 0) return null;
+  const normal: Record<string, string | null> = {};
+  for (const column of table.primaryKey) {
+    if (key[column] === undefined || key[column] === null) return null;
+    const logicalType = table.columns.get(column)?.logicalType ?? 'text';
+    const value = normaliseValue(key[column], logicalType);
+    // Postgres hands a uuid back in lower case, whatever the bundle wrote.
+    normal[column] = logicalType === 'uuid' ? (value?.toLowerCase() ?? null) : value;
+  }
+  return `${ref}\u0000key\u0000${canonicalJson(normal)}`;
+}
+
+/**
+ * Whether a kept row still reads as the sample wrote it, over every column its
+ * entry hashed (a column an app update added since does not count). Anything
+ * else — changed, gone, or a reused key now holding another row — is not the
+ * sample's to take back.
+ */
+function unchangedSince(entry: LedgerRow, now: Row, table: ResolvedTable): boolean {
+  let before: Record<string, string>;
+  try {
+    before = JSON.parse(entry.col_hashes) as Record<string, string>;
+  } catch {
+    return false;
+  }
+  const recorded = Object.keys(before);
+  if (recorded.length === 0) return false;
+  const { colHashes } = hashRow(now, table);
+  return recorded.every((column) => colHashes[column] === before[column]);
+}
+
 function asDb(db: unknown): Kysely<SourceDatabase> {
   return db as Kysely<SourceDatabase>;
 }
@@ -520,7 +578,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const ledger = await ledgerRecord(app, app.connectionId);
       if (ledger === undefined) return { offered, loaded: false, total: 0, addedAt: null, tables: [] };
       const handle = await deps.manager.data(app.connectionId);
-      const rows = (await ledgerRows(handle, ledger.tableName)).filter((row) => row.table_ref !== FILE_REF);
+      const rows = (await ledgerRows(handle, ledger.tableName)).filter(isSampleRow);
       const counts = new Map<string, number>();
       for (const row of rows) counts.set(row.table_ref, (counts.get(row.table_ref) ?? 0) + 1);
       const first = rows.reduce<number | null>((min, row) => {
@@ -613,13 +671,38 @@ export function createSampleDataService(deps: SampleDataDeps) {
         const total = bundle.tables.reduce((sum, table) => sum + table.rows.length, 0);
         const counts: Record<string, number> = {};
         const explicitKeys = new Set<string>();
+        let reused = 0;
 
         await handle.db.transaction().execute(async (trx) => {
           const db = asDb(trx);
           const labels = new Map<string, unknown>();
           /** The rows of tables that keep totals, settled once every row is in. */
           const totals = new Map<string, { target: WriteTarget; rows: { seq: number; key: Row; record: Row }[] }>();
-          let seq = 0;
+          const entries = (await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger)} ORDER BY seq`.execute(db)).rows.map((row) => ({
+            ...row,
+            seq: Number(row.seq),
+          }));
+          /** The rows the last removal kept, by identity; each is taken back once at most. */
+          const keptBy = new Map<string, LedgerRow>();
+          for (const entry of entries) {
+            if (!entry.table_ref.startsWith(KEPT_PREFIX)) continue;
+            const ref = entry.table_ref.slice(KEPT_PREFIX.length);
+            const table = safeTable(view, names[ref] ?? ref);
+            if (table === null) continue;
+            let key: Row | null = null;
+            try {
+              key = JSON.parse(entry.pk) as Row;
+            } catch {
+              continue;
+            }
+            const identity = identityOf(ref, entry.label, key, table);
+            if (identity !== null && !keptBy.has(identity)) keptBy.set(identity, entry);
+          }
+          const adopted = new Set<number>();
+          /** Files a row taken back still names: the sample's again, binned with it on the next removal. */
+          const adoptedFiles = new Set<string>();
+          // Kept entries hold their seq; new ones count on from the last.
+          let seq = entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
           let done = 0;
           for (const table of bundle.tables) {
             /*
@@ -633,6 +716,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
             }
             const resolved = view.table(names[table.ref] ?? table.ref);
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
+            const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0;
             for (const row of table.rows) {
               const resolvedRow = resolveSampleRow(row, { now, timeZone, locale: opts.locale, labels, assets: fileIds });
               // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
@@ -641,6 +725,44 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 continue;
               }
               const values = spellInstants(resolvedRow, resolved, handle.dialect);
+              const label = typeof row['@label'] === 'string' ? row['@label'] : null;
+              /*
+               * The row the last removal kept, taken back rather than written
+               * again — only while it reads as the sample wrote it. Its entry
+               * is re-hashed as it reads now (the same over the columns it
+               * had), and the rows after it point at it by its label. It keeps
+               * its own links: one to a kept parent the operator changed still
+               * names that parent, not the fresh copy. What the hash cannot
+               * tell apart is a row of the operator's that is identical in
+               * every column AND took the kept row's key after it was deleted
+               * (SQLite reuses the highest rowid).
+               */
+              const identity = identityOf(table.ref, label, values, resolved);
+              const keptEntry = identity === null ? undefined : keptBy.get(identity);
+              if (keptEntry !== undefined) {
+                keptBy.delete(identity!);
+                const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
+                if (current !== undefined && unchangedSince(keptEntry, current, resolved)) {
+                  const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
+                  if (label !== null) labels.set(label, resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : key);
+                  const { rowHash, colHashes } = hashRow(current, resolved);
+                  await db
+                    .updateTable(ledger as never)
+                    .set({ table_ref: table.ref, row_hash: rowHash, col_hashes: JSON.stringify(colHashes), created_at: now } as never)
+                    .where('seq' as never, '=', keptEntry.seq as never)
+                    .execute();
+                  if (keepsTotals) {
+                    const bucket = totals.get(table.ref) ?? { target, rows: [] as { seq: number; key: Row; record: Row }[] };
+                    bucket.rows.push({ seq: keptEntry.seq, key, record: current });
+                    totals.set(table.ref, bucket);
+                  }
+                  adopted.add(keptEntry.seq);
+                  for (const value of Object.values(current)) if (isId(value, 'file')) adoptedFiles.add(value as string);
+                  counts[table.ref] = (counts[table.ref] ?? 0) + 1;
+                  done += 1;
+                  continue;
+                }
+              }
               /*
                * A row only for an empty table — the app's one settings row — is
                * left out when the operator already has one; the rows after it
@@ -711,13 +833,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 throw error;
               }
               const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, stored[column]]));
-              const label = typeof row['@label'] === 'string' ? row['@label'] : null;
               if (label !== null) {
                 labels.set(label, resolved.primaryKey.length === 1 ? stored[resolved.primaryKey[0]!] : key);
               }
               const { rowHash, colHashes } = hashRow(stored, resolved);
               seq += 1;
-              if ((tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0) {
+              if (keepsTotals) {
                 const bucket = totals.get(table.ref) ?? { target, rows: [] as { seq: number; key: Row; record: Row }[] };
                 bucket.rows.push({ seq, key, record: stored });
                 totals.set(table.ref, bucket);
@@ -758,6 +879,34 @@ export function createSampleDataService(deps: SampleDataDeps) {
                 .execute();
             }
           }
+          // A kept row not taken back stays the operator's, and leaves the ledger.
+          const forgotten = entries
+            .filter((entry) => entry.table_ref.startsWith(KEPT_PREFIX) && !adopted.has(entry.seq))
+            .map((entry) => entry.seq);
+          for (let i = 0; i < forgotten.length; i += 500) {
+            await db
+              .deleteFrom(ledger as never)
+              .where('seq' as never, 'in', forgotten.slice(i, i + 500) as never)
+              .execute();
+          }
+          reused = adopted.size;
+          for (const id of adoptedFiles) {
+            const file = await files.findById(id);
+            if (file === null || file.deletedAt !== null || file.entityConnectionId !== connectionId) continue;
+            seq += 1;
+            await db
+              .insertInto(ledger as never)
+              .values({
+                seq,
+                table_ref: FILE_REF,
+                pk: canonicalJson({ id }),
+                label: null,
+                row_hash: '',
+                col_hashes: '{}',
+                created_at: now,
+              } as never)
+              .execute();
+          }
           for (const [label, id] of fileIds) {
             seq += 1;
             await db
@@ -796,7 +945,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
           category: 'app',
           action: 'app.sample-data.add',
           connectionId,
-          changes: { after: { key: app.key, counts, files: fileIds.size } },
+          changes: { after: { key: app.key, counts, reused, files: fileIds.size } },
         });
         await deps.publish?.(connectionId);
         return { counts, files: fileIds.size };
@@ -818,7 +967,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const handle = await deps.manager.data(connectionId);
       const view = await viewFor(connectionId);
       const names = await records.realNames(connectionId, app.key);
-      const rows = (await ledgerRows(handle, ledger.tableName)).filter((row) => row.table_ref !== FILE_REF);
+      const rows = (await ledgerRows(handle, ledger.tableName)).filter(isSampleRow);
       const analysis = await analyse(handle, view, names, rows);
       const counts = new Map<string, number>();
       for (const row of rows) counts.set(row.table_ref, (counts.get(row.table_ref) ?? 0) + 1);
@@ -859,39 +1008,26 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const view = await viewFor(connectionId);
       const names = await records.realNames(connectionId, app.key);
       const all = await ledgerRows(handle, ledger.tableName);
-      const rows = all.filter((row) => row.table_ref !== FILE_REF);
+      const rows = all.filter(isSampleRow);
       const analysis = await analyse(handle, view, names, rows, opts.keepChanged);
       const byTable: Record<string, number> = {};
       const removedSeqs: number[] = [];
+      const kept: LedgerRow[] = [];
 
       await handle.db.transaction().execute(async (trx) => {
         const db = asDb(trx);
         for (const row of [...rows].reverse()) {
-          // Kept: it leaves the ledger below, and is the operator's.
+          // Kept: the operator's now, remembered below so the next add takes it back.
+          if (analysis.keep.has(row.seq)) {
+            kept.push(row);
+            continue;
+          }
           removedSeqs.push(row.seq);
-          if (analysis.keep.has(row.seq)) continue;
           if (!analysis.gone.has(row.seq)) {
             const table = view.table(names[row.table_ref] ?? row.table_ref);
-            const pk = JSON.parse(row.pk) as Row;
-            /*
-             * The sample's own rows go as they came: they were never real, a
-             * numbered or sent sample document included. A row the operator
-             * has changed since is theirs, and its delete is judged like any
-             * other — a sent invoice they moved on stays.
-             */
-            const judged = analysis.changed.has(row.seq)
-              ? await (async () => {
-                  const target = { connectionId, view, table, db, dialect: handle.dialect };
-                  const person: WriteContext = { origin: 'dashboard', hops: 0, actor: { kind: 'user', id: opts.userId, label: opts.userLabel }, request: null };
-                  const [prepared] = await createWriteService(writeStores(deps.meta)).beforeEach('delete', target, person, [{ match: pk, values: {} }]);
-                  return prepared === undefined ? undefined : { dialect: handle.dialect, prepared: prepared.values };
-                })()
-              : undefined;
             try {
-              await deleteRows(db, table, pk, undefined, judged);
+              await deleteRows(db, table, JSON.parse(row.pk) as Row);
             } catch (error) {
-              const code = (error as { code?: unknown }).code;
-              if (code === 'DELETE_REFUSED' || code === 'RECORD_LOCKED') throw error;
               throw new ConflictError(
                 `A record of yours still uses a sample row in "${row.table_ref}", so nothing was removed.`,
                 'CONFLICT',
@@ -903,6 +1039,23 @@ export function createSampleDataService(deps: SampleDataDeps) {
         }
         // The files' entries go too; a file a kept row still names stays in the library.
         for (const row of all.filter((entry) => entry.table_ref === FILE_REF)) removedSeqs.push(row.seq);
+        /*
+         * A kept row's entry stays, marked, so it no longer counts as sample
+         * data anywhere. A ref too long to mark is forgotten, as every kept
+         * row used to be: the next add then writes a copy, never worse.
+         */
+        for (const row of kept) {
+          const marked = `${KEPT_PREFIX}${row.table_ref}`;
+          if (marked.length > REF_WIDTH) {
+            removedSeqs.push(row.seq);
+            continue;
+          }
+          await db
+            .updateTable(ledger.tableName as never)
+            .set({ table_ref: marked } as never)
+            .where('seq' as never, '=', row.seq as never)
+            .execute();
+        }
         for (let i = 0; i < removedSeqs.length; i += 500) {
           await db
             .deleteFrom(ledger.tableName as never)

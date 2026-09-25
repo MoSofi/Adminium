@@ -42,13 +42,57 @@ export function normalizeWriteValue(column: ResolvedColumn, value: unknown): unk
   );
 }
 
+/** JSON with its keys sorted: one spelling for one value. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+/** A JSON value from what a driver or a writer hands over: parsed text (SQLite keeps JSON as text), or the value itself. */
+function jsonOf(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * A Date and another spelling of the same day or moment: a `date` column
+ * comes back from Postgres and MySQL as the server's local midnight, which a
+ * form sends back as `YYYY-MM-DD` or as the instant's ISO text.
+ */
+function sameMoment(date: Date, other: unknown): boolean {
+  if (other instanceof Date) return date.getTime() === other.getTime();
+  const text = String(other).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return `${String(date.getFullYear())}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}` === text;
+  const at = new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) ? text.replace(' ', 'T') : text).getTime();
+  return !Number.isNaN(at) && at === date.getTime();
+}
+
 /**
  * Whether a value in a column and a value a rule names are the same answer.
  * A boolean comes back from MySQL and SQLite as 1 or 0, and a number from a
- * form as a string.
+ * form as a string; a JSON value as an object, or as text on SQLite, compared
+ * by what it holds; a date or a moment as a Date, compared as that day or
+ * that instant.
  */
 export function sameValue(a: unknown, b: unknown): boolean {
   if (a === null || a === undefined || b === null || b === undefined) return (a ?? null) === (b ?? null);
+  if (a instanceof Date) return sameMoment(a, b);
+  if (b instanceof Date) return sameMoment(b, a);
+  if ((typeof a === 'object' && !(a instanceof Uint8Array)) || (typeof b === 'object' && !(b instanceof Uint8Array))) {
+    return canonicalJson(jsonOf(a)) === canonicalJson(jsonOf(b));
+  }
   if (typeof a === 'boolean' || typeof b === 'boolean') {
     const truth = (v: unknown) => (['true', 't', '1', 'yes'].includes(String(v).toLowerCase()) ? true : ['false', 'f', '0', 'no'].includes(String(v).toLowerCase()) ? false : null);
     return truth(a) !== null && truth(a) === truth(b);

@@ -116,7 +116,7 @@ import { bcp47, formatTag } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
-import { outboxContext } from './context.js';
+import { outboxContext, outboxEffectContext } from './context.js';
 import { verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
@@ -684,7 +684,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       target: { connectionId: box.connectionId, view: target.view, table: target.outbox, db: target.db, dialect: target.dialect },
       pk,
       values,
-      context: outboxContext(box.appKey),
+      context: outboxContext(box.appKey, target.outbox.id),
       refine: still,
       skipIfNone: true,
       announce: async () => {},
@@ -962,7 +962,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       target: { connectionId: box.connectionId, view, table: outbox, db: handle.db, dialect: handle.dialect },
       pk: { [key]: row[key] },
       values: mark,
-      context: outboxContext(box.appKey),
+      context: outboxContext(box.appKey, outbox.id),
       refine: (query) => query.where(sql.ref(cols.effectAt!), 'is', null).where(sql.ref(cols.effectError!), 'is', null),
       skipIfNone: true,
       announce: async () => {},
@@ -1019,7 +1019,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         return [column, resolved === undefined ? value : normalizeWriteValue(resolved, value)];
       }),
     );
-    const context = outboxContext(box.appKey);
+    // Another table's row: judged like anyone's write, its change a move the table allows.
+    const context = outboxEffectContext(box.appKey);
     let outcome;
     try {
       outcome = await deps.writes.update({
@@ -1088,7 +1089,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       target: { connectionId: report.connectionId, view, table: outbox, db: handle.db, dialect: handle.dialect },
       pk: report.pk,
       values,
-      context: outboxContext(report.app),
+      context: outboxContext(report.app, outbox.id),
       // A row the desk has since queued again is theirs, and one sent again since is another message's.
       refine: (query) => {
         let still = query.where(sql.ref(cols.status), '=', 'sent');

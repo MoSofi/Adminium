@@ -389,7 +389,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       return await deps.writes.create({
         target: { connectionId: box.connectionId, view, table: outbox, db, dialect: handle.dialect },
         values,
-        context: outboxContext(box.appKey),
+        context: outboxContext(box.appKey, outbox.id),
         announce: async () => {},
       });
     });
@@ -572,7 +572,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
             target: { connectionId: box.connectionId, view, table: outbox, db, dialect: handle.dialect },
             pk: { [key]: row[key] },
             values,
-            context: outboxContext(box.appKey),
+            context: outboxContext(box.appKey, outbox.id),
             // Only while it still is as it was read: a person approving it meanwhile wins.
             refine: (query) => query.where(sql.ref(cols.status), '=', row[cols.status] as string),
             skipIfNone: true,

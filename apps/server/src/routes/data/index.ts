@@ -891,8 +891,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await insertRow(db, ctx.dialect, link.linkTable, row.values);
         }
       }
-      for (const key of remove) {
-        await deleteRows(db, link.linkTable, linkRowValues(link, ownKey, key));
+      if (remove.length > 0) {
+        // A link row taken away is a delete like any other: its before hooks,
+        // and the states of the document it belongs to (a sent invoice keeps its tags).
+        const target = linkTargetOf(ctx, link, db);
+        for (const key of remove) {
+          const match = linkRowValues(link, ownKey, key);
+          const [prepared] = await writes.beforeEach('delete', target, context, [{ match, values: {} }]);
+          if (prepared !== undefined && prepared.issues !== null) {
+            throw new ValidationFailedError('Some values were refused.', { fields: { [link.relationId]: { code: 'not-allowed' } }, relation: link.relationId });
+          }
+          await deleteRows(db, link.linkTable, match, undefined, prepared === undefined ? undefined : { dialect: ctx.dialect, prepared: prepared.values });
+        }
       }
       return { relationId: link.relationId, before, after: [...requested.wanted] };
     }
@@ -951,12 +961,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * went, or a line back onto a locked invoice. Such a write is given no
      * undo; a mistake is moved on (voided, sent back), never unwritten.
      */
-    function takesStateBack(ctx: DataContext, children: readonly UndoChildren[]): boolean {
+    function takesStateBack(ctx: DataContext, children: readonly UndoChildren[], links: readonly UndoLinks[] = []): boolean {
       if (tiedToStates(ctx.table)) return true;
-      return children.some((child) => {
+      const childTied = children.some((child) => {
         const relation = ctx.view.model.relations.find((candidate) => candidate.id === child.relationId);
         return relation !== undefined && tiedToStates(ctx.view.table(relation.from.tableId));
       });
+      // An undo puts link rows back with no rules too: a link table tied to a document's states is the document's.
+      const linkTied = links.some((entry) => {
+        if (sameKeys(entry.before, entry.after)) return false;
+        const resolution = resolveLink(ctx.view, ctx.table, entry.relationId);
+        return resolution.ok && tiedToStates(resolution.link.linkTable);
+      });
+      return childTied || linkTied;
     }
 
     function issueUndo(
@@ -976,7 +993,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
       // No undo that would delete a row numbered without gaps, or take a document's state back.
-      if (takesNumberBack(ctx, action, children) || takesStateBack(ctx, children)) return null;
+      if (takesNumberBack(ctx, action, children) || takesStateBack(ctx, children, links)) return null;
       const { token } = undoStore.issue({
         auditId: null,
         userId,
@@ -1136,7 +1153,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           );
         }
         // A token issued before the table kept states: the rule decides now.
-        if (takesStateBack(undone, entry.children)) {
+        if (takesStateBack(undone, entry.children, entry.links)) {
           throw new ConflictError('This record moves through states, so a change to it cannot be undone.', 'CONFLICT', { reason: 'UNDO_STATES' });
         }
         const context = requestWriteContext(request, 'undo');
@@ -1400,6 +1417,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (values !== null) assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values);
         const context = requestWriteContext(request, 'bulk');
         const pks = request.body.ids.map((id) => pkFromLoose(ctx.table, id));
+        /*
+         * A delete the table's states refuse (a numbered invoice, a sent one's
+         * lines) is refused straight away, naming the row, before any hook
+         * runs or any row goes. The transaction below judges again.
+         */
+        if (action === 'delete' && tiedToStates(ctx.table)) {
+          for (const [i, pk] of pks.entries()) {
+            const row = await fetchByPk(ctx.db, ctx.table, pk);
+            if (row === undefined) continue;
+            const refused = await writes.deleteRefusal(ctx.target, context, [row]);
+            if (refused !== null) throw new AppError(refused.statusCode, refused.code, refused.message, { ...(refused.details as object), id: request.body.ids[i] });
+          }
+        }
         // Before hooks for every row, before the transaction opens.
         const prepared = await writes.beforeEach(
           action,
@@ -2180,6 +2210,15 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
+        const context = requestWriteContext(request, 'dashboard');
+        /*
+         * A delete the table's states refuse — a numbered invoice, an accepted
+         * proposal, a sent invoice's line — is refused straight away, dry run
+         * included: nobody is asked to confirm what goes with a row that will
+         * not go. The delete below judges again, holding the row.
+         */
+        const refused = await writes.deleteRefusal(ctx.target, context, [before]);
+        if (refused !== null) throw refused;
         const references: ReferenceCount[] = await referenceCounts(ctx.db, ctx.view, ctx.table, pk);
         const inbound = references.reduce((sum, r) => sum + r.count, 0);
         if (request.query.dryRun === true) {
@@ -2198,7 +2237,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           target: ctx.target,
           pk,
           before,
-          context: requestWriteContext(request, 'dashboard'),
+          context,
           mapError: (error) => mapDbError(error, ctx.table),
           announce: async () => {
             const entity = recordRef(ctx, pk);

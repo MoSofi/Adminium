@@ -83,6 +83,47 @@ describe('stamps, as DECIDE writes them', () => {
   });
 });
 
+describe('a stamp that gives nothing', () => {
+  const stamp = (column: string, set: ColumnStamp['set']): ColumnStamp => ({ column, set, on: { column: 'status', values: ['accepted'] }, logicalType: 'text' });
+  const base = (origin: WriteContext['origin'], claimed: Record<string, unknown> | null = null) => ({
+    db: null as never,
+    dialect: 'postgres' as const,
+    table: { columns: new Map() } as never,
+    origin,
+    actor: origin === 'public' ? { kind: 'public' as const, id: null, label: 'guest' } : { kind: 'user' as const, id: 'u1', label: 'Ivy' },
+    now: new Date('2026-09-25T10:00:00Z'),
+    zone: 'Europe/London',
+    claimed,
+  });
+
+  it("takes nothing the writer sent in its place, but for staff's own word", async () => {
+    const r: TableRules = {
+      fills: [],
+      checks: [],
+      stamps: [stamp('accepted_email', { claim: 'email' }), stamp('accepted_by', 'user-name'), stamp('accepted_how', { byOrigin: { public: 'portal' } })],
+    };
+    // A guest with no signed-in row, sending the stamped columns themselves.
+    const guestOut = await decideRow(r, 'update', { status: 'accepted', accepted_email: 'ceo@victim.test', accepted_by: 'Mo', accepted_how: 'call' }, { status: 'sent' }, base('public'));
+    expect(guestOut).toEqual({ status: 'accepted', accepted_how: 'portal' });
+    // Staff: their own word stands where the rule leaves it to them; a claim with no staff word takes nothing.
+    const staffOut = await decideRow(r, 'update', { status: 'accepted', accepted_email: 'x@y.test', accepted_how: 'call' }, { status: 'sent' }, base('dashboard'));
+    expect(staffOut).toEqual({ status: 'accepted', accepted_by: 'Ivy', accepted_how: 'call' });
+  });
+
+  it('refuses a number of days no calendar holds, rather than failing', async () => {
+    const r: TableRules = {
+      fills: [],
+      checks: [],
+      stamps: [{ column: 'due_on', set: { addDays: { date: 'issued_on', days: 'net_days' } }, on: { column: 'status', values: ['sent'] }, logicalType: 'date' }],
+    };
+    await expect(decideRow(r, 'update', { status: 'sent' }, { status: 'draft', issued_on: '2026-09-25', net_days: 200_000_000 }, base('dashboard'))).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: { fields: { net_days: { code: 'out-of-range' } } },
+    });
+    expect(await decideRow(r, 'update', { status: 'sent' }, { status: 'draft', issued_on: '2026-09-25', net_days: 36_600 }, base('dashboard'))).toMatchObject({ due_on: '2126-12-10' });
+  });
+});
+
 for (const [dialect, available] of LEGS) {
   describe.skipIf(!available)(`decided values and judged writes on ${dialect}`, () => {
     async function harness() {

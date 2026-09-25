@@ -57,8 +57,16 @@ type Db = Kysely<SourceDatabase>;
 
 /** What a prepared row carries to its statement. */
 export interface StateGuard {
-  /** An import or an app's sample data: history, which may be in any state. */
+  /**
+   * An import or an app's sample data: history. A NEW row of history may
+   * start in any state — it says what happened then. Nothing else is
+   * exempt: an update of a row already there is judged like anyone's, and a
+   * child row is held to its parent unless the same history brought that
+   * parent in (`created`).
+   */
   history: boolean;
+  /** The rows this same history write has created so far (`<table>\u0000<key>`). */
+  created?: Set<string>;
   /** The role slugs the writer holds, or `any` (Super Admin). */
   roles: ReadonlySet<string> | 'any';
   /** Columns this write's own rules decided — a stamp a move writes, a formula: the lock never refuses them. */
@@ -99,6 +107,20 @@ export function expectOf(row: Row): Row | undefined {
 export function rowMoved(expect: Row): StateMoveRefused {
   return new StateMoveRefused('The row changed while you were changing it; look again.', { expected: expect, retry: true });
 }
+
+/**
+ * The rows one history write (an import run, a sample load) creates, kept
+ * per context object: each is one run, and nothing else holds it.
+ */
+const CREATED = new WeakMap<object, Set<string>>();
+
+export function createdBy(context: object): Set<string> {
+  let out = CREATED.get(context);
+  if (out === undefined) CREATED.set(context, (out = new Set()));
+  return out;
+}
+
+const rowKey = (table: string, key: unknown) => `${table}\u0000${String(key)}`;
 
 /** Whether a table's writes are judged here at all: it keeps states, or is tied to a parent that does. */
 export function tiedToStates(table: ResolvedTable): boolean {
@@ -217,7 +239,8 @@ async function judgeParents(
       // A parent that is not there is the foreign key's to refuse.
       if (found === null) continue;
       out.push({ parent, key });
-      if (guard.history) continue;
+      // A parent the same history brought in takes its own past children.
+      if (guard.history && guard.created?.has(rowKey(parent.table, key)) === true) continue;
       if (parent.lock === true && found.locked) {
         throw new RecordLocked(`${table.name} rows cannot change while their ${parent.table} is ${found.state ?? 'locked'}.`, {
           table: table.name,
@@ -275,6 +298,17 @@ export function dayOf(value: unknown): string | null {
   return match?.[1] ?? null;
 }
 
+/**
+ * A moment as milliseconds: a driver's Date, an ISO spelling with its offset,
+ * or SQLite's zone-less wall clock (this server's, as it was written).
+ */
+export function instantOf(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const at = value instanceof Date ? value : new Date(/^\d{4}-\d{2}-\d{2} \d/.test(String(value)) ? String(value).replace(' ', 'T') : String(value));
+  const ms = at.getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
 /** An update of a row of a table that keeps states: the move, then the lock, then the dates that only move later. */
 async function judgeOwnUpdate(
   db: Db,
@@ -287,7 +321,7 @@ async function judgeOwnUpdate(
   guard: StateGuard,
 ): Promise<void> {
   const from = text(stored[states.column]) ?? states.initial;
-  if (changed.includes(states.column) && !guard.history) {
+  if (changed.includes(states.column)) {
     const to = text(values[states.column]);
     const move = (states.moves[from] ?? []).find((candidate) => targetOf(candidate) === to);
     const refuse = (message: string, extra: Record<string, unknown> = {}): never => {
@@ -324,11 +358,12 @@ async function judgeOwnUpdate(
       throw new RecordLocked(`This ${table.name} row is ${from}: ${column} can no longer change.`, { column, state: from });
     }
   }
-  if (guard.history) return;
   for (const column of states.onlyLater ?? []) {
     if (!changed.includes(column)) continue;
-    const was = dayOf(stored[column]);
-    const next = dayOf(values[column]);
+    // A moment is compared as a moment, a date as a day.
+    const moment = ['timestamp', 'timestamptz'].includes(table.columns.get(column)?.logicalType ?? '');
+    const was = moment ? instantOf(stored[column]) : dayOf(stored[column]);
+    const next = moment ? instantOf(values[column]) : dayOf(values[column]);
     if (was !== null && (next === null || next < was)) {
       throw new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'out-of-range' } }, reason: 'ONLY_LATER' });
     }
@@ -366,6 +401,9 @@ export async function guardedInsert<T>(
     }
     const parents = await judgeParents(tx, dialect, table, { now: row, was: null }, guard);
     const out = await run(tx);
+    // What this history brought in: its own children may follow it, in its past state.
+    const key = table.primaryKey.length === 1 ? (out as Row | null)?.[table.primaryKey[0]!] : undefined;
+    if (guard.history && guard.created !== undefined && key !== null && key !== undefined) guard.created.add(rowKey(table.id, key));
     if (!guard.history) {
       for (const { parent, key } of parents) {
         if ((parent.clearOnCreate?.length ?? 0) === 0) continue;
@@ -385,6 +423,26 @@ export async function guardedInsert<T>(
  * public API's): a refusal about a row the caller could not see would tell
  * them it exists, so the write then simply matches nothing.
  */
+/**
+ * The parents rows of this table are tied to, held BEFORE the rows
+ * themselves: every writer takes a document before its lines, so a send and
+ * a line edit never wait on each other crosswise (a deadlock on MySQL).
+ * The rows are read as they are, without a lock, only to learn their parents.
+ */
+export async function holdParentsFirst(db: Db, dialect: Dialect, table: ResolvedTable, match: Row, values?: Row): Promise<void> {
+  const parents = table.table?.stateParents ?? [];
+  if (parents.length === 0 || dialect === 'sqlite') return;
+  const peek = await heldRows(db, 'sqlite', table.id, match);
+  for (const parent of [...parents].sort((a, b) => (a.table < b.table ? -1 : a.table > b.table ? 1 : 0))) {
+    const keys = new Map<string, unknown>();
+    for (const side of [...peek, ...(values === undefined ? [] : [values])]) {
+      const key = side[parent.via];
+      if (key !== null && key !== undefined) keys.set(String(key), key);
+    }
+    for (const key of [...keys.keys()].sort()) await heldRows(db, dialect, parent.table, { [parent.key]: keys.get(key) });
+  }
+}
+
 export async function guardedUpdate(
   db: Db,
   dialect: Dialect,
@@ -397,6 +455,7 @@ export async function guardedUpdate(
   const guard = guardOf(values);
   if (guard === undefined || !tiedToStates(table)) return run(db);
   return within(db, async (tx) => {
+    await holdParentsFirst(tx, dialect, table, match, values);
     for (const stored of await heldRows(tx, dialect, table.id, match)) {
       const changed = Object.keys(values).filter((column) => !sameValue(values[column], stored[column]));
       if (changed.length === 0) continue;
@@ -414,9 +473,35 @@ export async function guardedUpdate(
 }
 
 /**
- * A DELETE of rows tied to states. A numbered row, or one in a `noDelete`
- * state, is never deleted, nor a locked one — it is voided instead; a child
- * row's parent is held and judged.
+ * Whether a row of this table may be deleted: a numbered row, one in a
+ * `noDelete` state, or a locked one never is — it is voided instead — and a
+ * child row's parent is judged (a sent invoice keeps its lines). Throws the
+ * refusal. `dialect` says how rows are read: holding them inside the delete's
+ * own transaction, or as they are (`deleteRefusal`), before anyone is asked
+ * to confirm a delete that would only be refused.
+ */
+async function judgeDelete(db: Db, dialect: Dialect, table: ResolvedTable, stored: Row, guard: StateGuard): Promise<void> {
+  const states = table.table?.states;
+  if (states !== undefined) {
+    const state = text(stored[states.column]) ?? states.initial;
+    const when = states.noDelete?.when;
+    const numbered =
+      when === 'numbered' && (table.table?.columns ?? []).some((column) => column.sequence?.gapless === true && stored[column.name] !== null && stored[column.name] !== undefined);
+    if (numbered || (Array.isArray(when) && when.includes(state))) {
+      throw new DeleteRefused(`This ${table.name} row cannot be deleted${numbered ? ': it has a number' : ` while it is ${state}`}. Void it instead.`, {
+        state,
+        numbered,
+      });
+    }
+    if (await lockedNow(db, dialect, table, stored)) {
+      throw new DeleteRefused(`This ${table.name} row is ${state}, so it cannot be deleted.`, { state, numbered: false });
+    }
+  }
+  await judgeParents(db, dialect, table, { now: null, was: stored }, guard);
+}
+
+/**
+ * A DELETE of rows tied to states, each judged holding it (`judgeDelete`).
  */
 export async function guardedDelete(
   db: Db,
@@ -428,25 +513,25 @@ export async function guardedDelete(
 ): Promise<number> {
   if (guard === undefined || !tiedToStates(table)) return run(db);
   return within(db, async (tx) => {
-    for (const stored of await heldRows(tx, dialect, table.id, match)) {
-      const states = table.table?.states;
-      if (states !== undefined && !guard.history) {
-        const state = text(stored[states.column]) ?? states.initial;
-        const when = states.noDelete?.when;
-        const numbered =
-          when === 'numbered' && (table.table?.columns ?? []).some((column) => column.sequence?.gapless === true && stored[column.name] !== null && stored[column.name] !== undefined);
-        if (numbered || (Array.isArray(when) && when.includes(state))) {
-          throw new DeleteRefused(`This ${table.name} row cannot be deleted${numbered ? ': it has a number' : ` while it is ${state}`}. Void it instead.`, {
-            state,
-            numbered,
-          });
-        }
-        if (await lockedNow(tx, dialect, table, stored)) {
-          throw new DeleteRefused(`This ${table.name} row is ${state}, so it cannot be deleted.`, { state, numbered: false });
-        }
-      }
-      await judgeParents(tx, dialect, table, { now: null, was: stored }, guard);
-    }
+    await holdParentsFirst(tx, dialect, table, match);
+    for (const stored of await heldRows(tx, dialect, table.id, match)) await judgeDelete(tx, dialect, table, stored, guard);
     return run(tx);
   });
+}
+
+/**
+ * The refusal a delete of this row would meet, or null — read as the row is
+ * now, holding nothing: what a person is told before they are asked to
+ * confirm anything. The delete itself judges again, holding the row.
+ */
+export async function deleteRefusal(db: Db, table: ResolvedTable, stored: Row, guard: StateGuard | undefined): Promise<AppError | null> {
+  if (guard === undefined || !tiedToStates(table)) return null;
+  try {
+    // Read without locks: SQLite's reading takes none.
+    await judgeDelete(db, 'sqlite', table, stored, guard);
+    return null;
+  } catch (error) {
+    if (error instanceof DeleteRefused || error instanceof RecordLocked) return error;
+    throw error;
+  }
 }

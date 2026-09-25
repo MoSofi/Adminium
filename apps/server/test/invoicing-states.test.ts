@@ -125,13 +125,13 @@ for (const [dialect, available] of LEGS) {
       await expect(w.update('invoice_lines', line['id'], { rate: '90' })).rejects.toMatchObject({ code: 'RECORD_LOCKED' });
       await expect(w.create('invoice_lines', { invoice_id: invoice['id'], qty: '1', rate: '5' })).rejects.toMatchObject({ code: 'RECORD_LOCKED' });
       await expect(w.remove('invoice_lines', line['id'])).rejects.toMatchObject({ code: 'RECORD_LOCKED' });
-      // The multi-row doors: a bulk edit's prepared rows, and the import (history) which may add a line.
+      // The multi-row doors: a bulk edit's prepared rows, and an import.
       const target = w.targetOf('invoice_lines');
       const [prepared] = await w.writes.beforeEach('update', target, w.desk, [{ match: { id: line['id'] }, values: w.prepared('invoice_lines', { position: 3 }) }]);
       await expect(updateRows(w.db, w.dialect, target.table, prepared!.values, { id: line['id'] })).rejects.toMatchObject({ code: 'RECORD_LOCKED' });
-      const imported = await w.create('invoice_lines', { invoice_id: invoice['id'], qty: '1', rate: '1' }, history);
-      expect(imported['id']).toBeDefined();
-      expect((await h.rows(`select id from ${h.real('invoice_lines')} where invoice_id = ${String(invoice['id'])}`)).length).toBe(2);
+      // An import adds no line to an invoice it did not bring in itself.
+      await expect(w.create('invoice_lines', { invoice_id: invoice['id'], qty: '1', rate: '1' }, history)).rejects.toMatchObject({ code: 'RECORD_LOCKED' });
+      expect((await h.rows(`select id from ${h.real('invoice_lines')} where invoice_id = ${String(invoice['id'])}`)).length).toBe(1);
     });
 
     it("take a payment only on a sent invoice, clear the client's word that they paid, and keep its date within dates", async () => {
@@ -214,7 +214,8 @@ for (const [dialect, available] of LEGS) {
       const { w, client, row } = await harness(dialect);
       const past = await w.create('invoices', { client_id: client['id'], status: 'sent', number: 'INV-1999' }, history);
       expect((await row('invoices', past['id']))['status']).toBe('sent');
-      const outbox = outboxContext('studio');
+      // As though the proposals were the outbox's own table: its own writes there keep their own moves.
+      const outbox = outboxContext('studio', w.targetOf('proposals').table.id);
       const made = await w.create('proposals', { client_id: client['id'], status: 'accepted' }, outbox);
       expect((await row('proposals', made['id']))['status']).toBe('accepted');
     });
@@ -298,6 +299,55 @@ for (const [dialect, available] of LEGS) {
       expect(undone.statusCode, undone.body).toBe(409);
       expect(undone.json<{ error: { details: { reason: string } } }>().error.details.reason).toBe('UNDO_STATES');
       void w;
+    });
+
+    it('refuses a delete the states forbid before asking anyone to confirm what goes with it', async () => {
+      const { h, w, client, sent } = await harness(dialect);
+      const { invoice, line } = await sent();
+      routes = await dataRoutesOver(h, dialect);
+      const r = routes;
+      const headers = { 'x-test-user-id': r.t.users.admin.id };
+      const remove = (ref: string, id: unknown, query = '') =>
+        r.t.app.inject({ method: 'DELETE', url: `/api/v1/data/${r.connectionId}/${r.table(ref)}/${String(id)}${query}`, headers });
+      const codeOf = (reply: { json: <T>() => T }) => reply.json<{ error: { code: string } }>().error.code;
+      // A numbered invoice with a line pointing at it: refused at once, dry run too — not "confirm its references".
+      for (const query of ['', '?dryRun=true', '?confirm=true']) {
+        const reply = await remove('invoices', invoice['id'], query);
+        expect(reply.statusCode, `${query} ${reply.body}`).toBe(409);
+        expect(codeOf(reply)).toBe('DELETE_REFUSED');
+      }
+      // A sent invoice's line: refused at once.
+      const lineReply = await remove('invoice_lines', line['id']);
+      expect(lineReply.statusCode, lineReply.body).toBe(409);
+      expect(codeOf(lineReply)).toBe('RECORD_LOCKED');
+      // A delete the states allow keeps its question: a client with an invoice pointing at it.
+      const asked = await remove('clients', client['id']);
+      expect(asked.statusCode, asked.body).toBe(409);
+      expect(codeOf(asked)).toBe('CONFLICT');
+      // Bulk: one accepted proposal among drafts refuses the batch at once, naming it, and nothing goes.
+      const drafts = [await w.create('proposals', { client_id: client['id'] }), await w.create('proposals', { client_id: client['id'] })];
+      const kept = await w.create('proposals', { client_id: client['id'] });
+      await w.update('proposals', kept['id'], { status: 'sent' });
+      await w.update('proposals', kept['id'], { status: 'accepted', signed_name: 'Ann' });
+      const ids = [...drafts, kept].map((row) => String(row['id']));
+      const bulk = await r.t.app.inject({
+        method: 'POST',
+        url: `/api/v1/data/${r.connectionId}/${r.table('proposals')}/bulk`,
+        headers,
+        payload: { action: 'delete', ids },
+      });
+      expect(bulk.statusCode, bulk.body).toBe(409);
+      expect(bulk.json<{ error: { code: string; details: { id: string } } }>().error).toMatchObject({ code: 'DELETE_REFUSED', details: { id: String(kept['id']) } });
+      expect((await h.rows(`select id from ${h.real('proposals')}`)).length).toBe(3);
+      // Only drafts: they go.
+      const allowed = await r.t.app.inject({
+        method: 'POST',
+        url: `/api/v1/data/${r.connectionId}/${r.table('proposals')}/bulk`,
+        headers,
+        payload: { action: 'delete', ids: ids.slice(0, 2) },
+      });
+      expect(allowed.statusCode, allowed.body).toBe(200);
+      expect((await h.rows(`select id from ${h.real('proposals')}`)).map((row) => String(row['id']))).toEqual([String(kept['id'])]);
     });
   });
 

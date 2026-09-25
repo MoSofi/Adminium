@@ -81,7 +81,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import { getPrincipal } from '../rbac/principal.js';
 import { checkCapacity, touchesGuard, withSlotLock } from './capacity-guard.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
-import { decideRow, needsStored, stampFires, type DecideContext } from './decide.js';
+import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   checkRow,
@@ -101,7 +101,7 @@ import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js'
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
 import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
-import { attachExpect, attachGuard, dayOf, expectOf, guardOf, guardedDelete, guardedInsert, guardedUpdate, rowMoved, tiedToStates, type ClearColumns } from './states.js';
+import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, tiedToStates, type ClearColumns } from './states.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
 import {
@@ -1023,6 +1023,13 @@ export interface RecordWriteService {
   create(input: CreateRecordInput): Promise<Row>;
   update(input: UpdateRecordInput): Promise<UpdateOutcome>;
   delete(input: DeleteRecordInput): Promise<number>;
+  /**
+   * The refusal deleting these rows would meet from the table's states (a
+   * numbered or locked row, a sent invoice's line), or null — read before the
+   * delete, so a person is told straight away rather than asked first to
+   * confirm what goes with the row. The delete judges again, holding it.
+   */
+  deleteRefusal(target: WriteTarget, context: WriteContext, rows: readonly Row[]): Promise<AppError | null>;
   /** Whether a multi-row write needs {@link beforeEach} or {@link afterEach} at all. */
   wants(timing: HookTiming, action: WriteAction, target: WriteTarget, context: WriteContext): Promise<boolean>;
   /**
@@ -1167,6 +1174,30 @@ function normalizeText(rules: TableRules | null, values: Row): Row {
   return out ?? values;
 }
 
+/**
+ * The values without the columns Adminium stamps: a fingerprint, when
+ * something happened and who did it — its own record of a write, never the
+ * writer's. Two kinds stay open: a date worked out from another (a due date
+ * the desk may move later), and a `byOrigin` word with no staff word (staff
+ * say it themselves; a guest never does). An import keeps what it brings.
+ */
+function withoutStamped(rules: TableRules | null, values: Row, origin: WriteOrigin): Row {
+  if (origin === 'import' || origin === 'undo') return values;
+  const guest = origin === 'public';
+  const kept = (stamp: { set: unknown }): boolean => {
+    const set = stamp.set;
+    if (typeof set !== 'object' || set === null) return false;
+    if ('addDays' in set) return !guest;
+    if ('byOrigin' in set) return !guest && (set as { byOrigin: { staff?: string } }).byOrigin.staff === undefined;
+    return false;
+  };
+  const dropped = [...(rules?.stamps ?? []).filter((stamp) => !kept(stamp)), ...(rules?.seals ?? [])].map((stamp) => stamp.column);
+  if (!dropped.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
+  const out = { ...values };
+  for (const column of dropped) delete out[column];
+  return out;
+}
+
 /** Two refusals as one: a column named twice keeps its first issue. */
 function mergeIssues(a: FieldIssues | null, b: FieldIssues | null): FieldIssues | null {
   if (a === null) return b;
@@ -1207,7 +1238,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     values: Row,
     now: Date,
   ): Row => {
-    const out = normalizeText(rules, withoutReadOnly(rules, fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor }), context.origin));
+    const out = normalizeText(
+      rules,
+      withoutStamped(rules, withoutReadOnly(rules, fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor }), context.origin), context.origin),
+    );
     // A new document starts in its first state.
     const states = rules?.states;
     if (action !== 'create' || states === undefined || Object.prototype.hasOwnProperty.call(out, states.column)) return out;
@@ -1238,12 +1272,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if ((rules?.bounds?.length ?? 0) === 0 || action === 'delete' || context.origin === 'import' || context.origin === 'undo') return null;
     let issues: FieldIssues | null = null;
     const row = { ...(stored ?? {}), ...values };
+    const zone = (await zoneFor(rules, target)) ?? 'UTC';
+    const moment = (column: string) => ['timestamp', 'timestamptz'].includes(target.table.columns.get(column)?.logicalType ?? '');
+    /** A value's day on the venue's calendar: a moment where the venue is, a date as itself. */
+    const venueDay = (column: string, value: unknown): string | null => {
+      if (!moment(column)) return dayOf(value);
+      const at = instantOf(value);
+      return at === null ? null : venueClock(new Date(at), zone).day;
+    };
     for (const bound of rules!.bounds!) {
-      if (!Object.prototype.hasOwnProperty.call(values, bound.column)) continue;
-      const day = dayOf(values[bound.column]);
+      // Judged when the date is written, and when the row it is bounded by changes (a payment moved to another invoice).
+      const via = bound.notBefore?.through?.via;
+      const written = Object.prototype.hasOwnProperty.call(values, bound.column) || (via !== undefined && Object.prototype.hasOwnProperty.call(values, via));
+      if (!written) continue;
+      const day = venueDay(bound.column, row[bound.column]);
       if (day === null) continue;
       let refused = false;
-      if (bound.notAfter === 'today') refused = day > venueClock(new Date(), (await zoneFor(rules, target)) ?? 'UTC').day;
+      if (bound.notAfter === 'today') refused = day > venueClock(new Date(), zone).day;
       const before = bound.notBefore;
       if (!refused && before !== undefined) {
         let other: unknown = row[before.column];
@@ -1304,14 +1349,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (rules === null || context.origin === 'undo') return values;
     const history = context.origin === 'import';
     let out: Row = values;
-    if (tiedToStates(target.table) && !isOutboxWrite(context)) {
+    // The outbox's own writes keep their own moves — on the outbox's own table only.
+    if (tiedToStates(target.table) && !isOutboxWrite(context, target.table.id)) {
       const roleMoves = Object.values(rules.states?.moves ?? {}).some((moves) => moves.some((move) => typeof move === 'object' && move.roles !== undefined));
-      const roles = !history && action === 'update' && roleMoves ? ((await opts.rolesOf?.(context.actor ?? null)) ?? new Set<string>()) : new Set<string>();
+      // An import's move of a row already there is a move like anyone's: its roles too.
+      const roles = action === 'update' && roleMoves ? ((await opts.rolesOf?.(context.actor ?? null)) ?? new Set<string>()) : new Set<string>();
+      // Only what this write's rules really wrote is theirs: a stamp that fired and gave nothing is not.
       const decided = [
-        ...[...(rules.stamps ?? []), ...(rules.seals ?? [])].filter((stamp) => stampFires(stamp, action, values, stored)).map((stamp) => stamp.column),
+        ...(rules.stamps ?? [])
+          .filter((stamp) => stampFires(stamp, action, values, stored) && stampYields(stamp, context.origin, context.claimed ?? null))
+          .map((stamp) => stamp.column),
+        ...(rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored)).map((stamp) => stamp.column),
         ...(rules.formulas ?? []).map((formula) => formula.column),
       ];
-      out = attachGuard(out, { history, roles, decided });
+      out = attachGuard(out, { history, roles, decided, ...(history ? { created: createdBy(context) } : {}) });
     }
     const seals = history || action === 'delete' ? [] : (rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored));
     if (seals.length > 0) out = attachSeals(out, { view: target.view, stamps: seals, currency: await currencyFor(target)() });
@@ -1514,6 +1565,36 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       held.set(parent, await holdBalances(target.db, target.dialect, parent, rollup.parentKey, keys, rollup.balances));
     }
     return held;
+  }
+
+  /**
+   * The parents a row feeds or is tied to, held BEFORE the row itself. Every
+   * writer takes a document before its lines — a send holds the invoice and
+   * then counts its lines, and a line edit now holds the invoice too before
+   * its line — so the two never wait on each other crosswise (a deadlock on
+   * MySQL). The row is read as it is, without a lock, only to learn which
+   * parents; SQLite writes one transaction at a time and needs none of it.
+   */
+  async function holdFirst(rules: TableRules | null, target: WriteTarget, pk: Row, values?: Row): Promise<void> {
+    if (target.dialect === 'sqlite') return;
+    const feeds = rules?.rollupsInto ?? [];
+    if (feeds.length > 0) {
+      const peek = (await fetchByPk(target.db, target.table, pk)) ?? null;
+      const byParent = new Map<string, { key: string; keys: unknown[] }>();
+      for (const rollup of feeds) {
+        const entry = byParent.get(rollup.parent) ?? { key: rollup.parentKey, keys: [] };
+        for (const side of [peek, values ?? null]) {
+          const key = side?.[rollup.via];
+          if (key !== null && key !== undefined) entry.keys.push(key);
+        }
+        byParent.set(rollup.parent, entry);
+      }
+      for (const parent of [...byParent.keys()].sort()) {
+        const { key, keys } = byParent.get(parent)!;
+        await holdBalances(target.db, target.dialect, parent, key, keys, []);
+      }
+    }
+    await holdParentsFirst(target.db, target.dialect, target.table, pk, values);
   }
 
   /** Hold a row whose own capped balance a write moves; add its totals up again; read its balances. */
@@ -1922,6 +2003,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // reads. Held too when it feeds a parent's total or works a formula
         // out: a writer moving it meanwhile would leave this one settling the
         // wrong parent, and a line settled meanwhile a subtotal read too early.
+        // The document before its line: every writer takes the parent first (see `holdFirst`).
+        await holdFirst(rules, within, pk, checkedValues);
         const prior =
           capacity !== undefined || booking !== undefined || rolls
             ? ((holdsParent(rules) || worked.length > 0 ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
@@ -2005,9 +2088,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         input.refine !== undefined && before === null ? undefined : { dialect: target.dialect, prepared: await carry(rules, 'delete', target, context, brand({}), before) };
       const count = rolls
         ? await conflicted(() => atomically(target, async (db) => {
-            // The parent the row fed, read — and held — before it goes.
-            const gone = (await fetchHeld(db, target, pk)) ?? null;
+            // The parent the row fed, held first; then the row, read — and held — before it goes.
             const within = { ...target, db };
+            await holdFirst(rules, within, pk);
+            const gone = (await fetchHeld(db, target, pk)) ?? null;
             const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
             const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged), input.mapError);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);
@@ -2020,6 +2104,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         await hooks.after({ action: 'delete', target, record: before, before: null, context });
       }
       return count;
+    },
+
+    async deleteRefusal(target, context, rows) {
+      if (!tiedToStates(target.table)) return null;
+      const rules = rulesOf(target);
+      for (const row of rows) {
+        const refused = await deleteRefusal(target.db, target.table, row, guardOf(await carry(rules, 'delete', target, context, brand({}), row)));
+        if (refused !== null) return refused;
+      }
+      return null;
     },
 
     async beforeEach(action, target, context, rows, beforeOpts) {

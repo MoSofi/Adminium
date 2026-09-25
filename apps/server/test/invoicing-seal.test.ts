@@ -18,7 +18,7 @@
  */
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 
-import { fingerprintOf } from '../src/crud/seal.js';
+import { canonicalValue, fingerprintOf } from '../src/crud/seal.js';
 import type { HashOf } from '../src/connections/effective-schema.js';
 import type { WriteContext } from '../src/crud/write-service.js';
 import { LEGS, installInvoicing, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -134,6 +134,20 @@ for (const [dialect, available] of LEGS) {
     });
   });
 }
+
+describe('a moment in the canonical form', () => {
+  it('is spelled as the UTC instant, whatever the engine handed back', () => {
+    const at = new Date('2030-06-15T01:00:00Z');
+    // SQLite hands back the wall clock the moment was written in: this server's.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const wall = `${String(at.getFullYear())}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;
+    for (const logicalType of ['timestamp', 'timestamptz'] as const) {
+      expect(canonicalValue({ logicalType } as never, at, {}, null)).toBe('2030-06-15T01:00:00.000Z');
+      expect(canonicalValue({ logicalType } as never, wall, {}, null)).toBe('2030-06-15T01:00:00.000Z');
+      expect(canonicalValue({ logicalType } as never, '2030-06-15T03:00:00+02:00', {}, null)).toBe('2030-06-15T01:00:00.000Z');
+    }
+  });
+});
 
 describe('fingerprints across engines', () => {
   afterAll(() => byEngine.clear());

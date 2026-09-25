@@ -256,7 +256,7 @@ export function columnRuleIssue(
 
     case 'column.bounds': {
       // SQLite keeps a date as text, and says so.
-      const dated = (c: ColumnModel) => c.logicalType === 'date' || c.logicalType === 'timestamp' || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(c.logicalType));
+      const dated = (c: ColumnModel) => ['date', 'timestamp', 'timestamptz'].includes(c.logicalType) || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(c.logicalType));
       if (!dated(column)) return `Only a date is kept within dates; ${name} is ${column.logicalType}.`;
       const bound = value['notBefore'] as { column?: unknown; via?: unknown } | undefined;
       if (bound === undefined) return null;

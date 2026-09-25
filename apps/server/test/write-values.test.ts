@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { normalizeWriteValue } from '../src/crud/write-values.js';
+import { normalizeWriteValue, sameValue } from '../src/crud/write-values.js';
 import type { ResolvedColumn } from '../src/crud/identifiers.js';
 
 function column(logicalType: ResolvedColumn['logicalType']): ResolvedColumn {
@@ -100,5 +100,26 @@ describe('wallTimesAsInstants', () => {
     expect(wallTimesAsInstants({ starts_at: wall, name: '2026-09-25 01:00:00' }, columns, 'sqlite')).toEqual({ starts_at: local, name: wall });
     expect(wallTimesAsInstants({ starts_at: wall }, columns, 'postgres')).toEqual({ starts_at: wall });
     expect(wallTimesAsInstants({ starts_at: '2026-09-24T23:00:00.000Z' }, columns, 'sqlite')).toEqual({ starts_at: '2026-09-24T23:00:00.000Z' });
+  });
+});
+
+describe('the same answer, however it is spelled', () => {
+  it('compares a JSON value by what it holds, as an object or as SQLite keeps it', () => {
+    expect(sameValue({ po: 'A-1', n: 1 }, { n: 1, po: 'A-1' })).toBe(true);
+    expect(sameValue('{"n":1,"po":"A-1"}', { po: 'A-1', n: 1 })).toBe(true);
+    expect(sameValue({ po: 'A-1' }, { po: 'CHANGED' })).toBe(false);
+    expect(sameValue([1, 2], [2, 1])).toBe(false);
+  });
+
+  it('compares a date or a moment as that day or that instant', () => {
+    // A `date` column as Postgres and MySQL hand it back: the server's local midnight.
+    const day = new Date(2026, 8, 1);
+    expect(sameValue(day, '2026-09-01')).toBe(true);
+    expect(sameValue('2026-09-01', day)).toBe(true);
+    expect(sameValue(day, '2026-09-02')).toBe(false);
+    expect(sameValue(day, day.toISOString())).toBe(true);
+    expect(sameValue(day, new Date(day.getTime()))).toBe(true);
+    expect(sameValue(new Date('2030-06-15T01:00:00Z'), '2030-06-15T03:00:00+02:00')).toBe(true);
+    expect(sameValue(new Date('2030-06-15T01:00:00Z'), new Date('2030-06-15T01:00:01Z'))).toBe(false);
   });
 });

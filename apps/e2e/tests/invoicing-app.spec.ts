@@ -566,10 +566,11 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     expect((await rows('settings')).map((s) => s['studio_name'])).toEqual(['Ledger Studio']);
 
     // ── two invoices at once: consecutive numbers, never a gap or a repeat ─
+    // Alike, since which of the two takes INV-0001 is the race's to decide.
     const cleo = await add('clients', CLEO);
     const created = await Promise.all([
       staff.post(data('invoices'), { data: { values: { client_id: cleo['id'], tax_rate: 20, due_on: '2026-01-10' } } }),
-      staff.post(data('invoices'), { data: { values: { client_id: cleo['id'], tax_rate: 0, due_on: '2026-01-10' } } }),
+      staff.post(data('invoices'), { data: { values: { client_id: cleo['id'], tax_rate: 20, due_on: '2026-01-10' } } }),
     ]);
     const pair = await Promise.all(created.map(async (res) => (await ok<{ data: Row }>(res, 201)).data));
     expect(pair.map((i) => num(i['number_seq'])).sort()).toEqual([1, 2]);
@@ -693,8 +694,8 @@ test.describe('an invoicing app built on an add-on, end to end', () => {
     // Back to draft is not a move; a numbered invoice is never deleted.
     const back = await staff.patch(`${data('invoices')}/${String(invoice['id'])}`, { data: { values: { status: 'draft' } } });
     expect(await codeOf(back)).toBe('STATE_MOVE_REFUSED');
-    // Confirmed past the question about its lines: still never deleted.
-    const gone = await staff.delete(`${data('invoices')}/${String(invoice['id'])}?confirm=true`);
+    // Refused at once: nobody is asked to confirm its lines going with a row that will not go.
+    const gone = await staff.delete(`${data('invoices')}/${String(invoice['id'])}`);
     expect(gone.status()).toBe(409);
     expect(await codeOf(gone)).toBe('DELETE_REFUSED');
     // Paid in part, it cannot be voided.

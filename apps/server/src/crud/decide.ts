@@ -52,7 +52,7 @@ import type { Dialect } from '@adminium/engine';
 
 import type { StampTrigger, TableBookingRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { ConflictError } from '../errors.js';
+import { ConflictError, ValidationFailedError } from '../errors.js';
 import { bookingCounts } from './booking-guard.js';
 import { numberOf, slotInstant } from './capacity-guard.js';
 import type { ColumnStamp, TableRules } from './column-rules.js';
@@ -174,10 +174,42 @@ function stampValue(stamp: ColumnStamp, context: DecideContext, row: Row): unkno
     if (from === null) return null;
     const { days, map } = set.addDays;
     const count = typeof days === 'number' ? days : map !== undefined ? map[String(row[days])] : Number(row[days]);
-    return count === undefined || !Number.isFinite(count) ? undefined : addDays(from, count);
+    if (count === undefined || !Number.isFinite(count)) return undefined;
+    // A number of days a calendar holds: a hundred years either way, never a date past the end of time.
+    if (Math.abs(count) > MAX_DAYS) {
+      throw new ValidationFailedError('Some values were refused.', {
+        fields: { [typeof days === 'string' ? days : stamp.column]: { code: 'out-of-range' } },
+        column: typeof days === 'string' ? days : stamp.column,
+      });
+    }
+    return addDays(from, Math.trunc(count));
   }
   // A fingerprint is sealed later, over everything the write stored.
   return undefined;
+}
+
+/** A hundred years of days: more is no date anyone keeps. */
+const MAX_DAYS = 36_600;
+
+/**
+ * Whether a stamp writes something for this writer. It writes nothing when
+ * the writer is nobody (a guest, for a person's name), when a guest's
+ * session names no row (`claim`), or when staff have a word of their own to
+ * say (`byOrigin` with no staff word).
+ */
+export function stampYields(stamp: Pick<ColumnStamp, 'set'>, origin: WriteOrigin, claimed: Row | null): boolean {
+  const set = stamp.set;
+  const guest = origin === 'public';
+  if (typeof set === 'string') return set === 'now' || set === 'today' || !guest;
+  if ('byOrigin' in set) return guest || set.byOrigin.staff !== undefined;
+  if ('claim' in set) return guest ? claimed?.[set.claim] !== undefined && claimed?.[set.claim] !== null : set.staff !== undefined;
+  return !('hashOf' in set);
+}
+
+/** Whether a stamp that fired and gave nothing leaves the writer's own value: only staff's own word (`byOrigin` with no staff word). */
+function writerSays(stamp: ColumnStamp, origin: WriteOrigin): boolean {
+  const set = stamp.set;
+  return typeof set === 'object' && 'byOrigin' in set && set.byOrigin.staff === undefined && origin !== 'public';
 }
 
 function stampRow(stamps: readonly ColumnStamp[], action: WriteAction, values: Row, before: Row | null, context: DecideContext): Row {
@@ -187,7 +219,14 @@ function stampRow(stamps: readonly ColumnStamp[], action: WriteAction, values: R
   for (const stamp of ordered) {
     if (!stampFires(stamp, action, values, before)) continue;
     const value = stampValue(stamp, context, { ...(before ?? {}), ...(out ?? values) });
-    if (value === undefined) continue;
+    if (value === undefined) {
+      // Fired, and gave nothing: what the writer sent there is not taken for it — unless it is staff's own word.
+      if (has(out ?? values, stamp.column) && !writerSays(stamp, context.origin)) {
+        out ??= { ...values };
+        delete out[stamp.column];
+      }
+      continue;
+    }
     out ??= { ...values };
     out[stamp.column] = value;
   }

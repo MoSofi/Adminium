@@ -42,7 +42,7 @@ import type { ColumnStamp } from './column-rules.js';
 import { placesFor } from './formulas.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
-import { dayOf } from './states.js';
+import { dayOf, instantOf } from './states.js';
 
 type Db = Kysely<SourceDatabase>;
 
@@ -103,9 +103,12 @@ export function canonicalValue(column: Pick<EffectiveColumn, 'logicalType' | 'sc
       return value === true || value === 1 || value === '1' || value === 't' || value === 'true';
     case 'date':
       return dayOf(value);
-    case 'timestamp': {
-      const at = value instanceof Date ? value : new Date(String(value));
-      return Number.isNaN(at.getTime()) ? String(value) : at.toISOString();
+    case 'timestamp':
+    case 'timestamptz': {
+      // One spelling on every engine: the instant in UTC. SQLite hands back the
+      // wall clock it was written in (this server's), Postgres and MySQL a Date.
+      const at = instantOf(value);
+      return at === null ? String(value) : new Date(at).toISOString();
     }
     case 'json':
       return typeof value === 'string' ? (() => {
