@@ -166,7 +166,9 @@ shows a banner naming what happened:
 
 A page changed on both sides offers two buttons: **Keep server copy** leaves it
 flagged until you pull it, and **Use project copy** applies the file's version
-now.
+now. For a schema file, using the project copy needs Super Admin when it would
+show a column kept from readers — a secret, or a personal column's mask — as the
+same change made in Studio does.
 
 **Studio → Settings → Project** (super admins) shows the whole picture for the
 project the server runs: which folder, whether it runs as `dev` or as a server,

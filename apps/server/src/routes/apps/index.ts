@@ -135,7 +135,7 @@ import {
   findSampleApp,
   type SampleDataDeps,
 } from '../../apps/sample-data.js';
-import { ownRules, removeManifestRules, shapeRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
+import { ownRules, removeManifestRules, rulesKeptBack, shapeRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
 import { formIssues, layoutTables } from '../../apps/manifest-page-config.js';
 import {
@@ -778,6 +778,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       pageProblems.length === 0
         ? pure
         : { ...pure, problems: [...pure.problems, ...pageProblems], installable: false };
+    // A rule that would show a secret of a table the app reuses is skipped at install: said now.
+    const ruleWarnings = await rulesKeptBack(
+      deps.meta,
+      manifest,
+      connectionId,
+      plan.reuse.map((table) => ({ ref: table.ref, tableName: plan.names?.[table.ref] ?? table.ref })),
+    );
     return {
       plan,
       shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
@@ -822,6 +829,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         requiresSchemaChange:
           plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0),
         missingColumnsEdit: missingColumnsEdit(plan, manifest),
+        ...(ruleWarnings.length === 0 ? {} : { ruleWarnings }),
         sampleData: manifest.kind === 'app' && manifest.sampleData !== undefined,
         ...(addOnGrantsOf(manifest).length === 0 ? {} : { addOnGrants: addOnGrantsOf(manifest) }),
         pageWarnings:

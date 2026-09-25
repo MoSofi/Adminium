@@ -1033,6 +1033,25 @@ function PlanAlerts({ plan }: { plan: AppInstallPlan }) {
       </Alert>
     )}
 
+    {/* Not a refusal: the app installs, and a table it reuses keeps its
+        secrets — the rule that would show one is skipped, as said here. */}
+    {(plan.ruleWarnings ?? []).length === 0 ? null : (
+      <Alert
+        tone="warn"
+        data-testid="app-install-rule-warnings"
+        title={t(
+          'studio:hostedApps.install.plan.ruleWarnings',
+          'Some of this app’s rules would show what a table of yours keeps hidden, and are left out',
+        )}
+      >
+        <ul className="list-disc ps-5">
+          {(plan.ruleWarnings ?? []).map((warning) => (
+            <li key={`${warning.table}.${warning.column}`}>{warning.message}</li>
+          ))}
+        </ul>
+      </Alert>
+    )}
+
     {/* Not a refusal: the app installs, and these pages arrive empty,
         each showing the "this page has no table" notice that leads to
         the fix. Said here so it is not a surprise afterwards. */}

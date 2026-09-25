@@ -625,6 +625,7 @@ export default {
         "ddl": "DDL-Vorschau",
         "ddlNote": "Beispielhaft. Der Server erzeugt die exakte Anweisung für Ihre Engine, inklusive Fremdschlüsseln.",
         "summary": "{created} angelegt · {reused} wiederverwendet",
+        "ruleWarnings": "Einige Regeln dieser App würden zeigen, was eine Ihrer Tabellen verbirgt, und werden ausgelassen",
         "pageWarnings": "Einige Seiten dieser App kommen ohne Tabelle an"
       },
       "done": {

@@ -45,7 +45,7 @@ import {
   type ProjectionRefusal,
   type Projections,
 } from '../../crud/projections.js';
-import { canReadPii, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
+import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
 import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import {
   fetchByPk,
@@ -1666,7 +1666,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, result.after ?? before);
               },
             });
-            return { data: maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), undoToken: null };
+            const data = maskRow(outcome.after ?? before, ctx.table, ctx.unmasked);
+            // The new code goes back only to a caller who may read the table: one who may only
+            // change it made a new link, and is not handed it (nor any other code of the row).
+            if (!(await request.can(`table:${ctx.connectionId}:${ctx.table.id}:read`))) {
+              for (const name of codeColumnsOf(ctx.table)) delete data[name];
+            }
+            return { data, undoToken: null };
           } catch (error) {
             // Another row holds the same code: made again, a few times at most.
             if (!isUniqueViolation(error) || attempt >= 2) mapDbError(error, ctx.table);

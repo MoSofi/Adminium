@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 
 import BetterSqlite3 from 'better-sqlite3';
-import { classifyModel, parseDatabaseModel } from '@adminium/engine';
+import { applyClassification, classifyModel, parseDatabaseModel } from '@adminium/engine';
 import {
   diffEnrichment,
   LlmResponseV1,
@@ -43,6 +43,7 @@ import {
 } from '@adminium/meta';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { applyOverrides, columnPolicyFor, columnsShown } from '../src/connections/effective-schema.js';
 import { createApplyService, RunNotApplicableError, type ApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 
@@ -450,6 +451,22 @@ describe('createApplyService', () => {
     const llmPages = (await pagesRepo(meta).listForConnection(connectionId)).filter((p) => p.origin === 'llm');
     expect(llmPages).toHaveLength(2);
     expect(new Set(llmPages.map((p) => p.slug)).size).toBe(2);
+  });
+
+  it('never takes a personal column’s mask off: its PII suggestions are advice, and masking reads only the operator’s rows', async () => {
+    // `customers.email` and `full_name` are masked by the classifier's guess, as introspection stores them.
+    const introspected = applyClassification(model);
+    const masked = () => columnPolicyFor(applyOverrides(introspected, rows).tables.find((t) => t.id === 'public.customers')!).masked;
+    let rows = await overridesRepo(meta).listForConnection(connectionId);
+    const before = [...masked()].sort();
+    expect(before).toEqual(expect.arrayContaining(['email']));
+    // The model rejects the guess outright (an explicit clear), and says another column is plain.
+    const clear = (column: string): OverrideWrite => ({ target: 'override', suggestionId: `pii:public.customers.${column}`, field: 'pii', table: 'public.customers', column, value: null, source: 'llm', confidence: 0.9 });
+    await service.executeApplyPlan({ connectionId, writes: [clear('email'), clear('full_name')], excludedUserLocked: [] } as ApplyPlan);
+    rows = await overridesRepo(meta).listForConnection(connectionId);
+    expect(rows.some((row) => (row.op as string) === 'llm.pii')).toBe(true);
+    expect([...masked()].sort()).toEqual(before);
+    expect(columnsShown(introspected, [], rows)).toEqual([]);
   });
 
   it('rejects applying a run that is not validated', async () => {

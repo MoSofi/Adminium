@@ -88,6 +88,7 @@ export {
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
 
 export {
+  OUTBOX_WRITTEN,
   OUTBOX_HELD,
   OUTBOX_SKIP_REASONS,
   OUTBOX_STATUSES,
@@ -99,7 +100,7 @@ export {
   type OutboxProducer,
 } from './outbox.js';
 
-export { CUSTOMER_KEY, claimKind, claimSchema, publicKeySchema, type Claim, type PublicKey } from './public-access.js';
+export { CUSTOMER_KEY, claimKind, claimSchema, publicKeySchema, shareCodeColumns, type Claim, type PublicKey } from './public-access.js';
 
 export {
   FORMULA_MAX_DEPTH,

@@ -51,7 +51,7 @@ import {
 } from '@adminium/meta';
 
 import type { ResolvedTable } from './identifiers.js';
-import { maskRow, type Row } from './mask.js';
+import { keptImages, type Row } from './mask.js';
 import type { FileReconciler } from '../files/reconcile.js';
 import { publishWidgetDataStream } from '../widget-data/stream-publisher.js';
 import type { WidgetDataCache } from '../widget-data/cache.js';
@@ -207,11 +207,9 @@ export async function afterRecordWrite(
 
   invalidateWidgetData(app, connectionId, table.id);
 
-  const changes = {
-    // Before/after images are PII-redacted in the audit trail.
-    before: before === null ? null : maskRow(before, table, false),
-    after: after === null ? null : maskRow(after, table, false),
-  };
+  // Before/after images are PII-redacted in the audit trail, and carry no
+  // code: whoever reads the audit log may not read this table (`keptImages`).
+  const changes = keptImages(table, before, after);
   const entry = {
     category: input.auditCategory ?? ('data' as AuditCategory),
     action: `record.${action}`,

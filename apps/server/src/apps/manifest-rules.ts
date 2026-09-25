@@ -37,6 +37,18 @@
  * it are written the same way: the operator's rename wins, and an unchanged
  * one goes with the app.
  *
+ * A RULE NEVER SHOWS A SECRET OF A TABLE THE APP DID NOT MAKE. A `secret:
+ * false` (or any rule that would take a column out of the secrets, or take
+ * a personal column's mask off) is written only on a table this app's
+ * install created; on a table it reuses — a `users` table with its
+ * `api_token`, another app's table — it is skipped, with a sentence, and
+ * only an operator can show the column, in Studio, as Super Admin. Judged
+ * the way the Studio guards judge a save: what the whole table keeps from
+ * its readers before the rule and after it. A table the app created gets
+ * one more: the code its shared link opens a row with (`claim: { by:
+ * 'token' }`) is shown to the staff who read the table — the desk copies the
+ * link it hands over — unless the manifest says otherwise.
+ *
  * An app's option list is installed once as `<appKey>-<name>`: the operator
  * may edit it like any other, so a later version never overwrites it, and a
  * list of that key made by anyone else is left alone.
@@ -44,7 +56,7 @@
 import { createHash } from 'node:crypto';
 
 import { parseDatabaseModel, parseEnumCheck, type ColumnModel, type DatabaseModel } from '@adminium/engine';
-import type { BookingRule, ColumnRules, Manifest, States } from '@adminium/manifest';
+import { shareCodeColumns, type BookingRule, type ColumnRules, type Manifest, type States } from '@adminium/manifest';
 import {
   MetaValidationError,
   appTablesRepo,
@@ -62,6 +74,7 @@ import { installedShapes } from '../documents/app-profiles.js';
 import { canonicalJson } from './sample-data.js';
 import { mapTableRefs } from './real-refs.js';
 import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../connections/column-rules-validation.js';
+import { columnsShown } from '../connections/effective-schema.js';
 import { roleSlugFor } from './manifest-roles.js';
 
 export type RuleOp =
@@ -97,6 +110,8 @@ const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'table.label', 
 const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.label', 'table.keyField']);
 
 interface DesiredRule {
+  /** Written only on a table this app created, and silently left out elsewhere (Adminium asks it, not the manifest). */
+  ownTableOnly?: true;
   /** The add-on whose shape owns the rule (the table is built on it). */
   shape?: string;
   /** Table refs the rule names that this install does not have: it is skipped, by name. */
@@ -285,6 +300,83 @@ async function latestModel(meta: MetaDb, connectionId: string): Promise<Database
 }
 
 /**
+ * The columns of one table kept from readers under `before` that are not
+ * under `after`: a secret no longer one, or a personal column no longer
+ * masked — what the Studio save's Super Admin guards judge, for one table.
+ */
+export function secretsLost(model: DatabaseModel, tableId: string, before: readonly SchemaOverride[], after: readonly SchemaOverride[]): string[] {
+  const one = { ...model, tables: model.tables.filter((table) => table.id === tableId) };
+  return columnsShown(one, before, after).map(([, column]) => column);
+}
+
+/**
+ * The columns of `table` a rule would take out of the secrets: the table's
+ * secrets under the active rules, and under them with this one written (in
+ * place of the automatic row it replaces).
+ */
+export function secretsShownBy(
+  model: DatabaseModel,
+  active: readonly SchemaOverride[],
+  rule: { connectionId: string; table: string; column: string; op: string; value: Record<string, unknown>; held?: SchemaOverride | undefined },
+): string[] {
+  const at = Date.now();
+  const written = {
+    id: 'ovr_candidate',
+    connectionId: rule.connectionId,
+    op: rule.op,
+    tableName: rule.table,
+    columnName: rule.column,
+    value: rule.value,
+    origin: 'app',
+    status: 'active',
+    llmRunId: null,
+    createdBy: null,
+    createdAt: at,
+    updatedAt: at,
+  } as SchemaOverride;
+  return secretsLost(model, rule.table, active, [...active.filter((row) => row !== rule.held), written]);
+}
+
+/** Why a rule that would show a secret (or a masked column) of a table the app did not make is not written. */
+function notOursToShow(tableName: string, columns: readonly string[]): string {
+  const named = columns.map((column) => `"${tableName}.${column}"`).join(', ');
+  return `It would show ${named}, which is kept from readers, on a table that was here before the app: only an operator can show it, in Studio, as Super Admin.`;
+}
+
+/**
+ * What the check step says before an install: the rules of the manifest the
+ * install will skip because they would show a secret (or a masked column) of
+ * a table it reuses — asked of the latest snapshot and the rules as they
+ * stand, as the install asks them.
+ */
+export async function rulesKeptBack(
+  meta: MetaDb,
+  manifest: Manifest,
+  connectionId: string,
+  reused: readonly { ref: string; tableName: string }[],
+): Promise<{ table: string; column: string; message: string }[]> {
+  if (manifest.kind !== 'app' || reused.length === 0) return [];
+  const model = await latestModel(meta, connectionId);
+  if (model === null) return [];
+  const active = (await overridesRepo(meta).listForConnection(connectionId)).filter((o) => o.status === 'active');
+  const out: { table: string; column: string; message: string }[] = [];
+  for (const { ref, tableName } of reused) {
+    const real = model.tables.find((t) => t.name === tableName);
+    const table = manifest.requiredSchema?.tables.find((t) => t.ref === ref);
+    if (real === undefined || table === undefined) continue;
+    for (const column of table.columns) {
+      if (column.rules === undefined || !real.columns.some((c) => c.name === column.ref)) continue;
+      const shown = new Set<string>();
+      for (const rule of opsForRules(manifest.key, column.rules)) {
+        for (const name of secretsShownBy(model, active, { connectionId, table: real.id, column: column.ref, op: rule.op, value: rule.value })) shown.add(name);
+      }
+      if (shown.size > 0) out.push({ table: ref, column: column.ref, message: notOursToShow(real.name, [...shown]) });
+    }
+  }
+  return out;
+}
+
+/**
  * Install the app's option lists, then write, replace and take back its
  * column rules against the latest snapshot. Run after the tables exist and
  * have been introspected, on install and on every update.
@@ -426,6 +518,12 @@ export async function writeManifestRules(input: {
         });
       }
     }
+    // The code a shared link opens a row with: the desk's to hand over, on a table the app made (checked below).
+    for (const ref of shareCodeColumns(manifest.publicAccess ?? [], table.ref)) {
+      const declared = table.columns.find((column) => column.ref === ref);
+      if (declared === undefined || declared.rules?.secret !== undefined) continue;
+      desired.push({ ref: table.ref, table: real.id, column: ref, op: 'column.secret', value: { secret: false }, ownTableOnly: true });
+    }
     for (const [op, value] of [
       ['table.capacity', table.capacity],
       ['table.booking', table.booking],
@@ -460,7 +558,10 @@ export async function writeManifestRules(input: {
         continue;
       }
       const want = wanted.get(targetOf(rule.op, rule.table, rule.column));
-      if (want !== undefined && ruleHash(want.value) === rule.valueHash) {
+      // One an earlier version wrote that shows a secret of a table the app did not make: taken back.
+      const shows =
+        record.state !== 'created' && !NAMING_OPS.has(rule.op as RuleOp) && !TABLE_OPS.has(rule.op as RuleOp) && secretsLost(model, rule.table, active.filter((o) => o !== row), active).length > 0;
+      if (want !== undefined && ruleHash(want.value) === rule.valueHash && !shows) {
         kept.push({ ...rule, overrideId: row.id, ...(want.shape === undefined ? {} : { shape: want.shape }) });
         wanted.delete(targetOf(rule.op, rule.table, rule.column));
         continue;
@@ -502,6 +603,15 @@ export async function writeManifestRules(input: {
       if (all.some((o) => o.status === 'disabled' && o.origin !== 'auto' && targetOf(o.op, o.tableName, o.columnName) === target)) {
         skip('The operator switched off the rule for this column.');
         continue;
+      }
+      // A table the app did not make keeps its secrets: only an operator shows one.
+      if (record.state !== 'created' && !NAMING_OPS.has(rule.op) && !TABLE_OPS.has(rule.op)) {
+        if (rule.ownTableOnly === true) continue;
+        const shown = secretsShownBy(model, active, { connectionId, table: rule.table, column: rule.column, op: rule.op, value: rule.value, held });
+        if (shown.length > 0) {
+          skip(notOursToShow(record.tableName, shown));
+          continue;
+        }
       }
       // Adminium's own guess (introspection masks a column named `phone`) is
       // not the operator's word: the app knows its own column better.

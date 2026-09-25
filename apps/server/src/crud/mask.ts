@@ -19,7 +19,7 @@
 
 import type { FastifyRequest } from 'fastify';
 
-import type { ResolvedTable } from './identifiers.js';
+import { SnapshotView, type ResolvedTable } from './identifiers.js';
 
 export const UNMASK_PERMISSION = 'system:connections:manage';
 
@@ -84,4 +84,69 @@ export function maskRow(row: Row, table: ResolvedTable, unmasked: boolean): Row 
 
 export function maskRows(rows: Row[], table: ResolvedTable, unmasked: boolean): Row[] {
   return rows.map((row) => maskRow(row, table, unmasked));
+}
+
+/*
+ * ─── Codes in what is kept ────────────────────────────────────────────────
+ *
+ * A code Adminium makes (`code` rule) is the key to something: the page a
+ * shared link opens, a booking a guest looks up. The staff who read its
+ * table see it, but a copy kept elsewhere is read by people who may not read
+ * the table — the audit log by anyone who holds `system:audit:read`, an
+ * automation's trigger and log in Workflow Logs — and what the assistant
+ * hands a third-party model leaves the instance. So every such copy says
+ * only that a code is there, and whether a write changed it: never the code.
+ */
+
+/** What a kept copy of a row shows in place of a code. */
+export const CODE_KEPT = '[code]';
+/** …and in place of the code a write made new. */
+export const CODE_CHANGED = '[new code]';
+
+/** The columns of a table whose values Adminium makes as codes. */
+export function codeColumnsOf(table: ResolvedTable): Set<string> {
+  return new Set(table.table.columns.filter((column) => column.code !== undefined).map((column) => column.name));
+}
+
+const filled = (value: unknown) => value !== null && value !== undefined && value !== '';
+
+/** A row as a kept copy shows it: masked as for a reader without the PII grant, and no code in it. */
+export function keptRow(row: Row, table: ResolvedTable): Row {
+  const out = maskRow(row, table, false);
+  for (const column of codeColumnsOf(table)) {
+    if (Object.hasOwn(out, column) && filled(out[column])) out[column] = CODE_KEPT;
+  }
+  return out;
+}
+
+/**
+ * The before and after images of one write as the audit log keeps them: no
+ * code in either, and a code the write changed shown changed, so the diff
+ * still says a new link was made.
+ */
+export function keptImages(table: ResolvedTable, before: Row | null, after: Row | null): { before: Row | null; after: Row | null } {
+  const kept = { before: before === null ? null : keptRow(before, table), after: after === null ? null : keptRow(after, table) };
+  if (before === null || after === null || kept.after === null) return kept;
+  for (const column of codeColumnsOf(table)) {
+    if (kept.after[column] === CODE_KEPT && Object.hasOwn(before, column) && String(before[column] ?? '') !== String(after[column] ?? '')) {
+      kept.after[column] = CODE_CHANGED;
+    }
+  }
+  return kept;
+}
+
+/**
+ * The connection as a reader that must never see a code reads it (the
+ * assistant, whose answers go to a third-party model): each code column
+ * masked, so a read that already gives no personal data (`canReadPii:
+ * false`) returns it empty, and a filter, a search, an order or a sum over it
+ * is refused, as for personal data.
+ */
+export function codesMaskedView(view: SnapshotView): SnapshotView {
+  if (!view.model.tables.some((table) => table.columns.some((column) => column.code !== undefined))) return view;
+  const model = structuredClone(view.model);
+  for (const table of model.tables) {
+    for (const column of table.columns) if (column.code !== undefined) column.masked = true;
+  }
+  return new SnapshotView(view.connectionId, model, view.optionLists);
 }

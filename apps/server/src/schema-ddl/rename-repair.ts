@@ -36,9 +36,11 @@
  * Every one of those is reported to the operator in the confirm dialog
  * (`not-repaired` consequence) rather than silently left.
  */
+import { parseDatabaseModel } from '@adminium/engine';
 import type { MetaDb } from '@adminium/meta';
-import { connectionsRepo, overridesRepo, pagesRepo, permissionsRepo, publicApiStateRepo } from '@adminium/meta';
+import { connectionsRepo, overridesRepo, pagesRepo, permissionsRepo, publicApiStateRepo, snapshotsRepo } from '@adminium/meta';
 
+import { applyOverrides, columnPolicyFor } from '../connections/effective-schema.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
 
 export interface RenameRepairInput {
@@ -68,6 +70,33 @@ export interface RenameRepairResult {
   scopes: number;
   /** An installed app's table records naming it. */
   appTables: number;
+}
+
+/**
+ * The renamed columns that are secrets now and would not be by their new
+ * name alone: a secret by its name, which no `column.secret` row declares.
+ * Asked of the model as it stands before the rename (the latest snapshot and
+ * the rows as they are); `table` is the table's id after the edit.
+ */
+async function undeclaredSecrets(
+  meta: MetaDb,
+  connectionId: string,
+  columnRenames: readonly { table: string; from: string; to: string }[],
+  renames: readonly { from: string; to: string }[],
+): Promise<{ table: string; from: string; to: string }[]> {
+  const snapshot = await snapshotsRepo(meta).latest(connectionId);
+  if (snapshot === null) return [];
+  // The table half has already moved the rows to a renamed table's new id; the snapshot may still name it as it was.
+  const asWas = (id: string) => renames.find((r) => r.to === id)?.from ?? id;
+  const rows = (await overridesRepo(meta).listForConnection(connectionId, { status: 'active' })).map((row) => ({ ...row, tableName: asWas(row.tableName) }));
+  const effective = applyOverrides(parseDatabaseModel(snapshot.schema), rows);
+  return columnRenames.filter((rename) => {
+    const ids = [rename.table, asWas(rename.table)];
+    const table = effective.tables.find((candidate) => ids.includes(candidate.id));
+    if (table === undefined || !columnPolicyFor(table).secret.has(rename.from)) return false;
+    // Declared either way already: the row follows the column, and says it.
+    return !rows.some((row) => row.op === 'column.secret' && ids.includes(row.tableName) && row.columnName === rename.from);
+  });
 }
 
 /** The bare table name a grant string and `includedTables` use. */
@@ -216,6 +245,13 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
   // NOT rewritten: page bodies that name the column (a crud `columns[]`, a
   // calendar's `startColumn`, a binding's `select`). Their shapes differ per
   // template and per widget, and the review says so rather than promising it.
+  //
+  // A SECRET STAYS ONE. A column the classifier took for a secret by its name
+  // (`api_token`) is one by that name alone: renamed `reference`, nothing
+  // would say so any more, and every reader of the table would see it. So a
+  // secret nobody declared outright is declared now, under its new name — the
+  // operator's word, which only a Super Admin takes back in Studio.
+  const secretsNow = columnRenames.length === 0 ? [] : await undeclaredSecrets(meta, connectionId, columnRenames, renames);
   for (const rename of columnRenames) {
     const updated = await meta.db
       .updateTable('adminium_schema_overrides')
@@ -225,6 +261,10 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
       .where('columnName', '=', rename.from)
       .executeTakeFirst();
     result.overrides += Number(updated.numUpdatedRows ?? 0n);
+  }
+  for (const rename of secretsNow) {
+    await overridesRepo(meta).create({ connectionId, op: 'column.secret', tableName: rename.table, columnName: rename.to, value: { secret: true }, origin: 'user' });
+    result.overrides += 1;
   }
 
   // --- rules that NAME a renamed column in what they say ---------------------

@@ -20,7 +20,7 @@ export const ORIGIN = 'https://studio.example.com';
 export type Served = Awaited<ReturnType<typeof servePublic>>;
 
 /** The composed server, and requests through one of its keys. */
-export async function servePublic(h: InvoicingHarness, keyId: string, env: Record<string, string> = {}) {
+export async function servePublic(h: InvoicingHarness, keyId: string | null, env: Record<string, string> = {}) {
   await settingsRepo(h.meta).set('publicApi.enabled', true);
   const runService = createRunService({ meta: h.meta });
   const composed = await composeServer({
@@ -41,7 +41,8 @@ export async function servePublic(h: InvoicingHarness, keyId: string, env: Recor
     const key = (await publicKeysRepo(h.meta).findById(id))!;
     return openPublishableKey(dsnCryptoFromSecret(TEST_SECRET), key.tokenEncrypted!);
   };
-  let token = await tokenOf(keyId);
+  // No key: the staff side alone (Studio, the data routes).
+  let token = keyId === null ? '' : await tokenOf(keyId);
   const headers = (session?: string, extra: Record<string, string> = {}) => ({
     authorization: `Bearer ${token}`,
     origin: ORIGIN,

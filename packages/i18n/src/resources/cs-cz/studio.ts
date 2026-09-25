@@ -625,6 +625,7 @@ export default {
         "ddl": "Náhled DDL",
         "ddlNote": "Orientační. Server vytvoří přesný příkaz pro váš stroj včetně cizích klíčů.",
         "summary": "{created} vytvořeno · {reused} znovu použito",
+        "ruleWarnings": "Některá pravidla této aplikace by ukázala, co vaše tabulka skrývá, a proto se vynechají",
         "pageWarnings": "Některé stránky této aplikace dorazí bez tabulky"
       },
       "done": {

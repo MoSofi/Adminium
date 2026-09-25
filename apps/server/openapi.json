@@ -82092,6 +82092,29 @@
                         "requiresSchemaChange": {
                           "type": "boolean"
                         },
+                        "ruleWarnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "table",
+                              "column",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "pageWarnings": {
                           "type": "array",
                           "items": {

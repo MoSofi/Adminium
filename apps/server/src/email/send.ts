@@ -198,6 +198,13 @@ export interface EnqueueEmailInput {
   report?: EmailSendReport | undefined;
   /** Collapses a second queueing of the same message while the first is pending or running. */
   dedupeKey?: string | undefined;
+  /**
+   * The template itself, as the caller already resolved and checked it (an
+   * app's outbox checks every variable it names is filled): sent as it is,
+   * never looked up again — an edit or a switch-off in between does not
+   * change what was checked. Absent, the key and locale are resolved here.
+   */
+  template?: EmailRenderSource | undefined;
   /** Library files this one message carries besides the template's own (a drawn document). */
   attachments?: readonly EmailSendAttachmentRef[] | undefined;
   /**
@@ -529,7 +536,7 @@ export async function enqueueEmail(
   }
 
   const locale = input.locale ?? (await recipientLocale(meta, null));
-  const found = await resolveTemplate(meta, input, locale, deps.logger);
+  const found = input.template ?? (await resolveTemplate(meta, input, locale, deps.logger));
   if (found === null) return null;
   const row = withOverride(found, input.override);
 

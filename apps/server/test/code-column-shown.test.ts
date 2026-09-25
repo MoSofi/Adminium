@@ -5,10 +5,13 @@
  * installer and the whole server.
  *
  * `share_token` reads like a secret by its name, and a secret is carried by
- * no response. But its `code` rule says Adminium made it to be handed on: the
- * desk lists it, copies it, and gets the new one back when it makes a new
- * link. The public side never shows it unless an entry names it, and the page
- * its link opens never does. A manifest column may say `secret` either way.
+ * no response. But it is the code the app's shared link opens a project
+ * with, on a table the app made, so the install says it is none: the desk
+ * lists it, copies it, and gets the new one back when it makes a new link.
+ * The public side never shows it unless an entry names it, and the page its
+ * link opens — or any other endpoint of its table — never does. A manifest
+ * column may say `secret` either way. What is kept for other readers (the
+ * audit log) and what the assistant hands a model never carries a code.
  */
 import { validateManifest, type Manifest } from '@adminium/manifest';
 import { overridesRepo, permissionsRepo, publicKeysRepo, rolesRepo, usersRepo } from '@adminium/meta';
@@ -19,6 +22,8 @@ import { applyOverrides } from '../src/connections/effective-schema.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { compileScope, ScopeCompileError, type PublicScopeDocument } from '../src/public-api/scope.js';
 import { defaultDefinitionFor, endpointIssues } from '../src/public-api/endpoint.js';
+import { createEndpointService, EndpointSaveRefused } from '../src/public-api/endpoint-service.js';
+import { readRowsTool } from '../src/assistant/tools/rows.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
@@ -186,6 +191,94 @@ describe.each(LEGS)('a code Adminium makes — %s', (dialect, available) => {
     expect(refused.statusCode, refused.body).toBe(403);
     expect((await put({ cookie }, opened)).statusCode).toBe(200);
   });
+
+  it.skipIf(!available)('is never kept in the audit log, which says only that a new code was made', async () => {
+    const made = await served.composed.app.inject({ method: 'POST', url: url('/1/regenerate-code'), headers: { cookie }, payload: { column: 'share_token' } });
+    expect(made.statusCode, made.body).toBe(200);
+    const code = String(await stored('share_token'));
+    const audit = await served.composed.app.inject({ method: 'GET', url: `/api/v1/audit?entityTable=${encodeURIComponent(projects)}&limit=100`, headers: { cookie } });
+    expect(audit.statusCode, audit.body).toBe(200);
+    const entries = (audit.json() as { entries: { action: string; changes: { before?: Record<string, unknown> | null; after?: Record<string, unknown> | null } | null }[] }).entries;
+    expect(entries.length).toBeGreaterThan(2);
+    expect(audit.body).not.toContain(code);
+    expect(audit.body).not.toContain(TOKEN);
+    expect(audit.body).not.toContain('ABC123');
+    // The newest: the link just made again, said changed.
+    expect(entries[0]!.changes).toMatchObject({ before: { share_token: '[code]', ref_code: '[code]' }, after: { share_token: '[new code]', ref_code: '[code]' } });
+  });
+
+  it.skipIf(!available)('comes back from a new link only to a caller who may read the table', async () => {
+    const linker = await rolesRepo(h.meta).create({ slug: 'linker', name: 'Linker' });
+    await permissionsRepo(h.meta).grant(linker.id, 'table', `${h.connectionId}/${projects}`, { read: false, create: false, update: true, delete: false, export: false, import: false, read_pii: false } as never);
+    const person = await usersRepo(h.meta).create({ email: 'linker@studio.dev', name: 'Linker', passwordHash: await adminPasswordHash() });
+    await rolesRepo(h.meta).assignToUser(person.id, linker.id);
+    const theirs = await login('linker@studio.dev');
+    const made = await served.composed.app.inject({ method: 'POST', url: url('/1/regenerate-code'), headers: { cookie: theirs }, payload: { column: 'share_token' } });
+    expect(made.statusCode, made.body).toBe(200);
+    const data = (made.json() as { data: Record<string, unknown> }).data;
+    expect(data).not.toHaveProperty('share_token');
+    expect(data).not.toHaveProperty('ref_code');
+    expect(made.body).not.toContain(String(await stored('share_token')));
+  });
+
+  it.skipIf(!available)('is never shown, filtered or ordered by through another endpoint of its table', async () => {
+    const views = createPublicViews(h.meta);
+    const service = createEndpointService({ meta: h.meta, viewFor: views.viewFor, tenantConfigOf: async () => undefined });
+    const view = (await views.viewFor(h.connectionId))!;
+    const generated = defaultDefinitionFor(view, view.table(projects), 'projects_open')!;
+    const save = (definition: Record<string, unknown>) =>
+      service.saveEndpoint({ connectionId: h.connectionId, ref: 'projects_open', definition: definition as never, origin: 'custom', actorId: null });
+    for (const definition of [
+      { ...generated, methods: ['GET'], select: ['id', 'name', 'share_token'] },
+      { ...generated, methods: ['GET'], filterable: ['share_token'] },
+      { ...generated, methods: ['GET'], orderable: ['share_token'] },
+    ]) {
+      const refused = await save(definition).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(refused, JSON.stringify(definition)).toBeInstanceOf(EndpointSaveRefused);
+      expect((refused as EndpointSaveRefused).issues.map((issue) => issue.code)).toContain('ENDPOINT_SHARE_CODE_READ');
+    }
+    // The booking reference is no shared link's: named, it is shown.
+    await expect(save({ ...generated, methods: ['GET'], select: ['id', 'name', 'ref_code'] })).resolves.toBeDefined();
+    // Nor through a scope written by hand.
+    const scope = (expose: string[]) =>
+      served.composed.app.inject({
+        method: 'POST',
+        url: '/api/v1/public-scopes',
+        headers: { cookie },
+        payload: {
+          connectionId: h.connectionId,
+          side: 'customer',
+          name: `by hand ${expose.join(' ')}`,
+          document: JSON.stringify({ version: 1, side: 'customer', timezone: 'UTC', resources: [{ ref: 'every_project', table: projects, actions: ['read'], expose }] }),
+        },
+      });
+    const refused = await scope(['id', 'share_token']);
+    expect(refused.statusCode, refused.body).toBe(422);
+    expect(refused.body).toContain('SCOPE_SHARE_CODE_READ');
+    const fine = await scope(['id', 'name']);
+    expect(fine.statusCode, fine.body).toBe(201);
+  });
+
+  it.skipIf(!available)('is never handed to the assistant, which a third-party model reads', async () => {
+    const deps = { meta: h.meta, manager: h.manager, canReadTable: async () => async () => true } as never;
+    const read = await readRowsTool.run({ connectionId: h.connectionId, table: projects }, deps);
+    expect(read.error).toBeUndefined();
+    const rows = (read.result as { rows: Record<string, unknown>[] }).rows;
+    expect(rows.length).toBeGreaterThan(0);
+    for (const one of rows) {
+      expect(one['share_token'] ?? null).toBeNull();
+      expect(one['ref_code'] ?? null).toBeNull();
+    }
+    expect(JSON.stringify(read)).not.toContain(String(await stored('share_token')));
+    // Nor read back by a filter or an order.
+    for (const args of [{ where: `share_token.eq.${String(await stored('share_token'))}` }, { sort: 'ref_code.asc' }]) {
+      const probed = await readRowsTool.run({ connectionId: h.connectionId, table: projects, ...args }, deps);
+      expect(probed.error, JSON.stringify(args)).toBeDefined();
+    }
+  });
 });
 
 describe('what the effective model makes of a secret guessed from a name', () => {
@@ -238,12 +331,14 @@ describe('what the effective model makes of a secret guessed from a name', () =>
   const row = (op: string, columnName: string, value: Record<string, unknown>, origin = 'app') =>
     ({ id: `${op}-${columnName}`, connectionId: 'c', op, tableName: 'public.projects', columnName, value, origin, status: 'active', llmRunId: null, createdAt: 0, updatedAt: 0 }) as never;
 
-  it('takes a code for no secret, drops the mask the guess wrote, and keeps a mask for personal data', () => {
+  it('takes a column said to be no secret for none, drops the mask the guess wrote, and keeps a mask for personal data', () => {
     const effective = applyOverrides(model as never, [
       row('column.pii', 'share_token', { masked: true }, 'auto'),
       row('column.pii', 'card_token', { masked: true, kind: 'payment-id' }, 'auto'),
       row('column.code', 'share_token', { length: 16 }),
+      row('column.secret', 'share_token', { secret: false }),
       row('column.code', 'card_token', { length: 16 }),
+      row('column.secret', 'card_token', { secret: false }),
     ]);
     const [share, api, card] = effective.tables[0]!.columns;
     expect(share!.semantics).toMatchObject({ primary: 'plain', flags: { secret: false, maskedByDefault: false } });

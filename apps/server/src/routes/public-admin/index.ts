@@ -54,7 +54,7 @@ import {
 } from '../../public-api/keys.js';
 import { compileScope, ScopeCompileError, type ScopeIssue } from '../../public-api/scope.js';
 import { derivedDocumentIssues, parseAccess } from '../../public-api/derive.js';
-import { METHOD_ACTION, PUBLIC_METHODS } from '../../public-api/endpoint.js';
+import { METHOD_ACTION, parseDefinition, PUBLIC_METHODS, shareCodesOf } from '../../public-api/endpoint.js';
 import {
   createEndpointService,
   EndpointChanged,
@@ -339,6 +339,35 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
        */
       const inherited = (await connectionTenantConfig(meta, connectionId)) ?? undefined;
       const compiled = compileScope(parsed, await columnsFor(connectionId), inherited);
+      /*
+       * A shared link's code leaves only as its link: a hand-written scope,
+       * like an endpoint, never shows, filters, searches or orders by the
+       * code an endpoint of the connection opens a row with.
+       */
+      const codes = shareCodesOf(
+        (await endpoints.listByConnection(connectionId)).flatMap((row) => {
+          const definition = parseDefinition(row.definition);
+          return definition.ok ? [definition.definition] : [];
+        }),
+      );
+      const shown: ScopeIssue[] = [];
+      for (const resource of compiled.byRef.values()) {
+        const table = codes.get(resource.table);
+        if (table === undefined) continue;
+        for (const [list, columns] of [
+          ['expose', resource.expose],
+          ['filterable', [...resource.filterable]],
+          ['searchable', resource.searchable],
+          ['orderable', [...resource.orderable]],
+        ] as const) {
+          for (const column of columns) {
+            if (table.has(column)) {
+              shown.push({ code: 'SCOPE_SHARE_CODE_READ', message: `"${resource.ref}" names "${column}" (${list}), the code a shared link opens its row with`, ref: resource.ref, column });
+            }
+          }
+        }
+      }
+      if (shown.length > 0) throw new ScopeCompileError(shown);
       return { timezone: compiled.timezone };
     } catch (error) {
       if (error instanceof ScopeCompileError) {

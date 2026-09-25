@@ -24,7 +24,7 @@ import type {
   RequestedSection,
   Sampling,
 } from '@adminium/llm';
-import { settingsRepo, snapshotsRepo, type LlmRun, type MetaDb } from '@adminium/meta';
+import { overridesRepo, settingsRepo, snapshotsRepo, type LlmRun, type MetaDb } from '@adminium/meta';
 
 import type { CreateRunResult, RunService } from './run-service.js';
 
@@ -117,6 +117,32 @@ export function createPromptService(deps: PromptServiceDeps) {
     return { snapshotId: snapshot.id, model: parseDatabaseModel(snapshot.schema) };
   }
 
+  /**
+   * The model the statistics are taken over, with every column a `code` rule
+   * fills flagged secret: a code opens a page to whoever holds it, so under
+   * sampling no value of it, nor its lowest or highest, goes into a prompt —
+   * whatever its name made the classifier guess.
+   */
+  async function codesAsSecrets(connectionId: string, model: DatabaseModel): Promise<DatabaseModel> {
+    const coded = new Set(
+      (await overridesRepo(meta).listForConnection(connectionId, { status: 'active' }))
+        .filter((row) => row.op === 'column.code' && row.columnName !== null)
+        .map((row) => `${row.tableName}\u0000${String(row.columnName)}`),
+    );
+    if (coded.size === 0) return model;
+    const out = structuredClone(model);
+    for (const table of out.tables) {
+      for (const column of table.columns) {
+        if (!coded.has(`${table.id}\u0000${column.name}`)) continue;
+        column.semantics = {
+          ...(column.semantics ?? { primary: 'secret', format: null, pair: null, confidence: 1, source: 'override' }),
+          flags: { pii: column.semantics?.flags.pii ?? null, secret: true, maskedByDefault: true },
+        };
+      }
+    }
+    return out;
+  }
+
   return {
     loadLatestModel,
 
@@ -142,7 +168,7 @@ export function createPromptService(deps: PromptServiceDeps) {
         providerModel = await settings.get('llm.model');
       }
 
-      const stats = await collectStats({ connectionId: input.connectionId, snapshotId, model, sampling });
+      const stats = await collectStats({ connectionId: input.connectionId, snapshotId, model: await codesAsSecrets(input.connectionId, model), sampling });
 
       const created = await runService.createRun({
         connectionId: input.connectionId,

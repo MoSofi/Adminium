@@ -227,7 +227,13 @@ read-only. The link can have an end date and an off switch in the row.
   the right to change the table: `POST /api/v1/data/<connection>/<table>/<id>/regenerate-code`
   with `{"column": …}`. Nobody types a code, not the desk and not an import.
 - Staff who read the table see the code, and the new one when they make a new link, so the desk
-  can copy the link it sends. The page the link opens never shows it.
+  can copy the link it sends: the install marks the link's column as no secret, on a table the app
+  made. Someone who may change the table but not read it gets the new link made, not the code.
+- Nothing public ever shows the code: not the page the link opens, and no other entry or endpoint
+  of the table, anonymous or not. One that shows, filters, searches or orders by it is refused.
+- The audit log and the automation logs say `[code]` (and `[new code]` for a link made again), and
+  the assistant never reads the code: those are read by people who may not read the table, or leave
+  the server.
 
 ## Rows reached through their parent
 

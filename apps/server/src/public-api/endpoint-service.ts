@@ -67,6 +67,8 @@ import {
   endpointIssues,
   parseDefinition,
   printDefinition,
+  readsOf,
+  shareCodesOf,
   type PublicEndpointDefinition,
   type PublicMethod,
 } from './endpoint.js';
@@ -361,6 +363,25 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     ]);
   }
 
+  /** A shared link this definition makes whose code another endpoint of its table already shows, filters or orders by. */
+  function shownElsewhere(definition: PublicEndpointDefinition, others: readonly { ref: string; definition: PublicEndpointDefinition }[]): ScopeIssue[] {
+    const codes = shareCodesOf([definition]).get(definition.source);
+    if (codes === undefined) return [];
+    const out: ScopeIssue[] = [];
+    for (const other of others) {
+      if (other.definition.source !== definition.source || other.definition.methods.length === 0) continue;
+      const named = readsOf(other.definition).find((read) => codes.has(read.column));
+      if (named === undefined) continue;
+      out.push({
+        code: 'ENDPOINT_SHARE_CODE_READ',
+        message: `"${named.column}" is the code this shared link opens its row with, and the endpoint "${other.ref}" names it (${named.list}): no endpoint may show, filter or order by it`,
+        ref: other.ref,
+        column: named.column,
+      });
+    }
+    return out;
+  }
+
   /** Everything a save would do, computed without writing anything. */
   async function plan(input: SaveEndpointInput) {
     const { connectionId, ref, definition } = input;
@@ -380,7 +401,16 @@ export function createEndpointService(deps: EndpointServiceDeps) {
 
     const affected = await affectedKeys(connectionId, existing?.id ?? null, ref, at);
     const appBound = affected.some((k) => k.appKey !== null && hasOwn(k.access, endpointId));
-    const own = endpointIssues(definition, { ref, view, grantedToAppBoundKey: appBound });
+    /*
+     * The codes shared links open rows with, across every other endpoint of
+     * the connection: this one may not name any of them — and when this one
+     * is a shared link, no other may name its code.
+     */
+    const others = [...after.values()].filter((e) => e.id !== endpointId);
+    const own = [
+      ...endpointIssues(definition, { ref, view, grantedToAppBoundKey: appBound, shareCodes: shareCodesOf(others.map((e) => e.definition)) }),
+      ...shownElsewhere(definition, others),
+    ];
     const managed = affected.filter((k) => k.managedBy !== null && hasOwn(k.access, endpointId));
     const priorDefinition = existing === null ? null : parseDefinition(existing.definition);
     const decided = managed.length === 0 ? new Set<string>() : await decidedColumns(connectionId, definition.source);

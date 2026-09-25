@@ -301,6 +301,12 @@ export async function installInvoicing(
   before?: (meta: MetaDb) => Promise<void>,
   /** More files in the app's package: its sample bundle, say. */
   files: Record<string, string> = {},
+  /**
+   * The database as the app finds it — statements run before it is first
+   * introspected (a table of the operator's own) — and the plan's answers
+   * for the tables it finds taken (`{ users: { action: 'reuse' } }`).
+   */
+  source: { prepare?: (run: (statement: string) => Promise<void>) => Promise<void>; choices?: Record<string, unknown> } = {},
 ): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
   const dataDir = await mkdtemp(join(tmpdir(), 'invoicing-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -347,6 +353,12 @@ export async function installInvoicing(
     };
   }
   const connection = await manager.connections.create({ name: 'Studio', engine: dialect, introspectDsn: dsn, dataDsn: dsn });
+  if (source.prepare !== undefined) {
+    const { db } = await manager.data(connection.id);
+    await source.prepare(async (statement) => {
+      await sql.raw(statement).execute(db);
+    });
+  }
   await runIntrospection({ manager, meta, connectionId: connection.id });
   const app = await buildApp(meta, manager, dataDir, user.id);
   await before?.(meta);
@@ -363,10 +375,11 @@ export async function installInvoicing(
     payload: Buffer.from(tarball),
   });
   expect(staged.statusCode, staged.body).toBe(200);
-  const body = { key: manifest['key'], version: manifest['version'], connectionId: connection.id };
+  const body = { key: manifest['key'], version: manifest['version'], connectionId: connection.id, ...(source.choices === undefined ? {} : { choices: source.choices }) };
   const plan = await app.inject({ method: 'POST', url: '/apps/plan', payload: body });
   expect(plan.statusCode, plan.body).toBe(200);
-  const install = await app.inject({ method: 'POST', url: '/apps/install', payload: body });
+  const reviewed = source.choices === undefined ? {} : { planChecksum: (plan.json() as { plan: { checksum: string } }).plan.checksum };
+  const install = await app.inject({ method: 'POST', url: '/apps/install', payload: { ...body, ...reviewed } });
   expect(install.statusCode, install.body).toBe(200);
 
   const handle = await manager.data(connection.id);

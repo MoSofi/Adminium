@@ -625,6 +625,7 @@ export default {
         "ddl": "DDL 預覽",
         "ddlNote": "僅供參考。伺服器會為你的資料庫引擎產生確切語句，包含外鍵。",
         "summary": "建立 {created} · 沿用 {reused}",
+        "ruleWarnings": "此應用程式的部分規則會顯示你的資料表中隱藏的內容，因此不會套用",
         "pageWarnings": "此應用程式的部分頁面將在沒有資料表的情況下建立"
       },
       "done": {

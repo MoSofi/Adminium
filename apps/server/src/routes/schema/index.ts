@@ -14,9 +14,12 @@
  * `schema.read`); override writes require `system:schema:remap`.
  */
 
+import { isDeepStrictEqual } from 'node:util';
+
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { diffModels, type DatabaseModel } from '@adminium/engine';
+
 import {
   MetaValidationError,
   optionListsRepo,
@@ -29,6 +32,7 @@ import {
 } from '@adminium/meta';
 
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { outboxWrittenColumns } from '../../outbox/moves.js';
 import { bookingRuleIssue, capacityRuleIssue, columnRuleIssue, statesRuleIssue } from '../../connections/column-rules-validation.js';
 import { applyOverrides, columnPolicyFor } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
@@ -364,6 +368,27 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       const before = await overrides.listForConnection(connectionId);
 
       /*
+       * THE OUTBOX'S OWN COLUMNS take no rule that decides or refuses what
+       * Adminium writes there — the manifest check an app is held to. A rule
+       * already there is not newly refused: only one this save brings in.
+       */
+      const written = await outboxWrittenColumns(meta, connectionId);
+      for (const item of body.overrides) {
+        if (item.status === 'disabled' || item.columnName == null) continue;
+        const column = written.get(`${item.tableName}\u0000${item.columnName}`);
+        if (column === undefined || !column.ops.has(item.op)) continue;
+        const kept = before.some(
+          (row) => row.status === 'active' && row.op === item.op && row.tableName === item.tableName && row.columnName === item.columnName && isDeepStrictEqual(row.value, item.value),
+        );
+        if (kept) continue;
+        throw new ValidationFailedError(`"${item.columnName}" is the outbox's ${column.name}, which Adminium writes, so it takes no such rule.`, {
+          table: item.tableName,
+          column: item.columnName,
+          op: item.op,
+        });
+      }
+
+      /*
        * The same guard for a secret. A column is shown once `column.secret`
        * says it is none, or once a `code` rule claims a column its name made
        * a secret (`effective-schema.ts`, `settleSecrets`): either shows a
@@ -379,8 +404,20 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         return out;
       };
+      // Each row with the origin the save keeps for it (below): whose word it is decides a secret.
+      const origins = new Map<string, SchemaOverride['origin'][]>();
+      for (const row of before) {
+        const key = `${row.op}|${row.tableName}|${row.columnName ?? ''}`;
+        origins.set(key, [...(origins.get(key) ?? []), row.origin]);
+      }
       const proposed = body.overrides.map(
-        (item) => ({ ...item, columnName: item.columnName ?? null, status: item.status ?? 'active', origin: 'user' }) as unknown as SchemaOverride,
+        (item) =>
+          ({
+            ...item,
+            columnName: item.columnName ?? null,
+            status: item.status ?? 'active',
+            origin: origins.get(`${item.op}|${item.tableName}|${item.columnName ?? ''}`)?.shift() ?? 'user',
+          }) as unknown as SchemaOverride,
       );
       const stillSecret = secretsUnder(proposed);
       if ([...secretsUnder(before)].some((key) => !stillSecret.has(key)) && !(await app.rbac.resolve(request)).superAdmin) {

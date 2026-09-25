@@ -22,12 +22,14 @@ import { ALLOWED, ordersSchema } from './llm-fixtures.js';
 const state = vi.hoisted(() => ({
   snapshot: null as unknown,
   settings: {} as Record<string, unknown>,
+  overrides: [] as unknown[],
 }));
 
 vi.mock('@adminium/meta', async () => ({
   ...(await vi.importActual<Record<string, unknown>>('@adminium/meta')),
   snapshotsRepo: () => ({ latest: async () => Promise.resolve(state.snapshot) }),
   settingsRepo: () => ({ get: async (key: string) => Promise.resolve(state.settings[key] ?? null) }),
+  overridesRepo: () => ({ listForConnection: async () => Promise.resolve(state.overrides) }),
 }));
 
 const {
@@ -68,6 +70,7 @@ const service = (runService = fakeRunService(), collectStats?: never) =>
 beforeEach(() => {
   state.snapshot = snapshot;
   state.settings = {};
+  state.overrides = [];
 });
 
 describe('createRunForConnection', () => {
@@ -168,6 +171,23 @@ describe('createRunForConnection', () => {
         sampling: { maxValuesPerColumn: 20 },
       }),
     );
+  });
+});
+
+describe('a code in the statistics', () => {
+  it('is taken over a model that calls every `code` column a secret, so no value of it is sampled', async () => {
+    const collectStats = vi.fn(async () => Promise.resolve([]));
+    // `order_number` reads as nothing secret; its code rule opens an order to whoever holds it.
+    state.overrides = [{ op: 'column.code', tableName: 'public.orders', columnName: 'order_number', value: { length: 8 }, status: 'active', origin: 'app' }];
+    await createPromptService({ meta: {} as never, runService: fakeRunService(), allowed: ALLOWED, collectStats }).createRunForConnection({
+      connectionId: 'conn_1',
+      path: 'byo',
+      sampling: { maxValuesPerColumn: 20 },
+    });
+    const model = (collectStats.mock.calls[0] as unknown as [{ model: typeof ordersSchema }])[0].model;
+    const columns = model.tables[0]!.columns;
+    expect(columns.find((c) => c.name === 'order_number')!.semantics!.flags.secret).toBe(true);
+    expect(columns.find((c) => c.name === 'status')!.semantics?.flags.secret ?? false).toBe(false);
   });
 });
 

@@ -625,6 +625,7 @@ export default {
         "ddl": "Aperçu DDL",
         "ddlNote": "À titre indicatif. Le serveur produit l’instruction exacte pour votre moteur, clés étrangères comprises.",
         "summary": "{created} créées · {reused} réutilisées",
+        "ruleWarnings": "Certaines règles de cette app montreraient ce qu’une de vos tables garde caché : elles sont laissées de côté",
         "pageWarnings": "Certaines pages de cette app arriveront sans table"
       },
       "done": {

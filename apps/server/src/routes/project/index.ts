@@ -22,14 +22,17 @@
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { parseDatabaseModel } from '@adminium/engine';
+import { overridesRepo, snapshotsRepo, type SchemaOverride } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
+import { columnsShown } from '../../connections/effective-schema.js';
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import type { ProjectClientHost } from '../../project/client-host.js';
 import type { ActionRunner } from '../../project/code/actions.js';
 import type { CodeProblem } from '../../project/code/load.js';
 import type { ProjectCodeRuntime } from '../../project/code/runtime.js';
-import { ProjectResolveError, type ProjectService } from '../../project/service.js';
+import { ProjectResolveError, type ProjectService, type SchemaApplyGuard } from '../../project/service.js';
 import { APP_VERSION } from '../../version.js';
 
 export interface ProjectRoutesDeps {
@@ -205,8 +208,31 @@ export function projectRoutes(deps: ProjectRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const { path, keep } = request.body;
+        /*
+         * A schema file's rules replace the server's, and may show a column
+         * no reader saw — a `secret: false`, a mask taken off, a secret tag
+         * left out. That takes Super Admin, as the same change saved in
+         * Studio does (`routes/schema`).
+         */
+        const guard: SchemaApplyGuard = async (connectionId, rows) => {
+          if ((await app.rbac.resolve(request)).superAdmin) return;
+          const snapshot = await snapshotsRepo(app.rbac.meta).latest(connectionId);
+          if (snapshot === null) return;
+          const before = await overridesRepo(app.rbac.meta).listForConnection(connectionId);
+          const at = Date.now();
+          const after = [
+            ...before.filter((row) => row.origin === 'auto'),
+            ...rows.map(
+              (row, index) =>
+                ({ ...row, id: `ovr_file_${String(index)}`, connectionId, columnName: row.columnName ?? null, llmRunId: null, createdBy: null, createdAt: at, updatedAt: at }) as SchemaOverride,
+            ),
+          ];
+          if (columnsShown(parseDatabaseModel(snapshot.schema), before, after).length > 0) {
+            throw new ForbiddenError('Showing a column that is kept secret, or taking a personal column’s mask off, requires Super Admin.');
+          }
+        };
         try {
-          await project.resolve(path, keep);
+          await project.resolve(path, keep, guard);
         } catch (error) {
           if (error instanceof ProjectResolveError) {
             throw error.message.endsWith('is not a project file')

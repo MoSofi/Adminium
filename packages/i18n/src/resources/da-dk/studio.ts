@@ -625,6 +625,7 @@ export default {
         "ddl": "DDL-forhåndsvisning",
         "ddlNote": "Vejledende. Serveren danner den præcise sætning til din motor, inklusive fremmednøgler.",
         "summary": "{created} oprettet · {reused} genbrugt",
+        "ruleWarnings": "Nogle af appens regler ville vise det, en af dine tabeller holder skjult, og udelades",
         "pageWarnings": "Nogle af appens sider kommer uden en tabel"
       },
       "done": {

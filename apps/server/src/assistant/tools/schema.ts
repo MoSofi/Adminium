@@ -11,6 +11,7 @@
 
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
+import { codesMaskedView } from '../../crud/mask.js';
 import type { AssistantTool, AssistantToolDeps, CanReadTable } from '../types.js';
 
 /** Tables one `describe_schema` answer may carry. */
@@ -26,7 +27,8 @@ export async function viewOrError(
     return { error: { code: 'CONNECTION_NOT_FOUND', message: `No connection has the id ${JSON.stringify(connectionId)}.` } };
   }
   try {
-    return { view: await loadSnapshotView(deps.meta, connectionId) };
+    // No code Adminium makes (a shared link's) is ever read into an answer: it would leave the instance.
+    return { view: codesMaskedView(await loadSnapshotView(deps.meta, connectionId)) };
   } catch {
     return {
       error: {

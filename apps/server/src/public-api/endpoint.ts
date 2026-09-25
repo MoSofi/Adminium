@@ -639,6 +639,39 @@ export interface EndpointCompileContext {
    * with no error anywhere.
    */
   grantedToAppBoundKey?: boolean;
+  /**
+   * The codes shared links open rows with on this connection, by source
+   * table: every other endpoint's `identity: { strategy: 'token' }` columns
+   * (`shareCodesOf`). None of them may be shown, filtered, searched or
+   * ordered by here — the code leaves only as its link.
+   */
+  shareCodes?: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+/** The codes shared links open rows with, by source table, across these definitions. */
+export function shareCodesOf(definitions: Iterable<PublicEndpointDefinition>): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const def of definitions) {
+    if (def.identity?.strategy !== 'token' || def.methods.length === 0) continue;
+    const codes = out.get(def.source) ?? new Set<string>();
+    for (const column of def.identity.match) codes.add(column);
+    out.set(def.source, codes);
+  }
+  return out;
+}
+
+/** Every column a definition shows, filters, searches or orders by — where a share code may never be named. */
+export function readsOf(def: PublicEndpointDefinition): { list: string; column: string }[] {
+  const order = def.pagination.order.slice(0, def.pagination.order.lastIndexOf('.'));
+  return [
+    ...def.select.map((column) => ({ list: 'select', column })),
+    ...def.filters.map((filter) => ({ list: 'filters', column: filter.column })),
+    ...(def.filterable ?? []).map((column) => ({ list: 'filterable', column })),
+    ...(def.searchable ?? []).map((column) => ({ list: 'searchable', column })),
+    ...(def.orderable ?? []).map((column) => ({ list: 'orderable', column })),
+    ...(order === '' ? [] : [{ list: 'order', column: order }]),
+    ...(def.rank === undefined ? [] : [{ list: 'rank', column: def.rank.order_by }, ...(def.rank.where === undefined ? [] : [{ list: 'rank', column: def.rank.where.column }])]),
+  ];
 }
 
 /**
@@ -788,6 +821,20 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
       // A booking rule answers per person; a capacity limit per table or room does not yet.
       push('ENDPOINT_AVAILABILITY_PER_RESOURCE', 'availability for a limit per table or room is not offered yet');
     }
+  }
+
+  /*
+   * A shared link's code — this endpoint's, or another's on the same table,
+   * anonymous or not — is never shown, filtered, searched or ordered by: it
+   * leaves only as the link itself (its own claim compares it, and nothing
+   * else names it).
+   */
+  const codes = new Set(ctx.shareCodes?.get(def.source) ?? []);
+  const own = def.identity?.strategy === 'token' ? def.identity.match : [];
+  for (const column of own) codes.add(column);
+  for (const { list, column } of readsOf(def)) {
+    if (!codes.has(column) || (list === 'select' && own.includes(column))) continue;
+    push('ENDPOINT_SHARE_CODE_READ', `"${column}" is the code a shared link opens its row with, so no endpoint shows, filters, searches or orders by it (${list})`, column);
   }
 
   const visible = visibleColumns(table);

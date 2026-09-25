@@ -47,7 +47,7 @@ import {
 } from '@adminium/meta';
 
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
-import { maskRow, type Row } from '../crud/mask.js';
+import { keptRow, type Row } from '../crud/mask.js';
 import { UNDO_TTL_MS } from '../crud/undo.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
 import { recordOccurrenceKey } from './events.js';
@@ -297,8 +297,9 @@ export function triggerEventFor(
     record: event.entity,
     // The trace is read by admins in Workflow Logs, so what is STORED about
     // the row is masked here at the boundary. The run itself re-reads the
-    // record unmasked — it has to address the email.
-    snapshot: maskRow(image, event.table, false),
+    // record unmasked — it has to address the email. No code is kept
+    // either: the trace's readers may not read the table (`keptRow`).
+    snapshot: keptRow(image, event.table),
     occurredAt: event.occurredAt ?? Date.now(),
   };
 }

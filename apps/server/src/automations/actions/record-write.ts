@@ -35,7 +35,7 @@ import { type AutomationAction, type AutomationWriteValue, type RecordRef } from
 import type { SourceDatabase } from '../../connections/manager.js';
 import { afterRecordWrite } from '../../crud/after-record-write.js';
 import type { ResolvedTable } from '../../crud/identifiers.js';
-import { maskRow, type Row } from '../../crud/mask.js';
+import { keptRow, type Row } from '../../crud/mask.js';
 import { pkLabel } from '../../crud/records.js';
 import {
   HookFailedError,
@@ -217,14 +217,14 @@ export async function runUpdateAction(
       },
     }),
   );
-  return { log: ctx.text.updateOk(pairsOf(maskRow(values, source.table, false))) };
+  return { log: ctx.text.updateOk(pairsOf(keptRow(values, source.table))) };
 }
 
 export function dryRunUpdateAction(action: UpdateAction, ctx: ActionContext): ActionResult {
   const source = sourceOf(ctx);
   assertWritable(source.table);
   const values = resolveValues(action.values, source.table, ctx);
-  return { log: ctx.text.writeWould(pairsOf(maskRow(values, source.table, false))) };
+  return { log: ctx.text.writeWould(pairsOf(keptRow(values, source.table))) };
 }
 
 // --- the fan-out -----------------------------------------------------------

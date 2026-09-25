@@ -14,12 +14,15 @@ import {
   connectionsRepo,
   createSqliteMetaDb,
   firstRun,
+  overridesRepo,
   pagesRepo,
   permissionsRepo,
   rolesRepo,
+  snapshotsRepo,
   type MetaDb,
 } from '@adminium/meta';
 
+import { applyOverrides, columnPolicyFor } from '../src/connections/effective-schema.js';
 import { repairAfterRename } from '../src/schema-ddl/rename-repair.js';
 
 const crypto = { encrypt: (v: string) => `enc:${v}`, decrypt: (v: string) => v.slice(4) };
@@ -265,5 +268,84 @@ describe('what a rename repairs beyond pages and grants', () => {
       repairAfterRename({ meta, connectionId, renames: [{ from: 'public.clients', to: 'public.customers' }], crypto }),
     ).rejects.toThrow('disk full');
     expect((await connections.findById(connectionId))?.settings.includedTables).toEqual(['public.clients']);
+  });
+});
+
+describe('a secret renamed', () => {
+  /** `public.users` as introspection saw it: `api_token` a secret by its name, `hint` a plain column. */
+  const usersModel = (secretName: string, plainName: string) => {
+    const column = (name: string, ordinal: number, secret: boolean) => ({
+      name,
+      ordinal,
+      dbType: 'text',
+      logicalType: 'text',
+      nullable: true,
+      default: null,
+      isPrimaryKey: false,
+      isUnique: false,
+      isGenerated: false,
+      enumRef: null,
+      maxLength: null,
+      numericPrecision: null,
+      numericScale: null,
+      isArray: false,
+      comment: null,
+      references: null,
+      semantics: secret
+        ? { primary: 'secret', flags: { secret: true, pii: null, maskedByDefault: true }, format: null, pair: null, confidence: 0.95, source: 'heuristic' }
+        : { primary: 'plain', flags: { secret: false, pii: null, maskedByDefault: false }, format: null, pair: null, confidence: 0.5, source: 'heuristic' },
+    });
+    return {
+      irVersion: 1,
+      dialect: 'postgres',
+      source: { kind: 'live', connectionId },
+      name: 'src',
+      defaultSchema: 'public',
+      schemas: ['public'],
+      tables: [
+        {
+          id: 'public.users',
+          schema: 'public',
+          name: 'users',
+          kind: 'table',
+          comment: null,
+          primaryKey: [],
+          columns: [column(secretName, 1, secretName.includes('token')), column(plainName, 2, false)],
+        },
+      ],
+      relations: [],
+      enums: [],
+    };
+  };
+
+  it('stays one under a name that reads as harmless, and a column said to be none is left as said', async () => {
+    await snapshotsRepo(meta).create({ connectionId, source: 'introspection', schema: usersModel('api_token', 'hint'), checksum: 'before' });
+    const overrides = overridesRepo(meta);
+    // What introspection wrote for the guess.
+    await overrides.create({ connectionId, op: 'column.pii', tableName: 'public.users', columnName: 'api_token', value: { masked: true }, origin: 'auto' });
+    await repairAfterRename({ meta, connectionId, renames: [], columnRenames: [{ table: 'public.users', from: 'api_token', to: 'reference' }], crypto });
+
+    const rows = await overrides.listForConnection(connectionId);
+    expect(rows.filter((row) => row.op === 'column.secret').map((row) => [row.columnName, row.value, row.origin])).toEqual([['reference', { secret: true }, 'user']]);
+    // Introspected again under its new name: still a secret, not merely masked.
+    const after = applyOverrides(usersModel('reference', 'hint') as never, rows).tables[0]!;
+    expect(columnPolicyFor(after).secret.has('reference')).toBe(true);
+  });
+
+  it('adds nothing for a secret the operator already declared, or a column that is none', async () => {
+    await snapshotsRepo(meta).create({ connectionId, source: 'introspection', schema: usersModel('api_token', 'hint'), checksum: 'before' });
+    const overrides = overridesRepo(meta);
+    await overrides.create({ connectionId, op: 'column.secret', tableName: 'public.users', columnName: 'api_token', value: { secret: false }, origin: 'user' });
+    await repairAfterRename({
+      meta,
+      connectionId,
+      renames: [],
+      columnRenames: [
+        { table: 'public.users', from: 'api_token', to: 'reference' },
+        { table: 'public.users', from: 'hint', to: 'note' },
+      ],
+      crypto,
+    });
+    expect((await overrides.listForConnection(connectionId)).filter((row) => row.op === 'column.secret').map((row) => [row.columnName, row.value])).toEqual([['reference', { secret: false }]]);
   });
 });

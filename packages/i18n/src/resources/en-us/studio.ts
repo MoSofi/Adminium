@@ -625,6 +625,7 @@ export default {
         "ddl": "DDL preview",
         "ddlNote": "Illustrative. The server emits the exact statement for your engine, including foreign keys.",
         "summary": "{created} created · {reused} reused",
+        "ruleWarnings": "Some of this app’s rules would show what a table of yours keeps hidden, and are left out",
         "pageWarnings": "Some of this app’s pages will arrive without a table"
       },
       "done": {

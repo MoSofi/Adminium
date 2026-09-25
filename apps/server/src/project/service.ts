@@ -21,7 +21,7 @@ import { watch } from 'node:fs';
 import { mkdir, stat } from 'node:fs/promises';
 import nodePath from 'node:path';
 
-import { projectFilesRepo, type MetaDb } from '@adminium/meta';
+import { projectFilesRepo, type MetaDb, type ProjectOverrideInput } from '@adminium/meta';
 
 import { applyListFile, applyPageFile, applySchemaFile, deleteListByKey, deletePage } from './apply-files.js';
 import { hasCodePage } from './client-build.js';
@@ -89,6 +89,9 @@ const nodeWatchFs: ProjectWatchFs = {
   stat: (file) => stat(file).catch(() => null),
 };
 
+/** Asked before a project's schema file replaces a connection's rules; throws to refuse them. */
+export type SchemaApplyGuard = (connectionId: string, rows: readonly ProjectOverrideInput[]) => Promise<void>;
+
 export interface ProjectServiceOptions {
   meta: MetaDb;
   root: string;
@@ -147,7 +150,12 @@ export interface ProjectService {
   close(): Promise<void>;
   status(): Promise<ProjectStatus>;
   /** Settle a conflict: keep this server's copy, or apply the project's. */
-  resolve(path: string, keep: 'server' | 'project'): Promise<void>;
+  /**
+   * `guard` is asked before a schema file's rules replace the server's, with
+   * the rules it would apply, and throws to refuse them — the route's Super
+   * Admin check for rules that show a secret or a masked column.
+   */
+  resolve(path: string, keep: 'server' | 'project', guard?: SchemaApplyGuard): Promise<void>;
   changes(): Promise<ProjectChange[]>;
   /** The page and schema files in the folder, sorted. */
   files(): Promise<string[]>;
@@ -326,7 +334,7 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
       return { mode, entries, outside: snapshot.outside };
     },
 
-    resolve: (path, keep) =>
+    resolve: (path, keep, guard) =>
       enqueue(async () => {
         const snapshot = await snapshotProject(meta, store);
         const state = snapshot.states.find((candidate) => candidate.path === path);
@@ -355,7 +363,10 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
           }
           if (kind?.kind === 'schema') {
             const connectionId = snapshot.refs.connectionOf(kind.key);
-            if (connectionId !== null) await applySchemaFile(meta, connectionId, [], now());
+            if (connectionId !== null) {
+              await guard?.(connectionId, []);
+              await applySchemaFile(meta, connectionId, [], now());
+            }
           }
           if (kind?.kind === 'list') await deleteListByKey(meta, kind.key);
           await records.remove(path);
@@ -374,6 +385,7 @@ export function createProjectService(opts: ProjectServiceOptions): ProjectServic
         } else {
           const connectionId = snapshot.refs.connectionOf(state.file.key);
           if (connectionId === null) throw new ProjectResolveError(`${path} names a database with no connection`);
+          await guard?.(connectionId, state.file.rows);
           await applySchemaFile(meta, connectionId, state.file.rows, now());
           await records.record(path, state.file.hash, now());
         }

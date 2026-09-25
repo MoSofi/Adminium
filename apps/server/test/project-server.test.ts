@@ -10,8 +10,11 @@ import { join } from 'node:path';
 import {
   apiKeysRepo,
   createFirstSuperAdmin,
+  overridesRepo,
   pagesRepo,
+  permissionsRepo,
   rolesRepo,
+  usersRepo,
   type MetaDb,
 } from '@adminium/meta';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -161,6 +164,34 @@ describe('a project served on a server', () => {
       payload: { path: 'pages/nope.json', keep: 'server' },
     });
     expect(unknown.statusCode).toBe(404);
+  });
+
+  it('asks Super Admin before a project’s schema file takes a personal column’s mask off', async () => {
+    const { install: one, app, cookie } = await serve('server');
+    // Changed on both sides: the server keeps a label, the project's file unmasks the customers' email.
+    await overridesRepo(one.meta).create({ connectionId: one.mainId, op: 'table.label', tableName: 'main.orders', value: { label: 'Server label' } });
+    await writeFile(
+      join(one.dir, 'schema', 'main.json'),
+      stableStringify({ overrides: [{ table: 'main.customers', column: 'email', op: 'column.pii', value: { masked: false } }] }),
+    );
+    const status = await app.inject({ method: 'GET', url: '/api/v1/project/status', headers: { cookie } });
+    expect(status.json().data.entries).toContainEqual(expect.objectContaining({ path: 'schema/main.json', status: 'conflict' }));
+
+    // A person who manages pages, and is not Super Admin.
+    const pagesRole = await rolesRepo(one.meta).create({ slug: 'pages-keeper', name: 'Pages keeper' });
+    await permissionsRepo(one.meta).grant(pagesRole.id, 'system', 'pages.manage', { allowed: true });
+    const admin = await usersRepo(one.meta).create({ email: 'admin@shop.dev', name: 'Admin', passwordHash: await adminPasswordHash() });
+    await rolesRepo(one.meta).assignToUser(admin.id, pagesRole.id);
+    const theirs = (await login(app, 'admin@shop.dev', ADMIN_PASSWORD)).cookie ?? '';
+    const resolve = (headers: Record<string, string>) =>
+      app.inject({ method: 'POST', url: '/api/v1/project/resolve', headers, payload: { path: 'schema/main.json', keep: 'project' } });
+    const refused = await resolve({ cookie: theirs });
+    expect(refused.statusCode, refused.body).toBe(403);
+    expect(refused.json().error.message).toBe('Showing a column that is kept secret, or taking a personal column’s mask off, requires Super Admin.');
+    expect((await overridesRepo(one.meta).listForConnection(one.mainId)).some((row) => row.op === 'column.pii' && row.value['masked'] === false)).toBe(false);
+
+    expect((await resolve({ cookie })).statusCode).toBe(200);
+    expect((await overridesRepo(one.meta).listForConnection(one.mainId)).some((row) => row.op === 'column.pii' && row.value['masked'] === false)).toBe(true);
   });
 
   it('hands the changed copies to an API key that may read the project, and to nobody else', async () => {

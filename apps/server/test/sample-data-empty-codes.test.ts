@@ -2,8 +2,10 @@
 /**
  * A sample row, or an imported one, that brings an EMPTY code gets one made,
  * as a person's create does — a studio's sample handover opens with its link.
- * A code the sample or the import brings is kept; only an undo puts an empty
- * one back, as it was.
+ * A code the sample or the import brings is kept — but never a shared link's
+ * from the sample: the app's package is public, so every install's sample
+ * handover would open with the same link. Only an undo puts an empty one
+ * back, as it was.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -55,7 +57,13 @@ describe.each(LEGS)('an empty code in a sample or an import — %s', (dialect, a
 
   beforeAll(async () => {
     if (!available) return;
-    const manifest = { ...invoicingManifest(TABLES), sampleData: { file: 'seeds/studio.sample.json' } };
+    const manifest = {
+      ...invoicingManifest(TABLES),
+      sampleData: { file: 'seeds/studio.sample.json' },
+      // `share_token` is the code a shared link opens a project with.
+      publicKeys: { handover: {} },
+      publicAccess: [{ table: 'projects', methods: ['GET'], select: ['name'], claim: { by: 'token', column: 'share_token' }, key: 'handover' }],
+    };
     h = await installInvoicing(dialect, manifest, undefined, { 'seeds/studio.sample.json': JSON.stringify(BUNDLE) });
     const service = createSampleDataService({ meta: h.meta, manager: h.manager, store: createAppStore({ dataDir: h.dataDir }), files: memoryFiles });
     await service.add((await findSampleApp(h.meta, 'studio'))!, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.now() });
@@ -66,13 +74,17 @@ describe.each(LEGS)('an empty code in a sample or an import — %s', (dialect, a
     await h.close();
   });
 
-  it.skipIf(!available)('makes one for a sample row that brings none, and keeps the one it brings', async () => {
+  it.skipIf(!available)('makes one for a sample row that brings none, and keeps the one it brings — but a shared link’s', async () => {
     const got = await codes();
-    for (const name of ['Null codes', 'Blank codes', 'No codes']) {
+    for (const name of ['Null codes', 'Blank codes', 'No codes', 'Own codes']) {
       expect(got[name]![0], name).toMatch(/^[0-9A-Z]{16}$/);
+    }
+    for (const name of ['Null codes', 'Blank codes', 'No codes']) {
       expect(got[name]![1], name).toMatch(/^PR-[0-9A-Z]{6}$/);
     }
-    expect(got['Own codes']).toEqual([KEPT, 'PR-ABC123']);
+    // The booking reference is kept; the link's code, printed in the package, is made anew.
+    expect(got['Own codes']![1]).toBe('PR-ABC123');
+    expect(got['Own codes']![0]).not.toBe(KEPT);
     expect(new Set(Object.values(got).map(([code]) => code)).size).toBe(4);
   });
 

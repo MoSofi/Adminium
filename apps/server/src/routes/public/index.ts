@@ -98,7 +98,7 @@ import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor } from '../../crud/column-rules.js';
 import { needsStored } from '../../crud/decide.js';
-import { maskRows, type Row } from '../../crud/mask.js';
+import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
@@ -2210,8 +2210,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   ref: request.params.ref,
                   table: found.resource.table,
                   // What was removed, masked as any staff reader without the
-                  // PII grant would see it.
-                  before: before === null ? null : (maskRows([before], found.table, false)[0] ?? null),
+                  // PII grant would see it, and with no code in it.
+                  before: before === null ? null : keptRow(before, found.table),
                 },
                 deletedRef,
               );

@@ -147,7 +147,9 @@ only by Super Admins until you grant it in **Settings → Roles**.
 If you **renamed** a table, Adminium repairs its own references in the same
 operation: page bindings, saved-view tables, permission grants, schema
 overrides, the included-tables list and the diagram layout all follow the new
-name.
+name. A column kept secret because of its name (`api_token`) stays secret
+under a harmless new one: the rename marks it secret, and only a Super Admin
+can show it.
 
 Four things deliberately do not:
 

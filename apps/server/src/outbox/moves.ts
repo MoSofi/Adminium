@@ -28,6 +28,12 @@
  * sentence where the outbox offers no `held` — and one that says it went
  * comes back `sent`.
  *
+ * A person (or an API key) who makes a message may link it only to rows they
+ * may read: every link they set — the client, the project, the invoice —
+ * asks `table:<linked>:read`. The email reads those rows, and a desk that
+ * could queue a message about any project would read any project's name,
+ * and more, back out of it (`sender.ts` keeps codes to their owner apart).
+ *
  * It runs as a before hook of the write service, after the project's own
  * hooks, for every stored outbox's table — a switched-off app's too, whose
  * rows would otherwise go the moment it is switched back on. Every door that
@@ -35,16 +41,17 @@
  * import's update, the public batch, an undo. The producers' and the
  * sender's own writes pass (`isOutboxWrite`).
  */
-import type { MetaDb } from '@adminium/meta';
+import { OUTBOX_WRITTEN } from '@adminium/manifest';
+import { appOutboxesRepo, type MetaDb } from '@adminium/meta';
 
 import type { Row } from '../crud/mask.js';
 import { slotInstant } from '../crud/capacity-guard.js';
 import type { BeforeWriteEvent, HookTiming, RecordHooks, WriteAction, WriteContext, WriteTarget } from '../crud/write-service.js';
 import { sameValue } from '../crud/write-values.js';
-import { AppError } from '../errors.js';
+import { AppError, ForbiddenError } from '../errors.js';
 import { isOutboxWrite } from './context.js';
 import type { LiveOutbox } from './producers.js';
-import { addressFor } from './recipient.js';
+import { addressFor, referenced } from './recipient.js';
 import { producerOf, settingReader } from './timing.js';
 
 /** The moves a person may make: from → to. */
@@ -148,6 +155,32 @@ function historyWaits(box: LiveOutbox, target: WriteTarget, values: Row): void {
   if (cols.error !== undefined) values[cols.error] = BROUGHT_IN_QUEUED;
 }
 
+/**
+ * A person or an API key making a message links it only to rows they may
+ * read: the email reads them, and would otherwise tell a desk what it may
+ * not see. A rule, the public side and history are not a person choosing.
+ */
+async function refuseUnreadableLinks(box: LiveOutbox, event: BeforeWriteEvent): Promise<void> {
+  const { context, target, values } = event;
+  const request = context.request;
+  if (request === null || typeof request.can !== 'function' || context.origin === 'public') return;
+  if (context.actor?.kind !== 'user' && context.actor?.kind !== 'api-key') return;
+  const definition = box.definition;
+  const columns = new Set([
+    ...Object.values(definition.links ?? {}),
+    definition.recipient.via,
+    ...(definition.recipient.fallback === undefined ? [] : [definition.recipient.fallback.via]),
+  ]);
+  for (const column of columns) {
+    if (!target.table.columns.has(column) || empty(values[column])) continue;
+    const linked = referenced(target.view, target.table.id, column);
+    if (linked === undefined) continue;
+    if (!(await request.can(`table:${target.connectionId}:${linked}:read`))) {
+      throw new ForbiddenError(`"${column}" links a row you may not read, so a message about it is not yours to make.`, 'TABLE_FORBIDDEN', { column, table: linked });
+    }
+  }
+}
+
 /** Refuse what a person may not do to a message, and fill in what an approval or a skip writes. */
 export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: Pick<OutboxMovesDeps, 'meta' | 'now'>): Promise<void> {
   const { action, values, record, context, target } = event;
@@ -171,6 +204,7 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   if (action === 'delete') return;
 
   if (action === 'create') {
+    await refuseUnreadableLinks(box, event);
     // History — an import, a deleted row put back by its undo — comes back as it was, but never goes by itself.
     if (context.origin === 'import' || context.origin === 'undo') {
       historyWaits(box, target, values);
@@ -267,4 +301,48 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   );
   values[cols.to] = addressed.address;
   if (cols.language !== undefined && addressed.language !== null) values[cols.language] = addressed.language;
+}
+
+/** The override op each manifest rule is kept as. */
+const RULE_OPS: Readonly<Record<string, string>> = {
+  copy: 'column.copy',
+  default: 'column.default',
+  sequence: 'column.sequence',
+  format: 'column.format',
+  code: 'column.code',
+  rollup: 'column.rollup',
+  formula: 'column.formula',
+  stamp: 'column.stamp',
+  options: 'column.options',
+  validation: 'column.validation',
+  required: 'column.required',
+  requiredWhen: 'column.requiredWhen',
+  notAfter: 'column.bounds',
+  notBefore: 'column.bounds',
+};
+
+/**
+ * The columns the installed outboxes of a connection write — keyed
+ * `table\u0000column` — with the rule ops none of them takes: the ones that
+ * would decide the value Adminium writes, or refuse it (`OUTBOX_WRITTEN`,
+ * which the manifest check holds an app to). A Studio save is held to the same.
+ */
+export async function outboxWrittenColumns(meta: MetaDb, connectionId: string): Promise<Map<string, { name: string; ops: Set<string> }>> {
+  const out = new Map<string, { name: string; ops: Set<string> }>();
+  for (const row of await appOutboxesRepo(meta).list()) {
+    if (row.connectionId !== connectionId) continue;
+    let definition: { table?: unknown; columns?: Record<string, unknown> };
+    try {
+      definition = JSON.parse(row.definition) as typeof definition;
+    } catch {
+      continue;
+    }
+    if (typeof definition.table !== 'string') continue;
+    for (const [name, rules] of Object.entries(OUTBOX_WRITTEN)) {
+      const column = definition.columns?.[name];
+      if (typeof column !== 'string') continue;
+      out.set(`${definition.table}\u0000${column}`, { name, ops: new Set(rules.map((rule) => RULE_OPS[rule]!).filter((op) => op !== undefined)) });
+    }
+  }
+  return out;
 }

@@ -15,7 +15,8 @@
  * act, and it gets the stricter answer — `canReadPii: false` on every call,
  * with no way to pass anything else. What the draft then carries is a masked
  * address the person completes in the editor, where the real value never left
- * the building.
+ * the building. A code Adminium makes (a shared link's) is masked the same
+ * way, for everyone (`viewOrError`): it opens a page to whoever holds it.
  *
  * THE COUNT IS BOUNDED. At most {@link ROW_LIMIT_MAX} rows per call, and the
  * cap is applied to what the model asked for rather than refusing the call —

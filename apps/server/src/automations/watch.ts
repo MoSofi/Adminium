@@ -53,7 +53,7 @@ import {
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
-import { maskRow, type Row } from '../crud/mask.js';
+import { keptRow, type Row } from '../crud/mask.js';
 import { pkLabel } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
@@ -260,7 +260,7 @@ async function claimRow(input: {
           pk,
           label: pkLabel(table, pk),
         },
-        snapshot: maskRow(row, table, false),
+        snapshot: keptRow(row, table),
         occurredAt: now,
       },
       // Nobody can undo a write Adminium did not make.

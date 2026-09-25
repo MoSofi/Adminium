@@ -253,6 +253,13 @@ export const appInstallPlanDto = z.object({
    * cannot back its template. Reported, never a refusal: the install goes on
    * and such a page arrives empty. The app's own CI is where they are refused.
    */
+  /**
+   * The manifest's rules the install will skip because they would show a
+   * column kept from readers — a secret, or masked personal data — of a
+   * table it reuses: only an operator shows one, in Studio. Never a
+   * refusal; absent when there is none.
+   */
+  ruleWarnings: z.array(z.object({ table: z.string(), column: z.string(), message: z.string() })).optional(),
   pageWarnings: z.array(
     z.object({
       page: z.string(),

@@ -172,8 +172,17 @@ paragraph, list item or quote holding only it is left out of the email, so an op
 (a visit's reason) sits best in a block of its own. A column marked secret is never offered, and
 a personal column of a linked row neither. An email that names something nothing fills (one of
 those, a link the message does not have, a misspelt name) is never sent with `{{…}}` in it: the
-message is **failed**, and its error names the variable, so the template or the row gets fixed. A
-code Adminium makes, such as a handover link's, is offered like any other column.
+message is **failed**, and its error names the variable, so the template or the row gets fixed.
+`recipient.name` and `recipient.first_name` are always there, empty when the client has no name on
+file.
+
+A code Adminium makes, such as a handover link's, goes only to the person it belongs to: the
+message goes to the address their own row keeps (looked up, or typed exactly as it is stored), and
+the row with the code is theirs or links to them. Addressed by hand to anyone else, or linking one
+client and another client's project, the message is **failed**: "Not sent:
+{{project.share_token}} is a code, and goes only to the address on file of the person it belongs
+to". A notice sent to one of your settings' addresses never carries a code. The desk may link a
+message only to rows it can read.
 
 | Variable | What it holds |
 |---|---|

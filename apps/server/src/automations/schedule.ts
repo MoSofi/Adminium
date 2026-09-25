@@ -49,7 +49,7 @@ import {
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
 import { compileFilter } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
-import { maskRow, type Row } from '../crud/mask.js';
+import { keptRow, type Row } from '../crud/mask.js';
 import { pkLabel } from '../crud/records.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { nextRunAtOf } from '../schedule/next-run.js';
@@ -278,7 +278,7 @@ async function claim(input: {
                 pk,
                 label: pkLabel(table, pk),
               },
-        snapshot: table === null || row === null ? null : maskRow(row, table, false),
+        snapshot: table === null || row === null ? null : keptRow(row, table),
         occurredAt: now,
       },
       wakeAt: null,

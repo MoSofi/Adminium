@@ -31,7 +31,9 @@ What happens when you confirm:
 - **Your codes and numbers stay yours.** When a sample record carries a code or a running number
   that a row in the table already has, the sample's value is dropped and the column's own rule
   fills in a fresh one, exactly as for a record a person creates. A sample record that leaves a
-  code empty gets one too, so a sample handover link opens. See
+  code empty gets one too, so a sample handover link opens. The code a shared link opens a record
+  by is always made fresh: one printed in the app's package would open the same sample page on every
+  install. See
   [Column rules](/guides/schema/column-rules/#filled-in-by-adminium).
 - **Your settings stay yours.** A sample row meant for a table that holds one row, such as the
   app's own settings, is added only when that table is empty. When you already have a row there,

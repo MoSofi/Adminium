@@ -615,6 +615,7 @@
         "ddl": "DDL 预览",
         "ddlNote": "仅供参考。服务器会为你的数据库引擎生成确切语句，包括外键。",
         "summary": "创建 {created} · 复用 {reused}",
+        "ruleWarnings": "此应用的部分规则会显示你的表中隐藏的内容，因此不会应用",
         "pageWarnings": "此应用的部分页面将在没有表的情况下创建"
       },
       "done": {

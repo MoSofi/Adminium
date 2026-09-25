@@ -542,6 +542,11 @@ export interface AppInstallPlan {
    * cannot back them. Never a refusal. Absent from an older server.
    */
   pageWarnings?: { page: string; code: string; message: string; table?: string }[];
+  /**
+   * The manifest's rules the install skips because they would show a column
+   * a table it reuses keeps from readers. Never a refusal. Absent when none.
+   */
+  ruleWarnings?: { table: string; column: string; message: string }[];
   /** The app ships sample data, added once it is installed. Absent from an older server. */
   sampleData?: boolean;
   /**

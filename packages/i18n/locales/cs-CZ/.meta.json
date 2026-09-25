@@ -16479,6 +16479,10 @@
     "status": "mt",
     "srcHash": "1310746c354b"
   },
+  "studio.hostedApps.install.plan.ruleWarnings": {
+    "status": "mt",
+    "srcHash": "f19453d09cb0"
+  },
   "studio.hostedApps.install.plan.summary": {
     "status": "mt",
     "srcHash": "e5793718ec3c"

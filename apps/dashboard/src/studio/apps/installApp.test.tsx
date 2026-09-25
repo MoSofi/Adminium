@@ -459,6 +459,26 @@ describe('the install wizard', () => {
     expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(false);
   });
 
+  it('says which rules stay out because they would show what a reused table keeps hidden, and still lets the install go', async () => {
+    plan = {
+      ...plan,
+      ruleWarnings: [
+        {
+          table: 'users',
+          column: 'api_token',
+          message: 'It would show "users.api_token", which is kept from readers, on a table that was here before the app: only an operator can show it, in Studio, as Super Admin.',
+        },
+      ],
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await reachPlan(user);
+    const warning = await screen.findByTestId('app-install-rule-warnings');
+    expect(warning.textContent).toContain('users.api_token');
+    expect(screen.queryByText('This app cannot be installed here')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(false);
+  });
+
   it('cannot install a plan the server refused', async () => {
     plan = {
       ...plan,

@@ -848,23 +848,30 @@ function tieStates(tables: ReadonlyMap<string, EffectiveTable>): void {
  * Which columns are secrets, once every rule is in.
  *
  * The classifier guesses a secret from a column's name (`…token…`,
- * `…password…`), and a secret is carried by no response, to anyone. A column
- * with a `code` rule is not taken for one by its name: Adminium made its value
- * to be handed on — a studio's `share_token` is the link it sends — so the
- * rule wins over the guess, and the staff who read the table see it. What a
- * public caller is offered is decided apart (`public-api/endpoint.ts`,
+ * `…password…`), and a secret is carried by no response, to anyone. A rule
+ * that fills a column says nothing about who may read it: a `code` column
+ * whose name reads like a secret stays one. It is shown only where somebody
+ * said so, in `column.secret`:
+ *
+ *  - the operator (`user`), in Studio — a save that stops a column being a
+ *    secret needs Super Admin (`routes/schema`). Their word wins over any
+ *    other, and so does a `secret` tag they gave the column: an app never
+ *    takes back what the operator hid;
+ *  - an app, on a table its install created and nowhere else
+ *    (`apps/manifest-rules.ts`): its own `share_token`, whose code is the
+ *    link the studio sends, is shown to the staff who read the table.
+ *
+ * What a public caller is offered is decided apart (`public-api/endpoint.ts`,
  * `public-api/scope.ts`): a code is shown there only where an entry names it,
  * and a shared link's never.
  *
- * `column.secret` (an app's `secret`) says it outright, either way, over the
- * guess and the rule alike; a column the operator tagged `secret` stays one
- * whatever its rules. A column that is not a secret after all loses what the
- * guess made of it: its tag, and the mask introspection wrote for it — a mask
- * a person or an app wrote, or one for a kind of personal data, stays.
+ * A column that is not a secret after all loses what the guess made of it:
+ * its tag, and the mask introspection wrote for it — a mask a person or an
+ * app wrote, or one for a kind of personal data, stays.
  */
 function settleSecrets(
   tables: Iterable<EffectiveTable>,
-  said: ReadonlyMap<EffectiveColumn, boolean>,
+  said: { operator: ReadonlyMap<EffectiveColumn, boolean>; other: ReadonlyMap<EffectiveColumn, boolean> },
   maskedForSecret: ReadonlySet<EffectiveColumn>,
 ): void {
   for (const table of tables) {
@@ -872,7 +879,7 @@ function settleSecrets(
       const semantics = column.semantics ?? null;
       const guessed = semantics !== null && (semantics.flags.secret || semantics.primary === 'secret');
       const tagged = semantics?.primary === 'secret' && semantics.source === 'override';
-      const secret = said.get(column) ?? (tagged || (guessed && column.code === undefined));
+      const secret = said.operator.get(column) ?? said.other.get(column) ?? (tagged || guessed);
       if (secret) {
         if (!guessed || semantics?.flags.secret !== true) {
           column.semantics = {
@@ -908,8 +915,9 @@ export function applyOverrides(
   const tables = new Map<string, EffectiveTable>(effective.tables.map((t) => [tableId(t as TableModel), t]));
   const columnOf = (table: EffectiveTable | undefined, name: string | null): EffectiveColumn | undefined =>
     table?.columns.find((c) => c.name === name);
-  // What `column.secret` says of a column, and the masks introspection wrote for a secret guess alone.
-  const secretSaid = new Map<EffectiveColumn, boolean>();
+  // What `column.secret` says of a column — the operator's word apart from an
+  // app's — and the masks introspection wrote for a secret guess alone.
+  const secretSaid = { operator: new Map<EffectiveColumn, boolean>(), other: new Map<EffectiveColumn, boolean>() };
   const maskedForSecret = new Set<EffectiveColumn>();
 
   // Provenance user > llm for COLUMN labels too: a user `column.label` row
@@ -1003,6 +1011,8 @@ export function applyOverrides(
         // drop it, because only one of them could and they must agree.
         if (!isSemanticTag(value.semanticType)) break;
         column.semantics = stampSemantic(column.semantics, value.semanticType);
+        // The operator tagged it a secret: that is their word, which no app's takes back.
+        if (row.origin === 'user' && value.semanticType === 'secret') secretSaid.operator.set(column, true);
         break;
       }
       case 'column.enumLabels': {
@@ -1034,7 +1044,7 @@ export function applyOverrides(
       }
       case 'column.secret': {
         const column = columnOf(table, row.columnName);
-        if (column !== undefined) secretSaid.set(column, value.secret === true);
+        if (column !== undefined) (row.origin === 'user' ? secretSaid.operator : secretSaid.other).set(column, value.secret === true);
         break;
       }
       case 'column.default': {
@@ -1140,6 +1150,26 @@ export function applyOverrides(
 export interface TableColumnPolicy {
   masked: ReadonlySet<string>;
   secret: ReadonlySet<string>;
+}
+
+/**
+ * Every column kept from readers under `before` — a secret, or masked
+ * personal data — that is not under `after`, as `[tableId, column]`: what a
+ * change of rules shows that no reader saw before. The one diff every guard
+ * asks (a Studio save, an app's install, a project file applied), so each
+ * refuses the same thing.
+ */
+export function columnsShown(model: DatabaseModel, before: readonly SchemaOverride[], after: readonly SchemaOverride[]): [string, string][] {
+  const policies = (rows: readonly SchemaOverride[]) => new Map(applyOverrides(model, rows).tables.map((table) => [table.id, columnPolicyFor(table)]));
+  const was = policies(before);
+  const is = policies(after);
+  const out: [string, string][] = [];
+  for (const [tableId, policy] of was) {
+    const now = is.get(tableId);
+    for (const name of policy.secret) if (now?.secret.has(name) !== true) out.push([tableId, name]);
+    for (const name of policy.masked) if (now?.masked.has(name) !== true && now?.secret.has(name) !== true) out.push([tableId, name]);
+  }
+  return out;
 }
 
 export function columnPolicyFor(table: EffectiveTable): TableColumnPolicy {

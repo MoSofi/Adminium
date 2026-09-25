@@ -31,6 +31,22 @@
  * with a sentence naming the variable. It is a mistake in the template (or a
  * row missing what it needs), and a message that says so gets fixed; a mail
  * that says "open the handover: …#{{project.share_token}}" has already gone.
+ * What every message may read is always filled, empty when there is nothing:
+ * the recipient's name (a client with none on file is greeted "Hello ,"
+ * rather than not greeted at all), the practice's columns without a settings
+ * row, a visit's time range without an end.
+ *
+ * ── A CODE ─────────────────────────────────────────────────────────────────
+ * A code Adminium makes (`code` rule: a project's `share_token`) opens a page
+ * to whoever holds it, so an email carries one only to the person it belongs
+ * to: the message goes to the address the recipient's own row keeps (as the
+ * sign-in link does), and the row the code is on is that person's — it is
+ * their row, or it links to it (`project.client_id` is the recipient). A
+ * message a person addressed by hand to another address, one that links one
+ * client and another client's project, or one sent to a setting's address
+ * carries no code: it fails, with a sentence naming the variable, and never
+ * hands a link to someone it does not belong to. The practice's settings row
+ * is nobody's, and its codes never go.
  *
  * ── WHERE IT GOES ─────────────────────────────────────────────────────────
  * The row's own address. A row that names none — one a desk queued by hand,
@@ -210,6 +226,12 @@ declare module 'fastify' {
 type Outcome = { status: 'failed' | 'skipped'; error: string | null };
 
 /** A row made ready to go: its email, and what the claim writes back (the address and language looked up). */
+/** Whose codes an email may carry: one row of the recipient's table. */
+interface CodeHolder {
+  table: string;
+  id: unknown;
+}
+
 interface Prepared {
   to: string;
   email: Omit<EnqueueEmailInput, 'report' | 'dedupeKey'>;
@@ -234,6 +256,22 @@ export function unfilledSentence(names: readonly string[]): string {
   const listed = names.slice(0, 3).map((name) => `{{${name}}}`).join(', ');
   const more = names.length > 3 ? ` and ${String(names.length - 3)} more` : '';
   return sentence(`Not sent: nothing fills ${listed}${more}`);
+}
+
+/**
+ * Why an email that would carry a code to someone it does not belong to is
+ * not sent: the address is not the one on file of the person whose row holds
+ * the code.
+ */
+export function codeWithheldSentence(names: readonly string[]): string {
+  const listed = names.slice(0, 2).map((name) => `{{${name}}}`).join(', ');
+  return sentence(`Not sent: ${listed} is a code, and goes only to the address on file of the person it belongs to`);
+}
+
+/** The same address, as a sign-in link or a code is sent to it: the same characters, or the same ASCII letters in another case. */
+function sameAddress(stored: string, to: string): boolean {
+  const ascii = (text: string) => /^[\x21-\x7e]+$/.test(text);
+  return stored === to || (ascii(stored) && ascii(to) && stored.toLowerCase() === to.toLowerCase());
 }
 
 /** A person's wording with every `{{name}}` the template does not read taken out. */
@@ -442,23 +480,42 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     return vars;
   }
 
-  /** Everything a template may read for one row. */
+  /** Everything a template may read for one row, and the codes it held back (`{{project.share_token}}`). */
   async function variables(
     box: LiveOutbox,
     ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms> },
     row: Row,
     addressed: Addressed | null,
-  ): Promise<Record<string, string>> {
+    /** Whose codes the email may carry: the recipient, when it goes to their own address on file; else nobody's. */
+    holder: CodeHolder | null,
+  ): Promise<{ vars: Record<string, string>; withheld: Set<string> }> {
     const { db, view, forms } = ctx;
     const vars: Record<string, string> = {};
+    const withheld = new Set<string>();
+    /** Whether a row is the code holder's: their own, or one that links to them. */
+    const holders = (table: ResolvedTable, record: Row): boolean => {
+      if (holder === null) return false;
+      const key = table.primaryKey[0];
+      if (table.id === holder.table && key !== undefined && String(record[key]) === String(holder.id)) return true;
+      return [...table.columns.keys()].some(
+        (column) => record[column] !== null && record[column] !== undefined && String(record[column]) === String(holder.id) && referenced(view, table.id, column) === holder.table,
+      );
+    };
     // A column Adminium masks (an email, a phone) is never read into an email
     // from a linked row: the address a message goes to is looked up apart.
     const put = (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) => {
       // A row that keeps its own currency (an invoice in euros on a pound connection) prints its money in it.
       const own = table.columns.has('currency') ? record['currency'] : null;
       const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
+      // A code goes only to the person whose row it is on — never from the settings row, which is nobody's.
+      const codes = settingsRow || !holders(table, record) ? new Set(table.table.columns.filter((c) => c.code !== undefined).map((c) => c.name)) : new Set<string>();
+      if (table.columns.has('starts_at')) vars[`${prefix}.time_range`] = '';
       for (const column of table.columns.values()) {
         if (column.secret || (column.masked && !settingsRow)) continue;
+        if (codes.has(column.name)) {
+          withheld.add(`${prefix}.${column.name}`);
+          continue;
+        }
         const value = record[column.name];
         const name = `${prefix}.${column.name}`;
         if (value === null || value === undefined) {
@@ -513,6 +570,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
 
     // Who it is for: the person on file, else the name a first visit carries.
     // A notice sent to a setting's address is the studio's own: no person's name.
+    // Always filled — empty with no name on file — so a greeting never stops a message.
+    vars['recipient.name'] = '';
+    vars['recipient.first_name'] = '';
     if (addressed?.bySetting !== true) {
       const recipient = box.definition.recipient;
       const person = await rowOf(db, view, recipient.table, row[recipient.via]);
@@ -531,11 +591,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     let practiceName: unknown;
     if (settings !== undefined) {
       const record = (await db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
-      if (record !== undefined) {
-        // The app's own settings row: its phone is the practice's, not a person's.
-        put('practice', view.table(settings.table), record, true);
-        if (settings.name !== undefined) practiceName = record[settings.name];
-      }
+      // The app's own settings row: its phone is the practice's, not a person's. None yet: each is empty.
+      put('practice', view.table(settings.table), record ?? {}, true);
+      if (record !== undefined && settings.name !== undefined) practiceName = record[settings.name];
     }
     vars['appName'] =
       typeof practiceName === 'string' && practiceName.trim() !== '' ? practiceName.trim() : String((await settingsRepo(deps.meta).get('branding.appName')) ?? 'Adminium');
@@ -548,7 +606,33 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // The desk: a studio notice's button opens `{{staff_url}}proposals/42`.
     vars['staff_url'] = (await staffBase(box.appKey)) ?? '';
     Object.assign(vars, await addOnVariables((await appFacts(box.row.manifestId)).requires));
-    return vars;
+    // A name a row of the recipient's own fills too (`client.share_token` beside a project's) is not held back.
+    for (const name of withheld) if (Object.hasOwn(vars, name)) withheld.delete(name);
+    return { vars, withheld };
+  }
+
+  /**
+   * Whose codes an email may carry: the recipient's, when it goes to the
+   * address their own row keeps — the sign-in link's rule. A message to a
+   * setting's address, to a person with no row, or to an address somebody
+   * typed carries nobody's.
+   */
+  async function codeHolder(
+    box: LiveOutbox,
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView },
+    row: Row,
+    to: string,
+    addressed: Addressed | null,
+  ): Promise<CodeHolder | null> {
+    if (addressed?.bySetting === true) return null;
+    const recipient = box.definition.recipient;
+    const person = addressed?.person ?? (await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]));
+    if (person === null) return null;
+    const stored = person[recipient.email];
+    if (!plausibleAddress(stored) || !sameAddress(stored.trim(), to)) return null;
+    const key = ctx.view.table(recipient.table).primaryKey[0];
+    const id = key === undefined ? undefined : person[key];
+    return id === null || id === undefined ? null : { table: recipient.table, id };
   }
 
   /**
@@ -606,8 +690,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (!plausibleAddress(stored)) return none;
     const exact = stored.trim();
     const ascii = (text: string) => /^[\x21-\x7e]+$/.test(text);
-    const same = exact === to || (ascii(exact) && ascii(to) && exact.toLowerCase() === to.toLowerCase());
-    if (!same) return none;
+    if (!sameAddress(exact, to)) return none;
     const key = ctx.view.table(recipient.table).primaryKey[0];
     const id = key === undefined ? undefined : identity[key];
     if (key === undefined || (typeof id !== 'string' && typeof id !== 'number')) return none;
@@ -676,8 +759,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
 
     // The nearest template language writes the words; the recipient's own tag the clock.
     const forms = valueForms({ locale: formatTag(typeof language === 'string' ? language : null, locale), zone: ctx.zone, currency: ctx.currency, now: ctx.now });
-    const vars = await variables(box, { ...ctx, forms }, row, addressed);
     let to = found.trim();
+    const holder = await codeHolder(box, ctx, row, to, addressed);
+    const { vars, withheld } = await variables(box, { ...ctx, forms }, row, addressed, holder);
     vars['signInLink'] = '';
     if (reads.has('signInLink')) {
       const minted = await signInLink(box, ctx, row, to, addressed, producer);
@@ -687,11 +771,14 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // Every name the email will print has its value — or it does not go, rather than go with `{{…}}` in it.
     const sent = withOverride({ subject: template.subject, blocks: template.blocks as readonly Record<string, unknown>[] }, override);
     const unfilled = [...placeholders([sent.subject, template.preheader, sent.blocks, template.footer])].filter((name) => !Object.hasOwn(vars, name));
+    const codes = unfilled.filter((name) => withheld.has(name));
+    if (codes.length > 0) return { status: 'failed', error: codeWithheldSentence(codes) };
     if (unfilled.length > 0) return { status: 'failed', error: unfilledSentence(unfilled) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
     return {
       to,
-      email: { to, templateKey, locale, vars, ...(override.subject === undefined && override.body === undefined ? {} : { override }) },
+      // The template checked above is the one sent: never resolved again, as it may have been edited meanwhile.
+      email: { to, templateKey, locale, vars, template, ...(override.subject === undefined && override.body === undefined ? {} : { override }) },
       ...(written === to ? {} : { recordTo: to }),
       ...(lookedUp && typeof language === 'string' && language !== '' && language !== own ? { language } : {}),
     };
