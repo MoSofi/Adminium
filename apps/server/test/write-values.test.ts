@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { normalizeWriteValue, sameValue } from '../src/crud/write-values.js';
+import { bindWriteValue, normalizeWriteValue, sameValue } from '../src/crud/write-values.js';
 import type { ResolvedColumn } from '../src/crud/identifiers.js';
 
 function column(logicalType: ResolvedColumn['logicalType']): ResolvedColumn {
@@ -85,6 +85,52 @@ describe('normalizeWriteValue — naive timestamp wall-clock round-trip', () => 
     expect(normalizeWriteValue(naive, null)).toBeNull();
     expect(normalizeWriteValue(naive, 1234567890)).toBe(1234567890);
     expect(normalizeWriteValue(naive, 'not-a-timestamp')).toBe('not-a-timestamp');
+  });
+});
+
+describe('bindWriteValue — an instant as the statement binds it', () => {
+  const zoned = column('timestamptz');
+
+  it("spells an instant for MySQL's TIMESTAMP as UTC wall time, in any server zone", () => {
+    // MySQL refuses the T and the Z, and Adminium's sessions there run in UTC.
+    for (const tz of ['Europe/Berlin', 'America/New_York', 'UTC']) {
+      withTz(tz, () => {
+        expect(bindWriteValue(zoned, '2026-07-27T23:00:00.000Z', 'mysql')).toBe('2026-07-27 23:00:00.000');
+        expect(bindWriteValue(zoned, '2026-07-28T01:00:00+02:00', 'mysql')).toBe('2026-07-27 23:00:00');
+        expect(bindWriteValue(zoned, '2026-07-27 19:00:00-0400', 'mysql')).toBe('2026-07-27 23:00:00');
+        // A Date read back (an undo) — the driver would spell it in this process's zone.
+        expect(bindWriteValue(zoned, new Date('2026-07-27T23:00:00.123Z'), 'mysql')).toBe('2026-07-27 23:00:00.123');
+      });
+    }
+  });
+
+  it('keeps a microsecond a caller sent', () => {
+    expect(bindWriteValue(zoned, '2026-07-27T23:00:00.123456Z', 'mysql')).toBe('2026-07-27 23:00:00.123456');
+  });
+
+  it('leaves a zone-less literal, null, garbage and an invalid Date alone', () => {
+    expect(bindWriteValue(zoned, '2026-07-27 23:00:00', 'mysql')).toBe('2026-07-27 23:00:00');
+    expect(bindWriteValue(zoned, null, 'mysql')).toBeNull();
+    expect(bindWriteValue(zoned, 'soon', 'mysql')).toBe('soon');
+    const invalid = new Date('nope');
+    expect(bindWriteValue(zoned, invalid, 'mysql')).toBe(invalid);
+  });
+
+  it('hands Postgres and SQLite the instant as it is', () => {
+    const at = new Date('2026-07-27T23:00:00.000Z');
+    for (const dialect of ['postgres', 'sqlite'] as const) {
+      expect(bindWriteValue(zoned, '2026-07-27T23:00:00.000Z', dialect)).toBe('2026-07-27T23:00:00.000Z');
+      expect(bindWriteValue(zoned, at, dialect)).toBe(at);
+    }
+  });
+
+  it('spells a zone-less timestamp as normalizeWriteValue does, on every engine', () => {
+    withTz('Europe/Berlin', () => {
+      for (const dialect of ['mysql', 'postgres', 'sqlite'] as const) {
+        expect(bindWriteValue(naive, '2026-05-28T20:00:00.000Z', dialect)).toBe('2026-05-28 22:00:00');
+      }
+      expect(bindWriteValue(column('varchar'), '2026-05-28T20:00:00.000Z', 'mysql')).toBe('2026-05-28T20:00:00.000Z');
+    });
   });
 });
 

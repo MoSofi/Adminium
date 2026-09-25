@@ -1912,9 +1912,12 @@ async function produceEmails(h: Harness, dialect: Dialect): Promise<void> {
   const outbox = app.outbox as OutboxProducers;
   const { call, codeOf, headers } = served;
   const bool = (on: boolean) => (dialect === 'postgres' ? String(on) : on ? '1' : '0');
-  // An instant as each engine keeps one written through Adminium.
+  // An instant as each engine keeps one written through Adminium: a zone-less
+  // column (SQLite's, and the `datetime` an app gets on MySQL) holds this
+  // server's wall clock. An offset literal would land in the session's zone,
+  // which on MySQL is UTC.
   const at = (ms: number) =>
-    dialect === 'sqlite'
+    dialect !== 'postgres'
       ? `'${String(normalizeWriteValue({ logicalType: 'timestamp' } as never, new Date(ms).toISOString()))}'`
       : `'${new Date(ms).toISOString().slice(0, 19).replace('T', ' ')}+00:00'`;
   const messages = async (where = '1 = 1') =>
@@ -2136,7 +2139,7 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
     const now = Date.now();
     const tomorrow = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now + 86_400_000));
     const at = wallTimeToInstant(`${tomorrow}T10:00`, 'Europe/London')!;
-    const spelled = dialect === 'sqlite' ? String(normalizeWriteValue({ logicalType: 'timestamp' } as never, at.toISOString())) : `${at.toISOString().slice(0, 19).replace('T', ' ')}+00:00`;
+    const spelled = dialect !== 'postgres' ? String(normalizeWriteValue({ logicalType: 'timestamp' } as never, at.toISOString())) : `${at.toISOString().slice(0, 19).replace('T', ' ')}+00:00`;
     for (const patient of [ada, ben]) {
       await h.run(`insert into pos_appointments (patient_id, starts_at, status, clinician_id, minutes, fee) values (${patient}, '${spelled}', 'booked', ${clinician}, 15, 40)`);
     }
@@ -2310,7 +2313,7 @@ async function kioskKey(h: Harness, dialect: Dialect): Promise<void> {
   const noon = wallTimeToInstant(`${tomorrow} 12:00`, 'Europe/London')!.getTime();
   const minutes = (n: number) => new Date(noon + n * 60_000).toISOString();
   const spell = (n: number) =>
-    dialect === 'sqlite' ? String(normalizeWriteValue({ logicalType: 'timestamp' } as never, minutes(n))) : `${minutes(n).slice(0, 19).replace('T', ' ')}+00:00`;
+    dialect !== 'postgres' ? String(normalizeWriteValue({ logicalType: 'timestamp' } as never, minutes(n))) : `${minutes(n).slice(0, 19).replace('T', ' ')}+00:00`;
   await stageManifest(h, kioskManifest(), files);
   const installed = await post(h, '/apps/install');
   expect(installed.statusCode, installed.body).toBe(200);

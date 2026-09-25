@@ -15,7 +15,7 @@
  * It captured nothing from the closure. Moving it out cost one import and
  * bought a test file; the behaviour is unchanged, line for line.
  */
-import type { Dialect } from '@adminium/engine';
+import type { Dialect, LogicalType } from '@adminium/engine';
 
 import { sameValue } from '../crud/write-values.js';
 
@@ -51,6 +51,8 @@ export const prepareValues = (
   session: PublicSessionContext | null,
   action: 'create' | 'update',
   dialect: Dialect,
+  /** The table's columns: a generated `now` is spelled for the column it fills. */
+  columns?: ReadonlyMap<string, { readonly logicalType: LogicalType }>,
 ): Record<string, unknown> | null => {
   for (const column of Object.keys(values)) {
     if (!resource.writable.has(column)) return null;
@@ -78,7 +80,7 @@ export const prepareValues = (
    */
   const defaults =
     action === 'create'
-      ? resolveDefaults(resource.defaults, dialect, new Date())
+      ? resolveDefaults(resource.defaults, dialect, new Date(), columns)
       : dropGeneratedDefaults(resource.defaults);
   const out: Record<string, unknown> = { ...values, ...defaults };
 

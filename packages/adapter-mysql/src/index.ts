@@ -57,6 +57,7 @@ import {
   type ProbeResult,
 } from './introspect.js';
 import { createQueryEngine } from './query-engine.js';
+import { readTimestampsAsUtc, UTC_SESSION_SQL } from './session.js';
 import { collectMysqlStats } from './stats.js';
 
 const INTROSPECT_POOL_MAX = 5;
@@ -98,6 +99,9 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
       uri: config.dsn,
       connectionLimit:
         config.poolMax ?? (this.role === 'introspect' ? INTROSPECT_POOL_MAX : DATA_POOL_MAX),
+      // The same clock as the query engine's pool (`session.ts`): a column's
+      // statistics name the same instants its rows do.
+      typeCast: readTimestampsAsUtc,
     });
     // Session timeout setup on every new connection. MySQL takes
     // milliseconds (max_execution_time); MariaDB takes seconds
@@ -111,6 +115,9 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
     };
     pool.pool.on('connection', (connection: CallbackPoolConnection) => {
       const conn = connection as unknown as CallbackQueryable;
+      conn.query(UTC_SESSION_SQL, () => {
+        /* best effort here: this pool reads catalogs and statistics only */
+      });
       conn.query(`SET SESSION max_execution_time = ${statementTimeoutMs}`, (error) => {
         if (error !== null && error !== undefined) {
           conn.query(`SET SESSION max_statement_time = ${mariadbSeconds}`, () => {
@@ -392,6 +399,7 @@ export {
   quoteIdentifier,
 } from './serialization.js';
 export { toAdapterError } from './errors.js';
+export { readTimestampsAsUtc, UTC_SESSION_SQL, type TypeCastField } from './session.js';
 
 /** @deprecated M0 scaffold export; kept so early imports keep compiling. */
 export const PACKAGE_NAME = '@adminium/adapter-mysql';

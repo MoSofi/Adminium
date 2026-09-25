@@ -21,6 +21,7 @@ import {
   mysqlSerializers,
   quoteIdentifier,
 } from './serialization.js';
+import { readTimestampsAsUtc, UTC_SESSION_SQL } from './session.js';
 
 const DEFAULT_DATA_POOL_MAX = 10;
 
@@ -29,7 +30,8 @@ const DEFAULT_DATA_POOL_MAX = 10;
  * or the role-branded config (which must carry a `dsn`). Kysely's
  * `MysqlDialect` consumes the callback-flavored mysql2 pool; connections are
  * only opened on first query, and `destroy()` tears the pool down
- * idempotently.
+ * idempotently. Every connection's session runs in UTC and a `TIMESTAMP`
+ * reads back as UTC (`session.ts`).
  */
 export function createQueryEngine(config: DataConnectionConfig | string): QueryEngine {
   const dsn = typeof config === 'string' ? config : config.dsn;
@@ -42,6 +44,22 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
   const pool = mysql.createPool({
     uri: dsn,
     connectionLimit: poolMax ?? DEFAULT_DATA_POOL_MAX,
+    typeCast: readTimestampsAsUtc,
+  });
+  // Queued on the connection before the query that asked for it, so no
+  // statement ever runs in the server's default zone. A connection that
+  // cannot be put in UTC is closed rather than left to answer in another
+  // zone: the query waiting on it fails, and the pool opens a fresh one.
+  // mysql2's mixin-typed .d.ts do not surface query() under NodeNext; the
+  // callback signature used here is pinned structurally.
+  pool.on('connection', (connection) => {
+    const conn = connection as unknown as {
+      query(sql: string, cb: (error: Error | null) => void): void;
+      destroy(): void;
+    };
+    conn.query(UTC_SESSION_SQL, (error) => {
+      if (error !== null && error !== undefined) conn.destroy();
+    });
   });
 
   // Structural cast: kysely ships its own minimal `MysqlPool` interface to

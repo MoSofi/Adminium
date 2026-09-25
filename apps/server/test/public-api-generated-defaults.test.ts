@@ -157,6 +157,35 @@ describe('resolving a defaults block', () => {
     expect(out['updated_at']).toBe(out['created_at']);
   });
 
+  it('spells `now` for the column it fills, when the columns are known', () => {
+    // A zone-less `timestamp` (Adminium's own `datetime` on MySQL reads back as
+    // one) keeps this server's wall clock; an instant column the instant.
+    const before = process.env.TZ;
+    process.env.TZ = 'America/New_York';
+    try {
+      const columns = new Map([
+        ['created_at', { logicalType: 'timestamptz' as const }],
+        ['noted_at', { logicalType: 'timestamp' as const }],
+        ['on_day', { logicalType: 'date' as const }],
+        ['note', { logicalType: 'text' as const }],
+      ]);
+      const defaults = { created_at: { $generate: 'now' }, noted_at: { $generate: 'now' }, on_day: { $generate: 'now' }, note: { $generate: 'now' } };
+      expect(resolveDefaults(defaults, 'mysql', now, columns)).toEqual({
+        created_at: '2026-09-06 12:34:56.789',
+        noted_at: '2026-09-06 08:34:56.789',
+        on_day: '2026-09-06',
+        note: '2026-09-06 12:34:56.789',
+      });
+      expect(resolveDefaults(defaults, 'postgres', now, columns)).toMatchObject({
+        created_at: '2026-09-06T12:34:56.789Z',
+        noted_at: '2026-09-06 08:34:56.789',
+      });
+    } finally {
+      if (before === undefined) delete process.env.TZ;
+      else process.env.TZ = before;
+    }
+  });
+
   it('throws rather than writing a malformed sentinel through', () => {
     // Unreachable in production — `compileScope` refuses these — so the throw
     // is a bug report, not an operator's error message.

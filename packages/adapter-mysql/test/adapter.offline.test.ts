@@ -150,11 +150,23 @@ describe('connect()', () => {
   });
 });
 
+describe('connect() — the session every connection starts with', () => {
+  it('puts the session in UTC and reads a TIMESTAMP as UTC, like the query engine', async () => {
+    // A column's statistics must name the same instants its rows do.
+    await connected('data');
+    pools[0]!.openConnection();
+    expect(pools[0]!.sessionSql[0]).toBe("SET time_zone = '+00:00'");
+    expect((pools[0]!.options as { typeCast?: unknown }).typeCast).toBe(mod.readTimestampsAsUtc);
+  });
+});
+
 describe('connect() — per-connection statement timeout', () => {
+  const UTC = "SET time_zone = '+00:00'";
+
   it('sets the MySQL variable on every new connection', async () => {
     await connected('introspect');
     pools[0]!.openConnection();
-    expect(pools[0]!.sessionSql).toEqual(['SET SESSION max_execution_time = 15000']);
+    expect(pools[0]!.sessionSql).toEqual([UTC, 'SET SESSION max_execution_time = 15000']);
   });
 
   it('falls back to the MariaDB variable, converting ms to whole seconds', async () => {
@@ -166,6 +178,7 @@ describe('connect() — per-connection statement timeout', () => {
     pools[0]!.openConnection();
 
     expect(pools[0]!.sessionSql).toEqual([
+      UTC,
       'SET SESSION max_execution_time = 4500',
       'SET SESSION max_statement_time = 5', // ceil(4.5s)
     ]);
@@ -179,14 +192,14 @@ describe('connect() — per-connection statement timeout', () => {
     pools[0]!.sessionFailures.add('max_execution_time');
     pools[0]!.openConnection();
 
-    expect(pools[0]!.sessionSql[1]).toBe('SET SESSION max_statement_time = 1');
+    expect(pools[0]!.sessionSql[2]).toBe('SET SESSION max_statement_time = 1');
   });
 
   it('floors a fractional millisecond budget', async () => {
     const adapter = new mod.MysqlAdapter<'data'>('data');
     await adapter.connect({ role: 'data', dsn: DSN, statementTimeoutMs: 1500.7 } as never);
     pools[0]!.openConnection();
-    expect(pools[0]!.sessionSql[0]).toBe('SET SESSION max_execution_time = 1500');
+    expect(pools[0]!.sessionSql[1]).toBe('SET SESSION max_execution_time = 1500');
   });
 
   it('gives up quietly when neither variable exists', async () => {
@@ -196,7 +209,7 @@ describe('connect() — per-connection statement timeout', () => {
     pools[0]!.sessionFailures.add('max_execution_time');
     pools[0]!.sessionFailures.add('max_statement_time');
     expect(() => pools[0]!.openConnection()).not.toThrow();
-    expect(pools[0]!.sessionSql).toHaveLength(2);
+    expect(pools[0]!.sessionSql).toHaveLength(3);
     await adapter.close();
   });
 });

@@ -117,7 +117,7 @@ import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
-import { normalizeWriteValue, sameValue } from './write-values.js';
+import { bindWriteValue, normalizeWriteValue, sameValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin } from './write-context.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
@@ -311,10 +311,22 @@ type AnyDelete = DeleteQueryBuilder<SourceDatabase, string, DeleteResult>;
  * node-postgres binds it as a Postgres array literal, mysql2 expands it into a
  * list of parameters (a column-count error), and better-sqlite3 refuses it.
  * better-sqlite3 refuses a boolean too, so on SQLite one is bound as 1 or 0.
+ * And an instant for a MySQL `TIMESTAMP` is spelled as its UTC wall time — an
+ * ISO one is refused there, and a Date read back (an undo) would be written in
+ * this process's zone (`bindWriteValue`).
  */
 function storable(table: ResolvedTable, values: CheckedRow, dialect: Dialect): CheckedRow {
   let out: Row | null = null;
   for (const [name, value] of Object.entries(values)) {
+    if (dialect === 'mysql' && value !== null && value !== undefined) {
+      const column = table.columns.get(name);
+      const bound = column?.logicalType === 'timestamptz' ? bindWriteValue(column, value, dialect) : value;
+      if (bound !== value) {
+        out ??= { ...values };
+        out[name] = bound;
+        continue;
+      }
+    }
     if (typeof value === 'boolean' && dialect === 'sqlite') {
       out ??= { ...values };
       out[name] = bindValue(dialect, value);
@@ -465,7 +477,10 @@ export async function updateRows(
       : (query: AnyUpdate): AnyUpdate => {
           let out = refine === undefined ? query : refine(query);
           for (const [column, value] of Object.entries(expected)) {
-            out = out.where((eb) => (value === null || value === undefined ? eb(eb.ref(column as never), 'is', null) : eb(eb.ref(column as never), '=', value as never)));
+            const resolved = table.columns.get(column);
+            // A moment read back as a Date: on MySQL, spelled as the column holds it.
+            const bound = resolved?.logicalType === 'timestamptz' ? bindWriteValue(resolved, value, dialect) : value;
+            out = out.where((eb) => (bound === null || bound === undefined ? eb(eb.ref(column as never), 'is', null) : eb(eb.ref(column as never), '=', bound as never)));
           }
           return out;
         };

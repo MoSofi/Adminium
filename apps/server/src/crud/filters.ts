@@ -13,7 +13,8 @@ import type { Dialect } from '@adminium/engine';
 
 import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import type { ResolvedTable, SnapshotView } from './identifiers.js';
+import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
+import { bindWriteValue } from './write-values.js';
 
 export const FILTER_OPS = [
   'eq',
@@ -239,9 +240,15 @@ function compileILike(eb: Eb, dialect: Dialect, ref: Ref, pattern: string): Expr
  * A value as the engine binds it. A descriptor carries JSON, so a boolean
  * filter arrives as `true`/`false` — which better-sqlite3 refuses to bind at
  * all ("can only bind numbers, strings, …"); SQLite keeps booleans as 1 and
- * 0, as every write to it does (`bindValue` in the write service).
+ * 0, as every write to it does (`bindValue` in the write service). An instant
+ * compared with a MySQL `TIMESTAMP` is spelled the way one is written there:
+ * an ISO one is refused inside an UPDATE, and read in the session's zone
+ * anywhere else (`bindWriteValue`).
  */
-function bindable(ctx: CompileFilterContext, value: unknown): unknown {
+function bindable(ctx: CompileFilterContext, column: ResolvedColumn, value: unknown): unknown {
+  if (ctx.dialect === 'mysql' && column.logicalType === 'timestamptz') {
+    return Array.isArray(value) ? value.map((item) => bindWriteValue(column, item, ctx.dialect)) : bindWriteValue(column, value, ctx.dialect);
+  }
   if (ctx.dialect !== 'sqlite') return value;
   if (typeof value === 'boolean') return value ? 1 : 0;
   return Array.isArray(value) ? value.map((item) => (typeof item === 'boolean' ? (item ? 1 : 0) : item)) : value;
@@ -251,7 +258,7 @@ function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCo
   // Masked columns are rejected in `where` for non-PII readers.
   const column = ctx.view.readableColumn(ctx.table, condition.column, ctx.canReadPii);
   const ref = ctx.dynamic.ref(column.name);
-  const value = () => bindable(ctx, requireValue(condition));
+  const value = () => bindable(ctx, column, requireValue(condition));
   switch (condition.op) {
     case 'eq':
       return eb(ref, '=', value());
@@ -266,7 +273,7 @@ function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCo
     case 'lte':
       return eb(ref, '<=', value());
     case 'in': {
-      const value = bindable(ctx, requireValue(condition));
+      const value = bindable(ctx, column, requireValue(condition));
       if (!Array.isArray(value) || value.length > MAX_IN_VALUES) {
         throw new ValidationFailedError('`in` takes an array of at most 200 values.', {
           column: condition.column,
@@ -284,7 +291,7 @@ function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCo
     case 'not_null':
       return eb(ref, 'is not', null);
     case 'between': {
-      const value = bindable(ctx, requireValue(condition));
+      const value = bindable(ctx, column, requireValue(condition));
       if (!Array.isArray(value) || value.length !== 2) {
         throw new ValidationFailedError('`between` takes a [low, high] pair.', {
           column: condition.column,

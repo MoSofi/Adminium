@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import type { Dialect } from '@adminium/engine';
+
 import type { ResolvedColumn } from './identifiers.js';
+import { instantFor } from './instants.js';
 
 /**
  * Write-side value normalization for the JSON data routes (create / update /
@@ -19,15 +22,55 @@ import type { ResolvedColumn } from './identifiers.js';
  * value is this same process's. Naive literals pass through byte-identical
  * (microseconds included), so callers writing `2026-05-28 22:00:00` keep
  * exact-literal semantics. `timestamptz` is untouched — zoned instants are
- * already lossless there — and `date` is normalized client-side (the form
- * sends plain `YYYY-MM-DD`; a raw API caller's zoned literal keeps the
- * database's own cast semantics).
+ * already lossless there, and the guards between here and the statement read
+ * them as instants — and `date` is normalized client-side (the form sends
+ * plain `YYYY-MM-DD`; a raw API caller's zoned literal keeps the database's
+ * own cast semantics). How MySQL takes an instant is {@link bindWriteValue}'s
+ * business, at the moment it is bound.
  */
 
 const ZONED_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/i;
 
 const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
+
+/**
+ * An instant as MySQL's `TIMESTAMP` takes one on a UTC session:
+ * `2026-07-27 23:00:00.000`. The fraction is copied from the text rather than
+ * the Date, so a microsecond a caller sent is not cut to milliseconds — a zone
+ * offset is whole minutes and never moves it. Anything else passes through.
+ */
+function mysqlInstant(value: unknown): unknown {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? value : instantFor('mysql', value);
+  if (typeof value !== 'string') return value;
+  const zoned = ZONED_TIMESTAMP.exec(value);
+  if (zoned === null) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  const fraction = zoned[2] ?? '';
+  return `${instantFor('mysql', parsed).slice(0, 19)}${fraction}`;
+}
+
+/**
+ * A value as the statement binds it for this column: {@link normalizeWriteValue},
+ * and on MySQL an instant for a `timestamptz` column (a `TIMESTAMP` there)
+ * spelled as its UTC wall time.
+ *
+ * MySQL's `TIMESTAMP` refuses the `T` and the `Z` of an ISO instant outright
+ * under strict mode — every API write of one failed — and reads any zone-less
+ * spelling in the SESSION's zone. The adapter pins every data connection's
+ * session to UTC, so the UTC wall time is the instant, whatever zone the
+ * database server or this process runs in. A Date is spelled here too: the
+ * driver would write it in this process's zone. Postgres and SQLite take the
+ * zoned instant as it is.
+ *
+ * Only where a value meets the database: a guard on the way reads a
+ * zone-less time as this server's wall clock, which a UTC one is not.
+ */
+export function bindWriteValue(column: ResolvedColumn, value: unknown, dialect: Dialect): unknown {
+  if (column.logicalType === 'timestamptz') return dialect === 'mysql' ? mysqlInstant(value) : value;
+  return normalizeWriteValue(column, value);
+}
 
 export function normalizeWriteValue(column: ResolvedColumn, value: unknown): unknown {
   if (column.logicalType !== 'timestamp') return value;

@@ -50,15 +50,17 @@
  * the three drivers agree on, so this formats a string per dialect and the
  * round trip is tested on all three.
  *
- * UTC IN ALL THREE CASES. A `datetime` has no zone to carry one, so the only
- * question is which instant the literal denotes, and the answer has to be the
- * same one postgres and sqlite are holding or the same row means two times.
+ * WHICH CLOCK. An instant column takes the instant, in UTC, on all three. A
+ * `datetime` has no zone to carry one, and Adminium reads it back — as it reads
+ * every zone-less `timestamp` — as this server's wall clock; so that is what
+ * `now` writes into one when the table's columns are known (`resolveDefaults`).
+ * UTC there came back shifted by the server's offset wherever it was not UTC.
  */
 import { randomUUID } from 'node:crypto';
 
-import type { Dialect } from '@adminium/engine';
+import type { Dialect, LogicalType } from '@adminium/engine';
 
-import { instantFor } from '../crud/instants.js';
+import { instantFor, renderNow } from '../crud/instants.js';
 
 /**
  * The closed set. A generator is a spec change, exactly as a slot id is.
@@ -133,6 +135,13 @@ export { instantFor } from '../crud/instants.js';
  * `updated_at` differ by the microsecond it took to walk an object is a row
  * that looks edited the instant it was written.
  *
+ * ONE `now`, SPELLED FOR EACH COLUMN. With the table's columns in hand, `now`
+ * is written the way a column rule's `now` fill writes it: an instant into a
+ * `timestamptz`, and this server's wall clock into a zone-less `timestamp` —
+ * which is also what Adminium's own `datetime` columns on MySQL read back as.
+ * The UTC wall time there came back shifted by this server's offset. A column
+ * that is not a time (or no columns at all) keeps the instant.
+ *
  * A malformed sentinel THROWS rather than being written through. `compileScope`
  * has already refused every one of them, so reaching this is a bug in the
  * compiler rather than an operator's mistake — and the alternative, quietly
@@ -143,6 +152,7 @@ export function resolveDefaults(
   defaults: Readonly<Record<string, unknown>>,
   dialect: Dialect,
   now: Date,
+  columns?: ReadonlyMap<string, { readonly logicalType: LogicalType }>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   let instant: string | null = null;
@@ -160,8 +170,9 @@ export function resolveDefaults(
     if (reading.generator === 'uuid') {
       out[column] = randomUUID();
     } else {
+      const shape = columns?.get(column);
       instant ??= instantFor(dialect, now);
-      out[column] = instant;
+      out[column] = (shape === undefined ? null : renderNow(shape, dialect, now)) ?? instant;
     }
   }
   return out;

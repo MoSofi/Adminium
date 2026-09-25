@@ -108,7 +108,7 @@ import { slotInstant } from '../crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import type { RecordWriteService, UpdateRecordInput } from '../crud/write-service.js';
-import { normalizeWriteValue } from '../crud/write-values.js';
+import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
 import { appDocumentOff, appProfileFor } from '../documents/app-documents.js';
 import { renderDocument, type RenderDeps } from '../documents/render.js';
@@ -746,7 +746,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       let still = query.where(sql.ref(cols.status), '=', 'sent');
       const sentAt = cols.sentAt === undefined ? undefined : outbox.columns.get(cols.sentAt);
       if (sentAt === undefined) return still;
-      const spelled = (ms: number) => normalizeWriteValue(sentAt, new Date(ms).toISOString());
+      const spelled = (ms: number) => bindWriteValue(sentAt, new Date(ms).toISOString(), dialect);
       still = still.where(sql.ref(sentAt.name), '>', spelled(now - 1_000)).where(sql.ref(sentAt.name), '<', spelled(now + 1_000));
       return still;
     };
@@ -755,7 +755,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // Only what has come due: a batch whose window is open, a message for a later
     // day, wait — and so does one whose day cannot be worked out yet.
     if (due !== undefined) {
-      const spelled = normalizeWriteValue(due, at);
+      const spelled = bindWriteValue(due, at, dialect);
       const timed = [...new Set((box.definition.producers ?? []).filter((p) => p.due !== undefined || p.batchMinutes !== undefined).map((p) => p.kind))];
       query = query.where((eb) =>
         eb.or([
@@ -1101,7 +1101,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         let still = query.where(sql.ref(cols.status), '=', 'sent');
         const sentAt = cols.sentAt === undefined ? undefined : outbox.columns.get(cols.sentAt);
         if (sentAt !== undefined && report.sentAt !== undefined) {
-          const spelled = (ms: number) => normalizeWriteValue(sentAt, new Date(ms).toISOString());
+          const spelled = (ms: number) => bindWriteValue(sentAt, new Date(ms).toISOString(), handle.dialect);
           still = still.where(sql.ref(sentAt.name), '>', spelled(report.sentAt - 1_000)).where(sql.ref(sentAt.name), '<', spelled(report.sentAt + 1_000));
         }
         return still;

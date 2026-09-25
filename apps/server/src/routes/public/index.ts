@@ -1699,6 +1699,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           ok.session,
           'create',
           found.dialect,
+          found.table.columns,
         );
         if (values === null) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
@@ -2311,7 +2312,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         for (const [index, raw] of rows.entries()) {
           const named = keyColumns.filter((c) => Object.prototype.hasOwnProperty.call(raw, c));
           if (named.length === 0) {
-            const values = prepareValues(resource, raw, ok.session, 'create', found.dialect);
+            const values = prepareValues(resource, raw, ok.session, 'create', found.dialect, table.columns);
             if (values === null) return refuseRow(index, 'That column is not writable here.');
             if (unfilled(resource, values) !== null) return refuseRow(index, 'A value this write needs is missing.');
             inserts.push({ index, values });

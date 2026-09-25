@@ -65,6 +65,7 @@
  * check and the insert run under one lock per app, so two instances — or a
  * producer and the repair — cannot both add the row.
  */
+import type { Dialect } from '@adminium/engine';
 import type { Outbox, OutboxProducer, SettingSource } from '@adminium/manifest';
 import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, type AppOutboxRow, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
@@ -76,7 +77,7 @@ import { slotInstant, withNamedLock } from '../crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import type { RecordWriteService } from '../crud/write-service.js';
-import { normalizeWriteValue, sameValue } from '../crud/write-values.js';
+import { bindWriteValue, normalizeWriteValue, sameValue } from '../crud/write-values.js';
 import { asInstant } from '../automations/conditions.js';
 import { outboxContext } from './context.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
@@ -307,6 +308,12 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     return due === undefined ? new Date(ms).toISOString() : normalizeWriteValue(due, new Date(ms).toISOString());
   };
 
+  /** A moment compared with the outbox's due column, as this engine binds one. */
+  const bound = (outbox: ResolvedTable, column: string, ms: number, dialect: Dialect): unknown => {
+    const due = outbox.columns.get(column);
+    return due === undefined ? new Date(ms).toISOString() : bindWriteValue(due, new Date(ms).toISOString(), dialect);
+  };
+
   /**
    * Queue one email for one producing row, once. `at` is a reminder's moment
    * (kept in the due column, so a moved visit is a new reminder).
@@ -354,10 +361,10 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       if (at !== undefined && cols.due !== undefined) {
         // A reminder is the same one within a second of the same moment: a stored
         // instant may carry microseconds a JavaScript date cannot.
-        seen = seen.where(cols.due as never, '>', spell(outbox, cols.due, at - 1_000) as never).where(cols.due as never, '<', spell(outbox, cols.due, at + 1_000) as never);
+        seen = seen.where(cols.due as never, '>', bound(outbox, cols.due, at - 1_000, handle.dialect) as never).where(cols.due as never, '<', bound(outbox, cols.due, at + 1_000, handle.dialect) as never);
       } else if (producer.batchMinutes !== undefined && cols.due !== undefined) {
         // One per window: a message still waiting for its window to close takes this one in.
-        seen = seen.where(cols.status as never, 'in', ['queued', 'held'] as never).where(cols.due as never, '>', spell(outbox, cols.due, now) as never);
+        seen = seen.where(cols.status as never, 'in', ['queued', 'held'] as never).where(cols.due as never, '>', bound(outbox, cols.due, now, handle.dialect) as never);
       }
       if ((await seen.executeTakeFirst()) !== undefined) return null;
 
@@ -439,7 +446,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
   }
 
   /** The `before` reminders now due. */
-  async function reminders(box: LiveOutbox, view: SnapshotView, db: Kysely<SourceDatabase>, now: number): Promise<number> {
+  async function reminders(box: LiveOutbox, view: SnapshotView, db: Kysely<SourceDatabase>, dialect: Dialect, now: number): Promise<number> {
     let queued = 0;
     for (const producer of box.definition.producers ?? []) {
       if (!('before' in producer)) continue;
@@ -449,7 +456,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       if (atColumn === undefined) continue;
       // Everything that could be due within the largest lead anyone may
       // choose, bounded in the spelling the engine keeps the column in.
-      const spelled = (ms: number) => normalizeWriteValue(atColumn, new Date(ms).toISOString());
+      const spelled = (ms: number) => bindWriteValue(atColumn, new Date(ms).toISOString(), dialect);
       const rows = (await db
         .selectFrom(source.id as never)
         .selectAll()
@@ -597,8 +604,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       try {
         const view = await deps.viewFor(box.connectionId);
         if (view === null) continue;
-        const { db } = await deps.manager.data(box.connectionId);
-        const queued = await reminders(box, view, db, now);
+        const { db, dialect } = await deps.manager.data(box.connectionId);
+        const queued = await reminders(box, view, db, dialect, now);
         const made = await repair(box, view, db, now);
         await judge(box, view, now);
         await appOutboxesRepo(deps.meta).markScanned(box.appKey, now);

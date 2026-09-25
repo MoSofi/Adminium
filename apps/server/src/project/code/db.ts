@@ -27,7 +27,7 @@ import {
   type WriteContext,
   type WriteTarget,
 } from '../../crud/write-service.js';
-import { normalizeWriteValue } from '../../crud/write-values.js';
+import { bindWriteValue, normalizeWriteValue } from '../../crud/write-values.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { FileReconciler } from '../../files/reconcile.js';
 import { getPrincipal } from '../../rbac/principal.js';
@@ -200,10 +200,11 @@ export function createProjectDb(deps: ProjectDbDeps, scope: ProjectDbScope): Pro
         for (const [key, value] of Object.entries(listOptions.where ?? {})) {
           if (value === undefined) continue;
           const ref = db.dynamic.ref(columnOf(key));
+          const column = resolved.table.columns.get(key)!;
           query =
             value === null
               ? query.where(ref, 'is', null as never)
-              : query.where(ref, '=', bindValue(resolved.target.dialect, value) as never);
+              : query.where(ref, '=', bindValue(resolved.target.dialect, bindWriteValue(column, value, resolved.target.dialect)) as never);
         }
         if (listOptions.orderBy !== undefined) {
           const descending = listOptions.orderBy.startsWith('-');

@@ -15,14 +15,40 @@ import { AdapterError } from '@adminium/engine/adapter';
 /** Every pool the module under test constructs, in construction order. */
 const pools: FakePool[] = [];
 
+/** A connection the fake pool hands out: what it was asked, and whether it was closed. */
+class FakeConnection {
+  readonly sql: string[] = [];
+  destroyed = false;
+  constructor(private readonly fail: boolean) {}
+  query(sql: string, callback: (error: Error | null) => void): void {
+    this.sql.push(sql);
+    callback(this.fail ? new Error('Unknown or incorrect time zone') : null);
+  }
+  destroy(): void {
+    this.destroyed = true;
+  }
+}
+
 class FakePool {
   ended = false;
   endCalls = 0;
   /** Set to make `end()` invoke its callback with an error. */
   endError: Error | null = null;
+  readonly listeners = new Map<string, (connection: FakeConnection) => void>();
 
-  constructor(readonly options: { uri?: string; connectionLimit?: number }) {
+  constructor(readonly options: { uri?: string; connectionLimit?: number; typeCast?: unknown }) {
     pools.push(this);
+  }
+
+  on(event: string, listener: (connection: FakeConnection) => void): void {
+    this.listeners.set(event, listener);
+  }
+
+  /** Simulate mysql2 opening a fresh connection for the pool. */
+  openConnection(fail = false): FakeConnection {
+    const connection = new FakeConnection(fail);
+    this.listeners.get('connection')?.(connection);
+    return connection;
   }
 
   end(callback: (error?: Error | null) => void): void {
@@ -95,6 +121,27 @@ describe('createQueryEngine — pool construction', () => {
     createQueryEngine({ role: 'data', dsn: DSN, poolMax: 3 } as never);
     createQueryEngine(DSN);
     expect(pools[1]!.options.connectionLimit).toBe(10);
+  });
+
+  it('puts every new connection in a UTC session before it serves a query', () => {
+    // A TIMESTAMP speaks the session's zone; left at the server's default, an
+    // instant was stored and compared hours off wherever that was not UTC.
+    createQueryEngine(DSN);
+    const connection = pools[0]!.openConnection();
+    expect(connection.sql).toEqual(["SET time_zone = '+00:00'"]);
+    expect(connection.destroyed).toBe(false);
+  });
+
+  it('closes a connection that cannot be put in UTC rather than let it answer in another zone', () => {
+    createQueryEngine(DSN);
+    const connection = pools[0]!.openConnection(true);
+    expect(connection.destroyed).toBe(true);
+  });
+
+  it('reads a TIMESTAMP as UTC, and nothing else differently', async () => {
+    const { readTimestampsAsUtc } = await import('../src/session.js');
+    createQueryEngine(DSN);
+    expect(pools[0]!.options.typeCast).toBe(readTimestampsAsUtc);
   });
 
   it('opens no connection at construction time', () => {
