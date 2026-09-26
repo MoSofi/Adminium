@@ -100,7 +100,11 @@ export async function syncProjectDatabases(opts: SyncProjectDatabasesOptions): P
 
       let connectionId = existing?.id ?? '';
       let ok = existing?.status === 'connected';
-      if (kind !== 'unchanged') {
+      // A connection whose test never recorded whether its role may run DDL (every one made before
+      // that was recorded) is tested once more, quietly: the answer decides whether Studio offers
+      // the schema editor, and the same test refreshes whether the role may write at all.
+      const unrecorded = kind === 'unchanged' && existing?.canDdl === null;
+      if (kind !== 'unchanged' || unrecorded) {
         const summary = await probe(manager, engine, url);
         ok = summary.ok;
         if (existing === null) {

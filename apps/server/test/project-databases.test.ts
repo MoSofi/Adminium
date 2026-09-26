@@ -100,6 +100,24 @@ describe('syncing the configured databases', () => {
     expect(await manager.connections.list()).toHaveLength(1);
   });
 
+  it('records whether the role may run DDL, and tests once more a connection made before that was recorded', async () => {
+    makeShop(join(dir, 'shop.db'));
+    await sync({ main: 'sqlite:./shop.db' });
+    const made = await manager.connections.findByProjectKey('main');
+    expect(made?.canDdl).toBe(true);
+    // A connection from before: nothing recorded the answer.
+    await meta.db.updateTable('adminium_connections').set({ canDdl: null } as never).where('id', '=', made!.id).execute();
+    const tests = vi.spyOn(manager, 'testDsn');
+    const [again] = await sync({ main: 'sqlite:./shop.db' });
+    expect(again).toMatchObject({ kind: 'unchanged', ok: true });
+    expect(tests).toHaveBeenCalledTimes(1);
+    expect((await manager.connections.findByProjectKey('main'))?.canDdl).toBe(true);
+    // Recorded now: the next start tests nothing, and says nothing.
+    await sync({ main: 'sqlite:./shop.db' });
+    expect(tests).toHaveBeenCalledTimes(1);
+    expect(out.filter((line) => line.includes('connected'))).toEqual([]);
+  });
+
   it('stores a failing database in error, keeps going, and connects it once it works', async () => {
     const [failed] = await sync({ main: 'sqlite:./later.db' });
     expect(failed).toMatchObject({ kind: 'created', ok: false });
