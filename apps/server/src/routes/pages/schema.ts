@@ -185,6 +185,9 @@ const columnFactSchema = z.object({
   spec: z.record(z.string(), z.unknown()),
   ordinal: z.number(),
   writable: z.boolean(),
+  /** As the connection's role is granted; absent when that is not known. */
+  insertable: z.boolean().optional(),
+  updatable: z.boolean().optional(),
   filledBy: z.enum(['database', 'adminium']).nullable(),
   fill: z
     .object({

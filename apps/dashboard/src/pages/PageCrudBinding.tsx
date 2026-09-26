@@ -514,6 +514,8 @@ function childColumnsOf(child: FormChildFactReply, pageId: string): { columns: r
         required: column.required,
         ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
         writable: column.writable,
+        ...(column.insertable === undefined ? {} : { insertable: column.insertable }),
+        ...(column.updatable === undefined ? {} : { updatable: column.updatable }),
         ...(column.options === undefined ? {} : { options: column.options }),
         ...(column.enumLabels === undefined ? {} : { enumLabels: column.enumLabels }),
         ...(column.enumTones === undefined ? {} : { enumTones: column.enumTones }),

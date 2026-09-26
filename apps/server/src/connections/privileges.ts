@@ -62,3 +62,39 @@ export function privilegeRefusal(table?: { id: string }): ForbiddenError {
     reason: 'privileges',
   });
 }
+
+/**
+ * Whether the role may write this column on this write. A table granted by
+ * column (`GRANT UPDATE (body) ON …`) carries a per-column map; any other
+ * table's columns follow the table. Unknown rights grant everything.
+ */
+export function columnGranted(
+  rights: TablePrivileges | null | undefined,
+  column: string,
+  action: 'create' | 'update',
+): boolean {
+  if (rights === null || rights === undefined) return true;
+  const right = action === 'create' ? 'insert' : 'update';
+  return rights.columns?.[column]?.[right] ?? rights[right];
+}
+
+/**
+ * The columns a write names that the role may not write, refused before the
+ * statement with the columns named — the database would refuse the whole write
+ * and say only which table.
+ */
+export function refuseUngrantedColumns(
+  rights: TablePrivileges | null | undefined,
+  table: { id: string },
+  action: 'create' | 'update',
+  columns: readonly string[],
+): void {
+  const refused = columns.filter((column) => !columnGranted(rights, column, action));
+  if (refused.length === 0) return;
+  throw new ForbiddenError("The database does not let this connection's role change these columns.", 'READ_ONLY_MODE', {
+    table: table.id,
+    columns: refused,
+    reason: 'privileges',
+  });
+}
+

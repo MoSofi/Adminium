@@ -78,9 +78,11 @@
 import type { FastifyRequest } from 'fastify';
 import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type UpdateQueryBuilder, type UpdateResult } from 'kysely';
 import type { Dialect } from '@adminium/engine';
+import type { TablePrivileges } from '@adminium/engine/adapter';
 
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
+import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
 import { getPrincipal } from '../rbac/principal.js';
 import { checkCapacity, touchesGuard, withSlotLock } from './capacity-guard.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
@@ -186,6 +188,13 @@ export interface WriteTarget {
    * UTC stands in when the connection names none.
    */
   timezone?: string | undefined;
+  /**
+   * What the connection's data role may write in this table, when known
+   * (`ConnectionManager.tablePrivileges`): a column it may not write is refused
+   * when sent and never filled. Absent ⇒ unknown ⇒ everything, and the
+   * database decides.
+   */
+  rights?: TablePrivileges | null | undefined;
 }
 
 // --- the hooks seam ----------------------------------------------------------
@@ -1230,7 +1239,8 @@ function earlyIssues(target: WriteTarget, values: Row): FieldIssues | null {
   return unstorableText(values, target.table.columns);
 }
 
-function refuseEarly(target: WriteTarget, values: Row, mapError: ((error: unknown) => never) | undefined): void {
+function refuseEarly(target: WriteTarget, action: 'create' | 'update', values: Row, mapError: ((error: unknown) => never) | undefined): void {
+  refuseUngrantedColumns(target.rights, target.table, action, Object.keys(values));
   const issues = earlyIssues(target, values);
   if (issues === null) return;
   const error = refusal(issues);
@@ -1332,7 +1342,22 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   ): Row => {
     const out = normalizeText(
       rules,
-      withoutStamped(rules, withoutReadOnly(rules, fillRow(rules, action, values, { dialect: target.dialect, now, actor: context.actor }), context.origin), context.origin),
+      withoutStamped(
+        rules,
+        withoutReadOnly(
+          rules,
+          fillRow(rules, action, values, {
+            dialect: target.dialect,
+            now,
+            actor: context.actor,
+            ...(target.rights == null || action === 'delete'
+              ? {}
+              : { granted: (column: string) => columnGranted(target.rights, column, action) }),
+          }),
+          context.origin,
+        ),
+        context.origin,
+      ),
     );
     // A new document starts in its first state.
     const states = rules?.states;
@@ -1970,7 +1995,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async create(input) {
       const { target, context } = input;
-      refuseEarly(target, input.values, input.mapError);
+      refuseEarly(target, 'create', input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
       const currency = currencyFor(target);
@@ -2051,7 +2076,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async update(input) {
       const { target, context, pk } = input;
-      refuseEarly(target, input.values, input.mapError);
+      refuseEarly(target, 'update', input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
       const currency = currencyFor(target);

@@ -63820,6 +63820,12 @@
                                     "writable": {
                                       "type": "boolean"
                                     },
+                                    "insertable": {
+                                      "type": "boolean"
+                                    },
+                                    "updatable": {
+                                      "type": "boolean"
+                                    },
                                     "filledBy": {
                                       "anyOf": [
                                         {
@@ -64015,6 +64021,12 @@
                                 "type": "number"
                               },
                               "writable": {
+                                "type": "boolean"
+                              },
+                              "insertable": {
+                                "type": "boolean"
+                              },
+                              "updatable": {
                                 "type": "boolean"
                               },
                               "filledBy": {

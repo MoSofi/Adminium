@@ -25,6 +25,7 @@ import {
   coerceFieldValue,
   controllerChanged,
   controlForColumn,
+  factsForMode,
   fieldTypeTag,
   formColumns,
   isRequired,
@@ -335,7 +336,7 @@ export function RecordForm({
   currentUser,
   mode,
   errors,
-  facts,
+  facts: givenFacts,
   initialLinks,
   initialChildren,
   childFacts,
@@ -356,6 +357,8 @@ export function RecordForm({
   locale,
 }: RecordFormProps) {
   const t = useMaybeT();
+  // A column the role may not set here renders read-only and is never sent.
+  const facts = useMemo(() => factsForMode(givenFacts, mode), [givenFacts, mode]);
   const byName = useMemo(() => new Map(columns.map((column) => [column.name, column])), [columns]);
   const relationFacts = useMemo(
     () => Object.fromEntries((relations ?? []).map((relation) => [relation.relationId, relation])),

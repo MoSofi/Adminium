@@ -42,6 +42,12 @@ export interface ColumnFact {
   /** False for a generated column: shown, never sent. */
   writable: boolean;
   /**
+   * Whether the connection's role may set it on a new record, and change it on
+   * an edit — a table granted by column. Absent ⇒ `writable` answers alone.
+   */
+  insertable?: boolean | undefined;
+  updatable?: boolean | undefined;
+  /**
    * The answers an ADMIN fixed with `column.options`: the
    * values themselves, or the KEY of a workspace list.
    *
@@ -356,5 +362,22 @@ export function controllerChanged(
   const now = values[controller];
   const before = stored[controller];
   return !((emptyValue(now) && emptyValue(before)) || String(now) === String(before));
+}
+
+/**
+ * The facts as a form in this mode reads them: a column the connection's role
+ * may not set on a new record (or change on an edit) is not writable HERE —
+ * shown read-only, never sent. The same object when no fact says otherwise.
+ */
+export function factsForMode(facts: ColumnFacts | undefined, mode: 'create' | 'edit'): ColumnFacts | undefined {
+  if (facts === undefined) return undefined;
+  let out: Record<string, ColumnFact> | null = null;
+  for (const [name, fact] of Object.entries(facts)) {
+    const granted = mode === 'create' ? fact.insertable : fact.updatable;
+    if (granted !== false || !fact.writable) continue;
+    out ??= { ...facts };
+    out[name] = { ...fact, writable: false };
+  }
+  return out ?? facts;
 }
 

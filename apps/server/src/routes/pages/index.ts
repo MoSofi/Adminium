@@ -660,7 +660,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         // Read in the person's own language, where the app's labels have one.
         const reader = request.user === null || request.user === undefined ? undefined : (await userPrefsRepo(deps.meta).resolve(request.user.id)).locale;
         const columnFacts =
-          source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table, reader);
+          source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table, reader, rights);
         const facts = columnFacts === null ? {} : { columnFacts };
 
         // Layout resolution: a per-user override wins over the shared

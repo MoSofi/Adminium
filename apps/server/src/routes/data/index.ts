@@ -24,6 +24,7 @@ import {
   type RecordRef,
 } from '@adminium/meta';
 import type { DatabaseModel, Dialect } from '@adminium/engine';
+import type { TablePrivileges } from '@adminium/engine/adapter';
 import { builtinOptionValues } from '@adminium/engine/config';
 import type { Kysely } from 'kysely';
 
@@ -35,7 +36,7 @@ import { generateCode, isUniqueViolation } from '../../crud/decided-columns.js';
 import { audited } from '../../audit/coverage.js';
 import { parseDefinition } from '../../public-api/endpoint.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
-import { isPrivilegeRefusal, privilegeRefusal, writeRefused } from '../../connections/privileges.js';
+import { isPrivilegeRefusal, privilegeRefusal, privilegesOf, writeRefused } from '../../connections/privileges.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { applyDerivedFields } from '../../crud/derive.js';
 import { applyMeasureMask, fetchMeasureValues } from '../../crud/measures.js';
@@ -363,6 +364,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           permission,
         });
       }
+      let rights: TablePrivileges | null = null;
       if (action !== 'read') {
         if (connection.readOnly) {
           throw new ForbiddenError(
@@ -378,9 +380,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             { table: table.id },
           );
         }
-        if (writeRefused(await manager.tablePrivileges(connection), table.id, action)) {
-          throw privilegeRefusal(table);
-        }
+        const map = await manager.tablePrivileges(connection);
+        if (writeRefused(map, table.id, action)) throw privilegeRefusal(table);
+        rights = privilegesOf(map, table.id);
       }
       // The row is already in hand from `mustFind` above — passing it spares
       // this path a second primary-key read on every CRUD request.
@@ -393,7 +395,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         dialect,
         // This table's personal columns; a lookup asks of the table it reaches.
         unmasked: await canReadPii(request, connectionId, table.id),
-        target: { connectionId, view, table, db, dialect },
+        target: { connectionId, view, table, db, dialect, rights },
       };
     }
 

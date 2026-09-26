@@ -75,6 +75,9 @@ export interface FormColumnFactReply {
   /** Asked for only while another column of the record holds one of `in`. */
   requiredWhen?: { column: string; in: (string | number | boolean)[] } | undefined;
   writable: boolean;
+  /** As the connection's role is granted; absent when the server does not know. */
+  insertable?: boolean | undefined;
+  updatable?: boolean | undefined;
   /** Inline values carry their words in the reader's language. */
   options?: { list: string } | { values: { value: string; label?: string; tone?: string }[] } | undefined;
   validation?: Record<string, unknown> | undefined;
@@ -94,6 +97,8 @@ function factsByColumn(block: ColumnFactsReply | undefined): ColumnFacts {
       required: column.required,
       ...(column.requiredWhen === undefined ? {} : { requiredWhen: column.requiredWhen }),
       writable: column.writable,
+      ...(column.insertable === undefined ? {} : { insertable: column.insertable }),
+      ...(column.updatable === undefined ? {} : { updatable: column.updatable }),
       // The RULE, not its answers: a named list is resolved where the reader's
       // language is known (`api/optionLists.ts`).
       ...(column.options === undefined ? {} : { options: column.options }),

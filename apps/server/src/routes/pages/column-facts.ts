@@ -26,6 +26,7 @@
  */
 
 import type { MetaDb } from '@adminium/meta';
+import type { TablePrivilegeMap } from '@adminium/engine/adapter';
 import { columnSpecsForTable, humanize, type DatabaseModel } from '@adminium/engine';
 import type { GridColumnSpecInput } from '@adminium/engine/config';
 import { overridesRepo, snapshotsRepo } from '@adminium/meta';
@@ -40,6 +41,7 @@ import { childRelations } from '../../crud/child-rows.js';
 import { labelColumnFor } from '../../crud/labels.js';
 import { linkableRelations } from '../../crud/links.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
+import { columnGranted, privilegesOf } from '../../connections/privileges.js';
 
 export interface ColumnFact {
   /** The `config.columns[]` entry a regeneration would produce for it. */
@@ -48,6 +50,13 @@ export interface ColumnFact {
   ordinal: number;
   /** False for a generated column: it is shown, never sent. */
   writable: boolean;
+  /**
+   * Whether a new record may set it, and an edit change it, as the
+   * connection's role is GRANTED (`GRANT UPDATE (body) ON …`). Absent when the
+   * grants are not known: `writable` alone answers.
+   */
+  insertable?: boolean;
+  updatable?: boolean;
   /** Who puts a value here when nobody types one. */
   filledBy: 'database' | 'adminium' | null;
   fill?: { kind: string; onUpdate?: boolean; implicit?: boolean };
@@ -265,6 +274,12 @@ export async function columnFactsFor(
    * speaks is read in theirs. Absent, labels resolve to en_US.
    */
   locale?: string,
+  /**
+   * What the connection's role may write (`ConnectionManager.tablePrivileges`).
+   * Applied to a copy on every read, never cached with the block: a GRANT is
+   * not a schema change.
+   */
+  rights?: TablePrivilegeMap | null,
 ): Promise<ColumnFactsBlock | null> {
   const snapshot = await snapshotsRepo(meta).latest(connectionId);
   if (snapshot === null) return null;
@@ -286,7 +301,7 @@ export async function columnFactsFor(
     CACHE.set(cacheKey, entry);
   }
   const cached = entry.facts.get(tableName);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) return granted(cached, entry.view.table(tableName).id, rights ?? null);
   let table: ResolvedTable;
   try {
     table = entry.view.table(tableName);
@@ -295,5 +310,27 @@ export async function columnFactsFor(
   }
   const block = blockFor(entry.view, table);
   entry.facts.set(tableName, block);
-  return block;
+  return granted(block, table.id, rights ?? null);
+}
+
+/** Each column's grants, on a copy of the block (its children too). */
+function granted(block: ColumnFactsBlock, tableId: string, rights: TablePrivilegeMap | null): ColumnFactsBlock {
+  if (rights === null) return block;
+  const withGrants = (id: string, columns: ColumnFact[]): ColumnFact[] => {
+    const table = privilegesOf(rights, id);
+    if (table === null) return columns;
+    return columns.map((column) => {
+      const name = String(column.spec['name']);
+      return {
+        ...column,
+        insertable: column.writable && columnGranted(table, name, 'create'),
+        updatable: column.writable && columnGranted(table, name, 'update'),
+      };
+    });
+  };
+  return {
+    ...block,
+    columns: withGrants(tableId, block.columns),
+    children: block.children.map((child) => ({ ...child, columns: withGrants(child.childTable, child.columns) })),
+  };
 }

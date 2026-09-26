@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { gridColumnSpecSchema, type GridColumnSpec, type GridColumnSpecInput } from '../../families/tables/column-spec.js';
 import { RecordForm } from './RecordForm.js';
-import { unchangedField, type ColumnFact, type ColumnFacts } from './field-mapping.js';
+import { factsForMode, unchangedField, type ColumnFact, type ColumnFacts } from './field-mapping.js';
 
 afterEach(cleanup);
 
@@ -128,3 +128,36 @@ describe('unchangedField', () => {
     expect(unchangedField(tags, { a: [2, 1], b: 1 }, { a: [1, 2], b: 1 })).toBe(false);
   });
 });
+
+/*
+ * A table granted BY COLUMN: the role may change `notes` and nothing else, and
+ * may not create rows at all. What it may not set renders read-only and is
+ * never sent — the database would refuse the whole write for it.
+ */
+describe('columns the role may not set', () => {
+  const GRANTED: ColumnFacts = {
+    ...FACTS,
+    title: fact({ required: true, insertable: false, updatable: false }),
+    status: fact({ required: true, insertable: false, updatable: false }),
+    price: fact({ insertable: false, updatable: false }),
+    notes: fact({ insertable: false, updatable: true }),
+  };
+
+  it('are read-only on an edit, and the granted one still saves', async () => {
+    const { onSubmit } = form({ facts: GRANTED });
+    expect((screen.getByLabelText(/Notes/) as HTMLInputElement).readOnly).toBe(false);
+    expect(screen.queryByRole('textbox', { name: /Title/ })).toBeNull();
+    await userEvent.type(screen.getByLabelText(/Notes/), 'ok');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ notes: 'ok' });
+  });
+
+  it('follow the mode: insertable for a new record, updatable for an edit', () => {
+    expect(factsForMode(GRANTED, 'edit')?.['notes']?.writable).toBe(true);
+    expect(factsForMode(GRANTED, 'create')?.['notes']?.writable).toBe(false);
+    expect(factsForMode(GRANTED, 'edit')?.['price']?.writable).toBe(false);
+    // Nothing to say ⇒ the same object.
+    expect(factsForMode(FACTS, 'edit')).toBe(FACTS);
+  });
+});
+

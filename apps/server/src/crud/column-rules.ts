@@ -363,6 +363,12 @@ export interface FillContext {
    *  differ by a microsecond describe a row edited the moment it was written. */
   now: Date;
   actor: WriteActor | null;
+  /**
+   * Whether the role may write a column on this write. A fill of a column it
+   * may not — an `updated_at` stamp on a table granted `UPDATE (body)` only — is
+   * left out rather than making the database refuse the whole write.
+   */
+  granted?: ((column: string) => boolean) | undefined;
 }
 
 // --- deriving the rules ------------------------------------------------------
@@ -913,6 +919,7 @@ export function fillRow(
     if (fill.kind === 'database' || fill.kind === 'none') continue;
     if (action === 'update' && !fill.onUpdate) continue;
     if (Object.prototype.hasOwnProperty.call(values, fill.column)) continue;
+    if (ctx.granted !== undefined && !ctx.granted(fill.column)) continue;
     const value = fillValue(fill, ctx);
     if (value === null) continue;
     out ??= { ...values };

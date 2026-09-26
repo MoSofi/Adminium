@@ -8,11 +8,16 @@
  * - a table it may only read refuses up front with 403 `READ_ONLY_MODE`
  *   (`reason: 'privileges'`), and the row never reaches the database;
  * - a right revoked after the rights were read is the database's refusal,
- *   mapped to the same 403 rather than a 500.
+ *   mapped to the same 403 rather than a 500;
+ * - a table granted BY COLUMN (`GRANT UPDATE (territory_description)`): the
+ *   granted column saves, with Adminium's own `updated_at` stamp left out rather
+ *   than failing the write; a column outside the grant is refused by name; and
+ *   the page's column facts say which is which.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { providerFromModule } from '../src/connections/register-adapters.js';
+import { columnFactsFor } from '../src/routes/pages/column-facts.js';
 import {
   asUser,
   buildDataTestApp,
@@ -49,6 +54,9 @@ describe.skipIf(!(adapterReady && pgAvailable()))('table grants of the data role
     psql(pg.database, `GRANT USAGE ON SCHEMA public TO ${role}`);
     psql(pg.database, `GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${role}`);
     psql(pg.database, `GRANT INSERT, UPDATE, DELETE ON products, shippers TO ${role}`);
+    // A column Adminium stamps on every update, on a table granted one column.
+    psql(pg.database, 'ALTER TABLE territories ADD COLUMN updated_at timestamptz');
+    psql(pg.database, `GRANT UPDATE (territory_description) ON territories TO ${role}`);
     t = await buildDataTestApp();
     connId = await createConnectionViaApi(t, `postgres://${role}:dml_secret@${PG_HOST}:${PG_PORT}/${pg.database}`);
     await introspectViaApi(t, connId);
@@ -122,4 +130,44 @@ describe.skipIf(!(adapterReady && pgAvailable()))('table grants of the data role
     expect(second.statusCode).toBe(403);
     expect(second.json().error).toMatchObject({ code: 'READ_ONLY_MODE', details: { reason: 'privileges' } });
   });
+
+  it('saves a column granted by column, leaving out a stamp the role may not write', async () => {
+    const res = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/v1/data/${connId}/public.territories/01581`,
+      headers: asUser(t.users.admin),
+      payload: { values: { territory_description: 'Westborough' } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(psql(pg.database, "SELECT trim(territory_description), updated_at IS NULL FROM territories WHERE territory_id = '01581'").trim()).toBe(
+      'Westborough|t',
+    );
+  });
+
+  it('refuses a column outside the grant, by name', async () => {
+    const res = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/v1/data/${connId}/public.territories/01581`,
+      headers: asUser(t.users.admin),
+      payload: { values: { territory_description: 'Elsewhere', region_id: 2 } },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toMatchObject({
+      code: 'READ_ONLY_MODE',
+      details: { table: 'public.territories', columns: ['region_id'], reason: 'privileges' },
+    });
+    expect(psql(pg.database, "SELECT region_id FROM territories WHERE territory_id = '01581'").trim()).toBe('1');
+  });
+
+  it("tells the form which columns each mode may set", async () => {
+    const rights = await t.manager.tablePrivileges(await t.manager.mustFind(connId));
+    const block = await columnFactsFor(t.meta, connId, 'public.territories', undefined, rights);
+    const facts = Object.fromEntries((block?.columns ?? []).map((column) => [column.spec['name'], column]));
+    expect(facts['territory_description']).toMatchObject({ insertable: false, updatable: true });
+    expect(facts['region_id']).toMatchObject({ insertable: false, updatable: false });
+    // Without the grants the facts say what they always said.
+    const plain = await columnFactsFor(t.meta, connId, 'public.territories');
+    expect(plain?.columns.find((column) => column.spec['name'] === 'region_id')).not.toHaveProperty('updatable');
+  });
 });
+
