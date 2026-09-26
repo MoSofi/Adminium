@@ -23,11 +23,13 @@ import type {
 import { dateOnlyValue } from '../../families/tables/column-spec.js';
 import {
   coerceFieldValue,
+  controllerChanged,
   controlForColumn,
   fieldTypeTag,
   formColumns,
   isRequired,
   optionsForColumn,
+  unchangedField,
 } from './field-mapping.js';
 import { CONTROL_COMPONENTS, type ControlOption } from './controls/index.js';
 import { relationColumnShape } from './controls/reference-chips.js';
@@ -560,6 +562,16 @@ export function RecordForm({
         column.logicalType === 'boolean' &&
         (fact === undefined ? column.hasDefault !== true : fact.filledBy === null);
       const raw = untouchedSwitch ? false : values[column.name];
+      // An edit sends what changed, and checks only that (and what a changed
+      // field made required): a field left as it was is never sent back.
+      if (
+        mode === 'edit' &&
+        initialValues !== undefined &&
+        unchangedField(column, raw, initialValues[column.name]) &&
+        !controllerChanged(fact, values, initialValues)
+      ) {
+        continue;
+      }
       /*
        * `required` used to be DECORATION — an asterisk and `aria-required`,
        * with nothing checking either. A blank NOT NULL field went to the

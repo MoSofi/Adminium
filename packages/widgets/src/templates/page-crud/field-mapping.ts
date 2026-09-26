@@ -315,3 +315,46 @@ export function coerceFieldValue(column: GridColumnSpec, raw: unknown): unknown 
   }
   return raw;
 }
+
+/** Deep equality over what a form sends: primitives, arrays and plain objects, keys in any order. */
+function sameSent(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => Object.prototype.hasOwnProperty.call(b, key) && sameSent((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+}
+
+/**
+ * Whether an edit form's field still says what the stored row said — both
+ * sides coerced as they would be SENT, so a number held as `'12.50'` and a date
+ * held as a wire instant compare as the value the server would receive.
+ *
+ * An unchanged field is not sent. An edit form used to send every field, so
+ * saving one field wrote the whole row back as it was when the form opened:
+ * anything a trigger, a job or a second person had changed in the meantime was
+ * silently put back.
+ */
+export function unchangedField(column: GridColumnSpec, held: unknown, stored: unknown): boolean {
+  return sameSent(coerceFieldValue(column, held), coerceFieldValue(column, stored));
+}
+
+/**
+ * Whether the column a field's `requiredWhen` names was changed on this form —
+ * the one case an unchanged field is still checked: making it required is what
+ * the change did.
+ */
+export function controllerChanged(
+  fact: ColumnFact | undefined,
+  values: Readonly<Record<string, unknown>>,
+  stored: Readonly<Record<string, unknown>>,
+): boolean {
+  const controller = fact?.requiredWhen?.column;
+  if (controller === undefined) return false;
+  const now = values[controller];
+  const before = stored[controller];
+  return !((emptyValue(now) && emptyValue(before)) || String(now) === String(before));
+}
+

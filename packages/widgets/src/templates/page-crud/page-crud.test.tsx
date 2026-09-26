@@ -696,9 +696,16 @@ describe('RecordForm date round-trip (client-portal audit repro, 2026-08-24)', (
 
       await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
-      // Saving without touching the field submits the same day — the audit
-      // images showed issued_on drifting 22:00Z of the 28th → the 27th here.
-      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ issued_on: '2026-05-29' }));
+      // Saving without touching the field cannot move the day — the audit
+      // images showed issued_on drifting 22:00Z of the 28th → the 27th here —
+      // because an edit sends only what changed, and nothing did.
+      expect(onSubmit).toHaveBeenCalledWith({});
+
+      // Changing the day sends the calendar day typed, not an instant.
+      await user.clear(dateInput);
+      await user.type(dateInput, '2026-05-30');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      expect(onSubmit).toHaveBeenLastCalledWith({ issued_on: '2026-05-30' });
     } finally {
       if (tzBefore === undefined) delete process.env.TZ;
       else process.env.TZ = tzBefore;
