@@ -3059,6 +3059,7 @@ export default {
     "intro": "تحتاج شاشات العملاء في التطبيق إلى:",
     "availability": "قراءة الأوقات المتاحة أو المحجوزة في {table}",
     "claim": "البحث عن {table} الخاصة بهم باستخدام {fields}",
+    "claimByLink": "البحث عن {table} الخاصة بهم عبر رابط يُرسل إليهم",
     "create": "الإضافة إلى {table}",
     "update": "تغيير {table}",
     "read": "قراءة {table}",

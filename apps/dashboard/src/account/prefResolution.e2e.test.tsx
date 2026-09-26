@@ -420,7 +420,7 @@ describe('reset to workspace default', () => {
     // clearSessionPref + the refetched resolution: the axis returns to
     // inheritance and the workspace default shows immediately.
     await waitFor(() => {
-      expect(screen.getAllByText('Workspace default')).toHaveLength(4);
+      expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
     });
     expect(html().getAttribute(THEME_ATTRIBUTES.density)).toBe('comfortable');
     expect(window.localStorage.getItem(STORAGE_KEYS.density)).toBe('comfortable');
@@ -442,7 +442,7 @@ describe('reset to workspace default', () => {
     await waitFor(() => {
       expect(html().getAttribute(THEME_ATTRIBUTES.theme)).toBe('light');
     });
-    expect(screen.getAllByText('Workspace default')).toHaveLength(4);
+    expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
     expect(window.localStorage.getItem(STORAGE_KEYS.theme)).toBe('light');
   });
 });

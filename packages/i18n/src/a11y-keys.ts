@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2520 entries. */
+/** `namespace:key` — 2523 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -237,6 +237,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:account.name',
   'common:account.preferences.subtitle',
   'common:account.preferences.title',
+  'common:account.preferences.workspaceDefault',
   'common:account.roles',
   'common:account.saveFailed',
   'common:account.saved',
@@ -600,8 +601,10 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:states.connectionPaused.title',
   'common:states.dbUnreachable.primary',
   'common:states.dbUnreachable.title',
+  'common:states.emptyNoPages.title',
   'common:states.emptyNoSources.primary',
   'common:states.emptyNoSources.title',
+  'common:states.emptyWithheld.title',
   'common:states.error.primary',
   'common:states.error.title',
   'common:states.expiredLink.primary',

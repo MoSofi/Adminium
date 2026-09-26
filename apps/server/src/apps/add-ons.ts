@@ -463,18 +463,16 @@ export function decideAddOnSteps(appName: string, rows: readonly AppAddOnRow[], 
       });
     };
     if (row.state === 'unavailable') {
-      refuse(required ? `${appName} needs ${row.name}, which isn’t available here.` : `${row.name} isn’t available here.`);
+      refuse(required ? unavailableWords(appName, row) : `${row.name} isn’t available here.`);
     }
     if (row.state === 'outdated' && (row.action !== 'update' || choice?.update !== true)) {
       refuse(
         row.action === 'update'
           ? `${appName} needs ${row.name} ${row.range}, and ${row.installedVersion ?? '?'} is installed. Tick “Update it too” to update it with the app.`
-          : `${appName} needs ${row.name} ${row.range}, and no version in that range is available here.`,
+          : noVersionWords(appName, row),
       );
     }
-    if (row.problems.length > 0) {
-      refuse(`${row.name} can’t be ${row.action === 'update' ? 'updated' : row.action === 'attach' ? 'connected' : 'installed'} with ${appName}: ${row.problems.map((p) => p.message).join(' ')}`);
-    }
+    if (row.problems.length > 0) refuse(problemsWords(appName, row));
     if (row.action === null) continue;
     const version = row.action === 'attach' ? row.installedVersion! : row.offeredVersion!;
     if (choice !== undefined && choice.version !== version) {
@@ -486,16 +484,57 @@ export function decideAddOnSteps(appName: string, rows: readonly AppAddOnRow[], 
       );
     }
     if (row.action !== 'attach' && !row.staged) {
-      throw new AppError(
-        409,
-        'ADD_ON_DOWNLOAD_REQUIRED',
-        `${row.name} ${version} is in the add-on catalogue but not on this server yet. Download it, then check the install again.`,
-        { addOn: row.key, version },
-      );
+      throw new AppError(409, 'ADD_ON_DOWNLOAD_REQUIRED', downloadWords(row, version), { addOn: row.key, version });
     }
     steps.push({ key: row.key, name: row.name, action: row.action, version, from: row.action === 'update' ? row.installedVersion : null });
   }
   return steps;
+}
+
+const unavailableWords = (appName: string, row: AppAddOnRow): string => `${appName} needs ${row.name}, which isn’t available here.`;
+
+const noVersionWords = (appName: string, row: AppAddOnRow): string =>
+  `${appName} needs ${row.name} ${row.range}, and no version in that range is available here.`;
+
+const problemsWords = (appName: string, row: AppAddOnRow): string =>
+  `${row.name} can’t be ${row.action === 'update' ? 'updated' : row.action === 'attach' ? 'connected' : 'installed'} with ${appName}: ` +
+  row.problems.map((p) => p.message).join(' ');
+
+const downloadWords = (row: AppAddOnRow, version: string): string =>
+  `${row.name} ${version} is in the add-on catalogue but not on this server yet. Download it, then check the install again.`;
+
+/**
+ * What in the add-ons refuses the install WHATEVER its body says, as plan
+ * problems (the table is the add-on's key) — so the plan's `installable`
+ * agrees with the install that follows it.
+ *
+ * Only a REQUIRED add-on can hold the install this way: one that cannot be
+ * had, one out of range with nothing in range here, one whose own plan is
+ * refused, and one whose bytes are not on this server yet (downloading it is
+ * a step of its own, after which the plan is asked again). A choice the body
+ * makes — ticking a suggestion, "Update it too" — is not the plan's to guess:
+ * a plan is installable when SOME install body goes through, and the rows say
+ * which.
+ */
+export function addOnPlanProblems(appName: string, rows: readonly AppAddOnRow[]): { code: string; message: string; table: string }[] {
+  const problems: { code: string; message: string; table: string }[] = [];
+  for (const row of rows) {
+    if (row.need !== 'requires') continue;
+    const refusal =
+      row.state === 'unavailable'
+        ? unavailableWords(appName, row)
+        : row.state === 'outdated' && row.action !== 'update'
+          ? noVersionWords(appName, row)
+          : row.problems.length > 0
+            ? problemsWords(appName, row)
+            : null;
+    if (refusal !== null) {
+      problems.push({ code: 'ADD_ON_REQUIRED', message: refusal, table: row.key });
+    } else if ((row.action === 'install' || row.action === 'update') && !row.staged && row.offeredVersion !== null) {
+      problems.push({ code: 'ADD_ON_DOWNLOAD_REQUIRED', message: downloadWords(row, row.offeredVersion), table: row.key });
+    }
+  }
+  return problems;
 }
 
 /** The tables the app's required add-ons are about to create: the app's plan may point at them. */

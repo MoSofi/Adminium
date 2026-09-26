@@ -132,6 +132,7 @@ export default {
     "security": "密码与会话",
     "files": "文件",
     "emptyWithheld": "尚未有页面共享给您的角色。请向管理员申请访问权限。",
+    "emptyConnected": "从已连接的数据库创建页面后，页面会显示在这里。",
     "app": {
       "openStaff": "打开员工界面",
       "openStaffInstance": "打开员工界面 · {instance}"
@@ -259,9 +260,17 @@ export default {
     },
     "emptyNoSources": {
       "title": "还没有数据源",
-      "body": "连接一个 PostgreSQL 数据库，Adminium 会为你生成第一个管理仪表盘。",
+      "body": "连接一个数据库，Adminium 会为你生成第一个管理仪表盘。",
       "primary": "连接数据库",
       "secondary": "导入示例数据"
+    },
+    "emptyNoPages": {
+      "title": "还没有页面",
+      "body": "已连接数据库，但尚未从中创建任何页面。请在 Studio 中创建，或安装一个应用。"
+    },
+    "emptyWithheld": {
+      "title": "尚无与您共享的页面",
+      "body": "尚未有页面共享给您的角色。请向管理员申请访问权限。"
     },
     "readOnly": {
       "title": "只读模式",

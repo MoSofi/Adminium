@@ -605,7 +605,9 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
                   'nav.emptyWithheld',
                   'No pages have been shared with your role yet. Ask an administrator for access.',
                 )
-              : t('nav.empty', 'Pages appear here once a database is connected.')}
+              : bootstrap.hasConnections === true
+                ? t('nav.emptyConnected', 'Pages appear here once they are made from the connected database.')
+                : t('nav.empty', 'Pages appear here once a database is connected.')}
           </p>
         ) : null}
         {nav.groups.map((group) => (

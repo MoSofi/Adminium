@@ -3049,6 +3049,7 @@
     "intro": "The app’s customer screens need to:",
     "availability": "Read free or full times of {table}",
     "claim": "Look up their own {table} by {fields}",
+    "claimByLink": "Look up their own {table} through a link sent to them",
     "create": "Add to {table}",
     "update": "Change {table}",
     "read": "Read {table}",

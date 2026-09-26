@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ALL_PAGES_REF,
+  connectionsRepo,
   newId,
   permissionsRepo,
   rolesRepo,
@@ -133,6 +134,18 @@ describe('GET /api/v1/bootstrap', () => {
     for (const refused of ['roles.manage', 'api-keys.manage', 'automations.manage', 'pages.manage', 'schema.ddl']) {
       expect(held, refused).not.toContain(refused);
     }
+  });
+
+  it('hasConnections: true once any database is connected, paused or not', async () => {
+    const { cookie } = await login(t.app);
+    const connected = async (): Promise<boolean> =>
+      (await t.app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { cookie: cookie ?? '' } })).json().data.hasConnections;
+    expect(await connected()).toBe(false);
+    const connections = connectionsRepo(t.meta, { encrypt: (v: string) => v, decrypt: (v: string) => v });
+    const studio = await connections.create({ name: 'studio', engine: 'sqlite', introspectDsn: 'file:studio.db', dataDsn: 'file:studio.db' });
+    await connections.setDisabled(studio.id, true);
+    // Paused, and with no pages: a database is still connected.
+    expect(await connected()).toBe(true);
   });
 
   it('pagesWithheld: true only when enabled pages exist that the session cannot view', async () => {

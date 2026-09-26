@@ -280,6 +280,8 @@ describe('the install wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Upload' }));
 
     await screen.findByText(/Install into which database/i);
+    // Said to a screen reader: how many files the upload unpacked.
+    expect(screen.getByRole('status').textContent).toBe('Files unpacked: 3');
     const raw = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls
       .map((args) => String(args[0]))
       .find((url) => url.startsWith('/api/v1/apps/upload'));
@@ -969,6 +971,22 @@ describe('public access at install', () => {
     ]);
   });
 
+  it('words a claim with no fields to look it up by — a person signed in by a link', async () => {
+    plan = ready({
+      endpoints: [
+        { ref: 'clients_clients_claimed', table: 'clients', methods: ['GET'], select: [], writable: [], claim: [], pending: false, issues: [] },
+      ],
+      warnings: [],
+    });
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    const card = screen.getByTestId('install-public-access');
+    expect([...card.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'Look up their own clients through a link sent to them',
+    ]);
+  });
+
   it('sends a decline', async () => {
     plan = ready();
     const user = userEvent.setup();
@@ -1290,6 +1308,8 @@ describe('the app shelf (47 step 4b)', () => {
     expect(screen.queryByLabelText(/Bundle file/i)).toBeNull();
     expect(screen.getByText('Step 1 of 4 · clinic')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
+    // Nothing was unpacked here, so no file count is announced — never "0".
+    expect(screen.queryByText(/Files unpacked/)).toBeNull();
   });
 });
 

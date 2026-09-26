@@ -132,6 +132,7 @@ export default {
     "security": "密碼與工作階段",
     "files": "檔案",
     "emptyWithheld": "尚未有頁面分享給您的角色。請向管理員申請存取權限。",
+    "emptyConnected": "從已連接的資料庫建立頁面後，頁面會出現在這裡。",
     "app": {
       "openStaff": "開啟員工畫面",
       "openStaffInstance": "開啟員工畫面 · {instance}"
@@ -259,9 +260,17 @@ export default {
     },
     "emptyNoSources": {
       "title": "尚無資料來源",
-      "body": "連接一個 PostgreSQL 資料庫，Adminium 就會產生你的第一個管理儀表板。",
+      "body": "連接一個資料庫，Adminium 就會產生你的第一個管理儀表板。",
       "primary": "連接資料庫",
       "secondary": "匯入範例資料"
+    },
+    "emptyNoPages": {
+      "title": "尚無頁面",
+      "body": "已連接資料庫，但尚未從中建立任何頁面。請在 Studio 中建立，或安裝一個應用程式。"
+    },
+    "emptyWithheld": {
+      "title": "尚無與您分享的頁面",
+      "body": "尚未有頁面分享給您的角色。請向管理員申請存取權限。"
     },
     "readOnly": {
       "title": "唯讀模式",

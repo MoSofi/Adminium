@@ -132,6 +132,7 @@ export default {
     "security": "Passwort & Sitzungen",
     "files": "Dateien",
     "emptyWithheld": "Mit Ihrer Rolle wurden noch keine Seiten geteilt. Bitten Sie eine Administratorin oder einen Administrator um Zugriff.",
+    "emptyConnected": "Seiten erscheinen hier, sobald sie aus der verbundenen Datenbank erstellt wurden.",
     "app": {
       "openStaff": "Mitarbeiterbildschirme öffnen",
       "openStaffInstance": "Mitarbeiterbildschirme öffnen · {instance}"
@@ -259,9 +260,17 @@ export default {
     },
     "emptyNoSources": {
       "title": "Noch keine Datenquellen",
-      "body": "Verbinden Sie eine PostgreSQL-Datenbank und Adminium generiert Ihr erstes Admin-Dashboard.",
+      "body": "Verbinden Sie eine Datenbank und Adminium generiert Ihr erstes Admin-Dashboard.",
       "primary": "Datenbank verbinden",
       "secondary": "Beispieldaten importieren"
+    },
+    "emptyNoPages": {
+      "title": "Noch keine Seiten",
+      "body": "Eine Datenbank ist verbunden, aber daraus wurden noch keine Seiten erstellt. Erstellen Sie sie im Studio oder installieren Sie eine App."
+    },
+    "emptyWithheld": {
+      "title": "Noch keine Seiten mit Ihnen geteilt",
+      "body": "Mit Ihrer Rolle wurden noch keine Seiten geteilt. Bitten Sie eine Administratorin oder einen Administrator um Zugriff."
     },
     "readOnly": {
       "title": "Nur-Lese-Modus",

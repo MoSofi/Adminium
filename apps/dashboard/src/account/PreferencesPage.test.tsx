@@ -79,7 +79,7 @@ async function renderPreferences() {
     </QueryClientProvider>,
   );
   await screen.findByRole('heading', { name: 'Preferences' });
-  return { ...stub, queryClient };
+  return { ...stub, queryClient, router };
 }
 
 let restoreI18n: () => void;
@@ -99,7 +99,7 @@ afterEach(() => {
 describe('PreferencesPage', () => {
   it('shows inheritance affordances when every axis is NULL', async () => {
     await renderPreferences();
-    expect(screen.getAllByText('Workspace default')).toHaveLength(4);
+    expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
     expect(screen.queryAllByText('Personal')).toHaveLength(0);
     // Effective (workspace default) value surfaces in the caption.
     expect(screen.getByText('Using workspace default (Light)')).toBeDefined();
@@ -137,7 +137,7 @@ describe('PreferencesPage', () => {
     });
     // Badge back to inheritance for all four axes.
     await waitFor(() => {
-      expect(screen.getAllByText('Workspace default')).toHaveLength(4);
+      expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
     });
     // The optimistic session override is dropped, so the workspace default
     // applies visually right away — not only after a reload (ThemeProvider).
@@ -153,5 +153,42 @@ describe('PreferencesPage', () => {
       expect(patchCalls.some((call) => call.body['locale'] === 'de_DE')).toBe(true);
     });
     expect(screen.getAllByText('Personal')).toHaveLength(1);
+  });
+
+  it('offers the workspace default back in the language picker once a language is picked', async () => {
+    const user = userEvent.setup();
+    const { patchCalls } = await renderPreferences();
+    const picker = () => screen.getByRole<HTMLSelectElement>('combobox', { name: 'Language' });
+    expect(picker().value).toBe('');
+
+    await user.selectOptions(picker(), 'de_DE');
+    await waitFor(() => {
+      expect(patchCalls.some((call) => call.body['locale'] === 'de_DE')).toBe(true);
+    });
+    expect(picker().value).toBe('de_DE');
+
+    await user.selectOptions(picker(), 'Workspace default');
+    await waitFor(() => {
+      expect(patchCalls.some((call) => call.body['locale'] === null)).toBe(true);
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText('Workspace default', { selector: ':not(option)' })).toHaveLength(4);
+    });
+    expect(picker().value).toBe('');
+  });
+
+  it('still says a picked language is personal when the page mounts again', async () => {
+    const user = userEvent.setup();
+    const { patchCalls, router } = await renderPreferences();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Language' }), 'de_DE');
+    await waitFor(() => {
+      expect(patchCalls.some((call) => call.body['locale'] === 'de_DE')).toBe(true);
+    });
+
+    await router.navigate({ to: '/account/notifications' });
+    await router.navigate({ to: '/account/preferences' });
+    await screen.findByRole('heading', { name: 'Preferences' });
+    expect(screen.getAllByText('Personal')).toHaveLength(1);
+    expect(screen.getByText('Reset to workspace default')).toBeDefined();
   });
 });

@@ -132,6 +132,7 @@ export default {
     "security": "Password & sessions",
     "files": "Files",
     "emptyWithheld": "No pages have been shared with your role yet. Ask an administrator for access.",
+    "emptyConnected": "Pages appear here once they are made from the connected database.",
     "app": {
       "openStaff": "Open the staff screens",
       "openStaffInstance": "Open the staff screens · {instance}"
@@ -259,9 +260,17 @@ export default {
     },
     "emptyNoSources": {
       "title": "No data sources yet",
-      "body": "Connect a PostgreSQL database and Adminium will generate your first admin dashboard.",
+      "body": "Connect a database and Adminium will generate your first admin dashboard.",
       "primary": "Connect a database",
       "secondary": "Import sample data"
+    },
+    "emptyNoPages": {
+      "title": "No pages yet",
+      "body": "A database is connected, but no pages have been made from it yet. Make them in Studio, or install an app."
+    },
+    "emptyWithheld": {
+      "title": "No pages shared with you yet",
+      "body": "No pages have been shared with your role yet. Ask an administrator for access."
     },
     "readOnly": {
       "title": "Read-only mode",

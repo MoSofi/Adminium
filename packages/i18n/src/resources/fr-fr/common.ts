@@ -132,6 +132,7 @@ export default {
     "security": "Mot de passe et sessions",
     "files": "Fichiers",
     "emptyWithheld": "Aucune page n’a encore été partagée avec votre rôle. Demandez l’accès à un administrateur.",
+    "emptyConnected": "Les pages apparaîtront ici une fois créées à partir de la base de données connectée.",
     "app": {
       "openStaff": "Ouvrir les écrans du personnel",
       "openStaffInstance": "Ouvrir les écrans du personnel · {instance}"
@@ -259,9 +260,17 @@ export default {
     },
     "emptyNoSources": {
       "title": "Aucune source de données",
-      "body": "Connectez une base de données PostgreSQL et Adminium générera votre premier tableau de bord d’administration.",
+      "body": "Connectez une base de données et Adminium générera votre premier tableau de bord d’administration.",
       "primary": "Connecter une base de données",
       "secondary": "Importer des données d’exemple"
+    },
+    "emptyNoPages": {
+      "title": "Aucune page pour l’instant",
+      "body": "Une base de données est connectée, mais aucune page n’en a encore été créée. Créez-les dans le Studio ou installez une application."
+    },
+    "emptyWithheld": {
+      "title": "Aucune page partagée avec vous pour l’instant",
+      "body": "Aucune page n’a encore été partagée avec votre rôle. Demandez l’accès à un administrateur."
     },
     "readOnly": {
       "title": "Mode lecture seule",

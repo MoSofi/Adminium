@@ -132,6 +132,7 @@ export default {
     "security": "Adgangskode og sessioner",
     "files": "Filer",
     "emptyWithheld": "Der er endnu ikke delt nogen sider med din rolle. Bed en administrator om adgang.",
+    "emptyConnected": "Sider vises her, når de er lavet ud fra den forbundne database.",
     "app": {
       "openStaff": "Åbn personaleskærmene",
       "openStaffInstance": "Åbn personaleskærmene · {instance}"
@@ -259,9 +260,17 @@ export default {
     },
     "emptyNoSources": {
       "title": "Ingen datakilder endnu",
-      "body": "Forbind en PostgreSQL-database, så genererer Adminium dit første admin-dashboard.",
+      "body": "Forbind en database, så genererer Adminium dit første admin-dashboard.",
       "primary": "Forbind en database",
       "secondary": "Importér eksempeldata"
+    },
+    "emptyNoPages": {
+      "title": "Ingen sider endnu",
+      "body": "En database er forbundet, men der er endnu ikke lavet sider ud fra den. Lav dem i Studio, eller installer en app."
+    },
+    "emptyWithheld": {
+      "title": "Ingen sider er delt med dig endnu",
+      "body": "Der er endnu ikke delt nogen sider med din rolle. Bed en administrator om adgang."
     },
     "readOnly": {
       "title": "Skrivebeskyttet tilstand",

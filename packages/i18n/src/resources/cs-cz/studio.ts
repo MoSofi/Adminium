@@ -3059,6 +3059,7 @@ export default {
     "intro": "Zákaznické obrazovky aplikace potřebují:",
     "availability": "Číst volné nebo obsazené časy v {table}",
     "claim": "Vyhledat své vlastní {table} podle {fields}",
+    "claimByLink": "Vyhledat své vlastní {table} přes odkaz, který jim přijde",
     "create": "Přidávat do {table}",
     "update": "Měnit {table}",
     "read": "Číst {table}",

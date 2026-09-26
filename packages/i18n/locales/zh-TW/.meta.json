@@ -4879,6 +4879,10 @@
     "srcHash": "48668d9f7c2b",
     "status": "mt"
   },
+  "common.nav.emptyConnected": {
+    "status": "mt",
+    "srcHash": "b1cada541899"
+  },
   "common.nav.emptyWithheld": {
     "status": "mt",
     "srcHash": "1231b3ae81b1"
@@ -6343,8 +6347,16 @@
     "srcHash": "3af2279f9e30",
     "status": "mt"
   },
+  "common.states.emptyNoPages.body": {
+    "status": "mt",
+    "srcHash": "bf6d39a30413"
+  },
+  "common.states.emptyNoPages.title": {
+    "status": "mt",
+    "srcHash": "97e5c15d6488"
+  },
   "common.states.emptyNoSources.body": {
-    "srcHash": "260adfdd04cd",
+    "srcHash": "f576925e1ceb",
     "status": "mt"
   },
   "common.states.emptyNoSources.primary": {
@@ -6358,6 +6370,14 @@
   "common.states.emptyNoSources.title": {
     "srcHash": "7b1e8e86167e",
     "status": "mt"
+  },
+  "common.states.emptyWithheld.body": {
+    "status": "mt",
+    "srcHash": "1231b3ae81b1"
+  },
+  "common.states.emptyWithheld.title": {
+    "status": "mt",
+    "srcHash": "78feaa8c1ebf"
   },
   "common.states.error.body": {
     "status": "mt",
@@ -14330,6 +14350,10 @@
   "studio.appPublicAccess.claim": {
     "status": "mt",
     "srcHash": "d6296c8a72d0"
+  },
+  "studio.appPublicAccess.claimByLink": {
+    "status": "mt",
+    "srcHash": "5ee48d3aac3b"
   },
   "studio.appPublicAccess.create": {
     "status": "mt",

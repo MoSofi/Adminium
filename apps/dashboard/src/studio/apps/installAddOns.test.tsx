@@ -289,6 +289,26 @@ describe('the Add-ons card', () => {
     expect(installButton().hasAttribute('disabled')).toBe(true);
   });
 
+  it('offers no settings for a required add-on it cannot have, and says the refusal once', async () => {
+    const refusal = 'Client Portal needs Invoices & Receipts, which isn’t available here.';
+    plans = [
+      {
+        ...planWith([{ ...INVOICES, state: 'unavailable', source: null, offeredVersion: null, action: null, plan: null }]),
+        // What the server's plan says now: not installable, and why.
+        installable: false,
+        problems: [{ code: 'ADD_ON_REQUIRED', table: 'invoices', message: refusal }],
+        addOnGrants: [{ role: 'clients-manager', roleName: 'Studio manager', addOn: 'invoices', grant: 'settings' }],
+      },
+    ];
+    const user = userEvent.setup();
+    const card = await reachCheck(user);
+    expect(rowOf(card, 'invoices').querySelector('[data-part="add-on-grant"]')).toBeNull();
+    // Said by the footer's hint; the card holds the details, so no alert repeats it.
+    expect(hint()).toBe(refusal);
+    expect(screen.queryByText('This app cannot be installed here')).toBeNull();
+    expect(installButton().hasAttribute('disabled')).toBe(true);
+  });
+
   it('says so when the catalogue is on but has nothing it can use', async () => {
     catalogueOn = true;
     plans = [planWith([{ ...INVOICES, state: 'unavailable', source: null, offeredVersion: null, action: null, plan: null }])];

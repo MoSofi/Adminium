@@ -3049,6 +3049,7 @@
     "intro": "此應用程式的客戶畫面需要：",
     "availability": "讀取 {table} 的空閒或已滿時段",
     "claim": "依 {fields} 查詢自己的 {table}",
+    "claimByLink": "透過傳送給他們的連結查詢自己的 {table}",
     "create": "新增至 {table}",
     "update": "變更 {table}",
     "read": "讀取 {table}",

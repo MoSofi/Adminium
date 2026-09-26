@@ -3059,6 +3059,7 @@ export default {
     "intro": "该应用的客户界面需要：",
     "availability": "读取 {table} 的空闲或已满时段",
     "claim": "按 {fields} 查找自己的 {table}",
+    "claimByLink": "通过发送给他们的链接查找自己的 {table}",
     "create": "添加到 {table}",
     "update": "更改 {table}",
     "read": "读取 {table}",

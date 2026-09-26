@@ -3059,6 +3059,7 @@ export default {
     "intro": "Die Kundenseiten der App müssen:",
     "availability": "Freie oder belegte Zeiten von {table} lesen",
     "claim": "Eigene {table} anhand von {fields} abrufen",
+    "claimByLink": "Eigene {table} über einen zugesandten Link abrufen",
     "create": "Zu {table} hinzufügen",
     "update": "{table} ändern",
     "read": "{table} lesen",

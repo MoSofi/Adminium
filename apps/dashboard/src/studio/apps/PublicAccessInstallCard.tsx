@@ -29,6 +29,11 @@ function linesOf(endpoint: PlannedEndpoint): string[] {
     return [t('studio:appPublicAccess.availability', 'Read free or full times of {table}', { table })];
   }
   return endpoint.methods.map((method) => {
+    // No fields to look a row up by: the person is signed in by a link — an
+    // emailed sign-in link, or a share link — so there is nothing to put after "by".
+    if (method === 'GET' && endpoint.claim !== null && endpoint.claim.length === 0) {
+      return t('studio:appPublicAccess.claimByLink', 'Look up their own {table} through a link sent to them', { table });
+    }
     if (method === 'GET' && endpoint.claim !== null) {
       return t('studio:appPublicAccess.claim', 'Look up their own {table} by {fields}', {
         table,

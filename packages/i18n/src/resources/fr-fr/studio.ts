@@ -3059,6 +3059,7 @@ export default {
     "intro": "Les écrans clients de l’application doivent pouvoir :",
     "availability": "Lire les créneaux libres ou complets de {table}",
     "claim": "Retrouver leurs propres {table} par {fields}",
+    "claimByLink": "Retrouver leurs propres {table} via un lien qui leur est envoyé",
     "create": "Ajouter à {table}",
     "update": "Modifier {table}",
     "read": "Lire {table}",

@@ -3059,6 +3059,7 @@ export default {
     "intro": "Appens kundeskærme skal kunne:",
     "availability": "Læse ledige eller optagne tider i {table}",
     "claim": "Slå deres egne {table} op via {fields}",
+    "claimByLink": "Slå deres egne {table} op via et link, de får tilsendt",
     "create": "Tilføje til {table}",
     "update": "Ændre {table}",
     "read": "Læse {table}",
