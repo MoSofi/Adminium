@@ -169,6 +169,12 @@ describe('buildPutDocument — exact server contract', () => {
     });
   });
 
+  it('carries a price by the night back with its column', () => {
+    const value = { from: 'arrive', to: 'depart', rate: { via: 'room_type_id', column: 'base_rate' } };
+    const baseline = baselineFromRows([row({ op: 'column.perNight', tableName: 'public.stays', columnName: 'room_total', value })]);
+    expect(buildPutDocument(baseline, new Map())).toEqual({ overrides: [{ op: 'column.perNight', tableName: 'public.stays', columnName: 'room_total', value }] });
+  });
+
   it('keeps disabled rows disabled and drops removed baseline ops', () => {
     const baseline = baselineFromRows([
       row({ op: 'table.label', tableName: 'public.customers', value: { label: 'Customers' } }),

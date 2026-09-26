@@ -27,6 +27,7 @@
  * order, methods in GET POST PATCH PUT DELETE BATCH order, two-space indent.
  */
 
+import { formulaColumns } from '@adminium/manifest';
 import { z } from 'zod';
 
 import type { EffectiveColumn } from '../connections/effective-schema.js';
@@ -43,7 +44,11 @@ import {
   type PublicScopeDocument,
   type PublicScopeResource,
   ScopeCompileError,
+  type ScopeChild,
   type ScopeIssue,
+  scopeAgreeSchema,
+  scopeAgreeTargetSchema,
+  scopeCountsSchema,
   writableWhenSchema,
 } from './scope.js';
 
@@ -176,6 +181,64 @@ const identitySchema = z
     /** `token`: the date or time after which the link opens nothing, and the yes/no that stops it. */
     expires: columnSchema.optional(),
     stopped: columnSchema.optional(),
+    /** `token`: the owner's own link, which opens a verified session that may change its row. */
+    own: z.literal(true).optional(),
+  })
+  .strict();
+
+/*
+ * ── A create with its child rows, and a person found by address ─────────
+ * Snake case, as the rest of the document. A child's `source` is its real
+ * table; the key it is listed under is the name the wire uses.
+ */
+
+/** The agreement and count shapes are the scope's own: the definition maps them across unchanged. */
+type AgreeTarget = z.infer<typeof scopeAgreeTargetSchema>;
+export const endpointAgreeSchema = scopeAgreeSchema;
+export const endpointCountsSchema = scopeCountsSchema;
+
+const childShape = {
+  /** The child's real table. */
+  source: z.string().min(1).max(256),
+  via: columnSchema,
+  writable: z.array(columnSchema),
+  select: z.array(columnSchema).optional(),
+  defaults: z.record(columnSchema, z.unknown()).optional(),
+  writable_values: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
+  requires: z.array(columnSchema).min(1).max(8).optional(),
+  position: columnSchema.optional(),
+  min: z.number().int().min(0).optional(),
+  max: z.number().int().min(1).max(200),
+  agrees: z.array(endpointAgreeSchema).min(1).max(8).optional(),
+  counts: z.array(endpointCountsSchema).min(1).max(2).optional(),
+  plain_text: z.array(columnSchema).min(1).max(8).optional(),
+  /** The most `column` may add up to across one write: a number, or a column of a one-row table (its real id). */
+  sum_max: z
+    .object({ column: columnSchema, max: z.union([z.number().int().min(1), z.object({ table: z.string().min(1).max(256), column: columnSchema }).strict()]) })
+    .strict()
+    .optional(),
+};
+const childRefSchema = z.string().min(1).max(64).regex(/^[a-z][a-z0-9_]*$/, 'a child is named by the snake_case table name the wire uses');
+const childMap = <T extends z.ZodTypeAny>(entry: T) =>
+  z.record(childRefSchema, entry).refine((children) => Object.keys(children).length >= 1 && Object.keys(children).length <= 4, {
+    message: 'one to four child tables at each level',
+  });
+const grandchildSchema = z.object(childShape).strict();
+export const endpointChildSchema = z.object({ ...childShape, children: childMap(grandchildSchema).optional() }).strict();
+export type EndpointChild = z.infer<typeof endpointChildSchema>;
+
+/**
+ * A person found by the address a guest types, or made: the identity
+ * endpoint they sign in through (`identity_ref`), this table's column holding
+ * the address and its link to the person, and the person's columns a new row
+ * is filled with, from this table's.
+ */
+const findOrCreateSchema = z
+  .object({
+    identity_ref: endpointRefSchema,
+    email: columnSchema,
+    link: columnSchema,
+    fill: z.record(columnSchema, columnSchema).optional(),
   })
   .strict();
 
@@ -308,6 +371,25 @@ export const publicEndpointDefinitionSchema = z
       })
       .strict()
       .optional(),
+    /* ── a create with its child rows ─────────────────────────────────────── */
+    /** The rows a create carries, by the name the wire uses (see `endpointChildSchema`). */
+    children: childMap(endpointChildSchema).optional(),
+    /** Checks the created row's own values pass (guests no more than a room sleeps). */
+    agrees: z.array(endpointAgreeSchema).min(1).max(8).optional(),
+    /** The same write may be tried without writing, to see every figure. */
+    dry_run: z.literal(true).optional(),
+    /** A money column a write may send its expected value for. */
+    expect: columnSchema.optional(),
+    /** A column holding a key the browser mints, so a retry lands on the same row. */
+    client_key: columnSchema.optional(),
+    /* ── a person found by address ────────────────────────────────────────── */
+    find_or_create: findOrCreateSchema.optional(),
+    /** A create answers, once, the new row's own link: this code column, opened through the key of this purpose. */
+    share_link: z.object({ column: columnSchema, key: z.string().min(1).max(64) }).strict().optional(),
+    /** Read only by the holder of a live session of the key (no claim of its own). */
+    session_only: z.literal(true).optional(),
+    /** On an identity endpoint: the columns "delete my details" empties, and the time it stamps. */
+    forget: z.object({ columns: z.array(columnSchema).min(1).max(16), stamp: columnSchema.optional() }).strict().optional(),
   })
   .strict();
 
@@ -380,6 +462,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       ...(def.identity.email === undefined ? {} : { email: def.identity.email }),
       ...(def.identity.expires === undefined ? {} : { expires: def.identity.expires }),
       ...(def.identity.stopped === undefined ? {} : { stopped: def.identity.stopped }),
+      ...(def.identity.own === undefined ? {} : { own: def.identity.own }),
     };
   }
   if (def.sensitive !== undefined) out['sensitive'] = def.sensitive;
@@ -397,6 +480,66 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.rank !== undefined) out['rank'] = { ...def.rank };
   if (def.anonymous !== undefined) out['anonymous'] = { ...def.anonymous };
   if (def.require_setting !== undefined) out['require_setting'] = def.require_setting.map((setting) => ({ ...setting }));
+  if (def.children !== undefined) out['children'] = orderedChildren(def.children);
+  if (def.agrees !== undefined) out['agrees'] = def.agrees.map(orderedAgree);
+  if (def.dry_run !== undefined) out['dry_run'] = def.dry_run;
+  if (def.expect !== undefined) out['expect'] = def.expect;
+  if (def.client_key !== undefined) out['client_key'] = def.client_key;
+  if (def.find_or_create !== undefined) {
+    const f = def.find_or_create;
+    out['find_or_create'] = { identity_ref: f.identity_ref, email: f.email, link: f.link, ...(f.fill === undefined ? {} : { fill: { ...f.fill } }) };
+  }
+  if (def.share_link !== undefined) out['share_link'] = { column: def.share_link.column, key: def.share_link.key };
+  if (def.session_only !== undefined) out['session_only'] = def.session_only;
+  if (def.forget !== undefined) out['forget'] = { columns: [...def.forget.columns], ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }) };
+  return out;
+}
+
+/** An agreement, key by key. */
+function orderedAgree(agree: z.infer<typeof endpointAgreeSchema>): Record<string, unknown> {
+  const target = (t: AgreeTarget) =>
+    'parent' in t ? { parent: t.parent, ...(t.path === undefined ? {} : { path: [...t.path] }) } : 'via' in t ? { via: t.via, column: t.column } : { value: t.value };
+  return {
+    column: agree.column,
+    ...(agree.path === undefined ? {} : { path: [...agree.path] }),
+    ...(agree.when === undefined ? {} : { when: { ...(agree.when.path === undefined ? {} : { path: [...agree.when.path] }), in: [...agree.when.in] } }),
+    ...(agree.eq === undefined ? {} : { eq: target(agree.eq) }),
+    ...(agree.lte === undefined ? {} : { lte: target(agree.lte) }),
+    ...(agree.gte === undefined ? {} : { gte: target(agree.gte) }),
+  };
+}
+
+/** Child rows, key by key, each level in the order it was written. */
+function orderedChildren(children: Readonly<Record<string, z.infer<typeof grandchildSchema> & { children?: Record<string, z.infer<typeof grandchildSchema>> | undefined }>>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [name, c] of Object.entries(children)) {
+    out[name] = {
+      source: c.source,
+      via: c.via,
+      writable: [...c.writable],
+      ...(c.select === undefined ? {} : { select: [...c.select] }),
+      ...(c.defaults === undefined ? {} : { defaults: { ...c.defaults } }),
+      ...(c.writable_values === undefined ? {} : { writable_values: { ...c.writable_values } }),
+      ...(c.requires === undefined ? {} : { requires: [...c.requires] }),
+      ...(c.position === undefined ? {} : { position: c.position }),
+      ...(c.min === undefined ? {} : { min: c.min }),
+      max: c.max,
+      ...(c.agrees === undefined ? {} : { agrees: c.agrees.map(orderedAgree) }),
+      ...(c.counts === undefined
+        ? {}
+        : {
+            counts: c.counts.map((k) => ({
+              by: [...k.by],
+              ...(k.every === undefined ? {} : { every: { column: k.every.column, eq: { parent: k.every.eq.parent } } }),
+              min: k.min,
+              max: k.max,
+            })),
+          }),
+      ...(c.plain_text === undefined ? {} : { plain_text: [...c.plain_text] }),
+      ...(c.sum_max === undefined ? {} : { sum_max: { column: c.sum_max.column, max: typeof c.sum_max.max === 'number' ? c.sum_max.max : { ...c.sum_max.max } } }),
+      ...(c.children === undefined ? {} : { children: orderedChildren(c.children) }),
+    };
+  }
   return out;
 }
 
@@ -471,7 +614,8 @@ function decidedByAdminium(column: EffectiveColumn): boolean {
     column.sequence !== undefined ||
     column.code !== undefined ||
     column.rollup !== undefined ||
-    column.stamp !== undefined
+    column.stamp !== undefined ||
+    column.perNight !== undefined
   );
 }
 
@@ -620,7 +764,44 @@ export function definitionToResource(
       ...(caps.plain_text === undefined ? {} : { plainText: [...caps.plain_text] }),
     };
   }
+  if (def.children !== undefined) resource.children = childResources(def.children);
+  if (def.agrees !== undefined) resource.agrees = def.agrees.map((agree) => structuredClone(agree));
+  if (def.dry_run !== undefined) resource.dryRun = true;
+  if (def.expect !== undefined) resource.expect = def.expect;
+  if (def.client_key !== undefined) resource.clientKey = def.client_key;
+  if (def.find_or_create !== undefined) {
+    const f = def.find_or_create;
+    resource.findOrCreate = { identityRef: f.identity_ref, email: f.email, link: f.link, ...(f.fill === undefined ? {} : { fill: { ...f.fill } }) };
+  }
+  if (def.share_link !== undefined) resource.shareLink = { ...def.share_link };
+  if (def.session_only !== undefined) resource.sessionOnly = true;
+  if (def.forget !== undefined) resource.forget = { columns: [...def.forget.columns], ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }) };
   return resource;
+}
+
+/** A definition's child rows as the scope keeps them: camel case, each level the same. */
+function childResources(children: Readonly<Record<string, EndpointChild>>): Record<string, ScopeChild> {
+  const out: Record<string, ScopeChild> = {};
+  for (const [name, c] of Object.entries(children)) {
+    out[name] = {
+      table: c.source,
+      via: c.via,
+      writable: [...c.writable],
+      ...(c.select === undefined ? {} : { select: [...c.select] }),
+      ...(c.defaults === undefined ? {} : { defaults: { ...c.defaults } }),
+      ...(c.writable_values === undefined ? {} : { writableValues: { ...c.writable_values } }),
+      ...(c.requires === undefined ? {} : { requires: [...c.requires] }),
+      ...(c.position === undefined ? {} : { position: c.position }),
+      ...(c.min === undefined ? {} : { min: c.min }),
+      max: c.max,
+      ...(c.agrees === undefined ? {} : { agrees: c.agrees.map((agree) => structuredClone(agree)) }),
+      ...(c.counts === undefined ? {} : { counts: c.counts.map((counts) => structuredClone(counts)) }),
+      ...(c.plain_text === undefined ? {} : { plainText: [...c.plain_text] }),
+      ...(c.sum_max === undefined ? {} : { sumMax: structuredClone(c.sum_max) }),
+      ...(c.children === undefined ? {} : { children: childResources(c.children) }),
+    };
+  }
+  return out;
 }
 
 /* ---------------------------------------------------------------- compiling */
@@ -724,10 +905,10 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
 
   if (def.select.length === 0) push('ENDPOINT_SELECT_EMPTY', 'select at least one column');
 
-  if (def.auth.role === 'authenticated' && def.claim === undefined && def.identity === undefined && def.visible_with === undefined) {
+  if (def.auth.role === 'authenticated' && def.claim === undefined && def.identity === undefined && def.visible_with === undefined && def.session_only !== true) {
     push(
       'ENDPOINT_AUTHENTICATED_WITHOUT_CLAIM',
-      'an authenticated endpoint needs a claim column, a claim via another endpoint, an identity, or a parent it is visible with',
+      'an authenticated endpoint needs a claim column, a claim via another endpoint, an identity, a parent it is visible with, or to be read by a session alone',
     );
   }
   // A child is a signed-in person's own rows, through its parent: never open to anyone.
@@ -963,9 +1144,216 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     }
   }
 
+  treeAndPersonIssues(def, table, view as SnapshotView, ctx, push);
+
   /* ── what the derived scope would refuse, reported now ──────────────── */
   issues.push(...scopeIssuesOf(ref, def, table, visible));
   return issues;
+}
+
+/** The real table a single-column foreign key of `table` points at, or null. */
+function pointsAt(view: SnapshotView, table: ResolvedTable, column: string): ResolvedTable | null {
+  const relation = view.model.relations.find(
+    (r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === column,
+  );
+  return relation === undefined ? null : sourceTable(view, relation.to.tableId);
+}
+
+/** Every column Adminium decides on a table, the full set: its rules, formulas, numbers and nightly prices. */
+function decidedOfChild(table: ResolvedTable): Set<string> {
+  const out = decidedColumnsOf(table);
+  for (const column of table.table.columns) if (column.formula !== undefined || column.format !== undefined) out.add(column.name);
+  const state = table.table.states?.column;
+  if (state !== undefined) out.add(state);
+  return out;
+}
+
+/**
+ * The columns of `table` whose value comes, directly or through a formula,
+ * from the row `link` points at: a copy or a nightly price read through it, a
+ * stamp copying one, a formula over one.
+ */
+function readThroughLink(table: ResolvedTable, link: string): Set<string> {
+  const out = new Set<string>();
+  for (const column of table.table.columns) {
+    if (column.copy?.via === link || column.perNight?.rate.via === link) out.add(column.name);
+  }
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const column of table.table.columns) {
+      if (out.has(column.name)) continue;
+      const set = column.stamp?.set as { copy?: unknown } | string | undefined;
+      const reads = [
+        ...(column.formula === undefined ? [] : formulaColumns(column.formula)),
+        ...(typeof set === 'object' && set !== null && typeof set.copy === 'string' ? [set.copy] : []),
+      ];
+      if (reads.some((name) => out.has(name))) {
+        out.add(column.name);
+        changed = true;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The checks a create with its child rows, a found person, a row's own link,
+ * a read for a session alone and "delete my details" need against the live
+ * schema — reported with the rest, never thrown.
+ */
+function treeAndPersonIssues(
+  def: PublicEndpointDefinition,
+  table: ResolvedTable,
+  view: SnapshotView,
+  ctx: EndpointCompileContext,
+  push: (code: string, message: string, column?: string) => void,
+): void {
+  const methods = new Set(def.methods);
+  const creates = methods.has('POST');
+
+  // Child rows, the dry run, the price check and the retry key belong to a single create (a dry run and a check to a change too).
+  if (def.children !== undefined) {
+    if (!creates) push('ENDPOINT_CHILDREN_NO_CREATE', 'child rows come with a create, and this endpoint creates nothing');
+    if (methods.has('BATCH')) push('ENDPOINT_CHILDREN_NO_CREATE', 'a create with its child rows is one write: it is never batched');
+    if (def.identity !== undefined || def.visible_with !== undefined) push('ENDPOINT_CHILDREN_NO_CREATE', 'an identity or a child endpoint makes no child rows of its own');
+    const anonymous = def.auth.role === 'anon' || def.claim?.optional === true || def.find_or_create !== undefined;
+    if (anonymous && def.human_check !== true) push('ENDPOINT_CHILDREN_NEED_PROOF', 'a create anyone may make with its child rows asks the human check, once for the whole write');
+  }
+  if (def.dry_run === true && !creates && !methods.has('PATCH')) push('ENDPOINT_CHILDREN_NO_CREATE', 'a dry run tries a create or a change, and this endpoint makes neither');
+  if (def.client_key !== undefined && !creates) push('ENDPOINT_CHILDREN_NO_CREATE', 'a retry key belongs to a create');
+
+  if (def.expect !== undefined) {
+    const column = table.table.columns.find((c) => c.name === def.expect);
+    const decided = decidedOfChild(table);
+    if (column === undefined || !decided.has(column.name) || !['decimal', 'integer', 'bigint', 'float'].includes(column.logicalType) || !def.select.includes(column.name)) {
+      push('ENDPOINT_EXPECT_COLUMN', `"${def.expect}" is checked against the figure Adminium works out: a number column it decides, which the endpoint selects`, def.expect);
+    }
+  }
+  if (def.client_key !== undefined) {
+    const key = def.client_key;
+    const column = table.columns.get(key);
+    const writable = def.writable ?? [];
+    const read = readsOf(def).some((r) => r.column === key);
+    if (column === undefined || !['text', 'varchar'].includes(column.logicalType) || !writable.includes(key) || read) {
+      push('ENDPOINT_CLIENT_KEY', `"${key}" is a retry key: a text column the caller writes and nothing shows, filters or orders by`, key);
+    }
+  }
+
+  // Each child: a table here, once in the tree, linked to its parent, writing only what a guest may.
+  const seen = new Set<string>([table.id]);
+  const walk = (children: Readonly<Record<string, EndpointChild>>, parent: ResolvedTable, level: number): void => {
+    for (const [name, child] of Object.entries(children)) {
+      const own = sourceTable(view, child.source);
+      if (own === null) {
+        push('ENDPOINT_CHILD_UNKNOWN', `${child.source} (${name}) is not a table of this connection`);
+        continue;
+      }
+      if (seen.has(own.id)) push('ENDPOINT_CHILD_TWICE', `${child.source} (${name}) is in this write twice`);
+      seen.add(own.id);
+      if (pointsAt(view, own, child.via)?.id !== parent.id) push('ENDPOINT_CHILD_VIA_NOT_PARENT', `"${child.via}" of ${child.source} does not point at ${parent.table.name}`, child.via);
+      if (child.min !== undefined && child.min > child.max) push('ENDPOINT_CHILD_ROWS', `${name} asks for no more rows than it allows`);
+      if (level > 2) push('ENDPOINT_CHILD_DEPTH', 'child rows go two levels below the create at most');
+      const named = [child.via, ...child.writable, ...(child.select ?? []), ...(child.requires ?? []), ...(child.plain_text ?? []), ...Object.keys(child.writable_values ?? {}), ...(child.position === undefined ? [] : [child.position])];
+      const visible = visibleColumns(own);
+      for (const column of named) if (!visible.has(column)) push('ENDPOINT_CHILD_SELECT_UNKNOWN', `"${column}" is not a column of ${child.source} (${name})`, column);
+      const codes = ctx.shareCodes?.get(child.source) ?? new Set<string>();
+      for (const column of child.select ?? []) {
+        if (codes.has(column)) push('ENDPOINT_SHARE_CODE_READ', `"${column}" is the code a shared link opens its row with, so no endpoint shows it (${name})`, column);
+      }
+      const decided = new Set([...decidedOfChild(own), child.via, ...(child.position === undefined ? [] : [child.position])]);
+      for (const column of own.primaryKey) decided.add(column);
+      for (const column of child.writable) {
+        if (decided.has(column)) push('ENDPOINT_CHILD_WRITABLE_DECIDED', `"${column}" of ${child.source} is decided by Adminium and cannot be writable`, column);
+      }
+      for (const [a, agree] of (child.agrees ?? []).entries()) agreePathIssues(view, own, parent, agree, `${name}.agrees.${String(a)}`, push);
+      for (const counts of child.counts ?? []) {
+        let group: ResolvedTable | null = own;
+        for (const step of counts.by) group = group === null ? null : pointsAt(view, group, step);
+        const whole = (column: string) => ['integer', 'bigint'].includes(group?.columns.get(column)?.logicalType ?? '');
+        if (group === null || !whole(counts.min) || !whole(counts.max) || (counts.every !== undefined && pointsAt(view, group, counts.every.column) === null)) {
+          push('ENDPOINT_CHILD_COUNTS', `${name} counts its rows by foreign keys to a group with whole-number min and max columns`);
+        }
+      }
+      if (child.children !== undefined) walk(child.children, own, level + 1);
+    }
+  };
+  if (def.children !== undefined) walk(def.children, table, 1);
+  for (const [a, agree] of (def.agrees ?? []).entries()) agreePathIssues(view, table, null, agree, `agrees.${String(a)}`, push);
+
+  // A person found by address: on a single create, linked through a column no one reads or writes.
+  if (def.find_or_create !== undefined) {
+    const f = def.find_or_create;
+    const onChange = def.identity?.own === true && methods.has('PATCH') && !creates;
+    const onlyCreate = def.methods.length === 1 && creates;
+    if (!onlyCreate && !onChange) push('ENDPOINT_FIND_OR_CREATE_SHAPE', 'a person is found by address on a create alone (or a change through the row\'s own link)');
+    if (methods.has('BATCH')) push('ENDPOINT_FIND_OR_CREATE_SHAPE', 'a person found by address is never batched');
+    if (!onChange && (def.claim?.column !== f.link || def.claim.optional !== true)) {
+      push('ENDPOINT_FIND_OR_CREATE_SHAPE', `a signed-in create links its person as before: claim { column: "${f.link}", optional: true }`, f.link);
+    }
+    if (def.select.includes(f.link) || (def.writable ?? []).includes(f.link)) {
+      push('ENDPOINT_FIND_OR_CREATE_SHAPE', `"${f.link}" would tell whether the address was on file, so it is neither shown nor written`, f.link);
+    }
+    for (const column of [f.email, f.link]) {
+      if (!table.columns.has(column)) push('ENDPOINT_COLUMN_UNKNOWN', `"${column}" (find_or_create) is not a column of ${def.source}`, column);
+    }
+    for (const column of readThroughLink(table, f.link)) {
+      push('SCOPE_FIND_OR_CREATE_READS_PERSON', `"${column}" reads the person "${f.link}" points at, whom a stranger may have typed the address of`, column);
+    }
+  }
+  if (def.share_link !== undefined) {
+    const column = table.table.columns.find((c) => c.name === def.share_link!.column);
+    if (!creates || methods.has('BATCH') || column?.code === undefined || column.code.length < 16 || def.select.includes(def.share_link.column)) {
+      push('ENDPOINT_SHARE_LINK_NOT_A_CODE', `"${def.share_link.column}" is answered once as the row's own link: a 16-character code Adminium makes, never selected, on a single create`, def.share_link.column);
+    }
+  }
+  if (def.session_only === true) {
+    if (def.methods.some((m) => m !== 'GET') || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined || def.auth.role !== 'authenticated') {
+      push('ENDPOINT_SESSION_ONLY_READS', 'a read for a session\'s holder alone is an authenticated GET with no claim of its own');
+    }
+  }
+  if (def.forget !== undefined) {
+    if (def.identity === undefined) push('SCOPE_FORGET_COLUMN', 'what a person forgets is declared on the identity they sign in with');
+    for (const name of def.forget.columns) {
+      const column = table.table.columns.find((c) => c.name === name);
+      const emptied = column !== undefined && (column.nullable || column.logicalType === 'boolean');
+      if (!emptied || table.primaryKey.includes(name) || name === def.identity?.column) push('SCOPE_FORGET_COLUMN', `"${name}" cannot be emptied when a person is forgotten`, name);
+    }
+    const stamp = def.forget.stamp;
+    if (stamp !== undefined && !['timestamp', 'timestamptz'].includes(table.columns.get(stamp)?.logicalType ?? '')) {
+      push('SCOPE_FORGET_COLUMN', `"${stamp}" is not a time to stamp when a person is forgotten`, stamp);
+    }
+  }
+}
+
+/** An agreement's path: foreign keys from `column` to the compared column; the parent's, or a linked row's, to compare with. */
+function agreePathIssues(
+  view: SnapshotView,
+  table: ResolvedTable,
+  parent: ResolvedTable | null,
+  agree: z.infer<typeof endpointAgreeSchema>,
+  at: string,
+  push: (code: string, message: string, column?: string) => void,
+): void {
+  const follow = (from: ResolvedTable, column: string, path: readonly string[] | undefined): boolean => {
+    if (!from.columns.has(column)) return false;
+    let here: ResolvedTable | null = from;
+    let current = column;
+    for (const step of path ?? []) {
+      here = here === null ? null : pointsAt(view, here, current);
+      if (here === null || !here.columns.has(step)) return false;
+      current = step;
+    }
+    return true;
+  };
+  const tests = [agree.eq, agree.lte, agree.gte].filter((t) => t !== undefined);
+  let ok = follow(table, agree.column, agree.path) && tests.length === 1 && (agree.when === undefined || follow(table, agree.column, agree.when.path));
+  const target = tests[0];
+  if (target !== undefined && 'parent' in target) ok &&= parent !== null && follow(parent, target.parent, target.path);
+  if (target !== undefined && 'via' in target) {
+    const linked = pointsAt(view, table, target.via);
+    ok &&= linked !== null && linked.columns.has(target.column);
+  }
+  if (!ok) push('ENDPOINT_CHILD_AGREES_PATH', `${at}: an agreement follows foreign keys to the column it compares, with one of eq, lte or gte`);
 }
 
 /**
@@ -1006,6 +1394,7 @@ function scopeIssuesOf(
       ...(def.identity.email === undefined ? {} : { email: def.identity.email }),
       ...(def.identity.expires === undefined ? {} : { expires: def.identity.expires }),
       ...(def.identity.stopped === undefined ? {} : { stopped: def.identity.stopped }),
+      ...(def.identity.own === undefined ? {} : { own: def.identity.own }),
       ...(def.human_check === undefined ? {} : { humanCheck: true as const }),
     };
   }

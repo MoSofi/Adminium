@@ -173,6 +173,7 @@ export function deriveScopeDocument(
         ...(spec.email === undefined ? {} : { email: spec.email }),
         ...(spec.expires === undefined ? {} : { expires: spec.expires }),
         ...(spec.stopped === undefined ? {} : { stopped: spec.stopped }),
+        ...(spec.own === true ? { own: true as const } : {}),
         // Every claim through this identity is proved to be a person's.
         ...(identity.definition.human_check === undefined ? {} : { humanCheck: true as const }),
       };
@@ -257,6 +258,26 @@ function capsLoosened(before: PublicScopeResource['anonymous'], after: PublicSco
   return (before.plainText ?? []).some((column) => !(after.plainText ?? []).includes(column));
 }
 
+/**
+ * Whether a save lets a create carry more: a child table it did not, a child
+ * writing or showing more columns, or more rows of one — or a read that was
+ * for a session's holder alone no longer is, or "delete my details" now
+ * empties more.
+ */
+function treeLoosened(before: PublicScopeResource, after: PublicScopeResource): boolean {
+  type Child = NonNullable<PublicScopeResource['children']>[string];
+  const grew = (was: Readonly<Record<string, Child>> | undefined, now: Readonly<Record<string, Child>> | undefined): boolean =>
+    Object.entries(now ?? {}).some(([name, child]) => {
+      const prior = was?.[name];
+      if (prior === undefined) return true;
+      const more = (a: readonly string[] | undefined, b: readonly string[] | undefined) => (b ?? []).some((c) => !(a ?? []).includes(c));
+      return more(prior.writable, child.writable) || more(prior.select, child.select) || child.max > prior.max || grew(prior.children, child.children);
+    });
+  if (grew(before.children, after.children)) return true;
+  if (before.sessionOnly === true && after.sessionOnly !== true) return true;
+  return (after.forget?.columns ?? []).some((c) => !(before.forget?.columns ?? []).includes(c));
+}
+
 export function wideningOf(before: unknown, after: PublicScopeDocument): Widening[] {
   const old = new Map<string, PublicScopeResource>();
   if (typeof before === 'object' && before !== null && Array.isArray((before as { resources?: unknown }).resources)) {
@@ -277,7 +298,7 @@ export function wideningOf(before: unknown, after: PublicScopeDocument): Widenin
     const parentChanged = prior?.visibleWith !== undefined && JSON.stringify(prior.visibleWith) !== JSON.stringify(r.visibleWith);
     const rows =
       prior !== undefined &&
-      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous) || parentChanged);
+      ([...oldWhere].some((w) => !newWhere.has(w)) || [...writeLimits(prior)].some((l) => !limits.has(l)) || capsLoosened(prior.anonymous, r.anonymous) || parentChanged || treeLoosened(prior, r));
     if (methods.length > 0 || columns.length > 0 || rows) out.push({ ref: r.ref, methods, columns, rows });
   }
   return out;

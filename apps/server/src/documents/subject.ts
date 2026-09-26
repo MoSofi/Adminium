@@ -40,19 +40,34 @@ import type { RecordRef } from '@adminium/meta';
 export type SlotMapping =
   | { column: string }
   | { ref: string; column: string; table?: string | undefined }
-  | {
-      collection: {
-        table: string;
-        fkColumn: string;
-        columns: Record<string, string>;
-        /** The column the lines are listed by (a line's position); then by key. */
-        orderBy?: string | undefined;
-        /** Only the child rows whose column holds one of these. */
-        where?: { column: string; in: readonly (string | number | boolean)[] } | undefined;
-        /** A child row whose column is true (or set) is left out: a voided line. */
-        unless?: string | undefined;
-      };
-    };
+  | { collection: CollectionSource }
+  /** One list read from several sources, in order: child rows, or the nights of a price by the night. */
+  | { sources: readonly ({ collection: CollectionSource } | { nightly: NightlySource })[] };
+
+/** The child rows of the document's row a list reads. */
+export interface CollectionSource {
+  table: string;
+  fkColumn: string;
+  columns: Record<string, string>;
+  /** The column the lines are listed by (a line's position); then by key. */
+  orderBy?: string | undefined;
+  /** Only the child rows whose column holds one of these. */
+  where?: { column: string; in: readonly (string | number | boolean)[] } | undefined;
+  /** A child row whose column is true (or set) is left out: a voided line. */
+  unless?: string | undefined;
+  /** Slot columns that list names one level below the line: `table`'s `column`, by its link to the line. */
+  lists?: Record<string, { table: string; fkColumn: string; column: string; orderBy?: string | undefined }> | undefined;
+}
+
+/**
+ * The nights a price-by-the-night column of the document's row is made of,
+ * worked out when the document is drawn; `columns` maps each slot column to a
+ * night's own (`date`, `rate`, `base`, `qty`, `tags`) or `<rate via>.<column>`.
+ */
+export interface NightlySource {
+  column: string;
+  columns: Record<string, string>;
+}
 
 export interface ProfileMapping {
   [slotId: string]: SlotMapping;
@@ -407,9 +422,18 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
 export function mappedTables(mapping: ProfileMapping, base: string): readonly string[] {
   const tables = new Set<string>([base]);
   for (const mapped of Object.values(mapping)) {
-    if ('collection' in mapped) tables.add(mapped.collection.table);
-    // A column of a linked row is read from that row's table too.
-    else if ('ref' in mapped && mapped.table !== undefined) tables.add(mapped.table);
+    const lists = (c: CollectionSource) => {
+      tables.add(c.table);
+      for (const list of Object.values(c.lists ?? {})) tables.add(list.table);
+    };
+    if ('collection' in mapped) {
+      lists(mapped.collection);
+    } else if ('sources' in mapped) {
+      for (const source of mapped.sources) if ('collection' in source) lists(source.collection);
+    } else if ('ref' in mapped && mapped.table !== undefined) {
+      // A column of a linked row is read from that row's table too.
+      tables.add(mapped.table);
+    }
   }
   return [...tables];
 }

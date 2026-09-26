@@ -52,7 +52,7 @@ import { shapeDefinitionSchema, shapeKey } from '@adminium/manifest';
 import { documentProfilesRepo, manifestsRepo, type DocumentProfile, type MetaDb } from '@adminium/meta';
 
 import type { BalanceAfter, StatementSource, StatementSources } from './statement.js';
-import type { ProfileMapping, SlotMapping, SubjectSlot } from './subject.js';
+import type { CollectionSource, NightlySource, ProfileMapping, SubjectSlot } from './subject.js';
 import { syncProfileTrigger } from './trigger-sync.js';
 
 /** The shapes the installed add-ons define, by `<addOn>/<name>@<version>`. */
@@ -156,13 +156,22 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       const mapping: Record<string, ManifestSlotMapping> = {};
       let missing: string | null = null;
       for (const [slot, source] of Object.entries(profile.mapping)) {
-        if ('collection' in source) {
+        if ('collection' in source && 'table' in source.collection) {
           const child = tableFor(source.collection.table);
           if (child === undefined) {
             missing = source.collection.table;
             break;
           }
           mapping[slot] = { collection: { ...source.collection, table: child } };
+        } else if ('collections' in source) {
+          // Each child-row source names a part; a shape has no nightly source (its check refuses one).
+          const parts = source.collections.map((one) => ('table' in one ? tableFor(one.table) : undefined));
+          const gone = source.collections.findIndex((one, k) => 'table' in one && parts[k] === undefined);
+          if (gone !== -1) {
+            missing = (source.collections[gone] as { table: string }).table;
+            break;
+          }
+          mapping[slot] = { collections: source.collections.map((one, k) => ('table' in one ? { ...one, table: parts[k]! } : { ...one })) };
         } else {
           mapping[slot] = { ...source };
         }
@@ -212,6 +221,34 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
   return { planned, skipped };
 }
 
+type ManifestTableSource = Extract<Extract<ManifestSlotMapping, { collection: unknown }>['collection'], { table: string }>;
+
+/** A child-row source in the store's words: its real table, its link, its columns, and the names it lists one level down. */
+function storedCollection(source: ManifestTableSource, realId: (ref: string) => string | null): CollectionSource | { reason: string } {
+  const child = realId(source.table);
+  if (child === null) return { reason: `"${source.table}" is not a table the install made` };
+  const columns: Record<string, string> = {};
+  const lists: NonNullable<CollectionSource['lists']> = {};
+  for (const [slotColumn, column] of Object.entries(source.columns)) {
+    if (typeof column === 'string') {
+      columns[slotColumn] = column;
+      continue;
+    }
+    const table = realId(column.list.table);
+    if (table === null) return { reason: `"${column.list.table}" is not a table the install made` };
+    lists[slotColumn] = { table, fkColumn: column.list.via, column: column.list.column, ...(column.list.orderBy === undefined ? {} : { orderBy: column.list.orderBy }) };
+  }
+  return {
+    table: child,
+    fkColumn: source.via,
+    columns,
+    ...(source.orderBy === undefined ? {} : { orderBy: source.orderBy }),
+    ...(source.where === undefined ? {} : { where: { column: source.where.column, in: [...source.where.in] } }),
+    ...(source.unless === undefined ? {} : { unless: source.unless }),
+    ...(Object.keys(lists).length === 0 ? {} : { lists }),
+  };
+}
+
 /** A planned profile in the store's words: real table ids, the pipeline's slot mapping. */
 export interface StoredProfile {
   addOnKey: string;
@@ -244,21 +281,22 @@ export function storedProfile(
   let balanceAfter: BalanceAfter | undefined;
   let orderBy: string | null = null;
   for (const [slot, source] of Object.entries(plan.mapping)) {
-    if ('collection' in source) {
-      const child = realId(source.collection.table);
-      if (child === null) return { reason: `"${source.collection.table}" is not a table the install made` };
-      const collection: SlotMapping = {
-        collection: {
-          table: child,
-          fkColumn: source.collection.via,
-          columns: { ...source.collection.columns },
-          ...(source.collection.orderBy === undefined ? {} : { orderBy: source.collection.orderBy }),
-          ...(source.collection.where === undefined ? {} : { where: { column: source.collection.where.column, in: [...source.collection.where.in] } }),
-          ...(source.collection.unless === undefined ? {} : { unless: source.collection.unless }),
-        },
-      };
-      mapping[slot] = collection;
-      orderBy ??= source.collection.orderBy ?? null;
+    if ('collection' in source || 'collections' in source) {
+      // One source, or several read one after another: child rows by real table, or a price's nights.
+      const list = 'collections' in source ? source.collections : [source.collection];
+      const sources: ({ collection: CollectionSource } | { nightly: NightlySource })[] = [];
+      for (const one of list) {
+        if ('nightly' in one) {
+          sources.push({ nightly: { column: one.nightly, columns: { ...one.columns } } });
+          continue;
+        }
+        const stored = storedCollection(one, realId);
+        if ('reason' in stored) return stored;
+        sources.push({ collection: stored });
+        orderBy ??= one.orderBy ?? null;
+      }
+      // Today's single list keeps today's stored spelling.
+      mapping[slot] = 'collection' in source && sources.length === 1 && 'collection' in sources[0]! ? sources[0] : { sources };
     } else if ('via' in source) {
       const references = own.columns.find((column) => column.ref === source.via)?.references;
       const linked = references === undefined ? null : realId(references);
@@ -275,7 +313,8 @@ export function storedProfile(
       const rollup = tableOf(references!)
         ?.columns.map((column) => (column.rules as { rollup?: RollupRule } | undefined)?.rollup)
         .find((r) => r !== undefined && r.from === plan.table && r.via === source.via && r.balance?.column === source.column);
-      if (rollup?.balance !== undefined) {
+      // A count keeps no balance: only a total that adds a column up does.
+      if (rollup?.balance !== undefined && rollup.sum !== undefined) {
         const day = own.columns.find((column) => column.type === 'date')?.ref;
         balanceAfter = {
           via: source.via,

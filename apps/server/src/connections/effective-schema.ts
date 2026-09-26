@@ -54,6 +54,8 @@ export interface ColumnCopyRule {
   via: string;
   from: string;
   mode?: 'default' | 'always';
+  /** Kept in step when the linked row's column changes later. */
+  follow?: true;
 }
 
 /**
@@ -90,7 +92,10 @@ export interface ColumnRollupRule {
   from: string;
   /** The child's column linking back to this row. */
   via: string;
-  sum: string;
+  /** The child column added up; absent when the rows are counted (`count`). */
+  sum?: string;
+  /** The child rows counted instead of a column added up. */
+  count?: true;
   times?: string;
   /** A child row whose column holds a value is left out (a voided line). */
   unlessSet?: string;
@@ -100,6 +105,24 @@ export interface ColumnRollupRule {
   balance?: { column: string; of: string; minus?: string[] };
   /** A write that would take a balance this total feeds below zero is refused. */
   cap?: true;
+}
+
+/**
+ * `column.perNight`: a price worked out night by night — the rate read through
+ * `rate.via`, plus each adjustment row (`adjust.table`, its id in the
+ * snapshot) that matches the night.
+ */
+export interface ColumnPerNightRule {
+  from: string;
+  to: string;
+  rate: { via: string; column: string };
+  adjust?: {
+    table: string;
+    match: { via?: string; weekdays?: string; from?: string; to?: string };
+    add: string;
+    name: string;
+    where?: { column: string; eq: string | number | boolean };
+  };
 }
 
 /** A child list a fingerprint covers: its rows in `orderBy` order, then by key. */
@@ -370,6 +393,8 @@ export interface EffectiveColumn extends ColumnModel {
   format?: ColumnFormatRule;
   /** `column.formula`: worked out from the row's other columns on every write. */
   formula?: FormulaExpr;
+  /** `column.perNight`: a price worked out night by night. */
+  perNight?: ColumnPerNightRule;
   /**
    * `column.scale`: the places a decimal keeps — a number, or `currency`: the
    * decimals of the row's own `currency` column, else the connection's.
@@ -1079,6 +1104,11 @@ export function applyOverrides(
       case 'column.rollup': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.rollup = value as unknown as ColumnRollupRule;
+        break;
+      }
+      case 'column.perNight': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.perNight = value as unknown as ColumnPerNightRule;
         break;
       }
       case 'column.stamp': {

@@ -92,16 +92,52 @@ export interface PublicAccessPlan {
 export function nestedRefs(
   entry: PublicAccessEntry,
   idOf: (ref: string) => string | undefined,
-): { value: Pick<PublicAccessEntry, 'requireSetting' | 'confirm' | 'claimedBy' | 'visibleWith'>; missing: string[] } {
+): { value: Pick<PublicAccessEntry, 'requireSetting' | 'confirm' | 'claimedBy' | 'visibleWith' | 'identity' | 'children'>; missing: string[] } {
   return mapTableRefs(
     {
       ...(entry.requireSetting === undefined ? {} : { requireSetting: entry.requireSetting }),
       ...(entry.confirm === undefined ? {} : { confirm: entry.confirm }),
       ...(entry.claimedBy === undefined ? {} : { claimedBy: entry.claimedBy }),
       ...(entry.visibleWith === undefined ? {} : { visibleWith: entry.visibleWith }),
+      // The person found by address, and each child table of a create (keyed by table, at both levels).
+      ...(entry.identity === undefined ? {} : { identity: entry.identity }),
+      ...(entry.children === undefined ? {} : { children: entry.children }),
     },
     idOf,
   );
+}
+
+type ChildEntry = NonNullable<PublicAccessEntry['children']>[string];
+
+/**
+ * A create's child rows as the endpoint keeps them: by the manifest's name
+ * for the table (the name the wire uses), each with its real table as
+ * `source`, and the settings table a cap reads by its real id.
+ */
+function childDefinitions(children: Readonly<Record<string, ChildEntry>>, idOf: (ref: string) => string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [name, child] of Object.entries(children)) {
+    out[name] = {
+      source: idOf(name),
+      via: child.via,
+      writable: [...child.writable],
+      ...(child.select === undefined ? {} : { select: [...child.select] }),
+      ...(child.defaults === undefined ? {} : { defaults: { ...child.defaults } }),
+      ...(child.writableValues === undefined ? {} : { writable_values: { ...child.writableValues } }),
+      ...(child.requires === undefined ? {} : { requires: [...child.requires] }),
+      ...(child.position === undefined ? {} : { position: child.position }),
+      ...(child.min === undefined ? {} : { min: child.min }),
+      max: child.max,
+      ...(child.agrees === undefined ? {} : { agrees: structuredClone(child.agrees) }),
+      ...(child.counts === undefined ? {} : { counts: structuredClone(child.counts) }),
+      ...(child.plainText === undefined ? {} : { plain_text: [...child.plainText] }),
+      ...(child.sumMax === undefined
+        ? {}
+        : { sum_max: { column: child.sumMax.column, max: typeof child.sumMax.max === 'number' ? child.sumMax.max : { table: idOf(child.sumMax.max.table), column: child.sumMax.max.column } } }),
+      ...('children' in child && child.children !== undefined ? { children: childDefinitions(child.children, idOf) } : {}),
+    };
+  }
+  return out;
 }
 
 /** The endpoint an entry becomes, against the real table in `view`. */
@@ -117,6 +153,8 @@ function definitionOf(
   identityRef?: string,
   /** The parent endpoint a `visibleWith` entry's rows are visible with, and the columns that link them. */
   parent?: { ref: string; localColumn: string; foreignColumn: string },
+  /** A create that finds its person by address: the ref of the endpoint they sign in through, and the key an own link opens by. */
+  person?: { identityRef?: string | undefined; shareKey?: string | undefined },
 ): PublicEndpointDefinition {
   const declared = manifest.requiredSchema?.tables.find((table) => table.ref === entry.table);
   const key = primaryKey[0] ?? 'id';
@@ -151,10 +189,10 @@ function definitionOf(
     // request, on the venue's clock.
     filters: (entry.filters ?? []).map((filter) => ({ ...filter })),
     pagination: { default_limit: 50, max_limit: 200, order: `${order}.asc` },
-    // Signed in to reach it — except a create a session is optional on.
+    // Signed in to reach it — except a create a session is optional on. A read for a session alone needs one too.
     auth: {
       role:
-        entry.claim !== undefined || entry.visibleWith !== undefined || (entry.claimedBy !== undefined && entry.claimedBy.optional !== true)
+        entry.claim !== undefined || entry.visibleWith !== undefined || (entry.claimedBy !== undefined && entry.claimedBy.optional !== true) || sessionOnly(entry)
           ? 'authenticated'
           : 'anon',
     },
@@ -178,7 +216,10 @@ function definitionOf(
               column: key,
               ...(entry.claim.expires === undefined ? {} : { expires: entry.claim.expires }),
               ...(entry.claim.stopped === undefined ? {} : { stopped: entry.claim.stopped }),
+              ...(entry.claim.own === true ? { own: true } : {}),
             },
+            // The owner's own link opens a verified session.
+            ...(entry.claim.own === true ? { level: 'verified' } : {}),
           }
         : 'match' in entry.claim
         ? {
@@ -233,7 +274,32 @@ function definitionOf(
             ...(nested.confirm?.venue === undefined ? {} : { venue: { ...nested.confirm.venue } }),
           },
         }),
+    // A create with its child rows, and what it checks.
+    ...(entry.children === undefined ? {} : { children: childDefinitions(entry.children, idOf) }),
+    ...(entry.agrees === undefined ? {} : { agrees: structuredClone(entry.agrees) }),
+    ...(entry.dryRun === true ? { dry_run: true } : {}),
+    ...(entry.expect === undefined ? {} : { expect: entry.expect }),
+    ...(entry.clientKey === undefined ? {} : { client_key: entry.clientKey }),
+    // A person found by address, the new row's own link, a read for a session alone, forgetting.
+    ...(entry.identity === undefined
+      ? {}
+      : {
+          find_or_create: {
+            identity_ref: person?.identityRef ?? idOf(entry.identity.table),
+            email: entry.identity.email,
+            link: entry.identity.link,
+            ...(entry.identity.fill === undefined ? {} : { fill: { ...entry.identity.fill } }),
+          },
+        }),
+    ...(entry.shareLink === undefined ? {} : { share_link: { column: entry.shareLink, key: person?.shareKey ?? 'customer' } }),
+    ...(sessionOnly(entry) ? { session_only: true } : {}),
+    ...(entry.forget === undefined ? {} : { forget: { columns: [...entry.forget.columns], ...(entry.forget.stamp === undefined ? {} : { stamp: entry.forget.stamp }) } }),
   } as PublicEndpointDefinition;
+}
+
+/** An entry read only by the holder of a live session: a level, and no claim of its own. */
+function sessionOnly(entry: PublicAccessEntry): boolean {
+  return entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
 }
 
 /**
@@ -256,9 +322,9 @@ export function planPublicEndpoints(
     const base =
       entry.kind === 'availability'
         ? `${real}_availability`
-        : entry.claim !== undefined || ((entry.claimedBy !== undefined || entry.visibleWith !== undefined) && entry.level !== 'verified')
+        : entry.claim !== undefined || ((entry.claimedBy !== undefined || entry.visibleWith !== undefined || sessionOnly(entry)) && entry.level !== 'verified')
           ? `${real}_claimed`
-          : entry.claimedBy !== undefined || entry.visibleWith !== undefined
+          : entry.claimedBy !== undefined || entry.visibleWith !== undefined || sessionOnly(entry)
             ? `${real}_verified`
             : real;
     let ref = base;
@@ -294,6 +360,25 @@ export function planPublicEndpoints(
       ? { ref, localColumn: v.via, foreignColumn: keyOf(v.table) }
       : { ref, localColumn: keyOf(entry.table), foreignColumn: v.via };
   };
+  /**
+   * For an entry that finds its person by address: the identity endpoint
+   * they sign in through (by an emailed link to that table, this key's first),
+   * and the key the new row's own link opens by (the token entry on the
+   * table claiming its `shareLink` with `own`).
+   */
+  const personOf = (entry: PublicAccessEntry): { identityRef?: string; shareKey?: string } => {
+    const out: { identityRef?: string; shareKey?: string } = {};
+    if (entry.identity !== undefined) {
+      const signsIn = (other: PublicAccessEntry) => other.table === entry.identity!.table && other.claim !== undefined && 'verify' in other.claim && other.claim.verify === 'email-link';
+      const at = [entries.findIndex((other) => signsIn(other) && (other.key ?? 'customer') === (entry.key ?? 'customer')), entries.findIndex(signsIn)].find((i) => i !== -1);
+      if (at !== undefined) out.identityRef = refs[at] as string;
+    }
+    if (entry.shareLink !== undefined) {
+      const opener = entries.find((other) => other.table === entry.table && other.claim !== undefined && 'by' in other.claim && other.claim.column === entry.shareLink && other.claim.own === true);
+      if (opener !== undefined) out.shareKey = opener.key ?? CUSTOMER_KEY_PURPOSE;
+    }
+    return out;
+  };
   /** The table the key's person is claimed on: what a child's denormalised copy points at. */
   const identityTableOf = (entry: PublicAccessEntry) =>
     entries.find((other) => other.claim !== undefined && (other.key ?? 'customer') === (entry.key ?? 'customer'))?.table;
@@ -318,7 +403,7 @@ export function planPublicEndpoints(
     };
     if (pending) return planned;
     // What the app's own key may hold is known from the entry alone.
-    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry), parent), entry.methods, new Set()).map(
+    const safety = managedGrantIssues(ref, definitionOf(manifest, entry, ref, real, ['id'], undefined, identityRefOf(entry), parent, personOf(entry)), entry.methods, new Set()).map(
       (issue) => issue.message,
     );
     /*
@@ -357,7 +442,7 @@ export function planPublicEndpoints(
     const idOf = (short: string) => found(short) ?? short;
     // The live-model check every nested table gets: named, but not here, is an issue.
     const unfound = nestedRefs(entry, found).missing.map((short) => `"${entry.table}" names "${short}", which this app does not have here`);
-    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry), parent);
+    const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry), parent, personOf(entry));
     const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety, ...unfound];
     return { ...planned, select: definition.select, issues, definition };
   });

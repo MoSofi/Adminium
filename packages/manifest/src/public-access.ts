@@ -922,6 +922,12 @@ const ruledTable = (index: TableIndex, ref: string) => index.table(ref) as Ruled
 const ruledColumn = (index: TableIndex, table: string, ref: string) => index.column(table, ref) as RuledColumn | undefined;
 const NUMBERS = ['int', 'bigint', 'decimal', 'money', 'float'];
 
+/** Whether a value fits a column an agreement compares: a key (of any type) is a number or a text. */
+function agreeValueFits(column: ColumnShape, value: unknown): boolean {
+  if (column.type === 'fk' || column.role === 'pk') return typeof value === 'number' || typeof value === 'string';
+  return valueFits(column, value);
+}
+
 /** Whether two columns can be compared: two keys of one table, two numbers, or two texts. */
 function comparable(a: ColumnShape, b: ColumnShape, index: TableIndex): boolean {
   // A foreign key compares with another to the same table, or with that table's own key.
@@ -965,7 +971,7 @@ function agreeIssues(index: TableIndex, table: string, parent: string | undefine
     const when = followPath(index, table, agree.column, agree.when.path);
     if (typeof when === 'string') out.push({ path: at('when'), message: when });
     else for (const value of agree.when.in) {
-      if (!valueFits(when.column, value)) out.push({ path: at('when', 'in'), message: `${JSON.stringify(value)} is not a value of "${when.table}.${when.column.ref}"` });
+      if (!agreeValueFits(when.column, value)) out.push({ path: at('when', 'in'), message: `${JSON.stringify(value)} is not a value of "${when.table}.${when.column.ref}"` });
     }
   }
   const tests = (['eq', 'lte', 'gte'] as const).filter((name) => agree[name] !== undefined);
@@ -991,7 +997,7 @@ function agreeIssues(index: TableIndex, table: string, parent: string | undefine
       other = index.column(via.references, target.column);
       if (other === undefined) out.push({ path: at(test, 'column'), message: `"${via.references}" has no column "${target.column}"` });
     }
-  } else if (typeof reached !== 'string' && !valueFits(reached.column, target.value)) {
+  } else if (typeof reached !== 'string' && !agreeValueFits(reached.column, target.value)) {
     out.push({ path: at(test, 'value'), message: `${JSON.stringify(target.value)} is not a value of "${reached.table}.${reached.column.ref}"` });
   }
   if (typeof reached !== 'string') {

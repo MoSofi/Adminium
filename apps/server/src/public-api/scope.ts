@@ -188,6 +188,63 @@ const claimScopeSchema = z
  */
 const visibleWithSchema = z.object({ ref: refSchema, localColumn: columnSchema, foreignColumn: columnSchema }).strict();
 
+/*
+ * ── A create with its child rows, and a person found by address ─────────
+ * What the request path will read (none of it is enforced yet): each child
+ * table by the name the wire uses, the agreements and counts its rows pass,
+ * the dry run, the price check, the retry key; the person a create finds by
+ * address, the new row's own link, a read for a session's holder alone, and
+ * what "delete my details" empties.
+ */
+const scopePathSchema = z.array(columnSchema).min(1).max(3);
+export const scopeAgreeTargetSchema = z.union([
+  z.object({ parent: columnSchema, path: scopePathSchema.optional() }).strict(),
+  z.object({ via: columnSchema, column: columnSchema }).strict(),
+  z.object({ value: scalarSchema }).strict(),
+]);
+export const scopeAgreeSchema = z
+  .object({
+    column: columnSchema,
+    path: scopePathSchema.optional(),
+    when: z.object({ path: scopePathSchema.optional(), in: z.array(scalarSchema).min(1).max(32) }).strict().optional(),
+    eq: scopeAgreeTargetSchema.optional(),
+    lte: scopeAgreeTargetSchema.optional(),
+    gte: scopeAgreeTargetSchema.optional(),
+  })
+  .strict();
+export const scopeCountsSchema = z
+  .object({
+    by: scopePathSchema,
+    every: z.object({ column: columnSchema, eq: z.object({ parent: columnSchema }).strict() }).strict().optional(),
+    min: columnSchema,
+    max: columnSchema,
+  })
+  .strict();
+const scopeChildShape = {
+  /** Physical `schema.table` of the child rows. */
+  table: z.string().min(1).max(256),
+  via: columnSchema,
+  writable: z.array(columnSchema),
+  select: z.array(columnSchema).optional(),
+  defaults: z.record(columnSchema, z.unknown()).optional(),
+  writableValues: z.record(columnSchema, z.array(scalarSchema).min(1).max(32)).optional(),
+  requires: z.array(columnSchema).min(1).max(8).optional(),
+  position: columnSchema.optional(),
+  min: z.number().int().min(0).optional(),
+  max: z.number().int().min(1).max(200),
+  agrees: z.array(scopeAgreeSchema).min(1).max(8).optional(),
+  counts: z.array(scopeCountsSchema).min(1).max(2).optional(),
+  plainText: z.array(columnSchema).min(1).max(8).optional(),
+  sumMax: z
+    .object({ column: columnSchema, max: z.union([z.number().int().min(1), z.object({ table: z.string().min(1).max(256), column: columnSchema }).strict()]) })
+    .strict()
+    .optional(),
+};
+const scopeGrandchildSchema = z.object(scopeChildShape).strict();
+export const scopeChildSchema = z.object({ ...scopeChildShape, children: z.record(z.string().min(1).max(64), scopeGrandchildSchema).optional() }).strict();
+export type ScopeChild = z.infer<typeof scopeChildSchema>;
+export type ScopeAgree = z.infer<typeof scopeAgreeSchema>;
+
 const resourceSchema = z
   .object({
     ref: refSchema,
@@ -303,6 +360,27 @@ const resourceSchema = z
       })
       .strict()
       .optional(),
+    /** The rows a create carries, by the name the wire uses. */
+    children: z.record(z.string().min(1).max(64), scopeChildSchema).optional(),
+    /** Checks the created row's own values pass. */
+    agrees: z.array(scopeAgreeSchema).min(1).max(8).optional(),
+    /** The create (or change) may be tried without writing. */
+    dryRun: z.literal(true).optional(),
+    /** The money column a write may send its expected value for. */
+    expect: columnSchema.optional(),
+    /** The column a retried create is found by. */
+    clientKey: columnSchema.optional(),
+    /** The person a create finds by address, or makes. */
+    findOrCreate: z
+      .object({ identityRef: refSchema, email: columnSchema, link: columnSchema, fill: z.record(columnSchema, columnSchema).optional() })
+      .strict()
+      .optional(),
+    /** The new row's own link, answered once by its create. */
+    shareLink: z.object({ column: columnSchema, key: z.string().min(1).max(64) }).strict().optional(),
+    /** Read only by the holder of a live session. */
+    sessionOnly: z.literal(true).optional(),
+    /** On the identity: what "delete my details" empties, and the time it stamps. */
+    forget: z.object({ columns: z.array(columnSchema).min(1).max(16), stamp: columnSchema.optional() }).strict().optional(),
   })
   .strict();
 
@@ -371,6 +449,8 @@ export const publicScopeDocumentSchema = z
         expires: columnSchema.optional(),
         /** `token`: the yes/no that stops the link at once. */
         stopped: columnSchema.optional(),
+        /** `token`: the owner's own link — a verified session that may change its row. */
+        own: z.literal(true).optional(),
       })
       .strict()
       .optional(),
@@ -488,6 +568,20 @@ export interface CompiledResource {
   kind: 'records' | 'availability';
   /** The confirmation a guest's create sends, or null. */
   confirm: Record<string, unknown> | null;
+  /*
+   * What a create with its child rows and a person found by address need,
+   * carried for the request path (absent in a resource built by hand).
+   */
+  /** The rows a create carries, by the name the wire uses. */
+  children?: ReadonlyMap<string, ScopeChild> | undefined;
+  agrees?: readonly ScopeAgree[] | undefined;
+  dryRun?: boolean | undefined;
+  expect?: string | null | undefined;
+  clientKey?: string | null | undefined;
+  findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>> } | null | undefined;
+  shareLink?: { column: string; key: string } | null | undefined;
+  sessionOnly?: boolean | undefined;
+  forget?: { columns: readonly string[]; stamp?: string | undefined } | null | undefined;
 }
 
 export interface CompiledScope {
@@ -697,6 +791,24 @@ export function compileScope(
     for (const c of r.orderable) check(c, 'SCOPE_ORDERABLE_UNKNOWN_COLUMN');
     for (const c of r.writable) check(c, 'SCOPE_WRITABLE_UNKNOWN_COLUMN');
     for (const c of Object.keys(r.writableWhen ?? {})) check(c, 'SCOPE_WRITABLE_WHEN_UNKNOWN_COLUMN');
+    // The columns a create with children, a found person and a row's own link name: this table's, and each child's.
+    for (const c of [r.expect, r.clientKey, r.findOrCreate?.email, r.findOrCreate?.link, r.shareLink?.column, ...(r.forget?.columns ?? []), r.forget?.stamp]) {
+      if (c !== undefined) check(c, 'SCOPE_COLUMN_UNKNOWN');
+    }
+    const childColumns = (children: Readonly<Record<string, ScopeChild | z.infer<typeof scopeGrandchildSchema>>>): void => {
+      for (const [name, child] of Object.entries(children)) {
+        const own = columnsOf?.(child.table) ?? null;
+        const named = [child.via, ...child.writable, ...(child.select ?? []), ...(child.requires ?? []), ...(child.plainText ?? []), ...(child.position === undefined ? [] : [child.position])];
+        for (const c of named) {
+          if (own !== null && !own.has(c)) issues.push({ code: 'SCOPE_CHILD_UNKNOWN_COLUMN', message: `"${c}" is not a column of ${child.table} (${name})`, ref: r.ref, column: c });
+        }
+        if ('children' in child && child.children !== undefined) childColumns(child.children);
+      }
+    };
+    childColumns(r.children ?? {});
+    if (r.sessionOnly === true && r.actions.some((action) => action !== 'read')) {
+      issues.push({ code: 'SCOPE_SESSION_ONLY_WRITES', message: `ref "${r.ref}" is read by a session's holder alone, so it only reads`, ref: r.ref });
+    }
     /*
      * A file is a person's own, downloaded through the row that names it: a
      * column the resource shows, on a resource a claim or a parent opens.
@@ -1033,8 +1145,14 @@ export function compileScope(
        */
       if (doc.claim.strategy === 'token') {
         for (const r of doc.resources) {
-          if (r.actions.some((action) => action !== 'read')) {
-            issues.push({ code: 'SCOPE_CLAIM_TOKEN_READ_ONLY', message: `"${r.ref}" is opened by a shared link, so it only reads`, ref: r.ref });
+          // The owner's own link reads and changes; it creates only rows that belong to the one it opens.
+          const allowed = doc.claim.own === true ? (action: PublicAction) => action === 'read' || action === 'update' || (action === 'create' && r.visibleWith !== undefined) : (action: PublicAction) => action === 'read';
+          if (r.actions.some((action) => !allowed(action))) {
+            issues.push({
+              code: 'SCOPE_CLAIM_TOKEN_READ_ONLY',
+              message: doc.claim.own === true ? `"${r.ref}" is opened by the row's own link, so it reads, changes, and makes only child rows` : `"${r.ref}" is opened by a shared link, so it only reads`,
+              ref: r.ref,
+            });
           }
         }
         if (doc.claim.match.length !== 1) {
@@ -1062,11 +1180,13 @@ export function compileScope(
             issues.push({ code: 'SCOPE_CLAIM_UNKNOWN_COLUMN', message: `"${column}" is not a column of ${target.table}`, column });
           }
         }
-      } else if (doc.claim.expires !== undefined || doc.claim.stopped !== undefined) {
-        issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHAPE', message: 'only a shared link expires or is stopped' });
+      } else if (doc.claim.expires !== undefined || doc.claim.stopped !== undefined || doc.claim.own !== undefined) {
+        issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHAPE', message: 'only a shared link expires, is stopped, or is the owner\'s own' });
       }
       if (doc.claim.verify !== undefined || doc.claim.strategy === 'token') {
-        const guarded = new Set([...(doc.claim.email === undefined ? [] : [doc.claim.email]), ...doc.claim.match]);
+        // An own link's end and stop are the owner's to change only through Adminium, like its code.
+        const ends = doc.claim.own === true ? [doc.claim.expires, doc.claim.stopped].filter((c): c is string => c !== undefined) : [];
+        const guarded = new Set([...(doc.claim.email === undefined ? [] : [doc.claim.email]), ...doc.claim.match, ...ends]);
         for (const r of doc.resources) {
           if (!sameTable(r.table, target.table)) continue;
           for (const column of r.writable ?? []) {
@@ -1129,7 +1249,7 @@ export function compileScope(
     if (r.claim?.optional === true && r.actions.some((action) => action !== 'create')) {
       issues.push({ code: 'SCOPE_CLAIM_OPTIONAL_NOT_CREATE', message: `ref "${r.ref}" may go without a session only as a create`, ref: r.ref });
     }
-    if (r.level === 'verified' && doc.claim !== undefined && doc.claim.verify === undefined) {
+    if (r.level === 'verified' && doc.claim !== undefined && doc.claim.verify === undefined && doc.claim.own !== true) {
       issues.push({
         code: 'SCOPE_LEVEL_UNREACHABLE',
         message: `ref "${r.ref}" needs a verified session, and this scope's claim sends no code to verify one`,
@@ -1201,6 +1321,15 @@ export function compileScope(
       count: r.count,
       kind: r.kind ?? 'records',
       confirm: r.confirm ?? null,
+      children: new Map(Object.entries(r.children ?? {})),
+      agrees: [...(r.agrees ?? [])],
+      dryRun: r.dryRun === true,
+      expect: r.expect ?? null,
+      clientKey: r.clientKey ?? null,
+      findOrCreate: r.findOrCreate === undefined ? null : { ...r.findOrCreate, fill: { ...(r.findOrCreate.fill ?? {}) } },
+      shareLink: r.shareLink === undefined ? null : { ...r.shareLink },
+      sessionOnly: r.sessionOnly === true,
+      forget: r.forget === undefined ? null : { columns: [...r.forget.columns], ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }) },
     });
   }
 
@@ -1503,6 +1632,10 @@ function projectResource(r: CompiledResource): {
    */
   response: { shape: PublicResponseShape };
   kind?: 'availability';
+  /** The child rows a create may carry: what each writes, shows, and how many at most (one level below, nested). */
+  children?: Record<string, ProjectedChild>;
+  /** The create (or change) may be tried without writing. */
+  dryRun?: true;
 } {
   // Copied, not aliased: this object is serialized straight onto the wire, and
   // handing out the compiled scope's own arrays would let a serializer or a
@@ -1517,5 +1650,28 @@ function projectResource(r: CompiledResource): {
     limit: r.limit,
     response: { shape: r.response.shape },
     ...(r.kind === 'availability' ? { kind: 'availability' as const } : {}),
+    ...(r.children === undefined || r.children.size === 0 ? {} : { children: projectChildren(Object.fromEntries(r.children)) }),
+    ...(r.dryRun === true ? { dryRun: true as const } : {}),
   };
+}
+
+/** What `/public/config` says of one child table: never its real name. */
+export interface ProjectedChild {
+  writable: string[];
+  select: string[];
+  max: number;
+  children?: Record<string, ProjectedChild>;
+}
+
+function projectChildren(children: Readonly<Record<string, ScopeChild | Omit<ScopeChild, 'children'>>>): Record<string, ProjectedChild> {
+  const out: Record<string, ProjectedChild> = {};
+  for (const [name, child] of Object.entries(children)) {
+    out[name] = {
+      writable: [...child.writable],
+      select: [...(child.select ?? [])],
+      max: child.max,
+      ...('children' in child && child.children !== undefined ? { children: projectChildren(child.children) } : {}),
+    };
+  }
+  return out;
 }
