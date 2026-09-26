@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { gridColumnSpecSchema, type GridColumnSpec, type GridColumnSpecInput } from '../../families/tables/column-spec.js';
 import { RecordForm } from './RecordForm.js';
-import { factsForMode, unchangedField, type ColumnFact, type ColumnFacts } from './field-mapping.js';
+import { factsForMode, grantedValues, unchangedField, type ColumnFact, type ColumnFacts } from './field-mapping.js';
 
 afterEach(cleanup);
 
@@ -158,6 +158,13 @@ describe('columns the role may not set', () => {
     expect(factsForMode(GRANTED, 'edit')?.['price']?.writable).toBe(false);
     // Nothing to say ⇒ the same object.
     expect(factsForMode(FACTS, 'edit')).toBe(FACTS);
+  });
+
+  it('leave a line-items row by its own mode: an existing row is an update, a new one an insert', () => {
+    const row = { title: 'x', price: 3, notes: 'y' };
+    expect(grantedValues(row, GRANTED, 'edit')).toEqual({ notes: 'y' });
+    expect(grantedValues(row, GRANTED, 'create')).toEqual({});
+    expect(grantedValues(row, FACTS, 'edit')).toBe(row);
   });
 });
 

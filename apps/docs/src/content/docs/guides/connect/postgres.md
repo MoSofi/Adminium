@@ -160,7 +160,9 @@ the tables it should change:
 
 Before 0.3.5 Adminium treated any role that could not create a table as
 read-only, so this recipe produced a read-only app; the workaround was
-`GRANT CREATE ON DATABASE`. That grant is no longer needed — revoke it.
+`GRANT CREATE ON DATABASE`. That grant is no longer needed — revoke it. A
+connection added before 0.3.5 keeps the read-only flag its last test gave it:
+press **Test** on the connection once after upgrading.
 
 ## Hosting the meta store in the same database
 

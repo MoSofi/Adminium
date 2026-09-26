@@ -382,3 +382,22 @@ export function factsForMode(facts: ColumnFacts | undefined, mode: 'create' | 'e
   return out ?? facts;
 }
 
+/**
+ * A row's values without the columns the connection's role may not set on
+ * this write: an existing row is an update, a new one an insert. For the rows
+ * a line-items field sends, which carry every column they show.
+ */
+export function grantedValues<R extends Record<string, unknown>>(values: R, facts: ColumnFacts | undefined, mode: 'create' | 'edit'): R {
+  if (facts === undefined) return values;
+  let out: R | null = null;
+  for (const name of Object.keys(values)) {
+    const fact = facts[name];
+    if (fact === undefined) continue;
+    const granted = mode === 'create' ? fact.insertable : fact.updatable;
+    if (granted !== false) continue;
+    out ??= { ...values };
+    delete out[name];
+  }
+  return out ?? values;
+}
+

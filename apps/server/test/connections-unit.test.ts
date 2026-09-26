@@ -7,7 +7,7 @@
  */
 
 import BetterSqlite3 from 'better-sqlite3';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
 import { createSqliteMetaDb, firstRun, type MetaDb } from '@adminium/meta';
 
@@ -335,5 +335,58 @@ describe('source pool size (ADMINIUM_SOURCE_POOL_MAX)', () => {
     const manager = new ConnectionManager({ meta: fakeMeta, crypto, registry: recordingRegistry(seen) });
     await manager.testDsn('postgres', 'postgres://app@db.acme.io:5432/prod');
     expect(seen).toEqual([{ role: 'introspect', dsn: 'postgres://app@db.acme.io:5432/prod' }]);
+  });
+});
+
+describe('the data role’s table grants, as a page reads them', () => {
+  const crypto = dsnCryptoFromSecret('unit-test-secret');
+
+  /** A source whose grants probe answers only when `release` is called. */
+  async function setup() {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    let release: (() => void) | undefined;
+    let probes = 0;
+    const registry = new AdapterRegistry<AdapterProvider>();
+    registry.register({
+      dialect: 'postgres',
+      async create() {
+        return {
+          async probeTablePrivileges() {
+            probes += 1;
+            await new Promise<void>((resolve) => {
+              release = resolve;
+            });
+            return { 'public.orders': { insert: false, update: true, delete: false } };
+          },
+          async close() {},
+        };
+      },
+    } as unknown as AdapterProvider);
+    const manager = new ConnectionManager({ meta, crypto, registry });
+    const connection = await manager.connections.create({
+      name: 'shop',
+      engine: 'postgres',
+      introspectDsn: 'postgres://app@db.acme.io:5432/shop',
+      dataDsn: 'postgres://app@db.acme.io:5432/shop',
+    });
+    return { manager, connection, release: () => release?.(), probes: () => probes };
+  }
+
+  it('never waits on the source: nothing known yet is null, and the read goes on in the background', async () => {
+    const { manager, connection, release, probes } = await setup();
+    await expect(manager.knownTablePrivileges(connection)).resolves.toBeNull();
+    // Still in flight: still not waited for.
+    await expect(manager.knownTablePrivileges(connection)).resolves.toBeNull();
+    await vi.waitFor(() => {
+      expect(probes()).toBe(1);
+    });
+    release();
+    await vi.waitFor(async () => {
+      await expect(manager.knownTablePrivileges(connection)).resolves.toEqual({
+        'public.orders': { insert: false, update: true, delete: false },
+      });
+    });
+    expect(probes()).toBe(1);
   });
 });

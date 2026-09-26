@@ -27,6 +27,7 @@ import {
   controlForColumn,
   factsForMode,
   fieldTypeTag,
+  grantedValues,
   formColumns,
   isRequired,
   optionsForColumn,
@@ -713,7 +714,15 @@ export function RecordForm({
       childFields.length === 0
         ? undefined
         : Object.fromEntries(
-            childFields.map((relationId) => [relationId, stampLineTotals(relationId, children[relationId] ?? [])]),
+            childFields.map((relationId) => [
+              relationId,
+              // A row the role may not write a column of is sent without it:
+              // an existing row as an update, a new one as an insert.
+              stampLineTotals(relationId, children[relationId] ?? []).map((row) => ({
+                ...row,
+                values: grantedValues(row.values, childFacts?.[relationId]?.facts, row.key === undefined ? 'create' : 'edit'),
+              })),
+            ]),
           ),
       repeat,
     );
@@ -785,7 +794,7 @@ export function RecordForm({
           <ChildRowsControl
             field={relationField}
             columns={fact.columns}
-            {...(fact.facts === undefined ? {} : { facts: fact.facts })}
+            {...(fact.facts === undefined ? {} : { facts: factsForMode(fact.facts, mode) ?? fact.facts })}
             rows={children[relationId] ?? []}
             onChange={(rows) => setChildren((current) => ({ ...current, [relationId]: rows }))}
             label={relationField.label ?? fact.label}

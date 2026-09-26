@@ -70,6 +70,7 @@ import { dsnCryptoFromSecret } from './connections/crypto.js';
 import { createBridgeStore, createPairingCode } from './bridge/store.js';
 import { registerIntrospectJob } from './connections/introspect.js';
 import type { ConnectionManager } from './connections/manager.js';
+import { privilegesOf } from './connections/privileges.js';
 import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplates } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
@@ -816,6 +817,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     ...writeStores(meta),
     // An update of a table an app's email watches for a change reads the row first.
     watched: (connectionId, tableId) => outboxProducers.watches(connectionId, tableId),
+    // What the connection's role may write, whichever door the write came through.
+    rights: async (connectionId, tableId) => privilegesOf(await manager.tablePrivilegesById(connectionId), tableId),
   });
   /*
    * AN APP'S EMAILS. The producers queue rows in an installed app's outbox
@@ -1513,7 +1516,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           meta,
           onPageChanged: () => { columnBlocks.clear(); },
           // A page whose connection is gone still loads; it just knows no grants.
-          tablePrivileges: async (id) => manager.connections.findById(id).then((row) => (row === null ? null : manager.tablePrivileges(row))),
+          // Never waits on the source: a page draws its buttons from what is known.
+          tablePrivileges: async (id) => manager.connections.findById(id).then((row) => (row === null ? null : manager.knownTablePrivileges(row))),
         }),
       );
       if (project !== null) {

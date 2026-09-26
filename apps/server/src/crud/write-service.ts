@@ -1193,6 +1193,14 @@ export interface WriteServiceOptions {
    * update of it then reads the stored row first, so the event carries it.
    */
   watched?: ((connectionId: string, tableId: string) => Promise<boolean>) | undefined;
+  /**
+   * What the connection's data role may write in a table
+   * (`ConnectionManager.tablePrivileges`), for a target that does not carry
+   * it. Every write reads it — an import, an automation step, the public API,
+   * a child row — so a column the role may not write is refused when sent and
+   * never filled, whichever door the write came through.
+   */
+  rights?: ((connectionId: string, tableId: string) => Promise<TablePrivileges | null>) | undefined;
 }
 
 /** How many times a create whose generated code collided is tried again. */
@@ -1311,6 +1319,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   const current = (): RecordHooks => opts.hooks?.() ?? NO_RECORD_HOOKS;
 
   const rulesOf = (target: WriteTarget): TableRules | null => tableRulesFor(target);
+
+  /** The target with the role's grants on it, looked up when it came without them. */
+  const withRights = async (target: WriteTarget): Promise<WriteTarget> =>
+    target.rights !== undefined || opts.rights === undefined
+      ? target
+      : { ...target, rights: await opts.rights(target.connectionId, target.table.id) };
 
   /** The connection's currency, read at most once per write, and only when a `currency` scale asks for it. */
   const currencyFor = (target: WriteTarget): CurrencyOf => {
@@ -1994,7 +2008,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
 
     async create(input) {
-      const { target, context } = input;
+      const { context } = input;
+      const target = await withRights(input.target);
       refuseEarly(target, 'create', input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
@@ -2075,7 +2090,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
 
     async update(input) {
-      const { target, context, pk } = input;
+      const { context, pk } = input;
+      const target = await withRights(input.target);
       refuseEarly(target, 'update', input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
@@ -2247,7 +2263,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       return null;
     },
 
-    async beforeEach(action, target, context, rows, beforeOpts) {
+    async beforeEach(action, givenTarget, context, rows, beforeOpts) {
+      const target = action === 'delete' ? givenTarget : await withRights(givenTarget);
       const hooks = current();
       const withRules = beforeOpts?.rules !== false;
       const rules = withRules ? rulesOf(target) : null;

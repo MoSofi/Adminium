@@ -34,7 +34,7 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase } from './dsn.js';
-import { PRIVILEGES_TTL_MS } from './privileges.js';
+import { PRIVILEGES_PROBE_TIMEOUT_MS, PRIVILEGES_TTL_MS } from './privileges.js';
 
 /** Every meta table is `adminium_`-prefixed. */
 export const META_TABLE_PREFIX = 'adminium_';
@@ -343,6 +343,16 @@ export class ConnectionManager {
     return provider.create({ role: 'data', dsn: dsns.dataDsn, ...this.#pool });
   }
 
+  /** A one-connection data-role adapter for the grants probe: one more connection, briefly, once a minute. */
+  async #privilegeAdapter(connectionId: string): Promise<DatabaseAdapter<'data'>> {
+    const dsns = await this.connections.getDsns(connectionId);
+    if (dsns?.dataDsn == null) throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
+    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback });
+    const connection = await this.mustFind(connectionId);
+    this.assertEnabled(connection);
+    return this.provider(connection.engine).create({ role: 'data', dsn: dsns.dataDsn, poolMax: 1 });
+  }
+
   /**
    * Pooled data handle (dynamic Kysely over the data DSN); lazy + cached.
    *
@@ -402,13 +412,45 @@ export class ConnectionManager {
     return rights;
   }
 
+  /** {@link tablePrivileges} by id, answered from the cache without a meta read while it is fresh. */
+  async tablePrivilegesById(connectionId: string): Promise<TablePrivilegeMap | null> {
+    const cached = this.#privileges.get(connectionId);
+    if (cached !== undefined && Date.now() - cached.at < PRIVILEGES_TTL_MS) return cached.rights;
+    const row = await this.connections.findById(connectionId);
+    return row === null ? null : this.tablePrivileges(row);
+  }
+
+  /**
+   * What is already known, never waiting on the source database: the cached
+   * rights (stale ones too), or null. A missing or stale entry is read in the
+   * background for the next ask. For a page load, whose answer only decides
+   * which buttons to draw — the write itself is checked on the way in.
+   */
+  knownTablePrivileges(connection: Connection): Promise<TablePrivilegeMap | null> {
+    const cached = this.#privileges.get(connection.id);
+    if (cached === undefined || Date.now() - cached.at >= PRIVILEGES_TTL_MS) {
+      void this.tablePrivileges(connection);
+    }
+    if (cached === undefined) return Promise.resolve(null);
+    // A read still in flight is not waited for either.
+    return Promise.race([cached.rights, Promise.resolve(null)]);
+  }
+
   async #readPrivileges(connection: Connection): Promise<TablePrivilegeMap | null> {
     if (connection.sourceKind !== 'dsn') return null;
     let adapter: DatabaseAdapter<'data'> | undefined;
     try {
-      adapter = await this.dataAdapter(connection.id);
-      if (adapter.probeTablePrivileges === undefined) return null;
-      return await adapter.probeTablePrivileges();
+      adapter = await this.#privilegeAdapter(connection.id);
+      const probe = adapter.probeTablePrivileges;
+      if (probe === undefined) return null;
+      // A source that stops answering must not hold a write for the OS's
+      // connect timeout: past the budget the rights are unknown.
+      const timeout = new Promise<null>((resolve) => {
+        setTimeout(() => {
+          resolve(null);
+        }, PRIVILEGES_PROBE_TIMEOUT_MS).unref();
+      });
+      return await Promise.race([probe.call(adapter), timeout]);
     } catch {
       // Unknown refuses nothing; the database still does.
       return null;

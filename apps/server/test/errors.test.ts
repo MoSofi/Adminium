@@ -140,6 +140,17 @@ describe('global error handler — unexpected errors', () => {
     });
     expect(res.payload).not.toContain('ShareLock');
   });
+
+  it("answers the source database's refusal of a right no route mapped as the 403 a mapped one gives", async () => {
+    const server = await build({ exposeInternalErrors: true });
+    // A link row the role may not insert, as `pg` throws it.
+    server.get('/boom/privilege', async () => {
+      throw Object.assign(new Error('permission denied for table order_tags'), { code: '42501' });
+    });
+    const res = await server.inject({ method: 'GET', url: '/boom/privilege' });
+    expect(res.statusCode).toBe(403);
+    expect(res.json<Envelope>().error).toMatchObject({ code: 'READ_ONLY_MODE', details: { reason: 'privileges' } });
+  });
 });
 
 describe('global error handler — Zod validation (fastify-type-provider-zod)', () => {

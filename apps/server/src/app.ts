@@ -30,6 +30,7 @@ import { SESSION_COOKIE } from './auth/sessions.js';
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
 import { isWriteConflict, writeConflict } from './crud/db-errors.js';
+import { isPrivilegeRefusal, privilegeRefusal } from './connections/privileges.js';
 import { scrubUrlForLog } from './log-scrub.js';
 import { refuseNulInRequest } from './security/nul-bytes.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
@@ -444,6 +445,17 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       void reply
         .status(conflict.statusCode)
         .send(errorEnvelope(conflict.code, conflict.message, requestId, conflict.details));
+      return;
+    }
+
+    // The source database refusing a write for want of a right, on a path no
+    // `mapDbError` watched (a link row, a parent total, an undo): the same 403
+    // a watched path gives, never a 500 (`connections/privileges.ts`).
+    if (isPrivilegeRefusal(error)) {
+      const refusal = privilegeRefusal();
+      void reply
+        .status(refusal.statusCode)
+        .send(errorEnvelope(refusal.code, refusal.message, requestId, refusal.details));
       return;
     }
 

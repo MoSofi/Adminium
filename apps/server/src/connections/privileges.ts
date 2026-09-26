@@ -26,6 +26,9 @@ export type WriteAction = 'create' | 'update' | 'delete';
 /** How long a connection's rights are trusted before they are read again. */
 export const PRIVILEGES_TTL_MS = 60_000;
 
+/** How long the grants probe may take before the rights count as unknown. */
+export const PRIVILEGES_PROBE_TIMEOUT_MS = 5_000;
+
 /** One table's rights, by snapshot id (`schema.table`) or, when unambiguous, bare name. */
 export function privilegesOf(map: TablePrivilegeMap | null, table: string): TablePrivileges | null {
   if (map === null) return null;

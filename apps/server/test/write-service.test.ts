@@ -556,6 +556,34 @@ describe('the column rules inside the write path', () => {
     expect(outcome.values).not.toHaveProperty('created_at');
   });
 
+  it("asks the role's grants for a target that came without them, whichever door the write came through", async () => {
+    raw.exec('DROP TABLE orders');
+    raw.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY, qty INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+    raw.exec("INSERT INTO orders VALUES (2, 1, '2026-01-01', '2026-01-01')");
+    const asked: string[] = [];
+    // Granted `UPDATE (qty)` only: an import, an automation step, the public API.
+    const writes = createWriteService({
+      rights: async (connectionId, tableId) => {
+        asked.push(`${connectionId}/${tableId}`);
+        return { insert: true, update: true, delete: true, columns: { qty: { insert: true, update: true }, updated_at: { insert: true, update: false } } };
+      },
+    });
+    const ruled = ruledTarget(target);
+    const outcome = await writes.update({ target: ruled, pk: { id: 2 }, values: { qty: 5 }, context, announce: async () => {} });
+    // The stamp the role may not write is left out, not sent to be refused.
+    expect(Object.keys(outcome.values)).toEqual(['qty']);
+    expect(raw.prepare('SELECT qty, updated_at FROM orders WHERE id = 2').get()).toEqual({ qty: 5, updated_at: '2026-01-01' });
+    expect(asked).toEqual([`${ruled.connectionId}/main.orders`]);
+    // A column it may not write, sent, is refused by name before the statement.
+    await expect(
+      writes.update({ target: ruled, pk: { id: 2 }, values: { updated_at: '2026-02-02' }, context, announce: async () => {} }),
+    ).rejects.toMatchObject({ statusCode: 403, code: 'READ_ONLY_MODE', details: { columns: ['updated_at'] } });
+    // A target that brings its grants is not asked about again.
+    asked.length = 0;
+    await writes.update({ target: { ...ruled, rights: null }, pk: { id: 2 }, values: { qty: 6 }, context, announce: async () => {} });
+    expect(asked).toEqual([]);
+  });
+
   it('runs the fill BEFORE the hooks and the check AFTER them', async () => {
     raw.exec('DROP TABLE orders');
     raw.exec('CREATE TABLE orders (id INTEGER PRIMARY KEY, qty INTEGER, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
