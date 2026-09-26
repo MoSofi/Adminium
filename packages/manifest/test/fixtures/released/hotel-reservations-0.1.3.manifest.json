@@ -1,0 +1,558 @@
+{
+  "manifestVersion": 1,
+  "key": "hotel",
+  "name": "Hotel Reservations",
+  "version": "0.1.3",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "mft.hotel.desc",
+    "fallback": "Rooms, rates and the front desk for one independent hotel — from the guest's search to the folio — backed by your own database."
+  },
+  "categories": [
+    "hospitality"
+  ],
+  "compatibility": {
+    "minAdminiumVersion": "0.2.8",
+    "engines": [
+      "postgres",
+      "mysql",
+      "sqlite"
+    ],
+    "requires": [
+      "realtime"
+    ]
+  },
+  "requiredSchema": {
+    "tables": [
+      {
+        "ref": "room_types",
+        "columns": [
+          {
+            "type": "text",
+            "role": "pk",
+            "ref": "id"
+          },
+          {
+            "type": "text",
+            "ref": "name",
+            "nullable": false,
+            "semantic": "name"
+          },
+          {
+            "type": "text",
+            "ref": "blurb",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "description",
+            "nullable": false
+          },
+          {
+            "type": "int",
+            "ref": "sleeps",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "tint_from",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "tint_to",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "icon",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "code",
+            "nullable": false
+          },
+          {
+            "type": "money",
+            "ref": "base_rate",
+            "nullable": false
+          }
+        ]
+      },
+      {
+        "ref": "room_type_features",
+        "columns": [
+          {
+            "type": "int",
+            "role": "pk",
+            "ref": "id"
+          },
+          {
+            "type": "fk",
+            "references": "room_types",
+            "ref": "type_id",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "feature",
+            "nullable": false
+          }
+        ]
+      },
+      {
+        "ref": "rooms",
+        "columns": [
+          {
+            "type": "int",
+            "role": "pk",
+            "ref": "number",
+            "semantic": "name"
+          },
+          {
+            "type": "int",
+            "ref": "floor",
+            "nullable": false
+          },
+          {
+            "type": "fk",
+            "references": "room_types",
+            "ref": "type_id",
+            "nullable": false
+          },
+          {
+            "type": "enum",
+            "ref": "status",
+            "nullable": false,
+            "enum": [
+              "ready",
+              "occupied",
+              "cleaning",
+              "oos"
+            ]
+          },
+          {
+            "type": "text",
+            "ref": "note"
+          }
+        ]
+      },
+      {
+        "ref": "extras",
+        "columns": [
+          {
+            "type": "text",
+            "role": "pk",
+            "ref": "id"
+          },
+          {
+            "type": "text",
+            "ref": "label",
+            "nullable": false,
+            "semantic": "name"
+          },
+          {
+            "type": "money",
+            "ref": "amount",
+            "nullable": false
+          },
+          {
+            "type": "enum",
+            "ref": "charged",
+            "nullable": false,
+            "enum": [
+              "person-night",
+              "night",
+              "stay"
+            ]
+          },
+          {
+            "type": "text",
+            "ref": "icon",
+            "nullable": false
+          }
+        ]
+      },
+      {
+        "ref": "stays",
+        "columns": [
+          {
+            "type": "text",
+            "role": "pk",
+            "ref": "ref",
+            "semantic": "name"
+          },
+          {
+            "type": "text",
+            "ref": "first_name",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "last_name",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "email"
+          },
+          {
+            "type": "text",
+            "ref": "mobile"
+          },
+          {
+            "type": "fk",
+            "references": "room_types",
+            "ref": "type_id",
+            "nullable": false
+          },
+          {
+            "type": "fk",
+            "references": "rooms",
+            "ref": "room_number"
+          },
+          {
+            "type": "date",
+            "ref": "arrive",
+            "nullable": false
+          },
+          {
+            "type": "date",
+            "ref": "depart",
+            "nullable": false
+          },
+          {
+            "type": "int",
+            "ref": "guests",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "arrival_time",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "note"
+          },
+          {
+            "type": "enum",
+            "ref": "status",
+            "nullable": false,
+            "enum": [
+              "held",
+              "confirmed",
+              "in_house",
+              "departed",
+              "cancelled"
+            ]
+          },
+          {
+            "type": "text",
+            "ref": "checked_in_at"
+          },
+          {
+            "type": "bool",
+            "ref": "no_deposit"
+          }
+        ]
+      },
+      {
+        "ref": "stay_extras",
+        "columns": [
+          {
+            "type": "int",
+            "role": "pk",
+            "ref": "id"
+          },
+          {
+            "type": "fk",
+            "references": "stays",
+            "ref": "stay_ref",
+            "nullable": false
+          },
+          {
+            "type": "fk",
+            "references": "extras",
+            "ref": "extra_id",
+            "nullable": false
+          },
+          {
+            "ref": "note",
+            "type": "text"
+          },
+          {
+            "ref": "added_at",
+            "type": "timestamptz",
+            "role": "created_at"
+          }
+        ]
+      },
+      {
+        "ref": "charges",
+        "columns": [
+          {
+            "type": "int",
+            "role": "pk",
+            "ref": "id"
+          },
+          {
+            "type": "fk",
+            "references": "stays",
+            "ref": "stay_ref",
+            "nullable": false
+          },
+          {
+            "type": "date",
+            "ref": "charged_on",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "kind",
+            "nullable": false
+          },
+          {
+            "type": "text",
+            "ref": "label",
+            "nullable": false
+          },
+          {
+            "type": "money",
+            "ref": "amount",
+            "nullable": false
+          }
+        ]
+      },
+      {
+        "ref": "payments",
+        "columns": [
+          {
+            "type": "int",
+            "role": "pk",
+            "ref": "id"
+          },
+          {
+            "type": "fk",
+            "references": "stays",
+            "ref": "stay_ref",
+            "nullable": false
+          },
+          {
+            "type": "date",
+            "ref": "paid_on",
+            "nullable": false
+          },
+          {
+            "type": "enum",
+            "ref": "method",
+            "nullable": false,
+            "enum": [
+              "card",
+              "cash",
+              "transfer"
+            ]
+          },
+          {
+            "type": "text",
+            "ref": "label",
+            "nullable": false
+          },
+          {
+            "type": "money",
+            "ref": "amount",
+            "nullable": false
+          }
+        ]
+      }
+    ]
+  },
+  "kind": "app",
+  "frontends": [
+    {
+      "side": "staff",
+      "kind": "spa",
+      "entry": "index.html",
+      "env": {
+        "VITE_ADMINIUM_API_BASE_URL": {
+          "required": false,
+          "example": "https://admin.example.com"
+        },
+        "VITE_ADMINIUM_PUBLISHABLE_KEY": {
+          "required": false,
+          "example": "adm_pub_..."
+        }
+      },
+      "routes": {
+        "desk": "/"
+      }
+    },
+    {
+      "side": "customer",
+      "kind": "spa",
+      "entry": "index.html",
+      "env": {
+        "VITE_ADMINIUM_API_BASE_URL": {
+          "required": false,
+          "example": "https://admin.example.com"
+        },
+        "VITE_ADMINIUM_PUBLISHABLE_KEY": {
+          "required": false,
+          "example": "adm_pub_..."
+        }
+      },
+      "routes": {
+        "guest": "/"
+      }
+    }
+  ],
+  "pages": [
+    {
+      "ref": "hotel-dashboard",
+      "template": "page-dashboard",
+      "title": {
+        "key": "mft.hotel.page.dashboard",
+        "fallback": "Dashboard"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "layout-dashboard",
+        "order": 1
+      }
+    },
+    {
+      "ref": "hotel-room-types",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.room_types",
+        "fallback": "Room types"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "table",
+        "order": 2
+      },
+      "bindings": {
+        "rows": "room_types"
+      }
+    },
+    {
+      "ref": "hotel-room-type-features",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.features",
+        "fallback": "What is in the room"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "list",
+        "order": 3
+      },
+      "bindings": {
+        "rows": "room_type_features"
+      }
+    },
+    {
+      "ref": "hotel-rooms",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.rooms",
+        "fallback": "Rooms"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "layers",
+        "order": 4
+      },
+      "bindings": {
+        "rows": "rooms"
+      }
+    },
+    {
+      "ref": "hotel-extras",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.extras",
+        "fallback": "Extras"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "boxes",
+        "order": 5
+      },
+      "bindings": {
+        "rows": "extras"
+      }
+    },
+    {
+      "ref": "hotel-stays",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.stays",
+        "fallback": "Reservations"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "receipt",
+        "order": 6
+      },
+      "bindings": {
+        "rows": "stays"
+      }
+    },
+    {
+      "ref": "hotel-stay-extras",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.stay_extras",
+        "fallback": "Extras on a stay"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "users",
+        "order": 7
+      },
+      "bindings": {
+        "rows": "stay_extras"
+      }
+    },
+    {
+      "ref": "hotel-charges",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.charges",
+        "fallback": "Charges"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "package",
+        "order": 8
+      },
+      "bindings": {
+        "rows": "charges"
+      }
+    },
+    {
+      "ref": "hotel-payments",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.hotel.tbl.payments",
+        "fallback": "Payments"
+      },
+      "nav": {
+        "group": "manifest:hotel",
+        "icon": "clipboard-list",
+        "order": 9
+      },
+      "bindings": {
+        "rows": "payments"
+      }
+    }
+  ]
+}

@@ -1,0 +1,384 @@
+{
+  "manifestVersion": 1,
+  "key": "events",
+  "name": "Event Ticketing",
+  "version": "0.1.3",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "mft.events.desc",
+    "fallback": "A box office for a venue: shows and their ticket types, orders, issued tickets and a door that checks people in — backed by your own database."
+  },
+  "categories": [
+    "hospitality"
+  ],
+  "compatibility": {
+    "minAdminiumVersion": "0.2.8",
+    "engines": [
+      "postgres",
+      "mysql",
+      "sqlite"
+    ],
+    "requires": [
+      "realtime"
+    ]
+  },
+  "requiredSchema": {
+    "tables": [
+      {
+        "ref": "venues",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "address",
+            "type": "text"
+          },
+          {
+            "ref": "capacity",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "ref": "events",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "slug",
+            "type": "text"
+          },
+          {
+            "ref": "venue_id",
+            "type": "fk",
+            "references": "venues"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "description",
+            "type": "text"
+          },
+          {
+            "ref": "starts_at",
+            "type": "timestamptz"
+          },
+          {
+            "ref": "doors_at",
+            "type": "timestamptz"
+          },
+          {
+            "ref": "image",
+            "type": "text",
+            "semantic": "image"
+          },
+          {
+            "ref": "status",
+            "type": "enum",
+            "enum": [
+              "draft",
+              "on_sale",
+              "sold_out",
+              "closed"
+            ]
+          }
+        ]
+      },
+      {
+        "ref": "ticket_types",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "event_id",
+            "type": "fk",
+            "references": "events"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "price",
+            "type": "money"
+          },
+          {
+            "ref": "capacity",
+            "type": "int"
+          },
+          {
+            "ref": "sales_start",
+            "type": "timestamptz"
+          },
+          {
+            "ref": "sales_end",
+            "type": "timestamptz"
+          },
+          {
+            "ref": "position",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "ref": "orders",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "number",
+            "type": "text"
+          },
+          {
+            "ref": "buyer_name",
+            "type": "text"
+          },
+          {
+            "ref": "email",
+            "type": "text",
+            "semantic": "email"
+          },
+          {
+            "ref": "total",
+            "type": "money"
+          },
+          {
+            "ref": "status",
+            "type": "enum",
+            "enum": [
+              "pending",
+              "paid",
+              "cancelled"
+            ]
+          },
+          {
+            "ref": "placed_at",
+            "type": "timestamptz"
+          }
+        ]
+      },
+      {
+        "ref": "order_items",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "order_id",
+            "type": "fk",
+            "references": "orders"
+          },
+          {
+            "ref": "ticket_type_id",
+            "type": "fk",
+            "references": "ticket_types"
+          },
+          {
+            "ref": "qty",
+            "type": "int"
+          },
+          {
+            "ref": "unit_price",
+            "type": "money"
+          }
+        ]
+      },
+      {
+        "ref": "tickets",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "code",
+            "type": "text"
+          },
+          {
+            "ref": "order_id",
+            "type": "fk",
+            "references": "orders"
+          },
+          {
+            "ref": "ticket_type_id",
+            "type": "fk",
+            "references": "ticket_types"
+          },
+          {
+            "ref": "attendee_name",
+            "type": "text"
+          },
+          {
+            "ref": "status",
+            "type": "enum",
+            "enum": [
+              "valid",
+              "checked_in",
+              "void"
+            ]
+          },
+          {
+            "ref": "checked_in_at",
+            "type": "timestamptz"
+          }
+        ]
+      },
+      {
+        "ref": "promo_codes",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "code",
+            "type": "text"
+          },
+          {
+            "ref": "pct_off",
+            "type": "int"
+          },
+          {
+            "ref": "active",
+            "type": "bool"
+          }
+        ]
+      }
+    ]
+  },
+  "pages": [
+    {
+      "ref": "events-dashboard",
+      "template": "page-dashboard",
+      "title": {
+        "key": "mft.events.page.dashboard",
+        "fallback": "Dashboard"
+      },
+      "nav": {
+        "group": "manifest:events",
+        "icon": "layout-dashboard",
+        "order": 1
+      }
+    },
+    {
+      "ref": "events-manage",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.events.page.manage",
+        "fallback": "Events"
+      },
+      "nav": {
+        "group": "manifest:events",
+        "icon": "calendar-days",
+        "order": 2
+      },
+      "bindings": {
+        "rows": "events"
+      }
+    },
+    {
+      "ref": "events-orders",
+      "template": "page-master-detail",
+      "title": {
+        "key": "mft.events.page.orders",
+        "fallback": "Orders"
+      },
+      "nav": {
+        "group": "manifest:events",
+        "icon": "receipt",
+        "order": 3
+      },
+      "bindings": {
+        "rows": "orders"
+      }
+    },
+    {
+      "ref": "events-door",
+      "template": "page-queue-inbox",
+      "title": {
+        "key": "mft.events.page.door",
+        "fallback": "Door"
+      },
+      "nav": {
+        "group": "manifest:events",
+        "icon": "scan-line",
+        "order": 4
+      },
+      "bindings": {
+        "rows": "tickets"
+      }
+    }
+  ],
+  "capabilities": [
+    "payments",
+    "email-delivery",
+    "realtime"
+  ],
+  "kind": "app",
+  "frontends": [
+    {
+      "side": "staff",
+      "kind": "spa",
+      "entry": "index.html",
+      "env": {
+        "VITE_ADMINIUM_API_BASE_URL": {
+          "required": false,
+          "example": "https://admin.example.com"
+        },
+        "VITE_ADMINIUM_PUBLISHABLE_KEY": {
+          "required": false,
+          "example": "adm_pub_..."
+        }
+      },
+      "routes": {
+        "door": "/"
+      }
+    },
+    {
+      "side": "customer",
+      "kind": "spa",
+      "entry": "index.html",
+      "env": {
+        "VITE_ADMINIUM_API_BASE_URL": {
+          "required": false,
+          "example": "https://admin.example.com"
+        },
+        "VITE_ADMINIUM_PUBLISHABLE_KEY": {
+          "required": false,
+          "example": "adm_pub_..."
+        }
+      },
+      "routes": {
+        "tickets": "/",
+        "wallet": "/"
+      }
+    }
+  ]
+}

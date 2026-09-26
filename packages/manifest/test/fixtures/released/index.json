@@ -1,0 +1,12 @@
+[
+  {"repo":"Adminiumjs/point-of-sale","tag":"v0.2.2","commit":"d9be5870a7b7da6450c11a08465a56805f7590ff","source":"manifest.json","file":"point-of-sale-0.2.2.manifest.json","sha256":"89311c5f2bdaf1711b5a1f63790a9c9d2280c593366112bfa0cf402f65574f7d"},
+  {"repo":"Adminiumjs/point-of-sale","tag":"v0.2.2","commit":"d9be5870a7b7da6450c11a08465a56805f7590ff","source":"seeds/pos.sample.json","file":"point-of-sale-0.2.2.sample.json","sha256":"9cbff9567d002dc09c03c7884edd73479005e487edfb708705522d48eab04816"},
+  {"repo":"Adminiumjs/clinic-desk","tag":"v0.2.1","commit":"97f1a2ed313eed941dd42654266579a271a14b42","source":"manifest.json","file":"clinic-desk-0.2.1.manifest.json","sha256":"8632480cd2f4f81e50fc294d001f7ace05bd0b62f85c6c0ed2c5da01ee3f17b0"},
+  {"repo":"Adminiumjs/clinic-desk","tag":"v0.2.1","commit":"97f1a2ed313eed941dd42654266579a271a14b42","source":"seeds/clinic.sample.json","file":"clinic-desk-0.2.1.sample.json","sha256":"3165940e5c12f5d4a8ccb634065c8db20dd36be5787d4dc1c2d17fb6b3956a94"},
+  {"repo":"Adminiumjs/client-portal","tag":"v0.2.1","commit":"c1db486fb77c4e74bb2880623a37f236cb9969ef","source":"manifest.json","file":"client-portal-0.2.1.manifest.json","sha256":"16554e4cb8ff0a80fc7dbd726c438da58442e7738b0882d3238818d8f125f1d9"},
+  {"repo":"Adminiumjs/client-portal","tag":"v0.2.1","commit":"c1db486fb77c4e74bb2880623a37f236cb9969ef","source":"seeds/clients.sample.json","file":"client-portal-0.2.1.sample.json","sha256":"6df1a38cc95d29c6a1d605fbacae7fb13672c8b2425eeec29a9dd8feb994e3b6"},
+  {"repo":"Adminiumjs/online-ordering","tag":"v0.1.3","commit":"8a242ba10681156644eb80fa3d2f96de0480f4a2","source":"manifest.json","file":"online-ordering-0.1.3.manifest.json","sha256":"5fa11613fb0d3fd39ad867f55db5d7480aa9a5a7b75f9b423fd42453246ed473"},
+  {"repo":"Adminiumjs/hotel-reservations","tag":"v0.1.3","commit":"4dcd427e8ca7aded871345446d239c00bf89ec60","source":"manifest.json","file":"hotel-reservations-0.1.3.manifest.json","sha256":"6f6e730d09f4961987d2481273d4e4c13632e167c78da0799b0e141548aeae98"},
+  {"repo":"Adminiumjs/event-ticketing","tag":"v0.1.3","commit":"d2b91fedf6a32aa78019c237d628c1425f01f817","source":"manifest.json","file":"event-ticketing-0.1.3.manifest.json","sha256":"32a4b8b9398cae9ea0b11715e5fb1877ae2e6d85df5653ca5fbf1f1dc0da47e6"},
+  {"repo":"Adminiumjs/add-ons","tag":"v1.0.5","commit":"2a2cd5bbbcbd8baf141fcd63b5687a2ceafd9e4c","source":"packages/invoices/manifest.json","file":"invoices-1.0.5.manifest.json","sha256":"c39c980af7f78a41c6f49c017ef5e70796d5d702e9a371ad38131cd0a239c3da"}
+]

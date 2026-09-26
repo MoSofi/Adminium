@@ -1,0 +1,477 @@
+{
+  "manifestVersion": 1,
+  "key": "ordering",
+  "name": "Online Ordering",
+  "version": "0.1.3",
+  "publisher": {
+    "id": "adminium",
+    "name": "Adminium",
+    "url": "https://adminium.dev"
+  },
+  "license": "AGPL-3.0-only",
+  "description": {
+    "key": "mft.ordering.desc",
+    "fallback": "An order-ahead site with real modifier rules, pickup slots and a live kitchen queue — backed by your own database."
+  },
+  "categories": [
+    "hospitality"
+  ],
+  "compatibility": {
+    "minAdminiumVersion": "0.2.8",
+    "engines": [
+      "postgres",
+      "mysql",
+      "sqlite"
+    ],
+    "requires": [
+      "realtime"
+    ]
+  },
+  "requiredSchema": {
+    "tables": [
+      {
+        "ref": "menu_categories",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "slug",
+            "type": "text"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "position",
+            "type": "int"
+          },
+          {
+            "ref": "icon",
+            "type": "text"
+          },
+          {
+            "ref": "tint",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "ref": "menu_items",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "category_id",
+            "type": "fk",
+            "references": "menu_categories"
+          },
+          {
+            "ref": "slug",
+            "type": "text"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "short_name",
+            "type": "text"
+          },
+          {
+            "ref": "description",
+            "type": "text"
+          },
+          {
+            "ref": "price",
+            "type": "money"
+          },
+          {
+            "ref": "image",
+            "type": "text",
+            "semantic": "image"
+          },
+          {
+            "ref": "available",
+            "type": "bool"
+          },
+          {
+            "ref": "featured",
+            "type": "bool"
+          },
+          {
+            "ref": "tags",
+            "type": "text"
+          },
+          {
+            "ref": "position",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "ref": "modifier_groups",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "item_id",
+            "type": "fk",
+            "references": "menu_items"
+          },
+          {
+            "ref": "slug",
+            "type": "text"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "kind",
+            "type": "enum",
+            "enum": [
+              "radio",
+              "check"
+            ]
+          },
+          {
+            "ref": "min",
+            "type": "int"
+          },
+          {
+            "ref": "max",
+            "type": "int"
+          },
+          {
+            "ref": "hint",
+            "type": "text"
+          },
+          {
+            "ref": "position",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "ref": "modifiers",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "group_id",
+            "type": "fk",
+            "references": "modifier_groups"
+          },
+          {
+            "ref": "slug",
+            "type": "text"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "price_delta",
+            "type": "money"
+          },
+          {
+            "ref": "available",
+            "type": "bool"
+          },
+          {
+            "ref": "position",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "ref": "orders",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "number",
+            "type": "text"
+          },
+          {
+            "ref": "customer_name",
+            "type": "text"
+          },
+          {
+            "ref": "phone",
+            "type": "text"
+          },
+          {
+            "ref": "status",
+            "type": "enum",
+            "enum": [
+              "placed",
+              "confirmed",
+              "preparing",
+              "ready",
+              "picked_up",
+              "cancelled"
+            ]
+          },
+          {
+            "ref": "pickup_at",
+            "type": "timestamptz"
+          },
+          {
+            "ref": "total",
+            "type": "money"
+          },
+          {
+            "ref": "note",
+            "type": "text"
+          },
+          {
+            "ref": "status_at",
+            "type": "timestamptz"
+          },
+          {
+            "ref": "placed_at",
+            "type": "timestamptz"
+          }
+        ]
+      },
+      {
+        "ref": "order_items",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "order_id",
+            "type": "fk",
+            "references": "orders"
+          },
+          {
+            "ref": "item_id",
+            "type": "fk",
+            "references": "menu_items"
+          },
+          {
+            "ref": "qty",
+            "type": "int"
+          },
+          {
+            "ref": "unit_price",
+            "type": "money"
+          },
+          {
+            "ref": "note",
+            "type": "text"
+          },
+          {
+            "ref": "position",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "ref": "order_item_modifiers",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "order_item_id",
+            "type": "fk",
+            "references": "order_items"
+          },
+          {
+            "ref": "modifier_id",
+            "type": "fk",
+            "references": "modifiers"
+          },
+          {
+            "ref": "price_delta",
+            "type": "money"
+          }
+        ]
+      },
+      {
+        "ref": "hours",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "weekday",
+            "type": "enum",
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ]
+          },
+          {
+            "ref": "opens",
+            "type": "text"
+          },
+          {
+            "ref": "closes",
+            "type": "text"
+          },
+          {
+            "ref": "position",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "ref": "delivery_zones",
+        "columns": [
+          {
+            "ref": "id",
+            "type": "int",
+            "role": "pk"
+          },
+          {
+            "ref": "name",
+            "type": "text"
+          },
+          {
+            "ref": "active",
+            "type": "bool"
+          }
+        ]
+      }
+    ]
+  },
+  "pages": [
+    {
+      "ref": "ordering-dashboard",
+      "template": "page-dashboard",
+      "title": {
+        "key": "mft.ordering.page.dashboard",
+        "fallback": "Dashboard"
+      },
+      "nav": {
+        "group": "manifest:ordering",
+        "icon": "layout-dashboard",
+        "order": 1
+      }
+    },
+    {
+      "ref": "ordering-queue",
+      "template": "page-queue-inbox",
+      "title": {
+        "key": "mft.ordering.page.queue",
+        "fallback": "Queue"
+      },
+      "nav": {
+        "group": "manifest:ordering",
+        "icon": "concierge-bell",
+        "order": 2
+      },
+      "bindings": {
+        "rows": "orders"
+      }
+    },
+    {
+      "ref": "ordering-menu",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.ordering.page.menu",
+        "fallback": "Menu"
+      },
+      "nav": {
+        "group": "manifest:ordering",
+        "icon": "utensils",
+        "order": 3
+      },
+      "bindings": {
+        "rows": "menu_items"
+      }
+    },
+    {
+      "ref": "ordering-hours",
+      "template": "page-crud",
+      "title": {
+        "key": "mft.ordering.page.hours",
+        "fallback": "Hours"
+      },
+      "nav": {
+        "group": "manifest:ordering",
+        "icon": "clock",
+        "order": 4
+      },
+      "bindings": {
+        "rows": "hours"
+      }
+    }
+  ],
+  "capabilities": [
+    "payments",
+    "realtime",
+    "email-delivery"
+  ],
+  "kind": "app",
+  "frontends": [
+    {
+      "side": "staff",
+      "kind": "spa",
+      "entry": "index.html",
+      "env": {
+        "VITE_ADMINIUM_API_BASE_URL": {
+          "required": false,
+          "example": "https://admin.example.com"
+        },
+        "VITE_ADMINIUM_PUBLISHABLE_KEY": {
+          "required": false,
+          "example": "adm_pub_..."
+        }
+      },
+      "routes": {
+        "kitchen": "/"
+      }
+    },
+    {
+      "side": "customer",
+      "kind": "spa",
+      "entry": "index.html",
+      "env": {
+        "VITE_ADMINIUM_API_BASE_URL": {
+          "required": false,
+          "example": "https://admin.example.com"
+        },
+        "VITE_ADMINIUM_PUBLISHABLE_KEY": {
+          "required": false,
+          "example": "adm_pub_..."
+        }
+      },
+      "routes": {
+        "menu": "/",
+        "track": "/"
+      }
+    }
+  ]
+}
