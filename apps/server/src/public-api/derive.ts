@@ -202,6 +202,7 @@ export function deriveScopeDocument(
         ...(spec.expires === undefined ? {} : { expires: spec.expires }),
         ...(spec.stopped === undefined ? {} : { stopped: spec.stopped }),
         ...(spec.own === true ? { own: true as const } : {}),
+        ...(spec.address === undefined ? {} : { address: [...spec.address] }),
         // Every claim through this identity is proved to be a person's.
         ...(identity.definition.human_check === undefined ? {} : { humanCheck: true as const }),
       };

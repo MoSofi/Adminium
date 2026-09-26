@@ -183,6 +183,8 @@ const identitySchema = z
     stopped: columnSchema.optional(),
     /** `token`: the owner's own link, which opens a verified session that may change its row. */
     own: z.literal(true).optional(),
+    /** An own link: the text columns of its row whose addresses the link may be emailed to. */
+    address: z.array(columnSchema).min(1).max(2).optional(),
   })
   .strict();
 
@@ -426,6 +428,11 @@ export const publicEndpointDefinitionSchema = z
     session_only: z.literal(true).optional(),
     /** On an identity endpoint: the columns "delete my details" empties, and the time it stamps. */
     forget: z.object({ columns: z.array(columnSchema).min(1).max(16), stamp: columnSchema.optional() }).strict().optional(),
+    /**
+     * On rows reached through a parent: these columns are left out unless
+     * `unless_holder` is empty or names the session's own person.
+     */
+    withhold: z.object({ columns: z.array(columnSchema).min(1).max(8), unless_holder: columnSchema }).strict().optional(),
   })
   .strict();
 
@@ -499,6 +506,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       ...(def.identity.expires === undefined ? {} : { expires: def.identity.expires }),
       ...(def.identity.stopped === undefined ? {} : { stopped: def.identity.stopped }),
       ...(def.identity.own === undefined ? {} : { own: def.identity.own }),
+      ...(def.identity.address === undefined ? {} : { address: [...def.identity.address] }),
     };
   }
   if (def.sensitive !== undefined) out['sensitive'] = def.sensitive;
@@ -540,6 +548,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.share_link !== undefined) out['share_link'] = { column: def.share_link.column, key: def.share_link.key };
   if (def.session_only !== undefined) out['session_only'] = def.session_only;
   if (def.forget !== undefined) out['forget'] = { columns: [...def.forget.columns], ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }) };
+  if (def.withhold !== undefined) out['withhold'] = { columns: [...def.withhold.columns], unless_holder: def.withhold.unless_holder };
   return out;
 }
 
@@ -831,6 +840,7 @@ export function definitionToResource(
   if (def.share_link !== undefined) resource.shareLink = { ...def.share_link };
   if (def.session_only !== undefined) resource.sessionOnly = true;
   if (def.forget !== undefined) resource.forget = { columns: [...def.forget.columns], ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }) };
+  if (def.withhold !== undefined) resource.withhold = { columns: [...def.withhold.columns], unlessHolder: def.withhold.unless_holder };
   return resource;
 }
 
@@ -1297,6 +1307,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
   }
 
   treeAndPersonIssues(def, table, view as SnapshotView, ctx, push);
+  ownAddressAndWithholdIssues(def, table, view as SnapshotView, push);
 
   /* ── what the derived scope would refuse, reported now ──────────────── */
   issues.push(...scopeIssuesOf(ref, def, table, visible));
@@ -1477,6 +1488,50 @@ function treeAndPersonIssues(
   }
 }
 
+/**
+ * Where a row's own link may be emailed, and the columns withheld from rows
+ * read through a parent — against the live schema, reported with the rest.
+ */
+function ownAddressAndWithholdIssues(
+  def: PublicEndpointDefinition,
+  table: ResolvedTable,
+  view: SnapshotView,
+  push: (code: string, message: string, column?: string) => void,
+): void {
+  const address = def.identity?.address;
+  if (address !== undefined) {
+    if (def.identity?.strategy !== 'token' || def.identity.own !== true) {
+      push('ENDPOINT_OWN_ADDRESS_SHAPE', "a link is emailed to its row's own address only when it is the row's own link");
+    }
+    if (new Set(address).size !== address.length) push('ENDPOINT_OWN_ADDRESS_SHAPE', 'an address column is named once');
+    for (const name of address) {
+      const type = table.columns.get(name)?.logicalType;
+      if (type === undefined) push('ENDPOINT_COLUMN_UNKNOWN', `"${name}" (identity.address) is not a column of ${def.source}`, name);
+      else if ((type !== 'text' && type !== 'varchar') || def.identity?.match.includes(name) === true) {
+        push('ENDPOINT_OWN_ADDRESS_SHAPE', `"${name}" is not a text column holding an address`, name);
+      }
+    }
+  }
+  const withhold = def.withhold;
+  if (withhold === undefined) return;
+  // A row reached through a parent, or claimed through a column naming someone other than its holder.
+  const throughParent = def.visible_with !== undefined || (def.claim?.column !== undefined && def.claim.column !== withhold.unless_holder);
+  if (def.auth.role !== 'authenticated' || def.identity !== undefined || !throughParent) {
+    push('ENDPOINT_WITHHOLD_SHAPE', 'columns are withheld from a signed-in person\'s rows read through a parent, never on an identity or a staff endpoint');
+  }
+  if (new Set(withhold.columns).size !== withhold.columns.length) push('ENDPOINT_WITHHOLD_SHAPE', 'a column is withheld once');
+  for (const name of withhold.columns) {
+    if (!def.select.includes(name)) push('ENDPOINT_WITHHOLD_SHAPE', `"${name}" is withheld, so it is one of the columns selected`, name);
+  }
+  if (!table.columns.has(withhold.unless_holder)) {
+    push('ENDPOINT_COLUMN_UNKNOWN', `"${withhold.unless_holder}" (withhold) is not a column of ${def.source}`, withhold.unless_holder);
+  } else if (pointsAt(view, table, withhold.unless_holder) === null) {
+    push('ENDPOINT_WITHHOLD_SHAPE', `"${withhold.unless_holder}" is not a foreign key to the holder`, withhold.unless_holder);
+  } else if (def.methods.some((m) => WRITING_METHODS.has(m)) && (def.writable ?? definitionToResource(def.path.slice(1), def, def.methods, table).writable).includes(withhold.unless_holder)) {
+    push('ENDPOINT_WITHHOLD_SHAPE', `"${withhold.unless_holder}" decides who reads the withheld columns, so it is not writable`, withhold.unless_holder);
+  }
+}
+
 /** An agreement's path: foreign keys from `column` to the compared column; the parent's, or a linked row's, to compare with. */
 function agreePathIssues(
   view: SnapshotView,
@@ -1547,6 +1602,7 @@ function scopeIssuesOf(
       ...(def.identity.expires === undefined ? {} : { expires: def.identity.expires }),
       ...(def.identity.stopped === undefined ? {} : { stopped: def.identity.stopped }),
       ...(def.identity.own === undefined ? {} : { own: def.identity.own }),
+      ...(def.identity.address === undefined ? {} : { address: [...def.identity.address] }),
       ...(def.human_check === undefined ? {} : { humanCheck: true as const }),
     };
   }

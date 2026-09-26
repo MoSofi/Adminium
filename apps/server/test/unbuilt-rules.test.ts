@@ -56,5 +56,7 @@ describe('the entries this server does not run yet', () => {
     expect(unbuiltEntryRuleOf({ writable_when: { status: ['booked', 'held'], starts_at: { within: 30 } } })).toBeNull();
     expect(unbuiltEntryRuleOf({ writable_when: { paid_at: [null], starts_at: 'from-now' } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'tickets', children: {} })).toBe('children');
+    expect(unbuiltEntryRuleOf({ source: 'tickets', withhold: { columns: ['code'], unless_holder: 'holder_customer_id' } })).toBe('withhold');
+    expect(unbuiltEntryRuleOf({ source: 'tickets' })).toBeNull();
   });
 });

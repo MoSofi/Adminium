@@ -89,6 +89,9 @@ const lookupClaimSchema = z
 /** Signing in by a link emailed to the address in `email`. */
 const linkClaimSchema = z.object({ verify: z.literal('email-link'), email: refSchema }).strict();
 
+/** The one or two columns of a row whose addresses its own link may go to. */
+const ownAddressSchema = z.union([refSchema, z.tuple([refSchema, refSchema])]);
+
 /**
  * Opening one row by the code in `column`, while it has not expired or been
  * stopped. `own`: the row's owner's own link — emailed only to the row's own
@@ -102,6 +105,11 @@ const tokenClaimSchema = z
     expires: refSchema.optional(),
     stopped: refSchema.optional(),
     own: z.literal(true).optional(),
+    /**
+     * With `own`: the text columns of this row whose addresses its own link
+     * may be emailed to (the holder's, and the friend a ticket is offered to).
+     */
+    address: ownAddressSchema.optional(),
   })
   .strict();
 
@@ -300,6 +308,9 @@ const findOrCreateSchema = z
   })
   .strict();
 
+/** Columns left out of rows read through a parent, unless the row's holder is the session's own person. */
+const withholdSchema = z.object({ columns: z.array(refSchema).min(1).max(8), unlessHolder: refSchema }).strict();
+
 /** What "delete my details" empties on a person's own row, and the time it stamps. */
 const forgetSchema = z.object({ columns: z.array(refSchema).min(1).max(16), stamp: refSchema.optional() }).strict();
 
@@ -454,6 +465,12 @@ export const publicAccessSchema = z
       .optional(),
     /** Image columns any visitor may see, through the rows this entry reads. */
     pictures: z.array(refSchema).min(1).max(4).optional(),
+    /**
+     * On rows reached through a parent: `columns` are left out unless
+     * `unlessHolder` is empty or names the session's own person (a ticket
+     * sent to a friend keeps its code from the buyer who sent it).
+     */
+    withhold: withholdSchema.optional(),
   })
   .strict();
 export type PublicAccess = z.infer<typeof publicAccessSchema>;
@@ -938,6 +955,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
   });
   out.push(...treeIssues(entries, ctx, identities, shareCodes));
   out.push(...personIssues(entries, ctx, identities));
+  out.push(...ownAddressAndWithholdIssues(entries, ctx, identities));
   return out;
 }
 
@@ -1557,7 +1575,9 @@ function personIssues(
         if (email.type !== 'text') out.push({ path: here('email'), message: `"${entry.table}.${id.email}" is not a text column` });
         if (email.rules?.validation?.format !== 'email') out.push({ path: here('email'), message: `"${entry.table}.${id.email}" holds an address, so it checks one (validation.format: "email")` });
       }
-      if (!writable.includes(id.email)) out.push({ path: here('email'), message: `"${id.email}" is typed by the guest, so it is writable` });
+      // On a change through the row's own link, the address may instead be one the link was emailed to: holding the link proves it.
+      const proved = change && ownAddressesOf(identities.get(key)?.entry.claim).includes(id.email);
+      if (!writable.includes(id.email) && !proved) out.push({ path: here('email'), message: `"${id.email}" is typed by the guest, so it is writable` });
       if (!change && !(entry.requires ?? []).includes(id.email)) out.push({ path: here('email'), message: `"${id.email}" finds the person, so a create requires it` });
       // The person's own address: one row per address, kept trimmed and in lower case, emptied when forgotten.
       const claimed = signIn?.claim !== undefined && 'email' in signIn.claim ? signIn.claim.email : undefined;
@@ -1715,5 +1735,92 @@ function personIssues(
       }
     });
   }
+  return out;
+}
+
+/** The columns a row's own link may be emailed to, as a list (none for any other claim). */
+function ownAddressesOf(claim: Claim | undefined): readonly string[] {
+  if (claim === undefined || !('by' in claim) || claim.own !== true || claim.address === undefined) return [];
+  return typeof claim.address === 'string' ? [claim.address] : claim.address;
+}
+
+/**
+ * Where a row's own link may be emailed (`claim.address`), and the columns
+ * left out of rows read through a parent (`withhold`).
+ */
+function ownAddressAndWithholdIssues(
+  entries: readonly PublicAccess[],
+  ctx: PublicAccessContext,
+  identities: ReadonlyMap<string, { entry: PublicAccess; index: number }>,
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const { index } = ctx;
+  /** Whether an entry lets a browser set a column. */
+  const writes = (entry: PublicAccess, ref: string) =>
+    (entry.writable ?? []).includes(ref) ||
+    Object.prototype.hasOwnProperty.call(entry.writableValues ?? {}, ref) ||
+    Object.prototype.hasOwnProperty.call(entry.defaults ?? {}, ref);
+  /** The tables a key signs a person in on: an identity that is not a token (a token opens a row, not a person). */
+  const people = new Set([...identities.values()].filter(({ entry }) => entry.claim !== undefined && claimKind(entry.claim) !== 'token').map(({ entry }) => entry.table));
+
+  entries.forEach((entry, i) => {
+    const at = (...rest: Path) => ['publicAccess', i, ...rest];
+    if (index.table(entry.table) === undefined) return;
+    const key = entry.key ?? CUSTOMER_KEY;
+    const column = (ref: string) => index.column(entry.table, ref);
+
+    const claim = entry.claim;
+    if (claim !== undefined && 'by' in claim && claim.address !== undefined) {
+      const refs = typeof claim.address === 'string' ? [claim.address] : claim.address;
+      if (claim.own !== true) out.push({ path: at('claim', 'address'), message: "a link is emailed to its row's own address only when it is the row's own link (own: true)" });
+      if (refs.length === 2 && refs[0] === refs[1]) out.push({ path: at('claim', 'address'), message: `"${refs[0]!}" is named twice` });
+      for (const ref of new Set(refs)) {
+        const found = column(ref);
+        if (found === undefined) out.push({ path: at('claim', 'address'), message: `"${entry.table}" has no column "${ref}"` });
+        else if (found.type !== 'text') out.push({ path: at('claim', 'address'), message: `"${entry.table}.${ref}" is not a text column holding an address` });
+        else if (ref === claim.column) out.push({ path: at('claim', 'address'), message: `"${entry.table}.${ref}" is the link's secret, not an address` });
+        // Whoever holds the link could otherwise send it on to an address of their choosing.
+        entries.forEach((other, j) => {
+          if (other.table === entry.table && (other.key ?? CUSTOMER_KEY) === key && writes(other, ref)) {
+            out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${ref}" is an address the row's own link is emailed to, so a change through that link may not set it` });
+          }
+        });
+      }
+    }
+
+    const withhold = entry.withhold;
+    if (withhold === undefined) return;
+    const holder = withhold.unlessHolder;
+    // Only a row reached through a parent (or through a column naming someone else) has a holder apart from its reader.
+    if (entry.visibleWith === undefined && entry.claimedBy === undefined) {
+      out.push({ path: at('withhold'), message: 'columns are withheld from rows read through a parent: the entry needs visibleWith (or claimedBy)' });
+    } else if (entry.claimedBy !== undefined && entry.claimedBy.column === holder) {
+      out.push({ path: at('withhold', 'unlessHolder'), message: `"${holder}" is the column this entry is claimed by, so every row it reads is already its holder's` });
+    }
+    if (new Set(withhold.columns).size !== withhold.columns.length) out.push({ path: at('withhold', 'columns'), message: 'a column is withheld once' });
+    for (const ref of withhold.columns) {
+      if (entry.select === undefined || !entry.select.includes(ref)) out.push({ path: at('withhold', 'columns'), message: `"${ref}" is not one of the columns the entry shows` });
+    }
+    const link = column(holder);
+    const root = rootIdentity(entries, i, identities);
+    if (link === undefined) {
+      out.push({ path: at('withhold', 'unlessHolder'), message: `"${entry.table}" has no column "${holder}"` });
+    } else if (link.type !== 'fk') {
+      out.push({ path: at('withhold', 'unlessHolder'), message: `"${entry.table}.${holder}" is not a foreign key to a person` });
+    } else if (root?.claim !== undefined && claimKind(root.claim) === 'token') {
+      // A key that opens a row by its link signs no person in: the columns are withheld whenever the holder is set.
+      if (!people.has(link.references ?? '')) {
+        out.push({ path: at('withhold', 'unlessHolder'), message: `"${entry.table}.${holder}" does not point at a person any key signs in` });
+      }
+    } else if (root !== undefined && link.references !== root.table) {
+      out.push({ path: at('withhold', 'unlessHolder'), message: `"${entry.table}.${holder}" does not point at "${root.table}", the person the "${key}" key signs in` });
+    }
+    // Who may read the withheld columns is never a browser's to say.
+    entries.forEach((other, j) => {
+      if (other.table === entry.table && writes(other, holder)) {
+        out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${holder}" decides who reads the withheld columns, so no browser writes it` });
+      }
+    });
+  });
   return out;
 }

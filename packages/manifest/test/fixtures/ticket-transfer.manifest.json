@@ -1,0 +1,216 @@
+{
+  "kind": "app",
+  "manifestVersion": 1,
+  "key": "boxoffice",
+  "name": "Box office",
+  "version": "0.2.0",
+  "publisher": { "id": "adminium", "name": "Adminium" },
+  "license": "MIT",
+  "description": { "key": "d", "fallback": "Tickets for one show, and a ticket sent to a friend." },
+  "categories": ["operations"],
+  "compatibility": { "minAdminiumVersion": "0.3.0" },
+  "requiredSchema": {
+    "prefixed": true,
+    "tables": [
+      {
+        "ref": "settings",
+        "columns": [
+          { "ref": "id", "type": "int", "role": "pk" },
+          { "ref": "offer_hours", "type": "int", "default": 48 }
+        ]
+      },
+      {
+        "ref": "customers",
+        "columns": [
+          { "ref": "id", "type": "int", "role": "pk" },
+          { "ref": "email", "type": "text", "maxLength": 254, "nullable": true, "unique": true, "rules": { "normalize": "email", "validation": { "format": "email" } } },
+          { "ref": "name", "type": "text", "maxLength": 120, "nullable": true },
+          { "ref": "phone", "type": "text", "maxLength": 32, "nullable": true },
+          { "ref": "forgotten_at", "type": "timestamptz", "nullable": true }
+        ]
+      },
+      {
+        "ref": "events",
+        "columns": [
+          { "ref": "id", "type": "int", "role": "pk" },
+          { "ref": "name", "type": "text", "maxLength": 120 },
+          { "ref": "starts_at", "type": "timestamptz" }
+        ]
+      },
+      {
+        "ref": "ticket_types",
+        "columns": [
+          { "ref": "id", "type": "int", "role": "pk" },
+          { "ref": "event_id", "type": "fk", "references": "events" },
+          { "ref": "name", "type": "text", "maxLength": 120 },
+          { "ref": "price", "type": "decimal", "scale": 2, "default": 0 }
+        ]
+      },
+      {
+        "ref": "orders",
+        "columns": [
+          { "ref": "id", "type": "int", "role": "pk" },
+          { "ref": "customer_id", "type": "fk", "references": "customers", "nullable": true },
+          { "ref": "event_id", "type": "fk", "references": "events" },
+          { "ref": "email", "type": "text", "maxLength": 254, "rules": { "validation": { "format": "email" } } },
+          { "ref": "name", "type": "text", "maxLength": 120 },
+          { "ref": "note", "type": "text", "maxLength": 500, "nullable": true },
+          { "ref": "client_key", "type": "text", "maxLength": 64, "nullable": true, "unique": true },
+          { "ref": "link_token", "type": "text", "maxLength": 16, "nullable": true, "rules": { "code": { "length": 16 } } },
+          { "ref": "link_stopped", "type": "bool", "default": false },
+          { "ref": "total", "type": "decimal", "scale": 2, "nullable": true, "rules": { "rollup": { "from": "tickets", "via": "order_id", "sum": "price" } } },
+          { "ref": "ticket_count", "type": "int", "nullable": true, "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true } } }
+        ]
+      },
+      {
+        "ref": "tickets",
+        "columns": [
+          { "ref": "id", "type": "int", "role": "pk" },
+          { "ref": "order_id", "type": "fk", "references": "orders" },
+          { "ref": "ticket_type_id", "type": "fk", "references": "ticket_types" },
+          { "ref": "status", "type": "enum", "enum": ["valid", "offered", "checked_in"], "default": "valid" },
+          { "ref": "code", "type": "text", "maxLength": 12, "nullable": true, "rules": { "code": { "length": 12, "renew": { "on": { "column": "status", "values": ["valid"] } } } } },
+          { "ref": "link_token", "type": "text", "maxLength": 16, "nullable": true, "rules": { "code": { "length": 16 } } },
+          { "ref": "pending_email", "type": "text", "maxLength": 254, "nullable": true, "rules": { "validation": { "format": "email" } } },
+          { "ref": "pending_name", "type": "text", "maxLength": 120, "nullable": true },
+          { "ref": "offer_until", "type": "timestamptz", "nullable": true, "rules": { "stamp": { "set": { "addMinutes": { "hours": { "table": "settings", "column": "offer_hours" } } }, "on": { "column": "status", "values": ["offered"] } } } },
+          { "ref": "holder_customer_id", "type": "fk", "references": "customers", "nullable": true },
+          { "ref": "holder_email", "type": "text", "maxLength": 254, "nullable": true, "rules": { "stamp": { "set": { "copy": "pending_email" }, "on": { "columns": ["holder_customer_id"] } } } },
+          { "ref": "holder_name", "type": "text", "maxLength": 120, "nullable": true, "rules": { "stamp": { "set": { "copy": "pending_name" }, "on": { "columns": ["holder_customer_id"] } } } },
+          { "ref": "price", "type": "decimal", "scale": 2, "nullable": true, "rules": { "copy": { "via": "ticket_type_id", "from": "price" } } }
+        ],
+        "states": {
+          "column": "status",
+          "initial": "valid",
+          "strict": true,
+          "moves": { "valid": ["offered", "checked_in"], "offered": ["valid", "checked_in"] },
+          "timed": [{ "from": "offered", "to": "valid", "at": { "column": "offer_until" } }]
+        }
+      },
+      {
+        "ref": "messages",
+        "columns": [
+          { "ref": "id", "type": "int", "role": "pk" },
+          { "ref": "kind", "type": "enum", "enum": ["ticket-offered"] },
+          { "ref": "status", "type": "enum", "enum": ["queued", "sent", "failed", "skipped"], "default": "queued" },
+          { "ref": "to", "type": "text", "maxLength": 254, "nullable": true },
+          { "ref": "customer_id", "type": "fk", "references": "customers", "nullable": true },
+          { "ref": "ticket_id", "type": "fk", "references": "tickets", "nullable": true }
+        ]
+      }
+    ]
+  },
+  "pages": [
+    { "ref": "home", "template": "page-crud", "title": { "key": "t", "fallback": "Tickets" }, "nav": { "group": "records", "icon": "list", "order": 1 }, "bindings": { "rows": "tickets" } }
+  ],
+  "frontends": [
+    { "side": "staff", "kind": "spa", "entry": "index.html" },
+    { "side": "customer", "kind": "spa", "entry": "index.html" }
+  ],
+  "publicKeys": { "link": {}, "ticket": {} },
+  "publicAccess": [
+    {
+      "table": "customers",
+      "methods": ["GET", "PATCH"],
+      "select": ["name", "email"],
+      "writable": ["name"],
+      "claim": { "verify": "email-link", "email": "email" },
+      "humanCheck": true,
+      "forget": { "columns": ["email", "name", "phone"], "stamp": "forgotten_at" }
+    },
+    { "table": "orders", "methods": ["GET"], "level": "verified", "claimedBy": { "table": "customers", "column": "customer_id" }, "select": ["id", "total", "ticket_count"] },
+    {
+      "table": "orders",
+      "methods": ["POST"],
+      "humanCheck": true,
+      "level": "verified",
+      "select": ["id", "total", "ticket_count"],
+      "writable": ["event_id", "email", "name", "client_key"],
+      "requires": ["email", "name"],
+      "claimedBy": { "table": "customers", "column": "customer_id", "optional": true },
+      "identity": { "table": "customers", "email": "email", "link": "customer_id" },
+      "shareLink": "link_token",
+      "anonymous": { "perValue": { "columns": ["email"], "n": 10 } },
+      "children": {
+        "tickets": {
+          "via": "order_id",
+          "writable": ["ticket_type_id"],
+          "select": ["id", "code", "price"],
+          "min": 1,
+          "max": 12,
+          "agrees": [{ "column": "ticket_type_id", "path": ["event_id"], "eq": { "parent": "event_id" } }]
+        }
+      },
+      "dryRun": true,
+      "expect": "total",
+      "clientKey": "client_key"
+    },
+    {
+      "table": "tickets",
+      "methods": ["GET", "PATCH"],
+      "level": "verified",
+      "visibleWith": { "table": "orders", "via": "order_id" },
+      "select": ["id", "status", "code", "holder_name", "holder_email", "pending_name", "pending_email", "offer_until"],
+      "writable": ["status", "pending_email", "pending_name"],
+      "writableValues": { "status": ["offered"] },
+      "writableWhen": { "status": ["valid"], "holder_customer_id": [null] },
+      "withhold": { "columns": ["code", "holder_email"], "unlessHolder": "holder_customer_id" }
+    },
+    {
+      "table": "tickets",
+      "methods": ["GET"],
+      "level": "verified",
+      "claimedBy": { "table": "customers", "column": "holder_customer_id" },
+      "select": ["id", "status", "code", "holder_name"]
+    },
+    {
+      "table": "orders",
+      "key": "link",
+      "methods": ["GET", "PATCH"],
+      "select": ["id", "total", "ticket_count"],
+      "writable": ["note"],
+      "claim": { "by": "token", "column": "link_token", "stopped": "link_stopped", "own": true, "address": "email" }
+    },
+    {
+      "table": "tickets",
+      "key": "link",
+      "methods": ["GET"],
+      "level": "verified",
+      "visibleWith": { "table": "orders", "via": "order_id" },
+      "select": ["id", "status", "code", "holder_name", "holder_email"],
+      "withhold": { "columns": ["code", "holder_email"], "unlessHolder": "holder_customer_id" }
+    },
+    {
+      "table": "tickets",
+      "key": "ticket",
+      "methods": ["GET", "PATCH"],
+      "select": ["id", "status", "pending_name", "offer_until"],
+      "writable": ["status"],
+      "writableValues": { "status": ["valid"] },
+      "writableWhen": { "status": ["offered"] },
+      "claim": { "by": "token", "column": "link_token", "own": true, "address": ["pending_email", "holder_email"] },
+      "identity": { "table": "customers", "email": "pending_email", "link": "holder_customer_id" }
+    },
+    { "table": "events", "methods": ["GET"], "select": ["id", "name", "starts_at"] },
+    { "table": "ticket_types", "methods": ["GET"], "select": ["id", "event_id", "name", "price"] }
+  ],
+  "outbox": {
+    "table": "messages",
+    "columns": { "kind": "kind", "status": "status", "to": "to" },
+    "links": { "customer": "customer_id", "ticket": "ticket_id" },
+    "recipient": { "via": "customer_id", "table": "customers", "email": "email", "name": "name" },
+    "kinds": { "ticket-offered": "boxoffice-ticket-offered" },
+    "producers": [
+      { "kind": "ticket-offered", "link": "ticket_id", "onChange": { "table": "tickets", "column": "status", "to": "offered" }, "recipient": { "column": "pending_email", "name": "pending_name" } }
+    ]
+  },
+  "emailTemplates": [
+    {
+      "key": "boxoffice-ticket-offered",
+      "name": "Ticket offered",
+      "locales": {
+        "en-US": { "subject": "A ticket is waiting for you", "blocks": [{ "block": "email.text", "data": { "text": "{{ticket.pending_name}}, a ticket is waiting for you: {{manage_url}}#{{ticket.link_token}}" } }] }
+      }
+    }
+  ]
+}
