@@ -161,6 +161,21 @@ export const envSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_META_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   /**
+   * How many connections the meta store's pool may open, on a Postgres or MySQL meta
+   * store (an embedded SQLite one has no pool). Unset: 10. Lower it when the meta
+   * database is shared, or its role carries a connection limit — a pool larger than
+   * the limit fails its extra connections instead of waiting for a free one.
+   */
+  ADMINIUM_META_POOL_MAX: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(100).optional()),
+  /**
+   * How many connections each pool opens against a source database. A source keeps
+   * one long-lived pool for pages and the API, and opens short-lived ones to read its
+   * schema and collect statistics; each is this size. Unset: 10 for the long-lived
+   * pool and the statistics one, 5 for schema reads — up to 25 at once. For a source
+   * reached through a tunnel, a pooler, or a role with a connection limit.
+   */
+  ADMINIUM_SOURCE_POOL_MAX: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(100).optional()),
+  /**
    * Files, exports, backups, add-on packages, the bootstrap file and the
    * embedded meta store.
    *

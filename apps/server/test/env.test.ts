@@ -423,6 +423,21 @@ describe('loadEnv — ADMINIUM_CSP_IMG_HOSTS', () => {
   });
 });
 
+describe('loadEnv — pool sizes', () => {
+  it('reads ADMINIUM_META_POOL_MAX and ADMINIUM_SOURCE_POOL_MAX as whole numbers, unset when empty', () => {
+    const env = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_META_POOL_MAX: '4', ADMINIUM_SOURCE_POOL_MAX: '3' }, makeStderr());
+    expect([env.ADMINIUM_META_POOL_MAX, env.ADMINIUM_SOURCE_POOL_MAX]).toEqual([4, 3]);
+    const unset = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_META_POOL_MAX: '', ADMINIUM_SOURCE_POOL_MAX: '' }, makeStderr());
+    expect([unset.ADMINIUM_META_POOL_MAX, unset.ADMINIUM_SOURCE_POOL_MAX]).toEqual([undefined, undefined]);
+  });
+
+  it('refuses a size that is not a whole number from 1 to 100', () => {
+    for (const bad of ['0', '-2', '2.5', 'many', '101']) {
+      expect(() => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_SOURCE_POOL_MAX: bad }, makeStderr())).toThrow(EnvValidationError);
+    }
+  });
+});
+
 describe('loadEnv — fail-fast behavior', () => {
   it('throws EnvValidationError (never process.exit) on a missing secret', () => {
     const exitSpy = vi

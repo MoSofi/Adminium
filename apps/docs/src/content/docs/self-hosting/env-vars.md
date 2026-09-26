@@ -17,6 +17,8 @@ half-configured and fail later.
 | `PORT` | No | `4600` | Listen port. Integer 1–65535. |
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
+| `ADMINIUM_META_POOL_MAX` | No | `10` | How many connections a Postgres or MySQL meta store's pool may open. Integer 1–100. See below. |
+| `ADMINIUM_SOURCE_POOL_MAX` | No | *(per pool: 10, schema reads 5)* | How many connections each pool opened against a source database may hold. Integer 1–100. See below. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
 | `ADMINIUM_DATA_DIR` | No | `./data`, or `~/.adminium` | Writable directory for files, exports, backups, installed apps and add-ons, and the embedded meta store. Put it on a persistent disk: a host that empties it on every deploy loses installed apps and add-ons, whatever else is configured. Docker and the desktop app set it for you. A CLI run that does not: `./data` when the working directory is a project (it holds a `package.json`, a `.git`, a `Dockerfile`, a `go.mod`…) or already holds an Adminium instance, and `~/.adminium` otherwise — so `npx @adminiumjs/adminium try` from a home directory leaves nothing behind in it. A service should always set it, since its working directory decides the default. |
 | `ADMINIUM_STORAGE_URL` | No | *(this server's disk)* | Where uploaded and generated files live. Seeded once, on a boot with no storage destination configured. See below. |
@@ -116,6 +118,25 @@ The meta store's engine is independent of your source database's.
 want an admin panel **for** is a different thing, and it has its own variable —
 `ADMINIUM_SOURCE_URL`, below.
 :::
+
+## `ADMINIUM_META_POOL_MAX` and `ADMINIUM_SOURCE_POOL_MAX`
+
+Adminium keeps a pool of database connections for its meta store (10 by default, on Postgres or
+MySQL; an embedded SQLite meta store has none), and for each connected source a long-lived pool
+for pages and the API (10) plus short-lived ones to read the schema (5) and collect statistics
+(10) — up to 25 connections to one source at a busy moment.
+
+Lower them when that is more than the database allows you: a source reached through a
+connection pooler or an SSH tunnel, a managed database with a small connection limit, or a
+login role with a `CONNECTION LIMIT`. A pool larger than a role's limit does not wait for a
+free connection — its extra connections are refused, and the page asking for one fails. Keep
+`ADMINIUM_SOURCE_POOL_MAX` at or below a third of the data role's limit, since the three pools
+can be open together; `ADMINIUM_META_POOL_MAX` below the meta role's.
+
+```bash
+ADMINIUM_META_POOL_MAX=4
+ADMINIUM_SOURCE_POOL_MAX=2
+```
 
 ## `ADMINIUM_STORAGE_URL`
 

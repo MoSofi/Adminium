@@ -164,6 +164,7 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     metaUrl: env.ADMINIUM_META_URL,
     dataDir: env.ADMINIUM_DATA_DIR,
     secret: env.ADMINIUM_SECRET,
+    poolSize: env.ADMINIUM_META_POOL_MAX,
   });
 
   await registerAdapters(adapterRegistry);
@@ -174,6 +175,7 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     // The embedded fallback has no DSN to collide with.
     metaDsn: metaStore.source === 'embedded' ? null : metaStore.url,
     ...(opts.blockLoopback === undefined ? {} : { blockLoopback: opts.blockLoopback }),
+    sourcePoolMax: env.ADMINIUM_SOURCE_POOL_MAX,
   });
 
   // The placement pre-flight, and it has to be HERE — before `start`/`init` call
