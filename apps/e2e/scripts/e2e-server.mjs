@@ -84,6 +84,10 @@ const OWN_PRINCIPALS = [
 const OWN_PRINCIPAL_PASSWORD = 'adminium-e2e-password';
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';
 const E2E_DATABASE = process.env.E2E_DATABASE ?? 'adminium_e2e';
+// Spliced into DDL below, so only a plain identifier (tests/constants.ts checks the same).
+if (!/^[a-z_][a-z0-9_]{0,62}$/.test(E2E_DATABASE)) {
+  throw new Error(`E2E_DATABASE must be a lowercase identifier, got ${JSON.stringify(E2E_DATABASE)}`);
+}
 /**
  * The SMTP sink: an in-process `smtp-server` on loopback, plain (no
  * STARTTLS, no AUTH — the transport drops `requireTLS` for a loopback host

@@ -133,8 +133,15 @@ export function ownStorageStatePath(key: OwnPrincipal): string {
   );
 }
 
-/** postgres/mysql: database (re)created by the boot script on the service. */
-export const E2E_DATABASE = 'adminium_e2e';
+/**
+ * postgres/mysql: database (re)created by the boot script on the service.
+ * `E2E_DATABASE` lets concurrent runs on one server keep apart; the name is
+ * spliced into DDL, so only a plain identifier is accepted.
+ */
+export const E2E_DATABASE = process.env['E2E_DATABASE'] ?? 'adminium_e2e';
+if (!/^[a-z_][a-z0-9_]{0,62}$/.test(E2E_DATABASE)) {
+  throw new Error(`E2E_DATABASE must be a lowercase identifier, got ${JSON.stringify(E2E_DATABASE)}`);
+}
 
 /** The SMTP sink's ports derive from the API port (scripts/e2e-server.mjs does the same arithmetic). */
 export const SMTP_PORT = Number(process.env['E2E_SMTP_PORT'] ?? PORT + 100);
