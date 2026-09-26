@@ -35,6 +35,7 @@ import { generateCode, isUniqueViolation } from '../../crud/decided-columns.js';
 import { audited } from '../../audit/coverage.js';
 import { parseDefinition } from '../../public-api/endpoint.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
+import { isPrivilegeRefusal, privilegeRefusal, writeRefused } from '../../connections/privileges.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { applyDerivedFields } from '../../crud/derive.js';
 import { applyMeasureMask, fetchMeasureValues } from '../../crud/measures.js';
@@ -233,6 +234,9 @@ export function mapDbError(error: unknown, table?: ResolvedTable): never {
       detail: dbError.detail ?? null,
     });
   }
+  // Checked up front where the rights are known; this is the database saying it
+  // itself (rights unknown, or revoked within the last minute).
+  if (isPrivilegeRefusal(error)) throw privilegeRefusal(table);
   if (table !== undefined) {
     const refusal = readDbRefusal(error, table);
     if (refusal !== null) {
@@ -373,6 +377,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             'READ_ONLY_MODE',
             { table: table.id },
           );
+        }
+        if (writeRefused(await manager.tablePrivileges(connection), table.id, action)) {
+          throw privilegeRefusal(table);
         }
       }
       // The row is already in hand from `mustFind` above — passing it spares

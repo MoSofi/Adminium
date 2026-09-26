@@ -62,6 +62,7 @@ import {
   type MetaDb,
   type Page,
 } from '@adminium/meta';
+import type { TablePrivilegeMap } from '@adminium/engine/adapter';
 
 import {
   ConflictError,
@@ -70,6 +71,7 @@ import {
   ValidationFailedError,
 } from '../../errors.js';
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
+import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
 import { columnFactsFor } from './column-facts.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
@@ -115,6 +117,13 @@ export interface PagesRoutesDeps {
    * with nothing derived from them to invalidate.
    */
   onPageChanged?: ((connectionId: string | null) => void) | undefined;
+  /**
+   * What the connection's data role may do to each table
+   * (`ConnectionManager.tablePrivileges`), so a table the database will not let
+   * it change does not offer New, Edit or Delete. Absent, or null for a
+   * connection, and the RBAC answer stands alone.
+   */
+  tablePrivileges?: ((connectionId: string) => Promise<TablePrivilegeMap | null>) | undefined;
 }
 
 /** The acting session user id, or null for keyless/API-key principals. */
@@ -611,12 +620,22 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         // RBAC carry them; when absent the client keeps its permissive default
         // (absent means "not computed", never "denied").
         const source = sourceBinding(page);
+        // AND the database's own grants: a false there is the same refusal a
+        // write gets from the data routes.
+        const rights =
+          source !== null && deps.tablePrivileges !== undefined ? await deps.tablePrivileges(source.connectionId) : null;
         const tableCapabilities =
           source !== null && typeof request.can === 'function'
             ? {
-                canCreate: await request.can(`table:${source.connectionId}:${source.table}:create`),
-                canUpdate: await request.can(`table:${source.connectionId}:${source.table}:update`),
-                canDelete: await request.can(`table:${source.connectionId}:${source.table}:delete`),
+                canCreate:
+                  (await request.can(`table:${source.connectionId}:${source.table}:create`)) &&
+                  !writeRefused(rights, source.table, 'create'),
+                canUpdate:
+                  (await request.can(`table:${source.connectionId}:${source.table}:update`)) &&
+                  !writeRefused(rights, source.table, 'update'),
+                canDelete:
+                  (await request.can(`table:${source.connectionId}:${source.table}:delete`)) &&
+                  !writeRefused(rights, source.table, 'delete'),
                 // The same grant `POST /files` checks. Resolved here rather
                 // than derived from `canUpdate` on the client, because a
                 // sidecar attach ignores the source's `read_only` flag — the

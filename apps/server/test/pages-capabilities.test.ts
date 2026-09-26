@@ -11,7 +11,9 @@
  *   as exactly that, not a blanket copy of one check);
  * - super-admins bypass to all-true;
  * - a source-less envelope carries no capability fields at all — absent means
- *   "not computed", which the client treats as its permissive default.
+ *   "not computed", which the client treats as its permissive default;
+ * - the database's own grants are ANDed in: a table the connection's role may
+ *   read but not change offers no write affordance, even to a super-admin.
  *
  * `canUnmask` rides the same block: the crud/mask.ts UNMASK_PERMISSION check
  * the data routes mask rows with (admins yes, editors/viewers no), so the grid
@@ -34,7 +36,7 @@ import {
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
-import { pagesRoutes } from '../src/routes/pages/index.js';
+import { pagesRoutes, type PagesRoutesDeps } from '../src/routes/pages/index.js';
 import { makeEnv } from './helpers.js';
 
 interface Harness {
@@ -77,7 +79,7 @@ const SOURCELESS_ENVELOPE = {
   config: { layout: { version: 1, items: [] } },
 };
 
-async function buildHarness(): Promise<Harness> {
+async function buildHarness(tablePrivileges?: PagesRoutesDeps['tablePrivileges']): Promise<Harness> {
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
 
@@ -155,7 +157,7 @@ async function buildHarness(): Promise<Harness> {
   await app.register(rbacPlugin, { meta });
   await app.register(
     async (api) => {
-      await api.register(pagesRoutes({ meta }));
+      await api.register(pagesRoutes({ meta, tablePrivileges }));
     },
     { prefix: '/api/v1' },
   );
@@ -232,5 +234,26 @@ describe('per-table write capabilities on GET /api/v1/pages/:pageId', () => {
         canUnmask: undefined,
       });
     }
+  });
+
+  it("the database's grants are ANDed in, per action", async () => {
+    await t.app.close();
+    await t.meta.db.destroy();
+    t = await buildHarness(async (connectionId) =>
+      connectionId === 'conn_1' ? { 'public.invoices': { insert: true, update: false, delete: false } } : null,
+    );
+    // RBAC alone would say all-true for a super-admin; the role may only insert.
+    expect(capabilitiesOf((await get(t.superAdmin, t.crudPageId)).json())).toEqual({
+      canCreate: true,
+      canUpdate: false,
+      canDelete: false,
+      canUnmask: true,
+    });
+    // Grants never widen what RBAC refused.
+    expect(capabilitiesOf((await get(t.viewer, t.crudPageId)).json())).toMatchObject({
+      canCreate: false,
+      canUpdate: false,
+      canDelete: false,
+    });
   });
 });

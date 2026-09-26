@@ -25,6 +25,7 @@ import {
   type ModelWarning,
   type Relation,
   type TableModel,
+  type TablePrivilegeMap,
 } from '@adminium/engine/adapter';
 
 import { classifyDefault, mapPostgresType } from './type-map.js';
@@ -55,10 +56,17 @@ export const POSTGRES_CAPABILITIES: AdapterCapabilities = {
 };
 
 /**
- * Session probe. Read-only detection per the M3 spec: recovery mode
- * (`pg_is_in_recovery()`), the session default
- * (`default_transaction_read_only`), or the role lacking CREATE on the
- * database (`has_database_privilege`).
+ * Session probe. A connection is read-only when the server is in recovery
+ * (`pg_is_in_recovery()`), the session defaults to read-only transactions
+ * (`default_transaction_read_only`), or the role can neither write to any
+ * user table — no INSERT or DELETE on one, no INSERT or UPDATE on any of its
+ * columns — nor create one (CREATE on the database).
+ *
+ * Lacking CREATE alone does not make a role read-only: a role granted only DML
+ * on its tables — least privilege, the recommended way to connect — writes rows
+ * perfectly well, and treating it as read-only refused every save. And having
+ * CREATE keeps a role writable on a database with no tables yet, which it can
+ * fill. CREATE also answers `can_create`, which gates schema changes.
  */
 export const PROBE_SQL = `
 SELECT current_setting('server_version') AS server_version,
@@ -67,6 +75,18 @@ SELECT current_setting('server_version') AS server_version,
        pg_catalog.pg_is_in_recovery() AS in_recovery,
        current_setting('default_transaction_read_only') AS default_read_only,
        pg_catalog.has_database_privilege(pg_catalog.current_database(), 'CREATE') AS can_create,
+       EXISTS (
+         SELECT 1
+           FROM pg_catalog.pg_class c
+           JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+          WHERE c.relkind IN ('r', 'p')
+            AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+            AND n.nspname !~ '^pg_toast'
+            AND (pg_catalog.has_table_privilege(c.oid, 'INSERT')
+              OR pg_catalog.has_table_privilege(c.oid, 'DELETE')
+              OR pg_catalog.has_any_column_privilege(c.oid, 'INSERT')
+              OR pg_catalog.has_any_column_privilege(c.oid, 'UPDATE'))
+       ) AS can_write_any,
        COALESCE(
          (SELECT s.ssl FROM pg_catalog.pg_stat_ssl s WHERE s.pid = pg_catalog.pg_backend_pid()),
          false
@@ -78,6 +98,8 @@ export interface ProbeResult {
   databaseName: string;
   readOnly: boolean;
   canCreate: boolean;
+  /** Whether the role may write to at least one user table. */
+  canWriteAny: boolean;
   ssl: boolean;
 }
 
@@ -86,14 +108,80 @@ export function interpretProbe(row: CatalogRow): ProbeResult {
   const inRecovery = row['in_recovery'] === true || row['in_recovery'] === 't';
   const defaultReadOnly = row['default_read_only'] === 'on';
   const canCreate = row['can_create'] === true || row['can_create'] === 't';
+  const canWriteAny = row['can_write_any'] === true || row['can_write_any'] === 't';
   return {
     serverVersion: String(row['server_version'] ?? ''),
     roleName: String(row['role_name'] ?? ''),
     databaseName: String(row['database_name'] ?? ''),
-    readOnly: inRecovery || defaultReadOnly || !canCreate,
+    readOnly: inRecovery || defaultReadOnly || (!canWriteAny && !canCreate),
     canCreate,
+    canWriteAny,
     ssl: row['ssl'] === true || row['ssl'] === 't',
   };
+}
+
+/**
+ * The connecting role's rights on every user table, and — only for tables where
+ * they differ between columns — on each column. Read with the role's own
+ * `has_*_privilege` answers, so grants through role membership and PUBLIC count,
+ * and an owner or superuser sees everything allowed.
+ */
+export const TABLE_PRIVILEGES_SQL = `
+SELECT n.nspname AS schema_name,
+       c.relname AS table_name,
+       pg_catalog.has_table_privilege(c.oid, 'INSERT') AS can_insert,
+       pg_catalog.has_table_privilege(c.oid, 'UPDATE') AS can_update,
+       pg_catalog.has_table_privilege(c.oid, 'DELETE') AS can_delete,
+       pg_catalog.has_any_column_privilege(c.oid, 'INSERT') AS can_insert_some,
+       pg_catalog.has_any_column_privilege(c.oid, 'UPDATE') AS can_update_some
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+ WHERE c.relkind IN ('r', 'p')
+   AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+   AND n.nspname !~ '^pg_toast'`;
+
+/** Per-column rights, for the tables {@link TABLE_PRIVILEGES_SQL} found partial. */
+export const COLUMN_PRIVILEGES_SQL = `
+SELECT n.nspname AS schema_name,
+       c.relname AS table_name,
+       a.attname AS column_name,
+       pg_catalog.has_column_privilege(c.oid, a.attnum, 'INSERT') AS can_insert,
+       pg_catalog.has_column_privilege(c.oid, a.attnum, 'UPDATE') AS can_update
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+ WHERE c.relkind IN ('r', 'p')
+   AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+   AND n.nspname !~ '^pg_toast'
+   AND (NOT pg_catalog.has_table_privilege(c.oid, 'INSERT') AND pg_catalog.has_any_column_privilege(c.oid, 'INSERT')
+     OR NOT pg_catalog.has_table_privilege(c.oid, 'UPDATE') AND pg_catalog.has_any_column_privilege(c.oid, 'UPDATE'))`;
+
+const truthy = (value: unknown): boolean => value === true || value === 't';
+
+/** Interpret the two privilege queries (executor-agnostic, pure). */
+export function interpretTablePrivileges(
+  tableRows: readonly CatalogRow[],
+  columnRows: readonly CatalogRow[],
+): TablePrivilegeMap {
+  const map: TablePrivilegeMap = {};
+  for (const row of tableRows) {
+    const id = `${String(row['schema_name'])}.${String(row['table_name'])}`;
+    map[id] = {
+      // A column-level grant lets the role insert or update SOME columns: the
+      // table accepts such writes, and the columns say which.
+      insert: truthy(row['can_insert']) || truthy(row['can_insert_some']),
+      update: truthy(row['can_update']) || truthy(row['can_update_some']),
+      delete: truthy(row['can_delete']),
+    };
+  }
+  for (const row of columnRows) {
+    const id = `${String(row['schema_name'])}.${String(row['table_name'])}`;
+    const table = map[id];
+    if (table === undefined) continue;
+    table.columns ??= {};
+    table.columns[String(row['column_name'])] = { insert: truthy(row['can_insert']), update: truthy(row['can_update']) };
+  }
+  return map;
 }
 
 /** Migration/meta tables hidden behind "show system tables". */

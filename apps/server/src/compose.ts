@@ -1496,7 +1496,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // The block cache is derived from page config, so a page write must drop
       // it — otherwise a column configured as a file column is invisible to the
       // next upload for up to 30 seconds.
-      await api.register(pagesRoutes({ meta, onPageChanged: () => { columnBlocks.clear(); } }));
+      await api.register(
+        pagesRoutes({
+          meta,
+          onPageChanged: () => { columnBlocks.clear(); },
+          // A page whose connection is gone still loads; it just knows no grants.
+          tablePrivileges: async (id) => manager.connections.findById(id).then((row) => (row === null ? null : manager.tablePrivileges(row))),
+        }),
+      );
       if (project !== null) {
         await api.register(
           projectRoutes({

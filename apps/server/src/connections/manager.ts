@@ -26,6 +26,7 @@ import {
   type CapabilityProbeResult,
   type DatabaseAdapter,
   type QueryEngine,
+  type TablePrivilegeMap,
   type TestResult,
 } from '@adminium/engine/adapter';
 import type { Dialect } from '@adminium/engine';
@@ -33,6 +34,7 @@ import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@
 
 import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase } from './dsn.js';
+import { PRIVILEGES_TTL_MS } from './privileges.js';
 
 /** Every meta table is `adminium_`-prefixed. */
 export const META_TABLE_PREFIX = 'adminium_';
@@ -101,6 +103,7 @@ export class ConnectionManager {
   readonly #pool: { poolMax?: number };
   readonly connections: ReturnType<typeof connectionsRepo>;
   readonly #dataHandles = new Map<string, Promise<DataHandle>>();
+  readonly #privileges = new Map<string, { at: number; rights: Promise<TablePrivilegeMap | null> }>();
 
   constructor(opts: ConnectionManagerOptions) {
     this.#meta = opts.meta;
@@ -384,8 +387,43 @@ export class ConnectionManager {
     return { db, engine, dialect: connection.engine as Dialect };
   }
 
+  /**
+   * What the DATA role may do to each table (`connections/privileges.ts`), read
+   * through a short-lived data-role adapter and trusted for a minute — long
+   * enough that a burst of writes asks once, short enough that a GRANT is seen
+   * without a restart. Null when nobody can say: a schema-file connection, an
+   * adapter without the probe, or a probe that failed.
+   */
+  async tablePrivileges(connection: Connection): Promise<TablePrivilegeMap | null> {
+    const cached = this.#privileges.get(connection.id);
+    if (cached !== undefined && Date.now() - cached.at < PRIVILEGES_TTL_MS) return cached.rights;
+    const rights = this.#readPrivileges(connection);
+    this.#privileges.set(connection.id, { at: Date.now(), rights });
+    return rights;
+  }
+
+  async #readPrivileges(connection: Connection): Promise<TablePrivilegeMap | null> {
+    if (connection.sourceKind !== 'dsn') return null;
+    let adapter: DatabaseAdapter<'data'> | undefined;
+    try {
+      adapter = await this.dataAdapter(connection.id);
+      if (adapter.probeTablePrivileges === undefined) return null;
+      return await adapter.probeTablePrivileges();
+    } catch {
+      // Unknown refuses nothing; the database still does.
+      return null;
+    } finally {
+      try {
+        await adapter?.close();
+      } catch {
+        // Already released; a failed close must not fail the write that asked.
+      }
+    }
+  }
+
   /** Tear down a connection's pooled handles (connection delete / DSN change). */
   async dispose(connectionId: string): Promise<void> {
+    this.#privileges.delete(connectionId);
     const pending = this.#dataHandles.get(connectionId);
     this.#dataHandles.delete(connectionId);
     if (pending === undefined) return;

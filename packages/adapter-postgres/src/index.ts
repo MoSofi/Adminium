@@ -34,6 +34,7 @@ import {
   type Row,
   type SampleOptions,
   type StatsResult,
+  type TablePrivilegeMap,
   type TableRef,
   type TestResult,
 } from '@adminium/engine/adapter';
@@ -41,8 +42,11 @@ import {
 import { toAdapterError } from './errors.js';
 import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, splitDsnOptions } from './session.js';
 import {
+  COLUMN_PRIVILEGES_SQL,
   interpretProbe,
+  interpretTablePrivileges,
   introspectPostgres,
+  TABLE_PRIVILEGES_SQL,
   POSTGRES_CAPABILITIES,
   PROBE_SQL,
   type CatalogRow,
@@ -257,6 +261,13 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
       serverVersion: probe.serverVersion,
       currentRole: { name: probe.roleName, readOnly: probe.readOnly },
     };
+  }
+
+  /** The role's rights on every user table; column rights only where they differ. */
+  async probeTablePrivileges(): Promise<TablePrivilegeMap> {
+    const tables = await this.#query(TABLE_PRIVILEGES_SQL);
+    const columns = await this.#query(COLUMN_PRIVILEGES_SQL);
+    return interpretTablePrivileges(tables, columns);
   }
 
   /** SCHEMA ONLY — reads `pg_catalog` exclusively. */

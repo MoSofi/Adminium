@@ -349,6 +349,27 @@ export type QueryPort = QueryEngine;
  * schema snapshot before compilation (unknown table/column → typed
  * `SCHEMA_DRIFT`), values are always parameterized.
  */
+/**
+ * What the connecting role may do to each table, as the database's own grants say.
+ *
+ * Kept apart from {@link DatabaseModel} on purpose: the model describes the schema and is
+ * hashed to notice schema changes, and a GRANT is not one. Keyed by the table's qualified id
+ * (`schema.name`, the model's `TableModel.id`). A table the map does not name was not
+ * probed; callers treat it as writable and let the database decide.
+ */
+export interface TablePrivileges {
+  insert: boolean;
+  update: boolean;
+  delete: boolean;
+  /**
+   * Present only when the role's rights differ between columns (column-level grants):
+   * each column's own INSERT and UPDATE. Absent ⇒ every column follows the table.
+   */
+  columns?: Record<string, { insert: boolean; update: boolean }>;
+}
+
+export type TablePrivilegeMap = Record<string, TablePrivileges>;
+
 export interface DatabaseAdapter<Role extends ConnectionRole = ConnectionRole> {
   readonly dialect: Dialect;
   /** Static, dialect-level capabilities (probe refines per-connection). */
@@ -360,6 +381,12 @@ export interface DatabaseAdapter<Role extends ConnectionRole = ConnectionRole> {
   test(): Promise<TestResult>;
   /** Runs on every connect/test; results persist on the connection row. */
   probeCapabilities(): Promise<CapabilityProbeResult>;
+  /**
+   * The role's rights on every user table (see {@link TablePrivilegeMap}). Optional: an
+   * adapter without it leaves every table writable as far as Adminium knows, and the
+   * database refuses what the role may not do.
+   */
+  probeTablePrivileges?(): Promise<TablePrivilegeMap>;
 
   /** SCHEMA ONLY — reads catalog/pragma namespaces exclusively. */
   introspect(this: DatabaseAdapter<'introspect'>, opts?: IntrospectOptions): Promise<DatabaseModel>;

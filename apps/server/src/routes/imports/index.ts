@@ -29,6 +29,7 @@ import {
 } from '@adminium/meta';
 
 import type { ConnectionManager } from '../../connections/manager.js';
+import { privilegeRefusal, writeRefused } from '../../connections/privileges.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { coerceCell } from '../../data-io/coerce.js';
 import { parseCsv } from '../../data-io/csv.js';
@@ -271,6 +272,15 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
             'READ_ONLY_MODE',
             { table: table.id },
           );
+        }
+        // Refused up front rather than once per row: an import the role may not
+        // write would otherwise fail every row with the database's own words.
+        const rights = await manager.tablePrivileges(connection);
+        if (
+          writeRefused(rights, table.id, 'create') ||
+          ((options.mode ?? 'insert') === 'upsert' && writeRefused(rights, table.id, 'update'))
+        ) {
+          throw privilegeRefusal(table);
         }
         if ((options.mode ?? 'insert') === 'upsert') {
           const match = options.matchColumn ?? null;

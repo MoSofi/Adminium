@@ -86,7 +86,7 @@ describe.skipIf(!driverReady)('PostgresAdapter (pg driver)', () => {
     expect(probe.currentRole.readOnly).toBe(false);
   });
 
-  it('probeCapabilities() detects a read-only role (no CREATE on the db)', async () => {
+  it('probeCapabilities() detects a read-only role (it may write no table)', async () => {
     const adapter = new mod.PostgresAdapter<'introspect'>('introspect');
     await adapter.connect({ role: 'introspect', dsn: dsnFor(db, roRole) });
     try {
@@ -259,5 +259,74 @@ describe.skipIf(!driverReady)('collectTableStats (data role — statistics)', ()
     } finally {
       await introspect.close();
     }
+  });
+});
+
+describe.skipIf(!driverReady)('PostgresAdapter — table grants', () => {
+  let mod: typeof import('../src/index.js');
+  let db = '';
+  const suffix = Math.random().toString(36).slice(2, 8);
+  const dml = `adminium_test_dml_${suffix}`;
+  const none = `adminium_test_none_${suffix}`;
+
+  beforeAll(async () => {
+    mod = await import('../src/index.js');
+    db = await createTestDatabase(false);
+    await psql(`CREATE ROLE ${dml} LOGIN; CREATE ROLE ${none} LOGIN;`);
+    await psql(
+      `CREATE TABLE public.items (id serial PRIMARY KEY, title text, status text, updated_at timestamptz);
+       CREATE TABLE public.releases (id serial PRIMARY KEY, version text);
+       CREATE TABLE public.notes (id serial PRIMARY KEY, body text, author text);
+       GRANT USAGE ON SCHEMA public TO ${dml}, ${none};
+       GRANT SELECT, INSERT, UPDATE ON public.items TO ${dml};
+       GRANT USAGE ON SEQUENCE public.items_id_seq TO ${dml};
+       GRANT SELECT ON public.releases TO ${dml}, ${none};
+       GRANT SELECT, DELETE ON public.notes TO ${dml};
+       GRANT UPDATE (body) ON public.notes TO ${dml};`,
+      { db },
+    );
+  }, 60_000);
+
+  afterAll(async () => {
+    if (db !== '') await dropTestDatabase(db);
+    await psql(`DROP ROLE IF EXISTS ${dml}; DROP ROLE IF EXISTS ${none};`);
+  });
+
+  async function withRole<T>(role: string, fn: (adapter: DatabaseAdapter<'data'>) => Promise<T>): Promise<T> {
+    const adapter = new mod.PostgresAdapter<'data'>('data');
+    await adapter.connect({ role: 'data', dsn: dsnFor(db, role) });
+    try {
+      return await fn(adapter);
+    } finally {
+      await adapter.close();
+    }
+  }
+
+  it('a role granted only DML on its tables writes: not read-only, and no DDL', async () => {
+    const probe = await withRole(dml, (a) => a.probeCapabilities());
+    expect(probe.currentRole).toEqual({ name: dml, readOnly: false });
+    expect(probe.privileges).toMatchObject({ canWrite: true, canDDL: false });
+  });
+
+  it('a role granted only SELECT is read-only', async () => {
+    const probe = await withRole(none, (a) => a.probeCapabilities());
+    expect(probe.currentRole.readOnly).toBe(true);
+    expect(probe.privileges.canWrite).toBe(false);
+  });
+
+  it('reads each table\'s rights, and each column\'s only where they differ', async () => {
+    const map = await withRole(dml, (a) => a.probeTablePrivileges!());
+    expect(map['public.items']).toEqual({ insert: true, update: true, delete: false });
+    expect(map['public.releases']).toEqual({ insert: false, update: false, delete: false });
+    expect(map['public.notes']).toEqual({
+      insert: false,
+      update: true,
+      delete: true,
+      columns: {
+        id: { insert: false, update: false },
+        body: { insert: false, update: true },
+        author: { insert: false, update: false },
+      },
+    });
   });
 });

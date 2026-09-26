@@ -236,18 +236,27 @@ describe.skipIf(!psqlAvailable)('read-only detection (capability probe SQL)', ()
   const suffix = Math.random().toString(36).slice(2, 8);
   const roRole = `adminium_test_ro_${suffix}`;
   const rwRole = `adminium_test_rw_${suffix}`;
+  const dmlRole = `adminium_test_dml_${suffix}`;
 
   beforeAll(async () => {
     db = await createTestDatabase(false);
     await psql(`CREATE ROLE ${roRole} LOGIN`);
     await psql(`CREATE ROLE ${rwRole} LOGIN`);
     await psql(`GRANT CREATE ON DATABASE ${db} TO ${rwRole}`);
+    await psql(`CREATE ROLE ${dmlRole} LOGIN`);
+    await psql(
+      `CREATE TABLE public.orders (id serial PRIMARY KEY, total numeric);
+       GRANT USAGE ON SCHEMA public TO ${dmlRole};
+       GRANT SELECT, INSERT, UPDATE, DELETE ON public.orders TO ${dmlRole};`,
+      { db },
+    );
   }, 60_000);
 
   afterAll(async () => {
     if (db !== '') await dropTestDatabase(db);
     await psql(`DROP ROLE IF EXISTS ${roRole}`);
     await psql(`DROP ROLE IF EXISTS ${rwRole}`);
+    await psql(`DROP ROLE IF EXISTS ${dmlRole}`);
   });
 
   const probeAs = async (user?: string) => {
@@ -255,7 +264,14 @@ describe.skipIf(!psqlAvailable)('read-only detection (capability probe SQL)', ()
     return interpretProbe(rows[0] ?? {});
   };
 
-  it('a role without CREATE on the database reads as read-only', async () => {
+  it('a role granted only DML on a table reads as writable, without CREATE', async () => {
+    const probe = await probeAs(dmlRole);
+    expect(probe.canCreate).toBe(false);
+    expect(probe.canWriteAny).toBe(true);
+    expect(probe.readOnly).toBe(false);
+  });
+
+  it('a role that may write no table and create none reads as read-only', async () => {
     const probe = await probeAs(roRole);
     expect(probe.roleName).toBe(roRole);
     expect(probe.canCreate).toBe(false);

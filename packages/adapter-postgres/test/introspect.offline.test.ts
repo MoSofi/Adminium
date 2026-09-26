@@ -128,6 +128,7 @@ describe('interpretProbe', () => {
       in_recovery: false,
       default_read_only: 'off',
       can_create: true,
+      can_write_any: true,
       ssl: true,
     });
     const asText = interpretProbe({
@@ -137,6 +138,7 @@ describe('interpretProbe', () => {
       in_recovery: 'f',
       default_read_only: 'off',
       can_create: 't',
+      can_write_any: 't',
       ssl: 't',
     });
     expect(asBool).toEqual(asText);
@@ -145,17 +147,27 @@ describe('interpretProbe', () => {
   });
 
   it('treats a standby (in_recovery) as read-only even when the role can create', () => {
-    const probe = interpretProbe({ in_recovery: true, can_create: true, default_read_only: 'off' });
+    const probe = interpretProbe({ in_recovery: true, can_create: true, can_write_any: true, default_read_only: 'off' });
     expect(probe.readOnly).toBe(true);
     expect(probe.canCreate).toBe(true);
   });
 
   it('treats default_transaction_read_only=on as read-only', () => {
-    expect(interpretProbe({ can_create: true, default_read_only: 'on' }).readOnly).toBe(true);
+    expect(interpretProbe({ can_create: true, can_write_any: true, default_read_only: 'on' }).readOnly).toBe(true);
   });
 
-  it('treats a role that cannot CREATE as read-only', () => {
-    expect(interpretProbe({ can_create: false, default_read_only: 'off' }).readOnly).toBe(true);
+  it('treats a role that may write a table as writable, whether or not it may CREATE', () => {
+    const leastPrivilege = interpretProbe({ can_create: false, can_write_any: true, default_read_only: 'off' });
+    expect(leastPrivilege.readOnly).toBe(false);
+    expect(leastPrivilege.canCreate).toBe(false);
+  });
+
+  it('treats a role that may write no table and create none as read-only', () => {
+    expect(interpretProbe({ can_create: false, can_write_any: false, default_read_only: 'off' }).readOnly).toBe(true);
+  });
+
+  it('keeps a role that may CREATE writable on a database with no table it can write yet', () => {
+    expect(interpretProbe({ can_create: true, can_write_any: false, default_read_only: 'off' }).readOnly).toBe(false);
   });
 
   it('degrades an empty row to empty strings rather than "undefined"', () => {
@@ -166,7 +178,7 @@ describe('interpretProbe', () => {
     expect(probe.roleName).toBe('');
     expect(probe.databaseName).toBe('');
     expect(probe.ssl).toBe(false);
-    expect(probe.readOnly).toBe(true); // can_create absent → not creatable
+    expect(probe.readOnly).toBe(true); // neither flag present → nothing writable, nothing creatable
   });
 });
 
