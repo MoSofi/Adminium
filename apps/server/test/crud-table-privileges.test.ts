@@ -144,6 +144,19 @@ describe.skipIf(!(adapterReady && pgAvailable()))('table grants of the data role
     );
   });
 
+  it('writes nothing for a save with nothing in it', async () => {
+    const res = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/v1/data/${connId}/public.territories/01730`,
+      headers: asUser(t.users.admin),
+      payload: { values: {} },
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    // No stamp, no Undo of nothing.
+    expect(res.json().undoToken).toBeNull();
+    expect(psql(pg.database, "SELECT updated_at IS NULL FROM territories WHERE territory_id = '01730'").trim()).toBe('t');
+  });
+
   it('refuses a column outside the grant, by name', async () => {
     const res = await t.app.inject({
       method: 'PATCH',

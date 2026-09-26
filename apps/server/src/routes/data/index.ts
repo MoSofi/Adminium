@@ -2110,7 +2110,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = await contextFor(request, 'update');
         const pk = parseRecordId(ctx.table, request.params.recordId);
-        const values = allowlistValues(ctx, request.body.values);
+        // An edit form sends only what changed, so an edit of links or line
+        // items alone — or of nothing — arrives with no values at all.
+        const values = Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
@@ -2126,6 +2128,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          * it always took.
          */
         if (links.length === 0 && children.length === 0) {
+          /*
+           * Nothing to change: an edit form saved with nothing touched (it sends
+           * only what changed). Writing anyway would stamp an `updated_at`, run
+           * the hooks and automations, and offer an Undo of nothing.
+           */
+          if (Object.keys(values).length === 0) {
+            return { data: maskRow(before, ctx.table, ctx.unmasked), undoToken: null };
+          }
           const outcome = await writes.update({
             target: ctx.target,
             pk,

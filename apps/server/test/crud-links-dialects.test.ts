@@ -230,6 +230,16 @@ function suite(label: string, ready: boolean, setUp: () => Promise<Engine>, tear
       ]);
     });
 
+    it('saves an edit of the links alone, which sends no values', async () => {
+      // An edit form sends only the fields that changed: here, none of them.
+      const created = await post({ values: { who: 'Barbara' }, links: { [relation]: [1] } });
+      const id = created.json<Mutation>().data['id'];
+      const relinked = await patch(id, { values: {}, links: { [relation]: [2, 3] } });
+      expect(relinked.statusCode, relinked.body).toBe(200);
+      expect((await linksOf(id)).data.map((row) => row.name).sort()).toEqual(['Check-up', 'X-ray']);
+      expect(relinked.json<Mutation>().data['who']).toBe('Barbara');
+    });
+
     it('takes the links away with the record when a create is undone', async () => {
       const created = await post({ values: { who: 'Edsger' }, links: { [relation]: [1, 2] } });
       const id = created.json<Mutation>().data['id'];
