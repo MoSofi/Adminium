@@ -108,6 +108,8 @@ export function deriveScopeDocument(
   const suspended: SuspendedGrant[] = [];
   const resources: PublicScopeResource[] = [];
   const identities: { ref: string; definition: PublicEndpointDefinition; methods: PublicMethod[] }[] = [];
+  /** Each resource's endpoint and methods, by ref. */
+  const served = new Map<string, { endpointId: string; methods: PublicMethod[] }>();
 
   for (const [endpointId, granted] of Object.entries(key.access)) {
     const endpoint = endpointsById.get(endpointId);
@@ -144,6 +146,24 @@ export function deriveScopeDocument(
     }
     const table = view === null ? null : sourceTable(view, endpoint.definition.source);
     resources.push(definitionToResource(endpoint.ref, endpoint.definition, effective, table));
+    served.set(endpoint.ref, { endpointId, methods: effective });
+  }
+
+  // An entry read through a suspended one (visible with it, or claimed by
+  // way of it) has nothing to read through: it is suspended with it.
+  const gone = new Set(suspended.filter((s) => s.ref !== null && !served.has(s.ref)).map((s) => s.ref as string));
+  for (let changed = gone.size > 0; changed; ) {
+    changed = false;
+    for (let i = resources.length - 1; i >= 0; i -= 1) {
+      const r = resources[i]!;
+      const through = [r.visibleWith?.ref, r.claim?.via?.ref].filter((ref): ref is string => ref !== undefined);
+      if (!through.some((ref) => gone.has(ref))) continue;
+      resources.splice(i, 1);
+      gone.add(r.ref);
+      const grant = served.get(r.ref);
+      if (grant !== undefined) suspended.push({ endpointId: grant.endpointId, ref: r.ref, methods: grant.methods });
+      changed = true;
+    }
   }
 
   const document: PublicScopeDocument = {

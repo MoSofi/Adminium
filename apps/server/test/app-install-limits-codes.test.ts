@@ -16,7 +16,7 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import { appTablesRepo, overridesRepo, publicEndpointsRepo, snapshotsRepo } from '@adminium/meta';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { sha512Integrity } from '../src/add-ons/store.js';
 import { mapTableRefs } from '../src/apps/real-refs.js';
@@ -26,6 +26,15 @@ import { parseDefinition, printDefinition } from '../src/public-api/endpoint.js'
 import { packageTarball } from './app-bundle-helpers.js';
 import { LEGS, installInvoicing, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic } from './public-lane.helpers.js';
+
+// The rules stored here run in later changes; until then the server refuses
+// their tables and suspends their entries. This file proves what is stored
+// and served once they run, so the refusal is lifted for it alone.
+vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
+  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
+  unbuiltEntryRuleOf: () => null,
+  refuseUnbuiltTable: () => undefined,
+}));
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 80, nullable = false) => ({ ref, type: 'text', maxLength, ...(nullable ? { nullable: true } : {}) });

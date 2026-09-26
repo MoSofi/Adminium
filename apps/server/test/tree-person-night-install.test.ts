@@ -15,7 +15,7 @@
 import { parseDatabaseModel } from '@adminium/engine';
 import { validateManifest } from '@adminium/manifest';
 import { overridesRepo, publicEndpointsRepo, publicScopesRepo, snapshotsRepo } from '@adminium/meta';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { applyOverrides } from '../src/connections/effective-schema.js';
 import { SnapshotView } from '../src/crud/identifiers.js';
@@ -24,6 +24,15 @@ import { compileScope, publicConfigOf } from '../src/public-api/scope.js';
 import { publicConfigReply } from '../src/routes/public/schema.js';
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { EXTRAS_CHILD, lodgeManifest, PER_NIGHT } from './tree-person-night-fixture.js';
+
+// The rules stored here run in later changes; until then the server refuses
+// their tables and suspends their entries. This file proves what is stored
+// and served once they run, so the refusal is lifted for it alone.
+vi.mock('../src/crud/unbuilt-rules.js', async (original) => ({
+  ...(await original<typeof import('../src/crud/unbuilt-rules.js')>()),
+  unbuiltEntryRuleOf: () => null,
+  refuseUnbuiltTable: () => undefined,
+}));
 
 describe('the app', () => {
   it('validates with every new field', () => {

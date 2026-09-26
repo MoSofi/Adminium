@@ -768,6 +768,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (override.body === undefined && (template.blocks as { block?: unknown }[]).some((block) => block.block === 'email.html')) {
       return { status: 'failed', error: 'The email has an HTML block, which cannot carry what a person typed' };
     }
+    // A list of rows (an order's tickets) is not sent by this server yet: no email rather than one without its list.
+    if (override.body === undefined && (template.blocks as { block?: unknown }[]).some((block) => block.block === 'email.rows')) {
+      return { status: 'failed', error: 'The email lists rows, which this server cannot send yet' };
+    }
 
     // The template really sent writes the words — US English when the recipient's language has none —
     // and the recipient's own tag in THAT language the clock and the digits: never Arabic digits in an English email.
