@@ -79,7 +79,7 @@ describe.each(LEGS)('a ticket sent to a friend, kept through install on %s', (di
     expect(rules.skipped, JSON.stringify(rules.skipped)).toEqual([]);
     const stored = await overridesRepo(h!.meta).listForConnection(h!.connectionId, { status: 'active' });
     const rule = (op: string, table: string, column: string | null) => stored.find((o) => o.op === op && o.tableName === idOf(table) && o.columnName === column)?.value;
-    expect(rule('column.code', 'tickets', 'code')).toEqual({ length: 12, renew: { on: { column: 'status', values: ['valid'] } } });
+    expect(rule('column.code', 'tickets', 'code')).toEqual({ length: 12, renew: { on: { column: 'holder_customer_id', changed: true } } });
     expect(rule('column.stamp', 'tickets', 'holder_email')).toEqual({ set: { copy: 'pending_email' }, on: { columns: ['holder_customer_id'] } });
     expect((rule('table.states', 'tickets', null) as { timed?: unknown }).timed).toEqual([{ from: 'offered', to: 'valid', at: { column: 'offer_until' } }]);
   });
@@ -151,11 +151,11 @@ describe.each(LEGS)('a ticket sent to a friend, kept through install on %s', (di
       const refs = (JSON.parse(scope.document) as PublicScopeDocument).resources.map((r) => r.ref);
       for (const tickets of withholding) expect(refs).not.toContain(tickets.ref);
     }
-    // Derived again from every endpoint: the two are reported suspended, and the rest are served.
+    // Derived again from every endpoint: the two are reported suspended (with any other entry whose rules are not built yet).
     const all = new Map([...endpoints].map(([ref, e]) => [e.id, { id: e.id, ref, definition: e.definition }]));
     const access = Object.fromEntries([...all.values()].map((e) => [e.id, e.definition.methods as PublicMethod[]]));
     const derived = deriveScopeDocument({ kind: 'browser', access }, all, view);
-    expect(derived.suspended.map((s) => s.ref).sort()).toEqual(withholding.map((t) => t.ref).sort());
+    expect(derived.suspended.map((s) => s.ref)).toEqual(expect.arrayContaining(withholding.map((t) => t.ref)));
     expect(derived.suspended.find((s) => s.ref === buyerTickets().ref)?.methods).toEqual(['GET', 'PATCH']);
     expect(derived.document.resources.map((r) => r.ref)).not.toContain(buyerTickets().ref);
   });

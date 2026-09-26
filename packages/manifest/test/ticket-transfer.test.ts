@@ -61,12 +61,19 @@ describe('a ticket sent to a friend', () => {
     expect(broken((m) => ((tableOf(m, 'tickets')['states'] as Doc)['moves'] = { valid: ['offered', 'checked_in'], offered: ['checked_in'] }))).not.toBe('');
   });
 
-  it('renews its code when it moves back to valid, and copies the holder when the friend is linked', () => {
-    expect(columnOf(boxOffice(), 'tickets', 'code')['rules']).toEqual({ code: { length: 12, renew: { on: { column: 'status', values: ['valid'] } } } });
+  it('renews its code and copies the holder when the friend is linked — never when an offer lapses back', () => {
+    expect(columnOf(boxOffice(), 'tickets', 'code')['rules']).toEqual({ code: { length: 12, renew: { on: { column: 'holder_customer_id', changed: true } } } });
     expect(broken((m) => (((columnOf(m, 'tickets', 'code')['rules'] as Doc)['code'] as Doc)['renew'] = { on: { column: 'status', values: ['accepted'] } }))).toContain(
       '"accepted" is not a value of "tickets.status"',
     );
     expect(broken((m) => (((columnOf(m, 'tickets', 'holder_email')['rules'] as Doc)['stamp'] as Doc)['on'] = { columns: ['holder_email'] }))).toContain('a stamp watches another column');
+  });
+
+  it('limits what a sender sends: per address a day, and the name as plain text', () => {
+    expect(broken((m) => (entries(m).find((e) => e['limits'] !== undefined)!['limits'] = { perValue: { columns: ['holder_email'], n: 5 } }))).toContain(
+      '"holder_email" is not writable, so a guest never sends it',
+    );
+    expect(broken((m) => (entries(m).find((e) => e['limits'] !== undefined)!['methods'] = ['GET']))).toContain('limits apply to a change (PATCH); a create has anonymous');
   });
 
   it('mails the friend at the pending address when it is offered', () => {

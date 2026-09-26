@@ -415,6 +415,20 @@ export const publicAccessSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * The limits on a change a guest makes, signed in or not: per value a day
+     * (each change that writes one of the columns counts against the value it
+     * writes — an address a ticket is sent on to), and columns that hold
+     * plain text only (the name it is sent to).
+     */
+    limits: z
+      .object({
+        perValue: z.object({ columns: z.array(refSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
+        plainText: z.array(refSchema).min(1).max(8).optional(),
+      })
+      .strict()
+      .refine((l) => l.perValue !== undefined || l.plainText !== undefined, { message: 'limits name a per-value cap, plain-text columns, or both' })
+      .optional(),
     /** Refused while a bool in the settings row is false (only for a session-less create with `anonymous`). */
     requireSetting: z
       .array(settingRefSchema.extend({ when: z.literal('anonymous').optional() }).strict())
@@ -915,6 +929,18 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
           const found = column(ref);
           if (found === undefined) out.push({ path: at('anonymous', name), message: `"${entry.table}" has no column "${ref}"` });
           else if (found.type !== 'text') out.push({ path: at('anonymous', name), message: `"${entry.table}.${ref}" is not a text column` });
+        }
+      }
+    }
+    if (entry.limits !== undefined) {
+      const limits = entry.limits;
+      if (!patches) out.push({ path: at('limits'), message: 'limits apply to a change (PATCH); a create has anonymous' });
+      for (const [name, columns] of [['perValue', limits.perValue?.columns ?? []], ['plainText', limits.plainText ?? []]] as const) {
+        for (const ref of columns) {
+          const found = column(ref);
+          if (found === undefined) out.push({ path: at('limits', name), message: `"${entry.table}" has no column "${ref}"` });
+          else if (found.type !== 'text') out.push({ path: at('limits', name), message: `"${entry.table}.${ref}" is not a text column` });
+          else if (!(entry.writable ?? []).includes(ref)) out.push({ path: at('limits', name), message: `"${ref}" is not writable, so a guest never sends it` });
         }
       }
     }

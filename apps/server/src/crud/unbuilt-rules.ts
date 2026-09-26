@@ -142,6 +142,8 @@ const ENTRY_KEYS = [
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
   ...ENTRY_KEYS.map((key) => ({ rule: key, on: (entry: Readonly<Record<string, unknown>>) => entry[key] !== undefined })),
   { rule: 'writable_when', on: momentWindow },
+  // A change's limits: per value a day, plain text only.
+  { rule: 'limits', on: (entry) => entry['limits'] !== undefined },
   // Columns withheld from rows read through a parent (a ticket handed to a friend).
   { rule: 'withhold', on: (entry) => entry['withhold'] !== undefined },
 ];

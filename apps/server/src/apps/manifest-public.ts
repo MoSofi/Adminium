@@ -272,6 +272,14 @@ function definitionOf(
             ...(entry.anonymous.plainText === undefined ? {} : { plain_text: [...entry.anonymous.plainText] }),
           },
         }),
+    ...(entry.limits === undefined
+      ? {}
+      : {
+          limits: {
+            ...(entry.limits.perValue === undefined ? {} : { per_value: { columns: [...entry.limits.perValue.columns], n: entry.limits.perValue.n } }),
+            ...(entry.limits.plainText === undefined ? {} : { plain_text: [...entry.limits.plainText] }),
+          },
+        }),
     ...(entry.rank === undefined
       ? {}
       : { rank: { order_by: entry.rank.orderBy, ...(entry.rank.where === undefined ? {} : { where: { ...entry.rank.where } }) } }),

@@ -126,7 +126,10 @@ export function deriveScopeDocument(
     // An entry declaring a rule this server does not run yet serves nothing
     // (its filter or its limits would be skipped); kept in the grant, it
     // comes back once the rule is built and the scope is derived again.
-    if (unbuiltEntryRuleOf(endpoint.definition as unknown as Readonly<Record<string, unknown>>) !== null) {
+    // A sign-in entry is never suspended (the key would have nobody to sign in
+    // by, and every entry it opens would go with it): a write through it still
+    // meets its table's own refusal while that table's rules are not built.
+    if (endpoint.definition.identity === undefined && unbuiltEntryRuleOf(endpoint.definition as unknown as Readonly<Record<string, unknown>>) !== null) {
       suspended.push({ endpointId, ref: endpoint.ref, methods: effective });
       continue;
     }

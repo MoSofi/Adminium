@@ -69,7 +69,7 @@
           { "ref": "order_id", "type": "fk", "references": "orders" },
           { "ref": "ticket_type_id", "type": "fk", "references": "ticket_types" },
           { "ref": "status", "type": "enum", "enum": ["valid", "offered", "checked_in"], "default": "valid" },
-          { "ref": "code", "type": "text", "maxLength": 12, "nullable": true, "rules": { "code": { "length": 12, "renew": { "on": { "column": "status", "values": ["valid"] } } } } },
+          { "ref": "code", "type": "text", "maxLength": 12, "nullable": true, "rules": { "code": { "length": 12, "renew": { "on": { "column": "holder_customer_id", "changed": true } } } } },
           { "ref": "link_token", "type": "text", "maxLength": 16, "nullable": true, "rules": { "code": { "length": 16 } } },
           { "ref": "pending_email", "type": "text", "maxLength": 254, "nullable": true, "rules": { "validation": { "format": "email" } } },
           { "ref": "pending_name", "type": "text", "maxLength": 120, "nullable": true },
@@ -154,6 +154,7 @@
       "writable": ["status", "pending_email", "pending_name"],
       "writableValues": { "status": ["offered"] },
       "writableWhen": { "status": ["valid"], "holder_customer_id": [null] },
+      "limits": { "perValue": { "columns": ["pending_email"], "n": 5 }, "plainText": ["pending_name"] },
       "withhold": { "columns": ["code", "holder_email"], "unlessHolder": "holder_customer_id" }
     },
     {

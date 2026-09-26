@@ -364,6 +364,14 @@ export const publicEndpointDefinitionSchema = z
       .min(1)
       .max(4)
       .optional(),
+    /** The limits on a change a guest makes: per value a day, plain-text columns. */
+    limits: z
+      .object({
+        per_value: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
+        plain_text: z.array(columnSchema).min(1).max(8).optional(),
+      })
+      .strict()
+      .optional(),
     /** The limits on a create nobody signed in for: per value a day, per key an hour, plain-text columns. */
     anonymous: z
       .object({
@@ -523,6 +531,12 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.max_open !== undefined) out['max_open'] = { ...def.max_open };
   if (def.rank !== undefined) out['rank'] = { ...def.rank };
   if (def.anonymous !== undefined) out['anonymous'] = { ...def.anonymous };
+  if (def.limits !== undefined) {
+    out['limits'] = {
+      ...(def.limits.per_value === undefined ? {} : { per_value: { columns: [...def.limits.per_value.columns], n: def.limits.per_value.n } }),
+      ...(def.limits.plain_text === undefined ? {} : { plain_text: [...def.limits.plain_text] }),
+    };
+  }
   if (def.require_setting !== undefined) out['require_setting'] = def.require_setting.map((setting) => ({ ...setting }));
   if (def.capacity_rule !== undefined) out['capacity_rule'] = def.capacity_rule;
   if (def.show_left !== undefined) out['show_left'] = { ...def.show_left };
