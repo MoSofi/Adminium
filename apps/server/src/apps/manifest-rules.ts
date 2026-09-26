@@ -96,6 +96,7 @@ export type RuleOp =
   | 'column.scale'
   | 'column.normalize'
   | 'column.bounds'
+  | 'column.perNight'
   | 'column.pii'
   | 'column.secret'
   | 'column.label'
@@ -210,6 +211,8 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   if (rules.default !== undefined) out.push({ op: 'column.default', value: { kind: 'from', from: rules.default.from } });
   if (rules.format !== undefined) out.push({ op: 'column.format', value: { ...rules.format } });
   if (rules.formula !== undefined) out.push({ op: 'column.formula', value: { formula: rules.formula } });
+  // `adjust.table` names a table by its short ref; the installer swaps in its real id (a `table` at any depth).
+  if (rules.perNight !== undefined) out.push({ op: 'column.perNight', value: { ...rules.perNight } });
   if (rules.normalize !== undefined) out.push({ op: 'column.normalize', value: { normalize: rules.normalize } });
   if (rules.notAfter !== undefined || rules.notBefore !== undefined) {
     out.push({
@@ -708,7 +711,7 @@ export type ShapeGuarantee = 'numbers' | 'totals' | 'edits' | 'kept';
 
 export function guaranteeOf(op: string): ShapeGuarantee {
   if (op === 'column.sequence' || op === 'column.format') return 'numbers';
-  if (op === 'column.formula' || op === 'column.rollup' || op === 'column.scale') return 'totals';
+  if (op === 'column.formula' || op === 'column.rollup' || op === 'column.scale' || op === 'column.perNight') return 'totals';
   if (op === 'table.states') return 'edits';
   return 'kept';
 }

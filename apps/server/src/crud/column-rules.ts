@@ -269,7 +269,10 @@ export interface RollupInto {
   child: string;
   /** This table's column linking to the parent. */
   via: string;
+  /** The column added up; empty for a count, which adds up no column. */
   sum: string;
+  /** The child rows are counted instead (the stored rule's `count`). */
+  count?: true;
   times?: string;
   /** Child rows whose column holds a value are left out of the total. */
   unlessSet?: string;
@@ -841,7 +844,8 @@ function rollupOf(
     column: column.name,
     child: rollup.from,
     via: rollup.via,
-    sum: rollup.sum,
+    sum: rollup.sum ?? '',
+    ...(rollup.count === true ? { count: true as const } : {}),
     ...(rollup.times === undefined ? {} : { times: rollup.times }),
     ...(rollup.unlessSet === undefined ? {} : { unlessSet: rollup.unlessSet }),
     ...(rollup.where === undefined ? {} : { where: rollup.where }),

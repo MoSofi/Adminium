@@ -40,7 +40,9 @@ import {
   tableIndex,
   textOrLabels,
   valueFits,
+  type ReferenceIssue,
   type SettingSource,
+  type TableIndex,
 } from './refs.js';
 import { compareSemver, parseSemverRange } from './semver.js';
 
@@ -367,6 +369,46 @@ export const codeRenewTriggerSchema = z.union([
   z.object({ column: refSchema, values: z.array(scalarSchema).min(1).max(16) }).strict(),
 ]);
 
+/**
+ * A price worked out night by night (`rules.perNight`): for each night from
+ * `from` up to the day before `to`, the base rate read from the row `rate.via`
+ * points at, plus every adjustment row that matches that night (a weekend, a
+ * season). Each night is rounded, and the column holds their sum.
+ */
+export const perNightSchema = z
+  .object({
+    /** Date columns of this row: the first night, and the day after the last. */
+    from: refSchema,
+    to: refSchema,
+    /** A foreign key of this row, and the number column of the row it points at. */
+    rate: z.object({ via: refSchema, column: refSchema }).strict(),
+    adjust: z
+      .object({
+        /** The table of adjustments. */
+        table: refSchema,
+        match: z
+          .object({
+            /** A foreign key of the adjustments to what `rate.via` points at; empty = every one. */
+            via: refSchema.optional(),
+            /** A text column listing the nights it applies on (`fri,sat`); empty = every night. */
+            weekdays: refSchema.optional(),
+            /** Date columns: the first and the last night it applies on, both included; empty = open. */
+            from: refSchema.optional(),
+            to: refSchema.optional(),
+          })
+          .strict(),
+        /** The number added to a night (negative for a discount). */
+        add: refSchema,
+        /** The text a night's line is tagged with. */
+        name: refSchema,
+        /** Only the adjustment rows whose column equals the value (`active = true`). */
+        where: z.object({ column: refSchema, eq: scalarSchema }).strict().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const columnRulesSchema = z
   .object({
     options: z
@@ -413,8 +455,12 @@ export const columnRulesSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * A value copied from the row `via` points at. `follow`: kept in step
+     * when that row's column changes later (an extra's nights follow its stay's).
+     */
     copy: z
-      .object({ via: refSchema, from: refSchema, mode: z.enum(['default', 'always']).optional() })
+      .object({ via: refSchema, from: refSchema, mode: z.enum(['default', 'always']).optional(), follow: z.literal(true).optional() })
       .strict()
       .optional(),
     /**
@@ -470,6 +516,8 @@ export const columnRulesSchema = z
       .optional(),
     /** A value Adminium works out from the row's other columns (see `formula.ts`). */
     formula: formulaExprSchema.optional(),
+    /** A price worked out night by night (see `perNightSchema`). */
+    perNight: perNightSchema.optional(),
     /**
      * How a text value is stored whoever writes it: `trim` without spaces at
      * either end, `email` trimmed and in lower case — so a unique address and
@@ -501,7 +549,9 @@ export const columnRulesSchema = z
         /** The child table, its foreign key back to this row, and what to add up. */
         from: refSchema,
         via: refSchema,
-        sum: refSchema,
+        /** The child column to add up; or, instead, `count` the child rows. */
+        sum: refSchema.optional(),
+        count: z.literal(true).optional(),
         /** Multiplied into `sum` per child row, e.g. `qty`. */
         times: refSchema.optional(),
         /** A child row whose column holds a value is left out — a voided line (`voided_at`). */
@@ -1224,6 +1274,296 @@ export function prefixFor(appKey: string): string {
 /** The longest real table name every engine accepts (Postgres: 63 bytes). */
 export const MAX_TABLE_NAME = 63;
 
+// ── totals that count and climb, prices by the night, copies that follow ──────
+
+type ShapeTable = RequiredTableShape;
+type ShapeColumn = RequiredTableShape['columns'][number];
+type RulePath = (...rest: (string | number)[]) => (string | number)[];
+
+/** Column types a count is kept in: a whole number. */
+const WHOLE_TYPES: readonly string[] = ['int', 'bigint'];
+
+/**
+ * A total adds a column up (`sum`) or counts the rows (`count: true`), and a
+ * count is a whole number with nothing multiplied into it and no balance.
+ */
+function rollupCountIssues(r: NonNullable<ColumnRules['rollup']>, type: string, here: RulePath): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  if ((r.sum === undefined) === (r.count === undefined)) {
+    out.push({ path: here('rollup'), message: 'a total adds up `sum` or counts rows (`count: true`), not both' });
+  }
+  if (r.count === true) {
+    if (r.times !== undefined || r.balance !== undefined || r.cap !== undefined) {
+      out.push({ path: here('rollup', 'count'), message: 'a count takes no `times`, `balance` or `cap`' });
+    }
+    if (!WHOLE_TYPES.includes(type)) out.push({ path: here('rollup', 'count'), message: 'a count is kept in a whole-number column (`int` or `bigint`)' });
+  }
+  return out;
+}
+
+/**
+ * The columns of a table a total decides, and for each the totals it comes
+ * from: a rollup column, a rollup's balance, and a formula that reads one of
+ * them (however many formulas deep).
+ */
+function totalsOf(table: ShapeTable): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const column of table.columns) {
+    const r = column.rules?.rollup;
+    if (r === undefined) continue;
+    out.set(column.ref, new Set([column.ref]));
+    if (r.balance !== undefined) out.set(r.balance.column, new Set([column.ref]));
+  }
+  const formulas = table.columns.filter((column) => column.rules?.formula !== undefined);
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const column of formulas) {
+      const from = new Set(out.get(column.ref) ?? []);
+      for (const input of formulaColumns(column.rules!.formula!)) for (const total of out.get(input) ?? []) from.add(total);
+      if (from.size > (out.get(column.ref)?.size ?? 0)) {
+        out.set(column.ref, from);
+        changed = true;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Totals that add up other totals (an option's price into its line, the
+ * line into its order, the order into its customer) climb at most three
+ * tables, and never in a circle: a total whose child table is its own, or
+ * two tables adding each other up.
+ */
+function rollupChainIssues(tables: readonly ShapeTable[]): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const byRef = new Map(tables.map((t) => [t.ref, t]));
+  const totals = new Map(tables.map((t) => [t.ref, totalsOf(t)]));
+  /** Each rollup, by `table.column`: its path, its child table, and the rollups of the child it reads. */
+  const nodes = new Map<string, { path: (string | number)[]; table: string; child: string; reads: string[] }>();
+  tables.forEach((table, t) => {
+    table.columns.forEach((column, c) => {
+      const r = column.rules?.rollup;
+      if (r === undefined) return;
+      const read = [r.sum, r.times, r.unlessSet, r.where?.column].filter((ref): ref is string => ref !== undefined);
+      const childTotals = totals.get(r.from) ?? new Map<string, Set<string>>();
+      const reads = new Set<string>();
+      for (const ref of read) for (const total of childTotals.get(ref) ?? []) reads.add(`${r.from}.${total}`);
+      nodes.set(`${table.ref}.${column.ref}`, {
+        path: ['requiredSchema', 'tables', t, 'columns', c, 'rules', 'rollup'],
+        table: table.ref,
+        child: r.from,
+        reads: byRef.has(r.from) ? [...reads] : [],
+      });
+    });
+  });
+  /** The longest chain of tables below a rollup, bottom first, or null for a circle. */
+  const chains = new Map<string, string[] | null>();
+  const chainOf = (key: string, seen: ReadonlySet<string>): string[] | null => {
+    if (chains.has(key)) return chains.get(key)!;
+    const node = nodes.get(key)!;
+    if (seen.has(key) || node.child === node.table) return null;
+    let longest: string[] = [node.child];
+    for (const next of node.reads) {
+      const below = chainOf(next, new Set([...seen, key]));
+      if (below === null) {
+        chains.set(key, null);
+        return null;
+      }
+      if (below.length > longest.length) longest = below;
+    }
+    const chain = [...longest, node.table];
+    chains.set(key, chain);
+    return chain;
+  };
+  for (const [key, node] of nodes) {
+    const chain = chainOf(key, new Set());
+    if (chain === null) {
+      out.push({ path: node.path, message: `totals climb in a circle: ${node.child} → ${node.table}${node.child === node.table ? '' : ' → …'}` });
+    } else if (chain.length - 1 > 3) {
+      out.push({ path: node.path, message: `totals climb at most three tables: ${chain.join(' → ')}` });
+    }
+  }
+  return out;
+}
+
+/**
+ * A copy that follows its row (`follow`): it always wins; it follows one
+ * level (the column it copies is not itself following another row); the row
+ * it follows is not worked out from this table's own totals (a loop); and
+ * this table adds up into that row alone, so every write takes its rows in
+ * one order.
+ */
+function followIssues(
+  tables: readonly ShapeTable[],
+  table: ShapeTable,
+  own: string,
+  copy: NonNullable<ColumnRules['copy']>,
+  here: RulePath,
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  if (copy.mode !== 'always') out.push({ path: here('copy', 'mode'), message: 'a copy that follows its row always wins (`mode: "always"`)' });
+  const parentRef = table.columns.find((c) => c.ref === copy.via)?.references;
+  const parent = tables.find((t) => t.ref === parentRef);
+  if (parent === undefined) return out;
+  const source = parent.columns.find((c) => c.ref === copy.from);
+  if (source?.rules?.copy?.follow === true) out.push({ path: here('copy', 'follow'), message: 'a copy follows one level' });
+  // Everything the parent's column is worked out from, on the parent.
+  const inputs = new Set<string>([copy.from]);
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const ref of [...inputs]) {
+      const rules = parent.columns.find((c) => c.ref === ref)?.rules;
+      const more = [
+        ...(rules?.formula === undefined ? [] : formulaColumns(rules.formula)),
+        ...(rules?.perNight === undefined ? [] : [rules.perNight.from, rules.perNight.to, rules.perNight.rate.via]),
+      ];
+      for (const next of more) if (!inputs.has(next)) {
+        inputs.add(next);
+        changed = true;
+      }
+    }
+  }
+  // What this table's rows move on the parent: its totals, their balances, the formulas over them.
+  const moved = new Set<string>();
+  const parentTotals = totalsOf(parent);
+  for (const column of parent.columns) {
+    if (column.rules?.rollup?.from !== table.ref) continue;
+    for (const [ref, from] of parentTotals) if (from.has(column.ref)) moved.add(ref);
+  }
+  const loop = [...inputs].find((ref) => moved.has(ref));
+  if (loop !== undefined) {
+    out.push({ path: here('copy', 'follow'), message: `"${parent.ref}.${copy.from}" is worked out from "${table.ref}", so "${table.ref}.${own}" cannot follow it` });
+  }
+  for (const other of tables) {
+    if (other.ref === parent.ref) continue;
+    if (other.columns.some((c) => c.rules?.rollup?.from === table.ref)) {
+      out.push({ path: here('copy', 'follow'), message: `"${table.ref}" totals into "${other.ref}" too, so its copies cannot follow "${parent.ref}"` });
+    }
+  }
+  return out;
+}
+
+/**
+ * The columns a money figure Adminium works out reads, per table: a
+ * formula's inputs, what a total adds up, and a column copied into one of
+ * those (a stay's guests into each extra's). What a limit counts is not money
+ * and is left out.
+ */
+function figureColumns(tables: readonly ShapeTable[]): (table: string) => ReadonlySet<string> {
+  const out = new Map<string, Set<string>>(tables.map((t) => [t.ref, new Set<string>()]));
+  const mark = (table: string, column: string): boolean => {
+    const set = out.get(table);
+    if (set === undefined || set.has(column)) return false;
+    set.add(column);
+    return true;
+  };
+  for (const table of tables) {
+    for (const column of table.columns) {
+      const rules = column.rules;
+      if (rules?.formula !== undefined) for (const input of formulaColumns(rules.formula)) mark(table.ref, input);
+      const r = rules?.rollup;
+      if (r !== undefined) for (const input of [r.sum, r.times]) if (input !== undefined) mark(r.from, input);
+    }
+  }
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const table of tables) {
+      for (const column of table.columns) {
+        const copy = column.rules?.copy;
+        if (copy === undefined || !out.get(table.ref)?.has(column.ref)) continue;
+        const source = table.columns.find((c) => c.ref === copy.via)?.references;
+        if (source !== undefined && mark(source, copy.from)) changed = true;
+      }
+    }
+  }
+  return (table) => out.get(table) ?? new Set();
+}
+
+/** A price by the night: its dates, its rate, and the adjustments it reads. */
+function perNightIssues(
+  index: TableIndex<ShapeColumn>,
+  table: ShapeTable,
+  column: ShapeColumn,
+  rule: z.infer<typeof perNightSchema>,
+  keptFromReaders: (table: string, column: string, into: ColumnRules | undefined) => string | null,
+  here: RulePath,
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const at = (...rest: (string | number)[]) => here('perNight', ...rest);
+  if (!['decimal', 'money', 'int', 'bigint'].includes(column.type)) {
+    out.push({ path: at(), message: 'a price by the night is kept in a decimal, money or whole-number column' });
+  }
+  const first = table.columns.find((c) => c.rules?.perNight !== undefined);
+  if (first !== undefined && first.ref !== column.ref) out.push({ path: at(), message: `"${table.ref}" is already priced by the night in "${first.ref}"; a table has one such price` });
+  for (const name of ['from', 'to'] as const) {
+    const found = index.column(table.ref, rule[name]);
+    if (found === undefined) out.push({ path: at(name), message: `"${table.ref}" has no column "${rule[name]}"` });
+    else if (found.type !== 'date') out.push({ path: at(name), message: `"${table.ref}.${rule[name]}" is not a date` });
+  }
+  if (rule.from === rule.to) out.push({ path: at('to'), message: 'the nights run between two different dates' });
+  const via = index.column(table.ref, rule.rate.via);
+  const target = via?.type === 'fk' ? via.references : undefined;
+  if (target === undefined) {
+    out.push({ path: at('rate', 'via'), message: `"${rule.rate.via}" is not a foreign key of "${table.ref}"` });
+  } else {
+    const rate = index.column(target, rule.rate.column);
+    if (rate === undefined) out.push({ path: at('rate', 'column'), message: `"${target}" has no column "${rule.rate.column}"` });
+    else if (!NUMERIC_TYPES.includes(rate.type) || rate.type === 'float') out.push({ path: at('rate', 'column'), message: `"${target}.${rule.rate.column}" is not a price` });
+    else {
+      const kept = keptFromReaders(target, rule.rate.column, column.rules);
+      if (kept !== null) out.push({ path: at('rate', 'column'), message: `"${target}.${rule.rate.column}" is ${kept}, so no price reads it` });
+    }
+  }
+  const adjust = rule.adjust;
+  if (adjust === undefined) return out;
+  if (index.table(adjust.table) === undefined) {
+    out.push({ path: at('adjust', 'table'), message: `"${adjust.table}" is not a table of this app` });
+    return out;
+  }
+  const own = (name: string) => index.column(adjust.table, name);
+  const add = own(adjust.add);
+  if (add === undefined) out.push({ path: at('adjust', 'add'), message: `"${adjust.table}" has no column "${adjust.add}"` });
+  else if (!NUMERIC_TYPES.includes(add.type) || add.type === 'float') out.push({ path: at('adjust', 'add'), message: `"${adjust.table}.${adjust.add}" is not a price` });
+  const name = own(adjust.name);
+  if (name === undefined) out.push({ path: at('adjust', 'name'), message: `"${adjust.table}" has no column "${adjust.name}"` });
+  else if (name.type !== 'text') out.push({ path: at('adjust', 'name'), message: `"${adjust.table}.${adjust.name}" is not a text column` });
+  else {
+    const kept = keptFromReaders(adjust.table, adjust.name, column.rules);
+    if (kept !== null) out.push({ path: at('adjust', 'name'), message: `"${adjust.table}.${adjust.name}" is ${kept}, so no night is tagged with it` });
+  }
+  const match = adjust.match;
+  if (match.via !== undefined) {
+    const link = own(match.via);
+    if (link?.type !== 'fk' || link.references === undefined) {
+      out.push({ path: at('adjust', 'match', 'via'), message: `"${match.via}" is not a foreign key of "${adjust.table}"` });
+    } else if (target !== undefined && link.references !== target) {
+      out.push({ path: at('adjust', 'match', 'via'), message: `"${adjust.table}.${match.via}" points at "${link.references}", and "${table.ref}.${rule.rate.via}" at "${target}"` });
+    }
+  }
+  if (match.weekdays !== undefined) {
+    const weekdays = own(match.weekdays);
+    if (weekdays === undefined) out.push({ path: at('adjust', 'match', 'weekdays'), message: `"${adjust.table}" has no column "${match.weekdays}"` });
+    else if (weekdays.type !== 'text' || (weekdays.maxLength !== undefined && weekdays.maxLength < 27)) {
+      out.push({ path: at('adjust', 'match', 'weekdays'), message: `"${adjust.table}.${match.weekdays}" lists nights like "mon,tue,wed,thu,fri,sat,sun": a text column of at least 27 characters` });
+    }
+  }
+  for (const bound of ['from', 'to'] as const) {
+    const ref = match[bound];
+    if (ref === undefined) continue;
+    const found = own(ref);
+    if (found === undefined) out.push({ path: at('adjust', 'match', bound), message: `"${adjust.table}" has no column "${ref}"` });
+    else if (found.type !== 'date') out.push({ path: at('adjust', 'match', bound), message: `"${adjust.table}.${ref}" is not a date` });
+  }
+  if (adjust.where !== undefined) {
+    const filter = own(adjust.where.column);
+    if (filter === undefined) out.push({ path: at('adjust', 'where'), message: `"${adjust.table}" has no column "${adjust.where.column}"` });
+    else if (!valueFits(filter, adjust.where.eq)) out.push({ path: at('adjust', 'where'), message: `${JSON.stringify(adjust.where.eq)} is not a value of "${adjust.table}.${adjust.where.column}"` });
+    else if (filter.nullable === true) out.push({ path: at('adjust', 'where'), message: `"${adjust.table}.${adjust.where.column}" may be empty, so a row could drop out unseen; make it not nullable` });
+  }
+  return out;
+}
+
 /**
  * Every name a manifest's own blocks use must name something the manifest
  * declares: a rule's columns, a capacity's or a booking's columns and tables,
@@ -1308,7 +1648,7 @@ export function appReferenceIssues(
       const rules = column.rules;
       if (rules === undefined) return;
       const here = (...rest: (string | number)[]) => at('columns', c, 'rules', ...rest);
-      const deciders = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup'] as const).filter(
+      const deciders = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter(
         (name) => rules[name] !== undefined,
       );
       if (deciders.length > 0) decide(table.ref, column.ref);
@@ -1416,6 +1756,11 @@ export function appReferenceIssues(
           const kept = keptFromReaders(via.references, rules.copy.from, column.rules);
           if (kept !== null) out.push({ path: here('copy', 'from'), message: `"${via.references}.${rules.copy.from}" is ${kept}, so no column copies it` });
         }
+        if (rules.copy.follow === true) out.push(...followIssues(m.requiredSchema.tables, table, column.ref, rules.copy, here));
+      }
+      if (rules.perNight !== undefined) {
+        if (shapeOf !== undefined) out.push({ path: here('perNight'), message: 'a shape does not price by the night' });
+        out.push(...perNightIssues(index, table, column, rules.perNight, keptFromReaders, here));
       }
       // The same of a stamp that copies a column of its row, and of a formula's inputs.
       const stamped = rules.stamp?.set;
@@ -1438,7 +1783,7 @@ export function appReferenceIssues(
         } else if (via?.type !== 'fk' || via.references !== table.ref) {
           out.push({ path: here('rollup', 'via'), message: `"${r.from}.${r.via}" does not point at "${table.ref}"` });
         } else {
-          for (const name of [r.sum, ...(r.times === undefined ? [] : [r.times]), ...(r.unlessSet === undefined ? [] : [r.unlessSet])]) {
+          for (const name of [...(r.sum === undefined ? [] : [r.sum]), ...(r.times === undefined ? [] : [r.times]), ...(r.unlessSet === undefined ? [] : [r.unlessSet])]) {
             if (!has(r.from, name)) out.push({ path: here('rollup'), message: `"${r.from}" has no column "${name}"` });
           }
           if (r.where !== undefined) {
@@ -1470,6 +1815,7 @@ export function appReferenceIssues(
           const capped = table.columns.some((x) => x.rules?.rollup?.balance?.minus?.includes(column.ref) === true);
           if (!capped) out.push({ path: here('rollup', 'cap'), message: 'a cap needs a balance: declare one here, or subtract this total in one' });
         }
+        out.push(...rollupCountIssues(r, column.type, here));
       }
       if (rules.stamp !== undefined) {
         const stamp = rules.stamp;
@@ -1599,7 +1945,7 @@ export function appReferenceIssues(
             out.push({ path: [...path, 'filled'], message: `"${table.ref}.${watched.ref}" is never empty, so it is never first filled` });
           }
         });
-        const others = (['copy', 'sequence', 'code', 'rollup', 'formula', 'format', 'default', 'lookup'] as const).filter((name) => rules[name] !== undefined);
+        const others = (['copy', 'sequence', 'code', 'rollup', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('stamp'), message: `a stamped column is not also decided by ${others.join(', ')}` });
       }
       if ((rules.sequence !== undefined || rules.code !== undefined) && column.role === 'pk') {
@@ -1648,12 +1994,16 @@ export function appReferenceIssues(
     }
   });
 
+  out.push(...rollupChainIssues(m.requiredSchema.tables));
+
   out.push(
     ...publicAccessIssues(m.publicAccess ?? [], {
       index,
       decided: (table) => decided.get(table) ?? new Set(),
       answersAvailability: (table) => tables.get(table)?.capacity !== undefined || tables.get(table)?.booking !== undefined,
       capacityOf: (table) => tables.get(table)?.capacity,
+      figures: figureColumns(m.requiredSchema.tables),
+      mailsOnCreate: (table) => (m.outbox?.producers ?? []).some((producer) => 'onCreate' in producer && producer.onCreate.table === table),
       publicKeys: m.publicKeys,
       roles: m.roles ?? [],
     }),
@@ -1668,6 +2018,12 @@ export function appReferenceIssues(
         index,
         addOns: new Set([...(m.addOns?.requires ?? []), ...(m.addOns?.suggests ?? [])].map((need) => need.key)),
         features: new Set((m.addOns?.features ?? []).map((feature) => feature.id)),
+        perNight: (ref) =>
+          new Map(
+            (tables.get(ref)?.columns ?? []).flatMap((column) =>
+              column.rules?.perNight === undefined ? [] : [[column.ref, { rateVia: column.rules.perNight.rate.via }] as const],
+            ),
+          ),
       }),
     );
   }

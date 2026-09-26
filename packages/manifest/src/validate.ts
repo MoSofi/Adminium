@@ -51,7 +51,10 @@ export type ValidateManifestResult =
   | { ok: false; issues: ManifestIssue[]; warnings: ManifestIssue[] };
 
 /** Rules that fill a column, so an insert may leave it out. */
-const FILLING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup'] as const;
+const FILLING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'] as const;
+
+/** A setting key that reads like bank details (an IBAN, an account or routing number). */
+const BANK_SETTING = /(^|_)(bank|iban|swift|routing)(_|$)|account_?(number|no|name)|sort_?code/i;
 
 /**
  * Advice about an app that validates: a column with no default that is not
@@ -80,6 +83,18 @@ export function manifestWarnings(manifest: Manifest): ManifestIssue[] {
           message: `MySQL compares "${table.ref}.${ref}" ignoring case and accents, Postgres and SQLite do not: give it normalize "email" or "trim"`,
         });
       }
+    });
+  });
+  /*
+   * Every manifest setting that is not secret is published to the app's
+   * customer side. Bank details belong in the app's settings table, read
+   * only by a signed-in guest; one declared here must at least be secret.
+   */
+  (manifest.settings ?? []).forEach((setting, s) => {
+    if (setting.secret === true || !BANK_SETTING.test(setting.key)) return;
+    out.push({
+      path: `settings.${String(s)}`,
+      message: `"${setting.key}" reads like bank details, and a setting that is not secret is published to the customer side: keep them in the settings table, or mark it secret`,
     });
   });
   return out;

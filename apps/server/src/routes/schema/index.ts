@@ -302,7 +302,8 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.scale' ||
           item.op === 'column.normalize' ||
           item.op === 'column.bounds' ||
-          item.op === 'column.lookup'
+          item.op === 'column.lookup' ||
+          item.op === 'column.perNight'
         ) {
           const column = table.columns.find((c) => c.name === item.columnName);
           // `columnName` was proved above; this is for the type checker.

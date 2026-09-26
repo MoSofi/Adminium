@@ -50,6 +50,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.normalize',
   'column.bounds',
   'column.lookup',
+  'column.perNight',
 ]);
 
 export interface SchemaOverride {

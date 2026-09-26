@@ -334,6 +334,7 @@ const RULE_OPS: Readonly<Record<string, string>> = {
   code: 'column.code',
   rollup: 'column.rollup',
   formula: 'column.formula',
+  perNight: 'column.perNight',
   stamp: 'column.stamp',
   options: 'column.options',
   validation: 'column.validation',

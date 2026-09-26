@@ -341,7 +341,7 @@ export const emailTemplateSchema = z
 export type EmailTemplate = z.infer<typeof emailTemplateSchema>;
 
 /** The column rules that decide a value on the server (see `columnRulesSchema`). */
-const DECIDING_RULES = ['copy', 'default', 'sequence', 'format', 'code', 'rollup', 'formula', 'stamp'] as const;
+const DECIDING_RULES = ['copy', 'default', 'sequence', 'format', 'code', 'rollup', 'formula', 'stamp', 'perNight'] as const;
 /** The column rules that refuse a value: Adminium's own writes to the column would be refused by them. */
 const REFUSING_RULES = ['options', 'validation', 'required', 'requiredWhen', 'notAfter', 'notBefore'] as const;
 /** What the outbox writes, and which rules each refuses: everything, but a check of the address a person types. */

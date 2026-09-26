@@ -121,6 +121,8 @@ export type RemapOverride =
   | { op: 'column.formula'; tableName: string; columnName: string; value: { formula: unknown } }
   /** The places a decimal keeps. */
   | { op: 'column.scale'; tableName: string; columnName: string; value: { scale: number | 'currency' } }
+  /** A price worked out night by night, as an app's install keeps it. Kept whole through a save. */
+  | { op: 'column.perNight'; tableName: string; columnName: string; value: Record<string, unknown> }
   /** A text value stored trimmed, or trimmed and in lower case. */
   | { op: 'column.normalize'; tableName: string; columnName: string; value: { normalize: 'trim' | 'email' | 'code' } }
   /** A date kept within bounds: never after today, never before another date (its own, or a linked row's). */
@@ -193,6 +195,8 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.normalize',
   'column.bounds',
   'column.lookup',
+  // Kept by an app's install; a Studio save carries it back with its column.
+  'column.perNight',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

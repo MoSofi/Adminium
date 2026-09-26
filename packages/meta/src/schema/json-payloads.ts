@@ -776,6 +776,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       from: z.string().min(1).max(128),
       /** `default`: a value the writer sends wins. `always`: it never does. */
       mode: z.enum(['default', 'always']).optional(),
+      /** Kept in step when the linked row's column changes later (with `mode: 'always'`). */
+      follow: z.literal(true).optional(),
     }),
   }),
   z.object({
@@ -922,7 +924,9 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       /** The child table (its id in the snapshot), its link back, what to add up. */
       from: z.string().min(1).max(256),
       via: z.string().min(1).max(128),
-      sum: z.string().min(1).max(128),
+      /** What to add up; or `count: true` to count the child rows instead (one of the two). */
+      sum: z.string().min(1).max(128).optional(),
+      count: z.literal(true).optional(),
       /** Multiplied into `sum` per child row, e.g. a quantity. */
       times: z.string().min(1).max(128).optional(),
       /** A child row whose column holds a value is left out, e.g. a voided line. */
@@ -942,6 +946,29 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         .optional(),
       /** A write that would take the balance below zero is refused. */
       cap: z.literal(true).optional(),
+    }).refine((v) => (v.sum === undefined) !== (v.count === undefined), { message: 'a total adds up `sum` or counts rows (`count: true`), not both' }),
+  }),
+  /*
+   * A price worked out night by night from `from` to the day before `to`:
+   * the rate read through `rate.via`, plus each adjustment row (its table by
+   * its id in the snapshot) that matches the night. Each night is rounded;
+   * the column holds their sum.
+   */
+  z.object({
+    op: z.literal('column.perNight'),
+    value: z.object({
+      from: ruleColumn,
+      to: ruleColumn,
+      rate: z.object({ via: ruleColumn, column: ruleColumn }),
+      adjust: z
+        .object({
+          table: ruleTable,
+          match: z.object({ via: ruleColumn.optional(), weekdays: ruleColumn.optional(), from: ruleColumn.optional(), to: ruleColumn.optional() }),
+          add: ruleColumn,
+          name: ruleColumn,
+          where: z.object({ column: ruleColumn, eq: z.union([z.string().max(256), z.number(), z.boolean()]) }).optional(),
+        })
+        .optional(),
     }),
   }),
   /*

@@ -139,6 +139,17 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       return same(rule['column']) ? { ...rule, column: to } : value;
     case 'column.copy':
       return same(rule['via']) ? { ...rule, via: to } : value;
+    case 'column.perNight': {
+      // Its dates and its rate's link are this table's; the rate and the adjustments are other tables'.
+      const rate = rule['rate'] as Record<string, unknown> | undefined;
+      if (!same(rule['from']) && !same(rule['to']) && !same(rate?.['via'])) return value;
+      return {
+        ...rule,
+        ...(same(rule['from']) ? { from: to } : {}),
+        ...(same(rule['to']) ? { to } : {}),
+        ...(rate !== undefined && same(rate['via']) ? { rate: { ...rate, via: to } } : {}),
+      };
+    }
     case 'column.bounds': {
       const before = rule['notBefore'] as Record<string, unknown> | undefined;
       if (before === undefined) return value;

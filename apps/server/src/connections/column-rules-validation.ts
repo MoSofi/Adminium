@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { formulaColumns, formulaExprSchema, momentColumns, type States } from '@adminium/manifest';
+import { dayColumns, formulaColumns, formulaExprSchema, momentColumns, type States } from '@adminium/manifest';
 
 import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
 
@@ -95,7 +95,7 @@ export interface RelatedRules {
 }
 
 /** The rules through which Adminium fills a column itself: nobody is asked for it. */
-const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula', 'column.lookup']);
+const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula', 'column.lookup', 'column.perNight']);
 
 /** Whether a rule saved beside this one has Adminium fill the column. */
 function filledByRule(related: RelatedRules | undefined, column: string): boolean {
@@ -139,7 +139,8 @@ export function columnRuleIssue(
     | 'column.scale'
     | 'column.normalize'
     | 'column.bounds'
-    | 'column.lookup',
+    | 'column.lookup'
+    | 'column.perNight',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -317,6 +318,7 @@ export function columnRuleIssue(
       if (target?.columns.some((c) => c.name === from) !== true) {
         return `The linked table has no column ${JSON.stringify(from)}.`;
       }
+      if (value['follow'] === true && value['mode'] !== 'always') return 'A copy that follows its row always wins: its mode is "always".';
       return null;
     }
 
@@ -363,7 +365,10 @@ export function columnRuleIssue(
 
     case 'column.formula': {
       if (column.isGenerated || column.isPrimaryKey) return `${name} is filled by the database, so Adminium cannot work it out.`;
-      if (!NUMERIC_TYPES.has(column.logicalType) || column.logicalType === 'float') {
+      const joins = typeof value['formula'] === 'object' && value['formula'] !== null && 'join' in value['formula'];
+      if (joins) {
+        if (!TEXTUAL_TYPES.has(column.logicalType)) return `A joined text needs a text column; ${name} is ${column.logicalType}.`;
+      } else if (!NUMERIC_TYPES.has(column.logicalType) || column.logicalType === 'float') {
         // SQLite keeps every decimal as a REAL, and reports it as float.
         if (!(column.logicalType === 'float' && model.dialect === 'sqlite')) {
           return `A worked-out value needs a decimal or whole-number column; ${name} is ${column.logicalType}.`;
@@ -373,6 +378,7 @@ export function columnRuleIssue(
       if (!parsed.success) return 'The formula is not one Adminium can work out.';
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
       const moments = momentColumns(parsed.data).columns;
+      const days = dayColumns(parsed.data).columns;
       for (const ref of formulaColumns(parsed.data)) {
         if (ref === column.name) return `${name} cannot be worked out from itself.`;
         const read = table?.columns.find((c) => c.name === ref);
@@ -380,6 +386,9 @@ export function columnRuleIssue(
         // SQLite keeps a timestamp as text, and may say so.
         const moment = read.logicalType === 'timestamp' || read.logicalType === 'timestamptz' || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(read.logicalType));
         if (moments.has(ref) && !moment) return `${JSON.stringify(ref)} is not a moment, so no hours are counted from it.`;
+        // SQLite keeps a date as text, and may say so.
+        const day = read.logicalType === 'date' || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(read.logicalType));
+        if (days.has(ref) && !day) return `${JSON.stringify(ref)} is not a date, so no days are counted from it.`;
       }
       return null;
     }
@@ -541,6 +550,9 @@ export function columnRuleIssue(
       return null;
     }
 
+    case 'column.perNight':
+      return perNightRuleIssue(value, column, model);
+
     case 'column.rollup': {
       if (column.isGenerated || column.isPrimaryKey) return `${name} cannot hold a total.`;
       if (!NUMERIC_TYPES.has(column.logicalType)) return `A total needs a number column; ${name} is ${column.logicalType}.`;
@@ -557,6 +569,11 @@ export function columnRuleIssue(
           r.from.columns[0] === via,
       );
       if (!links) return `${JSON.stringify(via)} does not link ${child.name} back to this table.`;
+      if ((value['sum'] === undefined) === (value['count'] === undefined)) return 'A total adds up a column or counts rows, not both.';
+      if (value['count'] === true) {
+        if (column.logicalType !== 'integer' && column.logicalType !== 'bigint') return `A count needs a whole-number column; ${name} is ${column.logicalType}.`;
+        if (value['times'] !== undefined || value['balance'] !== undefined || value['cap'] !== undefined) return 'A count takes nothing to multiply, no balance and no cap.';
+      }
       for (const part of [value['sum'], value['times']]) {
         if (part === undefined) continue;
         const counted = child.columns.find((c) => c.name === String(part));
@@ -586,6 +603,47 @@ export function columnRuleIssue(
       return null;
     }
   }
+}
+
+/**
+ * Why a price by the night cannot be kept for this column against the live
+ * snapshot, or `null`: its dates are dates of this table (text on SQLite),
+ * its rate is read through a link of this table, and the adjustments' table
+ * (by its id), their link to the same table, and their columns are there.
+ */
+function perNightRuleIssue(value: Value, column: ColumnModel, model: DatabaseModel): string | null {
+  const name = JSON.stringify(column.name);
+  if (column.isGenerated || column.isPrimaryKey) return `${name} is filled by the database, so Adminium cannot price it.`;
+  if (!NUMERIC_TYPES.has(column.logicalType) || (column.logicalType === 'float' && model.dialect !== 'sqlite')) {
+    return `A price by the night needs a decimal or whole-number column; ${name} is ${column.logicalType}.`;
+  }
+  const table = model.tables.find((candidate) => candidate.columns.includes(column));
+  const dated = (c: ColumnModel | undefined) => c !== undefined && (c.logicalType === 'date' || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(c.logicalType)));
+  for (const end of ['from', 'to']) {
+    const found = table?.columns.find((c) => c.name === String(value[end]));
+    if (!dated(found)) return `${JSON.stringify(value[end])} is not a date of this table.`;
+  }
+  const linkTo = (from: TableModel | undefined, via: unknown) =>
+    model.relations.find((r) => r.through === null && r.from.tableId === from?.id && r.from.columns.length === 1 && r.from.columns[0] === via);
+  const rate = (value['rate'] ?? {}) as Value;
+  const rateLink = linkTo(table, rate['via']);
+  if (rateLink === undefined) return `${JSON.stringify(rate['via'])} does not link this table to another one.`;
+  const rates = model.tables.find((candidate) => candidate.id === rateLink.to.tableId);
+  const priced = rates?.columns.find((c) => c.name === String(rate['column']));
+  if (priced === undefined || !NUMERIC_TYPES.has(priced.logicalType)) return `The linked table has no number column ${JSON.stringify(rate['column'])}.`;
+  const adjust = value['adjust'] as Value | undefined;
+  if (adjust === undefined) return null;
+  const adjustments = model.tables.find((candidate) => candidate.id === String(adjust['table']));
+  if (adjustments === undefined) return `There is no table ${JSON.stringify(adjust['table'])} of adjustments.`;
+  const match = (adjust['match'] ?? {}) as Value;
+  if (match['via'] !== undefined && linkTo(adjustments, match['via'])?.to.tableId !== rateLink.to.tableId) {
+    return `${JSON.stringify(match['via'])} does not link ${adjustments.name} to the table the rate is read from.`;
+  }
+  const where = adjust['where'] as Value | undefined;
+  for (const part of [adjust['add'], adjust['name'], match['weekdays'], match['from'], match['to'], where?.['column']]) {
+    if (part !== undefined && !adjustments.columns.some((c) => c.name === String(part))) return `${adjustments.name} has no column ${JSON.stringify(part)}.`;
+  }
+  return null;
 }
 
 /** Why a setting a rule reads (`{table, column}` of a settings row, by its id) is not there, or `null`. */

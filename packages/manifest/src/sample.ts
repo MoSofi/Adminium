@@ -196,6 +196,17 @@ export function sampleBundleIssues(bundle: SampleBundle, manifest: Manifest): Sa
       continue;
     }
     const columns = new Set(shape.columns.map((column) => column.ref));
+    // A row priced by the night is priced as it is written, from its rate and adjustment rows: those come first.
+    for (const column of shape.columns) {
+      const rule = column.rules?.perNight;
+      if (rule === undefined) continue;
+      const rateTable = shape.columns.find((c) => c.ref === rule.rate.via)?.references;
+      for (const source of [rateTable, rule.adjust?.table]) {
+        if (source === undefined) continue;
+        const listed = bundle.tables.findIndex((other) => other.ref === source);
+        if (listed >= t) issues.push({ path: `tables.${String(t)}.ref`, message: `"${source}" must come before "${table.ref}": "${table.ref}" is priced from it.` });
+      }
+    }
     // A number Adminium gives without gaps: a sample row names it, empty, or the load numbers it into the real series.
     const gapless = shape.columns.filter((column) => column.rules?.sequence?.gapless === true).map((column) => column.ref);
     for (const [r, row] of table.rows.entries()) {

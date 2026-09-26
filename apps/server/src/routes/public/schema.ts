@@ -86,6 +86,10 @@ export const publicRecordParams = z.object({
   id: z.string().min(1).max(512),
 });
 
+/** One child table in `/public/config`, and the one level below it. */
+const publicConfigGrandchild = z.object({ writable: z.array(z.string()), select: z.array(z.string()), max: z.number().int() });
+const publicConfigChild = publicConfigGrandchild.extend({ children: z.record(z.string(), publicConfigGrandchild).optional() });
+
 /** `GET /public/config` — what this key may do. Carries no rows. */
 export const publicConfigReply = z.object({
   data: z.object({
@@ -134,6 +138,10 @@ export const publicConfigReply = z.object({
         kind: z.literal('availability').optional(),
         /** On an availability ref: the kind of limit it answers — a slot, a parent's pool, or nights. */
         capacity: z.enum(['slot', 'parent', 'night']).optional(),
+        /** The child rows a create may carry, by name: what each writes and shows, and how many at most. */
+        children: z.record(z.string(), publicConfigChild).optional(),
+        /** The create (or change) may be tried without writing (`…/dry-run`). */
+        dryRun: z.literal(true).optional(),
       }),
     ),
   }),
