@@ -308,6 +308,42 @@ export const publicEndpointDefinitionSchema = z
       })
       .strict()
       .optional(),
+    /** Availability: which of the source's limits it answers, by its place in the list (absent: the first). */
+    capacity_rule: z.number().int().min(0).max(2).optional(),
+    /** Availability: what is left is said only when little is — below a number, or a share of the pool. */
+    show_left: z
+      .union([
+        z.object({ below: z.number().int().min(1) }).strict(),
+        z.object({ below_share: z.number().int().min(1).max(100) }).strict(),
+      ])
+      .optional(),
+    /** Availability of a parent limit: the column of the pools' rows a page asks by. */
+    under: columnSchema.optional(),
+    /**
+     * Rows readable only with a code that unlocks them: a row of `table` whose
+     * `column` holds the typed code and whose `link` points at the row. No
+     * row answers without one.
+     */
+    unlock_by: z
+      .object({
+        table: z.string().min(1).max(256),
+        column: columnSchema,
+        link: columnSchema,
+        where: z
+          .array(
+            z.union([
+              z.object({ column: columnSchema, eq: scalarSchema }).strict(),
+              z.object({ column: columnSchema, not_before: z.enum(['now', 'today']), or_empty: z.literal(true).optional() }).strict(),
+              z.object({ column: columnSchema, not_after: z.enum(['now', 'today']), or_empty: z.literal(true).optional() }).strict(),
+            ]),
+          )
+          .max(4)
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    /** Image columns any visitor may see, through the rows this endpoint reads. */
+    pictures: z.array(columnSchema).min(1).max(4).optional(),
   })
   .strict();
 
@@ -397,6 +433,18 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.rank !== undefined) out['rank'] = { ...def.rank };
   if (def.anonymous !== undefined) out['anonymous'] = { ...def.anonymous };
   if (def.require_setting !== undefined) out['require_setting'] = def.require_setting.map((setting) => ({ ...setting }));
+  if (def.capacity_rule !== undefined) out['capacity_rule'] = def.capacity_rule;
+  if (def.show_left !== undefined) out['show_left'] = { ...def.show_left };
+  if (def.under !== undefined) out['under'] = def.under;
+  if (def.unlock_by !== undefined) {
+    out['unlock_by'] = {
+      table: def.unlock_by.table,
+      column: def.unlock_by.column,
+      link: def.unlock_by.link,
+      ...(def.unlock_by.where === undefined ? {} : { where: def.unlock_by.where.map((condition) => ({ ...condition })) }),
+    };
+  }
+  if (def.pictures !== undefined) out['pictures'] = [...def.pictures];
   return out;
 }
 
@@ -471,7 +519,8 @@ function decidedByAdminium(column: EffectiveColumn): boolean {
     column.sequence !== undefined ||
     column.code !== undefined ||
     column.rollup !== undefined ||
-    column.stamp !== undefined
+    column.stamp !== undefined ||
+    column.lookup !== undefined
   );
 }
 
@@ -602,7 +651,11 @@ export function definitionToResource(
   };
   if (claim !== undefined) resource.claim = claim;
   if (def.visible_with !== undefined) resource.visibleWith = { ...def.visible_with };
-  if (def.kind === 'availability') resource.kind = 'availability';
+  if (def.kind === 'availability') {
+    resource.kind = 'availability';
+    const answered = table?.table.capacityRules?.[def.capacity_rule ?? 0]?.kind;
+    if (answered !== undefined) resource.capacity = answered;
+  }
   if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
   if (def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };
   if (def.requires !== undefined) resource.requires = [...def.requires];
@@ -674,6 +727,87 @@ export function readsOf(def: PublicEndpointDefinition): { list: string; column: 
     ...(order === '' ? [] : [{ list: 'order', column: order }]),
     ...(def.rank === undefined ? [] : [{ list: 'rank', column: def.rank.order_by }, ...(def.rank.where === undefined ? [] : [{ list: 'rank', column: def.rank.where.column }])]),
   ];
+}
+
+/** Which limit an availability endpoint answers, and how much of it a page may be told. */
+function availabilityShapeIssues(def: PublicEndpointDefinition, table: ResolvedTable, view: SnapshotView): ScopeIssue[] {
+  const out: ScopeIssue[] = [];
+  const rules = table.table.capacityRules ?? [];
+  const named = def.capacity_rule !== undefined || def.show_left !== undefined || def.under !== undefined;
+  if (rules.length === 0) {
+    if (named) out.push({ code: 'ENDPOINT_AVAILABILITY_NO_LIMIT', message: `${def.source} has no limit for capacity_rule, show_left or under to answer` });
+    return out;
+  }
+  const index = def.capacity_rule ?? 0;
+  const rule = rules[index];
+  if (rule === undefined) {
+    out.push({ code: 'ENDPOINT_AVAILABILITY_NO_LIMIT', message: `${def.source} has ${rules.length} limit${rules.length === 1 ? '' : 's'}, so capacity_rule is 0 to ${rules.length - 1}`, column: 'capacity_rule' });
+    return out;
+  }
+  if (def.show_left !== undefined && rule.kind === 'slot') {
+    out.push({ code: 'ENDPOINT_AVAILABILITY_SHAPE', message: 'what is left is shown of a pool: a parent or night limit', column: 'show_left' });
+  }
+  if (def.under !== undefined) {
+    if (rule.kind !== 'parent') {
+      out.push({ code: 'ENDPOINT_AVAILABILITY_SHAPE', message: 'under asks a parent limit by a column of its pools', column: 'under' });
+    } else {
+      const relation = view.model.relations.find(
+        (r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === rule.via,
+      );
+      const target = relation === undefined ? null : sourceTable(view, relation.to.tableId);
+      if (target !== null && !target.columns.has(def.under)) {
+        out.push({ code: 'ENDPOINT_AVAILABILITY_SHAPE', message: `"${def.under}" is not a column of ${target.id}`, column: 'under' });
+      }
+    }
+  }
+  if (rule.kind === 'night' && 'size' in rule.pool && rule.pool.size === 1) {
+    out.push({ code: 'ENDPOINT_AVAILABILITY_ONE_ROW', message: 'availability answers a pool, not one row', column: 'capacity_rule' });
+  }
+  return out;
+}
+
+/** An endpoint that shows rows only with the code that unlocks them: a read, of its own, through a real link. */
+function unlockIssues(def: PublicEndpointDefinition, table: ResolvedTable, view: SnapshotView): ScopeIssue[] {
+  const out: ScopeIssue[] = [];
+  const unlock = def.unlock_by!;
+  if (def.methods.some((m) => m !== 'GET')) out.push({ code: 'ENDPOINT_UNLOCK_READ_ONLY', message: 'an unlock only reads' });
+  if (def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined || def.kind === 'availability') {
+    out.push({ code: 'ENDPOINT_UNLOCK_ALONE', message: 'an unlock is its own endpoint: no claim, identity, parent or availability' });
+  }
+  const codes = sourceTable(view, unlock.table);
+  if (codes === null) {
+    out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `${unlock.table} is not a table of this connection`, column: 'unlock_by.table' });
+    return out;
+  }
+  for (const [name, column] of [['column', unlock.column], ['link', unlock.link], ...(unlock.where ?? []).map((w) => ['where', w.column] as const)] as const) {
+    if (!codes.columns.has(column)) out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `"${column}" is not a column of ${unlock.table}`, column: `unlock_by.${name}` });
+  }
+  const link = view.model.relations.find(
+    (r) => r.through === null && r.from.tableId === codes.id && r.from.columns.length === 1 && r.from.columns[0] === unlock.link,
+  );
+  if (codes.columns.has(unlock.link) && link?.to.tableId !== table.id) {
+    out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `${unlock.table}.${unlock.link} does not point at ${def.source}`, column: 'unlock_by.link' });
+  }
+  return out;
+}
+
+/** Pictures anyone may see: shown columns of an open read, which no caller writes. */
+function pictureIssues(def: PublicEndpointDefinition, table: ResolvedTable): ScopeIssue[] {
+  const out: ScopeIssue[] = [];
+  if (def.methods.some((m) => m !== 'GET') || def.kind === 'availability') {
+    out.push({ code: 'ENDPOINT_PICTURES_READ_ONLY', message: 'pictures are shown through an endpoint that only reads rows' });
+  }
+  if (def.auth.role !== 'anon' || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined) {
+    out.push({ code: 'ENDPOINT_PICTURES_CLAIMED', message: "pictures are for every visitor; a signed-in person's own files are `files`" });
+  }
+  const visible = visibleColumns(table);
+  const written = new Set([...(def.writable ?? []), ...Object.keys(def.defaults ?? {})]);
+  for (const column of def.pictures ?? []) {
+    if (!visible.has(column)) out.push({ code: 'ENDPOINT_PICTURES_UNKNOWN_COLUMN', message: `"${column}" is not a column of ${def.source}`, column });
+    else if (!def.select.includes(column)) out.push({ code: 'ENDPOINT_PICTURES_NOT_SELECTED', message: `"${column}" is a picture, so it is one of the columns shown`, column });
+    if (written.has(column) || (def.files ?? []).includes(column)) out.push({ code: 'ENDPOINT_PICTURES_WRITABLE', message: `"${column}" is a picture anyone sees, so no caller writes it`, column });
+  }
+  return out;
 }
 
 /**
@@ -809,21 +943,33 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
    * time is held by a named lock that MySQL refuses to take inside an open
    * transaction, so a guarded table is not a creating child.
    */
-  if (def.visible_with !== undefined && (methods.has('POST') || methods.has('BATCH')) && (table.table.capacity !== undefined || table.table.booking !== undefined)) {
+  if (
+    def.visible_with !== undefined &&
+    (methods.has('POST') || methods.has('BATCH')) &&
+    (table.table.capacity !== undefined || table.table.capacityRules !== undefined || table.table.booking !== undefined)
+  ) {
     push('ENDPOINT_VISIBLE_WITH_GUARDED', `${def.source} holds a booking limit, so rows visible with a parent cannot be created here`);
   }
 
   if (def.kind === 'availability') {
     // Free or full, per slot, and nothing else: a read of the booking limit.
     const capacity = table.table.capacity;
+    const rules = table.table.capacityRules ?? [];
     if ([...methods].some((m) => m !== 'GET')) push('ENDPOINT_AVAILABILITY_READ_ONLY', 'availability answers GET only');
-    if (capacity === undefined && table.table.booking === undefined) {
+    if (capacity === undefined && rules.length === 0 && table.table.booking === undefined) {
       push('ENDPOINT_AVAILABILITY_NO_LIMIT', `${def.source} has no booking limit to answer availability from`);
     } else if (capacity?.resource !== undefined) {
       // A booking rule answers per person; a capacity limit per table or room does not yet.
       push('ENDPOINT_AVAILABILITY_PER_RESOURCE', 'availability for a limit per table or room is not offered yet');
     }
+    issues.push(...availabilityShapeIssues(def, table, view as SnapshotView).map((issue) => ({ ...issue, ref })));
+  } else {
+    for (const [name, value] of [['capacity_rule', def.capacity_rule], ['show_left', def.show_left], ['under', def.under]] as const) {
+      if (value !== undefined) push('ENDPOINT_AVAILABILITY_SHAPE', `${name} shapes an availability answer, and this endpoint reads rows`, name);
+    }
   }
+  if (def.unlock_by !== undefined) issues.push(...unlockIssues(def, table, view as SnapshotView).map((issue) => ({ ...issue, ref })));
+  if (def.pictures !== undefined) issues.push(...pictureIssues(def, table).map((issue) => ({ ...issue, ref })));
 
   /*
    * A shared link's code — this endpoint's, or another's on the same table,

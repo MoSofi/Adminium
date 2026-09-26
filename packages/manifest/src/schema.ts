@@ -22,18 +22,18 @@ import { z } from 'zod';
 
 import { addOnNeedsIssues, addOnsSchema, requiresAddOn, type AddOnNeeds } from './add-ons.js';
 import { bookingIssues, bookingSchema } from './booking.js';
+import { capacityIssues, capacitySchema, viaIndexIssues, type Capacity } from './capacity.js';
 import { appDocumentIssues, appDocumentSchema, mappingIssues, type AppDocument } from './documents.js';
 import { formulaColumns, formulaExprSchema, tableFormulaIssues } from './formula.js';
 import { pageCalendarIssues } from './page-calendar.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
-import { publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, type PublicAccess } from './public-access.js';
+import { codeWhereSchema, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, type PublicAccess } from './public-access.js';
 import { roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
 import { statesIssues, statesSchema, type States } from './states.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
   NUMERIC_TYPES,
   labelsSchema,
-  numberOrSetting,
   refSchema,
   scalarSchema,
   settingSourceSchema,
@@ -361,6 +361,12 @@ export const stampTriggerSchema = z.union([
   z.object({ columns: z.array(refSchema).min(1).max(8) }).strict(),
 ]);
 
+/** What renews a code: a change of a column, or a column moving to one of `values`. */
+export const codeRenewTriggerSchema = z.union([
+  z.object({ column: refSchema, changed: z.literal(true) }).strict(),
+  z.object({ column: refSchema, values: z.array(scalarSchema).min(1).max(16) }).strict(),
+]);
+
 export const columnRulesSchema = z
   .object({
     options: z
@@ -453,6 +459,12 @@ export const columnRulesSchema = z
       .object({
         prefix: z.string().regex(/^[A-Z][A-Z0-9]{0,5}-?$/, 'an upper-case prefix, e.g. MR-').optional(),
         length: z.number().int().min(4).max(16),
+        /**
+         * A new code in the same write when a column changes (a ticket sent
+         * to another address), or moves to one of `values` (a transfer
+         * accepted): the old code stops working as the write commits.
+         */
+        renew: z.object({ on: z.union([codeRenewTriggerSchema, z.array(codeRenewTriggerSchema).min(2).max(3)]) }).strict().optional(),
       })
       .strict()
       .optional(),
@@ -463,7 +475,27 @@ export const columnRulesSchema = z
      * either end, `email` trimmed and in lower case — so a unique address and
      * a person signing in with it agree on every database.
      */
-    normalize: z.enum(['trim', 'email']).optional(),
+    normalize: z.enum(['trim', 'email', 'code']).optional(),
+    /**
+     * A foreign key filled from a code a person types into `from`: the one
+     * row of `table` whose `column` holds it, compared as a code (upper
+     * case, spaces and dashes left out), among the rows `where` allows and,
+     * with `scope`, the ones for the same parent as this row.
+     */
+    lookup: z
+      .object({
+        from: refSchema,
+        table: refSchema,
+        column: refSchema,
+        where: codeWhereSchema.optional(),
+        scope: z
+          .array(z.object({ column: refSchema, equals: refSchema, orEmpty: z.literal(true).optional() }).strict())
+          .min(1)
+          .max(2)
+          .optional(),
+      })
+      .strict()
+      .optional(),
     rollup: z
       .object({
         /** The child table, its foreign key back to this row, and what to add up. */
@@ -535,29 +567,10 @@ export const columnRulesSchema = z
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
 
 /**
- * A limit on how much of a slot rows may take — the booking guard. Only rows
- * whose `countWhere` column holds one of its values count (a cancelled booking
- * holds no seats).
+ * A limit on how much of a pool rows may take — the booking guard. One rule
+ * or a list; slot, parent and night kinds (see `capacity.ts`).
  */
-export const capacitySchema = z
-  .object({
-    slot: refSchema,
-    amount: refSchema,
-    perSlot: numberOrSetting,
-    countWhere: z.object({ column: refSchema, values: z.array(z.string().min(1)).min(1) }).strict().optional(),
-    slotMinutes: numberOrSetting,
-    windowDays: numberOrSetting.optional(),
-    opens: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.object({ table: refSchema, column: refSchema }).strict()]).optional(),
-    closes: z.union([z.string().regex(/^\d{2}:\d{2}$/), z.object({ table: refSchema, column: refSchema }).strict()]).optional(),
-    /** A table, a room: the limit applies per value of this column too. */
-    resource: refSchema.optional(),
-    /**
-     * How many hours before its time a guest may still cancel through the
-     * public API; later, only the venue can. Staff are never held to it.
-     */
-    cancelHours: numberOrSetting.optional(),
-  })
-  .strict();
+export { capacitySchema };
 
 /** The longest `maxLength` a text column may ask for (see `maxLength` below). */
 export const MAX_TEXT_LENGTH = 1000;
@@ -654,6 +667,12 @@ export const requiredColumnSchema = z
      * column needs `maxLength`: MySQL indexes no unbounded text.
      */
     unique: z.literal(true).optional(),
+    /**
+     * A plain index on a foreign key a limit or a total counts by (a
+     * capacity's `via`, a rollup's `via`), so the count under the limit's
+     * lock reads the rows it needs and not the whole table.
+     */
+    index: z.literal(true).optional(),
     /** Rules Adminium keeps on the column once installed (see `columnRulesSchema`). */
     rules: columnRulesSchema.optional(),
     /**
@@ -1289,7 +1308,7 @@ export function appReferenceIssues(
       const rules = column.rules;
       if (rules === undefined) return;
       const here = (...rest: (string | number)[]) => at('columns', c, 'rules', ...rest);
-      const deciders = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default'] as const).filter(
+      const deciders = (['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup'] as const).filter(
         (name) => rules[name] !== undefined,
       );
       if (deciders.length > 0) decide(table.ref, column.ref);
@@ -1580,29 +1599,21 @@ export function appReferenceIssues(
             out.push({ path: [...path, 'filled'], message: `"${table.ref}.${watched.ref}" is never empty, so it is never first filled` });
           }
         });
-        const others = (['copy', 'sequence', 'code', 'rollup', 'formula', 'format', 'default'] as const).filter((name) => rules[name] !== undefined);
+        const others = (['copy', 'sequence', 'code', 'rollup', 'formula', 'format', 'default', 'lookup'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('stamp'), message: `a stamped column is not also decided by ${others.join(', ')}` });
       }
       if ((rules.sequence !== undefined || rules.code !== undefined) && column.role === 'pk') {
         out.push({ path: here(), message: 'a primary key numbers itself; it takes no sequence or code rule' });
       }
+      if (rules.code?.renew !== undefined) out.push(...codeRenewIssues(table, column, rules.code.renew, here('code', 'renew')));
+      if (rules.lookup !== undefined) {
+        out.push(...codeLookupIssues(table, column, rules.lookup, here('lookup'), { index, tables, shareCodes: (ref) => shareCodeColumns(m.publicAccess ?? [], ref) }));
+      }
     });
-    const cap = table.capacity;
-    if (cap !== undefined) {
-      for (const [name, value] of [['slot', cap.slot], ['amount', cap.amount], ['resource', cap.resource], ['countWhere', cap.countWhere?.column]] as const) {
-        if (value !== undefined && !has(table.ref, value)) {
-          out.push({ path: at('capacity', name), message: `"${table.ref}" has no column "${value}"` });
-        }
-      }
-      for (const [name, value] of Object.entries(cap)) {
-        if (typeof value === 'object' && value !== null && 'table' in value && 'column' in value) {
-          const setting = value as { table: string; column: string };
-          if (!has(setting.table, setting.column)) {
-            out.push({ path: at('capacity', name), message: `"${setting.table}" has no column "${setting.column}"` });
-          }
-        }
-      }
+    if (table.columns.filter((column) => column.rules?.lookup !== undefined).length > 2) {
+      out.push({ path: at('columns'), message: 'a table resolves at most two typed codes' });
     }
+    if (table.capacity !== undefined) out.push(...capacityIssues(table, table.capacity, index, at));
     if (table.booking !== undefined) {
       out.push(...bookingIssues(table, table.booking, index, at));
       // The late flag is Adminium's to set.
@@ -1642,10 +1653,12 @@ export function appReferenceIssues(
       index,
       decided: (table) => decided.get(table) ?? new Set(),
       answersAvailability: (table) => tables.get(table)?.capacity !== undefined || tables.get(table)?.booking !== undefined,
+      capacityOf: (table) => tables.get(table)?.capacity,
       publicKeys: m.publicKeys,
       roles: m.roles ?? [],
     }),
   );
+  out.push(...viaIndexIssues(m.requiredSchema.tables));
   out.push(...outboxIssues(m, index));
   out.push(...roleLimitIssues(m.roles ?? [], index));
   if (shapeOf === undefined) out.push(...addOnNeedsIssues(m));
@@ -1661,6 +1674,123 @@ export function appReferenceIssues(
   return out;
 }
 
+/** The rules through which Adminium decides a column: nobody else writes it. */
+const DECIDING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup'] as const;
+const decidedByRules = (rules: ColumnRules | undefined) => DECIDING_RULES.some((name) => rules?.[name] !== undefined);
+
+/** What renews a code must be another column of the row, one a person changes. */
+function codeRenewIssues(
+  table: RequiredTableShape,
+  column: RequiredTableShape['columns'][number],
+  renew: NonNullable<NonNullable<ColumnRules['code']>['renew']>,
+  path: (string | number)[],
+): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  const triggers = Array.isArray(renew.on) ? renew.on : [renew.on];
+  triggers.forEach((trigger, k) => {
+    const at = Array.isArray(renew.on) ? [...path, 'on', k] : [...path, 'on'];
+    const watched = table.columns.find((c) => c.ref === trigger.column);
+    if (watched === undefined) {
+      out.push({ path: [...at, 'column'], message: `"${table.ref}" has no column "${trigger.column}"` });
+    } else if (watched.ref === column.ref) {
+      out.push({ path: [...at, 'column'], message: 'a code is renewed by another column' });
+    } else if (watched.rules?.code !== undefined) {
+      out.push({ path: [...at, 'column'], message: `"${table.ref}.${watched.ref}" is a code of its own, so it renews nothing` });
+    } else if (watched.type === 'json' || watched.type === 'blob') {
+      out.push({ path: [...at, 'column'], message: `"${table.ref}.${watched.ref}" is a ${watched.type} column, so a change of it is not compared` });
+    } else if ('values' in trigger) {
+      for (const value of trigger.values) {
+        if (!valueFits(watched, value)) out.push({ path: [...at, 'values'], message: `${JSON.stringify(value)} is not a value of "${table.ref}.${watched.ref}"` });
+      }
+    } else if (decidedByRules(watched.rules)) {
+      out.push({ path: [...at, 'column'], message: 'a code is renewed by a change a person makes' });
+    }
+  });
+  return out;
+}
+
+/**
+ * A foreign key filled from a typed code: the link, the column the code is
+ * typed into, and the column of the other table it is found by — one row,
+ * compared as a code, never a shared link's secret.
+ */
+function codeLookupIssues(
+  table: RequiredTableShape,
+  column: RequiredTableShape['columns'][number],
+  lookup: NonNullable<ColumnRules['lookup']>,
+  path: (string | number)[],
+  ctx: { index: ReturnType<typeof tableIndex>; tables: ReadonlyMap<string, RequiredTableShape>; shareCodes: (table: string) => string[] },
+): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  if (column.type !== 'fk' || column.nullable !== true || column.references !== lookup.table) {
+    out.push({ path: [...path, 'table'], message: `a lookup fills this table's link to "${lookup.table}": the column is a nullable foreign key to it` });
+  }
+  const typed = table.columns.find((c) => c.ref === lookup.from);
+  if (typed === undefined) {
+    out.push({ path: [...path, 'from'], message: `"${table.ref}" has no column "${lookup.from}"` });
+  } else if (
+    typed.ref === column.ref ||
+    typed.type !== 'text' ||
+    typed.maxLength === undefined ||
+    typed.maxLength > 64 ||
+    typed.nullable !== true ||
+    decidedByRules(typed.rules)
+  ) {
+    out.push({ path: [...path, 'from'], message: 'the code is typed into a nullable text column of up to 64 characters' });
+  }
+  const target = ctx.tables.get(lookup.table);
+  if (target === undefined) {
+    out.push({ path: [...path, 'table'], message: `"${lookup.table}" is not a table of this app` });
+    return out;
+  }
+  const found = target.columns.find((c) => c.ref === lookup.column);
+  const scopeColumns = (lookup.scope ?? []).map((s) => s.column);
+  if (found === undefined) {
+    out.push({ path: [...path, 'column'], message: `"${lookup.table}" has no column "${lookup.column}"` });
+  } else {
+    // A set of columns unique together counts when its other columns are the scope's.
+    const sets = ((target as { unique?: readonly (readonly string[])[] }).unique ?? []).filter((set) => set.includes(found.ref));
+    const scoped = sets.some((set) => {
+      const others = set.filter((ref) => ref !== found.ref);
+      return others.length === scopeColumns.length && others.every((ref) => scopeColumns.includes(ref));
+    });
+    if (found.type !== 'text' || (found.unique !== true && found.rules?.code === undefined && !scoped)) {
+      out.push({ path: [...path, 'column'], message: `a code finds one row: make "${lookup.table}.${found.ref}" unique (or unique with its scope)` });
+    }
+    if (found.rules?.code === undefined && found.rules?.normalize !== 'code') {
+      out.push({ path: [...path, 'column'], message: `"${lookup.table}.${found.ref}" is compared as a code: give it normalize "code"` });
+    }
+    if (ctx.shareCodes(lookup.table).includes(found.ref)) {
+      out.push({ path: [...path, 'column'], message: "a shared link's code is never looked up" });
+    }
+  }
+  (lookup.where ?? []).forEach((condition, k) => {
+    const at = [...path, 'where', k];
+    const filter = ctx.index.column(lookup.table, condition.column);
+    if (filter === undefined) {
+      out.push({ path: [...at, 'column'], message: `"${lookup.table}" has no column "${condition.column}"` });
+    } else if ('eq' in condition) {
+      if (!valueFits(filter, condition.eq)) out.push({ path: [...at, 'eq'], message: `${JSON.stringify(condition.eq)} is not a value of "${lookup.table}.${filter.ref}"` });
+    } else if (filter.type !== 'date' && filter.type !== 'timestamptz') {
+      out.push({ path: [...at, 'column'], message: `"${lookup.table}.${filter.ref}" is not a date` });
+    }
+  });
+  (lookup.scope ?? []).forEach((scope, k) => {
+    const at = [...path, 'scope', k];
+    const theirs = ctx.index.column(lookup.table, scope.column);
+    const ours = ctx.index.column(table.ref, scope.equals);
+    if (theirs === undefined) out.push({ path: [...at, 'column'], message: `"${lookup.table}" has no column "${scope.column}"` });
+    if (ours === undefined) out.push({ path: [...at, 'equals'], message: `"${table.ref}" has no column "${scope.equals}"` });
+    if (theirs !== undefined && ours !== undefined && (theirs.type !== ours.type || theirs.references !== ours.references)) {
+      out.push({ path: at, message: `"${table.ref}.${ours.ref}" and "${lookup.table}.${theirs.ref}" hold different things` });
+    }
+    if (scope.orEmpty === true && theirs !== undefined && theirs.nullable !== true) {
+      out.push({ path: [...at, 'orEmpty'], message: `"${lookup.table}.${theirs.ref}" is never empty` });
+    }
+  });
+  return out;
+}
+
 /** What `appReferenceIssues` reads of a table. */
 export interface RequiredTableShape {
   ref: string;
@@ -1672,9 +1802,12 @@ export interface RequiredTableShape {
     enum?: string[] | undefined;
     references?: string | undefined;
     maxLength?: number | undefined;
+    semantic?: string | undefined;
+    unique?: true | undefined;
+    index?: true | undefined;
     rules?: ColumnRules | undefined;
   }[];
-  capacity?: z.infer<typeof capacitySchema> | undefined;
+  capacity?: Capacity | undefined;
   booking?: z.infer<typeof bookingSchema> | undefined;
   states?: States | undefined;
   builtOn?: string | undefined;

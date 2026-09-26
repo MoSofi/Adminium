@@ -304,6 +304,8 @@ const resourceSchema = z
     count: z.enum(PUBLIC_COUNT_MODES).default('none'),
     /** `availability`: free or full per slot, from the table's booking limit; never a row. */
     kind: z.enum(['records', 'availability']).optional(),
+    /** On an availability resource: the kind of limit it answers, so a page knows which question to ask. */
+    capacity: z.enum(['slot', 'parent', 'night']).optional(),
     /** The email sent when a guest creates a row (see the endpoint's `confirm`). */
     confirm: z.record(z.string(), z.unknown()).optional(),
     /** The only values a caller may write into these columns. */
@@ -537,6 +539,8 @@ export interface CompiledResource {
   count: 'none';
   /** `availability` answers free or full per slot and never a row. */
   kind: 'records' | 'availability';
+  /** On an availability resource: the kind of limit it answers (absent: a booking rule, or not known). */
+  capacity?: 'slot' | 'parent' | 'night';
   /** The confirmation a guest's create sends, or null. */
   confirm: Record<string, unknown> | null;
 }
@@ -1255,6 +1259,7 @@ export function compileScope(
       response: { shape: r.response?.shape ?? 'wrapped' },
       count: r.count,
       kind: r.kind ?? 'records',
+      ...(r.capacity === undefined ? {} : { capacity: r.capacity }),
       confirm: r.confirm ?? null,
     });
   }
@@ -1558,6 +1563,7 @@ function projectResource(r: CompiledResource): {
    */
   response: { shape: PublicResponseShape };
   kind?: 'availability';
+  capacity?: 'slot' | 'parent' | 'night';
 } {
   // Copied, not aliased: this object is serialized straight onto the wire, and
   // handing out the compiled scope's own arrays would let a serializer or a
@@ -1572,6 +1578,7 @@ function projectResource(r: CompiledResource): {
     limit: r.limit,
     response: { shape: r.response.shape },
     ...(r.kind === 'availability' ? { kind: 'availability' as const } : {}),
+    ...(r.kind === 'availability' && r.capacity !== undefined ? { capacity: r.capacity } : {}),
   };
 }
 

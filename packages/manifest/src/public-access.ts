@@ -28,11 +28,13 @@
  */
 import { z } from 'zod';
 
+import { kindOf, rulesOf, type Capacity } from './capacity.js';
 import {
   refSchema,
   scalarSchema,
   settingRefSchema,
   valueFits,
+  type ColumnShape,
   type ReferenceIssue,
   type TableIndex,
 } from './refs.js';
@@ -156,6 +158,21 @@ function windowMoment(key: string, ref: z.infer<typeof windowMomentSchema>, link
   return linked ? { ...rest, column: column ?? '', via: key } : { ...rest, column: key };
 }
 
+/**
+ * Which rows of a codes table count when a typed code is looked up: a value a
+ * column must hold (`active = true`), or a date it must not be past
+ * (`notBefore: 'now'` on a `valid_until`, `orEmpty` for none) or before.
+ */
+export const codeWhereSchema = z
+  .array(
+    z.union([
+      z.object({ column: refSchema, eq: scalarSchema }).strict(),
+      z.object({ column: refSchema, notBefore: z.enum(['now', 'today']), orEmpty: z.literal(true).optional() }).strict(),
+      z.object({ column: refSchema, notAfter: z.enum(['now', 'today']), orEmpty: z.literal(true).optional() }).strict(),
+    ]),
+  )
+  .max(4);
+
 export const publicAccessSchema = z
   .object({
     table: refSchema,
@@ -269,6 +286,28 @@ export const publicAccessSchema = z
       })
       .strict()
       .optional(),
+    /** Availability: which of the table's limits it answers (absent: the first). */
+    rule: z.number().int().min(0).max(2).optional(),
+    /** Availability: say what is left, but only when little is (below a number, or a share of the pool). */
+    showLeft: z
+      .union([
+        z.object({ below: z.number().int().min(1) }).strict(),
+        z.object({ belowShare: z.number().int().min(1).max(100) }).strict(),
+      ])
+      .optional(),
+    /** Availability of a parent limit: the column of the pool's rows a page asks by (an event's ticket types). */
+    under: refSchema.optional(),
+    /**
+     * Rows readable only with a code that unlocks them: a row of `table`
+     * whose `column` holds the typed code, and whose `link` points at the row
+     * (a presale code revealing its ticket type).
+     */
+    unlockBy: z
+      .object({ table: refSchema, column: refSchema, link: refSchema, where: codeWhereSchema.optional() })
+      .strict()
+      .optional(),
+    /** Image columns any visitor may see, through the rows this entry reads. */
+    pictures: z.array(refSchema).min(1).max(4).optional(),
   })
   .strict();
 export type PublicAccess = z.infer<typeof publicAccessSchema>;
@@ -301,6 +340,8 @@ interface PublicAccessContext {
   decided: (table: string) => ReadonlySet<string>;
   /** Whether the table carries a capacity or a booking rule to answer availability from. */
   answersAvailability: (table: string) => boolean;
+  /** The table's limits, as it declares them (absent: the caller does not say). */
+  capacityOf?: (table: string) => Capacity | undefined;
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
   roles: readonly { key: string; screensOnly?: boolean | undefined; cloneFrom?: string | undefined; permissions?: readonly string[] | undefined }[];
 }
@@ -731,7 +772,144 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       if (!ctx.answersAvailability(entry.table)) out.push({ path: at('kind'), message: `"${entry.table}" declares no capacity or booking to answer from` });
       if (entry.methods.some((method) => method !== 'GET')) out.push({ path: at('methods'), message: 'availability is read-only' });
     }
+    out.push(...availabilityShapeIssues(entry, ctx, at));
+    if (entry.unlockBy !== undefined) out.push(...unlockIssues(entry, entry.unlockBy, entries, ctx, at));
+    if (entry.pictures !== undefined) out.push(...pictureIssues(entry, entry.pictures, entries, ctx, at));
   });
+  return out;
+}
+
+/** `rule`, `showLeft` and `under`: which limit an availability entry answers, and how. */
+function availabilityShapeIssues(
+  entry: PublicAccess,
+  ctx: PublicAccessContext,
+  at: (...rest: (string | number)[]) => (string | number)[],
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const named = (['rule', 'showLeft', 'under'] as const).filter((name) => entry[name] !== undefined);
+  if (named.length === 0) return out;
+  if (entry.kind !== 'availability') {
+    for (const name of named) out.push({ path: at(name), message: `${name} shapes an availability answer, and this entry reads rows` });
+    return out;
+  }
+  if (ctx.capacityOf === undefined) return out;
+  const rules = rulesOf(ctx.capacityOf(entry.table));
+  if (rules.length === 0) {
+    for (const name of named) out.push({ path: at(name), message: `${name} answers a limit, and "${entry.table}" has none` });
+    return out;
+  }
+  const index = entry.rule ?? 0;
+  const rule = rules[index];
+  if (rule === undefined) {
+    out.push({ path: at('rule'), message: `"${entry.table}" has ${String(rules.length)} limit${rules.length === 1 ? '' : 's'}, so rule is 0 to ${String(rules.length - 1)}` });
+    return out;
+  }
+  const kind = kindOf(rule);
+  if (entry.showLeft !== undefined && kind === 'slot') {
+    out.push({ path: at('showLeft'), message: 'what is left is shown of a pool: a parent or night limit' });
+  }
+  if (entry.under !== undefined) {
+    if (rule.kind !== 'parent') {
+      out.push({ path: at('under'), message: 'under asks a parent limit by a column of its pools' });
+    } else {
+      const target = ctx.index.column(entry.table, rule.via)?.references;
+      if (target !== undefined && !ctx.index.has(target, entry.under)) out.push({ path: at('under'), message: `"${target}" has no column "${entry.under}"` });
+    }
+  }
+  if (rule.kind === 'night' && 'size' in rule.pool && rule.pool.size === 1) {
+    out.push({ path: at('rule'), message: 'availability answers a pool, not one row' });
+  }
+  return out;
+}
+
+/** An entry that shows rows only with the code that unlocks them. */
+function unlockIssues(
+  entry: PublicAccess,
+  unlock: NonNullable<PublicAccess['unlockBy']>,
+  entries: readonly PublicAccess[],
+  ctx: PublicAccessContext,
+  at: (...rest: (string | number)[]) => (string | number)[],
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const { index } = ctx;
+  if (entry.methods.length !== 1 || entry.methods[0] !== 'GET') out.push({ path: at('methods'), message: 'an unlock only reads' });
+  for (const name of ['claim', 'claimedBy', 'visibleWith'] as const) {
+    if (entry[name] !== undefined) out.push({ path: at(name), message: 'an unlock is its own entry' });
+  }
+  if (entry.kind === 'availability') out.push({ path: at('kind'), message: 'an unlock is its own entry' });
+  if (index.table(unlock.table) === undefined) {
+    out.push({ path: at('unlockBy', 'table'), message: `"${unlock.table}" is not a table of this app` });
+    return out;
+  }
+  const link = index.column(unlock.table, unlock.link);
+  if (link === undefined) out.push({ path: at('unlockBy', 'link'), message: `"${unlock.table}" has no column "${unlock.link}"` });
+  else if (link.type !== 'fk' || link.references !== entry.table) {
+    out.push({ path: at('unlockBy', 'link'), message: `"${unlock.table}.${unlock.link}" does not point at "${entry.table}"` });
+  }
+  const code = index.column(unlock.table, unlock.column) as (ColumnShape & { unique?: true; rules?: { code?: unknown; normalize?: string } }) | undefined;
+  if (code === undefined) {
+    out.push({ path: at('unlockBy', 'column'), message: `"${unlock.table}" has no column "${unlock.column}"` });
+  } else {
+    if (code.type !== 'text' || (code.unique !== true && code.rules?.code === undefined)) {
+      out.push({ path: at('unlockBy', 'column'), message: `a code finds one row: make "${unlock.table}.${code.ref}" unique (or unique with its scope)` });
+    }
+    if (code.rules?.code === undefined && code.rules?.normalize !== 'code') {
+      out.push({ path: at('unlockBy', 'column'), message: `"${unlock.table}.${code.ref}" is compared as a code: give it normalize "code"` });
+    }
+    if (shareCodeColumns(entries, unlock.table).includes(code.ref)) {
+      out.push({ path: at('unlockBy', 'column'), message: "a shared link's code is never looked up" });
+    }
+  }
+  (unlock.where ?? []).forEach((condition, k) => {
+    const path = at('unlockBy', 'where', k);
+    const filter = index.column(unlock.table, condition.column);
+    if (filter === undefined) out.push({ path: [...path, 'column'], message: `"${unlock.table}" has no column "${condition.column}"` });
+    else if ('eq' in condition) {
+      if (!valueFits(filter, condition.eq)) out.push({ path: [...path, 'eq'], message: `${JSON.stringify(condition.eq)} is not a value of "${unlock.table}.${filter.ref}"` });
+    } else if (filter.type !== 'date' && filter.type !== 'timestamptz') {
+      out.push({ path: [...path, 'column'], message: `"${unlock.table}.${filter.ref}" is not a date` });
+    }
+  });
+  return out;
+}
+
+/** Pictures every visitor may see: image columns the entry shows, which no browser writes. */
+function pictureIssues(
+  entry: PublicAccess,
+  pictures: readonly string[],
+  entries: readonly PublicAccess[],
+  ctx: PublicAccessContext,
+  at: (...rest: (string | number)[]) => (string | number)[],
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  if (entry.methods.length !== 1 || entry.methods[0] !== 'GET' || entry.kind === 'availability') {
+    out.push({ path: at('pictures'), message: 'pictures are shown through an entry that only reads rows' });
+  }
+  if (entry.claim !== undefined || entry.claimedBy !== undefined || entry.visibleWith !== undefined) {
+    out.push({ path: at('pictures'), message: "pictures are for every visitor; a signed-in person's own files are `files`" });
+  }
+  if ((entry.key ?? CUSTOMER_KEY) !== CUSTOMER_KEY) out.push({ path: at('key'), message: "pictures are served through the app's customer key" });
+  const writes = new Set([...(entry.writable ?? []), ...Object.keys(entry.defaults ?? {})]);
+  const shareCodes = shareCodeColumns(entries, entry.table);
+  for (const ref of pictures) {
+    const found = ctx.index.column(entry.table, ref) as
+      | (ColumnShape & { semantic?: string; rules?: { code?: unknown; secret?: boolean; personal?: boolean } })
+      | undefined;
+    if (found === undefined) {
+      out.push({ path: at('pictures'), message: `"${entry.table}" has no column "${ref}"` });
+      continue;
+    }
+    if (found.type !== 'text' || found.semantic !== 'image') {
+      out.push({ path: at('pictures'), message: `"${entry.table}.${ref}" is not an image column: text with semantic "image"` });
+    }
+    if (writes.has(ref)) out.push({ path: at('pictures'), message: `"${ref}" is a picture anyone sees, so a browser never writes it` });
+    if (entry.select !== undefined && !entry.select.includes(ref)) out.push({ path: at('pictures'), message: `"${ref}" is not one of the columns the entry shows` });
+    if ((entry.files ?? []).includes(ref)) out.push({ path: at('pictures'), message: `"${ref}" is a signed-in person's file, not a picture for everyone` });
+    if (found.rules?.secret === true || found.rules?.code !== undefined || shareCodes.includes(ref)) {
+      out.push({ path: at('pictures'), message: `"${entry.table}.${ref}" is kept from readers, so it is no picture for everyone` });
+    }
+    if (found.rules?.personal === true) out.push({ path: at('pictures'), message: `"${entry.table}.${ref}" is personal data, so it is no picture for everyone` });
+  }
   return out;
 }
 

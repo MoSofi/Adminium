@@ -497,6 +497,136 @@ const bookingHours = {
   breakEnd: bookingName.optional(),
 };
 
+/*
+ * A table's limits as they are stored: one rule, or `{rules: [...]}` for up
+ * to three. Every object is strict and complete, so a key an app writes is
+ * kept or refused, never dropped (a dropped key would change the rule's hash
+ * and leave the table less guarded than the app asked). A rule with no
+ * `kind` is a slot rule, stored exactly as a released app writes it.
+ */
+const capacityCount = z
+  .object({ column: ruleColumn, values: z.array(z.string().min(1)).min(1), via: ruleColumn.optional() })
+  .strict();
+const capacityCountWhere = z.union([capacityCount, z.array(capacityCount).min(1).max(2)]);
+const capacityHoldEnd = z.object({ column: ruleColumn, via: ruleColumn.optional() }).strict();
+const capacityHold = z
+  .object({
+    column: z.union([
+      ruleColumn,
+      z.object({ column: ruleColumn, via: ruleColumn.optional(), or: z.array(capacityHoldEnd).min(1).max(2).optional() }).strict(),
+    ]),
+    states: z.array(stateName).min(1).max(8),
+    via: ruleColumn.optional(),
+  })
+  .strict();
+const capacitySize = z.union([capacityNumber, z.object({ column: ruleColumn, onDay: ruleColumn.optional() }).strict()]);
+const capacityAmount = z.union([ruleColumn, z.number().int().min(1).max(1000)]);
+const capacityOutOfService = z
+  .object({ table: ruleTable, room: ruleColumn, from: ruleColumn, to: ruleColumn, active: ruleColumn.optional() })
+  .strict();
+const capacityNightDate = z.union([ruleColumn, z.object({ via: ruleColumn, column: ruleColumn }).strict()]);
+const storedCapacityRule = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('slot').optional(),
+      slot: ruleColumn,
+      amount: capacityAmount,
+      perSlot: capacityNumber,
+      countWhere: capacityCountWhere.optional(),
+      slotMinutes: capacityNumber,
+      windowDays: capacityNumber.optional(),
+      opens: capacityTime.optional(),
+      closes: capacityTime.optional(),
+      resource: ruleColumn.optional(),
+      cancelHours: capacityNumber.optional(),
+      hours: z
+        .object({ table: ruleTable, weekday: ruleColumn, open: ruleColumn.optional(), opens: ruleColumn, closes: ruleColumn })
+        .strict()
+        .optional(),
+      closures: z.object({ table: ruleTable, from: ruleColumn, to: ruleColumn, active: ruleColumn.optional() }).strict().optional(),
+      pauses: z.object({ table: ruleTable, slot: ruleColumn, active: ruleColumn.optional() }).strict().optional(),
+      noticeMinutes: capacityNumber.optional(),
+      hold: capacityHold.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('parent'),
+      via: ruleColumn,
+      size: capacitySize,
+      amount: capacityAmount.optional(),
+      countWhere: capacityCountWhere.optional(),
+      window: z.object({ opens: ruleColumn.optional(), closes: ruleColumn.optional() }).strict().optional(),
+      perWrite: z.object({ max: capacitySize, within: ruleColumn }).strict().optional(),
+      also: z
+        .array(
+          z
+            .object({ via: ruleColumn, size: z.union([capacitySize, z.object({ via: ruleColumn, column: ruleColumn }).strict()]) })
+            .strict(),
+        )
+        .min(1)
+        .max(2)
+        .optional(),
+      day: z.union([ruleColumn, z.object({ column: ruleColumn, via: ruleColumn.optional() }).strict()]).optional(),
+      lockBy: ruleColumn.optional(),
+      hold: capacityHold.optional(),
+      reserved: z.object({ states: z.array(stateName).min(1).max(8), via: ruleColumn.optional() }).strict().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('night'),
+      from: capacityNightDate,
+      to: capacityNightDate,
+      countWhere: capacityCountWhere.optional(),
+      pool: z.union([
+        z
+          .object({
+            via: ruleColumn,
+            count: z.object({ table: ruleTable, column: ruleColumn, outOfService: capacityOutOfService.optional() }).strict(),
+            fits: z.object({ column: ruleColumn }).strict().optional(),
+            given: z.object({ via: ruleColumn, column: ruleColumn }).strict().optional(),
+          })
+          .strict(),
+        z
+          .object({
+            via: ruleColumn,
+            size: z.union([z.literal(1), z.object({ column: ruleColumn }).strict()]),
+            outOfService: capacityOutOfService.optional(),
+          })
+          .strict(),
+      ]),
+      nights: z
+        .object({
+          min: capacityNumber.optional(),
+          max: capacityNumber.optional(),
+          minByArrival: z.partialRecord(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']), z.number().int().min(1).max(60)).optional(),
+          aheadDays: capacityNumber.optional(),
+        })
+        .strict()
+        .optional(),
+      hold: capacityHold.optional(),
+    })
+    .strict(),
+]);
+
+/** A trigger that renews a code: a column that changed, or one moved to one of `values`. */
+const codeRenewTrigger = z.union([
+  z.object({ column: ruleColumn, changed: z.literal(true) }).strict(),
+  z.object({ column: ruleColumn, values: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(16) }).strict(),
+]);
+
+/** Which rows of a codes table a typed code may find (see `column.lookup`). */
+const codeWhere = z
+  .array(
+    z.union([
+      z.object({ column: ruleColumn, eq: z.union([z.string().max(256), z.number(), z.boolean()]) }).strict(),
+      z.object({ column: ruleColumn, notBefore: z.enum(['now', 'today']), orEmpty: z.literal(true).optional() }).strict(),
+      z.object({ column: ruleColumn, notAfter: z.enum(['now', 'today']), orEmpty: z.literal(true).optional() }).strict(),
+    ]),
+  )
+  .max(4);
+
 export const overridePatchSchema = z.discriminatedUnion('op', [
   // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
   // rename is meaningless (the remap UI drops the op instead of staging '').
@@ -670,6 +800,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         .regex(/^[A-Z][A-Z0-9]{0,5}-?$/)
         .optional(),
       length: z.number().int().min(4).max(16),
+      /** A new code in the same write when a column changes, or moves to one of `values`. */
+      renew: z.object({ on: z.union([codeRenewTrigger, z.array(codeRenewTrigger).min(2).max(3)]) }).strict().optional(),
     }),
   }),
   /** A text column written from a running number of the row: prefix + padded digits (`INV-2042`). */
@@ -692,7 +824,28 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     value: z.object({ formula: z.union([z.number(), z.string().min(1).max(128), z.record(z.string(), z.unknown())]) }),
   }),
   /** A text value stored trimmed (`trim`), or trimmed and in lower case (`email`), whoever writes it. */
-  z.object({ op: z.literal('column.normalize'), value: z.object({ normalize: z.enum(['trim', 'email']) }) }),
+  z.object({ op: z.literal('column.normalize'), value: z.object({ normalize: z.enum(['trim', 'email', 'code']) }) }),
+  /**
+   * A foreign key filled from a code a person types into `from`: the one row
+   * of `table` (its id in the snapshot) whose `column` holds it, among the
+   * rows `where` allows and, with `scope`, those of the same parent.
+   */
+  z.object({
+    op: z.literal('column.lookup'),
+    value: z
+      .object({
+        from: ruleColumn,
+        table: ruleTable,
+        column: ruleColumn,
+        where: codeWhere.optional(),
+        scope: z
+          .array(z.object({ column: ruleColumn, equals: ruleColumn, orEmpty: z.literal(true).optional() }).strict())
+          .min(1)
+          .max(2)
+          .optional(),
+      })
+      .strict(),
+  }),
   /**
    * A date kept within dates: never later than today on the venue's calendar,
    * and never earlier than another date — of the same row, or (with `via`, a
@@ -798,18 +951,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
    */
   z.object({
     op: z.literal('table.capacity'),
-    value: z.object({
-      slot: z.string().min(1).max(128),
-      amount: z.string().min(1).max(128),
-      perSlot: capacityNumber,
-      countWhere: z.object({ column: z.string().min(1).max(128), values: z.array(z.string().min(1)).min(1) }).optional(),
-      slotMinutes: capacityNumber,
-      windowDays: capacityNumber.optional(),
-      opens: capacityTime.optional(),
-      closes: capacityTime.optional(),
-      resource: z.string().min(1).max(128).optional(),
-      cancelHours: capacityNumber.optional(),
-    }),
+    value: z.union([storedCapacityRule, z.object({ rules: z.array(storedCapacityRule).min(1).max(3) }).strict()]),
   }),
   /*
    * Booking PEOPLE: no two counted rows of one resource (a clinician) may
