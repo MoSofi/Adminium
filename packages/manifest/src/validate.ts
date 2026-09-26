@@ -119,9 +119,35 @@ export function validateManifest(
     }),
   );
 
+  issues.push(...sampleDataIssues(manifest));
+
   const warnings = manifestWarnings(manifest);
   if (issues.length > 0) return { ok: false, issues, warnings };
   return { ok: true, manifest, warnings };
+}
+
+/** `sampleData.skipWhenShared` names the app's own tables, and its `table` is one it shares. */
+function sampleDataIssues(manifest: Manifest): ManifestIssue[] {
+  const rule = manifest.kind === 'app' ? manifest.sampleData?.skipWhenShared : undefined;
+  if (rule === undefined) return [];
+  const out: ManifestIssue[] = [];
+  const tables = new Map((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
+  const shared = tables.get(rule.table);
+  if (shared === undefined) {
+    out.push({ path: 'sampleData.skipWhenShared.table', message: `"${rule.table}" is not one of this app's tables` });
+  } else if (shared.shape === undefined) {
+    out.push({
+      path: 'sampleData.skipWhenShared.table',
+      message: `"${rule.table}" is built on no shape, so no other app can share it`,
+    });
+  }
+  const seen = new Set<string>();
+  rule.skip.forEach((ref, i) => {
+    if (!tables.has(ref)) out.push({ path: `sampleData.skipWhenShared.skip.${String(i)}`, message: `"${ref}" is not one of this app's tables` });
+    else if (seen.has(ref)) out.push({ path: `sampleData.skipWhenShared.skip.${String(i)}`, message: `"${ref}" is listed twice` });
+    seen.add(ref);
+  });
+  return out;
 }
 
 /** Throwing variant for trusted callers (build tooling); use the safe form at runtime. */

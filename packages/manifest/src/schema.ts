@@ -1044,6 +1044,19 @@ export { publicAccessSchema, publicKeysSchema, type PublicAccess };
 export const sampleDataSchema = z
   .object({
     file: z.string().regex(/^seeds\/[a-z0-9][a-z0-9._-]*\.json$/, 'a file in seeds/, ending .json'),
+    /**
+     * A table shared with another app (one with a `shape`) that already holds
+     * real rows — rows no installed app's sample data added — leaves these
+     * tables' sample rows out, so a venue's real menu never gains sample
+     * dishes (nor sample orders of them).
+     */
+    skipWhenShared: z
+      .object({
+        table: z.string().min(1).max(64),
+        skip: z.array(z.string().min(1).max(64)).min(1).max(50),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
