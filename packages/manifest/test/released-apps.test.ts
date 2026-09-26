@@ -24,6 +24,7 @@ import {
   shapeConformanceIssues,
   shapeDefinitionSchema,
   shapeKey,
+  tableShapeIssues,
   validateManifest,
   type Manifest,
   type PlanContext,
@@ -155,10 +156,9 @@ describe('released apps built on a released add-on’s shapes', () => {
 });
 
 describe('Point of Sale’s core-shaped menu tables', () => {
-  // TODO(table shapes): once `tableShapeIssues` is exported from the package,
-  // assert `tableShapeIssues(<point-of-sale 0.2.2>)` is `[]` here, and that
-  // every other released app (none declares a core shape) also gives `[]`.
-  it.todo('Point of Sale 0.2.2 has no table-shape issues (needs tableShapeIssues)');
+  it.each(APPS.map((entry) => [entry.file] as const))('%s is what every core table shape it claims says', (file) => {
+    expect(tableShapeIssues(manifestOf(file))).toEqual([]);
+  });
 });
 
 describe('another released app planned beside an installed Point of Sale', () => {

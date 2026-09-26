@@ -29,6 +29,7 @@ import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema }
 import { publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, type PublicAccess } from './public-access.js';
 import { roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
 import { statesIssues, statesSchema, type States } from './states.js';
+import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
   NUMERIC_TYPES,
   labelsSchema,
@@ -264,6 +265,20 @@ const hashChildSchema = z
   .object({ table: refSchema, via: refSchema, columns: z.array(refSchema).min(1).max(24), orderBy: refSchema.optional() })
   .strict();
 
+/** A number the manifest states, or a whole-number setting. */
+const stampAmount = (max: number) => z.union([z.number().int().min(0).max(max), settingRefSchema]);
+
+/** `addMinutes`: now plus minutes or hours — one of the two. */
+const addMinutesSchema = z
+  .object({ minutes: stampAmount(MOMENT_LIMITS.minutes).optional(), hours: stampAmount(MOMENT_LIMITS.hours).optional() })
+  .strict()
+  .refine((a) => (a.minutes === undefined) !== (a.hours === undefined), { message: 'a stamp adds minutes or hours, one of the two' });
+
+/** `deadline`: so many days after today at a time of day, capped by a moment. */
+const deadlineSchema = z
+  .object({ days: stampAmount(MOMENT_LIMITS.days), time: clockTimeSchema, notAfter: momentSchema.optional() })
+  .strict();
+
 /**
  * What a stamp writes:
  *
@@ -279,7 +294,16 @@ const hashChildSchema = z
  *  - `addDays`: a date so many days after another (`due_on` = `issued_on` +
  *    the terms' days, `map` giving each term its days);
  *  - `hashOf`: a fingerprint — SHA-256 over the named columns, child rows and
- *    a linked row's text, in a canonical form anyone can recompute.
+ *    a linked row's text, in a canonical form anyone can recompute;
+ *  - `addMinutes`: the moment so many minutes or hours from now (a hold for
+ *    ten minutes), the number stated or read from the settings row;
+ *  - `deadline`: `days` after today on the venue's calendar at `time`, but
+ *    never later than `notAfter`, a moment of the row or a linked row (a
+ *    transfer due in five days at 18:00, or three days before the show);
+ *  - `moment`: a moment of the row or a linked row (see `refs.ts`), written
+ *    again whenever the stamp fires — with `on: {columns}`, whenever what it
+ *    is worked out from changes (a stay's cancel-by, from its arrival); a
+ *    moment that cannot be found writes nothing (empty).
  */
 export const stampSetSchema = z.union([
   z.enum(['now', 'today', 'user-name', 'user-id']),
@@ -320,13 +344,21 @@ export const stampSetSchema = z.union([
         .strict(),
     })
     .strict(),
+  z.object({ addMinutes: addMinutesSchema }).strict(),
+  z.object({ deadline: deadlineSchema }).strict(),
+  z.object({ moment: momentSchema }).strict(),
 ]);
 
-/** When a stamp is written: on create, when a column changes to a value, or when a column is first filled. */
+/**
+ * When a stamp is written: on create, when a column changes to a value, when
+ * a column is first filled, or whenever one of `columns` changes (a create
+ * sets them all).
+ */
 export const stampTriggerSchema = z.union([
   z.literal('create'),
   z.object({ column: refSchema, values: z.array(scalarSchema).min(1).max(16) }).strict(),
   z.object({ column: refSchema, filled: z.literal(true) }).strict(),
+  z.object({ columns: z.array(refSchema).min(1).max(8) }).strict(),
 ]);
 
 export const columnRulesSchema = z
@@ -694,6 +726,12 @@ export const requiredTableSchema = z
     labelPlural: textOrLabels.optional(),
     /** The column that names a row wherever another table links to it (a category's `name`). */
     keyField: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a column ref').optional(),
+    /**
+     * Sets of 2 to 4 columns no two rows may hold the same values in together
+     * (one waitlist entry per show per address). A row with any of them empty
+     * never collides.
+     */
+    unique: z.array(z.array(refSchema).min(2).max(4)).min(1).max(8).optional(),
   })
   .strict()
   .refine(
@@ -719,7 +757,49 @@ export const requiredTableSchema = z
   .refine((t) => t.builtOn === undefined || t.shape === undefined, {
     message: 'a table is built on an add-on\'s shape or shared under a shape, not both',
     path: ['builtOn'],
+  })
+  .superRefine((t, ctx) => {
+    for (const issue of uniqueSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
   });
+
+/**
+ * Everything wrong with a table's unique sets: a column it lacks, a column
+ * named twice, a set given twice, a column no index can hold, a set its own
+ * running number already keeps unique, and a set on a table built on an
+ * add-on's shape (the add-on's own writes could break it).
+ */
+function uniqueSetIssues(t: {
+  columns: readonly { ref: string; type: string; maxLength?: number | undefined; rules?: ColumnRules | undefined }[];
+  unique?: readonly (readonly string[])[] | undefined;
+  builtOn?: string | undefined;
+}): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  const seen = new Set<string>();
+  (t.unique ?? []).forEach((set, k) => {
+    const path = ['unique', k];
+    if (t.builtOn !== undefined) out.push({ path, message: "a table built on an add-on's shape keeps the shape's rules, and adds no unique set" });
+    if (new Set(set).size !== set.length) out.push({ path, message: 'a unique set names each column once' });
+    const key = [...new Set(set)].sort().join('\u0000');
+    if (seen.has(key)) out.push({ path, message: 'the same columns are unique twice' });
+    seen.add(key);
+    for (const ref of set) {
+      const column = t.columns.find((c) => c.ref === ref);
+      if (column === undefined) {
+        out.push({ path, message: `no column "${ref}" to be unique with` });
+        continue;
+      }
+      const indexable = column.type !== 'json' && column.type !== 'blob' && (column.type !== 'text' || column.maxLength !== undefined || column.rules?.code !== undefined);
+      if (!indexable) out.push({ path, message: `unique needs columns that can be indexed: not json or blob, text with maxLength ("${ref}")` });
+    }
+    // A running number counted per parent is unique with its parent already.
+    const numbered = t.columns.some((c) => {
+      const sequence = c.rules?.sequence;
+      return sequence?.gapless === true && sequence.scope !== undefined && [sequence.scope, c.ref].sort().join('\u0000') === key;
+    });
+    if (numbered) out.push({ path, message: 'already unique by its number rule' });
+  });
+  return out;
+}
 
 export const requiredSchemaSchema = z
   .object({
@@ -1443,10 +1523,50 @@ export function appReferenceIssues(
             (link.children ?? []).forEach((child, c2) => childIssues(link.table, child, [...path, 'children', c2]));
           });
         }
+        if (typeof set === 'object' && 'moment' in set) {
+          if (column.type !== 'timestamptz') out.push({ path: here('stamp', 'set'), message: 'a stamped moment needs a timestamptz column' });
+          out.push(...momentIssues(table.ref, set.moment, index, here('stamp', 'set', 'moment')));
+          const read = [set.moment, ...(set.moment.or ?? [])].flatMap((m) => [m.via ?? m.column]);
+          if (read.includes(column.ref)) out.push({ path: here('stamp', 'set', 'moment'), message: 'a stamped moment is worked out from other columns, not its own' });
+        }
+        if (typeof set === 'object' && ('addMinutes' in set || 'deadline' in set)) {
+          if (column.type !== 'timestamptz') out.push({ path: here('stamp', 'set'), message: 'a stamped moment needs a timestamptz column' });
+          const whole = (amount: unknown, path: (string | number)[]) => {
+            if (typeof amount !== 'object' || amount === null) return;
+            const setting = amount as { table: string; column: string };
+            const found = index.column(setting.table, setting.column);
+            if (index.table(setting.table) === undefined) out.push({ path, message: `"${setting.table}" is not a table of this manifest` });
+            else if (found === undefined) out.push({ path, message: `"${setting.table}" has no column "${setting.column}"` });
+            else if (found.type !== 'int' && found.type !== 'bigint') out.push({ path, message: `"${setting.table}.${setting.column}" is not a whole number` });
+          };
+          if ('addMinutes' in set) {
+            whole(set.addMinutes.minutes, here('stamp', 'set', 'addMinutes', 'minutes'));
+            whole(set.addMinutes.hours, here('stamp', 'set', 'addMinutes', 'hours'));
+          } else {
+            const d = set.deadline;
+            whole(d.days, here('stamp', 'set', 'deadline', 'days'));
+            if (typeof d.time === 'object') {
+              const found = index.column(d.time.table, d.time.column);
+              const path = here('stamp', 'set', 'deadline', 'time');
+              if (index.table(d.time.table) === undefined) out.push({ path, message: `"${d.time.table}" is not a table of this manifest` });
+              else if (found === undefined) out.push({ path, message: `"${d.time.table}" has no column "${d.time.column}"` });
+              else if (found.type !== 'text') out.push({ path, message: `"${d.time.table}.${d.time.column}" is not a text column holding HH:MM` });
+              else if (found.maxLength !== undefined && found.maxLength < 5) out.push({ path, message: `"${d.time.table}.${d.time.column}" holds fewer than the 5 characters of HH:MM` });
+            }
+            if (d.notAfter !== undefined) out.push(...momentIssues(table.ref, d.notAfter, index, here('stamp', 'set', 'deadline', 'notAfter')));
+          }
+        }
         const triggers = Array.isArray(stamp.on) ? stamp.on : [stamp.on];
         triggers.forEach((trigger, k) => {
           if (trigger === 'create') return;
           const path = Array.isArray(stamp.on) ? here('stamp', 'on', k) : here('stamp', 'on');
+          if ('columns' in trigger) {
+            for (const ref of trigger.columns) {
+              if (!has(table.ref, ref)) out.push({ path: [...path, 'columns'], message: `"${table.ref}" has no column "${ref}"` });
+              else if (ref === column.ref) out.push({ path: [...path, 'columns'], message: 'a stamp watches another column' });
+            }
+            return;
+          }
           const watched = index.column(table.ref, trigger.column);
           if (watched === undefined) {
             out.push({ path: [...path, 'column'], message: `"${table.ref}" has no column "${trigger.column}"` });
@@ -1498,10 +1618,16 @@ export function appReferenceIssues(
             index,
             roles: shapeOf !== undefined ? undefined : (m.roles ?? []).map((role) => role.key),
             numbered: table.columns.some((c) => c.rules?.sequence?.gapless === true),
+            keptFromReaders: (column) => keptFromReaders(table.ref, column, undefined),
+            decided: (column) => decided.get(table.ref)?.has(column) === true,
+            bookingCancel: table.booking?.cancel === undefined ? undefined : table.booking.cancel.when,
+            statesOf: (ref) => tables.get(ref)?.states,
           },
           (...rest) => at('states', ...rest),
         ),
       );
+      // A late move's flag is Adminium's to set, as a booking's is.
+      for (const late of table.states.late ?? []) if (late.flag !== undefined) decide(table.ref, late.flag);
     }
     if (table.builtOn !== undefined && shapeOf === undefined) {
       const addOn = table.builtOn.split('/')[0]!;

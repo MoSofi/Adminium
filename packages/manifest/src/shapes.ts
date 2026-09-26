@@ -114,8 +114,11 @@ interface AppTableView {
 export function shapeConformanceIssues(
   app: { requiredSchema?: { tables: readonly AppTableView[] } | undefined; outbox?: { kinds: Readonly<Record<string, string>>; producers?: readonly { kind: string }[] | undefined } | undefined },
   shapes: ReadonlyMap<string, ShapeDefinitionView>,
+  /** The rules an app may add to a part's column; an add-on's shape takes {@link ADDABLE_RULES}. */
+  opts: { addable?: ReadonlySet<string> } = {},
 ): ShapeIssue[] {
   const out: ShapeIssue[] = [];
+  const addable = opts.addable ?? ADDABLE_RULES;
   const tables = app.requiredSchema?.tables ?? [];
   /** The app's table built on a part: `document` in the same shape, or `quote@1/document` in another of the add-on's. */
   const tableFor = (builtOn: string, ref: string): string | undefined => {
@@ -174,7 +177,7 @@ export function shapeConformanceIssues(
       }
       for (const name of Object.keys(haveRules)) {
         const copyBeforeFill = name === 'copy' && wantRules['default'] !== undefined && wantRules['copy'] === undefined;
-        if (wantRules[name] === undefined && !ADDABLE_RULES.has(name) && !copyBeforeFill) {
+        if (wantRules[name] === undefined && !addable.has(name) && !copyBeforeFill) {
           mismatch(`${here}.rules.${name}`, `"${table.ref}.${want.ref}" adds a ${name} rule the shape does not keep`);
         } else if (wantRules[name] === undefined && SECRET_ONLY_HIDES(name, haveRules[name])) {
           mismatch(`${here}.rules.${name}`, `"${table.ref}.${want.ref}" may be made a secret, never shown: only "secret": true is added to a shape's column`);
@@ -302,6 +305,10 @@ function statesDifferences(want: States, have: States, ownColumns: (childRef: st
     }
   }
   for (const name of ['lockedWhenReferencedBy', 'noDelete', 'onlyLater'] as const) {
+    if (!same(want[name], have[name])) out.push(`${name} is the shape's`);
+  }
+  // What a move waits for, sets off or is refused as are the shape's too: an app adds none of them to a shape's table.
+  for (const name of ['strict', 'late', 'timed', 'effects'] as const) {
     if (!same(want[name], have[name])) out.push(`${name} is the shape's`);
   }
   return out;

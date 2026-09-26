@@ -436,9 +436,18 @@ export function columnRuleIssue(
       const sqliteText = model.dialect === 'sqlite' && (column.logicalType === 'text' || column.logicalType === 'varchar');
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
       const dated = typeof set === 'object' && set !== null && 'addDays' in set;
+      // A moment (now plus some minutes, a deadline, a moment of the row) is written into a clock column.
+      const momentous = typeof set === 'object' && set !== null && ('addMinutes' in set || 'deadline' in set || 'moment' in set);
+      if (momentous) {
+        const clocked = NOW_TYPES.has(column.logicalType) || sqliteText;
+        if (!clocked) return `A stamped moment needs a date-and-time column; ${name} is ${column.logicalType}.`;
+        const issue = table === undefined ? null : momentStampIssue(set as Value, table, model);
+        if (issue !== null) return issue;
+      }
       // A `byOrigin` side's word that is a stamp word writes what that word means (`today`: a date).
-      const words =
-        typeof set === 'object' && set !== null && 'byOrigin' in set
+      const words = momentous
+        ? []
+        : typeof set === 'object' && set !== null && 'byOrigin' in set
           ? Object.values((set as { byOrigin: Record<string, unknown> }).byOrigin).map(String)
           : [typeof set === 'string' ? set : dated ? 'today' : ''];
       const clock = NOW_TYPES.has(column.logicalType) || sqliteText;
@@ -481,6 +490,13 @@ export function columnRuleIssue(
       const triggers = Array.isArray(value['on']) ? (value['on'] as unknown[]) : [value['on']];
       for (const on of triggers) {
         if (typeof on !== 'object' || on === null) continue;
+        if (Array.isArray((on as Value)['columns'])) {
+          for (const part of (on as Value)['columns'] as unknown[]) {
+            if (String(part) === column.name) return `A stamp watches another column, not ${name} itself.`;
+            if (table !== undefined && !table.columns.some((c) => c.name === String(part))) return `${table.name} has no column ${JSON.stringify(part)} to watch.`;
+          }
+          continue;
+        }
         const watched = String((on as Value)['column']);
         if (watched === column.name) return `A stamp watches another column, not ${name} itself.`;
         if (table !== undefined && !table.columns.some((c) => c.name === watched)) {
@@ -607,6 +623,129 @@ export function statesRuleIssue(raw: unknown, table: TableModel, model: Database
   }
   for (const ref of states.lockedWhenReferencedBy ?? []) {
     const issue = linked(ref.table, ref.via);
+    if (issue !== null) return issue;
+  }
+  return conditionedStatesIssue(states, table, model);
+}
+
+/** The table one of `table`'s columns points at, followed as the write path follows a link: one column to a one-column key. */
+function linkTargetOf(table: TableModel, via: string, model: DatabaseModel): TableModel | undefined {
+  const relation = model.relations.find(
+    (r) => r.through === null && r.from.tableId === table.id && r.from.columns.length === 1 && r.from.columns[0] === via && r.to.columns.length === 1,
+  );
+  return relation === undefined ? undefined : model.tables.find((candidate) => candidate.id === relation.to.tableId);
+}
+
+/** Why a moment (see the manifest's moments) cannot be read on this database, or `null`. */
+function momentIssue(moment: Value, table: TableModel, model: DatabaseModel): string | null {
+  let owner: TableModel | undefined = table;
+  if (typeof moment['via'] === 'string') {
+    owner = linkTargetOf(table, moment['via'], model);
+    if (owner === undefined) return `${table.name}.${moment['via']} does not point at another table.`;
+  }
+  if (!owner.columns.some((c) => c.name === String(moment['column']))) return `${owner.name} has no column ${JSON.stringify(moment['column'])}.`;
+  const time = moment['time'];
+  if (typeof time === 'object' && time !== null) {
+    const hours = (time as Value)['hours'] as Value | undefined;
+    if (hours !== undefined) {
+      const source = model.tables.find((candidate) => candidate.id === String(hours['table']));
+      if (source === undefined) return `There is no table ${JSON.stringify(hours['table'])} to read the hours from.`;
+      for (const part of [hours['weekday'], hours['open'], hours['opens'], hours['closes']]) {
+        if (part !== undefined && !source.columns.some((c) => c.name === String(part))) return `${source.name} has no column ${JSON.stringify(part)}.`;
+      }
+    } else {
+      const issue = settingIssue(time as Value, model);
+      if (issue !== null) return issue;
+    }
+  }
+  for (const side of ['plus', 'minus']) {
+    for (const amount of Object.values((moment[side] as Value | undefined) ?? {})) {
+      if (typeof amount === 'object' && amount !== null) {
+        const issue = settingIssue(amount as Value, model);
+        if (issue !== null) return issue;
+      }
+    }
+  }
+  for (const fallback of (moment['or'] as Value[] | undefined) ?? []) {
+    const issue = momentIssue(fallback, table, model);
+    if (issue !== null) return issue;
+  }
+  return null;
+}
+
+/** Why a stamped moment (now plus minutes, a deadline, a moment of the row) cannot be worked out here, or `null`. */
+function momentStampIssue(set: Value, table: TableModel, model: DatabaseModel): string | null {
+  const amounts: unknown[] = [];
+  if ('addMinutes' in set) amounts.push(...Object.values(set['addMinutes'] as Value));
+  if ('deadline' in set) {
+    const deadline = set['deadline'] as Value;
+    amounts.push(deadline['days'], deadline['time']);
+    if (deadline['notAfter'] !== undefined) {
+      const issue = momentIssue(deadline['notAfter'] as Value, table, model);
+      if (issue !== null) return issue;
+    }
+  }
+  if ('moment' in set) {
+    const issue = momentIssue(set['moment'] as Value, table, model);
+    if (issue !== null) return issue;
+  }
+  for (const amount of amounts) {
+    if (typeof amount === 'object' && amount !== null) {
+      const issue = settingIssue(amount as Value, model);
+      if (issue !== null) return issue;
+    }
+  }
+  return null;
+}
+
+/**
+ * Why what a table's moves wait for or set off cannot be kept, or `null`:
+ * the links they read through must lead somewhere, and every column, setting
+ * and hours table they name must exist.
+ */
+function conditionedStatesIssue(states: States, table: TableModel, model: DatabaseModel): string | null {
+  const own = (name: string) => table.columns.some((c) => c.name === name);
+  const through = (via: string, names: readonly string[]): string | null => {
+    const target = linkTargetOf(table, via, model);
+    if (target === undefined) return `${table.name}.${via} does not point at another table.`;
+    for (const name of names) if (!target.columns.some((c) => c.name === name)) return `${target.name} has no column ${JSON.stringify(name)}.`;
+    return null;
+  };
+  for (const moves of Object.values(states.moves)) {
+    for (const move of moves) {
+      if (typeof move === 'string' || move.requires === undefined) continue;
+      for (const condition of move.requires.linked ?? []) {
+        const issue = through(condition.via, condition.where.map((c) => c.column));
+        if (issue !== null) return issue;
+      }
+      for (const moment of [move.requires.time?.after, move.requires.time?.before]) {
+        const issue = moment === undefined ? null : momentIssue(moment as unknown as Value, table, model);
+        if (issue !== null) return issue;
+      }
+      for (const setting of move.requires.setting ?? []) {
+        const issue = settingIssue(setting as unknown as Value, model);
+        if (issue !== null) return issue;
+      }
+    }
+  }
+  if (typeof states.strict === 'object') {
+    for (const name of states.strict.show) if (!own(name)) return `${table.name} has no column ${JSON.stringify(name)}.`;
+  }
+  for (const late of states.late ?? []) {
+    if (late.flag !== undefined && !own(late.flag)) return `${table.name} has no column ${JSON.stringify(late.flag)}.`;
+    const issue = momentIssue(late.moment as unknown as Value, table, model);
+    if (issue !== null) return issue;
+    for (const amount of Object.values(late.within)) {
+      const read = typeof amount === 'object' && amount !== null ? settingIssue(amount as Value, model) : null;
+      if (read !== null) return read;
+    }
+  }
+  for (const timed of states.timed ?? []) {
+    const issue = momentIssue(timed.at as unknown as Value, table, model);
+    if (issue !== null) return issue;
+  }
+  for (const effect of states.effects ?? []) {
+    const issue = through(effect.via, Object.keys(effect.set));
     if (issue !== null) return issue;
   }
   return null;

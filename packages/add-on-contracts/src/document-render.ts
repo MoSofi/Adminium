@@ -151,8 +151,35 @@ export const OUTLINE_SLOT_TYPES = [
   'currency',
   'number',
   'collection',
+  'qr',
 ] as const;
 export type OutlineSlotType = (typeof OUTLINE_SLOT_TYPES)[number];
+
+/**
+ * A `qr` slot's value, made by the host (a provider needs no encoder): the
+ * text it encodes, its modules as rows of `0` and `1` with no quiet zone
+ * around them (a provider draws them as squares), and the same code as a PNG
+ * data URL (for a provider that draws HTML). A provider that declares a `qr`
+ * slot needs a host that knows the type.
+ */
+export interface DocumentQrValue {
+  text: string;
+  modules: readonly string[];
+  png: string;
+}
+
+export const documentQrValueSchema = z
+  .object({
+    text: z.string().min(1).max(64),
+    // Version 1 (21 modules) to version 40 (177), square.
+    modules: z.array(z.string().regex(/^[01]+$/)).min(21).max(177),
+    png: z.string().regex(/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/),
+  })
+  .strict()
+  .refine((value) => value.modules.every((row) => row.length === value.modules.length), {
+    message: 'a QR code is square: as many modules in each row as there are rows',
+    path: ['modules'],
+  });
 
 /**
  * Where an unmapped slot's value comes from, if anywhere.

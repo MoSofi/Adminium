@@ -137,6 +137,8 @@ const empty = (value: unknown) => value === null || value === undefined || (type
 export function stampFires(stamp: Pick<ColumnStamp, 'on'>, action: WriteAction, values: Row, before: Row | null): boolean {
   return triggersOf(stamp as ColumnStamp).some((trigger) => {
     if (trigger === 'create') return action === 'create';
+    // Following the columns a moment is worked out from is not run here yet: it never fires.
+    if ('columns' in trigger) return false;
     const column = trigger.column;
     if (!has(values, column)) return false;
     // First filled: empty before (or a new row), a value now.

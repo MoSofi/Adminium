@@ -401,6 +401,8 @@ const stampTrigger = z.union([
     values: z.array(z.union([z.string().max(256), z.number(), z.boolean()])).min(1).max(16),
   }),
   z.object({ column: ruleColumn, filled: z.literal(true) }),
+  /** Whenever one of these columns changes. */
+  z.object({ columns: z.array(ruleColumn).min(1).max(8) }).strict(),
 ]);
 const stateName = z.string().min(1).max(64);
 const stateCondition = z.object({
@@ -413,6 +415,77 @@ const stateCondition = z.object({
   lt: z.number().optional(),
   lte: z.number().optional(),
 });
+/*
+ * A moment a rule reads (a date or a time of the row, or of the row one of
+ * its links points at, at a wall time, shifted, with fallbacks), as stored:
+ * every table by its id in the snapshot. Strict at every level, so a key the
+ * store does not know is refused, never dropped.
+ */
+const momentSetting = z.object({ table: ruleTable, column: ruleColumn }).strict();
+const momentAmount = z.union([z.number().int().min(0).max(1_000_000), momentSetting]);
+const momentOffset = z.object({ minutes: momentAmount.optional(), hours: momentAmount.optional(), days: momentAmount.optional() }).strict();
+const clockTime = z.union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), momentSetting]);
+const wallTime = z.union([
+  clockTime,
+  z
+    .object({
+      hours: z.object({ table: ruleTable, weekday: ruleColumn, open: ruleColumn.optional(), opens: ruleColumn.optional(), closes: ruleColumn }).strict(),
+      edge: z.enum(['opens', 'closes']),
+    })
+    .strict(),
+]);
+const momentFields = {
+  column: ruleColumn,
+  via: ruleColumn.optional(),
+  time: wallTime.optional(),
+  plus: momentOffset.optional(),
+  minus: momentOffset.optional(),
+};
+const storedMoment = z.object({ ...momentFields, or: z.array(z.object(momentFields).strict()).min(1).max(3).optional() }).strict();
+/** What a move waits for beyond its own row: a linked row, the clock, the settings row. */
+const moveConditions = {
+  linked: z.array(z.object({ via: ruleColumn, where: z.array(stateCondition).min(1).max(8) }).strict()).min(1).max(4).optional(),
+  time: z.object({ after: storedMoment.optional(), before: storedMoment.optional() }).strict().optional(),
+  setting: z
+    .array(z.object({ table: ruleTable, column: ruleColumn, eq: z.union([z.string().max(256), z.number(), z.boolean()]) }).strict())
+    .min(1)
+    .max(4)
+    .optional(),
+};
+/** Once means once, late moves, timed moves and the moves of a linked row a move sets off. */
+const statesTiming = {
+  strict: z.union([z.literal(true), z.object({ show: z.array(ruleColumn).min(1).max(4) }).strict()]).optional(),
+  late: z
+    .array(
+      z
+        .object({
+          to: stateName,
+          from: z.array(stateName).min(1).max(16).optional(),
+          moment: storedMoment,
+          within: momentOffset,
+          mode: z.enum(['flag', 'refuse']),
+          flag: ruleColumn.optional(),
+          refuse: z.enum(['public', 'everyone']).optional(),
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(4)
+    .optional(),
+  timed: z.array(z.object({ from: stateName, to: stateName, at: storedMoment }).strict()).min(1).max(8).optional(),
+  effects: z
+    .array(z.object({ on: z.object({ to: stateName }).strict(), via: ruleColumn, set: z.record(ruleColumn, stateName) }).strict())
+    .min(1)
+    .max(4)
+    .optional(),
+};
+/** Stamps of a moment: now plus minutes or hours, a deadline, a moment of the row or a linked row. */
+const momentStamps = [
+  z.object({ addMinutes: z.object({ minutes: momentAmount.optional(), hours: momentAmount.optional() }).strict() }).strict(),
+  z.object({ deadline: z.object({ days: momentAmount, time: clockTime, notAfter: storedMoment.optional() }).strict() }).strict(),
+  z.object({ moment: storedMoment }).strict(),
+] as const;
+
 /** A table the booking rule reads, by its id in the snapshot. */
 const bookingTable = z.string().min(1).max(256);
 /** A weekly-hours table's columns: the weekday and `HH:MM` text times. */
@@ -685,6 +758,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
               .optional(),
           }),
         }),
+        ...momentStamps,
       ]),
       on: z.union([stampTrigger, z.array(stampTrigger).min(2).max(3)]),
     }),
@@ -803,6 +877,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
                   .object({
                     children: z.record(ruleTable, z.number().int().min(1).max(1000)).optional(),
                     where: z.array(stateCondition).min(1).max(8).optional(),
+                    ...moveConditions,
                   })
                   .optional(),
                 roles: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),
@@ -832,6 +907,7 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         .optional(),
       noDelete: z.object({ when: z.union([z.literal('numbered'), z.array(stateName).min(1).max(16)]) }).optional(),
       onlyLater: z.array(ruleColumn).min(1).max(8).optional(),
+      ...statesTiming,
     }),
   }),
   z.object({

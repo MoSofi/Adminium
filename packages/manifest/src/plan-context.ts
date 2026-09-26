@@ -469,3 +469,35 @@ export function planWithContext(
     names,
   };
 }
+
+/**
+ * The name of the unique index a table's set of columns is kept by:
+ * `uq_<table>_<a>_<b>`, as a column's own is named. When that is longer than
+ * 63 bytes (the portable limit: Postgres cuts longer names short, MySQL
+ * refuses them) or is already the name of an index or a constraint anywhere
+ * in the database (`taken` — index names are per schema on Postgres and per
+ * database on SQLite, so `uq_t_a_b` may be a column `b`'s of table `t_a`),
+ * the table's name is cut short and a hash of the table and its columns
+ * takes the columns' place. The same inputs always give the same name.
+ */
+export function uniqueSetName(realTable: string, columns: readonly string[], taken: ReadonlySet<string> = new Set()): string {
+  const plain = `uq_${realTable}_${columns.join('_')}`;
+  if (byteLength(plain) <= IDENTIFIER_LIMIT.postgres && !taken.has(plain)) return plain;
+  for (let salt = 0; ; salt += 1) {
+    const hash = fnv1a32([realTable, ...columns, ...(salt === 0 ? [] : [String(salt)])].join('\u0000'));
+    let head = realTable;
+    while (byteLength(`uq_${head}_${hash}`) > IDENTIFIER_LIMIT.postgres) head = [...head].slice(0, -1).join('');
+    const name = `uq_${head}_${hash}`;
+    if (!taken.has(name)) return name;
+  }
+}
+
+/** FNV-1a, 32 bits, over the UTF-8 bytes, as eight hex digits. */
+function fnv1a32(text: string): string {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(text)) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}

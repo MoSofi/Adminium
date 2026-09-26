@@ -110,10 +110,38 @@ export const TIME_WINDOW_MAX_MINUTES = 1440;
  * or later, on the venue's calendar), `before-today` (a date before today
  * there) or a time window.
  */
-export type WritableState = readonly (string | number | boolean | null)[] | 'from-now' | 'from-today' | 'before-today' | TimeWindow;
+export type WritableState = readonly (string | number | boolean | null)[] | 'from-now' | 'from-today' | 'before-today' | TimeWindow | MomentWindow;
 
 export function isTimeWindow(when: WritableState): when is TimeWindow {
-  return typeof when === 'object' && !Array.isArray(when);
+  return typeof when === 'object' && !Array.isArray(when) && 'within' in when;
+}
+
+/**
+ * A window read from moments: after one, before another, and — keyed by a
+ * link — only while the linked row meets `where`. Keyed by a date or a time of
+ * the row, each end is that column's moment and names no column; keyed by a
+ * link, each end names the linked row's column. Settings are named by their
+ * table's id. Judged inside the write, never in its WHERE (a moment may read
+ * a setting or another row).
+ */
+export interface MomentWindow {
+  after?: MomentWindowEnd | undefined;
+  before?: MomentWindowEnd | undefined;
+  /** Conditions on the linked row, in the states' condition shape. */
+  where?: readonly Readonly<Record<string, unknown>>[] | undefined;
+}
+
+/** One end of a {@link MomentWindow}: a moment with its column (and link) given by the key. */
+export interface MomentWindowEnd {
+  column?: string | undefined;
+  time?: string | Readonly<Record<string, unknown>> | undefined;
+  plus?: Readonly<Record<string, unknown>> | undefined;
+  minus?: Readonly<Record<string, unknown>> | undefined;
+  or?: readonly Readonly<Record<string, unknown>>[] | undefined;
+}
+
+export function isMomentWindow(when: WritableState): when is MomentWindow {
+  return typeof when === 'object' && !Array.isArray(when) && !('within' in when);
 }
 
 /**

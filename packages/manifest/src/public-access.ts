@@ -36,6 +36,8 @@ import {
   type ReferenceIssue,
   type TableIndex,
 } from './refs.js';
+import { momentIssues, momentOffsetSchema, plainMomentSchema, wallTimeSchema, type Moment } from './refs.js';
+import { conditionIssues, stateConditionSchema } from './states.js';
 
 /** The key every entry uses unless it names another. */
 export const CUSTOMER_KEY = 'customer';
@@ -121,6 +123,39 @@ export function shareCodeColumns(entries: readonly PublicAccess[], table: string
  */
 const timeWindowSchema = z.object({ within: z.number().int().min(1).max(1440) }).strict();
 
+/**
+ * One end of a window read from a moment (see `refs.ts`). Keyed by a date or
+ * a time of the row, it is that column's moment and names no column; keyed
+ * by one of the row's links, `column` is the linked row's. `or` lists
+ * moments of this row read in turn when the first is empty.
+ */
+const windowMomentSchema = z
+  .object({
+    column: refSchema.optional(),
+    time: wallTimeSchema.optional(),
+    plus: momentOffsetSchema.optional(),
+    minus: momentOffsetSchema.optional(),
+    or: z.array(plainMomentSchema).min(1).max(3).optional(),
+  })
+  .strict()
+  .refine((m) => m.plus === undefined || m.minus === undefined, { message: 'a moment is shifted forward (plus) or back (minus), not both' });
+
+/**
+ * A change allowed only after one moment, before another, or between the two
+ * — and, keyed by a link, only while the linked row meets `where` (refunds
+ * switched on for the event).
+ */
+const momentWindowSchema = z
+  .object({ after: windowMomentSchema.optional(), before: windowMomentSchema.optional(), where: z.array(stateConditionSchema).min(1).max(8).optional() })
+  .strict()
+  .refine((w) => w.after !== undefined || w.before !== undefined || w.where !== undefined, { message: 'a window says after, before or where' });
+
+/** The moment one end of a window stands for, keyed by `key` of the entry's table. */
+function windowMoment(key: string, ref: z.infer<typeof windowMomentSchema>, linked: boolean): Moment {
+  const { column, ...rest } = ref;
+  return linked ? { ...rest, column: column ?? '', via: key } : { ...rest, column: key };
+}
+
 export const publicAccessSchema = z
   .object({
     table: refSchema,
@@ -180,7 +215,7 @@ export const publicAccessSchema = z
      * past it may ask for a new price).
      */
     writableWhen: z
-      .record(refSchema, z.union([whenValuesSchema, z.literal('from-now'), z.literal('from-today'), z.literal('before-today'), timeWindowSchema]))
+      .record(refSchema, z.union([whenValuesSchema, z.literal('from-now'), z.literal('from-today'), z.literal('before-today'), timeWindowSchema, momentWindowSchema]))
       .optional(),
     /** A proof-of-work the browser solves before the write (or the claim) is taken. */
     humanCheck: z.literal(true).optional(),
@@ -594,6 +629,15 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"from-now" needs a timestamptz, and "${ref}" is not one` });
       } else if (when === 'from-today' || when === 'before-today') {
         if (found.type !== 'date') out.push({ path: at('writableWhen', ref), message: `"${when}" needs a date, and "${ref}" is not one` });
+      } else if (!Array.isArray(when) && !('within' in when)) {
+        out.push(...windowIssues(entry.table, ref, when, found, index, at('writableWhen', ref)));
+        // The dates that open a guest's own window are never theirs to move.
+        const opening = [ref, ...[when.after, when.before].flatMap((end) => (end?.or ?? []).filter((m) => m.via === undefined).map((m) => m.column))];
+        for (const column of new Set(opening)) {
+          if (writable.has(column) || entry.writableValues?.[column] !== undefined || entry.defaults?.[column] !== undefined) {
+            out.push({ path: at('writableWhen', ref), message: `"${column}" decides when this row may change, so a write through this entry may not set it` });
+          }
+        }
       } else if (!Array.isArray(when)) {
         if (found.type !== 'timestamptz') out.push({ path: at('writableWhen', ref), message: `"within" needs a timestamptz, and "${ref}" is not one` });
       } else {
@@ -607,7 +651,9 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       }
     }
     // The early refusal names one time, so an entry keeps one window.
-    const windows = Object.values(entry.writableWhen ?? {}).filter((when) => typeof when === 'object' && !Array.isArray(when));
+    const windows = Object.values(entry.writableWhen ?? {}).filter(
+      (when) => typeof when === 'object' && !Array.isArray(when) && ('within' in when || when.after !== undefined || when.before !== undefined),
+    );
     if (windows.length > 1) {
       out.push({ path: at('writableWhen'), message: 'one time window per entry: a change refused as too early names one time' });
     }
@@ -721,4 +767,47 @@ function hops(entries: readonly PublicAccess[], index: number, seen: ReadonlySet
     (other, i) => i !== index && other.table === entry.visibleWith!.table && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'),
   );
   return parent === -1 ? 1 : 1 + hops(entries, parent, new Set([...seen, index]));
+}
+
+/**
+ * Everything wrong with a window read from moments: keyed by a date or a time
+ * of the row, its ends name no column and no linked condition; keyed by a
+ * link, each end names the linked row's column.
+ */
+function windowIssues(
+  table: string,
+  key: string,
+  when: z.infer<typeof momentWindowSchema>,
+  found: { type: string; references?: string | undefined },
+  index: TableIndex,
+  path: (string | number)[],
+): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const linked = found.type === 'fk';
+  if (!linked && found.type !== 'date' && found.type !== 'timestamptz') {
+    out.push({ path, message: `"${table}.${key}" is neither a date, a time nor a link, so no window is read from it` });
+    return out;
+  }
+  for (const side of ['after', 'before'] as const) {
+    const end = when[side];
+    if (end === undefined) continue;
+    if (linked && end.column === undefined) {
+      out.push({ path: [...path, side, 'column'], message: `"${key}" is a link: name the column of the row it points at` });
+      continue;
+    }
+    if (!linked && end.column !== undefined) {
+      out.push({ path: [...path, side, 'column'], message: `the window is "${table}.${key}" itself, so it names no other column` });
+      continue;
+    }
+    out.push(...momentIssues(table, windowMoment(key, end, linked), index, [...path, side]));
+  }
+  if (when.where !== undefined) {
+    if (!linked || found.references === undefined || index.table(found.references) === undefined) {
+      out.push({ path: [...path, 'where'], message: `conditions on a linked row are keyed by a link of "${table}"` });
+    } else {
+      const target = found.references;
+      when.where.forEach((condition, w) => out.push(...conditionIssues(target, condition, index, [...path, 'where', w])));
+    }
+  }
+  return out;
 }
