@@ -39,7 +39,7 @@ import { emailSecretKey } from '../src/email/config.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
 import { formatTag } from '../src/i18n/bcp47.js';
 import { createOutboxSender } from '../src/outbox/sender.js';
-import { buildDataTestApp, createConnectionViaApi, introspectViaApi, pgAvailable, psql, type DataTestContext } from './connections-helpers.js';
+import { buildDataTestApp, createConnectionViaApi, introspectViaApi, pgAvailable, PG_HOST, PG_PORT, psql, type DataTestContext } from './connections-helpers.js';
 import { TEST_SECRET } from './helpers.js';
 
 const DDL = {
@@ -286,7 +286,7 @@ async function grantAll(t: DataTestContext, connId: string): Promise<void> {
       for (const statement of DDL.postgres) psql(database, statement);
       const user = process.env.PGUSER ?? process.env.USER ?? 'postgres';
       t = await buildDataTestApp();
-      const connId = await createConnectionViaApi(t, `postgres://${user}@127.0.0.1:5432/${database}`, 'clinic', 'postgres');
+      const connId = await createConnectionViaApi(t, `postgres://${user}@${PG_HOST}:${PG_PORT}/${database}`, 'clinic', 'postgres');
       await introspectViaApi(t, connId);
       await grantAll(t, connId);
       return { t, connId, id: (name) => `public.${name}`, instant: (utc) => `'${utc}+00:00'` };

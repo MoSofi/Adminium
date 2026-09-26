@@ -39,6 +39,8 @@ import {
   pgAvailable,
   psql,
   type DataTestContext,
+  PG_HOST,
+  PG_PORT,
 } from './connections-helpers.js';
 
 const DDL = {
@@ -256,7 +258,7 @@ async function grantAll(t: DataTestContext, connId: string): Promise<void> {
       for (const statement of DDL.postgres) psql(database, statement);
       const user = process.env.PGUSER ?? process.env.USER ?? 'postgres';
       t = await buildDataTestApp();
-      const connId = await createConnectionViaApi(t, `postgres://${user}@127.0.0.1:5432/${database}`, 'clinic', 'postgres');
+      const connId = await createConnectionViaApi(t, `postgres://${user}@${PG_HOST}:${PG_PORT}/${database}`, 'clinic', 'postgres');
       await introspectViaApi(t, connId);
       await grantAll(t, connId);
       return {

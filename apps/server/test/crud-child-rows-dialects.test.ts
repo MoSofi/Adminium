@@ -32,6 +32,8 @@ import {
   pgAvailable,
   psql,
   type DataTestContext,
+  PG_HOST,
+  PG_PORT,
 } from './connections-helpers.js';
 
 /** Every frame the data routes published, across the suites (each reads its own connection's). */
@@ -416,7 +418,7 @@ async function grantAll(t: DataTestContext, connId: string): Promise<void> {
       t = await buildDataTestApp({ realtime: hub });
       const connId = await createConnectionViaApi(
         t,
-        `postgres://${user}@127.0.0.1:5432/${database}`,
+        `postgres://${user}@${PG_HOST}:${PG_PORT}/${database}`,
         'billing',
         'postgres',
       );

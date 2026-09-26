@@ -38,6 +38,8 @@ import {
   pgAvailable,
   psql,
   type DataTestContext,
+  PG_HOST,
+  PG_PORT,
 } from './connections-helpers.js';
 
 interface Refusal {
@@ -229,7 +231,7 @@ async function grantAll(t: DataTestContext, connId: string): Promise<void> {
       t = await buildDataTestApp();
       const connId = await createConnectionViaApi(
         t,
-        `postgres://${user}@127.0.0.1:5432/${database}`,
+        `postgres://${user}@${PG_HOST}:${PG_PORT}/${database}`,
         'clinic',
         'postgres',
       );
