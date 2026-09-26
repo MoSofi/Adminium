@@ -341,7 +341,7 @@ export interface FormColumnShape {
   reverse?: unknown;
   derived?: unknown;
   /** A `json` column or a Postgres array: a list of strings (D19). */
-  list?: boolean;
+  list?: boolean | undefined;
 }
 
 /** Enum arity at or below which a REQUIRED choice renders as a segmented tray. */

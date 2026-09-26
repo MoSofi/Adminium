@@ -308,9 +308,13 @@ export function buildColumnDef(
    * `ref: 'url'` is D31's default and the only shape seeded — the other two are
    * a per-column choice an operator makes in the ColumnManager.
    */
+  const textual = column.logicalType === 'text' || column.logicalType === 'varchar';
+  // A `text[]` is a list of strings: chips in the form, never one file.
+  if (column.isArray === true && textual) def.list = true;
   if (
     (semantics.semantic === 'file-ref' || semantics.semantic === 'image-url') &&
-    (column.logicalType === 'text' || column.logicalType === 'varchar')
+    textual &&
+    column.isArray !== true
   ) {
     def.file = { ref: 'url', ...(semantics.semantic === 'image-url' ? { inline: true } : {}) };
   }

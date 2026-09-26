@@ -215,6 +215,7 @@ export function controlForColumn(
       : { enumValues: ruleValues }),
     ...(column.fk === undefined ? {} : { fk: column.fk }),
     ...(column.file === undefined ? {} : { file: column.file }),
+    ...(column.list === true ? { list: true } : {}),
   });
 }
 

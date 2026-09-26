@@ -144,6 +144,7 @@ function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTab
       isUnique: column.isUnique,
       isGenerated: column.isGenerated,
       defaultKind: column.default?.kind ?? null,
+      isArray: column.isArray,
       maxLength: column.maxLength,
       enumValues: enumValuesFor(model, column),
       references: referenceOf(model, column),

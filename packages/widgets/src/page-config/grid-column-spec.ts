@@ -353,6 +353,11 @@ export const gridColumnSpecSchema = z.object({
    */
   file: columnFileSchema.optional(),
   /**
+   * A Postgres array of text (`text[]`, `varchar[]`): a list of strings, edited
+   * as chips and sent as a JSON array. Absent on every other column.
+   */
+  list: z.boolean().optional(),
+  /**
    * A widget from the project folder draws this column's cells:
    * `project.<file name>` for a `widgets/<file name>.tsx` of kind
    * `cell`. Absent on every generated page.

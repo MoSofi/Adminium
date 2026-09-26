@@ -56,6 +56,8 @@ export interface CandidateColumn {
    * input, while autoincrement/now/uuid PKs are skipped.
    */
   defaultKind?: string | null | undefined;
+  /** A Postgres array; `logicalType` is its element's. */
+  isArray?: boolean | undefined;
   maxLength?: number | null | undefined;
   /** Resolved `EnumDef.values` for `logicalType: 'enum'` (or CHECK-derived). */
   enumValues?: readonly string[] | undefined;
