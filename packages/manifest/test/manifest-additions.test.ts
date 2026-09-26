@@ -30,8 +30,8 @@ const base = {
 
 const tables = [
   {
+    // Not shared under `menu@1`: a table that claims it carries the whole menu (see the shared-menu tests).
     ref: 'menu_items',
-    shape: 'menu@1',
     columns: [
       { ref: 'id', type: 'int', role: 'pk' },
       { ref: 'name', type: 'text', maxLength: 80 },

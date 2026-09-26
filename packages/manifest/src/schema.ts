@@ -726,6 +726,12 @@ export const requiredTableSchema = z
     labelPlural: textOrLabels.optional(),
     /** The column that names a row wherever another table links to it (a category's `name`). */
     keyField: z.string().regex(/^[a-z][a-z0-9_]*$/, 'a column ref').optional(),
+    /**
+     * Sets of 2 to 4 columns no two rows may hold the same values in together
+     * (one waitlist entry per show per address). A row with any of them empty
+     * never collides.
+     */
+    unique: z.array(z.array(refSchema).min(2).max(4)).min(1).max(8).optional(),
   })
   .strict()
   .refine(
@@ -751,7 +757,49 @@ export const requiredTableSchema = z
   .refine((t) => t.builtOn === undefined || t.shape === undefined, {
     message: 'a table is built on an add-on\'s shape or shared under a shape, not both',
     path: ['builtOn'],
+  })
+  .superRefine((t, ctx) => {
+    for (const issue of uniqueSetIssues(t)) ctx.addIssue({ code: 'custom', message: issue.message, path: issue.path });
   });
+
+/**
+ * Everything wrong with a table's unique sets: a column it lacks, a column
+ * named twice, a set given twice, a column no index can hold, a set its own
+ * running number already keeps unique, and a set on a table built on an
+ * add-on's shape (the add-on's own writes could break it).
+ */
+function uniqueSetIssues(t: {
+  columns: readonly { ref: string; type: string; maxLength?: number | undefined; rules?: ColumnRules | undefined }[];
+  unique?: readonly (readonly string[])[] | undefined;
+  builtOn?: string | undefined;
+}): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  const seen = new Set<string>();
+  (t.unique ?? []).forEach((set, k) => {
+    const path = ['unique', k];
+    if (t.builtOn !== undefined) out.push({ path, message: "a table built on an add-on's shape keeps the shape's rules, and adds no unique set" });
+    if (new Set(set).size !== set.length) out.push({ path, message: 'a unique set names each column once' });
+    const key = [...new Set(set)].sort().join('\u0000');
+    if (seen.has(key)) out.push({ path, message: 'the same columns are unique twice' });
+    seen.add(key);
+    for (const ref of set) {
+      const column = t.columns.find((c) => c.ref === ref);
+      if (column === undefined) {
+        out.push({ path, message: `no column "${ref}" to be unique with` });
+        continue;
+      }
+      const indexable = column.type !== 'json' && column.type !== 'blob' && (column.type !== 'text' || column.maxLength !== undefined || column.rules?.code !== undefined);
+      if (!indexable) out.push({ path, message: `unique needs columns that can be indexed: not json or blob, text with maxLength ("${ref}")` });
+    }
+    // A running number counted per parent is unique with its parent already.
+    const numbered = t.columns.some((c) => {
+      const sequence = c.rules?.sequence;
+      return sequence?.gapless === true && sequence.scope !== undefined && [sequence.scope, c.ref].sort().join('\u0000') === key;
+    });
+    if (numbered) out.push({ path, message: 'already unique by its number rule' });
+  });
+  return out;
+}
 
 export const requiredSchemaSchema = z
   .object({

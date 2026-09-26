@@ -13,6 +13,7 @@ import {
   manifestSchema,
   type Manifest,
 } from './schema.js';
+import { tableShapeIssues } from './table-shapes.js';
 
 export interface ManifestIssue {
   /** Dotted path to the offending field, e.g. `publisher.id`. */
@@ -69,6 +70,17 @@ export function manifestWarnings(manifest: Manifest): ManifestIssue[] {
         message: `"${table.ref}.${column.ref}" has no default and is not nullable, so it will be required at install: every new row must give it a value`,
       });
     });
+    // MySQL compares text ignoring case and accents; Postgres and SQLite do not.
+    (table.unique ?? []).forEach((set, k) => {
+      for (const ref of set) {
+        const column = table.columns.find((c) => c.ref === ref);
+        if (column?.type !== 'text' || column.rules?.normalize !== undefined || column.rules?.code !== undefined) continue;
+        out.push({
+          path: `requiredSchema.tables.${String(t)}.unique.${String(k)}`,
+          message: `MySQL compares "${table.ref}.${ref}" ignoring case and accents, Postgres and SQLite do not: give it normalize "email" or "trim"`,
+        });
+      }
+    });
   });
   return out;
 }
@@ -118,6 +130,9 @@ export function validateManifest(
       ...(opts.hostTables !== undefined ? { hostTables: opts.hostTables } : {}),
     }),
   );
+
+  // A table shared under a shape Adminium writes down is what that shape says.
+  if (manifest.kind === 'app') issues.push(...tableShapeIssues(manifest));
 
   const warnings = manifestWarnings(manifest);
   if (issues.length > 0) return { ok: false, issues, warnings };

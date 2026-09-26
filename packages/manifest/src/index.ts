@@ -163,6 +163,8 @@ export {
 
 export { addOnSettingRefSchema, settingSourceSchema, type SettingSource } from './refs.js';
 
+export { TABLE_SHAPES, shapeTables, tableShapeIssues, tableShapeOf, type TableShapeIssue } from './table-shapes.js';
+
 export {
   MOMENT_LIMITS,
   clockTimeSchema,
@@ -200,6 +202,7 @@ export {
   MYSQL_UNIQUE_KEY_BYTES,
   ROLE_SLUG_LIMIT,
   uniqueWithOf,
+  uniqueSetName,
   type PlanContext,
   type TableChoice,
   type TableClass,
