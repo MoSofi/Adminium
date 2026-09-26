@@ -34,7 +34,7 @@ There are two kinds of manifest:
   "license": "AGPL-3.0-only",
   "description": { "key": "mft.visits.desc", "fallback": "Book and track client visits." },
   "categories": ["operations"],
-  "compatibility": { "minAdminiumVersion": "0.3.3" },
+  "compatibility": { "minAdminiumVersion": "0.3.4" },
   "requiredSchema": {
     "prefixed": true,
     "tables": [
@@ -104,7 +104,7 @@ other publisher is refused at validation, for apps and add-ons alike.
 
 ```json
 "compatibility": {
-  "minAdminiumVersion": "0.3.3",
+  "minAdminiumVersion": "0.3.4",
   "engines": ["postgres", "mysql", "sqlite"],
   "requires": ["realtime"]
 }

@@ -49,7 +49,7 @@ RUN npm ci
 COPY . .
 RUN npx --no-install adminium build && rm -rf node_modules
 
-FROM ghcr.io/mosofi/adminium:0.3.3
+FROM ghcr.io/mosofi/adminium:0.3.4
 COPY --from=build --chown=node:node /project/ /project/
 ENV ADMINIUM_PROJECT_DIR=/project
 ```
@@ -299,8 +299,8 @@ Details: [Pull and check](/projects/pull-and-check/).
 The version is pinned in two places, and they must agree:
 
 ```bash
-npm install --save-exact @adminiumjs/adminium@0.3.3
-# then change the Dockerfile's FROM tag to 0.3.3
+npm install --save-exact @adminiumjs/adminium@0.3.4
+# then change the Dockerfile's FROM tag to 0.3.4
 npm run check                # this is what compares the two
 npm run build
 ```

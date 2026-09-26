@@ -19,7 +19,7 @@ primary_region = "iad"
 # deploy time, so with `latest` an unrelated redeploy months later pulls whatever
 # it points at then and migrates the meta store to it. Bump this when you upgrade.
 [build]
-  image = "ghcr.io/mosofi/adminium:0.3.3"
+  image = "ghcr.io/mosofi/adminium:0.3.4"
 
 # Fly terminates TLS at its edge and forwards to `internal_port` over the private
 # 6PN network, so every request reaches Adminium as plain HTTP from the
