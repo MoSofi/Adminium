@@ -10,6 +10,7 @@ import {
   canonicalJson,
   ledgerNameFor,
   normaliseValue,
+  onVenueGrid,
   pickText,
   resolveSampleRow,
   sampleFileOf,
@@ -56,6 +57,27 @@ describe('a venue’s wall clock', () => {
     expect(zonedWallTime({ y: 2026, m: 10, d: 24 }, '09:30', 'Europe/Berlin').toISOString()).toBe('2026-10-24T07:30:00.000Z');
     expect(zonedWallTime({ y: 2026, m: 10, d: 26 }, '09:30', 'Europe/Berlin').toISOString()).toBe('2026-10-26T08:30:00.000Z');
     expect(zonedWallTime({ y: 2026, m: 9, d: 22 }, '09:30', 'UTC').toISOString()).toBe('2026-09-22T09:30:00.000Z');
+  });
+});
+
+describe('a time ahead, on the venue’s grid', () => {
+  it('rounds up to the next step of the venue’s own clock, and keeps a time already on it', () => {
+    // Kolkata is UTC+05:30: 09:41Z is 15:11 there, and the next quarter hour is 15:15 (09:45Z).
+    expect(onVenueGrid(Date.UTC(2026, 6, 28, 9, 41), 15, 'Asia/Kolkata').toISOString()).toBe('2026-07-28T09:45:00.000Z');
+    expect(onVenueGrid(Date.UTC(2026, 6, 28, 9, 45), 15, 'Asia/Kolkata').toISOString()).toBe('2026-07-28T09:45:00.000Z');
+    expect(onVenueGrid(Date.UTC(2026, 6, 28, 9, 45, 1), 15, 'Asia/Kolkata').toISOString()).toBe('2026-07-28T10:00:00.000Z');
+  });
+
+  it('never rounds past the next midnight', () => {
+    expect(onVenueGrid(Date.UTC(2026, 6, 28, 23, 55), 13, 'UTC').toISOString()).toBe('2026-07-29T00:00:00.000Z');
+  });
+
+  it('resolves a row: a duration after now, on the grid or as it falls', () => {
+    const ctx = { now: Date.UTC(2026, 6, 28, 15, 0), timeZone: 'Europe/London', locale: 'en-US', labels: new Map(), assets: new Map() };
+    // 15:00Z is 16:00 in London (BST); 20 minutes on is 16:20, the next quarter hour 16:30 (15:30Z).
+    const row = resolveSampleRow({ pickup_at: { '@in': 'PT20M', '@grid': 15 }, due_at: { '@in': 'PT20M' } }, ctx);
+    expect((row?.['pickup_at'] as Date).toISOString()).toBe('2026-07-28T15:30:00.000Z');
+    expect((row?.['due_at'] as Date).toISOString()).toBe('2026-07-28T15:20:00.000Z');
   });
 });
 

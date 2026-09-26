@@ -1982,6 +1982,7 @@ A value is plain JSON, or one of these directives:
 |---|---|
 | `{ "@ref": "<label>" }` | The key of an earlier row with that label. |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
+| `{ "@in": "PT20M", "@grid": 15 }` | An ISO 8601 duration after now. With `@grid`, rounded up to the next step of that many minutes on the venue's own clock, counted from its midnight (never past the next midnight): the first pickup slot at least 20 minutes away. |
 | `{ "@day": -1, "@time": "09:30" }` | A wall time in the venue's time zone, a number of days from today (−366 to 366). |
 | `{ "@day": 3 }` | A date: that many days from today, as the venue's calendar has it. For a `date` column. |
 | `"@workdays": true` | Added to either `@day` form: the days count Monday to Friday only, and day 0 on a weekend is the Monday after. So the sample's busy day is never a Saturday. |

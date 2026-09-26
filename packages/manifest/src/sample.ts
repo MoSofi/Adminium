@@ -8,6 +8,10 @@
  *
  *   `{"@ref": "<label>"}`      the key of an earlier row with that `@label`
  *   `{"@ago": "PT19M"}`        an ISO-8601 duration before now
+ *   `{"@in": "PT20M", "@grid": 15}`   an ISO-8601 duration after now; with
+ *                               `@grid`, rounded up to the next time on that
+ *                               many minutes' grid of the venue's own clock
+ *                               (the first pickup slot at least 20 minutes on)
  *   `{"@day": -1, "@time": "09:30"}`   a wall time in the venue's own zone,
  *                               days from today
  *   `{"@day": 3}`              a date in the venue's own zone
@@ -56,6 +60,12 @@ const ISO_DURATION = /^P(?!$)(\d+W)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?
 const directive = z.union([
   z.object({ '@ref': label }).strict(),
   z.object({ '@ago': z.string().regex(ISO_DURATION, 'an ISO-8601 duration such as PT19M') }).strict(),
+  z
+    .object({
+      '@in': z.string().regex(ISO_DURATION, 'an ISO-8601 duration such as PT20M'),
+      '@grid': z.number().int().min(1).max(1440).optional(),
+    })
+    .strict(),
   z
     .object({
       '@day': z.number().int().min(-366).max(366),
@@ -120,6 +130,7 @@ export type SampleValue = z.infer<typeof sampleValueSchema>;
 export function sampleDirective(value: unknown):
   | { kind: 'ref'; label: string }
   | { kind: 'ago'; duration: string }
+  | { kind: 'in'; duration: string; grid: number | null }
   | { kind: 'wall'; day: number; time: string; workdays: boolean }
   | { kind: 'date'; day: number; workdays: boolean }
   | { kind: 'month'; months: number; dom: number; time: string | null }
@@ -130,6 +141,9 @@ export function sampleDirective(value: unknown):
   const record = value as Record<string, unknown>;
   if (typeof record['@ref'] === 'string') return { kind: 'ref', label: record['@ref'] };
   if (typeof record['@ago'] === 'string') return { kind: 'ago', duration: record['@ago'] };
+  if (typeof record['@in'] === 'string') {
+    return { kind: 'in', duration: record['@in'], grid: typeof record['@grid'] === 'number' ? record['@grid'] : null };
+  }
   if (typeof record['@day'] === 'number' && typeof record['@time'] === 'string') {
     return { kind: 'wall', day: record['@day'], time: record['@time'], workdays: record['@workdays'] === true };
   }

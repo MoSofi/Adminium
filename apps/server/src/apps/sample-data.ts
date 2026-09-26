@@ -218,6 +218,21 @@ export function zonedWallTime(date: { y: number; m: number; d: number }, time: s
   return new Date(utc);
 }
 
+/**
+ * The first time at or after `instant` that falls on a `grid`-minute step of
+ * the venue's own clock, counted from its midnight: 12:07 on a 15-minute grid
+ * is 12:15, and 12:15 stays 12:15.
+ */
+export function onVenueGrid(instant: number, grid: number, timeZone: string): Date {
+  const local = instant + zoneOffsetMs(timeZone, instant);
+  const midnight = Math.floor(local / 86_400_000) * 86_400_000;
+  const step = grid * 60_000;
+  // Never past the next midnight, which starts the next day's grid.
+  const rounded = new Date(midnight + Math.min(Math.ceil((local - midnight) / step) * step, 86_400_000));
+  const time = `${pad2(rounded.getUTCHours())}:${pad2(rounded.getUTCMinutes())}`;
+  return zonedWallTime({ y: rounded.getUTCFullYear(), m: rounded.getUTCMonth() + 1, d: rounded.getUTCDate() }, time, timeZone);
+}
+
 /** How far `timeZone` is ahead of UTC at `instant`, in ms. */
 function zoneOffsetMs(timeZone: string, instant: number): number {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -345,6 +360,11 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
       case 'ago':
         out[column] = new Date(ctx.now - isoDurationMs(found.duration));
         break;
+      case 'in': {
+        const at = ctx.now + isoDurationMs(found.duration);
+        out[column] = found.grid === null ? new Date(at) : onVenueGrid(at, found.grid, ctx.timeZone);
+        break;
+      }
       case 'wall': {
         const day = found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
         out[column] = zonedWallTime(day, found.time, ctx.timeZone);

@@ -130,9 +130,28 @@ describe('adminium.sample/1', () => {
     ]);
   });
 
+  it('refuses a time ahead with a bad duration or grid', () => {
+    const bundle = sampleBundleSchema.parse({
+      ...BUNDLE,
+      tables: [
+        {
+          ref: 'menu_categories',
+          rows: [{ name: { '@in': 'soon' } }, { name: { '@in': 'PT20M', '@grid': 0 } }, { name: { '@grid': 15 } }],
+        },
+      ],
+    });
+    expect(sampleBundleIssues(bundle, manifest()).map((issue) => issue.path)).toEqual([
+      'tables.0.rows.0.name',
+      'tables.0.rows.1.name',
+      'tables.0.rows.2.name',
+    ]);
+  });
+
   it('reads a directive for what it is', () => {
     expect(sampleDirective({ '@ref': 'x' })).toEqual({ kind: 'ref', label: 'x' });
     expect(sampleDirective({ '@ago': 'PT5M' })).toEqual({ kind: 'ago', duration: 'PT5M' });
+    expect(sampleDirective({ '@in': 'PT20M', '@grid': 15 })).toEqual({ kind: 'in', duration: 'PT20M', grid: 15 });
+    expect(sampleDirective({ '@in': 'PT5M' })).toEqual({ kind: 'in', duration: 'PT5M', grid: null });
     expect(sampleDirective({ '@day': -1, '@time': '09:30' })).toEqual({ kind: 'wall', day: -1, time: '09:30', workdays: false });
     expect(sampleDirective({ '@t': { 'en-US': 'Hi' } })).toEqual({ kind: 't', texts: { 'en-US': 'Hi' } });
     expect(sampleDirective({ '@asset': 'img' })).toEqual({ kind: 'asset', label: 'img' });
