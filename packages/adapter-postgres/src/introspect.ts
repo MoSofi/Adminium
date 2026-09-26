@@ -594,7 +594,9 @@ export async function introspectPostgres(
     const dbType = str(row['db_type']) ?? 'unknown';
     const typtype = str(row['typtype']);
     const isArray = str(row['typcategory']) === 'A';
-    const generated = str(row['generated']) === 's';
+    // 's' stored, 'v' virtual (Postgres 18+, and its default for GENERATED ALWAYS AS without
+    // STORED): either way a computed column nobody may write.
+    const generated = ['s', 'v'].includes(str(row['generated']) ?? '');
 
     let mapped = mapPostgresType(dbType);
     let enumRef: string | null = null;

@@ -817,6 +817,60 @@ jobs:
           path: packages/ui/playwright-report
           retention-days: 7
 
+  # The Postgres adapter's live suites once more, on the newest major. Postgres 18
+  # changed what a plain `GENERATED ALWAYS AS (…)` column is (virtual, not stored),
+  # and a server that reads one as writable breaks every edit of its table; verify
+  # runs 16, which cannot see that. Only the adapter's own suites: they are the ones
+  # that read the catalog.
+  postgres-18:
+    name: adapter-postgres on Postgres 18
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          # As on verify: the psql harness mints throwaway roles and reconnects as
+          # them with no password.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build what the adapter imports
+        run: pnpm turbo run build --filter=@adminium/adapter-postgres^...
+
+      - name: Test
+        run: |
+          psql -h 127.0.0.1 -Atc 'show server_version'
+          pnpm --filter @adminium/adapter-postgres exec vitest run
+        env:
+          TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          PGUSER: postgres
+          PGPASSWORD: postgres
+
   dep-graph:
     name: dep-graph
     runs-on: ubuntu-latest

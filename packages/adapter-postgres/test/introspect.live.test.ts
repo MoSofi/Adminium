@@ -325,3 +325,38 @@ describe.skipIf(!psqlAvailable)('reserved schemas (adminium_demo)', () => {
     expect(model.tables.map((t) => t.name)).toEqual(['seeded_rows']);
   });
 });
+
+describe.skipIf(!psqlAvailable)('virtual generated columns (Postgres 18+)', () => {
+  let db = '';
+  let version = 0;
+  let model: DatabaseModel | undefined;
+
+  beforeAll(async () => {
+    version = Number((await psql('SHOW server_version_num')).trim());
+    if (version < 180000) return;
+    db = await createTestDatabase(false);
+    await psql(
+      `CREATE TABLE public.lines (
+         id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+         qty integer NOT NULL,
+         price numeric(10,2) NOT NULL,
+         total numeric GENERATED ALWAYS AS (qty * price) VIRTUAL,
+         label text GENERATED ALWAYS AS ('#' || id::text)
+       );`,
+      { db },
+    );
+    model = await introspectPostgres(psqlExecutor(db), { connectionId: db, databaseName: db });
+  }, 60_000);
+
+  afterAll(async () => {
+    if (db !== '') await dropTestDatabase(db);
+  });
+
+  it('treats a VIRTUAL column, and one with neither keyword, as generated', ({ skip }) => {
+    if (version < 180000) skip();
+    const column = (name: string) => model?.tables.find((t) => t.id === 'public.lines')?.columns.find((c) => c.name === name);
+    expect(column('total')).toMatchObject({ isGenerated: true, default: null });
+    expect(column('label')).toMatchObject({ isGenerated: true, default: null });
+    expect(column('qty')).toMatchObject({ isGenerated: false });
+  });
+});
