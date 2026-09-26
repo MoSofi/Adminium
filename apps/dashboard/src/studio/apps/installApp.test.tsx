@@ -1227,6 +1227,51 @@ describe('the app shelf (47 step 4b)', () => {
     expect(buttons.filter((b) => b.hasAttribute('disabled'))).toHaveLength(1);
   });
 
+  it('shows the catalogue’s icon, date and needs, and a coming-soon app it cannot install', async () => {
+    installed = {
+      apps: [
+        {
+          ...CATALOG.apps[0],
+          key: 'clients',
+          name: 'Client Portal',
+          source: 'catalog',
+          state: 'available',
+          iconPaths: ['M4 4h16v16H4z'],
+          lastUpdatedAt: '2026-09-20T00:00:00.000Z',
+          requiresAddOns: ['add-on-invoices'],
+          availability: 'installable',
+        },
+        {
+          ...CATALOG.apps[0],
+          key: 'tickets',
+          name: 'Event Tickets',
+          version: '',
+          source: 'catalog',
+          state: 'available',
+          availability: 'coming-soon',
+        },
+      ],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    } as never;
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <AppBrowser onInstall={() => {}} onToggleOnline={() => {}} onRefresh={() => {}} />
+      </QueryClientProvider>,
+    );
+    const portal = (await screen.findByText('Client Portal')).closest('article') as HTMLElement;
+    // The app's own drawing, not the generic package glyph.
+    expect(portal.querySelector('path[d="M4 4h16v16H4z"]')).not.toBeNull();
+    expect(within(portal).getByText('Needs Invoices')).toBeTruthy();
+    expect(within(portal).getByText(/^Updated .*2026/)).toBeTruthy();
+    expect(within(portal).getByRole('button', { name: /^Install$/ })).toBeTruthy();
+
+    const soon = screen.getByText('Event Tickets').closest('article') as HTMLElement;
+    expect(within(soon).getByText('Coming soon')).toBeTruthy();
+    expect(within(soon).getByText('Not available yet')).toBeTruthy();
+    expect(within(soon).queryByRole('button', { name: /^Install$/ })).toBeNull();
+  });
+
   it('filters by search and by category', async () => {
     const user = userEvent.setup();
     renderShelf();

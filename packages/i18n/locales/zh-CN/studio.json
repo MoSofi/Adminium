@@ -26,7 +26,11 @@
     },
     "card": {
       "needsApiKey": "需要 API 密钥",
-      "needsOauth": "通过 OAuth 连接"
+      "needsOauth": "通过 OAuth 连接",
+      "by": "由 {author} 提供",
+      "comingSoon": "即将推出",
+      "notYet": "暂不可用",
+      "updated": "更新于 {date}"
     },
     "category": {
       "artwork": "美工",
@@ -555,7 +559,11 @@
       "toggle": "浏览在线应用目录",
       "emptyOnlineBody": "在线目录已开启，但还没有列出任何内容。检查更新以获取目录。",
       "fromCatalog": "在线",
-      "needsNewer": "需要 Adminium {version} 或更高版本"
+      "needsNewer": "需要 Adminium {version} 或更高版本",
+      "comingSoon": "即将推出",
+      "notYet": "暂不可用",
+      "updated": "更新于 {date}",
+      "needsAddOns": "需要 {names}"
     },
     "domains": {
       "add": "附加域名",

@@ -15,9 +15,8 @@
  *  - ITS OWN SWITCH (R2). `apps.catalogEnabled` is a separate opt-in from the
  *    add-on one. An operator may want apps browsable online and add-ons not, or
  *    the reverse, and one switch could not say that.
- *  - ITS OWN DOCUMENT (R1). `/marketplace/v2/apps.json`, parsed `.strict()` by
- *    this schema only, so neither feed can break the other's servers by growing
- *    a field.
+ *  - ITS OWN SHELF (R1). `/api/v1/marketplace/apps`, beside the add-on one,
+ *    so neither can break the other's readers.
  *  - A MINIMUM THAT MEANS SOMETHING (G8-D2). Each row carries the
  *    `minAdminiumVersion` its release manifest declares. Release tooling refuses
  *    a minimum no published Adminium meets (48 A17), so a row above this
@@ -32,8 +31,8 @@
  * buy the field with a v3 address because, unlike this one, its document was
  * already in service.
  *
- * THE FINGERPRINT is the row's `integrity`: the release ledger's value, carried
- * by a feed the website builds from the ledger at a pinned commit. The app
+ * THE FINGERPRINT is the row's `integrity`: the release ledger's value, which
+ * the site's release sync checked against the file before offering it. The app
  * store checks the downloaded bytes against it before unpacking anything.
  *
  * THE DISCLOSURE is the add-on client's: refreshing tells adminium.dev this
@@ -41,6 +40,7 @@
  * serves downloads.adminium.dev, the same plus the exact app and version.
  */
 
+import { MARKETPLACE_FORMAT, appItemWireSchema, parseShelf, type AppItemWire, type ParsedShelf } from '@adminium/manifest';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
@@ -52,11 +52,18 @@ import {
   MAX_CATALOG_BYTES,
   MAX_TARBALL_BYTES,
   boundedRequest,
+  displayFactsOf,
+  displayFields,
   downloadUrlFor,
+  shelfUrl,
 } from '../add-ons/catalog.js';
 
-/** The static app feed the website emits. Never serves files. */
-export const APP_CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/v2/apps.json';
+/**
+ * The marketplace API's app shelf (`/marketplace/v2/apps.json` for 0.3.5 and
+ * earlier, which the site still serves). Never serves files. Read the way the
+ * add-on shelf is: items leniently, releases strictly, `?adminium=` sent.
+ */
+export const APP_CATALOG_ENDPOINT = 'https://adminium.dev/api/v1/marketplace/apps';
 
 /** The settings-registry key behind the app catalog's default-off switch (R2). */
 export const APP_CATALOG_ENABLED_SETTING = 'apps.catalogEnabled';
@@ -82,18 +89,42 @@ export const appCatalogEntrySchema = z
     sides: z.array(z.enum(['staff', 'customer'])).min(1),
     /** The minimum the release manifest declares; this server refuses one above its version. */
     minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN),
+    ...displayFields,
+    /** The add-ons the release needs and suggests, by key — the card's "Needs Invoices". */
+    addOns: z.object({ requires: z.array(z.string()), suggests: z.array(z.string()) }).strict().optional(),
+    newerRelease: z
+      .object({ version: z.string().regex(EXACT_VERSION_PATTERN), minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN) })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
+/** An app the shelf lists and this server cannot download: coming soon, or only releases above it. */
+export const unavailableAppSchema = z
+  .object({
+    key: z.string().regex(ADD_ON_KEY_PATTERN),
+    availability: z.enum(['coming-soon', 'too-new']),
+    version: z.string().regex(EXACT_VERSION_PATTERN).nullable(),
+    minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN).nullable(),
+    name: localized,
+    tagline: localized,
+    capabilities: z.array(z.string()).default([]),
+    ...displayFields,
   })
   .strict();
 
 export const appCatalogSchema = z
   .object({
-    schemaVersion: z.literal(2),
+    format: z.literal(MARKETPLACE_FORMAT),
     generatedAt: z.string().min(1),
     apps: z.array(appCatalogEntrySchema),
+    unavailable: z.array(unavailableAppSchema).default([]),
+    skipped: z.array(z.object({ key: z.string().nullable(), reason: z.string() }).strict()).default([]),
   })
   .strict();
 
 export type AppCatalogEntry = z.infer<typeof appCatalogEntrySchema>;
+export type UnavailableApp = z.infer<typeof unavailableAppSchema>;
 export type AppCatalog = z.infer<typeof appCatalogSchema>;
 
 /** A cached document in the format this server reads, rather than any JSON at all. */
@@ -101,9 +132,54 @@ export function isCurrentAppCatalogFormat(document: unknown): boolean {
   return (
     typeof document === 'object' &&
     document !== null &&
-    (document as { schemaVersion?: unknown }).schemaVersion === 2 &&
+    (document as { format?: unknown }).format === MARKETPLACE_FORMAT &&
     Array.isArray((document as { apps?: unknown }).apps)
   );
+}
+
+/**
+ * The app shelf as this server keeps it — {@link addOnCatalogFromShelf}'s
+ * twin. An app with source only (no release anywhere) is not listed: there is
+ * nothing Adminium could install.
+ */
+export function appCatalogFromShelf(shelf: ParsedShelf<AppItemWire>): AppCatalog {
+  const apps: AppCatalogEntry[] = [];
+  const unavailable: UnavailableApp[] = [];
+  for (const item of shelf.items) {
+    const listed = { key: item.key, name: item.name, tagline: item.tagline, capabilities: item.capabilities, ...displayFactsOf(item) };
+    if (item.availability === 'coming-soon') {
+      unavailable.push({ ...listed, availability: 'coming-soon', version: null, minAdminiumVersion: null });
+      continue;
+    }
+    const release = item.release;
+    if (release !== null) {
+      apps.push({
+        ...listed,
+        version: release.version,
+        integrity: release.integrity,
+        categories: release.categories,
+        capabilities: release.capabilities,
+        publisher: release.publisher,
+        sides: release.sides,
+        minAdminiumVersion: release.minAdminiumVersion,
+        addOns: {
+          requires: release.addOns.requires.map((need) => need.key),
+          suggests: release.addOns.suggests.map((need) => need.key),
+        },
+        ...(item.newerRelease === undefined ? {} : { newerRelease: item.newerRelease }),
+      });
+      continue;
+    }
+    if (item.newerRelease !== undefined) {
+      unavailable.push({
+        ...listed,
+        availability: 'too-new',
+        version: item.newerRelease.version,
+        minAdminiumVersion: item.newerRelease.minAdminiumVersion,
+      });
+    }
+  }
+  return { format: MARKETPLACE_FORMAT, generatedAt: shelf.generatedAt, apps, unavailable, skipped: shelf.skipped };
 }
 
 /**
@@ -178,7 +254,7 @@ export function createAppCatalogClient(deps: AppCatalogClientDeps): AppCatalogCl
       await assertEnabled();
       const { bytes } = await boundedRequest(
         doFetch(),
-        endpoint,
+        shelfUrl(endpoint),
         'application/json',
         MAX_CATALOG_BYTES,
         'CATALOG_UNREACHABLE',
@@ -190,16 +266,11 @@ export function createAppCatalogClient(deps: AppCatalogClientDeps): AppCatalogCl
       } catch (err) {
         throw new AddOnCatalogError('CATALOG_UNREACHABLE', `${endpoint} did not return JSON: ${String(err)}`);
       }
-      const parsed = appCatalogSchema.safeParse(body);
-      if (!parsed.success) {
-        throw new AddOnCatalogError(
-          'CATALOG_MALFORMED',
-          `app catalog does not match the expected schema: ${parsed.error.issues
-            .map((i) => `${i.path.join('.')}: ${i.message}`)
-            .join('; ')}`,
-        );
+      const shelf = parseShelf(appItemWireSchema, body);
+      if (shelf === null) {
+        throw new AddOnCatalogError('CATALOG_MALFORMED', `${endpoint} did not answer in ${MARKETPLACE_FORMAT}`);
       }
-      return parsed.data;
+      return appCatalogFromShelf(shelf);
     },
 
     async fetchTarball(entry, signal) {

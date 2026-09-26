@@ -1432,6 +1432,12 @@ describe('the bundled app set (47 step 4)', () => {
         updateStaged: false,
         needsNewerAdminium: null,
         cannotUpdate: null,
+        // Nothing from the catalogue: this row is known only from the disk.
+        availability: 'installable',
+        iconTint: null,
+        iconPaths: null,
+        lastUpdatedAt: null,
+        requiresAddOns: [],
       },
     ]);
 

@@ -33,12 +33,12 @@ import {
 import {
   APP_CATALOG_ENABLED_SETTING,
   APP_CATALOG_ENDPOINT,
-  appCatalogSchema,
   appDownloadUrlFor,
   createAppCatalogClient,
   meetsMinimum,
   type AppCatalogEntry,
 } from '../src/apps/catalog.js';
+import { APP_VERSION } from '../src/version.js';
 
 // ─── Network kill-switch (mirrors add-on-network-isolation.test.ts) ─────────────
 
@@ -104,7 +104,7 @@ function disableNetwork(): NetGuard {
 
 // ─── Harness ───────────────────────────────────────────────────────────────────
 
-/** A row in the exact shape the website's `v2/apps.json` emits (G8.1). */
+/** The catalog row this server keeps for the item {@link wireItem} sends. */
 const ENTRY: AppCatalogEntry = {
   key: 'clinic',
   version: '0.1.2',
@@ -118,7 +118,37 @@ const ENTRY: AppCatalogEntry = {
   minAdminiumVersion: '0.2.8',
 };
 
-const FEED = { schemaVersion: 2, generatedAt: '2026-09-16T00:00:00Z', apps: [ENTRY] };
+/** ENTRY as the marketplace API sends it: an item around a release. */
+function wireItem(item: Record<string, unknown> = {}, release: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    kind: 'app',
+    key: ENTRY.key,
+    availability: 'installable',
+    name: ENTRY.name,
+    tagline: ENTRY.tagline,
+    author: { name: 'Adminium' },
+    capabilities: ENTRY.capabilities,
+    art: { tint: '#0f766e', iconPaths: ['M4 4h16v16H4z'] },
+    links: { page: 'https://adminium.dev/marketplace/clinic/' },
+    lastUpdatedAt: '2026-09-16T00:00:00.000Z',
+    file: { url: appDownloadUrlFor(ENTRY.key, ENTRY.version), size: 3, publishedAt: null },
+    release: {
+      version: ENTRY.version,
+      integrity: ENTRY.integrity,
+      categories: ENTRY.categories,
+      capabilities: ENTRY.capabilities,
+      publisher: ENTRY.publisher,
+      sides: ENTRY.sides,
+      minAdminiumVersion: ENTRY.minAdminiumVersion,
+      addOns: { requires: [{ key: 'add-on-invoices', range: '>=1.0.2' }], suggests: [], features: [] },
+      ...release,
+    },
+    ...item,
+  };
+}
+
+const shelf = (items: unknown[]) => ({ format: 'adminium-marketplace/1', generatedAt: '2026-09-16T00:00:00Z', items });
+const FEED = shelf([wireItem()]);
 
 let meta: MetaDb;
 let guard: NetGuard;
@@ -211,14 +241,16 @@ describe('app catalog: on, it reaches exactly two first-party addresses', () => 
     return { client, calls };
   }
 
-  it('reads the app feed from its own constant, never the add-on feed', async () => {
+  it('reads the app shelf from its own constant, never the add-on one', async () => {
     const { client, calls } = recording(
       () => new Response(JSON.stringify(FEED), { status: 200, headers: { 'content-type': 'application/json' } }),
     );
     const catalog = await client.fetchCatalog();
-    expect(catalog.apps.map((a) => a.key)).toEqual(['clinic']);
-    expect(calls.map((c) => c.url)).toEqual([APP_CATALOG_ENDPOINT]);
-    expect(APP_CATALOG_ENDPOINT).toBe('https://adminium.dev/marketplace/v2/apps.json');
+    expect(catalog.apps).toEqual([
+      { ...ENTRY, author: 'Adminium', iconTint: '#0f766e', iconPaths: ['M4 4h16v16H4z'], lastUpdatedAt: '2026-09-16T00:00:00.000Z', addOns: { requires: ['add-on-invoices'], suggests: [] } },
+    ]);
+    expect(calls.map((c) => c.url)).toEqual([`${APP_CATALOG_ENDPOINT}?adminium=${APP_VERSION}`]);
+    expect(APP_CATALOG_ENDPOINT).toBe('https://adminium.dev/api/v1/marketplace/apps');
     expect((calls[0]!.init.headers as Record<string, string>)['user-agent']).toBe(USER_AGENT);
   });
 
@@ -282,11 +314,11 @@ describe('app catalog: on, it reaches exactly two first-party addresses', () => 
     await expect(client.fetchTarball(ENTRY)).rejects.toMatchObject({ reason: 'RESPONSE_TOO_LARGE' });
   });
 
-  it('refuses a feed that does not parse as the app feed', async () => {
+  it('refuses a document that is not the app shelf', async () => {
     for (const body of [
-      { ...FEED, schemaVersion: 1 },
-      { schemaVersion: 2, generatedAt: FEED.generatedAt, addOns: [] },
-      { ...FEED, apps: [{ ...ENTRY, url: 'https://evil.example/clinic.tgz' }] },
+      { schemaVersion: 2, generatedAt: FEED.generatedAt, apps: [ENTRY] },
+      { schemaVersion: 1, generatedAt: FEED.generatedAt, apps: [] },
+      { ...FEED, format: 'adminium-marketplace/2' },
     ]) {
       const { client } = recording(() => new Response(JSON.stringify(body), { status: 200 }));
       await expect(client.fetchCatalog(), JSON.stringify(body).slice(0, 60)).rejects.toMatchObject({
@@ -296,12 +328,21 @@ describe('app catalog: on, it reaches exactly two first-party addresses', () => 
   });
 });
 
-describe('app catalog: the feed schema', () => {
-  it('accepts the exact row shape the website emits', () => {
-    expect(appCatalogSchema.safeParse(FEED).success).toBe(true);
+describe('app catalog: what the shelf may say', () => {
+  beforeEach(async () => {
+    await settingsRepo(meta).set(APP_CATALOG_ENABLED_SETTING, true);
   });
 
-  it('refuses a price, tier, licence, URL or package field', () => {
+  async function read(body: unknown) {
+    const client = createAppCatalogClient({
+      meta,
+      networkFeatures: true,
+      fetchImpl: (() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))) as unknown as typeof globalThis.fetch,
+    });
+    return client.fetchCatalog();
+  }
+
+  it('refuses a release carrying a price, tier, licence, URL or package field — that item only', async () => {
     for (const extra of [
       { price: 0 },
       { tier: 'pro' },
@@ -309,22 +350,38 @@ describe('app catalog: the feed schema', () => {
       { url: 'https://evil.example/clinic.tgz' },
       { npmPackage: '@adminiumjs/app-clinic' },
     ]) {
-      const parsed = appCatalogSchema.safeParse({ ...FEED, apps: [{ ...ENTRY, ...extra }] });
-      expect(parsed.success, `expected ${JSON.stringify(extra)} to be refused`).toBe(false);
+      const catalog = await read(shelf([wireItem({}, extra)]));
+      expect(catalog.apps, `expected ${JSON.stringify(extra)} to be refused`).toEqual([]);
+      expect(catalog.skipped.map((item) => item.key)).toEqual(['clinic']);
     }
   });
 
-  it('refuses a floating version, a floating minimum, no sides, or an unknown side', () => {
-    for (const row of [
+  it('refuses a floating version, a floating minimum, no sides, or an unknown side', async () => {
+    for (const release of [
       { version: 'latest' },
       { version: '^0.1.0' },
       { minAdminiumVersion: '>=0.2.8' },
       { sides: [] },
       { sides: ['kiosk'] },
     ]) {
-      const parsed = appCatalogSchema.safeParse({ ...FEED, apps: [{ ...ENTRY, ...row }] });
-      expect(parsed.success, `expected ${JSON.stringify(row)} to be refused`).toBe(false);
+      const catalog = await read(shelf([wireItem({}, release)]));
+      expect(catalog.apps, `expected ${JSON.stringify(release)} to be refused`).toEqual([]);
     }
+  });
+
+  it('lists coming soon and too new as unavailable, and an app with source only not at all', async () => {
+    const catalog = await read(
+      shelf([
+        wireItem({ key: 'soon-app', availability: 'coming-soon', release: null, file: null }),
+        wireItem({ key: 'new-app', release: null, file: null, newerRelease: { version: '1.0.0', minAdminiumVersion: '9.0.0' } }),
+        wireItem({ key: 'source-app', availability: 'source-only', release: null, file: null }),
+      ]),
+    );
+    expect(catalog.apps).toEqual([]);
+    expect(catalog.unavailable.map((row) => [row.key, row.availability, row.version, row.minAdminiumVersion])).toEqual([
+      ['soon-app', 'coming-soon', null, null],
+      ['new-app', 'too-new', '1.0.0', '9.0.0'],
+    ]);
   });
 
   it('compares a minimum as a version, not as a string', () => {

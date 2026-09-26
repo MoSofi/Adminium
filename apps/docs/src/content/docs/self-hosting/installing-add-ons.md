@@ -57,10 +57,17 @@ The Add-ons page can also browse the **online catalog** — newer versions and
 packages that are not in your build. That is a toggle, it is **off by
 default**, and nothing contacts the network until you turn it on.
 
-The catalog is a static file published with adminium.dev, so it lists what was
-released as of that site build. Browsing reads only what is already on disk —
-the bundled set plus whatever the last refresh cached — and **Check for newer**
-is the separate, explicit action that goes and fetches it.
+The catalog is adminium.dev's marketplace API, so a refresh sees a release as
+soon as the site has checked it — no site build in between. Browsing reads only
+what is already on disk — the bundled set plus whatever the last refresh cached
+— and **Check for newer** is the separate, explicit action that goes and
+fetches it.
+
+The request names your Adminium version, and the catalog answers with the
+newest release of each add-on that version can install. An add-on whose every
+release needs a newer Adminium is listed with the version it needs, and cannot
+be installed. An add-on the site lists as **coming soon** is shown with that
+badge and has nothing to download yet.
 
 Two things veto the toggle outright, so it stays off even if switched on:
 
@@ -73,7 +80,7 @@ code:
 
 | Host | What it serves |
 |---|---|
-| `adminium.dev` | The catalog index — a static JSON file of a few KB, listing each add-on's exact version and the sha512 its release recorded. |
+| `adminium.dev` | The catalog — `GET /api/v1/marketplace/add-ons`, a JSON document listing each add-on's exact version and the sha512 its release recorded, with its name, one-line description and publisher. |
 | `downloads.adminium.dev` | The add-on files themselves, one `.tgz` per released version, under `/add-ons/`. |
 
 The same two hosts serve **apps**, under their own feed and their own `/apps/` folder, behind a

@@ -92,7 +92,7 @@ const ENTRY: AppCatalogEntry = {
   minAdminiumVersion: '0.2.8',
 };
 
-const CATALOG: AppCatalog = { schemaVersion: 2, generatedAt: '2026-09-16T00:00:00Z', apps: [ENTRY] };
+const CATALOG: AppCatalog = { format: 'adminium-marketplace/1', unavailable: [], skipped: [], generatedAt: '2026-09-16T00:00:00Z', apps: [ENTRY] };
 
 function stubCatalog(overrides: Partial<AppCatalogClient> = {}): AppCatalogClient {
   return {

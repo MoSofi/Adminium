@@ -35,6 +35,7 @@ import {
 } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
+import { CatalogTile, catalogDate } from '../marketplace-card.js';
 import type { CatalogBrowse, CatalogEntry } from './addOnsApi.js';
 
 /**
@@ -93,10 +94,12 @@ function ConnectLine({ kind }: { kind: CatalogEntry['connectKind'] }) {
  * One add-on card.
  *
  * The comp draws a brand monogram on a per-add-on hex (`mark`, `c`). Departure
- * 1: 02-design-system forbids raw hex, and the feed carries no icon or colour
- * field to replace one with, so the card uses the token `IconTile` the rest of
- * Studio uses. Everything else on it is the comp's: name, category, one line of
- * what it does, and a full-width action.
+ * 1: 02-design-system forbids raw hex, so the monogram the catalogue carries
+ * sits on the token `IconTile` the rest of Studio uses (`CatalogTile`); a row
+ * only the disk knows keeps the generic glyph. Everything else on it is the
+ * comp's: name, category, one line of what it does, and a full-width action —
+ * which, for an add-on the site lists as coming soon, is the words "Not
+ * available yet".
  */
 function AddOnCard({
   entry,
@@ -116,14 +119,21 @@ function AddOnCard({
   // Listed, not offered: the server refuses the download, and the card says
   // which version it needs rather than leaving a dead button.
   const blocked = entry.needsNewerAdminium;
+  const comingSoon = entry.availability === 'coming-soon';
+  const date = catalogDate(entry.lastUpdatedAt);
+  const updated = date === null ? null : t('studio:addOns.card.updated', 'Updated {date}', { date });
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border p-4">
       <div className="flex items-start gap-3">
-        <IconTile tone="accent" size="md" icon={<Blocks />} />
+        <CatalogTile monogram={entry.monogram} fallback={<Blocks />} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <strong className="text-section text-fg">{entry.name}</strong>
-            <Badge tone="neutral">{entry.version}</Badge>
+            {comingSoon ? (
+              <Badge tone="accent">{t('studio:addOns.card.comingSoon', 'Coming soon')}</Badge>
+            ) : (
+              <Badge tone="neutral">{entry.version}</Badge>
+            )}
             {entry.source === 'bundled' && (
               <Badge tone="neutral">{t('studio:addOns.browse.bundled', 'Included')}</Badge>
             )}
@@ -140,6 +150,11 @@ function AddOnCard({
               <Badge tone="danger">{t('studio:addOns.browse.missing', 'Missing')}</Badge>
             )}
           </div>
+          {entry.author !== undefined && entry.author !== null && entry.author !== '' && (
+            <p className="mt-0.5 text-caption text-fg-subtle">
+              {t('studio:addOns.card.by', 'by {author}', { author: entry.author })}
+            </p>
+          )}
           {entry.state === 'missing' && (
             <p className="mt-0.5 text-caption text-danger">
               {t(
@@ -168,11 +183,18 @@ function AddOnCard({
               </span>
             ))}
             <ConnectLine kind={entry.connectKind} />
+            {updated === null ? null : <span className="text-caption text-fg-subtle">{updated}</span>}
           </div>
         </div>
       </div>
       <div className="flex gap-2">
-        {entry.state === 'available' && (
+        {/* Listed so it can be found; the site has nothing to download yet. */}
+        {comingSoon && entry.state === 'available' && (
+          <p className="flex-1 text-caption font-semibold text-fg-muted">
+            {t('studio:addOns.card.notYet', 'Not available yet')}
+          </p>
+        )}
+        {entry.state === 'available' && !comingSoon && (
           <Button
             size="sm"
             variant="secondary"

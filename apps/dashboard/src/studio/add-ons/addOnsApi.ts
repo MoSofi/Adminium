@@ -123,6 +123,12 @@ export interface CatalogEntry {
   categories: string[];
   /** Whether installing will ask for a credential. */
   connectKind: ConnectKind;
+  /** `coming-soon`: listed by the site, nothing to download yet. */
+  availability?: 'installable' | 'coming-soon' | undefined;
+  /** From the cached catalogue; null when only the disk knows the row. */
+  author?: string | null | undefined;
+  monogram?: string | null | undefined;
+  lastUpdatedAt?: string | null | undefined;
 }
 
 /** Mirrors `catalogBrowseReply`. */

@@ -368,6 +368,17 @@ export const catalogEntryDto = z.object({
    * to the install plan, which is the security surface.
    */
   connectKind: z.enum(['none', 'api-key', 'oauth2']),
+  /**
+   * `coming-soon`: the site lists it and there is nothing to download yet —
+   * the card says so in place of an Install button.
+   */
+  availability: z.enum(['installable', 'coming-soon']),
+  /** From the cached catalog: who publishes it. Null when only the disk knows the row. */
+  author: z.string().nullable(),
+  /** The catalog's two-letter tile for it. */
+  monogram: z.string().nullable(),
+  /** When the site last saw it change (its newest release, or an edit), ISO 8601. */
+  lastUpdatedAt: z.string().nullable(),
 });
 
 export const catalogBrowseReply = z.object({

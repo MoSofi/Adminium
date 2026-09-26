@@ -26,7 +26,11 @@
     },
     "card": {
       "needsApiKey": "Benötigt einen API-Schlüssel",
-      "needsOauth": "Verbindet sich über OAuth"
+      "needsOauth": "Verbindet sich über OAuth",
+      "by": "von {author}",
+      "comingSoon": "Demnächst",
+      "notYet": "Noch nicht verfügbar",
+      "updated": "Aktualisiert am {date}"
     },
     "category": {
       "artwork": "Gestaltung",
@@ -555,7 +559,11 @@
       "toggle": "Online-App-Katalog durchsuchen",
       "emptyOnlineBody": "Der Online-Katalog ist aktiv, aber noch ist nichts aufgelistet. Suchen Sie nach Neuerem, um ihn abzurufen.",
       "fromCatalog": "Online",
-      "needsNewer": "Benötigt Adminium {version} oder neuer"
+      "needsNewer": "Benötigt Adminium {version} oder neuer",
+      "comingSoon": "Demnächst",
+      "notYet": "Noch nicht verfügbar",
+      "updated": "Aktualisiert am {date}",
+      "needsAddOns": "Benötigt {names}"
     },
     "domains": {
       "add": "Domain anhängen",

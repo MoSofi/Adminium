@@ -23,7 +23,7 @@
 import { auditRepo, jobsRepo, type Job, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
-import { AddOnCatalogError } from '../add-ons/catalog.js';
+import { AddOnCatalogError, unavailableRefusal } from '../add-ons/catalog.js';
 import {
   appCatalogSchema,
   isCurrentAppCatalogFormat,
@@ -101,7 +101,8 @@ export async function appEntryFromCache(store: AppStore, key: string, version: s
   }
   const entry = parsed.data.apps.find((a) => a.key === key && a.version === version);
   if (entry === undefined) {
-    throw new AddOnCatalogError('UNKNOWN_APP', `the app catalog does not offer ${key}@${version}`);
+    throw unavailableRefusal(parsed.data.unavailable.find((a) => a.key === key)) ??
+      new AddOnCatalogError('UNKNOWN_APP', `the app catalog does not offer ${key}@${version}`);
   }
   return entry;
 }
@@ -219,7 +220,7 @@ export function registerAppAcquireHandlers(registry: JobRegistry, deps: AppAcqui
         deps,
         'app.catalog-refreshed',
         null,
-        { count: catalog.apps.length, generatedAt: catalog.generatedAt },
+        { count: catalog.apps.length, generatedAt: catalog.generatedAt, skipped: catalog.skipped },
         payload.userId,
       );
       return { refreshed: true, count: catalog.apps.length };

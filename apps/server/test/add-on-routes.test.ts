@@ -1325,7 +1325,7 @@ describe('acquisition routes', () => {
       });
       await store.writeCatalogCache(
         {
-          schemaVersion: 3,
+          format: 'adminium-marketplace/1', unavailable: [], skipped: [],
           generatedAt: '2026-08-29T00:00:00Z',
           addOns: [
             {
@@ -1430,7 +1430,7 @@ describe('acquisition routes', () => {
       const app = await buildApp();
       await store.writeCatalogCache(
         {
-          schemaVersion: 3,
+          format: 'adminium-marketplace/1', unavailable: [], skipped: [],
           generatedAt: '2026-09-01T13:10:59.915Z',
           addOns: [
             {
@@ -1498,7 +1498,7 @@ describe('acquisition routes', () => {
       const app = await buildApp([], undefined, { serverVersion: '0.2.9' });
       await store.writeCatalogCache(
         {
-          schemaVersion: 3,
+          format: 'adminium-marketplace/1', unavailable: [], skipped: [],
           generatedAt: '2026-09-20T00:00:00Z',
           addOns: [
             {
@@ -1547,7 +1547,7 @@ describe('acquisition routes', () => {
       });
       await store.writeCatalogCache(
         {
-          schemaVersion: 3,
+          format: 'adminium-marketplace/1', unavailable: [], skipped: [],
           generatedAt: '2026-09-20T00:00:00Z',
           addOns: [
             {
@@ -1590,7 +1590,7 @@ describe('acquisition routes', () => {
       const app = await buildApp();
       await store.writeCatalogCache(
         {
-          schemaVersion: 3,
+          format: 'adminium-marketplace/1', unavailable: [], skipped: [],
           generatedAt: '2026-09-01T13:10:59.915Z',
           addOns: [
             {
@@ -1634,7 +1634,7 @@ describe('acquisition routes', () => {
     async function cacheRow(over: Record<string, unknown> = {}): Promise<void> {
       await store.writeCatalogCache(
         {
-          schemaVersion: 3,
+          format: 'adminium-marketplace/1', unavailable: [], skipped: [],
           generatedAt: '2026-09-01T13:10:59.915Z',
           addOns: [
             {
@@ -1693,6 +1693,58 @@ describe('acquisition routes', () => {
       // Enqueued through the repo, never `POST /jobs` — the kind is
       // internal-only precisely so its payload cannot be hand-crafted.
       expect(job?.payload).toMatchObject({ key: 'shipping-dhl', version: '1.0.0' });
+      await app.close();
+    });
+
+    it('lists coming soon and too new without offering a download, and refuses one if asked', async () => {
+      const app = await buildApp([], {});
+      await store.writeCatalogCache(
+        {
+          format: 'adminium-marketplace/1',
+          generatedAt: '2026-09-26T00:00:00Z',
+          addOns: [],
+          unavailable: [
+            { key: 'add-on-payroll', availability: 'coming-soon', version: null, minAdminiumVersion: null, name: { en: 'Payroll' }, tagline: { en: 'Pay people' }, categories: [], capabilities: [], author: 'Adminium', monogram: 'Pr', lastUpdatedAt: '2026-09-25T00:00:00.000Z' },
+            { key: 'add-on-future', availability: 'too-new', version: '2.0.0', minAdminiumVersion: '9.0.0', name: { en: 'Future' }, tagline: { en: 'Later' }, categories: [], capabilities: [] },
+          ],
+          skipped: [],
+        },
+        1_700_000_000_000,
+      );
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
+        addOns: Array<Record<string, unknown>>;
+      };
+      expect(body.addOns.find((row) => row['key'] === 'add-on-payroll')).toMatchObject({
+        name: 'Payroll',
+        state: 'available',
+        availability: 'coming-soon',
+        needsNewerAdminium: null,
+        author: 'Adminium',
+        monogram: 'Pr',
+        lastUpdatedAt: '2026-09-25T00:00:00.000Z',
+      });
+      expect(body.addOns.find((row) => row['key'] === 'add-on-future')).toMatchObject({
+        availability: 'installable',
+        needsNewerAdminium: { version: '2.0.0', minAdminiumVersion: '9.0.0' },
+      });
+      const soon = await app.inject({ method: 'POST', url: '/api/v1/add-ons/download', payload: { key: 'add-on-payroll', version: '1.0.0' } });
+      expect(soon.statusCode).toBe(422);
+      expect(soon.json()).toMatchObject({ error: { details: { code: 'NOT_RELEASED' } } });
+      const later = await app.inject({ method: 'POST', url: '/api/v1/add-ons/download', payload: { key: 'add-on-future', version: '2.0.0' } });
+      expect(later.statusCode).toBe(422);
+      expect(later.json()).toMatchObject({ error: { details: { code: 'REQUIRES_NEWER_ADMINIUM' } } });
+      await app.close();
+    });
+
+    it('reads the cache 0.3.5 left behind as no catalog', async () => {
+      const app = await buildApp([], {});
+      await store.writeCatalogCache(
+        { schemaVersion: 3, generatedAt: '2026-09-20T00:00:00Z', addOns: [] },
+        1_700_000_000_000,
+      );
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as { catalogFetchedAt: number | null };
+      // "Never fetched" is what makes the page ask for a refresh.
+      expect(body.catalogFetchedAt).toBeNull();
       await app.close();
     });
 

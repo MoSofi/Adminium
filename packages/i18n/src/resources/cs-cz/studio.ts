@@ -36,7 +36,11 @@ export default {
     },
     "card": {
       "needsApiKey": "Vyžaduje API klíč",
-      "needsOauth": "Připojuje se přes OAuth"
+      "needsOauth": "Připojuje se přes OAuth",
+      "by": "od {author}",
+      "comingSoon": "Již brzy",
+      "notYet": "Zatím není k dispozici",
+      "updated": "Aktualizováno {date}"
     },
     "category": {
       "artwork": "Grafika",
@@ -565,7 +569,11 @@ export default {
       "toggle": "Procházet online katalog aplikací",
       "emptyOnlineBody": "Online katalog je zapnutý, ale zatím v něm nic není. Vyhledejte novinky a načtěte ho.",
       "fromCatalog": "Online",
-      "needsNewer": "Vyžaduje Adminium {version} nebo novější"
+      "needsNewer": "Vyžaduje Adminium {version} nebo novější",
+      "comingSoon": "Již brzy",
+      "notYet": "Zatím není k dispozici",
+      "updated": "Aktualizováno {date}",
+      "needsAddOns": "Vyžaduje {names}"
     },
     "domains": {
       "add": "Připojit doménu",

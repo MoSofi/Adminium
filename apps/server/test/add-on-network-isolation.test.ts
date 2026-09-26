@@ -35,11 +35,11 @@ import {
   CATALOG_ENDPOINT,
   DOWNLOAD_HOST,
   USER_AGENT,
-  catalogSchema,
   createCatalogClient,
   downloadUrlFor,
   type CatalogEntry,
 } from '../src/add-ons/catalog.js';
+import { APP_VERSION } from '../src/version.js';
 
 // ─── Network kill-switch (mirrors telemetry-network-isolation.test.ts) ──────────
 
@@ -119,6 +119,39 @@ const ENTRY: CatalogEntry = {
   tagline: { en_US: 'A small in-browser artwork editor.' },
   minAdminiumVersion: '0.1.0',
 };
+
+/** ENTRY as the marketplace API sends it: an item around a release. */
+function wireItem(item: Record<string, unknown> = {}, release: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    kind: 'add-on',
+    key: ENTRY.key,
+    availability: 'installable',
+    name: { en: 'Design Studio' },
+    tagline: { en: 'A small in-browser artwork editor.' },
+    author: { name: 'Adminium' },
+    capabilities: [],
+    art: { monogram: 'Ds' },
+    links: { page: 'https://adminium.dev/marketplace/design-studio/' },
+    lastUpdatedAt: '2026-09-15T00:00:00.000Z',
+    file: { url: downloadUrlFor(ENTRY.key, ENTRY.version), size: 3, publishedAt: null },
+    release: {
+      version: ENTRY.version,
+      integrity: ENTRY.integrity,
+      categories: ENTRY.categories,
+      capabilities: ENTRY.capabilities,
+      connect: ENTRY.connect,
+      provides: ENTRY.provides,
+      attaches: ENTRY.attaches,
+      network: ENTRY.network,
+      minAdminiumVersion: ENTRY.minAdminiumVersion,
+      ...release,
+    },
+    ...item,
+  };
+}
+
+const shelf = (items: unknown[]) =>
+  JSON.stringify({ format: 'adminium-marketplace/1', generatedAt: '2026-09-15T00:00:00Z', items });
 
 let meta: MetaDb;
 let guard: NetGuard;
@@ -217,19 +250,15 @@ describe('add-on catalog: on, it talks to exactly two hostnames', () => {
     return { client, calls };
   }
 
-  it('fetches the feed from the first-party v2 constant only', async () => {
+  it('fetches the shelf from the first-party constant only, naming its own version', async () => {
     const { client, calls } = recording(
-      () =>
-        new Response(
-          JSON.stringify({ schemaVersion: 3, generatedAt: '2026-09-15T00:00:00Z', addOns: [ENTRY] }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
+      () => new Response(shelf([wireItem()]), { status: 200, headers: { 'content-type': 'application/json' } }),
     );
 
     const catalog = await client.fetchCatalog();
-    expect(catalog.addOns[0]?.key).toBe('design-studio');
-    expect(calls.map((c) => c.url)).toEqual([CATALOG_ENDPOINT]);
-    expect(CATALOG_ENDPOINT).toBe('https://adminium.dev/marketplace/v3/catalog.json');
+    expect(catalog.addOns[0]).toMatchObject({ key: 'design-studio', integrity: ENTRY.integrity, author: 'Adminium', monogram: 'Ds' });
+    expect(calls.map((c) => c.url)).toEqual([`${CATALOG_ENDPOINT}?adminium=${APP_VERSION}`]);
+    expect(CATALOG_ENDPOINT).toBe('https://adminium.dev/api/v1/marketplace/add-ons');
   });
 
   it('downloads from the one address it builds from the row: downloads host, key, exact version', async () => {
@@ -435,65 +464,73 @@ describe('add-on catalog: the transport itself is bounded', () => {
   });
 });
 
-describe('add-on catalog: the feed schema defers monetization by construction', () => {
-  const base = { schemaVersion: 3, generatedAt: '2026-09-15T00:00:00Z' };
+describe('add-on catalog: the shelf defers monetization by construction', () => {
+  beforeEach(async () => {
+    await settingsRepo(meta).set(CATALOG_ENABLED_SETTING, true);
+  });
 
-  it('refuses a feed carrying a price, tier, or licence-key field', () => {
-    for (const extra of [
-      { price: 0 },
-      { priceMonthly: '9.99' },
-      { tier: 'pro' },
-      { licenseKey: 'x' },
-      { availableFrom: '2027-01-01' },
-    ]) {
-      const feed = { ...base, addOns: [{ ...ENTRY, ...extra }] };
-      const parsed = catalogSchema.safeParse(feed);
-      expect(parsed.success, `expected ${JSON.stringify(extra)} to be refused`).toBe(false);
+  /** The catalog a client makes of one shelf document. */
+  async function read(body: string) {
+    const client = createCatalogClient({
+      meta,
+      networkFeatures: true,
+      fetchImpl: (() => Promise.resolve(new Response(body, { status: 200 }))) as unknown as typeof globalThis.fetch,
+    });
+    return client.fetchCatalog();
+  }
+
+  it('refuses a release carrying a price, tier, or licence-key field — that item only', async () => {
+    for (const extra of [{ price: 0 }, { priceMonthly: '9.99' }, { tier: 'pro' }, { licenseKey: 'x' }, { availableFrom: '2027-01-01' }]) {
+      const catalog = await read(shelf([wireItem({}, extra), wireItem({ key: 'other-add-on' })]));
+      expect(catalog.addOns.map((row) => row.key), `expected ${JSON.stringify(extra)} to be refused`).toEqual(['other-add-on']);
+      expect(catalog.skipped.map((item) => item.key)).toEqual(['design-studio']);
     }
   });
 
-  it('accepts the exact documented v3 entry shape', () => {
-    expect(catalogSchema.safeParse({ ...base, addOns: [ENTRY] }).success).toBe(true);
+  it('drops a price on the item: no row carries one', async () => {
+    const catalog = await read(shelf([wireItem({ pricing: { kind: 'one-time', amount: 49, currency: 'EUR' } })]));
+    expect(catalog.addOns).toHaveLength(1);
+    expect(JSON.stringify(catalog)).not.toContain('pricing');
   });
 
-  it('refuses a document at an earlier schema version', () => {
+  it('refuses a document in any earlier format', async () => {
     // Released servers keep reading the feed they were built against, at its
-    // own address. Reading an earlier one here would mean either inventing a
-    // `minAdminiumVersion` a v2 row does not carry, or — for a v1 row — taking
-    // an instruction about where to download from.
-    for (const schemaVersion of [1, 2]) {
-      expect(
-        catalogSchema.safeParse({ schemaVersion, generatedAt: base.generatedAt, addOns: [ENTRY] })
-          .success,
-        `expected schemaVersion ${schemaVersion} to be refused`,
-      ).toBe(false);
-    }
-    for (const extra of [
-      { npmPackage: '@adminiumjs/add-on-design-studio' },
-      { url: 'https://evil.example/design-studio.tgz' },
-      { tarball: 'https://evil.example/design-studio.tgz' },
-    ]) {
-      const parsed = catalogSchema.safeParse({ ...base, addOns: [{ ...ENTRY, ...extra }] });
-      expect(parsed.success, `expected ${JSON.stringify(extra)} to be refused`).toBe(false);
+    // own address; reading one here would mean inventing what it lacks.
+    for (const schemaVersion of [1, 2, 3]) {
+      await expect(read(JSON.stringify({ schemaVersion, generatedAt: '2026-09-15T00:00:00Z', addOns: [ENTRY] }))).rejects.toMatchObject({
+        reason: 'CATALOG_MALFORMED',
+      });
     }
   });
 
-  it('refuses a floating version in the feed (D9)', () => {
+  it('never takes a download address from the shelf', async () => {
+    // Inside the release, a place to download from refuses the item.
+    for (const extra of [{ npmPackage: '@adminiumjs/add-on-design-studio' }, { url: 'https://evil.example/design-studio.tgz' }, { tarball: 'https://evil.example/x.tgz' }]) {
+      const catalog = await read(shelf([wireItem({}, extra)]));
+      expect(catalog.addOns, `expected ${JSON.stringify(extra)} to be refused`).toEqual([]);
+    }
+    // The item's `file.url` is display only, and is not kept.
+    const catalog = await read(shelf([wireItem({ file: { url: 'https://evil.example/x.tgz', size: 3, publishedAt: null } })]));
+    expect(JSON.stringify(catalog)).not.toContain('evil.example');
+  });
+
+  it('refuses a floating version in a release (D9)', async () => {
     for (const version of ['latest', '^1.0.0', '1.x', '*']) {
-      const parsed = catalogSchema.safeParse({ ...base, addOns: [{ ...ENTRY, version }] });
-      expect(parsed.success, `expected ${version} to be refused`).toBe(false);
+      const catalog = await read(shelf([wireItem({}, { version })]));
+      expect(catalog.addOns, `expected ${version} to be refused`).toEqual([]);
     }
   });
 
-  it('refuses a key or version that could move the download address', () => {
-    for (const row of [
-      { key: '../etc' },
-      { key: 'design-studio/../x' },
-      { version: '1.0.0/../../evil' },
-      { version: '1.0.0?x=1' },
-    ]) {
-      const parsed = catalogSchema.safeParse({ ...base, addOns: [{ ...ENTRY, ...row }] });
-      expect(parsed.success, `expected ${JSON.stringify(row)} to be refused`).toBe(false);
+  it('refuses a key or version that could move the download address', async () => {
+    for (const [item, release] of [
+      [{ key: '../etc' }, {}],
+      [{ key: 'design-studio/../x' }, {}],
+      [{}, { version: '1.0.0/../../evil' }],
+      [{}, { version: '1.0.0?x=1' }],
+    ] as const) {
+      const catalog = await read(shelf([wireItem(item, release)]));
+      expect(catalog.addOns, `expected ${JSON.stringify({ ...item, ...release })} to be refused`).toEqual([]);
     }
   });
 });
+

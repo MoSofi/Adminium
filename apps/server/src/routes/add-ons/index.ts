@@ -86,6 +86,7 @@ import {
   CATALOG_ENABLED_SETTING,
   catalogSchema,
   isCurrentCatalogFormat,
+  type DisplayFacts,
   lenientMinimum,
   meetsMinimum,
   pickLocalized,
@@ -727,7 +728,18 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           tagline: string | null;
           categories: string[];
           connectKind: 'none' | 'api-key' | 'oauth2';
+          availability: 'installable' | 'coming-soon';
+          author: string | null;
+          monogram: string | null;
+          lastUpdatedAt: string | null;
         }> = [];
+
+        /** What the catalog shows beside a row's name, or nothing it knows. */
+        const displayOf = (listed: DisplayFacts | undefined) => ({
+          author: listed?.author ?? null,
+          monogram: listed?.monogram ?? null,
+          lastUpdatedAt: listed?.lastUpdatedAt ?? null,
+        });
 
         /**
          * A feed row this server is too old for, or null.
@@ -790,6 +802,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             tagline: pickLocalized(listed?.tagline, locale) ?? described,
             categories: categories.length > 0 ? categories : (listed?.categories ?? []),
             connectKind,
+            availability: 'installable' as const,
+            ...displayOf(listed),
           };
           entries.push(row);
           rows.set(key, row);
@@ -825,6 +839,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
               tagline: pickLocalized(entry.tagline, locale),
               categories: entry.categories,
               connectKind: entry.connect.kind,
+              availability: 'installable',
+              ...displayOf(entry),
             });
             continue;
           }
@@ -841,6 +857,42 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
               existing.needsNewerAdminium = blocked;
             }
           }
+        }
+
+        /*
+         * LISTED, NOT DOWNLOADABLE: an add-on the site marks coming soon, or
+         * one whose every release needs a newer Adminium. A row of its own
+         * when nothing here knows the key — the card says which it is instead
+         * of offering an Install the download route refuses; for an add-on
+         * already here, a too-new release is the upgrade it cannot take.
+         */
+        const unavailable = parsedCatalog?.success === true ? parsedCatalog.data.unavailable : [];
+        for (const listed of unavailable) {
+          const existing = rows.get(listed.key) ?? entries.find((entry) => entry.key === listed.key);
+          const blocked =
+            listed.availability === 'too-new' && listed.version !== null && listed.minAdminiumVersion !== null
+              ? { version: listed.version, minAdminiumVersion: listed.minAdminiumVersion }
+              : null;
+          if (existing !== undefined) {
+            if (blocked !== null && compareSemver(blocked.version, existing.version) > 0 && existing.needsNewerAdminium === null) {
+              existing.needsNewerAdminium = blocked;
+            }
+            continue;
+          }
+          entries.push({
+            key: listed.key,
+            name: pickLocalized(listed.name, locale) ?? listed.key,
+            version: listed.version ?? '',
+            source: 'catalog',
+            state: 'available',
+            upgradeTo: null,
+            needsNewerAdminium: blocked,
+            tagline: pickLocalized(listed.tagline, locale),
+            categories: listed.categories,
+            connectKind: 'none',
+            availability: listed.availability === 'coming-soon' ? 'coming-soon' : 'installable',
+            ...displayOf(listed),
+          });
         }
 
         /*
@@ -882,6 +934,8 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             tagline: pickLocalized(fromFeed?.tagline, locale),
             categories: fromFeed?.categories ?? [],
             connectKind: fromFeed?.connect.kind ?? 'none',
+            availability: 'installable',
+            ...displayOf(fromFeed),
           });
         }
 

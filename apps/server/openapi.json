@@ -81875,6 +81875,52 @@
                                 "type": "null"
                               }
                             ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "installable",
+                              "coming-soon"
+                            ]
+                          },
+                          "iconTint": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "iconPaths": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "lastUpdatedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "requiresAddOns": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
                           }
                         },
                         "required": [
@@ -81894,7 +81940,12 @@
                           "updateTo",
                           "updateStaged",
                           "needsNewerAdminium",
-                          "cannotUpdate"
+                          "cannotUpdate",
+                          "availability",
+                          "iconTint",
+                          "iconPaths",
+                          "lastUpdatedAt",
+                          "requiresAddOns"
                         ],
                         "additionalProperties": false
                       }
@@ -87367,6 +87418,43 @@
                               "api-key",
                               "oauth2"
                             ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "installable",
+                              "coming-soon"
+                            ]
+                          },
+                          "author": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "monogram": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "lastUpdatedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -87379,7 +87467,11 @@
                           "needsNewerAdminium",
                           "tagline",
                           "categories",
-                          "connectKind"
+                          "connectKind",
+                          "availability",
+                          "author",
+                          "monogram",
+                          "lastUpdatedAt"
                         ],
                         "additionalProperties": false
                       }

@@ -36,7 +36,11 @@ export default {
     },
     "card": {
       "needsApiKey": "Kræver en API-nøgle",
-      "needsOauth": "Forbinder med OAuth"
+      "needsOauth": "Forbinder med OAuth",
+      "by": "af {author}",
+      "comingSoon": "Kommer snart",
+      "notYet": "Ikke tilgængelig endnu",
+      "updated": "Opdateret {date}"
     },
     "category": {
       "artwork": "Design",
@@ -565,7 +569,11 @@ export default {
       "toggle": "Gennemse onlinekataloget over apps",
       "emptyOnlineBody": "Onlinekataloget er slået til, men intet er vist endnu. Søg efter nyere for at hente det.",
       "fromCatalog": "Online",
-      "needsNewer": "Kræver Adminium {version} eller nyere"
+      "needsNewer": "Kræver Adminium {version} eller nyere",
+      "comingSoon": "Kommer snart",
+      "notYet": "Ikke tilgængelig endnu",
+      "updated": "Opdateret {date}",
+      "needsAddOns": "Kræver {names}"
     },
     "domains": {
       "add": "Tilknyt et domæne",

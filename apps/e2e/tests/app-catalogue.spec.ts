@@ -90,8 +90,11 @@ function seedCatalogueCache(): string {
     file,
     `${JSON.stringify({
       fetchedAt: Date.now(),
+      // The catalogue as this server keeps it: the marketplace API's shelf, projected.
       document: {
-        schemaVersion: 2,
+        format: 'adminium-marketplace/1',
+        unavailable: [],
+        skipped: [],
         generatedAt: new Date().toISOString(),
         apps: [
           entry(MARKET_KEY, 'E2E Market', '0.1.0'),

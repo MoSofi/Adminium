@@ -159,7 +159,7 @@ function row(overrides: Partial<AppCatalogEntry> = {}): AppCatalogEntry {
 }
 
 const feed = (...apps: AppCatalogEntry[]): AppCatalog => ({
-  schemaVersion: 2,
+  format: 'adminium-marketplace/1', unavailable: [], skipped: [],
   generatedAt: '2026-09-16T00:00:00Z',
   apps,
 });
@@ -516,6 +516,44 @@ describe('POST /apps/catalog/refresh and /apps/download', () => {
     const res = await app.inject({ method: 'POST', url: '/apps/catalog/refresh' });
     expect(res.statusCode, res.body).toBe(200);
     expect((await jobsRepo(meta).findById(res.json().jobId))?.kind).toBe(APP_CATALOG_REFRESH_KIND);
+    await app.close();
+  });
+
+  it('lists coming soon and too new without an install, refuses a download of either, and shows the catalogue’s art', async () => {
+    const app = await buildApp();
+    await store.writeCatalogCache(
+      {
+        ...feed(row({ iconTint: '#0f766e', iconPaths: ['M4 4h16v16H4z'], lastUpdatedAt: '2026-09-20T00:00:00.000Z', addOns: { requires: ['add-on-invoices'], suggests: [] } })),
+        unavailable: [
+          { key: 'tickets', availability: 'coming-soon', version: null, minAdminiumVersion: null, name: { en: 'Event Tickets' }, tagline: { en: 'Sell seats' }, capabilities: [], author: 'Adminium' },
+          { key: 'future', availability: 'too-new', version: '1.0.0', minAdminiumVersion: '9.0.0', name: { en: 'Future' }, tagline: { en: 'Later' }, capabilities: [] },
+        ],
+      },
+      1,
+    );
+    const body = await catalogOf(app);
+    expect(body.apps.find((a) => a.key === 'clinic')).toMatchObject({
+      availability: 'installable',
+      iconTint: '#0f766e',
+      iconPaths: ['M4 4h16v16H4z'],
+      lastUpdatedAt: '2026-09-20T00:00:00.000Z',
+      requiresAddOns: ['add-on-invoices'],
+    });
+    expect(body.apps.find((a) => a.key === 'tickets')).toMatchObject({
+      name: 'Event Tickets',
+      state: 'available',
+      availability: 'coming-soon',
+      publisher: 'Adminium',
+      needsNewerAdminium: null,
+    });
+    expect(body.apps.find((a) => a.key === 'future')).toMatchObject({ needsNewerAdminium: { version: '1.0.0', minAdminiumVersion: '9.0.0' } });
+
+    const soon = await app.inject({ method: 'POST', url: '/apps/download', payload: { key: 'tickets', version: '1.0.0' } });
+    expect(soon.statusCode).toBe(422);
+    expect(soon.json().error.details.reason).toBe('NOT_RELEASED');
+    const later = await app.inject({ method: 'POST', url: '/apps/download', payload: { key: 'future', version: '1.0.0' } });
+    expect(later.json().error.details.reason).toBe('REQUIRES_NEWER_ADMINIUM');
+    expect(await meta.db.selectFrom('adminium_jobs').selectAll().execute()).toEqual([]);
     await app.close();
   });
 

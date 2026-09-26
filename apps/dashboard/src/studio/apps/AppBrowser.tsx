@@ -51,7 +51,6 @@ import {
   Card,
   CardBody,
   EmptyState,
-  IconTile,
   MonoText,
   SearchInput,
   Switch,
@@ -60,6 +59,7 @@ import { Download, Package, SearchX } from 'lucide-react';
 
 import { t } from '../../i18n/t.js';
 import { appCatalogQuery, type CatalogApp } from './appsApi.js';
+import { CatalogTile, addOnNameOf, catalogDate } from '../marketplace-card.js';
 
 export interface AppBrowserProps {
   /**
@@ -241,19 +241,23 @@ function AppCard({
 }) {
   // Listed, not offered (G8-D2): the server refuses it, and says so here first.
   const tooNew = !app.installed && app.needsNewerAdminium !== null;
+  const comingSoon = app.availability === 'coming-soon';
+  const date = catalogDate(app.lastUpdatedAt);
+  const updated = date === null ? null : t('studio:hostedApps.browse.updated', 'Updated {date}', { date });
+  const needs = (app.requiresAddOns ?? []).map(addOnNameOf);
   return (
     <article className="flex h-full flex-col gap-3 rounded-lg border border-border bg-surface p-4 shadow-card">
       <div className="flex items-start gap-3">
-        <IconTile>
-          <Package aria-hidden className="size-5" />
-        </IconTile>
+        <CatalogTile iconPaths={app.iconPaths} fallback={<Package aria-hidden className="size-5" />} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold tracking-tight">{app.name}</span>
             {app.categories[0] === undefined ? null : (
               <Badge tone="accent">{app.categories[0]}</Badge>
             )}
-            {app.source === 'catalog' ? (
+            {comingSoon ? (
+              <Badge tone="accent">{t('studio:hostedApps.browse.comingSoon', 'Coming soon')}</Badge>
+            ) : app.source === 'catalog' ? (
               <Badge tone="info">{t('studio:hostedApps.browse.fromCatalog', 'Online')}</Badge>
             ) : null}
           </div>
@@ -287,6 +291,12 @@ function AppCard({
         </div>
       )}
 
+      {needs.length === 0 ? null : (
+        <p className="text-xs text-fg-muted">
+          {t('studio:hostedApps.browse.needsAddOns', 'Needs {names}', { names: needs.join(', ') })}
+        </p>
+      )}
+
       {tooNew ? (
         <p className="text-xs font-semibold text-warn">
           {t('studio:hostedApps.browse.needsNewer', 'Needs Adminium {version} or later', {
@@ -296,8 +306,13 @@ function AppCard({
       ) : null}
 
       <div className="flex items-center gap-2">
-        <MonoText className="text-xs text-fg-subtle">{app.version}</MonoText>
-        {app.state === 'missing' ? (
+        {comingSoon ? null : <MonoText className="text-xs text-fg-subtle">{app.version}</MonoText>}
+        {updated === null ? null : <span className="text-xs text-fg-subtle">{updated}</span>}
+        {comingSoon && !app.installed ? (
+          <span className="ms-auto text-xs font-semibold text-fg-muted">
+            {t('studio:hostedApps.browse.notYet', 'Not available yet')}
+          </span>
+        ) : app.state === 'missing' ? (
           /* A green "Installed" on an app whose files are gone is the most
              misleading thing this shelf could say, so it is checked first. */
           <Badge tone="danger" className="ms-auto">

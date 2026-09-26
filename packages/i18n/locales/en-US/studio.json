@@ -26,7 +26,11 @@
     },
     "card": {
       "needsApiKey": "Needs an API key",
-      "needsOauth": "Connects with OAuth"
+      "needsOauth": "Connects with OAuth",
+      "by": "by {author}",
+      "comingSoon": "Coming soon",
+      "notYet": "Not available yet",
+      "updated": "Updated {date}"
     },
     "category": {
       "artwork": "Artwork",
@@ -555,7 +559,11 @@
       "toggle": "Browse the online app catalogue",
       "emptyOnlineBody": "The online catalogue is on, but nothing is listed yet. Check for newer to fetch it.",
       "fromCatalog": "Online",
-      "needsNewer": "Needs Adminium {version} or later"
+      "needsNewer": "Needs Adminium {version} or later",
+      "comingSoon": "Coming soon",
+      "notYet": "Not available yet",
+      "updated": "Updated {date}",
+      "needsAddOns": "Needs {names}"
     },
     "domains": {
       "add": "Attach a domain",

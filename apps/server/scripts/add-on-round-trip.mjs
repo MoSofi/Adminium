@@ -133,7 +133,7 @@ const AIR_GAPPED = process.argv.includes('--air-gapped');
 /**
  * `--online-catalog` adds 32 acceptance #1's CATALOG LEG on the end of the
  * default loop: switch the online catalog on, refresh from the real
- * `adminium.dev/marketplace/v2/catalog.json`, download one add-on from the real
+ * `adminium.dev/api/v1/marketplace/add-ons`, download one add-on from the real
  * `downloads.adminium.dev` (catalog row → download → verify against the row's
  * ledger integrity → hardened unpack → staged), install it from the stage, and
  * refuse a copy of that file with one bit flipped
@@ -748,11 +748,12 @@ async function main() {
      * check is what the release recorded. The address comes from the server's
      * own constant, so the script cannot drift from it.
      */
-    const { CATALOG_ENDPOINT } = await import(
+    const { CATALOG_ENDPOINT, shelfUrl } = await import(
       new URL(`file://${join(serverRoot, 'dist', 'add-ons', 'catalog.js')}`)
     );
-    const feed = await (await fetch(CATALOG_ENDPOINT, { redirect: 'error' })).json();
-    const feedRow = (feed.addOns ?? []).find((a) => a.key === 'holiday-calendars');
+    const feed = await (await fetch(shelfUrl(CATALOG_ENDPOINT), { redirect: 'error' })).json();
+    // The shelf's item carries the release it offers this version; the row is its install facts.
+    const feedRow = (feed.items ?? []).find((a) => a.key === 'holiday-calendars')?.release ?? undefined;
     const served = await fetch(
       `https://downloads.adminium.dev/add-ons/holiday-calendars/holiday-calendars-${String(offered)}.tgz`,
       { redirect: 'error', headers: { 'user-agent': 'adminium-round-trip' } },

@@ -33,6 +33,7 @@ import {
   catalogSchema,
   isCurrentCatalogFormat,
   meetsMinimum,
+  unavailableRefusal,
   type CatalogClient,
   type CatalogEntry,
 } from '../add-ons/catalog.js';
@@ -143,10 +144,8 @@ export async function addOnEntryFromCache(
   }
   const entry = parsed.data.addOns.find((a) => a.key === key && a.version === version);
   if (entry === undefined) {
-    throw new AddOnCatalogError(
-      'UNKNOWN_ADD_ON',
-      `the catalog does not offer ${key}@${version}`,
-    );
+    throw unavailableRefusal(parsed.data.unavailable.find((a) => a.key === key)) ??
+      new AddOnCatalogError('UNKNOWN_ADD_ON', `the catalog does not offer ${key}@${version}`);
   }
   return entry;
 }
@@ -294,7 +293,9 @@ export function registerAddOnAcquireHandlers(
         deps,
         'add-on.catalog-refreshed',
         null,
-        { count: catalog.addOns.length, generatedAt: catalog.generatedAt },
+        // An item this server could not read is named here: the page lists
+        // only what it could.
+        { count: catalog.addOns.length, generatedAt: catalog.generatedAt, skipped: catalog.skipped },
         payload.userId,
       );
 

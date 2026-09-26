@@ -13155,6 +13155,14 @@
     "status": "mt",
     "srcHash": "a6f47e00e036"
   },
+  "studio.addOns.card.by": {
+    "status": "mt",
+    "srcHash": "d057cb70c0f2"
+  },
+  "studio.addOns.card.comingSoon": {
+    "status": "mt",
+    "srcHash": "e4115be258db"
+  },
   "studio.addOns.card.needsApiKey": {
     "status": "mt",
     "srcHash": "8f59bae0c638"
@@ -13162,6 +13170,14 @@
   "studio.addOns.card.needsOauth": {
     "status": "mt",
     "srcHash": "36f29227eb35"
+  },
+  "studio.addOns.card.notYet": {
+    "status": "mt",
+    "srcHash": "a1db9d598b40"
+  },
+  "studio.addOns.card.updated": {
+    "status": "mt",
+    "srcHash": "83087836c0d0"
   },
   "studio.addOns.category.artwork": {
     "status": "mt",
@@ -15987,6 +16003,10 @@
     "status": "mt",
     "srcHash": "a260c629dfee"
   },
+  "studio.hostedApps.browse.comingSoon": {
+    "status": "mt",
+    "srcHash": "e4115be258db"
+  },
   "studio.hostedApps.browse.emptyBody": {
     "status": "mt",
     "srcHash": "4eac1a224c6f"
@@ -16015,6 +16035,10 @@
     "status": "mt",
     "srcHash": "92185dc52f71"
   },
+  "studio.hostedApps.browse.needsAddOns": {
+    "status": "mt",
+    "srcHash": "1ff45eab0a72"
+  },
   "studio.hostedApps.browse.needsNewer": {
     "status": "mt",
     "srcHash": "9b6dfebd4b15"
@@ -16030,6 +16054,10 @@
   "studio.hostedApps.browse.noMatchBody": {
     "status": "mt",
     "srcHash": "8668ff69294d"
+  },
+  "studio.hostedApps.browse.notYet": {
+    "status": "mt",
+    "srcHash": "a1db9d598b40"
   },
   "studio.hostedApps.browse.refresh": {
     "status": "mt",
@@ -16058,6 +16086,10 @@
   "studio.hostedApps.browse.unreadable": {
     "status": "mt",
     "srcHash": "4450c0d13e06"
+  },
+  "studio.hostedApps.browse.updated": {
+    "status": "mt",
+    "srcHash": "83087836c0d0"
   },
   "studio.hostedApps.columns.alsoCreates": {
     "status": "mt",

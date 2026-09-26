@@ -36,7 +36,11 @@ export default {
     },
     "card": {
       "needsApiKey": "Nécessite une clé API",
-      "needsOauth": "Se connecte via OAuth"
+      "needsOauth": "Se connecte via OAuth",
+      "by": "par {author}",
+      "comingSoon": "Bientôt disponible",
+      "notYet": "Pas encore disponible",
+      "updated": "Mis à jour le {date}"
     },
     "category": {
       "artwork": "Création",
@@ -565,7 +569,11 @@ export default {
       "toggle": "Parcourir le catalogue d’applications en ligne",
       "emptyOnlineBody": "Le catalogue en ligne est activé, mais rien n’est encore listé. Recherchez des nouveautés pour le récupérer.",
       "fromCatalog": "En ligne",
-      "needsNewer": "Nécessite Adminium {version} ou plus récent"
+      "needsNewer": "Nécessite Adminium {version} ou plus récent",
+      "comingSoon": "Bientôt disponible",
+      "notYet": "Pas encore disponible",
+      "updated": "Mis à jour le {date}",
+      "needsAddOns": "Nécessite {names}"
     },
     "domains": {
       "add": "Attacher un domaine",

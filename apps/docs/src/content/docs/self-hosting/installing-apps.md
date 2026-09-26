@@ -57,7 +57,7 @@ that serve add-ons:
 
 | Host | What it serves |
 |---|---|
-| `adminium.dev` | The app feed — a static JSON file listing each released app's newest version, the sha512 its release recorded, its name and one-line description in eight languages, and the minimum Adminium it needs. |
+| `adminium.dev` | The app catalogue — `GET /api/v1/marketplace/apps`, a JSON document listing each released app's newest version your Adminium can install, the sha512 its release recorded, its name and one-line description in eight languages, the minimum Adminium it needs, and the add-ons it requires. Apps the site lists as **coming soon** appear with that badge and nothing to download. |
 | `downloads.adminium.dev` | The app files themselves, one `.tgz` per released version, under `/apps/`. |
 
 There is no third host, no redirect following, and no `latest` resolution. The server builds each

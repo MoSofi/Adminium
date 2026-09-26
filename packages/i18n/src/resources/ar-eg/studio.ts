@@ -36,7 +36,11 @@ export default {
     },
     "card": {
       "needsApiKey": "يتطلب مفتاح API",
-      "needsOauth": "يتصل عبر OAuth"
+      "needsOauth": "يتصل عبر OAuth",
+      "by": "من {author}",
+      "comingSoon": "قريبًا",
+      "notYet": "غير متاح بعد",
+      "updated": "تم التحديث في {date}"
     },
     "category": {
       "artwork": "التصميم",
@@ -565,7 +569,11 @@ export default {
       "toggle": "تصفّح كتالوج التطبيقات عبر الإنترنت",
       "emptyOnlineBody": "الكتالوج عبر الإنترنت مفعَّل، لكن لا شيء معروض بعد. ابحث عن الأحدث لجلبه.",
       "fromCatalog": "عبر الإنترنت",
-      "needsNewer": "يتطلب Adminium {version} أو أحدث"
+      "needsNewer": "يتطلب Adminium {version} أو أحدث",
+      "comingSoon": "قريبًا",
+      "notYet": "غير متاح بعد",
+      "updated": "تم التحديث في {date}",
+      "needsAddOns": "يتطلب {names}"
     },
     "domains": {
       "add": "إرفاق نطاق",

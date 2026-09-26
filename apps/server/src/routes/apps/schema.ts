@@ -642,6 +642,15 @@ export const appCatalogEntry = z.object({
    * first is the way to it, and the page says so rather than offering it.
    */
   cannotUpdate: z.object({ version: z.string(), updatesFrom: z.string() }).nullable(),
+  /** `coming-soon`: the site lists it and there is nothing to download yet. */
+  availability: z.enum(['installable', 'coming-soon']),
+  /** The catalog's icon: its tint and the icon's SVG path data. Null when only the disk knows the row. */
+  iconTint: z.string().nullable(),
+  iconPaths: z.array(z.string()).nullable(),
+  /** When the site last saw it change, ISO 8601. */
+  lastUpdatedAt: z.string().nullable(),
+  /** The add-ons its catalog release requires, by key — the card's "Needs Invoices". */
+  requiresAddOns: z.array(z.string()),
 });
 
 export const appCatalogReply = z.object({

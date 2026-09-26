@@ -93,6 +93,13 @@ export interface CatalogApp {
   needsNewerAdminium: { version: string; minAdminiumVersion: string } | null;
   /** A newer release on disk that cannot update the installed version in place (its `updatesFrom` leaves it out). */
   cannotUpdate?: { version: string; updatesFrom: string } | null;
+  /** `coming-soon`: listed by the site, nothing to download yet. */
+  availability?: 'installable' | 'coming-soon' | undefined;
+  /** The catalogue's icon, as SVG path data; null when only the disk knows the row. */
+  iconPaths?: string[] | null | undefined;
+  lastUpdatedAt?: string | null | undefined;
+  /** The add-ons its catalogue release requires, by key. */
+  requiresAddOns?: string[] | undefined;
 }
 
 export interface AppCatalogReply {

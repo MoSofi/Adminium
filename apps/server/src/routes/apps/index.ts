@@ -100,6 +100,7 @@ import {
   meetsMinimum,
   type AppCatalogClient,
   type AppCatalogEntry,
+  type UnavailableApp,
 } from '../../apps/catalog.js';
 import { surfacesOfInstalled, type InstalledApps } from '../../apps/installed.js';
 import {
@@ -1839,6 +1840,14 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               };
         }
 
+        /** What the catalog shows beside a row's name, or nothing it knows. */
+        const displayOf = (listed: AppCatalogEntry | UnavailableApp | undefined) => ({
+          iconTint: listed?.iconTint ?? null,
+          iconPaths: listed?.iconPaths ?? null,
+          lastUpdatedAt: listed?.lastUpdatedAt ?? null,
+          requiresAddOns: listed !== undefined && 'addOns' in listed ? (listed.addOns?.requires ?? []) : [],
+        });
+
         const apps = [];
         // Everything in the store first: it needs no network to be true.
         for (const key of keys) {
@@ -1929,6 +1938,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             updateStaged: updateTo !== null && versions.includes(updateTo),
             needsNewerAdminium,
             cannotUpdate,
+            availability: 'installable' as const,
+            ...displayOf(listed),
           });
         }
 
@@ -1970,6 +1981,49 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             updateStaged: false,
             needsNewerAdminium: blocked,
             cannotUpdate: null,
+            availability: 'installable' as const,
+            ...displayOf(entry),
+          });
+        }
+
+        /*
+         * LISTED, NOT DOWNLOADABLE: an app the site marks coming soon, or one
+         * whose every release needs a newer Adminium — the add-on page's rule.
+         */
+        const unavailable = online && parsedCatalog?.success === true ? parsedCatalog.data.unavailable : [];
+        for (const entry of unavailable) {
+          const blocked =
+            entry.availability === 'too-new' && entry.version !== null && entry.minAdminiumVersion !== null
+              ? { version: entry.version, minAdminiumVersion: entry.minAdminiumVersion }
+              : null;
+          const existing = apps.find((row) => row.key === entry.key);
+          if (existing !== undefined) {
+            if (blocked !== null && existing.needsNewerAdminium === null && compareSemver(blocked.version, existing.version) > 0) {
+              existing.needsNewerAdminium = blocked;
+            }
+            continue;
+          }
+          if (installedByKey.has(entry.key)) continue;
+          apps.push({
+            key: entry.key,
+            version: entry.version ?? '',
+            name: pickLocalized(entry.name, locale) ?? entry.key,
+            description: pickLocalized(entry.tagline, locale) ?? '',
+            categories: [],
+            publisher: entry.author ?? '',
+            capabilities: entry.capabilities,
+            sides: [],
+            installed: false,
+            installedVersion: null,
+            readable: true,
+            source: 'catalog' as const,
+            state: 'available' as const,
+            updateTo: null,
+            updateStaged: false,
+            needsNewerAdminium: blocked,
+            cannotUpdate: null,
+            availability: entry.availability === 'coming-soon' ? ('coming-soon' as const) : ('installable' as const),
+            ...displayOf(entry),
           });
         }
 
@@ -2001,6 +2055,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             updateStaged: false,
             needsNewerAdminium: null,
             cannotUpdate: null,
+            availability: 'installable' as const,
+            ...displayOf(undefined),
           });
         }
 

@@ -36,7 +36,11 @@ export default {
     },
     "card": {
       "needsApiKey": "需要 API 金鑰",
-      "needsOauth": "透過 OAuth 連接"
+      "needsOauth": "透過 OAuth 連接",
+      "by": "由 {author} 提供",
+      "comingSoon": "即將推出",
+      "notYet": "尚未提供",
+      "updated": "更新於 {date}"
     },
     "category": {
       "artwork": "美術",
@@ -565,7 +569,11 @@ export default {
       "toggle": "瀏覽線上應用程式目錄",
       "emptyOnlineBody": "線上目錄已開啟，但還沒有列出任何內容。檢查更新以取得目錄。",
       "fromCatalog": "線上",
-      "needsNewer": "需要 Adminium {version} 或更新版本"
+      "needsNewer": "需要 Adminium {version} 或更新版本",
+      "comingSoon": "即將推出",
+      "notYet": "尚未提供",
+      "updated": "更新於 {date}",
+      "needsAddOns": "需要 {names}"
     },
     "domains": {
       "add": "附加網域",

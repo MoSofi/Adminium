@@ -21,8 +21,8 @@
  * liked.)
  *
  * WHERE THE FINGERPRINT COMES FROM. The catalog row's `integrity` — the release
- * ledger's value, carried by a feed the website builds from the ledger at a
- * pinned SHA. Never from the download host: a folder that supplied both the
+ * ledger's value, which the site's release sync checked against the file it
+ * downloaded before it offered the release. Never from the download host: a folder that supplied both the
  * bytes and the hash they are checked against would be checking them against
  * themselves. The STORE verifies the downloaded bytes against it, in constant
  * time, before anything is unpacked.
@@ -44,29 +44,43 @@
  * be discovered.
  */
 
-import { compareSemver } from '@adminium/manifest';
+import {
+  MARKETPLACE_FORMAT,
+  addOnItemWireSchema,
+  compareSemver,
+  parseShelf,
+  type AddOnItemWire,
+  type ParsedShelf,
+} from '@adminium/manifest';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import { APP_VERSION } from '../version.js';
 
 /**
- * The static feed the website emits. Never serves files.
+ * The marketplace API's add-on shelf. Never serves files.
  *
- * A NEW ADDRESS, NOT A NEW FIELD — TWICE NOW. Released servers parse the feed
- * they were built against with a `.strict()` schema, so a field added to a
- * document already in service breaks every one of them at once, and none of
- * them can be upgraded by us. 0.2.3–0.2.8 keep reading the frozen
- * `/marketplace/catalog.json`; 0.2.9–0.2.12 keep reading the frozen
- * `/marketplace/v2/catalog.json`; this version reads its own.
+ * THE LAST NEW ADDRESS. Released servers parsed the static feed they were
+ * built against with a `.strict()` schema, so a field added to a document in
+ * service broke every one of them at once: 0.2.3–0.2.8 read the frozen
+ * `/marketplace/catalog.json`, 0.2.9–0.2.12 `/marketplace/v2/catalog.json`,
+ * 0.3.0–0.3.5 `/marketplace/v3/catalog.json`, which the site still serves.
+ * This API's items are read leniently and only their `release` strictly
+ * (`@adminium/manifest` `marketplace-wire.ts`), so the site can grow a display
+ * field without moving again.
  *
- * WHAT v3 ADDS is one field, `minAdminiumVersion`, which is the whole reason
- * the address moved: the add-on feed had no floor at all, so a server offered
- * and installed releases built against host support it does not have. The app
- * feed (`v2/apps.json`) carried one from its first byte and could therefore
- * stay where it was.
+ * The request names this server's version (`?adminium=`), so the site offers
+ * the newest release this version can install — and says when a newer one
+ * needs a newer Adminium — rather than only its newest one.
  */
-export const CATALOG_ENDPOINT = 'https://adminium.dev/marketplace/v3/catalog.json';
+export const CATALOG_ENDPOINT = 'https://adminium.dev/api/v1/marketplace/add-ons';
+
+/** The endpoint as requested: the shelf's address, naming this server's version. */
+export function shelfUrl(endpoint: string, serverVersion: string = APP_VERSION): string {
+  const url = new URL(endpoint);
+  url.searchParams.set('adminium', serverVersion);
+  return url.href;
+}
 
 /** The only host this client downloads a file from. */
 export const DOWNLOAD_HOST = 'downloads.adminium.dev';
@@ -87,6 +101,8 @@ export type CatalogRefusal =
   | 'TARBALL_UNREACHABLE'
   | 'UNKNOWN_ADD_ON'
   | 'UNKNOWN_APP'
+  /** Listed as coming soon: there is nothing to download yet. */
+  | 'NOT_RELEASED'
   /** An app whose manifest names a minimum Adminium above this server's version
    * (b G8-D2). */
   | 'REQUIRES_NEWER_ADMINIUM';
@@ -128,6 +144,15 @@ export class AddOnCatalogError extends Error {
  * held because nobody happened to send the field would not be a rule.
  */
 const localizedSchema = z.record(z.string(), z.string());
+
+/** What a row shows beside its name: the byline, the icon, when it last changed. Shared with the app catalog. */
+export const displayFields = {
+  author: z.string().optional(),
+  iconTint: z.string().optional(),
+  iconPaths: z.array(z.string()).optional(),
+  monogram: z.string().optional(),
+  lastUpdatedAt: z.string().optional(),
+};
 
 /**
  * One string out of a feed-supplied localized record, for a product
@@ -225,35 +250,159 @@ export const catalogEntrySchema = z
      * mean something, it does not verify it.
      */
     minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN),
+    ...displayFields,
+    /** A newer release than this one, which needs a newer Adminium. */
+    newerRelease: z
+      .object({ version: z.string().regex(EXACT_VERSION_PATTERN), minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN) })
+      .strict()
+      .optional(),
   })
   .strict();
 
+/**
+ * An add-on the shelf lists and this server cannot download: `coming-soon`
+ * has no release at all; `too-new` has only releases above this server
+ * (the newest one named, so the page can say which Adminium it needs).
+ */
+export const unavailableEntrySchema = z
+  .object({
+    key: z.string().regex(ADD_ON_KEY_PATTERN),
+    availability: z.enum(['coming-soon', 'too-new']),
+    version: z.string().regex(EXACT_VERSION_PATTERN).nullable(),
+    minAdminiumVersion: z.string().regex(EXACT_VERSION_PATTERN).nullable(),
+    name: localizedSchema,
+    tagline: localizedSchema,
+    categories: z.array(z.string()).default([]),
+    capabilities: z.array(z.string()).default([]),
+    ...displayFields,
+  })
+  .strict();
+
+/**
+ * The catalog as this server keeps it: the API's shelf, projected
+ * ({@link addOnCatalogFromShelf}) and cached. `format` names the wire format
+ * it was read from, so a cache from 0.3.5 or earlier (a `schemaVersion` feed)
+ * reads as no catalog and the page asks for a refresh.
+ */
 export const catalogSchema = z
   .object({
-    schemaVersion: z.literal(3),
+    format: z.literal(MARKETPLACE_FORMAT),
     generatedAt: z.string().min(1),
     addOns: z.array(catalogEntrySchema),
+    unavailable: z.array(unavailableEntrySchema).default([]),
+    /** Items this server could not read (a release in a form it does not know), for the refresh's audit row. */
+    skipped: z.array(z.object({ key: z.string().nullable(), reason: z.string() }).strict()).default([]),
   })
   .strict();
 
 export type CatalogEntry = z.infer<typeof catalogEntrySchema>;
+export type UnavailableEntry = z.infer<typeof unavailableEntrySchema>;
 export type Catalog = z.infer<typeof catalogSchema>;
+
+/** The display facts every catalog row may carry, off the API item. */
+export interface DisplayFacts {
+  author?: string | undefined;
+  iconTint?: string | undefined;
+  iconPaths?: string[] | undefined;
+  monogram?: string | undefined;
+  lastUpdatedAt?: string | undefined;
+}
+
+/** An item's display facts, flattened onto a row. */
+export function displayFactsOf(item: {
+  author: { name: string };
+  art: { tint?: string | undefined; iconPaths?: string[] | undefined; monogram?: string | undefined };
+  lastUpdatedAt: string;
+}): DisplayFacts {
+  return {
+    ...(item.author.name === '' ? {} : { author: item.author.name }),
+    ...(item.art.tint === undefined ? {} : { iconTint: item.art.tint }),
+    ...(item.art.iconPaths === undefined ? {} : { iconPaths: item.art.iconPaths }),
+    ...(item.art.monogram === undefined ? {} : { monogram: item.art.monogram }),
+    lastUpdatedAt: item.lastUpdatedAt,
+  };
+}
+
+/**
+ * The add-on shelf as this server keeps it. An item offering a release is a
+ * catalog row in the shape the store and the routes have always read; one
+ * listed as coming soon, or offering only releases above this server, is
+ * `unavailable`; one with neither (no release of any kind) is not listed.
+ */
+export function addOnCatalogFromShelf(shelf: ParsedShelf<AddOnItemWire>): Catalog {
+  const addOns: CatalogEntry[] = [];
+  const unavailable: UnavailableEntry[] = [];
+  for (const item of shelf.items) {
+    const display = displayFactsOf(item);
+    const listed = { key: item.key, name: item.name, tagline: item.tagline, capabilities: item.capabilities, ...display };
+    if (item.availability === 'coming-soon') {
+      unavailable.push({ ...listed, availability: 'coming-soon', version: null, minAdminiumVersion: null, categories: [] });
+      continue;
+    }
+    const release = item.release;
+    if (release !== null) {
+      addOns.push({
+        ...listed,
+        version: release.version,
+        integrity: release.integrity,
+        provides: release.provides,
+        attaches: release.attaches,
+        categories: release.categories,
+        capabilities: release.capabilities,
+        connect: release.connect,
+        network: release.network,
+        minAdminiumVersion: release.minAdminiumVersion,
+        ...(item.newerRelease === undefined ? {} : { newerRelease: item.newerRelease }),
+      });
+      continue;
+    }
+    if (item.newerRelease !== undefined) {
+      unavailable.push({
+        ...listed,
+        availability: 'too-new',
+        version: item.newerRelease.version,
+        minAdminiumVersion: item.newerRelease.minAdminiumVersion,
+        categories: [],
+      });
+    }
+  }
+  return { format: MARKETPLACE_FORMAT, generatedAt: shelf.generatedAt, addOns, unavailable, skipped: shelf.skipped };
+}
+
+/**
+ * Why a listed item cannot be downloaded, or null when it is not listed as
+ * unavailable: coming soon has nothing to download (`NOT_RELEASED`); a
+ * too-new one needs a newer Adminium, the same refusal a too-new row always
+ * got.
+ */
+export function unavailableRefusal(
+  listed: { key: string; availability: 'coming-soon' | 'too-new'; version: string | null; minAdminiumVersion: string | null } | undefined,
+): AddOnCatalogError | null {
+  if (listed === undefined) return null;
+  if (listed.availability === 'coming-soon') {
+    return new AddOnCatalogError('NOT_RELEASED', `"${listed.key}" is coming soon; there is no release to download yet`);
+  }
+  return new AddOnCatalogError(
+    'REQUIRES_NEWER_ADMINIUM',
+    `"${listed.key}" ${listed.version ?? ''} needs Adminium ${listed.minAdminiumVersion ?? 'newer than this one'} or later; this server is ${APP_VERSION}`,
+  );
+}
 
 /**
  * Whether a cached document is in the format this server reads.
  *
- * The cache outlives an upgrade: a server that last refreshed on 0.2.8 holds a
- * v1 feed, and one that last refreshed on 0.2.12 holds a v2. Callers treat
- * either as NO catalog — prompting a refresh — rather than as a malformed one,
- * which is what a failed parse alone would report. That matters more for v3
- * than it did for v2: a v2 row carries no `minAdminiumVersion`, so reading one
- * would mean either inventing a floor or reinstating the hole.
+ * The cache outlives an upgrade: a server that last refreshed on 0.3.5 or
+ * earlier holds a v1, v2 or v3 feed. Callers treat any of them as NO catalog —
+ * prompting a refresh — rather than as a malformed one, which is what a failed
+ * parse alone would report; and a v2 row carries no `minAdminiumVersion`, so
+ * reading one would mean either inventing a floor or reinstating the hole.
  */
 export function isCurrentCatalogFormat(document: unknown): boolean {
   return (
     typeof document === 'object' &&
     document !== null &&
-    (document as { schemaVersion?: unknown }).schemaVersion === 3
+    (document as { format?: unknown }).format === MARKETPLACE_FORMAT &&
+    Array.isArray((document as { addOns?: unknown }).addOns)
   );
 }
 
@@ -538,7 +687,7 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
       await assertEnabled();
 
       const { bytes } = await request(
-        endpoint,
+        shelfUrl(endpoint),
         'application/json',
         MAX_CATALOG_BYTES,
         'CATALOG_UNREACHABLE',
@@ -551,18 +700,14 @@ export function createCatalogClient(deps: CatalogClientDeps): CatalogClient {
         throw new AddOnCatalogError('CATALOG_UNREACHABLE', `${endpoint} did not return JSON: ${String(err)}`);
       }
 
-      const parsed = catalogSchema.safeParse(body);
-      if (!parsed.success) {
-        // A field the schema does not know about is a REFUSAL, not a warning:
-        // that is how "no price fields by construction" is enforced.
-        throw new AddOnCatalogError(
-          'CATALOG_MALFORMED',
-          `catalog does not match the expected schema: ${parsed.error.issues
-            .map((i) => `${i.path.join('.')}: ${i.message}`)
-            .join('; ')}`,
-        );
+      // Item by item: a release in a form this server does not know refuses
+      // that item — which is how "no price reaches an install" holds by
+      // construction — and the rest of the shelf is still offered.
+      const shelf = parseShelf(addOnItemWireSchema, body);
+      if (shelf === null) {
+        throw new AddOnCatalogError('CATALOG_MALFORMED', `${endpoint} did not answer in ${MARKETPLACE_FORMAT}`);
       }
-      return parsed.data;
+      return addOnCatalogFromShelf(shelf);
     },
 
     async fetchTarball(entry, signal) {

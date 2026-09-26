@@ -191,3 +191,20 @@ export {
   type SampleIssue,
   type SampleValue,
 } from './sample.js';
+
+export {
+  MARKETPLACE_FORMAT,
+  MARKETPLACE_KEY_PATTERN,
+  MARKETPLACE_VERSION_PATTERN,
+  addOnItemWireSchema,
+  addOnReleaseWireSchema,
+  appItemWireSchema,
+  appReleaseWireSchema,
+  marketplaceShelfSchema,
+  parseShelf,
+  type AddOnItemWire,
+  type AddOnReleaseWire,
+  type AppItemWire,
+  type AppReleaseWire,
+  type ParsedShelf,
+} from './marketplace-wire.js';

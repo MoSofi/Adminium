@@ -366,7 +366,7 @@ describe('ranges and features (sqlite)', () => {
     h.catalog.on = true;
     await h.addOnStore.writeCatalogCache(
       {
-        schemaVersion: 3,
+        format: 'adminium-marketplace/1', unavailable: [], skipped: [],
         generatedAt: '2026-09-25T00:00:00Z',
         addOns: [
           {

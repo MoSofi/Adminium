@@ -527,6 +527,28 @@ describe('AddOnsPage', () => {
    * proves the widened DTO survives the client mirror: a card cannot render a
    * tagline or a category the API layer dropped.
    */
+  describe('the catalogue’s card', () => {
+    it('shows its monogram, publisher and date, and a coming-soon add-on it cannot download', async () => {
+      await renderPage({
+        onlineEnabled: true,
+        entries: [
+          makeEntry({ source: 'catalog', state: 'available', author: 'Adminium', monogram: 'Hc', lastUpdatedAt: '2026-09-20T00:00:00.000Z' }),
+          makeEntry({ key: 'add-on-payroll', name: 'Payroll', version: '', source: 'catalog', state: 'available', availability: 'coming-soon' }),
+        ],
+      });
+      const holidays = (await screen.findByText('Holiday Calendars')).closest('li') as HTMLElement;
+      expect(within(holidays).getByText('Hc')).toBeTruthy();
+      expect(within(holidays).getByText('by Adminium')).toBeTruthy();
+      expect(within(holidays).getByText(/^Updated .*2026/)).toBeTruthy();
+      expect(within(holidays).getByRole('button', { name: 'Download' })).toBeTruthy();
+
+      const payroll = screen.getByText('Payroll').closest('li') as HTMLElement;
+      expect(within(payroll).getByText('Coming soon')).toBeTruthy();
+      expect(within(payroll).getByText('Not available yet')).toBeTruthy();
+      expect(within(payroll).queryByRole('button', { name: 'Download' })).toBeNull();
+    });
+  });
+
   describe('browsing: rail, search and the three nothings (40)', () => {
     const many = [
       makeEntry({ key: 'barcode-labels', name: 'Barcode Labels', categories: ['data'] }),

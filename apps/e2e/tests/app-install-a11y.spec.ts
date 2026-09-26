@@ -120,8 +120,25 @@ async function withCatalogueOnline(page: Page): Promise<void> {
     catalogueCacheFile(),
     `${JSON.stringify({
       fetchedAt: Date.now(),
+      // The catalogue as this server keeps it: the marketplace API's shelf, projected.
       document: {
-        schemaVersion: 2,
+        format: 'adminium-marketplace/1',
+        // A card the site lists as coming soon: its badge and its "Not available
+        // yet" in place of a button are states too.
+        unavailable: [
+          {
+            key: 'e2e-soon',
+            availability: 'coming-soon',
+            version: null,
+            minAdminiumVersion: null,
+            name: { en: 'E2E Soon' },
+            tagline: { en: 'Listed before its first release.' },
+            capabilities: [],
+            author: 'Adminium',
+            lastUpdatedAt: '2026-09-20T00:00:00.000Z',
+          },
+        ],
+        skipped: [],
         generatedAt: new Date().toISOString(),
         apps: [
           {
@@ -137,6 +154,10 @@ async function withCatalogueOnline(page: Page): Promise<void> {
             sides: ['staff'],
             // No Adminium has this, so the warn line is earned, not rigged.
             minAdminiumVersion: '99.0.0',
+            // The catalogue's own drawing and date, which the card now shows.
+            iconPaths: ['M4 4h16v16H4z', 'M8 12h8'],
+            lastUpdatedAt: '2026-09-20T00:00:00.000Z',
+            addOns: { requires: ['add-on-invoices'], suggests: [] },
           },
         ],
       },
@@ -481,6 +502,11 @@ test.describe('/studio/apps under axe', () => {
       const blocked = page.getByRole('article').filter({ hasText: 'E2E Future' });
       // Without this the sweep could pass over a shelf the switch never reached.
       await expect(blocked.getByText(tx('studio:hostedApps.browse.needsNewer', { version: '99.0.0' }))).toBeVisible();
+      await expect(blocked.getByText(tx('studio:hostedApps.browse.needsAddOns', { names: 'Invoices' }))).toBeVisible();
+      // The coming-soon card, badge and all, is on screen for the sweep too.
+      const soon = page.getByRole('article').filter({ hasText: 'E2E Soon' });
+      await expect(soon.getByText(tx('studio:hostedApps.browse.comingSoon'))).toBeVisible();
+      await expect(soon.getByText(tx('studio:hostedApps.browse.notYet'))).toBeVisible();
       await sweep(page, at('page, catalogue rows on the shelf'), tally, testInfo);
 
       // ── the update consent dialog ──────────────────────────

@@ -95,7 +95,7 @@ const ENTRY: CatalogEntry = {
 };
 
 const CATALOG: Catalog = {
-  schemaVersion: 3,
+  format: 'adminium-marketplace/1', unavailable: [], skipped: [],
   generatedAt: '2026-08-29T00:00:00Z',
   addOns: [ENTRY],
 };
