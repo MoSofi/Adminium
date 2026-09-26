@@ -127,6 +127,7 @@ import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.j
 import { registerAutomationRunHandler } from './jobs/automation-run.js';
 import { automationsRoutes } from './routes/automations/index.js';
 import { automationRunsRoutes } from './routes/automations/runs.js';
+import { sealStoredWebhookSecrets } from './automations/webhook-secrets.js';
 import { createAutomations, decorateAutomations } from './automations/register.js';
 import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
@@ -559,6 +560,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       { err: error },
       'could not seed the built-in email templates — email bodies may be missing',
     );
+  }
+
+  // A webhook step's header value is sealed when its rule is saved; one stored
+  // in plain text before that was is sealed here, once. Best-effort like the
+  // seed above: the sender still reads a plain value, so a failure costs only
+  // the sealing.
+  try {
+    const sealed = await sealStoredWebhookSecrets(meta, env.ADMINIUM_SECRET);
+    if (sealed > 0) app.log.info({ rules: sealed }, 'sealed webhook header values stored in plain text');
+  } catch (error) {
+    app.log.warn({ err: error }, 'could not seal the stored webhook header values');
   }
 
   // LLM assist (M6). Only the vocabulary is optional;

@@ -143,3 +143,31 @@ describe('ActionSettings — the Create-record table picker', () => {
     expect(screen.queryByRole('combobox', { name: 'Table' })).toBeNull();
   });
 });
+
+describe('ActionSettings — a webhook header value', () => {
+  const HOOK: Extract<Action, { kind: 'webhook' }> = {
+    kind: 'webhook',
+    url: 'https://crm.example.test/hook',
+    method: 'POST',
+    bodyKind: 'json',
+    body: null,
+    headerName: 'Authorization',
+    headerValueEncrypted: null,
+  };
+  const valueBox = (): HTMLInputElement => screen.getByTestId('hook-header-value');
+
+  it('is typed write-only, and says a saved one is there without showing it', async () => {
+    const { onChange, user } = renderSettings({ ...HOOK, headerValueSet: true });
+    expect(valueBox().type).toBe('password');
+    expect(valueBox().value).toBe('');
+    expect(valueBox().placeholder).toBe('••••••••');
+    await user.type(valueBox(), 'x');
+    expect(onChange).toHaveBeenLastCalledWith({ headerValue: 'x' });
+  });
+
+  it('shows no dots when nothing is saved, and waits for a header name', () => {
+    renderSettings({ ...HOOK, headerName: null });
+    expect(valueBox().placeholder).toBe('');
+    expect(valueBox().disabled).toBe(true);
+  });
+});

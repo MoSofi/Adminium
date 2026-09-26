@@ -83,7 +83,12 @@ export type Action =
       bodyKind: 'json' | 'text' | 'slack';
       body: string | null;
       headerName: string | null;
+      /** Always null in a reply: the server never sends a stored value back. */
       headerValueEncrypted: string | null;
+      /** A new value typed here — sent once, sealed by the server, never returned. */
+      headerValue?: string | undefined;
+      /** Whether the server holds a value for this step. */
+      headerValueSet?: boolean | undefined;
     };
 
 interface NodeBase {

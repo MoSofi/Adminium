@@ -53,6 +53,7 @@ import { PERMISSIONS } from '../../rbac/permissions.js';
 import { nextTickFor } from '../../automations/schedule.js';
 import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { firstIncompleteNode, requiredGrants, resolveRule } from '../../automations/validate.js';
+import { redactWebhookSecrets, sealWebhookSecrets } from '../../automations/webhook-secrets.js';
 import { watchColumnFor } from '../../automations/watch-columns.js';
 import { isDateColumn } from '../../automations/relative-time.js';
 import {
@@ -122,7 +123,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
       description: rule.description,
       enabled: rule.enabled,
       trigger: rule.trigger,
-      graph: rule.graph,
+      // A webhook's header value never leaves the server.
+      graph: redactWebhookSecrets(rule.graph),
       timeSavedMinutes: rule.timeSavedMinutes,
       nextRunAt: rule.nextRunAt,
       valid: incomplete === null,
@@ -353,7 +355,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             name: body.name,
             description: body.description ?? null,
             trigger: body.trigger,
-            graph: body.graph,
+            graph: sealWebhookSecrets(body.graph, null, deps.secret),
             enabled: body.enabled && complete,
             timeSavedMinutes: body.timeSavedMinutes ?? null,
             nextRunAt: body.enabled && complete ? firstTick(body.trigger, at) : null,
@@ -415,7 +417,7 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             ...(body.name === undefined ? {} : { name: body.name }),
             ...(body.description === undefined ? {} : { description: body.description }),
             ...(body.trigger === undefined ? {} : { trigger: body.trigger }),
-            ...(body.graph === undefined ? {} : { graph: body.graph }),
+            ...(body.graph === undefined ? {} : { graph: sealWebhookSecrets(body.graph, rule.graph, deps.secret) }),
             ...(body.enabled === undefined ? {} : { enabled: body.enabled }),
             ...(body.timeSavedMinutes === undefined ? {} : { timeSavedMinutes: body.timeSavedMinutes }),
             // A rule that has just been switched on (or whose schedule
@@ -538,7 +540,8 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
             app: undefined,
           },
           {
-            rule: { ...rule, trigger, graph },
+            // The on-screen steps, with the header values stored for them.
+            rule: { ...rule, trigger, graph: sealWebhookSecrets(graph, rule.graph, deps.secret) },
             runId: `test:${rule.id}`,
             event: {
               event: 'test',

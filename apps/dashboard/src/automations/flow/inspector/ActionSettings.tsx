@@ -452,6 +452,24 @@ function WebhookSettings({
               data-testid="hook-header-name"
             />
           </Field>
+          <Field label={t('automations:hook.headerValue', 'Value')}>
+            {/*
+             * Write-only. A saved value never comes back from the server, so the
+             * dots say one is there and typing replaces it; left empty, the
+             * saved one stays. Clearing the header name drops it.
+             */}
+            <Input
+              type="password"
+              autoComplete="new-password"
+              value={action.headerValue ?? ''}
+              {...(action.headerValueSet === true ? { placeholder: '••••••••' } : {})}
+              disabled={action.headerName === null}
+              onChange={(event) => {
+                onChange({ headerValue: event.target.value === '' ? undefined : event.target.value });
+              }}
+              data-testid="hook-header-value"
+            />
+          </Field>
         </>
       )}
     </Card>

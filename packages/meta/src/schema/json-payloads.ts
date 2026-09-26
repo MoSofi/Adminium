@@ -1249,8 +1249,15 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
     bodyKind: z.enum(['json', 'text', 'slack']).default('json'),
     body: z.string().max(8000).nullable().default(null),
     headerName: z.string().max(120).nullable().default(null),
-    /** Sealed with the SMTP-secret cipher; never read back over the wire. */
+    /**
+     * Sealed with the webhook key (AES-256-GCM) when the rule is saved; only
+     * the server writes it, and a reply always carries null here.
+     */
     headerValueEncrypted: z.string().max(4000).nullable().default(null),
+    /** WRITE-ONLY: a new value for the header, sealed on save and never stored as sent. */
+    headerValue: z.string().max(2000).optional(),
+    /** READ-ONLY: whether a value is stored — what a reply says in its place. */
+    headerValueSet: z.boolean().optional(),
   }),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
