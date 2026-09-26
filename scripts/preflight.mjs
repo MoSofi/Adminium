@@ -194,6 +194,13 @@ const STEPS = [
  */
 const NOT_COVERED = [
   {
+    // The `postgres-18` job: the adapter's live suites once more, on a second
+    // Postgres major. Locally the `test` step already runs the same suites
+    // against the one server this machine has, whichever major that is.
+    match: /pnpm turbo run build --filter=@adminium\/adapter-postgres\^\.\.\.$|pnpm --filter @adminium\/adapter-postgres exec vitest run$/,
+    why: 'the Postgres 18 leg needs a second Postgres major beside the one verify uses. The local `test` step runs the same adapter suites against whatever Postgres this machine has; CI runs them on 16 and 18.',
+  },
+  {
     match: /docker run .*minio/,
     why: 'the S3 conformance leg needs Docker and a MinIO container. It is the only place SigV4 is checked against a server that verifies it, so it cannot be faked. Run it on CI, or start MinIO yourself and set TEST_S3_URL.',
   },
