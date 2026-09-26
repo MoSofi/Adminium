@@ -434,6 +434,8 @@ const resourceSchema = z
     sessionOnly: z.literal(true).optional(),
     /** On the identity: what "delete my details" empties, and the time it stamps. */
     forget: z.object({ columns: z.array(columnSchema).min(1).max(16), stamp: columnSchema.optional() }).strict().optional(),
+    /** On rows read through a parent: columns left out unless `unlessHolder` is empty or names the session's own person. */
+    withhold: z.object({ columns: z.array(columnSchema).min(1).max(8), unlessHolder: columnSchema }).strict().optional(),
   })
   .strict();
 
@@ -504,6 +506,8 @@ export const publicScopeDocumentSchema = z
         stopped: columnSchema.optional(),
         /** `token`: the owner's own link — a verified session that may change its row. */
         own: z.literal(true).optional(),
+        /** An own link: the text columns of its row whose addresses the link may be emailed to. */
+        address: z.array(columnSchema).min(1).max(2).optional(),
       })
       .strict()
       .optional(),
@@ -637,6 +641,8 @@ export interface CompiledResource {
   shareLink?: { column: string; key: string } | null | undefined;
   sessionOnly?: boolean | undefined;
   forget?: { columns: readonly string[]; stamp?: string | undefined } | null | undefined;
+  /** Columns left out of rows read through a parent unless the row's holder is the session's own person. */
+  withhold?: { columns: readonly string[]; unlessHolder: string } | null | undefined;
 }
 
 export interface CompiledScope {
@@ -863,6 +869,17 @@ export function compileScope(
     childColumns(r.children ?? {});
     if (r.sessionOnly === true && r.actions.some((action) => action !== 'read')) {
       issues.push({ code: 'SCOPE_SESSION_ONLY_WRITES', message: `ref "${r.ref}" is read by a session's holder alone, so it only reads`, ref: r.ref });
+    }
+    // Withheld columns: shown ones, on a signed-in person's rows reached through a parent (or another person's column).
+    if (r.withhold !== undefined) {
+      check(r.withhold.unlessHolder, 'SCOPE_COLUMN_UNKNOWN');
+      for (const c of r.withhold.columns) {
+        if (!r.expose.includes(c)) issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `"${c}" is withheld by ref "${r.ref}", so it is one of the columns it shows`, ref: r.ref, column: c });
+      }
+      const throughParent = r.visibleWith !== undefined || (r.claim?.column !== undefined && r.claim.column !== r.withhold.unlessHolder);
+      if (doc.side !== 'customer' || !throughParent || doc.claim?.ref === r.ref) {
+        issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `ref "${r.ref}" withholds columns only from a signed-in person's rows read through a parent`, ref: r.ref });
+      }
     }
     /*
      * A file is a person's own, downloaded through the row that names it: a
@@ -1234,17 +1251,21 @@ export function compileScope(
           }
         }
         const cols = columnsOf?.(target.table) ?? null;
-        for (const column of [doc.claim.expires, doc.claim.stopped]) {
+        if (doc.claim.address !== undefined && doc.claim.own !== true) {
+          issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHAPE', message: "a link is emailed to its row's own address only when it is the owner's own" });
+        }
+        for (const column of [doc.claim.expires, doc.claim.stopped, ...(doc.claim.address ?? [])]) {
           if (column !== undefined && cols !== null && !cols.has(column)) {
             issues.push({ code: 'SCOPE_CLAIM_UNKNOWN_COLUMN', message: `"${column}" is not a column of ${target.table}`, column });
           }
         }
-      } else if (doc.claim.expires !== undefined || doc.claim.stopped !== undefined || doc.claim.own !== undefined) {
+      } else if (doc.claim.expires !== undefined || doc.claim.stopped !== undefined || doc.claim.own !== undefined || doc.claim.address !== undefined) {
         issues.push({ code: 'SCOPE_CLAIM_TOKEN_SHAPE', message: 'only a shared link expires, is stopped, or is the owner\'s own' });
       }
       if (doc.claim.verify !== undefined || doc.claim.strategy === 'token') {
         // An own link's end and stop are the owner's to change only through Adminium, like its code.
-        const ends = doc.claim.own === true ? [doc.claim.expires, doc.claim.stopped].filter((c): c is string => c !== undefined) : [];
+        // So are the addresses it may be emailed to: whoever holds it could otherwise send it on.
+        const ends = doc.claim.own === true ? [doc.claim.expires, doc.claim.stopped, ...(doc.claim.address ?? [])].filter((c): c is string => c !== undefined) : [];
         const guarded = new Set([...(doc.claim.email === undefined ? [] : [doc.claim.email]), ...doc.claim.match, ...ends]);
         for (const r of doc.resources) {
           if (!sameTable(r.table, target.table)) continue;
@@ -1390,6 +1411,7 @@ export function compileScope(
       shareLink: r.shareLink === undefined ? null : { ...r.shareLink },
       sessionOnly: r.sessionOnly === true,
       forget: r.forget === undefined ? null : { columns: [...r.forget.columns], ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }) },
+      withhold: r.withhold === undefined ? null : { columns: [...r.withhold.columns], unlessHolder: r.withhold.unlessHolder },
     });
   }
 

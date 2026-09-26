@@ -36,7 +36,9 @@ export interface UnbuiltEntryRule {
 
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
 
-export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
+export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
+  { rule: 'withhold', on: (entry) => entry['withhold'] !== undefined },
+];
 
 /** 501: the table (or entry) declares a rule this server cannot keep yet. */
 export class RuleNotBuiltError extends AppError {

@@ -225,6 +225,7 @@ function definitionOf(
               ...(entry.claim.expires === undefined ? {} : { expires: entry.claim.expires }),
               ...(entry.claim.stopped === undefined ? {} : { stopped: entry.claim.stopped }),
               ...(entry.claim.own === true ? { own: true } : {}),
+              ...(entry.claim.address === undefined ? {} : { address: typeof entry.claim.address === 'string' ? [entry.claim.address] : [...entry.claim.address] }),
             },
             // The owner's own link opens a verified session.
             ...(entry.claim.own === true ? { level: 'verified' } : {}),
@@ -324,6 +325,8 @@ function definitionOf(
     ...(entry.shareLink === undefined ? {} : { share_link: { column: entry.shareLink, key: person?.shareKey ?? 'customer' } }),
     ...(sessionOnly(entry) ? { session_only: true } : {}),
     ...(entry.forget === undefined ? {} : { forget: { columns: [...entry.forget.columns], ...(entry.forget.stamp === undefined ? {} : { stamp: entry.forget.stamp }) } }),
+    // Columns left out of rows read through a parent, unless the row's holder is the session's own person.
+    ...(entry.withhold === undefined ? {} : { withhold: { columns: [...entry.withhold.columns], unless_holder: entry.withhold.unlessHolder } }),
   } as PublicEndpointDefinition;
 }
 

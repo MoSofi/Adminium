@@ -49,3 +49,10 @@ describe('a public entry carrying a rule not built yet', () => {
     expect(unbuiltEntryRuleOf({ source: 'ticket_types' }, ENTRY)).toBeNull();
   });
 });
+
+describe('the entry rules this server does not run yet', () => {
+  it('include columns withheld from rows read through a parent', () => {
+    expect(unbuiltEntryRuleOf({ source: 'tickets', withhold: { columns: ['code'], unless_holder: 'holder_customer_id' } })).toBe('withhold');
+    expect(unbuiltEntryRuleOf({ source: 'tickets' })).toBeNull();
+  });
+});
