@@ -9,8 +9,11 @@
  * ```
  *
  * The grammar is small on purpose: numbers, the row's own columns, the four
- * operations, `min`, `max`, `round`, `coalesce`, one `if`, and the hours
- * between two moments of the row (`hoursBetween`). Anything that
+ * operations, `min`, `max`, `round`, `coalesce`, one `if`, the hours
+ * between two moments of the row (`hoursBetween`), and the whole calendar
+ * days between two dates of it (`daysBetween`: a stay's nights). A text column
+ * may join columns and text into one (`join`: a guest's full name), empty
+ * parts left out. Anything that
  * reads another row is a `copy` or a `rollup`, which already know how to keep
  * in step when that other row changes; a formula that could read across rows
  * would need the same machinery again.
@@ -55,7 +58,9 @@ export type FormulaExpr =
   | { round: FormulaExpr | [FormulaExpr, number] }
   | { coalesce: [FormulaExpr, FormulaExpr] }
   | { if: [FormulaCondition, FormulaExpr, FormulaExpr] }
-  | { hoursBetween: [string, string] };
+  | { hoursBetween: [string, string] }
+  | { daysBetween: [string, string] }
+  | { join: string[] };
 
 export type FormulaCondition =
   | { eq: [string, string | number | boolean] }
@@ -86,8 +91,15 @@ export const formulaExprSchema: z.ZodType<FormulaExpr> = z.lazy(() =>
     z.object({ coalesce: z.tuple([formulaExprSchema, formulaExprSchema]) }).strict(),
     z.object({ if: z.tuple([formulaConditionSchema, formulaExprSchema, formulaExprSchema]) }).strict(),
     z.object({ hoursBetween: z.tuple([columnName, columnName]) }).strict(),
+    z.object({ daysBetween: z.tuple([columnName, columnName]) }).strict(),
+    z.object({ join: z.array(z.string().min(1).max(64)).min(2).max(8) }).strict(),
   ]),
 );
+
+/** Whether a part of a `join` names a column of the row; any other part is text written as it is. */
+export function isJoinColumn(part: string): boolean {
+  return /^[a-z][a-z0-9_]*$/.test(part);
+}
 
 export const formulaConditionSchema: z.ZodType<FormulaCondition> = z.lazy(() =>
   z.union([
@@ -118,6 +130,10 @@ export function formulaColumns(expr: FormulaExpr | FormulaCondition): string[] {
     const [op, args] = Object.entries(node)[0] as [string, unknown];
     if (op === 'eq' || op === 'neq') {
       walk((args as unknown[])[0]);
+      return;
+    }
+    if (op === 'join') {
+      (args as string[]).filter(isJoinColumn).forEach(walk);
       return;
     }
     if (op === 'isNull') {
@@ -159,6 +175,14 @@ export function formulaIssues(
   for (const [start, stop] of moments.pairs) {
     if (start === stop) out.push('hours are counted between two different columns');
   }
+  // A join makes text: it is the whole formula, never a part of a sum.
+  if (typeof expr === 'object' && !('join' in expr) && joinsInside(expr)) {
+    out.push('a join is the whole formula, not a part of one');
+  }
+  const days = dayColumns(expr);
+  for (const [start, stop] of days.pairs) {
+    if (start === stop) out.push('days are counted between two different columns');
+  }
   for (const name of formulaColumns(expr)) {
     if (name === own) {
       out.push(`a formula does not read its own column "${name}"`);
@@ -174,6 +198,9 @@ export function formulaIssues(
     }
     if (moments.columns.has(name) && found.type !== 'timestamptz') {
       out.push(`"${name}" is not a moment (a timestamptz column), so no hours are counted from it`);
+    }
+    if (days.columns.has(name) && found.type !== 'date') {
+      out.push(`"${name}" is not a date (a date column), so no days are counted from it`);
     }
   }
   return out;
@@ -200,7 +227,39 @@ export function momentColumns(expr: unknown): { columns: Set<string>; pairs: [st
   return { columns, pairs };
 }
 
-/** The columns a formula counts with (every name outside `eq`, `neq`, `isNull` and `hoursBetween`). */
+/** Whether a `join` appears anywhere in a formula. */
+function joinsInside(node: unknown): boolean {
+  if (typeof node !== 'object' || node === null) return false;
+  const [op, args] = Object.entries(node)[0] as [string, unknown];
+  if (op === 'join') return true;
+  return (Array.isArray(args) ? args : [args]).some(joinsInside);
+}
+
+/**
+ * The columns `daysBetween` reads, and each pair it reads them in: whole
+ * calendar days from the first date to the second (a stay's nights).
+ */
+export function dayColumns(expr: unknown): { columns: Set<string>; pairs: [string, string][] } {
+  const columns = new Set<string>();
+  const pairs: [string, string][] = [];
+  const walk = (node: unknown): void => {
+    if (typeof node !== 'object' || node === null) return;
+    const [op, args] = Object.entries(node)[0] as [string, unknown];
+    if (op === 'daysBetween') {
+      const [start, stop] = args as [string, string];
+      columns.add(start);
+      columns.add(stop);
+      pairs.push([start, stop]);
+      return;
+    }
+    const children = Array.isArray(args) ? args : [args];
+    children.forEach(walk);
+  };
+  walk(expr);
+  return { columns, pairs };
+}
+
+/** The columns a formula counts with (every name outside `eq`, `neq`, `isNull`, `hoursBetween` and `daysBetween`). */
 function arithmeticColumns(expr: unknown): Set<string> {
   const out = new Set<string>();
   const walk = (node: unknown): void => {
@@ -210,7 +269,7 @@ function arithmeticColumns(expr: unknown): Set<string> {
     }
     if (typeof node !== 'object' || node === null) return;
     const [op, args] = Object.entries(node)[0] as [string, unknown];
-    if (op === 'eq' || op === 'neq' || op === 'isNull' || op === 'hoursBetween') return;
+    if (op === 'eq' || op === 'neq' || op === 'isNull' || op === 'hoursBetween' || op === 'daysBetween' || op === 'join') return;
     const children = Array.isArray(args) ? args : [args];
     children.forEach(walk);
   };
@@ -426,6 +485,11 @@ function evaluate(expr: FormulaExpr, row: Readonly<Record<string, unknown>>, sca
       if (start === null || start === undefined || stop === null || stop === undefined || stop < start) return null;
       return ratio(BigInt(stop - start), MS_PER_HOUR);
     }
+    case 'daysBetween': {
+      const [start, stop] = (args as [string, string]).map((column) => dayNumberOf(row[column]));
+      if (start === null || start === undefined || stop === null || stop === undefined || stop < start) return null;
+      return { n: BigInt(stop - start), d: 1n };
+    }
     default:
       return null;
   }
@@ -470,6 +534,30 @@ export function momentOf(value: unknown): number | null {
   const [, sign, hours, minutes] = /^([+-])(\d{2}):?(\d{2})?$/.exec(zone) ?? [];
   const offset = sign === undefined ? 0 : (sign === '-' ? -1 : 1) * (Number(hours) * 60 + Number(minutes ?? 0));
   return Date.UTC(y, mo - 1, d, h, mi, s, ms) - offset * 60_000;
+}
+
+/** A date as the drivers and a form spell one: `2026-08-03`, optionally followed by a time. */
+const DAY = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ])/;
+
+/**
+ * A stored date as a day number (days since 1970-01-01 on the calendar), or
+ * `null` when it is empty or not a day the calendar has. Text is read as the
+ * calendar day it spells, whatever the zone; a `Date` (how a driver hands a
+ * DATE back) as the day it falls on on this clock, since the drivers make it
+ * at local midnight. The count is of calendar days, so a night the clocks
+ * change is still one night.
+ */
+export function dayNumberOf(value: unknown): number | null {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()) / 86_400_000;
+  }
+  if (typeof value !== 'string') return null;
+  const found = DAY.exec(value.trim());
+  if (found === null) return null;
+  const [y, mo, d] = found.slice(1, 4).map(Number) as [number, number, number];
+  if (!onTheCalendar(y, mo, d, 0, 0, 0)) return null;
+  return Date.UTC(y, mo - 1, d) / 86_400_000;
 }
 
 /** Whether a condition holds for the row; a comparison with an empty side does not. */
@@ -527,7 +615,10 @@ export function tableFormulaIssues(
     const formula = column.rules?.formula;
     if (formula === undefined) return;
     formulas.set(column.ref, formula);
-    if (!NUMERIC_TYPES.includes(column.type) || column.type === 'float') {
+    const joins = typeof formula === 'object' && 'join' in formula;
+    if (joins && column.type !== 'text') {
+      out.push({ path: at(c, 'rules', 'formula'), message: 'a join fills a text column' });
+    } else if (!joins && (!NUMERIC_TYPES.includes(column.type) || column.type === 'float')) {
       out.push({ path: at(c, 'rules', 'formula'), message: 'a formula fills a decimal, money or whole-number column' });
     }
     for (const message of formulaIssues(formula, column.ref, (ref) => byRef.get(ref))) {
