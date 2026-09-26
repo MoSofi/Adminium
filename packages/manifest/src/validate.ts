@@ -50,7 +50,7 @@ export type ValidateManifestResult =
   | { ok: false; issues: ManifestIssue[]; warnings: ManifestIssue[] };
 
 /** Rules that fill a column, so an insert may leave it out. */
-const FILLING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default'] as const;
+const FILLING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup'] as const;
 
 /**
  * Advice about an app that validates: a column with no default that is not

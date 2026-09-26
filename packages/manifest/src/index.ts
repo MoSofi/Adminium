@@ -88,6 +88,21 @@ export {
 export { BOOKING_WEEKDAYS, bookingSchema, type BookingRule } from './booking.js';
 
 export {
+  capacityListSchema,
+  capacityRuleSchema,
+  capacityViaColumns,
+  isLegacyCapacity,
+  kindOf as capacityKindOf,
+  rulesOf as capacityRulesOf,
+  type Capacity,
+  type CapacityKind,
+  type CapacityRule,
+  type NightCapacityRule,
+  type ParentCapacityRule,
+  type SlotCapacityRule,
+} from './capacity.js';
+
+export {
   OUTBOX_WRITTEN,
   rulesReading,
   OUTBOX_HELD,
@@ -101,7 +116,7 @@ export {
   type OutboxProducer,
 } from './outbox.js';
 
-export { CUSTOMER_KEY, claimKind, claimSchema, publicKeySchema, shareCodeColumns, type Claim, type PublicKey } from './public-access.js';
+export { CUSTOMER_KEY, claimKind, claimSchema, codeWhereSchema, publicKeySchema, shareCodeColumns, type Claim, type PublicKey } from './public-access.js';
 
 export {
   FORMULA_MAX_DEPTH,
