@@ -282,7 +282,7 @@ jobs:
       # it.
       - name: Upload coverage summaries
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-summaries
           path: |
@@ -589,7 +589,7 @@ jobs:
 
       - name: Upload coverage summary
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.package }}
           path: |
@@ -802,7 +802,7 @@ jobs:
       # the run that also failed on a different story's drift.
       - name: Upload the screenshot directory
         if: always() && steps.baselines.outputs.count != '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vrt-new-baselines
           path: packages/ui/vrt/__screenshots__/
@@ -811,7 +811,7 @@ jobs:
 
       - name: Upload VRT report
         if: failure() && steps.baselines.outputs.count != '0'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vrt-report
           path: packages/ui/playwright-report

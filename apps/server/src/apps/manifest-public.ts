@@ -77,7 +77,10 @@ export interface PlannedPublicEndpoint {
 export interface PublicAccessPlan {
   endpoints: PlannedPublicEndpoint[];
   /** What would stop the key working, though the install goes ahead. */
-  warnings: { code: 'PUBLIC_API_OFF' | 'ORIGIN_SELF_MISSING' | 'NO_TIME_ZONE' | 'NO_EMAIL' | 'NO_PUBLIC_ADDRESS'; message: string }[];
+  warnings: {
+    code: 'PUBLIC_API_OFF' | 'ORIGIN_SELF_MISSING' | 'NO_TIME_ZONE' | 'NO_EMAIL' | 'NO_EMAIL_SIGN_IN' | 'NO_PUBLIC_ADDRESS';
+    message: string;
+  }[];
 }
 
 /**
@@ -377,13 +380,13 @@ export async function publicAccessWarnings(
 ): Promise<PublicAccessPlan['warnings']> {
   const out: PublicAccessPlan['warnings'] = [];
   const byLink = signIn?.byLink === true;
+  // Its own code when it is the sign-in link that cannot go: the studio words the two apart.
   if ((sendsEmail || byLink) && !(await isEmailConfigured(meta, null))) {
-    out.push({
-      code: 'NO_EMAIL',
-      message: byLink
-        ? 'Email is not set up, so nobody can be sent a sign-in link.'
-        : 'Email is not set up, so guests will not be sent a confirmation.',
-    });
+    out.push(
+      byLink
+        ? { code: 'NO_EMAIL_SIGN_IN', message: 'Email is not set up, so nobody can be sent a sign-in link.' }
+        : { code: 'NO_EMAIL', message: 'Email is not set up, so guests will not be sent a confirmation.' },
+    );
   }
   // A sign-in link names the app's own public address — never the address a request came in on.
   if (byLink && signIn !== undefined && (await guestBase({ meta }, signIn.appKey)) === null) {

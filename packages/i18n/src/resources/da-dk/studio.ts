@@ -3067,6 +3067,7 @@ export default {
     "intro": "Appens kundeskærme skal kunne:",
     "availability": "Læse ledige eller optagne tider i {table}",
     "claim": "Slå deres egne {table} op via {fields}",
+    "claimByLink": "Slå deres egne {table} op via et link, de får tilsendt",
     "create": "Tilføje til {table}",
     "update": "Ændre {table}",
     "read": "Læse {table}",
@@ -3079,7 +3080,9 @@ export default {
       "apiOff": "Den offentlige API er slået fra, så intet af dette svarer, før den er slået til.",
       "originSelf": "De tilladte oprindelser omfatter ikke “self”, så appens egne sider på denne server kan ikke kalde den.",
       "timeZone": "Denne database har ingen tidszone, som den offentlige API skal bruge til datoer og tidspunkter.",
-      "noEmail": "E-mail er ikke sat op, så gæster får ingen bekræftelse."
+      "noEmail": "E-mail er ikke sat op, så gæster får ingen bekræftelse.",
+      "noEmailSignIn": "E-mail er ikke sat op, så ingen kan få tilsendt et loginlink.",
+      "noPublicAddress": "Denne app har ingen offentlig adresse, så der kan ikke sendes et loginlink. Knyt et domæne til dens kundeside, eller angiv serverens offentlige adresse."
     },
     "createConfirmed": "Tilføje til {table} og få en bekræftelsesmail"
   },

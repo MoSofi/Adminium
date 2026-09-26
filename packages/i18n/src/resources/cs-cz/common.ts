@@ -132,6 +132,7 @@ export default {
     "security": "Heslo a relace",
     "files": "Soubory",
     "emptyWithheld": "S vaší rolí zatím nebyly sdíleny žádné stránky. Požádejte o přístup správce.",
+    "emptyConnected": "Stránky se zde objeví, jakmile budou vytvořeny z připojené databáze.",
     "app": {
       "openStaff": "Otevřít obrazovky pro personál",
       "openStaffInstance": "Otevřít obrazovky pro personál · {instance}"
@@ -259,9 +260,17 @@ export default {
     },
     "emptyNoSources": {
       "title": "Zatím žádné zdroje dat",
-      "body": "Připojte databázi PostgreSQL a Adminium vygeneruje váš první administrační přehled.",
+      "body": "Připojte databázi a Adminium vygeneruje váš první administrační přehled.",
       "primary": "Připojit databázi",
       "secondary": "Importovat ukázková data"
+    },
+    "emptyNoPages": {
+      "title": "Zatím žádné stránky",
+      "body": "Databáze je připojená, ale zatím z ní nebyly vytvořeny žádné stránky. Vytvořte je ve Studiu, nebo nainstalujte aplikaci."
+    },
+    "emptyWithheld": {
+      "title": "Zatím s vámi nebyly sdíleny žádné stránky",
+      "body": "S vaší rolí zatím nebyly sdíleny žádné stránky. Požádejte o přístup správce."
     },
     "readOnly": {
       "title": "Režim jen pro čtení",

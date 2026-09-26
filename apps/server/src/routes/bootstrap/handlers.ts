@@ -707,6 +707,7 @@ export async function bootstrapHandler(
       pagesWithheld: pageRows.some(
         (row) => readBool(row.isEnabled) && !visibleRows.some((visible) => visible.id === row.id),
       ),
+      hasConnections: connectionRows.length > 0,
       prefs,
       nav,
       version: APP_VERSION,

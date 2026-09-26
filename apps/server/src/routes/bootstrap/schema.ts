@@ -281,6 +281,14 @@ export const bootstrapReply = z.object({
      * count: how many pages someone cannot see is not theirs to know.
      */
     pagesWithheld: z.boolean(),
+    /**
+     * True once any database is connected, paused or not — so an empty home
+     * says "no pages yet" rather than "connect a database" to someone whose
+     * database is connected and has no pages made from it (an empty one, or
+     * one whose pages are still to be generated). A boolean: which databases
+     * are connected is the connections page's to say, to whoever may manage them.
+     */
+    hasConnections: z.boolean(),
     /** Resolved axes (system → global → user) + provenance. */
     prefs: mePrefsResolvedView,
     nav: bootstrapNavTree,

@@ -4427,6 +4427,35 @@ for (const [dialect, available] of legs) {
       expect(confirm.venue.table).toMatch(/(^|\.)pos_venue$/);
     }, 60_000);
 
+    it('says a sign-in link cannot go, with its own codes, when mail and the public address are missing', async () => {
+      const h = (open = await harness(dialect));
+      await stageManifest(h, {
+        ...MANIFEST,
+        requiredSchema: {
+          prefixed: true,
+          tables: [
+            TABLES[0],
+            {
+              ref: 'clients',
+              columns: [
+                { ref: 'id', type: 'int', role: 'pk' },
+                { ref: 'contact_name', type: 'text', maxLength: 120 },
+                { ref: 'email', type: 'text', maxLength: 254, unique: true },
+              ],
+            },
+          ],
+        },
+        publicAccess: [{ table: 'clients', methods: ['GET'], select: ['contact_name'], claim: { verify: 'email-link', email: 'email' }, humanCheck: true }],
+      });
+      const planned = await post(h, '/apps/plan');
+      expect(planned.statusCode, planned.body).toBe(200);
+      const codes = planned.json().plan.publicAccess.warnings.map((w: { code: string }) => w.code);
+      // Not the guests' confirmation wording: nobody can be sent a link at all.
+      expect(codes).toContain('NO_EMAIL_SIGN_IN');
+      expect(codes).not.toContain('NO_EMAIL');
+      expect(codes).toContain('NO_PUBLIC_ADDRESS');
+    }, 60_000);
+
     it('shows a venue’s own phone publicly only when the app says it is not personal data', async () => {
       const venue = (rules: Record<string, unknown>) => ({
         ...MANIFEST,

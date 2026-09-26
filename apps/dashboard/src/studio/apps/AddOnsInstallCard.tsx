@@ -238,8 +238,10 @@ function AddOnRow({ row, ...props }: AddOnsInstallCardProps & { row: AppAddOnRow
   const problems = row.problems.filter((problem) => !SAID_BY_STATE.has(problem.code));
   const downloading = props.downloading?.key === row.key ? props.downloading : null;
   const needsDownload = selected && (row.action === 'install' || (row.action === 'update' && update)) && !row.staged;
-  // Settings are shared by every app the add-on serves, so a role given them is said before anyone agrees.
-  const grantedRoles = (props.grants ?? []).filter((grant) => grant.addOn === row.key).map((grant) => grant.roleName);
+  // Settings are shared by every app the add-on serves, so a role given them is said before anyone agrees —
+  // unless the add-on cannot be had here, when there are no settings to give.
+  const grantedRoles =
+    row.state === 'unavailable' ? [] : (props.grants ?? []).filter((grant) => grant.addOn === row.key).map((grant) => grant.roleName);
 
   return (
     <li className={`flex items-start gap-2.5 rounded-[10px] border px-3 py-2.5 ${rowClass}`} data-add-on={row.key} data-state={row.state}>

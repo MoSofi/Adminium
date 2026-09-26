@@ -100,6 +100,12 @@ export function PreferencesPage(): ReactNode {
     // Optimistic + instant (ThemeProvider applies, root onPrefChange persists).
     setPref(axis, value as never);
     setLocalOverrides((prev) => ({ ...prev, [axis]: value }));
+    // And in the cached read: leaving the page drops the overlay above, and a
+    // return before a refetch lands would otherwise say "Workspace default" and
+    // offer no way back to it.
+    queryClient.setQueryData<MePrefsData>(ME_PREFS_QUERY_KEY, (prev) =>
+      prev === undefined ? prev : { ...prev, prefs: { ...prev.prefs, [axis]: value } },
+    );
   }
 
   function reset(axis: Axis): void {
@@ -190,6 +196,16 @@ export function PreferencesPage(): ReactNode {
               label={t('prefs.locale.label', 'Language')}
               value={effective.locale as LocaleId}
               onChange={(value: LocaleId) => override('locale', value)}
+              // A language picked by mistake reads as a page in a language one
+              // may not read: going back is offered where the choice was made,
+              // not only as the link under it.
+              inherit={{
+                label: t('account.preferences.workspaceDefault', 'Workspace default'),
+                selected: raw.locale === null,
+                onSelect: () => {
+                  if (raw.locale !== null) reset('locale');
+                },
+              }}
             />
           </PrefRow>
           <p className="pt-4 text-body-sm text-fg-subtle">

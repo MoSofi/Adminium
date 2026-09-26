@@ -123,6 +123,13 @@ for (const [dialect, available] of ENGINES) {
       expect(planned.statusCode, planned.body).toBe(200);
       expect(planned.json().plan.addOns[0]).toMatchObject({ state: 'unavailable', source: null, action: null });
       expect(planned.json().plan.addOns[0].problems[0].code).toBe('ADD_ON_UNAVAILABLE');
+      // The plan says what the install will: not installable, and why.
+      expect(planned.json().plan.installable).toBe(false);
+      expect(planned.json().plan.problems).toContainEqual({
+        code: 'ADD_ON_REQUIRED',
+        table: 'ledger-kit',
+        message: 'Studio needs ledger-kit, which isn’t available here.',
+      });
 
       const before = await h.tableNames();
       const refused = await h.install('studio', '0.2.0');
@@ -146,6 +153,8 @@ for (const [dialect, available] of ENGINES) {
       const planned = await h.plan(studio());
       const row = planned.json().plan.addOns[0];
       expect(row).toMatchObject({ state: 'outdated', installedVersion: '1.0.0', offeredVersion: '1.1.0', satisfiesRange: false, action: 'update' });
+      // Installable: "Update it too" is a choice the install body makes, and one body goes through.
+      expect(planned.json().plan.installable).toBe(true);
 
       const unticked = await h.install('studio', '0.2.0');
       expect(unticked.statusCode, unticked.body).toBe(422);
@@ -311,6 +320,8 @@ describe('ranges and features (sqlite)', () => {
     const app = appManifest('studio', { addOns: { requires: [{ key: 'reader', range: '>=1.0.0', reason: { 'en-US': 'Reads.' } }] } });
     const planned = await h.plan(app);
     expect(planned.json().plan.addOns[0].problems).toContainEqual(expect.objectContaining({ code: 'SCOPE_OUT_OF_RANGE' }));
+    expect(planned.json().plan.installable).toBe(false);
+    expect(planned.json().plan.problems).toContainEqual(expect.objectContaining({ code: 'ADD_ON_REQUIRED', table: 'reader' }));
     const refused = await h.install('studio', '0.2.0');
     expect(refused.statusCode, refused.body).toBe(422);
     expect(refused.json().error.code).toBe('ADD_ON_REQUIRED');
@@ -384,6 +395,12 @@ describe('ranges and features (sqlite)', () => {
     );
     const planned = await h.plan(studio());
     expect(planned.json().plan.addOns[0]).toMatchObject({ state: 'absent', source: 'catalog', staged: false, plan: null });
+    expect(planned.json().plan.installable).toBe(false);
+    expect(planned.json().plan.problems).toContainEqual({
+      code: 'ADD_ON_DOWNLOAD_REQUIRED',
+      table: 'ledger-kit',
+      message: 'Ledger kit 1.1.0 is in the add-on catalogue but not on this server yet. Download it, then check the install again.',
+    });
     const refused = await h.install('studio', '0.2.0');
     expect(refused.statusCode, refused.body).toBe(409);
     expect(refused.json().error.code).toBe('ADD_ON_DOWNLOAD_REQUIRED');
