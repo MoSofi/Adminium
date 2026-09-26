@@ -80,6 +80,7 @@ export const migrateCommand: Command = {
       metaUrl: env.ADMINIUM_META_URL,
       dataDir: env.ADMINIUM_DATA_DIR,
       secret: env.ADMINIUM_SECRET,
+      poolSize: env.ADMINIUM_META_POOL_MAX,
     });
 
     try {
