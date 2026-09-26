@@ -481,6 +481,8 @@ function decidedColumnsOf(table: ResolvedTable): Set<string> {
   for (const column of table.table.columns) if (column.rollup?.balance !== undefined) out.add(column.rollup.balance.column);
   const flag = table.table.booking?.cancel?.flag;
   if (flag !== undefined) out.add(flag);
+  // A late move's flag is Adminium's to set, as a booking's is.
+  for (const late of table.table.states?.late ?? []) if (late.flag !== undefined) out.add(late.flag);
   return out;
 }
 

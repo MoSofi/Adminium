@@ -13,8 +13,10 @@ import { emailTemplatesRepo, overridesRepo, publicEndpointsRepo, type SchemaOver
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { applyOverrides } from '../src/connections/effective-schema.js';
+import { columnRuleIssue, statesRuleIssue } from '../src/connections/column-rules-validation.js';
 import { mapTableRefs } from '../src/apps/real-refs.js';
-import { parseDefinition, printDefinition } from '../src/public-api/endpoint.js';
+import { endpointIssues, parseDefinition, printDefinition } from '../src/public-api/endpoint.js';
+import { SnapshotView } from '../src/crud/identifiers.js';
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { parseDatabaseModel } from '@adminium/engine';
 import { snapshotsRepo } from '@adminium/meta';
@@ -319,6 +321,46 @@ for (const [dialect, available] of LEGS) {
       const tickets = model.tables.find((t) => t.id === idOf('tickets'))!;
       expect(tickets.states?.strict).toEqual({ show: ['door'] });
       expect(tickets.states?.moves['valid']).toEqual(expected((ticketStates['moves'] as Doc)['valid']));
+
+      // A late move's flag is Adminium's: no public endpoint may offer it.
+      const view = new SnapshotView(h.connectionId, model, new Map());
+      const stayEndpoint = {
+        path: `/${real('stays').split('.').at(-1)!}`,
+        source: idOf('stays'),
+        methods: ['POST'],
+        select: ['id', 'arrive'],
+        writable: ['arrive', 'late_cancel'],
+        filters: [],
+        pagination: { default_limit: 50, max_limit: 200, order: 'id.asc' },
+        auth: { role: 'anon' },
+        rate_limit: { requests: 60, window: '1m' },
+        response: { shape: 'object', envelope: 'data' },
+      } as never;
+      expect(endpointIssues(stayEndpoint, { ref: real('stays').split('.').at(-1)!, view }).map((i) => [i.code, i.column])).toContainEqual(['ENDPOINT_WRITABLE_DECIDED', 'late_cancel']);
+
+      // The live model's own check keeps them, and refuses one naming what this database lacks.
+      const live = parseDatabaseModel(snapshot!.schema);
+      const tableIn = (ref: string) => live.tables.find((t) => t.id === idOf(ref))!;
+      const kept = (ref: string) => rule('table.states', ref, null).value;
+      for (const ref of ['tickets', 'orders', 'stays', 'pickups']) expect(statesRuleIssue(kept(ref), tableIn(ref), live)).toBeNull();
+      const broken = (ref: string, mutate: (value: Doc) => void) => {
+        const value = structuredClone(kept(ref)) as Doc;
+        mutate(value);
+        return statesRuleIssue(value, tableIn(ref), live);
+      };
+      expect(broken('tickets', (v) => ((((v['moves'] as Doc)['valid'] as Doc[])[0]!['requires'] as Doc)['linked'] as Doc[])[0]!['via'] = 'door')).toMatch(/door does not point at another table/);
+      expect(broken('tickets', (v) => (((((v['moves'] as Doc)['valid'] as Doc[])[0]!['requires'] as Doc)['time'] as Doc)['after'] as Doc)['column'] = 'opens_at')).toMatch(/has no column "opens_at"/);
+      expect(broken('tickets', (v) => (v['strict'] = { show: ['gate'] }))).toMatch(/has no column "gate"/);
+      expect(broken('stays', (v) => (((v['effects'] as Doc[])[0]!)['set'] = { state: 'occupied' }))).toMatch(/has no column "state"/);
+      expect(broken('stays', (v) => ((((v['late'] as Doc[])[0]!)['within'] as Doc)['hours'] = { table: real('settings'), column: 'nope' }))).toMatch(/There is no column "nope"/);
+      expect(broken('pickups', (v) => (((((v['timed'] as Doc[])[0]!)['at'] as Doc)['time'] as Doc)['hours'] as Doc)['closes'] = 'shuts')).toMatch(/has no column "shuts"/);
+      const cancelBy = live.tables.find((t) => t.id === idOf('stays'))!.columns.find((c) => c.name === 'cancel_by')!;
+      expect(columnRuleIssue('column.stamp', rule('column.stamp', 'stays', 'cancel_by').value, cancelBy, live, new Set())).toBeNull();
+      const late = live.tables.find((t) => t.id === idOf('stays'))!.columns.find((c) => c.name === 'late_cancel')!;
+      expect(columnRuleIssue('column.stamp', rule('column.stamp', 'stays', 'cancel_by').value, late, live, new Set())).toMatch(/A stamped moment needs a date-and-time column/);
+      expect(columnRuleIssue('column.stamp', { ...rule('column.stamp', 'stays', 'cancel_by').value, on: { columns: ['departs'] } }, cancelBy, live, new Set())).toMatch(
+        /has no column "departs" to watch/,
+      );
     });
 
     it('keep a public window read from moments, through the endpoint store and its printed text', async () => {
