@@ -94,9 +94,11 @@ export {
   OUTBOX_SKIP_REASONS,
   OUTBOX_STATUSES,
   emailTemplateSchema,
+  emailRowsDataSchema,
   outboxProducerSchema,
   outboxSchema,
   type EmailTemplate,
+  type EmailRowsData,
   type Outbox,
   type OutboxProducer,
 } from './outbox.js';

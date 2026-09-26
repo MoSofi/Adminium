@@ -654,5 +654,239 @@ export function outboxIssues(
       }
     }
   });
+  out.push(...emailBlockIssues(m.emailTemplates ?? [], box, index));
   return out;
 }
+
+// ── blocks that list rows, and QR codes ──────────────────────────────────────
+
+/**
+ * `email.rows`: the rows of a child table that link to the row an outbox link
+ * names, one line each (an order's tickets, with a QR code each). `from` is
+ * the documents' collection spelling: the link, the child table, the child's
+ * link back, its order, a filter and a bool that leaves a row out, and at
+ * most 50 rows. `joins` gathers up to two child lists of each row into one
+ * text (a dish's options). `row` is each line's text, reading `{{row.<column>}}`
+ * (`{{row.<link>.<column>}}` through one of the row's own links, and a join by
+ * its name); `image` is a QR code of a code column (`{{row.code.qr}}`) and
+ * nothing else. `empty` is said when there are no rows; without it the block
+ * is left out.
+ */
+export const emailRowsDataSchema = z
+  .object({
+    from: z
+      .object({
+        link: z.string().regex(/^[a-z][a-z_]*$/, 'a link name is snake_case'),
+        table: refSchema,
+        via: refSchema,
+        orderBy: refSchema.optional(),
+        where: z.object({ column: refSchema, in: z.array(scalarSchema).min(1).max(32) }).strict().optional(),
+        unless: refSchema.optional(),
+        limit: z.number().int().min(1).max(50).optional(),
+      })
+      .strict(),
+    joins: z
+      .record(
+        refSchema,
+        z
+          .object({ table: refSchema, via: refSchema, column: refSchema, orderBy: refSchema.optional(), separator: z.string().min(1).max(8).optional() })
+          .strict(),
+      )
+      .refine((joins) => Object.keys(joins).length >= 1 && Object.keys(joins).length <= 2, { message: 'a row joins one or two lists' })
+      .optional(),
+    row: z
+      .object({
+        title: z.string().min(1).max(300).optional(),
+        meta: z.string().min(1).max(300).optional(),
+        amount: z.string().min(1).max(300).optional(),
+        note: z.string().min(1).max(300).optional(),
+        image: z.string().min(1).max(300).optional(),
+      })
+      .strict(),
+    empty: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+export type EmailRowsData = z.infer<typeof emailRowsDataSchema>;
+
+/** A QR code of a code column, as the whole value of an image: `{{ticket.code.qr}}`. */
+const QR_VALUE = /^\{\{\s*([A-Za-z0-9_.-]+)\.qr\s*\}\}$/;
+const PLACEHOLDERS = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
+
+/** Every string inside a value, with the path it sits at. */
+function stringsIn(value: unknown, path: (string | number)[], out: { text: string; path: (string | number)[] }[] = []) {
+  if (typeof value === 'string') out.push({ text: value, path });
+  else if (Array.isArray(value)) value.forEach((item, i) => stringsIn(item, [...path, i], out));
+  else if (typeof value === 'object' && value !== null) for (const [key, item] of Object.entries(value)) stringsIn(item, [...path, key], out);
+  return out;
+}
+
+/**
+ * Everything wrong with the blocks of the app's templates that list rows or
+ * draw a QR code: the rows' link, table and columns; each `{{row.*}}` a row
+ * can fill; the same rows in every language; and a QR code only as a whole
+ * image value, of a code column.
+ */
+function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, index: TableIndex): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  const links = box.links ?? {};
+  /** The table a link names. */
+  const linkTable = (link: string): string | undefined => {
+    const column = links[link];
+    return column === undefined ? undefined : index.column(box.table, column)?.references;
+  };
+  /** The table a template prefix reads (`ticket`, `order.event`), when the manifest can place it. */
+  const prefixTable = (prefix: string): string | undefined => {
+    const [head, ...rest] = prefix.split('.');
+    let table = linkTable(head!);
+    for (const base of rest) {
+      if (table === undefined) return undefined;
+      table = index.column(table, `${base}_id`)?.references;
+    }
+    return table;
+  };
+  /** Why `{{<prefix>.<column>.qr}}` draws no QR code, or null. */
+  const qrIssue = (table: string | undefined, name: string): string | null => {
+    const parts = name.split('.');
+    const column = parts.at(-1)!;
+    if (table === undefined) return null;
+    const found = index.column(table, column) as (ReturnType<typeof index.column> & { rules?: { code?: unknown } }) | undefined;
+    if (found === undefined) return `"${table}" has no column "${column}"`;
+    if (found.type !== 'text' || found.rules?.code === undefined) return `"${table}.${column}" is not a code column, so it has no QR code`;
+    return null;
+  };
+
+  templates.forEach((template, t) => {
+    let rowsOf: string | undefined;
+    for (const [locale, content] of Object.entries(template.locales)) {
+      const here = (...rest: (string | number)[]) => ['emailTemplates', t, 'locales', locale, ...rest];
+      const rows: string[] = [];
+      content.blocks.forEach((block, b) => {
+        const at = (...rest: (string | number)[]) => here('blocks', b, ...rest);
+        const qrSlot = block.block === 'email.image' ? block.data?.['qr'] : undefined;
+        // A QR code is the whole value of an image, and nothing else.
+        for (const { text, path } of stringsIn({ subject: content.subject, preheader: content.preheader, footer: content.footer, data: block.data }, [])) {
+          if (!/\.qr\s*\}\}/.test(text)) continue;
+          const isSlot = (block.block === 'email.image' && path.join('.') === 'data.qr') || (block.block === 'email.rows' && path.join('.') === 'data.row.image');
+          if (!isSlot || !QR_VALUE.test(text)) out.push({ path: path[0] === 'data' ? at(...path) : here(path[0]!), message: 'a QR code is the whole value of an image (email.image "qr", or a row\'s "image"), nowhere else' });
+        }
+        if (block.block === 'email.image' && qrSlot !== undefined) {
+          const match = typeof qrSlot === 'string' ? QR_VALUE.exec(qrSlot) : null;
+          if (match === null) out.push({ path: at('data', 'qr'), message: 'an image\'s QR code is written {{<link>.<column>.qr}}' });
+          else if (match[1]!.startsWith('row.')) out.push({ path: at('data', 'qr'), message: 'a row\'s QR code is drawn by an email.rows block' });
+          else {
+            const parts = match[1]!.split('.');
+            const issue = qrIssue(prefixTable(parts.slice(0, -1).join('.')), match[1]!);
+            if (issue !== null) out.push({ path: at('data', 'qr'), message: issue });
+          }
+          const size = block.data?.['size'];
+          if (size !== undefined && (typeof size !== 'number' || !Number.isInteger(size) || size < 80 || size > 200)) {
+            out.push({ path: at('data', 'size'), message: 'a QR code is 80 to 200 pixels across' });
+          }
+        }
+        if (block.block !== 'email.rows') {
+          // Only a block that lists rows has a row to read.
+          for (const { text, path } of stringsIn(block.data, [])) {
+            if ([...text.matchAll(PLACEHOLDERS)].some((m) => m[1]!.startsWith('row.'))) {
+              out.push({ path: at('data', ...path), message: '{{row.…}} is read only inside an email.rows block' });
+            }
+          }
+          return;
+        }
+        const parsed = emailRowsDataSchema.safeParse(block.data ?? {});
+        if (!parsed.success) {
+          for (const issue of parsed.error.issues) out.push({ path: at('data', ...issue.path.map((p) => (typeof p === 'symbol' ? String(p) : p))), message: issue.message });
+          return;
+        }
+        const data = parsed.data;
+        rows.push(JSON.stringify({ from: data.from, joins: data.joins ?? null }));
+        const from = data.from;
+        const parent = linkTable(from.link);
+        if (links[from.link] === undefined) out.push({ path: at('data', 'from', 'link'), message: `"${from.link}" is not one of the outbox's links` });
+        if (index.table(from.table) === undefined) {
+          out.push({ path: at('data', 'from', 'table'), message: `"${from.table}" is not a table of this app` });
+          return;
+        }
+        const via = index.column(from.table, from.via);
+        if (via?.type !== 'fk' || (parent !== undefined && via.references !== parent)) {
+          out.push({ path: at('data', 'from', 'via'), message: `"${from.table}.${from.via}" does not point at the row "${from.link}" names` });
+        }
+        for (const [name, ref] of [['orderBy', from.orderBy], ['where', from.where?.column], ['unless', from.unless]] as const) {
+          if (ref !== undefined && index.column(from.table, ref) === undefined) out.push({ path: at('data', 'from', name), message: `"${from.table}" has no column "${ref}"` });
+        }
+        if (from.unless !== undefined && index.column(from.table, from.unless) !== undefined && index.column(from.table, from.unless)?.type !== 'bool') {
+          out.push({ path: at('data', 'from', 'unless'), message: `"${from.table}.${from.unless}" is not a bool` });
+        }
+        const where = from.where;
+        const filter = where === undefined ? undefined : index.column(from.table, where.column);
+        if (where !== undefined && filter !== undefined) {
+          for (const value of where.in) if (!valueFits(filter, value)) out.push({ path: at('data', 'from', 'where'), message: `${JSON.stringify(value)} is not a value of "${from.table}.${where.column}"` });
+        }
+        for (const [name, join] of Object.entries(data.joins ?? {})) {
+          const path = at('data', 'joins', name);
+          if (index.table(join.table) === undefined) {
+            out.push({ path, message: `"${join.table}" is not a table of this app` });
+            continue;
+          }
+          const back = index.column(join.table, join.via);
+          if (back?.type !== 'fk' || back.references !== from.table) out.push({ path: [...path, 'via'], message: `"${join.table}.${join.via}" does not point at "${from.table}"` });
+          const shown = index.column(join.table, join.column);
+          if (shown === undefined) out.push({ path: [...path, 'column'], message: `"${join.table}" has no column "${join.column}"` });
+          else if (shown.type !== 'text') out.push({ path: [...path, 'column'], message: `"${join.table}.${join.column}" is not a text column` });
+          if (join.orderBy !== undefined && index.column(join.table, join.orderBy) === undefined) out.push({ path: [...path, 'orderBy'], message: `"${join.table}" has no column "${join.orderBy}"` });
+        }
+        // Each {{row.*}} names something a row fills, in a form its type has.
+        for (const { text, path } of stringsIn({ row: data.row, empty: data.empty }, [])) {
+          for (const m of text.matchAll(PLACEHOLDERS)) {
+            const name = m[1]!;
+            if (!name.startsWith('row.')) continue;
+            const parts = name.split('.').slice(1);
+            const where = at('data', ...path);
+            if (parts.length === 1 && data.joins?.[parts[0]!] !== undefined) continue;
+            const qr = parts.at(-1) === 'qr';
+            const bare = qr ? parts.slice(0, -1) : parts;
+            // `row.col`, `row.col.form`, and one link of the row's own: `row.base.col`, `row.base.col.form` (through `base_id`).
+            let table = from.table;
+            let column = bare[0]!;
+            let form = bare[1];
+            if (index.column(from.table, column) === undefined) {
+              const link = index.column(from.table, `${column}_id`);
+              if (link?.type !== 'fk' || link.references === undefined) {
+                out.push({ path: where, message: `{{${name}}}: "${from.table}" has no column "${column}", no link "${column}_id" and no join "${column}"` });
+                continue;
+              }
+              table = link.references;
+              column = bare[1] ?? '';
+              form = bare[2];
+            }
+            const found = index.column(table, column);
+            if (found === undefined) {
+              out.push({ path: where, message: `{{${name}}}: "${table}" has no column "${column}"` });
+              continue;
+            }
+            if (qr) {
+              if (path.join('.') !== 'row.image') continue; // said above
+              const issue = qrIssue(table, `${table}.${column}`);
+              if (issue !== null) out.push({ path: where, message: issue });
+            } else if (form !== undefined && !(ROW_FORMS[found.type] ?? []).includes(form)) {
+              out.push({ path: where, message: `{{${name}}}: "${table}.${column}" is a ${found.type} column, which has no "${form}" form` });
+            }
+          }
+        }
+        if (data.row.image !== undefined && !QR_VALUE.test(data.row.image)) {
+          out.push({ path: at('data', 'row', 'image'), message: 'a row\'s image is a QR code of a code column: {{row.<column>.qr}}' });
+        }
+      });
+      // A translation changes the words, never which rows are listed.
+      const key = rows.join('\n');
+      if (rowsOf === undefined) rowsOf = key;
+      else if (key !== rowsOf) out.push({ path: here('blocks'), message: 'every language lists the same rows: from and joins are the same in each' });
+    }
+  });
+  return out;
+}
+
+/** The forms of a value a row's column may be read in, by its type (as the sender fills a template's). */
+const ROW_FORMS: Readonly<Record<string, readonly string[]>> = {
+  timestamptz: ['date', 'time', 'day_month', 'relative_day'],
+  date: ['day_month', 'days_since'],
+};

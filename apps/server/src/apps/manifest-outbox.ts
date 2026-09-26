@@ -18,7 +18,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { Manifest, Outbox } from '@adminium/manifest';
+import { emailRowsDataSchema, type Manifest, type Outbox } from '@adminium/manifest';
 import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
@@ -58,10 +58,25 @@ function nameIn(name: ManifestTemplate['name'], locale: string): string {
   return names[locale] ?? names['en-US'] ?? Object.values(names)[0] ?? '';
 }
 
-/** The blocks as the store keeps them: each with an id, so the editor can address it. */
-function storedBlocks(blocks: ManifestTemplate['locales'][string]['blocks']): Record<string, unknown>[] {
-  return blocks.map((block, index) => ({ ...block, id: block.id ?? `${block.block.slice('email.'.length)}-${String(index + 1)}` }));
+/**
+ * The blocks as the store keeps them: each with an id, so the editor can
+ * address it; a block that lists rows names its tables by their real ids.
+ */
+function storedBlocks(blocks: ManifestTemplate['locales'][string]['blocks'], realId: (ref: string) => string = (ref) => ref): Record<string, unknown>[] {
+  return blocks.map((block, index) => ({
+    ...block,
+    ...(block.block === ROWS_BLOCK && block.data !== undefined ? { data: mapTableRefs(block.data, realId).value } : {}),
+    id: block.id ?? `${block.block.slice('email.'.length)}-${String(index + 1)}`,
+  }));
 }
+
+/**
+ * The block that lists a linked row's child rows. The manifest's own check
+ * proves its shape (`emailRowsDataSchema`); no renderer draws it yet, so the
+ * install keeps it and a send leaves it out, as any block the renderer does
+ * not know.
+ */
+const ROWS_BLOCK = 'email.rows';
 
 /**
  * What the renderer cannot draw, per template and language: a block kind it
@@ -75,6 +90,10 @@ export function templateProblems(manifest: Manifest): string[] {
     for (const [locale, content] of Object.entries(template.locales)) {
       content.blocks.forEach((block, index) => {
         const where = `The email "${template.key}" (${locale}), block ${String(index + 1)}`;
+        if (block.block === ROWS_BLOCK) {
+          if (!emailRowsDataSchema.safeParse(block.data ?? {}).success) out.push(`${where}: its data is not the shape a "${block.block}" block takes.`);
+          return;
+        }
         if (!isEmailBlockKind(block.block)) {
           out.push(`${where} is "${block.block}", which no email can draw.`);
           return;
@@ -253,7 +272,7 @@ export async function installOutbox(input: {
         templates.upsert(template.key, locale, {
           name: nameIn(template.name, tag),
           subject: content.subject,
-          blocks: storedBlocks(content.blocks),
+          blocks: storedBlocks(content.blocks, input.realId),
           enabled: existing?.enabled ?? true,
           preheader: content.preheader ?? '',
           footer: content.footer ?? '',

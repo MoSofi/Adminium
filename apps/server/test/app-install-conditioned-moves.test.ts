@@ -9,7 +9,7 @@
  * store did not know would be dropped on the way in, and the app would
  * install cleanly with a rule that never runs.
  */
-import { overridesRepo, publicEndpointsRepo, type SchemaOverride } from '@adminium/meta';
+import { emailTemplatesRepo, overridesRepo, publicEndpointsRepo, type SchemaOverride } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { applyOverrides } from '../src/connections/effective-schema.js';
@@ -221,6 +221,53 @@ function venueManifest(): Doc {
   };
 }
 
+const rowsBlock: Doc = {
+  block: 'email.rows',
+  data: {
+    from: { link: 'order', table: 'tickets', via: 'order_id', orderBy: 'id', where: { column: 'status', in: ['valid'] }, limit: 50 },
+    joins: { extras: { table: 'ticket_extras', via: 'ticket_id', column: 'name', separator: ', ' } },
+    row: { title: '{{row.door}}', meta: '{{row.event.name}} · {{row.extras}}', image: '{{row.code.qr}}' },
+    empty: 'No tickets',
+  },
+};
+const qrBlock: Doc = { block: 'email.image', data: { qr: '{{ticket.code.qr}}', size: 116, alt: 'Your ticket' } };
+
+/** The venue with an outbox whose confirmation lists the order's tickets, each with a QR code. */
+function mailingManifest(): Doc {
+  const m = venueManifest();
+  const tables = (m['requiredSchema'] as { tables: Doc[] }).tables;
+  (tables.find((t) => t['ref'] === 'tickets')!['columns'] as Doc[]).push({ ref: 'code', type: 'text', maxLength: 9, nullable: true, rules: { code: { length: 8 } } });
+  tables.push(
+    { ref: 'ticket_extras', columns: [id, { ref: 'ticket_id', type: 'fk', references: 'tickets' }, { ref: 'name', type: 'text', maxLength: 80 }] },
+    {
+      ref: 'messages',
+      columns: [
+        id,
+        { ref: 'kind', type: 'enum', enum: ['order-confirmed'] },
+        { ref: 'status', type: 'enum', enum: ['queued', 'sent', 'failed', 'skipped'], default: 'queued' },
+        { ref: 'to', type: 'text', maxLength: 254, nullable: true },
+        { ref: 'order_id', type: 'fk', references: 'orders', nullable: true },
+        { ref: 'ticket_id', type: 'fk', references: 'tickets', nullable: true },
+      ],
+    },
+  );
+  m['outbox'] = {
+    table: 'messages',
+    columns: { kind: 'kind', status: 'status', to: 'to' },
+    links: { order: 'order_id', ticket: 'ticket_id' },
+    recipient: { via: 'order_id', table: 'orders', email: 'email' },
+    kinds: { 'order-confirmed': 'venue-order-confirmed' },
+  };
+  m['emailTemplates'] = [
+    {
+      key: 'venue-order-confirmed',
+      name: 'Order confirmed',
+      locales: { 'en-US': { subject: 'Your tickets', blocks: [{ block: 'email.text', data: { text: 'Hello' } }, rowsBlock, qrBlock] } },
+    },
+  ];
+  return m;
+}
+
 let open: InvoicingHarness | null = null;
 afterEach(async () => {
   await open?.close();
@@ -288,6 +335,19 @@ for (const [dialect, available] of LEGS) {
       expect(parsed.definition.writable_when).toEqual(mapTableRefs(refundWindow, (ref) => `${schemaOf}venue_${ref}`).value);
       // Printed and read back, it is the same text.
       expect(printDefinition(parsed.definition)).toBe(orders!.definition);
+    });
+
+    it('keep a block that lists rows and a QR code, with the rows\' tables at their real ids', async () => {
+      const h = await installInvoicing(dialect, mailingManifest());
+      open = h;
+      const template = await emailTemplatesRepo(h.meta).findByKeyLocale('venue-order-confirmed', 'en_US');
+      expect(template).not.toBeNull();
+      const stored = (await overridesRepo(h.meta).listForConnection(h.connectionId)).find((o) => o.origin === 'app' && o.tableName.endsWith('venue_orders'))!;
+      const schemaOf = stored.tableName.includes('.') ? `${stored.tableName.split('.')[0]!}.` : '';
+      const [, rows, qr] = template!.blocks;
+      expect(rows).toEqual({ ...mapTableRefs(rowsBlock, (ref) => `${schemaOf}venue_${ref}`).value, id: 'rows-2' });
+      expect((rows!['data'] as { from: { table: string } }).from.table).toBe(`${schemaOf}venue_tickets`);
+      expect(qr).toEqual({ ...qrBlock, id: 'image-3' });
     });
   });
 }
