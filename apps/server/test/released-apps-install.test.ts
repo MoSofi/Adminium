@@ -206,12 +206,34 @@ for (const [dialect, available] of ENGINES) {
       SLOW,
     );
 
-    // Today, with no answer, the prefixed release does not create `ordering_*`:
-    // the kept 0.1.3 tables' records win and its plan reuses the plain
-    // `menu_items`, `orders`, ... (only the "different prefix" answer above
-    // gives fresh tables). Decide whether a fresh install after an uninstall
-    // should start on its own prefix, then assert it here.
-    it.todo('a fresh prefixed install after the 0.1.3 uninstall creates its own prefixed tables without being asked');
+    it(
+      'a fresh prefixed install after the 0.1.3 uninstall creates its own prefixed tables without being asked',
+      async () => {
+        const h = (open = await installHarness(dialect));
+        const ordering = released('ordering');
+        expect((await h.install(ordering)).statusCode).toBe(200);
+        const removed = await del(h, '/apps/ordering', { dropTables: false });
+        expect(removed.statusCode, removed.body).toBe(200);
+
+        const next = successor(ordering, { prefixed: true });
+        await h.stage(next);
+        const payload = { key: 'ordering', version: '0.2.0', connectionId: h.connectionId };
+        const planned = await h.inject({ method: 'POST', url: '/apps/plan', payload });
+        expect(planned.statusCode, planned.body).toBe(200);
+        const plan = (JSON.parse(planned.body) as { plan: { installable: boolean; problems: unknown[]; names: Record<string, string> } }).plan;
+        expect(plan.problems).toEqual([]);
+        expect(plan.installable).toBe(true);
+        for (const ref of refs(next)) expect(plan.names[ref]).toBe(`ordering_${ref}`);
+
+        const installed = await h.inject({ method: 'POST', url: '/apps/install', payload });
+        expect(installed.statusCode, installed.body).toBe(200);
+        const names = await tableNames(h, dialect);
+        expect(names).toEqual(expect.arrayContaining(refs(next).map((ref) => `ordering_${ref}`)));
+        // The kept plain tables are still there, untouched.
+        expect(names).toEqual(expect.arrayContaining(refs(ordering)));
+      },
+      SLOW,
+    );
 
     // Needs the Online Ordering 0.2.0 release (its menu tables declared on the
     // core menu shape) and the planner's offer to share a same-shaped table

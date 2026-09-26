@@ -710,6 +710,20 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       manifest.kind === 'app' && manifest.requiredSchema?.prefixed === true ? prefixFor(manifest.key) : null;
     const records: Record<string, { table: string; owned: boolean; state: string }> = {};
     for (const r of own) records[r.ref] = { table: r.tableName, owned: r.owned, state: r.state };
+    const installedHere =
+      manifest.kind === 'app' &&
+      (await manifests.list('app')).some((m) => m.row.manifestKey === manifest.key && m.row.connectionId === connectionId);
+    /*
+     * A FRESH INSTALL OF A PREFIXED VERSION STARTS ON ITS OWN TABLES. The
+     * tables an unprefixed version left behind when it was uninstalled (kept,
+     * under their plain names) were made for another schema: taking them over
+     * would map the new version onto columns it never declared. They stay the
+     * operator's, untouched, and the new version creates its prefixed tables.
+     * An update of an installed app keeps its tables whatever their names.
+     */
+    if (prefix !== null && !installedHere) {
+      for (const r of own) if (r.tableName === r.ref) delete records[r.ref];
+    }
 
     const names = tablesNamedBy(manifest);
     for (const table of manifest.requiredSchema?.tables ?? []) {
@@ -750,9 +764,6 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     ];
 
     if (own.length === 0 && manifest.kind === 'app') {
-      const installedHere = (await manifests.list('app')).some(
-        (m) => m.row.manifestKey === manifest.key && m.row.connectionId === connectionId,
-      );
       if (installedHere) {
         for (const table of manifest.requiredSchema?.tables ?? []) {
           if (tables.some((t) => t.ref === table.ref)) {
