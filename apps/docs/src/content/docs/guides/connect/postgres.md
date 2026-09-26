@@ -1,6 +1,6 @@
 ---
 title: Connect a PostgreSQL database
-description: Connection strings, SSL, and a read-only role recipe for connecting Adminium to PostgreSQL.
+description: Connection strings, SSL, SSH tunnels, and read-only and least-privilege role recipes for connecting Adminium to PostgreSQL.
 ---
 
 ## Connection string
@@ -61,7 +61,8 @@ without a server-side `statement_timeout`; on a direct one they get it.
 
 Direct also saves a proxy hop on every query and the one discarded connection at
 startup, and Adminium's own pooling already caps concurrent connections per
-source (5 for introspection, 10 for data), so you give up little by not using
+source (5 for introspection, 10 for data; `ADMINIUM_SOURCE_POOL_MAX` sets both —
+see [Environment variables](/self-hosting/env-vars/)), so you give up little by not using
 the provider's pooler. If your platform meters connections hard enough that the
 pooler is the point, stay on it — nothing breaks.
 
@@ -110,7 +111,9 @@ first write. See [Read-only sources & the meta database](/guides/connect/read-on
 
 ## A read-write role
 
-When you want Adminium to actually edit records:
+When you want Adminium to actually edit records. This role reads and writes
+rows and can do nothing else — it cannot create, alter or drop a table — which
+is the role to give Adminium on a production database:
 
 ```sql
 CREATE ROLE adminium_rw LOGIN PASSWORD 'a-strong-password';
@@ -128,6 +131,36 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 
 Grant sequences too, or inserts into tables with `serial` / `identity` primary
 keys will fail.
+
+`ALTER DEFAULT PRIVILEGES` covers only the tables created by the role that runs
+it. If your migrations run as another role — an `app_owner` that owns the
+schema — name it, or the tables your next migration creates will be invisible
+to Adminium:
+
+```sql
+ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO adminium_rw;
+ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO adminium_rw;
+```
+
+### Writable where you grant it
+
+Adminium reads the role's grants table by table, so you can hand it exactly
+the tables it should change:
+
+- **A table granted `SELECT` only** is read-only in Adminium: it lists and
+  opens records, and offers no New, Edit or Delete.
+- **A table granted by column** — `GRANT UPDATE (status, notes) ON orders TO
+  adminium_rw` — can be edited in those columns; the form shows every other
+  column read-only and never sends it. A column Adminium stamps on its own,
+  such as an `updated_at`, is left alone when the role may not write it.
+- A write the role may not make is refused with `READ_ONLY_MODE` before it
+  reaches your database. A grant you change takes effect within a minute.
+
+Before 0.3.5 Adminium treated any role that could not create a table as
+read-only, so this recipe produced a read-only app; the workaround was
+`GRANT CREATE ON DATABASE`. That grant is no longer needed — revoke it.
 
 ## Hosting the meta store in the same database
 
@@ -151,9 +184,58 @@ Connected — 34 ms · PostgreSQL 16.2 · read-only role
 ```
 
 - **`canRead`** — `SELECT` on at least one table in a visible schema.
-- **`canWrite`** — `INSERT` / `UPDATE` / `DELETE`.
+- **`canWrite`** — `INSERT`, `UPDATE` or `DELETE` on at least one table (or, on
+  an empty database, the right to create one). The role is **read-only** when
+  it has neither, when the server is a standby, or when its transactions are
+  read-only by default (`default_transaction_read_only`).
 - **`canDDL`** — can create the meta schema, if you asked for same-database
   placement.
+
+## Through an SSH tunnel
+
+A database that listens only on its own server's loopback — the safe default
+for a Postgres on a single VPS — is reachable over SSH without opening its
+port. On the machine that runs Adminium:
+
+```bash
+ssh -N -L 15432:127.0.0.1:5432 deploy@db.example.com
+```
+
+and connect Adminium to the tunnel's end:
+
+```
+postgres://adminium_rw:a-strong-password@127.0.0.1:15432/mydb
+```
+
+`sslmode` can stay off: the tunnel is the encryption. To keep the tunnel up
+across dropped connections, add `-o ServerAliveInterval=30
+-o ExitOnForwardFailure=yes` and run it under `autossh` or a service manager.
+
+**A key that can only tunnel.** On the database server, the key's line in
+`~deploy/.ssh/authorized_keys` can forbid everything but this one forward:
+
+```
+restrict,port-forwarding,permitopen="127.0.0.1:5432" ssh-ed25519 AAAA… adminium-tunnel
+```
+
+A shell, a command, or a forward anywhere else is refused.
+
+### Why the npm CLI allows `127.0.0.1` and the Docker image does not
+
+Adminium refuses a source on a loopback address — `localhost`, `127.0.0.0/8`,
+`::1` — when it runs with `NODE_ENV=production`, so that a hosted instance
+cannot be pointed at services on its own host. The Docker image sets
+`NODE_ENV=production`; `npx @adminiumjs/adminium` does not. So:
+
+- **The npm CLI** (`npx @adminiumjs/adminium`, on your own machine) connects to the tunnel
+  at `127.0.0.1:15432` as above.
+- **The Docker image** refuses `127.0.0.1`, and inside a container it would be
+  the container's own loopback anyway. Point it at the host instead. On Docker
+  Desktop, use `host.docker.internal:15432`. On Linux, start the container with
+  `--add-host=host.docker.internal:host-gateway` and bind the tunnel to the
+  bridge address the container reaches the host on, for example
+  `ssh -N -L 172.17.0.1:15432:127.0.0.1:5432 deploy@db.example.com`.
+  Never bind it to `0.0.0.0`: that publishes your database to the network.
 
 ## What Adminium reads
 
@@ -179,10 +261,16 @@ on its own (see [Pooled endpoints](#pooled-endpoints)), so reaching you means th
 retry was refused too — most often because the DSN carries its own `options=`
 parameter. Drop it, or use the direct endpoint.
 
-**Connections to `localhost` are refused** — Adminium blocks loopback DSNs by
-default, so a hosted instance cannot be talked into probing its own host. The
-CLI wizard disables the guard for local setup, which is exactly when you *do*
-mean `localhost`.
+**`Loopback hosts are not allowed in production`** — Adminium is running with
+`NODE_ENV=production` (the Docker image does) and the DSN names `localhost` or
+`127.0.0.1`, so that a hosted instance cannot be talked into probing its own
+host. See [Through an SSH tunnel](#through-an-ssh-tunnel) for the address to use
+instead.
+
+**Every record is read-only, or one table is** — the role lacks the grant. The
+probe reports `read-only role` when it can write no table at all; a single
+read-only table is one granted `SELECT` only. See
+[Writable where you grant it](#writable-where-you-grant-it).
 
 **No tables found** — your role can connect but has no `USAGE` on the schema, or
 the tables live in a schema it cannot see. `GRANT USAGE ON SCHEMA`.
