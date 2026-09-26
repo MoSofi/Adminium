@@ -8,8 +8,9 @@
  * text. Now:
  *
  * - the editor sends a NEW value as `headerValue` (write-only). A step that
- *   sends none keeps the value stored for the same step id; a step whose header
- *   name is cleared keeps none;
+ *   sends none keeps the value stored for the same step id while its URL names
+ *   the same origin; a step pointed at another host, or whose header name is
+ *   cleared, keeps none;
  * - `headerValueEncrypted` is only ever written here, sealed with the webhook
  *   key; a client's copy of it is ignored, except plain text from an API client
  *   written before `headerValue` existed, which is sealed like a new value;
@@ -21,7 +22,7 @@
 import { automationsRepo, type AutomationGraph, type AutomationNode, type MetaDb } from '@adminium/meta';
 
 import { encryptSecret, isEncryptedSecret } from '../config/secrets.js';
-import { webhookSecretKey } from './actions/webhook.js';
+import { literalOrigin, webhookSecretKey } from './actions/webhook.js';
 
 type ActionNode = Extract<AutomationNode, { kind: 'action' }>;
 type WebhookAction = Extract<ActionNode['action'], { kind: 'webhook' }>;
@@ -43,12 +44,12 @@ function mapWebhooks(graph: AutomationGraph, step: (action: WebhookAction, nodeI
   return { ...graph, nodes: graph.nodes.map((node) => visit(node)) };
 }
 
-/** The sealed value of each webhook step, by step id. */
-function storedValues(graph: AutomationGraph | null): Map<string, string | null> {
-  const out = new Map<string, string | null>();
+/** The sealed value and the origin it was saved for, of each webhook step, by step id. */
+function storedValues(graph: AutomationGraph | null): Map<string, { sealed: string | null; origin: string | null }> {
+  const out = new Map<string, { sealed: string | null; origin: string | null }>();
   if (graph !== null) {
     mapWebhooks(graph, (action, nodeId) => {
-      out.set(nodeId, action.headerValueEncrypted);
+      out.set(nodeId, { sealed: action.headerValueEncrypted, origin: literalOrigin(action.url) });
       return action;
     });
   }
@@ -69,7 +70,14 @@ export function sealWebhookSecrets(graph: AutomationGraph, stored: AutomationGra
     if (rest.headerName === null || rest.headerName.trim() === '') sealed = null;
     else if (headerValue !== undefined) sealed = headerValue === '' ? null : seal(headerValue);
     else if (rest.headerValueEncrypted !== null && !isEncryptedSecret(rest.headerValueEncrypted)) sealed = seal(rest.headerValueEncrypted);
-    else sealed = kept.get(nodeId) ?? null;
+    else {
+      // Kept only for the host it was given for: a step pointed somewhere else
+      // must be given its value again, or anyone who may edit the rule could
+      // send the stored token to a host of their choosing.
+      const stored = kept.get(nodeId);
+      const origin = literalOrigin(rest.url);
+      sealed = stored !== undefined && origin !== null && stored.origin === origin ? stored.sealed : null;
+    }
     return { ...rest, headerValueEncrypted: sealed };
   });
 }
@@ -89,6 +97,7 @@ export function redactWebhookSecrets(graph: AutomationGraph): AutomationGraph {
 export async function sealStoredWebhookSecrets(meta: MetaDb, masterSecret: string): Promise<number> {
   const rules = automationsRepo(meta);
   let sealed = 0;
+  const failed: { id: string; error: unknown }[] = [];
   for (const rule of await rules.list()) {
     let plain = false;
     mapWebhooks(rule.graph, (action) => {
@@ -96,8 +105,19 @@ export async function sealStoredWebhookSecrets(meta: MetaDb, masterSecret: strin
       return action;
     });
     if (!plain) continue;
-    await rules.update(rule.id, { graph: sealWebhookSecrets(rule.graph, rule.graph, masterSecret) }, rule.updatedAt);
-    sealed += 1;
+    try {
+      await rules.update(rule.id, { graph: sealWebhookSecrets(rule.graph, rule.graph, masterSecret) }, rule.updatedAt);
+      sealed += 1;
+    } catch (error) {
+      // One rule that cannot be sealed must not leave the rest in the clear.
+      failed.push({ id: rule.id, error });
+    }
+  }
+  if (failed.length > 0) {
+    throw new AggregateError(
+      failed.map((entry) => entry.error),
+      `sealed ${String(sealed)} rule(s); could not seal ${failed.map((entry) => entry.id).join(', ')}`,
+    );
   }
   return sealed;
 }

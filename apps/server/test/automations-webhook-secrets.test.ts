@@ -158,6 +158,44 @@ describe('webhook header values', () => {
     expect((await stored(id)).headerValueEncrypted).toBeNull();
   });
 
+  it('is kept only for the host it was given for', async () => {
+    const { id, res } = await create({ headerValue: 'Bearer for-the-crm' });
+    const sealed = (await stored(id)).headerValueEncrypted;
+    const graph = (res.json() as { graph: AutomationGraph }).graph;
+    const step = (graph.nodes[1] as unknown as { action: { url: string } }).action;
+
+    // Another path on the same host keeps it.
+    step.url = 'https://crm.example.test/v2/hook';
+    await send('PATCH', `/automations/${id}`, { graph });
+    expect((await stored(id)).headerValueEncrypted).toBe(sealed);
+
+    // Another host does not: whoever may edit the rule cannot send the token elsewhere.
+    step.url = 'https://collector.example.test/hook';
+    await send('PATCH', `/automations/${id}`, { graph });
+    expect((await stored(id)).headerValueEncrypted).toBeNull();
+
+    // Nor does a host a record fills in.
+    await send('PATCH', `/automations/${id}`, { graph: hookGraph({ headerValue: 'again' }) });
+    step.url = 'https://{{record.tenant}}.example.test/hook';
+    await send('PATCH', `/automations/${id}`, { graph });
+    expect((await stored(id)).headerValueEncrypted).toBeNull();
+  });
+
+  it('is never sent to a host a record fills in', () => {
+    const action = {
+      kind: 'webhook',
+      url: 'https://{{record.tenant}}.example.test/hook',
+      method: 'POST',
+      bodyKind: 'json',
+      body: null,
+      headerName: 'Authorization',
+      headerValueEncrypted: 'enc:v1:AAAA',
+    };
+    expect(() => planWebhook(action as never, { tokens: {}, secret: TEST_SECRET, rule: { id: 'r', name: 'CRM' }, source: null, now: T0 } as never)).toThrow(
+      /must name its host/,
+    );
+  });
+
   it('seals plain text from a client that predates the write-only field', async () => {
     const { id } = await create({ headerValueEncrypted: 'legacy-plain' });
     expect(open((await stored(id)).headerValueEncrypted)).toBe('legacy-plain');
@@ -192,5 +230,13 @@ describe('webhook header values', () => {
     expect(open(stepOf(after!.graph).headerValueEncrypted)).toBe('kept-in-the-clear');
     expect(after!.updatedAt).toBe(rule.updatedAt);
     expect(await sealStoredWebhookSecrets(t.meta, TEST_SECRET)).toBe(0);
+  });
+
+  it('seals the longest value a step could hold', async () => {
+    // 4000 characters, the field's old limit, of four UTF-8 bytes each.
+    const longest = '😀'.repeat(2000);
+    expect(longest.length).toBe(4000);
+    const { id } = await create({ headerValueEncrypted: longest });
+    expect(open((await stored(id)).headerValueEncrypted)).toBe(longest);
   });
 });

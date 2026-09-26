@@ -48,6 +48,22 @@ export function webhookSecretKey(masterSecret: string): Buffer {
   return deriveKey(masterSecret, WEBHOOK_KEY_SALT);
 }
 
+/**
+ * The origin a step's URL names — scheme, host and port — or null when it
+ * names none a reader can be sure of: no URL, one that does not parse, or a
+ * placeholder in the host, which a record's data would fill in at send time.
+ */
+export function literalOrigin(url: string | null): string | null {
+  if (url === null) return null;
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(url.trim())?.[1];
+  if (authority === undefined || authority.includes('{')) return null;
+  try {
+    return new URL(url.trim()).origin;
+  } catch {
+    return null;
+  }
+}
+
 /** A Slack incoming webhook, and nothing that merely looks like one. */
 export function isSlackWebhookUrl(raw: string): boolean {
   try {
@@ -100,6 +116,11 @@ export function planWebhook(action: WebhookAction, ctx: ActionContext): WebhookR
 
   if (action.headerName !== null && action.headerName.trim() !== '') {
     const stored = action.headerValueEncrypted;
+    // A secret goes only to a host the rule names: never to one a record's
+    // data fills into the URL.
+    if (stored !== null && literalOrigin(action.url) === null) {
+      throw new ActionFailure('A webhook that sends a secret header must name its host, not fill it in from a record.');
+    }
     const value =
       stored === null
         ? ''

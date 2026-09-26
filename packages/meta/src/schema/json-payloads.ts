@@ -1253,7 +1253,9 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
      * Sealed with the webhook key (AES-256-GCM) when the rule is saved; only
      * the server writes it, and a reply always carries null here.
      */
-    headerValueEncrypted: z.string().max(4000).nullable().default(null),
+    // Room for the longest value a step can hold, sealed: 4000 characters of
+    // up to four UTF-8 bytes each, plus the IV and tag, in base64.
+    headerValueEncrypted: z.string().max(24000).nullable().default(null),
     /** WRITE-ONLY: a new value for the header, sealed on save and never stored as sent. */
     headerValue: z.string().max(2000).optional(),
     /** READ-ONLY: whether a value is stored — what a reply says in its place. */
