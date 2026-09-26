@@ -38,7 +38,7 @@ export interface UnbuiltEntryRule {
 }
 
 /** Whether any column of the table carries a rule the test finds. */
-const anyColumn = (table: EffectiveTable, test: (column: EffectiveColumn) => boolean): boolean => table.columns.some(test);
+const anyColumn = (table: EffectiveTable, test: (column: EffectiveColumn) => boolean): boolean => (table.columns ?? []).some(test);
 
 /** Whether a formula (at any depth) uses one of these operators. */
 function formulaUses(formula: unknown, ops: readonly string[]): boolean {
@@ -49,7 +49,7 @@ function formulaUses(formula: unknown, ops: readonly string[]): boolean {
 
 /** The tables a column's foreign key points at, through the model's relations. */
 function targetOf(model: Pick<EffectiveModel, 'relations'>, tableId: string, column: string): string | undefined {
-  return model.relations.find((r) => r.through === null && r.from.tableId === tableId && r.from.columns.length === 1 && r.from.columns[0] === column)?.to
+  return (model.relations ?? []).find((r) => r.through === null && r.from.tableId === tableId && r.from.columns.length === 1 && r.from.columns[0] === column)?.to
     .tableId;
 }
 
@@ -68,7 +68,7 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
     rule: 'rollup.count',
     on: (table, model) =>
       anyColumn(table, (c) => c.rollup?.count === true) ||
-      (model?.tables ?? []).some((other) => other.columns.some((c) => c.rollup?.count === true && c.rollup.from === table.id)),
+      (model?.tables ?? []).some((other) => (other.columns ?? []).some((c) => c.rollup?.count === true && c.rollup.from === table.id)),
   },
   // Prices by the night, a copy that follows its source, a text joined from columns.
   { rule: 'perNight', on: (table) => anyColumn(table, (c) => c.perNight !== undefined) },
@@ -77,7 +77,7 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
     on: (table, model) =>
       anyColumn(table, (c) => c.copy?.follow === true) ||
       (model?.tables ?? []).some((other) =>
-        other.columns.some((c) => c.copy?.follow === true && model !== undefined && targetOf(model, other.id, c.copy.via) === table.id),
+        (other.columns ?? []).some((c) => c.copy?.follow === true && model !== undefined && targetOf(model, other.id, c.copy.via) === table.id),
       ),
   },
   { rule: 'formula.join', on: (table) => anyColumn(table, (c) => formulaUses(c.formula, ['join'])) },
