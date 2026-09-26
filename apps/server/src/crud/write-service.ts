@@ -113,6 +113,7 @@ import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf
 import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
 import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, tiedToStates, type ClearColumns } from './states.js';
+import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
 import {
@@ -1985,6 +1986,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     wants: (timing, action, target, context) => current().wants(timing, action, target, context),
 
     async check(action, target, context, rows, checkOpts) {
+      if (action !== 'delete') refuseUnbuiltTable(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
       const now = new Date();
@@ -2010,6 +2012,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async create(input) {
       const { context } = input;
       const target = await withRights(input.target);
+      refuseUnbuiltTable(target);
       refuseEarly(target, 'create', input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
@@ -2092,6 +2095,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async update(input) {
       const { context, pk } = input;
       const target = await withRights(input.target);
+      refuseUnbuiltTable(target);
       refuseEarly(target, 'update', input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
@@ -2265,6 +2269,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async beforeEach(action, givenTarget, context, rows, beforeOpts) {
       const target = action === 'delete' ? givenTarget : await withRights(givenTarget);
+      if (action !== 'delete') refuseUnbuiltTable(target);
       const hooks = current();
       const withRules = beforeOpts?.rules !== false;
       const rules = withRules ? rulesOf(target) : null;

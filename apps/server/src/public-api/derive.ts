@@ -28,6 +28,7 @@ import {
   type PublicEndpointDefinition,
   type PublicMethod,
 } from './endpoint.js';
+import { unbuiltEntryRuleOf } from '../crud/unbuilt-rules.js';
 import {
   compileScope,
   ScopeCompileError,
@@ -120,6 +121,13 @@ export function deriveScopeDocument(
     if (lost.length > 0) suspended.push({ endpointId, ref: endpoint.ref, methods: lost });
     // A grant narrowed to nothing contributes no resource at all.
     if (effective.length === 0) continue;
+    // An entry declaring a rule this server does not run yet serves nothing
+    // (its filter or its limits would be skipped); kept in the grant, it
+    // comes back once the rule is built and the scope is derived again.
+    if (unbuiltEntryRuleOf(endpoint.definition as unknown as Readonly<Record<string, unknown>>) !== null) {
+      suspended.push({ endpointId, ref: endpoint.ref, methods: effective });
+      continue;
+    }
 
     if (endpoint.definition.auth.role === 'service_role' && key.kind === 'browser') {
       issues.push({
