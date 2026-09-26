@@ -363,8 +363,8 @@ export async function forgotPasswordHandler(
           // it, and the token would be mailed under their host
           // (security/public-origin.ts).
           resetUrl: `${await linkOrigin(ctx.meta, request)}/reset/${token}`,
-          expiresInMinutes: String(Math.round(RESET_TOKEN_TTL_MS / 60_000)),
         },
+        counts: { expiresInMinutes: Math.round(RESET_TOKEN_TTL_MS / 60_000) },
       },
     );
   } catch (error) {

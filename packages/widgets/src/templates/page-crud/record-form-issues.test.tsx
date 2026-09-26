@@ -170,6 +170,12 @@ describe('reading a refusal off an API error', () => {
     });
   });
 
+  it('says a pasted hidden character is why the text was refused', () => {
+    expect(fieldMessagesOf(t, { fieldIssues: { notes: { code: 'invalid-character' } } })).toEqual({
+      notes: 'This text contains a hidden character that cannot be saved. Type it again.',
+    });
+  });
+
   it('never shows a raw code for one it does not know', () => {
     expect(fieldMessagesOf(t, { fieldIssues: { name: { code: 'too_wibbly' } } })).toEqual({
       name: 'This value is not valid here.',

@@ -757,7 +757,150 @@ export function createEndpointService(deps: EndpointServiceDeps) {
     throw new PublicApiContended('the public API changed under this key create too many times; try again');
   }
 
-  return { checkEndpoint, saveEndpoint, removeEndpoint, renameEndpoint, createKey, scopeLinkIssues };
+  /**
+   * Rewrite what an installed app's own key holds: exactly `access`, once the
+   * operator allowed the app's new version. Each grant is clipped to the
+   * methods its stored endpoint offers, and one with no stored endpoint is
+   * left out. Held to the same list as a key made at install — the safe list,
+   * the derived document, the link rules beside the connection's other keys —
+   * and refused whole with {@link KeyCreateRefused}. Returns what the key
+   * gained and lost, by ref; nothing is written when neither.
+   */
+  async function setManagedAccess(input: {
+    connectionId: string;
+    keyId: string;
+    access: readonly CreateKeyGrant[];
+  }): Promise<{ gained: string[]; lost: string[] }> {
+    const { connectionId } = input;
+    await state.ensure(now());
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const revision = await state.read();
+      const at = now();
+      const key = (await keys.listLiveDerived(connectionId, at)).find((k) => k.id === input.keyId);
+      // Only a live key an app made; a hand-made key's access is its owner's.
+      if (key === undefined || key.managedBy === null) {
+        throw new KeyCreateRefused([{ code: 'KEY_REF_UNKNOWN', message: `"${input.keyId}" is not a live key an app made` }]);
+      }
+      const kind: PublicKeyKind = key.kind === 'server' ? 'server' : 'browser';
+      const view = await deps.viewFor(connectionId);
+      const inherited = await deps.tenantConfigOf(connectionId);
+      const stored = await endpoints.listByConnection(connectionId);
+      const map = endpointMap(stored);
+      const byRef = new Map([...map.values()].map((e) => [e.ref, e]));
+      const refOf = new Map([...map.values()].map((e) => [e.id, e.ref]));
+      const before = parseAccess(key.access);
+
+      const issues: ScopeIssue[] = [];
+      const access: Record<string, PublicMethod[]> = {};
+      for (const grant of input.access) {
+        const endpoint = byRef.get(grant.ref);
+        if (endpoint === undefined) continue;
+        const methods = canonicalMethods(grant.methods).filter((m) => endpoint.definition.methods.includes(m));
+        if (methods.length === 0) continue;
+        const decided = await decidedColumns(connectionId, endpoint.definition.source);
+        issues.push(...managedGrantIssues(grant.ref, endpoint.definition, methods, decided));
+        access[endpoint.id] = methods;
+      }
+      const gained = Object.keys(access).filter((id) => (access[id] ?? []).some((m) => !(before[id] ?? []).includes(m)));
+      const lost = Object.keys(before).filter((id) => (before[id] ?? []).some((m) => !(access[id] ?? []).includes(m)));
+      const said = { gained: gained.map((id) => refOf.get(id) ?? id), lost: lost.map((id) => refOf.get(id) ?? id) };
+      if (gained.length === 0 && lost.length === 0) return said;
+
+      // A key left holding nothing is allowed: it answers nothing until a version gives it something.
+      const derivation = deriveScopeDocument({ kind, access }, map, view);
+      issues.push(...derivation.issues);
+      // Refused only for what the change brings in: a key broken by drift elsewhere can still be narrowed.
+      if (issues.length === 0) {
+        const stored = parseJson(key.scopeDocument);
+        issues.push(...forDerived(introducedIssues(derivedDocumentIssues(stored, view, inherited), derivedDocumentIssues(derivation.document, view, inherited))));
+      }
+      if (kind !== 'server') {
+        const self = { id: key.id, scopeId: key.scopeId };
+        const held = await heldKeys(connectionId, at);
+        issues.push(
+          ...newlyRaised(linkIssuesAcross(parseJson(key.scopeDocument), self, held), linkIssuesAcross(derivation.document, self, held)),
+        );
+      }
+      if (issues.length > 0) throw new KeyCreateRefused(dedupeIssues(issues));
+
+      const committed = await meta.db.transaction().execute(async (trx) => {
+        if (!(await state.advanceFrom(revision, at, trx))) return false;
+        await keys.setAccess(key.id, access, at, trx);
+        await scopes.update(key.scopeId, { document: JSON.stringify(derivation.document) }, at, trx);
+        return true;
+      });
+      if (!committed) continue;
+      deps.invalidate?.(key.id);
+      return said;
+    }
+    throw new PublicApiContended('the public API changed under this key change too many times; try again');
+  }
+
+  /**
+   * Take from an installed app's own key every grant its new version no
+   * longer declares: each method it holds stays only where `declared` still
+   * lists it for that ref, and a grant on an endpoint that is gone goes too.
+   *
+   * It can only remove, so it checks nothing: a key that holds something
+   * already unsafe (a column a guest writes that Adminium has since started
+   * deciding) must still lose what the version dropped, and a check would
+   * refuse the whole write over the part it keeps. Returns the refs it lost;
+   * nothing is written when there are none.
+   */
+  async function narrowManagedAccess(input: {
+    connectionId: string;
+    keyId: string;
+    declared: ReadonlyMap<string, readonly PublicMethod[]>;
+  }): Promise<{ lost: string[] }> {
+    const { connectionId } = input;
+    await state.ensure(now());
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const revision = await state.read();
+      const at = now();
+      const key = (await keys.listLiveDerived(connectionId, at)).find((k) => k.id === input.keyId);
+      // Only a live key an app made; a hand-made key's access is its owner's.
+      if (key === undefined || key.managedBy === null) return { lost: [] };
+      const kind: PublicKeyKind = key.kind === 'server' ? 'server' : 'browser';
+      const map = endpointMap(await endpoints.listByConnection(connectionId));
+      const refOf = new Map([...map.values()].map((e) => [e.id, e.ref]));
+      const before = parseAccess(key.access);
+      const access: Record<string, PublicMethod[]> = {};
+      const lost: string[] = [];
+      for (const [id, methods] of Object.entries(before)) {
+        const ref = refOf.get(id);
+        const kept = ref === undefined ? [] : canonicalMethods(methods.filter((m) => (input.declared.get(ref) ?? []).includes(m)));
+        if (kept.length < methods.length) lost.push(ref ?? id);
+        if (kept.length > 0) access[id] = kept;
+      }
+      if (lost.length === 0) return { lost };
+      // The scope follows the grants it is derived from; whatever it says of the rest, it says already.
+      const derivation = deriveScopeDocument({ kind, access }, map, await deps.viewFor(connectionId));
+      const committed = await meta.db.transaction().execute(async (trx) => {
+        if (!(await state.advanceFrom(revision, at, trx))) return false;
+        await keys.setAccess(key.id, access, at, trx);
+        await scopes.update(key.scopeId, { document: JSON.stringify(derivation.document) }, at, trx);
+        return true;
+      });
+      if (!committed) continue;
+      deps.invalidate?.(key.id);
+      return { lost };
+    }
+    throw new PublicApiContended('the public API changed under this key change too many times; try again');
+  }
+
+  /** What a key holds, by endpoint ref: the methods it is granted on each (an endpoint gone is left out). */
+  async function heldByKey(connectionId: string, keyId: string): Promise<Map<string, string[]>> {
+    const key = await keys.findById(keyId);
+    const refOf = new Map((await endpoints.listByConnection(connectionId)).map((e) => [e.id, e.ref]));
+    const out = new Map<string, string[]>();
+    for (const [id, methods] of Object.entries(parseAccess(key?.access ?? null))) {
+      const ref = refOf.get(id);
+      if (ref !== undefined) out.set(ref, methods);
+    }
+    return out;
+  }
+
+  return { checkEndpoint, saveEndpoint, removeEndpoint, renameEndpoint, createKey, scopeLinkIssues, setManagedAccess, narrowManagedAccess, heldByKey };
 }
 
 export type EndpointService = ReturnType<typeof createEndpointService>;

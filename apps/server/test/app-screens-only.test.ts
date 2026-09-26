@@ -94,8 +94,13 @@ describe('someone who opens only an app’s own screens', () => {
     expect(bootstrap.json().error).toMatchObject({ code: 'APP_SCREENS_ONLY', details: { openUrl: '/apps/clients/staff/' } });
     expect((await get('/api/v1/connections', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/roles', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
+    // The same routes spelled another way on the request line reach them just the same: refused alike.
+    for (const url of ['/%61pi/v1/roles', '/%61pi/v1/connections', '/api/v1/%72oles']) {
+      expect((await get(url, cookie)).json().error?.code, url).toBe('APP_SCREENS_ONLY');
+    }
     // What the screens need still answers.
     expect((await get('/api/v1/me', cookie)).statusCode).toBe(200);
+    expect((await get('/%61pi/v1/me', cookie)).statusCode).toBe(200);
     expect((await get('/api/v1/i18n/bundles/en_US/common', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/data/conn_x/main.items', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
   });

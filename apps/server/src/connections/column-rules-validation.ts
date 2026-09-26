@@ -573,6 +573,29 @@ export function statesRuleIssue(raw: unknown, table: TableModel, model: Database
     const issue = linked(id, child.via);
     if (issue !== null) return issue;
     for (const name of child.clearOnCreate ?? []) if (!own(name)) return `${table.name} has no column ${JSON.stringify(name)}.`;
+    const childTable = model.tables.find((candidate) => candidate.id === id)!;
+    if (child.release !== undefined) {
+      if (child.lock !== true) return `A ${childTable.name} row is released only from its parent's lock.`;
+      for (const state of child.release.when) {
+        if (!(states.lock?.when ?? []).includes(state)) return `${JSON.stringify(state)} is not a state the lock holds, so there is nothing to release.`;
+        // Released there, a link stops locking its row: a row moving on from it could come back billing a changed one.
+        if ((states.moves[state] ?? []).length > 0) return `${JSON.stringify(state)} has moves out of it: release only in a final state.`;
+      }
+      for (const name of child.release.columns) {
+        const column = childTable.columns.find((c) => c.name === name);
+        if (column === undefined) return `${childTable.name} has no column ${JSON.stringify(name)}.`;
+        if (name === child.via || column.isPrimaryKey || !column.nullable) return `${childTable.name}.${name} cannot be emptied.`;
+      }
+    }
+    for (const [link, columns] of Object.entries(child.lockLinked ?? {})) {
+      // As the write path follows it: one column to one other table's one-column key.
+      const relation = model.relations.find(
+        (r) => r.through === null && r.from.tableId === id && r.from.columns.length === 1 && r.from.columns[0] === link && r.to.columns.length === 1,
+      );
+      const target = relation === undefined ? undefined : model.tables.find((candidate) => candidate.id === relation.to.tableId);
+      if (target === undefined) return `${childTable.name}.${link} does not point at another table.`;
+      for (const name of columns) if (!target.columns.some((c) => c.name === name)) return `${target.name} has no column ${JSON.stringify(name)}.`;
+    }
   }
   for (const moves of Object.values(states.moves)) {
     for (const move of moves) {

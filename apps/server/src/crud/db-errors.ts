@@ -30,7 +30,8 @@
  *    friendly shapes and callers that depend on them.
  * 4. The public surface collapses all of this into its one opaque refusal
  *    (`routes/public/index.ts` `refuseWrite`): naming a column to an anonymous
- *    caller is a membership oracle.
+ *    caller is a membership oracle. It names a column only for the write
+ *    service's own refusals of a value for itself, never for one read here.
  * 5. A LOCK CONFLICT is not a refused value. Two writers wanted the same rows
  *    at the same moment and the database gave one of them up (a deadlock, a
  *    serialization failure, a lock wait that ran out, a busy SQLite file).
@@ -148,6 +149,13 @@ function postgresRefusal(error: DriverError, table: ResolvedTable, message: stri
     case '22007':
     case '22008':
       return { column: null, code: 'invalid' };
+    case '22021':
+    case '22P05':
+      // U+0000 in text (`invalid byte sequence for encoding "UTF8": 0x00`) or
+      // its escape in `jsonb` (`unsupported Unicode escape sequence`). The
+      // write service refuses both before they are sent, naming the column;
+      // this is the answer for anything that reaches Postgres anyway.
+      return { column: null, code: 'invalid-character' };
     default:
       return null;
   }

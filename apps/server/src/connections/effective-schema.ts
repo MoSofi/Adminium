@@ -157,7 +157,19 @@ export interface TableStatesRule {
   initial: string;
   moves: Record<string, (string | StateMoveRule)[]>;
   lock?: { when: string[]; except?: string[] };
-  children?: Record<string, { via: string; lock?: true; parentIn?: string[]; clearOnCreate?: string[] }>;
+  children?: Record<
+    string,
+    {
+      via: string;
+      lock?: true;
+      parentIn?: string[];
+      clearOnCreate?: string[];
+      /** While the parent is in one of `when`, a locked child may still empty these columns of its own, and change nothing else. */
+      release?: { when: string[]; columns: string[] };
+      /** A child's link column → the columns of the row it points at that stay as they are while it points there. */
+      lockLinked?: Record<string, string[]>;
+    }
+  >;
   lockedWhenReferencedBy?: { table: string; via: string; in: string[] }[];
   noDelete?: { when: 'numbered' | string[] };
   onlyLater?: string[];
@@ -192,6 +204,8 @@ export interface LockedByReference {
 export interface StateParent {
   /** The parent table's id and its one-column key. */
   table: string;
+  /** The parent table's own name, as a refusal names it. */
+  name: string;
   key: string;
   /** This table's foreign key to the parent. */
   via: string;
@@ -203,6 +217,41 @@ export interface StateParent {
   lock?: true;
   parentIn?: string[];
   clearOnCreate?: string[];
+  release?: { when: string[]; columns: string[] };
+  /**
+   * The rows this table's links point at whose columns a row here keeps
+   * (`lockLinked`), each resolved to the linked table and its key: a write
+   * that sets such a link holds the linked row first.
+   */
+  links?: { via: string; table: string; key: string; columns: string[] }[];
+  /**
+   * This table's links a `lockLinked` names that the model can no longer
+   * follow: no foreign key to one other table's one-column key, or a kept
+   * column that table no longer has. The rows such a link points at cannot
+   * be kept as the rule promises, so nothing new is linked through it (a
+   * write setting it is refused) until the link or the rule is mended.
+   */
+  unresolvedLinks?: string[];
+}
+
+/**
+ * Columns of this table that stay as they are while a row of another table
+ * links to the row (a parent's `states.children[…].lockLinked`), resolved
+ * when the model is built. The link does not lock while the linking row's
+ * parent is in one of `releasedIn` — the states that release that link.
+ */
+export interface LinkLock {
+  /** The linking table's id, and its column pointing here. */
+  table: string;
+  /** The linking table's own name, as a refusal names it. */
+  name: string;
+  via: string;
+  /** This table's key the link points at. */
+  key: string;
+  columns: string[];
+  /** The linking row's parent: its table, key, the linking row's column to it, and its state column. */
+  parent: { table: string; key: string; via: string; column: string };
+  releasedIn: string[];
 }
 
 /** A number or a time the rule states, or a settings table's column read at write time. */
@@ -357,6 +406,8 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   lockedBy?: LockedByReference[];
   /** The parents whose state this table's rows are tied to. */
   stateParents?: StateParent[];
+  /** Columns rows of other tables keep while they link here (`lockLinked`, resolved). */
+  linkLocks?: LinkLock[];
 }
 
 export interface EffectiveRelation extends Relation {
@@ -807,10 +858,11 @@ export interface ApplyOverridesOptions {
  * judged from that table alone, whichever door it comes through. A reference
  * to a table that is gone, or that keeps no states, ties nothing.
  */
-function tieStates(tables: ReadonlyMap<string, EffectiveTable>): void {
+function tieStates(tables: ReadonlyMap<string, EffectiveTable>, relations: readonly Relation[]): void {
   for (const table of tables.values()) {
     delete table.lockedBy;
     delete table.stateParents;
+    delete table.linkLocks;
   }
   for (const table of tables.values()) {
     const states = table.states;
@@ -829,8 +881,47 @@ function tieStates(tables: ReadonlyMap<string, EffectiveTable>): void {
     for (const [childId, rule] of Object.entries(states.children ?? {})) {
       const child = tables.get(childId);
       if (child === undefined || !child.columns.some((c) => c.name === rule.via)) continue;
+      /*
+       * The rows the child's links point at, each through a relation the
+       * snapshot has (one column to one column). A link that leads nowhere
+       * the model knows locks nothing: there is no row to hold.
+       */
+      const links: { via: string; table: string; key: string; columns: string[] }[] = [];
+      const unresolved: string[] = [];
+      for (const [link, columns] of Object.entries(rule.lockLinked ?? {})) {
+        const relation = relations.find(
+          (r) => r.through === null && r.from.tableId === childId && r.from.columns.length === 1 && r.from.columns[0] === link && r.to.columns.length === 1,
+        );
+        const target = relation === undefined ? undefined : tables.get(relation.to.tableId);
+        /*
+         * A link the model cannot follow (its foreign key dropped, its table
+         * gone) or a kept column its table no longer has: the rule can no
+         * longer be kept in full, and saying nothing would let a line bill a
+         * row whose hours then change. Fail closed: nothing new is linked
+         * through it. What can still be kept is.
+         */
+        if (relation === undefined || target === undefined) {
+          unresolved.push(link);
+          continue;
+        }
+        const targetKey = relation.to.columns[0] as string;
+        const kept = columns.filter((name) => target.columns.some((c) => c.name === name));
+        if (kept.length !== columns.length) unresolved.push(link);
+        links.push({ via: link, table: relation.to.tableId, key: targetKey, columns: kept });
+        (target.linkLocks ??= []).push({
+          table: childId,
+          name: child.name,
+          via: link,
+          key: targetKey,
+          columns: kept,
+          parent: { table: tableId(table as TableModel), key, via: rule.via, column: states.column },
+          // Only a link the parent's state lets go of stops locking in that state.
+          releasedIn: rule.release !== undefined && rule.release.columns.includes(link) ? rule.release.when : [],
+        });
+      }
       (child.stateParents ??= []).push({
         table: tableId(table as TableModel),
+        name: table.name,
         key,
         via: rule.via,
         column: states.column,
@@ -839,6 +930,9 @@ function tieStates(tables: ReadonlyMap<string, EffectiveTable>): void {
         ...(rule.lock === undefined ? {} : { lock: rule.lock }),
         ...(rule.parentIn === undefined ? {} : { parentIn: rule.parentIn }),
         ...(rule.clearOnCreate === undefined ? {} : { clearOnCreate: rule.clearOnCreate }),
+        ...(rule.release === undefined ? {} : { release: rule.release }),
+        ...(links.length === 0 ? {} : { links }),
+        ...(unresolved.length === 0 ? {} : { unresolvedLinks: unresolved }),
       });
     }
   }
@@ -1129,7 +1223,7 @@ export function applyOverrides(
   }
 
   settleSecrets(tables.values(), secretSaid, maskedForSecret);
-  tieStates(tables);
+  tieStates(tables, effective.relations);
 
   // Table labels last, from the ONE precedence-aware resolver — a user
   // `table.label` beats an accepted `llm.label` bundle whichever came first.

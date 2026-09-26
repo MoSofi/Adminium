@@ -161,7 +161,7 @@ describe.skipIf(!psqlAvailable)('enums, identity, checks, views (extras schema)'
     expect(ticketsColumn('status')).toMatchObject({
       logicalType: 'enum',
       enumRef: 'extras.ticket_status',
-      default: { kind: 'literal', text: "'open'::extras.ticket_status" },
+      default: { kind: 'literal', text: 'open' },
       comment: 'Workflow state',
     });
   });

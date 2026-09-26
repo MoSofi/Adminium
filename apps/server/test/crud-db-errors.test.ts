@@ -83,6 +83,8 @@ const POSTGRES = {
   outOfRange: { code: '22003', message: 'integer out of range' },
   badNumber: { code: '22P02', message: 'invalid input syntax for type integer: "abc"' },
   badDate: { code: '22007', message: 'invalid input syntax for type timestamp with time zone: "not-a-date"' },
+  nulText: { code: '22021', message: 'invalid byte sequence for encoding "UTF8": 0x00' },
+  nulJson: { code: '22P05', message: 'unsupported Unicode escape sequence' },
 };
 
 const MYSQL = {
@@ -122,6 +124,9 @@ describe('database refusals → field errors', () => {
     expect(readDbRefusal(POSTGRES.outOfRange, patients)).toEqual({ column: null, code: 'out-of-range' });
     expect(readDbRefusal(POSTGRES.badNumber, patients)).toEqual({ column: null, code: 'invalid' });
     expect(readDbRefusal(POSTGRES.badDate, patients)).toEqual({ column: null, code: 'invalid' });
+    // U+0000, which the write service refuses before it is sent: the answer if one ever arrives anyway.
+    expect(readDbRefusal(POSTGRES.nulText, patients)).toEqual({ column: null, code: 'invalid-character' });
+    expect(readDbRefusal(POSTGRES.nulJson, patients)).toEqual({ column: null, code: 'invalid-character' });
   });
 
   it('mysql', () => {

@@ -163,16 +163,28 @@ export function mapSqliteType(
 const NOW_DEFAULT = /^(current_timestamp|current_date|current_time|datetime\(\s*'now'[^)]*\)|strftime\(\s*'%s'[^)]*\)|unixepoch\(\s*\))$/i;
 const LITERAL_DEFAULT = /^('(?:[^']|'')*'|-?\d+(\.\d+)?|true|false|null|x'[0-9a-f]*')$/i;
 
+/** A quoted string literal, `'it''s'`: its value is what is between the quotes. */
+const QUOTED_TEXT = /^'((?:[^']|'')*)'$/;
+
 /**
  * Classify a column default — `pragma_table_xinfo.dflt_value` is the raw
  * default expression text. Autoincrement is decided by the assembler
  * (INTEGER PRIMARY KEY rowid alias / AUTOINCREMENT keyword), not here.
+ *
+ * A quoted text literal is read as its VALUE (`'queued'` is `queued`), the
+ * way every other literal in the model is spelled: the DDL compiler quotes a
+ * text literal itself, so a table rebuilt from what was read back would
+ * otherwise declare `DEFAULT '''queued'''`, and gain a pair of quotes on
+ * every rebuild after. A blob (`x'00ff'`) is not text, and keeps its form.
  */
 export function classifyDefault(defaultText: string | null): ColumnDefault {
   if (defaultText === null || defaultText === '') return null;
   const text = defaultText.trim();
   if (/^null$/i.test(text)) return null;
   if (NOW_DEFAULT.test(text)) return { kind: 'now' };
-  if (LITERAL_DEFAULT.test(text)) return { kind: 'literal', text };
+  if (LITERAL_DEFAULT.test(text)) {
+    const quoted = QUOTED_TEXT.exec(text);
+    return { kind: 'literal', text: quoted === null ? text : (quoted[1] ?? '').replaceAll("''", "'") };
+  }
   return { kind: 'expression', text };
 }

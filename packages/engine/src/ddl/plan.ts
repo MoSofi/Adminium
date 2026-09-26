@@ -478,7 +478,8 @@ function planAlters(
     );
   }
   for (const u of diff.uniquesRemoved) {
-    emit(make('drop-unique', id, ctx, { summary: `Drop unique constraint on ${u.columns.join(', ')}` }));
+    // Its own name travels with the step, as a dropped index's does: the compiler must never guess one.
+    emit(make('drop-unique', id, ctx, { constraint: u.name ?? null, summary: `Drop unique constraint on ${u.columns.join(', ')}` }));
   }
   for (const c of diff.checksRemoved) {
     emit(
@@ -611,7 +612,14 @@ function planAlters(
     emit(make('set-pk', id, ctx, { summary: `Set the primary key to (${diff.pkChanged.to.join(', ')})` }));
   }
   for (const u of diff.uniquesAdded) {
-    emit(make('add-unique', id, ctx, { summary: `Require ${u.columns.join(', ')} to be unique` }));
+    // Named, and its column said, so each of two added in one plan is compiled as itself.
+    emit(
+      make('add-unique', id, ctx, {
+        column: u.columns.length === 1 ? (u.columns[0] ?? null) : null,
+        constraint: u.name,
+        summary: `Require ${u.columns.join(', ')} to be unique`,
+      }),
+    );
   }
   for (const c of diff.checksAdded) {
     const column = enumCheckColumn(c.expression, desired.columns.map((col) => col.name));
@@ -627,7 +635,19 @@ function planAlters(
     );
   }
   for (const i of diff.indexesAdded) {
-    emit(make('add-index', id, ctx, { summary: `Index ${i.columns.join(', ')}` }));
+    /*
+     * A unique index is named, and its column said, so it is made as itself:
+     * UNIQUE, under its own name, and each of two in one plan as its own.
+     */
+    emit(
+      i.unique
+        ? make('add-index', id, ctx, {
+            column: i.columns.length === 1 ? (i.columns[0] ?? null) : null,
+            constraint: i.name,
+            summary: `Require ${i.columns.join(', ')} to be unique`,
+          })
+        : make('add-index', id, ctx, { summary: `Index ${i.columns.join(', ')}` }),
+    );
   }
   for (const fk of diff.fksAdded) {
     /*

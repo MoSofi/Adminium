@@ -164,7 +164,9 @@ export {
 
 export {
   IDENTIFIER_LIMIT,
+  MYSQL_UNIQUE_KEY_BYTES,
   ROLE_SLUG_LIMIT,
+  uniqueWithOf,
   type PlanContext,
   type TableChoice,
   type TableClass,

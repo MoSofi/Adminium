@@ -254,7 +254,15 @@ export function diffTableDefinitions(
    * index taken out of the list with it) planned a DROP INDEX SQLite refuses
    * for an index a constraint owns.
    */
-  const listed = (i: { name: string; primary: boolean }) => !i.primary && !i.name.startsWith('sqlite_autoindex_');
+  /*
+   * Nor is the index Postgres and MySQL keep for a unique constraint, under
+   * the constraint's own name: dropping the constraint drops it, so listing it
+   * too planned a second drop of an index already gone (removing a column
+   * that had a unique rule failed with "does not exist").
+   */
+  const constraintNames = new Set([...actual.uniques, ...desired.uniques].flatMap((u) => (u.name === null ? [] : [u.name])));
+  const listed = (i: { name: string; primary: boolean }) =>
+    !i.primary && !i.name.startsWith('sqlite_autoindex_') && !constraintNames.has(i.name);
   const indexes = diffConstraints(
     actual.indexes.filter(listed).map((i) => ({ name: i.name, columns: i.columns, unique: i.unique })),
     desired.indexes.filter(listed).map((i) => ({ name: i.name, columns: i.columns, unique: i.unique })),

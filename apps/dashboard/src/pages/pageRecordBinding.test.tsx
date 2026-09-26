@@ -1019,6 +1019,51 @@ describe('a document’s states on the record page', () => {
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
   });
 
+  it('opens a closed child for the columns its parent’s state lets it empty, and only those', async () => {
+    const user = userEvent.setup();
+    const ordersWithDetail = () => {
+      const base = ordersEnvelope();
+      return jsonResponse(200, { data: { ...base, config: { ...base.config, keyField: 'id', detail: { template: 'page-record', tabs: [] } } } });
+    };
+    const released = { stateParents: [{ ...tiedOrders.stateParents[0], release: { when: ['active'], columns: ['total'] } }] };
+    await renderAt('/p/orders/r/21', {
+      ordersReply: ordersWithDetail,
+      orderReply: () => jsonResponse(200, { data: ORDERS[0] }),
+      schemaReply: schema({ states: states() }, released),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('spinbutton', { name: /Total/ })).toBeDefined();
+  });
+
+  it('draws what a row linking here keeps read-only, while that row’s parent does not release it', async () => {
+    const user = userEvent.setup();
+    const kept = (releasedIn: string[]) => ({
+      linkLocks: [
+        {
+          table: 'public.orders',
+          via: 'customer_id',
+          key: 'id',
+          columns: ['name'],
+          parent: { table: 'public.customers', key: 'id', via: 'customer_id', column: 'status' },
+          releasedIn,
+        },
+      ],
+    });
+    await renderAt('/p/customers/r/1', { schemaReply: schema(kept(['void'])) });
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    let dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(within(dialog).queryByRole('textbox', { name: /Name/ })).toBeNull());
+    expect(within(dialog).getByRole('textbox', { name: /Phone/ })).toBeDefined();
+    cleanup();
+    resetAppStreamTransport();
+
+    await renderAt('/p/customers/r/1', { schemaReply: schema(kept(['active'])) });
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('textbox', { name: /Name/ })).toBeDefined();
+  });
+
   it('says a refused delete in words', async () => {
     const user = userEvent.setup();
     await renderAt('/p/customers/r/1', {

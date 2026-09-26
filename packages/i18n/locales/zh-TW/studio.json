@@ -616,7 +616,8 @@
         "ddlNote": "僅供參考。伺服器會為你的資料庫引擎產生確切語句，包含外鍵。",
         "summary": "建立 {created} · 沿用 {reused}",
         "ruleWarnings": "此應用程式的部分規則會顯示你的資料表中隱藏的內容，因此不會套用",
-        "pageWarnings": "此應用程式的部分頁面將在沒有資料表的情況下建立"
+        "pageWarnings": "此應用程式的部分頁面將在沒有資料表的情況下建立",
+        "installedElsewhere": "{app} 已安裝在連線 {connection} 上。一個應用程式只在一個連線上執行：請在那裡更新它，或先在那裡解除安裝，再安裝到其他連線。"
       },
       "done": {
         "body": "{key} 已開始提供服務。請在下方選擇其員工端的顯示位置。",
@@ -671,6 +672,8 @@
         "widens": "將 {column} 從 {from} 加寬為 {to}。",
         "setIdentity": "{column} 會自動為新資料列編號。",
         "enumValues": "{column} 也接受 {values}。",
+        "addUnique": "{column} 不再允許出現重複的值。",
+        "addUniqueWith": "對同一個 {with}，{column} 不再允許出現重複的值。",
         "noLoss": "不會移除任何欄位，也不會遺失任何資料。",
         "reuseNote": "應用程式會讀寫既有的資料列。",
         "renameTitle": "重新命名既有資料表以騰出名稱",
@@ -785,6 +788,7 @@
       "close": "關閉",
       "done": "{app} 已更新至 v{version}",
       "missingColumns": "缺少：{tables}。",
+      "accessSubtitle": "檢查此版本讓應用程式的客戶可以做什麼。",
       "checkSubtitle": "檢查此版本使用的資料表。",
       "pickFirst": "更新前請選擇如何處理 {table}。",
       "checkFirst": "更新前請重新檢查資料表。",
@@ -3052,6 +3056,7 @@
     "allow": "允許此公開存取",
     "helper": "之後可以在 API 金鑰頁面縮小範圍。",
     "cannotGrant": "只有可管理 API 金鑰的人才能允許，因此此應用程式會在沒有它的情況下安裝。",
+    "opensWithoutStaff": "讓任何持有連結的人無需員工登入即可開啟 {key} 金鑰讀取的內容",
     "warning": {
       "apiOff": "公開 API 已關閉，在開啟之前這些都不會回應。",
       "originSelf": "允許的來源不包含「self」，因此此應用程式在這台伺服器上的頁面無法呼叫它。",

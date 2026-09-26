@@ -44,18 +44,23 @@ export async function appConnections(meta: MetaDb, settings: SurfaceSettings, ap
   return out;
 }
 
-/** Whether a screens-only person may make this API call. */
-export function allowedForScreensOnly(method: string, url: string, connections: ReadonlySet<string>): boolean {
-  const path = url.split('?')[0]!;
-  if (!path.startsWith(`${API}/`)) return true;
-  const rest = path.slice(API.length);
+/**
+ * Whether a screens-only person may make this API call, judged by the ROUTE
+ * it matched (`/api/v1/connections/:id/schema`) and its decoded parameters —
+ * never by the request line, which can spell the same route another way
+ * (`/%61pi/v1/roles`, or the absolute form `GET http://host/api/v1/roles`)
+ * and would then match no pattern here while still reaching the route.
+ */
+export function allowedForScreensOnly(method: string, route: string, params: unknown, connections: ReadonlySet<string>): boolean {
+  if (!route.startsWith(`${API}/`)) return true;
+  const rest = route.slice(API.length);
   if (/^\/(auth|data|i18n)(\/|$)/.test(rest)) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;
   if (rest === '/events') return true;
-  const schema = /^\/connections\/([^/]+)\/schema$/.exec(rest);
-  return method === 'GET' && schema !== null && connections.has(decodeURIComponent(schema[1]!));
+  const id = (params as { id?: unknown } | null)?.id;
+  return method === 'GET' && rest === '/connections/:id/schema' && typeof id === 'string' && connections.has(id);
 }
 
 /** The refusal, with where their screens are. */

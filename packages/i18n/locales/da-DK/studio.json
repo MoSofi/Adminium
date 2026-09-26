@@ -616,7 +616,8 @@
         "ddlNote": "Vejledende. Serveren danner den præcise sætning til din motor, inklusive fremmednøgler.",
         "summary": "{created} oprettet · {reused} genbrugt",
         "ruleWarnings": "Nogle af appens regler ville vise det, en af dine tabeller holder skjult, og udelades",
-        "pageWarnings": "Nogle af appens sider kommer uden en tabel"
+        "pageWarnings": "Nogle af appens sider kommer uden en tabel",
+        "installedElsewhere": "{app} er allerede installeret på forbindelsen {connection}. En app kører på én forbindelse: Opdater den der, eller afinstaller den der, før du installerer den på en anden."
       },
       "done": {
         "body": "{key} serveres nu. Vælg nedenfor, hvor medarbejdersiden skal vises.",
@@ -671,6 +672,8 @@
         "widens": "Gør {column} bredere, fra {from} til {to}.",
         "setIdentity": "{column} nummererer selv nye rækker.",
         "enumValues": "{column} accepterer også {values}.",
+        "addUnique": "{column} må ikke længere indeholde samme værdi to gange.",
+        "addUniqueWith": "{column} må ikke længere indeholde samme værdi to gange for samme {with}.",
         "noLoss": "Ingen kolonne fjernes, og ingen data går tabt.",
         "reuseNote": "Appen læser og skriver de rækker, der allerede er der.",
         "renameTitle": "Omdøb den eksisterende tabel, så den er af vejen",
@@ -785,6 +788,7 @@
       "close": "Luk",
       "done": "{app} opdateret til v{version}",
       "missingColumns": "Mangler: {tables}.",
+      "accessSubtitle": "Tjek, hvad denne version lader appens kunder gøre.",
       "checkSubtitle": "Tjek de tabeller, denne version bruger.",
       "pickFirst": "Vælg, hvad der skal ske med {table}, før du opdaterer.",
       "checkFirst": "Tjek tabellerne igen, før du opdaterer.",
@@ -3052,6 +3056,7 @@
     "allow": "Tillad denne offentlige adgang",
     "helper": "Du kan begrænse den senere på siden API-nøgler.",
     "cannotGrant": "Kun en, der må administrere API-nøgler, kan tillade den, så appen installeres uden.",
+    "opensWithoutStaff": "Lad alle med et link åbne det, som nøglen {key} læser, uden at en medarbejder er logget ind",
     "warning": {
       "apiOff": "Den offentlige API er slået fra, så intet af dette svarer, før den er slået til.",
       "originSelf": "De tilladte oprindelser omfatter ikke “self”, så appens egne sider på denne server kan ikke kalde den.",

@@ -16,6 +16,7 @@
 import { z } from 'zod';
 
 import { PUBLIC_ACTIONS, PUBLIC_RESPONSE_SHAPES } from '../../public-api/scope.js';
+import { rowValues } from '../../security/nul-bytes.js';
 
 /** Mirrors `recordListQuery` (routes/data/schema.ts), narrowed for this surface. */
 export const publicListQuery = z.object({
@@ -195,9 +196,10 @@ export const publicWriteBody = z.object({
    * Column → value. Allow-listed against the scope's `writable` set, and any
    * column the scope declares a `default` for is OVERWRITTEN server-side
    * regardless of what arrives here — that is what makes a default immutable
-   * rather than merely suggested.
+   * rather than merely suggested. Left to the write service for U+0000,
+   * which names the column (`security/nul-bytes.ts`).
    */
-  values: z.record(z.string(), z.unknown()),
+  values: rowValues(z.record(z.string(), z.unknown())),
 });
 
 /** `POST /public/claim` — the end-customer identity check. */
@@ -388,7 +390,8 @@ export const PUBLIC_BATCH_MAX = 500;
  * the caller's code handles, not the query refusal a malformed body gets.
  */
 export const publicBatchBody = z.object({
-  rows: z.array(z.record(z.string(), z.unknown())).max(PUBLIC_BATCH_MAX * 4),
+  /** Each row's values, left to the write service for U+0000; a row's key is judged by the route. */
+  rows: z.array(rowValues(z.record(z.string(), z.unknown()))).max(PUBLIC_BATCH_MAX * 4),
 });
 
 // --- signing in by an emailed link, and a row shared by link --------------

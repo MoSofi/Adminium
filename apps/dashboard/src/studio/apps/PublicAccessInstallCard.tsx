@@ -114,6 +114,22 @@ export function PublicAccessInstallCard({
           )),
         )}
       </ul>
+      {(access.opensWithoutStaff ?? []).length > 0 ? (
+        <ul className="mb-[13px] flex flex-col gap-1.5" data-role="public-access-opens-without-staff">
+          {(access.opensWithoutStaff ?? []).map((key) => (
+            <li key={key} className="flex items-start gap-2 text-[12.5px] leading-[1.45] text-warn">
+              <AlertTriangle aria-hidden className="mt-px size-3.5 shrink-0" />
+              <span>
+                {t(
+                  'studio:appPublicAccess.opensWithoutStaff',
+                  'Let anyone with a link open what the {key} key reads, with no staff member signed in',
+                  { key },
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {troubled.length > 0 ? (
         <ul className="mb-[13px] flex flex-col gap-1.5" data-role="public-access-issues">
           {troubled.map((endpoint) => (

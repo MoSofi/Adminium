@@ -14,7 +14,9 @@ import { readLiveTables, type SchemaTargetCoreDeps } from '../src/add-ons/schema
 interface FakeTable {
   schema: string;
   name: string;
-  columns: { name: string; isPrimaryKey: boolean; dbType: string; nullable: boolean; default: unknown; isGenerated: boolean; logicalType?: string; maxLength?: number | null }[];
+  columns: { name: string; isPrimaryKey: boolean; dbType: string; nullable: boolean; default: unknown; isGenerated: boolean; logicalType?: string; maxLength?: number | null; isUnique?: boolean }[];
+  uniques?: { name: string; columns: string[] }[];
+  indexes?: { name: string; columns: string[]; unique: boolean; primary: boolean; partial: boolean; expression: string | null }[];
 }
 
 function depsWith(tables: FakeTable[], opts: { fail?: boolean } = {}) {
@@ -27,10 +29,12 @@ function depsWith(tables: FakeTable[], opts: { fail?: boolean } = {}) {
         dialect: 'postgres',
         introspect: async (o: { tableFilter?: (t: { schema: string; name: string }) => boolean }) => {
           if (opts.fail === true) throw new Error('connection refused');
-          const kept = tables.filter((t) => {
-            asked.push({ schema: t.schema, name: t.name });
-            return o.tableFilter?.({ schema: t.schema, name: t.name }) ?? true;
-          });
+          const kept = tables
+            .filter((t) => {
+              asked.push({ schema: t.schema, name: t.name });
+              return o.tableFilter?.({ schema: t.schema, name: t.name }) ?? true;
+            })
+            .map((t) => ({ uniques: [], indexes: [], ...t }));
           return { dialect: 'postgres', defaultSchema: 'public', tables: kept };
         },
         close: async () => {
@@ -69,8 +73,29 @@ describe('readLiveTables', () => {
           { ref: 'id', isPrimaryKey: true, dbType: 'integer', nullable: false, hasDefault: false, isGenerated: false, logicalType: 'integer', maxLength: null, isIdentity: false },
           { ref: 'invoice_id', isPrimaryKey: false, dbType: 'text', nullable: false, hasDefault: false, isGenerated: false, logicalType: 'text', maxLength: null, isIdentity: false },
         ],
+        uniques: [],
       },
     ]);
+  });
+
+  it('says which columns the table keeps unique: alone, or together, by a constraint or a unique index', async () => {
+    const { deps } = depsWith([
+      {
+        schema: 'public',
+        name: 'versions',
+        columns: [col('id', { isPrimaryKey: true }), col('code', { isUnique: true }), col('proposal_id'), col('v'), col('note')],
+        uniques: [{ name: 'uq_versions_code', columns: ['code'] }],
+        indexes: [
+          { name: 'uq_versions_v', columns: ['proposal_id', 'v'], unique: true, primary: false, partial: false, expression: null },
+          // A partial or plain index keeps nothing unique across the table.
+          { name: 'ix_note', columns: ['note'], unique: true, primary: false, partial: true, expression: null },
+          { name: 'ix_v', columns: ['v'], unique: false, primary: false, partial: false, expression: null },
+        ],
+      },
+    ]);
+    const [versions] = (await readLiveTables(deps, 'conn', new Set(['versions']))).tables;
+    expect(versions?.uniques).toEqual([['code'], ['proposal_id', 'v']]);
+    expect(versions?.columns.find((c) => c.ref === 'code')?.isUnique).toBe(true);
   });
 
   it('prefers the default schema when a name exists in two', async () => {

@@ -125,7 +125,7 @@ describe('states, the rarer refusals', () => {
     expectIssue(m, 'a child is locked with its parent, and the parent has no lock');
     m = valid();
     states(m, 'proposals')['children'] = { proposal_lines: { via: 'proposal_id' } };
-    expectIssue(m, 'a child says lock, parentIn or clearOnCreate');
+    expectIssue(m, 'a child says lock, parentIn, clearOnCreate or lockLinked');
     m = valid();
     states(m, 'proposals')['children'] = { proposal_lines: { via: 'proposal_id', clearOnCreate: ['nope'] } };
     expectIssue(m, '"proposals" has no column "nope"');

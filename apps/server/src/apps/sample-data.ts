@@ -65,7 +65,7 @@ import { applyOverrides, type EffectiveModel } from '../connections/effective-sc
 import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager, DataHandle, SourceDatabase } from '../connections/manager.js';
 import { SnapshotView, type ResolvedTable } from '../crud/identifiers.js';
-import { tableRulesFor } from '../crud/column-rules.js';
+import { literalDefault, tableRulesFor } from '../crud/column-rules.js';
 import { isUniqueViolation } from '../crud/decided-columns.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { renderNow } from '../crud/instants.js';
@@ -164,12 +164,42 @@ function safeJson(text: string): unknown {
 
 const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 
-/** The row's hash and each column's, as read back — what a later change is measured against. */
-export function hashRow(row: Row, table: ResolvedTable): { rowHash: string; colHashes: Record<string, string> } {
+/**
+ * A key in a ledger row's column hashes, beside the columns: the row was
+ * recorded since a date reads as its `YYYY-MM-DD` day on every engine. A row
+ * without it, on Postgres or MySQL, was recorded when the driver handed a
+ * date back as a JavaScript date at this server's local midnight, and its
+ * date columns were hashed as that instant's UTC day — the day before, east
+ * of UTC. It is measured the same way, or every such row would read as
+ * changed and stay when the sample is removed.
+ */
+export const LEDGER_DATES_AS_DAYS = '@dates-as-days';
+
+/** The day a Postgres or MySQL date was hashed as before it read as text: the UTC day of its local midnight. */
+function localMidnightDay(day: string | null): string | null {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '');
+  if (parts === null) return day;
+  const at = new Date(0);
+  at.setFullYear(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+  at.setHours(0, 0, 0, 0);
+  return Number.isNaN(at.getTime()) ? day : at.toISOString().slice(0, 10);
+}
+
+/**
+ * The row's hash and each column's, as read back — what a later change is
+ * measured against. `datesAtLocalMidnight` measures a ledger row recorded
+ * before dates read as days ({@link LEDGER_DATES_AS_DAYS}).
+ */
+export function hashRow(
+  row: Row,
+  table: ResolvedTable,
+  datesAtLocalMidnight = false,
+): { rowHash: string; colHashes: Record<string, string> } {
   const normal: Record<string, string | null> = {};
   for (const column of table.table.columns) {
     if (!(column.name in row)) continue;
-    normal[column.name] = normaliseValue(row[column.name], column.logicalType);
+    const value = normaliseValue(row[column.name], column.logicalType);
+    normal[column.name] = datesAtLocalMidnight && column.logicalType === 'date' ? localMidnightDay(value) : value;
   }
   const colHashes: Record<string, string> = {};
   for (const [name, value] of Object.entries(normal)) colHashes[name] = sha256(JSON.stringify(value)).slice(0, 16);
@@ -734,7 +764,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
                   pk: canonicalJson(key),
                   label,
                   row_hash: rowHash,
-                  col_hashes: JSON.stringify(colHashes),
+                  col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
                   created_at: now,
                 } as never)
                 .execute();
@@ -756,7 +786,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
               const { rowHash, colHashes } = hashRow(now, target.table);
               await db
                 .updateTable(ledger as never)
-                .set({ row_hash: rowHash, col_hashes: JSON.stringify(colHashes) } as never)
+                .set({ row_hash: rowHash, col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }) } as never)
                 .where('seq' as never, '=', row.seq as never)
                 .where('table_ref' as never, '=', ref as never)
                 .execute();
@@ -983,13 +1013,24 @@ async function analyse(
   for (const row of rows) {
     const now = current.get(row.seq);
     if (now === null || now === undefined) continue;
-    const { rowHash, colHashes } = hashRow(now, tableOf(row));
-    if (rowHash === row.row_hash) continue;
+    const table = tableOf(row);
     const before = JSON.parse(row.col_hashes) as Record<string, string>;
-    changed.set(
-      row.seq,
-      Object.keys(colHashes).filter((column) => before[column] !== colHashes[column]),
+    const recordedAsDays = Object.prototype.hasOwnProperty.call(before, LEDGER_DATES_AS_DAYS);
+    delete before[LEDGER_DATES_AS_DAYS];
+    const { rowHash, colHashes } = hashRow(now, table, handle.dialect !== 'sqlite' && !recordedAsDays);
+    if (rowHash === row.row_hash) continue;
+    /*
+     * A column the ledger never recorded came later (an update added it), and
+     * every row the sample wrote got it empty, or with the column's default.
+     * Only a value somebody put there since is a change; hashed against
+     * nothing, it would read as one in every sample row of the table.
+     */
+    const columns = Object.keys(colHashes).filter((column) =>
+      Object.prototype.hasOwnProperty.call(before, column)
+        ? before[column] !== colHashes[column]
+        : !asAdded(now[column], table, column),
     );
+    if (columns.length > 0) changed.set(row.seq, columns);
   }
 
   // Referrers that are not sample rows keep what they point at.
@@ -1051,6 +1092,15 @@ async function analyse(
     for (const value of Object.values(current.get(seq) ?? {})) if (typeof value === 'string') keptValues.push(value);
   }
   return { used, changed, gone, keep, keptValues, current };
+}
+
+/** Whether a column added after the row was written still holds what it was added with: nothing, or its default. */
+function asAdded(value: unknown, table: ResolvedTable, column: string): boolean {
+  if (value === null || value === undefined) return true;
+  const declared = table.table.columns.find((candidate) => candidate.name === column);
+  if (declared === undefined) return false;
+  const given = literalDefault(declared.default, declared.logicalType);
+  return given !== undefined && given !== null && normaliseValue(value, declared.logicalType) === normaliseValue(given, declared.logicalType);
 }
 
 function safeTable(view: SnapshotView, id: string): ResolvedTable | null {

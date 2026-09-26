@@ -52,8 +52,11 @@ export const EXPORT_ZIP_MANIFEST_VERSION = 1;
  * and bundles stay diffable. The zip format cannot represent anything before
  * 1980, so this — the zip epoch — is the earliest fixed point available; the
  * real export time lives in the manifest's `exportedAt`, where it is readable.
+ * Zip entries store local wall time, so the point is built in local time: UTC
+ * midnight would be 31 December 1979 on a server west of UTC, which the zip
+ * writer refuses, and a UTC point would change the bytes with the server's zone.
  */
-const ZIP_EPOCH = new Date('1980-01-01T00:00:00.000Z');
+const ZIP_EPOCH = new Date(1980, 0, 1, 12, 0, 0);
 
 export interface ExportZipOptions {
   /** The meta store to read the configuration out of. */

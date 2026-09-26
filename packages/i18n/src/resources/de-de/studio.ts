@@ -626,7 +626,8 @@ export default {
         "ddlNote": "Beispielhaft. Der Server erzeugt die exakte Anweisung für Ihre Engine, inklusive Fremdschlüsseln.",
         "summary": "{created} angelegt · {reused} wiederverwendet",
         "ruleWarnings": "Einige Regeln dieser App würden zeigen, was eine Ihrer Tabellen verbirgt, und werden ausgelassen",
-        "pageWarnings": "Einige Seiten dieser App kommen ohne Tabelle an"
+        "pageWarnings": "Einige Seiten dieser App kommen ohne Tabelle an",
+        "installedElsewhere": "{app} ist bereits auf der Verbindung {connection} installiert. Eine App läuft auf einer Verbindung: Aktualisieren Sie sie dort oder deinstallieren Sie sie dort, bevor Sie sie auf einer anderen installieren."
       },
       "done": {
         "body": "{key} wird jetzt ausgeliefert. Wählen Sie unten, wo die Mitarbeiterseite erscheint.",
@@ -681,6 +682,8 @@ export default {
         "widens": "Macht {column} breiter, von {from} auf {to}.",
         "setIdentity": "{column} nummeriert neue Zeilen selbst.",
         "enumValues": "{column} akzeptiert zusätzlich {values}.",
+        "addUnique": "{column} darf denselben Wert nicht mehr zweimal enthalten.",
+        "addUniqueWith": "{column} darf pro {with} denselben Wert nicht mehr zweimal enthalten.",
         "noLoss": "Keine Spalte wird entfernt und keine Daten gehen verloren.",
         "reuseNote": "Die App liest und schreibt die vorhandenen Zeilen.",
         "renameTitle": "Die vorhandene Tabelle umbenennen, um Platz zu machen",
@@ -795,6 +798,7 @@ export default {
       "close": "Schließen",
       "done": "{app} auf v{version} aktualisiert",
       "missingColumns": "Es fehlen: {tables}.",
+      "accessSubtitle": "Prüfen Sie, was diese Version den Kunden der App erlaubt.",
       "checkSubtitle": "Prüfen Sie die Tabellen, die diese Version verwendet.",
       "pickFirst": "Wählen Sie vor dem Update, was mit {table} geschehen soll.",
       "checkFirst": "Prüfen Sie die Tabellen vor dem Update erneut.",
@@ -3062,6 +3066,7 @@ export default {
     "allow": "Diesen öffentlichen Zugriff erlauben",
     "helper": "Sie können ihn später auf der Seite „API-Schlüssel“ einschränken.",
     "cannotGrant": "Nur wer API-Schlüssel verwalten darf, kann ihn erlauben – die App wird daher ohne ihn installiert.",
+    "opensWithoutStaff": "Jedem mit einem Link öffnen, was der Schlüssel {key} liest – ohne angemeldete Mitarbeitende",
     "warning": {
       "apiOff": "Die öffentliche API ist ausgeschaltet, daher antwortet nichts davon, bis sie eingeschaltet ist.",
       "originSelf": "Die erlaubten Ursprünge enthalten „self“ nicht, daher können die eigenen Seiten der App auf diesem Server sie nicht aufrufen.",

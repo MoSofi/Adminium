@@ -217,6 +217,37 @@ describe('tableWithAddedColumns — the snapshot’s own table, extended', () =>
     expect(diff.commentChanged).toBeNull();
   });
 
+  it('gives an added column that must be one of a kind the unique constraint a new table has', () => {
+    const result = tableWithAddedColumns(invoices, [desiredColumn({ name: 'note' }), desiredColumn({ name: 'ref_no' })], {
+      dbTypeFor: () => 'text',
+      unique: new Set(['ref_no']),
+    });
+    const diff = diffTableDefinitions(invoices, result);
+    expect(diff.addedColumns).toEqual(['note', 'ref_no']);
+    expect(diff.uniquesAdded).toEqual([{ name: 'uq_invoices_ref_no', columns: ['ref_no'] }]);
+    expect(diff.uniquesRemoved).toEqual([]);
+  });
+
+  it('gives it a unique index instead where asked (SQLite, which adds one in place)', () => {
+    const result = tableWithAddedColumns(invoices, [desiredColumn({ name: 'ref_no' })], {
+      dbTypeFor: () => 'text',
+      unique: new Set(['ref_no']),
+      uniqueAs: 'index',
+    });
+    const diff = diffTableDefinitions(invoices, result);
+    expect(diff.uniquesAdded).toEqual([]);
+    expect(diff.indexesAdded).toEqual([{ name: 'uq_invoices_ref_no', columns: ['ref_no'], unique: true }]);
+  });
+
+  it('makes a number counted per parent row unique with that parent, as a new table has it', () => {
+    const result = tableWithAddedColumns(invoices, [desiredColumn({ name: 'v' })], {
+      dbTypeFor: () => 'integer',
+      unique: new Set(['v']),
+      uniqueWith: new Map([['v', ['number']]]),
+    });
+    expect(diffTableDefinitions(invoices, result).uniquesAdded).toEqual([{ name: 'uq_invoices_v', columns: ['number', 'v'] }]);
+  });
+
   it('is lossless where a DesiredTable restatement of the same table is not', () => {
     /*
      * The other half of the pair above, and D6's actual justification. A caller

@@ -40,6 +40,7 @@ import { parseDatabaseModel } from '@adminium/engine';
 import type { MetaDb } from '@adminium/meta';
 import { connectionsRepo, overridesRepo, pagesRepo, permissionsRepo, publicApiStateRepo, snapshotsRepo } from '@adminium/meta';
 
+import { mapTableRefs } from '../apps/real-refs.js';
 import { applyOverrides, columnPolicyFor } from '../connections/effective-schema.js';
 import { isUntouched, stamped } from '../pages/generated-stamp.js';
 
@@ -365,6 +366,28 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
     result.scopes += 1;
   }
   if (result.endpoints + result.scopes > 0) await publicApiStateRepo(meta).bump();
+
+  // --- an installed app's outbox ----------------------------------------------
+  // Stored with its tables' real ids (`apps/manifest-outbox.ts`), at any depth:
+  // the outbox table, its recipient's, a setting's row, a producer's. Left
+  // alone, what reads it (the greeting on a sign-in link's page among them)
+  // names a table that is not there any more.
+  const outboxes = await meta.db
+    .selectFrom('adminium_app_outboxes')
+    .select(['id', 'definition'])
+    .where('connectionId', '=', connectionId)
+    .execute();
+  for (const row of outboxes) {
+    let definition: unknown;
+    try {
+      definition = JSON.parse(row.definition);
+    } catch {
+      continue;
+    }
+    const text = JSON.stringify(mapTableRefs(definition, (id) => byOldId.get(id) ?? id).value);
+    if (text === JSON.stringify(definition)) continue;
+    await meta.db.updateTable('adminium_app_outboxes').set({ definition: text, updatedAt: Date.now() }).where('id', '=', row.id).execute();
+  }
 
   // --- an installed app's table record ----------------------------------------
   for (const [from, to] of byOldName) {

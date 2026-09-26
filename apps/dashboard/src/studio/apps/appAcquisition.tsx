@@ -34,6 +34,13 @@
  * runs it on the operator's click, and only then updates. A column the server
  * cannot type for itself (a foreign key) still falls through to the refusal,
  * which names it.
+ *
+ * ── …AND BEFORE IT LETS THE APP'S CUSTOMERS DO MORE ────────────────────────
+ *
+ * A version that adds to the app's public access (an enquiry form its guest
+ * key did not reach) shows it on the same check, with the install's own
+ * "Allow this public access" card, listing only what is new. The answer goes
+ * with the update; unticked, the app's key gains nothing.
  */
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -60,6 +67,7 @@ import {
 } from './appsApi.js';
 import { SURFACES_QUERY_KEY } from './hostedAppsApi.js';
 import { CheckHint, TableCheck, type TakenPick } from './InstallCheck.js';
+import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
 
 /** Which card an action belongs to, so its answer renders beside it. */
 export type AcquisitionOrigin = 'shelf' | 'installed';
@@ -85,10 +93,11 @@ interface UpdateConsent {
   connectionId?: string;
 }
 
-/** What the operator checked before an update: that plan's checksum, and their answers. */
+/** What the operator checked before an update: that plan's checksum, their answers, and their say on its public access. */
 export interface UpdateChecked {
   planChecksum?: string;
   choices?: InstallAnswers['choices'];
+  publicAccess?: boolean;
 }
 
 /** Whether a new version's check has anything to show or ask. */
@@ -96,6 +105,19 @@ function checkAsks(tables: readonly PlannedAppTable[]): boolean {
   return tables.some(
     (table) => table.class === 'new' || table.class === 'taken' || table.edits.length > 0,
   );
+}
+
+/**
+ * What a new version adds to what the app's guests can do — the entries its
+ * keys would gain, and a staff screen's key it would open to a shared link,
+ * for the operator to allow as at install — or null when it adds nothing.
+ * Nothing is given unless the answer is sent: the server grants only on yes.
+ */
+function publicAccessAdded(plan: AppInstallPlan): NonNullable<AppInstallPlan['publicAccess']> | null {
+  const access = plan.publicAccess;
+  const added = (access?.endpoints ?? []).filter((endpoint) => endpoint.onUpdate === 'granted');
+  const unlocked = access?.opensWithoutStaff ?? [];
+  return access === undefined || (added.length === 0 && unlocked.length === 0) ? null : { ...access, endpoints: added };
 }
 
 /** An update waiting on columns the operator has been asked to add. */
@@ -249,7 +271,7 @@ export function useAppAcquisition() {
            */
           if (plan.tables !== undefined) {
             const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
-            if (checkAsks(plan.tables) && (plan.installable || askable)) {
+            if ((checkAsks(plan.tables) || publicAccessAdded(plan) !== null) && (plan.installable || askable)) {
               setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
               return;
             }
@@ -462,7 +484,21 @@ function UpdateCheckDialog({
     },
   });
 
+  /*
+   * Ticked by default, as at install, where the app already has its public
+   * access (the new customer screens need the rest). An app installed
+   * without it is asked afresh, unticked: the operator said no once. So is
+   * a version that opens a staff screen's key to anyone with a link.
+   */
+  const [allowPublic, setAllowPublic] = useState(
+    () =>
+      consent.plan.publicAccess?.endpoints.some((endpoint) => endpoint.onUpdate === 'held') === true &&
+      (consent.plan.publicAccess.opensWithoutStaff ?? []).length === 0,
+  );
+
   const tables = plan.tables ?? [];
+  const asksTables = checkAsks(tables);
+  const access = publicAccessAdded(plan);
   return (
     <Modal
       open
@@ -476,7 +512,11 @@ function UpdateCheckDialog({
           app: consent.key,
           version: consent.to,
         })}
-        subtitle={t('studio:hostedApps.update.checkSubtitle', 'Check the tables this version uses.')}
+        subtitle={
+          asksTables
+            ? t('studio:hostedApps.update.checkSubtitle', 'Check the tables this version uses.')
+            : t('studio:hostedApps.update.accessSubtitle', 'Check what this version lets the app’s customers do.')
+        }
         closeLabel={t('studio:hostedApps.update.close', 'Close')}
       />
       <ModalBody>
@@ -486,34 +526,39 @@ function UpdateCheckDialog({
               {recheck.error.message}
             </Alert>
           )}
-          <TableCheck
-            plan={{ ...plan, tables }}
-            appName={consent.key}
-            connectionName=""
-            heading={false}
-            allowAltPrefix={false}
-            open={open}
-            onToggle={(ref) => setOpen((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
-            picks={picks}
-            onPick={(ref, pick) => {
-              const table = tables.find((candidate) => candidate.ref === ref);
-              const nextPicks = { ...picks, [ref]: pick };
-              const nextRename =
-                pick === 'rename-existing' && renameTo[ref] === undefined && table !== undefined
-                  ? { ...renameTo, [ref]: table.renameExistingTo ?? `${table.table}_old` }
-                  : renameTo;
-              setPicks(nextPicks);
-              setRenameTo(nextRename);
-              recheck.mutate(choicesOf(nextPicks, nextRename));
-            }}
-            renameTo={renameTo}
-            onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
-            prefix=""
-            onPrefix={() => undefined}
-            altPrefixInUse={null}
-            onUsualPrefix={() => undefined}
-            busy={recheck.isPending || state.busy}
-          />
+          {!asksTables ? null : (
+            <TableCheck
+              plan={{ ...plan, tables }}
+              appName={consent.key}
+              connectionName=""
+              heading={false}
+              allowAltPrefix={false}
+              open={open}
+              onToggle={(ref) => setOpen((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
+              picks={picks}
+              onPick={(ref, pick) => {
+                const table = tables.find((candidate) => candidate.ref === ref);
+                const nextPicks = { ...picks, [ref]: pick };
+                const nextRename =
+                  pick === 'rename-existing' && renameTo[ref] === undefined && table !== undefined
+                    ? { ...renameTo, [ref]: table.renameExistingTo ?? `${table.table}_old` }
+                    : renameTo;
+                setPicks(nextPicks);
+                setRenameTo(nextRename);
+                recheck.mutate(choicesOf(nextPicks, nextRename));
+              }}
+              renameTo={renameTo}
+              onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
+              prefix=""
+              onPrefix={() => undefined}
+              altPrefixInUse={null}
+              onUsualPrefix={() => undefined}
+              busy={recheck.isPending || state.busy}
+            />
+          )}
+          {access === null ? null : (
+            <PublicAccessInstallCard access={access} checked={allowPublic} onChange={setAllowPublic} />
+          )}
         </div>
       </ModalBody>
       <ModalFooter>
@@ -535,6 +580,7 @@ function UpdateCheckDialog({
               void state.confirmUpdate({
                 ...(plan.checksum === undefined ? {} : { planChecksum: plan.checksum }),
                 ...(checked === undefined ? {} : { choices: checked }),
+                ...(access === null ? {} : { publicAccess: allowPublic && !publicAccessBlocked(access) }),
               })
             }
           >

@@ -139,7 +139,7 @@ import { renderDocument, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
-import { bcp47, formatTag } from '../i18n/bcp47.js';
+import { bcp47, formatTag, proseNumber } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
@@ -358,7 +358,7 @@ export function valueForms(input: { locale: string; zone: string; currency: stri
         [prefix]: on({ dateStyle: 'full' }, 'UTC').format(noon),
         [`${prefix}.day_month`]: on({ day: 'numeric', month: 'long' }, 'UTC').format(noon),
         // Whole days from it to today on the venue's calendar: "47 days past due".
-        [`${prefix}.days_since`]: String(daysBetween(day, today)),
+        [`${prefix}.days_since`]: proseNumber(daysBetween(day, today), tag),
       };
     },
     range(from: Date, to: Date): string {
@@ -769,8 +769,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       return { status: 'failed', error: 'The email has an HTML block, which cannot carry what a person typed' };
     }
 
-    // The nearest template language writes the words; the recipient's own tag the clock.
-    const forms = valueForms({ locale: formatTag(typeof language === 'string' ? language : null, locale), zone: ctx.zone, currency: ctx.currency, now: ctx.now });
+    // The template really sent writes the words — US English when the recipient's language has none —
+    // and the recipient's own tag in THAT language the clock and the digits: never Arabic digits in an English email.
+    const forms = valueForms({ locale: formatTag(typeof language === 'string' ? language : null, template.locale), zone: ctx.zone, currency: ctx.currency, now: ctx.now });
     let to = found.trim();
     const holder = await codeHolder(box, ctx, row, to, addressed);
     const { vars, withheld } = await variables(box, { ...ctx, forms }, row, addressed, holder);

@@ -36,6 +36,8 @@
 
 import { createHash } from 'node:crypto';
 
+import type { Dialect } from '@adminium/engine';
+
 import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 
@@ -68,10 +70,12 @@ export function recordOccurrenceKey(input: {
   pk: Row;
   /** The `updated_at`-shaped column's value, when the table has one. */
   changeStamp?: unknown;
+  /** The source's engine: how a `date` stamp is spelled (see {@link stampOf}). */
+  dialect?: Dialect | undefined;
 }): string {
   const base = `${input.ruleId}:${pkKey(input.table, input.pk)}`;
   if (input.changeStamp === undefined) return capKey(base);
-  return capKey(`${base}:${stampOf(input.changeStamp)}`);
+  return capKey(`${base}:${stampOf(input.changeStamp, input.dialect)}`);
 }
 
 export function scheduleOccurrenceKey(input: {
@@ -87,9 +91,24 @@ export function scheduleOccurrenceKey(input: {
   return capKey(input.tick === undefined ? base : `${base}:${input.tick}`);
 }
 
-/** One column value as a stable string, whatever the driver returned. */
-export function stampOf(value: unknown): string {
+const BARE_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * One column value as a stable string, whatever the driver returned.
+ *
+ * A `date` stamp on Postgres or MySQL keeps the spelling it had before dates
+ * read as `YYYY-MM-DD` text: the driver handed back a JavaScript date at this
+ * server's local midnight, and the key carried its epoch. Spelled as the text
+ * instead, every row that already fired would get a new key, and the next
+ * update on the same day — or the poller reading the row — would run the rule
+ * for it a second time. SQLite always read the text, and keeps it.
+ */
+export function stampOf(value: unknown, dialect?: Dialect): string {
   if (value === null || value === undefined) return '';
   if (value instanceof Date) return String(value.getTime());
+  if (typeof value === 'string' && dialect !== undefined && dialect !== 'sqlite') {
+    const day = BARE_DAY.exec(value);
+    if (day !== null) return String(new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])).getTime());
+  }
   return String(value);
 }

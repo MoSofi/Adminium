@@ -122,19 +122,19 @@ describe('classifyDefault', () => {
     expect(classifyDefault('uuid_generate_v4()', '')).toEqual({ kind: 'uuid' });
   });
 
-  it('literals keep their verbatim text', () => {
-    expect(classifyDefault("'active'::text", '')).toEqual({
-      kind: 'literal',
-      text: "'active'::text",
-    });
-    expect(classifyDefault("'pend''ing'::character varying(20)", '')).toEqual({
-      kind: 'literal',
-      text: "'pend''ing'::character varying(20)",
-    });
+  it('literals are read as their value: a quoted one without its quotes or its cast', () => {
+    expect(classifyDefault("'active'::text", '')).toEqual({ kind: 'literal', text: 'active' });
+    expect(classifyDefault("'pend''ing'::character varying(20)", '')).toEqual({ kind: 'literal', text: "pend'ing" });
+    expect(classifyDefault("'-1'::integer", '')).toEqual({ kind: 'literal', text: '-1' });
+    expect(classifyDefault("'open'::extras.ticket_status", '')).toEqual({ kind: 'literal', text: 'open' });
     expect(classifyDefault('0', '')).toEqual({ kind: 'literal', text: '0' });
     expect(classifyDefault('-3.5', '')).toEqual({ kind: 'literal', text: '-3.5' });
     expect(classifyDefault('false', '')).toEqual({ kind: 'literal', text: 'false' });
-    expect(classifyDefault('NULL::text', '')).toEqual({ kind: 'literal', text: 'NULL::text' });
+  });
+
+  it('a typed NULL is no default', () => {
+    expect(classifyDefault('NULL::text', '')).toBeNull();
+    expect(classifyDefault('NULL', '')).toBeNull();
   });
 
   it('anything else is an expression', () => {

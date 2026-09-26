@@ -649,7 +649,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
 
       {checking && !install.isPending && stopped === null && plan !== null && hasTables(plan) ? (
         <div className="flex flex-col gap-4">
-          <PlanAlerts plan={plan} />
+          <PlanAlerts plan={plan} appName={staged?.name ?? ''} connections={connections} />
           <TableCheck
             plan={plan}
             appName={staged?.name ?? ''}
@@ -713,7 +713,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             </p>
           </div>
 
-          <PlanAlerts plan={plan} />
+          <PlanAlerts plan={plan} appName={staged?.name ?? ''} connections={connections} />
 
           <div className="flex flex-col gap-3">
             {[
@@ -1014,8 +1014,28 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
  * The plan's refusals and its page warnings. A taken table's own problem is
  * left to its card on the check step, where the answer to it is.
  */
-function PlanAlerts({ plan }: { plan: AppInstallPlan }) {
+function PlanAlerts({
+  plan,
+  appName,
+  connections,
+}: {
+  plan: AppInstallPlan;
+  appName: string;
+  connections: readonly { id: string; name: string }[];
+}) {
   const problems = plan.problems.filter((problem) => !isCardProblem(plan, problem));
+  // The one refusal about where the app already is, said in the reader's language with the connection's name.
+  const said = (problem: AppInstallPlan['problems'][number]): string =>
+    problem.code === 'APP_INSTALLED_ELSEWHERE' && problem.connectionId !== undefined
+      ? t(
+          'studio:hostedApps.install.plan.installedElsewhere',
+          '{app} is already installed on the connection {connection}. An app runs on one connection: update it there, or uninstall it there before installing it on another.',
+          {
+            app: appName === '' ? problem.table : appName,
+            connection: connections.find((connection) => connection.id === problem.connectionId)?.name ?? problem.connectionId,
+          },
+        )
+      : problem.message;
   return (
     <>
     {problems.length === 0 ? null : (
@@ -1026,7 +1046,7 @@ function PlanAlerts({ plan }: { plan: AppInstallPlan }) {
         <ul className="list-disc ps-5">
           {problems.map((problem) => (
             <li key={`${problem.table}.${problem.column ?? ''}${problem.code}`}>
-              {problem.message}
+              {said(problem)}
             </li>
           ))}
         </ul>

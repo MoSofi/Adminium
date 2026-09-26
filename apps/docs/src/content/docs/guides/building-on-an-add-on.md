@@ -142,9 +142,11 @@ above zero, a sent invoice with nothing paid may be voided, and a sent or void i
 except for a few columns. The lines are locked with it, and payments are recorded only against a
 sent invoice. See [States](/reference/manifest/#states).
 
-Your table spells out the same states, and may add to them in four ways: more columns that stay
-writable in `lock.except` (its own), `roles` on a move, more child tables in `children`, and more
-of its own columns in a child's `clearOnCreate`. The studio keeps voiding a sent invoice for its
+Your table spells out the same states, and may add to them in five ways: more columns that stay
+writable in `lock.except` (its own), `roles` on a move, more child tables in `children`, more
+of its own columns in a child's `clearOnCreate`, and, on a child, a `release` and `lockLinked`
+over columns you added to it (a line's link to the time it bills, emptied once the invoice is void;
+see [states](/reference/manifest/#states)). The studio keeps voiding a sent invoice for its
 managers, and a recorded payment clears the client's "I've paid":
 
 ```json

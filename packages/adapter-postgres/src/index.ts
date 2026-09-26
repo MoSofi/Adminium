@@ -39,7 +39,7 @@ import {
 } from '@adminium/engine/adapter';
 
 import { toAdapterError } from './errors.js';
-import { buildSessionSettings, isPoolerStartupRejection, splitDsnOptions } from './session.js';
+import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, splitDsnOptions } from './session.js';
 import {
   interpretProbe,
   introspectPostgres,
@@ -151,6 +151,8 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
       .join(' ');
     const pool = new pg.Pool({
       ...this.#poolConfig,
+      // A date's statistics read as its rows do (`session.ts`).
+      types: DATES_AS_TEXT,
       ...(options === '' ? {} : { options }),
     });
     // Surface idle-client failures as pool-level noise, not process crashes.

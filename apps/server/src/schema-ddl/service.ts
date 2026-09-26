@@ -172,7 +172,7 @@ async function planWithRelations(
    * rename a table and add a column to it in one go, and the client names it
    * by the id it was given.
    */
-  const extended = extendedTables(renamed, renamedIds, input.edit, dbTypeFor);
+  const extended = extendedTables(renamed, renamedIds, input.edit, dbTypeFor, input.dialect);
   for (const table of extended.values()) desired.push(table);
 
   const desiredRelations: Relation[] = input.edit.upsertTables.flatMap((table) =>
@@ -362,17 +362,25 @@ export function extendedTables(
   renamedIds: ReadonlyMap<string, string>,
   edit: SchemaEdit,
   dbTypeFor: ReturnType<typeof ddlTypeForDesired>,
+  /** On SQLite an added column's uniqueness is a unique index, made in place: never a table rebuild. */
+  dialect?: Dialect,
 ): Map<string, TableModel> {
   const find = (ref: string) => {
     const id = renamedIds.get(ref) ?? ref;
     return actual.tables.find((t) => t.id === id || t.name === id);
   };
   const adds = new Map<string, SchemaEdit['addColumns'][number]['column'][]>();
+  const unique = new Map<string, Set<string>>();
+  const uniqueWith = new Map<string, Map<string, readonly string[]>>();
   for (const entry of edit.addColumns ?? []) {
     const table = find(entry.table);
     // `validateSchemaEdit` has already refused an unknown table.
     if (table === undefined) continue;
     adds.set(table.id, [...(adds.get(table.id) ?? []), entry.column]);
+    if (entry.unique === true) unique.set(table.id, (unique.get(table.id) ?? new Set()).add(entry.column.name));
+    if (entry.unique === true && entry.uniqueWith !== undefined) {
+      uniqueWith.set(table.id, (uniqueWith.get(table.id) ?? new Map<string, readonly string[]>()).set(entry.column.name, entry.uniqueWith));
+    }
   }
   const alters = new Map<string, SchemaEdit['alterColumns'][number][]>();
   for (const entry of edit.alterColumns ?? []) {
@@ -384,8 +392,17 @@ export function extendedTables(
   for (const tableId of new Set([...alters.keys(), ...adds.keys()])) {
     const table = actual.tables.find((t) => t.id === tableId);
     if (table === undefined) continue;
-    const altered = tableWithAlteredColumns(table, alters.get(tableId) ?? [], { dbTypeFor });
-    out.set(tableId, tableWithAddedColumns(altered, adds.get(tableId) ?? [], { dbTypeFor }));
+    const uniqueAs = dialect === 'sqlite' ? 'index' : 'constraint';
+    const altered = tableWithAlteredColumns(table, alters.get(tableId) ?? [], { dbTypeFor, uniqueAs });
+    out.set(
+      tableId,
+      tableWithAddedColumns(altered, adds.get(tableId) ?? [], {
+        dbTypeFor,
+        unique: unique.get(tableId) ?? new Set(),
+        uniqueAs,
+        uniqueWith: uniqueWith.get(tableId) ?? new Map(),
+      }),
+    );
   }
   return out;
 }
@@ -718,6 +735,7 @@ export async function applySchemaEdit(input: ApplyServiceInput): Promise<ApplyRe
     renamedApplyIds,
     input.edit,
     dbTypeForApply,
+    input.dialect,
   );
   const desiredById = indexDesired(
     [

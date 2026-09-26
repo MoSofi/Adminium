@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * How every Adminium connection to MySQL/MariaDB spells time: a session in UTC,
- * and `TIMESTAMP` values read back as UTC.
+ * `TIMESTAMP` values read back as UTC, and a `DATE` as its `YYYY-MM-DD` text.
  *
  * A `TIMESTAMP` column holds an instant but speaks the SESSION's zone: every
  * value read comes back as wall time there, and every zone-less value written
@@ -33,11 +33,20 @@ export interface TypeCastField {
 
 /**
  * mysql2 `typeCast`: a `TIMESTAMP` value as the instant it names on a UTC
- * session; every other type as the driver would have read it. A zero date
+ * session, and a `DATE` as the `YYYY-MM-DD` text MySQL sends; every other
+ * type as the driver would have read it. A zero date
  * (`0000-00-00 00:00:00`) comes back as an invalid Date, as the driver's
  * own reading gives it.
+ *
+ * A `DATE` is a calendar day with no clock. The driver made it a Date at this
+ * process's local midnight, so its ISO spelling named the day before on a
+ * server east of UTC (`2026-08-14` read as `2026-08-13T22:00:00.000Z` in
+ * Berlin). As text it reads the same on every server and every engine: SQLite
+ * and Postgres hand a date back the same way. `DATETIME` and `TIMESTAMP` are
+ * not dates and keep their readings.
  */
 export function readTimestampsAsUtc(field: TypeCastField, next: () => unknown): unknown {
+  if (field.type === 'DATE' || field.type === 'NEWDATE') return field.string();
   if (field.type !== 'TIMESTAMP' && field.type !== 'TIMESTAMP2') return next();
   const text = field.string();
   if (text === null) return null;

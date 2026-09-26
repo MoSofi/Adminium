@@ -207,9 +207,20 @@ A column's value is shown by its type:
 | *x*`.relative_day` | tomorrow | Today, tomorrow or yesterday by the venue's day; a weekday within the next week; else the day and month. |
 | *link*`.time_range` | 09:30–10:00 | A row with `starts_at`, and `ends_at` or `minutes`: from the start to the end. |
 | a date | Tuesday, 6 October 2026 | A date column, with *x*`.day_month` too. A date is never moved by a time zone. |
+| *x*`.days_since` | 47 | A date column: the whole days from it to today, by the venue's day ("47 days past due"). |
 | money | £40.00 | A money column, in the connection's currency. |
 
-Every form is written in the email's language: `morgen` rather than `tomorrow` in German.
+Every form is written in the email's language: `morgen` rather than `tomorrow` in German, and
+Arabic-Indic digits in Arabic (`٤٧`), for the days as for the amounts. Any other column's value is
+written as it is stored, digits included, so a template can put an id in a link
+(`{{manage_url}}#{{invoice.id}}`).
+
+A form belongs to its column's type: a date column (`due_on`) has no clock, so it reads as
+`{{invoice.due_on}}`, `.day_month` or `.days_since`, never `.date`, `.time` or `.relative_day`, and
+a text or number column has no forms at all. The install and every update check the app's own
+templates for this: a template that asks a column for a form it does not have (`{{invoice.due_on.date}}`)
+is refused with `EMAIL_TEMPLATE_INVALID`, naming the template, its language and the variable,
+before anything is written. A name the manifest does not declare is left to the send.
 
 ## Links
 

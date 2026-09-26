@@ -175,6 +175,20 @@ describe('default rendering', () => {
     expect(renderDefault(d, 'sqlite')).toBe('1');
   });
 
+  it('quotes what a database keeps as a number default that is not one, rather than writing broken SQL', () => {
+    expect(renderDefault({ logicalType: 'float', default: { kind: 'literal', text: 'NaN' } }, 'postgres')).toBe("'NaN'");
+    expect(renderDefault({ logicalType: 'float', default: { kind: 'literal', text: '' } }, 'sqlite')).toBe("''");
+    expect(renderDefault({ logicalType: 'decimal', default: { kind: 'literal', text: '-1.5e3' } }, 'mysql')).toBe('-1.5e3');
+  });
+
+  it('keeps a true default true as MySQL reads it back (`1`), and false false', () => {
+    const as = (text: string) => ({ logicalType: 'boolean' as const, default: { kind: 'literal' as const, text } });
+    expect(renderDefault(as('1'), 'mysql')).toBe('1');
+    expect(renderDefault(as('1'), 'postgres')).toBe('true');
+    expect(renderDefault(as('0'), 'mysql')).toBe('0');
+    expect(renderDefault(as('false'), 'postgres')).toBe('false');
+  });
+
   it('renders now() per dialect', () => {
     const d = { logicalType: 'timestamptz' as const, default: { kind: 'now' as const } };
     expect(renderDefault(d, 'postgres')).toBe('CURRENT_TIMESTAMP');
@@ -377,6 +391,40 @@ describe('compiled statements per step kind', () => {
       desired: tbl({ name: 'fresh' }),
     });
     expect(q!.sql).toBe('ALTER TABLE "public"."old" RENAME TO "fresh"');
+  });
+
+  it('makes a unique index the plan names as itself, and drops a unique constraint by its own name', () => {
+    const base = { table: 'public.lines', hazard: 'safe' as const, requiresSuperAdmin: false, summary: '', rationale: 'x', consequences: [], dependsOn: [], outsideTransaction: false, refusal: null };
+    const desired = tbl({
+      name: 'lines',
+      columns: [col({ name: 'id' }), col({ name: 'code' }), col({ name: 'ref' })],
+      indexes: [
+        { name: 'ix_other', columns: ['code'], expression: null, unique: false, primary: false, method: null, partial: false },
+        { name: 'uq_lines_ref', columns: ['ref'], expression: null, unique: true, primary: false, method: null, partial: false },
+      ],
+    });
+    const add: DdlStep = { ...base, id: 's1', kind: 'add-index', column: 'ref', constraint: 'uq_lines_ref' };
+    expect(compileStep(add, { db: compilerFor('sqlite'), dialect: 'sqlite', serverVersion: null, desired })[0]!.sql).toBe(
+      'CREATE UNIQUE INDEX "uq_lines_ref" ON "lines" ("ref")',
+    );
+    const drop: DdlStep = { ...base, id: 's2', kind: 'drop-unique', column: null, constraint: 'uq_lines_ref' };
+    expect(compileStep(drop, { db: compilerFor('mysql'), dialect: 'mysql', serverVersion: null })[0]!.sql).toBe('ALTER TABLE `lines` DROP INDEX `uq_lines_ref`');
+    expect(compileStep(drop, { db: compilerFor('postgres'), dialect: 'postgres', serverVersion: null })[0]!.sql).toBe(
+      'ALTER TABLE "public"."lines" DROP CONSTRAINT "uq_lines_ref"',
+    );
+  });
+
+  it('adds a unique constraint under the name the plan carries, a parent row first', () => {
+    const base = { table: 'public.versions', hazard: 'safe' as const, requiresSuperAdmin: false, summary: '', rationale: 'x', consequences: [], dependsOn: [], outsideTransaction: false, refusal: null };
+    const desired = tbl({
+      name: 'versions',
+      columns: [col({ name: 'id' }), col({ name: 'proposal_id' }), col({ name: 'v' })],
+      uniques: [{ name: 'uq_versions_v', columns: ['proposal_id', 'v'] }],
+    });
+    const add: DdlStep = { ...base, id: 's1', kind: 'add-unique', column: null, constraint: 'uq_versions_v' };
+    expect(compileStep(add, { db: compilerFor('postgres'), dialect: 'postgres', serverVersion: null, desired })[0]!.sql).toBe(
+      'ALTER TABLE "public"."versions" ADD CONSTRAINT "uq_versions_v" UNIQUE ("proposal_id", "v")',
+    );
   });
 
   it('renames a column to the name the PLANNER chose, not the table\'s first column', () => {

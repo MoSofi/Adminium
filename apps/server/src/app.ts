@@ -31,6 +31,7 @@ import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
 import { isWriteConflict, writeConflict } from './crud/db-errors.js';
 import { scrubUrlForLog } from './log-scrub.js';
+import { refuseNulInRequest } from './security/nul-bytes.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
 import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
@@ -414,6 +415,10 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     // the unknown-rate-bucket check makes (plugins/core.ts).
     auditCoverage.record(route);
   });
+
+  // U+0000 in a path parameter or the query string: one 400 before any route
+  // reads it, on every engine and store (security/nul-bytes.ts).
+  app.addHook('preValidation', refuseNulInRequest);
 
   // The request id is echoed on every response.
   app.addHook('onSend', async (request, reply) => {

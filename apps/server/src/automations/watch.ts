@@ -41,6 +41,7 @@
  */
 
 import type { Expression, ExpressionBuilder, Kysely, SqlBool } from 'kysely';
+import type { Dialect } from '@adminium/engine';
 import {
   automationRunsRepo,
   automationsRepo,
@@ -59,6 +60,7 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { evaluateAll, type ConditionContext, type RelatedCountSpec } from './conditions.js';
 import { recordOccurrenceKey } from './events.js';
 import { AUTOMATION_RUN_KIND, AUTOMATION_WATCH_BATCH } from './kinds.js';
+import { serverDay } from './relative-time.js';
 import { watchColumnFor } from './watch-columns.js';
 
 export interface WatchPollDeps {
@@ -92,7 +94,7 @@ export async function pollWatchedTables(deps: WatchPollDeps): Promise<WatchTickR
   // dozen rules on the same table would otherwise re-read the snapshot a
   // dozen times a minute.
   const views = new Map<string, SnapshotView>();
-  const handles = new Map<string, { db: Kysely<SourceDatabase> }>();
+  const handles = new Map<string, { db: Kysely<SourceDatabase>; dialect: Dialect }>();
 
   for (const rule of watching) {
     if (rule.trigger.kind !== 'record') continue;
@@ -109,7 +111,7 @@ export async function pollWatchedTables(deps: WatchPollDeps): Promise<WatchTickR
         handles.set(connectionId, handle);
       }
       const table = view.table(rule.trigger.table);
-      const tick = await pollOneRule({ deps, rule, table, db: handle.db, now });
+      const tick = await pollOneRule({ deps, rule, table, db: handle.db, dialect: handle.dialect, now });
       result.rulesPolled += 1;
       result.rowsSeen += tick.rowsSeen;
       result.runsStarted += tick.runsStarted;
@@ -127,9 +129,10 @@ async function pollOneRule(input: {
   rule: Automation;
   table: ResolvedTable;
   db: Kysely<SourceDatabase>;
+  dialect: Dialect;
   now: number;
 }): Promise<{ rowsSeen: number; runsStarted: number }> {
-  const { deps, rule, table, db, now } = input;
+  const { deps, rule, table, db, dialect, now } = input;
   if (rule.trigger.kind !== 'record') return { rowsSeen: 0, runsStarted: 0 };
   const event = rule.trigger.event === 'updated' ? 'updated' : 'created';
   const watched = watchColumnFor(table, event);
@@ -137,7 +140,7 @@ async function pollOneRule(input: {
   if (watched === null) return { rowsSeen: 0, runsStarted: 0 };
 
   const rules = automationsRepo(deps.meta);
-  const stored = rule.watchCursor;
+  const stored = rule.watchCursor === null ? null : dayCursor(rule.watchCursor, table, dialect);
 
   // First tick for this rule (or the column changed under it): record where we
   // are and fire for nothing.
@@ -161,7 +164,7 @@ async function pollOneRule(input: {
   let runsStarted = 0;
   for (const row of rows) {
     const pk = Object.fromEntries(table.primaryKey.map((c) => [c, row[c]]));
-    if (await claimRow({ deps, rule, table, row, pk, event, watched, now })) runsStarted += 1;
+    if (await claimRow({ deps, rule, table, row, pk, event, watched, dialect, now })) runsStarted += 1;
   }
 
   // The LAST ROW OF THE PAGE, whatever happened to it. A row the conditions
@@ -218,9 +221,10 @@ async function claimRow(input: {
   pk: Row;
   event: 'created' | 'updated';
   watched: { column: string };
+  dialect: Dialect;
   now: number;
 }): Promise<boolean> {
-  const { deps, rule, table, row, pk, event, now } = input;
+  const { deps, rule, table, row, pk, event, dialect, now } = input;
   if (rule.trigger.kind !== 'record') return false;
 
   const when = rule.trigger.when ?? [];
@@ -228,6 +232,7 @@ async function claimRow(input: {
     const count = deps.countRelated;
     const ctx: ConditionContext = {
       row,
+      table,
       now,
       countRelated:
         count === undefined ? undefined : (spec) => count(rule.trigger.connectionId as string, spec, now),
@@ -241,7 +246,7 @@ async function claimRow(input: {
   const dedupeKey = recordOccurrenceKey(
     changeStamp === undefined
       ? { ruleId: rule.id, table, pk }
-      : { ruleId: rule.id, table, pk, changeStamp },
+      : { ruleId: rule.id, table, pk, changeStamp, dialect },
   );
 
   const run = await automationRunsRepo(deps.meta).begin(
@@ -300,6 +305,24 @@ async function readHead(
     value: normalizeCursorValue(row[column]),
     frontierPk: Object.fromEntries(table.primaryKey.map((c) => [c, row[c] ?? null])),
   };
+}
+
+/**
+ * A stored cursor on a Postgres or MySQL `date` column, as the poller compares
+ * it now. Before dates read as `YYYY-MM-DD` text the driver handed back a
+ * JavaScript date at this server's local midnight, stored below as its ISO
+ * instant: `2026-08-13T22:00:00.000Z` for the 14th in Berlin. Compared with
+ * a date as it stands, that is the 13th, and the first tick would read the
+ * 14th's rows again. The instant is read back as the day it was on this
+ * server's clock. SQLite's date cursor is whatever text the column holds,
+ * compared as text, and is left alone.
+ */
+function dayCursor(cursor: AutomationWatchCursor, table: ResolvedTable, dialect: Dialect): AutomationWatchCursor {
+  const value = cursor.value;
+  if (dialect === 'sqlite' || table.columns.get(cursor.column)?.logicalType !== 'date') return cursor;
+  if (value === null || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value))) return cursor;
+  const at = typeof value === 'number' ? value : Date.parse(String(value));
+  return Number.isFinite(at) ? { ...cursor, value: serverDay(at) } : cursor;
 }
 
 /**

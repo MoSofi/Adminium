@@ -231,6 +231,8 @@ export const appInstallPlanDto = z.object({
       message: z.string(),
       table: z.string(),
       column: z.string().optional(),
+      /** `APP_INSTALLED_ELSEWHERE` only: the connection the app is installed on. */
+      connectionId: z.string().optional(),
     }),
   ),
   /**
@@ -319,11 +321,13 @@ export const appInstallPlanDto = z.object({
         adopted: z.literal(true).optional(),
         edits: z.array(
           z.object({
-            kind: z.enum(['add-column', 'widen', 'set-identity', 'enum-values']),
+            kind: z.enum(['add-column', 'widen', 'set-identity', 'enum-values', 'add-unique']),
             column: z.string(),
             from: z.string().optional(),
             to: z.string().optional(),
             values: z.array(z.string()).optional(),
+            /** `add-unique`: the columns it is unique together with (a parent row), when not alone. */
+            with: z.array(z.string()).optional(),
           }),
         ),
         blocked: z.array(z.object({ column: z.string(), reason: z.string() })),
@@ -366,8 +370,23 @@ export const appInstallPlanDto = z.object({
           /** Answered by a later release: listed, not made now. */
           pending: z.boolean(),
           issues: z.array(z.string()),
+          /**
+           * For an app already installed (the check an update is shown): its
+           * key already holds this (`held`), the update gives it once allowed
+           * (`granted`), the change is one its key may not take and it stays
+           * as it is (`kept`), or its key was taken back and is not made
+           * again (`withheld`). Absent for an install.
+           */
+          onUpdate: z.enum(['held', 'granted', 'kept', 'withheld']).optional(),
         }),
       ),
+      /**
+       * For an app already installed: the purposes of its keys that this
+       * version turns from a staff screen's (served only beside a staff
+       * sign-in) into a shared link's, whose token alone opens what it reads.
+       * Made only when the update is sent `publicAccess: true`.
+       */
+      opensWithoutStaff: z.array(z.string()).optional(),
       warnings: z.array(z.object({ code: z.string(), message: z.string() })),
       /** Making the app's key needs `system:api-keys:manage`. */
       canGrant: z.boolean(),
@@ -511,8 +530,13 @@ export const installedAppReply = z.object({
       keyId: z.string().nullable(),
       /** Every key made now, by purpose: the guests' (`customer`) and a second one's (`kiosk`). */
       keys: z.record(z.string(), z.string()),
-      /** An update's change the app's own key may not take; the endpoint stays as it was. */
+      /**
+       * An update's change the app's own key does not take: one it may not
+       * (the endpoint stays as it was), or one the operator did not allow.
+       */
       skipped: z.array(z.object({ ref: z.string(), reason: z.string() })),
+      /** What each of the app's live keys gained with an update, by purpose: the endpoints, by ref. Absent when none did. */
+      granted: z.record(z.string(), z.array(z.string())).optional(),
     })
     .optional(),
   /**
@@ -661,6 +685,16 @@ export const updateAppBody = z
   .object({
     planChecksum: z.string().min(1).max(128).optional(),
     choices: installAnswers.choices,
+    /**
+     * The check's "Allow this public access", for what the new version adds
+     * to it: an entry its keys do not hold (`onUpdate: granted`), a key it
+     * never had, a staff key opened to a shared link (`opensWithoutStaff`).
+     * Only `true` allows it, and only from someone who may manage API keys
+     * (otherwise 403). Absent or `false`: the app's keys gain nothing and no
+     * key is made. What the version no longer declares is taken back either
+     * way.
+     */
+    publicAccess: z.boolean().optional(),
     /** As the install's: the add-ons the new version needs, installed, connected or updated first. */
     addOns: z.array(appAddOnChoice).max(16).optional(),
   })

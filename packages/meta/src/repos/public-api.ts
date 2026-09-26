@@ -571,6 +571,21 @@ export function publicKeysRepo(meta: MetaDb) {
       return Number(res.numUpdatedRows) === 1;
     },
 
+    /**
+     * A live key's grants, rewritten: what an app's own key holds once its
+     * new version is allowed (the caller re-derives the key's scope in the
+     * same transaction).
+     */
+    async setAccess(id: string, access: Record<string, readonly string[]>, at: number = Date.now(), on: Executor = db): Promise<boolean> {
+      const res = await on
+        .updateTable('adminium_public_keys')
+        .set({ access: JSON.stringify(access), updatedAt: at })
+        .where('id', '=', id)
+        .where('revokedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
     async revoke(id: string, at: number = Date.now()): Promise<boolean> {
       const res = await db
         .updateTable('adminium_public_keys')

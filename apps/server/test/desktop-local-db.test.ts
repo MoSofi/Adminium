@@ -419,6 +419,77 @@ describe('slugFor', () => {
 });
 
 describe('emitSqliteDdl', () => {
+  it('reads a default by its column’s type: a text column’s `true`, `null` and `007` stay that text', () => {
+    const column = (name: string, logicalType: string, text: string | null, ordinal: number) => ({
+      name,
+      ordinal,
+      dbType: logicalType,
+      logicalType,
+      nullable: true,
+      default: text === null ? { kind: 'autoincrement' } : { kind: 'literal', text },
+      isPrimaryKey: text === null,
+      isUnique: false,
+      isGenerated: false,
+      enumRef: null,
+      maxLength: logicalType === 'varchar' ? 20 : null,
+      numericPrecision: null,
+      numericScale: null,
+      isArray: false,
+      comment: null,
+      references: null,
+      semantics: null,
+    });
+    const table = {
+      id: 'public.t',
+      schema: 'public',
+      name: 't',
+      kind: 'table',
+      comment: null,
+      primaryKey: ['id'],
+      uniques: [],
+      checks: [],
+      indexes: [],
+      rowCountEstimate: null,
+      rowCountExact: false,
+      sizeBytes: null,
+      activity: null,
+      rls: null,
+      system: false,
+      semantics: null,
+      columns: [
+        column('id', 'integer', null, 1),
+        column('said', 'varchar', 'true', 2),
+        column('none', 'varchar', 'null', 3),
+        column('code', 'varchar', '007', 4),
+        column('copies', 'integer', '7', 5),
+        column('flagged', 'boolean', '1', 6),
+        column('quote', 'text', "it's", 7),
+      ],
+    };
+    const ddl = emitSqliteDdl({
+      irVersion: 1,
+      dialect: 'postgres',
+      name: 'x',
+      defaultSchema: 'public',
+      schemas: ['public'],
+      introspectedAt: '2026-01-01T00:00:00.000Z',
+      source: { kind: 'live', connectionId: 'c' },
+      capabilities: { hasEnums: false, hasFKs: true, hasSchemas: true, hasComments: false, hasChecks: true, hasRLS: false, hasMaterializedViews: false, hasRowEstimates: false, supportsStatementTimeout: false, supportsReturning: true, maxIdentifierLength: 63 },
+      enums: [],
+      tables: [table],
+      relations: [],
+      views: [],
+    } as never);
+    const db = new BetterSqlite3(':memory:');
+    try {
+      for (const statement of ddl.statements) db.exec(statement);
+      db.exec('INSERT INTO "t" DEFAULT VALUES');
+      expect(db.prepare('SELECT said, none, code, copies, flagged, quote FROM "t"').get()).toEqual({ said: 'true', none: 'null', code: '007', copies: 7, flagged: 1, quote: "it's" });
+    } finally {
+      db.close();
+    }
+  });
+
   it('keeps a status enum recognisable to the classifier', () => {
     // The unit-level statement of the round-trip test above. It is here because
     // when that end-to-end test goes red, this is the line that says why.

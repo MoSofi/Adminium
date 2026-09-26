@@ -418,6 +418,18 @@ describe('POST /users: the invitation link host', () => {
     expect(linkOriginsCarrying(messages[0], first.token)).toEqual([PUBLIC]);
     expect(linkOriginsCarrying(messages[1], second)).toEqual([PUBLIC]);
   });
+
+  it('says how many days the invitation works in the digits of the language it is sent in', async () => {
+    await setUp();
+    await inviteWith({});
+    await settingsRepo(meta).set('locale.default', 'ar_EG', { updatedBy: null });
+    await inviteWith({});
+    const [english, arabic] = await queuedEmails(meta);
+    const days = /expires in (\d+) days/.exec(english?.text ?? '')?.[1];
+    expect(days, english?.text).toBeDefined();
+    expect(arabic?.text).toContain(new Intl.NumberFormat('ar-EG', { useGrouping: false }).format(Number(days)));
+    expect(arabic?.text).not.toContain(` ${days!} `);
+  });
 });
 
 // --- learning system.publicOrigin ------------------------------------------------------

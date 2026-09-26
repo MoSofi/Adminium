@@ -84,6 +84,7 @@ export default {
       "required": "Dette felt er påkrævet.",
       "notAllowed": "Vælg en af de viste værdier.",
       "invalid": "Denne værdi er ikke gyldig her.",
+      "invalidCharacter": "Denne tekst indeholder et skjult tegn, som ikke kan gemmes. Skriv den igen.",
       "email": "Indtast en gyldig e-mailadresse.",
       "url": "Indtast en gyldig webadresse.",
       "phone": "Indtast et gyldigt telefonnummer.",

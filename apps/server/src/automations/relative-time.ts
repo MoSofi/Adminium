@@ -22,10 +22,17 @@
  * the same column correctly, because it is spelled the way the column's own
  * values are spelled.
  *
- * SQLite is the exception and takes ISO-8601 UTC throughout: it has no date
+ * SQLite is the exception and takes ISO-8601 UTC for a time: it has no date
  * type at all, its columns hold text, and ISO-8601 is the format whose
  * lexicographic order IS its chronological order — which is what a `BETWEEN`
  * on a text column actually compares.
+ *
+ * A `date` holds a calendar day, and every engine reads it back as its
+ * `YYYY-MM-DD` text. It is bounded by the day it is on this server's clock,
+ * on every engine alike — SQLite included, which used the UTC day and so
+ * moved the edge by the server's offset. `conditions.ts` judges a date the
+ * same way when a trigger's condition is evaluated in memory, so the event
+ * path and this scan agree about the same row at the same moment.
  *
  * ─── Case ─────────────────────────────────────────────────────────────────
  *
@@ -56,14 +63,18 @@ function localStamp(at: Date, withTime: boolean): string {
   return `${date} ${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`;
 }
 
+/** The day an instant falls on, on this server's clock: `YYYY-MM-DD`. */
+export function serverDay(ms: number): string {
+  return localStamp(new Date(ms), false);
+}
+
 /** One instant, spelled the way this column's own values are spelled. */
-export function boundValue(column: ResolvedColumn, ms: number, dialect: Dialect): string {
+export function boundValue(column: Pick<ResolvedColumn, 'logicalType'>, ms: number, dialect: Dialect): string {
   const at = new Date(ms);
-  if (dialect === 'sqlite') {
-    return column.logicalType === 'date' ? at.toISOString().slice(0, 10) : at.toISOString();
-  }
-  if (column.logicalType === 'timestamptz') return at.toISOString();
-  return localStamp(at, column.logicalType !== 'date');
+  // A day is the day on this server's clock, on every engine (see above).
+  if (column.logicalType === 'date') return serverDay(ms);
+  if (dialect === 'sqlite' || column.logicalType === 'timestamptz') return at.toISOString();
+  return localStamp(at, true);
 }
 
 export interface CompileConditionContext {

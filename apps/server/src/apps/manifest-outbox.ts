@@ -83,6 +83,89 @@ export function templateProblems(manifest: Manifest): string[] {
           out.push(`${where}: its data is not the shape a "${block.block}" block takes.`);
         }
       });
+      for (const variable of unfillableForms(manifest, content)) {
+        out.push(
+          `The email "${template.key}" (${locale}) reads {{${variable.name}}}, which nothing fills: ${variable.column} is a ${variable.type} column, ` +
+            `read as ${orList([variable.bare, ...variable.allowed.map((form) => `${variable.bare}.${form}`)].map((name) => `{{${name}}}`))}.`,
+        );
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The forms of a value a template may add to a column's name, by the
+ * column's type, as the sender fills them: a time has its date, its time, its
+ * day and month and its relative day; a calendar day has no clock, so only
+ * its day and month and the days since it.
+ */
+const FORMS_OF: Readonly<Record<string, readonly string[]>> = {
+  timestamptz: ['date', 'time', 'day_month', 'relative_day'],
+  date: ['day_month', 'days_since'],
+};
+const EVERY_FORM = new Set(Object.values(FORMS_OF).flat());
+const orList = (items: string[]): string => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)!}`);
+const PLACEHOLDER = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
+
+/**
+ * The variables of one language of a template that name a column's form the
+ * column's type does not have (`{{invoice.due_on.date}}` on a date column):
+ * the sender can never fill one, so every message would fail at send. Judged
+ * only where the manifest says for certain which column it is: under every
+ * table the name could reach, the column is declared and none has the form.
+ * A name the manifest cannot place is left to the sender.
+ */
+function unfillableForms(
+  manifest: AppManifest,
+  content: unknown,
+): { name: string; bare: string; column: string; type: string; allowed: readonly string[] }[] {
+  const outbox = manifest.outbox;
+  if (outbox === undefined) return [];
+  const tables = new Map((manifest.requiredSchema?.tables ?? []).map((table) => [table.ref, table]));
+  const columnOf = (table: string | undefined, name: string) => (table === undefined ? undefined : tables.get(table)?.columns.find((c) => c.ref === name));
+  // What each prefix a template reads under can be: a link, a link's own link (`invoice.client`), that on its own (`client`), the settings row.
+  const prefixes = new Map<string, Set<string>>();
+  const add = (prefix: string, table: string | undefined) => {
+    if (table === undefined || !tables.has(table)) return;
+    prefixes.set(prefix, (prefixes.get(prefix) ?? new Set()).add(table));
+  };
+  const links = Object.entries(outbox.links ?? {});
+  for (const [name, column] of links) add(name, columnOf(outbox.table, column)?.references);
+  for (const [name, column] of links) {
+    const linked = columnOf(outbox.table, column)?.references;
+    for (const c of (linked === undefined ? undefined : tables.get(linked))?.columns ?? []) {
+      if (!c.ref.endsWith('_id') || c.references === undefined) continue;
+      const base = c.ref.slice(0, -'_id'.length);
+      add(`${name}.${base}`, c.references);
+      if (!links.some(([own]) => own === base)) add(base, c.references);
+    }
+  }
+  if (outbox.settings !== undefined) add('practice', outbox.settings.table);
+
+  const texts: string[] = [];
+  const walk = (value: unknown): void => {
+    if (typeof value === 'string') texts.push(value);
+    else if (Array.isArray(value)) value.forEach(walk);
+    else if (typeof value === 'object' && value !== null) Object.values(value).forEach(walk);
+  };
+  walk(content);
+  const out: { name: string; bare: string; column: string; type: string; allowed: readonly string[] }[] = [];
+  const seen = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(PLACEHOLDER)) {
+      const name = match[1] as string;
+      const parts = name.split('.');
+      const form = parts.at(-1) as string;
+      if (parts.length < 3 || !EVERY_FORM.has(form) || seen.has(name)) continue;
+      const prefix = parts.slice(0, -2).join('.');
+      const column = parts.at(-2) as string;
+      const candidates = [...(prefixes.get(prefix) ?? [])].map((table) => ({ table, declared: columnOf(table, column) }));
+      if (candidates.length === 0 || candidates.some((c) => c.declared === undefined)) continue;
+      if (candidates.some((c) => (FORMS_OF[c.declared!.type] ?? []).includes(form))) continue;
+      const first = candidates[0]!;
+      seen.add(name);
+      out.push({ name, bare: parts.slice(0, -1).join('.'), column: `${first.table}.${column}`, type: first.declared!.type, allowed: FORMS_OF[first.declared!.type] ?? [] });
     }
   }
   return out;

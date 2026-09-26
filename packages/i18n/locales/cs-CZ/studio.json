@@ -616,7 +616,8 @@
         "ddlNote": "Orientační. Server vytvoří přesný příkaz pro váš stroj včetně cizích klíčů.",
         "summary": "{created} vytvořeno · {reused} znovu použito",
         "ruleWarnings": "Některá pravidla této aplikace by ukázala, co vaše tabulka skrývá, a proto se vynechají",
-        "pageWarnings": "Některé stránky této aplikace dorazí bez tabulky"
+        "pageWarnings": "Některé stránky této aplikace dorazí bez tabulky",
+        "installedElsewhere": "Aplikace {app} je už nainstalovaná na připojení {connection}. Aplikace běží na jednom připojení: aktualizujte ji tam, nebo ji tam odinstalujte, než ji nainstalujete na jiné."
       },
       "done": {
         "body": "{key} se už servíruje. Níže vyberte, kde se má objevit její část pro personál.",
@@ -671,6 +672,8 @@
         "widens": "Rozšíří {column} z {from} na {to}.",
         "setIdentity": "{column} čísluje nové řádky sám.",
         "enumValues": "{column} přijímá také {values}.",
+        "addUnique": "{column} už nesmí obsahovat stejnou hodnotu dvakrát.",
+        "addUniqueWith": "{column} už nesmí obsahovat stejnou hodnotu dvakrát pro jeden {with}.",
         "noLoss": "Žádný sloupec se neodstraní a žádná data se neztratí.",
         "reuseNote": "Aplikace čte a zapisuje řádky, které tam už jsou.",
         "renameTitle": "Přejmenovat stávající tabulku, aby uvolnila místo",
@@ -785,6 +788,7 @@
       "close": "Zavřít",
       "done": "{app} aktualizováno na v{version}",
       "missingColumns": "Chybí: {tables}.",
+      "accessSubtitle": "Zkontrolujte, co tato verze umožní zákazníkům aplikace.",
       "checkSubtitle": "Zkontrolujte tabulky, které tato verze používá.",
       "pickFirst": "Před aktualizací vyberte, co udělat s {table}.",
       "checkFirst": "Před aktualizací tabulky zkontrolujte znovu.",
@@ -3052,6 +3056,7 @@
     "allow": "Povolit tento veřejný přístup",
     "helper": "Později jej můžete omezit na stránce Klíče API.",
     "cannotGrant": "Povolit jej může jen ten, kdo smí spravovat klíče API, proto se aplikace nainstaluje bez něj.",
+    "opensWithoutStaff": "Umožnit komukoli s odkazem otevřít, co čte klíč {key}, bez přihlášeného pracovníka",
     "warning": {
       "apiOff": "Veřejné API je vypnuté, takže nic z toho neodpoví, dokud nebude zapnuté.",
       "originSelf": "Povolené původy neobsahují „self“, takže vlastní stránky aplikace na tomto serveru je nemohou volat.",

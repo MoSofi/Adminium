@@ -616,7 +616,8 @@
         "ddlNote": "À titre indicatif. Le serveur produit l’instruction exacte pour votre moteur, clés étrangères comprises.",
         "summary": "{created} créées · {reused} réutilisées",
         "ruleWarnings": "Certaines règles de cette app montreraient ce qu’une de vos tables garde caché : elles sont laissées de côté",
-        "pageWarnings": "Certaines pages de cette app arriveront sans table"
+        "pageWarnings": "Certaines pages de cette app arriveront sans table",
+        "installedElsewhere": "{app} est déjà installée sur la connexion {connection}. Une application fonctionne sur une seule connexion : mettez-la à jour là-bas, ou désinstallez-la là-bas avant de l’installer sur une autre."
       },
       "done": {
         "body": "{key} est désormais servie. Choisissez ci-dessous où apparaît son côté personnel.",
@@ -671,6 +672,8 @@
         "widens": "Élargit {column}, de {from} à {to}.",
         "setIdentity": "{column} numérote lui-même les nouvelles lignes.",
         "enumValues": "{column} accepte aussi {values}.",
+        "addUnique": "{column} ne pourra plus contenir deux fois la même valeur.",
+        "addUniqueWith": "{column} ne pourra plus contenir deux fois la même valeur pour un même {with}.",
         "noLoss": "Aucune colonne n’est supprimée et aucune donnée n’est perdue.",
         "reuseNote": "L’app lit et écrit les lignes déjà présentes.",
         "renameTitle": "Renommer la table existante pour libérer le nom",
@@ -785,6 +788,7 @@
       "close": "Fermer",
       "done": "{app} mise à jour vers v{version}",
       "missingColumns": "Manquant : {tables}.",
+      "accessSubtitle": "Vérifiez ce que cette version permet aux clients de l’application.",
       "checkSubtitle": "Vérifiez les tables utilisées par cette version.",
       "pickFirst": "Choisissez quoi faire de {table} avant de mettre à jour.",
       "checkFirst": "Vérifiez à nouveau les tables avant de mettre à jour.",
@@ -3052,6 +3056,7 @@
     "allow": "Autoriser cet accès public",
     "helper": "Vous pourrez le restreindre plus tard sur la page Clés d’API.",
     "cannotGrant": "Seule une personne autorisée à gérer les clés d’API peut l’autoriser : l’application s’installe donc sans.",
+    "opensWithoutStaff": "Permettre à toute personne disposant d’un lien d’ouvrir ce que lit la clé {key}, sans qu’un membre de l’équipe soit connecté",
     "warning": {
       "apiOff": "L’API publique est désactivée : rien de ceci ne répondra tant qu’elle ne sera pas activée.",
       "originSelf": "Les origines autorisées n’incluent pas « self » : les pages de l’application sur ce serveur ne peuvent donc pas l’appeler.",

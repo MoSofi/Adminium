@@ -9,6 +9,28 @@
  * reach them without importing its own importer.
  */
 
+import pg from 'pg';
+
+/** `pg`'s OID for `date`. */
+const PG_DATE_OID = 1082;
+
+/**
+ * The `types` both pools read values with: a `date` as the `YYYY-MM-DD` text
+ * Postgres sends, everything else as `pg` reads it.
+ *
+ * A `date` is a calendar day with no clock. `pg` made it a Date at this
+ * process's local midnight, so its ISO spelling named the day before on a
+ * server east of UTC (`2026-08-14` read as `2026-08-13T22:00:00.000Z` in
+ * Berlin), and a day it compared or printed moved with the server's zone. As
+ * text it reads the same on every server and every engine: SQLite and MySQL
+ * hand a date back the same way. Scoped to the pools, never `pg.types`'s
+ * process-wide parser, which other code in the process shares.
+ */
+export const DATES_AS_TEXT: pg.CustomTypesConfig = {
+  getTypeParser: ((oid: number, format?: 'text' | 'binary') =>
+    oid === PG_DATE_OID && format !== 'binary' ? (value: string) => value : pg.types.getTypeParser(oid, format)) as pg.CustomTypesConfig['getTypeParser'],
+};
+
 /**
  * A connection pooler refusing the startup `options` packet.
  *

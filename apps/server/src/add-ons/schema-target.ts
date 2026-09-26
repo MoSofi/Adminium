@@ -216,10 +216,16 @@ export async function readLiveTables(
       logicalType: column.logicalType,
       maxLength: column.maxLength,
       isIdentity: column.default?.kind === 'autoincrement',
+      isUnique: column.isUnique,
       ...(column.enumRef === undefined || column.enumRef === null
         ? {}
         : { enumValues: model.enums.find((e) => e.id === column.enumRef)?.values ?? [] }),
     })),
+    // Every set of columns the table keeps unique: its constraints, and its unique indexes on plain columns.
+    uniques: [
+      ...table.uniques.map((unique) => [...unique.columns]),
+      ...table.indexes.filter((index) => index.unique && !index.primary && !index.partial && index.expression === null).map((index) => [...index.columns]),
+    ],
   }));
   return { tables, dialect: model.dialect };
 }

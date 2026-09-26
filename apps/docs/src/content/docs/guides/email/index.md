@@ -88,7 +88,11 @@ editor's language menu creates a linked copy: a starter's copy arrives already
 translated; a blank template's copy is a duplicate flagged *Needs translation*
 until someone writes it. All variations of one template are grouped under its
 topic in the manager, and the sender picks the variation that matches the
-recipient's language when it exists.
+recipient's language when it exists. A number the built-in emails say (how many
+minutes a sign-in link works, how many days an invitation does) is written in
+the digits of the variation sent: Arabic-Indic in Arabic, and in the Latin
+digits of US English when an Arabic recipient is sent the US English one. A code
+the reader types back stays in Latin digits.
 
 ### Mirroring a change
 

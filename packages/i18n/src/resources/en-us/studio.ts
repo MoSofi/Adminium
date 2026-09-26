@@ -626,7 +626,8 @@ export default {
         "ddlNote": "Illustrative. The server emits the exact statement for your engine, including foreign keys.",
         "summary": "{created} created · {reused} reused",
         "ruleWarnings": "Some of this app’s rules would show what a table of yours keeps hidden, and are left out",
-        "pageWarnings": "Some of this app’s pages will arrive without a table"
+        "pageWarnings": "Some of this app’s pages will arrive without a table",
+        "installedElsewhere": "{app} is already installed on the connection {connection}. An app runs on one connection: update it there, or uninstall it there before installing it on another."
       },
       "done": {
         "body": "{key} is being served now. Choose where its staff side appears below.",
@@ -681,6 +682,8 @@ export default {
         "widens": "Makes {column} wider, from {from} to {to}.",
         "setIdentity": "{column} numbers new rows by itself.",
         "enumValues": "{column} also accepts {values}.",
+        "addUnique": "{column} may no longer hold the same value twice.",
+        "addUniqueWith": "{column} may no longer hold the same value twice for one {with}.",
         "noLoss": "No column is removed and no data is lost.",
         "reuseNote": "The app reads and writes the rows already there.",
         "renameTitle": "Rename the existing table out of the way",
@@ -795,6 +798,7 @@ export default {
       "close": "Close",
       "done": "{app} updated to v{version}",
       "missingColumns": "Missing: {tables}.",
+      "accessSubtitle": "Check what this version lets the app’s customers do.",
       "checkSubtitle": "Check the tables this version uses.",
       "pickFirst": "Pick what to do with {table} before you update.",
       "checkFirst": "Check the tables again before you update.",
@@ -3062,6 +3066,7 @@ export default {
     "allow": "Allow this public access",
     "helper": "You can narrow it later on the API keys page.",
     "cannotGrant": "Only someone who may manage API keys can allow it, so the app installs without it.",
+    "opensWithoutStaff": "Let anyone with a link open what the {key} key reads, with no staff member signed in",
     "warning": {
       "apiOff": "The public API is switched off, so none of this answers until it is on.",
       "originSelf": "The allowed origins do not include “self”, so the app’s own pages on this server cannot call it.",

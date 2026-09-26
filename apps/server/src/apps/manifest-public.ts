@@ -28,6 +28,10 @@ import type { Manifest } from '@adminium/manifest';
 import {
   CUSTOMER_KEY_PURPOSE,
   connectionTenantConfig,
+  keyEnabledBy,
+  keyStaffBinding,
+  publicApiStateRepo,
+  publicKeysRepo,
   settingsRepo,
   type DsnCrypto,
   type KeyEnabledBy,
@@ -429,7 +433,39 @@ export async function installPublicAccess(input: {
   livePurposes: ReadonlySet<string>;
   /** Purposes whose key the operator revoked: an update does not make them again. */
   withheld?: ReadonlySet<string> | undefined;
-}): Promise<{ endpoints: string[]; keyId: string | null; keys: Record<string, string>; skipped: { ref: string; reason: string }[] }> {
+  /**
+   * An update: the app's live keys of each purpose, by purpose. What the
+   * version no longer declares was taken back before this runs
+   * ({@link takeBackPublicAccess}); here each gains what the version adds,
+   * when `grant` says the operator allowed it.
+   */
+  liveKeys?: ReadonlyMap<string, readonly string[]> | undefined;
+  /**
+   * Whether the operator allowed what this version adds (install: always).
+   * Otherwise a new key is not made and a live one gains nothing, and each
+   * entry left out is said in `skipped`, with `refusal` as its reason.
+   */
+  grant?: boolean | undefined;
+  refusal?: string | undefined;
+  /**
+   * Told of each change the moment it is written — an endpoint saved, a key
+   * made, a live key's grants changed — so it is audited and the resolver
+   * forgets the key even when a later step of this call throws.
+   */
+  onCommitted?: ((change: PublicAccessCommit) => Promise<void>) | undefined;
+}): Promise<{
+  endpoints: string[];
+  keyId: string | null;
+  keys: Record<string, string>;
+  skipped: { ref: string; reason: string }[];
+  /** What the live keys gained, by purpose (an update the operator allowed). Absent when none did. */
+  granted?: Record<string, string[]>;
+  /**
+   * Key by key, for the audit and the key loop: what each live key gained and
+   * lost, and whether it now holds everything allowed (`settled`).
+   */
+  changedKeys: { keyId: string; purpose: string; gained: string[]; lost: string[]; settled: boolean }[];
+}> {
   const planned = planPublicEndpoints(input.manifest, input.names, input.view).filter((entry) => !entry.pending);
   const refused = planned.filter((entry) => entry.issues.length > 0 || entry.definition === null);
   if (refused.length > 0) {
@@ -448,6 +484,7 @@ export async function installPublicAccess(input: {
         managedBy: input.manifest.key,
       });
       saved.push(entry.ref);
+      await input.onCommitted?.({ kind: 'endpoint', ref: entry.ref });
     } catch (error) {
       // An update may not widen the key the operator allowed at install:
       // the endpoint stays as it was, and the reply says why.
@@ -458,11 +495,56 @@ export async function installPublicAccess(input: {
   }
   const keys: Record<string, string> = {};
   const manifest = input.manifest;
+  const grant = input.grant !== false;
+  const refusal = input.refusal ?? 'not allowed with this update';
   const purposes = [...new Set(planned.map((entry) => entry.key))];
+  /*
+   * The app's live keys, given what this version adds once the operator
+   * allowed it — the safe list and the link rules checked again, as at
+   * install. What it no longer declares was taken back already, before
+   * anything here could fail; a key refused its new access keeps what it
+   * holds, and the reply says why it gained nothing.
+   */
+  const changedKeys: { keyId: string; purpose: string; gained: string[]; lost: string[]; settled: boolean }[] = [];
+  const refusedSave = new Set(skipped.map((entry) => entry.ref));
+  const leftOut = (ref: string, reason: string) => {
+    if (!skipped.some((s) => s.ref === ref)) skipped.push({ ref, reason });
+  };
+  const liveKeys = [...(input.liveKeys ?? new Map<string, readonly string[]>())].flatMap(([purpose, ids]) => ids.map((keyId) => [purpose, keyId] as const));
+  for (const [purpose, keyId] of liveKeys) {
+    const declared = planned.filter((entry) => entry.key === purpose);
+    const held = await input.service.heldByKey(input.connectionId, keyId);
+    const heldOf = (entry: PlannedPublicEndpoint) => entry.methods.filter((m) => (held.get(entry.ref) ?? []).includes(m));
+    const short = (entry: PlannedPublicEndpoint) => heldOf(entry).length < entry.methods.length;
+    if (!grant) {
+      for (const entry of declared) if (short(entry) && !refusedSave.has(entry.ref)) leftOut(entry.ref, refusal);
+      continue;
+    }
+    // What it declares, as allowed; an entry whose new definition was refused above stays as it was.
+    const allowed = declared.map((entry) => ({ ref: entry.ref, methods: refusedSave.has(entry.ref) ? heldOf(entry) : entry.methods }));
+    let result: { gained: string[]; lost: string[] };
+    try {
+      result = await input.service.setManagedAccess({ connectionId: input.connectionId, keyId, access: allowed });
+    } catch (error) {
+      if (!(error instanceof KeyCreateRefused)) throw error;
+      const reason = error.issues.map((issue) => issue.message).join('; ');
+      for (const entry of declared) if (short(entry)) leftOut(entry.ref, reason);
+      continue;
+    }
+    // Settled: it holds exactly what the version declares, as allowed.
+    const change = { keyId, purpose, gained: result.gained, lost: result.lost, settled: true };
+    changedKeys.push(change);
+    await input.onCommitted?.({ kind: 'grant', ...change });
+  }
   for (const purpose of purposes) {
     if (input.livePurposes.has(purpose)) continue;
     // An update never makes again a key the operator took back.
     if (input.withheld?.has(purpose) === true) continue;
+    // Nor one the operator did not allow.
+    if (!grant) {
+      for (const entry of planned.filter((candidate) => candidate.key === purpose)) skipped.push({ ref: entry.ref, reason: refusal });
+      continue;
+    }
     const binding = staffBindingOf(manifest, purpose, input);
     // A second key the manifest does not declare (the check refuses that) is never made unbound —
     // except a shared link's own key, which no staff signs in: its token is its lock.
@@ -488,8 +570,107 @@ export async function installPublicAccess(input: {
       throw error instanceof KeyCreateRefused ? refusedInPlainWords(error.issues) : error;
     }
     keys[purpose] = made.key.id;
+    await input.onCommitted?.({ kind: 'key', purpose, keyId: made.key.id, access: [...saved] });
   }
-  return { endpoints: saved, keyId: keys[CUSTOMER_KEY_PURPOSE] ?? null, keys, skipped };
+  const granted: Record<string, string[]> = {};
+  for (const { purpose, gained } of changedKeys) {
+    if (gained.length > 0) granted[purpose] = [...new Set([...(granted[purpose] ?? []), ...gained])].sort();
+  }
+  return {
+    endpoints: saved,
+    keyId: keys[CUSTOMER_KEY_PURPOSE] ?? null,
+    keys,
+    skipped,
+    ...(Object.keys(granted).length === 0 ? {} : { granted }),
+    changedKeys,
+  };
+}
+
+/** One change to the app's public access, told as it is written. */
+export type PublicAccessCommit =
+  | { kind: 'endpoint'; ref: string }
+  | { kind: 'key'; purpose: string; keyId: string; access: string[] }
+  | { kind: 'grant'; keyId: string; purpose: string; gained: string[]; lost: string[] }
+  | { kind: 'withdraw'; keyId: string; purpose: string; lost: string[] }
+  | { kind: 'revoke'; keyId: string; purpose: string }
+  | { kind: 'rebind'; keyId: string; purpose: string; requiresStaff: KeyStaffBinding | null; enabledBy: KeyEnabledBy | null };
+
+/**
+ * What an update takes back from the app's public access: run on EVERY
+ * update of an app with keys of its own on the connection, before anything
+ * that may fail and whatever the operator said about what the version adds —
+ * with the guests' key revoked, with no public access left in the version,
+ * with an entry the version cannot make.
+ *
+ *  - each live key keeps only what the version still declares for its
+ *    purpose, by a write that can only remove (a key with nothing declared
+ *    is left holding nothing: the guests' key stays, to be given access
+ *    again by a later version the operator allows);
+ *  - a second key whose purpose the version no longer declares — neither a
+ *    staff screen's nor a shared link's — is revoked;
+ *  - a staff screen's key is bound to the role and switch the version
+ *    names. A key the version turns into a shared link's keeps its staff
+ *    binding here: dropping it lets the link open without a sign-in, which
+ *    only the operator's explicit say may do.
+ */
+export async function takeBackPublicAccess(input: {
+  service: EndpointService;
+  meta: MetaDb;
+  manifest: Manifest;
+  connectionId: string;
+  names: Readonly<Record<string, string>>;
+  /** For a staff key's switch, by its table's id; null leaves the bindings as they are. */
+  view: SnapshotView | null;
+  onCommitted: (change: PublicAccessCommit) => Promise<void>;
+}): Promise<void> {
+  const { manifest, connectionId } = input;
+  if (manifest.kind !== 'app') return;
+  const keysRepo = publicKeysRepo(input.meta);
+  const at = Date.now();
+  const here = new Set((await keysRepo.listLiveDerived(connectionId, at)).map((k) => k.id));
+  const live = (await keysRepo.listManagedBy(manifest.key)).filter(
+    (k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at) && here.has(k.id),
+  );
+  if (live.length === 0) return;
+  // The refs come from the manifest and the table names alone: no entry's own check can stop this.
+  const planned = planPublicEndpoints(manifest, input.names, null).filter((entry) => !entry.pending);
+  for (const key of live) {
+    const purpose = key.purpose;
+    if (purpose !== CUSTOMER_KEY_PURPOSE && manifest.publicKeys?.[purpose]?.requiresStaff === undefined && !opensByToken(manifest, purpose)) {
+      await keysRepo.revoke(key.id);
+      // As the API keys page revokes: the revision moves, so an edit racing this one is re-checked.
+      await publicApiStateRepo(input.meta).bump();
+      await input.onCommitted({ kind: 'revoke', keyId: key.id, purpose });
+      continue;
+    }
+    const declared = new Map(planned.filter((entry) => entry.key === purpose).map((entry) => [entry.ref, entry.methods] as const));
+    const { lost } = await input.service.narrowManagedAccess({ connectionId, keyId: key.id, declared });
+    if (lost.length > 0) await input.onCommitted({ kind: 'withdraw', keyId: key.id, purpose, lost });
+    if (input.view === null) continue;
+    const binding = staffBindingOf(manifest, purpose, { names: input.names, view: input.view });
+    if (binding === null) continue;
+    if (JSON.stringify(keyStaffBinding(key)) !== JSON.stringify(binding.requiresStaff) || JSON.stringify(keyEnabledBy(key)) !== JSON.stringify(binding.enabledBy)) {
+      await keysRepo.setBinding(key.id, binding);
+      await input.onCommitted({ kind: 'rebind', keyId: key.id, purpose, ...binding });
+    }
+  }
+}
+
+/**
+ * The app's live keys this version turns from a staff screen's into a shared
+ * link's: served to a signed-in staff member until now, their token would
+ * open what they read with no sign-in at all. The update check lists them as
+ * a change to allow, and the update makes it only when explicitly allowed.
+ */
+export async function keysOpenedWithoutStaff(meta: MetaDb, manifest: Manifest, connectionId: string): Promise<{ keyId: string; purpose: string }[]> {
+  if (manifest.kind !== 'app') return [];
+  const keysRepo = publicKeysRepo(meta);
+  const at = Date.now();
+  const here = new Set((await keysRepo.listLiveDerived(connectionId, at)).map((k) => k.id));
+  return (await keysRepo.listManagedBy(manifest.key))
+    .filter((k) => k.revokedAt === null && (k.expiresAt === null || k.expiresAt > at) && here.has(k.id))
+    .filter((k) => opensByToken(manifest, k.purpose) && (keyStaffBinding(k) !== null || keyEnabledBy(k) !== null))
+    .map((k) => ({ keyId: k.id, purpose: k.purpose }));
 }
 
 /** A refusal as the install says it: the sentences, never the codes. */
@@ -498,7 +679,7 @@ function refusedInPlainWords(issues: readonly { message: string }[]): Error {
 }
 
 /** A key the manifest declares with no staff binding: it opens one row by a shared link, and reads. */
-function opensByToken(manifest: Manifest, purpose: string): boolean {
+export function opensByToken(manifest: Manifest, purpose: string): boolean {
   if (manifest.kind !== 'app') return false;
   const declared = manifest.publicKeys?.[purpose];
   if (declared === undefined || declared.requiresStaff !== undefined) return false;

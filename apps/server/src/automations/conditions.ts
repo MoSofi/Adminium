@@ -39,7 +39,9 @@ import type {
 } from '@adminium/meta';
 import { automationDurationMs, isRelativeAutomationOp } from '@adminium/meta';
 
+import type { ResolvedTable } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { serverDay } from './relative-time.js';
 
 /** What "count the related rows" needs; the caller owns the query (F5). */
 export interface RelatedCountSpec {
@@ -54,6 +56,11 @@ export interface ConditionContext {
   /** The record, re-read and UNMASKED. Null for a schedule tick with no record. */
   row: Row | null;
   now: number;
+  /**
+   * The record's table, so a relative condition on a `date` column is judged
+   * by its day. Absent, a bare `YYYY-MM-DD` value is taken for a day.
+   */
+  table?: Pick<ResolvedTable, 'columns'> | null | undefined;
   /** Absent ⇒ a count condition cannot be answered and evaluates false. */
   countRelated?: ((spec: RelatedCountSpec) => Promise<number>) | undefined;
 }
@@ -99,6 +106,20 @@ export function asInstant(value: unknown): number | null {
   return null;
 }
 
+const BARE_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The calendar day a `date` column holds: its `YYYY-MM-DD` text, as every
+ * engine reads it; a JavaScript date or an epoch (a driver from before dates
+ * read as text) is the day it is on this server's clock.
+ */
+function asDay(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return /^(\d{4}-\d{2}-\d{2})/.exec(value.trim())?.[1] ?? null;
+  const at = asInstant(value);
+  return at === null ? null : serverDay(at);
+}
+
 function isEmptyValue(value: unknown): boolean {
   return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
 }
@@ -140,16 +161,42 @@ function compareValues(op: AutomationConditionOp, left: unknown, right: unknown)
   }
 }
 
-/** The four relative-time operators, resolved against `now` (D5). */
+/**
+ * The four relative-time operators, resolved against `now` (D5).
+ *
+ * A `date` column (`day: true`) holds a calendar day, not an instant, and is
+ * judged by comparing days on this server's clock — the bounds the scheduled
+ * scan binds (`relative-time.ts` `boundValue`), so the two paths agree about
+ * the same row at the same moment. Read as UTC midnight instead, an invoice
+ * due on the 14th is "more than 0 days ago" from 17:00 on the 13th in Los
+ * Angeles, while the scan still says it is not.
+ */
 export function evaluateRelative(
   op: AutomationConditionOp,
   value: unknown,
   operand: AutomationRelativeOperand,
   now: number,
+  day = false,
 ): boolean {
+  const span = automationDurationMs(operand.amount, operand.unit);
+  if (day) {
+    const held = asDay(value);
+    if (held === null) return false;
+    switch (op) {
+      case 'within_next':
+        return held >= serverDay(now) && held <= serverDay(now + span);
+      case 'within_last':
+        return held >= serverDay(now - span) && held <= serverDay(now);
+      case 'more_than_ago':
+        return held < serverDay(now - span);
+      case 'more_than_ahead':
+        return held > serverDay(now + span);
+      default:
+        return false;
+    }
+  }
   const at = asInstant(value);
   if (at === null) return false;
-  const span = automationDurationMs(operand.amount, operand.unit);
   switch (op) {
     case 'within_next':
       return at >= now && at <= now + span;
@@ -190,9 +237,10 @@ export async function evaluateCondition(
   if (op === 'is_empty') return isEmptyValue(value);
   if (op === 'not_empty') return !isEmptyValue(value);
   if (isRelativeAutomationOp(op)) {
-    return isRelativeOperand(condition.right)
-      ? evaluateRelative(op, value, condition.right, ctx.now)
-      : false;
+    if (!isRelativeOperand(condition.right)) return false;
+    const type = ctx.table?.columns.get(condition.left.field)?.logicalType;
+    const day = type === undefined ? typeof value === 'string' && BARE_DAY.test(value.trim()) : type === 'date';
+    return evaluateRelative(op, value, condition.right, ctx.now, day);
   }
   if (condition.right === undefined) return false;
   return compareValues(op, value, condition.right);

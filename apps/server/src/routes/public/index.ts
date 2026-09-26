@@ -39,8 +39,9 @@ import {
 } from '@adminium/meta';
 
 import { SELF_ORIGIN_SENTINEL, type Env } from '../../config/env.js';
-import { AppError, ConnectionDisabledError } from '../../errors.js';
+import { AppError, ConnectionDisabledError, ValidationFailedError } from '../../errors.js';
 import { csrfHeaderMatches, csrfSigningKey, isSameOriginRequest } from '../../security/csrf.js';
+import { NulInRequest } from '../../security/nul-bytes.js';
 import { availabilityOf } from '../../surfaces/settings.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
@@ -68,6 +69,7 @@ import {
   LINK_SESSION_IDLE_MS,
   LINK_SESSION_MAX_MS,
   SIGN_IN_LINK_JOB_KIND,
+  declaredNameColumn,
   firstNameOf,
   hashLinkToken,
   linkIdentityOf,
@@ -96,7 +98,7 @@ import {
 import { generatePublicSessionToken, hashPublishableKey, keyKindOf } from '../../public-api/keys.js';
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
-import { tableRulesFor } from '../../crud/column-rules.js';
+import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
 import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
@@ -383,9 +385,41 @@ const BOOKING_REASONS: Readonly<Record<string, string>> = {
   BOOKING_NOT_OFFERED: 'not-offered',
 };
 
-const refuseWrite = (error?: unknown): never => {
-  const told = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
-  if (told !== undefined) throw new PublicSlotRefused(told);
+/**
+ * The refusals a column's own rules make that a caller is told with the
+ * column: each is about the value sent and nothing else — too long, not an
+ * address, left empty, or holding a character no engine keeps alike — so the
+ * column says no more than the form the caller is filling in already does.
+ * Unique and foreign-key refusals, and a value outside a list, stay unnamed:
+ * those would say what other rows hold, or which values exist.
+ *
+ * An update is told `required` by nothing: whether a column is needed can
+ * turn on what the stored row holds in another one (`requiredWhen`), which a
+ * caller who may change a row need not be able to read.
+ */
+const CREATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character']);
+const UPDATE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'invalid-character']);
+
+/** What a caller may be told of a refused value: the entry's writable columns, and the reasons above. */
+interface Told {
+  writable: ReadonlySet<string>;
+  reasons: ReadonlySet<string>;
+}
+
+/** The first refused field of a check the caller may be told of, or null. */
+function namedIn(fields: unknown, told: Told): { column: string; reason: string } | null {
+  if (typeof fields !== 'object' || fields === null) return null;
+  for (const [column, issue] of Object.entries(fields as Record<string, unknown>)) {
+    const code = typeof issue === 'object' && issue !== null ? (issue as { code?: unknown }).code : undefined;
+    // Only a column this caller could have sent: one the entry fills itself is not theirs to hear of.
+    if (typeof code === 'string' && told.reasons.has(code) && told.writable.has(column)) return { column, reason: code };
+  }
+  return null;
+}
+
+const refuseWrite = (error?: unknown, told?: Told): never => {
+  const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
+  if (slot !== undefined) throw new PublicSlotRefused(slot);
   if (error instanceof AppError) {
     const details = (error.details ?? {}) as { reason?: unknown; column?: unknown; fields?: Record<string, unknown> };
     const code = error.code === 'BOOKING_CLOSED' ? 'BOOKING_CLOSED' : typeof details.reason === 'string' ? details.reason : '';
@@ -393,8 +427,15 @@ const refuseWrite = (error?: unknown): never => {
     const column = typeof details.column === 'string' ? details.column : Object.keys(details.fields ?? {})[0];
     if (reason !== undefined && column !== undefined) throw new PublicWriteRefused({ column, reason });
   }
-  throw new PublicWriteRefused();
+  const named = told === undefined || !(error instanceof ValidationFailedError) ? null : namedIn((error.details as { fields?: unknown } | undefined)?.fields, told);
+  throw named === null ? new PublicWriteRefused() : new PublicWriteRefused(named);
 };
+
+/** `refuseWrite` for a create or a change through an entry: a refused value of a column it writes is named. */
+const refuseWriteThrough =
+  (resource: CompiledResource, action: 'create' | 'update') =>
+  (error?: unknown): never =>
+    refuseWrite(error, { writable: resource.writable, reasons: action === 'create' ? CREATE_NAMED : UPDATE_NAMED });
 
 /**
  * Is a bind address loopback-only?
@@ -1330,6 +1371,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        * Fastify's `request completed` line still records each one at info.
        */
       if (status === 429) return fail(reply, 429, 'PUBLIC_RATE_LIMITED', 'Too many requests.');
+      // U+0000 in the path or the query: the parameter the caller sent, named back to them.
+      if (error instanceof NulInRequest) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That request is not permitted here.', { parameter: error.parameter });
       // Logged in full server-side; the caller gets a code and nothing else.
       request.log.warn({ err: error, url: request.url }, 'public API request failed');
       const code: PublicErrorCode =
@@ -1809,11 +1852,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                * A constraint violation is not spelled out. `routes/data` maps
                * unique/FK failures to friendly shapes naming the constraint and
                * the columns — exactly the detail that tells an anonymous caller
-               * which values already exist, which is a membership oracle.
+               * which values already exist, which is a membership oracle. A
+               * value refused for itself, in a column this entry writes, is
+               * named (`refuseWriteThrough`).
                */
-              mapError: refuseWrite,
+              mapError: refuseWriteThrough(found.resource, 'create'),
               announce,
             });
+          /*
+           * Text no engine keeps alike is refused before a child's references
+           * are looked up with it — the write service refuses it too, but only
+           * once the lookup below has sent it to the database.
+           */
+          const unstorable = unstorableText(values, found.table.columns);
+          if (unstorable !== null) refuseWriteThrough(found.resource, 'create')(new ValidationFailedError('Some values were refused.', { fields: unstorable }));
           if (parentOf(found.resource) === null) {
             inserted = await create(target, announceCreate);
           } else {
@@ -2003,7 +2055,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               return ((await inScope(query).executeTakeFirst()) as Row | undefined) ?? null;
             },
             skipIfNone: true,
-            mapError: refuseWrite,
+            mapError: refuseWriteThrough(found.resource, 'update'),
             announce: async ({ before, after }) => {
               await auditWrite(
                 request,
@@ -2301,8 +2353,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (found === null) return reply;
         const { resource, table } = found;
 
-        const refuseRow = (index: number, message: string) =>
-          fail(reply, 400, 'PUBLIC_WRITE_REFUSED', message, { index });
+        const refuseRow = (index: number, message: string, named: { column: string; reason: string } | null = null) =>
+          fail(reply, 400, 'PUBLIC_WRITE_REFUSED', message, { index, ...(named ?? {}) });
         // A proved resource takes its creates one at a time, each with its proof:
         // one proof must not buy a batch of rows.
         if (resource.humanCheck && ok.key.kind === 'browser' && !proofExcused(resource, ok.session) && rows.some((raw) => table.primaryKey.every((c) => !Object.prototype.hasOwnProperty.call(raw, c)))) {
@@ -2329,6 +2381,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             if (keyColumns.includes(column)) pk[column] = value;
             else rest[column] = value;
           }
+          // A key is read with, before any write: U+0000 in it is refused here, named as a value would be.
+          const badKey = Object.keys(unstorableText(pk) ?? {})[0];
+          if (badKey !== undefined) return refuseRow(index, 'A value was refused.', { column: badKey, reason: 'invalid-character' });
           const values = prepareValues(resource, rest, ok.session, 'update', found.dialect);
           if (values === null) return refuseRow(index, 'That column is not writable here.');
           if (unfilled(resource, values) !== null) return refuseRow(index, 'A value this write needs is missing.');
@@ -2398,11 +2453,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof GuardedBatchError) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
+        // A value refused for itself, in a column this entry writes, is named as for one row.
         for (const [i, row] of preparedInserts.entries()) {
-          if (row.issues !== null) return refuseRow((inserts[i] as { index: number }).index, 'A value was refused.');
+          if (row.issues !== null) return refuseRow((inserts[i] as { index: number }).index, 'A value was refused.', namedIn(row.issues, { writable: resource.writable, reasons: CREATE_NAMED }));
         }
         for (const [i, row] of preparedUpdates.entries()) {
-          if (row.issues !== null) return refuseRow((updates[i] as { index: number }).index, 'A value was refused.');
+          if (row.issues !== null) return refuseRow((updates[i] as { index: number }).index, 'A value was refused.', namedIn(row.issues, { writable: resource.writable, reasons: UPDATE_NAMED }));
         }
 
         let written: { created: Row[]; updated: { pk: Row; after: Row | null }[] };
@@ -2706,7 +2762,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             to: address.trim(),
             templateKey: SIGN_IN_CODE_TEMPLATE_KEY,
             locale,
-            vars: { appName: (await senderOf(ok.key)).appName, code, minutes: String(CODE_TTL_MS / 60_000) },
+            vars: { appName: (await senderOf(ok.key)).appName, code },
+            // The code stays in Latin digits: it is typed back. The minutes are said.
+            counts: { minutes: CODE_TTL_MS / 60_000 },
           },
         );
         // Nothing can be sent (no mail set up, the template switched off): the
@@ -3083,7 +3141,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (found === null) return reply;
         const opened = await openLink({ deps: linkDeps, keyId: ok.key.keyId, token: request.body.token, identity, found, now: Date.now() });
         if (opened === null) return fail(reply, 410, 'LINK_EXPIRED', 'This link has expired. Ask for a new one.');
-        return reply.send({ data: { firstName: firstNameOf(opened.person, identity) } });
+        const declared = await declaredNameColumn(meta, found.view, ok.key, found.table);
+        return reply.send({ data: { firstName: firstNameOf(opened.person, identity, found.table, declared) } });
       },
     );
 

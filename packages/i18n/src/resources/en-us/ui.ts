@@ -84,6 +84,7 @@ export default {
       "required": "This field is required.",
       "notAllowed": "Choose one of the listed values.",
       "invalid": "This value is not valid here.",
+      "invalidCharacter": "This text contains a hidden character that cannot be saved. Type it again.",
       "email": "Enter a valid email address.",
       "url": "Enter a valid web address.",
       "phone": "Enter a valid phone number.",

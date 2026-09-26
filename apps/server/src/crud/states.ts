@@ -41,16 +41,35 @@
  * History — an import, an app's sample data — may write rows in any state and
  * add child rows to a sent document: those rows say what happened then. The
  * lock still holds for an import's update of a row already locked.
+ *
+ * ─── A released line, and the row a line bills ────────────────────────────
+ *
+ * A locked child may be RELEASED in some of its parent's states: a void
+ * invoice's line may empty its link to the time it billed, and nothing else,
+ * so the time can go on another invoice. And a child's link may LOCK columns
+ * of the row it points at (`lockLinked`): the hours of time on an invoice do
+ * not change while the invoice stands — unless it is in a state that
+ * releases that link, which is what lets void, release and bill again follow
+ * each other.
+ *
+ * The locked row's writer holds its row, then reads the lines pointing at it
+ * and their parents; a line's writer that sets a link holds the linked row
+ * FIRST — before its parent and before itself. So the two meet on the linked
+ * row, in one order: the line waits for the change of hours to commit (and
+ * bills the hours as changed), or the change of hours waits for the line to
+ * commit (and is refused). A link lock is judged on every update, an undo's
+ * included: an undo may not change the hours of time billed since.
  */
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
 import type { StateMoveRule, StateParent, TableStatesRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { AppError, ValidationFailedError } from '../errors.js';
+import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import { inTransaction } from './capacity-guard.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
+import { copiedOf } from './decided-columns.js';
 import { sameValue } from './write-values.js';
 
 type Db = Kysely<SourceDatabase>;
@@ -128,6 +147,11 @@ export function tiedToStates(table: ResolvedTable): boolean {
   return effective?.states !== undefined || (effective?.stateParents?.length ?? 0) > 0;
 }
 
+/** Whether rows of other tables keep columns of this one while they link to it (`lockLinked`). */
+export function lockedByLinks(table: ResolvedTable): boolean {
+  return (table.table?.linkLocks?.length ?? 0) > 0;
+}
+
 // ─── refusals ──────────────────────────────────────────────────────────────
 
 export class StateMoveRefused extends AppError {
@@ -193,6 +217,92 @@ async function lockedNow(db: Db, dialect: Dialect, table: ResolvedTable, row: Ro
   return states.lock.when.includes(state) || (await referenced(db, dialect, table, row));
 }
 
+/**
+ * The rows a write of this table links to that keep columns while it does
+ * (`StateParent.links`), held for share BEFORE the write's parents and its
+ * own rows: the linked row's own writer holds it first too, so the two never
+ * wait on each other crosswise. Only a link the write sets to a row is held —
+ * emptying one locks nothing new.
+ *
+ * What the write copied from that row (a `copy` through the link, of a column
+ * the link keeps) was read before anything was held. It is read again here,
+ * holding the row: another writer changed it in between, and the write is
+ * refused, to be made again, rather than keep what the row no longer says.
+ */
+async function holdLinkedFirst(db: Db, dialect: Dialect, table: ResolvedTable, row: Row): Promise<void> {
+  const read = copiedOf(row) ?? {};
+  const targets = new Map<string, { table: string; key: string; value: unknown; copied: [string, unknown][] }>();
+  for (const parent of table.table?.stateParents ?? []) {
+    for (const link of parent.links ?? []) {
+      const value = row[link.via];
+      if (value === null || value === undefined) continue;
+      const copied = Object.entries(read[link.via] ?? {}).filter(([from]) => link.columns.includes(from));
+      targets.set(`${link.table}\u0000${link.key}\u0000${String(value)}`, { table: link.table, key: link.key, value, copied });
+    }
+  }
+  for (const name of [...targets.keys()].sort()) {
+    const target = targets.get(name)!;
+    let query = db
+      .selectFrom(target.table)
+      .select([sql<number>`1`.as('adm_one'), ...target.copied.map(([from], i) => sql<unknown>`${sql.ref(from)}`.as(`adm_${String(i)}`))])
+      .where((eb) => eb(db.dynamic.ref(target.key), '=', target.value));
+    if (dialect !== 'sqlite') query = query.forShare();
+    const found = (await query.executeTakeFirst()) as Row | undefined;
+    if (found === undefined) continue;
+    target.copied.forEach(([from, was], i) => {
+      if (!sameValue(found[`adm_${String(i)}`], was)) {
+        throw new ConflictError('Someone else changed what this row copies at the same moment. Try again.', 'WRITE_CONFLICT', { retry: true, column: from });
+      }
+    });
+  }
+}
+
+/**
+ * A write that sets a link a `lockLinked` names but the model can no longer
+ * follow (`unresolvedLinks`) is refused: the row it would link could not be
+ * kept from changing. Emptying the link, or leaving it as it is, is not.
+ */
+function refuseUnresolvedLink(table: ResolvedTable, row: Row, changed?: readonly string[]): void {
+  for (const parent of table.table?.stateParents ?? []) {
+    for (const link of parent.unresolvedLinks ?? []) {
+      const value = row[link];
+      if (value === null || value === undefined || (changed !== undefined && !changed.includes(link))) continue;
+      throw new RecordLocked(
+        `${table.name}.${link} cannot be linked now: the rows it points at are to be kept as they are, and the table or a column that rule names is not in the database's schema. Put the link back, or change the ${parent.name} states in Studio.`,
+        { table: table.name, column: link, unresolved: true },
+      );
+    }
+  }
+}
+
+/**
+ * The first column of `changed` a row linking to this one keeps (`lockLinked`),
+ * with the linking table, or null. Read after the row itself is held, so a
+ * line's writer that links to it has committed (and is seen: MySQL reads it
+ * with a share lock, past its snapshot) or waits for this write.
+ *
+ * A link locks unless its row's parent is in a state that releases the link.
+ * A linking row whose parent is gone, or has no state, locks.
+ */
+async function linkLockedColumn(db: Db, dialect: Dialect, table: ResolvedTable, stored: Row, changed: readonly string[]): Promise<{ column: string; by: string } | null> {
+  for (const lock of table.table?.linkLocks ?? []) {
+    const column = changed.find((name) => lock.columns.includes(name));
+    const key = stored[lock.key];
+    if (column === undefined || key === null || key === undefined) continue;
+    const state = sql.ref(`adm_parent.${lock.parent.column}`);
+    const join =
+      lock.releasedIn.length === 0
+        ? sql``
+        : sql` left join ${sql.table(lock.parent.table)} as adm_parent on ${sql.ref(`adm_parent.${lock.parent.key}`)} = ${sql.ref(`adm_link.${lock.parent.via}`)}`;
+    const unreleased = lock.releasedIn.length === 0 ? sql`` : sql` and (${state} is null or ${state} not in (${sql.join(lock.releasedIn)}))`;
+    // MySQL reads past its snapshot only with a lock (Postgres's statement already sees what committed).
+    const shared = dialect === 'mysql' ? sql` for share` : sql``;
+    const found = await sql<{ one: number }>`select 1 as one from ${sql.table(lock.table)} as adm_link${join} where ${sql.ref(`adm_link.${lock.via}`)} = ${key}${unreleased} limit 1${shared}`.execute(db);
+    if (found.rows.length > 0) return { column, by: lock.name };
+  }
+  return null;
+}
+
 /** A parent's state, and whether it is locked, read holding it. */
 async function heldParent(db: Db, dialect: Dialect, parent: StateParent, key: unknown): Promise<{ state: string | null; locked: boolean } | null> {
   const [row] = await heldRows(db, dialect, parent.table, { [parent.key]: key });
@@ -226,6 +336,8 @@ async function judgeParents(
   table: ResolvedTable,
   sides: { now: Row | null; was: Row | null },
   guard: StateGuard,
+  /** An update's changed columns: what a release is judged on. */
+  changed?: readonly string[],
 ): Promise<{ parent: StateParent; key: unknown }[]> {
   const out: { parent: StateParent; key: unknown }[] = [];
   for (const parent of table.table?.stateParents ?? []) {
@@ -241,17 +353,17 @@ async function judgeParents(
       out.push({ parent, key });
       // A parent the same history brought in takes its own past children.
       if (guard.history && guard.created?.has(rowKey(parent.table, key)) === true) continue;
-      if (parent.lock === true && found.locked) {
-        throw new RecordLocked(`${table.name} rows cannot change while their ${parent.table} is ${found.state ?? 'locked'}.`, {
+      if (parent.lock === true && found.locked && !released(parent, found.state, sides, changed)) {
+        throw new RecordLocked(`${table.name} rows cannot change while their ${parent.name} is ${found.state ?? 'locked'}.`, {
           table: table.name,
-          parent: parent.table,
+          parent: parent.name,
           state: found.state,
         });
       }
       if (parent.parentIn !== undefined && (found.state === null || !parent.parentIn.includes(found.state))) {
-        throw new RecordLocked(`${table.name} rows can change only while their ${parent.table} is ${parent.parentIn.join(' or ')}.`, {
+        throw new RecordLocked(`${table.name} rows can change only while their ${parent.name} is ${parent.parentIn.join(' or ')}.`, {
           table: table.name,
-          parent: parent.table,
+          parent: parent.name,
           state: found.state,
           parentIn: parent.parentIn,
         });
@@ -259,6 +371,20 @@ async function judgeParents(
     }
   }
   return out;
+}
+
+/**
+ * Whether a change to a locked child is one its parent's state releases: an
+ * update, under the same parent, that only EMPTIES columns the release lists.
+ * Setting one to a value, changing any other column, moving the row to
+ * another parent, creating and deleting stay locked.
+ */
+function released(parent: StateParent, state: string | null, sides: { now: Row | null; was: Row | null }, changed: readonly string[] | undefined): boolean {
+  const release = parent.release;
+  if (release === undefined || state === null || !release.when.includes(state)) return false;
+  if (changed === undefined || changed.length === 0 || sides.now === null || sides.was === null) return false;
+  if (!sameValue(sides.now[parent.via], sides.was[parent.via])) return false;
+  return changed.every((column) => release.columns.includes(column) && (sides.now![column] === null || sides.now![column] === undefined));
 }
 
 /** The target of a move written either way. */
@@ -392,6 +518,8 @@ export async function guardedInsert<T>(
   const guard = guardOf(row);
   if (guard === undefined || !tiedToStates(table)) return run(db);
   return within(db, async (tx) => {
+    refuseUnresolvedLink(table, row);
+    await holdLinkedFirst(tx, dialect, table, row);
     const states = table.table?.states;
     if (states !== undefined && !guard.history) {
       const state = text(row[states.column]);
@@ -453,16 +581,27 @@ export async function guardedUpdate(
   visible?: (db: Db) => Promise<boolean>,
 ): Promise<number> {
   const guard = guardOf(values);
-  if (guard === undefined || !tiedToStates(table)) return run(db);
+  // The states judge a write that carries a guard; a link lock judges every update, an undo's too.
+  const tied = guard !== undefined && tiedToStates(table);
+  const linked = lockedByLinks(table);
+  if (!tied && !linked) return run(db);
   return within(db, async (tx) => {
-    await holdParentsFirst(tx, dialect, table, match, values);
+    if (tied) {
+      await holdLinkedFirst(tx, dialect, table, values);
+      await holdParentsFirst(tx, dialect, table, match, values);
+    }
     for (const stored of await heldRows(tx, dialect, table.id, match)) {
       const changed = Object.keys(values).filter((column) => !sameValue(values[column], stored[column]));
       if (changed.length === 0) continue;
       try {
         const states = table.table?.states;
-        if (states !== undefined) await judgeOwnUpdate(tx, dialect, table, states, stored, values, changed, guard);
-        await judgeParents(tx, dialect, table, { now: { ...stored, ...values }, was: stored }, guard);
+        if (tied) refuseUnresolvedLink(table, values, changed);
+        if (tied && states !== undefined) await judgeOwnUpdate(tx, dialect, table, states, stored, values, changed, guard);
+        if (tied) await judgeParents(tx, dialect, table, { now: { ...stored, ...values }, was: stored }, guard, changed);
+        const kept = linked ? await linkLockedColumn(tx, dialect, table, stored, changed) : null;
+        if (kept !== null) {
+          throw new RecordLocked(`This ${table.name} row is linked from ${kept.by}: ${kept.column} can no longer change.`, { column: kept.column, linkedFrom: kept.by });
+        }
       } catch (refusal) {
         if (visible !== undefined && !(await visible(tx))) return 0;
         throw refusal;

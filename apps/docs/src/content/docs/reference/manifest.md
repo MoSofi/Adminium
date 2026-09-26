@@ -255,8 +255,13 @@ record added from a form that does not show it. Give such columns a `default`, o
 `nullable`.
 
 `unique` becomes a unique constraint named `uq_<table>_<column>`, where `<table>` is the real
-table name (`uq_clinic_patients_email`). It is made when Adminium creates the table. A column
-added to a table that already exists, by an update or on a reused table, gets no constraint.
+table name (`uq_clinic_patients_email`). It is made when Adminium creates the table, and by an
+update that adds the column or finds it without one (on SQLite, a unique index of the same name).
+Before adding it to a column that already has rows, the update's check makes sure no two rows hold
+the same value, and names the column if they do; nothing changes until they differ. A code column
+and a number without gaps are unique the same way, a number counted per parent row together with
+its parent. On MySQL a unique text column holds at most 768 characters (`maxLength`): MySQL
+indexes no longer key, so a longer one is refused on the check, at install and on update.
 
 #### Column types
 
@@ -385,8 +390,18 @@ data are not [stamped](#stamps), not [capped](#totals-and-balances), and not hel
 `notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
 `notBefore` is judged when the date is written, and when its `via` link changes. `required` and
 `requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
-`VALIDATION_FAILED`, the field's code `required`. The public API answers any refused value with its
-one `400` `PUBLIC_WRITE_REFUSED`, naming no column.
+`VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
+holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
+code `invalid-character`: Postgres cannot store it, and MySQL and SQLite would keep what Postgres
+refuses.
+
+The public API answers a refused value with its one `400` `PUBLIC_WRITE_REFUSED`. When the value
+was refused for itself, in a column the entry lets the caller write, `params` names the column and
+why: `{ "column": "name", "reason": "too-long" }`, the reason `too-long`, `format`,
+`invalid-character`, or on a create `required`. A batch adds the row's `index`. Anything else
+names no column: a value already taken or pointing at a row that is not there, a value outside
+`options`, a date out of bounds, and a column only a change leaves empty, since whether it may be
+empty can turn on what the stored row holds.
 
 #### Required for some values
 
@@ -826,6 +841,52 @@ least one of:
 | `lock` | `true`: the child's rows are locked while this row is. Needs a `lock` on this table. |
 | `parentIn` | 1–16 states: the child's rows may be written only while this row is in one of them (payments on a sent invoice). Not with `lock`. |
 | `clearOnCreate` | 1–8 nullable columns of **this** row, emptied when a child row is created (a recorded payment clears the client's "I've sent it"). |
+| `lockLinked` | `{ "<link>": ["<column>", …] }`: for 1–8 of the child's foreign keys to other tables, 1–16 columns of the row the link points at that do not change while a child row points at it (the hours of time an invoice line bills). The key is never one. |
+
+and, with `lock`:
+
+| Field | Rule |
+|---|---|
+| `release` | `{ "when", "columns" }`: while this row is in one of `when` (states the `lock` holds, and that no move leaves), a child row may still **empty** the listed columns (1–8 nullable columns of the child, never `via` or the key), and change nothing else. A released state must be final: a released link stops locking the row it points at, so a document that could move on would bring its line back billing a row that changed meanwhile. |
+
+Time and purchases billed on invoice lines, so that nothing is billed twice (each link `unique`),
+and billed again once the invoice is void:
+
+```json
+"children": {
+  "invoice_lines": {
+    "via": "invoice_id", "lock": true,
+    "release": { "when": ["void"], "columns": ["time_entry_id", "expense_id"] },
+    "lockLinked": {
+      "time_entry_id": ["hours", "logged_hours", "project_id", "date"],
+      "expense_id": ["amount", "currency", "project_id", "client_id"]
+    }
+  }
+}
+```
+
+A void invoice's line may set `time_entry_id` to `null`; setting it to another entry, changing
+anything else on the line, or deleting it stays `RECORD_LOCKED`, and so does emptying it while the
+invoice is sent. While a line points at an entry, a change to one of the entry's listed columns is
+refused `409` `RECORD_LOCKED`, `details.column` naming it, and the entry's record page draws those
+fields read-only. A line on an invoice in a state that releases its link (`release.when`, with the
+link among `release.columns`) keeps nothing: once the invoice is void the hours may change, and
+once the line lets go the time may go on another invoice. A line whose invoice is gone, or has no
+state, keeps them. A value the line copies from the entry (a `copy` through the link) is read
+again when the line is written, holding the entry: an entry changed in between refuses the line
+`409` `WRITE_CONFLICT`, to be written again, so a line never bills hours its entry no longer has.
+A listed column Adminium works out (a formula) is kept too: a change to what it is worked out from
+is refused naming it. A total over the entry's own child rows (a rollup) is Adminium's, and moves.
+
+A `lockLinked` link is followed through its foreign key. Studio refuses to save states whose link
+has none, or names a column the linked table does not have. If the link later stops leading
+anywhere Adminium can read (its relation removed in Studio, its foreign key or a kept column
+dropped), the rule fails closed: a line may no longer be linked through it, and creating one or
+changing its link is refused `409` `RECORD_LOCKED` with `details.unresolved: true` and the link as
+`details.column`. Emptying the link, and every other change to the line, still goes through, and
+the columns that can still be followed stay kept. Put the relation back, or change the states in
+Studio, to bill through it again. A refusal names tables by their own names (`linkedFrom`,
+`parent`), never with a schema in front.
 
 A move that is not listed is not one the row may make. Columns Adminium keeps (totals, balances,
 formulas, stamps) are Adminium's to write whatever the state. A new row starts in `initial`. A
@@ -843,7 +904,9 @@ any state, and a child row may follow a parent the same import or sample brought
 row under a parent that was already there is judged as any other write. An import that updates
 a row already there is judged in full, and a history write empties no `clearOnCreate` column.
 An undo is never given for a write to a table with states, or to its child tables: a mistake is
-moved on (voided, sent back), never unwritten.
+moved on (voided, sent back), never unwritten. A table whose columns a `lockLinked` keeps keeps its
+undo, and an undo is judged like any other change: an edit of the hours made before the time was
+billed is not taken back after.
 
 ### Tables built on an add-on's shape
 
@@ -876,7 +939,10 @@ What the app may add to a part, and nothing else:
 - a `copy` in front of a column the part fills with a `default` (a client's own tax rate before the
   add-on's default rate): the part's default still answers when the copy comes back empty;
 - in the states: more `lock.except` columns (its own columns that stay writable), `roles` on a
-  move, more tables in `children`, and more columns in a child's `clearOnCreate`.
+  move, more tables in `children`, more columns in a child's `clearOnCreate`, and on a child the
+  part ties to the state a `release` and `lockLinked` entries naming only columns the app added
+  to that child (a line's own `time_entry_id`), never the part's. A `release` the part has is
+  kept as it is, and a `lockLinked` entry it has keeps at least its columns.
 
 Everything else, from a column's type to a rule that decides a value or a move, is the part's own.
 
@@ -1507,7 +1573,10 @@ renderer does not know, or data of the wrong shape.
 A template reads variables as `{{name}}`: each link by its name (`appointment.*`, and one foreign
 key further, such as `appointment.clinician.*`), `recipient.name` and `recipient.first_name`,
 `practice.*`, `appName`, `manage_url` and `booking_url`. A time has the forms `.date`, `.time`,
-`.day_month` and `.relative_day` ("tomorrow"), in the recipient's language and the venue's zone.
+`.day_month` and `.relative_day` ("tomorrow"), in the recipient's language and the venue's zone. A
+date has `.day_month` and `.days_since` only: a template asking a column for a form its type does
+not have (`{{invoice.due_on.date}}` on a `date` column) is refused at install and on update with
+`EMAIL_TEMPLATE_INVALID`, naming the template and the variable.
 The guide lists [every variable](/guides/apps/emails/). A message whose email names a variable
 nothing fills (a secret column, a personal column of a linked row, a link the row does not have, a
 misspelt name) is not sent: it is `failed`, and its error names the variable. `recipient.name` and
@@ -1537,6 +1606,12 @@ removes it. Up to 32 entries.
 An entry is served through the app's `customer` key unless it names another in `key`. The install
 creates one key for `customer` and one for each name in [`publicKeys`](#publickeys). A key the
 operator revoked is not made again by an update.
+
+Every update takes back what its version no longer declares: each of the app's keys loses the
+entries dropped (the `customer` key is kept, holding nothing if nothing is left), and a key whose
+name the version no longer lists in `publicKeys` is revoked. What a version adds — an entry, a key,
+or a staff screen's key turned into a shared link's — is given only when the operator allows it on
+the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{key}/update`.
 
 ```json
 "publicAccess": [
@@ -1657,6 +1732,15 @@ their address, and Adminium emails a one-use link (and a code, for another devic
 opens at `verified` from the link; a typed address alone opens nothing. `email` is the `text`
 column holding the address. The entry asks the human check (`"humanCheck": true`), because anyone
 can type an address, and every entry its sessions read says `level: "verified"`.
+
+The link opens a page that asks the person to continue and greets them by first name, before
+anything is proved. It shows the first word of one column and nothing else: the name the
+[outbox](#outbox)'s `recipient.name` declares, when the recipient lives in the same table; with no
+outbox recipient there, the first `text` column in the entry's `select` that is not `email`. It
+never reads a number, a date, the address, a masked or secret column, or a column the entry does
+not `select`. A declared name the entry does not `select` greets nobody by name, so list it in
+`select` (a client portal that shows `["id", "company", "contact_name"]` greets by
+`contact_name`, not by `company`).
 
 **By a token**: `{ "by": "token", "column", "expires"?, "stopped"? }`. An unguessable code in a
 column opens that one row, with no email at all: a handover page shared by link. `column` is a

@@ -26,6 +26,7 @@ import { runIntrospection } from '../src/connections/introspect.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
+import { AppError, errorEnvelope } from '../src/errors.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { packageTarball } from './app-bundle-helpers.js';
 import { TEST_SECRET } from './helpers.js';
@@ -54,6 +55,12 @@ export interface Harness {
   connectionId: string;
   /** Stage `manifest` and install it on the connection. */
   install: (manifest: Record<string, unknown>) => Promise<InstallReply>;
+  /** Stage `manifest` only (an upload), for a test that then plans, installs or updates by hand. */
+  stage: (manifest: Record<string, unknown>) => Promise<void>;
+  /** A request to the app routes, signed in as the owner. */
+  inject: (request: { method: 'GET' | 'POST'; url: string; payload?: Record<string, unknown> }) => Promise<InstallReply>;
+  /** A second connection, to a fresh SQLite file of its own. */
+  otherConnection: () => Promise<{ id: string; tables: () => Promise<string[]> }>;
   run: (statement: string) => Promise<void>;
   rows: (statement: string) => Promise<Record<string, unknown>[]>;
   close: () => Promise<void>;
@@ -115,6 +122,11 @@ export async function installHarness(dialect: Dialect): Promise<Harness> {
   app.setSerializerCompiler(serializerCompiler);
   app.decorate('rbac', { require: () => async () => {}, resolve: async () => ({ superAdmin: false }) } as never);
   app.decorate('requireAuth', (async () => {}) as never);
+  // Refusals in the server's own envelope, details included.
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof AppError) return reply.status(error.statusCode).send(errorEnvelope(error.code, error.message, 'req_test', error.details));
+    return reply.status(500).send(errorEnvelope('INTERNAL', String(error), 'req_test'));
+  });
   app.decorateRequest('user', null);
   app.addHook('onRequest', async (request) => {
     (request as { user?: unknown }).user = { id: user.id, email: 'owner@test' };
@@ -137,20 +149,42 @@ export async function installHarness(dialect: Dialect): Promise<Harness> {
   );
   await app.ready();
   const handle = await manager.data(connection.id);
+  const stage = async (manifest: Record<string, unknown>) => {
+    const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), 'staff/index.html': '<!doctype html><html><body></body></html>' });
+    const staged = await app.inject({
+      method: 'POST',
+      url: `/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`,
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: Buffer.from(tarball),
+    });
+    expect(staged.statusCode, staged.body).toBe(200);
+  };
   return {
     meta,
     dsn,
     connectionId: connection.id,
     install: async (manifest) => {
-      const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), 'staff/index.html': '<!doctype html><html><body></body></html>' });
-      const staged = await app.inject({
-        method: 'POST',
-        url: `/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`,
-        headers: { 'content-type': 'application/octet-stream' },
-        payload: Buffer.from(tarball),
-      });
-      expect(staged.statusCode, staged.body).toBe(200);
+      await stage(manifest);
       return app.inject({ method: 'POST', url: '/apps/install', payload: { key: manifest['key'], version: manifest['version'], connectionId: connection.id } });
+    },
+    stage,
+    inject: async (request) => app.inject(request),
+    otherConnection: async () => {
+      const file = join(dataDir, `other-${randomBytes(3).toString('hex')}.db`);
+      new BetterSqlite3(file).close();
+      const other = await manager.connections.create({ name: 'Second', engine: 'sqlite', introspectDsn: `sqlite:${file}`, dataDsn: `sqlite:${file}` });
+      await runIntrospection({ manager, meta, connectionId: other.id });
+      return {
+        id: other.id,
+        tables: async () => {
+          const reader = new BetterSqlite3(file, { readonly: true });
+          try {
+            return (reader.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all() as { name: string }[]).map((r) => r.name);
+          } finally {
+            reader.close();
+          }
+        },
+      };
     },
     run: async (statement) => {
       await sql.raw(statement).execute(handle.db);

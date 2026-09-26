@@ -14,6 +14,12 @@ export interface SchemaModelView {
   tables: readonly {
     ref: string;
     columns: readonly ExistingColumnView[];
+    /**
+     * The column sets the table keeps unique, one-column ones included (a
+     * constraint or a unique index). Absent = not known: no unique is then
+     * offered to be added.
+     */
+    uniques?: readonly (readonly string[])[];
   }[];
   /**
    * The engine the tables live on. Only the type check reads it: SQLite
@@ -44,6 +50,8 @@ export interface ExistingColumnView {
   isIdentity?: boolean;
   /** The values an enum column's CHECK (or native enum) admits, when it has one. */
   enumValues?: readonly string[];
+  /** No two rows may hold the same value in it alone. Absent = not known. */
+  isUnique?: boolean;
 }
 
 /** What will happen to one table. */
@@ -106,10 +114,18 @@ export interface PlanProblem {
     | 'EMAIL_TEMPLATE_INVALID'
     // A table built on an add-on's shape that differs from it, or names a shape the add-on lacks.
     | 'SHAPE_MISMATCH'
-    | 'SHAPE_UNKNOWN';
+    | 'SHAPE_UNKNOWN'
+    // A column that must hold no value twice, wider than MySQL can index.
+    | 'UNIQUE_KEY_TOO_LONG'
+    // Added by the server, which can read the rows: a unique a table lacks, which rows already there break.
+    | 'UNIQUE_DUPLICATES'
+    // Added by the server, which knows where each app is installed: the app runs on another connection.
+    | 'APP_INSTALLED_ELSEWHERE';
   message: string;
   table: string;
   column?: string;
+  /** `APP_INSTALLED_ELSEWHERE` only: the connection the app is installed on. */
+  connectionId?: string;
 }
 
 export interface InstallPlan {
@@ -174,7 +190,13 @@ export type PlanEdit =
   | { kind: 'add-column'; column: string }
   | { kind: 'widen'; column: string; from: string; to: string }
   | { kind: 'set-identity'; column: string }
-  | { kind: 'enum-values'; column: string; values: string[] };
+  | { kind: 'enum-values'; column: string; values: string[] }
+  /**
+   * The column must hold no value twice (with `with`: no two rows the same in
+   * those columns and this one together), as a table made with it would, and
+   * the table does not say so yet. Offered only where no two rows break it.
+   */
+  | { kind: 'add-unique'; column: string; with?: string[] };
 
 export interface InstallTablePlan {
   /** The manifest's short name. */

@@ -75,11 +75,14 @@ export function offered(column: RequiredColumn): Omit<OfferedColumn, 'name'> | n
     comment: null,
   };
   switch (column.type) {
-    case 'text':
-      // The installer's own type: a declared `maxLength` is a `varchar(n)`.
-      return column.maxLength === undefined
-        ? { ...base, logicalType: 'text' }
-        : { ...base, logicalType: 'varchar', maxLength: column.maxLength };
+    case 'text': {
+      // The installer's own type: a declared `maxLength` is a `varchar(n)`, and
+      // a code is exactly as wide as its codes (it is unique, and MySQL cannot
+      // keep an unbounded TEXT unique).
+      const code = column.rules?.code;
+      const width = column.maxLength ?? (code === undefined ? undefined : (code.prefix ?? '').length + code.length);
+      return width === undefined ? { ...base, logicalType: 'text' } : { ...base, logicalType: 'varchar', maxLength: width };
+    }
     case 'int':
       return { ...base, logicalType: 'integer' };
     case 'bigint':
@@ -123,6 +126,23 @@ export function offered(column: RequiredColumn): Omit<OfferedColumn, 'name'> | n
       return unreachable;
     }
   }
+}
+
+/**
+ * The database default a column an update adds is given: the manifest's own
+ * fixed value (a switch off, a count at 0, a status `new`), which a table made
+ * with the column carries too. `now` is not one: Adminium fills that on every
+ * create (a rule of its own), and the database would stamp every row already
+ * there with the moment of the update.
+ */
+export function addedDefault(column: RequiredColumn): { kind: 'literal'; text: string } | null {
+  const value = column.default;
+  if (value === undefined || column.role === 'pk') return null;
+  if (column.type === 'timestamptz') return null;
+  // The manifest refuses a default on text of no length (MySQL gives TEXT none); kept out here too.
+  if (column.type === 'text' && column.maxLength === undefined) return null;
+  if (!['text', 'enum', 'int', 'bigint', 'decimal', 'money', 'float', 'bool'].includes(column.type)) return null;
+  return { kind: 'literal', text: String(value) };
 }
 
 /** The edit that would give every reused table the columns the manifest needs. */

@@ -262,9 +262,11 @@ for (const [dialect, available] of LEGS) {
       const post = (values: Record<string, unknown>) =>
         served!.composed.app.inject({ method: 'POST', url: '/api/v1/public/records/events_door', headers: served!.headers(), payload: { values } });
       const away = await post({ kind: 'away', note: 'From the kiosk' });
-      // The public surface's one opaque refusal, as for a plain required column: a stranger learns no column.
+      // Named, as for a plain required column: the entry lets the caller write it, and the form can mark it.
       expect(away.statusCode, away.body).toBe(400);
-      expect(away.json()).toEqual({ error: { code: 'PUBLIC_WRITE_REFUSED', message: 'That write was refused.' } });
+      expect(away.json()).toEqual({
+        error: { code: 'PUBLIC_WRITE_REFUSED', message: 'That write was refused.', params: { column: 'person_id', reason: 'required' } },
+      });
       expect(await count()).toBe(0);
       const named = await post({ kind: 'away', person_id: ann['id'] });
       expect(named.statusCode, named.body).toBe(201);

@@ -181,7 +181,11 @@ export interface ExistingTable {
     isIdentity?: boolean;
     /** The values an enum column admits. */
     enumValues?: readonly string[];
+    /** No two rows may hold the same value in it alone. */
+    isUnique?: boolean;
   }[];
+  /** The column sets the table keeps unique, read from the live database. */
+  uniques?: readonly (readonly string[])[];
 }
 
 export interface ApplyInstallInput {

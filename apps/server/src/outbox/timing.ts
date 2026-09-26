@@ -102,9 +102,10 @@ export async function daysFor(days: DueSpec['days'], row: Row, read: SettingRead
 }
 
 /**
- * The calendar day a date column holds. Postgres and MySQL hand a `date` back
- * as a JavaScript date at this server's local midnight, so it is read with
- * local getters; a timestamp is read as the day it is on the venue's clock.
+ * The calendar day a date column holds: its `YYYY-MM-DD` text, as every engine
+ * hands a `date` back (a JavaScript date at this server's local midnight, as
+ * one from elsewhere may still be, is read with local getters); a timestamp is
+ * read as the day it is on the venue's clock.
  */
 export function dayOf(column: Pick<ResolvedColumn, 'logicalType'> | undefined, value: unknown, zone: string): string | null {
   if (value === null || value === undefined) return null;

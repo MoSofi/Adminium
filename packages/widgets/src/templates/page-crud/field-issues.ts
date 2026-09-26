@@ -21,6 +21,7 @@ export const FIELD_ISSUE_CODES = [
   'required',
   'not-allowed',
   'invalid',
+  'invalid-character',
   'format',
   'too-short',
   'too-long',
@@ -83,6 +84,9 @@ export function fieldIssueMessage(t: Translate, issue: FieldIssue): string {
       return t('ui:formDialog.issue.outOfRange', 'This number is out of range.');
     case 'duplicate':
       return t('ui:formDialog.issue.duplicate', 'Already added.');
+    // U+0000, usually pasted in from elsewhere: no database keeps it the same way.
+    case 'invalid-character':
+      return t('ui:formDialog.issue.invalidCharacter', 'This text contains a hidden character that cannot be saved. Type it again.');
     // `format` is the server's word for "a validation rule said no" with no
     // shape named; it reads as the general refusal, which is what it is.
     case 'format':

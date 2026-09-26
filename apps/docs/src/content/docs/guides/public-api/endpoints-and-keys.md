@@ -151,8 +151,8 @@ the venue can still cancel from its own screens.
 | 401 | `PUBLIC_KEY_INVALID` | The key is unknown, revoked or expired |
 | 403 | `PUBLIC_ORIGIN_REFUSED` | A browser key from an origin not listed, or a server key from a browser |
 | 404 | `PUBLIC_REF_NOT_FOUND` | No such endpoint, a method the key was not granted, or a row outside the endpoint's filter. All three look the same on purpose |
-| 400 | `PUBLIC_WRITE_REFUSED` | A column that is not writable, a PUT missing one, a batch of 0 or more than 500 rows, or a write the database refused |
-| 400 | `PUBLIC_QUERY_REFUSED` | A filter or sort the endpoint does not allow |
+| 400 | `PUBLIC_WRITE_REFUSED` | A column that is not writable, a PUT missing one, a batch of 0 or more than 500 rows, or a write the database refused. A value refused for itself in a writable column names it: `params.column` and `params.reason` (`too-long`, `format`, `invalid-character`, or `required` on a create) |
+| 400 | `PUBLIC_QUERY_REFUSED` | A filter or sort the endpoint does not allow, or a path or query parameter holding U+0000 (`%00`), which `params.parameter` names |
 | 409 | `PUBLIC_SLOT_FULL` | The time a booking asks for has no room left |
 | 409 | `PUBLIC_SLOT_BUSY` | Another visitor is booking that time this instant; try again in a moment |
 | 409 | `PUBLIC_TOO_LATE` | Too close to the time to cancel online; the venue still can |

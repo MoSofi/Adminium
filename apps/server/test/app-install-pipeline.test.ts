@@ -20,6 +20,7 @@ import { desiredTableSchema, parseDatabaseModel, type DatabaseModel } from '@adm
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
 import {
   appOutboxesRepo,
+  auditRepo,
   appTablesRepo,
   connectionTenantConfig,
   createSqliteMetaDb,
@@ -1596,6 +1597,8 @@ async function verifyByCode(h: Harness): Promise<void> {
     expect(sent.statusCode, sent.body).toBe(200);
     expect((sent.json() as { data: { sentTo: string; resendAfter: number } }).data).toMatchObject({ sentTo: 'a•••@e•••.com', resendAfter: 30 });
     expect((await mail()).at(-1)).toMatchObject({ template: 'sign-in-code', to: 'ada@example.com' });
+    const minutes = /works for (\d+) minutes/.exec((await mail()).at(-1)!.text)?.[1];
+    expect(minutes).toBeDefined();
     // Not again for thirty seconds.
     expect(codeOf(await send('/claim/code', { purpose: 'verify' }, ada))).toBe('PUBLIC_CODE_TOO_SOON');
     const wrong = await send('/claim/verify', { code: '999999' === (await lastCode()) ? '999998' : '999999' }, ada);
@@ -1614,7 +1617,13 @@ async function verifyByCode(h: Harness): Promise<void> {
 
     // Guesses sent all at once are each charged before they are compared: five tries, then nothing.
     const ben = await claim('07700900002', '1981-02-02');
+    // In Arabic, the minutes are said in Arabic digits and the code stays as it is typed.
+    await settingsRepo(h.meta).set('locale.default', 'ar_EG', { updatedBy: null });
     expect((await send('/claim/code', { purpose: 'verify' }, ben)).json()).toMatchObject({ data: { sentTo: 'b•••@gmail.com' } });
+    await settingsRepo(h.meta).set('locale.default', 'en_US', { updatedBy: null });
+    const arabic = (await mail()).at(-1)!.text;
+    expect(arabic).toContain(new Intl.NumberFormat('ar-EG', { useGrouping: false }).format(Number(minutes)));
+    expect(arabic).not.toContain(` ${minutes!} `);
     const benCode = await lastCode();
     const guesses = Array.from({ length: 8 }, (_, i) => String((Number(benCode) + 1 + i) % 1_000_000).padStart(6, '0'));
     const answers = await Promise.all(guesses.map((code) => send('/claim/verify', { code }, ben)));
@@ -3915,13 +3924,23 @@ for (const [dialect, available] of legs) {
 
       // v1.1 shows one more column: the key keeps what was allowed, and the reply says why.
       await stageManifest(h, withAccess('1.1.0', ['id', 'name', 'price']));
-      const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update' });
+      // The check says so before: the change is one the key may not take. (The receipt lookup is
+      // "granted": the second key the app holds above, on shifts, is given it too.)
+      const checked = (await post(h, '/apps/plan', { version: '1.1.0' })).json().plan.publicAccess;
+      expect(checked.endpoints.map((e: { ref: string; onUpdate: string }) => [e.ref, e.onUpdate])).toEqual([
+        ['pos_menu_items', 'kept'],
+        ['pos_payments_claimed', 'granted'],
+      ]);
+      // Allowed, even: a widening is not the operator's to allow here.
+      const updated = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } });
       expect(updated.statusCode, updated.body).toBe(200);
       const access = updated.json().app.publicAccess;
       expect(access.skipped.map((s: { ref: string }) => s.ref)).toEqual(['pos_menu_items']);
       expect(access.skipped[0].reason).toContain('would see more of');
       expect((await stored('pos_menu_items')).select).toEqual(['id']);
       expect((await publicKeysRepo(h.meta).findById(keyId))!.revokedAt).toBeNull();
+      // …and the key still holds both, as it did.
+      expect([...(await service.heldByKey(h.connectionId, keyId)).keys()].sort()).toEqual(['pos_menu_items', 'pos_payments_claimed']);
     }, 60_000);
 
     it('copies a price, numbers a ticket and codes a booking, whoever writes', async () => {
@@ -4466,6 +4485,92 @@ for (const [dialect, available] of legs) {
       expect(await publicEndpointsRepo(h.meta).listByConnection(h.connectionId)).toEqual([]);
       expect((await publicKeysRepo(h.meta).list()).filter((k) => k.appKey === 'pos')).toEqual([]);
     }, 60_000);
+
+    it('gives an app’s key what an update adds only when allowed, by someone who may manage keys, and takes back what it drops', async () => {
+      const h = (open = await harness(dialect));
+      const withAccess = (version: string, entries: Record<string, unknown>[]) => ({ ...MANIFEST, version, publicAccess: entries });
+      const menu = { table: 'menu_items', methods: ['GET'], select: ['id', 'name'] };
+      const receipt = { table: 'payments', methods: ['GET'], select: ['id', 'amount'], claim: { match: ['id', 'method'] } };
+      await stageManifest(h, withAccess('1.0.0', [menu]));
+      const installed = await post(h, '/apps/install');
+      expect(installed.statusCode, installed.body).toBe(200);
+      const keyId = installed.json().publicAccess.keyId as string;
+      const service = createEndpointService({ meta: h.meta, viewFor: createPublicViews(h.meta).viewFor, tenantConfigOf: async () => undefined });
+      const holds = async () => [...(await service.heldByKey(h.connectionId, keyId)).keys()].sort();
+      const version = async () => (await h.app.inject({ method: 'GET', url: '/apps' })).json().apps[0].version as string;
+      const userId = (await usersRepo(h.meta).findByEmail('owner@test'))!.id;
+      const clerk = await buildApp(h.meta, h.manager, h.dataDir, userId, { canManageKeys: false });
+      try {
+        // 1.1.0 adds a receipt lookup: the check says what the key holds and what it would gain.
+        await stageManifest(h, withAccess('1.1.0', [menu, receipt]));
+        const planned = (await post(h, '/apps/plan', { version: '1.1.0' })).json().plan.publicAccess;
+        expect(planned.endpoints.map((e: { ref: string; onUpdate: string }) => [e.ref, e.onUpdate])).toEqual([
+          ['pos_menu_items', 'held'],
+          ['pos_payments_claimed', 'granted'],
+        ]);
+        // Asked for by someone who may not hand out keys: refused before anything moves.
+        const refused = await clerk.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } });
+        expect(refused.statusCode, refused.body).toBe(403);
+        expect(refused.json().message).toContain('asks for public access');
+        expect(await version()).toBe('1.0.0');
+        // Not asked for: the update goes ahead, and the key gains nothing, saying why.
+        const quiet = await clerk.inject({ method: 'POST', url: '/apps/pos/update' });
+        expect(quiet.statusCode, quiet.body).toBe(200);
+        expect(quiet.json().app.publicAccess.skipped).toEqual([{ ref: 'pos_payments_claimed', reason: 'only someone who may manage API keys can allow it' }]);
+        expect(quiet.json().app.publicAccess.granted).toBeUndefined();
+        expect(await holds()).toEqual(['pos_menu_items']);
+      } finally {
+        await clerk.close();
+      }
+      // Declined on the check: nothing gained either.
+      await stageManifest(h, withAccess('1.2.0', [menu, receipt]));
+      const declined = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: false } });
+      expect(declined.statusCode, declined.body).toBe(200);
+      expect(declined.json().app.publicAccess.skipped).toEqual([{ ref: 'pos_payments_claimed', reason: 'not allowed with this update' }]);
+      expect(await holds()).toEqual(['pos_menu_items']);
+      // Allowed: exactly what the version declares, and the resolver forgets the key's old scope.
+      await stageManifest(h, withAccess('1.3.0', [menu, receipt]));
+      const allowed = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } });
+      expect(allowed.statusCode, allowed.body).toBe(200);
+      expect(allowed.json().app.publicAccess.granted).toEqual({ customer: ['pos_payments_claimed'] });
+      expect(await holds()).toEqual(['pos_menu_items', 'pos_payments_claimed']);
+      expect(INVALIDATED_KEYS).toContain(keyId);
+      // A version that drops an entry takes it back from the key, allowed or not.
+      await stageManifest(h, withAccess('1.4.0', [receipt]));
+      const dropped = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: false } });
+      expect(dropped.statusCode, dropped.body).toBe(200);
+      expect(await holds()).toEqual(['pos_payments_claimed']);
+      expect((await publicKeysRepo(h.meta).findById(keyId))!.revokedAt).toBeNull();
+      const withdrawn = (await auditRepo(h.meta).list({ limit: 200 })).filter((row) => row.action === 'public-key.withdraw');
+      expect(withdrawn.map((row) => (row.changes as { after: { withdrawn: string[] } }).after.withdrawn)).toEqual([['pos_menu_items']]);
+      // Swapped for another entry and not allowed: the old one still goes, and the key holds nothing until a version is allowed.
+      await stageManifest(h, withAccess('1.5.0', [menu]));
+      const swapped = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: false } });
+      expect(swapped.statusCode, swapped.body).toBe(200);
+      expect(await holds()).toEqual([]);
+      await stageManifest(h, withAccess('1.6.0', [menu]));
+      expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } })).json().app.publicAccess.granted).toEqual({ customer: ['pos_menu_items'] });
+      expect(await holds()).toEqual(['pos_menu_items']);
+    }, 90_000);
+
+    it('gives an app installed without public access its key on update only when asked', async () => {
+      const h = (open = await harness(dialect));
+      const withAccess = (version: string) => ({ ...MANIFEST, version, publicAccess: [{ table: 'menu_items', methods: ['GET'], select: ['id', 'name'] }] });
+      await stageManifest(h, withAccess('1.0.0'));
+      expect((await post(h, '/apps/install', { publicAccess: false })).statusCode).toBe(200);
+      const guestKeys = async () => (await publicKeysRepo(h.meta).listManagedBy('pos')).filter((k) => k.revokedAt === null);
+      await stageManifest(h, withAccess('1.1.0'));
+      // The check offers it; an update that does not ask leaves the app as the operator installed it.
+      const planned = (await post(h, '/apps/plan', { version: '1.1.0' })).json().plan.publicAccess;
+      expect(planned.endpoints.map((e: { onUpdate: string }) => e.onUpdate)).toEqual(['granted']);
+      expect((await h.app.inject({ method: 'POST', url: '/apps/pos/update' })).statusCode).toBe(200);
+      expect(await guestKeys()).toEqual([]);
+      await stageManifest(h, withAccess('1.2.0'));
+      const asked = await h.app.inject({ method: 'POST', url: '/apps/pos/update', payload: { publicAccess: true } });
+      expect(asked.statusCode, asked.body).toBe(200);
+      expect(Object.keys(asked.json().app.publicAccess.keys)).toEqual(['customer']);
+      expect((await guestKeys()).map((k) => k.purpose)).toEqual(['customer']);
+    }, 90_000);
 
     it('adds sample rows holding a list, a switch and a uuid key', async () => {
       const h = (open = await harness(dialect));

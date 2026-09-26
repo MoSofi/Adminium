@@ -28,6 +28,7 @@ import {
   checkRow,
   fillRow,
   tableRulesFor,
+  unstorableText,
   type ColumnFill,
   type TableRules,
 } from '../src/crud/column-rules.js';
@@ -386,5 +387,51 @@ describe('checking a row', () => {
       age: { code: 'invalid' },
       mood: { code: 'not-allowed' },
     });
+  });
+});
+
+describe('text no engine keeps alike', () => {
+  const COLUMNS: ColumnInput[] = [
+    { name: 'id', logicalType: 'integer', nullable: false, isPrimaryKey: true, default: { kind: 'autoincrement' } },
+    { name: 'note', logicalType: 'text' },
+    { name: 'meta', logicalType: 'json' },
+  ];
+  const columnsOf = (dialect: Dialect) => target(dialect, COLUMNS).table.columns;
+
+  it('is refused on every engine, on a table with no rules at all', () => {
+    const plain: ColumnInput[] = [
+      { name: 'code', logicalType: 'text', nullable: false, isPrimaryKey: true },
+      { name: 'note', logicalType: 'text' },
+    ];
+    for (const dialect of ['postgres', 'mysql', 'sqlite'] as const) {
+      const t = target(dialect, plain);
+      const rules = tableRulesFor(t);
+      expect(rules, dialect).toBeNull();
+      expect(checkRow(rules, 'create', { code: 'a', note: 'a\u0000b' }, { dialect, columns: t.table.columns })).toEqual({ note: { code: 'invalid-character' } });
+      expect(checkRow(rules, 'update', { note: 'ab' }, { dialect, columns: t.table.columns })).toBeNull();
+    }
+  });
+
+  it('is found in a JSON value however deep, in a key, and behind the escape in JSON text', () => {
+    const columns = columnsOf('postgres');
+    // Deeper than a recursive walk could go.
+    let deep: unknown = 'x\u0000';
+    for (let i = 0; i < 100_000; i += 1) deep = [{ a: deep }];
+    expect(unstorableText({ meta: deep }, columns)).toEqual({ meta: { code: 'invalid-character' } });
+    // Longer than a call's argument list, too.
+    const long: unknown[] = Array.from({ length: 1_000_000 }, () => 0);
+    long.push('x\u0000');
+    expect(unstorableText({ meta: long }, columns)).toEqual({ meta: { code: 'invalid-character' } });
+    expect(unstorableText({ meta: { 'k\u0000': 1 } }, columns)).toEqual({ meta: { code: 'invalid-character' } });
+    expect(unstorableText({ meta: '{"a":["\\u0000"]}' }, columns)).toEqual({ meta: { code: 'invalid-character' } });
+  });
+
+  it('leaves alone what only looks like it, and what is not text', () => {
+    const columns = columnsOf('postgres');
+    // A backslash and five letters in a text column; an escaped backslash in JSON text.
+    expect(unstorableText({ note: 'type \\u0000', meta: '{"a":"\\\\u0000"}' }, columns)).toBeNull();
+    // Raw bytes, a date, and JSON text that does not parse (its own check decides that).
+    expect(unstorableText({ note: new Uint8Array([0, 1]), meta: '{oops \\u0000', at: new Date(0) }, columns)).toBeNull();
+    expect(unstorableText({ note: null, meta: undefined }, columns)).toBeNull();
   });
 });

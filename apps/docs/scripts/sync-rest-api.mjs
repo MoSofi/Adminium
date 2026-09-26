@@ -55,7 +55,7 @@ const DESCRIPTIONS = {
   apps:
     'Micro-SaaS apps installed into this instance — upload a built bundle or download one ' +
     'from the opt-in online catalog, browse what is staged or offered, plan its tables ' +
-    'against a connection, install (with the public access it asks for, unless declined), update, ' +
+    'against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), ' +
     'rename an older install’s tables to the app’s prefix, ' +
     'change one app’s settings, switch it off and on, set its domains and instances, ' +
     'add and remove its sample data, discard a staged version, and uninstall',

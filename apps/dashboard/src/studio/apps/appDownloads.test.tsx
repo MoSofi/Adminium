@@ -723,6 +723,100 @@ describe('checking a new version and renaming to the prefix', () => {
     });
   });
 
+  it('shows only what a new version adds to the public access, and sends the operator’s say with the update', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    const endpoint = (ref: string, table: string, methods: string[], onUpdate: string) => ({
+      ref, table, methods, select: ['id'], writable: [], claim: null, kind: 'records', confirms: false, pending: false, issues: [], onUpdate,
+    });
+    plan = {
+      ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'] }),
+      checksum: 'p'.repeat(64),
+      installable: true,
+      problems: [],
+      publicAccess: {
+        endpoints: [endpoint('clinic_faqs', 'faqs', ['GET'], 'held'), endpoint('clinic_enquiries', 'enquiries', ['POST'], 'granted')],
+        warnings: [],
+        canGrant: true,
+      },
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Check what this version lets the app’s customers do.')).toBeTruthy();
+    // What is new, not what the app's key already holds.
+    expect(within(dialog).getByText('Add to enquiries')).toBeTruthy();
+    expect(within(dialog).queryByText('Read faqs')).toBeNull();
+    expect(posted('/api/v1/apps/clinic/update')).toHaveLength(0);
+
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Allow this public access' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'p'.repeat(64), publicAccess: false });
+  });
+
+  it('asks an app installed without public access afresh, unticked', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    plan = {
+      ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'] }),
+      checksum: 'q'.repeat(64),
+      installable: true,
+      problems: [],
+      publicAccess: {
+        endpoints: [{ ref: 'clinic_faqs', table: 'faqs', methods: ['GET'], select: ['id'], writable: [], claim: null, kind: 'records', confirms: false, pending: false, issues: [], onUpdate: 'granted' }],
+        warnings: [],
+        canGrant: true,
+      },
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Read faqs')).toBeTruthy();
+    expect(within(dialog).getByRole('checkbox', { name: 'Allow this public access' }).getAttribute('aria-checked')).toBe('false');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'q'.repeat(64), publicAccess: false });
+  });
+
+  it('asks before a version opens a staff screen’s key to anyone with a link, unticked, and sends the yes', async () => {
+    catalog = {
+      apps: [row({ version: '0.1.1', source: 'disk', state: 'installed', installed: true, updateTo: '0.1.2', updateStaged: true })],
+      catalogFetchedAt: 1,
+      onlineEnabled: true,
+    };
+    plan = {
+      ...contextPlan({ action: 'reuse', class: 'own-leftover', offers: ['reuse'] }),
+      checksum: 'r'.repeat(64),
+      installable: true,
+      problems: [],
+      publicAccess: {
+        // Nothing new to hold: the key's entries are all held already.
+        endpoints: [{ ref: 'clinic_projects', table: 'projects', methods: ['GET'], select: ['id'], writable: [], claim: null, kind: 'records', confirms: false, pending: false, issues: [], onUpdate: 'held' }],
+        opensWithoutStaff: ['handover'],
+        warnings: [],
+        canGrant: true,
+      },
+    };
+    await renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Update' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Let anyone with a link open what the handover key reads, with no staff member signed in')).toBeTruthy();
+    const allow = within(dialog).getByRole('checkbox', { name: 'Allow this public access' });
+    expect(allow.getAttribute('aria-checked')).toBe('false');
+    await userEvent.click(allow);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }));
+    expect(await screen.findByText('clinic updated to v0.1.2')).toBeTruthy();
+    expect(posted('/api/v1/apps/clinic/update')[0]?.body).toEqual({ planChecksum: 'r'.repeat(64), publicAccess: true });
+  });
+
   it('offers an old install the rename to its prefix, lists every table, and re-reads a stale plan', async () => {
     installed = { apps: [{ ...INSTALLED, oldTableNames: { prefix: 'clinic_', count: 2 } }], staged: [] };
     renameReplies = [

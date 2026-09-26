@@ -125,6 +125,7 @@ describe.each(LEGS)('signing in by an emailed link — %s', (dialect, available)
     const made = h.reply['publicAccess'] as { keyId: string };
     await h.rows(`insert into ${h.real('clients')} (contact_name, email, company) values ('Ada Lovelace', 'ada@example.com', 'Engines Ltd')`);
     await h.rows(`insert into ${h.real('clients')} (contact_name, email) values ('Ben Ames', 'Ben@Example.org')`);
+    await h.rows(`insert into ${h.real('clients')} (contact_name, email) values ('Cy Nour', 'cy@example.net')`);
     await h.rows(`insert into ${h.real('deliverables')} (client_id, title) values (1, 'Ada logo')`);
     await h.rows(`insert into ${h.real('deliverables')} (client_id, title) values (2, 'Ben logo')`);
     await settingsRepo(h.meta).set('system.publicOrigin', PUBLIC_ORIGIN);
@@ -186,6 +187,26 @@ describe.each(LEGS)('signing in by an emailed link — %s', (dialect, available)
     const link = linkOf(sent[0]!);
     expect(link.url).toBe(`${PUBLIC_ORIGIN}/apps/studio/customer/c#${link.token}`);
     expect(sent[0]!.subject).toContain('sign-in link');
+  });
+
+  it.skipIf(!available)('says how long the link works in the digits of the language it is sent in; the code stays as it is typed', async () => {
+    const askIn = async (language: string) =>
+      served.composed.app.inject({
+        method: 'POST',
+        url: '/api/v1/public/claim/link',
+        remoteAddress: from(),
+        headers: served.headers(undefined, { 'x-adminium-proof': await proof(), 'accept-language': language }),
+        payload: { email: 'cy@example.net' },
+      });
+    expect((await askIn('en-US')).statusCode).toBe(202);
+    expect((await askIn('ar-EG')).statusCode).toBe(202);
+    await drain();
+    const [english, arabic] = await links('cy@example.net');
+    expect(english!.text).toContain('for 20 minutes');
+    expect(arabic!.text).toContain('٢٠');
+    expect(arabic!.text).not.toMatch(/\b20\b/);
+    // The code is typed back on another device: Latin digits, in both.
+    expect(linkOf(arabic!).code).toMatch(/^\d{6}$/);
   });
 
   it.skipIf(!available)('greets by first name without spending the link, then opens a verified session once', async () => {

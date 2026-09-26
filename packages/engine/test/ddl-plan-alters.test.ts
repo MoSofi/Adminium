@@ -121,6 +121,46 @@ describe('planAlters — constraints', () => {
     expect(plan.hazard).toBe('locking');
   });
 
+  it('names each unique it adds, and its column, so two in one plan are two constraints', () => {
+    const columns = [col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }), col({ name: 'slug' }), col({ name: 'code' }), col({ name: 'ref' })];
+    const before = model([tbl({ name: 't', columns, uniques: [{ name: 'uq_t_slug', columns: ['slug'] }] })]);
+    const after = [
+      tbl({
+        name: 't',
+        columns,
+        uniques: [
+          { name: 'uq_t_slug', columns: ['slug'] },
+          { name: 'uq_t_code', columns: ['code'] },
+          { name: 'uq_t_ref', columns: ['ref'] },
+        ],
+      }),
+    ];
+    const plan = planDdl({ ...pg, actual: before, desired: after });
+    expect(plan.steps.map((s) => [s.kind, s.column, s.constraint])).toEqual([
+      ['add-unique', 'code', 'uq_t_code'],
+      ['add-unique', 'ref', 'uq_t_ref'],
+    ]);
+  });
+
+  it('adds a unique index in place on SQLite, named, with no rebuild', () => {
+    const columns = [col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }), col({ name: 'slug' })];
+    const before = model([tbl({ name: 't', columns })]);
+    const after = [tbl({ name: 't', columns: [...columns, col({ name: 'ref', ordinal: 3 })], indexes: [idx('uq_t_ref', ['ref'], true)] })];
+    const plan = planDdl({ dialect: 'sqlite', serverVersion: '3.45.0', actual: before, desired: after });
+    expect(plan.steps.map((s) => [s.kind, s.column, s.constraint])).toEqual([
+      ['add-column', 'ref', null],
+      ['add-index', 'ref', 'uq_t_ref'],
+    ]);
+  });
+
+  it('drops a unique constraint once: its own index goes with it', () => {
+    const columns = [col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }), col({ name: 'slug' })];
+    // Postgres and MySQL list the constraint's index under its name as well.
+    const withUnique = tbl({ name: 't', columns, uniques: [{ name: 'uq_t_slug', columns: ['slug'] }], indexes: [idx('uq_t_slug', ['slug'], true)] });
+    const plan = planDdl({ ...pg, actual: model([withUnique]), desired: [tbl({ name: 't', columns })] });
+    expect(plan.steps.map((s) => [s.kind, s.constraint])).toEqual([['drop-unique', 'uq_t_slug']]);
+  });
+
   it('plans the drop side and puts it before every add', () => {
     const withAll = tbl({
       name: 't',

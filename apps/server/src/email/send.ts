@@ -57,6 +57,7 @@ import { dirForLocale, isLocaleId } from '@adminium/i18n';
 import { deriveKey, encryptSecret } from '../config/secrets.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import { builtinEmailTemplates, resolveEmailTemplate, translatorForLocale } from './builtins.js';
+import { proseNumber } from '../i18n/bcp47.js';
 import { emailSecretKey, resolveSmtpConfig } from './config.js';
 import { bareAddress } from './document.js';
 import { isShippedMark } from './marks.js';
@@ -183,6 +184,13 @@ export interface EnqueueEmailInput {
    * token is resolved from here too: `vars[token]` must be a file id.
    */
   vars: Record<string, string>;
+  /**
+   * Numbers the text says ("expires in {{minutes}} minutes"), written in the
+   * digits of the language the email is really sent in — the template row
+   * found, which is US English when the recipient's language has none — and
+   * put in `vars` beside the rest. Latin digits read as `String(value)` did.
+   */
+  counts?: Readonly<Record<string, number | string>> | undefined;
   /**
    * Used only when the key has NO stored row in any locale. A row that exists
    * but is disabled is an operator decision and always wins over this.
@@ -539,6 +547,13 @@ export async function enqueueEmail(
   const found = input.template ?? (await resolveTemplate(meta, input, locale, deps.logger));
   if (found === null) return null;
   const row = withOverride(found, input.override);
+  // A stored row says its own language (US English, when the recipient's had none); the rest are written in `locale`.
+  const own = (found as { locale?: unknown }).locale;
+  const written = typeof own === 'string' ? own : locale;
+  const vars =
+    input.counts === undefined
+      ? input.vars
+      : { ...input.vars, ...Object.fromEntries(Object.entries(input.counts).map(([name, value]) => [name, proseNumber(value, written)])) };
 
   const prepared = await prepareEmail(meta, row);
   for (const gone of prepared.missing) {
@@ -550,12 +565,12 @@ export async function enqueueEmail(
     // which is what makes the dead-letter row an operator can act on.
     prepared.attachments.push({ fileId: gone.fileId, filename: gone.fileId });
   }
-  const generated = await resolveGeneratedAttachments(meta, row.attachments, input.vars, deps.logger);
+  const generated = await resolveGeneratedAttachments(meta, row.attachments, vars, deps.logger);
 
   const rendered = renderEmail({
     ...prepared.render,
     locale,
-    vars: input.vars,
+    vars,
     dir: isLocaleId(locale) ? dirForLocale(locale) : 'ltr',
   });
 

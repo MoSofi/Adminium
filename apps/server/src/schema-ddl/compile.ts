@@ -209,9 +209,14 @@ export function renderDefault(
         case 'bigint':
         case 'decimal':
         case 'float':
-          return value.text;
-        case 'boolean':
-          return dialect === 'postgres' ? value.text : value.text === 'true' ? '1' : '0';
+          // A number bare; anything else a database keeps for one (`NaN`, an
+          // empty text) quoted, as it was read, rather than as broken SQL.
+          return /^[-+]?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(value.text.trim()) ? value.text.trim() : quoteLiteral(value.text, dialect);
+        case 'boolean': {
+          // Read back from MySQL (a `tinyint(1)`) a true default is `1`: still true.
+          const on = /^(true|t|1)$/i.test(value.text.trim());
+          return dialect === 'postgres' ? String(on) : on ? '1' : '0';
+        }
         default:
           return quoteLiteral(value.text, dialect);
       }
@@ -688,7 +693,8 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
 
     case 'add-unique': {
       const cols = requireColumns(ctx, step);
-      const name = `uq_${bareName(step.table)}_${cols.join('_')}`;
+      // The name the plan carries (the installer's, for a rule a column is declared with); guessed only when it has none.
+      const name = step.constraint ?? `uq_${bareName(step.table)}_${cols.join('_')}`;
       return [
         raw(
           `ALTER TABLE ${t} ADD CONSTRAINT ${quoteIdent(name, dialect)} UNIQUE (` +
@@ -698,7 +704,7 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
     }
 
     case 'drop-unique': {
-      const name = step.column ?? `uq_${bareName(step.table)}`;
+      const name = step.constraint ?? step.column ?? `uq_${bareName(step.table)}`;
       const verb = dialect === 'mysql' ? 'DROP INDEX' : 'DROP CONSTRAINT';
       return [raw(`ALTER TABLE ${t} ${verb} ${quoteIdent(name, dialect)}`)];
     }
@@ -788,12 +794,14 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
     }
 
     case 'add-index': {
-      const cols = requireColumns(ctx, step);
-      const name = `ix_${bareName(step.table)}_${cols.join('_')}`;
+      // A unique index the plan names (a column an app update adds) is made as itself.
+      const named = step.constraint === null ? undefined : ctx.desired?.indexes.find((i) => i.name === step.constraint && i.unique);
+      const cols = named === undefined ? requireColumns(ctx, step) : [...named.columns];
+      const name = named?.name ?? `ix_${bareName(step.table)}_${cols.join('_')}`;
       const concurrently = step.outsideTransaction && dialect === 'postgres' ? 'CONCURRENTLY ' : '';
       return [
         raw(
-          `CREATE INDEX ${concurrently}${quoteIdent(name, dialect)} ON ${t} (` +
+          `CREATE ${named === undefined ? '' : 'UNIQUE '}INDEX ${concurrently}${quoteIdent(name, dialect)} ON ${t} (` +
             `${cols.map((c) => quoteIdent(c, dialect)).join(', ')})`,
         ),
       ];
@@ -1076,6 +1084,9 @@ function requireColumns(ctx: CompileContext, step: DdlStep): string[] {
   const table = ctx.desired;
   if (table === undefined) throw new DdlCompileError(`${step.kind} needs the desired table`, step);
   if (step.column !== null) return [step.column];
+  // A constraint the step names is found by its name: another may come first.
+  const named = step.constraint === null ? undefined : table.uniques.find((u) => u.name === step.constraint)?.columns;
+  if (named !== undefined) return [...named];
   const fromUnique = table.uniques[0]?.columns;
   const fromIndex = table.indexes[0]?.columns;
   const cols = fromUnique ?? fromIndex;

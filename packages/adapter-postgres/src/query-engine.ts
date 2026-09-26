@@ -21,7 +21,7 @@ import {
   postgresSerializers,
   quoteIdentifier,
 } from './serialization.js';
-import { buildSessionSettings, isPoolerStartupRejection, splitDsnOptions } from './session.js';
+import { buildSessionSettings, DATES_AS_TEXT, isPoolerStartupRejection, splitDsnOptions } from './session.js';
 
 const DEFAULT_DATA_POOL_MAX = 10;
 const DEFAULT_STATEMENT_TIMEOUT_MS = 15_000;
@@ -171,7 +171,7 @@ function buildDataPool(
   base: { connectionString: string; max: number },
   options: string,
 ): pg.Pool {
-  const pool = new pg.Pool({ ...base, ...(options === '' ? {} : { options }) });
+  const pool = new pg.Pool({ ...base, types: DATES_AS_TEXT, ...(options === '' ? {} : { options }) });
   pool.on('error', () => {
     /* mapped when the next query fails */
   });

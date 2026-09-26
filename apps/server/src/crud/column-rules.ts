@@ -40,6 +40,11 @@
  * again — accepted because the snapshot is already the sole authority for
  * every other identifier decision on this path (allow-listing, masking), and
  * because the alternative is the 500 this phase removes.
+ *
+ * The other is U+0000 in text ({@link unstorableText}): Postgres refuses it
+ * and MySQL and SQLite store it, so it is refused on all three, on every table
+ * whether or not it has a rule. A value one engine cannot hold is not data
+ * the other two should keep.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -60,6 +65,7 @@ import type {
   TableBookingRule,
   TableCapacityRule,
 } from '../connections/effective-schema.js';
+import { holdsNul } from '../security/nul-bytes.js';
 import { isNowType, renderNow } from './instants.js';
 import { booleanOf, sameValue } from './write-values.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
@@ -76,7 +82,8 @@ export type IssueCode =
   | 'too-long'
   | 'too-small'
   | 'too-large'
-  | 'out-of-range';
+  | 'out-of-range'
+  | 'invalid-character';
 
 /** `n` carries the bound a message needs ("Use at most {n} characters"). */
 export interface FieldIssue {
@@ -579,7 +586,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     if (column.requiredWhen !== undefined) {
       check.requiredWhen = column.requiredWhen;
       const other = columns.find((candidate) => candidate.name === column.requiredWhen?.column);
-      const stored = literalDefault(other?.default);
+      const stored = literalDefault(other?.default, other?.logicalType);
       if (stored !== undefined) check.requiredWhenDefault = stored;
       if (target.view?.model?.dialect === 'mysql' && other !== undefined && other.enumRef === null && FOLDED_TEXT.has(other.logicalType)) {
         check.requiredWhenFolds = true;
@@ -1034,6 +1041,28 @@ function issueFor(check: ColumnCheck, value: unknown, dialect: Dialect): FieldIs
   }
 }
 
+// --- text no engine keeps alike ----------------------------------------------
+
+/**
+ * The columns whose value holds U+0000, each refused `invalid-character`, or
+ * `null` when none does.
+ *
+ * Postgres refuses the character in any text it is sent (and its escape in a
+ * `jsonb` value), while MySQL and SQLite store it — so without this one
+ * engine answered 500 and the other two kept a value that no Postgres copy,
+ * export or later move of the data could hold. It is refused on every engine,
+ * in every column, whatever type it has and whether or not the table has a
+ * rule: no column takes it on all three. Raw bytes (a `Uint8Array`) are not
+ * text and are not judged.
+ */
+export function unstorableText(values: Row, columns?: ReadonlyMap<string, { readonly logicalType: LogicalType }>): FieldIssues | null {
+  let issues: FieldIssues | null = null;
+  for (const [column, value] of Object.entries(values)) {
+    if (holdsNul(value, columns?.get(column)?.logicalType === 'json')) (issues ??= {})[column] = { code: 'invalid-character' };
+  }
+  return issues;
+}
+
 /** Whether a column holds no answer: nothing, or only spaces. */
 const blank = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
 
@@ -1046,16 +1075,24 @@ const FOLDED_TEXT: ReadonlySet<LogicalType> = new Set<LogicalType>(['text', 'var
  * word), `true` is true, `3` is `3`. `undefined` for no default, or for one
  * worked out when the row is made (a clock, an expression).
  */
-export function literalDefault(value: EffectiveColumn['default'] | undefined): unknown {
+export function literalDefault(
+  value: EffectiveColumn['default'] | undefined,
+  /** The column's type: a text default is its text, even `true` or `a::b`. */
+  logicalType?: string,
+): unknown {
   if (value === null || value === undefined || value.kind !== 'literal') return undefined;
   const text = value.text.trim();
   const quoted = /^'((?:[^']|'')*)'(?:::.*)?$/s.exec(text);
   if (quoted !== null) return (quoted[1] ?? '').replace(/''/g, "'");
+  if (logicalType !== undefined && !SCALAR_DEFAULT_TYPES.has(logicalType)) return value.text;
   const bare = text.replace(/::.*$/s, '');
   if (/^null$/i.test(bare)) return null;
   if (/^(true|false)$/i.test(bare)) return bare.toLowerCase() === 'true';
   return bare;
 }
+
+/** Types whose bare default is a number, a boolean or a typed NULL, not text. */
+const SCALAR_DEFAULT_TYPES: ReadonlySet<string> = new Set(['boolean', 'integer', 'bigint', 'decimal', 'float']);
 
 /** Whether two texts are one to a MySQL collation: no case, no accents, no spaces at the end. */
 const foldedSame = (a: string, b: string): boolean => a.trimEnd().localeCompare(b.trimEnd(), 'en', { sensitivity: 'base' }) === 0;
@@ -1117,10 +1154,11 @@ export function checkRow(
   rules: TableRules | null,
   action: WriteAction,
   values: Row,
-  ctx: { dialect: Dialect; stored?: Row | null },
+  ctx: { dialect: Dialect; stored?: Row | null; columns?: ReadonlyMap<string, { readonly logicalType: LogicalType }> },
 ): FieldIssues | null {
-  if (rules === null) return null;
-  let issues: FieldIssues | null = null;
+  // Text no engine keeps alike is refused on a table with no rules too.
+  let issues: FieldIssues | null = unstorableText(values, ctx.columns);
+  if (rules === null) return issues;
   const add = (column: string, issue: FieldIssue): void => {
     issues ??= {};
     issues[column] ??= issue;

@@ -84,6 +84,7 @@ export default {
       "required": "此欄位為必填。",
       "notAllowed": "請選擇列出的值之一。",
       "invalid": "此處的該值無效。",
+      "invalidCharacter": "此文字包含無法儲存的隱藏字元。請重新輸入。",
       "email": "請輸入有效的電子郵件地址。",
       "url": "請輸入有效的網址。",
       "phone": "請輸入有效的電話號碼。",

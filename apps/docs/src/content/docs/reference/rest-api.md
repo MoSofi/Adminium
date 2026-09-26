@@ -65,6 +65,15 @@ GET /api/v1/system/info
 
 Version and instance information.
 
+## Dates in rows
+
+A `date` column is a calendar day, and every reply spells it as its text, `"2026-08-14"`, on
+every engine. It is never an instant: read it as that day (split the text, or format it at UTC),
+because `new Date("2026-08-14")` is midnight UTC, which is the day before west of Greenwich.
+Before 0.3.4 a Postgres or MySQL date came back as the server's local midnight as an instant
+(`"2026-08-13T22:00:00.000Z"` on a server in Berlin). A `timestamptz` or `timestamp` column is
+unchanged.
+
 ## The machine-readable spec
 
 The full contract is published as OpenAPI 3.1, generated from the route tree
@@ -92,7 +101,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/add-ons/*` | 19 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-docs` | 1 | The public API catalogue behind /api-docs — what live keys can call; 404 while the page is off |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
-| `/api/v1/apps/*` | 26 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update, rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
+| `/api/v1/apps/*` | 26 | Micro-SaaS apps installed into this instance — upload a built bundle or download one from the opt-in online catalog, browse what is staged or offered, plan its tables against a connection, install (with the public access it asks for, unless declined), update (giving what a new version adds to its public access only when allowed, and taking back what it drops), rename an older install’s tables to the app’s prefix, change one app’s settings, switch it off and on, set its domains and instances, add and remove its sample data, discard a staged version, and uninstall |
 | `/api/v1/assistant/*` | 7 | The page assistant — open a session on a page, ask it something, read what the turn came back with, and act on the draft it proposed. Every route needs the assistant permission; saving what it drafts additionally needs the same permission the page’s own save needs. The assistant reads; nothing it does writes a record on its own. |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -816,6 +825,18 @@ localized.
 
 Validation failures identify the offending path: every external input is
 schema-validated before a handler sees it.
+
+A path parameter or a query parameter holding the character U+0000 (`%00`, or
+`\u0000` in the JSON of a `where` filter) is refused `400` `VALIDATION_FAILED`
+before anything reads it, on every database: `details.in` is `params` or
+`querystring`, and `details.issues[0]` names the parameter with the code
+`invalid-character`. The same holds for a request body (`details.in` is `body`, the
+path names the field: `name`, `ids.0`), except a row's values on their way to your
+database (a record's `values`, a child row's, a public entry's): those are judged
+by the write that would store them, `422` naming the column. A body nested more than
+64 levels deep is refused `400` `VALIDATION_FAILED` with the code `too-deep`,
+unread. A list's `cursor` that holds the character is the list's own `422`
+malformed cursor.
 
 ## CORS
 

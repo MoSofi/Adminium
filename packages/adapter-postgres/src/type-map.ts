@@ -135,6 +135,9 @@ const AUTOINCREMENT_DEFAULT = /^nextval\(/i;
 const LITERAL_DEFAULT =
   /^('(?:[^']|'')*'(?:::[a-z_"][\w ."[\]]*(?:\(\d+(?:,\s*\d+)?\))?)?|-?\d+(\.\d+)?|true|false|NULL(?:::[a-z_"][\w ."[\]]*)?)$/i;
 
+/** A quoted literal, cast or not: its value is what is between the quotes. */
+const QUOTED_LITERAL = /^'((?:[^']|'')*)'(?:::.+)?$/s;
+
 /**
  * Classify a column default: `serial`/`nextval` and identity columns →
  * `autoincrement`; `now()`/`CURRENT_TIMESTAMP` → `now`;
@@ -150,6 +153,17 @@ export function classifyDefault(defaultExpr: string | null, identity: string): C
   if (AUTOINCREMENT_DEFAULT.test(text)) return { kind: 'autoincrement' };
   if (NOW_DEFAULT.test(text)) return { kind: 'now' };
   if (UUID_DEFAULT.test(text)) return { kind: 'uuid' };
-  if (LITERAL_DEFAULT.test(text)) return { kind: 'literal', text };
+  if (LITERAL_DEFAULT.test(text)) {
+    // A typed NULL is no default at all.
+    if (/^NULL\b/i.test(text)) return null;
+    /*
+     * `'queued'::character varying` is the value `queued`: the model spells a
+     * literal as its value, and the DDL compiler quotes (and the database
+     * casts) it again. Kept whole, a column restated from what was read back
+     * would declare `DEFAULT '''queued''::character varying'`.
+     */
+    const quoted = QUOTED_LITERAL.exec(text);
+    return { kind: 'literal', text: quoted === null ? text : (quoted[1] ?? '').replaceAll("''", "'") };
+  }
   return { kind: 'expression', text };
 }

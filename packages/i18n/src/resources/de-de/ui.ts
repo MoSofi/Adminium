@@ -84,6 +84,7 @@ export default {
       "required": "Dieses Feld ist erforderlich.",
       "notAllowed": "Wählen Sie einen der aufgeführten Werte.",
       "invalid": "Dieser Wert ist hier nicht gültig.",
+      "invalidCharacter": "Dieser Text enthält ein verstecktes Zeichen, das nicht gespeichert werden kann. Geben Sie ihn erneut ein.",
       "email": "Geben Sie eine gültige E-Mail-Adresse ein.",
       "url": "Geben Sie eine gültige Webadresse ein.",
       "phone": "Geben Sie eine gültige Telefonnummer ein.",

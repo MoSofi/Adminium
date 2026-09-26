@@ -58,7 +58,10 @@
  * `tableRulesFor` — which answers `null` for a table with nothing to fill and
  * nothing to check, and then brands the SAME OBJECT. No rows are read, no
  * values copied and no queries added, so every path answers exactly as it did
- * before this module existed.
+ * before this module existed. The one thing judged on every table is U+0000
+ * in text, which one engine refuses and the other two store
+ * (`unstorableText` in `crud/column-rules.ts`): it costs a walk over the
+ * values and nothing more.
  *
  * ─── What stays outside, and why ───────────────────────────────────────────
  *
@@ -91,6 +94,7 @@ import {
   requiredGuards,
   requiredGuardsOf,
   tableRulesFor,
+  unstorableText,
   withoutReadOnly,
   withoutRequiredWhen,
   type ColumnCode,
@@ -1216,6 +1220,24 @@ function refusal(fields: FieldIssues): ValidationFailedError {
   return new ValidationFailedError('Some values were refused.', { fields });
 }
 
+/**
+ * Text no engine keeps alike (U+0000, `unstorableText`), judged on the values
+ * as the caller sent them, before FILL reads anything with them — a copy
+ * looked up by a key holding one would reach Postgres, and be refused there
+ * as a 500, before CHECK ever saw it. CHECK judges it again after the hooks.
+ */
+function earlyIssues(target: WriteTarget, values: Row): FieldIssues | null {
+  return unstorableText(values, target.table.columns);
+}
+
+function refuseEarly(target: WriteTarget, values: Row, mapError: ((error: unknown) => never) | undefined): void {
+  const issues = earlyIssues(target, values);
+  if (issues === null) return;
+  const error = refusal(issues);
+  if (mapError !== undefined) mapError(error);
+  throw error;
+}
+
 /** What DECIDE needs to know about a write. */
 function decideContext(target: WriteTarget, context: WriteContext, now: Date, zone: string | undefined): DecideContext {
   return {
@@ -1394,7 +1416,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     mapError: ((error: unknown) => never) | undefined,
   ): Promise<CheckedRow> {
     const judged = judgedBy(rules, target, context);
-    const issues = mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored }), await boundIssues(rules, action, target, context, values, stored));
+    const issues = mergeIssues(checkRow(judged, action, values, { dialect: target.dialect, stored, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, stored));
     // What the check read of the stored row goes with the values, for the statement to hold it to.
     if (issues === null) return brand(attachRequiredGuards(values, requiredGuards(judged, action, values, stored)));
     const error = refusal(issues);
@@ -1931,9 +1953,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const out: (CheckedRow | null)[] = [];
       const issues: (FieldIssues | null)[] = [];
       for (const row of rows) {
+        const early = earlyIssues(target, row);
+        if (early !== null) {
+          issues.push(early);
+          out.push(null);
+          continue;
+        }
         // No stored row here: an update's formulas are worked out by a path that reads one (`beforeEach`).
         const values = await formulate(rules, action, target, await prepareValues(rules, action, target, context, row, now, memo), null);
-        const issue = mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect }), await boundIssues(rules, action, target, context, values, null));
+        const issue = mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null));
         issues.push(issue);
         out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null) : null);
       }
@@ -1942,6 +1970,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async create(input) {
       const { target, context } = input;
+      refuseEarly(target, input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
       const currency = currencyFor(target);
@@ -2022,6 +2051,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
     async update(input) {
       const { target, context, pk } = input;
+      refuseEarly(target, input.values, input.mapError);
       const hooks = current();
       const rules = rulesOf(target);
       const currency = currencyFor(target);
@@ -2214,7 +2244,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (!withRules) return { values: brand(values), issues: null };
         const worked = await formulate(rules, action, target, values, record);
         const judged = judgedBy(rules, target, context);
-        const issues = mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record }), await boundIssues(rules, action, target, context, worked, record));
+        const issues = mergeIssues(checkRow(judged, action, worked, { dialect: target.dialect, stored: record, columns: target.table.columns }), await boundIssues(rules, action, target, context, worked, record));
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
         const guarded = brand(attachRequiredGuards(worked, requiredGuards(judged, action, worked, record)));
@@ -2232,11 +2262,18 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           return { values, refused: { [column]: { code: 'not-allowed' } } };
         }
       };
+      /** A row whose values hold text no engine keeps alike is refused before anything reads with them; an undo restores history as it was. */
+      const early = (row: PlannedRow): FieldIssues | null => (withRules && action !== 'delete' ? earlyIssues(target, row.values) : null);
       const storedOf = async (row: PlannedRow): Promise<Row | null> =>
         row.record !== undefined ? row.record : row.match === undefined ? null : ((await fetchByPk(target.db, target.table, row.match)) ?? null);
       if (!(await hooks.wants('before', action, target, context))) {
         const out: PreparedRow[] = [];
         for (const row of rows) {
+          const unstorable = early(row);
+          if (unstorable !== null) {
+            out.push({ values: brand(row.values), issues: unstorable, record: undefined });
+            continue;
+          }
           const filled = await start(row.values);
           if (action === 'update' && withRules && movedBalances(rules, filled).some((balance) => balance.cappedBy.length > 0)) {
             refuseMovedBalance(rules, target, filled, await storedOf(row), beforeOpts?.capacity);
@@ -2253,6 +2290,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       }
       const prepared: PreparedRow[] = [];
       for (const row of rows) {
+        const unstorable = early(row);
+        if (unstorable !== null) {
+          prepared.push({ values: brand(row.values), record: undefined, issues: unstorable });
+          continue;
+        }
         const filled = await start(row.values);
         let record: Row | null = null;
         if (action !== 'create') {

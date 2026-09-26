@@ -170,6 +170,13 @@ stopped: tables that were made are recognised as this install's own, and nothing
 **Back to Schema plan** checks the tables again first. An install that stopped part way is not
 served until it finishes.
 
+### An app already installed on another connection
+
+An app runs on one connection. Once it is installed (or stopped part way) on one, the plan for any
+other connection says it cannot be installed there and names the connection it is on, and an
+install sent anyway answers `409` with the code `APP_INSTALLED_ELSEWHERE`. Nothing is written.
+Update it where it is, or uninstall it there first and then install it on the other connection.
+
 ## Updating
 
 When a newer version of an installed app is available — already on disk, or offered by the
@@ -179,6 +186,9 @@ first if it has to, then checks the tables again:
 - **The same check, for what is new.** When the new version needs a table the installed one did
   not have, needs a change to an existing table, or finds a name taken, **Update** opens the table
   check before anything runs. A version that needs nothing new applies straight away.
+- **Unique rules as a fresh install has them.** A column the app keeps unique that the table lets
+  repeat is given its rule by the update. If rows already repeat a value there, the check names
+  the column and nothing runs until they differ.
 - **The table names stay.** An update uses the database and the table names the install already
   has. It never offers a different prefix; moving an app to other names is an uninstall and an
   install.
@@ -186,8 +196,12 @@ first if it has to, then checks the tables again:
   message lists each reason, and the installed version keeps running untouched.
 - **Pages follow the version, except yours.** New pages are added and untouched ones rebuilt. A
   page someone edited is left exactly as it is.
-- **Public access does not widen.** The app keeps the key it was given at install. An endpoint the
-  new version would widen is left as it was.
+- **Public access follows the version, with your say.** When the new version adds to what the
+  app's customers can do, or turns a staff screen's key into one a shared link opens, the check
+  shows it on the **Allow this public access** card, and it is given only if you tick it. Through
+  the API, send `"publicAccess": true` with the update; without it nothing new is given. What the
+  version no longer declares is taken back from the app's keys on every update, and a key it no
+  longer declares is revoked. An endpoint the new version would widen is left as it was.
 - The app keeps its place: same row, same database connection, same mounts. Older versions of the
   package are removed from disk only after the update succeeds.
 

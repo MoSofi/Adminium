@@ -145,8 +145,8 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
  */
 export function updateApp(
   key: string,
-  /** The check the operator saw for the new version: its checksum, and what they chose. */
-  checked?: { planChecksum?: string; choices?: InstallAnswers['choices'] },
+  /** The check the operator saw for the new version: its checksum, what they chose, and their say on its public access. */
+  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; publicAccess?: boolean },
 ): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
   return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
     `/api/v1/apps/${encodeURIComponent(key)}/update`,
@@ -529,7 +529,8 @@ export interface AppInstallPlan {
     to: string;
     resolution: 'internal' | 'host' | 'unresolved';
   }[];
-  problems: { code: string; message: string; table: string; column?: string }[];
+  /** `connectionId`: on `APP_INSTALLED_ELSEWHERE` only, the connection the app is installed on. */
+  problems: { code: string; message: string; table: string; column?: string; connectionId?: string }[];
   requiresSchemaChange: boolean;
   /**
    * The columns reused tables are missing, as plan 35's `addColumns` edit —
@@ -568,7 +569,18 @@ export interface AppInstallPlan {
       /** Answered by a later release: listed, not made now. */
       pending: boolean;
       issues: string[];
+      /**
+       * An update's check: the app's key holds this already, gets it once
+       * allowed, keeps it as it is (a change its key may not take), or was
+       * taken back and is not made again. Absent for an install.
+       */
+      onUpdate?: 'held' | 'granted' | 'kept' | 'withheld';
     }[];
+    /**
+     * An update's check: the app's keys this version turns from a staff
+     * screen's into a shared link's, whose token alone opens what they read.
+     */
+    opensWithoutStaff?: string[];
     warnings: { code: string; message: string }[];
     /** Making the app's key needs the API keys permission. */
     canGrant: boolean;
@@ -617,11 +629,13 @@ export interface PlannedAppTable {
   /** From an earlier install that used the table it found rather than making it. */
   adopted?: true;
   edits: {
-    kind: 'add-column' | 'widen' | 'set-identity' | 'enum-values';
+    kind: 'add-column' | 'widen' | 'set-identity' | 'enum-values' | 'add-unique';
     column: string;
     from?: string;
     to?: string;
     values?: string[];
+    /** `add-unique`: the columns it must be unique together with. */
+    with?: string[];
   }[];
   blocked: { column: string; reason: string }[];
   columns: { ref: string; type: string }[];
@@ -658,7 +672,13 @@ export interface InstalledAppResult extends InstalledApp {
   /** The manifest's pages, as the install wrote them. Absent from an older server. */
   pages?: { created: string[]; recomposed: string[]; kept: string[] };
   /** The public endpoints saved, and the guests' key if one was made. */
-  publicAccess?: { endpoints: string[]; keyId: string | null; skipped: { ref: string; reason: string }[] };
+  publicAccess?: {
+    endpoints: string[];
+    keyId: string | null;
+    skipped: { ref: string; reason: string }[];
+    /** What an update gave the app's live keys, by purpose. */
+    granted?: Record<string, string[]>;
+  };
   /** The add-ons installed, updated or connected with the app. Absent for an app that names none. */
   addOns?: AddOnsDone;
 }

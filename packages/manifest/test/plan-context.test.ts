@@ -119,6 +119,76 @@ describe('a table this app made on an earlier install', () => {
     expect(payments?.adopted).toBeUndefined();
   });
 
+  it('gives a column the unique rule it is declared with where the table says it lacks it, and only there', () => {
+    const coded = {
+      ...POS,
+      requiredSchema: {
+        ...POS.requiredSchema,
+        tables: [
+          {
+            ref: 'payments',
+            columns: [
+              { ref: 'id', type: 'int', role: 'pk' },
+              { ref: 'ref_no', type: 'text', maxLength: 20, nullable: true, unique: true },
+              { ref: 'receipt', type: 'text', nullable: true, rules: { code: { length: 8 } } },
+              { ref: 'till', type: 'int', nullable: true },
+              { ref: 'n', type: 'int', nullable: true, rules: { sequence: { gapless: true, scope: 'till' } } },
+              { ref: 'note', type: 'text', maxLength: 20, nullable: true, unique: true },
+            ],
+          },
+        ],
+      },
+    } as unknown as Manifest;
+    const columns = [
+      col('id', { isPrimaryKey: true, logicalType: 'integer', isIdentity: true, isUnique: false, nullable: false }),
+      col('ref_no', { logicalType: 'varchar', maxLength: 20, isUnique: false }),
+      col('receipt', { logicalType: 'varchar', maxLength: 8, isUnique: true }),
+      col('till', { logicalType: 'integer', isUnique: false }),
+      col('n', { logicalType: 'integer', isUnique: false }),
+      // Not said of the column itself: the table's list of unique rules decides, and without one nothing is offered.
+      col('note', { logicalType: 'varchar', maxLength: 20 }),
+    ];
+    const edits = (uniques?: string[][]) =>
+      planInstall(coded, view([{ ref: 'pos_payments', columns, ...(uniques === undefined ? {} : { uniques }) }]), ctx({ records })).tables?.[0]?.edits;
+    expect(edits([['receipt']])).toEqual([
+      { kind: 'add-unique', column: 'ref_no' },
+      { kind: 'add-unique', column: 'n', with: ['till'] },
+      { kind: 'add-unique', column: 'note' },
+    ]);
+    // The number is kept unique with its till already, in either order; the note alone.
+    expect(edits([['receipt'], ['n', 'till'], ['note']])).toEqual([{ kind: 'add-unique', column: 'ref_no' }]);
+    // A table whose unique rules are not known is offered only what its columns say.
+    expect(edits()).toEqual([{ kind: 'add-unique', column: 'ref_no' }]);
+  });
+
+  it('refuses on MySQL a unique text column wider than MySQL can index, whether the table is made or reused', () => {
+    const wide = {
+      ...POS,
+      requiredSchema: {
+        ...POS.requiredSchema,
+        tables: [
+          {
+            ref: 'payments',
+            columns: [
+              { ref: 'id', type: 'int', role: 'pk' },
+              { ref: 'long_ref', type: 'text', maxLength: 1000, nullable: true, unique: true },
+              { ref: 'short_ref', type: 'text', maxLength: 768, nullable: true, unique: true },
+              { ref: 'code', type: 'text', nullable: true, rules: { code: { prefix: 'R-', length: 900 } } },
+            ],
+          },
+        ],
+      },
+    } as unknown as Manifest;
+    const problems = (dialect: PlanContext['dialect'], tables: SchemaModelView['tables']) =>
+      planInstall(wide, view(tables), ctx({ dialect, records: tables.length === 0 ? {} : records })).problems.filter((p) => p.code === 'UNIQUE_KEY_TOO_LONG');
+    const made = problems('mysql', []);
+    expect(made.map((p) => p.column)).toEqual(['long_ref', 'code']);
+    expect(made[0]?.message).toContain('at most 768 characters: this app allows 1000');
+    expect(problems('mysql', [{ ref: 'pos_payments', columns: [col('id', { isPrimaryKey: true, logicalType: 'integer', isIdentity: true })] }]).map((p) => p.column)).toEqual(['long_ref', 'code']);
+    expect(problems('postgres', [])).toEqual([]);
+    expect(problems('sqlite', [])).toEqual([]);
+  });
+
   it('says when the earlier install used a table it found rather than made', () => {
     const plan = planInstall(
       POS,

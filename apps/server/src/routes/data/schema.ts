@@ -11,9 +11,17 @@ import { z } from 'zod';
 import { MAX_COMPUTE_BYTES } from '../../crud/compute.js';
 import { MAX_CHILD_ROWS } from '../../crud/child-rows.js';
 import { MAX_WHERE_BYTES } from '../../crud/filters.js';
+import { rowValues } from '../../security/nul-bytes.js';
 import { boolFlag } from '../query-flag.js';
 
 export const rowSchema = z.record(z.string(), z.unknown());
+
+/**
+ * A row's values written through the write service (a record's `values`, a
+ * child row's): marked, so the request's own U+0000 check leaves them to the
+ * write service's, which names the column (`security/nul-bytes.ts`).
+ */
+const rowValuesSchema = rowValues(z.record(z.string(), z.unknown()));
 
 export const dataTableParams = z.object({
   connectionId: z.string().min(1),
@@ -148,7 +156,7 @@ export const recordLinksBody = z
  * is the leaf's — a dialog that can hold two hundred lines is already a page.
  */
 export const recordChildrenBody = z
-  .record(z.string().min(1), z.array(z.object({ key: rowSchema.optional(), values: rowSchema })).max(MAX_CHILD_ROWS))
+  .record(z.string().min(1), z.array(z.object({ key: rowSchema.optional(), values: rowValuesSchema })).max(MAX_CHILD_ROWS))
   .optional();
 
 /**
@@ -160,17 +168,17 @@ export const recordChildrenBody = z
  * refused.
  */
 export const recordRepeatBody = z
-  .object({ column: z.string().min(1).max(120), values: z.array(z.string().min(1)).min(1).max(100) })
+  .object({ column: z.string().min(1).max(120), values: rowValues(z.array(z.string().min(1)).min(1).max(100)) })
   .optional();
 
 export const recordCreateBody = z.object({
-  values: rowSchema,
+  values: rowValuesSchema,
   links: recordLinksBody,
   children: recordChildrenBody,
   repeat: recordRepeatBody,
 });
 export const recordUpdateBody = z.object({
-  values: rowSchema,
+  values: rowValuesSchema,
   links: recordLinksBody,
   children: recordChildrenBody,
 });
@@ -278,7 +286,7 @@ export const recordDeleteReply = z.union([recordMutationReply, recordCascadeRepl
 export const recordBulkBody = z.object({
   action: z.enum(['update', 'delete']),
   ids: z.array(z.unknown()).min(1).max(1000),
-  values: rowSchema.optional(),
+  values: rowValuesSchema.optional(),
 });
 
 export const recordBulkReply = z.object({

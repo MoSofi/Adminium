@@ -367,5 +367,19 @@ for (const [dialect, available] of legs) {
       const rows = await guest.rows('reservations_availability');
       expect(rows.statusCode).toBe(404);
     }, 90_000);
+
+    it('confirms in Arabic with the party and the hours in Arabic digits, and the booking code as it is typed', async () => {
+      const guest = await serving(dialect);
+      const day = venueClock(new Date(Date.now() + 2 * 86_400_000), ZONE).day;
+      const at = wallTimeToInstant(`${day} 18:00`, ZONE)!.toISOString();
+      expect((await guest.book(at, 3, '07700900009', 'nour@example.com', 'ar-EG,ar;q=0.9')).statusCode).toBe(201);
+      const [mail] = await guest.mail();
+      expect(mail).toMatchObject({ template: 'booking-confirmation', locale: 'ar_EG' });
+      // Three people, cancellable up to two hours before: neither in Latin digits.
+      expect(mail!.text).toContain('٣');
+      expect(mail!.text).toContain('٢');
+      expect(mail!.text).not.toMatch(/(^|[^\d:A-Z-])[23](?![\d:])/m);
+      expect(mail!.text).toMatch(/MR-[0-9A-HJKMNP-TV-Z]{4}/);
+    }, 90_000);
   });
 }

@@ -37,6 +37,7 @@ import { runIntrospection } from '../connections/introspect.js';
 import { applyServerEdit, planServerEdit, type EditBody, type ServerEditDeps } from '../schema-ddl/programmatic.js';
 import type { ApplyResult, SchemaPlan } from '../schema-ddl/service.js';
 import type { DatabaseModel } from '@adminium/engine';
+import { sql } from 'kysely';
 
 export interface AppSchemaTarget {
   /**
@@ -66,6 +67,12 @@ export interface AppSchemaTarget {
     build: (model: DatabaseModel) => EditBody,
     opts: { superAdmin: boolean; createdBy: string | null; expectedChecksum?: string | undefined },
   ): Promise<ApplyResult>;
+  /**
+   * Whether two rows of `table` already hold the same values in `columns`
+   * (empty ones aside): a unique rule asked for there would be refused.
+   * Reads, never writes.
+   */
+  repeats?(connectionId: string, table: string, columns: readonly string[]): Promise<boolean>;
   /** The plan `edit` would run, against a fresh snapshot, for an operator to review. Changes no table. */
   planEdit(
     connectionId: string,
@@ -88,6 +95,15 @@ export function createAppSchemaTarget(deps: SchemaTargetCoreDeps & Pick<ServerEd
       return planServerEdit(deps, connectionId, build, opts);
     },
     read: (connectionId, names) => readLiveTables(deps, connectionId, names),
+    repeats: async (connectionId, table, columns) => {
+      const { db } = await deps.manager.data(connectionId);
+      const refs = columns.map((column) => sql.ref(column));
+      const found = await sql<{ found: number }>`select 1 as found from ${sql.table(table)} where ${sql.join(
+        refs.map((ref) => sql`${ref} is not null`),
+        sql` and `,
+      )} group by ${sql.join(refs)} having count(*) > 1 limit 1`.execute(db);
+      return found.rows.length > 0;
+    },
     apply: (plan, manifest, connectionId, existing, onCreated) =>
       applyPlanTo(deps, connectionId, plan, manifest, existing, onCreated),
   };

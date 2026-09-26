@@ -14351,6 +14351,10 @@
     "status": "mt",
     "srcHash": "1f58aba4bec9"
   },
+  "studio.appPublicAccess.opensWithoutStaff": {
+    "status": "mt",
+    "srcHash": "b5190800ccb3"
+  },
   "studio.appPublicAccess.read": {
     "status": "mt",
     "srcHash": "ae7d86ed0176"
@@ -16199,6 +16203,14 @@
     "status": "mt",
     "srcHash": "77dfd2135f4d"
   },
+  "studio.hostedApps.install.check.addUnique": {
+    "status": "mt",
+    "srcHash": "9459fc48400c"
+  },
+  "studio.hostedApps.install.check.addUniqueWith": {
+    "status": "mt",
+    "srcHash": "51f7bc7010e4"
+  },
   "studio.hostedApps.install.check.addsColumns": {
     "status": "mt",
     "srcHash": "970ca433a9a5"
@@ -16466,6 +16478,10 @@
   "studio.hostedApps.install.plan.hint": {
     "status": "mt",
     "srcHash": "af582b6bf870"
+  },
+  "studio.hostedApps.install.plan.installedElsewhere": {
+    "status": "mt",
+    "srcHash": "d51a51bf9551"
   },
   "studio.hostedApps.install.plan.pageWarnings": {
     "status": "mt",
@@ -16858,6 +16874,10 @@
   "studio.hostedApps.title": {
     "status": "mt",
     "srcHash": "de3fad131687"
+  },
+  "studio.hostedApps.update.accessSubtitle": {
+    "status": "mt",
+    "srcHash": "dfdc04784a28"
   },
   "studio.hostedApps.update.body": {
     "status": "mt",
@@ -22978,6 +22998,10 @@
   "ui.formDialog.issue.invalid": {
     "status": "mt",
     "srcHash": "10682f93f1ea"
+  },
+  "ui.formDialog.issue.invalidCharacter": {
+    "status": "mt",
+    "srcHash": "24dc5cc8d01e"
   },
   "ui.formDialog.issue.notAllowed": {
     "status": "mt",

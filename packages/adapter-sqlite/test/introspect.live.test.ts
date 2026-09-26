@@ -202,7 +202,7 @@ describe.skipIf(!driverReady)('SQLite specifics (extras database)', () => {
     expect(ticketsColumn('status')).toMatchObject({
       logicalType: 'text',
       enumRef: 'main.tickets.status',
-      default: { kind: 'literal', text: "'open'" },
+      default: { kind: 'literal', text: 'open' },
     });
     expect(
       model.tables.find((t) => t.name === 'tickets')?.checks.some(

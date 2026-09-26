@@ -551,6 +551,8 @@ for (const [dialect, reachable] of LEGS) {
       // The desk approves every ready one before the scan has run: the sender still sends one each.
       const ready = async (inv: unknown) => (await rungsOf(inv)).filter((r) => r.status === 'held' && Date.parse(r.due!) <= clock);
       expect((await ready(m['id'])).map((r) => r.kind)).toEqual(['invoice-rung-1', 'invoice-rung-2']);
+      // Ben reads Arabic, and the app has only English words: the English email counts in its own digits.
+      for (const r of await ready(m['id'])) await update('messages', r.id, { language: 'ar-EG' });
       for (const r of await ready(m['id'])) await update('messages', r.id, { status: 'queued' });
       const before = (await mail()).length;
       expect(await sender.sendApp('studio', clock)).toBe(2);

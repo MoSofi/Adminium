@@ -44,6 +44,7 @@ import {
   type Manifest,
   prefixFor,
   satisfiesSemverRange,
+  uniqueWithOf,
   type InstallTablePlan,
   type PlanProblem,
   type TableChoice,
@@ -54,9 +55,8 @@ import {
   appTablesRepo,
   CUSTOMER_KEY_PURPOSE,
   auditRepo,
-  keyEnabledBy,
-  keyStaffBinding,
   connectionTenantConfig,
+  connectionsRepo,
   permissionsRepo,
   publicEndpointsRepo,
   publicKeysRepo,
@@ -108,7 +108,7 @@ import {
   materialiseManifestPages,
   type MaterialiseResult,
 } from '../../apps/manifest-pages.js';
-import { missingColumnsEdit, offered, type OfferedColumn } from '../../apps/missing-columns.js';
+import { addedDefault, missingColumnsEdit, offered, type OfferedColumn } from '../../apps/missing-columns.js';
 import type { AppSchemaTarget } from '../../apps/schema-target.js';
 import { AddOnInstallError, type ExistingTable } from '../../add-ons/install-ddl.js';
 import type { EditBody } from '../../schema-ddl/programmatic.js';
@@ -146,7 +146,15 @@ import {
   writeManifestRoles,
   type RolesResult,
 } from '../../apps/manifest-roles.js';
-import { installPublicAccess, planPublicEndpoints, publicAccessWarnings, signsInByLink, staffBindingOf } from '../../apps/manifest-public.js';
+import {
+  installPublicAccess,
+  keysOpenedWithoutStaff,
+  planPublicEndpoints,
+  publicAccessWarnings,
+  signsInByLink,
+  takeBackPublicAccess,
+  type PublicAccessCommit,
+} from '../../apps/manifest-public.js';
 import { installOutbox, removeOutbox, templateProblems, type OutboxResult } from '../../apps/manifest-outbox.js';
 import { installAppDocuments, uninstallAppDocuments } from '../../documents/app-documents.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
@@ -287,6 +295,12 @@ export interface AppRoutesDeps {
  * The schema edit that adapts the tables an install reuses: each `add-column`
  * as the installer's own column shape (nullable), each widening, identity and
  * enum-value change as one `alterColumns` entry per column.
+ *
+ * An added column keeps what the manifest says of it that a table made fresh
+ * would have: its one-of-a-kind rule (`unique`, a constraint under the
+ * installer's own name) and its fixed default. Left out, an updated install
+ * took the same hours onto two invoice lines, and a new switch read empty
+ * where a new install reads it off.
  */
 export function editBodyFor(
   tables: readonly InstallTablePlan[],
@@ -305,17 +319,27 @@ export function editBodyFor(
     for (const edit of table.edits) {
       if (edit.kind === 'add-column') {
         const column = spec?.columns.find((c) => c.ref === edit.column);
+        // Unique alone, or with its parent row (a number counted per parent), as a table made with it is.
+        const partners = column === undefined ? null : uniqueWithOf(column);
+        const unique = partners === null ? {} : partners.length === 0 ? { unique: true } : { unique: true, uniqueWith: partners };
         if (column?.type === 'fk' && column.references !== undefined) {
           const link = linkColumnFor(column.references, model, idOf, names);
-          if (link !== null) addColumns.push({ table: id, column: { name: edit.column, ...link.column } as never, foreignKey: link.foreignKey });
+          if (link !== null) addColumns.push({ table: id, column: { name: edit.column, ...link.column } as never, foreignKey: link.foreignKey, ...unique });
           continue;
         }
         const shape = column === undefined ? null : offered(column);
-        if (shape !== null) addColumns.push({ table: id, column: { name: edit.column, ...shape } as never });
+        if (shape !== null) {
+          // A unique column starts every row empty: one default for them all would clash.
+          const fill = column === undefined || partners !== null ? null : addedDefault(column);
+          addColumns.push({ table: id, column: { name: edit.column, ...shape, default: fill } as never, ...unique });
+        }
         continue;
       }
       const entry = perColumn.get(edit.column) ?? { table: id, column: edit.column };
-      if (edit.kind === 'widen') {
+      if (edit.kind === 'add-unique') {
+        entry.unique = true;
+        if (edit.with !== undefined && edit.with.length > 0) entry.uniqueWith = [...edit.with];
+      } else if (edit.kind === 'widen') {
         const width = /^varchar\((\d+)\)$/.exec(edit.to);
         entry.widen =
           width === null
@@ -736,6 +760,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       }
     }
 
+    const elsewhere = manifest.kind === 'app' ? await installedElsewhere(manifest.key, manifest.name, connectionId) : null;
+
     const pure =
       manifest.kind === 'app' && dialect !== undefined && dialect !== 'generic'
         ? planInstall(
@@ -766,6 +792,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         : await shapesForPlan(deps.addOns?.installer, manifest, addOnRows ?? (await addOnRowsFor(manifest, connectionId, false)));
     const shapeIssues = shapes === null ? [] : shapeProblems(manifest, shapes);
     const pageProblems = [
+      ...(elsewhere === null ? [] : [elsewhere.problem]),
       ...(await slugProblems(manifest, connectionId)),
       ...pageConfigProblems(manifest),
       ...templateProblems(manifest).map((message) => ({ code: 'EMAIL_TEMPLATE_INVALID' as const, table: manifest.key, message })),
@@ -773,6 +800,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       ...(await roleSlugProblems(deps.meta, manifest)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       // The tables built on an add-on's shape, against the shape the install will run on.
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
+      ...(await repeatedUniques(pure, connectionId)),
     ];
     const plan: InstallPlan =
       pageProblems.length === 0
@@ -825,6 +853,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           message: problem.message,
           table: problem.table,
           ...(problem.column === undefined ? {} : { column: problem.column }),
+          ...(problem.connectionId === undefined ? {} : { connectionId: problem.connectionId }),
         })),
         requiresSchemaChange:
           plan.create.length > 0 || plan.reuse.some((t) => t.missingColumns.length > 0),
@@ -841,6 +870,36 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                 ...(issue.table === undefined ? {} : { table: issue.table }),
               }))
             : [],
+      },
+    };
+  }
+
+  /**
+   * AN APP LIVES ON ONE CONNECTION. Installing it again on another would
+   * replace its row and leave the first database behind: its tables, its
+   * customer key still serving them, its links. So an app installed on
+   * another connection — or stopped part way there — is not installable
+   * here. It is updated where it is, or uninstalled there first.
+   */
+  async function installedElsewhere(
+    key: string,
+    name: string,
+    connectionId: string | null,
+  ): Promise<{ problem: PlanProblem; connectionId: string; connectionName: string } | null> {
+    const earlier = (await manifests.list('app')).find((m) => m.row.manifestKey === key);
+    const there = earlier?.row.connectionId ?? null;
+    if (there === null || there === connectionId) return null;
+    const connectionName = (await connectionsRepo(deps.meta, deps.credentialCrypto).findById(there))?.name ?? there;
+    return {
+      connectionId: there,
+      connectionName,
+      problem: {
+        code: 'APP_INSTALLED_ELSEWHERE',
+        table: key,
+        connectionId: there,
+        message:
+          `"${name}" is already installed on the connection "${connectionName}". An app runs on one connection: ` +
+          'update it there, or uninstall it there before installing it on another.',
       },
     };
   }
@@ -873,13 +932,54 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     connectionId: string,
     names: Readonly<Record<string, string>>,
     request: FastifyRequest,
+    /** The app is installed on this connection: the check is an update's. */
+    installed = false,
   ) {
     if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0) return undefined;
     const view = deps.publicAccess === undefined ? null : await deps.publicAccess.viewFor(connectionId);
+    const planned = planPublicEndpoints(manifest, names, view, { tablesMadeLater: true });
+    /*
+     * An app already here (the check an update is shown): what its keys hold
+     * already, what the update would give them, and what it would not make
+     * again because the operator took that key back.
+     */
+    const onUpdate = new Map<string, 'held' | 'granted' | 'kept' | 'withheld'>();
+    // A staff screen's key this version would open to anyone holding its link: a change to allow, like a new entry.
+    const opensWithoutStaff = installed ? [...new Set((await keysOpenedWithoutStaff(deps.meta, manifest, connectionId)).map((k) => k.purpose))].sort() : undefined;
+    if (installed && deps.publicAccess !== undefined) {
+      const at = Date.now();
+      const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
+      const own = await publicKeysRepo(deps.meta).listManagedBy(manifest.key);
+      const stored = new Set((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((e) => e.ref));
+      for (const entry of planned) {
+        const live = own.filter((k) => k.purpose === entry.key && k.kind === 'browser' && here.has(k.id));
+        if (live.length === 0) {
+          onUpdate.set(entry.ref, own.some((k) => k.purpose === entry.key) ? 'withheld' : 'granted');
+          continue;
+        }
+        let holds = true;
+        for (const k of live) {
+          const held = await deps.publicAccess.service.heldByKey(connectionId, k.id);
+          if (!entry.methods.every((m) => (held.get(entry.ref) ?? []).includes(m))) holds = false;
+        }
+        if (holds) {
+          onUpdate.set(entry.ref, 'held');
+          continue;
+        }
+        // A change to an entry its key holds that the key may not take: the entry stays as it is.
+        const refused =
+          stored.has(entry.ref) &&
+          entry.definition !== null &&
+          (await deps.publicAccess.service.checkEndpoint({ connectionId, ref: entry.ref, definition: entry.definition })).issues.length > 0;
+        onUpdate.set(entry.ref, refused ? 'kept' : 'granted');
+      }
+    }
     return {
-      endpoints: planPublicEndpoints(manifest, names, view, { tablesMadeLater: true }).map(
-        ({ definition: _definition, ...entry }) => entry,
-      ),
+      endpoints: planned.map(({ definition: _definition, ...entry }) => {
+        const state = onUpdate.get(entry.ref);
+        return state === undefined ? entry : { ...entry, onUpdate: state };
+      }),
+      ...(opensWithoutStaff === undefined ? {} : { opensWithoutStaff }),
       warnings: await publicAccessWarnings(
         deps.meta,
         connectionId,
@@ -889,6 +989,33 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       ),
       canGrant: typeof request.can !== 'function' || (await request.can(PERMISSIONS.apiKeysManage)),
     };
+  }
+
+  /**
+   * A unique rule the plan would give a column that has rows already, which
+   * two of them break: refused on the check, by name, before anything moves —
+   * never a half-done update the database stops midway.
+   */
+  async function repeatedUniques(plan: InstallPlan, connectionId: string): Promise<PlanProblem[]> {
+    const target = deps.schemaTarget;
+    if (target?.repeats === undefined) return [];
+    const out: PlanProblem[] = [];
+    for (const table of plan.tables ?? []) {
+      for (const edit of table.edits) {
+        if (edit.kind !== 'add-unique') continue;
+        const columns = [...(edit.with ?? []), edit.column];
+        if (!(await target.repeats(connectionId, table.table, columns))) continue;
+        out.push({
+          code: 'UNIQUE_DUPLICATES',
+          table: table.ref,
+          column: edit.column,
+          message:
+            `"${table.table}.${edit.column}" may hold no value twice${edit.with === undefined ? '' : ` for the same ${edit.with.join(', ')}`}, ` +
+            'and rows already there do. Make them differ, then check again.',
+        });
+      }
+    }
+    return out;
   }
 
   /** A page's hand-written form or Overview layout, checked against the manifest itself. */
@@ -939,6 +1066,42 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
   }
 
   /**
+   * The audit row, and the resolver forgetting the key, for each change to an
+   * app's public access the moment it is written — so a step after it that
+   * fails (and an update swallows) cannot leave a grant nobody was told of.
+   */
+  function publicAccessRecorder(request: FastifyRequest, app: string, connectionId: string, userId: string | null) {
+    const actor = { actorKind: 'user' as const, actorId: userId, actorLabel: request.user?.email ?? 'unknown', category: 'system' as const };
+    const audit = async (action: string, changes: Record<string, unknown>) => {
+      await auditRepo(deps.meta).append({ ...actor, action, changes });
+    };
+    return async (change: PublicAccessCommit): Promise<void> => {
+      if (change.kind === 'endpoint') {
+        await audit('public-endpoint.save', { after: { connectionId, ref: change.ref, app } });
+        return;
+      }
+      deps.publicAccess?.invalidateKey?.(change.keyId);
+      const key = { keyId: change.keyId, connectionId, app, purpose: change.purpose };
+      switch (change.kind) {
+        case 'key':
+          await audit('public-key.create', { after: { ...key, access: change.access } });
+          return;
+        case 'grant':
+        case 'withdraw':
+          if (change.kind === 'grant' && change.gained.length > 0) await audit('public-key.grant', { after: { ...key, granted: change.gained } });
+          if (change.lost.length > 0) await audit('public-key.withdraw', { after: { ...key, withdrawn: change.lost } });
+          return;
+        case 'revoke':
+          await audit('public-key.revoke', { before: key });
+          return;
+        case 'rebind':
+          await audit('public-key.rebind', { after: { ...key, requiresStaff: change.requiresStaff, enabledBy: change.enabledBy } });
+          return;
+      }
+    };
+  }
+
+  /**
    * Write the manifest's pages, then tell open dashboards the nav moved.
    *
    * AFTER the row is recorded, because every page is tied to it — and a
@@ -963,12 +1126,18 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     names?: Readonly<Record<string, string>>,
     /** Make (install) or refresh (update) the app's public endpoints and key. */
     publicAccess = false,
+    /**
+     * An update's say on what its version adds to the app's public access:
+     * `true` when the operator allowed it (the app's live keys gain it, a new
+     * key is made), else the reason it is left out.
+     */
+    grant: true | { refusal: string } = true,
   ): Promise<
     | {
         pages: MaterialiseResult;
         rules: RulesResult | undefined;
         roles: RolesResult | undefined;
-        publicAccess: Awaited<ReturnType<typeof installPublicAccess>> | undefined;
+        publicAccess: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
         outbox: OutboxResult | undefined;
       }
     | undefined
@@ -1053,7 +1222,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         }
       }
       // Guests last: the endpoints read tables that must exist, and the key is made from them.
-      let made: Awaited<ReturnType<typeof installPublicAccess>> | undefined;
+      let made: Omit<Awaited<ReturnType<typeof installPublicAccess>>, 'changedKeys'> | undefined;
       if (publicAccess && connectionId !== null && deps.publicAccess !== undefined && manifest.kind === 'app') {
         const view = await deps.publicAccess.viewFor(connectionId);
         if (view !== null && (manifest.publicAccess ?? []).length > 0) {
@@ -1066,48 +1235,47 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           // An install starts afresh; an update never makes again a key the operator took back.
           const withheld = new Set(strict ? [] : declaredPurposes.filter((purpose) => !livePurposes.has(purpose) && own.some((k) => k.purpose === purpose)));
           const tableNames = names ?? (await appTablesRepo(deps.meta).realNames(connectionId, manifest.key));
-          made = await installPublicAccess({
-            service: deps.publicAccess.service,
-            meta: deps.meta,
-            crypto: deps.publicAccess.crypto,
-            manifest,
-            connectionId,
-            names: tableNames,
-            view,
-            appName: manifest.name,
-            actorId: userId,
-            livePurposes,
-            withheld,
-          });
-          // A second key follows the version: gone when it no longer declares
-          // it, rebound when its role or switch changed.
-          for (const k of live) {
-            if (k.purpose === CUSTOMER_KEY_PURPOSE) continue;
-            const binding = staffBindingOf(manifest, k.purpose, { names: tableNames, view });
-            if (binding === null) {
-              await publicKeysRepo(deps.meta).revoke(k.id);
-            } else if (JSON.stringify(keyStaffBinding(k)) !== JSON.stringify(binding.requiresStaff) || JSON.stringify(keyEnabledBy(k)) !== JSON.stringify(binding.enabledBy)) {
-              await publicKeysRepo(deps.meta).setBinding(k.id, binding);
-            } else continue;
-            deps.publicAccess.invalidateKey?.(k.id);
-          }
-          // The admin routes' own audit rows, with the app named.
-          const actor = { actorKind: 'user' as const, actorId: userId, actorLabel: request.user?.email ?? 'unknown', category: 'system' as const };
-          for (const ref of made.endpoints) {
-            await auditRepo(deps.meta).append({
-              ...actor,
-              action: 'public-endpoint.save',
-              changes: { after: { connectionId, ref, app: manifest.key } },
+          // The live keys on this connection of each purpose this version still declares: given what it adds, once allowed.
+          const here = new Set((await publicKeysRepo(deps.meta).listLiveDerived(connectionId, at)).map((k) => k.id));
+          const liveKeys = new Map<string, string[]>();
+          for (const purpose of livePurposes) liveKeys.set(purpose, live.filter((k) => k.purpose === purpose && here.has(k.id)).map((k) => k.id));
+          const record = publicAccessRecorder(request, manifest.key, connectionId, userId);
+          try {
+            const { changedKeys, ...reply } = await installPublicAccess({
+              service: deps.publicAccess.service,
+              meta: deps.meta,
+              crypto: deps.publicAccess.crypto,
+              manifest,
+              connectionId,
+              names: tableNames,
+              view,
+              appName: manifest.name,
+              actorId: userId,
+              livePurposes,
+              withheld,
+              liveKeys,
+              grant: grant === true,
+              ...(grant === true ? {} : { refusal: grant.refusal }),
+              onCommitted: record,
             });
+            made = reply;
+            /*
+             * A staff screen's key the version turns into a shared link's: its
+             * token would open what it reads with no sign-in. Unbound only on
+             * the operator's explicit say (the check lists it), and only once
+             * it holds exactly what the version declares; otherwise it stays
+             * bound, which fails closed.
+             */
+            if (grant === true) {
+              for (const { keyId, purpose } of await keysOpenedWithoutStaff(deps.meta, manifest, connectionId)) {
+                if (!changedKeys.some((c) => c.keyId === keyId && c.settled)) continue;
+                await publicKeysRepo(deps.meta).setBinding(keyId, { requiresStaff: null, enabledBy: null });
+                await record({ kind: 'rebind', keyId, purpose, requiresStaff: null, enabledBy: null });
+              }
+            }
+          } finally {
+            deps.publicAccess.onChange?.();
           }
-          for (const [purpose, keyId] of Object.entries(made.keys)) {
-            await auditRepo(deps.meta).append({
-              ...actor,
-              action: 'public-key.create',
-              changes: { after: { keyId, connectionId, app: manifest.key, purpose, access: made.endpoints } },
-            });
-          }
-          deps.publicAccess.onChange?.();
         }
       }
       return { pages: result, rules, roles, publicAccess: made, outbox };
@@ -2005,7 +2173,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           },
           addOns,
         );
-        const publicAccess = await publicAccessOf(manifest, connectionId, dto.names ?? {}, request);
+        const publicAccess = await publicAccessOf(
+          manifest,
+          connectionId,
+          dto.names ?? {},
+          request,
+          installed !== undefined && installed.row.connectionId === connectionId,
+        );
         return {
           plan: {
             ...dto,
@@ -2111,6 +2285,15 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           prior.row.status === 'installing' &&
           prior.row.version === version &&
           prior.row.connectionId === (connectionId ?? null);
+
+        // Installed on another connection: refused before anything is written, as the plan says.
+        const elsewhere = await installedElsewhere(key, manifest.name, connectionId ?? null);
+        if (elsewhere !== null) {
+          throw new ConflictError(elsewhere.problem.message, 'APP_INSTALLED_ELSEWHERE', {
+            connectionId: elsewhere.connectionId,
+            connection: elsewhere.connectionName,
+          });
+        }
 
         /*
          * A ROW REPLACED IS AN UPDATE BY ANOTHER DOOR: the add-ons mounted on
@@ -2409,6 +2592,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           });
         }
 
+        // What the new version adds to the app's public access is allowed as
+        // at install: only by someone who may hand out API keys.
+        const canGrantKeys = typeof request.can !== 'function' || (await request.can(PERMISSIONS.apiKeysManage));
+        const asksPublicAccess = manifest.kind === 'app' && (manifest.publicAccess ?? []).length > 0;
+        if (asksPublicAccess && request.body?.publicAccess === true && !canGrantKeys) {
+          throw new ForbiddenError(
+            `"${key}" asks for public access, which only someone who may manage API keys can allow. ` +
+              'Update it without public access, or ask someone who can.',
+          );
+        }
+
         /*
          * AN ADD-ON MOUNTED ON THIS APP MUST STILL WORK WITH IT. A new version
          * outside an attached add-on's (binding) range is refused, naming the
@@ -2492,7 +2686,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             attached: [...(addOnsDone?.attached ?? []), ...done.attached],
           };
         };
-        let stage: 'add-ons' | 'tables' | 'add-on-updates' | 'finish' = 'add-ons';
+        let stage: 'add-ons' | 'tables' | 'add-on-updates' | 'public-access' | 'finish' = 'add-ons';
         try {
           await runSteps(earlySteps);
           stage = 'tables';
@@ -2513,11 +2707,35 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           }
           stage = 'add-on-updates';
           await runSteps(lateSteps);
+          /*
+           * What the new version no longer declares comes out of the app's
+           * keys now: before the version is recorded, so a failure here is
+           * an update to finish, and before anything below that may fail and
+           * be swallowed. Whatever the operator says about what it adds, and
+           * whether or not the guests' key is still live.
+           */
+          stage = 'public-access';
+          if (connectionId !== null && deps.publicAccess !== undefined && manifest.kind === 'app') {
+            const access = deps.publicAccess;
+            try {
+              await takeBackPublicAccess({
+                service: access.service,
+                meta: deps.meta,
+                manifest,
+                connectionId,
+                names: names ?? (await appTablesRepo(deps.meta).realNames(connectionId, key)),
+                view: await access.viewFor(connectionId),
+                onCommitted: publicAccessRecorder(request, key, connectionId, userId),
+              });
+            } finally {
+              access.onChange?.();
+            }
+          }
           stage = 'finish';
           await manifests.setVersion(installed.row.id, { version: to, document: manifest });
         } catch (error) {
           // A refusal before anything was written stays the refusal it is.
-          if (earlySteps.length === 0 && stage !== 'add-on-updates' && stage !== 'finish' && error instanceof AppError && error.statusCode < 500) {
+          if (earlySteps.length === 0 && (stage === 'add-ons' || stage === 'tables') && error instanceof AppError && error.statusCode < 500) {
             throw error;
           }
           const message = error instanceof Error ? error.message : String(error);
@@ -2538,10 +2756,25 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         await deps.installed.refresh();
         // New pages are added, untouched ones rebuilt for this version, and
         // any page an operator edited is left exactly as it is.
-        // Public access follows the version only where the operator allowed
-        // it at install: the app still holds the live key it was given then.
+        /*
+         * Public access follows the version where the operator allowed it at
+         * install (the app still holds the live key it was given then), or
+         * where they allow it now. What the version ADDS — an entry the app's
+         * key does not hold, a key it never had, a staff screen's key opening
+         * without a sign-in — is given only when the operator says so on the
+         * check (`publicAccess: true`), and only by someone who may manage API
+         * keys. Not saying so gives nothing new. What it no longer declares
+         * was taken back above, either way.
+         */
         const liveKey = await publicKeysRepo(deps.meta).newestLiveByApp(key, 'customer');
         const keepsPublicAccess = liveKey !== null && liveKey.managedBy === key;
+        const consent = request.body?.publicAccess;
+        const grant =
+          consent === true && canGrantKeys
+            ? (true as const)
+            : !canGrantKeys
+              ? { refusal: 'only someone who may manage API keys can allow it' }
+              : { refusal: consent === false ? 'not allowed with this update' : 'not asked for with this update: send "publicAccess": true to allow it' };
         const writtenPages = await writePages(
           request,
           manifest,
@@ -2550,7 +2783,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           userId,
           false,
           names,
-          keepsPublicAccess,
+          keepsPublicAccess || consent === true,
+          grant,
         );
 
         // D11: older versions go only AFTER the new one is recorded and served,

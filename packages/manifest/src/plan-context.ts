@@ -113,6 +113,45 @@ function wideningFor(
 }
 
 /**
+ * MySQL indexes at most 3072 bytes of a key, and counts four bytes for each
+ * character of a `varchar` (utf8mb4): a unique text column of more than 768
+ * characters cannot be made, on a new table or an existing one.
+ */
+export const MYSQL_UNIQUE_KEY_BYTES = 3072;
+
+/** The width of a text column that is unique on its own (declared so, or a code), or null. */
+function uniqueTextWidth(column: RequiredColumn): number | null {
+  if (column.type !== 'text') return null;
+  const code = column.rules?.code;
+  if (column.unique !== true && code === undefined) return null;
+  return column.maxLength ?? (code === undefined ? null : (code.prefix ?? '').length + code.length);
+}
+
+/**
+ * The columns a declared column must be unique with, as a table made with it
+ * is: alone (`[]`) when declared `unique`, a code, or a number without gaps
+ * across the table; with its parent row when the number counts per parent;
+ * null when it need not be unique.
+ */
+export function uniqueWithOf(column: RequiredColumn): string[] | null {
+  const sequence = column.rules?.sequence;
+  if (sequence?.gapless === true) return sequence.scope === undefined ? [] : [sequence.scope];
+  return column.unique === true || column.rules?.code !== undefined ? [] : null;
+}
+
+/**
+ * Whether the table keeps `columns` unique together already: a unique on
+ * exactly those columns, or (for one column) the column read back as unique.
+ * Unknown counts as kept, so nothing is offered on a guess.
+ */
+function keepsUnique(table: SchemaModelView['tables'][number] | undefined, have: ExistingColumnView, columns: readonly string[]): boolean {
+  if (columns.length === 1 && have.isUnique !== undefined) return have.isUnique;
+  if (table?.uniques === undefined) return true;
+  const wanted = [...columns].sort().join('\u0000');
+  return table.uniques.some((unique) => [...unique].sort().join('\u0000') === wanted);
+}
+
+/**
  * A column an update can add to a table that exists. A link (`fk`) can, when
  * it is nullable: every existing row starts unlinked, and the schema editor
  * adds the foreign key beside it. A required link cannot — the rows already
@@ -309,6 +348,17 @@ export function planWithContext(
           const missing = (column.enum ?? []).filter((value) => !have.enumValues!.includes(value));
           if (missing.length > 0) plan.edits.push({ kind: 'enum-values', column: column.ref, values: missing });
         }
+        /*
+         * A column the app keeps unique that the table does not: made so, as
+         * a fresh install makes it. Left out, a column an earlier update added
+         * without its rule (or a table the operator made) would take the same
+         * value twice for good. Only on a table the app uses as its own, and
+         * the server first checks no two rows already break it.
+         */
+        const uniqueWith = column.role === 'pk' ? null : uniqueWithOf(column);
+        if (plan.action === 'reuse' && uniqueWith !== null && !keepsUnique(existing, have, [...uniqueWith, column.ref])) {
+          plan.edits.push(uniqueWith.length === 0 ? { kind: 'add-unique', column: column.ref } : { kind: 'add-unique', column: column.ref, with: uniqueWith });
+        }
       }
       if (plan.blocked.length > 0) {
         problems.push({
@@ -318,6 +368,26 @@ export function planWithContext(
           message:
             `"${real}" is missing ${plan.blocked.map((b) => `"${b.column}"`).join(', ')}, which cannot be added ` +
             `to a table that already exists. Rename that table out of the way, or use a different prefix.`,
+        });
+      }
+    }
+    /*
+     * A unique text column wider than MySQL can index is refused here, on the
+     * check, for an install and an update alike: made anyway, the table (or
+     * the column an update adds) would go in and the rule would not.
+     */
+    if (context.dialect === 'mysql' && plan.action !== 'share' && plan.action !== 'undecided') {
+      const most = MYSQL_UNIQUE_KEY_BYTES / 4;
+      for (const column of table.columns) {
+        const width = uniqueTextWidth(column);
+        if (width === null || width <= most) continue;
+        problems.push({
+          code: 'UNIQUE_KEY_TOO_LONG',
+          table: table.ref,
+          column: column.ref,
+          message:
+            `"${real}.${column.ref}" may hold no value twice, and MySQL can keep that only for text of at most ${String(most)} ` +
+            `characters: this ${noun} allows ${String(width)}, so it cannot be used on MySQL.`,
         });
       }
     }

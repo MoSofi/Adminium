@@ -50,6 +50,8 @@ let planReplies: Record<string, unknown>[];
 let uninstallPlan: Record<string, unknown>;
 /** How the sample-data job ends. */
 let sampleJob: 'succeeded' | 'failed';
+/** Connections listed after the one the wizard installs into. */
+let moreConnections: (typeof CONNECTION)[];
 
 function stubFetch() {
   const fetchMock = vi.fn((input: unknown, init?: RequestInit) => {
@@ -60,7 +62,7 @@ function stubFetch() {
     calls.push({ url: url.split('?')[0] ?? url, method, body });
 
     if (url.startsWith('/api/v1/connections')) {
-      return Promise.resolve(jsonResponse(200, { connections: [CONNECTION] }));
+      return Promise.resolve(jsonResponse(200, { connections: [CONNECTION, ...moreConnections] }));
     }
     if (url.startsWith('/api/v1/apps/upload')) {
       return Promise.resolve(jsonResponse(uploadReply.status, uploadReply.body));
@@ -108,6 +110,7 @@ beforeEach(async () => {
   await installTestI18n();
   calls = [];
   sampleJob = 'succeeded';
+  moreConnections = [];
   installReplies = [];
   planReplies = [];
   uninstallPlan = {
@@ -500,6 +503,26 @@ describe('the install wizard', () => {
     expect(screen.getByText(/this app does not create/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
   });
+
+  it('names the connection an app is already installed on, and does not offer Install', async () => {
+    moreConnections = [{ id: 'con_2', name: 'Old books', engine: 'mysql', readOnly: true, tableCount: 4 }];
+    plan = {
+      ...plan,
+      installable: false,
+      create: [],
+      problems: [{ code: 'APP_INSTALLED_ELSEWHERE', table: 'clinic', connectionId: 'con_2', message: 'server words' }],
+    };
+    const user = userEvent.setup();
+    renderWizard();
+    await reachPlan(user);
+
+    expect(
+      screen.getByText(
+        'Clinic Desk is already installed on the connection Old books. An app runs on one connection: update it there, or uninstall it there before installing it on another.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Install' }).hasAttribute('disabled')).toBe(true);
+  });
 });
 
 /** A plan table as the server sends it. */
@@ -601,6 +624,22 @@ describe('the table check', () => {
     expect(visits.textContent).toContain('tip');
     // The column count and the column list come from the same place.
     expect(screen.getByTestId('check-table-clinicians').textContent).toContain('2 columns');
+  });
+
+  it('says a column is made one of a kind, alone or for one parent row', async () => {
+    const unique = checkPlan();
+    (unique.tables as Record<string, unknown>[])[1]!.edits = [
+      { kind: 'add-unique', column: 'ref_no' },
+      { kind: 'add-unique', column: 'v', with: ['proposal_id'] },
+    ];
+    plan = unique;
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    await user.click(screen.getByRole('button', { name: /visits/ }));
+    const visits = screen.getByTestId('check-table-visits');
+    expect(visits.textContent).toContain('ref_no may no longer hold the same value twice.');
+    expect(visits.textContent).toContain('v may no longer hold the same value twice for one proposal_id.');
   });
 
   it('does not claim it made a table an earlier install only found', async () => {

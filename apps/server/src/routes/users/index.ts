@@ -38,6 +38,7 @@ import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { linkOrigin } from '../../security/public-origin.js';
 import { toUserView } from '../auth/handlers.js';
 import { INVITE_TOKEN_TTL_MS, mintInvite, type MintedInvite } from './invite.js';
+import { cursorText } from '../../security/nul-bytes.js';
 import {
   userDeleteQuery,
   userDeleteReply,
@@ -64,7 +65,8 @@ function encodeCursor(cursor: Cursor): string {
 }
 
 function decodeCursor(raw: string): Cursor {
-  const decoded = Buffer.from(raw, 'base64url').toString('utf8');
+  // U+0000 in a cursor is no cursor the server wrote, and would reach the database (`cursorText`).
+  const decoded = cursorText(raw) ?? '';
   const separator = decoded.indexOf(':');
   const createdAt = separator > 0 ? Number(decoded.slice(0, separator)) : Number.NaN;
   const id = separator > 0 ? decoded.slice(separator + 1) : '';
@@ -152,8 +154,8 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
             // Not the caller's `Origin`: an API key can send any it likes, and
             // the activation token would go to that host (security/public-origin.ts).
             activationUrl: `${await linkOrigin(meta, request)}${invite.activationPath}`,
-            expiresInDays: String(Math.round(INVITE_TOKEN_TTL_MS / 86_400_000)),
           },
+          counts: { expiresInDays: Math.round(INVITE_TOKEN_TTL_MS / 86_400_000) },
         },
       );
       return queued !== null;

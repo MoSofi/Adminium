@@ -12,6 +12,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { cursorText } from '../../security/nul-bytes.js';
 import {
   auditEntryReply,
   auditIdParams,
@@ -77,7 +78,8 @@ function encodeCursor(cursor: Cursor): string {
 }
 
 function decodeCursor(raw: string): Cursor {
-  const decoded = Buffer.from(raw, 'base64url').toString('utf8');
+  // U+0000 in a cursor is no cursor the server wrote, and would reach the database (`cursorText`).
+  const decoded = cursorText(raw) ?? '';
   const separator = decoded.indexOf(':');
   const createdAt = separator > 0 ? Number(decoded.slice(0, separator)) : Number.NaN;
   const id = separator > 0 ? decoded.slice(separator + 1) : '';

@@ -367,6 +367,16 @@ function EditsNote({ table }: { table: PlannedAppTable }) {
                   'column',
                   edit.column,
                 )
+              : edit.kind === 'add-unique'
+                ? edit.with === undefined || edit.with.length === 0
+                  ? withMono('studio:hostedApps.install.check.addUnique', '{column} may no longer hold the same value twice.', 'column', edit.column)
+                  : withMono(
+                      'studio:hostedApps.install.check.addUniqueWith',
+                      '{column} may no longer hold the same value twice for one {with}.',
+                      'column',
+                      edit.column,
+                      { with: edit.with.join(', ') },
+                    )
               : withMono(
                   'studio:hostedApps.install.check.enumValues',
                   '{column} also accepts {values}.',

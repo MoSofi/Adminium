@@ -78,7 +78,7 @@ import {
   withFkDisplay,
   withLookups,
 } from './columnSpecs.js';
-import { childWritable, deleteRefused, lockedFields, lockedIn, stateFactsQuery, stateOf, type TableStateFacts } from './recordLocks.js';
+import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, type TableStateFacts } from './recordLocks.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageRecordBinding({
@@ -502,16 +502,40 @@ export function PageRecordBinding({
       };
     }),
   });
-  const parentClosed = (facts?.stateParents ?? []).some((parent, index) => {
+  // A parent that closes the row: whole, or but for the columns its state lets the row empty (a void invoice's line letting go of the time it billed).
+  const closing = (facts?.stateParents ?? []).flatMap((parent, index) => {
     const state = parentStates[index]?.data;
-    return state !== undefined && !childWritable(parent, state);
+    return state === undefined || childWritable(parent, state) ? [] : [releasedColumns(parent, state)];
   });
+  const parentClosed = closing.some((columns) => columns === null);
+  // The columns a released row may still empty, as one key (null: not released).
+  const releasedKey = !parentClosed && closing.length > 0 ? closing.flatMap((columns) => columns ?? []).join('\u0000') : null;
+  // What rows linking here keep (the hours of time on an invoice): read, as the server judges it.
+  const linkKept = useQuery({
+    queryKey: ['record-locks', 'linked', connectionId, facts?.id, row === null ? null : JSON.stringify((facts?.linkLocks ?? []).map((lock) => row[lock.key]))],
+    enabled: connectionId !== null && facts !== null && row !== null && (facts.linkLocks ?? []).length > 0,
+    queryFn: async () =>
+      linkKeptColumns(facts!, row!, {
+        parentKeys: async (lock, key) =>
+          (await createCrudApi(connectionId ?? '', lock.table).list({ where: { column: lock.via, op: 'eq', value: key } as never, select: [lock.parent.via], limit: 50 })).data.map(
+            (line) => line[lock.parent.via],
+          ),
+        parentState: async (lock, key) => {
+          const value = (await createCrudApi(connectionId ?? '', lock.parent.table).get(String(key))).data[lock.parent.column];
+          return value === null || value === undefined ? null : String(value);
+        },
+      }),
+  });
+  const kept = linkKept.data;
   const locked = facts === null || row === null ? null : lockedFields(facts, row);
   const lockedState = facts === null || row === null ? null : lockedIn(facts, row);
-  const pageColumns = useMemo(
-    () => (locked === null ? shownColumns : shownColumns.map((column) => (locked(column.name) ? { ...column, readOnly: true } : column))),
-    [locked, shownColumns],
-  );
+  const pageColumns = useMemo(() => {
+    const released = releasedKey === null ? null : new Set(releasedKey.split('\u0000'));
+    if (locked === null && released === null && (kept === undefined || kept.size === 0)) return shownColumns;
+    return shownColumns.map((column) =>
+      (locked?.(column.name) ?? false) || (released !== null && !released.has(column.name)) || (kept?.has(column.name) ?? false) ? { ...column, readOnly: true } : column,
+    );
+  }, [locked, releasedKey, kept, shownColumns]);
   const noDelete = facts !== null && row !== null && deleteRefused(facts, row);
 
   const recordApi = useMemo(() => {

@@ -37,6 +37,7 @@ import {
   type RealtimeUser,
 } from '../../realtime/hub.js';
 import type { RealtimeGatewayDeps } from '../../realtime/ws.js';
+import { cursorText } from '../../security/nul-bytes.js';
 import {
   jobsCancelReply,
   jobsCreateBody,
@@ -72,7 +73,8 @@ function encodeCursor(createdAt: number, id: string): string {
 }
 
 function decodeCursor(cursor: string): { createdAt: number; id: string } {
-  const text = Buffer.from(cursor, 'base64url').toString('utf8');
+  // U+0000 in a cursor is no cursor the server wrote, and would reach the database (`cursorText`).
+  const text = cursorText(cursor) ?? '';
   const sep = text.indexOf(CURSOR_SEP);
   const createdAt = sep > 0 ? Number(text.slice(0, sep)) : Number.NaN;
   const id = sep > 0 ? text.slice(sep + 1) : '';

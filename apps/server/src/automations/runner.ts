@@ -211,6 +211,7 @@ export async function walkRule(deps: RunnerDeps, input: WalkInput): Promise<RunO
 
   const conditionCtx = (): ConditionContext => ({
     row: source?.row ?? null,
+    table: source?.table ?? null,
     now,
     countRelated:
       source === null

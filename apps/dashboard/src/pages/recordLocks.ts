@@ -13,8 +13,10 @@
  *
  * The facts come from the connection's schema reply, which carries each
  * table's `states`, the rows of other tables that lock it (`lockedBy`, which
- * would need another read and is left to the server) and the parents it is
- * tied to (`stateParents`).
+ * would need another read and is left to the server), the parents it is
+ * tied to (`stateParents`), and the columns rows of other tables keep while
+ * they link to it (`linkLocks`: the hours of time an invoice line bills),
+ * which the page reads with one more request per link.
  */
 import { queryOptions } from '@tanstack/react-query';
 
@@ -38,6 +40,18 @@ export interface StateParentFact {
   lockedIn: string[];
   lock?: true;
   parentIn?: string[];
+  /** While the parent is in one of `when`, a locked child may still empty these columns. */
+  release?: { when: string[]; columns: string[] };
+}
+
+/** Columns of this table a row of another keeps while it links here, unless its parent is in `releasedIn`. */
+export interface LinkLockFact {
+  table: string;
+  via: string;
+  key: string;
+  columns: string[];
+  parent: { table: string; key: string; via: string; column: string };
+  releasedIn: string[];
 }
 
 /** One table's state facts, as the record page reads them. */
@@ -46,6 +60,7 @@ export interface TableStateFacts {
   name: string;
   states?: StatesRule | undefined;
   stateParents: StateParentFact[];
+  linkLocks: LinkLockFact[];
   /** The columns numbered without gaps: a row with one of them set is "numbered". */
   gapless: string[];
 }
@@ -102,11 +117,54 @@ export function childWritable(parent: StateParentFact, parentState: string | nul
   return true;
 }
 
+/**
+ * The columns a child closed by its parent's lock may still EMPTY while the
+ * parent is in `parentState` (`release`), or null when the lock leaves it
+ * nothing — or does not close it at all.
+ */
+export function releasedColumns(parent: StateParentFact, parentState: string | null): string[] | null {
+  if (childWritable(parent, parentState) || parent.parentIn !== undefined) return null;
+  const release = parent.release;
+  return release !== undefined && parentState !== null && release.when.includes(parentState) ? release.columns : null;
+}
+
+/** How the page reads the rows linking to one: their parent keys, and a parent's state. */
+export interface LinkReader {
+  parentKeys: (lock: LinkLockFact, key: unknown) => Promise<unknown[]>;
+  parentState: (lock: LinkLockFact, parentKey: unknown) => Promise<string | null>;
+}
+
+/**
+ * The columns of `row` a row of another table keeps right now, as the server
+ * judges them: linked from a row whose parent is in a state that does not
+ * release the link — or has no parent, or none with a state.
+ */
+export async function linkKeptColumns(facts: Pick<TableStateFacts, 'linkLocks'>, row: Row, read: LinkReader): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (const lock of facts.linkLocks) {
+    const key = row[lock.key];
+    if (key === null || key === undefined || lock.columns.every((column) => out.has(column))) continue;
+    const parents = await read.parentKeys(lock, key);
+    let kept = false;
+    for (const parent of parents) {
+      if (parent === null || parent === undefined) kept = true;
+      else {
+        const state = await read.parentState(lock, parent);
+        kept = state === null || !lock.releasedIn.includes(state);
+      }
+      if (kept) break;
+    }
+    if (kept) for (const column of lock.columns) out.add(column);
+  }
+  return out;
+}
+
 interface SchemaTable {
   id: string;
   name: string;
   states?: StatesRule;
   stateParents?: StateParentFact[];
+  linkLocks?: LinkLockFact[];
   columns: { name: string; sequence?: { gapless?: boolean } }[];
 }
 
@@ -122,12 +180,13 @@ export function stateFactsQuery(connectionId: string) {
       const reply = await api.get<{ model: { tables: SchemaTable[] } }>(`/api/v1/connections/${encodeURIComponent(connectionId)}/schema`);
       const out = new Map<string, TableStateFacts>();
       for (const table of reply.model.tables) {
-        if (table.states === undefined && (table.stateParents ?? []).length === 0) continue;
+        if (table.states === undefined && (table.stateParents ?? []).length === 0 && (table.linkLocks ?? []).length === 0) continue;
         const facts: TableStateFacts = {
           id: table.id,
           name: table.name,
           states: table.states,
           stateParents: table.stateParents ?? [],
+          linkLocks: table.linkLocks ?? [],
           gapless: table.columns.filter((column) => column.sequence?.gapless === true).map((column) => column.name),
         };
         out.set(table.id, facts);

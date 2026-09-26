@@ -67,6 +67,7 @@ import { claimPredicateFor, combinePredicates, type PublicSessionContext } from 
 import { mandatoryAt } from '../../public-api/relative-filters.js';
 import type { ResolvedKey } from '../../public-api/resolve.js';
 import type { CompiledResource } from '../../public-api/scope.js';
+import { cursorText } from '../../security/nul-bytes.js';
 
 /**
  * A render's own limits, apart from the writes a key's visitors make: per
@@ -136,7 +137,8 @@ export function encodeDocumentCursor(row: { createdAt: number; id: string }): st
 export function decodeDocumentCursor(raw: string | undefined): DocumentCursor | undefined | null {
   if (raw === undefined || raw === '') return undefined;
   try {
-    const parsed: unknown = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    // U+0000 in a cursor is no cursor the server wrote, and would reach the database (`cursorText`).
+    const parsed: unknown = JSON.parse(cursorText(raw) ?? '');
     // A time a column can hold: a whole, non-negative, safe number.
     if (Array.isArray(parsed) && Number.isSafeInteger(parsed[0]) && (parsed[0] as number) >= 0 && typeof parsed[1] === 'string' && parsed[1].length <= 40) {
       return { createdAt: parsed[0], id: parsed[1] };

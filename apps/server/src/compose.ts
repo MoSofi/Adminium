@@ -525,12 +525,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * bootstrap, registered earlier, refuses them itself.
    */
   app.addHook('preHandler', async (request) => {
-    if (!request.url.startsWith('/api/') || request.user == null || request.apiKeyPrincipal != null) return;
+    // The route matched, not the request line (`/%61pi/v1/roles` reaches `/api/v1/roles`).
+    const route = request.routeOptions.url;
+    if (route === undefined || !route.startsWith('/api/') || request.user == null || request.apiKeyPrincipal != null) return;
     const set = await app.rbac.resolve(request);
     if (set.screensOnly === null) return;
     const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
     const connections = await appConnections(meta, settings, set.screensOnly);
-    if (allowedForScreensOnly(request.method, request.url, connections)) return;
+    if (allowedForScreensOnly(request.method, route, request.params, connections)) return;
     throw screensOnlyError(settings, set.screensOnly, request);
   });
 

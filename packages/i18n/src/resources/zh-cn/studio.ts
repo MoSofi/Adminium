@@ -626,7 +626,8 @@ export default {
         "ddlNote": "仅供参考。服务器会为你的数据库引擎生成确切语句，包括外键。",
         "summary": "创建 {created} · 复用 {reused}",
         "ruleWarnings": "此应用的部分规则会显示你的表中隐藏的内容，因此不会应用",
-        "pageWarnings": "此应用的部分页面将在没有表的情况下创建"
+        "pageWarnings": "此应用的部分页面将在没有表的情况下创建",
+        "installedElsewhere": "{app} 已安装在连接 {connection} 上。一个应用只在一个连接上运行：请在那里更新它，或先在那里卸载，再安装到其他连接。"
       },
       "done": {
         "body": "{key} 已开始提供服务。请在下方选择其员工端的显示位置。",
@@ -681,6 +682,8 @@ export default {
         "widens": "将 {column} 从 {from} 加宽为 {to}。",
         "setIdentity": "{column} 会自动为新行编号。",
         "enumValues": "{column} 还接受 {values}。",
+        "addUnique": "{column} 不再允许出现重复的值。",
+        "addUniqueWith": "对同一个 {with}，{column} 不再允许出现重复的值。",
         "noLoss": "不会删除任何列，也不会丢失任何数据。",
         "reuseNote": "应用会读写已有的行。",
         "renameTitle": "重命名现有表以腾出名称",
@@ -795,6 +798,7 @@ export default {
       "close": "关闭",
       "done": "{app} 已更新到 v{version}",
       "missingColumns": "缺少：{tables}。",
+      "accessSubtitle": "检查此版本允许应用的客户做什么。",
       "checkSubtitle": "检查此版本使用的数据表。",
       "pickFirst": "更新前请选择如何处理 {table}。",
       "checkFirst": "更新前请重新检查数据表。",
@@ -3062,6 +3066,7 @@ export default {
     "allow": "允许此公开访问",
     "helper": "以后可以在 API 密钥页面中缩小范围。",
     "cannotGrant": "只有可以管理 API 密钥的人才能允许它，因此该应用将在没有它的情况下安装。",
+    "opensWithoutStaff": "让任何持有链接的人无需员工登录即可打开 {key} 密钥读取的内容",
     "warning": {
       "apiOff": "公开 API 已关闭，在开启之前这些都不会响应。",
       "originSelf": "允许的来源不包括 “self”，因此该应用在此服务器上的页面无法调用它。",

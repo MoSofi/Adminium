@@ -280,9 +280,10 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
  * data-io/coerce.ts stores dates as plain date strings), and
  * `formatCalendarDate` below all want.
  *
- * A postgres DATE crosses the wire as the driver's server-local-midnight
+ * Every engine now sends a DATE as its `YYYY-MM-DD` text. A server before
+ * 0.3.4 sent a postgres or mysql DATE as the driver's server-local-midnight
  * Date, JSON-serialized to a UTC instant: `date '2026-05-29'` read on a
- * UTC+2 host arrives as '2026-05-28T22:00:00.000Z'. Slicing that instant
+ * UTC+2 host arrived as '2026-05-28T22:00:00.000Z'. Slicing that instant
  * (or reading it with local getters) lands one day off whenever reader
  * midnight and writer midnight straddle the instant — the audit-visible
  * −1-day shift on untouched edit saves. Reading the instant at +12h

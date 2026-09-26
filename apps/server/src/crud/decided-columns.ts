@@ -68,6 +68,23 @@ function codeGiven(values: Row, column: string, keepEmpty: boolean): boolean {
 /** Reads shared by the rows of one multi-row write: the same menu item is read once. */
 export type CopyMemo = Map<string, unknown>;
 
+const COPIED = Symbol('adminium.copied');
+
+/** What a copy read, as it read it: `<via>` → `<from>` → the value. */
+export type CopiedValues = Record<string, Record<string, unknown>>;
+
+type Copying = Row & { [COPIED]?: CopiedValues };
+
+/**
+ * What this write's copies read from the rows its links point at, as read —
+ * before any rounding — so a writer holding a linked row later can tell it
+ * changed in between (`crud/states.ts`). The symbol survives every spread on
+ * the way to the statement, and no statement writes it.
+ */
+export function copiedOf(row: Row): CopiedValues | undefined {
+  return (row as Copying)[COPIED];
+}
+
 interface ResolveTarget {
   db: Kysely<SourceDatabase>;
   table: ResolvedTable;
@@ -109,6 +126,8 @@ export async function resolveRow(
     if (copied === undefined) continue;
     out ??= { ...values };
     out[copy.column] = copied;
+    const read = ((out as Copying)[COPIED] = { ...((out as Copying)[COPIED] ?? {}) });
+    read[copy.via] = { ...(read[copy.via] ?? {}), [copy.from]: copied };
   }
   if (action === 'create') {
     for (const code of rules.codes ?? []) {

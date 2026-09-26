@@ -43,6 +43,8 @@ export interface ServedSource {
   meta: MetaDb;
   cookie: string;
   connectionId: string;
+  /** The install's connection manager, for a job run outside a request (an import). */
+  manager: Install['manager'];
   /** Run SQL against the source, for assertions. */
   query: (sql: string) => Promise<Record<string, unknown>[]>;
   close: () => Promise<void>;
@@ -192,6 +194,7 @@ function leg(dialect: SourceDialect, available: boolean): SourceLeg {
         meta,
         cookie: cookie ?? '',
         connectionId: connection.id,
+        manager,
         query: source.query,
         close: async () => {
           await composed.app.close();

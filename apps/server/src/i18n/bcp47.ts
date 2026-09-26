@@ -57,6 +57,9 @@ export function formatTag(requested: string | null | undefined, locale: string):
     .sort((a, b) => b.q - a.q);
   for (const { tag } of wanted) {
     if (tag.split('-')[0]!.toLowerCase() !== language) continue;
+    // A bare language says nothing the text's own tag does not, and CLDR's defaults for one can
+    // differ from the text's (`ar` counts in Latin digits, `ar-EG` in Arabic-Indic): the text's tag.
+    if (!tag.includes('-')) return text;
     try {
       const [canonical] = Intl.DateTimeFormat.supportedLocalesOf(tag);
       if (canonical !== undefined) return canonical;
@@ -65,4 +68,33 @@ export function formatTag(requested: string | null | undefined, locale: string):
     }
   }
   return text;
+}
+
+/**
+ * A number a sentence says ("expires in 20 minutes", "47 days past due"), in
+ * the digits of the language the sentence is written in: Arabic-Indic in
+ * `ar-EG`, as Adminium's prose uses them (the i18n rules' numeral policy),
+ * and Latin in every language whose own digits they are. Never grouped: a
+ * count is not an amount.
+ *
+ * The number keeps exactly the figures it was written with — `1.50` stays
+ * two decimals, `20` none — so text in a language with Latin digits reads
+ * character for character as `String(value)` did. What is not a number as
+ * `String()` writes one (`1e21`, `007`, `+3`, text, nothing) comes back as
+ * it was.
+ *
+ * `locale` is either spelling (`ar_EG`, `ar-EG`); a tag this runtime cannot
+ * format leaves the number as it was, rather than failing an email.
+ */
+export function proseNumber(value: number | string | null | undefined, locale: string): string {
+  const written = value === null || value === undefined ? '' : String(value).trim();
+  // Only a number as String() writes one: `007`, `+3` or ` 4` is text, and stays exactly as it is.
+  const match = /^-?(?:0|[1-9]\d*)(?:\.(\d+))?$/.exec(written);
+  if (match === null || written !== String(value)) return value === null || value === undefined ? '' : String(value);
+  const places = match[1]?.length ?? 0;
+  try {
+    return new Intl.NumberFormat(bcp47(locale), { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places }).format(written as unknown as number);
+  } catch {
+    return written;
+  }
 }

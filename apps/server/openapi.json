@@ -81254,6 +81254,18 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "granted": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
                               }
                             },
                             "required": [
@@ -82079,6 +82091,9 @@
                               },
                               "column": {
                                 "type": "string"
+                              },
+                              "connectionId": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -82363,7 +82378,8 @@
                                         "add-column",
                                         "widen",
                                         "set-identity",
-                                        "enum-values"
+                                        "enum-values",
+                                        "add-unique"
                                       ]
                                     },
                                     "column": {
@@ -82376,6 +82392,12 @@
                                       "type": "string"
                                     },
                                     "values": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "with": {
                                       "type": "array",
                                       "items": {
                                         "type": "string"
@@ -82546,6 +82568,15 @@
                                     "items": {
                                       "type": "string"
                                     }
+                                  },
+                                  "onUpdate": {
+                                    "type": "string",
+                                    "enum": [
+                                      "held",
+                                      "granted",
+                                      "kept",
+                                      "withheld"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -82561,6 +82592,12 @@
                                   "issues"
                                 ],
                                 "additionalProperties": false
+                              }
+                            },
+                            "opensWithoutStaff": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
                               }
                             },
                             "warnings": {
@@ -83440,6 +83477,18 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "granted": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
                         }
                       },
                       "required": [
@@ -83689,6 +83738,9 @@
                             }
                           ]
                         }
+                      },
+                      "publicAccess": {
+                        "type": "boolean"
                       },
                       "addOns": {
                         "maxItems": 16,
@@ -84027,6 +84079,18 @@
                                   "reason"
                                 ],
                                 "additionalProperties": false
+                              }
+                            },
+                            "granted": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
                               }
                             }
                           },

@@ -124,8 +124,12 @@ export async function sendConfirmation(input: ConfirmInput): Promise<boolean> {
           code,
           when,
           party: confirm.party === undefined ? '' : text(row[confirm.party]),
-          cancelHours: await hoursOf(input.db, input.table.table.capacity?.cancelHours),
           manageUrl: await manageUrl(input, code),
+        },
+        // Said in the email's own digits: how many hours before, and how many are coming.
+        counts: {
+          cancelHours: await hoursOf(input.db, input.table.table.capacity?.cancelHours),
+          ...(confirm.party === undefined ? {} : { party: text(row[confirm.party]) }),
         },
       },
     );

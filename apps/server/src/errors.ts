@@ -187,7 +187,10 @@ export class ConflictError extends AppError {
       | 'PUBLIC_ENDPOINT_CHANGED'
       // An app install stopped part way; `details` says at which
       // stage and which tables exist. POSTing the same install resumes it.
-      | 'APP_INSTALL_INCOMPLETE' = 'CONFLICT',
+      | 'APP_INSTALL_INCOMPLETE'
+      // An app installed on one connection, asked to be installed on another:
+      // `details` names the connection it is on.
+      | 'APP_INSTALLED_ELSEWHERE' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);

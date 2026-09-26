@@ -33,6 +33,7 @@
  * request.
  */
 
+import type { Dialect } from '@adminium/engine';
 import {
   auditRepo,
   automationRunsRepo,
@@ -90,6 +91,8 @@ export class AutomationMatcher {
   readonly #deps: MatcherDeps;
   #index = new Map<string, Automation[]>();
   #loaded = false;
+  /** Each connection's engine, which a connection keeps for life. */
+  #dialects = new Map<string, Promise<Dialect | undefined>>();
 
   constructor(deps: MatcherDeps) {
     this.#deps = deps;
@@ -97,6 +100,22 @@ export class AutomationMatcher {
 
   get #now(): number {
     return (this.#deps.now ?? Date.now)();
+  }
+
+  /** The engine an event's connection runs on: it spells a `date` change stamp (`events.ts`). */
+  #dialectOf(connectionId: string): Promise<Dialect | undefined> {
+    let known = this.#dialects.get(connectionId);
+    if (known === undefined) {
+      known = this.#deps.meta.db
+        .selectFrom('adminium_connections')
+        .select('engine')
+        .where('id', '=', connectionId)
+        .executeTakeFirst()
+        .then((row) => row?.engine as Dialect | undefined);
+      this.#dialects.set(connectionId, known);
+      known.catch(() => this.#dialects.delete(connectionId));
+    }
+    return known;
   }
 
   /** Rebuild the index from the store. Called on boot and after every rule write. */
@@ -177,6 +196,7 @@ export class AutomationMatcher {
       const count = this.#deps.countRelated;
       const ctx: ConditionContext = {
         row: image,
+        table: event.table,
         now: at,
         countRelated:
           count === undefined ? undefined : (spec) => count(event.connectionId, spec, at),
@@ -191,7 +211,11 @@ export class AutomationMatcher {
     const run = await runs.begin(
       {
         automationId: rule.id,
-        dedupeKey: occurrenceKeyFor(rule.id, event),
+        dedupeKey: occurrenceKeyFor(
+          rule.id,
+          event,
+          event.action === 'update' ? await this.#dialectOf(event.connectionId) : undefined,
+        ),
         origin: event.origin,
         triggerEvent: triggerEventFor(event, hops, image),
         wakeAt: delayed ? wakeAt : null,
@@ -256,7 +280,12 @@ function sameValue(a: unknown, b: unknown): boolean {
 }
 
 /** The occurrence identity a route event carries — see `events.ts` for the table. */
-export function occurrenceKeyFor(ruleId: string, event: RecordWriteEvent): string | null {
+export function occurrenceKeyFor(
+  ruleId: string,
+  event: RecordWriteEvent,
+  /** The source's engine, which spells a `date` change stamp. */
+  dialect?: Dialect,
+): string | null {
   const pk = event.entity.pk as Row;
   if (event.action === 'create') {
     return recordOccurrenceKey({ ruleId, table: event.table, pk });
@@ -272,6 +301,7 @@ export function occurrenceKeyFor(ruleId: string, event: RecordWriteEvent): strin
       table: event.table,
       pk,
       changeStamp: event.after?.[stampColumn] ?? null,
+      dialect,
     });
   }
   // A delete has no watcher and cannot recur for the same row.

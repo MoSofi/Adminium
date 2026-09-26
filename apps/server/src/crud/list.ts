@@ -25,6 +25,7 @@ import { applyDerivedFields } from './derive.js';
 import { applyMeasureMask, measureSelections, type ResolvedMeasure } from './measures.js';
 import { applyLookupMask, lookupSelections, type ResolvedLookup } from './lookups.js';
 import { maskRows, type Row } from './mask.js';
+import { cursorText } from '../security/nul-bytes.js';
 
 export const LIST_LIMIT_MAX = 200;
 export const LIST_LIMIT_DEFAULT = 50;
@@ -86,8 +87,11 @@ function encodeCursor(values: unknown[]): string {
 
 function decodeCursor(cursor: string, expectedKeys: number): unknown[] {
   let payload: unknown;
+  // U+0000 in a cursor is no cursor the server wrote, and would reach the database (`cursorText`).
+  const text = cursorText(cursor);
+  if (text === null) throw new ValidationFailedError('Malformed cursor.', {});
   try {
-    payload = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    payload = JSON.parse(text);
   } catch {
     throw new ValidationFailedError('Malformed cursor.', {});
   }

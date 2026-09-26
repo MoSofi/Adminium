@@ -232,6 +232,15 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
     await refused({ deliverable_id: 1, version_id: 3, body: 'version of Ben’s' });
     await refused({ deliverable_id: 1, client_id: 1, body: 'supplied client' }); // the desk's copy is never a browser's
     await refused({ deliverable_id: 1, client_id: 2, body: 'supplied other client' });
+    // U+0000 is refused, named, before the parent is looked up with it (Postgres answered that lookup 500).
+    for (const [column, values] of [
+      ['deliverable_id', { deliverable_id: '1\u0000', body: 'x' }],
+      ['body', { deliverable_id: 1, body: 'x\u0000' }],
+    ] as const) {
+      const res = await make(values);
+      expect(res.statusCode, res.body).toBe(400);
+      expect((res.json() as { error: { params?: unknown } }).error.params).toEqual({ column, reason: 'invalid-character' });
+    }
     expect((await h.rows(`select count(*) as n from ${h.real('deliverable_notes')}`))[0]!['n']).toEqual(before);
 
     const made = await make({ deliverable_id: 1, version_id: 1, body: 'looks good' });

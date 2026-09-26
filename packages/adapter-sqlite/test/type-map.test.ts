@@ -116,8 +116,10 @@ describe('classifyDefault — pragma dflt_value text', () => {
     expect(classifyDefault("strftime('%s','now')")).toEqual({ kind: 'now' });
   });
 
-  it('literals keep their verbatim text', () => {
-    expect(classifyDefault("'active'")).toEqual({ kind: 'literal', text: "'active'" });
+  it('literals are read as their value: a quoted text without its quotes', () => {
+    expect(classifyDefault("'active'")).toEqual({ kind: 'literal', text: 'active' });
+    expect(classifyDefault("'it''s'")).toEqual({ kind: 'literal', text: "it's" });
+    expect(classifyDefault("''")).toEqual({ kind: 'literal', text: '' });
     expect(classifyDefault('0')).toEqual({ kind: 'literal', text: '0' });
     expect(classifyDefault('-3.5')).toEqual({ kind: 'literal', text: '-3.5' });
     expect(classifyDefault("x'00ff'")).toEqual({ kind: 'literal', text: "x'00ff'" });

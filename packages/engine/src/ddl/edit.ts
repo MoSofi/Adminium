@@ -208,6 +208,20 @@ export const addColumnSchema = z.strictObject({
       onDelete: fkActionSchema.nullable().default(null),
     })
     .optional(),
+  /**
+   * No two rows may hold the same value (an invoice line's `time_entry_id`:
+   * one line per entry). The planner adds the unique constraint a table made
+   * with the column would carry, named as the installer names it. Every
+   * existing row starts empty, which no unique rule refuses, so the column
+   * takes no default.
+   */
+  unique: z.boolean().optional(),
+  /**
+   * With `unique`: the columns it is unique TOGETHER with — a number counted
+   * per parent row (`proposal_id`, `v`) repeats across parents but never
+   * within one. The constraint covers these columns, then this one.
+   */
+  uniqueWith: z.array(identifierSchema).min(1).max(4).optional(),
 });
 export type AddColumn = z.infer<typeof addColumnSchema>;
 
@@ -237,6 +251,15 @@ export const alterColumnSchema = z.strictObject({
     .optional(),
   identity: z.literal(true).optional(),
   enumValues: z.array(z.string().min(1)).min(1).max(256).optional(),
+  /**
+   * The column must hold no value twice (with `uniqueWith`: no two rows the
+   * same in those columns and this one), as a table made with it would: the
+   * unique rule a column is declared with but the table lacks. The rows there
+   * must not already break it — the caller checks first; the database refuses
+   * otherwise, and nothing else changes.
+   */
+  unique: z.literal(true).optional(),
+  uniqueWith: z.array(identifierSchema).min(1).max(4).optional(),
 });
 export type AlterColumn = z.infer<typeof alterColumnSchema>;
 
@@ -357,6 +380,23 @@ export interface EditValidationContext {
 const META_PREFIX = 'adminium_';
 
 /**
+ * MySQL indexes at most 3072 bytes of one key, and counts four bytes for each
+ * character of a `varchar` (utf8mb4), so a unique rule over more than 768
+ * characters of text is refused by the database halfway through a change.
+ */
+export const MYSQL_KEY_BYTES = 3072;
+
+/** Why these columns cannot be kept unique together on this engine, or null. */
+function uniqueKeyIssue(columns: readonly Pick<ColumnModel, 'logicalType' | 'maxLength'>[], dialect: Dialect): string | null {
+  if (dialect !== 'mysql') return null;
+  if (columns.some((c) => c.logicalType === 'text')) return 'MySQL cannot keep a text column of unlimited length unique: give it a maximum length';
+  // Four bytes a character of text; eight is the widest anything else here takes.
+  const bytes = columns.reduce((sum, c) => sum + (c.logicalType === 'varchar' ? (c.maxLength ?? 0) * 4 : 8), 0);
+  if (bytes <= MYSQL_KEY_BYTES) return null;
+  return `MySQL keeps a unique value of at most ${String(MYSQL_KEY_BYTES)} bytes, which is ${String(MYSQL_KEY_BYTES / 4)} characters of text: this one takes up to ${String(bytes)}`;
+}
+
+/**
  * Types a value list can constrain. `enum` is the authoring word; `varchar` and
  * `text` are what the database calls the same column once it exists (D32).
  */
@@ -372,7 +412,8 @@ function literalMatchesType(text: string, type: LogicalType): boolean {
     case 'float':
       return /^-?\d+(\.\d+)?$/.test(text);
     case 'boolean':
-      return text === 'true' || text === 'false';
+      // MySQL keeps a boolean as `tinyint(1)` and reads its default back as `1` or `0`.
+      return text === 'true' || text === 'false' || text === '1' || text === '0';
     case 'date':
       return /^\d{4}-\d{2}-\d{2}$/.test(text);
     case 'time':
@@ -830,6 +871,18 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
         });
       }
     }
+    if (entry.uniqueWith !== undefined && entry.unique !== true) {
+      push({ code: 'UNKNOWN_COLUMN', message: 'uniqueWith names the columns a unique rule covers, and no unique rule is asked for', ...where });
+    }
+    if (entry.unique === true) {
+      const together = [...(entry.uniqueWith ?? []).map((name) => table.columns.find((c) => c.name === name)), column];
+      const missing = (entry.uniqueWith ?? []).filter((name) => !table.columns.some((c) => c.name === name));
+      if (missing.length > 0) {
+        push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(missing.join(', '))} to be unique with`, ...where });
+      }
+      const tooLong = uniqueKeyIssue(together.filter((c) => c !== undefined), ctx.dialect);
+      if (tooLong !== null) push({ code: 'UNSUPPORTED_TYPE', message: tooLong, ...where });
+    }
     if (entry.enumValues !== undefined) {
       const names = table.columns.map((c) => c.name);
       const holder = (table.checks ?? []).find((check) => enumCheckColumn(check.expression, names) === column.name);
@@ -941,6 +994,34 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
       }
     }
 
+    if (entry.unique === true) {
+      /*
+       * A default would be one value in every row already there: the unique
+       * rule refuses it the moment a second row exists, halfway through the
+       * change. Empty, they are all allowed.
+       */
+      if (entry.column.default !== null) {
+        push({
+          code: 'UNSUPPORTED_DEFAULT',
+          message: 'a column whose values must all differ cannot start every existing row on the same default: add it with no default',
+          ...where,
+        });
+      }
+      const withColumns = (entry.uniqueWith ?? []).map(
+        (name) =>
+          table.columns.find((c) => c.name === name) ??
+          (edit.addColumns ?? []).find((other) => (other.table === entry.table) && other.column.name === name)?.column,
+      );
+      const missing = (entry.uniqueWith ?? []).filter((_, index) => withColumns[index] === undefined);
+      if (missing.length > 0) {
+        push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(missing.join(', '))} to be unique with`, ...where });
+      }
+      const tooLong = uniqueKeyIssue([...withColumns.filter((c) => c !== undefined), entry.column], ctx.dialect);
+      if (tooLong !== null) push({ code: 'UNSUPPORTED_TYPE', message: tooLong, ...where });
+    } else if (entry.uniqueWith !== undefined) {
+      push({ code: 'UNKNOWN_COLUMN', message: 'uniqueWith names the columns a unique rule covers, and no unique rule is asked for', ...where });
+    }
+
     const def = entry.column.default;
     if (def !== null) {
       if (!defaultKindAllowed(def.kind, entry.column.logicalType, ctx.dialect)) {
@@ -993,7 +1074,26 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
 export function tableWithAddedColumns(
   actual: TableModel,
   columns: readonly DesiredColumn[],
-  opts: { dbTypeFor: (column: DesiredColumn) => string },
+  opts: {
+    dbTypeFor: (column: DesiredColumn) => string;
+    /**
+     * The added columns whose values must all differ. Each is kept unique
+     * under the installer's own name, `uq_<table>_<column>`: as the unique
+     * constraint a table made with it carries (an `add-unique`), or — where
+     * `uniqueAs` is `index` — as a unique index (an `add-index`).
+     */
+    unique?: ReadonlySet<string>;
+    /**
+     * SQLite cannot add a constraint to a table that exists without copying
+     * the whole table, but it can add a unique index in place. The column is
+     * new, so every row holds NULL, which a unique index never refuses; and
+     * SQLite reads a one-column unique index back as the column's
+     * uniqueness, as it reads the constraint.
+     */
+    uniqueAs?: 'constraint' | 'index';
+    /** An added unique column's partners, by its name: the rule covers them, then it. */
+    uniqueWith?: ReadonlyMap<string, readonly string[]>;
+  },
 ): TableModel {
   const added: ColumnModel[] = columns.map((column, index) => ({
     name: column.name,
@@ -1016,7 +1116,20 @@ export function tableWithAddedColumns(
     references: null,
     semantics: null,
   }));
-  return { ...actual, columns: [...actual.columns, ...added] };
+  const uniques = columns
+    .filter((column) => opts.unique?.has(column.name) === true)
+    .map((column) => ({ name: `uq_${actual.name}_${column.name}`, columns: [...(opts.uniqueWith?.get(column.name) ?? []), column.name] }));
+  return withUniques({ ...actual, columns: [...actual.columns, ...added] }, uniques, opts.uniqueAs);
+}
+
+/** A table with more unique rules: constraints, or where `as` is `index`, unique indexes made in place. */
+function withUniques(table: TableModel, uniques: readonly { name: string; columns: string[] }[], as: 'constraint' | 'index' | undefined): TableModel {
+  if (uniques.length === 0) return table;
+  if (as === 'index') {
+    const indexes = uniques.map((u) => ({ ...u, expression: null, unique: true, primary: false, method: null, partial: false }));
+    return { ...table, indexes: [...table.indexes, ...indexes] };
+  }
+  return { ...table, uniques: [...table.uniques, ...uniques] };
 }
 
 /**
@@ -1031,7 +1144,11 @@ export function tableWithAddedColumns(
 export function tableWithAlteredColumns(
   actual: TableModel,
   alters: readonly AlterColumn[],
-  opts: { dbTypeFor: (column: DesiredColumn) => string },
+  opts: {
+    dbTypeFor: (column: DesiredColumn) => string;
+    /** How a unique rule asked for is kept: as {@link tableWithAddedColumns} keeps an added column's. */
+    uniqueAs?: 'constraint' | 'index';
+  },
 ): TableModel {
   const byColumn = new Map(alters.map((a) => [a.column, a]));
   const columns: ColumnModel[] = actual.columns.map((column) => {
@@ -1068,7 +1185,11 @@ export function tableWithAlteredColumns(
     const values = [...current, ...alter.enumValues.filter((v) => !current.includes(v))];
     return { ...check, expression: `${column} in (${values.map((v) => JSON.stringify(v)).join(', ')})` };
   });
-  return { ...actual, columns, checks };
+  // The installer's own name for the rule, so the table reads as one made with it.
+  const uniques = alters
+    .filter((alter) => alter.unique === true)
+    .map((alter) => ({ name: `uq_${actual.name}_${alter.column}`, columns: [...(alter.uniqueWith ?? []), alter.column] }));
+  return withUniques({ ...actual, columns, checks }, uniques, opts.uniqueAs);
 }
 
 /**

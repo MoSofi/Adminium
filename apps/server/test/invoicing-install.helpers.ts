@@ -46,7 +46,7 @@ import { writeStores } from '../src/crud/write-stores.js';
 import { createWriteService, type WriteContext, type WriteTarget } from '../src/crud/write-service.js';
 import { normalizeWriteValue } from '../src/crud/write-values.js';
 import type { FileStore } from '../src/files/store.js';
-import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import { createEndpointService, type EndpointService } from '../src/public-api/endpoint-service.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { appRoutes } from '../src/routes/apps/index.js';
 import { packageTarball } from './app-bundle-helpers.js';
@@ -241,7 +241,13 @@ const memoryFiles = {
   write: async () => ({ storageKey: 'x', sizeBytes: 0, sha256: '', destinationId: null, storage: 'memory' }),
 } as unknown as FileStore;
 
-async function buildApp(meta: MetaDb, manager: ConnectionManager, dataDir: string, userId: string) {
+/** What a test swaps in beside the real public API: a service it can make fail, and the resolver's forgetting. */
+export interface PublicAccessHooks {
+  service?: (real: EndpointService) => EndpointService;
+  invalidateKey?: (keyId: string) => void;
+}
+
+async function buildApp(meta: MetaDb, manager: ConnectionManager, dataDir: string, userId: string, hooks: PublicAccessHooks = {}) {
   const Fastify = (await import('fastify')).default;
   const { serializerCompiler, validatorCompiler } = await import('fastify-type-provider-zod');
   const app = Fastify();
@@ -281,11 +287,13 @@ async function buildApp(meta: MetaDb, manager: ConnectionManager, dataDir: strin
       },
       sampleData,
       publicAccess: {
-        service: createEndpointService({ meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(meta, cid)) ?? undefined }),
+        service: (hooks.service ?? ((real) => real))(
+          createEndpointService({ meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(meta, cid)) ?? undefined }),
+        ),
         viewFor: views.viewFor,
         crypto: dsnCryptoFromSecret(TEST_SECRET),
         origins: ['self'],
-        invalidateKey: () => {},
+        invalidateKey: hooks.invalidateKey ?? (() => {}),
       },
     }),
   );
@@ -307,6 +315,7 @@ export async function installInvoicing(
    * for the tables it finds taken (`{ users: { action: 'reuse' } }`).
    */
   source: { prepare?: (run: (statement: string) => Promise<void>) => Promise<void>; choices?: Record<string, unknown> } = {},
+  hooks: PublicAccessHooks = {},
 ): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
   const dataDir = await mkdtemp(join(tmpdir(), 'invoicing-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -360,7 +369,7 @@ export async function installInvoicing(
     });
   }
   await runIntrospection({ manager, meta, connectionId: connection.id });
-  const app = await buildApp(meta, manager, dataDir, user.id);
+  const app = await buildApp(meta, manager, dataDir, user.id, hooks);
   await before?.(meta);
 
   const tarball = packageTarball({

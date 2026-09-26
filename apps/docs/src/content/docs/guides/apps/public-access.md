@@ -333,7 +333,8 @@ everywhere, or turn the kiosk's switch off.
 
 The kiosk key stops with the app's **staff** side, not the customer side. An update never makes
 again a kiosk key you revoked; uninstalling and installing the app does. An update that drops the
-kiosk revokes its key.
+kiosk revokes its key. A version that turns a staff screen's key into one a shared link opens
+says so on the update's check, and the key stops asking for a staff sign-in only if you allow it.
 
 ## Switches in the settings row
 

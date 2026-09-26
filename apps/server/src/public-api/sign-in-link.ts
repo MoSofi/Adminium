@@ -33,7 +33,9 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 
+import type { Outbox } from '@adminium/manifest';
 import {
+  appOutboxesRepo,
   publicChallengesRepo,
   publicKeysRepo,
   publicScopesRepo,
@@ -203,11 +205,71 @@ export async function personByKey(input: {
   return rows.length === 1 ? (rows[0] as Row) : null;
 }
 
-/** The first name a link's page greets its person by: the first word of the identity's first shown column. */
-export function firstNameOf(row: Row, identity: LinkIdentity): string {
-  const shown = identity.resource.expose[0];
-  const value = shown === undefined ? null : row[shown];
+/**
+ * The column a link's page greets its person from, or null for none.
+ *
+ * The page is shown before anyone has proved anything, so it reads one
+ * column, and only one the entry already shows (`select`): the name the app
+ * DECLARES for this person (the outbox recipient's `name`, when the outbox
+ * writes to the same table), else the first text column the entry shows that
+ * is not the address. Never a number, a date or a code, never the address,
+ * never a key (the row's own, the one a session is pinned to, or one naming
+ * another row: a text `id` would greet "Hi 3f2a…"), never a column the entry
+ * does not show, and never a masked or secret one.
+ * A declared name the entry does not show greets nobody by name: the app said
+ * which column is the name, and another text column (a company) is not it.
+ */
+export function greetingColumn(identity: LinkIdentity, table: ResolvedTable, declared: string | null): string | null {
+  const isKey = (name: string): boolean =>
+    name === identity.column ||
+    table.primaryKey.includes(name) ||
+    table.table.columns.some((column) => column.name === name && (column.isPrimaryKey || column.references !== null));
+  const greets = (name: string): boolean => {
+    const column = table.columns.get(name);
+    return (
+      column !== undefined &&
+      column.textish &&
+      !column.masked &&
+      !column.secret &&
+      !column.isPrimaryKey &&
+      !isKey(name) &&
+      name !== identity.email &&
+      identity.resource.expose.includes(name)
+    );
+  };
+  if (declared !== null) return greets(declared) ? declared : null;
+  return identity.resource.expose.find(greets) ?? null;
+}
+
+/** The first name a link's page greets its person by: the first word of the greeting column, and nothing else. */
+export function firstNameOf(row: Row, identity: LinkIdentity, table: ResolvedTable, declared: string | null): string {
+  const column = greetingColumn(identity, table, declared);
+  const value = column === null ? null : row[column];
   return typeof value === 'string' ? (value.trim().split(/\s+/)[0] ?? '') : '';
+}
+
+/**
+ * The name column the app's outbox declares for the person a link identity
+ * signs in (`outbox.recipient.name`), or null: when the key is not an app's,
+ * the app has no outbox on this connection, or its recipient lives in
+ * another table.
+ */
+export async function declaredNameColumn(
+  meta: MetaDb,
+  view: SnapshotView,
+  key: { managedBy: string | null; connectionId: string },
+  table: ResolvedTable,
+): Promise<string | null> {
+  if (key.managedBy === null) return null;
+  const stored = await appOutboxesRepo(meta).findByApp(key.managedBy);
+  if (stored === null || stored.connectionId !== key.connectionId) return null;
+  try {
+    const recipient = (JSON.parse(stored.definition) as Pick<Outbox, 'recipient'>).recipient;
+    if (recipient.name === undefined || view.table(recipient.table).id !== table.id) return null;
+    return recipient.name;
+  } catch {
+    return null;
+  }
 }
 
 /* -------------------------------------------------------- the key, by id */
@@ -368,10 +430,11 @@ export async function runSignInLinkJob(deps: SignInLinkDeps, job: SignInLinkJob)
     appName: contact?.name ?? String((await settingsRepo(deps.meta).get('branding.appName')) ?? 'Adminium'),
     link: `${base}/c#${token}`,
     code,
-    minutes: String(LINK_TTL_MS / 60_000),
   };
+  // In the digits of the language the email is sent in.
+  const counts = { minutes: LINK_TTL_MS / 60_000 };
   const logger = deps.logger === undefined ? {} : { logger: deps.logger as never };
-  const send = (locale: string) => enqueueEmail({ meta: deps.meta, ...logger }, { to: to.trim(), templateKey: SIGN_IN_LINK_TEMPLATE_KEY, locale, vars });
+  const send = (locale: string) => enqueueEmail({ meta: deps.meta, ...logger }, { to: to.trim(), templateKey: SIGN_IN_LINK_TEMPLATE_KEY, locale, vars, counts });
   // A language whose template is switched off still signs its person in: in US English.
   if ((await send(job.locale)) === null && job.locale !== 'en_US' && (await send('en_US')) === null) {
     deps.logger?.warn({ keyId: keyed.keyId, app: keyed.managedBy }, 'sign-in link not sent: no sign-in link template could be sent');

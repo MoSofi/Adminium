@@ -241,6 +241,84 @@ describe('addColumns — a column that links to another table', () => {
   });
 });
 
+describe('a boolean default as MySQL reads it back', () => {
+  it('is a boolean literal: `1` and `0` restate a `tinyint(1)` default', () => {
+    const flag = (text: string) => ({
+      table: 'public.tickets',
+      column: { name: 'flagged', logicalType: 'boolean' as const, nullable: true, default: { kind: 'literal' as const, text }, maxLength: null, numericPrecision: null, numericScale: null, comment: null },
+    });
+    expect(validateSchemaEdit(edit({ addColumns: [flag('0'), { ...flag('1'), column: { ...flag('1').column, name: 'held' } }] }), ctx({ dialect: 'mysql' }))).toEqual([]);
+    expect(codes(validateSchemaEdit(edit({ addColumns: [flag('2')] }), ctx({ dialect: 'mysql' })))).toEqual(['INVALID_DEFAULT_LITERAL']);
+  });
+});
+
+describe('addColumns — a column whose values must all differ', () => {
+  const column = (over: Partial<DesiredColumn> = {}): DesiredColumn => ({
+    name: 'ref_no',
+    logicalType: 'varchar',
+    nullable: true,
+    default: null,
+    maxLength: 20,
+    numericPrecision: null,
+    numericScale: null,
+    comment: null,
+    ...over,
+  });
+  const add = (c: DesiredColumn) => ({ table: 'public.tickets', column: c, unique: true });
+
+  it('accepts one with no default: every row already there starts empty', () => {
+    expect(validateSchemaEdit(edit({ addColumns: [add(column())] }), ctx())).toEqual([]);
+    expect(validateSchemaEdit(edit({ addColumns: [add(column())] }), ctx({ dialect: 'mysql' }))).toEqual([]);
+  });
+
+  it('refuses one that would start every existing row on the same default', () => {
+    const issues = validateSchemaEdit(edit({ addColumns: [add(column({ default: { kind: 'literal', text: 'R-1' } } as never))] }), ctx());
+    expect(codes(issues)).toEqual(['UNSUPPORTED_DEFAULT']);
+    expect(issues[0]?.message).toContain('cannot start every existing row on the same default');
+  });
+
+  it('refuses unlimited text on MySQL, which cannot keep it unique', () => {
+    const text = column({ logicalType: 'text', maxLength: null });
+    expect(codes(validateSchemaEdit(edit({ addColumns: [add(text)] }), ctx({ dialect: 'mysql' })))).toEqual(['UNSUPPORTED_TYPE']);
+    expect(validateSchemaEdit(edit({ addColumns: [add(text)] }), ctx())).toEqual([]);
+  });
+
+  it('refuses text wider than MySQL can index, 768 characters, before the column goes in without its rule', () => {
+    expect(validateSchemaEdit(edit({ addColumns: [add(column({ maxLength: 768 }))] }), ctx({ dialect: 'mysql' }))).toEqual([]);
+    const issues = validateSchemaEdit(edit({ addColumns: [add(column({ maxLength: 1000 }))] }), ctx({ dialect: 'mysql' }));
+    expect(codes(issues)).toEqual(['UNSUPPORTED_TYPE']);
+    expect(issues[0]?.message).toContain('768 characters');
+    expect(validateSchemaEdit(edit({ addColumns: [add(column({ maxLength: 1000 }))] }), ctx())).toEqual([]);
+  });
+
+  it('is unique with a parent row it names, which must be there or added beside it', () => {
+    const number = column({ name: 'v', logicalType: 'integer', maxLength: null });
+    expect(validateSchemaEdit(edit({ addColumns: [{ ...add(number), uniqueWith: ['code'] }] }), ctx())).toEqual([]);
+    expect(codes(validateSchemaEdit(edit({ addColumns: [{ ...add(number), uniqueWith: ['nope'] }] }), ctx()))).toEqual(['UNKNOWN_COLUMN']);
+    const parent = { table: 'public.tickets', column: column({ name: 'parent_id', logicalType: 'integer', maxLength: null }) };
+    expect(validateSchemaEdit(edit({ addColumns: [parent, { ...add(number), uniqueWith: ['parent_id'] }] }), ctx())).toEqual([]);
+    // Partners without the rule itself name nothing.
+    expect(codes(validateSchemaEdit(edit({ addColumns: [{ table: 'public.tickets', column: number, uniqueWith: ['code'] }] }), ctx()))).toEqual(['UNKNOWN_COLUMN']);
+  });
+});
+
+describe('alterColumns — the unique rule a column is declared with, given to one that lacks it', () => {
+  it('accepts it on a column there, alone or with its parent row', () => {
+    expect(validateSchemaEdit(edit({ alterColumns: [alter({ column: 'code', unique: true })] }), ctx({ dialect: 'mysql' }))).toEqual([]);
+    expect(validateSchemaEdit(edit({ alterColumns: [alter({ column: 'total', unique: true, uniqueWith: ['status'] })] }), ctx())).toEqual([]);
+    expect(codes(validateSchemaEdit(edit({ alterColumns: [alter({ column: 'total', unique: true, uniqueWith: ['nope'] })] }), ctx()))).toEqual(['UNKNOWN_COLUMN']);
+  });
+
+  it('refuses it where MySQL could not keep it: unlimited text, or text wider than 768 characters', () => {
+    const wide = ctx({ dialect: 'mysql', actual: [tickets({ columns: [col('id', 'integer', { isPrimaryKey: true }), col('note', 'varchar', { maxLength: 1000 }), col('body', 'text')] }), customers] });
+    expect(codes(validateSchemaEdit(edit({ alterColumns: [alter({ column: 'note', unique: true }), alter({ column: 'body', unique: true })] }), wide))).toEqual([
+      'UNSUPPORTED_TYPE',
+      'UNSUPPORTED_TYPE',
+    ]);
+    expect(validateSchemaEdit(edit({ alterColumns: [alter({ column: 'note', unique: true })] }), { ...wide, dialect: 'postgres' })).toEqual([]);
+  });
+});
+
 describe('tableWithAlteredColumns', () => {
   const model = (): TableModel =>
     ({
@@ -279,6 +357,23 @@ describe('tableWithAlteredColumns', () => {
   it('widens without a length when none is given', () => {
     const after = tableWithAlteredColumns(model(), [alter({ column: 'code', widen: { logicalType: 'text' } })], { dbTypeFor });
     expect(after.columns[1]).toMatchObject({ logicalType: 'text', maxLength: null, dbType: 'text' });
+  });
+
+  it('gives a column the unique rule under the installer’s name: a constraint, or an index made in place', () => {
+    const asked = [alter({ column: 'code', unique: true }), alter({ column: 'total', unique: true, uniqueWith: ['status'] })];
+    const bare = (): TableModel => ({ ...model(), uniques: [], indexes: [] });
+    const constraint = tableWithAlteredColumns(bare(), asked, { dbTypeFor });
+    expect(constraint.uniques).toEqual([
+      { name: 'uq_tickets_code', columns: ['code'] },
+      { name: 'uq_tickets_total', columns: ['status', 'total'] },
+    ]);
+    expect(constraint.columns).toEqual(model().columns);
+    const index = tableWithAlteredColumns(bare(), asked, { dbTypeFor, uniqueAs: 'index' });
+    expect(index.uniques).toEqual([]);
+    expect(index.indexes.map((i) => [i.name, i.columns, i.unique])).toEqual([
+      ['uq_tickets_code', ['code'], true],
+      ['uq_tickets_total', ['status', 'total'], true],
+    ]);
   });
 
   it("adds values to the CHECK, keeps the old ones first, the constraint's name, and no duplicates", () => {

@@ -184,12 +184,29 @@ function columnDefault(column: TableModel['columns'][number]): string | null {
   const value = column.default;
   if (value === null) return null;
   switch (value.kind) {
-    case 'literal':
-      // A literal's text is a value, not SQL: quote it, unless it is plainly
-      // numeric or a keyword SQLite understands unquoted.
-      if (/^-?\d+(\.\d+)?$/.test(value.text)) return `DEFAULT ${value.text}`;
-      if (/^(null|true|false)$/i.test(value.text)) return `DEFAULT ${value.text.toUpperCase()}`;
-      return `DEFAULT ${quoteLiteral(value.text)}`;
+    case 'literal': {
+      /*
+       * A literal's text is a value, not SQL, read by the COLUMN's type — never
+       * by how the text looks. Adapters hand a text default back unquoted
+       * (`queued`), so a text column's `true`, `null` or `007` is that text:
+       * bare, they would be the number 1, no default at all, and 7.
+       */
+      const text = value.text.trim();
+      switch (column.logicalType) {
+        case 'integer':
+        case 'bigint':
+        case 'decimal':
+        case 'float':
+          return /^[-+]?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(text) ? `DEFAULT ${text}` : `DEFAULT ${quoteLiteral(value.text)}`;
+        case 'boolean':
+          // MySQL reads a true default back as `1`, Postgres as `true`.
+          if (/^(true|t|1)$/i.test(text)) return 'DEFAULT TRUE';
+          if (/^(false|f|0)$/i.test(text)) return 'DEFAULT FALSE';
+          return `DEFAULT ${quoteLiteral(value.text)}`;
+        default:
+          return `DEFAULT ${quoteLiteral(value.text)}`;
+      }
+    }
     case 'now':
       return 'DEFAULT CURRENT_TIMESTAMP';
     case 'uuid':

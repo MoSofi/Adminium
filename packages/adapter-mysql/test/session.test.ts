@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `TIMESTAMP` reader: on a UTC session a `TIMESTAMP` comes back as UTC wall
- * time, and that is the instant — whatever zone this process runs in. Every
- * other type is read as the driver would, `DATETIME` above all: it keeps the
- * server process's wall clock.
+ * time, and that is the instant — whatever zone this process runs in. A `DATE`
+ * comes back as its text, the day it holds. Every other type is read as the
+ * driver would, `DATETIME` above all: it keeps the server process's wall clock.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -38,7 +38,13 @@ describe('readTimestampsAsUtc', () => {
     expect(Number.isNaN(at.getTime())).toBe(true);
   });
 
-  it.each(['DATETIME', 'DATE', 'TIME', 'VAR_STRING', 'LONGLONG', 'JSON'])('leaves a %s to the driver', (type) => {
+  it('reads a DATE as its YYYY-MM-DD text, never a Date at this process’s midnight', () => {
+    expect(readTimestampsAsUtc(field('DATE', '2026-08-14'), next)).toBe('2026-08-14');
+    expect(readTimestampsAsUtc(field('NEWDATE', '2026-08-14'), next)).toBe('2026-08-14');
+    expect(readTimestampsAsUtc(field('DATE', null), next)).toBeNull();
+  });
+
+  it.each(['DATETIME', 'TIME', 'VAR_STRING', 'LONGLONG', 'JSON'])('leaves a %s to the driver', (type) => {
     expect(readTimestampsAsUtc(field(type, '2026-07-27 23:00:00'), next)).toBe(untouched);
   });
 });
