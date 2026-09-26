@@ -57,7 +57,7 @@ import {
   type PublicViews,
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
-import { afterNow, aheadWithin, beforeToday, fromToday, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
+import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -289,6 +289,8 @@ function updatableState(
     if (when === 'from-today') return [fromToday(table, column, timezone, now)];
     if (when === 'before-today') return [beforeToday(table, column, timezone, now)];
     if (isTimeWindow(when)) return windows === 'with' ? [aheadWithin(table, column, when.within, now)] : [];
+    // A window read from moments is judged inside the write, never in its WHERE; nothing here judges it yet.
+    if (isMomentWindow(when)) return [];
     // `null` is "still empty": a value never equals null, so it is asked apart.
     const values = when.filter((value): value is string | number | boolean => value !== null);
     const empty = when.length !== values.length;

@@ -19,6 +19,7 @@ import type {
   TableModel,
 } from '@adminium/engine';
 import type { FormulaExpr } from '@adminium/manifest';
+import type { LateMove, Moment, StateEffect, TimedMove, LinkedCondition, SettingCondition, TimeCondition } from '@adminium/manifest';
 import type { SchemaOverride } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
@@ -133,10 +134,24 @@ export type StampSet =
   | { copy: string }
   | { claim: string; staff?: 'user-name' | 'user-id' }
   | { addDays: { date: string; days: string | number; map?: Record<string, number> } }
-  | { hashOf: HashOf };
+  | { hashOf: HashOf }
+  /** Now plus minutes or hours; a setting's number is read from the settings row (its table id). */
+  | { addMinutes: { minutes?: StampAmount; hours?: StampAmount } }
+  /** Days after today at a time of day, never later than `notAfter`. */
+  | { deadline: { days: StampAmount; time: string | { table: string; column: string }; notAfter?: Moment } }
+  /** A moment of the row or a linked row; none found writes empty. */
+  | { moment: Moment };
+
+/** A number a stamp states, or a whole-number column of the settings row (its table id). */
+export type StampAmount = number | { table: string; column: string };
 
 /** When a stamp is written: on create, when a column changes to a value, or when a column is first filled. */
-export type StampTrigger = 'create' | { column: string; values: (string | number | boolean)[] } | { column: string; filled: true };
+export type StampTrigger =
+  | 'create'
+  | { column: string; values: (string | number | boolean)[] }
+  | { column: string; filled: true }
+  /** Whenever one of these columns changes. */
+  | { columns: string[] };
 
 /**
  * `column.stamp`: a value written when something happens — the moment, or who
@@ -173,6 +188,14 @@ export interface TableStatesRule {
   lockedWhenReferencedBy?: { table: string; via: string; in: string[] }[];
   noDelete?: { when: 'numbered' | string[] };
   onlyLater?: string[];
+  /** A write naming the state the row already holds is refused; `show` columns are repeated in the refusal. */
+  strict?: true | { show: string[] };
+  /** Moves made close to a moment: a flag set, or the move refused. */
+  late?: LateMove[];
+  /** Moves Adminium makes by itself once a moment of the row has passed. */
+  timed?: TimedMove[];
+  /** Moves of the row a link points at, set off by a move of this one. */
+  effects?: StateEffect[];
 }
 
 /** One move of a state, with what it asks for first and who may make it (role slugs). */
@@ -181,6 +204,12 @@ export interface StateMoveRule {
   requires?: {
     children?: Record<string, number>;
     where?: { column: string; eq?: string | number | boolean; in?: (string | number | boolean)[]; isNull?: boolean; gt?: number; gte?: number; lt?: number; lte?: number }[];
+    /** Conditions on the row a link of this one points at. */
+    linked?: LinkedCondition[];
+    /** A window on the clock: after one moment, before another. */
+    time?: TimeCondition;
+    /** Values of the settings row (its table id). */
+    setting?: SettingCondition[];
   };
   roles?: string[];
 }

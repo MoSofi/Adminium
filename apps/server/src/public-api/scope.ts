@@ -29,10 +29,13 @@ import { PUBLIC_GENERATORS, readGenerator } from './generate.js';
 import {
   RELATIVE_FILTER_OPS,
   TIME_WINDOW_MAX_MINUTES,
+  isMomentWindow,
   isRelativeOp,
   isTimeWindow,
   type RelativeCondition,
   type ScopeWhere,
+  type MomentWindow,
+  type MomentWindowEnd,
   type WritableState,
 } from './relative-filters.js';
 
@@ -138,6 +141,53 @@ const scalarSchema = z.union([z.string().max(256), z.number(), z.boolean()]);
  * minutes ahead). One window at most: a change refused as too early names
  * the one time it waits for.
  */
+/*
+ * A window read from moments (`MomentWindow`): strict at every level, so a
+ * key the store does not know is refused, never dropped. Settings and hours
+ * tables are named by their id in the snapshot.
+ */
+const whenTable = z.string().min(1).max(256);
+const whenSetting = z.object({ table: whenTable, column: columnSchema }).strict();
+const whenAmount = z.union([z.number().int().min(0).max(1_000_000), whenSetting]);
+const whenOffset = z.object({ minutes: whenAmount.optional(), hours: whenAmount.optional(), days: whenAmount.optional() }).strict();
+const whenTime = z.union([
+  z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  whenSetting,
+  z
+    .object({
+      hours: z.object({ table: whenTable, weekday: columnSchema, open: columnSchema.optional(), opens: columnSchema.optional(), closes: columnSchema }).strict(),
+      edge: z.enum(['opens', 'closes']),
+    })
+    .strict(),
+]);
+const whenMoment = { time: whenTime.optional(), plus: whenOffset.optional(), minus: whenOffset.optional() };
+const whenEnd = z
+  .object({
+    column: columnSchema.optional(),
+    ...whenMoment,
+    or: z.array(z.object({ column: columnSchema, via: columnSchema.optional(), ...whenMoment }).strict()).min(1).max(3).optional(),
+  })
+  .strict();
+const whenCondition = z
+  .object({
+    column: columnSchema,
+    eq: scalarSchema.optional(),
+    in: z.array(scalarSchema).min(1).max(32).optional(),
+    isNull: z.boolean().optional(),
+    gt: z.number().optional(),
+    gte: z.number().optional(),
+    lt: z.number().optional(),
+    lte: z.number().optional(),
+  })
+  .strict();
+export const momentWindowSchema = z
+  .object({ after: whenEnd.optional(), before: whenEnd.optional(), where: z.array(whenCondition).min(1).max(8).optional() })
+  .strict()
+  .refine((w) => w.after !== undefined || w.before !== undefined || w.where !== undefined, { message: 'a window says after, before or where' });
+
+/** A window with a time in it: `{within}`, or a moment window with an end. */
+const timesAChange = (when: WritableState) => isTimeWindow(when) || (isMomentWindow(when) && (when.after !== undefined || when.before !== undefined));
+
 export const writableWhenSchema = z
   .record(
     columnSchema,
@@ -150,9 +200,10 @@ export const writableWhenSchema = z
       // A date before today, on the venue's calendar (an offer out of date, which may be asked about again).
       z.literal('before-today'),
       z.object({ within: z.number().int().min(1).max(TIME_WINDOW_MAX_MINUTES) }).strict(),
+      momentWindowSchema,
     ]),
   )
-  .refine((when) => Object.values(when).filter(isTimeWindow).length <= 1, {
+  .refine((when) => Object.values(when as Record<string, WritableState>).filter(timesAChange).length <= 1, {
     message: 'one time window at most: a change refused as too early names one time',
   });
 
@@ -813,6 +864,10 @@ export function compileScope(
      * the row would be in date again, on its old terms.
      */
     for (const [column, when] of Object.entries(r.writableWhen ?? {})) {
+      if (isMomentWindow(when)) {
+        issues.push(...momentWindowIssues(r.ref, column, when, writable, r.writableValues ?? {}, r.defaults));
+        continue;
+      }
       if (when !== 'before-today') continue;
       const reachable =
         writable.has(column) ||
@@ -1518,4 +1573,37 @@ function projectResource(r: CompiledResource): {
     response: { shape: r.response.shape },
     ...(r.kind === 'availability' ? { kind: 'availability' as const } : {}),
   };
+}
+
+/**
+ * What is wrong with a window read from moments: its ends name the linked
+ * row's column all or none (a link key, or the date itself), conditions on a
+ * row are asked only through a link, and no write through the resource may
+ * set a column that opens its own window.
+ */
+function momentWindowIssues(
+  ref: string,
+  column: string,
+  when: MomentWindow,
+  writable: ReadonlySet<string>,
+  writableValues: Readonly<Record<string, unknown>>,
+  defaults: Readonly<Record<string, unknown>>,
+): ScopeIssue[] {
+  const issues: ScopeIssue[] = [];
+  const ends = [when.after, when.before].filter((end): end is MomentWindowEnd => end !== undefined);
+  const linked = ends.filter((end) => end.column !== undefined).length;
+  if (linked !== 0 && linked !== ends.length) {
+    issues.push({ code: 'SCOPE_WRITABLE_WHEN_MOMENT_INVALID', message: `"${column}" is a link or a date: its window's ends all name a linked column, or none do`, ref, column });
+  }
+  if (when.where !== undefined && ends.length > 0 && linked === 0) {
+    issues.push({ code: 'SCOPE_WRITABLE_WHEN_MOMENT_INVALID', message: `conditions on a linked row are keyed by a link, and "${column}" is read as a date`, ref, column });
+  }
+  const opening = [column, ...ends.flatMap((end) => (end.or ?? []).filter((m) => m['via'] === undefined).map((m) => String(m['column'])))];
+  for (const own of new Set(opening)) {
+    const reachable = writable.has(own) || Object.prototype.hasOwnProperty.call(writableValues, own) || Object.prototype.hasOwnProperty.call(defaults, own);
+    if (reachable) {
+      issues.push({ code: 'SCOPE_WRITABLE_WHEN_COLUMN_WRITABLE', message: `"${own}" decides when this row may change, so it must not be writable`, ref, column: own });
+    }
+  }
+  return issues;
 }

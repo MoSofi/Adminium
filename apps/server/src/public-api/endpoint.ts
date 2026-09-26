@@ -34,7 +34,7 @@ import { columnPolicyFor } from '../connections/effective-schema.js';
 import { FILTER_OPS } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { readGenerator } from './generate.js';
-import { DAY_TYPES, isTimeWindow } from './relative-filters.js';
+import { DAY_TYPES, isMomentWindow, isTimeWindow } from './relative-filters.js';
 import {
   CLAIM_STRATEGIES,
   compileScope,
@@ -936,6 +936,10 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     // An upper bound on a day: only a date column compares safely on every engine (`beforeToday`).
     if (when === 'before-today' && type !== undefined && type !== 'date') {
       push('ENDPOINT_FILTER_NOT_A_DATE', `"${column}" is not a date, so "before-today" cannot apply`, column);
+    }
+    // A window read from this column's own moment needs a date or a time; one naming a linked column is read through the link.
+    if (isMomentWindow(when) && type !== undefined && [when.after, when.before].every((end) => end === undefined || end.column === undefined) && when.where === undefined) {
+      if (!DAY_TYPES.has(type)) push('SCOPE_WRITABLE_WHEN_MOMENT_INVALID', `"${column}" is not a date or a time, so no window is read from it`, column);
     }
   }
 

@@ -92,13 +92,15 @@ export interface PublicAccessPlan {
 export function nestedRefs(
   entry: PublicAccessEntry,
   idOf: (ref: string) => string | undefined,
-): { value: Pick<PublicAccessEntry, 'requireSetting' | 'confirm' | 'claimedBy' | 'visibleWith'>; missing: string[] } {
+): { value: Pick<PublicAccessEntry, 'requireSetting' | 'confirm' | 'claimedBy' | 'visibleWith' | 'writableWhen'>; missing: string[] } {
   return mapTableRefs(
     {
       ...(entry.requireSetting === undefined ? {} : { requireSetting: entry.requireSetting }),
       ...(entry.confirm === undefined ? {} : { confirm: entry.confirm }),
       ...(entry.claimedBy === undefined ? {} : { claimedBy: entry.claimedBy }),
       ...(entry.visibleWith === undefined ? {} : { visibleWith: entry.visibleWith }),
+      // A window read from a moment names the settings it reads, at any depth.
+      ...(entry.writableWhen === undefined ? {} : { writableWhen: entry.writableWhen }),
     },
     idOf,
   );
@@ -165,7 +167,7 @@ function definitionOf(
     ...(entry.writableValues === undefined ? {} : { writable_values: { ...entry.writableValues } }),
     ...(entry.requires === undefined ? {} : { requires: [...entry.requires] }),
     ...(entry.files === undefined ? {} : { files: [...entry.files] }),
-    ...(entry.writableWhen === undefined ? {} : { writable_when: { ...entry.writableWhen } }),
+    ...(nested.writableWhen === undefined ? {} : { writable_when: structuredClone(nested.writableWhen) }),
     ...(entry.defaults === undefined ? {} : { defaults: { ...entry.defaults } }),
     ...(entry.claim === undefined
       ? {}

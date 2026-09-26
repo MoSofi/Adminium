@@ -132,6 +132,21 @@ export {
   type StateMove,
   type States,
 } from './states.js';
+export {
+  lateMoveSchema,
+  linkedConditionSchema,
+  settingConditionSchema,
+  stateEffectSchema,
+  strictStatesSchema,
+  timeConditionSchema,
+  timedMoveSchema,
+  type LateMove,
+  type LinkedCondition,
+  type SettingCondition,
+  type StateEffect,
+  type TimeCondition,
+  type TimedMove,
+} from './states.js';
 
 export { addOnsSchema, namedAddOns, requiresAddOn, type AddOnNeeds } from './add-ons.js';
 
@@ -147,6 +162,24 @@ export {
 } from './shapes.js';
 
 export { addOnSettingRefSchema, settingSourceSchema, type SettingSource } from './refs.js';
+
+export {
+  MOMENT_LIMITS,
+  clockTimeSchema,
+  hoursEdgeSchema,
+  momentIssues,
+  momentOffsetSchema,
+  momentSchema,
+  plainMomentSchema,
+  wallTimeSchema,
+  type ClockTime,
+  type HoursEdge,
+  type Moment,
+  type MomentAmount,
+  type MomentOffset,
+  type PlainMoment,
+  type WallTime,
+} from './refs.js';
 
 export { parseSemverRange, satisfiesSemverRange } from './semver.js';
 
