@@ -3061,7 +3061,9 @@
       "apiOff": "The public API is switched off, so none of this answers until it is on.",
       "originSelf": "The allowed origins do not include “self”, so the app’s own pages on this server cannot call it.",
       "timeZone": "This database has no time zone set, which the public API needs for dates and times.",
-      "noEmail": "Email is not set up, so guests will not be sent a confirmation."
+      "noEmail": "Email is not set up, so guests will not be sent a confirmation.",
+      "noEmailSignIn": "Email is not set up, so nobody can be sent a sign-in link.",
+      "noPublicAddress": "This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address."
     },
     "createConfirmed": "Add to {table}, and get a confirmation email"
   },

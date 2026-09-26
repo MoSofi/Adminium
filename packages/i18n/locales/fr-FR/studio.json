@@ -3061,7 +3061,9 @@
       "apiOff": "L’API publique est désactivée : rien de ceci ne répondra tant qu’elle ne sera pas activée.",
       "originSelf": "Les origines autorisées n’incluent pas « self » : les pages de l’application sur ce serveur ne peuvent donc pas l’appeler.",
       "timeZone": "Cette base de données n’a pas de fuseau horaire, dont l’API publique a besoin pour les dates et les heures.",
-      "noEmail": "L’e-mail n’est pas configuré : les clients ne recevront pas de confirmation."
+      "noEmail": "L’e-mail n’est pas configuré : les clients ne recevront pas de confirmation.",
+      "noEmailSignIn": "L’e-mail n’est pas configuré : personne ne peut recevoir de lien de connexion.",
+      "noPublicAddress": "Cette application n’a pas d’adresse publique : aucun lien de connexion ne peut être envoyé. Associez un domaine à son côté client, ou définissez l’adresse publique du serveur."
     },
     "createConfirmed": "Ajouter à {table} et recevoir un e-mail de confirmation"
   },

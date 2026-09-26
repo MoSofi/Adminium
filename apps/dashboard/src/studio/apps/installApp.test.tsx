@@ -952,6 +952,23 @@ describe('public access at install', () => {
     expect(sent()).toBe(true);
   });
 
+  it('words a sign-in link app’s warnings itself, never with the server’s English', async () => {
+    plan = ready({
+      warnings: [
+        { code: 'NO_EMAIL_SIGN_IN', message: 'server words' },
+        { code: 'NO_PUBLIC_ADDRESS', message: 'server words' },
+      ],
+    });
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+    const warnings = screen.getByTestId('install-public-access').querySelector('[data-role="public-access-warnings"]')!;
+    expect([...warnings.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'Email is not set up, so nobody can be sent a sign-in link.',
+      'This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.',
+    ]);
+  });
+
   it('sends a decline', async () => {
     plan = ready();
     const user = userEvent.setup();

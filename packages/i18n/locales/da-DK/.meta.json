@@ -14375,6 +14375,14 @@
     "status": "mt",
     "srcHash": "a227535f74ba"
   },
+  "studio.appPublicAccess.warning.noEmailSignIn": {
+    "status": "mt",
+    "srcHash": "321f087632c2"
+  },
+  "studio.appPublicAccess.warning.noPublicAddress": {
+    "status": "mt",
+    "srcHash": "aa307aaeb642"
+  },
   "studio.appPublicAccess.warning.originSelf": {
     "status": "mt",
     "srcHash": "dd559c856e8c"

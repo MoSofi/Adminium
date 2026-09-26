@@ -3071,7 +3071,9 @@ export default {
       "apiOff": "Die öffentliche API ist ausgeschaltet, daher antwortet nichts davon, bis sie eingeschaltet ist.",
       "originSelf": "Die erlaubten Ursprünge enthalten „self“ nicht, daher können die eigenen Seiten der App auf diesem Server sie nicht aufrufen.",
       "timeZone": "Für diese Datenbank ist keine Zeitzone festgelegt, die die öffentliche API für Datums- und Zeitangaben braucht.",
-      "noEmail": "E-Mail ist nicht eingerichtet, daher erhalten Gäste keine Bestätigung."
+      "noEmail": "E-Mail ist nicht eingerichtet, daher erhalten Gäste keine Bestätigung.",
+      "noEmailSignIn": "E-Mail ist nicht eingerichtet, daher kann niemandem ein Anmeldelink gesendet werden.",
+      "noPublicAddress": "Diese App hat keine öffentliche Adresse, daher kann kein Anmeldelink gesendet werden. Ordnen Sie ihrer Kundenseite eine Domain zu oder legen Sie die öffentliche Adresse des Servers fest."
     },
     "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten"
   },
