@@ -122,8 +122,18 @@ const producerBase = {
   supersede: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a group name').optional(),
   /** While the source row meets one of these, its waiting messages are skipped, with the reason. */
   dropWhen: z.array(dropConditionSchema).min(1).max(4).optional(),
-  /** Sent to an address a setting holds (the studio's own) instead of the outbox's recipient. */
-  recipient: z.object({ setting: settingSourceSchema }).strict().optional(),
+  /**
+   * Sent instead of the outbox's recipient: to an address a setting holds
+   * (the studio's own), or to an address a text column of the producing row
+   * holds (a ticket's `send_to_email`, the friend it is offered to), with
+   * that row's `name` column as the name.
+   */
+  recipient: z
+    .union([
+      z.object({ setting: settingSourceSchema }).strict(),
+      z.object({ column: refSchema, name: refSchema.optional() }).strict(),
+    ])
+    .optional(),
   /** One message per linked row in each window of this many minutes. */
   batchMinutes: z.number().int().min(1).max(240).optional(),
   /**
@@ -610,7 +620,13 @@ export function outboxIssues(
     if (producer.dropWhen !== undefined && producer.hold !== true && producer.due === undefined && producer.batchMinutes === undefined) {
       out.push({ path: here('dropWhen'), message: 'only a message that waits (held, or due later) can be dropped' });
     }
-    if (producer.recipient !== undefined) setting(producer.recipient.setting, here('recipient', 'setting'));
+    if (producer.recipient !== undefined) {
+      if ('setting' in producer.recipient) setting(producer.recipient.setting, here('recipient', 'setting'));
+      else {
+        col(linked, producer.recipient.column, ['text'], here('recipient', 'column'), 'a text column');
+        if (producer.recipient.name !== undefined) col(linked, producer.recipient.name, ['text'], here('recipient', 'name'), 'a text column');
+      }
+    }
     if (producer.batchMinutes !== undefined && 'before' in producer) {
       out.push({ path: here('batchMinutes'), message: 'a reminder before a moment is one per row already' });
     }

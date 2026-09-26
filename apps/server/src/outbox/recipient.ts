@@ -61,6 +61,10 @@ export async function addressFor(
   holder?: { tableId: string; row: Row },
 ): Promise<Addressed> {
   const none: Addressed = { address: null, language: null, identity: null, person: null, bySetting: false };
+  // An address on the producing row itself (a ticket offered to a friend)
+  // goes out only with the rules that keep it from becoming a relay; until
+  // those are built, nothing is addressed and nothing is sent.
+  if (producer?.recipient !== undefined && !('setting' in producer.recipient)) return none;
   if (producer?.recipient !== undefined) {
     const value = await ctx.read(producer.recipient.setting);
     return { ...none, address: plausibleAddress(value) ? value.trim() : null, bySetting: true };

@@ -147,7 +147,7 @@ export function withRealTables(definition: Outbox, realId: (name: string) => str
         ...producer,
         ...(typeof producer.gate === 'object' ? { gate: { setting: { ...producer.gate.setting, table: realId(producer.gate.setting.table) } } } : {}),
         ...(producer.onSent === undefined ? {} : { onSent: { ...producer.onSent, table: realId(producer.onSent.table) } }),
-        ...(producer.recipient === undefined ? {} : { recipient: { setting: setting(producer.recipient.setting) } }),
+        ...(producer.recipient === undefined || !('setting' in producer.recipient) ? {} : { recipient: { setting: setting(producer.recipient.setting) } }),
         ...(producer.due !== undefined && typeof days === 'object' && 'setting' in days ? { due: { ...producer.due, days: { ...days, setting: setting(days.setting) } } } : {}),
       };
     }),
