@@ -71,8 +71,16 @@ describe.skipIf(!(adapterReady && pgAvailable()))('table grants of the data role
 
   const count = (table: string) => Number(psql(pg.database, `SELECT count(*) FROM ${table}`).trim());
 
-  it('does not mark the connection read-only', async () => {
-    expect((await t.manager.mustFind(connId)).readOnly).toBe(false);
+  it('does not mark the connection read-only, and records that it may not run DDL', async () => {
+    const connection = await t.manager.mustFind(connId);
+    expect(connection.readOnly).toBe(false);
+    // Recorded, not left null: null reads as "may author the schema", and this role may not.
+    expect(connection.canDdl).toBe(false);
+  });
+
+  it('records that a role with CREATE may run DDL', async () => {
+    const owner = await createConnectionViaApi(t, pg.dsn, 'northwind-owner');
+    expect((await t.manager.mustFind(owner)).canDdl).toBe(true);
   });
 
   it('writes a table the role may write', async () => {

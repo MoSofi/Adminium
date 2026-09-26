@@ -54,7 +54,7 @@ import { AppError } from '../errors.js';
 import { runGeneration } from '../generate/run.js';
 import { runIntrospection } from './introspect.js';
 import { maskDsn, parseDsn } from './dsn.js';
-import type { ConnectionManager } from './manager.js';
+import { testOutcome, type ConnectionManager } from './manager.js';
 
 export interface SeedSourceConnectionOptions {
   manager: ConnectionManager;
@@ -197,17 +197,7 @@ async function runSeed(opts: SeedSourceConnectionOptions): Promise<SeedSourceCon
     // corrected compose file takes effect on restart.
     await manager.connections.update(prior.id, { introspectDsn: sourceUrl, dataDsn: null }, at);
   }
-  await manager.connections.recordTestResult(
-    connectionId,
-    {
-      ok: summary.ok,
-      latencyMs: summary.latencyMs,
-      error: summary.error?.message ?? null,
-      errorHint: summary.error?.hint ?? null,
-      readOnly: summary.readOnly,
-    },
-    at,
-  );
+  await manager.connections.recordTestResult(connectionId, testOutcome(summary), at);
   await settings.set('system.sourceConnectionId', connectionId, { at });
 
   if (!summary.ok) {

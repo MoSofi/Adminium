@@ -67,6 +67,33 @@ export interface ConnectionTestSummary {
   error: { code: string; message: string; hint: string | null } | null;
 }
 
+/**
+ * What a connection test records: the probe's verdicts, whether the role may write (C1) AND
+ * whether it may run DDL.
+ *
+ * `canDdl` used to be dropped by every caller, so it stayed null — which Studio reads as "may
+ * author the schema" — and a role with no CREATE anywhere was offered schema changes the
+ * database then refused. One builder, so no caller can forget a verdict again.
+ */
+export function testOutcome(summary: ConnectionTestSummary): {
+  ok: boolean;
+  latencyMs: number;
+  error: string | null;
+  errorHint: string | null;
+  readOnly: boolean;
+  canDdl?: boolean;
+} {
+  return {
+    ok: summary.ok,
+    latencyMs: summary.latencyMs,
+    error: summary.error?.message ?? null,
+    errorHint: summary.error?.hint ?? null,
+    readOnly: summary.readOnly,
+    // Unknown when the probe did not run (a failed test): the stored verdict stays as it was.
+    ...(summary.capabilities === null ? {} : { canDdl: summary.capabilities.privileges.canDDL }),
+  };
+}
+
 export interface ConnectionManagerOptions {
   meta: MetaDb;
   crypto: DsnCrypto;

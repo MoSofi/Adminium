@@ -27,7 +27,7 @@ import {
   INTROSPECT_JOB_KIND,
   runIntrospection,
 } from '../../connections/introspect.js';
-import type { ConnectionManager, ConnectionTestSummary } from '../../connections/manager.js';
+import { testOutcome, type ConnectionManager, type ConnectionTestSummary } from '../../connections/manager.js';
 import { unauthorableReason } from '../../schema-ddl/authorable.js';
 import {
   connectionCreateBody,
@@ -203,13 +203,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           status: summary.ok ? 'connected' : 'error',
           createdBy: actorId,
         });
-        await manager.connections.recordTestResult(connection.id, {
-          ok: summary.ok,
-          latencyMs: summary.latencyMs,
-          error: summary.error?.message ?? null,
-          errorHint: summary.error?.hint ?? null,
-          readOnly: summary.readOnly,
-        });
+        await manager.connections.recordTestResult(connection.id, testOutcome(summary));
         await app.rbac.audit(request, {
           category: 'connection',
           action: 'connection.create',
@@ -419,13 +413,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           throw new ValidationFailedError('Connection has no DSN to test.', { connectionId: connection.id });
         }
         const summary = await manager.testDsn(connection.engine, dsns.dataDsn);
-        await manager.connections.recordTestResult(connection.id, {
-          ok: summary.ok,
-          latencyMs: summary.latencyMs,
-          error: summary.error?.message ?? null,
-          errorHint: summary.error?.hint ?? null,
-          readOnly: summary.readOnly,
-        });
+        await manager.connections.recordTestResult(connection.id, testOutcome(summary));
         return testReply(summary);
       },
     );

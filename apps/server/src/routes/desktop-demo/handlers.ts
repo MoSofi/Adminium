@@ -29,7 +29,7 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { AppError } from '../../errors.js';
-import type { ConnectionManager } from '../../connections/manager.js';
+import { testOutcome, type ConnectionManager } from '../../connections/manager.js';
 
 /** "creates `<dataDir>/databases/demo.sqlite`". Both halves are spec'd. */
 export const DEMO_DATABASE_DIR = 'databases';
@@ -164,12 +164,7 @@ export async function createDemoDatabaseHandler(
     status: summary.ok ? 'connected' : 'error',
     createdBy: input.actorId,
   });
-  await deps.manager.connections.recordTestResult(connection.id, {
-    ok: summary.ok,
-    latencyMs: summary.latencyMs,
-    error: summary.error?.message ?? null,
-    readOnly: summary.readOnly,
-  });
+  await deps.manager.connections.recordTestResult(connection.id, testOutcome(summary));
 
   return { connectionId: connection.id, name: connection.name, file, seeded, rows };
 }

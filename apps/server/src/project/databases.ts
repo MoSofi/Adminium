@@ -26,7 +26,7 @@ import { snapshotsRepo, type MetaDb } from '@adminium/meta';
 
 import { maskDsn, parseDsn } from '../connections/dsn.js';
 import { runIntrospection } from '../connections/introspect.js';
-import type { ConnectionManager } from '../connections/manager.js';
+import { testOutcome, type ConnectionManager } from '../connections/manager.js';
 import { runGeneration } from '../generate/run.js';
 
 export interface SyncProjectDatabasesOptions {
@@ -125,17 +125,7 @@ export async function syncProjectDatabases(opts: SyncProjectDatabasesOptions): P
           await manager.connections.update(existing.id, { introspectDsn: url, dataDsn: null }, at);
           log(`Database "${key}": the URL changed, now ${masked}.`);
         }
-        await manager.connections.recordTestResult(
-          connectionId,
-          {
-            ok: summary.ok,
-            latencyMs: summary.latencyMs,
-            error: summary.error?.message ?? null,
-            errorHint: summary.error?.hint ?? null,
-            readOnly: summary.readOnly,
-          },
-          at,
-        );
+        await manager.connections.recordTestResult(connectionId, testOutcome(summary), at);
         if (!summary.ok) {
           const reason = summary.error?.hint
             ? `${summary.error.message} (${summary.error.hint})`

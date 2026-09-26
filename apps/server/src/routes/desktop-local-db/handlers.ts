@@ -36,7 +36,7 @@ import { dirname, join, resolve } from 'node:path';
 import { parseDatabaseModel, type DatabaseModel, type ImportFormat, type TableModel } from '@adminium/engine';
 
 import { AppError, ValidationFailedError } from '../../errors.js';
-import type { ConnectionManager } from '../../connections/manager.js';
+import { testOutcome, type ConnectionManager } from '../../connections/manager.js';
 import { emitSqliteDdl, orderTables, quoteIdent, type DdlWarning } from './sqlite-ddl.js';
 import { planPlaceholderRows } from './placeholder.js';
 
@@ -236,12 +236,7 @@ export async function createLocalDatabaseHandler(
     status: summary.ok ? 'connected' : 'error',
     createdBy: input.actorId,
   });
-  await deps.manager.connections.recordTestResult(connection.id, {
-    ok: summary.ok,
-    latencyMs: summary.latencyMs,
-    error: summary.error?.message ?? null,
-    readOnly: summary.readOnly,
-  });
+  await deps.manager.connections.recordTestResult(connection.id, testOutcome(summary));
 
   return { connectionId: connection.id, name: connection.name, slug, file, tables, rows, warnings };
 }
