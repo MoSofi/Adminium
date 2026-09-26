@@ -112,7 +112,9 @@ export type RemapOverride =
       columnName: string;
       value: { start?: number; gapless?: true; startSetting?: Record<string, string>; scope?: string };
     }
-  | { op: 'column.code'; tableName: string; columnName: string; value: { prefix?: string; length: number } }
+  | { op: 'column.code'; tableName: string; columnName: string; value: { prefix?: string; length: number; renew?: Record<string, unknown> } }
+  /** A link filled from a code a person types. Kept whole through a save; not edited here. */
+  | { op: 'column.lookup'; tableName: string; columnName: string; value: Record<string, unknown> }
   /** A number with a prefix, written from a running number of the row. Kept whole through a save. */
   | { op: 'column.format'; tableName: string; columnName: string; value: Record<string, unknown> }
   /** A value worked out from the row's other columns. Kept whole through a save. */
@@ -120,7 +122,7 @@ export type RemapOverride =
   /** The places a decimal keeps. */
   | { op: 'column.scale'; tableName: string; columnName: string; value: { scale: number | 'currency' } }
   /** A text value stored trimmed, or trimmed and in lower case. */
-  | { op: 'column.normalize'; tableName: string; columnName: string; value: { normalize: 'trim' | 'email' } }
+  | { op: 'column.normalize'; tableName: string; columnName: string; value: { normalize: 'trim' | 'email' | 'code' } }
   /** A date kept within bounds: never after today, never before another date (its own, or a linked row's). */
   | {
       op: 'column.bounds';
@@ -190,6 +192,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.scale',
   'column.normalize',
   'column.bounds',
+  'column.lookup',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

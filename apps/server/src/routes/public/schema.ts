@@ -132,6 +132,8 @@ export const publicConfigReply = z.object({
         response: z.object({ shape: z.enum(PUBLIC_RESPONSE_SHAPES) }),
         /** Present on an availability ref: ask `/availability/<ref>`, never `/records`. */
         kind: z.literal('availability').optional(),
+        /** On an availability ref: the kind of limit it answers — a slot, a parent's pool, or nights. */
+        capacity: z.enum(['slot', 'parent', 'night']).optional(),
       }),
     ),
   }),

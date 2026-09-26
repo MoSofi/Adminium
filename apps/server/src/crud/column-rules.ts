@@ -553,7 +553,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       if (typeof stamp.set === 'object' && 'hashOf' in stamp.set) seals.push(stamp);
       else stamps.push(stamp);
     }
-    if (column.normalize !== undefined) normalizes.push({ column: column.name, how: column.normalize });
+    // A code's spelling (`code`) is carried in the model and not yet applied here.
+    if (column.normalize === 'trim' || column.normalize === 'email') normalizes.push({ column: column.name, how: column.normalize });
     if (column.bounds !== undefined) {
       const bound: DateBound = { column: column.name, ...(column.bounds.notAfter === undefined ? {} : { notAfter: column.bounds.notAfter }) };
       const before = column.bounds.notBefore;

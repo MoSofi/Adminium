@@ -92,13 +92,14 @@ export interface PublicAccessPlan {
 export function nestedRefs(
   entry: PublicAccessEntry,
   idOf: (ref: string) => string | undefined,
-): { value: Pick<PublicAccessEntry, 'requireSetting' | 'confirm' | 'claimedBy' | 'visibleWith'>; missing: string[] } {
+): { value: Pick<PublicAccessEntry, 'requireSetting' | 'confirm' | 'claimedBy' | 'visibleWith' | 'unlockBy'>; missing: string[] } {
   return mapTableRefs(
     {
       ...(entry.requireSetting === undefined ? {} : { requireSetting: entry.requireSetting }),
       ...(entry.confirm === undefined ? {} : { confirm: entry.confirm }),
       ...(entry.claimedBy === undefined ? {} : { claimedBy: entry.claimedBy }),
       ...(entry.visibleWith === undefined ? {} : { visibleWith: entry.visibleWith }),
+      ...(entry.unlockBy === undefined ? {} : { unlockBy: entry.unlockBy }),
     },
     idOf,
   );
@@ -135,6 +136,11 @@ function definitionOf(
       rate_limit: { requests: 60, window: '1m' },
       response: { shape: 'object', envelope: 'data' },
       kind: 'availability',
+      ...(entry.rule === undefined ? {} : { capacity_rule: entry.rule }),
+      ...(entry.showLeft === undefined
+        ? {}
+        : { show_left: 'below' in entry.showLeft ? { below: entry.showLeft.below } : { below_share: entry.showLeft.belowShare } }),
+      ...(entry.under === undefined ? {} : { under: entry.under }),
     } as PublicEndpointDefinition;
   }
   // No `select`: every column, but a code Adminium makes or a column the app keeps secret — shown only where named.
@@ -233,6 +239,28 @@ function definitionOf(
             ...(nested.confirm?.venue === undefined ? {} : { venue: { ...nested.confirm.venue } }),
           },
         }),
+    // The codes table by its real id; its conditions in the endpoint's own spelling.
+    ...(entry.unlockBy === undefined
+      ? {}
+      : {
+          unlock_by: {
+            table: nested.unlockBy?.table ?? idOf(entry.unlockBy.table),
+            column: entry.unlockBy.column,
+            link: entry.unlockBy.link,
+            ...(entry.unlockBy.where === undefined
+              ? {}
+              : {
+                  where: entry.unlockBy.where.map((condition) =>
+                    'eq' in condition
+                      ? { column: condition.column, eq: condition.eq }
+                      : 'notBefore' in condition
+                        ? { column: condition.column, not_before: condition.notBefore, ...(condition.orEmpty === true ? { or_empty: true } : {}) }
+                        : { column: condition.column, not_after: condition.notAfter, ...(condition.orEmpty === true ? { or_empty: true } : {}) },
+                  ),
+                }),
+          },
+        }),
+    ...(entry.pictures === undefined ? {} : { pictures: [...entry.pictures] }),
   } as PublicEndpointDefinition;
 }
 
@@ -256,7 +284,9 @@ export function planPublicEndpoints(
     const base =
       entry.kind === 'availability'
         ? `${real}_availability`
-        : entry.claim !== undefined || ((entry.claimedBy !== undefined || entry.visibleWith !== undefined) && entry.level !== 'verified')
+        : entry.unlockBy !== undefined
+          ? `${real}_unlocked`
+          : entry.claim !== undefined || ((entry.claimedBy !== undefined || entry.visibleWith !== undefined) && entry.level !== 'verified')
           ? `${real}_claimed`
           : entry.claimedBy !== undefined || entry.visibleWith !== undefined
             ? `${real}_verified`

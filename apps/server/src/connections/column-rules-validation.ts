@@ -95,7 +95,7 @@ export interface RelatedRules {
 }
 
 /** The rules through which Adminium fills a column itself: nobody is asked for it. */
-const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula']);
+const FILLING_OPS: ReadonlySet<string> = new Set(['column.copy', 'column.sequence', 'column.code', 'column.rollup', 'column.stamp', 'column.format', 'column.formula', 'column.lookup']);
 
 /** Whether a rule saved beside this one has Adminium fill the column. */
 function filledByRule(related: RelatedRules | undefined, column: string): boolean {
@@ -138,7 +138,8 @@ export function columnRuleIssue(
     | 'column.formula'
     | 'column.scale'
     | 'column.normalize'
-    | 'column.bounds',
+    | 'column.bounds'
+    | 'column.lookup',
   raw: unknown,
   column: ColumnModel,
   model: DatabaseModel,
@@ -417,6 +418,40 @@ export function columnRuleIssue(
       if (column.maxLength !== null && column.maxLength < width) {
         return `${name} holds ${String(column.maxLength)} characters; this code needs ${String(width)}.`;
       }
+      // What renews it: other columns of the same row.
+      const renew = value['renew'] as { on?: unknown } | undefined;
+      if (renew !== undefined) {
+        const table = model.tables.find((candidate) => candidate.columns.includes(column));
+        for (const trigger of (Array.isArray(renew.on) ? renew.on : [renew.on]) as Value[]) {
+          const watched = String(trigger['column']);
+          if (watched === column.name) return 'A code is renewed by another column of the row.';
+          if (table?.columns.some((c) => c.name === watched) !== true) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(watched)} to renew the code by.`;
+        }
+      }
+      return null;
+    }
+
+    case 'column.lookup': {
+      // A link filled from a typed code: the link itself, the column typed into, and the codes' column.
+      const table = model.tables.find((candidate) => candidate.columns.includes(column));
+      const targetId = String(value['table']);
+      const relation = model.relations.find(
+        (r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === column.name && r.to.columns.length === 1,
+      );
+      if (relation === undefined || relation.to.tableId !== targetId) return `${name} does not link this table to ${JSON.stringify(targetId)}, so a typed code cannot fill it.`;
+      const typed = table?.columns.find((c) => c.name === String(value['from']));
+      if (typed === undefined) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(value['from'])} to type a code into.`;
+      if (!TEXTUAL_TYPES.has(typed.logicalType)) return `A code is typed into text; ${JSON.stringify(typed.name)} is ${typed.logicalType}.`;
+      const target = model.tables.find((candidate) => candidate.id === targetId);
+      const code = target?.columns.find((c) => c.name === String(value['column']));
+      if (target === undefined || code === undefined) return `There is no column ${JSON.stringify(value['column'])} in ${JSON.stringify(targetId)} to find a code by.`;
+      if (!TEXTUAL_TYPES.has(code.logicalType)) return `A code is found in text; ${target.name}.${code.name} is ${code.logicalType}.`;
+      for (const condition of [...((value['where'] ?? []) as Value[]), ...((value['scope'] ?? []) as Value[])]) {
+        if (!target.columns.some((c) => c.name === String(condition['column']))) return `${target.name} has no column ${JSON.stringify(condition['column'])}.`;
+      }
+      for (const scope of (value['scope'] ?? []) as Value[]) {
+        if (table?.columns.some((c) => c.name === String(scope['equals'])) !== true) return `${table?.name ?? 'The table'} has no column ${JSON.stringify(scope['equals'])}.`;
+      }
       return null;
     }
 
@@ -613,31 +648,190 @@ export function statesRuleIssue(raw: unknown, table: TableModel, model: Database
 }
 
 /**
- * Why a table's booking guard cannot be kept, or `null`. The columns it names
- * must be the table's own, and a setting it reads must be a column of a table
- * that exists.
+ * Why a table's limits cannot be kept, or `null`: one rule, or `{rules}` for
+ * several. Each column a rule names must be there — the table's own, or of
+ * the row a foreign key it names points at — and each table it reads (hours,
+ * closures, pauses, the rooms counted, their closures, a setting) must exist
+ * by its id in the snapshot. The first problem is the answer.
  */
 export function capacityRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
   const value = (raw ?? {}) as Value;
-  const own = (name: unknown) => table.columns.find((c) => c.name === String(name));
-  for (const key of ['slot', 'amount', 'resource'] as const) {
-    if (value[key] === undefined) continue;
-    if (own(value[key]) === undefined) return `${table.name} has no column ${JSON.stringify(value[key])}.`;
-  }
-  const countWhere = value['countWhere'] as { column?: unknown } | undefined;
-  if (countWhere !== undefined && own(countWhere.column) === undefined) {
-    return `${table.name} has no column ${JSON.stringify(countWhere.column)}.`;
-  }
-  const amount = own(value['amount']);
-  if (amount !== undefined && !NUMERIC_TYPES.has(amount.logicalType)) return `${amount.name} is not a number, so it cannot be counted.`;
-  for (const key of ['perSlot', 'slotMinutes', 'windowDays', 'opens', 'closes', 'cancelHours'] as const) {
-    const setting = value[key];
-    if (typeof setting !== 'object' || setting === null) continue;
-    const { table: id, column } = setting as { table: string; column: string };
-    const source = model.tables.find((candidate) => candidate.id === id);
-    if (source?.columns.some((c) => c.name === column) !== true) return `There is no column ${JSON.stringify(column)} in ${JSON.stringify(id)} to read.`;
+  const rules = Array.isArray(value['rules']) ? (value['rules'] as Value[]) : [value];
+  for (const rule of rules) {
+    const issue = oneCapacityRuleIssue(rule, table, model);
+    if (issue !== null) return issue;
   }
   return null;
+}
+
+/** The table a one-column foreign key of `from` points at, as the write path follows it. */
+function linkedTable(from: TableModel, column: unknown, model: DatabaseModel): TableModel | undefined {
+  const relation = model.relations.find(
+    (r) => r.through === null && r.from.tableId === from.id && r.from.columns.length === 1 && r.from.columns[0] === String(column) && r.to.columns.length === 1,
+  );
+  return relation === undefined ? undefined : model.tables.find((candidate) => candidate.id === relation.to.tableId);
+}
+
+function oneCapacityRuleIssue(value: Value, table: TableModel, model: DatabaseModel): string | null {
+  const own = (name: unknown) => table.columns.find((c) => c.name === String(name));
+  const missing = (on: TableModel, name: unknown) => `${on.name} has no column ${JSON.stringify(name)}.`;
+  const has = (on: TableModel, name: unknown) => on.columns.some((c) => c.name === String(name));
+  /** Through a foreign key of `from`: the table, or why not. */
+  const through = (from: TableModel, via: unknown): TableModel | string => {
+    if (!has(from, via)) return missing(from, via);
+    return linkedTable(from, via, model) ?? `${from.name}.${String(via)} does not point at another table.`;
+  };
+  /** A column of the row itself, or of the row `via` points at. */
+  const reached = (name: unknown, via: unknown): string | null => {
+    if (via === undefined) return has(table, name) ? null : missing(table, name);
+    const on = through(table, via);
+    if (typeof on === 'string') return on;
+    return has(on, name) ? null : missing(on, name);
+  };
+  /** A table by its id, and each of `columns` on it. */
+  const elsewhere = (part: unknown, columns: readonly string[], what: string): string | null => {
+    if (part === undefined) return null;
+    const entry = part as Value;
+    const source = model.tables.find((candidate) => candidate.id === String(entry['table'] ?? ''));
+    if (source === undefined) return `There is no table ${JSON.stringify(entry['table'])} for the ${what} to read.`;
+    for (const key of columns) {
+      if (entry[key] !== undefined && !has(source, entry[key])) return `${source.name} has no column ${JSON.stringify(entry[key])} for the ${what}.`;
+    }
+    return null;
+  };
+  const setting = (candidate: unknown): string | null => {
+    if (typeof candidate !== 'object' || candidate === null || !('table' in candidate)) return null;
+    const { table: id, column } = candidate as { table: string; column: string };
+    const source = model.tables.find((t) => t.id === id);
+    return source?.columns.some((c) => c.name === column) === true ? null : `There is no column ${JSON.stringify(column)} in ${JSON.stringify(id)} to read.`;
+  };
+  const first = (...issues: (string | null)[]) => issues.find((issue) => issue !== null) ?? null;
+
+  /** What counts, and a hold's end: on the row, or one hop up. */
+  const counting = (): string | null => {
+    const conditions = (value['countWhere'] === undefined ? [] : Array.isArray(value['countWhere']) ? value['countWhere'] : [value['countWhere']]) as Value[];
+    for (const condition of conditions) {
+      const issue = reached(condition['column'], condition['via']);
+      if (issue !== null) return issue;
+    }
+    const hold = value['hold'] as Value | undefined;
+    if (hold === undefined) return null;
+    const level = hold['via'] === undefined ? table : through(table, hold['via']);
+    if (typeof level === 'string') return level;
+    const end = hold['column'];
+    const ends = (typeof end === 'object' && end !== null ? [end as Value, ...(((end as Value)['or'] ?? []) as Value[])] : [{ column: end }]) as Value[];
+    for (const part of ends) {
+      const on = part['via'] === undefined ? level : through(level, part['via']);
+      if (typeof on === 'string') return on;
+      if (!has(on, part['column'])) return missing(on, part['column']);
+    }
+    return null;
+  };
+
+  const kind = value['kind'] ?? 'slot';
+  if (kind === 'slot') {
+    // In the order a released slot rule was always checked: its columns, what counts, then its settings.
+    for (const key of ['slot', 'amount', 'resource'] as const) {
+      if (value[key] === undefined || typeof value[key] === 'number') continue;
+      if (own(value[key]) === undefined) return missing(table, value[key]);
+    }
+    const counted = counting();
+    if (counted !== null) return counted;
+    const amount = typeof value['amount'] === 'string' ? own(value['amount']) : undefined;
+    if (amount !== undefined && !NUMERIC_TYPES.has(amount.logicalType)) return `${amount.name} is not a number, so it cannot be counted.`;
+    for (const key of ['perSlot', 'slotMinutes', 'windowDays', 'opens', 'closes', 'cancelHours', 'noticeMinutes'] as const) {
+      const issue = setting(value[key]);
+      if (issue !== null) return issue;
+    }
+    return first(
+      elsewhere(value['hours'], ['weekday', 'open', 'opens', 'closes'], 'opening hours'),
+      elsewhere(value['closures'], ['from', 'to', 'active'], 'closures'),
+      elsewhere(value['pauses'], ['slot', 'active'], 'paused slots'),
+    );
+  }
+
+  const counted = counting();
+  if (counted !== null) return counted;
+  if (kind === 'parent') {
+    const target = through(table, value['via']);
+    if (typeof target === 'string') return target;
+    /** A size: a number, a setting, or a column of `on` (and its day). */
+    const size = (candidate: unknown, on: TableModel): string | null => {
+      if (typeof candidate !== 'object' || candidate === null) return null;
+      const entry = candidate as Value;
+      if ('table' in entry) return setting(entry);
+      if (!has(on, entry['column'])) return missing(on, entry['column']);
+      if (entry['onDay'] !== undefined && !has(on, entry['onDay'])) return missing(on, entry['onDay']);
+      return null;
+    };
+    const amount = typeof value['amount'] === 'string' ? own(value['amount']) : undefined;
+    if (typeof value['amount'] === 'string' && amount === undefined) return missing(table, value['amount']);
+    if (amount !== undefined && !NUMERIC_TYPES.has(amount.logicalType)) return `${amount.name} is not a number, so it cannot be counted.`;
+    const window = (value['window'] ?? {}) as Value;
+    const perWrite = value['perWrite'] as Value | undefined;
+    const issue = first(
+      size(value['size'], target),
+      ...[window['opens'], window['closes']].filter((name) => name !== undefined).map((name) => (has(target, name) ? null : missing(target, name))),
+      perWrite === undefined ? null : has(table, perWrite['within']) ? size(perWrite['max'], target) : missing(table, perWrite['within']),
+      value['lockBy'] === undefined || has(table, value['lockBy']) ? null : missing(table, value['lockBy']),
+    );
+    if (issue !== null) return issue;
+    for (const wider of (value['also'] ?? []) as Value[]) {
+      const pool = through(table, wider['via']);
+      if (typeof pool === 'string') return pool;
+      const hop = wider['size'] as Value | number;
+      if (typeof hop === 'object' && hop !== null && 'via' in hop) {
+        const next = through(pool, hop['via']);
+        if (typeof next === 'string') return next;
+        if (!has(next, hop['column'])) return missing(next, hop['column']);
+      } else {
+        const sized = size(hop, pool);
+        if (sized !== null) return sized;
+      }
+    }
+    const day = value['day'];
+    if (day !== undefined) {
+      const dayIssue = typeof day === 'string' ? reached(day, undefined) : reached((day as Value)['column'], (day as Value)['via']);
+      if (dayIssue !== null) return dayIssue;
+    }
+    const reserved = value['reserved'] as Value | undefined;
+    if (reserved?.['via'] !== undefined) {
+      const on = through(table, reserved['via']);
+      if (typeof on === 'string') return on;
+    }
+    return null;
+  }
+
+  if (kind === 'night') {
+    for (const key of ['from', 'to'] as const) {
+      const date = value[key];
+      const issue = typeof date === 'object' && date !== null ? reached((date as Value)['column'], (date as Value)['via']) : reached(date, undefined);
+      if (issue !== null) return issue;
+    }
+    const pool = (value['pool'] ?? {}) as Value;
+    const target = through(table, pool['via']);
+    if (typeof target === 'string') return target;
+    const count = pool['count'] as Value | undefined;
+    const sized = pool['size'];
+    const nights = (value['nights'] ?? {}) as Value;
+    const given = pool['given'] as Value | undefined;
+    let givenIssue: string | null = null;
+    if (given !== undefined) {
+      const room = through(table, given['via']);
+      givenIssue = typeof room === 'string' ? room : has(room, given['column']) ? null : missing(room, given['column']);
+    }
+    return first(
+      elsewhere(count, ['column'], 'rooms counted'),
+      elsewhere(count?.['outOfService'] ?? pool['outOfService'], ['room', 'from', 'to', 'active'], 'rooms out of service'),
+      (pool['fits'] as Value | undefined) === undefined || has(target, (pool['fits'] as Value)['column']) ? null : missing(target, (pool['fits'] as Value)['column']),
+      typeof sized === 'object' && sized !== null && !has(target, (sized as Value)['column']) ? missing(target, (sized as Value)['column']) : null,
+      givenIssue,
+      setting(nights['min']),
+      setting(nights['max']),
+      setting(nights['aheadDays']),
+    );
+  }
+  return `A limit of kind ${JSON.stringify(kind)} is not one Adminium keeps.`;
 }
 
 /**

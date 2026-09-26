@@ -303,6 +303,15 @@ describe('a slot rule a released app wrote', () => {
       ].join('\n'),
     );
   });
+
+  it('is asked nothing it was never asked, so no released app is refused now', () => {
+    // A kind of column the new kinds would refuse — a slot that is a date, an amount that is text.
+    const released = changed((doc) => {
+      table(doc, 'orders')['capacity'] = { slot: 'code_text', amount: 'code_text', perSlot: 4, slotMinutes: 0, countWhere: { column: 'status', values: ['held'] } };
+      doc.publicAccess.splice(0, 1);
+    });
+    expect(issuesOf(released)).toBe('');
+  });
 });
 
 describe('the shape of a limit', () => {

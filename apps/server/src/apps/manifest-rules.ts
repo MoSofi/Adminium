@@ -99,6 +99,7 @@ export type RuleOp =
   | 'column.pii'
   | 'column.secret'
   | 'column.label'
+  | 'column.lookup'
   | 'table.capacity'
   | 'table.booking'
   | 'table.states'
@@ -218,6 +219,8 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   }
   if (rules.personal !== undefined) out.push({ op: 'column.pii', value: { masked: rules.personal } });
   if (rules.secret !== undefined) out.push({ op: 'column.secret', value: { secret: rules.secret } });
+  // The codes table is named under `table`, so the installer swaps in its real id.
+  if (rules.lookup !== undefined) out.push({ op: 'column.lookup', value: { ...rules.lookup } });
   return out;
 }
 
@@ -531,7 +534,9 @@ export async function writeManifestRules(input: {
       ['table.states', table.states],
     ] as const) {
       if (value === undefined) continue;
-      const mapped = realRuleRefs(op, { ...value } as Record<string, unknown>, realId, manifest.key);
+      // Several limits are stored as `{rules}`; one stays the object a released app has always written.
+      const stored = Array.isArray(value) ? { rules: value } : { ...value };
+      const mapped = realRuleRefs(op, stored as Record<string, unknown>, realId, manifest.key);
       const shape = shapeOwned(table, '', op);
       desired.push({ ref: table.ref, table: real.id, column: '', op, value: mapped.value, missing: mapped.missing, ...(shape === undefined ? {} : { shape }) });
     }

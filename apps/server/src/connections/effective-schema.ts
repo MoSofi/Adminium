@@ -18,7 +18,7 @@ import type {
   SemanticTag,
   TableModel,
 } from '@adminium/engine';
-import type { FormulaExpr } from '@adminium/manifest';
+import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
 import type { SchemaOverride } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
@@ -78,10 +78,31 @@ export interface ColumnFormatRule {
   pad?: number;
 }
 
+/** What renews a code: a change of a column, or a column moving to one of `values`. */
+export type CodeRenewTrigger = { column: string; changed: true } | { column: string; values: (string | number | boolean)[] };
+
 /** `column.code`: a short random code, Crockford base 32. */
 export interface ColumnCodeRule {
   prefix?: string;
   length: number;
+  /** A new code in the same write when a trigger fires (carried; not acted on yet). */
+  renew?: { on: CodeRenewTrigger | CodeRenewTrigger[] };
+}
+
+/** A condition a looked-up code's row must meet (see `column.lookup`). */
+export type CodeLookupWhere =
+  | { column: string; eq: string | number | boolean }
+  | { column: string; notBefore: 'now' | 'today'; orEmpty?: true }
+  | { column: string; notAfter: 'now' | 'today'; orEmpty?: true };
+
+/** `column.lookup`: a foreign key filled from a code typed into `from` (carried; not acted on yet). */
+export interface ColumnLookupRule {
+  from: string;
+  /** The codes table's id in the snapshot. */
+  table: string;
+  column: string;
+  where?: CodeLookupWhere[];
+  scope?: { column: string; equals: string; orEmpty?: true }[];
 }
 
 /** `column.rollup`: this column is the total of its child rows. */
@@ -272,6 +293,9 @@ export interface TableCapacityRule {
   cancelHours?: number | CapacitySetting;
 }
 
+/** One stored limit with its kind filled in; every table it names is its id in the snapshot. */
+export type EffectiveCapacityRule = CapacityRule & { kind: CapacityKind };
+
 /** A weekly-hours table the booking guard reads: the weekday and `HH:MM` text times. */
 export interface BookingHoursTable {
   /** The table's id in the snapshot. */
@@ -377,8 +401,10 @@ export interface EffectiveColumn extends ColumnModel {
   scale?: number | 'currency';
   /** `column.venueLocal`: a wall time with no zone is read on the venue's clock. */
   venueLocal?: boolean;
-  /** `column.normalize`: text stored trimmed (`trim`), or trimmed and in lower case (`email`). */
-  normalize?: 'trim' | 'email';
+  /** `column.normalize`: text stored trimmed (`trim`), or trimmed and in lower case (`email`), or as a code (`code`). */
+  normalize?: 'trim' | 'email' | 'code';
+  /** `column.lookup`: filled from a code a person types. */
+  lookup?: ColumnLookupRule;
   /** `column.bounds`: a date never later than today, never earlier than another date. */
   bounds?: { notAfter?: 'today'; notBefore?: { column: string; via?: string } };
 }
@@ -390,8 +416,17 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   icon?: string;
   excluded?: boolean;
   keyField?: string;
-  /** The booking guard (`table.capacity`). */
+  /**
+   * The booking guard (`table.capacity`), as today's guard reads it: set only
+   * when the stored value is the one slot rule a released app writes.
+   */
   capacity?: TableCapacityRule;
+  /**
+   * Every limit the table stores, in order, each with its `kind` filled
+   * (`slot` when the stored rule names none). A table whose `capacityRules`
+   * holds anything `capacity` does not is guarded by rules not yet enforced.
+   */
+  capacityRules?: EffectiveCapacityRule[];
   /** Booking people (`table.booking`). */
   booking?: TableBookingRule;
   /**
@@ -1050,7 +1085,13 @@ export function applyOverrides(
         break;
       }
       case 'table.capacity': {
-        if (table !== undefined) table.capacity = value as unknown as TableCapacityRule;
+        if (table === undefined) break;
+        const stored = value as unknown as CapacityRule | { rules: CapacityRule[] };
+        const rules = 'rules' in stored ? stored.rules : [stored];
+        table.capacityRules = rules.map((rule) => ({ ...rule, kind: rule.kind ?? 'slot' }) as EffectiveCapacityRule);
+        const { kind, ...rest } = ('rules' in stored ? {} : stored) as CapacityRule;
+        if ((kind === undefined || kind === 'slot') && isLegacyCapacity(rest as CapacityRule)) table.capacity = rest as unknown as TableCapacityRule;
+        else delete table.capacity;
         break;
       }
       case 'table.booking': {
@@ -1063,7 +1104,7 @@ export function applyOverrides(
       }
       case 'column.normalize': {
         const column = columnOf(table, row.columnName);
-        if (column !== undefined) column.normalize = value.normalize as 'trim' | 'email';
+        if (column !== undefined) column.normalize = value.normalize as 'trim' | 'email' | 'code';
         break;
       }
       case 'column.bounds': {
@@ -1195,6 +1236,11 @@ export function applyOverrides(
       case 'column.code': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.code = value as unknown as ColumnCodeRule;
+        break;
+      }
+      case 'column.lookup': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.lookup = value as unknown as ColumnLookupRule;
         break;
       }
       case 'llm.label': {
