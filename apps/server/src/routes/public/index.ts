@@ -62,9 +62,9 @@ import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '.
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
 import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
-import { publicWindows } from '../../public-api/moment-windows.js';
+import { publicWindows, withPublicWindows } from '../../public-api/moment-windows.js';
 import { timedRefusal } from '../../public-api/timed-refusals.js';
-import { announceEffects } from '../../states/effects.js';
+import { announceEffects, effectsOf } from '../../states/effects.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -3017,7 +3017,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const updated: { pk: Row; after: Row | null }[] = [];
             for (const [i, row] of preparedUpdates.entries()) {
               const pk = (updates[i] as { pk: Row }).pk;
-              const count = await updateRows(tdb, found.dialect, table, row.values, pk, inScope);
+              // A window read from moments is judged by the statement, holding the row, as for one change.
+              const count = await updateRows(tdb, found.dialect, table, withPublicWindows(row.values, resource.writableWhen, found.view, table, ok.key.scope.timezone), pk, inScope);
               if (count !== 1) throw new PublicWriteRefused();
               updated.push({ pk, after: null });
             }
@@ -3066,6 +3067,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             origin: 'public',
           });
         }
+        // The rows the batch's moves moved too (a stay's room), as changes of their own.
+        await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects: preparedUpdates.flatMap((row) => effectsOf(row.values)), origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
         await writes.afterEach('create', target, context, written.created.map((record) => ({ record, before: null })));
         await writes.afterEach(
           'update',

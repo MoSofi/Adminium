@@ -15,7 +15,8 @@
 import type { Moment, StateCondition } from '@adminium/manifest';
 
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
-import type { StateWindow } from '../crud/state-conditions.js';
+import type { Row } from '../crud/mask.js';
+import { attachWindows, type StateWindow } from '../crud/state-conditions.js';
 import { isMomentWindow, type MomentWindowEnd, type WritableState } from './relative-filters.js';
 
 /** An end of a window as a moment, its column given by the key when it names none. */
@@ -56,4 +57,19 @@ export function publicWindows(
     });
   }
   return out;
+}
+
+/**
+ * A prepared row with the entry's moment windows attached, for a statement
+ * written outside the write service's own update (a batch's): the statement
+ * judges them holding the row, as a single change is judged.
+ */
+export function withPublicWindows<T extends Row>(
+  values: T,
+  writableWhen: Readonly<Record<string, WritableState>>,
+  view: SnapshotView,
+  table: ResolvedTable,
+  zone: string,
+): T {
+  return attachWindows(values, publicWindows(writableWhen, view, table, zone));
 }

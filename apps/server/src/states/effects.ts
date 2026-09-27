@@ -14,7 +14,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { afterRecordWrite, type AfterRecordWriteInput } from '../crud/after-record-write.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import { pkLabel } from '../crud/records.js';
-import type { EffectWritten } from '../crud/states.js';
+import type { Row } from '../crud/mask.js';
+import { guardOf, type EffectWritten } from '../crud/states.js';
 
 export interface EffectsAnnouncement {
   connectionId: string;
@@ -42,4 +43,9 @@ export async function announceEffects(app: FastifyInstance, input: EffectsAnnoun
       origin: input.origin,
     });
   }
+}
+
+/** The rows a prepared row's moves moved too, once its statement has run (a batch's, a parent form's). */
+export function effectsOf(values: Row): EffectWritten[] {
+  return guardOf(values)?.effected ?? [];
 }
