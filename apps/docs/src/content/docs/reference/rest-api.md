@@ -110,7 +110,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
 | `/api/v1/connections/*` | 23 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
-| `/api/v1/data/*` | 16 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
+| `/api/v1/data/*` | 18 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
 | `/api/v1/documents/*` | 13 | Documents drawn from your own records — the register of what was issued, the bytes behind each one, and the mappings that say which columns make which document. A document keeps a frozen copy of what it was drawn from, so editing or deleting the source row never changes an invoice somebody already has. Reading one needs read access to every table its mapping uses; a caller without all of them is told the document exists and not what is in it. |
 | `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
 | `/api/v1/email-runs` | 1 | Campaign sends — cancel a scheduled or running run |
@@ -131,7 +131,7 @@ Forty-eight namespaces. Counts are operations, not paths.
 | `/api/v1/pages/*` | 15 | Pages and dashboards — layout, config, nav order, shared views, and what a template needs from a table (with a new table drafted to fit when none does) |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
 | `/api/v1/project/*` | 7 | A project folder on the server that runs one — which pages and schema customizations differ from the deployed files, settling a page changed on both sides, the changed copies `adminium pull --from` writes into the project, running the project’s actions, the built files of its own pages and widgets, and what Studio shows about the project |
-| `/api/v1/public/*` | 28 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public/*` | 31 | The scoped public API for customer- and staff-facing pages (off by default) |
 | `/api/v1/public-api/*` | 3 | Turn the public API on or off, and see whether this instance opted in |
 | `/api/v1/public-endpoints/*` | 5 | Build the endpoints a key can be granted — source, columns, filters, methods and limits |
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
@@ -354,6 +354,7 @@ POST /api/v1/data/{connectionId}/{table}
 POST /api/v1/data/undo/{token}
 POST /api/v1/data/{connectionId}/{table}/bulk
 GET /api/v1/data/{connectionId}/{table}/{recordId}/references
+POST /api/v1/data/{connectionId}/{table}/person
 GET /api/v1/data/{connectionId}/{table}/{recordId}/claim-lock
 DELETE /api/v1/data/{connectionId}/{table}/{recordId}/claim-lock
 POST /api/v1/data/{connectionId}/{table}/{recordId}/regenerate-code
@@ -363,6 +364,7 @@ DELETE /api/v1/data/{connectionId}/{table}/{recordId}
 GET /api/v1/data/{connectionId}/{table}/availability
 GET /api/v1/data/{connectionId}/{table}/booking-slots
 GET /api/v1/data/{connectionId}/{table}/capacity-counts
+GET /api/v1/data/{connectionId}/{table}/{recordId}/nightly
 GET /api/v1/data/{connectionId}/{table}/{recordId}/links/{relationId}
 POST /api/v1/data/{connectionId}/{table}/dry-run
 ```
@@ -633,6 +635,7 @@ POST /api/v1/public/claim/link/resend
 POST /api/v1/public/claim/link/peek
 POST /api/v1/public/claim/link/verify
 GET /api/v1/public/files/{ref}/{rowId}/{column}
+GET /api/v1/public/pictures/{keyId}/{ref}/{rowId}/{column}/{fileId}
 GET /api/v1/public/add-ons/{key}/settings
 GET /api/v1/public/challenge
 POST /api/v1/public/documents/render
@@ -640,6 +643,8 @@ GET /api/v1/public/documents
 GET /api/v1/public/documents/{id}
 GET /api/v1/public/documents/{id}/content
 POST /api/v1/public/documents/{id}/email
+POST /api/v1/public/session/revoke-all
+DELETE /api/v1/public/account
 DELETE /api/v1/public/session
 ```
 
