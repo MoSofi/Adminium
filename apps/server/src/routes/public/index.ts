@@ -1355,7 +1355,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * runs its own equality-only query against exactly the declared columns and
      * returns a grant or null, never a row.
      */
-    opts: { bypassClaimGate?: boolean; kind?: 'records' | 'availability' } = {},
+    opts: {
+      bypassClaimGate?: boolean;
+      kind?: 'records' | 'availability';
+      /**
+       * A create that may be a retry: the switch is read but not yet answered
+       * (`switchedOff`), so an order that exists replays even when online
+       * orders were switched off since. Its caller refuses anything new.
+       */
+      deferSwitch?: boolean;
+    } = {},
   ) => {
     const resource = ok.key.scope.byRef.get(ref);
     /*
@@ -1440,14 +1449,19 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * new patients online off, for a create nobody signed in for). Said
      * plainly: the page shows it and offers the phone.
      */
+    let switchedOff = false;
     if (action !== 'read') {
       const unsigned = ok.session === null || resource.claim === null;
       for (const setting of resource.requireSetting) {
         if (setting.when === 'anonymous' && !(unsigned && (action === 'create' || action === 'batch'))) continue;
         if (!(await switches.isOn(ok.key.connectionId, setting.table, setting.column))) {
-          fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');
-          return null;
+          switchedOff = true;
+          break;
         }
+      }
+      if (switchedOff && opts.deferSwitch !== true) {
+        fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');
+        return null;
       }
     }
     const { db, dialect } = handle;
@@ -1461,6 +1475,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       db,
       dialect,
       visibility: visibility as Visibility & { reachable: true },
+      /** Switched off in the app's settings, told only to a caller that deferred it: a retry may still replay. */
+      switchedOff,
       // A calendar filter (`today`) is worked out now, on the venue's clock.
       predicate: combinePredicates(combinePredicates(mandatoryAt(resource.where, table, ok.key.scope.timezone), claim.reachable ? claim.predicate : null), unlocked),
     };
@@ -1649,7 +1665,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const config = publicConfigOf(ok.key.scope);
         // Where this key's pictures are asked for: by the key's id, never its token (an `<img>` carries no key).
         const pictured = Object.values(config.refs).some((r) => (r.pictures ?? []).length > 0);
-        return reply.send({ data: pictured ? { ...config, pictures: `/api/v1/public/pictures/${ok.key.keyId}` } : config });
+        // The server's clock when this was answered, so a page on a device with a wrong clock asks for the venue's today — never kept.
+        const now = new Date().toISOString();
+        void reply.header('cache-control', 'no-store');
+        return reply.send({ data: pictured ? { ...config, now, pictures: `/api/v1/public/pictures/${ok.key.keyId}` } : { ...config, now } });
       },
     );
 
@@ -2096,6 +2115,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const { resource, view, table, dialect } = found;
       const ref = (request.params as { ref: string }).ref;
       const dry = mode === 'dry';
+      /*
+       * Switched off since the page opened: a retry of a create that went
+       * through replays it (below); anything else — a quote, a write with no
+       * retry key — is refused before anything is read.
+       */
+      const switchedOff = () => fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');
+      if (found.switchedOff && (dry || (resource.clientKey ?? null) === null || blankValue(body.values[resource.clientKey!]))) return switchedOff();
       // When this write began: a hold it lets go ends here, before anything of it is counted.
       const begun = new Date();
       const lists = resource.children ?? new Map<string, ScopeChild>();
@@ -2327,6 +2353,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? before.root), children: projectChildren(shown), replayed: true as const });
         }
       }
+      // Nothing to replay: a new create, and online creates are switched off.
+      if (found.switchedOff) return switchedOff();
 
       /** What the guest may be told of a refused row: where it is, and — for their own value — the column and why. */
       const writableAt = (at: TreePath): ReadonlySet<string> => (at.length === 0 ? resource.writable : new Set(entryAt(at)?.writable ?? []));
@@ -2625,10 +2653,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       async (request, reply) => {
         const ok = await gate(request, reply, 'public-write', { proof: 'create' });
         if (ok === null) return reply;
-        const found = await resolveResource(request, reply, ok, request.params.ref, 'create');
+        // A retry of a create that went through replays even once creates are switched off: the tree path says which.
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'create', { deferSwitch: true });
         if (found === null) return reply;
         // An entry with child rows, a dry run, a price check, a retry key or a person found by address: the one tree path, rows below or none.
         if (treeEntry(found.resource)) return treeWrite(request, reply, ok, found, 'save', request.body);
+        if (found.switchedOff) return fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');
         if (request.body.children !== undefined || request.body.expect !== undefined || request.body.replaces !== undefined) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         }

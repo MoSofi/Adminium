@@ -116,6 +116,8 @@ export const publicConfigReply = z.object({
     side: z.enum(['staff', 'customer']),
     /** IANA zone. The client builds every day/minute conversion from this. */
     timezone: z.string(),
+    /** The server's clock when this was answered (ISO): a page whose device clock is wrong still asks for the venue's today. */
+    now: z.string(),
     /** ISO-4217, or null when this scope serves no money. */
     currency: z.string().nullable(),
     claim: z
