@@ -2092,11 +2092,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           throw error;
         }
       }
+      // Rows that follow what it moves (a room's tasks, its state copied in): brought into step in the same write,
+      // taken after the row itself as a single change takes them; refused by name first when the role may not write them.
+      const following = followsFrom(rules, checked) && movedFollows(rules, { ...before, ...checked }, before).length > 0;
       if (quote) {
         // Judged as its statement judges it — its move, its lock — and written nowhere.
         await guardedUpdate(db, within.dialect, within.table, checked, pk, async () => 1);
+        if (following) await followAndSettle(within, rules, before, { ...before, ...checked }, currencyFor(within), 'dry');
         return { table: link.table, pk, before, after: { ...before, ...checked } };
       }
+      if (following) await refuseUngrantedFollow(within, rules);
       const currency = currencyFor(within);
       // The totals it climbs into move only when it writes what they read; its own balances when it writes theirs.
       const rolls = movesTotal(rules, rules?.rollupsInto ?? [], checked);
@@ -2107,6 +2112,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const count = await updateRows(db, within.dialect, within.table, checked, pk);
       if (count === 0) return null;
       let after = (await fetchByPk(db, within.table, pk)) ?? null;
+      if (following && after !== null) {
+        await followAndSettle(within, rules, before, after, currency, 'save');
+        after = (await fetchByPk(db, within.table, pk)) ?? null;
+      }
       if (rolls || ownMoved.length > 0) {
         if (rolls) await settleRows(rules, within, [{ record: after, before }], currency, held);
         if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, checked, currency, ownBefore);
