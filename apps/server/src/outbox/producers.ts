@@ -84,6 +84,7 @@ import { venueClock } from '../crud/venue-time.js';
 import { outboxContext } from './context.js';
 import { notDropped } from './dropped.js';
 import { producedLanguage } from './language.js';
+import { repeatKeyOf } from './repeat-key.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
 
@@ -399,11 +400,15 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         // A message dropped while it waited (the move taken back) does not stop the next one.
         seen = seen.where(notDropped(cols, producer) as never);
       }
+      // One per value of the row's repeat column (an offer's own link): a second offer is a second message.
+      const repeat = repeatKeyOf(box.definition, producer, about.row);
+      if (repeat !== undefined) seen = repeat.key === null ? seen.where(repeat.column as never, 'is', null) : seen.where(repeat.column as never, '=', repeat.key as never);
       if ((await seen.executeTakeFirst()) !== undefined) return null;
 
       // The links the template reads through, and the recipient's.
       const recipient = box.definition.recipient;
       const values: Row = { [cols.kind]: producer.kind, [producer.link]: about.row[aboutKey] };
+      if (repeat !== undefined) values[repeat.column] = repeat.key;
       await fillLinks(db, view, box.definition, outbox, about, values, producer.link);
       if (cols.due !== undefined) {
         let due: number | null | undefined;
@@ -754,6 +759,13 @@ export async function verdictsFor(
     const reason = dropReason(producer.dropWhen, linked?.row ?? null);
     if (reason !== null) {
       out.set(row, { skip: reason });
+      continue;
+    }
+    // Sent once per value of the row's repeat column: a message for a value the row no longer holds (an
+    // offer that lapsed, offered again since) is overtaken by the message for the new one.
+    const repeat = linked === null ? undefined : repeatKeyOf(definition, producer, linked.row);
+    if (repeat !== undefined && !sameValue(row[repeat.column] ?? null, repeat.key)) {
+      out.set(row, { skip: 'overtaken' });
       continue;
     }
     if (producer.due !== undefined && !approved && !batched && linked !== null && cols.due !== undefined) {

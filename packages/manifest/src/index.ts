@@ -104,6 +104,7 @@ export {
 
 export {
   OUTBOX_WRITTEN,
+  REPEAT_KEY_LENGTH,
   clockShaped,
   rulesReading,
   OUTBOX_HELD,

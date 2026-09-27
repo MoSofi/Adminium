@@ -151,6 +151,13 @@ const producerBase = {
    */
   holdSeconds: z.number().int().min(1).max(3600).optional(),
   /**
+   * A column of the row the message is about: one message for each value it
+   * holds, not one for the row for ever — a ticket offered again, its link
+   * made afresh, is emailed again. Kept as a digest in the outbox's
+   * `repeatKey` column.
+   */
+  repeatBy: refSchema.optional(),
+  /**
    * A change made once the message has gone, through the ordinary write: to
    * the source row, or (with `via`) the row its foreign key points at.
    */
@@ -267,6 +274,8 @@ export const outboxSchema = z
         /** When `onSent`'s change was made, or why it was refused. */
         effectAt: refSchema.optional(),
         effectError: refSchema.optional(),
+        /** A text column (at least 43 characters) Adminium fills with the digest of a producer's `repeatBy` value. */
+        repeatKey: refSchema.optional(),
       })
       .strict(),
     /**
@@ -369,6 +378,9 @@ export type EmailTemplate = z.infer<typeof emailTemplateSchema>;
 const DECIDING_RULES = ['copy', 'default', 'sequence', 'format', 'code', 'rollup', 'formula', 'stamp', 'perNight'] as const;
 /** The column rules that refuse a value: Adminium's own writes to the column would be refused by them. */
 const REFUSING_RULES = ['options', 'validation', 'required', 'requiredWhen', 'notAfter', 'notBefore'] as const;
+/** How long a `repeatKey` is: a SHA-256 digest in base64url. */
+export const REPEAT_KEY_LENGTH = 43;
+
 /** What the outbox writes, and which rules each refuses: everything, but a check of the address a person types. */
 export const OUTBOX_WRITTEN = {
   status: [...DECIDING_RULES, ...REFUSING_RULES],
@@ -378,6 +390,7 @@ export const OUTBOX_WRITTEN = {
   approvedBy: [...DECIDING_RULES, ...REFUSING_RULES],
   effectAt: [...DECIDING_RULES, ...REFUSING_RULES],
   effectError: [...DECIDING_RULES, ...REFUSING_RULES],
+  repeatKey: [...DECIDING_RULES, ...REFUSING_RULES],
   // Left empty by a desk that asks Adminium to look the address up, and written when it sends.
   to: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
   language: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
@@ -487,6 +500,12 @@ export function outboxIssues(
     if (ref !== undefined) col(box.table, ref, name === 'skipReason' ? ['text', 'enum'] : ['text'], at('columns', name), 'a text column');
   }
   if (box.columns.effectAt !== undefined) col(box.table, box.columns.effectAt, ['timestamptz'], at('columns', 'effectAt'), 'a timestamptz');
+  if (box.columns.repeatKey !== undefined) {
+    const found = col(box.table, box.columns.repeatKey, ['text'], at('columns', 'repeatKey'), 'a text column');
+    if (found !== undefined && found.maxLength !== undefined && found.maxLength < REPEAT_KEY_LENGTH) {
+      out.push({ path: at('columns', 'repeatKey'), message: `"${box.table}.${found.ref}" must hold ${REPEAT_KEY_LENGTH} characters (a digest)` });
+    }
+  }
   /*
    * The columns Adminium writes as it sends and as a person approves or skips
    * a message — and the address and language it writes when it looks them up.
@@ -658,6 +677,13 @@ export function outboxIssues(
       if (box.columns.due === undefined) out.push({ path: here('holdSeconds'), message: 'a message waits in the outbox\'s due column, and none is named' });
       const other = producer.hold === true ? 'hold' : producer.due !== undefined ? 'due' : producer.batchMinutes !== undefined ? 'batchMinutes' : 'before' in producer ? 'before' : null;
       if (other !== null) out.push({ path: here('holdSeconds'), message: `a message that waits a few seconds takes no ${other} as well` });
+    }
+    // One message per value of a column of the row it is about: kept as a digest in the outbox.
+    if (producer.repeatBy !== undefined) {
+      col(linked, producer.repeatBy, null, here('repeatBy'), '');
+      if (box.columns.repeatKey === undefined) out.push({ path: here('repeatBy'), message: 'which value a message was sent for is kept in the outbox\'s repeatKey column, and none is named' });
+      const other = 'before' in producer ? 'before' : producer.batchMinutes !== undefined ? 'batchMinutes' : null;
+      if (other !== null) out.push({ path: here('repeatBy'), message: `a message sent again for each value takes no ${other}: that is one per row or window already` });
     }
     if (producer.recipient !== undefined) {
       if ('setting' in producer.recipient) setting(producer.recipient.setting, here('recipient', 'setting'));

@@ -216,6 +216,7 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
   it.skipIf(!available)('gives a lapsed offer that goes to someone else a new link: the first friend opens, reads and accepts nothing', async () => {
     const [, second] = tickets;
     expect((await send(second!.id, 'lee@friends.org', 'Lee')).statusCode).toBe(200);
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
     const leeToken = String((await row(second!.id))['link_token']);
     const lee = await openLink(leeToken);
     expect(lee.status).toBe(200);
@@ -235,6 +236,31 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     const after = await row(second!.id);
     expect([after['status'], after['holder_customer_id'], after['pending_email']]).toEqual(['offered', null, 'zoe@friends.org']);
     expect(await h.rows(`select id from ${t('customers')} where email = 'zoe@friends.org'`)).toEqual([]);
+    // Each offer is emailed: Lee his link, Zoe hers.
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const zoeToken = String(now['link_token']);
+    const carries = (to: string, token: string) => sealedOf(h).then((all) => all.filter((m) => m.to === to && (m.text.includes(token) || m.qr.includes(token))).length);
+    expect(await carries('lee@friends.org', leeToken)).toBe(1);
+    expect(await carries('zoe@friends.org', zoeToken)).toBe(1);
+    // Offered to Lee again once Zoe's lapses: a new link, and a new email carrying it.
+    await lapse();
+    expect((await send(second!.id, 'lee@friends.org', 'Lee')).statusCode).toBe(200);
+    const again = String((await row(second!.id))['link_token']);
+    expect(again).not.toBe(leeToken);
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect(await carries('lee@friends.org', again)).toBe(1);
+    // Sent once each: nothing sent twice for one offer.
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect((await sealedOf(h)).filter((m) => m.to === 'lee@friends.org' || m.to === 'zoe@friends.org')).toHaveLength(3);
+    // An offer that lapsed before its email went, offered on since, is never emailed: the new offer is.
+    await lapse();
+    expect((await send(second!.id, 'ivy@friends.org', 'Ivy')).statusCode).toBe(200);
+    await lapse();
+    expect((await send(second!.id, 'lee@friends.org', 'Lee')).statusCode).toBe(200);
+    const last = String((await row(second!.id))['link_token']);
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect((await sealedOf(h)).filter((m) => m.to === 'ivy@friends.org')).toEqual([]);
+    expect(await carries('lee@friends.org', last)).toBe(1);
   });
 
   it.skipIf(!available)("binds a friend's session to the address the link went to, whatever else changes on the row", async () => {
