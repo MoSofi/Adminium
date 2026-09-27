@@ -62,6 +62,8 @@ export function blockLabel(kind: EmailBlockKind | string): string {
       return t('email:blocks.refund-policy.label', 'Refund policy');
     case 'email.contact':
       return t('email:blocks.contact.label', 'Contact block');
+    case 'email.rows':
+      return t('email:blocks.rows.label', 'Rows');
     default:
       return t('email:blocks.unknown.label', 'Section');
   }
@@ -121,6 +123,8 @@ export function blockHint(kind: EmailBlockKind | string): string {
       return t('email:blocks.refund-policy.hint', 'Returns and refunds');
     case 'email.contact':
       return t('email:blocks.contact.hint', 'Support details');
+    case 'email.rows':
+      return t('email:blocks.rows.hint', "Rows an app's email lists");
     default:
       return '';
   }

@@ -144,6 +144,9 @@ const loose = z.object({}).passthrough();
 
 const rowOf = <T extends z.ZodRawShape>(shape: T) => z.array(z.object(shape).passthrough()).max(100);
 
+/** A column of a table an app's block names. */
+const columnRef = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).max(128);
+
 /**
  * What each known kind's `data` must look like. LENIENT on purpose: strings
  * may be empty (the comp's defaults are placeholders the author overwrites),
@@ -166,6 +169,9 @@ export const EMAIL_BLOCK_DATA_SCHEMAS: Readonly<Record<EmailBlockKind, z.ZodType
     url: z.string().max(2000).optional(),
     fileId: z.string().max(36).nullable().optional(),
     height: num.optional(),
+    /** A QR code of a code, as the whole value: `{{ticket.code.qr}}`. */
+    qr: z.string().max(120).optional(),
+    size: num.optional(),
   }),
   'email.two-col': loose.extend({ a: text.optional(), b: text.optional() }),
   'email.list': loose.extend({ items: z.array(short).max(50).optional() }),
@@ -205,6 +211,33 @@ export const EMAIL_BLOCK_DATA_SCHEMAS: Readonly<Record<EmailBlockKind, z.ZodType
     kicker: short.optional(),
     steps: rowOf({ label: short.optional(), status: z.enum(['todo', 'current', 'done']).optional() }).optional(),
   }),
+  // Written by an app's install (its tables by their real names), never picked in the editor: strict, so a
+  // stored shape the sender would misread is refused where it is saved. A block with no `from` lists nothing.
+  'email.rows': z
+    .object({
+      from: z
+        .object({
+          link: z.string().regex(/^[a-z][a-z_]*$/),
+          table: z.string().min(1).max(256),
+          via: columnRef,
+          orderBy: columnRef.optional(),
+          where: z.object({ column: columnRef, in: z.array(z.union([z.string().max(200), z.number(), z.boolean()])).min(1).max(32) }).strict().optional(),
+          unless: columnRef.optional(),
+          limit: z.number().int().min(1).max(50).optional(),
+        })
+        .strict()
+        .optional(),
+      joins: z
+        .record(
+          columnRef,
+          z.object({ table: z.string().min(1).max(256), via: columnRef, column: columnRef, orderBy: columnRef.optional(), separator: z.string().min(1).max(8).optional() }).strict(),
+        )
+        .refine((joins) => Object.keys(joins).length >= 1 && Object.keys(joins).length <= 2)
+        .optional(),
+      row: z.object({ title: short.optional(), meta: short.optional(), amount: short.optional(), note: short.optional(), image: short.optional() }).strict().optional(),
+      empty: z.string().max(200).optional(),
+    })
+    .strict(),
 };
 
 // --- validation ------------------------------------------------------------------------

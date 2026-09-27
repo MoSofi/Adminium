@@ -25,6 +25,7 @@
  * for every amount a currency can express.
  */
 
+import { qrCarries, qrPngDataUrl, qrRows } from '../qr/index.js';
 import { currencyScale } from '@adminium/manifest';
 import type { RecordRef } from '@adminium/meta';
 
@@ -86,7 +87,9 @@ export type SlotType =
   | 'percent'
   | 'currency'
   | 'number'
-  | 'collection';
+  | 'collection'
+  /** A QR code of a short text (a ticket's code): `{text, modules, png}`, drawn here, so a provider needs no encoder. */
+  | 'qr';
 
 export interface SubjectSlot {
   id: string;
@@ -228,6 +231,12 @@ export function coerceSlot(type: SlotType, value: unknown, moneyScale = 2, timez
       // Rows are coerced column by column by the caller; a collection slot
       // itself never holds a scalar.
       return null;
+    case 'qr': {
+      // The code's text alone, at most 64 bytes; anything else draws no code (and a required slot is missing).
+      const text = value === null || value === undefined ? '' : toText(value).trim();
+      if (!qrCarries(text)) return null;
+      return { text, modules: qrRows(text), png: qrPngDataUrl(text) };
+    }
     default:
       return toText(value);
   }
