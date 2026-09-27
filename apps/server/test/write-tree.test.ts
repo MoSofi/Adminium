@@ -8,68 +8,9 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { Row } from '../src/crud/mask.js';
-import type { TreeNode, TreeOutcome } from '../src/crud/write-tree.js';
-import type { WriteContext } from '../src/crud/write-service.js';
-import { normalizeWriteValue } from '../src/crud/write-values.js';
+import type { TreeOutcome } from '../src/crud/write-tree.js';
 import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
-import { MENU, orderManifest } from './order-tree-fixture.js';
-
-type Writer = Awaited<ReturnType<typeof writerFor>>;
-interface Line {
-  item: number;
-  qty?: number;
-  mods?: number[];
-  note?: string;
-}
-
-const cents = (value: unknown): string | null => (value === null || value === undefined ? null : Number(value).toFixed(2));
-
-function valuesFor(w: Writer, ref: string, values: Row): Row {
-  const table = w.targetOf(ref).table;
-  return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, normalizeWriteValue(table.columns.get(k)!, v)]));
-}
-
-/** An order as a door hands it over: its lines in request order, each with its options. */
-export function orderTree(w: Writer, lines: readonly Line[], root: Row = { email: 'ada@example.com', name: 'Ada', customer_id: 1 }): TreeNode {
-  return {
-    name: 'orders',
-    target: w.targetOf('orders'),
-    values: valuesFor(w, 'orders', root),
-    at: [],
-    lists: ['order_items'],
-    children: lines.map((line, i) => ({
-      name: 'order_items',
-      target: w.targetOf('order_items'),
-      values: valuesFor(w, 'order_items', { menu_item_id: line.item, qty: line.qty ?? 1, ...(line.note === undefined ? {} : { note: line.note }) }),
-      via: { column: 'order_id', parentKey: 'id' },
-      position: 'position',
-      at: ['order_items', i],
-      lists: ['order_item_modifiers'],
-      children: (line.mods ?? []).map((modifier, j) => ({
-        name: 'order_item_modifiers',
-        target: w.targetOf('order_item_modifiers'),
-        values: valuesFor(w, 'order_item_modifiers', { modifier_id: modifier }),
-        via: { column: 'order_item_id', parentKey: 'id' },
-        at: ['order_items', i, 'order_item_modifiers', j],
-        children: [],
-      })),
-    })),
-  };
-}
-
-export async function writeTree(w: Writer, root: TreeNode, mode: 'save' | 'dry' = 'save', context: WriteContext = w.desk, more: Partial<Parameters<Writer['writes']['createTree']>[0]> = {}): Promise<TreeOutcome> {
-  return w.writes.createTree({
-    root,
-    context,
-    mode,
-    announce: async () => {},
-    mapError: (error) => {
-      throw error;
-    },
-    ...more,
-  });
-}
+import { cents, MENU, orderManifest, orderTree, writeTree, type Writer } from './order-tree-fixture.js';
 
 /** Rows in every table the tree writes, and the order numbers taken. */
 async function counts(h: InvoicingHarness): Promise<Record<string, number>> {

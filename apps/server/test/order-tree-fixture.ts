@@ -7,7 +7,11 @@
  * the subtotal. Installed through the real installer by the tests of a create
  * with its child rows and of totals that climb.
  */
-import { invoicingManifest } from './invoicing-install.helpers.js';
+import type { Row } from '../src/crud/mask.js';
+import type { WriteContext } from '../src/crud/write-service.js';
+import type { TreeNode, TreeOutcome } from '../src/crud/write-tree.js';
+import { normalizeWriteValue } from '../src/crud/write-values.js';
+import { invoicingManifest, type writerFor } from './invoicing-install.helpers.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120, more: Record<string, unknown> = {}) => ({ ref, type: 'text', maxLength, ...more });
@@ -88,3 +92,61 @@ export const MENU = [
   "INSERT INTO kitchen_modifier_groups (id, item_id, name, min, max) VALUES (1, 1, 'Size', 1, 1), (2, 2, 'Extras', 0, 2)",
   "INSERT INTO kitchen_modifiers (id, group_id, name, price) VALUES (1, 1, 'Small', 0), (2, 1, 'Large', 4), (3, 2, 'Feta', 1.5), (4, 2, 'Olives', 1.5), (5, 2, 'Egg', 1.5)",
 ];
+
+export type Writer = Awaited<ReturnType<typeof writerFor>>;
+export interface Line {
+  item: number;
+  qty?: number;
+  mods?: number[];
+  note?: string;
+}
+
+function valuesFor(w: Writer, ref: string, values: Row): Row {
+  const table = w.targetOf(ref).table;
+  return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, normalizeWriteValue(table.columns.get(k)!, v)]));
+}
+
+/** An order as a door hands it over: its lines in request order, each with its options. */
+export function orderTree(w: Writer, lines: readonly Line[], root: Row = { email: 'ada@example.com', name: 'Ada', customer_id: 1 }): TreeNode {
+  return {
+    name: 'orders',
+    target: w.targetOf('orders'),
+    values: valuesFor(w, 'orders', root),
+    at: [],
+    lists: ['order_items'],
+    children: lines.map((line, i) => ({
+      name: 'order_items',
+      target: w.targetOf('order_items'),
+      values: valuesFor(w, 'order_items', { menu_item_id: line.item, qty: line.qty ?? 1, ...(line.note === undefined ? {} : { note: line.note }) }),
+      via: { column: 'order_id', parentKey: 'id' },
+      position: 'position',
+      at: ['order_items', i],
+      lists: ['order_item_modifiers'],
+      children: (line.mods ?? []).map((modifier, j) => ({
+        name: 'order_item_modifiers',
+        target: w.targetOf('order_item_modifiers'),
+        values: valuesFor(w, 'order_item_modifiers', { modifier_id: modifier }),
+        via: { column: 'order_item_id', parentKey: 'id' },
+        at: ['order_items', i, 'order_item_modifiers', j],
+        children: [],
+      })),
+    })),
+  };
+}
+
+export async function writeTree(w: Writer, root: TreeNode, mode: 'save' | 'dry' = 'save', context: WriteContext = w.desk, more: Partial<Parameters<Writer['writes']['createTree']>[0]> = {}): Promise<TreeOutcome> {
+  return w.writes.createTree({
+    root,
+    context,
+    mode,
+    announce: async () => {},
+    mapError: (error) => {
+      throw error;
+    },
+    ...more,
+  });
+}
+
+
+/** A money value as the text a person reads: `12.50`. */
+export const cents = (value: unknown): string | null => (value === null || value === undefined ? null : Number(value).toFixed(2));
