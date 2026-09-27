@@ -185,7 +185,8 @@ const NONE: Counted = { counts: false, held: false, kept: false };
 /** Whether a row counts, from the context's point of view. */
 export async function countsNow(rule: Rule, row: Row, owner: Row | null, ctx: CountContext, mode: CountMode = 'exact'): Promise<Counted> {
   if (!conditionsHold(rule, row, owner)) return NONE;
-  if (isKept(rule, row, owner)) return ctx.origin === 'public' ? { counts: true, held: false, kept: true } : NONE;
+  // Kept back from the public: counted against a guest; for staff not counted, only told apart.
+  if (isKept(rule, row, owner)) return { counts: ctx.origin === 'public', held: false, kept: true };
   if (!inHold(rule, row, owner)) return { counts: true, held: false, kept: false };
   if (mode === 'before-naming') return NONE;
   if (mode === 'after-naming') return { counts: true, held: true, kept: false };

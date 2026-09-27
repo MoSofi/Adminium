@@ -129,5 +129,34 @@ for (const [dialect, available] of LEGS) {
       await confirm;
       expect(await standard()).toMatchObject({ taken: 246, held: 0 });
     });
-  });
+  
+    it("holds a waitlist offer's places until the offer's own end, twelve hours on, then no more", async () => {
+      w = await neon(dialect);
+      // Staff offer Mia two places, held until the offer ends; her order has no hold of its own.
+      await w.seed('waitlist', [{ id: 1, email: 'mia@example.com', offered_until: later(12 * 60) }]);
+      const offer = await w.create('orders', { status: 'offered', held_until: null, waitlist_id: 1 });
+      for (let i = 0; i < 2; i += 1) await w.create('tickets', { order_id: offer['id'], ticket_type_id: 1 });
+      vi.setSystemTime(new Date(NOW.getTime() + (11 * 60 + 59) * 60_000));
+      // Order 2's ten-minute hold is long over; the offer still holds its two.
+      expect(await standard()).toMatchObject({ taken: 245, held: 2 });
+      vi.setSystemTime(new Date(NOW.getTime() + 12 * 60 * 60_000));
+      expect(await standard()).toMatchObject({ taken: 243, held: 0 });
+    });
+
+    it('keeps returned places from the public, and lets staff hand them on', async () => {
+      w = await neon(dialect);
+      await w.query('update ticket_types set capacity = 246 where id = 1');
+      // Two of the paid tickets came back: returned, kept for the waitlist.
+      await w.query(`update tickets set status = 'returned' where id in (1, 2)`);
+      const order = await w.create('orders', { status: 'held', held_until: later(10) });
+      expect(await refusal(w.create('tickets', { order_id: order['id'], ticket_type_id: 1 }, 'public'))).toMatchObject({ code: 'CAPACITY_FULL' });
+      // Staff offer them on: the kept places are theirs to give.
+      expect(await refusal(w.create('tickets', { order_id: order['id'], ticket_type_id: 1 }, 'dashboard'))).toBe('ok');
+      expect(await refusal(w.create('tickets', { order_id: order['id'], ticket_type_id: 1 }, 'dashboard'))).toBe('ok');
+      expect(await refusal(w.create('tickets', { order_id: order['id'], ticket_type_id: 1 }, 'dashboard'))).toMatchObject({ code: 'CAPACITY_FULL' });
+      const target = await w.target('tickets');
+      const [staffView] = await capacityState(target.db, target, { rule: 0, keys: ['1'] }, new Date());
+      expect(staffView).toMatchObject({ taken: 246, kept: 2 });
+    });
+});
 }

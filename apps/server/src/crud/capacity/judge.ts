@@ -321,10 +321,14 @@ async function tally(
   }
   const add = async (row: Row, owner: Row | null, mineRow: boolean) => {
     const counted = await countsNow(rule, row, owner, ctx);
-    if (!counted.counts) return;
+    if (!counted.counts && !counted.kept) return;
     for (const unit of await unitsOf(rule, row, owner, ctx)) {
       const found = out.get(poolId(rule, unit));
       if (found === undefined) continue;
+      if (!counted.counts) {
+        found.kept += unit.amount;
+        continue;
+      }
       found.taken += unit.amount;
       if (counted.held) found.held += unit.amount;
       if (counted.kept) found.kept += unit.amount;
