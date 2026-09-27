@@ -27,7 +27,10 @@
  *    it did not (a restored order is never refused by a later pause), or when
  *    it leaves a hold for a state that counts with no end — a confirm racing
  *    its hold's end must be counted under the pool's lock, or a buyer who
- *    took the lapsed places would be sold them twice.
+ *    took the lapsed places would be sold them twice. Such a row takes no new
+ *    place, so the places kept back from the public (a waitlist's) are
+ *    counted against it as staff count them: they are the places it was
+ *    offered, and would otherwise count twice.
  *
  * A row belonging to another (a ticket of an order) counts by its owner's
  * state too — and a row held until a moment read elsewhere (an order held
@@ -137,6 +140,8 @@ interface Need {
   grew: boolean;
   /** It counts after the write. */
   counts: boolean;
+  /** Counted again only because it leaves a hold: it takes no new place. */
+  leaving?: boolean;
 }
 
 const NO_NEED: Need = { need: 'none', grew: false, counts: false };
@@ -186,7 +191,7 @@ async function needOf(
   if (await moved(rule, before, row, ownerBefore, ownerAfter, ctx)) return { need: 'full', grew: true, counts: true };
   if (amountOf(rule, row) > amountOf(rule, before)) return { need: 'count', grew: true, counts: true };
   // Out of a hold, into a state that counts with no end: counted again, under the lock.
-  if (inHold(rule, before, ownerBefore) && !inHold(rule, row, ownerAfter)) return { need: 'count', grew: false, counts: true };
+  if (inHold(rule, before, ownerBefore) && !inHold(rule, row, ownerAfter)) return { need: 'count', grew: false, counts: true, leaving: true };
   return { need: 'none', grew: false, counts: true };
 }
 
@@ -367,6 +372,8 @@ interface Judged {
   units: Unit[];
   /** A stay whose guest has arrived, and stays so: judged from the venue's today on. */
   begun?: boolean;
+  /** Counted again only because it leaves a hold. */
+  leaving?: boolean;
 }
 
 const poolId = (rule: Rule, ask: PoolAsk) => `${rule.table.id}\u0000${String(rule.index)}\u0000${ask.part}\u0000${ask.key}\u0000${ask.at ?? ''}`;
@@ -584,13 +591,13 @@ export async function judgeCapacity(db: Db, rows: readonly JudgedRow[], opts: Ca
           }
         }
       }
-      const { need, grew, counts } = await needOf(rule, subject.row, subject.before, ownerAfter, ownerBefore, ctx, false, subject.sent, ctxBefore);
+      const { need, grew, counts, leaving } = await needOf(rule, subject.row, subject.before, ownerAfter, ownerBefore, ctx, false, subject.sent, ctxBefore);
       if (need !== 'none') requireHeld(await namesOf(rule, subject.target, subject.row, zone, reads, false));
       // A stay whose guest arrived before this write and is still there after it: the nights already slept are not judged again.
       const begun = subject.reach === undefined && subject.before !== null && hasArrived(rule, subject.before, ownerBefore) && hasArrived(rule, subject.row, ownerAfter);
       const today = venueClock(now, zone).day;
       const units = need === 'none' ? [] : (await unitsOf(rule, subject.row, ownerAfter, ctx)).filter((unit) => !begun || unit.at === undefined || unit.at >= today);
-      judged.push({ subject, rule, need, grew, counts, ownerAfter, ownerBefore, units, begun });
+      judged.push({ subject, rule, need, grew, counts, ownerAfter, ownerBefore, units, begun, leaving: leaving === true });
     }
   }
 
@@ -629,7 +636,10 @@ export async function judgeCapacity(db: Db, rows: readonly JudgedRow[], opts: Ca
     for (const j of list) for (const unit of j.units) asks.set(poolId(rule, unit), { part: unit.part, key: unit.key, at: unit.at });
     if (asks.size === 0) continue;
     const zone = zoneOf(list[0]!.subject.target);
-    const ctx: CountContext = { reads, now, origin, zone };
+    // Rows that only leave a hold take no new place: the places kept back from the public (a waitlist's) are the ones
+    // such a row was offered, so they are counted as staff count them — else an offer's places count twice.
+    const leavingOnly = list.every((j) => j.need === 'none' || j.leaving === true);
+    const ctx: CountContext = { reads, now, origin: leavingOnly ? 'staff' : origin, zone };
     const mine = list.map((j) => ({ row: j.subject.row, owner: j.ownerAfter, counted: true }));
     const counted = await tally(rule, [...asks.values()], ctx, listedKeys.get(rule.table.id) ?? [], mine);
     for (const t of counted.values()) {
