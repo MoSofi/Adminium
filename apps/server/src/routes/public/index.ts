@@ -3300,6 +3300,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   withholds: () => recentWithholdsOn(meta, ok.key.connectionId),
                   spell: (row, of) => wallTimesAsInstants(row, of.columns, found.dialect),
                   unmasked: (child) => readsOwnPii(child, ok.session),
+                  // As the child's own list reads it: reachable through its parents, at its level, by its filters and its claim; never one read only with a code.
+                  readable: (child, own) => {
+                    if (child.unlockBy !== null && child.unlockBy !== undefined) return null;
+                    if (child.level === 'verified' && ok.session?.level !== 'verified') return null;
+                    if (!visibilityOf({ scope: ok.key.scope, resource: child, session: ok.session, view: found.view }).reachable) return null;
+                    const claim = claimPredicateFor(child, ok.session);
+                    if (!claim.reachable) return null;
+                    return { predicate: combinePredicates(mandatoryAt(child.where, own, ok.key.scope.timezone), claim.predicate) };
+                  },
                 });
           return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }), ...(children === undefined ? {} : { children }) });
         }

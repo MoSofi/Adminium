@@ -19,6 +19,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import type { TableRules } from '../crud/column-rules.js';
 import { followChanged } from '../crud/follow.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import { compileFilter, type RecordFilter } from '../crud/filters.js';
 import { maskRow, type Row } from '../crud/mask.js';
 import type { PublicSessionContext } from './claim.js';
 import type { CompiledResource, CompiledScope } from './scope.js';
@@ -46,6 +47,12 @@ export async function quoteChildren(input: {
   spell: (row: Row, table: ResolvedTable) => Row;
   /** Whether this session reads an entry's personal columns in clear (its own rows, verified). */
   unmasked: (resource: CompiledResource) => boolean;
+  /**
+   * The rows of a child entry this session's list of it would show: its
+   * filters and its claim, as the list reads them — or null when the session
+   * could not list it at all (its level, a code it needs). Never more.
+   */
+  readable: (resource: CompiledResource, table: ResolvedTable) => { predicate: RecordFilter | null } | null;
 }): Promise<Record<string, { data: Row }[]> | undefined> {
   const { db, view } = input;
   // The entries this row's table is a parent to, on this key.
@@ -65,7 +72,14 @@ export async function quoteChildren(input: {
     const link = child.visibleWith!;
     const key = input.after[link.foreignColumn];
     if (key === null || key === undefined || !own.columns.has(link.localColumn)) continue;
+    // Only what the guest's own list of these rows shows: a row it filters out is no row of the quote either.
+    const readable = input.readable(child, own);
+    if (readable === null) continue;
     let query = db.selectFrom(own.id).selectAll().where(db.dynamic.ref(link.localColumn), '=', key as never);
+    const predicate = readable.predicate;
+    if (predicate !== null) {
+      query = query.where((eb) => compileFilter(eb as never, { view, table: own, canReadPii: false, dynamic: db.dynamic, dialect: input.dialect }, predicate) as never);
+    }
     for (const column of own.primaryKey) query = query.orderBy(column as never);
     const stored = (await query.limit(ROWS_MAX).execute()) as Row[];
     const moved = new Map<string, Row>();
