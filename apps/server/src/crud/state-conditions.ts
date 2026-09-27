@@ -147,18 +147,36 @@ export interface LinkedHold {
 const holdKey = (link: Pick<StateLink, 'table' | 'key'>, value: unknown) => `${link.table}\u0000${link.key}\u0000${String(value)}`;
 
 /**
- * Two keys in the order a database returns them sorted: whole numbers as
- * numbers (9 before 10, as `ORDER BY` a number column holds them), anything
- * else as text. Every writer that holds several rows of one table takes them
- * in this order — the linked rows here, a document's parents, the rows a
- * total climbs into — so two writers never take the same two crosswise.
+ * The rows of one table a write holds, by key: taken in ONE statement, in the
+ * order the database sorts the keys (`ORDER BY`) — as the rows a total climbs
+ * into and a tree's linked rows are — never one by one in an order worked
+ * out here: a text key's order is the column's collation (case, accents,
+ * punctuation), which only the database knows. So every writer that holds
+ * two rows of one table takes them in the same order. `hold` is how: for
+ * share, or as a write holds a row it changes (FOR NO KEY UPDATE on
+ * Postgres, FOR UPDATE on MySQL); null reads them as they are.
  */
-export function compareKeys(a: unknown, b: unknown): number {
-  const whole = (v: unknown) => typeof v === 'number' || typeof v === 'bigint' || (typeof v === 'string' && /^-?\d{1,15}$/.test(v));
-  if (whole(a) && whole(b)) return Number(a) - Number(b);
-  const x = String(a);
-  const y = String(b);
-  return x < y ? -1 : x > y ? 1 : 0;
+export async function rowsInKeyOrder(db: Db, table: string, keyColumn: string, keys: readonly unknown[], hold: 'share' | 'change' | 'remove' | null, dialect: Dialect): Promise<Row[]> {
+  const unique = new Map<string, unknown>();
+  for (const key of keys) if (key !== null && key !== undefined) unique.set(String(key), key);
+  if (unique.size === 0) return [];
+  let query = db
+    .selectFrom(table)
+    .selectAll()
+    .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
+    .orderBy(keyColumn as never);
+  if (hold !== null && dialect !== 'sqlite') {
+    query = hold === 'share' ? query.forShare() : hold === 'change' && dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
+  }
+  return (await query.execute()) as Row[];
+}
+
+/** The row among `rows` whose key is `value`: as written, else as the column's collation may match it (case aside). */
+export function rowWithKey(rows: readonly Row[], keyColumn: string, value: unknown): Row | null {
+  const exact = rows.find((row) => String(row[keyColumn]) === String(value));
+  if (exact !== undefined) return exact;
+  const folded = String(value).toLowerCase();
+  return rows.find((row) => String(row[keyColumn]).toLowerCase() === folded) ?? null;
 }
 
 /** The rows a write's links point at, as held: by table, key and value (null for a row that is gone). */
@@ -196,18 +214,18 @@ export async function holdLinkedRows(db: Db, dialect: Dialect, holds: readonly L
     wanted.set(key, found === undefined ? hold : { ...found, forUpdate: found.forUpdate || hold.forUpdate });
   }
   const rows = new Map<string, Row | null>();
-  const order = [...wanted.entries()].sort(([, a], [, b]) => {
-    const on = `${a.link.table}\u0000${a.link.key}`;
-    const other = `${b.link.table}\u0000${b.link.key}`;
-    return on < other ? -1 : on > other ? 1 : compareKeys(a.value, b.value);
-  });
-  for (const [key, hold] of order) {
-    let query = db
-      .selectFrom(hold.link.table)
-      .selectAll()
-      .where((eb) => eb(db.dynamic.ref(hold.link.key), '=', hold.value));
-    if (dialect !== 'sqlite') query = hold.forUpdate ? query.forUpdate() : query.forShare();
-    rows.set(key, ((await query.executeTakeFirst()) as Row | undefined) ?? null);
+  // By table, in name order; each table's rows in one statement, in the database's key order.
+  const byTable = new Map<string, LinkedHold[]>();
+  for (const hold of wanted.values()) {
+    const on = `${hold.link.table}\u0000${hold.link.key}`;
+    byTable.set(on, [...(byTable.get(on) ?? []), hold]);
+  }
+  for (const [, group] of [...byTable.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const { table, key } = group[0]!.link;
+    // A row the write moves is held as every row a write changes is (see `states.ts` `heldRows`), and every row of the table with it: never one mode, then another.
+    const mode = group.some((hold) => hold.forUpdate) ? 'change' : 'share';
+    const found = await rowsInKeyOrder(db, table, key, group.map((hold) => hold.value), mode, dialect);
+    for (const hold of group) rows.set(holdKey(hold.link, hold.value), rowWithKey(found, key, hold.value));
   }
   return new HeldLinks(rows);
 }

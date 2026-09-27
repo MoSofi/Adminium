@@ -243,8 +243,8 @@ function linkLocksOf(rule: Rule, target: Pick<WriteTarget, 'connectionId' | 'tab
     .map(({ column, table }) => ({ lock: linkLock(target.connectionId, target.table, column, row[column]), table, key: row[column] }));
 }
 
-/** The rows a change of a row reaches, read through `db`: the middle rows (a hold read through the owner) and the child rows. */
-async function reachedRows(owned: OwnedRule, key: unknown, db: Db, lock: boolean): Promise<{ middle: unknown[]; children: Row[] }> {
+/** The rows a change of a row reaches, read through `db`: the middle rows (a hold read through the owner) and the child rows — held as `lock` says, or read. */
+async function reachedRows(owned: OwnedRule, key: unknown, db: Db, lock: 'no-key' | 'update' | null): Promise<{ middle: unknown[]; children: Row[] }> {
   if (key === null || key === undefined) return { middle: [], children: [] };
   let keys: unknown[] = [key];
   if (owned.through !== undefined) {
@@ -264,8 +264,9 @@ async function reachedRows(owned: OwnedRule, key: unknown, db: Db, lock: boolean
     .selectFrom(owned.table.id)
     .selectAll()
     .where((eb) => eb(db.dynamic.ref(owned.via), 'in', keys));
-  // Held: a change of one of them waits for this write, and this write reads it as committed.
-  if (lock) query = query.forUpdate();
+  // Held: a change of one of them waits for this write, and this write reads it as committed (on Postgres as a
+  // write holds every row it keeps, FOR NO KEY UPDATE: the row being changed may be one of them).
+  if (lock !== null) query = lock === 'no-key' ? query.forNoKeyUpdate() : query.forUpdate();
   return { middle: owned.through === undefined ? [] : keys, children: (await query.execute()) as Row[] };
 }
 
@@ -315,7 +316,7 @@ export async function capacityLockNames(db: Db, rows: readonly LockNameRow[]): P
     for (const { owned } of reached(target, row, given.before)) {
       const child = { ...target, table: owned.table };
       const key = given.before[owned.key];
-      const { middle, children } = await reachedRows(owned, key, db, false);
+      const { middle, children } = await reachedRows(owned, key, db, null);
       add(reachLocks(target.connectionId, owned, key, middle));
       for (const stored of children) {
         const ownerAfter = owned.reads === 'owner' ? row : owned.rule.owner === null ? null : await reads.linked(owned.rule.owner, stored[owned.rule.owner.column]);
@@ -528,7 +529,8 @@ export async function judgeCapacity(db: Db, rows: readonly JudgedRow[], opts: Ca
     for (const { owned, column } of reached(given.target, after, given.before)) {
       const child = { ...given.target, table: owned.table };
       const key = given.before[owned.key];
-      const { middle, children } = await reachedRows(owned, key, db, given.target.dialect !== 'sqlite');
+      // Held by a save; a quote reads them as they are (it holds no row, and waits on no save).
+      const { middle, children } = await reachedRows(owned, key, db, opts.mode !== 'save' || given.target.dialect === 'sqlite' ? null : given.target.dialect === 'postgres' ? 'no-key' : 'update');
       // A new row pointing here took this lock too: whichever came second sees the other.
       requireHeld(reachLocks(given.target.connectionId, owned, key, middle));
       let before: Reads | undefined;

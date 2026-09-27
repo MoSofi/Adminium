@@ -522,6 +522,8 @@ function namedIn(fields: unknown, told: Told): { column: string; reason: string 
 }
 
 const refuseWrite = (error?: unknown, told?: Told): never => {
+  // The engine giving a writer up in a lock race (a deadlock, a lock wait run out): a moment's wait, never a refusal.
+  if (isWriteConflict(error)) throw new PublicSlotRefused('PUBLIC_SLOT_BUSY');
   if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
   const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (slot !== undefined) throw new PublicSlotRefused(slot);
@@ -541,6 +543,9 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   const named = told === undefined || !(error instanceof ValidationFailedError) ? null : namedIn((error.details as { fields?: unknown } | undefined)?.fields, told);
   throw named === null ? new PublicWriteRefused() : new PublicWriteRefused(named);
 };
+
+/** A write the engine gave up in a lock race, or one that met a row moving under it: the same write a moment later goes through. */
+const lostRace = (error: unknown): boolean => isWriteConflict(error) || (error instanceof AppError && error.code === 'WRITE_CONFLICT');
 
 /** `refuseWrite` for a create or a change through an entry: a refused value of a column it writes is named. */
 const refuseWriteThrough =
@@ -669,6 +674,12 @@ function fail(
   params?: Record<string, unknown>,
 ): FastifyReply {
   return reply.code(status).send({ error: params === undefined ? { code, message } : { code, params, message } });
+}
+
+/** 409 `PUBLIC_SLOT_BUSY`: a write that lost a race, told as a moment's wait. */
+function busy(reply: FastifyReply): FastifyReply {
+  const refused = new PublicSlotRefused('PUBLIC_SLOT_BUSY');
+  return fail(reply, 409, refused.code, refused.message);
 }
 
 export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
@@ -2378,6 +2389,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
+          // A lock race lost where no mapping watched (the commit of a child's create): a moment's wait.
+          if (lostRace(error)) return busy(reply);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
@@ -2600,6 +2613,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
           if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
+          if (lostRace(error)) return busy(reply);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
@@ -3062,7 +3076,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             }
             return { created, updated };
           });
-        } catch {
+        } catch (error) {
+          // Two writers at once, the engine giving this one up: the same batch a moment later goes through.
+          if (lostRace(error)) return busy(reply);
           // A keyed row that matched nothing, or a constraint the database
           // enforced: one opaque answer, no index, no name.
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');

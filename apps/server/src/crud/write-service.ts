@@ -83,6 +83,7 @@ import type { TablePrivileges } from '@adminium/engine/adapter';
 import { rollupValue } from '@adminium/manifest';
 
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
+import type { StateLink } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
 import { getPrincipal } from '../rbac/principal.js';
@@ -708,8 +709,12 @@ async function rollupStatement(
 
 /**
  * The parent's formulas that read a total just settled, worked out again from
- * the row as it is now stored — read holding it (`FOR UPDATE`), which on MySQL
- * is also what reads past the transaction's snapshot to the latest row.
+ * the row as it is now stored — read holding it, which on MySQL is also what
+ * reads past the transaction's snapshot to the latest row. Held as the climb
+ * and the states guard hold a parent (FOR NO KEY UPDATE on Postgres: see
+ * `rowsByKey`), so no row is held two ways in one write: a FOR UPDATE taken
+ * over it would wait for a writer that went in between with a row pointing
+ * at it, which may be waiting for this one.
  */
 async function formulaStatement(
   db: Db,
@@ -724,7 +729,7 @@ async function formulaStatement(
     .selectFrom(row.table)
     .selectAll()
     .where((eb) => eb(db.dynamic.ref(row.keyColumn), '=', key));
-  if (dialect !== 'sqlite') query = query.forUpdate();
+  if (dialect !== 'sqlite') query = dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
   const stored = (await query.executeTakeFirst()) as Row | undefined;
   if (stored === undefined) return;
   const own = row.currencyColumn === undefined ? null : stored[row.currencyColumn];
@@ -811,10 +816,11 @@ async function balanceStatement(
 
 /**
  * Hold the rows a write will move a balance of, and read those balances as
- * they are, before the write. On Postgres and MySQL `FOR UPDATE`: a second
- * payment on the same visit waits here until the first commits, and then
- * adds up a total that includes it (a statement already waiting on the row
- * would add up the old one). SQLite writes one transaction at a time.
+ * they are, before the write: a second payment on the same visit waits here
+ * until the first commits, and then adds up a total that includes it (a
+ * statement already waiting on the row would add up the old one). Held as
+ * every row a write keeps is (FOR NO KEY UPDATE on Postgres, FOR UPDATE on
+ * MySQL: see `states.ts` `heldRows`). SQLite writes one transaction at a time.
  */
 export async function holdBalances(
   db: Db,
@@ -833,16 +839,20 @@ export async function holdBalances(
     .select([keyColumn, ...balances.map((balance) => balance.column)] as never)
     .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
     .orderBy(keyColumn as never);
-  if (dialect !== 'sqlite') query = query.forUpdate();
+  if (dialect !== 'sqlite') query = dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
   const rows = (await query.execute()) as Row[];
   return new Map(rows.map((row) => [String(row[keyColumn]), row]));
 }
 
-/** A row read and held for this transaction (`FOR UPDATE`; SQLite writes one at a time). */
-async function fetchHeld(db: Db, target: WriteTarget, pk: Row): Promise<Row | undefined> {
+/**
+ * A row read and held for this transaction (SQLite writes one at a time): a
+ * row the write changes FOR NO KEY UPDATE on Postgres, as every row a write
+ * keeps is held (`states.ts` `heldRows`); one it deletes FOR UPDATE.
+ */
+async function fetchHeld(db: Db, target: WriteTarget, pk: Row, stays: boolean): Promise<Row | undefined> {
   let query = db.selectFrom(target.table.id).selectAll();
   for (const [column, value] of Object.entries(pk)) query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
-  if (target.dialect !== 'sqlite') query = query.forUpdate();
+  if (target.dialect !== 'sqlite') query = stays && target.dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
   return (await query.executeTakeFirst()) as Row | undefined;
 }
 
@@ -1881,67 +1891,167 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /**
+   * The row an effect moves (`states.effects`), prepared for its move by the
+   * same steps as any update of that row — fill, stamps, formulas, checks,
+   * and what its statement judges it by — as the app's declared move of it,
+   * read through `db`: the write's own transaction, or (naming the write's
+   * locks before it opens) the pool, holding nothing. Null when the row is
+   * gone. A table whose move could not be judged in the one write is
+   * refused, by the manifest's check too (`states.ts`): one kept by a
+   * booking guard (its lock is its own, taken per day), one whose rows are a
+   * document's lines (their parent would be held after this write's own
+   * rows), one whose move sets off effects, waits for another row, or is
+   * judged late by another row's time (read after them, for the same
+   * reason). Nor is one a hook watches: its hooks cannot run inside another
+   * row's write.
+   */
+  async function prepareEffect(
+    db: Db,
+    from: WriteTarget,
+    context: WriteContext,
+    clock: WriteClock,
+    link: StateLink,
+    key: unknown,
+    column: string,
+    state: string,
+  ): Promise<PreparedEffect | null> {
+    const moved = await withRights({ ...from, table: from.view.table(link.table), db, rights: undefined });
+    const rules = rulesOf(moved);
+    const effective = moved.table.table;
+    const kept =
+      rules?.booking !== undefined ||
+      (effective?.stateParents?.length ?? 0) > 0 ||
+      (effective?.states?.effects?.length ?? 0) > 0 ||
+      // Its move may wait only for its own row: the rows it would read are taken after this write's own.
+      Object.values(effective?.states?.moves ?? {}).some((list) =>
+        list.some((move) => typeof move === 'object' && move.to === state && waitVias(move.requires).length > 0),
+      ) ||
+      // Nor be judged late by a time read through another row, for the same reason.
+      (effective?.states?.late ?? []).some((late) => late.to === state && momentVias(late.moment).length > 0);
+    if (kept) {
+      throw new StateMoveRefused(`A move of ${from.table.name} cannot move a ${moved.table.name} row too: that table keeps a booking guard or a parent, or its move waits for another row.`, {
+        column,
+        to: state,
+        effect: moved.table.name,
+      });
+    }
+    const declared: WriteContext = { ...context, declared: { to: state } };
+    // A table a hook watches is not moved this way: its hooks could not run inside this write.
+    const hooks = current();
+    if ((await hooks.wants('before', 'update', moved, declared)) || (await hooks.wants('after', 'update', moved, declared))) {
+      throw new StateMoveRefused(`A move of ${from.table.name} cannot move a ${moved.table.name} row too: a hook watches ${moved.table.name}, and it could not run inside this write.`, {
+        column,
+        to: state,
+        effect: moved.table.name,
+        hooked: true,
+      });
+    }
+    const pk = { [link.key]: key };
+    const before = (await fetchByPk(db, moved.table, pk)) ?? null;
+    if (before === null) return null;
+    const zone = await zoneFor(rules, moved);
+    let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
+    values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
+    values = await formulate(rules, 'update', moved, values, before);
+    const checked = await carry(rules, 'update', moved, declared, await checkAllOrThrow(rules, 'update', moved, declared, values, before, undefined), before, clock);
+    return { target: { ...moved, timezone: zone ?? moved.timezone }, rules, pk, before, checked };
+  }
+
+  /** The rules of each table a change's effects would move a row of (the effects its new state sets off). */
+  function effectTablesOf(target: WriteTarget, values: Row): (TableRules | null)[] {
+    const states = target.table.table?.states;
+    if (states === undefined || !Object.prototype.hasOwnProperty.call(values, states.column)) return [];
+    const out: (TableRules | null)[] = [];
+    for (const effect of (states.effects ?? []).filter((e) => sameValue(values[states.column], e.on.to))) {
+      const link = (target.table.table?.stateLinks ?? []).find((candidate) => candidate.via === effect.via);
+      if (link === undefined) continue;
+      try {
+        out.push(rulesOf({ ...target, table: target.view.table(link.table) }));
+      } catch {
+        // A table the model no longer has: the effect refuses the write when it runs.
+      }
+    }
+    return out;
+  }
+
+  /** Whether a table keeps a limit, or owns rows a limit counts by their owner. */
+  const keepsLimits = (rules: TableRules | null): boolean => rules?.capacityRules !== undefined || rules?.capacityOwners !== undefined;
+
+  /**
+   * The rows a change's effects will move, prepared — each read, without a
+   * lock, through the link of the row as stored now — for a write to name
+   * their limits' locks or hold the totals they climb into before its
+   * transaction takes anything else. What a peek misread the judge finds
+   * again under the locks (the write starts over).
+   */
+  async function effectRows(db: Db, target: WriteTarget, context: WriteContext, clock: WriteClock, values: Row, storedRow: Promise<Row | null>): Promise<PreparedEffect[]> {
+    const states = target.table.table?.states;
+    if (states === undefined || !Object.prototype.hasOwnProperty.call(values, states.column)) return [];
+    const stored = await storedRow;
+    if (stored === null) return [];
+    const to = values[states.column];
+    const out: PreparedEffect[] = [];
+    for (const effect of (states.effects ?? []).filter((e) => sameValue(to, e.on.to))) {
+      const link = (target.table.table?.stateLinks ?? []).find((candidate) => candidate.via === effect.via);
+      const key = { ...stored, ...values }[effect.via];
+      if (link === undefined || key === null || key === undefined) continue;
+      const [column, state] = Object.entries(effect.set)[0]!;
+      const prepared = await prepareEffect(db, target, context, clock, link, key, column, String(state));
+      if (prepared !== null && !sameValue(prepared.before[column], state)) out.push(prepared);
+    }
+    return out;
+  }
+
+  /**
    * An effect's move of the row a link points at (`states.effects`), inside
-   * the write's transaction on its handle: the same steps as any update of
-   * that row — fill, stamps, checks, and its table's states, judged as the
-   * app's declared move of it — by the writer who made the first move. The
-   * row was held for update before the write's own rows. A table whose rows
-   * keep a limit or a total, or are tied to a parent, or whose move reads
-   * another row, is not moved this way: its locks and totals would be taken
-   * out of their order. Nor is one a hook watches: its hooks cannot run
-   * inside another row's write.
+   * the write's transaction on its handle, judged as the app's declared move
+   * of that row by the writer who made the first: its limits (a change of what
+   * its rows' places count by, under the locks the write named for it), the
+   * totals it climbs into and its own balances, and its table's states. The
+   * row was held for update before the write's own rows. A quote's effect is
+   * judged the same way and written nowhere: it holds no row, and waits on no
+   * save.
    */
   function effectWriter(target: WriteTarget, context: WriteContext, clock: WriteClock): EffectWriter {
-    return async (db, link, key, column, state) => {
-      const moved = await withRights({ ...target, table: target.view.table(link.table), db, rights: undefined });
-      const rules = rulesOf(moved);
-      const effective = moved.table.table;
-      const kept =
-        rules?.capacity !== undefined ||
-        rules?.booking !== undefined ||
-        effective?.capacityRules !== undefined ||
-        rules?.capacityRules !== undefined ||
-        rules?.capacityOwners !== undefined ||
-        (rules?.rollupsInto?.length ?? 0) > 0 ||
-        (rules?.ownRollups?.length ?? 0) > 0 ||
-        (rules?.balances?.length ?? 0) > 0 ||
-        (effective?.stateParents?.length ?? 0) > 0 ||
-        (effective?.states?.effects?.length ?? 0) > 0 ||
-        // Its move may wait only for its own row: the rows it would read are taken after this write's own.
-        Object.values(effective?.states?.moves ?? {}).some((list) =>
-          list.some((move) => typeof move === 'object' && move.to === state && waitVias(move.requires).length > 0),
-        ) ||
-        // Nor be judged late by a time read through another row, for the same reason.
-        (effective?.states?.late ?? []).some((late) => late.to === state && momentVias(late.moment).length > 0);
-      if (kept) {
-        throw new StateMoveRefused(`A move of ${target.table.name} cannot move a ${moved.table.name} row too: that table keeps a limit, a total or a parent, or its move waits for another row.`, {
-          column,
-          to: state,
-          effect: moved.table.name,
-        });
+    return async (db, link, key, column, state, guard) => {
+      const prepared = await prepareEffect(db, target, context, clock, link, key, column, state);
+      if (prepared === null) return null;
+      const { rules, pk, before, checked } = prepared;
+      const within: WriteTarget = { ...prepared.target, db };
+      const quote = guard.quote === true;
+      if (quote) quoteOnly(checked);
+      if (keepsLimits(rules)) {
+        try {
+          await judgeCapacity(db, [{ target: within, pk, row: { ...before, ...checked }, before, values: checked }], { clock, origin: context.origin, mode: quote ? 'dry' : 'save' });
+        } catch (error) {
+          // A write that named no lock for it (a bulk edit, an import) cannot hold the pools this row counts in.
+          if (error instanceof LockMoved && guard.effectsNamed !== true) throw new GuardedBatchError(within.table.name);
+          throw error;
+        }
       }
-      const declared: WriteContext = { ...context, declared: { to: state } };
-      // A table a hook watches is not moved this way: its hooks could not run inside this write.
-      const hooks = current();
-      if ((await hooks.wants('before', 'update', moved, declared)) || (await hooks.wants('after', 'update', moved, declared))) {
-        throw new StateMoveRefused(`A move of ${target.table.name} cannot move a ${moved.table.name} row too: a hook watches ${moved.table.name}, and it could not run inside this write.`, {
-          column,
-          to: state,
-          effect: moved.table.name,
-          hooked: true,
-        });
+      if (quote) {
+        // Judged as its statement judges it — its move, its lock — and written nowhere.
+        await guardedUpdate(db, within.dialect, within.table, checked, pk, async () => 1);
+        return { table: link.table, pk, before, after: { ...before, ...checked } };
       }
-      const pk = { [link.key]: key };
-      const before = (await fetchByPk(db, moved.table, pk)) ?? null;
-      if (before === null) return null;
-      const zone = await zoneFor(rules, moved);
-      let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
-      values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
-      values = await formulate(rules, 'update', moved, values, before);
-      const checked = await carry(rules, 'update', moved, declared, await checkAllOrThrow(rules, 'update', moved, declared, values, before, undefined), before, clock);
-      const count = await updateRows(db, moved.dialect, moved.table, checked, pk);
+      const currency = currencyFor(within);
+      // The totals it climbs into move only when it writes what they read; its own balances when it writes theirs.
+      const rolls = movesTotal(rules, rules?.rollupsInto ?? [], checked);
+      if (rolls) await refuseUngrantedChain(within, rules?.rollupsInto ?? []);
+      const held = rolls ? await holdParents(rules, within, [{ record: { ...before, ...checked }, before }], currency) : undefined;
+      const ownMoved = movedBalances(rules, checked, before);
+      const ownBefore = ownMoved.some((balance) => balance.cappedBy.length > 0) ? await holdOwn(rules, within, pk, ownMoved, currency) : undefined;
+      const count = await updateRows(db, within.dialect, within.table, checked, pk);
       if (count === 0) return null;
-      return { table: link.table, pk, before, after: (await fetchByPk(db, moved.table, pk)) ?? null };
+      let after = (await fetchByPk(db, within.table, pk)) ?? null;
+      if (rolls || ownMoved.length > 0) {
+        if (rolls) await settleRows(rules, within, [{ record: after, before }], currency, held);
+        if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, checked, currency, ownBefore);
+        const sealing = sealsOf(checked);
+        if (sealing !== undefined) await sealRows(db, within.table, pk, sealing, writeSeals);
+        after = (await fetchByPk(db, within.table, pk)) ?? null;
+      }
+      return { table: link.table, pk, before, after };
     };
   }
 
@@ -2126,12 +2236,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * MySQL). The row is read as it is, without a lock, only to learn which
    * parents; SQLite writes one transaction at a time and needs none of it.
    */
-  async function holdFirst(rules: TableRules | null, target: WriteTarget, pk: Row, values?: Row): Promise<void> {
+  async function holdFirst(rules: TableRules | null, target: WriteTarget, pk: Row, values?: Row, also: readonly ClimbStart[] = []): Promise<void> {
     if (target.dialect === 'sqlite') return;
-    if ((rules?.rollupsInto?.length ?? 0) > 0) {
-      const peek = (await fetchByPk(target.db, target.table, pk)) ?? null;
-      // The whole chain above the row, top-down; the balances are read again once the row is held.
-      await holdChainWith(target.db, target.dialect, chainStarts(rules, [{ record: values ?? null, before: peek }]), NO_CURRENCY, false);
+    if ((rules?.rollupsInto?.length ?? 0) > 0 || also.length > 0) {
+      const peek = (rules?.rollupsInto?.length ?? 0) > 0 ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
+      // The whole chain above the row — and above the rows its effects move — top-down; the balances are read again once the row is held.
+      await holdChainWith(target.db, target.dialect, [...chainStarts(rules, [{ record: values ?? null, before: peek }]), ...also], NO_CURRENCY, false);
     }
     await holdParentsFirst(target.db, target.dialect, target.table, pk, values);
   }
@@ -2326,6 +2436,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   }
 
   /** A create's row as `prepareOne` leaves it: checked, carried, and what its INSERT needs. */
+  /** The row an effect moves, prepared for its move (`prepareEffect`). */
+  interface PreparedEffect {
+    /** Its table, on the venue's clock. */
+    target: WriteTarget;
+    rules: TableRules | null;
+    pk: Row;
+    /** The row as read: held, inside the write. */
+    before: Row;
+    checked: CheckedRow;
+  }
+
   interface PreparedCreate {
     rules: TableRules | null;
     zone: string | undefined;
@@ -2377,6 +2498,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // What a number without gaps needs at its INSERT, read before any lock is taken; a quote takes none.
     const numbered = input.mode === 'save' ? await prepareNumbers(rules, 'create', target, judged, context.origin, opts.settings) : await unclaimedNumbers(rules, target, judged);
     const checked = await carry(rules, 'create', target, context, brand(numbered), null, clock);
+    // A quote's row is judged on rows read as they are: it holds none it does not write, and waits on no save.
+    if (input.mode === 'dry') quoteOnly(checked);
     if (input.grants === true) refuseUngrantedColumns(target.rights, target.table, 'create', Object.keys(checked));
     // Only the codes generated here, and left alone by the hooks, are made again.
     const codes = generatedCodes(rules, filled, context.origin === 'undo').filter((code) => values[code.column] === resolved[code.column]);
@@ -2756,6 +2879,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const inTree = new Set<string>();
         const writeRow = async (row: TreeRow, prepared: PreparedCreate): Promise<Row> => {
           preparedOf.set(row, prepared.checked);
+          // A quote's parent among its own rows is emptied as a save's would be; a real row it leaves alone.
+          const guard = dry ? guardOf(prepared.checked) : undefined;
+          if (guard !== undefined) guard.quoteOwns = (table, key) => inTree.has(`${table}\u0000${String(key)}`);
           const within: WriteTarget = { ...row.target, db: trx, timezone: prepared.zone ?? row.target.timezone };
           const parent = row.parent === null ? null : written.get(row.parent)!;
           await input.checks?.(trx, row.node, prepared.checked, parent);
@@ -2966,6 +3092,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const quoted = dry || input.expect !== undefined || input.inside !== undefined;
       // A quote reads as things are and holds no row it does not write: it never waits on a save, nor a save on it.
       if (dry) quoteOnly(checkedValues);
+      // The rows this move's effects move (a room, an order): their limits are named with this row's, the totals they climb into held with its own.
+      const effectTables = effectTablesOf(target, checkedValues);
+      const effectLimits = !dry && effectTables.some((rules) => keepsLimits(rules));
+      const effectTotals = !dry && effectTables.some((rules) => (rules?.rollupsInto?.length ?? 0) > 0);
+      if (effectLimits) {
+        const guard = guardOf(checkedValues);
+        if (guard !== undefined) guard.effectsNamed = true;
+      }
       if (rolls) await refuseUngrantedChain(target, rules?.rollupsInto ?? []);
       /** The day the booking lock was named by; the write refuses to go on under a different one. */
       let lockedDay: string | null = null;
@@ -2978,12 +3112,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // wrong parent, and a line settled meanwhile a subtotal read too early.
         // The document before its line: every writer takes the parent first (see `holdFirst`).
         // A quote holds neither: it reads as things are (the rows its own statements write aside).
-        if (!dry) await holdFirst(rules, within, pk, checkedValues);
+        if (!dry) {
+          // The totals the rows its effects move climb into, named from a look at them now (held again, and judged, when they move).
+          const also = effectTotals
+            ? (await statement(() => effectRows(db, within, context, clock, checkedValues, fetchByPk(db, target.table, pk).then((row) => row ?? null)), input.mapError))
+                .filter((effect) => movesTotal(effect.rules, effect.rules?.rollupsInto ?? [], effect.checked))
+                .flatMap((effect) => chainStarts(effect.rules, [{ record: { ...effect.before, ...effect.checked }, before: effect.before }]))
+            : [];
+          await holdFirst(rules, within, pk, checkedValues, also);
+        }
         // Then the rows its links point at (its conditions, its effects' rows): before its own row, held next.
         if (!dry) await holdLinkedFirst(db, target.dialect, target.table, checkedValues, pk);
         const prior =
           limits || booking !== undefined || rolls
-            ? ((!dry && (holdsParent(rules) || worked.length > 0 || limits) ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
+            ? ((!dry && (holdsParent(rules) || worked.length > 0 || limits) ? await fetchHeld(db, target, pk, true) : await fetchByPk(db, target.table, pk)) ?? null)
             : null;
         if (limits && prior !== null) {
           // A quote of the change counts the same pools, holding none: its own places are left out by its key.
@@ -3048,14 +3190,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         count = await conflicted(async () => {
           // A quote takes no named lock: it waits for nobody, and nobody waits for it.
           if (dry) return await withNamedLocks(target, [], write);
-          if (limits || input.children !== undefined) {
+          if (limits || input.children !== undefined || effectLimits) {
             // The locks are named by the pools the row will take from, from a fresh look each time.
             return await withLimitLocks(target, async () => {
-              const current = limits ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
+              const current = limits || effectLimits ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
               const below = input.children === undefined ? [] : await input.children.names();
+              // The rows its effects move, as they will stand: their pools, and the rows they own.
+              const moved = effectLimits ? (await statement(() => effectRows(target.db, { ...target, timezone: zone }, context, clock, checkedValues, Promise.resolve(current)), input.mapError)).filter((effect) => keepsLimits(effect.rules)) : [];
               return capacityLockNames(target.db, [
-                ...(current === null ? [] : [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]),
+                ...(current === null || !limits ? [] : [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]),
                 ...below,
+                ...moved.map((effect) => ({ target: effect.target, row: { ...effect.before, ...effect.checked }, before: effect.before, prepared: true })),
               ]);
             }, write, clock);
           }
@@ -3064,7 +3209,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               lockedDay = day;
             }, write, rolls || quoted, input.mapError);
           }
-          return rolls || quoted ? await atomically(target, write) : await write(target.db);
+          return rolls || quoted || effectTotals ? await atomically(target, write) : await write(target.db);
         }, input.mapError);
       } catch (error) {
         if (!(error instanceof UpdateQuoted)) throw error;
@@ -3101,7 +3246,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             // The parent the row fed, held first; then the row, read — and held — before it goes.
             const within = { ...target, db };
             await holdFirst(rules, within, pk);
-            const gone = (await fetchHeld(db, target, pk)) ?? null;
+            const gone = (await fetchHeld(db, target, pk, false)) ?? null;
             const held = await holdParents(rules, within, [{ record: null, before: gone }], currency);
             const removed = await statement(() => deleteRows(db, target.table, pk, input.refine, judged), input.mapError);
             if (removed > 0) await guarded(() => settleRows(rules, within, [{ record: null, before: gone }], currency, held), input.mapError);

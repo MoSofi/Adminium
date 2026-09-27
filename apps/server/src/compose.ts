@@ -133,6 +133,7 @@ import { createAutomations, decorateAutomations } from './automations/register.j
 import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
 import { TIMED_MOVES_JITTER_MS, TIMED_MOVES_SCHEDULE_NAME, enqueueTimedMoves, registerTimedMovesHandler } from './states/timed-moves.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
+import { announceEffects } from './states/effects.js';
 import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
 import { createSignInLinkMinter } from './public-api/sign-in-link-minter.js';
 import { addressKey } from './public-api/claim-code.js';
@@ -877,6 +878,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     // The change a sent message makes reaches the rules, the other producers and every screen.
     emit: (event) => emitRecordEvent(app, event),
+    // So do the rows its move moved too.
+    announceEffects: (input) => announceEffects(app, input),
     // A template's `attach`: the sender draws (or reuses) the document through the same pipeline as every door.
     documents: () => documents,
     // `{{signInLink}}`: a one-use link for the recipient's own identity row, minted at send time.

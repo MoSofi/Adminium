@@ -93,6 +93,7 @@ import {
 } from '../../crud/child-rows.js';
 import { availabilityColumns, readAvailability } from '../../crud/availability.js';
 import type { TreeNode, TreeOutcome, TreePath } from '../../crud/write-tree.js';
+import { TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { staffTreeRules } from './tree.js';
 
 /**
@@ -999,6 +1000,17 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return { outcome, links: written, children: [...undo.values()], events };
     }
 
+    /**
+     * What a record of this table agrees to be (a stay's guests within what its
+     * room sleeps), as the app declares it for its guests' creates: judged on
+     * the row as written, inside the write, on every door that writes one — or
+     * null when nothing is declared.
+     */
+    async function recordAgrees(ctx: DataContext): Promise<((db: Kysely<SourceDatabase>, row: Row) => Promise<void>) | null> {
+      const rules = await staffTreeRules(deps.meta, ctx.connectionId, ctx.view, ctx.table, () => null);
+      return rules.rootAgrees ? (db, row) => rules.judgeRecord(db, row) : null;
+    }
+
     /** The target keys this record is linked to right now. */
     async function currentLinks(
       db: Kysely<SourceDatabase>,
@@ -1692,6 +1704,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const events: { pk: Row; before: Row; after: Row | null }[] = [];
         // The rows the moves moved too (`states.effects`), announced once the batch commits.
         const effected: EffectWritten[] = [];
+        // What each changed record agrees to be, judged on the row as changed.
+        const agrees = action === 'update' ? await recordAgrees(ctx) : null;
 
         await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
@@ -1710,6 +1724,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               } else {
                 await updateRows(tdb, ctx.dialect, ctx.table, prepared[i]!.values, pk);
                 const after = await fetchByPk(tdb, ctx.table, pk);
+                if (agrees !== null && after !== undefined) await agrees(tdb, after);
                 beforeImages.push(before);
                 if (after !== undefined) afterImages.push(after);
                 events.push({ pk, before, after: after ?? before });
@@ -1719,6 +1734,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             } catch (error) {
               // A row the states refuse is named, like a refused value: one values object, one row that cannot take it.
               if (isStateRefusal(error)) throw new AppError((error as AppError).statusCode, (error as AppError).code, (error as AppError).message, { ...((error as AppError).details as object), id });
+              // A record its agreement refuses: named, as a refused value is.
+              if (error instanceof TreeCheckRefused) throw new ValidationFailedError(error.message, { ...((error.details as object | undefined) ?? {}), row: i, id });
               mapDbError(error, ctx.table);
             }
           }
@@ -2199,16 +2216,27 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               value: repeat.values[index],
             });
           }
+          // What each record agrees to be, judged on the row as written.
+          const agrees = await recordAgrees(ctx);
           // Holding the series a number without gaps comes from, when the table has one.
           const rows = await writes.transaction(ctx.target, prepared.map((row) => row.values), async (trx) => {
             const tdb = trx as unknown as Kysely<SourceDatabase>;
             const written: Row[] = [];
-            for (const row of prepared) {
+            for (const [index, row] of prepared.entries()) {
+              let made: Row;
               try {
-                written.push(await insertRow(tdb, ctx.dialect, ctx.table, row.values));
+                made = await insertRow(tdb, ctx.dialect, ctx.table, row.values);
               } catch (error) {
                 return mapDbError(error, ctx.table);
               }
+              try {
+                if (agrees !== null) await agrees(tdb, made);
+              } catch (error) {
+                // Named by the value that made the row, as a refused value is.
+                if (error instanceof TreeCheckRefused) throw new ValidationFailedError(error.message, { ...((error.details as object | undefined) ?? {}), row: index, value: repeat.values[index] });
+                throw error;
+              }
+              written.push(made);
             }
             return written;
           });
@@ -2346,6 +2374,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const childWrites: UndoChildren[] = [];
         const childEvents: ChildEvent[] = [];
         const numbered = children.map((requested) => ({ target: childTargetOf(ctx, requested.child, ctx.db), row: {} }));
+        const agrees = await recordAgrees(ctx);
         let inserted = await writes.transaction(ctx.target, [prepared.values], async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
           const row = await (async () => {
@@ -2374,11 +2403,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           }
           // The record as its children left it: a total over them has moved,
           // and the undo compares against this row, not the one inserted.
-          if (children.length === 0) return row;
-          const key = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
-          // A fingerprint covers the child rows this same save wrote: sealed again, last.
-          await sealRows(tdb, ctx.table, key, sealsOf(prepared.values), writeSeals);
-          return (await fetchByPk(tdb, ctx.table, key)) ?? row;
+          let made = row;
+          if (children.length > 0) {
+            const key = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
+            // A fingerprint covers the child rows this same save wrote: sealed again, last.
+            await sealRows(tdb, ctx.table, key, sealsOf(prepared.values), writeSeals);
+            made = (await fetchByPk(tdb, ctx.table, key)) ?? row;
+          }
+          // What the record agrees to be, on the row as written.
+          if (agrees !== null) await agrees(tdb, made);
+          return made;
         }, numbered);
 
         const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
@@ -2450,6 +2484,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, request.body.children);
+        // What the record agrees to be (a stay's guests within what its room sleeps), judged on the row as changed, inside the change.
+        const agrees = await recordAgrees(ctx);
+        const inside = agrees === null ? {} : { inside: agrees };
         // Rows below a child row come with a new record only.
         if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
           throw new ValidationFailedError('Rows below a child row are written with a new record only.', { code: 'not-allowed' });
@@ -2478,6 +2515,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             context,
             recheck: (final) => assertFileColumns(ctx, final),
             mapError: (error) => mapDbError(error, ctx.table),
+            ...inside,
             announce: async (result) => {
               const after = result.after ?? before;
               undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values));
@@ -2515,6 +2553,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               context,
               recheck: (final) => assertFileColumns(ctx, final),
               mapError: (error) => mapDbError(error, ctx.table),
+              ...inside,
               children: {
                 // Each row as it will stand: a new one under this record, a changed one over what it holds now (read without a lock; the judge checks it again).
                 names: async () => {
@@ -2608,7 +2647,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           // A fingerprint covers the child rows this same save wrote: sealed again, last.
           if (children.length > 0) await sealRows(tdb, ctx.table, pk, sealsOf(prepared.values), writeSeals);
           // As its children left it (a total over them has moved).
-          return children.length === 0 ? row : ((await fetchByPk(tdb, ctx.table, pk)) ?? row);
+          const changed = children.length === 0 ? row : ((await fetchByPk(tdb, ctx.table, pk)) ?? row);
+          if (agrees !== null) await agrees(tdb, changed);
+          return changed;
         }, numbered);
 
         undoToken = issueUndo(
