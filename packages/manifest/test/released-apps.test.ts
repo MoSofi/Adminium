@@ -168,13 +168,15 @@ describe('another released app planned beside an installed Point of Sale', () =>
   /** The database and table records Point of Sale leaves on a connection it is installed on. */
   const installedPos = (dialect: PlanContext['dialect']) => {
     const tables = (pos.requiredSchema?.tables ?? []).map((table) => ({
+      short: table.ref,
       ref: posPrefix === null ? table.ref : `${posPrefix}${table.ref}`,
       shape: 'shape' in table && typeof table.shape === 'string' ? table.shape : null,
       columns: table.columns.map((column) => ({ ref: column.ref })),
     }));
     return {
       model: { tables: tables.map(({ ref, columns }) => ({ ref, columns })), dialect } satisfies SchemaModelView,
-      others: tables.map((table) => ({ appKey: pos.key, table: table.ref, shape: table.shape, state: 'created' })),
+      // As the server passes them: each record's short name and when it was made.
+      others: tables.map((table) => ({ appKey: pos.key, table: table.ref, shape: table.shape, state: 'created', ref: table.short, createdAt: 1 })),
     };
   };
 

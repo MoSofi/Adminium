@@ -402,6 +402,17 @@ export default {
       },
       "sparkline": {
         "description": "近期数值的内联迷你走势——无坐标轴与标签——适用于指标卡、表格单元格和列表行。"
+      },
+      "slotStrip": {
+        "chartLabel": "时段",
+        "slot": "{slot}：已占 {taken}/{size}",
+        "slotNoSize": "{slot}：已占 {taken}",
+        "held": "保留 {held}",
+        "paused": "已暂停",
+        "closedDay": "休息",
+        "past": "已过",
+        "now": "现在",
+        "closed": "当天休息：这些时段无法预订。"
       }
     },
     "feeds": {
@@ -656,7 +667,12 @@ export default {
       "detailKeyValue": {
         "description": "将记录的字段呈现为标签/值行，值按类型渲染。"
       },
-      "fileDownload": "下载"
+      "fileDownload": "下载",
+      "capacityLeft": {
+        "left": "剩余 {left}",
+        "taken": "已占 {taken}/{size}",
+        "takenOnly": "已占 {taken}"
+      }
     },
     "boards": {
       "kanbanBoard": {

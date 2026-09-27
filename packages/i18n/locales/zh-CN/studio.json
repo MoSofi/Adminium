@@ -698,7 +698,23 @@
         "checkFirst": "安装前请重新检查数据表。",
         "nothingYet": "按下“安装”之前不会有任何更改。",
         "again": "重新检查",
-        "adoptedNote": "之前安装的 {app} 按原样使用了此表。"
+        "adoptedNote": "之前安装的 {app} 按原样使用了此表。",
+        "share": {
+          "useMenu": "使用 {app} 的菜单",
+          "useTables": "使用 {app} 的表",
+          "useMenuNote": "两个应用读写相同的菜品。",
+          "useTablesNote": "两个应用读写相同的行。",
+          "addsColumns": "{count, plural, other {向 {app} 的表添加 # 列：}}",
+          "nothingChanges": "{app} 读取的内容不会改变。",
+          "separateMenu": "保留单独的菜单",
+          "separateTables": "保留单独的表",
+          "separateNote": "{app} 会创建自己的 {count, plural, other {# 个表}}。",
+          "introMenu": "{app} 在这里已有菜单。{self} 可以使用它，或保留自己的菜单。",
+          "introTables": "{app} 在这里已有这些表。{self} 可以使用它们，或保留自己的表。",
+          "labelMenu": "{app} 使用哪个菜单",
+          "labelTables": "{app} 使用哪些表",
+          "recommended": "推荐"
+        }
       },
       "running": {
         "title": "正在安装 {app}",
@@ -3016,7 +3032,9 @@
     "cancel": "取消",
     "confirmDrop": "卸载并删除数据",
     "confirm": "卸载",
-    "rules": "{count, plural, other {它的 # 条列规则}}"
+    "rules": "{count, plural, other {它的 # 条列规则}}",
+    "sharedTables": "{app} 也在使用 {count, plural, other {# 个表}}，永不删除：{tables}",
+    "sharedSample": "它在共享表中的示例行会保留。请先移除示例数据以将其删除。"
   },
   "sampleData": {
     "title": "示例数据",

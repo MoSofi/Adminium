@@ -582,6 +582,12 @@ export const columnRulesSchema = z
       .object({
         set: stampSetSchema,
         on: z.union([stampTriggerSchema, z.array(stampTriggerSchema).min(2).max(3)]),
+        /**
+         * Emptied again when a move marked `undo` takes the row back out of a
+         * state the stamp watches (the time an order was marked ready, when
+         * the kitchen undoes the Ready).
+         */
+        clearOnBack: z.literal(true).optional(),
       })
       .strict()
       .optional(),
@@ -1963,6 +1969,7 @@ export function appReferenceIssues(
         });
         const others = (['copy', 'sequence', 'code', 'rollup', 'formula', 'format', 'default', 'lookup', 'perNight'] as const).filter((name) => rules[name] !== undefined);
         if (others.length > 0) out.push({ path: here('stamp'), message: `a stamped column is not also decided by ${others.join(', ')}` });
+        if (stamp.clearOnBack === true) out.push(...clearOnBackIssues(table, column, triggers, here('stamp', 'clearOnBack')));
       }
       if ((rules.sequence !== undefined || rules.code !== undefined) && column.role === 'pk') {
         out.push({ path: here(), message: 'a primary key numbers itself; it takes no sequence or code rule' });
@@ -2052,6 +2059,33 @@ export function appReferenceIssues(
 /** The rules through which Adminium decides a column: nobody else writes it. */
 const DECIDING_RULES = ['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup'] as const;
 const decidedByRules = (rules: ColumnRules | undefined) => DECIDING_RULES.some((name) => rules?.[name] !== undefined);
+
+/**
+ * A stamp emptied by an undo watches the table's state column, is a column
+ * that may be empty, and some move marked `undo` leaves one of the states it
+ * watches — or it would never be emptied.
+ */
+function clearOnBackIssues(
+  table: RequiredTableShape,
+  column: RequiredTableShape['columns'][number],
+  triggers: readonly unknown[],
+  path: (string | number)[],
+): { path: (string | number)[]; message: string }[] {
+  const out: { path: (string | number)[]; message: string }[] = [];
+  if (column.nullable !== true) out.push({ path, message: `"${table.ref}.${column.ref}" is not nullable, so an undo cannot empty it` });
+  const states = (table as { states?: States }).states;
+  const watched = triggers.flatMap((trigger) => {
+    const t = trigger as { column?: unknown; values?: unknown[] } | string;
+    return typeof t === 'object' && t.values !== undefined && states !== undefined && t.column === states.column ? t.values.map(String) : [];
+  });
+  if (states === undefined || watched.length === 0) {
+    out.push({ path, message: 'only a stamp written when the state moves is emptied by an undo: watch the table\'s state column' });
+    return out;
+  }
+  const undone = Object.entries(states.moves).some(([from, moves]) => watched.includes(from) && moves.some((move) => typeof move === 'object' && move.undo === true));
+  if (!undone) out.push({ path, message: `no move marked undo leaves ${watched.map((v) => `"${v}"`).join(', ')}, so nothing ever empties it` });
+  return out;
+}
 
 /** What renews a code must be another column of the row, one a person changes. */
 function codeRenewIssues(

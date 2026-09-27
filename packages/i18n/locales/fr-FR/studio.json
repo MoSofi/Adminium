@@ -698,7 +698,23 @@
         "checkFirst": "Vérifiez à nouveau les tables avant d’installer.",
         "nothingYet": "Rien ne change tant que vous n’avez pas cliqué sur Installer.",
         "again": "Vérifier à nouveau",
-        "adoptedNote": "Une installation précédente de {app} a utilisé cette table telle qu’elle l’a trouvée."
+        "adoptedNote": "Une installation précédente de {app} a utilisé cette table telle qu’elle l’a trouvée.",
+        "share": {
+          "useMenu": "Utiliser la carte de {app}",
+          "useTables": "Utiliser les tables de {app}",
+          "useMenuNote": "Les deux apps lisent et écrivent les mêmes plats.",
+          "useTablesNote": "Les deux apps lisent et écrivent les mêmes lignes.",
+          "addsColumns": "{count, plural, one {Ajoute # colonne aux tables de {app} :} other {Ajoute # colonnes aux tables de {app} :}}",
+          "nothingChanges": "Rien de ce que lit {app} ne change.",
+          "separateMenu": "Garder une carte séparée",
+          "separateTables": "Garder des tables séparées",
+          "separateNote": "{app} crée {count, plural, one {sa propre table} other {ses # propres tables}}.",
+          "introMenu": "{app} tient déjà une carte ici. {self} peut l’utiliser, ou garder sa propre carte.",
+          "introTables": "{app} tient déjà ces tables ici. {self} peut les utiliser, ou garder les siennes.",
+          "labelMenu": "La carte qu’utilise {app}",
+          "labelTables": "Les tables qu’utilise {app}",
+          "recommended": "Recommandé"
+        }
       },
       "running": {
         "title": "Installation de {app}",
@@ -3016,7 +3032,9 @@
     "cancel": "Annuler",
     "confirmDrop": "Désinstaller et supprimer les données",
     "confirm": "Désinstaller",
-    "rules": "{count, plural, one {Sa règle de colonne} other {Ses # règles de colonne}}"
+    "rules": "{count, plural, one {Sa règle de colonne} other {Ses # règles de colonne}}",
+    "sharedTables": "{app} utilise aussi {count, plural, one {# table} other {# tables}}, jamais supprimées : {tables}",
+    "sharedSample": "Ses lignes d’exemple dans les tables partagées restent. Retirez d’abord les données d’exemple pour les enlever."
   },
   "sampleData": {
     "title": "Données d’exemple",

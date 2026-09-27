@@ -147,6 +147,14 @@ export const stateMoveSchema = z.union([
         .optional(),
       /** Only people holding one of these app roles may make this move. */
       roles: z.array(roleKey).min(1).max(8).optional(),
+      /**
+       * The move takes back the listed move the other way (ready → preparing
+       * after preparing → ready): made only by a write that names the state
+       * it saw the row in, judged on the row as it stands, and emptying the
+       * stamps the move it takes back wrote (`stamp.clearOnBack`) while the
+       * stamps of the state it returns to keep what they had.
+       */
+      undo: z.literal(true).optional(),
     })
     .strict(),
 ]);
@@ -377,6 +385,10 @@ export function statesIssues<C extends ColumnShape>(
           out.push({ path: at('moves', from, m, 'roles'), message: `"${role}" is not one of the app's roles` });
         }
       }
+      // An undo takes back a listed move: the one from where it goes to where it starts.
+      if (move.undo === true && !(states.moves[to] ?? []).some((back) => moveTarget(back) === from)) {
+        out.push({ path: at('moves', from, m, 'undo'), message: `no listed move goes from "${to}" to "${from}", so this move takes nothing back` });
+      }
     });
   }
   if (states.lock !== undefined) {
@@ -579,6 +591,7 @@ function conditionedMoveIssues<C extends ColumnShape>(
     known(timed.to, here('to'));
     const move = listed(timed.from, timed.to);
     if (move === undefined) out.push({ path: here('to'), message: `no listed move goes from "${timed.from}" to "${timed.to}"` });
+    else if (typeof move === 'object' && move.undo === true) out.push({ path: here('to'), message: `the move from "${timed.from}" to "${timed.to}" is an undo, which only a person makes` });
     if ((states.timed ?? []).some((other, j) => j < i && other.from === timed.from)) {
       out.push({ path: here('from'), message: `another timed move already leaves "${timed.from}"` });
     }
@@ -645,6 +658,10 @@ function conditionedMoveIssues<C extends ColumnShape>(
       }
       const moves = Object.values(theirs.moves).flatMap((list) => list.filter((move) => moveTarget(move) === state));
       if (moves.length === 0) out.push({ path: here('set', column), message: `no move of "${target}" goes to "${state}"` });
+      // An undo is made only by a person naming the state they saw; an effect names none.
+      if (moves.length > 0 && moves.every((move) => typeof move === 'object' && move.undo === true)) {
+        out.push({ path: here('set', column), message: `every move of "${target}" to "${state}" is an undo, which only a person makes` });
+      }
       // The linked row is moved inside this write, after its own rows are held: its move may wait only for its own row.
       const reaches = moves.some((move) => {
         if (typeof move === 'string') return false;

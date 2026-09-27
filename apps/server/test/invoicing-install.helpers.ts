@@ -56,6 +56,9 @@ export type Dialect = 'sqlite' | 'postgres' | 'mysql';
 export const POSTGRES_URL = process.env.TEST_POSTGRES_URL;
 export const MYSQL_URL = process.env.TEST_MYSQL_URL || undefined;
 
+/** The source pool's size the harness asks for (`ADMINIUM_TEST_SOURCE_POOL_MAX`); unset keeps the adapter's own. */
+export const TEST_POOL_MAX = process.env.ADMINIUM_TEST_SOURCE_POOL_MAX ? Number(process.env.ADMINIUM_TEST_SOURCE_POOL_MAX) : undefined;
+
 /** Every engine, and whether this run can reach it. */
 export const LEGS: [Dialect, boolean][] = [
   ['sqlite', true],
@@ -234,6 +237,13 @@ export interface InvoicingHarness {
   dataDir: string;
   /** The real name of one of the app's tables. */
   real: (ref: string) => string;
+  /**
+   * The same install over a second pool of its own (of the size this run
+   * asks for): a writer that holds a row or a lock to set up a race goes
+   * through it, so a pool of one stays the writer's under test. Its `close`
+   * lets go of that pool only; the install's own `close` lets go of every one.
+   */
+  twin: () => Promise<InvoicingHarness>;
   close: () => Promise<void>;
 }
 
@@ -313,8 +323,10 @@ export async function installInvoicing(
    * The database as the app finds it — statements run before it is first
    * introspected (a table of the operator's own) — and the plan's answers
    * for the tables it finds taken (`{ users: { action: 'reuse' } }`).
+   * `database` names the fresh database (a random suffix follows): the default
+   * carries `adminium_`, which a rule refuses in a MySQL table's id.
    */
-  source: { prepare?: (run: (statement: string) => Promise<void>) => Promise<void>; choices?: Record<string, unknown> } = {},
+  source: { prepare?: (run: (statement: string) => Promise<void>) => Promise<void>; choices?: Record<string, unknown>; database?: string } = {},
   hooks: PublicAccessHooks = {},
 ): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
   const dataDir = await mkdtemp(join(tmpdir(), 'invoicing-'));
@@ -323,13 +335,20 @@ export async function installInvoicing(
   const user = await usersRepo(meta).create({ email: 'owner@test', name: 'Owner' });
   const registry = new AdapterRegistry<AdapterProvider>();
   await registerAdapters(registry);
-  // A run with the source pool at one (`ADMINIUM_TEST_SOURCE_POOL_MAX=1`) proves nothing checks out a second connection inside a write.
-  const poolMax = process.env['ADMINIUM_TEST_SOURCE_POOL_MAX'] ? Number(process.env['ADMINIUM_TEST_SOURCE_POOL_MAX']) : undefined;
-  const manager = new ConnectionManager({ meta, crypto: dsnCryptoFromSecret(TEST_SECRET), registry, metaDsn: null, blockLoopback: false, ...(poolMax === undefined ? {} : { sourcePoolMax: poolMax }) });
+  const pooled = () =>
+    new ConnectionManager({
+      meta,
+      crypto: dsnCryptoFromSecret(TEST_SECRET),
+      registry,
+      metaDsn: null,
+      blockLoopback: false,
+      ...(TEST_POOL_MAX === undefined ? {} : { sourcePoolMax: TEST_POOL_MAX }),
+    });
+  const manager = pooled();
 
   let dsn: string;
   let drop: () => Promise<void> = async () => undefined;
-  const name = `adminium_invoicing_${randomBytes(4).toString('hex')}`;
+  const name = `${source.database ?? 'adminium_invoicing'}_${randomBytes(4).toString('hex')}`;
   if (dialect === 'sqlite') {
     const file = join(dataDir, 'source.db');
     new BetterSqlite3(file).close();
@@ -393,20 +412,36 @@ export async function installInvoicing(
   const install = await app.inject({ method: 'POST', url: '/apps/install', payload: { ...body, ...reviewed } });
   expect(install.statusCode, install.body).toBe(200);
 
-  const handle = await manager.data(connection.id);
   const prefix = `${String(manifest['key']).replace(/-/g, '_')}_`;
+  const twins: ConnectionManager[] = [];
+  const over = async (pool: ConnectionManager): Promise<InvoicingHarness> => {
+    const handle = await pool.data(connection.id);
+    return {
+      meta,
+      manager: pool,
+      connectionId: connection.id,
+      dialect,
+      app,
+      dataDir,
+      rows: async (statement) => (await sql.raw<Record<string, unknown>>(statement).execute(handle.db)).rows,
+      real: (ref) => `${prefix}${ref}`,
+      twin: async () => {
+        const other = pooled();
+        twins.push(other);
+        return over(other);
+      },
+      close: async () => {
+        await pool.disposeAll().catch(() => undefined);
+      },
+    };
+  };
+  const own = await over(manager);
   return {
-    meta,
-    manager,
-    connectionId: connection.id,
-    dialect,
-    app,
-    dataDir,
+    ...own,
     reply: install.json() as Record<string, unknown>,
-    rows: async (statement) => (await sql.raw<Record<string, unknown>>(statement).execute(handle.db)).rows,
-    real: (ref) => `${prefix}${ref}`,
     close: async () => {
       await app.close();
+      for (const other of twins) await other.disposeAll().catch(() => undefined);
       await manager.disposeAll().catch(() => undefined);
       await drop();
       await meta.db.destroy();

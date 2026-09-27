@@ -698,7 +698,23 @@
         "checkFirst": "Check the tables again before you install.",
         "nothingYet": "Nothing changes until you press Install.",
         "again": "Check again",
-        "adoptedNote": "An earlier install of {app} used this table as it found it."
+        "adoptedNote": "An earlier install of {app} used this table as it found it.",
+        "share": {
+          "useMenu": "Use {app}’s menu",
+          "useTables": "Use {app}’s tables",
+          "useMenuNote": "Both apps read and write the same dishes.",
+          "useTablesNote": "Both apps read and write the same rows.",
+          "addsColumns": "{count, plural, one {Adds # column to {app}’s tables:} other {Adds # columns to {app}’s tables:}}",
+          "nothingChanges": "Nothing {app} reads changes.",
+          "separateMenu": "Keep a separate menu",
+          "separateTables": "Keep separate tables",
+          "separateNote": "{app} makes its own {count, plural, one {table} other {# tables}}.",
+          "introMenu": "{app} already keeps a menu here. {self} can use it, or keep a menu of its own.",
+          "introTables": "{app} already keeps these tables here. {self} can use them, or keep its own.",
+          "labelMenu": "Which menu {app} uses",
+          "labelTables": "Which tables {app} uses",
+          "recommended": "Recommended"
+        }
       },
       "running": {
         "title": "Installing {app}",
@@ -3016,7 +3032,9 @@
     "cancel": "Cancel",
     "confirmDrop": "Uninstall and delete data",
     "confirm": "Uninstall",
-    "rules": "{count, plural, one {Its column rule} other {Its # column rules}}"
+    "rules": "{count, plural, one {Its column rule} other {Its # column rules}}",
+    "sharedTables": "{app} also uses {count, plural, one {# table} other {# tables}}, never deleted: {tables}",
+    "sharedSample": "Its sample rows in the shared tables stay. Remove the sample data first to take them out."
   },
   "sampleData": {
     "title": "Sample data",

@@ -354,13 +354,15 @@ for (const [dialect, available] of LEGS) {
   describe.skipIf(!available || dialect === 'sqlite')(`billed time under two desks at once on ${dialect}`, () => {
     it('never leave a line billing hours its time no longer has', async () => {
       const { h, w, entry } = await harness(dialect);
+      // The second desk writes through a pool of its own: a pool of one stays the first desk's.
+      const other = await settledWriter(await h.twin());
       const outcomes = { both: 0, hoursFirst: 0, billedFirst: 0 };
       for (let round = 0; round < 16; round += 1) {
         const time = await entry('3');
         const invoice = await w.create('invoices', { client_id: (await h.rows(`select id from ${h.real('clients')}`))[0]!['id'] });
         const [edit, bill] = await Promise.allSettled([
           w.update('time_entries', time['id'], { hours: '5' }),
-          w.create('invoice_lines', { invoice_id: invoice['id'], qty: '1', rate: '100', time_entry_id: time['id'] }),
+          other.create('invoice_lines', { invoice_id: invoice['id'], qty: '1', rate: '100', time_entry_id: time['id'] }),
         ]);
         // Each refusal is one the engine gives on purpose, never anything else.
         if (edit.status === 'rejected') expect(codeOf(edit.reason)).toBe('RECORD_LOCKED');

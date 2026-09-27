@@ -26,6 +26,7 @@ import { applyLookupMask } from '../crud/lookups.js';
 import { maskRows, type Row } from '../crud/mask.js';
 import { wallTimeToInstant } from '../crud/venue-time.js';
 import { widgetDataChannel } from '../realtime/hub.js';
+import { choiceWordsOf } from './choice-words.js';
 import {
   COL_ALIAS,
   DISTRIBUTION_QUANTILES,
@@ -176,33 +177,8 @@ export interface ColumnMeta {
   /** A choice column's words for its values ("Checked in" for `checked_in`), and their tones. */
   enumLabels?: Record<string, string>;
   enumTones?: Record<string, string>;
-}
-
-/** The tones a cell may draw a choice in; anything else is left to the default. */
-const CELL_TONES: ReadonlySet<string> = new Set(['neutral', 'accent', 'pos', 'warn', 'danger', 'info', 'muted']);
-
-/**
- * A choice column's words for its values, and their tones: its value labels,
- * with the words and tones of its inline allowed values over them — the ones
- * a form offers, so a card and a form say the same thing. Both are already
- * read in the reader's language (`applyOverrides`).
- */
-function choiceWordsOf(column: unknown): { labels: Record<string, string> | undefined; tones: Record<string, string> } {
-  const { enumLabels, enumTones, options } = (column ?? {}) as {
-    enumLabels?: Record<string, string>;
-    enumTones?: Record<string, string>;
-    options?: { values?: { value: string; label?: string; tone?: string }[] };
-  };
-  const labels: Record<string, string> = { ...enumLabels };
-  const tones: Record<string, string> = { ...enumTones };
-  for (const item of options?.values ?? []) {
-    if (item.label !== undefined) labels[item.value] = item.label;
-    if (item.tone !== undefined) tones[item.value] = item.tone;
-  }
-  return {
-    labels: enumLabels === undefined && Object.keys(labels).length === 0 ? undefined : labels,
-    tones: Object.fromEntries(Object.entries(tones).filter(([, tone]) => CELL_TONES.has(tone))),
-  };
+  /** How a widget draws the column, where the answer knows better than its type (`capacity-left`). */
+  semantic?: string;
 }
 
 export interface ShapedRecordList {
@@ -562,12 +538,24 @@ function columnMetaOf(compiled: CompiledWidgetQuery): ColumnMeta[] {
 function venueBuckets(compiled: CompiledWidgetQuery, rows: Row[]): Row[] {
   const zone = compiled.bucketZone;
   const alias = compiled.bucketAlias ?? compiled.ohlcScan?.bucketAlias ?? null;
+  if (compiled.hourOfDay && alias !== null) return rows.map((row) => ({ ...row, [alias]: hourOfDayInstant(row[alias]) }));
   if (zone === null || alias === null) return rows;
   return rows.map((row) => {
     const value = row[alias];
     const instant = typeof value === 'string' ? wallTimeToInstant(value, zone) : null;
     return instant === null ? row : { ...row, [alias]: instant.toISOString() };
   });
+}
+
+/**
+ * An hour of the venue's day (`'11'`, or 11 where a driver hands back a
+ * number) as the point's `t`: that hour on 1970-01-01 in UTC fields, a wall
+ * hour and not an instant — a chart labels it from those fields, never from
+ * its own clock.
+ */
+function hourOfDayInstant(value: unknown): unknown {
+  const hour = Number(value);
+  return value === null || value === undefined || !Number.isInteger(hour) || hour < 0 || hour > 23 ? value : new Date(Date.UTC(1970, 0, 1, hour)).toISOString();
 }
 
 export function shapeRows(input: ShapeInput): ShapedPayload {

@@ -31,9 +31,11 @@ import { resolveLookups } from '../../crud/lookups.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
+import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
-import { groupLabelsFor } from '../../widget-data/group-labels.js';
+import { groupLabelSourceOf, groupLabelsFor } from '../../widget-data/group-labels.js';
 import { resolveLinkFilters } from '../../widget-data/link-filters.js';
+import { resolvePaths } from '../../widget-data/paths.js';
 import { shapeRows, toNumber, type ShapedPayload } from '../../widget-data/shapers.js';
 import {
   linkFiltersBody,
@@ -54,7 +56,7 @@ export interface WidgetDataRoutesDeps {
 }
 
 interface QueryOutcome {
-  result: ShapedPayload;
+  result: ShapedPayload | ShapedCapacity;
   cached: boolean;
 }
 
@@ -140,6 +142,30 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const hit = cache.get(key);
       if (hit !== undefined) return { result: hit as ShapedPayload, cached: true };
 
+      /*
+       * A limit's counts: the desk's counts route answered for a card, on that
+       * route's rules — the pools' tables and a column asked under are
+       * checked by the counts themselves, through this reader's access.
+       */
+      if (descriptor.kind === 'capacity-counts') {
+        const { db, dialect } = await manager.data(connectionId);
+        const result = await answerCapacityCounts({
+          descriptor,
+          params: params ?? {},
+          connectionId,
+          view,
+          table,
+          db,
+          dialect,
+          timezone: (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? undefined,
+          now: deps.now?.() ?? new Date(),
+          access: countsAccessFor(request, connectionId, view),
+          canReadPii: piiOf,
+        });
+        cache.set(key, result, connectionId, table.id);
+        return { result, cached: false };
+      }
+
       // Resolved here rather than in the compiler: whether each reached table
       // may be read is a question about THIS caller. A refused lookup degrades
       // to null + `_masked` rather than failing the widget (the CRUD rule).
@@ -154,6 +180,12 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
               canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
             });
 
+      const canReadTable = (tableId: string) => request.can(`table:${connectionId}:${tableId}:read`);
+      // Filter and window columns one link away: this reader's read of that table and column, or a refusal.
+      const paths = await resolvePaths({ view, table, descriptor, connectionId, canReadPii: piiOf, canReadTable });
+      // Where a group's label is read, when this reader may: a ranking's ties fall to it.
+      const groupLabel = await groupLabelSourceOf({ path: descriptor.groupLabel, groupColumn: descriptor.groupBy?.[0], table, view, canReadPii: piiOf, canReadTable });
+
       const { db, dialect } = await manager.data(connectionId);
       // The venue's clock: where "today" starts, and whose hours a chart shows.
       const timezone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? undefined;
@@ -167,6 +199,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         now: deps.now,
         lookups,
         timezone,
+        paths,
+        groupLabel,
       });
 
       const startedAt = Date.now();

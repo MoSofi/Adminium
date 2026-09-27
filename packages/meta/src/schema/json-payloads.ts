@@ -939,6 +939,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         ...momentStamps,
       ]),
       on: z.union([stampTrigger, z.array(stampTrigger).min(2).max(3)]),
+      /** Emptied again when a move marked `undo` takes the row back out of a state it watches. */
+      clearOnBack: z.literal(true).optional(),
     }),
   }),
   z.object({
@@ -1073,6 +1075,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
                   })
                   .optional(),
                 roles: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),
+                /** The move takes back the listed one the other way: made only naming the state it saw. */
+                undo: z.literal(true).optional(),
               }),
             ]),
           )

@@ -593,6 +593,41 @@ export function createSampleDataService(deps: SampleDataDeps) {
     return rows.rows.map((row) => ({ ...row, seq: Number(row.seq) }));
   }
 
+  /**
+   * The tables whose sample rows an add leaves out: the app's
+   * `sampleData.skipWhenShared.skip`, when the table it watches is one
+   * another installed app uses too (a shared menu) and already holds a real
+   * row — one no installed app's sample data added. A venue's real menu then
+   * never gains the sample dishes, nor sample orders of them.
+   */
+  async function skippedWhenShared(app: SampleApp, connectionId: string, handle: DataHandle, names: Readonly<Record<string, string>>): Promise<ReadonlySet<string>> {
+    const rule = app.manifest.kind === 'app' ? app.manifest.sampleData?.skipWhenShared : undefined;
+    const real = rule === undefined ? undefined : names[rule.table];
+    if (rule === undefined || real === undefined) return new Set();
+    const live = (state: string) => state === 'created' || state === 'adopted' || state === 'shared';
+    const everyRecord = await records.forConnection(connectionId);
+    const sharedWith = everyRecord.filter((r) => r.appKey !== app.key && r.role === 'app' && r.tableName === real && live(r.state));
+    if (sharedWith.length === 0) return new Set();
+    const view = await viewFor(connectionId);
+    const table = view.table(real);
+    const keyOf = (row: Readonly<Record<string, unknown>>) => table.primaryKey.map((column) => String(row[column])).join('\u0000');
+    // Every row an installed app's sample data put in the table, by key.
+    const sample = new Set<string>();
+    for (const ledger of everyRecord.filter((r) => r.role === 'sample-ledger' && r.state === 'created')) {
+      const refs = new Set(Object.entries(await records.realNames(connectionId, ledger.appKey)).filter(([, name]) => name === real).map(([ref]) => ref));
+      if (refs.size === 0) continue;
+      for (const row of await ledgerRows(handle, ledger.tableName)) {
+        const key = safeJson(row.pk);
+        if (refs.has(row.table_ref) && typeof key === 'object' && key !== null) sample.add(keyOf(key as Record<string, unknown>));
+      }
+    }
+    const keys = (await asDb(handle.db)
+      .selectFrom(table.id as never)
+      .select(table.primaryKey.map((column) => sql.ref(column).as(column)))
+      .execute()) as Record<string, unknown>[];
+    return keys.some((key) => !sample.has(keyOf(key))) ? new Set(rule.skip) : new Set();
+  }
+
   return {
     /** What is loaded now: counts per table and when it was added. */
     async status(app: SampleApp) {
@@ -620,9 +655,15 @@ export function createSampleDataService(deps: SampleDataDeps) {
     /** What an add would write, per table, without writing it. */
     async addPreview(app: SampleApp) {
       const bundle = await loadBundle(app);
+      // The tables a shared table's real rows keep the sample out of are not written: not listed.
+      const skipped =
+        app.connectionId === null || app.manifest.kind !== 'app' || app.manifest.sampleData?.skipWhenShared === undefined
+          ? new Set<string>()
+          : await skippedWhenShared(app, app.connectionId, await deps.manager.data(app.connectionId), await records.realNames(app.connectionId, app.key));
+      const tables = bundle.tables.filter((table) => !skipped.has(table.ref));
       return {
-        tables: bundle.tables.map((table) => ({ ref: table.ref, count: table.rows.length })),
-        total: bundle.tables.reduce((sum, table) => sum + table.rows.length, 0),
+        tables: tables.map((table) => ({ ref: table.ref, count: table.rows.length })),
+        total: tables.reduce((sum, table) => sum + table.rows.length, 0),
         assets: Object.keys(bundle.assets).length,
       };
     },
@@ -647,6 +688,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const handle = await deps.manager.data(connectionId);
       const names = await records.realNames(connectionId, app.key);
       const timeZone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
+      const skipped = await skippedWhenShared(app, connectionId, handle, names);
       opts.progress?.(5, 'Checked the sample data');
 
       // Images first, into the Files library; to the bin if anything later fails.
@@ -691,7 +733,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
           actor: { kind: 'user', id: opts.userId, label: opts.userLabel },
           request: null,
         };
-        const total = bundle.tables.reduce((sum, table) => sum + table.rows.length, 0);
+        const total = bundle.tables.reduce((sum, table) => sum + (skipped.has(table.ref) ? 0 : table.rows.length), 0);
         const counts: Record<string, number> = {};
         const explicitKeys = new Set<string>();
 
@@ -703,6 +745,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
           let seq = 0;
           let done = 0;
           for (const table of bundle.tables) {
+            // A shared table already holding real rows keeps these tables' sample rows out.
+            if (skipped.has(table.ref)) continue;
             /*
              * The totals so far, before the next table: its rows may copy one
              * (a stage of a quote copies the quote's subtotal), and a copy

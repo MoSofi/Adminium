@@ -47,6 +47,9 @@ import {
   uniqueWithOf,
   type InstallTablePlan,
   type PlanProblem,
+  type ShareChoice,
+  shapeTables,
+  tableShapeOf,
   type TableChoice,
 } from '@adminium/manifest';
 import { checkManifestPages, sha256Hex, type DatabaseModel } from '@adminium/engine';
@@ -399,6 +402,16 @@ function linkColumnFor(
 export interface InstallAnswers {
   choices?: Readonly<Record<string, TableChoice>> | undefined;
   altPrefix?: string | undefined;
+  /** Per shape (`menu@1`): use another installed app's tables of it, or keep separate ones. */
+  shares?: Readonly<Record<string, ShareChoice>> | undefined;
+}
+
+/** An update's answers: the check's table choices and shape answers, as the body carries them. */
+function updateAnswers(body: { choices?: Record<string, TableChoice> | undefined; shares?: Record<string, ShareChoice> | undefined } | null | undefined): InstallAnswers {
+  return {
+    ...(body?.choices === undefined ? {} : { choices: body.choices }),
+    ...(body?.shares === undefined ? {} : { shares: body.shares }),
+  };
 }
 
 /**
@@ -743,6 +756,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       if (answers.altPrefix !== undefined) names.add(`${answers.altPrefix}${table.ref}`);
     }
     for (const r of own) names.add(r.tableName);
+    /*
+     * ANOTHER APP'S TABLES OF A SHAPE THIS APP DECLARES are read too, whatever
+     * their names: the planner can offer them only when it sees them (their
+     * columns, for what sharing would add; their key, for a link into one).
+     */
+    const declaredShapes = shapeTables(manifest);
+    for (const r of others) if (r.role === 'app' && r.shape !== null && declaredShapes.has(r.shape)) names.add(r.tableName);
     for (const choice of Object.values(answers.choices ?? {})) {
       if (choice.action === 'rename-existing') names.add(choice.to);
     }
@@ -787,6 +807,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
 
     const elsewhere = manifest.kind === 'app' ? await installedElsewhere(manifest.key, manifest.name, connectionId) : null;
 
+    // The other apps' names, for a refusal or an offer that names one.
+    const appNames = others.some((r) => r.shape !== null) ? await installedAppNames() : new Map<string, string>();
     const pure =
       manifest.kind === 'app' && dialect !== undefined && dialect !== 'generic'
         ? planInstall(
@@ -796,11 +818,21 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               prefix,
               records,
               others: [
-                ...others.map((r) => ({ appKey: r.appKey, table: r.tableName, shape: r.shape, state: r.state })),
+                // Another app's sample ledger keeps no shape: never a table to share, still a name held.
+                ...others.map((r) => ({
+                  appKey: r.appKey,
+                  table: r.tableName,
+                  shape: r.role === 'app' ? r.shape : null,
+                  state: r.state,
+                  ref: r.ref,
+                  createdAt: r.createdAt,
+                  ...(appNames.has(r.appKey) ? { appName: appNames.get(r.appKey)! } : {}),
+                })),
                 ...addOnHolders,
               ],
               choices: answers.choices,
               altPrefix: answers.altPrefix,
+              shares: answers.shares,
               dialect,
             },
           )
@@ -826,6 +858,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       // The tables built on an add-on's shape, against the shape the install will run on.
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
       ...(await repeatedUniques(pure, connectionId, manifest, dialect)),
+      ...(await shareRefProblems(manifest, connectionId, pure)),
     ];
     const plan: InstallPlan =
       pageProblems.length === 0
@@ -838,6 +871,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       connectionId,
       plan.reuse.map((table) => ({ ref: table.ref, tableName: plan.names?.[table.ref] ?? table.ref })),
     );
+    const nameOf = (key: string) => appNames.get(key) ?? key;
     return {
       plan,
       shapeRecords: shapes === null ? new Map() : shapeRecordsFor(manifest, shapes),
@@ -854,12 +888,22 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               // count and its column list come from the same place.
               tables: plan.tables.map((table) => ({
                 ...table,
+                ...(table.sharedWith === undefined ? {} : { sharedWithName: nameOf(table.sharedWith) }),
                 columns: (manifest.requiredSchema?.tables.find((t) => t.ref === table.ref)?.columns ?? []).map(
                   (column) => ({ ref: column.ref, type: column.type }),
                 ),
               })),
             }),
         ...(plan.names === undefined ? {} : { names: plan.names }),
+        ...(plan.shareOffers === undefined
+          ? {}
+          : {
+              shareOffers: plan.shareOffers.map((offer) => ({
+                ...offer,
+                withName: nameOf(offer.with),
+                candidates: offer.candidates.map((key) => ({ key, name: nameOf(key) })),
+              })),
+            }),
         key: plan.addOnKey,
         version: plan.version,
         installable: plan.installable,
@@ -897,6 +941,43 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             : [],
       },
     };
+  }
+
+  /** Every installed app's name, by key. */
+  async function installedAppNames(): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    for (const m of await manifests.list('app')) {
+      const name = (m.document as { name?: unknown } | null)?.name;
+      out.set(m.row.manifestKey, typeof name === 'string' ? name : m.row.manifestKey);
+    }
+    return out;
+  }
+
+  /**
+   * A PUBLIC ENDPOINT ON A SHARED TABLE UNDER A NAME ANOTHER APP'S HAS. An
+   * endpoint's name comes from its table's real name, so two apps sharing a
+   * table can ask for the same one — which the database would refuse part
+   * way through the install. Said on the check instead.
+   */
+  async function shareRefProblems(manifest: Manifest, connectionId: string, plan: InstallPlan): Promise<PlanProblem[]> {
+    if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0) return [];
+    const shared = new Set((plan.tables ?? []).filter((t) => t.action === 'share').map((t) => t.ref));
+    if (shared.size === 0) return [];
+    const stored = new Map((await publicEndpointsRepo(deps.meta).listByConnection(connectionId)).map((e) => [e.ref, e.managedBy]));
+    const out: PlanProblem[] = [];
+    for (const endpoint of planPublicEndpoints(manifest, plan.names ?? {}, null, { tablesMadeLater: true })) {
+      if (!shared.has(endpoint.table)) continue;
+      const holder = stored.get(endpoint.ref);
+      if (holder === undefined || holder === manifest.key) continue;
+      out.push({
+        code: 'SHARE_REF_TAKEN',
+        table: endpoint.table,
+        message:
+          `The public access "${endpoint.ref}" this app asks for on the shared table "${plan.names?.[endpoint.table] ?? endpoint.table}" is already ` +
+          `${holder === null ? 'an endpoint of this workspace' : `"${holder}"'s`}. Keep a separate menu, or remove that endpoint first.`,
+      });
+    }
+    return out;
   }
 
   /**
@@ -959,10 +1040,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
     request: FastifyRequest,
     /** The app is installed on this connection: the check is an update's. */
     installed = false,
+    /** The columns the install adds to a table it uses as it is, by short name: there once it runs. */
+    columnsMadeLater: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
   ) {
     if (manifest.kind !== 'app' || (manifest.publicAccess ?? []).length === 0) return undefined;
     const view = deps.publicAccess === undefined ? null : await deps.publicAccess.viewFor(connectionId);
-    const planned = planPublicEndpoints(manifest, names, view, { tablesMadeLater: true });
+    const planned = planPublicEndpoints(manifest, names, view, { tablesMadeLater: true, columnsMadeLater });
     /*
      * An app already here (the check an update is shown): what its keys hold
      * already, what the update would give them, and what it would not make
@@ -1356,7 +1439,10 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         ref: table.ref,
         tableName: table.table,
         owned: table.action === 'create' || table.action === 'rename-existing',
-        state: table.action === 'share' ? 'shared' : table.action === 'reuse' ? 'adopted' : 'created',
+        // A table this app shares stays shared on an update: never taken for one it adopted.
+        state: table.action === 'share' || table.class === 'shared' ? 'shared' : table.action === 'reuse' ? 'adopted' : 'created',
+        // The shape it is declared with, so another app can find it to share.
+        ...(tableShapeOf(manifest, table.ref) === null ? {} : { shape: tableShapeOf(manifest, table.ref) }),
         ...shapeRecordOf(checked.shapeRecords, table.ref),
       });
     }
@@ -1493,6 +1579,15 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       throw new AppError(409, 'SHAPE_MISMATCH', `"${key}" cannot be ${verb}: ${shapeRefusals[0]!.message}`, {
         problems: shapeRefusals,
       });
+    }
+    /*
+     * A TABLE ANOTHER APP SHARES under a shape this version stops declaring:
+     * the other app goes on writing it as that shape, so the update is refused,
+     * naming it — uninstalling that app first is the operator's call.
+     */
+    const inUse = dto.problems.filter((problem) => problem.code === 'SHAPE_IN_USE');
+    if (inUse.length > 0) {
+      throw new AppError(409, 'SHAPE_IN_USE', `"${key}" cannot be ${verb}: ${inUse[0]!.message}`, { problems: inUse });
     }
     const onlyMissing = plan.problems.every((problem) => problem.code === 'COLUMNS_REQUIRED');
     /*
@@ -2245,7 +2340,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
        * recomputes the plan rather than trusting what came back from here.
        */
       async (request) => {
-        const { key, version, connectionId, choices, altPrefix } = request.body;
+        const { key, version, connectionId, choices, altPrefix, shares } = request.body;
         const manifest = await verifiedManifest(key, version);
         // The preview an update is checked with: the same refusal the update
         // route gives, before the operator is shown tables to consent to.
@@ -2262,6 +2357,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           {
             ...(choices === undefined ? {} : { choices }),
             ...(altPrefix === undefined ? {} : { altPrefix }),
+            ...(shares === undefined ? {} : { shares }),
           },
           addOns,
         );
@@ -2271,6 +2367,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           dto.names ?? {},
           request,
           installed !== undefined && installed.row.connectionId === connectionId,
+          new Map((dto.tables ?? []).map((table) => [table.ref, new Set(table.edits.filter((edit) => edit.kind === 'add-column').map((edit) => edit.column))])),
         );
         // What the add-ons refuse whatever the install says, so `installable` is the install's answer too.
         const addOnProblems = addOnPlanProblems(manifest.name, addOns);
@@ -2293,10 +2390,11 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         schema: { body: installAppBody, response: { 200: installedAppReply } },
       },
       async (request) => {
-        const { key, version, connectionId, planChecksum: reviewed, choices, altPrefix } = request.body;
+        const { key, version, connectionId, planChecksum: reviewed, choices, altPrefix, shares } = request.body;
         const answers: InstallAnswers = {
           ...(choices === undefined ? {} : { choices }),
           ...(altPrefix === undefined ? {} : { altPrefix }),
+          ...(shares === undefined ? {} : { shares }),
         };
         const userId = request.user?.id ?? null;
         const userLabel = request.user?.email ?? 'unknown';
@@ -2490,6 +2588,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                   owned: true,
                   state: 'pending',
                   prefix,
+                  // The shape it is declared with, so another app can find it to share.
+                  ...(tableShapeOf(manifest, table.ref) === null ? {} : { shape: tableShapeOf(manifest, table.ref) }),
                   ...shapeRecordOf(tablesPlan.shapeRecords, table.ref),
                 });
                 pending.set(table.ref, record.id);
@@ -2746,7 +2846,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               connectionId,
               'updated',
               request.body?.planChecksum,
-              request.body?.choices === undefined ? {} : { choices: request.body.choices },
+              updateAnswers(request.body),
               addOnRows,
             );
           }
@@ -2793,7 +2893,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
               'updated',
               { superAdmin: await isSuperAdmin(request), createdBy: userId },
               addOnSteps.length > 0 ? undefined : request.body?.planChecksum,
-              request.body?.choices === undefined ? {} : { choices: request.body.choices },
+              updateAnswers(request.body),
               // Planned against the add-ons' tables as they now are.
               addOnSteps.length > 0 ? undefined : addOnRows,
             );
@@ -3017,6 +3117,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       const domains = await settingsRepo(deps.meta).get('surfaces.domains');
       // The add-ons connected to it: kept, only their link to it goes.
       const addOns = await addOnsKeptBy({ meta: deps.meta, credentialCrypto: deps.credentialCrypto }, key);
+      // The other apps that use a table too (a shared menu), by name: the dialog says who keeps it.
+      const sharing = others.filter((other) => other.role === 'app' && records.some((record) => record.tableName === other.tableName));
+      const appNames = sharing.length === 0 ? new Map<string, string>() : await installedAppNames();
+      const sharedWith = (tableName: string) =>
+        [...new Set(sharing.filter((other) => other.tableName === tableName).map((other) => other.appKey))]
+          .sort()
+          .map((other) => ({ key: other, name: appNames.get(other) ?? other }));
       return {
         key,
         connectionId,
@@ -3030,6 +3137,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         roles,
         tables: records.map((record) => ({
           record,
+          sharedWith: sharedWith(record.tableName),
           // Made by this app, and no other app's record names it.
           droppable:
             record.owned &&
@@ -3145,6 +3253,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const plan = await uninstallPlanOf(await installedRow(request.params.key));
         const brief = (page: { slug: string; title: string }) => ({ slug: page.slug, title: page.title });
+        // Its sample rows in a table another app goes on using: they stay, and the dialog says so.
+        const sharedRefs = new Set(plan.tables.filter((entry) => entry.sharedWith.length > 0).map((entry) => entry.record.ref));
+        const sampleApp = sharedRefs.size === 0 || samples === null ? null : await findSampleApp(deps.meta, plan.key);
+        const sharedSampleRows =
+          sampleApp === null || samples === null
+            ? 0
+            : (await samples.status(sampleApp)).tables.filter((table) => sharedRefs.has(table.ref)).reduce((sum, table) => sum + table.count, 0);
         return {
           key: plan.key,
           pages: { removed: plan.pages.removed.map(brief), kept: plan.pages.kept.map(brief) },
@@ -3160,8 +3275,13 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             members: entry.members.length,
             apiKeys: entry.apiKeys.length,
           })),
-          tables: plan.tables.map((entry) => ({ table: entry.record.tableName, droppable: entry.droppable })),
+          tables: plan.tables.map((entry) => ({
+            table: entry.record.tableName,
+            droppable: entry.droppable,
+            ...(entry.sharedWith.length === 0 ? {} : { sharedWith: entry.sharedWith }),
+          })),
           hosts: plan.hosts,
+          ...(sharedSampleRows === 0 ? {} : { sharedSampleRows }),
           canDropTables: await isSuperAdmin(request),
           ...(plan.addOns.length === 0 ? {} : { addOns: plan.addOns }),
         };

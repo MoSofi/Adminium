@@ -145,6 +145,12 @@ const producerBase = {
   /** One message per linked row in each window of this many minutes. */
   batchMinutes: z.number().int().min(1).max(240).optional(),
   /**
+   * The message waits this many seconds before it may go, so a move taken
+   * back at once (an order marked ready by mistake) drops it by `dropWhen`
+   * before anyone is told. A message dropped so does not stop the next one.
+   */
+  holdSeconds: z.number().int().min(1).max(3600).optional(),
+  /**
    * A change made once the message has gone, through the ordinary write: to
    * the source row, or (with `via`) the row its foreign key points at.
    */
@@ -644,8 +650,14 @@ export function outboxIssues(
         if (!valueFits(found, value)) out.push({ path: here('dropWhen', d), message: `${JSON.stringify(value)} is not a value of "${linked}.${drop.column}"` });
       }
     });
-    if (producer.dropWhen !== undefined && producer.hold !== true && producer.due === undefined && producer.batchMinutes === undefined) {
+    if (producer.dropWhen !== undefined && producer.hold !== true && producer.due === undefined && producer.batchMinutes === undefined && producer.holdSeconds === undefined) {
       out.push({ path: here('dropWhen'), message: 'only a message that waits (held, or due later) can be dropped' });
+    }
+    // A short wait before it may go: kept in the due column, and the only wait it has.
+    if (producer.holdSeconds !== undefined) {
+      if (box.columns.due === undefined) out.push({ path: here('holdSeconds'), message: 'a message waits in the outbox\'s due column, and none is named' });
+      const other = producer.hold === true ? 'hold' : producer.due !== undefined ? 'due' : producer.batchMinutes !== undefined ? 'batchMinutes' : 'before' in producer ? 'before' : null;
+      if (other !== null) out.push({ path: here('holdSeconds'), message: `a message that waits a few seconds takes no ${other} as well` });
     }
     if (producer.recipient !== undefined) {
       if ('setting' in producer.recipient) setting(producer.recipient.setting, here('recipient', 'setting'));

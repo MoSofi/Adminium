@@ -16403,6 +16403,62 @@
     "status": "mt",
     "srcHash": "fb35a75c639f"
   },
+  "studio.hostedApps.install.check.share.addsColumns": {
+    "status": "mt",
+    "srcHash": "1a2092d08fbb"
+  },
+  "studio.hostedApps.install.check.share.introMenu": {
+    "status": "mt",
+    "srcHash": "883769e9eeda"
+  },
+  "studio.hostedApps.install.check.share.introTables": {
+    "status": "mt",
+    "srcHash": "908ef7a194f6"
+  },
+  "studio.hostedApps.install.check.share.labelMenu": {
+    "status": "mt",
+    "srcHash": "9472b1c3280c"
+  },
+  "studio.hostedApps.install.check.share.labelTables": {
+    "status": "mt",
+    "srcHash": "b2a4e4d941a3"
+  },
+  "studio.hostedApps.install.check.share.nothingChanges": {
+    "status": "mt",
+    "srcHash": "9794ea2f4d11"
+  },
+  "studio.hostedApps.install.check.share.recommended": {
+    "status": "mt",
+    "srcHash": "9ef937556efe"
+  },
+  "studio.hostedApps.install.check.share.separateMenu": {
+    "status": "mt",
+    "srcHash": "6a8c7863f280"
+  },
+  "studio.hostedApps.install.check.share.separateNote": {
+    "status": "mt",
+    "srcHash": "b68515f7a4bb"
+  },
+  "studio.hostedApps.install.check.share.separateTables": {
+    "status": "mt",
+    "srcHash": "a228adac0dfe"
+  },
+  "studio.hostedApps.install.check.share.useMenu": {
+    "status": "mt",
+    "srcHash": "5565251cfa1c"
+  },
+  "studio.hostedApps.install.check.share.useMenuNote": {
+    "status": "mt",
+    "srcHash": "9fe49427bdbd"
+  },
+  "studio.hostedApps.install.check.share.useTables": {
+    "status": "mt",
+    "srcHash": "a94fa8767750"
+  },
+  "studio.hostedApps.install.check.share.useTablesNote": {
+    "status": "mt",
+    "srcHash": "e6d0a34dc4ad"
+  },
   "studio.hostedApps.install.check.sharedNote": {
     "status": "mt",
     "srcHash": "0fe66165f088"
@@ -22711,6 +22767,14 @@
     "status": "mt",
     "srcHash": "5b87fae1bc10"
   },
+  "studio.uninstall.sharedSample": {
+    "status": "mt",
+    "srcHash": "6ffd845a0d8f"
+  },
+  "studio.uninstall.sharedTables": {
+    "status": "mt",
+    "srcHash": "b14dd116acf6"
+  },
   "studio.uninstall.tables": {
     "status": "mt",
     "srcHash": "7b4ba86ef841"
@@ -25382,6 +25446,42 @@
   "ui.widgets.charts.slope.emptyTitle": {
     "srcHash": "7e3e30f9d28b",
     "status": "mt"
+  },
+  "ui.widgets.charts.slotStrip.chartLabel": {
+    "status": "mt",
+    "srcHash": "0c1a16e17517"
+  },
+  "ui.widgets.charts.slotStrip.closed": {
+    "status": "mt",
+    "srcHash": "ad8c80a2259f"
+  },
+  "ui.widgets.charts.slotStrip.closedDay": {
+    "status": "mt",
+    "srcHash": "88d86b7721d5"
+  },
+  "ui.widgets.charts.slotStrip.held": {
+    "status": "mt",
+    "srcHash": "224ea878d516"
+  },
+  "ui.widgets.charts.slotStrip.now": {
+    "status": "mt",
+    "srcHash": "e3b82040565b"
+  },
+  "ui.widgets.charts.slotStrip.past": {
+    "status": "mt",
+    "srcHash": "18a63f5512af"
+  },
+  "ui.widgets.charts.slotStrip.paused": {
+    "status": "mt",
+    "srcHash": "c7dfb6f1d9c5"
+  },
+  "ui.widgets.charts.slotStrip.slot": {
+    "status": "mt",
+    "srcHash": "6ba0b1091743"
+  },
+  "ui.widgets.charts.slotStrip.slotNoSize": {
+    "status": "mt",
+    "srcHash": "d5bdbebd0e1b"
   },
   "ui.widgets.charts.sparkline.description": {
     "srcHash": "67507c1d2586",
@@ -28170,6 +28270,18 @@
   "ui.widgets.tables.bulkActionToolbar.toolbarLabel": {
     "srcHash": "3268f92bfe52",
     "status": "mt"
+  },
+  "ui.widgets.tables.capacityLeft.left": {
+    "status": "mt",
+    "srcHash": "93142e62d5f4"
+  },
+  "ui.widgets.tables.capacityLeft.taken": {
+    "status": "mt",
+    "srcHash": "5ea2a70c3cec"
+  },
+  "ui.widgets.tables.capacityLeft.takenOnly": {
+    "status": "mt",
+    "srcHash": "2edb767a9904"
   },
   "ui.widgets.tables.cardGallery.description": {
     "srcHash": "792845dac4bf",

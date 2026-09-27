@@ -118,11 +118,14 @@ describe.each(LEGS)('a clash on the root key that is not a retry — %s', (diale
 describe.each(LEGS.filter(([dialect]) => dialect === 'postgres'))('a quote beside a save on the same customer — %s', (dialect, available) => {
   let h: InvoicingHarness | undefined;
   let w: Writer;
+  /** The writer that stops holding a row, through a pool of its own: a pool of one stays `w`'s. */
+  let other: Writer;
   beforeAll(async () => {
     if (!available) return;
     h = await installInvoicing(dialect, orderManifest());
     for (const statement of MENU) await h.rows(statement);
     w = await writerFor(h);
+    other = await writerFor(await h.twin());
   }, 180_000);
   afterAll(async () => h?.close());
 
@@ -145,7 +148,7 @@ describe.each(LEGS.filter(([dialect]) => dialect === 'postgres'))('a quote besid
     const gate = new Promise<void>((resolve) => (release = resolve));
     const holding = new Promise<void>((resolve) => (held = resolve));
     // The save stops inside its transaction, holding the customer whose lifetime its order climbs into.
-    const saving = writeTree(w, orderTree(w, [{ item: 4 }]), 'save', w.desk, {
+    const saving = writeTree(other, orderTree(other, [{ item: 4 }]), 'save', other.desk, {
       expect: async () => {
         held();
         await gate;
@@ -168,7 +171,7 @@ describe.each(LEGS.filter(([dialect]) => dialect === 'postgres'))('a quote besid
     let held!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
     const holding = new Promise<void>((resolve) => (held = resolve));
-    const saving = writeTree(w, orderTree(w, [{ item: 4 }]), 'save', w.desk, {
+    const saving = writeTree(other, orderTree(other, [{ item: 4 }]), 'save', other.desk, {
       expect: async () => {
         held();
         await gate;
@@ -195,7 +198,7 @@ describe.each(LEGS.filter(([dialect]) => dialect === 'postgres'))('a quote besid
     const gate = new Promise<void>((resolve) => (release = resolve));
     const pointing = new Promise<void>((resolve) => (inside = resolve));
     // The quote stops at its first line, its order (for customer 1) already in.
-    const quoting = writeTree(w, orderTree(w, [{ item: 4 }]), 'dry', w.desk, {
+    const quoting = writeTree(other, orderTree(other, [{ item: 4 }]), 'dry', other.desk, {
       checks: async (_db, node) => {
         if (node.at.length === 0) return;
         inside();

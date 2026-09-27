@@ -351,8 +351,12 @@ export function planPublicEndpoints(
   manifest: Manifest,
   names: Readonly<Record<string, string>>,
   view: SnapshotView | null,
-  /** At plan time a table the install will make is not there yet: listed, checked at install. */
-  opts: { tablesMadeLater?: boolean } = {},
+  /**
+   * At plan time a table the install will make is not there yet: listed,
+   * checked at install. So are the columns it will add to a table it uses
+   * (`columnsMadeLater`, by the app's short name).
+   */
+  opts: { tablesMadeLater?: boolean; columnsMadeLater?: ReadonlyMap<string, ReadonlySet<string>> } = {},
 ): PlannedPublicEndpoint[] {
   if (manifest.kind !== 'app') return [];
   const entries = manifest.publicAccess ?? [];
@@ -486,7 +490,14 @@ export function planPublicEndpoints(
     // The live-model check every nested table gets: named, but not here, is an issue.
     const unfound = nestedRefs(entry, found).missing.map((short) => `"${entry.table}" names "${short}", which this app does not have here`);
     const definition = definitionOf(manifest, entry, ref, table.id, table.primaryKey, idOf, identityRefOf(entry), parent, personOf(entry));
-    const issues = [...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true }).map((issue) => issue.message), ...safety, ...unfound];
+    const later = opts.columnsMadeLater?.get(entry.table);
+    const issues = [
+      ...endpointIssues(definition, { ref, view, grantedToAppBoundKey: true })
+        .filter((issue) => !(/(UNKNOWN_COLUMN|COLUMN_UNKNOWN)$/.test(issue.code) && issue.column !== undefined && later?.has(issue.column) === true))
+        .map((issue) => issue.message),
+      ...safety,
+      ...unfound,
+    ];
     return { ...planned, select: definition.select, issues, definition };
   });
 }

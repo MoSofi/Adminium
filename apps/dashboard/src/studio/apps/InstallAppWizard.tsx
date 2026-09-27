@@ -121,6 +121,7 @@ import {
   isCardProblem,
   prefixOf,
   suggestedPrefix,
+  type SharePick,
   type TakenPick,
 } from './InstallCheck.js';
 import { PublicAccessInstallCard, publicAccessBlocked } from './PublicAccessInstallCard.js';
@@ -133,6 +134,7 @@ function answersOf(
   picks: Record<string, TakenPick>,
   renameTo: Record<string, string>,
   prefix: string,
+  sharePicks: Record<string, SharePick> = {},
 ): InstallAnswers {
   const choices: NonNullable<InstallAnswers['choices']> = {};
   let altPrefix: string | undefined;
@@ -142,9 +144,12 @@ function answersOf(
     else if (pick === 'rename-existing') choices[ref] = { action: 'rename-existing', to: renameTo[ref] ?? '' };
     else if (pick === 'alt-prefix') altPrefix = prefix;
   }
+  const shares: NonNullable<InstallAnswers['shares']> = {};
+  for (const shape of Object.keys(sharePicks).sort()) shares[shape] = sharePicks[shape]!;
   return {
     ...(Object.keys(choices).length === 0 ? {} : { choices }),
     ...(altPrefix === undefined ? {} : { altPrefix }),
+    ...(Object.keys(shares).length === 0 ? {} : { shares }),
   };
 }
 
@@ -224,6 +229,8 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
   const [picks, setPicks] = useState<Record<string, TakenPick>>({});
   const [renameTo, setRenameTo] = useState<Record<string, string>>({});
+  // Per shape another app already has (a menu): use that app's tables, or keep separate ones.
+  const [sharePicks, setSharePicks] = useState<Record<string, SharePick>>({});
   const [prefix, setPrefix] = useState('');
   const [checked, setChecked] = useState<InstallAnswers>({});
   const [stopped, setStopped] = useState<InstallStoppedDetails | null>(null);
@@ -234,7 +241,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
   // The Add-ons card's ticks and "Update it too", by add-on key.
   const [addOnPicks, setAddOnPicks] = useState<AddOnPicks>({ ticked: {}, update: {} });
   const [downloading, setDownloading] = useState<{ key: string; pct: number } | null>(null);
-  const answers = answersOf(picks, renameTo, prefix);
+  const answers = answersOf(picks, renameTo, prefix, sharePicks);
   const dirty = JSON.stringify(answers) !== JSON.stringify(checked);
   const connectionName = connections.find((connection) => connection.id === connectionId)?.name ?? '';
   const addOnRows: readonly AppAddOnRow[] = plan?.addOns ?? [];
@@ -404,7 +411,14 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
     setPicks(nextPicks);
     setRenameTo(nextRename);
     setPrefix(nextPrefix);
-    if (pick !== 'alt-prefix') preview.mutate(answersOf(nextPicks, nextRename, nextPrefix));
+    if (pick !== 'alt-prefix') preview.mutate(answersOf(nextPicks, nextRename, nextPrefix, sharePicks));
+  };
+
+  /** Use another app's tables of a shape, or keep separate ones: the check is made again at once. */
+  const onShare = (shape: string, pick: SharePick) => {
+    const nextShares = { ...sharePicks, [shape]: pick };
+    setSharePicks(nextShares);
+    preview.mutate(answersOf(picks, renameTo, prefix, nextShares));
   };
 
   const busy = upload.isPending || preview.isPending || install.isPending || download.isPending;
@@ -658,6 +672,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
             onToggle={(ref) => setOpenRows((rows) => ({ ...rows, [ref]: rows[ref] !== true }))}
             picks={picks}
             onPick={onPick}
+            onShare={onShare}
             renameTo={renameTo}
             onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
             prefix={prefix}
@@ -668,7 +683,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
                 Object.entries(picks).filter(([, pick]) => pick !== 'alt-prefix'),
               );
               setPicks(nextPicks);
-              preview.mutate(answersOf(nextPicks, renameTo, prefix));
+              preview.mutate(answersOf(nextPicks, renameTo, prefix, sharePicks));
             }}
             busy={busy}
           />
@@ -963,6 +978,7 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
                 // A new check for this database: earlier answers were about another.
                 setPicks({});
                 setRenameTo({});
+                setSharePicks({});
                 setPrefix('');
                 setOpenRows({});
                 setAddOnPicks({ ticked: {}, update: {} });
