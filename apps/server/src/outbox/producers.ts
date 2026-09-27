@@ -82,6 +82,7 @@ import { asInstant } from '../automations/conditions.js';
 import { wallOn } from '../crud/moments.js';
 import { venueClock } from '../crud/venue-time.js';
 import { outboxContext } from './context.js';
+import { notDropped } from './dropped.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
 
@@ -367,6 +368,9 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       } else if (producer.batchMinutes !== undefined && cols.due !== undefined) {
         // One per window: a message still waiting for its window to close takes this one in.
         seen = seen.where(cols.status as never, 'in', ['queued', 'held'] as never).where(cols.due as never, '>', bound(outbox, cols.due, now, handle.dialect) as never);
+      } else if (producer.holdSeconds !== undefined) {
+        // A message dropped while it waited (the move taken back) does not stop the next one.
+        seen = seen.where(notDropped(cols, producer) as never);
       }
       if ((await seen.executeTakeFirst()) !== undefined) return null;
 
@@ -378,6 +382,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         let due: number | null | undefined;
         if (at !== undefined) due = at;
         else if (producer.batchMinutes !== undefined) due = now + producer.batchMinutes * MINUTE;
+        else if (producer.holdSeconds !== undefined) due = now + producer.holdSeconds * 1_000;
         else if (producer.due !== undefined) {
           due = await dueFor(producer.due, about.row, about.table.columns.get(producer.due.date), zone, read);
         }

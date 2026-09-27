@@ -207,6 +207,12 @@ export const recordUpdateBody = z.object({
   links: recordLinksBody,
   children: recordChildrenBody,
   occurredAt: occurredAtBody,
+  /**
+   * The state the writer saw the row in (a table that keeps states): the
+   * change is refused if the row has moved on since. A move marked `undo`
+   * is made only with it.
+   */
+  from: z.string().min(1).max(64).optional(),
 });
 
 /** `GET …/:recordId/links/:relationId`. */

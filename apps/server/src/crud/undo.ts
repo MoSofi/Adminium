@@ -79,6 +79,12 @@ export interface UndoEntry {
   links: UndoLinks[];
   /** Child rows this write added, changed or removed. Empty for every other. */
   children: UndoChildren[];
+  /**
+   * A status move taken back by the table's move marked `undo` the other way:
+   * made as that move (judged, stamps emptied, announced), never restored as
+   * history. Absent for every other change.
+   */
+  moveBack?: { column: string; from: string; to: string };
   expiresAt: number;
 }
 

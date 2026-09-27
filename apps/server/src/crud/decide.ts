@@ -61,6 +61,7 @@ import { instantFor, renderNow } from './instants.js';
 import { lateRuleFor, lateVerdict, lateWindow, refusedBy } from './late.js';
 import { dayPlus, momentOf, momentSettings, momentVias, shifted, wallOn, type MomentContext } from './moments.js';
 import { StateTooLate } from './state-conditions.js';
+import { emptiedByUndo, keptByUndo, undoMoveOf } from './undo-moves.js';
 import { dayOf } from './states.js';
 import { venueClock } from './venue-time.js';
 import { sameValue } from './write-values.js';
@@ -129,9 +130,14 @@ export async function decideRow(
   let out = values;
   if (action === 'update' && rules.booking?.cancel !== undefined) out = await decideLate(rules.booking, out, before!, context);
   if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
-  const stamps = rules.stamps ?? [];
+  // A move marked undo keeps the stamps of the state it returns to, and empties those marked clearOnBack of the one it leaves.
+  const undo = action === 'update' ? undoMoveOf(rules.states, before, out) : null;
+  const stamps = undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo));
   const worked = await momentStamps(stamps, action, out, before, context);
-  return stampRow(stamps, action, out, before, context, worked);
+  const stamped = stampRow(stamps, action, out, before, context, worked);
+  if (undo === null) return stamped;
+  const emptied = (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
+  return emptied.length === 0 ? stamped : { ...stamped, ...Object.fromEntries(emptied.map((stamp) => [stamp.column, null])) };
 }
 
 // ─── moments, read before the write ───────────────────────────────────────

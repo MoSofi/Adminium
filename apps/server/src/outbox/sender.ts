@@ -888,7 +888,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // day, wait — and so does one whose day cannot be worked out yet.
     if (due !== undefined) {
       const spelled = bindWriteValue(due, at, dialect);
-      const timed = [...new Set((box.definition.producers ?? []).filter((p) => p.due !== undefined || p.batchMinutes !== undefined).map((p) => p.kind))];
+      const timed = [...new Set((box.definition.producers ?? []).filter((p) => p.due !== undefined || p.batchMinutes !== undefined || p.holdSeconds !== undefined).map((p) => p.kind))];
       query = query.where((eb) =>
         eb.or([
           eb(sql.ref(due.name), '<=', spelled),

@@ -73,6 +73,7 @@ import type { Row } from './mask.js';
 import { copiedOf } from './decided-columns.js';
 import { lateRuleFor, lateVerdict, refusedBy } from './late.js';
 import { momentOf, momentSettings, momentVias, type MomentContext } from './moments.js';
+import { columnsEmptiedByUndo } from './undo-moves.js';
 import {
   HeldLinks,
   StateTooLate,
@@ -547,12 +548,17 @@ async function judgeOwnUpdate(
     const refuse = (message: string, extra: Record<string, unknown> = {}): never => {
       throw new StateMoveRefused(message, { column: states.column, from, to, ...extra });
     };
+    // The state the writer saw the row in, when it names one: a row moved on since is refused, never moved from where it is now.
+    const named = expectOf(values)?.[states.column];
+    if (named !== undefined && text(named) !== from) refuse(`This ${table.name} row is ${from} now, not ${String(text(named))}. Look again.`, { named: text(named) });
     if (move === undefined) refuse(`A ${table.name} row cannot go from ${from} to ${String(to)}.`);
     if (typeof move === 'object') {
       const declared = guard.declared !== undefined && guard.declared.to === to && (guard.declared.from === undefined || guard.declared.from === from);
       if (move.roles !== undefined && !declared && guard.roles !== 'any' && !move.roles.some((role) => (guard.roles as ReadonlySet<string>).has(role))) {
         refuse(`Only some roles may move a ${table.name} row from ${from} to ${String(to)}.`, { roles: move.roles });
       }
+      // An undo is made only by a write that names the state it takes the row back from.
+      if (move.undo === true && named === undefined) refuse(`A ${table.name} row goes back from ${from} to ${String(to)} only when the change names the state it was in.`, { undo: true });
       const key = table.primaryKey[0];
       for (const [child, min] of Object.entries(move.requires?.children ?? {})) {
         const via = states.children?.[child]?.via;
@@ -566,7 +572,9 @@ async function judgeOwnUpdate(
         const found = Number(((await query.executeTakeFirst()) as { n?: unknown } | undefined)?.n ?? 0);
         if (found < min) refuse(`A ${table.name} row goes from ${from} to ${String(to)} only with at least ${String(min)} ${child} row(s).`, { requires: child, min });
       }
-      const next = { ...stored, ...values };
+      // An undo is judged on the row as it stands: what it empties is read as it was.
+      const kept = move.undo === true ? columnsEmptiedByUndo(table.table?.columns ?? [], states.column, { from, to: to! }) : [];
+      const next = { ...stored, ...values, ...Object.fromEntries(kept.map((column) => [column, stored[column]])) };
       // An import's move of a row already there is a move like anyone's: it waits for what the move waits for.
       const waits = move.requires;
       if (waits !== undefined) {
