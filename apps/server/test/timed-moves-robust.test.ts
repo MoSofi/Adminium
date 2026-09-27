@@ -52,8 +52,8 @@ describe.each(LEGS)('timed moves over rows as the database keeps them — %s', (
   };
   const statusOf = async (ref: string, id: unknown) => (await h.rows(`select status from ${h.real(ref)} where id = ${String(id)}`))[0]!['status'];
   const set = (ref: string, id: unknown, assignments: string) => h.rows(`update ${h.real(ref)} set ${assignments} where id = ${String(id)}`);
-  /** A UTC instant as a literal each engine's time column reads as that instant. */
-  const at = (iso: string) => (dialect === 'postgres' ? `'${iso.replace('T', ' ').replace('Z', '')}+00'` : dialect === 'mysql' ? `'${iso.replace('T', ' ').replace('Z', '')}'` : `'${iso}'`);
+  /** A UTC instant as a literal each engine's time column reads as that instant (MySQL keeps this server's wall clock). */
+  const at = (iso: string) => (dialect === 'postgres' ? `'${iso.replace('T', ' ').replace('Z', '')}+00'` : dialect === 'mysql' ? `'${wall(iso)}'` : `'${iso}'`);
   async function order(email: string) {
     n += 1;
     const show = await w.create('events', { name: `Show ${String(n)}`, starts_at: '2027-09-20T19:00:00Z', doors_at: '2027-09-20T18:00:00Z' });
@@ -119,9 +119,10 @@ describe.each(LEGS)('timed moves over rows as the database keeps them — %s', (
       await set('orders', bare['id'], `held_until = '2027-03-01 09:00:00+00'`);
       await set('orders', local['id'], `held_until = '2027-03-01 09:00:00.999999+00'`);
     } else if (dialect === 'mysql') {
-      await set('orders', fine['id'], `held_until = '2027-03-01 09:00:00.123456'`);
-      await set('orders', bare['id'], `held_until = '2027-03-01 09:00:00'`);
-      await set('orders', local['id'], `held_until = '2027-03-01 09:00:00.999'`);
+      // A time column Adminium makes on MySQL keeps this server's wall clock.
+      await set('orders', fine['id'], `held_until = '${wall('2027-03-01T09:00:00Z')}.123456'`);
+      await set('orders', bare['id'], `held_until = '${wall('2027-03-01T09:00:00Z')}'`);
+      await set('orders', local['id'], `held_until = '${wall('2027-03-01T09:00:00Z')}.999'`);
     } else {
       await set('orders', fine['id'], `held_until = '2027-03-01T09:00:00.123456Z'`);
       await set('orders', bare['id'], `held_until = '2027-03-01T09:00:00Z'`);
@@ -148,7 +149,7 @@ describe.each(LEGS)('timed moves over rows as the database keeps them — %s', (
     const writes = writesWith(async (id) => {
       if (String(id) !== String(redated['id'])) return;
       const { db } = await h.manager.data(h.connectionId);
-      const later = dialect === 'postgres' ? '2027-04-01 12:00:00+00' : dialect === 'mysql' ? '2027-04-01 12:00:00' : '2027-04-01T12:00:00.000Z';
+      const later = dialect === 'postgres' ? '2027-04-01 12:00:00+00' : dialect === 'mysql' ? wall('2027-04-01T12:00:00Z') : '2027-04-01T12:00:00.000Z';
       await sql`update ${sql.table(h.real('orders'))} set held_until = ${later} where id = ${id}`.execute(db);
     });
     const tick = await runTimedMoves({ ...deps, writes }, h.connectionId, {}, clock('2027-04-01T09:30:00Z'));
