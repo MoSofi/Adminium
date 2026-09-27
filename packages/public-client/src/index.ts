@@ -404,6 +404,10 @@ export interface PublicRefConfig {
    * (`nightAvailability`). Absent on a booking ref, and from an older server.
    */
   capacity?: 'slot' | 'parent' | 'night';
+  /** Rows listed only with the code that unlocks them: pass `code` to `list`, `get` or `parentAvailability`. */
+  unlock?: true;
+  /** Image columns any visitor may see: `pictureUrl` builds each one's address. */
+  pictures?: string[];
 }
 
 export interface PublicConfig {
@@ -418,6 +422,8 @@ export interface PublicConfig {
    * currency attached, so formatting one without this is a guess.
    */
   currency: string | null;
+  /** Where this key's pictures are asked for (`pictureUrl` builds each one's address); absent when it shows none. */
+  pictures?: string;
   claim: {
     /**
      * `email-link`: the person asks for a link by address (`requestLink`), and
@@ -473,6 +479,12 @@ export interface ListOptions {
   offset?: number;
   cursor?: string;
   signal?: AbortSignal;
+  /**
+   * A code the guest typed, for a ref shown only with one (`unlock` in its
+   * config): sent in a header, never the URL. A code that unlocks nothing
+   * lists nothing, and counts as one of the visitor's few guesses a minute.
+   */
+  code?: string;
 }
 
 export interface PublicClientOptions {
@@ -683,6 +695,8 @@ export interface PublicDocuments {
 const SESSION_HEADER = 'x-adminium-public-session';
 /** The reply header that says the session sent was ended, and why. */
 const SESSION_ENDED_HEADER = 'x-adminium-session-ended';
+/** The header a typed code travels in: a URL is kept by every log and proxy on its way. */
+const CODE_HEADER = 'x-adminium-code';
 const PROOF_HEADER = 'x-adminium-proof';
 /** The staff member's token on a kiosk's writes — the dashboard's own CSRF header. */
 const CSRF_HEADER = 'x-adminium-csrf';
@@ -717,6 +731,8 @@ export interface ParentQuery {
   qty?: number;
   /** A row of this session's own (its held order), left out of the count. */
   exclude?: string;
+  /** A code the guest typed: the rows it unlocks are counted too (sent in a header, never the URL). */
+  code?: string;
 }
 
 /** One pool of a night limit (a room type), over the nights asked. */
@@ -781,7 +797,7 @@ export interface PublicClient {
   /** The scope, fetched once and cached. */
   config: () => Promise<PublicConfig>;
   list: <T = Row>(ref: string, options?: ListOptions) => Promise<ListResult<T>>;
-  get: <T = Row>(ref: string, id: string, signal?: AbortSignal) => Promise<T>;
+  get: <T = Row>(ref: string, id: string, signal?: AbortSignal, options?: { code?: string }) => Promise<T>;
   create: <T = Row>(ref: string, values: Row) => Promise<T>;
   /**
    * `create`, with where the new row stands. Its own verb so that `create`
@@ -959,6 +975,23 @@ function isSignal(value: AbortSignal | DocumentListOptions): value is AbortSigna
  * URL: a page must not send a person off-site from a link it did not make.
  * Null when the fragment holds no token.
  */
+/** The Adminium file a column's value names: a bare id, or a content address from any origin. */
+const PICTURE_FILE = /^(?:file_[0-9ABCDEFGHJKMNPQRSTVWXYZ]{26}$|.*\/api\/v1\/files\/(file_[0-9ABCDEFGHJKMNPQRSTVWXYZ]{26})\/content\/?(?:\?.*)?$)/;
+
+/**
+ * The address of a picture anyone may see — for an `<img src>`, with no key
+ * and no session — or null when the ref shows no picture in that column, or
+ * the value names no file Adminium keeps (a link elsewhere, nothing): show
+ * the page's own tile then.
+ */
+export function pictureUrl(baseUrl: string, config: Pick<PublicConfig, 'pictures' | 'refs'>, ref: string, rowId: string | number, column: string, value: unknown): string | null {
+  if (config.pictures === undefined || !(config.refs[ref]?.pictures ?? []).includes(column) || typeof value !== 'string') return null;
+  const match = PICTURE_FILE.exec(value.trim());
+  if (match === null) return null;
+  const fileId = match[1] ?? value.trim();
+  return `${baseUrl.replace(/\/+$/, '')}${config.pictures}/${encodeURIComponent(ref)}/${encodeURIComponent(String(rowId))}/${encodeURIComponent(column)}/${fileId}`;
+}
+
 export function linkFromFragment(hash: string): LinkFragment | null {
   const [token = '', ...rest] = hash.replace(/^#/, '').split('&');
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(token)) return null;
@@ -1145,14 +1178,17 @@ export function createPublicClient(
     );
 
   /** A booking availability read, in either form. */
-  const booking = async <T>(ref: string, query: Record<string, string | number | undefined>, signal?: AbortSignal) => {
+  const booking = async <T>(ref: string, query: Record<string, string | number | undefined>, signal?: AbortSignal, code?: string) => {
     const init: RequestInit = {};
     if (signal !== undefined) init.signal = signal;
     const p = new URLSearchParams();
     for (const [name, value] of Object.entries(query)) if (value !== undefined) p.set(name, String(value));
-    const out = await request<{ data: T[] }>(`/api/v1/public/availability/${ref}?${p.toString()}`, init);
+    const out = await request<{ data: T[] }>(`/api/v1/public/availability/${ref}?${p.toString()}`, init, codeHeader(code));
     return out.data;
   };
+
+  /** A code a guest typed, as the header that carries it; nothing when there is none. */
+  const codeHeader = (code: string | undefined): Record<string, string> => (code === undefined || code.trim() === '' ? {} : { [CODE_HEADER]: code.trim() });
 
   /**
    * Query-string encoder.
@@ -1185,7 +1221,7 @@ export function createPublicClient(
     async list<T = Row>(ref: string, options?: ListOptions) {
       const init: RequestInit = {};
       if (options?.signal !== undefined) init.signal = options.signal;
-      const reply = await send<unknown>(`/api/v1/public/records/${ref}${encode(options)}`, init);
+      const reply = await send<unknown>(`/api/v1/public/records/${ref}${encode(options)}`, init, codeHeader(options?.code));
       return asListResult<T>(reply.body, reply.headers);
     },
 
@@ -1215,8 +1251,8 @@ export function createPublicClient(
     },
 
     parentAvailability(ref, query = {}, signal) {
-      const { under, date, qty, exclude } = query;
-      return booking<ParentAvailability>(ref, { under, date, qty, exclude }, signal);
+      const { under, date, qty, exclude, code } = query;
+      return booking<ParentAvailability>(ref, { under, date, qty, exclude }, signal, code);
     },
 
     async nightAvailability(ref, query, signal) {
@@ -1230,12 +1266,13 @@ export function createPublicClient(
       return { pools: out.data, earliest: out.earliest ?? null };
     },
 
-    async get<T = Row>(ref: string, id: string, signal?: AbortSignal) {
+    async get<T = Row>(ref: string, id: string, signal?: AbortSignal, options?: { code?: string }) {
       const init: RequestInit = {};
       if (signal !== undefined) init.signal = signal;
       const out = await request<{ data: T }>(
         `/api/v1/public/records/${ref}/${encodeURIComponent(id)}`,
         init,
+        codeHeader(options?.code),
       );
       return out.data;
     },

@@ -24,6 +24,7 @@
 import type { AnonymousCaps } from './anonymous-caps.js';
 import { z } from 'zod';
 
+import type { CodeUnlock } from '../crud/code-lookup.js';
 import { FILTER_OPS, type RecordFilter } from '../crud/filters.js';
 import { PUBLIC_GENERATORS, readGenerator } from './generate.js';
 import {
@@ -450,6 +451,27 @@ const resourceSchema = z
     forget: z.object({ columns: z.array(columnSchema).min(1).max(16), stamp: columnSchema.optional() }).strict().optional(),
     /** On rows read through a parent: columns left out unless `unlessHolder` is empty or names the session's own person. */
     withhold: z.object({ columns: z.array(columnSchema).min(1).max(8), unlessHolder: columnSchema }).strict().optional(),
+    /** Rows read only with a code that unlocks them: a row of `table` whose `column` holds the code typed and whose `link` points at the row. */
+    unlockBy: z
+      .object({
+        table: z.string().min(1).max(256),
+        column: columnSchema,
+        link: columnSchema,
+        where: z
+          .array(
+            z.union([
+              z.object({ column: columnSchema, eq: scalarSchema }).strict(),
+              z.object({ column: columnSchema, notBefore: z.enum(['now', 'today']), orEmpty: z.literal(true).optional() }).strict(),
+              z.object({ column: columnSchema, notAfter: z.enum(['now', 'today']), orEmpty: z.literal(true).optional() }).strict(),
+            ]),
+          )
+          .max(4)
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    /** Image columns any visitor may see, through the rows this resource reads (`GET /public/pictures`). */
+    pictures: z.array(columnSchema).min(1).max(4).optional(),
   })
   .strict();
 
@@ -663,6 +685,10 @@ export interface CompiledResource {
   forget?: { columns: readonly string[]; stamp?: string | undefined } | null | undefined;
   /** Columns left out of rows read through a parent unless the row's holder is the session's own person. */
   withhold?: { columns: readonly string[]; unlessHolder: string } | null | undefined;
+  /** Rows read only with a code that unlocks them (`routes/public/code-guesses.ts`); null for none. */
+  unlockBy?: CodeUnlock | null | undefined;
+  /** Image columns any visitor may see (`routes/public/pictures.ts`). */
+  pictures?: readonly string[] | undefined;
 }
 
 export interface CompiledScope {
@@ -921,6 +947,7 @@ export function compileScope(
     if ((r.files ?? []).length > 0 && ((r.claim === undefined && r.visibleWith === undefined) || r.claim?.optional === true)) {
       issues.push({ code: 'SCOPE_FILES_UNCLAIMED', message: `ref "${r.ref}" offers files, which are a signed-in person's own: it needs a claim or a parent`, ref: r.ref });
     }
+    issues.push(...unlockShapeIssues(r));
     for (const c of r.requires ?? []) {
       if (!r.writable.includes(c)) {
         issues.push({ code: 'SCOPE_REQUIRES_NOT_WRITABLE', message: `"${c}" must be filled by a write here, but is not writable`, ref: r.ref, column: c });
@@ -1440,6 +1467,8 @@ export function compileScope(
       sessionOnly: r.sessionOnly === true,
       forget: r.forget === undefined ? null : { columns: [...r.forget.columns], ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }) },
       withhold: r.withhold === undefined ? null : { columns: [...r.withhold.columns], unlessHolder: r.withhold.unlessHolder },
+      unlockBy: r.unlockBy === undefined ? null : { ...r.unlockBy, ...(r.unlockBy.where === undefined ? {} : { where: r.unlockBy.where.map((w) => ({ ...w })) }) },
+      pictures: [...(r.pictures ?? [])],
     });
   }
 
@@ -1748,6 +1777,10 @@ function projectResource(r: CompiledResource): {
   children?: Record<string, ProjectedChild>;
   /** The create (or change) may be tried without writing. */
   dryRun?: true;
+  /** Rows listed only with the code that unlocks them, sent in the `x-adminium-code` header. */
+  unlock?: true;
+  /** Image columns any visitor may see, at `/public/pictures`. */
+  pictures?: string[];
 } {
   // Copied, not aliased: this object is serialized straight onto the wire, and
   // handing out the compiled scope's own arrays would let a serializer or a
@@ -1765,6 +1798,8 @@ function projectResource(r: CompiledResource): {
     ...(r.kind === 'availability' && r.capacity !== undefined ? { capacity: r.capacity } : {}),
     ...(r.children === undefined || r.children.size === 0 ? {} : { children: projectChildren(Object.fromEntries(r.children)) }),
     ...(r.dryRun === true ? { dryRun: true as const } : {}),
+    ...(r.unlockBy === undefined || r.unlockBy === null ? {} : { unlock: true as const }),
+    ...(r.pictures === undefined || r.pictures.length === 0 ? {} : { pictures: [...r.pictures] }),
   };
 }
 
@@ -1818,6 +1853,20 @@ function projectChildren(children: Readonly<Record<string, ScopeChild | Omit<Sco
       max: child.max,
       ...('children' in child && child.children !== undefined ? { children: projectChildren(child.children) } : {}),
     };
+  }
+  return out;
+}
+
+/**
+ * An unlock only reads, of its own (checked for a scope written by hand as the
+ * endpoint checks it). Pictures are held to their shape where they are served
+ * (`routes/public/pictures.ts`).
+ */
+function unlockShapeIssues(r: z.infer<typeof resourceSchema>): ScopeIssue[] {
+  const out: ScopeIssue[] = [];
+  const alone = r.claim === undefined && r.visibleWith === undefined && r.kind !== 'availability';
+  if (r.unlockBy !== undefined && (r.actions.some((action) => action !== 'read') || !alone)) {
+    out.push({ code: 'SCOPE_UNLOCK_SHAPE', message: `ref "${r.ref}" is read only with a code: it only reads, with no claim, parent or availability`, ref: r.ref });
   }
   return out;
 }

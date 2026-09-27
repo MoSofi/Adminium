@@ -34,6 +34,8 @@ export const FIELD_ISSUE_CODES = [
   'number',
   'integer',
   'duplicate',
+  'unknown',
+  'used-up',
 ] as const;
 
 export type FieldIssueCode = (typeof FIELD_ISSUE_CODES)[number];
@@ -87,6 +89,11 @@ export function fieldIssueMessage(t: Translate, issue: FieldIssue): string {
     // U+0000, usually pasted in from elsewhere: no database keeps it the same way.
     case 'invalid-character':
       return t('ui:formDialog.issue.invalidCharacter', 'This text contains a hidden character that cannot be saved. Type it again.');
+    // A code typed (a discount, a presale) that finds none on offer; one whose uses are all taken.
+    case 'unknown':
+      return t('ui:formDialog.issue.unknownCode', 'No code like this is on offer here.');
+    case 'used-up':
+      return t('ui:formDialog.issue.usedUp', 'This code has been used as many times as it can be.');
     // `format` is the server's word for "a validation rule said no" with no
     // shape named; it reads as the general refusal, which is what it is.
     case 'format':

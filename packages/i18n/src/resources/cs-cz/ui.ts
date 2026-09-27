@@ -85,6 +85,8 @@ export default {
       "notAllowed": "Vyberte jednu z uvedených hodnot.",
       "invalid": "Tato hodnota zde není platná.",
       "invalidCharacter": "Tento text obsahuje skrytý znak, který nelze uložit. Napište jej znovu.",
+      "unknownCode": "Takový kód zde není k dispozici.",
+      "usedUp": "Tento kód už byl použit tolikrát, kolikrát mohl.",
       "email": "Zadejte platnou e-mailovou adresu.",
       "url": "Zadejte platnou webovou adresu.",
       "phone": "Zadejte platné telefonní číslo.",

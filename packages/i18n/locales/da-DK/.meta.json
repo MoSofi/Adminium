@@ -23143,9 +23143,17 @@
     "status": "mt",
     "srcHash": "7adfbf4ace4f"
   },
+  "ui.formDialog.issue.unknownCode": {
+    "status": "mt",
+    "srcHash": "41062948ca4c"
+  },
   "ui.formDialog.issue.url": {
     "status": "mt",
     "srcHash": "79ba9ec124d6"
+  },
+  "ui.formDialog.issue.usedUp": {
+    "status": "mt",
+    "srcHash": "395b6a9fc778"
   },
   "ui.formDialog.lines.add": {
     "status": "mt",

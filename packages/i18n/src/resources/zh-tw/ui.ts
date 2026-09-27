@@ -85,6 +85,8 @@ export default {
       "notAllowed": "請選擇列出的值之一。",
       "invalid": "此處的該值無效。",
       "invalidCharacter": "此文字包含無法儲存的隱藏字元。請重新輸入。",
+      "unknownCode": "此處沒有這樣的代碼。",
+      "usedUp": "此代碼的使用次數已達上限。",
       "email": "請輸入有效的電子郵件地址。",
       "url": "請輸入有效的網址。",
       "phone": "請輸入有效的電話號碼。",

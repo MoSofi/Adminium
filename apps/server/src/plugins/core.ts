@@ -260,6 +260,12 @@ export const RATE_BUCKETS = {
    * is deliberately looser than any per-route limit the public plugin applies.
    */
   public: { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
+  /**
+   * Pictures anyone may see (`/public/pictures`): a menu page shows many, and
+   * a restaurant's Wi-Fi puts many diners behind one address. The public
+   * plugin counts them again per /64 and per key; this is the backstop.
+   */
+  'public-picture': { max: 1200, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**
