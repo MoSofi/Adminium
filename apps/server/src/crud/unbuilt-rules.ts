@@ -57,8 +57,6 @@ const movesOf = (table: EffectiveTable) =>
   Object.values(table.states?.moves ?? {}).flatMap((list) => list.filter((move): move is Exclude<typeof move, string> => typeof move === 'object'));
 
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // Limits by slot hours, by a parent's pool, by the night, and holds: only the released slot rule is guarded.
-  { rule: 'capacity', on: (table) => table.capacityRules !== undefined && table.capacity === undefined },
   // Codes a guest types, and a code renewed when the ticket changes hands.
   { rule: 'lookup', on: (table) => anyColumn(table, (c) => c.lookup !== undefined) },
   { rule: 'normalize.code', on: (table) => anyColumn(table, (c) => c.normalize === 'code') },
