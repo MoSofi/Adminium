@@ -36,13 +36,6 @@ import type { WriteAction, WriteOrigin } from './write-context.js';
 
 type Db = Kysely<SourceDatabase>;
 
-const NIGHTLY = Symbol('adminium.nightly');
-
-/** The nights a write's price was worked out from, carried with its values (a dry run answers them). */
-export function nightsOf(values: Row): readonly Night[] | undefined {
-  return (values as Record<symbol, unknown>)[NIGHTLY] as readonly Night[] | undefined;
-}
-
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
 const empty = (value: unknown) => value === null || value === undefined || value === '';
 
@@ -128,7 +121,7 @@ export async function priceNights(db: Db, rule: ColumnPerNight, row: Row, places
 /**
  * PRICE: the write's values with the price by the night worked out, over the
  * stored row (a change) with the values over it — or the same object when
- * there is nothing to price. The nights go with the values (see `nightsOf`).
+ * there is nothing to price.
  * A stay too long to price leaves the column empty and its `to` refused at
  * CHECK (`out-of-range`).
  */
@@ -149,7 +142,6 @@ export async function priceValues(
   const places = placesFor(rule.scale, row, rules?.currencyColumn, rule.scale === 'currency' ? await opts.currency() : null);
   const priced = await priceNights(db, rule, row, places);
   const out: Row = { ...values, [rule.column]: priced.total };
-  (out as Record<symbol, unknown>)[NIGHTLY] = priced.nights;
   if (priced.tooLong) attachPriceIssues(out, { [rule.to]: { code: 'out-of-range' } });
   return out;
 }

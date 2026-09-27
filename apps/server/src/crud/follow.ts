@@ -158,3 +158,53 @@ export async function followChanged(input: {
   }
   return out;
 }
+
+/**
+ * A row that copies a column its parent row keeps in step (`copy.follow`),
+ * read again from the parent as it is now, held for share, inside the
+ * write: the copy was first read before anything was held, and a change of
+ * the parent that committed in between (a stay's new departure) followed
+ * every extra but this one, which was not written yet. Holding the parent
+ * first also makes such a change wait for this row, and then follow it too.
+ * Returns the values with each followed copy (and the formulas that read
+ * one) brought up to the parent, or the same object when nothing moved.
+ */
+export async function followNow(input: {
+  db: Db;
+  dialect: Dialect;
+  rules: TableRules | null;
+  values: Row;
+  /** The columns this write sets on a change; a create sets them all. */
+  written?: readonly string[] | undefined;
+  currency: () => Promise<string | null>;
+}): Promise<Row> {
+  const { db, dialect, rules, values } = input;
+  const copies = (rules?.copies ?? []).filter(
+    (copy) => copy.follow === true && values[copy.via] !== null && values[copy.via] !== undefined && (input.written === undefined || input.written.includes(copy.via)),
+  );
+  if (copies.length === 0) return values;
+  const next: Row = {};
+  const byParent = new Map<string, typeof copies>();
+  for (const copy of copies) {
+    const key = `${copy.toTable}\u0000${copy.toColumn}\u0000${copy.via}`;
+    byParent.set(key, [...(byParent.get(key) ?? []), copy]);
+  }
+  for (const group of byParent.values()) {
+    const { toTable, toColumn, via } = group[0]!;
+    let query = db
+      .selectFrom(toTable)
+      .select([...new Set(group.map((copy) => copy.from))] as never)
+      .where((eb) => eb(db.dynamic.ref(toColumn), '=', values[via]));
+    if (dialect !== 'sqlite') query = query.forShare();
+    const parent = (await query.executeTakeFirst()) as Row | undefined;
+    if (parent === undefined) continue;
+    for (const copy of group) if (!sameValue(values[copy.column], parent[copy.from])) next[copy.column] = parent[copy.from] ?? null;
+  }
+  if (Object.keys(next).length === 0) return values;
+  const formulas = touchedFormulas(rules?.formulas ?? [], Object.keys(next));
+  if (formulas.length > 0) {
+    const currency = formulas.some((formula) => formula.scale === 'currency') ? await input.currency() : null;
+    Object.assign(next, evaluateAll(formulas, { ...values, ...next }, rules?.currencyColumn, currency));
+  }
+  return { ...values, ...next };
+}

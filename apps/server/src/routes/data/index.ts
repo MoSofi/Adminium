@@ -82,7 +82,7 @@ import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { capacityCounts } from '../../crud/capacity/counts.js';
-import { storedNights } from '../../crud/per-night.js';
+import { quoteNights, storedNights } from '../../crud/per-night.js';
 import { diffLinks, resolveLink, sameKeys, type ResolvedLink } from '../../crud/links.js';
 import {
   diffChildRows,
@@ -2499,7 +2499,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const parent = byPlace.get(`${String(at[0])}\u0000${String(at[1])}`);
           if (parent !== undefined) ((parent.children ??= {})[String(at[2])] ??= [])[Number(at[3])] = { data };
         }
-        return { data: maskRow(tree.outcome.root, ctx.table, ctx.unmasked), children: shown };
+        // The desk's booking summary: the nights a price by the night is made of.
+        const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null);
+        return { data: maskRow(tree.outcome.root, ctx.table, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
       },
     );
 

@@ -138,7 +138,7 @@ import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
 import { priceValues, repricedBy } from './per-night.js';
-import { followChanged, followColumns, followsFrom } from './follow.js';
+import { followChanged, followColumns, followNow, followsFrom } from './follow.js';
 import { stampNow, writeClock, type WriteClock } from './write-clock.js';
 import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
 import { TREE_MAX_ROWS, type CreateTree, type TreeNode, type TreeOutcome, type TreeWritten } from './write-tree.js';
@@ -2746,7 +2746,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             : checked;
         // The parents whose totals this row moves, held before it is written.
         const held = await holdParents(rules, within, [{ record: placed, before: null }], currency);
-        const counted = brand(await claimSequences(rules, 'create', within, placed, opts.sequences));
+        // A copy that follows its parent, read again from the parent as held: a change of it meanwhile would not have reached this row.
+        const followed = brand(await followNow({ db, dialect: target.dialect, rules, values: placed, currency }));
+        const counted = brand(await claimSequences(rules, 'create', within, followed, opts.sequences));
         const out = await insertWithCodes(within, counted, codes, input.mapError);
         await guarded(async () => {
           await settleRows(rules, within, [{ record: out.row, before: null }], currency, held);
@@ -3196,6 +3198,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             const picked = await guardedValue(() => checkBooking(booking, within, { row: merged, before: prior, need, now }), input.mapError);
             if (Object.keys(picked).length > 0) written = brand({ ...checkedValues, ...picked });
           }
+        }
+        // A copy that follows its parent, when the change moves the row to another parent: read from that parent as held.
+        if (!dry && (rules?.copies ?? []).some((copy) => copy.follow === true && Object.prototype.hasOwnProperty.call(written, copy.via))) {
+          // The copies only: the formulas that read them are worked out again just below, from the row as held.
+          const fresh = await followNow({ db, dialect: target.dialect, rules, values: { ...(prior ?? {}), ...written }, written: Object.keys(written), currency });
+          const copied: Row = { ...written };
+          for (const copy of rules?.copies ?? []) if (copy.follow === true && Object.prototype.hasOwnProperty.call(written, copy.via)) copied[copy.column] = fresh[copy.column];
+          written = brand(copied);
         }
         // The price by the night again, from the row as held: another writer may have moved the dates it reads meanwhile.
         if (repricing && prior !== null) {

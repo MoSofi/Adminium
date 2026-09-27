@@ -175,6 +175,8 @@ export const recordChildrenBody = z
 export const recordDryRunReply = z.object({
   data: rowSchema.nullable(),
   children: z.record(z.string(), z.array(z.object({ data: rowSchema, children: z.record(z.string(), z.array(z.object({ data: rowSchema }))).optional() }))),
+  /** A row priced by the night (a stay): each night, its rate and the names of what was added to it. */
+  nights: z.array(z.object({ date: z.string(), rate: z.string(), tags: z.array(z.string()) })).optional(),
 });
 
 /**
