@@ -464,6 +464,36 @@ function asDb(db: unknown): Kysely<SourceDatabase> {
   return db as Kysely<SourceDatabase>;
 }
 
+/**
+ * A sample row a write of Adminium's own moved (a timed move: a held sample
+ * order expired) recorded again as it now stands, so "Remove sample data"
+ * still takes it for the app's own rather than a row somebody changed. A row
+ * no sample brought in is left alone.
+ */
+export async function rehashSampleRow(
+  meta: MetaDb,
+  target: { connectionId: string; db: Kysely<SourceDatabase>; dialect: string; table: ResolvedTable },
+  pk: Row,
+): Promise<void> {
+  const records = await appTablesRepo(meta).forConnection(target.connectionId);
+  const own = records.find((record) => record.role === 'app' && record.tableName === target.table.name);
+  if (own === undefined) return;
+  const ledger = records.find((record) => record.role === 'sample-ledger' && record.appKey === own.appKey && record.state === 'created');
+  if (ledger === undefined) return;
+  const db = asDb(target.db);
+  const found = (await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger.tableName)} WHERE table_ref = ${own.ref} AND pk = ${canonicalJson(pk)}`.execute(db)).rows[0];
+  if (found === undefined) return;
+  const now = await fetchByPk(db, target.table, pk);
+  if (now === undefined) return;
+  const recordedAsDays = Object.prototype.hasOwnProperty.call(JSON.parse(found.col_hashes) as object, LEDGER_DATES_AS_DAYS);
+  const { rowHash, colHashes } = hashRow(now, target.table, target.dialect !== 'sqlite' && !recordedAsDays);
+  await db
+    .updateTable(ledger.tableName as never)
+    .set({ row_hash: rowHash, col_hashes: JSON.stringify(recordedAsDays ? { ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' } : colHashes) } as never)
+    .where('seq' as never, '=', found.seq as never)
+    .execute();
+}
+
 export function createSampleDataService(deps: SampleDataDeps) {
   const records = appTablesRepo(deps.meta);
 

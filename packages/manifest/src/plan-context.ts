@@ -151,6 +151,38 @@ function keepsUnique(table: SchemaModelView['tables'][number] | undefined, have:
   return table.uniques.some((unique) => [...unique].sort().join('\u0000') === wanted);
 }
 
+/** Whether the table keeps these columns unique together already; unknown counts as kept. */
+function keepsSet(table: SchemaModelView['tables'][number] | undefined, columns: readonly string[]): boolean {
+  if (table?.uniques === undefined) return true;
+  const wanted = [...columns].sort().join('\u0000');
+  return table.uniques.some((unique) => [...unique].sort().join('\u0000') === wanted);
+}
+
+/**
+ * The bytes MySQL's key over a set of columns takes: four a character of
+ * text (a code's own width), four a character of an enum's values (32 or 64),
+ * a linked key's own width (a uuid's 36 characters), eight for anything else.
+ */
+export function uniqueSetBytes(set: readonly string[], table: { columns: readonly RequiredColumn[] }, tables: readonly { ref: string; columns: readonly RequiredColumn[] }[]): number {
+  let bytes = 0;
+  for (const ref of set) {
+    const column = table.columns.find((c) => c.ref === ref);
+    if (column === undefined) continue;
+    if (column.type === 'text') {
+      const code = column.rules?.code;
+      bytes += 4 * (column.maxLength ?? (code === undefined ? 0 : (code.prefix ?? '').length + code.length));
+    } else if (column.type === 'enum') {
+      bytes += 4 * ((column.enum ?? []).every((value) => value.length <= 32) ? 32 : 64);
+    } else if (column.type === 'fk') {
+      const target = tables.find((t) => t.ref === column.references)?.columns.find((c) => c.role === 'pk');
+      bytes += target?.type === 'uuid' ? 4 * 36 : 8;
+    } else {
+      bytes += 8;
+    }
+  }
+  return bytes;
+}
+
 /**
  * A column an update can add to a table that exists. A link (`fk`) can, when
  * it is nullable: every existing row starts unlinked, and the schema editor
@@ -175,6 +207,8 @@ export function planWithContext(
   const noun = manifest.kind === 'app' ? 'app' : 'add-on';
   const required: readonly RequiredTable[] = manifest.requiredSchema?.tables ?? [];
   const live = new Map(model.tables.map((t) => [t.ref, t]));
+  // Index and constraint names are per schema (Postgres) or per database (SQLite): a new rule's name takes none.
+  const takenNames = new Set([...(model.indexNames ?? []), ...model.tables.flatMap((t) => t.indexNames ?? [])]);
   const limit = IDENTIFIER_LIMIT[context.dialect];
   const problems: PlanProblem[] = [];
   const prefix = context.prefix === null ? null : (context.altPrefix ?? context.prefix);
@@ -360,6 +394,28 @@ export function planWithContext(
           plan.edits.push(uniqueWith.length === 0 ? { kind: 'add-unique', column: column.ref } : { kind: 'add-unique', column: column.ref, with: uniqueWith });
         }
       }
+      /*
+       * A set of columns the app keeps unique together that the table does
+       * not: made so, by its own name, as a fresh install makes it — over
+       * columns the same update adds too. Never on a table another app's
+       * shape shares (a shaped table declares none).
+       */
+      if (plan.action === 'reuse') {
+        // A plain index a limit or a total counts by, where the table has none leading with the column.
+        for (const column of table.columns) {
+          if (column.index !== true || existing.indexed === undefined || existing.indexed.includes(column.ref)) continue;
+          const name = plainIndexName(real, column.ref, takenNames);
+          takenNames.add(name);
+          plan.edits.push({ kind: 'add-index', column: column.ref, name });
+        }
+        for (const set of table.unique ?? []) {
+          const reachable = set.every((ref) => existing.columns.some((c) => c.ref === ref) || plan.edits.some((e) => e.kind === 'add-column' && e.column === ref));
+          if (!reachable || keepsSet(existing, set)) continue;
+          const name = uniqueSetName(real, set, takenNames);
+          takenNames.add(name);
+          plan.edits.push({ kind: 'add-unique', column: set.at(-1)!, with: set.slice(0, -1), name });
+        }
+      }
       if (plan.blocked.length > 0) {
         problems.push({
           code: 'COLUMNS_REQUIRED',
@@ -377,6 +433,18 @@ export function planWithContext(
      * the column an update adds) would go in and the rule would not.
      */
     if (context.dialect === 'mysql' && plan.action !== 'share' && plan.action !== 'undecided') {
+      for (const set of table.unique ?? []) {
+        const bytes = uniqueSetBytes(set, table, required);
+        if (bytes <= MYSQL_UNIQUE_KEY_BYTES) continue;
+        problems.push({
+          code: 'UNIQUE_KEY_TOO_LONG',
+          table: table.ref,
+          column: set.at(-1)!,
+          message:
+            `"${real}" may hold the same ${set.join(', ')} only once, and MySQL can keep that only for at most ${String(MYSQL_UNIQUE_KEY_BYTES)} bytes ` +
+            `together: these take up to ${String(bytes)}, so it cannot be used on MySQL. Make the text columns shorter.`,
+        });
+      }
       const most = MYSQL_UNIQUE_KEY_BYTES / 4;
       for (const column of table.columns) {
         const width = uniqueTextWidth(column);
@@ -481,13 +549,23 @@ export function planWithContext(
  * takes the columns' place. The same inputs always give the same name.
  */
 export function uniqueSetName(realTable: string, columns: readonly string[], taken: ReadonlySet<string> = new Set()): string {
-  const plain = `uq_${realTable}_${columns.join('_')}`;
+  return shortName('uq', realTable, columns, taken);
+}
+
+/** The name of a plain index on one column (`index: true`): `ix_<table>_<column>`, shortened and hashed like {@link uniqueSetName}. */
+export function plainIndexName(realTable: string, column: string, taken: ReadonlySet<string> = new Set()): string {
+  return shortName('ix', realTable, [column], taken);
+}
+
+/** `<kind>_<table>_<columns>`, or — too long, or taken — the table cut short and a hash of the table and columns. */
+function shortName(kind: 'uq' | 'ix', realTable: string, columns: readonly string[], taken: ReadonlySet<string>): string {
+  const plain = `${kind}_${realTable}_${columns.join('_')}`;
   if (byteLength(plain) <= IDENTIFIER_LIMIT.postgres && !taken.has(plain)) return plain;
   for (let salt = 0; ; salt += 1) {
     const hash = fnv1a32([realTable, ...columns, ...(salt === 0 ? [] : [String(salt)])].join('\u0000'));
     let head = realTable;
-    while (byteLength(`uq_${head}_${hash}`) > IDENTIFIER_LIMIT.postgres) head = [...head].slice(0, -1).join('');
-    const name = `uq_${head}_${hash}`;
+    while (byteLength(`${kind}_${head}_${hash}`) > IDENTIFIER_LIMIT.postgres) head = [...head].slice(0, -1).join('');
+    const name = `${kind}_${head}_${hash}`;
     if (!taken.has(name)) return name;
   }
 }

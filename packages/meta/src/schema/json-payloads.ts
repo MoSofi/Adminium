@@ -472,11 +472,34 @@ const statesTiming = {
     .min(1)
     .max(4)
     .optional(),
-  timed: z.array(z.object({ from: stateName, to: stateName, at: storedMoment }).strict()).min(1).max(8).optional(),
+  timed: z
+    .array(
+      z
+        .object({
+          from: stateName,
+          to: stateName,
+          at: storedMoment,
+          /** Fixed values the timed move writes to other columns of the row. */
+          set: z.record(ruleColumn, z.union([z.string().max(256), z.number(), z.boolean(), z.null()])).optional(),
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(8)
+    .optional(),
   effects: z
     .array(z.object({ on: z.object({ to: stateName }).strict(), via: ruleColumn, set: z.record(ruleColumn, stateName) }).strict())
     .min(1)
     .max(4)
+    .optional(),
+  /** What a new row must meet to be created: the conditions a move waits for. */
+  create: z
+    .object({
+      requires: z
+        .object({ where: z.array(stateCondition.strict()).min(1).max(8).optional(), ...moveConditions })
+        .strict(),
+    })
+    .strict()
     .optional(),
 };
 /** Stamps of a moment: now plus minutes or hours, a deadline, a moment of the row or a linked row. */

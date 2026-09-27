@@ -155,6 +155,7 @@ export {
   type States,
 } from './states.js';
 export {
+  createRequiresSchema,
   lateMoveSchema,
   linkedConditionSchema,
   settingConditionSchema,
@@ -162,6 +163,7 @@ export {
   strictStatesSchema,
   timeConditionSchema,
   timedMoveSchema,
+  type CreateRequires,
   type LateMove,
   type LinkedCondition,
   type SettingCondition,
@@ -225,6 +227,8 @@ export {
   ROLE_SLUG_LIMIT,
   uniqueWithOf,
   uniqueSetName,
+  plainIndexName,
+  uniqueSetBytes,
   type PlanContext,
   type TableChoice,
   type TableClass,

@@ -636,13 +636,15 @@ export interface PlannedAppTable {
   /** From an earlier install that used the table it found rather than making it. */
   adopted?: true;
   edits: {
-    kind: 'add-column' | 'widen' | 'set-identity' | 'enum-values' | 'add-unique';
+    kind: 'add-column' | 'widen' | 'set-identity' | 'enum-values' | 'add-unique' | 'add-index';
     column: string;
     from?: string;
     to?: string;
     values?: string[];
     /** `add-unique`: the columns it must be unique together with. */
     with?: string[];
+    /** `add-unique` of a set, `add-index`: the rule's own name. */
+    name?: string;
   }[];
   blocked: { column: string; reason: string }[];
   columns: { ref: string; type: string }[];

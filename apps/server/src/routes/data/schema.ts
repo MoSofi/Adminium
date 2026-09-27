@@ -189,16 +189,24 @@ export const recordRepeatBody = z
   .object({ column: z.string().min(1).max(120), values: rowValues(z.array(z.string().min(1)).min(1).max(100)) })
   .optional();
 
+/**
+ * When the thing the write records really happened, as a staff device says: a
+ * door scan made offline and sent later. Up to six hours back, never ahead.
+ */
+const occurredAtBody = z.string().datetime({ offset: true }).optional();
+
 export const recordCreateBody = z.object({
   values: rowValuesSchema,
   links: recordLinksBody,
   children: recordChildrenBody,
   repeat: recordRepeatBody,
+  occurredAt: occurredAtBody,
 });
 export const recordUpdateBody = z.object({
   values: rowValuesSchema,
   links: recordLinksBody,
   children: recordChildrenBody,
+  occurredAt: occurredAtBody,
 });
 
 /** `GET …/:recordId/links/:relationId`. */

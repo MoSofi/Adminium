@@ -336,7 +336,8 @@ function SelectedChoice({ title, body }: { title: string; body: ReactNode }) {
 /** What using a table as it is changes about it, in one or two sentences. */
 function EditsNote({ table }: { table: PlannedAppTable }) {
   const added = table.edits.filter((edit) => edit.kind === 'add-column').map((edit) => edit.column);
-  const other = table.edits.filter((edit) => edit.kind !== 'add-column');
+  // A plain index a limit counts by changes nothing a person reads or writes: not listed.
+  const other = table.edits.filter((edit) => edit.kind !== 'add-column' && edit.kind !== 'add-index');
   return (
     <>
       {added.length === 0 ? null : (

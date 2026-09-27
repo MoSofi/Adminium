@@ -75,6 +75,13 @@ export interface WriteContext {
    * row's own rules, never for counting a shared limit.
    */
   occurredAt?: Date | undefined;
+  /**
+   * A move the app declared that Adminium makes itself — a timed move once its
+   * moment has passed, a linked row moved by an effect. The roles a listed
+   * move is kept for do not stop it, for this move only (`from` absent: from
+   * any state); everything else it waits for is judged as for anyone.
+   */
+  declared?: { from?: string | undefined; to: string } | undefined;
 }
 
 /** The table a write goes to, and the connection it goes through. */

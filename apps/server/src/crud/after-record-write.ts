@@ -52,6 +52,7 @@ import {
 
 import type { ResolvedTable } from './identifiers.js';
 import { keptImages, type Row } from './mask.js';
+import { occurredAtOf } from './occurred-at.js';
 import type { FileReconciler } from '../files/reconcile.js';
 import { publishWidgetDataStream } from '../widget-data/stream-publisher.js';
 import type { WidgetDataCache } from '../widget-data/cache.js';
@@ -210,12 +211,14 @@ export async function afterRecordWrite(
   // Before/after images are PII-redacted in the audit trail, and carry no
   // code: whoever reads the audit log may not read this table (`keptImages`).
   const changes = keptImages(table, before, after);
+  // A staff device's own time for a write it sent late (an offline scan), kept beside the time it arrived.
+  const occurredAt = occurredAtOf(input.request);
   const entry = {
     category: input.auditCategory ?? ('data' as AuditCategory),
     action: `record.${action}`,
     connectionId,
     entity,
-    changes,
+    changes: occurredAt === undefined || changes === null ? changes : { ...changes, occurredAt },
   };
   if (input.request) {
     await app.rbac.audit(input.request, entry);

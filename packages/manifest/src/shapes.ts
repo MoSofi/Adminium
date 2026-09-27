@@ -308,7 +308,7 @@ function statesDifferences(want: States, have: States, ownColumns: (childRef: st
     if (!same(want[name], have[name])) out.push(`${name} is the shape's`);
   }
   // What a move waits for, sets off or is refused as are the shape's too: an app adds none of them to a shape's table.
-  for (const name of ['strict', 'late', 'timed', 'effects'] as const) {
+  for (const name of ['strict', 'late', 'timed', 'effects', 'create'] as const) {
     if (!same(want[name], have[name])) out.push(`${name} is the shape's`);
   }
   return out;

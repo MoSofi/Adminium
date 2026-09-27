@@ -53,9 +53,6 @@ function targetOf(model: Pick<EffectiveModel, 'relations'>, tableId: string, col
     .tableId;
 }
 
-const movesOf = (table: EffectiveTable) =>
-  Object.values(table.states?.moves ?? {}).flatMap((list) => list.filter((move): move is Exclude<typeof move, string> => typeof move === 'object'));
-
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
   // Codes a guest types, and a code renewed when the ticket changes hands.
   { rule: 'lookup', on: (table) => anyColumn(table, (c) => c.lookup !== undefined) },
@@ -72,35 +69,7 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
       ),
   },
   { rule: 'formula.join', on: (table) => anyColumn(table, (c) => formulaUses(c.formula, ['join'])) },
-  // Stamps worked out from minutes, a deadline or a moment, and one written when columns change.
-  {
-    rule: 'stamp',
-    on: (table) =>
-      anyColumn(table, (c) => {
-        const stamp = c.stamp;
-        if (stamp === undefined) return false;
-        const set = stamp.set;
-        const newSet = typeof set === 'object' && ('addMinutes' in set || 'deadline' in set || 'moment' in set);
-        const triggers = Array.isArray(stamp.on) ? stamp.on : [stamp.on];
-        return newSet || triggers.some((t) => typeof t === 'object' && 'columns' in t);
-      }),
-  },
-  // A document's life: strict moves, conditions on moves, late flags, timed moves, moves that change a linked row.
-  { rule: 'states.strict', on: (table) => table.states?.strict !== undefined },
-  { rule: 'states.late', on: (table) => table.states?.late !== undefined },
-  { rule: 'states.timed', on: (table) => table.states?.timed !== undefined },
-  { rule: 'states.effects', on: (table) => table.states?.effects !== undefined },
-  {
-    rule: 'states.requires',
-    on: (table) => movesOf(table).some((move) => move.requires?.linked !== undefined || move.requires?.time !== undefined || move.requires?.setting !== undefined),
-  },
 ];
-
-/** Whether a public entry's `writable_when` has a window read from moments (not the `within` form). */
-const momentWindow = (entry: Readonly<Record<string, unknown>>): boolean =>
-  Object.values((entry['writable_when'] as Record<string, unknown> | undefined) ?? {}).some(
-    (when) => typeof when === 'object' && when !== null && !Array.isArray(when) && !('within' in when),
-  );
 
 /** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */
 const ENTRY_KEYS = [
@@ -122,7 +91,6 @@ const ENTRY_KEYS = [
  */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
   ...ENTRY_KEYS.map((key) => ({ rule: key, on: (entry: Readonly<Record<string, unknown>>) => entry[key] !== undefined })),
-  { rule: 'writable_when', on: momentWindow },
   // A change's limits: per value a day, plain text only.
   { rule: 'limits', on: (entry) => entry['limits'] !== undefined },
   // Columns withheld from rows read through a parent (a ticket handed to a friend).

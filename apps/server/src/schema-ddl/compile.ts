@@ -794,14 +794,14 @@ export function compileStep(step: DdlStep, ctx: CompileContext): CompiledQuery[]
     }
 
     case 'add-index': {
-      // A unique index the plan names (a column an app update adds) is made as itself.
-      const named = step.constraint === null ? undefined : ctx.desired?.indexes.find((i) => i.name === step.constraint && i.unique);
+      // An index the plan names (a unique one an app update adds, a plain one a limit counts by) is made as itself.
+      const named = step.constraint === null ? undefined : ctx.desired?.indexes.find((i) => i.name === step.constraint);
       const cols = named === undefined ? requireColumns(ctx, step) : [...named.columns];
       const name = named?.name ?? `ix_${bareName(step.table)}_${cols.join('_')}`;
       const concurrently = step.outsideTransaction && dialect === 'postgres' ? 'CONCURRENTLY ' : '';
       return [
         raw(
-          `CREATE ${named === undefined ? '' : 'UNIQUE '}INDEX ${concurrently}${quoteIdent(name, dialect)} ON ${t} (` +
+          `CREATE ${named?.unique === true ? 'UNIQUE ' : ''}INDEX ${concurrently}${quoteIdent(name, dialect)} ON ${t} (` +
             `${cols.map((c) => quoteIdent(c, dialect)).join(', ')})`,
         ),
       ];

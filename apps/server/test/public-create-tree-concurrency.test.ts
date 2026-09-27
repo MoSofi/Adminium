@@ -47,10 +47,10 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('a create with i
     const inside = new Promise<void>((resolve) => {
       entered = resolve;
     });
-    // A quote that waits, inside its transaction, until the save is done — for an order of the
-    // customer the save's total climbs into (on MySQL a new row's foreign key holds its parent
-    // shared until the quote ends, so there the quote is a guest's, for no one on file).
-    const guest = dialect === 'mysql' ? { email: 'ada@example.com', name: 'Ada' } : undefined;
+    // A quote that waits, inside its transaction, until the save is done: a guest's, as a public
+    // quote is (for no one on file — a quote's foreign key would hold a customer's row shared, a
+    // few milliseconds in real life, until it ends).
+    const guest = { email: 'ada@example.com', name: 'Ada' };
     const quote = writeTree(w, orderTree(w, [{ item: 1, mods: [2] }, { item: 4 }], guest), 'dry', w.desk, {
       siblings: async () => {
         entered();
