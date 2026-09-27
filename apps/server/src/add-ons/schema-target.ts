@@ -236,6 +236,8 @@ export async function readLiveTables(
         ? {}
         : { enumValues: model.enums.find((e) => e.id === column.enumRef)?.values ?? [] }),
     })),
+    // The columns an index leads with: a plain index a limit counts by is offered where none does.
+    indexed: [...new Set(table.indexes.filter((index) => index.expression === null && index.columns.length > 0).map((index) => index.columns[0]!))],
     // Their names, so a rule an install makes never takes one.
     indexNames: [...table.uniques.flatMap((unique) => (unique.name === null ? [] : [unique.name])), ...table.indexes.map((index) => index.name)],
     // Every set of columns the table keeps unique: its constraints, and its unique indexes on plain columns.

@@ -43,7 +43,7 @@
  */
 
 import type { Dialect } from '@adminium/engine';
-import { uniqueSetName, type InstallPlan, type RequiredColumn, type RequiredTable } from '@adminium/manifest';
+import { plainIndexName, uniqueSetName, type InstallPlan, type RequiredColumn, type RequiredTable } from '@adminium/manifest';
 import { sql, type CreateTableBuilder, type Kysely } from 'kysely';
 
 import { AppError } from '../errors.js';
@@ -188,6 +188,8 @@ export interface ExistingTable {
   uniques?: readonly (readonly string[])[];
   /** The names of its indexes and constraints: a new rule's name takes none of them. */
   indexNames?: readonly string[];
+  /** The columns an index leads with. */
+  indexed?: readonly string[];
 }
 
 export interface ApplyInstallInput {
@@ -537,6 +539,15 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
 
     try {
       await builder.execute();
+      // A plain index on a link a limit or a total counts by. MySQL made one with the foreign key already.
+      if (dialect !== 'mysql') {
+        for (const column of table.columns) {
+          if (column.index !== true) continue;
+          const name = plainIndexName(table.ref, column.ref, taken);
+          taken.add(name);
+          await db.schema.createIndex(name).ifNotExists().on(table.ref).column(column.ref).execute();
+        }
+      }
       created.push(table.ref);
     } catch (error) {
       throw new AddOnInstallError(

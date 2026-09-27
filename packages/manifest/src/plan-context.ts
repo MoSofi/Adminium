@@ -401,6 +401,13 @@ export function planWithContext(
        * shape shares (a shaped table declares none).
        */
       if (plan.action === 'reuse') {
+        // A plain index a limit or a total counts by, where the table has none leading with the column.
+        for (const column of table.columns) {
+          if (column.index !== true || existing.indexed === undefined || existing.indexed.includes(column.ref)) continue;
+          const name = plainIndexName(real, column.ref, takenNames);
+          takenNames.add(name);
+          plan.edits.push({ kind: 'add-index', column: column.ref, name });
+        }
         for (const set of table.unique ?? []) {
           const reachable = set.every((ref) => existing.columns.some((c) => c.ref === ref) || plan.edits.some((e) => e.kind === 'add-column' && e.column === ref));
           if (!reachable || keepsSet(existing, set)) continue;
@@ -542,13 +549,23 @@ export function planWithContext(
  * takes the columns' place. The same inputs always give the same name.
  */
 export function uniqueSetName(realTable: string, columns: readonly string[], taken: ReadonlySet<string> = new Set()): string {
-  const plain = `uq_${realTable}_${columns.join('_')}`;
+  return shortName('uq', realTable, columns, taken);
+}
+
+/** The name of a plain index on one column (`index: true`): `ix_<table>_<column>`, shortened and hashed like {@link uniqueSetName}. */
+export function plainIndexName(realTable: string, column: string, taken: ReadonlySet<string> = new Set()): string {
+  return shortName('ix', realTable, [column], taken);
+}
+
+/** `<kind>_<table>_<columns>`, or — too long, or taken — the table cut short and a hash of the table and columns. */
+function shortName(kind: 'uq' | 'ix', realTable: string, columns: readonly string[], taken: ReadonlySet<string>): string {
+  const plain = `${kind}_${realTable}_${columns.join('_')}`;
   if (byteLength(plain) <= IDENTIFIER_LIMIT.postgres && !taken.has(plain)) return plain;
   for (let salt = 0; ; salt += 1) {
     const hash = fnv1a32([realTable, ...columns, ...(salt === 0 ? [] : [String(salt)])].join('\u0000'));
     let head = realTable;
-    while (byteLength(`uq_${head}_${hash}`) > IDENTIFIER_LIMIT.postgres) head = [...head].slice(0, -1).join('');
-    const name = `uq_${head}_${hash}`;
+    while (byteLength(`${kind}_${head}_${hash}`) > IDENTIFIER_LIMIT.postgres) head = [...head].slice(0, -1).join('');
+    const name = `${kind}_${head}_${hash}`;
     if (!taken.has(name)) return name;
   }
 }

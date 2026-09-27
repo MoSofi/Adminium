@@ -321,7 +321,7 @@ export const appInstallPlanDto = z.object({
         adopted: z.literal(true).optional(),
         edits: z.array(
           z.object({
-            kind: z.enum(['add-column', 'widen', 'set-identity', 'enum-values', 'add-unique']),
+            kind: z.enum(['add-column', 'widen', 'set-identity', 'enum-values', 'add-unique', 'add-index']),
             column: z.string(),
             from: z.string().optional(),
             to: z.string().optional(),

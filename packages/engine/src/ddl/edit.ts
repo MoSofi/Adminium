@@ -297,6 +297,11 @@ export const schemaEditSchema = z.strictObject({
     .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(2).max(4), name: identifierSchema }))
     .max(20)
     .optional(),
+  /** Plain indexes on one column of an existing table (a link a limit counts by), each by its own name. */
+  addIndexes: z
+    .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(1).max(1), name: identifierSchema }))
+    .max(20)
+    .optional(),
   /** Table ids. */
   dropTables: z.array(z.string().min(1)).default([]),
 });
@@ -929,6 +934,18 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
     checkIdentifier(entry.name, where);
   }
 
+  // --- addIndexes ----------------------------------------------------------
+  for (const entry of edit.addIndexes ?? []) {
+    if (refuseProtected(entry.table)) continue;
+    const table = byId.get(entry.table) ?? byName.get(entry.table);
+    if (table === undefined) continue;
+    const where = { table: entry.table, column: entry.columns[0]! };
+    const known = (name: string) =>
+      table.columns.some((c) => c.name === name) || (edit.addColumns ?? []).some((other) => (other.table === table.id || other.table === table.name) && other.column.name === name);
+    if (!entry.columns.every(known)) push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(entry.columns[0])} to index`, ...where });
+    checkIdentifier(entry.name, where);
+  }
+
   // --- addColumns ----------------------------------------------------------
   //
   // The same gates the upsert path applies to a NEW column, and two more that
@@ -1153,6 +1170,12 @@ export function tableWithAddedColumns(
     .filter((column) => opts.unique?.has(column.name) === true)
     .map((column) => ({ name: `uq_${actual.name}_${column.name}`, columns: [...(opts.uniqueWith?.get(column.name) ?? []), column.name] }));
   return withUniques({ ...actual, columns: [...actual.columns, ...added] }, uniques, opts.uniqueAs);
+}
+
+/** A table with more plain indexes, each on the columns it names. */
+export function withIndexes(table: TableModel, indexes: readonly { name: string; columns: string[] }[]): TableModel {
+  if (indexes.length === 0) return table;
+  return { ...table, indexes: [...table.indexes, ...indexes.map((i) => ({ ...i, expression: null, unique: false, primary: false, method: null, partial: false }))] };
 }
 
 /** A table with more unique rules: constraints, or where `as` is `index`, unique indexes made in place. */

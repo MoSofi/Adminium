@@ -55,6 +55,7 @@ async function inputFor(
     ...edit.addColumns.map((a) => a.table),
     ...edit.alterColumns.map((a) => a.table),
     ...(edit.addUniques ?? []).map((a) => a.table),
+    ...(edit.addIndexes ?? []).map((a) => a.table),
     ...edit.dropTables,
   ]);
   return {

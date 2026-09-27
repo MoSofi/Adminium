@@ -315,6 +315,7 @@ export function editBodyFor(
   const addColumns: NonNullable<EditBody['addColumns']> = [];
   const alterColumns: NonNullable<EditBody['alterColumns']> = [];
   const addUniques: NonNullable<EditBody['addUniques']> = [];
+  const addIndexes: NonNullable<EditBody['addIndexes']> = [];
   for (const table of tables) {
     const spec = manifest.requiredSchema?.tables.find((t) => t.ref === table.ref);
     const id = idOf(model, table.table);
@@ -336,6 +337,11 @@ export function editBodyFor(
           const fill = column === undefined || partners !== null ? null : addedDefault(column);
           addColumns.push({ table: id, column: { name: edit.column, ...shape, default: fill } as never, ...unique });
         }
+        continue;
+      }
+      // A plain index a limit or a total counts by.
+      if (edit.kind === 'add-index') {
+        addIndexes.push({ table: id, columns: [edit.column], name: edit.name });
         continue;
       }
       // A set the app declares, by its own name: never merged with a rule on its last column alone.
@@ -362,7 +368,7 @@ export function editBodyFor(
     }
     alterColumns.push(...perColumn.values());
   }
-  return { addColumns, alterColumns, ...(addUniques.length === 0 ? {} : { addUniques }) };
+  return { addColumns, alterColumns, ...(addUniques.length === 0 ? {} : { addUniques }), ...(addIndexes.length === 0 ? {} : { addIndexes }) };
 }
 
 /**

@@ -37,6 +37,7 @@ import {
   tableWithAddedColumns,
   tableWithAlteredColumns,
   validateSchemaEdit,
+  withIndexes,
   withUniques,
   type DatabaseModel,
   type DdlPlan,
@@ -396,8 +397,14 @@ export function extendedTables(
     if (table === undefined) continue;
     sets.set(table.id, [...(sets.get(table.id) ?? []), { name: entry.name, columns: [...entry.columns] }]);
   }
+  const plain = new Map<string, { name: string; columns: string[] }[]>();
+  for (const entry of edit.addIndexes ?? []) {
+    const table = find(entry.table);
+    if (table === undefined) continue;
+    plain.set(table.id, [...(plain.get(table.id) ?? []), { name: entry.name, columns: [...entry.columns] }]);
+  }
   const out = new Map<string, TableModel>();
-  for (const tableId of new Set([...alters.keys(), ...adds.keys(), ...sets.keys()])) {
+  for (const tableId of new Set([...alters.keys(), ...adds.keys(), ...sets.keys(), ...plain.keys()])) {
     const table = actual.tables.find((t) => t.id === tableId);
     if (table === undefined) continue;
     const uniqueAs = dialect === 'sqlite' ? 'index' : 'constraint';
@@ -408,7 +415,7 @@ export function extendedTables(
       uniqueAs,
       uniqueWith: uniqueWith.get(tableId) ?? new Map(),
     });
-    out.set(tableId, withUniques(added, sets.get(tableId) ?? [], uniqueAs));
+    out.set(tableId, withIndexes(withUniques(added, sets.get(tableId) ?? [], uniqueAs), plain.get(tableId) ?? []));
   }
   return out;
 }
