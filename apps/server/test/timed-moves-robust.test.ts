@@ -8,12 +8,13 @@
  * server's wall clock, and one the database stamped itself are all found and
  * moved; and a row re-dated after it was found due is left as it is.
  */
+import { jobsRepo, type EnqueueJobInput } from '@adminium/meta';
 import { sql } from 'kysely';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createWriteService, type RecordWriteService } from '../src/crud/write-service.js';
 import { writeStores } from '../src/crud/write-stores.js';
-import { runTimedMoves, type LeftAlone, type TimedMovesDeps } from '../src/states/timed-moves.js';
+import { enqueueTimedMoves, runTimedMoves, TIMED_MOVES_JOB_KIND, type LeftAlone, type TimedMovesDeps } from '../src/states/timed-moves.js';
 import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { venueManifest } from './venue-moves.fixture.js';
 
@@ -108,6 +109,18 @@ describe.each(LEGS)('timed moves over rows as the database keeps them — %s', (
     expect(Object.keys(saved ?? {})).toEqual([`${h.connectionId}|${w.targetOf('orders').table.id}|${String(refused['id'])}|2`]);
     await set('orders', refused['id'], `status = 'cancelled'`);
     await set('orders', gone['id'], `status = 'cancelled'`);
+  });
+
+  it.runIf(available)("hands the next minute the rows a failed minute left alone", async () => {
+    const jobs = jobsRepo(h.meta);
+    const left = { [`${h.connectionId}|orders|1|2`]: Date.now() + 3_000_000 };
+    const job = await jobs.enqueue({ kind: TIMED_MOVES_JOB_KIND, payload: { connectionId: h.connectionId }, maxAttempts: 1 });
+    await jobs.claim('worker', Date.now() + 1);
+    await jobs.setPayload(job.id, { connectionId: h.connectionId, left });
+    await jobs.fail(job.id, 'connect ECONNREFUSED');
+    const queued: EnqueueJobInput[] = [];
+    await enqueueTimedMoves({ ...deps, enqueue: async (input) => void queued.push(input) });
+    expect(queued.find((input) => input.payload['connectionId'] === h.connectionId)?.payload['left']).toEqual(left);
   });
 
   it.runIf(available)('finds and moves a time kept finer than a millisecond, or spelled as the database spells it', async () => {
