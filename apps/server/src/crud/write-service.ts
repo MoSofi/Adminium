@@ -2293,7 +2293,23 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * without holding them, and settles only the row it shows.
    */
   async function followAndSettle(target: WriteTarget, rules: TableRules | null, prior: Row, after: Row, currency: CurrencyOf, dry: boolean): Promise<void> {
-    const followed = await followChanged({ db: target.db, dialect: target.dialect, view: target.view, rules, before: prior, after, currency, hold: !dry });
+    const followed = await followChanged({
+      db: target.db,
+      dialect: target.dialect,
+      view: target.view,
+      rules,
+      before: prior,
+      after,
+      currency,
+      hold: !dry,
+      // Adminium's own columns (a copy, the formulas over it): written as a settle writes, judged by no state or seal.
+      write: async (table, pk, set) => {
+        const bound = Object.fromEntries(Object.entries(set).map(([column, value]) => [column, bindValue(target.dialect, value)]));
+        let update = target.db.updateTable(table.id).set(bound as never);
+        for (const [column, value] of Object.entries(pk)) update = update.where((eb) => eb(target.db.dynamic.ref(column), '=', value));
+        await update.execute();
+      },
+    });
     const own = target.table.id;
     for (const moved of followed) {
       const starts = chainStarts(moved.rules, moved.rows).filter((start) => start.rollup.parent === own);

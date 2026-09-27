@@ -100,6 +100,8 @@ export async function followChanged(input: {
   currency: () => Promise<string | null>;
   /** False for a quote: it reads the rows as they are, holding none it does not write. */
   hold?: boolean;
+  /** Writes one child row's changed columns by its key (the write service's own statement). */
+  write: (table: ResolvedTable, pk: Row, set: Row) => Promise<void>;
 }): Promise<Followed[]> {
   const { db, dialect, view, rules, before, after } = input;
   if (rules?.follows === undefined) return [];
@@ -147,11 +149,7 @@ export async function followChanged(input: {
         if (currency === undefined) currency = formulas.some((formula) => formula.scale === 'currency') ? await input.currency() : null;
         Object.assign(next, evaluateAll(formulas, { ...row, ...next }, childRules?.currencyColumn, currency));
       }
-      // better-sqlite3 binds no boolean: a yes or no goes in as SQLite keeps one.
-      const bound = dialect === 'sqlite' ? Object.fromEntries(Object.entries(next).map(([column, value]) => [column, typeof value === 'boolean' ? (value ? 1 : 0) : value])) : next;
-      let update = db.updateTable(table.id).set(bound as never);
-      for (const column of table.primaryKey) update = update.where((eb) => eb(db.dynamic.ref(column), '=', row[column]));
-      await update.execute();
+      await input.write(table, Object.fromEntries(table.primaryKey.map((column) => [column, row[column]])), next);
       written.push({ record: { ...row, ...next }, before: row });
     }
     if (written.length > 0) out.push({ table, rules: childRules, rows: written });
