@@ -26,6 +26,7 @@ import {
   createSqliteMetaDb,
   documentSequencesRepo,
   emailTemplatesRepo,
+  filesRepo,
   snapshotsRepo,
   firstRun,
   manifestsRepo,
@@ -4833,11 +4834,143 @@ for (const [dialect, available] of legs) {
       expect(await h.rows('SELECT id FROM pos_shifts')).toEqual([]);
       // Your own line is untouched.
       expect(await h.rows('SELECT id FROM pos_lines')).toHaveLength(1);
-      // The two that stay are the operator's now: the ledger is empty, and sample data can be added again.
+      // The two that stay are the operator's now: nothing reads as loaded, and sample data can be added again.
       const after = (await h.app.inject({ method: 'GET', url: '/apps/pos/sample-data' })).json();
       expect(after).toMatchObject({ loaded: false, total: 0 });
       const again = await h.app.inject({ method: 'POST', url: '/apps/pos/sample-data' });
       expect(again.statusCode, again.body).toBeLessThan(300);
+    }, 90_000);
+
+    it('adds sample data again without copying a row the last removal kept, and never takes one of yours', async () => {
+      const h = (open = await harness(dialect));
+      const bundle = {
+        format: 'adminium.sample/1',
+        app: 'pos',
+        assets: {},
+        tables: [
+          {
+            ref: 'menu_items',
+            rows: [
+              { '@label': 'item:latte', name: 'Latte', price: '4.50' },
+              { '@label': 'item:tea', name: 'Tea', price: '3' },
+              { '@label': 'item:cake', name: 'Cake', price: '5.25' },
+            ],
+          },
+          { ref: 'lines', rows: [{ item_id: { '@ref': 'item:latte' } }, { item_id: { '@ref': 'item:cake' } }] },
+        ],
+      };
+      await stageManifest(h, { ...MANIFEST, sampleData: { file: 'seeds/pos.sample.json' } }, {
+        'seeds/pos.sample.json': JSON.stringify(bundle),
+      });
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+      const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+      const app = (await findSampleApp(h.meta, 'pos'))!;
+      const user = { locale: 'en-US', userId: null, userLabel: 'test' };
+      await service.add(app, user);
+      const [, tea, cake] = await h.rows('SELECT id FROM pos_menu_items ORDER BY id');
+      const cakeId = Number(cake!.id);
+
+      // Your own line uses the cake, you renamed the tea, and you made a cake of your own, just like the sample's.
+      await h.run(`INSERT INTO pos_lines (item_id) VALUES (${String(cakeId)})`);
+      await h.run(`UPDATE pos_menu_items SET name = 'Green tea' WHERE id = ${String(tea!.id)}`);
+      await h.run(`INSERT INTO pos_menu_items (name, price) VALUES ('Cake', 5.25)`);
+      const ownCake = Number((await h.rows(`SELECT MAX(id) AS id FROM pos_menu_items`))[0]!.id);
+      expect(await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' })).toMatchObject({ removed: 3, kept: 2 });
+      // The kept rows are remembered, but nothing reads as loaded and no row counts as sample data.
+      expect((await service.status(app)).loaded).toBe(false);
+      expect((await h.rows('SELECT table_ref FROM pos_sample_data ORDER BY seq')).map((r) => r.table_ref)).toEqual(['@kept:menu_items', '@kept:menu_items']);
+
+      // Added again: the kept cake is the sample's cake again, and the sample's line points at it.
+      const added = await service.add(app, user);
+      expect(added.counts).toEqual({ menu_items: 3, lines: 2 });
+      const items = await h.rows('SELECT id, name FROM pos_menu_items ORDER BY id');
+      // The renamed tea is yours: the sample writes its own tea beside it.
+      expect(items.map((r) => r.name)).toEqual(['Green tea', 'Cake', 'Cake', 'Latte', 'Tea']);
+      expect(items.filter((r) => r.name === 'Cake').map((r) => Number(r.id))).toEqual([cakeId, ownCake]);
+      const lines = await h.rows('SELECT item_id FROM pos_lines ORDER BY id');
+      expect(lines.map((r) => Number(r.item_id))).toEqual([cakeId, Number(items[3]!.id), cakeId]);
+      expect(await service.status(app)).toMatchObject({ loaded: true, total: 5 });
+      expect((await h.rows(`SELECT table_ref FROM pos_sample_data WHERE table_ref LIKE '@%'`))).toEqual([]);
+
+      // Removed without keeping changes: your renamed tea and your own cake are not the sample's, so they stay;
+      // the cake your line uses is kept again, and comes back to the sample on the next add.
+      expect(await service.remove(app, { keepChanged: false, userId: null, userLabel: 'test' })).toMatchObject({ removed: 4, kept: 1 });
+      expect((await h.rows('SELECT name FROM pos_menu_items ORDER BY id')).map((r) => r.name)).toEqual(['Green tea', 'Cake', 'Cake']);
+      await service.add(app, user);
+      expect((await h.rows('SELECT name FROM pos_menu_items ORDER BY id')).map((r) => r.name)).toEqual([
+        'Green tea',
+        'Cake',
+        'Cake',
+        'Latte',
+        'Tea',
+      ]);
+    }, 90_000);
+
+    it('adds sample data again over a kept row that names its own key, instead of refusing the key', async () => {
+      const h = (open = await harness(dialect));
+      const tender = '5a3b1e00-0000-4000-8000-000000000001';
+      const image = 'a receipt';
+      const bundle = {
+        format: 'adminium.sample/1',
+        app: 'pos',
+        assets: { 'img:receipt': { file: 'seeds/images/receipt.webp', sha256: createHash('sha256').update(image).digest('hex') } },
+        tables: [
+          {
+            ref: 'tenders',
+            rows: [
+              // Spelled in capitals: Postgres hands a uuid back in lower case.
+              { id: tender.toUpperCase(), amount: '4.50', receipt: { '@asset': 'img:receipt' } },
+              { id: '5a3b1e00-0000-4000-8000-000000000002', amount: '3' },
+            ],
+          },
+        ],
+      };
+      await stageManifest(
+        h,
+        {
+          ...MANIFEST,
+          requiredSchema: {
+            prefixed: true,
+            tables: [
+              TABLES[0],
+              {
+                ref: 'tenders',
+                columns: [
+                  { ref: 'id', type: 'uuid', role: 'pk' },
+                  { ref: 'amount', type: 'money' },
+                  { ref: 'receipt', type: 'text', maxLength: 40, nullable: true },
+                ],
+              },
+              { ref: 'refunds', columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'tender_id', type: 'fk', references: 'tenders' }] },
+            ],
+          },
+          sampleData: { file: 'seeds/pos.sample.json' },
+        },
+        { 'seeds/pos.sample.json': JSON.stringify(bundle), 'seeds/images/receipt.webp': image },
+      );
+      expect((await post(h, '/apps/install')).statusCode).toBe(200);
+      const service = createSampleDataService(sampleDeps(h.meta, h.manager, createAppStore({ dataDir: h.dataDir })));
+      const app = (await findSampleApp(h.meta, 'pos'))!;
+      const user = { locale: 'en-US', userId: null, userLabel: 'test' };
+      await service.add(app, user);
+      const first = (await h.rows(`SELECT id, receipt FROM pos_tenders WHERE receipt IS NOT NULL`))[0]!;
+      const receipt = String(first.receipt);
+      // Your own refund uses the first tender, so the removal keeps it.
+      await h.run(`INSERT INTO pos_refunds (tender_id) VALUES ('${String(first.id)}')`);
+      expect(await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' })).toMatchObject({ removed: 1, kept: 1 });
+      // The same key again used to stop the whole add as a clash; the kept tender is the sample's again.
+      expect((await service.add(app, user)).counts).toEqual({ tenders: 2 });
+      expect((await h.rows('SELECT id FROM pos_tenders')).map((r) => String(r.id).toLowerCase()).sort()).toEqual([
+        tender,
+        '5a3b1e00-0000-4000-8000-000000000002',
+      ]);
+      expect(await service.status(app)).toMatchObject({ loaded: true, total: 2 });
+
+      // Its receipt is the sample's again too: once nothing of yours uses the tender, both go, and so does the file.
+      await h.run('DELETE FROM pos_refunds');
+      expect(await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' })).toMatchObject({ removed: 2, kept: 0 });
+      expect(await h.rows('SELECT id FROM pos_tenders')).toEqual([]);
+      expect((await filesRepo(h.meta).findById(receipt))?.deletedAt).not.toBeNull();
     }, 90_000);
 
     /*
