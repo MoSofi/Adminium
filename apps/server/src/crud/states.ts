@@ -62,6 +62,7 @@
  */
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
+import type { Moment } from '@adminium/manifest';
 
 import type { StateLink, StateMoveRule, StateParent, TableStatesRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -71,7 +72,7 @@ import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import { copiedOf } from './decided-columns.js';
 import { lateRuleFor, lateVerdict, refusedBy } from './late.js';
-import { momentSettings, momentVias, type MomentContext } from './moments.js';
+import { momentOf, momentSettings, momentVias, type MomentContext } from './moments.js';
 import {
   HeldLinks,
   StateTooLate,
@@ -118,9 +119,11 @@ export interface StateGuard {
   /**
    * A move Adminium makes itself, declared by the app — a timed move, or a
    * linked row moved by an effect: the roles a listed move is kept for do not
-   * stop it, for this move only (`from` absent: from any state).
+   * stop it, for this move only (`from` absent: from any state). A timed
+   * move's moment (`at`) is read again on the row as held: a row re-dated
+   * since it was found due is left as it is.
    */
-  declared?: { from?: string | undefined; to: string } | undefined;
+  declared?: { from?: string | undefined; to: string; at?: Moment | undefined } | undefined;
   /** Moves the row a link points at (an effect), by the write service's own statement, inside this transaction. */
   effect?: EffectWriter | undefined;
   /** The rows this write's effects moved, for the write to announce once it commits. */
@@ -755,6 +758,11 @@ export async function guardedUpdate(
       }
       const states = table.table?.states;
       try {
+        // A timed move is made only while the row, as held, is still due by its own moment.
+        if (tied && states !== undefined && guard.declared?.at !== undefined && (text(stored[states.column]) ?? states.initial) === guard.declared.from) {
+          const at = await momentOf(guard.declared.at, momentsOver(tx, table, stored, guard, judging));
+          if (at === null || at.getTime() > nowOf(tx, guard).getTime()) throw notDue(states.column);
+        }
         // Once means once: a write naming the state the row already holds.
         if (tied && states?.strict !== undefined && !guard.history && Object.prototype.hasOwnProperty.call(values, states.column)) {
           const state = text(stored[states.column]) ?? states.initial;
@@ -788,6 +796,11 @@ export async function guardedUpdate(
     if (count > 0 && tied) await runEffects(tx, table, values, moved, guard, held);
     return count;
   });
+}
+
+/** A timed move whose row was re-dated since it was found due: left for the next look, never refused. */
+function notDue(column: string): ConflictError {
+  return new ConflictError('This row is no longer due to move on its own; it is left as it is.', 'WRITE_CONFLICT', { retry: true, column });
 }
 
 /** A row's key as text, to find it again among rows read before. */

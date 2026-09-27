@@ -21,6 +21,8 @@ export interface VenueOptions {
   timed?: boolean;
   /** An outbox telling a buyer their held tickets went back on sale. */
   outbox?: boolean;
+  /** An order's cancel code kept unique, so a timed move writing it can meet the database's refusal. */
+  uniqueCode?: boolean;
 }
 
 export function venueTables(opts: VenueOptions = {}): Doc[] {
@@ -93,7 +95,7 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
             },
           },
         },
-        { ref: 'cancel_code', type: 'text', maxLength: 20, nullable: true },
+        { ref: 'cancel_code', type: 'text', maxLength: 20, nullable: true, ...(opts.uniqueCode === true ? { unique: true } : {}) },
         { ref: 'show_at', type: 'timestamptz', nullable: true },
       ],
       states: {
