@@ -260,7 +260,9 @@ export {
 export {
   SAMPLE_FORMAT,
   ROW_DIRECTIVES,
+  SAMPLE_WEEKDAYS,
   byClockSchema,
+  byStaySchema,
   isoDurationMs,
   sampleBundleIssues,
   sampleBundleSchema,
@@ -268,6 +270,7 @@ export {
   sampleRowSchema,
   sampleValueSchema,
   type ByClock,
+  type ByStay,
   type SampleBundle,
   type SampleIssue,
   type SampleValue,

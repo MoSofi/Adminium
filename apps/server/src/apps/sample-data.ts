@@ -48,6 +48,7 @@ import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 import {
   byClockSchema,
+  byStaySchema,
   isoDurationMs,
   prefixFor,
   ROW_DIRECTIVES,
@@ -89,6 +90,9 @@ import { ConflictError, NotFoundError, ValidationFailedError } from '../errors.j
 import type { FileStore } from '../files/store.js';
 import type { JobHandlerContext, JobRegistry } from '../jobs/registry.js';
 import type { Row } from '../crud/mask.js';
+import { Reads } from '../crud/capacity/count.js';
+import { slotDays } from '../crud/capacity/placement.js';
+import { rulesFor } from '../crud/capacity/rules.js';
 
 export interface SampleDataDeps {
   meta: MetaDb;
@@ -295,6 +299,31 @@ export interface ResolveContext {
   labels: ReadonlyMap<string, unknown>;
   /** Asset label → Files library id. */
   assets: ReadonlyMap<string, string>;
+  /** The weekday the bundle's `@week` days count from. */
+  weekAnchor?: string | undefined;
+  /** The first open time of a table's slot limit at or after an instant, found before the rows are resolved (`slotKey`). */
+  slotTimes?: ReadonlyMap<string, Date | null> | undefined;
+}
+
+/** What `ResolveContext.slotTimes` is keyed by: the table and the earliest instant asked. */
+export const slotKey = (table: string, earliest: number) => `${table}\u0000${String(earliest)}`;
+
+const WEEKDAY_INDEX: Readonly<Record<string, number>> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+/**
+ * The day with the bundle's anchor weekday nearest today in `timeZone` (at
+ * most three days either side), moved by `days`: a sample's dates keep the
+ * weekdays they were written for.
+ */
+export function zonedWeekDay(now: number, timeZone: string, anchor: string, days: number): { y: number; m: number; d: number } {
+  const today = zonedDay(now, timeZone, 0);
+  const at = new Date(Date.UTC(today.y, today.m - 1, today.d));
+  const weekday = (at.getUTCDay() + 6) % 7;
+  let shift = (WEEKDAY_INDEX[anchor] ?? weekday) - weekday;
+  if (shift > 3) shift -= 7;
+  if (shift < -3) shift += 7;
+  at.setUTCDate(at.getUTCDate() + shift + days);
+  return { y: at.getUTCFullYear(), m: at.getUTCMonth() + 1, d: at.getUTCDate() };
 }
 
 /**
@@ -339,8 +368,24 @@ const AROUND_MS = 30 * 60_000;
  */
 export function resolveSampleRow(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Row | null {
   const clock = row['@byClock'] === undefined ? null : byClockSchema.parse(row['@byClock']);
+  const stay = row['@byStay'] === undefined ? null : byStaySchema.parse(row['@byStay']);
   let values: Readonly<Record<string, unknown>> = row;
-  if (clock !== null) {
+  if (stay !== null) {
+    // The row's arrival and departure, against the adding moment: before its stay, during it, or after it.
+    const edge = (end: 'from' | 'to'): number => {
+      const when = resolveValues({ at: typeof stay[end] === 'string' ? row[stay[end]] : stay[end] }, ctx)['at'];
+      if (when instanceof Date) return when.getTime();
+      const day = typeof when === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(when.trim()) : null;
+      if (day === null) return Number.NaN;
+      return zonedWallTime({ y: Number(day[1]), m: Number(day[2]), d: Number(day[3]) }, stay.times?.[end] ?? '00:00', ctx.timeZone).getTime();
+    };
+    const from = edge('from');
+    const to = edge('to');
+    const branch = Number.isNaN(from) || Number.isNaN(to) ? undefined : ctx.now < from ? stay.before : ctx.now < to ? stay.during : stay.after;
+    if (branch?.['@skip'] === true) return null;
+    const { ['@skip']: _skip, ...columns } = branch ?? {};
+    values = { ...row, ...columns };
+  } else if (clock !== null) {
     // The row's own time, against the adding moment.
     const when = resolveValues({ at: typeof clock.at === 'string' ? row[clock.at] : clock.at }, ctx)['at'];
     const instant = when instanceof Date ? when.getTime() : Number.NaN;
@@ -379,17 +424,19 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
         break;
       case 'in': {
         const at = ctx.now + isoDurationMs(found.duration);
-        out[column] = found.grid === null ? new Date(at) : onVenueGrid(at, found.grid, ctx.timeZone);
+        // On a slot limit: its first open time from then on (found beforehand); a limit with none in reach keeps the plain time.
+        const slot = found.slot === null ? undefined : ctx.slotTimes?.get(slotKey(found.slot, at));
+        out[column] = slot instanceof Date ? slot : found.grid === null ? new Date(at) : onVenueGrid(at, found.grid, ctx.timeZone);
         break;
       }
       case 'wall': {
-        const day = found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
+        const day = dayOf(found, ctx);
         out[column] = zonedWallTime(day, found.time, ctx.timeZone);
         break;
       }
       // A date is the venue's day, spelled as the day — never the server's.
       case 'date': {
-        const day = found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
+        const day = dayOf(found, ctx);
         out[column] = `${String(day.y).padStart(4, '0')}-${pad2(day.m)}-${pad2(day.d)}`;
         break;
       }
@@ -416,6 +463,49 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
     }
   }
   return out;
+}
+
+/** The venue day a `@day` names: from today, in working days, or from the bundle's week anchor. */
+function dayOf(found: { day: number; workdays: boolean; week: boolean }, ctx: ResolveContext): { y: number; m: number; d: number } {
+  if (found.week && ctx.weekAnchor !== undefined) return zonedWeekDay(ctx.now, ctx.timeZone, ctx.weekAnchor, found.day);
+  return found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
+}
+
+/** Every `@in` on a slot limit in a bundle (a column's, or one a row directive sets): its table and duration. */
+export function slotAsks(bundle: SampleBundle): { table: string; duration: string }[] {
+  const out: { table: string; duration: string }[] = [];
+  const look = (value: unknown, depth: number) => {
+    const found = sampleDirective(value);
+    if (found?.kind === 'in' && found.slot !== null) out.push({ table: found.slot, duration: found.duration });
+    else if (found === null && depth < 2 && typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      for (const inner of Object.values(value as Record<string, unknown>)) look(inner, depth + 1);
+    }
+  };
+  for (const table of bundle.tables) for (const row of table.rows) for (const [key, value] of Object.entries(row)) look(value, key === '@byClock' || key === '@byStay' ? 0 : 1);
+  return out;
+}
+
+/**
+ * The first open time of a table's slot limit at or after `earliest`: the
+ * limit's grid on each day it opens (its hours, or its opening and closing),
+ * never on a closed day nor a paused time — today, or the next day it opens,
+ * up to two weeks on. Null when the table keeps no slot limit, or opens on
+ * none of those days.
+ */
+export async function firstOpenSlot(view: SnapshotView, table: ResolvedTable, db: Kysely<SourceDatabase>, timeZone: string, earliest: number): Promise<Date | null> {
+  const rule = rulesFor(view, table).find((candidate) => candidate.kind === 'slot');
+  if (rule === undefined || rule.kind !== 'slot') return null;
+  const first = zonedDay(earliest, timeZone, -1);
+  const days = Array.from({ length: 16 }, (_, i) => {
+    const at = new Date(Date.UTC(first.y, first.m - 1, first.d + i));
+    return at.toISOString().slice(0, 10);
+  });
+  for (const day of await slotDays(rule, new Reads(db), timeZone, days)) {
+    if (day.closed) continue;
+    const open = day.slots.find((slot) => slot.instant.getTime() >= earliest && !day.paused.has(slot.instant.getTime()));
+    if (open !== undefined) return open.instant;
+  }
+  return null;
 }
 
 /**
@@ -803,6 +893,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
         await handle.db.transaction().execute(async (trx) => {
           const db = asDb(trx);
           const labels = new Map<string, unknown>();
+          /** The open times of the slot limits the sample's rows are timed on, found as each table comes (its hours may be the sample's own). */
+          const slotTimes = new Map<string, Date | null>();
           /** The rows of tables that keep totals, settled once every row is in. */
           const totals = new Map<string, { target: WriteTarget; rows: { seq: number; key: Row; record: Row }[] }>();
           const entries = (await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger)} ORDER BY seq`.execute(db)).rows.map((row) => ({
@@ -843,11 +935,19 @@ export function createSampleDataService(deps: SampleDataDeps) {
             for (const { target: parent, rows } of totals.values()) {
               await writes.settle('create', parent, rows.map((row) => ({ record: row.record, before: null })));
             }
+            // The first open times this table's rows are timed on, read with the rows written so far (hours, closures) in.
+            for (const ask of slotAsks({ ...bundle, tables: [table] })) {
+              const earliest = now + isoDurationMs(ask.duration);
+              const key = slotKey(ask.table, earliest);
+              if (slotTimes.has(key)) continue;
+              const on = safeTable(view, names[ask.table] ?? ask.table);
+              slotTimes.set(key, on === null ? null : await firstOpenSlot(view, on, db, timeZone, earliest));
+            }
             const resolved = view.table(names[table.ref] ?? table.ref);
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
             const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0;
             for (const row of table.rows) {
-              const resolvedRow = resolveSampleRow(row, { now, timeZone, locale: opts.locale, labels, assets: fileIds });
+              const resolvedRow = resolveSampleRow(row, { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes });
               // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
               if (resolvedRow === null) {
                 done += 1;
