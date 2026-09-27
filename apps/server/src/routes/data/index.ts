@@ -2418,7 +2418,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             for (const [index, row] of prepared.entries()) {
               let made: Row;
               try {
-                made = await insertRow(tdb, ctx.dialect, ctx.table, row.values);
+                // A copy that follows its parent, read again from the parent as held.
+                made = await insertRow(tdb, ctx.dialect, ctx.table, await writes.followed({ ...ctx.target, db: tdb }, tdb, row.values));
               } catch (error) {
                 return mapDbError(error, ctx.table);
               }

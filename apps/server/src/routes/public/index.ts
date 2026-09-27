@@ -3601,7 +3601,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 });
                 if (!allowed) throw new PublicWriteRefused();
               }
-              created.push(await insertRow(tdb, found.dialect, table, row.values));
+              // A copy that follows its parent, read again from the parent as held.
+              created.push(await insertRow(tdb, found.dialect, table, await writes.followed({ ...target, db: tdb }, tdb, row.values)));
             }
             const updated: { pk: Row; before: Row | null; after: Row | null }[] = [];
             for (const [i, row] of preparedUpdates.entries()) {

@@ -1549,6 +1549,14 @@ export interface RecordWriteService {
    */
   settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], opts?: { cap?: boolean }): Promise<void>;
   /**
+   * A new row prepared before its write began, its copies that follow a
+   * parent (`copy.follow`) read again from the parent — held for share on
+   * `db`, the write's own handle — just before it goes in: a change of the
+   * parent committed since followed every row but this one, not yet written.
+   * The same object when nothing moved.
+   */
+  followed<V extends Row>(target: WriteTarget, db: Db, values: V): Promise<V>;
+  /**
    * One transaction for rows prepared by {@link beforeEach} or {@link check},
    * holding the lock of every series without gaps they take a number in until
    * it commits. A multi-row path opens its transaction here: on MySQL a named
@@ -3102,7 +3110,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const within: WriteTarget = { ...row.target, db: trx, timezone: prepared.zone ?? row.target.timezone };
           const parent = row.parent === null ? null : written.get(row.parent)!;
           await input.checks?.(trx, row.node, prepared.checked, parent);
-          const counted = dry ? prepared.checked : brand(await claimSequences(prepared.rules, 'create', within, prepared.checked, opts.sequences));
+          // The root was prepared before the write began: a copy that follows its parent is read again from the parent, held.
+          const current = !dry && row === rootRow ? brand(await followNow({ db: trx, dialect: within.dialect, rules: prepared.rules, values: prepared.checked, currency })) : prepared.checked;
+          const counted = dry ? current : brand(await claimSequences(prepared.rules, 'create', within, current, opts.sequences));
           let out: { row: Row; values: CheckedRow };
           try {
             out = await insertWithCodes(within, counted, prepared.codes, undefined);
@@ -3652,6 +3662,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     },
 
     settle,
+
+    async followed(target, db, values) {
+      const rules = rulesOf(target);
+      if (!(rules?.copies ?? []).some((copy) => copy.follow === true)) return values;
+      const fresh = await followNow({ db, dialect: target.dialect, rules, values, currency: currencyFor(target) });
+      return (fresh === values ? values : brand(fresh)) as typeof values;
+    },
 
     transaction: (target, rows, run, children = []) =>
       withSeriesLocks(

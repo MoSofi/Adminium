@@ -168,6 +168,57 @@ describe.each(LEGS)('rows others follow, through every door — %s', (dialect, a
     expect(await size(seat['id'])).toBe(2);
   });
 
+  it.skipIf(!available)('writes a new follower with its parent as it is when the row goes in, not as it was prepared', async () => {
+    const group = await w.create('groups', { size: 2 });
+    // A tree whose root follows a group: the group changes after the root was prepared, before it goes in.
+    const root = { name: 'seats', target: w.targetOf('seats'), values: { group_id: group['id'] }, at: [], children: [] };
+    const outcome = await w.writes.createTree({
+      root,
+      context: w.desk,
+      mode: 'save',
+      checks: async (db, node) => {
+        if (node.at.length === 0) await db.updateTable(w.targetOf('groups').table.id as never).set({ size: 8 } as never).where('id' as never, '=', group['id'] as never).execute();
+      },
+      announce: async () => {},
+      mapError: (error) => {
+        throw error;
+      },
+    });
+    expect(await size(outcome.root['id'])).toBe(8);
+    // An import's rows likewise: the group changes after the rows were checked, before they go in.
+    const other = await w.create('groups', { size: 3 });
+    const csv = `group_id\n${String(other['id'])}\n`;
+    const base = createWriteService(writeStores(h!.meta));
+    const writes = {
+      ...base,
+      check: async (...args: Parameters<typeof base.check>) => {
+        const out = await base.check(...args);
+        await h!.rows(`update ${h!.real('groups')} set size = 5 where id = ${String(other['id'])}`);
+        return out;
+      },
+    };
+    const job = await importOf('seats', csv, { columns: [{ from: 'group_id', to: 'group_id' }] }, { mode: 'insert', skipInvalid: false }, writes as never);
+    expect(job).toBe('succeeded');
+    expect(Number((await h!.rows(`select size from ${h!.real('seats')} where group_id = ${String(other['id'])}`))[0]!['size'])).toBe(5);
+  });
+
+  /** An import of one table, run by the job's own handler with this write service. */
+  const importOf = async (ref: string, csv: string, mapping: unknown, options: unknown, writes?: ReturnType<typeof createWriteService>): Promise<string | undefined> => {
+    const storage = {
+      read: async () => Promise.resolve(Readable.from([csv])),
+      write: async () => Promise.resolve({ storageKey: 'report', sizeBytes: 0, sha256: '', destinationId: null, storage: 'memory' }),
+    } as unknown as FileStore;
+    const file = await filesRepo(h!.meta).create({ filename: `${ref}.csv`, mime: 'text/csv', sizeBytes: csv.length, sha256: 'x', kind: 'upload' });
+    const imports = importsRepo(h!.meta);
+    const user = await usersRepo(h!.meta).create({ email: `importer-${String(Math.random()).slice(2)}@tours.dev`, name: 'Importer', passwordHash: 'x' });
+    const job = await imports.create({ connectionId: h!.connectionId, tableName: w.targetOf(ref).table.id, requestedBy: user.id, fileId: file.id, mapping: mapping as never, options: options as never });
+    await imports.markReady(job.id, { total: csv.trim().split('\n').length - 1 });
+    let handler: ((payload: unknown, ctx: unknown) => Promise<unknown>) | null = null;
+    registerImportRunHandler({ registerJobHandler: (_kind: string, _schema: unknown, run: typeof handler) => (handler = run) } as never, { meta: h!.meta, manager: h!.manager, storage, ...(writes === undefined ? {} : { writes }) });
+    await handler!({ importId: job.id }, { jobId: `job_${job.id}`, signal: new AbortController().signal, progress: () => {}, log: () => {} });
+    return (await imports.findById(job.id))?.status;
+  };
+
   it.skipIf(!available)("brings them into step with an import's update, on a table with hooks", async () => {
     const group = await w.create('groups', { size: 3 });
     const seat = await w.create('seats', { group_id: group['id'] });
