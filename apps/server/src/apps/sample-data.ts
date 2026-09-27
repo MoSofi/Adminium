@@ -92,6 +92,8 @@ import type { JobHandlerContext, JobRegistry } from '../jobs/registry.js';
 import type { Row } from '../crud/mask.js';
 import { Reads } from '../crud/capacity/count.js';
 import { slotDays } from '../crud/capacity/placement.js';
+import { slotKey as countKey } from '../crud/capacity/count.js';
+import { tallyFor } from '../crud/capacity/judge.js';
 import { rulesFor } from '../crud/capacity/rules.js';
 
 export interface SampleDataDeps {
@@ -301,8 +303,12 @@ export interface ResolveContext {
   assets: ReadonlyMap<string, string>;
   /** The weekday the bundle's `@week` days count from. */
   weekAnchor?: string | undefined;
-  /** The first open time of a table's slot limit at or after an instant, found before the rows are resolved (`slotKey`). */
-  slotTimes?: ReadonlyMap<string, Date | null> | undefined;
+  /**
+   * The open times of a table's slot limits the sample's rows take, placed
+   * before the rows are resolved, in row order, per table and earliest instant
+   * asked (`slotKey`): each row takes the next one.
+   */
+  slotTimes?: ReadonlyMap<string, (Date | null)[]> | undefined;
 }
 
 /** What `ResolveContext.slotTimes` is keyed by: the table and the earliest instant asked. */
@@ -425,7 +431,7 @@ function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveConte
       case 'in': {
         const at = ctx.now + isoDurationMs(found.duration);
         // On a slot limit: its first open time from then on (found beforehand); a limit with none in reach keeps the plain time.
-        const slot = found.slot === null ? undefined : ctx.slotTimes?.get(slotKey(found.slot, at));
+        const slot = found.slot === null ? undefined : ctx.slotTimes?.get(slotKey(found.slot, at))?.shift();
         out[column] = slot instanceof Date ? slot : found.grid === null ? new Date(at) : onVenueGrid(at, found.grid, ctx.timeZone);
         break;
       }
@@ -471,41 +477,78 @@ function dayOf(found: { day: number; workdays: boolean; week: boolean }, ctx: Re
   return found.workdays ? zonedWorkday(ctx.now, ctx.timeZone, found.day) : zonedDay(ctx.now, ctx.timeZone, found.day);
 }
 
-/** Every `@in` on a slot limit in a bundle (a column's, or one a row directive sets): its table and duration. */
-export function slotAsks(bundle: SampleBundle): { table: string; duration: string }[] {
-  const out: { table: string; duration: string }[] = [];
+/** Every `@in` on a slot limit in a bundle (a column's, or one a row directive sets), in row order: its table, duration and row. */
+export function slotAsks(bundle: SampleBundle): { table: string; duration: string; row: Readonly<Record<string, unknown>> }[] {
+  const out: { table: string; duration: string; row: Readonly<Record<string, unknown>> }[] = [];
+  let row: Readonly<Record<string, unknown>> = {};
   const look = (value: unknown, depth: number) => {
     const found = sampleDirective(value);
-    if (found?.kind === 'in' && found.slot !== null) out.push({ table: found.slot, duration: found.duration });
+    if (found?.kind === 'in' && found.slot !== null) out.push({ table: found.slot, duration: found.duration, row });
     else if (found === null && depth < 2 && typeof value === 'object' && value !== null && !Array.isArray(value)) {
       for (const inner of Object.values(value as Record<string, unknown>)) look(inner, depth + 1);
     }
   };
-  for (const table of bundle.tables) for (const row of table.rows) for (const [key, value] of Object.entries(row)) look(value, key === '@byClock' || key === '@byStay' ? 0 : 1);
+  for (const table of bundle.tables) {
+    for (const one of table.rows) {
+      row = one;
+      for (const [key, value] of Object.entries(one)) look(value, key === '@byClock' || key === '@byStay' ? 0 : 1);
+    }
+  }
   return out;
 }
 
+/** Places a sample's rows on a table's slot limit, each on the first open time with room for it. */
+export interface SlotPlacer {
+  /** The first open time at or after `earliest` with room for `row` beside the rows already there and those placed before it; null for none. */
+  place(earliest: number, row: Readonly<Record<string, unknown>>): Promise<Date | null>;
+}
+
 /**
- * The first open time of a table's slot limit at or after `earliest`: the
- * limit's grid on each day it opens (its hours, or its opening and closing),
- * never on a closed day nor a paused time — today, or the next day it opens,
- * up to two weeks on. Null when the table keeps no slot limit, or opens on
- * none of those days.
+ * A placer over a table's slot limit, or null when it keeps none. A time is
+ * open on the limit's grid on each day it opens (its hours, or its opening and
+ * closing), never on a closed day nor a paused time — today, or the next day
+ * it opens, up to two weeks on — and has room while what its counted rows
+ * take, with the sample's rows placed on it so far, leaves room for the row:
+ * a sample never fills a time past its limit, so a guest never finds it full
+ * by the sample's doing alone.
  */
-export async function firstOpenSlot(view: SnapshotView, table: ResolvedTable, db: Kysely<SourceDatabase>, timeZone: string, earliest: number): Promise<Date | null> {
-  const rule = rulesFor(view, table).find((candidate) => candidate.kind === 'slot');
+export async function slotPlacer(
+  target: { connectionId: string; view: SnapshotView; table: ResolvedTable; db: Kysely<SourceDatabase>; dialect: DataHandle['dialect'] },
+  timeZone: string,
+  now: number,
+): Promise<SlotPlacer | null> {
+  const rule = rulesFor(target.view, target.table).find((candidate) => candidate.kind === 'slot');
   if (rule === undefined || rule.kind !== 'slot') return null;
-  const first = zonedDay(earliest, timeZone, -1);
-  const days = Array.from({ length: 16 }, (_, i) => {
-    const at = new Date(Date.UTC(first.y, first.m - 1, first.d + i));
-    return at.toISOString().slice(0, 10);
-  });
-  for (const day of await slotDays(rule, new Reads(db), timeZone, days)) {
-    if (day.closed) continue;
-    const open = day.slots.find((slot) => slot.instant.getTime() >= earliest && !day.paused.has(slot.instant.getTime()));
-    if (open !== undefined) return open.instant;
-  }
-  return null;
+  const reads = new Reads(target.db);
+  const size = await reads.number(rule.rule.perSlot);
+  const placed = new Map<number, number>();
+  const stored = new Map<number, number>();
+  const judged = { ...target, timezone: timeZone } as unknown as WriteTarget;
+  return {
+    async place(earliest, row) {
+      const raw = 'value' in rule.amount ? rule.amount.value : Number(row[rule.amount.column] ?? 1);
+      const amount = Number.isFinite(raw) && raw > 0 ? raw : 1;
+      const first = zonedDay(earliest, timeZone, -1);
+      const days = Array.from({ length: 16 }, (_, i) => new Date(Date.UTC(first.y, first.m - 1, first.d + i)).toISOString().slice(0, 10));
+      const grid = await slotDays(rule, reads, timeZone, days);
+      const open = grid.flatMap((day) => (day.closed ? [] : day.slots.filter((slot) => slot.instant.getTime() >= earliest && !day.paused.has(slot.instant.getTime())).map((slot) => ({ day: day.day, slot }))));
+      // What the rows already there take of each time, counted once.
+      const unread = open.filter(({ slot }) => !stored.has(slot.instant.getTime()));
+      if (size !== null && unread.length > 0) {
+        const states = await tallyFor(target.db, judged, rule, unread.map(({ day, slot }) => ({ part: 's', key: countKey(slot.instant, null), at: day })), new Date(now), [], 'staff', reads);
+        const byKey = new Map(states.map((state) => [state.key, state.taken]));
+        for (const { slot } of unread) stored.set(slot.instant.getTime(), byKey.get(slot.instant.toISOString()) ?? 0);
+      }
+      for (const { slot } of open) {
+        const at = slot.instant.getTime();
+        const taken = (stored.get(at) ?? 0) + (placed.get(at) ?? 0);
+        if (size !== null && taken + amount > size) continue;
+        placed.set(at, (placed.get(at) ?? 0) + amount);
+        return slot.instant;
+      }
+      return null;
+    },
+  };
 }
 
 /**
@@ -893,8 +936,9 @@ export function createSampleDataService(deps: SampleDataDeps) {
         await handle.db.transaction().execute(async (trx) => {
           const db = asDb(trx);
           const labels = new Map<string, unknown>();
-          /** The open times of the slot limits the sample's rows are timed on, found as each table comes (its hours may be the sample's own). */
-          const slotTimes = new Map<string, Date | null>();
+          /** The open times the sample's rows are placed on, per slot limit, found as each table comes (its hours may be the sample's own). */
+          const slotTimes = new Map<string, (Date | null)[]>();
+          const placers = new Map<string, SlotPlacer | null>();
           /** The rows of tables that keep totals, settled once every row is in. */
           const totals = new Map<string, { target: WriteTarget; rows: { seq: number; key: Row; record: Row }[] }>();
           const entries = (await sql<LedgerRow>`SELECT * FROM ${sql.table(ledger)} ORDER BY seq`.execute(db)).rows.map((row) => ({
@@ -938,10 +982,14 @@ export function createSampleDataService(deps: SampleDataDeps) {
             // The first open times this table's rows are timed on, read with the rows written so far (hours, closures) in.
             for (const ask of slotAsks({ ...bundle, tables: [table] })) {
               const earliest = now + isoDurationMs(ask.duration);
+              let placer = placers.get(ask.table);
+              if (placer === undefined) {
+                const on = safeTable(view, names[ask.table] ?? ask.table);
+                placer = on === null ? null : await slotPlacer({ connectionId, view, table: on, db, dialect: handle.dialect }, timeZone, now);
+                placers.set(ask.table, placer);
+              }
               const key = slotKey(ask.table, earliest);
-              if (slotTimes.has(key)) continue;
-              const on = safeTable(view, names[ask.table] ?? ask.table);
-              slotTimes.set(key, on === null ? null : await firstOpenSlot(view, on, db, timeZone, earliest));
+              slotTimes.set(key, [...(slotTimes.get(key) ?? []), placer === null ? null : await placer.place(earliest, ask.row)]);
             }
             const resolved = view.table(names[table.ref] ?? table.ref);
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };

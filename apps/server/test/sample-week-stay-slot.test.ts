@@ -88,7 +88,7 @@ describe("a stay's status by where the adding moment falls against its dates", (
 });
 
 /** A kitchen taking pickups on a 15-minute grid from its weekly hours, closed some days, with orders cancelled at closing. */
-function kitchen(): Doc {
+function kitchen(perSlot = 20): Doc {
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -115,7 +115,7 @@ function kitchen(): Doc {
             kind: 'slot',
             slot: 'pickup_at',
             amount: 1,
-            perSlot: 20,
+            perSlot,
             slotMinutes: 15,
             countWhere: { column: 'status', values: ['placed', 'collected'] },
             hours: { table: 'hours', weekday: 'weekday', open: 'open', opens: 'opens', closes: 'closes' },
@@ -204,8 +204,9 @@ describe.each(LEGS)('the sample added for real — %s', (dialect, available) => 
     await h?.close();
     h = undefined;
   });
-  const add = async (b: Doc, now: string) => {
-    h = await installInvoicing(dialect, kitchen(), undefined, { 'seeds/kitchen.sample.json': JSON.stringify(b) });
+  const add = async (b: Doc, now: string, perSlot = 20, before?: (harness: InvoicingHarness) => Promise<void>) => {
+    h = await installInvoicing(dialect, kitchen(perSlot), undefined, { 'seeds/kitchen.sample.json': JSON.stringify(b) });
+    await before?.(h);
     await h.meta.db.updateTable('adminium_connections').set({ timezone: london } as never).where('id', '=', h.connectionId).execute();
     const service = createSampleDataService({ meta: h.meta, manager: h.manager, store: createAppStore({ dataDir: h.dataDir }), files: memoryFiles });
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -235,6 +236,23 @@ describe.each(LEGS)('the sample added for real — %s', (dialect, available) => 
     // Sunday 26 July 2026, 22:00 in London: Monday does not open, and the sample closes Monday too; Tuesday it is.
     const harness = await add(bundle(true), '2026-07-26T21:00:00Z');
     expect((await pickups(harness)).map((row) => row[1])).toEqual(['2026-07-28T10:30:00.000Z', '2026-07-28T10:30:00.000Z']);
+  }, 120_000);
+
+  it.runIf(available)('never fills a time past its limit: the next rows go on the next times with room', async () => {
+    const b = bundle(false);
+    ((b['tables'] as Doc[])[2]!['rows'] as Doc[]).push({ name: 'Third', pickup_at: { '@in': 'PT20M', '@slot': 'orders' } });
+    // Two orders a time; an operator's own order already at the next morning's first time.
+    const harness = await add(b, '2026-07-28T20:10:00Z', 2, async (hh) => {
+      // A zone-less time is this server's wall clock, as the write path stores one.
+      const at = new Date('2026-07-29T10:30:00Z');
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const wall = `${String(at.getFullYear())}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}:00`;
+      await hh.rows(`insert into ${hh.real('orders')} (name, pickup_at, status) values ('Real', '${dialect === 'postgres' ? at.toISOString() : wall}', 'placed')`);
+    });
+    const rows = await pickups(harness);
+    const at = (name: string) => rows.find((row) => row[0] === name)![1];
+    expect(at('Soon')).toBe('2026-07-29T10:30:00.000Z');
+    expect([at('Later'), at('Third')]).toEqual(['2026-07-29T10:45:00.000Z', '2026-07-29T10:45:00.000Z']);
   }, 120_000);
 
   it.runIf(available)('lands a time already open today on the grid, at least that far ahead', async () => {
