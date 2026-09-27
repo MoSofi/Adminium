@@ -35,7 +35,7 @@ import { filesRepo, type MetaDb } from '@adminium/meta';
 import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
 import { isShippedMark, loadMarkBytes } from '../email/marks.js';
-import { EMAIL_SEND_JOB_KIND, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
+import { EMAIL_SEND_JOB_KIND, REPLY_TO, emailEnvelopeKey, type EmailSendReport } from '../email/send.js';
 import type {
   EmailSendAttachmentRef,
   EmailSendInlineRef,
@@ -95,6 +95,11 @@ const envelopeSchema = z.object({
   /** A configured sender's `Name <addr>`; absent = the transport's
    * `email.smtp.from`. */
   from: z.string().optional(),
+  /**
+   * Where a reply goes: one plain address (an app's house address). An older
+   * server reading an envelope with it drops it and sends without the header.
+   */
+  replyTo: z.string().max(254).regex(REPLY_TO).optional(),
   /** QR codes the HTML shows (`v: 3`): drawn here, from their text, as PNGs. */
   qr: z
     .array(z.object({ cid: z.string().min(1).max(80), text: z.string().min(1).max(QR_MAX_BYTES).refine(qrCarries, `at most ${String(QR_MAX_BYTES)} bytes`) }))
@@ -219,6 +224,7 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
       html: envelope.html,
       text: envelope.text,
       ...(envelope.from === undefined ? {} : { from: envelope.from }),
+      ...(envelope.replyTo === undefined ? {} : { replyTo: envelope.replyTo }),
       ...(attachments.length === 0 ? {} : { attachments }),
     });
     ctx.progress(100, { step: 'sent' });

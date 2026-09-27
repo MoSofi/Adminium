@@ -125,7 +125,7 @@ import { withholdRulesOf, type TableWithholds, type WithholdReader } from '../pu
 import { withholdsOn } from '../public-api/withholds-on.js';
 import { forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
 import { toForgotten } from './forgotten.js';
-import type { AppManifest, OutboxProducer } from '@adminium/manifest';
+import { GROUPED_FORM, WITH_ATTACHMENT, groupedCode, type AppManifest, type OutboxProducer } from '@adminium/manifest';
 import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
@@ -141,7 +141,7 @@ import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
 import { appDocumentOff, appProfileFor } from '../documents/app-documents.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
-import { enqueueEmail, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
+import { enqueueEmail, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
 import { bcp47, formatTag, proseNumber } from '../i18n/bcp47.js';
@@ -156,7 +156,7 @@ import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import { columnRecipientOf } from './column-recipient.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
-import { producerOf, settingReader, skipSentence } from './timing.js';
+import { producerOf, settingReader, skipSentence, sourceOf } from './timing.js';
 
 /** The job that sends one app's queued rows now. */
 export const OUTBOX_SEND_JOB_KIND = 'app-outbox-send';
@@ -177,8 +177,8 @@ interface AppFacts {
   requires: string[];
   /** Its client side's routes, by name: where a sign-in link may lead. */
   routes: Record<string, string>;
-  /** The document each of its templates carries, by template key. */
-  attach: Record<string, { kind: string; link: string }>;
+  /** The document each of its templates carries, by template key; `optional`: sent without it when no add-on draws its kind. */
+  attach: Record<string, { kind: string; link: string; optional?: true }>;
   /** The manifest as installed, for whether a document is switched on. */
   manifest: AppManifest | null;
 }
@@ -535,7 +535,8 @@ const CLOCK_TEXT = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/;
  * message's language (`{{order.tax_rate.percent}}` is "8.25%" on every engine,
  * never "8.250"); a choice by its label (`{{order.paid_method.label}}` is
  * "Card", not "card"); a time of day kept as text in the reader's clock; and a
- * code as its QR code (`.qr`, drawn at delivery). Every form is there, empty,
+ * code as its QR code (`.qr`, drawn at delivery) and in groups of four
+ * (`.grouped`). Every form is there, empty,
  * when the value is.
  */
 function extraForms(
@@ -560,6 +561,8 @@ function extraForms(
   if (column.logicalType === 'time' || (typeof value === 'string' && CLOCK_TEXT.test(value.trim()))) out['time'] = forms.clock(value);
   else if (empty && (column.logicalType === 'text' || column.logicalType === 'varchar')) out['time'] = '';
   if (effective?.code !== undefined) out['qr'] = empty ? '' : String(value);
+  // A code in groups of four, as a person reads it out (`K7QX-M2PD`).
+  if (effective?.code !== undefined) out[GROUPED_FORM] = empty ? '' : groupedCode(value);
   return out;
 }
 
@@ -604,6 +607,7 @@ function putValues(
     if (codes.has(column.name)) {
       withheld.add(name);
       withheld.add(`${name}.qr`);
+      withheld.add(`${name}.${GROUPED_FORM}`);
       continue;
     }
     const value = blank.has(column.name) ? null : record[column.name];
@@ -630,6 +634,50 @@ function putValues(
   const start = slotInstant(record['starts_at']);
   const end = slotInstant(record['ends_at']) ?? (start === null || !Number.isFinite(Number(record['minutes'])) ? null : new Date(start.getTime() + Number(record['minutes']) * 60_000));
   if (start !== null && end !== null && end > start) vars[`${prefix}.time_range`] = forms.range(start, end);
+}
+
+/** A template without the blocks marked to go only with its document (`data.withAttachment`). */
+function withoutAttachmentBlocks<T extends { blocks: readonly unknown[] } | undefined>(template: T): T {
+  if (template === undefined) return template;
+  const marked = (block: unknown) => {
+    const data = typeof block === 'object' && block !== null ? (block as { data?: unknown }).data : undefined;
+    return typeof data === 'object' && data !== null && (data as Record<string, unknown>)[WITH_ATTACHMENT] === true;
+  };
+  return { ...template, blocks: template.blocks.filter((block) => !marked(block)) };
+}
+
+/**
+ * What a message keeps of its row as it was before the change that queued it
+ * (`producer.was`, in the outbox's `was` column): the row's table, the values
+ * and the columns named — or null when its producer keeps none, or what is
+ * kept cannot be read (the message then reads `{{was.*}}` as unfilled and
+ * fails, rather than print a guess).
+ */
+function keptBefore(box: LiveOutbox, view: SnapshotView, row: Row): { table: ResolvedTable; record: Row; columns: readonly string[] } | null {
+  const column = box.definition.columns.was;
+  const producer = producerOf(box.definition, row[box.definition.columns.kind]);
+  if (column === undefined || producer?.was === undefined) return null;
+  let record: unknown;
+  try {
+    record = JSON.parse(String(row[column] ?? ''));
+    return typeof record === 'object' && record !== null && !Array.isArray(record)
+      ? { table: view.table(sourceOf(producer).table), record: record as Row, columns: producer.was }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The address a reply to the app's messages goes to: the settings row's
+ * `replyTo` column, when the outbox names one and it holds one plain
+ * address. Empty, missing or not an address: none, and no header.
+ */
+async function houseReplyTo(box: LiveOutbox, db: Kysely<SourceDatabase>): Promise<string | null> {
+  const settings = box.definition.settings;
+  if (settings?.replyTo === undefined) return null;
+  const record = (await db.selectFrom(settings.table as never).select(settings.replyTo as never).limit(1).executeTakeFirst()) as Row | undefined;
+  return replyToOf(record?.[settings.replyTo]);
 }
 
 export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
@@ -669,9 +717,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const customer = ((manifest?.['frontends'] as { side?: unknown; routes?: unknown }[] | undefined) ?? []).find((frontend) => frontend.side === 'customer');
     const routes = typeof customer?.routes === 'object' && customer.routes !== null ? (customer.routes as Record<string, unknown>) : {};
     const attach: AppFacts['attach'] = {};
-    for (const template of (manifest?.['emailTemplates'] as { key?: unknown; attach?: { kind?: unknown; link?: unknown } }[] | undefined) ?? []) {
+    for (const template of (manifest?.['emailTemplates'] as { key?: unknown; attach?: { kind?: unknown; link?: unknown; optional?: unknown } }[] | undefined) ?? []) {
       const wanted = template.attach;
-      if (typeof template.key === 'string' && typeof wanted?.kind === 'string' && typeof wanted.link === 'string') attach[template.key] = { kind: wanted.kind, link: wanted.link };
+      if (typeof template.key === 'string' && typeof wanted?.kind === 'string' && typeof wanted.link === 'string') {
+        attach[template.key] = { kind: wanted.kind, link: wanted.link, ...(wanted.optional === true ? { optional: true as const } : {}) };
+      }
     }
     const facts: AppFacts = {
       requires: needs.flatMap((need) => (typeof need.key === 'string' ? [need.key] : [])),
@@ -760,6 +810,16 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           own.add(base);
           await put(base, view.table(targetId), target);
         }
+      }
+    }
+
+    // The changed row as it was (a stay's old dates, its old total): `{{was.<column>}}`, in each of the column's forms.
+    const kept = keptBefore(box, view, row);
+    if (kept !== null) {
+      const scratch: WrittenValues = { vars: {}, withheld: new Set<string>() };
+      putValues(scratch, ctx, () => false, 'was', kept.table, kept.record);
+      for (const [name, text] of Object.entries(scratch.vars)) {
+        if (kept.columns.some((column) => name === `was.${column}` || name.startsWith(`was.${column}.`))) vars[name] = text;
       }
     }
 
@@ -1212,6 +1272,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const long = [...drawn].filter((name) => !name.startsWith('row.') && !fitsQr(vars[name]));
     if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
+    // A reply to any of the app's messages goes to the house's own address, when its settings name one that is an address.
+    const replyTo = await houseReplyTo(box, ctx.db);
     return {
       to,
       reader: await messageReader(box, ctx, holder, addressed, to),
@@ -1224,6 +1286,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         template,
         ...(Object.keys(rows).length === 0 ? {} : { rows }),
         ...(override.subject === undefined && override.body === undefined ? {} : { override }),
+        ...(replyTo === null ? {} : { replyTo }),
       },
       ...(written === to ? {} : { recordTo: to }),
       ...(lookedUp && typeof language === 'string' && language !== '' && language !== own ? { language } : {}),
@@ -1379,18 +1442,21 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const wanted = (await appFacts(box.row.manifestId)).attach[ready.email.templateKey];
         let attachments: EmailSendAttachmentRef[] = [];
         if (wanted !== undefined) {
-          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader }).catch((error: unknown) => {
+          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader }).catch((error: unknown): { error: string; absent?: true } => {
             deps.logger?.warn({ err: error, appKey: box.appKey }, 'the document an app email carries could not be drawn');
             return { error: 'The document could not be drawn' };
           });
-          if ('error' in drawn) {
+          // No add-on the app has draws the kind, and the template may go without it: sent without the part and its marked blocks.
+          if ('error' in drawn && drawn.absent === true && wanted.optional === true) {
+            ready.email = { ...ready.email, template: withoutAttachmentBlocks(ready.email.template) };
+          } else if ('error' in drawn) {
             const values: Row = { [cols.status]: 'failed' };
             if (cols.error !== undefined) values[cols.error] = sentence(drawn.error);
             if (cols.sentAt !== undefined) values[cols.sentAt] = null;
             settled.push((await settle(box, target, pk, values, sentAtWindow)) ?? claimed);
             continue;
           }
-          attachments = [drawn.attachment];
+          else attachments = [drawn.attachment];
         }
         let job: unknown = null;
         let why = 'Email is not set up on this server';
@@ -1479,9 +1545,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     locale: string | undefined,
     /** Drawn for the person the message goes to: what a row's other holder keeps is left out. */
     withhold: DocumentWithhold,
-  ): Promise<{ attachment: EmailSendAttachmentRef } | { error: string }> {
+  ): Promise<{ attachment: EmailSendAttachmentRef } | { error: string; absent?: true }> {
     const pipeline = deps.documents?.();
-    if (pipeline === undefined) return { error: 'Documents cannot be drawn on this server' };
+    // `absent`: nothing here draws the kind at all (no add-on, off, switched off) — not a drawing that failed.
+    if (pipeline === undefined) return { error: 'Documents cannot be drawn on this server', absent: true };
     const column = box.definition.links?.[wanted.link];
     const id = column === undefined ? undefined : row[column];
     if (column === undefined || id === null || id === undefined) return { error: 'The message names no row to draw its document for' };
@@ -1493,11 +1560,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => record.tableName === table.name)?.ref;
     const profile = await appProfileFor(deps.meta, box.connectionId, box.appKey, tableId, wanted.kind);
     if (profile === null || key === undefined || ref === undefined || facts.manifest === null) {
-      return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed` };
+      return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed`, absent: true };
     }
-    if (!profile.enabled) return { error: `The ${wanted.kind} is not available: its profile is switched off` };
+    if (!profile.enabled) return { error: `The ${wanted.kind} is not available: its profile is switched off`, absent: true };
     const off = await appDocumentOff({ meta: deps.meta, manifest: facts.manifest, profile, table: ref, runtime: pipeline.runtime });
-    if (off !== null) return { error: `The ${wanted.kind} is not available: ${off.reason}` };
+    if (off !== null) return { error: `The ${wanted.kind} is not available: ${off.reason}`, absent: true };
     const outcome = await renderDocument(pipeline, {
       profileId: profile.id,
       pk: { [key]: id },
@@ -1508,7 +1575,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       ...(locale === undefined ? {} : { locale: locale.replace(/_/g, '-') }),
     });
     if (outcome.status === 'skipped') {
-      return { error: outcome.reason === 'row-gone' ? `The ${wanted.kind} could not be drawn: its row is gone` : `The ${wanted.kind} is not available: its add-on draws nothing` };
+      return outcome.reason === 'row-gone' ? { error: `The ${wanted.kind} could not be drawn: its row is gone` } : { error: `The ${wanted.kind} is not available: its add-on draws nothing`, absent: true };
     }
     if (outcome.status === 'failed') return { error: `The ${wanted.kind} could not be drawn: ${outcome.error}` };
     const fileId = outcome.document.fileId ?? outcome.document.htmlFileId;

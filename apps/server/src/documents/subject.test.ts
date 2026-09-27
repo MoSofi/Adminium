@@ -405,3 +405,28 @@ describe('money in the minor units of the document\'s own currency', () => {
     ]);
   });
 });
+
+describe('a code printed in groups', () => {
+  it('reads a mapped code in groups of four, from the row and through a link, and leaves an empty one empty', () => {
+    const slots: SubjectSlot[] = [
+      { id: 'customerName', type: 'text', required: true },
+      { id: 'code', type: 'text', required: false },
+      { id: 'orderCode', type: 'text', required: false },
+      { id: 'plain', type: 'text', required: false },
+    ];
+    const built = build({
+      slots,
+      mapping: {
+        customerName: { column: 'customer' },
+        code: { column: 'code', form: 'grouped' },
+        orderCode: { ref: 'order_id', column: 'code', form: 'grouped' },
+        plain: { column: 'code' },
+      },
+      row: { customer: 'Mia', code: 'K7QXM2PD' },
+      lookups: { 'order_id.code': 'R4FN7HCW' },
+    });
+    expect(built.subject.fields).toMatchObject({ code: 'K7QX-M2PD', orderCode: 'R4FN-7HCW', plain: 'K7QXM2PD' });
+    const empty = build({ slots, mapping: { customerName: { column: 'customer' }, code: { column: 'code', form: 'grouped' } }, row: { customer: 'Mia', code: null } });
+    expect(empty.subject.fields['code'] ?? '').toBe('');
+  });
+});

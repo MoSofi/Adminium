@@ -234,9 +234,11 @@ describe.each(LEGS)('emails that list rows — %s', (dialect, available) => {
   it.skipIf(!available)("holds a ticket's link back from an address typed by hand, and sends it, with its QR code, to its holder", async () => {
     const mid = await queue('link', { order: 1, to: 'someone@else.dev' });
     await sender.sendApp('events', now);
-    expect(await message(mid)).toEqual({ status: 'failed', error: codeWithheldSentence(['row.link_token', 'row.link_token.qr']) });
+    // Its groups too: a code read out is the code.
+    expect(await message(mid)).toEqual({ status: 'failed', error: codeWithheldSentence(['row.link_token', 'row.link_token.grouped', 'row.link_token.qr']) });
     const sent = await send(await queue('link', { order: 1 }));
     expect(sent!.text).toContain('• Mia Okada — MIALINKTOKEN0001');
+    expect(sent!.text).toContain('Read out: MIAL-INKT-OKEN-0001');
     expect(sent!.qr).toEqual([
       { cid: 'qr-1', text: 'MIALINKTOKEN0001' },
       { cid: 'qr-2', text: 'KAILINKTOKEN0002' },

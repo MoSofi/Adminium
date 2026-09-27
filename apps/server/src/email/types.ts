@@ -63,6 +63,8 @@ export interface OutboundEmail {
   headers?: Record<string, string>;
   /** Overrides the transport's `email.smtp.from` — a configured sender. */
   from?: string | undefined;
+  /** Where a reply goes (`Reply-To`): one plain address, checked before it gets here. */
+  replyTo?: string | undefined;
   attachments?: OutboundAttachment[] | undefined;
 }
 

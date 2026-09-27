@@ -217,6 +217,7 @@ export function createSmtpTransport(cfg: SmtpConfig): EmailTransport {
         const info = await transporter.sendMail({
           from: msg.from ?? cfg.from,
           to: msg.to,
+          ...(msg.replyTo === undefined ? {} : { replyTo: msg.replyTo }),
           subject: msg.subject,
           text: msg.text,
           html: msg.html,

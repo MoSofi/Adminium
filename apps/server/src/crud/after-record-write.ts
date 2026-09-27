@@ -79,8 +79,12 @@ export interface RecordWriteEvent {
   /** Automation hops so far; the matcher refuses past 3. */
   hops?: number | undefined;
   occurredAt?: number | undefined;
-  /** Why the row changed, when that is more than a change: `forget` — a guest deleted their details. */
-  cause?: 'forget' | undefined;
+  /**
+   * Why the row changed, when that is more than a change: `forget` — a guest
+   * deleted their details; `undo` — a person took their own change back
+   * (heard by an app's "these columns changed" emails alone).
+   */
+  cause?: 'forget' | 'undo' | undefined;
 }
 
 /** What a rule dispatcher must offer; decorated by `automations/plugin.ts`. */

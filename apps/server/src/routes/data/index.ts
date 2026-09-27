@@ -1463,8 +1463,22 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const prepared = await writes.beforeEach(hookAction, target, context, undoRows(entry), {
           rules: false,
         });
-        const { restored: restoredIds, written } = await executeUndo(target, entry, prepared, context);
+        const { restored: restoredIds, written, changed } = await executeUndo(target, entry, prepared, context);
         invalidateWidgetData(app, entry.connectionId, entry.tableId);
+        /*
+         * A change taken back is a change of those columns again: an app's
+         * email of "these columns changed" (a stay's dates) hears it, so the
+         * guest is not left with the dates the undone change sent them. No
+         * other listener does: an undo is not a new event for rules.
+         */
+        if (entry.action === 'update' && app.hasDecorator('outbox')) {
+          for (const row of changed) {
+            if (row.before === null) continue;
+            const after = row.record ?? (await fetchByPk(db, table, row.pk)) ?? null;
+            if (after === null) continue;
+            await app.outbox.onRecordEvent({ connectionId: entry.connectionId, table, action: 'update', entity: { connectionId: entry.connectionId, table: table.id, pk: row.pk, label: pkLabel(table, row.pk) }, before: row.before, after, origin: 'dashboard', cause: 'undo' });
+          }
+        }
         // The record is back; so are its files. Before the audit row,
         // so a partial restore is visible in the same entry that claims it.
         if (entry.fileIds.length > 0 && deps.files !== undefined) {
@@ -1690,7 +1704,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       entry: UndoEntry,
       prepared: PreparedRow[],
       context: WriteContext,
-    ): Promise<{ restored: unknown[]; written: WrittenRow[] }> {
+    ): Promise<{ restored: unknown[]; written: WrittenRow[]; changed: { pk: Row; before: Row | null; record: Row | null }[] }> {
       const { table } = target;
       const pkOf = (row: Row): Row => Object.fromEntries(entry.pkColumns.map((c) => [c, row[c]]));
       const conflict = (): never => {
@@ -1770,7 +1784,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (record !== undefined) written.push({ record, before: row.before });
         }
       }
-      return { restored: outcome.restored, written };
+      return { restored: outcome.restored, written, changed: outcome.written };
     }
 
     // --- bulk (static segment) --------------------------------------------------

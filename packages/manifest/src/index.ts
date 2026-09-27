@@ -105,6 +105,11 @@ export {
 export {
   OUTBOX_WRITTEN,
   REPEAT_KEY_LENGTH,
+  WAS_MIN_LENGTH,
+  WITH_ATTACHMENT,
+  GROUPED_FORM,
+  groupedCode,
+  isCodeColumn,
   clockShaped,
   rulesReading,
   OUTBOX_HELD,
