@@ -251,11 +251,12 @@ export const publicCreateBody = publicWriteBody.extend({
   children: publicTreeChildren.optional(),
   expect: publicExpect.optional(),
   /**
-   * The own link of this browser's hold that the new one replaces (a
+   * The page's own-link session for the hold the new one replaces (a
    * checkout changed before it was confirmed): that hold is let go in the
-   * same write. Only the link opens it — never a typed address.
+   * same write, and the session moves to the new hold. Only a session opens
+   * it — never a typed address.
    */
-  replaces: z.string().min(8).max(64).optional(),
+  replaces: z.string().min(8).max(128).optional(),
 });
 
 /** `POST /public/records/:ref/dry-run` — the same create, tried without writing. */

@@ -30,8 +30,9 @@ import type { Kysely } from 'kysely';
 
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
-import { DAY_MS, PERSON_FAILURES_DAY, addressKey, hashAddress, subjectOf } from '../../public-api/claim-code.js';
+import { DAY_MS, PERSON_FAILURES_DAY, addressKey, hashAddress, plausibleAddress, subjectOf } from '../../public-api/claim-code.js';
 import { linkSubject } from '../../public-api/sign-in-link.js';
+import { PersonRaced, PersonRefused, PersonTableUnusable, resolvePerson } from '../../crud/person.js';
 import { generateCode, isUniqueViolation } from '../../crud/decided-columns.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { parseDefinition } from '../../public-api/endpoint.js';
@@ -158,6 +159,8 @@ import {
   regenerateCodeBody,
   undoParams,
   undoReply,
+  findPersonBody,
+  findPersonReply,
 } from './schema.js';
 
 type TableAction = 'read' | 'create' | 'update' | 'delete';
@@ -1824,6 +1827,69 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const row = await fetchByPk(ctx.db, ctx.table, pk);
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         return { references: await referenceCounts(ctx.db, ctx.view, ctx.table, pk) };
+      },
+    );
+
+    // --- a person the desk links by address ------------------------------------
+
+    /*
+     * THE DESK LINKS A BOOKING TO A PERSON ONLY WHEN IT PICKS ONE. A staff
+     * write never finds a guest by the address typed into it: a typo would
+     * hand a real guest's stay to a stranger's account. The desk looks the
+     * address up (an ordinary read of the people table), sees the match, and
+     * — when it confirms it, or asks for a new person — calls this: the one
+     * find-or-make every public create uses (trimmed, lower case, one person
+     * per address, the same checks and grants), holding the right to add
+     * people to the table. The answer says whether the person was already
+     * there: the desk is not a stranger.
+     */
+    app.post(
+      '/data/:connectionId/:table/person',
+      {
+        config: { audit: audited('rbac') },
+        schema: {
+          params: dataTableParams,
+          body: findPersonBody,
+          response: { 200: findPersonReply },
+        },
+      },
+      async (request) => {
+        const ctx = await contextFor(request, 'create');
+        // The table's own sign-in by address names the column a person is found by.
+        let email: string | undefined;
+        for (const stored of await publicEndpointsRepo(meta).listByConnection(ctx.connectionId)) {
+          const parsed = parseDefinition(stored.definition);
+          if (parsed.ok && parsed.definition.source === ctx.table.id && parsed.definition.identity?.strategy === 'email-link') email = parsed.definition.identity.email;
+        }
+        if (email === undefined) throw new NotFoundError('Nobody is found by address in this table.', { table: ctx.table.id });
+        if (!plausibleAddress(request.body.email)) throw new ValidationFailedError('That is not an address.', { fields: { [email]: { code: 'format' } } });
+        const context = requestWriteContext(request, 'dashboard');
+        const rights = privilegesOf(await manager.tablePrivilegesById(ctx.connectionId), ctx.table.id);
+        const once = () =>
+          writes.transaction(ctx.target, [], (tdb) =>
+            resolvePerson({ writes, identity: { ...ctx.target, db: tdb, rights }, email: email!, address: request.body.email, fill: request.body.fill ?? {}, context }),
+          );
+        let person;
+        try {
+          try {
+            person = await once();
+          } catch (error) {
+            // Made by another writer a moment ago: found this time.
+            if (!(error instanceof PersonRaced)) throw error;
+            person = await once();
+          }
+        } catch (error) {
+          if (error instanceof PersonRefused) throw new ValidationFailedError('Some values were refused.', { fields: { [error.column]: { code: error.reason } } });
+          if (error instanceof PersonTableUnusable) throw new ValidationFailedError(error.message, { table: ctx.table.id });
+          if (error instanceof PersonRaced) throw writeConflict();
+          throw mapDbError(error, ctx.table);
+        }
+        if (person.made !== null) {
+          const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, person.made![c]]));
+          await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, person.made);
+        }
+        if (person.link === null) throw new ValidationFailedError('That address only looks like one on file: pick the person instead.', { fields: { [email]: { code: 'look-alike' } } });
+        return { data: { key: person.link, found: person.made === null } };
       },
     );
 

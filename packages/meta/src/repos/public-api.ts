@@ -699,6 +699,22 @@ export function publicSessionsRepo(meta: MetaDb) {
     },
 
     /**
+     * Point a live session at another row: a page's own-link session carried
+     * from the hold it replaced to the hold that replaced it, with a fresh
+     * expiry. Whether it moved (an ended or lapsed session does not).
+     */
+    async rebind(id: string, input: { grants: string; subject: string | null; expiresAt: number }, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_sessions')
+        .set({ grants: input.grants, subject: input.subject, expiresAt: input.expiresAt })
+        .where('id', '=', id)
+        .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
      * A session token's row as stored — live, lapsed or ended alike: the
      * gate tells an ended session (whose device is told why) from a lapsed
      * or unknown one (which is told nothing).

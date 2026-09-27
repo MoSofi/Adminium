@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ANONYMOUS_PURPOSE, capKey, capValue, chargeAnonymous, notPlain, plainText, valueSubject } from '../src/public-api/anonymous-caps.js';
+import { ANONYMOUS_PER_IP_HOUR, ANONYMOUS_PURPOSE, capKey, capValue, chargeAnonymous, mailboxOf, notPlain, plainText, valueSubject, type AnonymousCaps } from '../src/public-api/anonymous-caps.js';
 
 /** The markers as the repo keeps them, each call a turn of the event loop — as a database round trip is. */
 function memoryRepo() {
@@ -34,7 +34,7 @@ function memoryRepo() {
 
 const key = capKey('a-test-secret-that-is-long-enough-for-hkdf');
 const now = Date.UTC(2026, 6, 28, 9, 0);
-const input = (values: Record<string, unknown>, caps = { perValue: { columns: ['mobile', 'email'], n: 1 }, perKeyHour: 10 }) => ({
+const input = (values: Record<string, unknown>, caps: AnonymousCaps = { perValue: { columns: ['mobile', 'email'], n: 1 }, perKeyHour: 10 }) => ({
   caps,
   key,
   keyId: 'pbk_1',
@@ -56,6 +56,39 @@ describe('anonymous caps', () => {
     expect(valueSubject(key, 'c1', 't', 'mobile', '700900123')).toBe(valueSubject(key, 'c1', 't', 'mobile', '700900123'));
     expect(valueSubject(key, 'c1', 't', 'mobile', '700900123')).not.toBe(valueSubject(key, 'c1', 't', 'email', '700900123'));
     expect(valueSubject(key, 'c1', 't', 'mobile', '700900123')).not.toContain('700900123');
+  });
+
+  it('counts one mailbox however its address is dressed up, and never folds anything else', () => {
+    expect(mailboxOf('ana+tickets@example.com')).toBe('ana@example.com');
+    expect(mailboxOf('a.n.a+1@googlemail.com')).toBe('ana@gmail.com');
+    expect(mailboxOf('A.na@gmail.com'.toLowerCase())).toBe('ana@gmail.com');
+    // Dots are a real difference on any other domain.
+    expect(mailboxOf('a.na@example.com')).toBe('a.na@example.com');
+    expect(capValue(' Ana+2@Example.COM ')).toBe('ana@example.com');
+  });
+
+  it('stops the eleventh create of one mailbox, whatever tags it wears', async () => {
+    const repo = memoryRepo();
+    const caps = { perValue: { columns: ['email'], n: 10 } };
+    const results: boolean[] = [];
+    for (let i = 1; i <= 11; i += 1) results.push((await chargeAnonymous(repo, input({ email: `victim+${String(i)}@gmail.com` }, caps))).ok);
+    expect(results.slice(0, 10).every(Boolean)).toBe(true);
+    expect(results[10]).toBe(false);
+    expect((await chargeAnonymous(repo, input({ email: 'v.i.c.t.i.m@googlemail.com' }, caps))).ok).toBe(false);
+  });
+
+  it('stops one visitor spending the whole hour, and counts another visitor apart', async () => {
+    const repo = memoryRepo();
+    const from = (ip: string, i: number) => ({ ...input({ email: `p${String(i)}@example.com` }, { perKeyHour: 1000 }), ip });
+    for (let i = 0; i < ANONYMOUS_PER_IP_HOUR; i += 1) expect((await chargeAnonymous(repo, from('203.0.113.9', i))).ok).toBe(true);
+    expect((await chargeAnonymous(repo, from('203.0.113.9', 999))).ok).toBe(false);
+    // One IPv6 subscriber's /64 is one visitor.
+    const v6 = memoryRepo();
+    for (let i = 0; i < ANONYMOUS_PER_IP_HOUR; i += 1) expect((await chargeAnonymous(v6, from(`2001:db8:1:2::${i.toString(16)}`, i))).ok).toBe(true);
+    expect((await chargeAnonymous(v6, from('2001:db8:1:2:ffff::1', 999))).ok).toBe(false);
+    expect((await chargeAnonymous(repo, from('203.0.113.10', 1000))).ok).toBe(true);
+    // Where it is kept, the address is a keyed hash.
+    expect(JSON.stringify(repo.rows)).not.toContain('203.0.113');
   });
 
   it('takes a name, and never a link, a number or a long story', () => {

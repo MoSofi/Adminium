@@ -151,6 +151,7 @@ import { recipientLocale } from '../../i18n/server-i18n.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
 import { publicConfirmSchema, sourceTable } from '../../public-api/endpoint.js';
 import { entryColumnOf, fillOf, personTableOf, signedInValues, type PersonTable } from '../../public-api/person-entry.js';
+import { holdsOf, replaceHolds } from '../../public-api/hold-replace.js';
 import { PersonRaced, PersonRefused, PersonTableUnusable, resolvePerson } from '../../crud/person.js';
 import { privilegesOf } from '../../connections/privileges.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
@@ -1901,11 +1902,36 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: of, action: 'create', entity, before: null, after: row, origin: 'public' });
     };
 
+    /** The app's key that opens a row by its own link (`shareLink.key`), resolved: what a session on it carries. */
+    const ownLinkKeyOf = async (
+      ok: { key: ResolvedKey },
+      view: SnapshotView,
+      table: ResolvedTable,
+      shareLink: { column: string; key: string },
+    ): Promise<{ keyId: string; ref: string; column: string; own: boolean } | null> => {
+      if (ok.key.managedBy === null) return null;
+      const stored = await keys.newestLiveByAppAndConnection(ok.key.managedBy, 'customer', ok.key.connectionId, Date.now(), shareLink.key);
+      if (stored === null || stored.managedBy !== ok.key.managedBy || stored.tokenEncrypted === null || keyStaffBinding(stored) !== null) return null;
+      const linkKey = await resolver.resolve(openPublishableKey(addressCrypto, stored.tokenEncrypted));
+      const claim = linkKey === null ? null : tokenClaimOf(linkKey.scope);
+      const opener = claim === null ? undefined : linkKey!.scope.byRef.get(claim.ref);
+      if (linkKey === null || claim === null || opener?.claim?.column === undefined || claim.column !== shareLink.column) return null;
+      if (sourceTable(view, opener.table)?.id !== table.id) return null;
+      return { keyId: linkKey.keyId, ref: claim.ref, column: opener.claim.column, own: linkKey.scope.claim?.own === true };
+    };
+
+    /** What a session opened on a row by its own link carries: the row's key, and the hash of the code it opens by. */
+    const ownLinkSession = (linkKey: { ref: string; column: string }, ok: { key: ResolvedKey }, table: ResolvedTable, row: Row, codeColumn: string) => ({
+      grants: JSON.stringify({ ref: linkKey.ref, column: linkKey.column, value: row[linkKey.column], token: hashToken(normaliseToken(table, codeColumn, String(row[codeColumn]))) }),
+      subject: subjectOf(ok.key.connectionId, table.id, linkKey.column, row[linkKey.column]),
+    });
+
     /**
      * The new row's own link: its code, the key that opens it, and a session
      * already open on it through that key — the same credential the code is,
      * handed to the page that made the row so its confirmation needs no
-     * claim. Null when the row has no code or the app has no such key live.
+     * claim. A page that sent its session along (`replaces`) gets that same
+     * session back, now on the new row. Null when the row has no code.
      */
     const ownLinkOf = async (
       ok: { key: ResolvedKey },
@@ -1913,34 +1939,19 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       table: ResolvedTable,
       row: Row,
       shareLink: { column: string; key: string },
+      carried: { token: string; expiresAt: number } | null,
     ): Promise<{ key: string; token: string; session?: string; expiresAt?: number } | null> => {
       const token = row[shareLink.column];
       if (typeof token !== 'string' || token === '') return null;
       const answer = { key: shareLink.key, token };
-      if (ok.key.managedBy === null) return answer;
+      if (carried !== null) return { ...answer, session: carried.token, expiresAt: carried.expiresAt };
+      const linkKey = await ownLinkKeyOf(ok, view, table, shareLink);
+      if (linkKey === null) return answer;
       const now = Date.now();
-      const stored = await keys.newestLiveByAppAndConnection(ok.key.managedBy, 'customer', ok.key.connectionId, now, shareLink.key);
-      if (stored === null || stored.managedBy !== ok.key.managedBy || stored.tokenEncrypted === null || keyStaffBinding(stored) !== null) return answer;
-      const linkKey = await resolver.resolve(openPublishableKey(addressCrypto, stored.tokenEncrypted));
-      const claim = linkKey === null ? null : tokenClaimOf(linkKey.scope);
-      const opener = claim === null ? undefined : linkKey!.scope.byRef.get(claim.ref);
-      if (linkKey === null || claim === null || opener === undefined || opener.claim?.column === undefined || claim.column !== shareLink.column) return answer;
-      const openerTable = sourceTable(view, opener.table);
-      if (openerTable !== null && openerTable.id !== table.id) return answer;
-      const column = opener.claim.column;
-      const grant = { ref: claim.ref, column, value: row[column], token: hashToken(normaliseToken(table, claim.column, token)) };
       const minted = generatePublicSessionToken();
       const expiresAt = now + CLAIM_SESSION_TTL_MS;
       await sessions.create(
-        {
-          keyId: linkKey.keyId,
-          tokenHash: minted.tokenHash,
-          grants: JSON.stringify(grant),
-          expiresAt,
-          kind: 'token',
-          ...(linkKey.scope.claim?.own === true ? { level: 'verified' } : {}),
-          subject: subjectOf(ok.key.connectionId, table.id, column, grant.value),
-        },
+        { keyId: linkKey.keyId, tokenHash: minted.tokenHash, expiresAt, kind: 'token', ...(linkKey.own ? { level: 'verified' } : {}), ...ownLinkSession(linkKey, ok, table, row, shareLink.column) },
         now,
       );
       return { ...answer, session: minted.token, expiresAt };
@@ -1965,6 +1976,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const { resource, view, table, dialect } = found;
       const ref = (request.params as { ref: string }).ref;
       const dry = mode === 'dry';
+      // When this write began: a hold it lets go ends here, before anything of it is counted.
+      const begun = new Date();
       const lists = resource.children ?? new Map<string, ScopeChild>();
       const refused = (params?: Record<string, unknown>) => fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', params);
       // The request's lists against the entry's, before anything is read.
@@ -2176,7 +2189,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
       }
       if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
-        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now() });
+        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
         if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
         release = charge.release;
       }
@@ -2240,22 +2253,70 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const context = await publicWriteContext(request, ok);
       /** The person this write made (announced once it has committed), when the address was nobody's. */
       let madePerson: Row | null = null;
-      /** The person found or made by the address typed: never for a quote, never for a guest signed in. */
+      /*
+       * One live hold per buyer: the hold this page replaces (by its own link),
+       * or a signed-in person's other holds, let go in the same write.
+       */
+      const holds = dry ? [] : holdsOf(view, table);
+      const shareLink = resource.shareLink ?? null;
+      /** The page's own-link session, when it sent one: moved to the new hold inside the write, and moved back if the write fails. */
+      let pageSession: { id: string; token: string; before: { grants: string; subject: string | null; expiresAt: number }; linkKey: { ref: string; column: string } } | null = null;
+      if (holds.length > 0 && body.replaces !== undefined && shareLink !== null) {
+        const presented = parsePublicSessionToken(body.replaces);
+        const stored = presented === null ? null : await sessions.findByTokenHash(hashPublishableKey(presented));
+        const linkKey = stored === null ? null : await ownLinkKeyOf(ok, view, table, shareLink);
+        // Only a live session of the app's own-link key, opened on a row: anything else lets nothing go, and says nothing.
+        if (stored !== null && linkKey !== null && stored.keyId === linkKey.keyId && stored.kind === 'token' && stored.endedAt === null && Number(stored.expiresAt) > begun.getTime()) {
+          pageSession = { id: stored.id, token: presented!, before: { grants: stored.grants, subject: stored.subject, expiresAt: Number(stored.expiresAt) }, linkKey };
+        }
+      }
+      const page = pageSession;
+      const replacing =
+        page === null
+          ? undefined
+          : {
+              rowKey: async (): Promise<unknown> => {
+                const now = await sessions.findById(page.id);
+                return now === null ? null : (parseGrant(now.grants)?.value ?? null);
+              },
+            };
+      /** The session moved to the new hold (inside its write); moved back when the write does not go through. */
+      let carried: { token: string; expiresAt: number } | null = null;
+      const carry =
+        page === null
+          ? undefined
+          : async (_trx: Kysely<SourceDatabase>, made: Row): Promise<void> => {
+              const expiresAt = Date.now() + CLAIM_SESSION_TTL_MS;
+              if (await sessions.rebind(page.id, { ...ownLinkSession(page.linkKey, ok, table, made, shareLink!.column), expiresAt })) carried = { token: page.token, expiresAt };
+            };
+      const buyer =
+        holds.length === 0 || ok.session === null || ok.session.level !== 'verified' || resource.claim?.column === undefined || resource.claim.ref !== ok.session.grant.ref
+          ? undefined
+          : { column: resource.claim.column, value: ok.session.grant.value };
+      /** The person found or made by the address typed (never for a quote, never for a guest signed in), then the buyer's other holds let go. */
+      const finds = !dry && finder !== null && people !== null && !signedInPerson;
       const identity =
-        dry || finder === null || people === null || signedInPerson
+        !finds && replacing === undefined && buyer === undefined
           ? undefined
           : async (trx: Kysely<SourceDatabase>): Promise<Row> => {
-              const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people!.table.id);
-              const found = await resolvePerson({
-                writes,
-                identity: { ...target(people!.table), db: trx, rights: tableRights },
-                email: people!.email,
-                address: String(values[finder.email]),
-                fill: fillOf(finder, values),
-                context,
-              });
-              madePerson = found.made;
-              return { [finder.link]: found.link };
+              let linked: Row = {};
+              if (finds) {
+                const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people!.table.id);
+                const person = await resolvePerson({
+                  writes,
+                  identity: { ...target(people!.table), db: trx, rights: tableRights },
+                  email: people!.email,
+                  address: String(values[finder!.email]),
+                  fill: fillOf(finder!, values),
+                  context,
+                });
+                madePerson = person.made;
+                linked = { [finder!.link]: person.link };
+              }
+              if (replacing !== undefined || buyer !== undefined) {
+                await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing });
+              }
+              return linked;
             };
       let outcome: TreeOutcome;
       try {
@@ -2292,6 +2353,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               }),
           ...(retryKey === null ? {} : { replay }),
           ...(identity === undefined ? {} : { identity }),
+          ...(carry === undefined ? {} : { inside: carry }),
           announce,
           mapError: refuseTree,
         });
@@ -2301,6 +2363,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // A new address two writers made at once: run again, and find the person the other made.
           if (!(error instanceof PersonRaced)) throw error;
           madePerson = null;
+          carried = null;
           try {
             outcome = await save();
           } catch (again) {
@@ -2309,6 +2372,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         }
       } catch (error) {
+        // The page's session goes back to the hold it came from: that one was not let go after all.
+        if (carried !== null && page !== null) await sessions.rebind(page.id, page.before);
         // A guest's own value refused: nothing ran that a bad value could have bought, so the charge is handed back.
         const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']);
         if (own) await release?.();
@@ -2343,7 +2408,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       }
       const rank = await rankOf(found, outcome.root);
       // The new row's own link, answered this once (a retry answers the rows, never the link).
-      const link = resource.shareLink === null || resource.shareLink === undefined ? null : await ownLinkOf(ok, view, table, outcome.root, resource.shareLink);
+      const link = shareLink === null ? null : await ownLinkOf(ok, view, table, outcome.root, shareLink, carried);
       return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }), ...(link === null ? {} : { link }) });
     };
 
@@ -2376,7 +2441,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (found === null) return reply;
         // An entry with child rows, a dry run, a price check, a retry key or a person found by address: the one tree path, rows below or none.
         if (treeEntry(found.resource)) return treeWrite(request, reply, ok, found, 'save', request.body);
-        if (request.body.children !== undefined || request.body.expect !== undefined) {
+        if (request.body.children !== undefined || request.body.expect !== undefined || request.body.replaces !== undefined) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         }
 
@@ -2416,6 +2481,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             ref: request.params.ref,
             values,
             now: Date.now(),
+            ip: request.ip,
           });
           if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
           release = charge.release;
