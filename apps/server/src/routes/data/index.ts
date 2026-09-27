@@ -48,6 +48,7 @@ import {
   type Projections,
 } from '../../crud/projections.js';
 import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
+import { renewedBy } from '../../crud/code-renew.js';
 import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import {
   fetchByPk,
@@ -1180,6 +1181,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return childTied || linkTied;
     }
 
+    /**
+     * A change's reply without the codes it made (a ticket handed on), for a
+     * caller who may change the table but not read it — as "make a new link"
+     * answers: one who may only change a row is not handed its new secret.
+     */
+    async function unreadCodesOut(request: FastifyRequest, ctx: DataContext, data: Row, before: Row, after: Row | null): Promise<Row> {
+      if (renewedBy({ values: {}, before, after }, ctx.table.table.columns).size === 0) return data;
+      if (await request.can(`table:${ctx.connectionId}:${ctx.table.id}:read`)) return data;
+      for (const name of codeColumnsOf(ctx.table)) delete data[name];
+      return data;
+    }
+
     function issueUndo(
       request: FastifyRequest,
       ctx: DataContext,
@@ -1198,6 +1211,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
       // No undo that would delete a row numbered without gaps, or take a document's state back.
       if (takesNumberBack(ctx, action, children) || takesStateBack(ctx, children, links)) return null;
+      // A code a change made (a ticket handed on) is never taken back: the old secret stays dead, the rest is undone.
+      if (action === 'update' && changedColumns.some((column) => codeColumnsOf(ctx.table).has(column))) {
+        changedColumns = changedColumns.filter((column) => !codeColumnsOf(ctx.table).has(column));
+        if (changedColumns.length === 0) return null;
+      }
       const { token } = undoStore.issue({
         auditId: null,
         userId,
@@ -2525,7 +2543,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             },
           });
           // Masked columns may be written but are never echoed back.
-          return { data: maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), undoToken };
+          return { data: await unreadCodesOut(request, ctx, maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), before, outcome.after), undoToken };
         }
 
         /*
@@ -2596,7 +2614,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               },
             });
             const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
-            return { data: maskRow(stored, ctx.table, ctx.unmasked), undoToken };
+            return { data: await unreadCodesOut(request, ctx, maskRow(stored, ctx.table, ctx.unmasked), before, stored), undoToken };
           }
         }
 
@@ -2670,7 +2688,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
         after = (await writes.stored(ctx.target, [after]))[0] ?? after;
-        return { data: maskRow(after, ctx.table, ctx.unmasked), undoToken };
+        return { data: await unreadCodesOut(request, ctx, maskRow(after, ctx.table, ctx.unmasked), before, after), undoToken };
       },
     );
 

@@ -53,6 +53,7 @@ import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
 import { formulaColumns, type FormulaExpr } from '@adminium/manifest';
 
 import type {
+  ColumnCodeRule,
   ColumnRequiredWhen,
   ColumnStampRule,
   ColumnValidation,
@@ -234,6 +235,8 @@ export interface ColumnCode {
   column: string;
   prefix: string;
   length: number;
+  /** A new code written by the change that sets one of these off (`crud/code-renew.ts`). */
+  renew?: ColumnCodeRule['renew'];
 }
 
 /** `column.stamp`: what is written, and when. */
@@ -561,7 +564,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       sequences.push({ column: column.name, logicalType: column.logicalType, start: column.sequence.start ?? 1 });
     }
     if (column.code !== undefined) {
-      codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length });
+      codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length, ...(column.code.renew === undefined ? {} : { renew: column.code.renew }) });
     }
     if (column.stamp !== undefined) {
       const stamp = { ...column.stamp, column: column.name, logicalType: column.logicalType };
