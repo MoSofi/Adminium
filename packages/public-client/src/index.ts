@@ -60,6 +60,18 @@ export const PUBLIC_ERROR_CODES = [
   /** Too close to the time to cancel online; the venue still can. */
   'PUBLIC_TOO_LATE',
   /**
+   * A row of the order asks for places that are gone (409): `error.soldOut`
+   * names the row. Never how many are left — ask availability again.
+   */
+  'PUBLIC_SOLD_OUT',
+  /** A night of the stay has no room of the kind asked for left (409). */
+  'PUBLIC_NO_ROOM',
+  /**
+   * The order came to another price than the one shown (409): nothing was
+   * saved; `error.priceChanged` holds the new total and each line's figures.
+   */
+  'PUBLIC_PRICE_CHANGED',
+  /**
    * Too early for this change — a kiosk check-in more than an hour before the
    * visit (409). `error.tooEarly` holds the row's time and when the window
    * opens; say them in the venue's zone (`toTenantMinutes`).
@@ -205,6 +217,107 @@ export class PublicApiError extends Error {
     const { at, from } = this.params;
     return typeof at === 'string' && typeof from === 'string' ? { at, from } : null;
   }
+
+  /*
+   * ── A create with its child rows ────────────────────────────────────────
+   */
+
+  /**
+   * On a `PUBLIC_WRITE_REFUSED`, which row and why, as far as the server
+   * says: `child` and `index` name the row (the deepest list), `path` its
+   * whole place (`['order_items', 3, 'order_item_modifiers', 1]`), `column`
+   * and `reason` the value. Null on any other code.
+   */
+  get refused(): TreeRefusal | null {
+    if (this.code !== 'PUBLIC_WRITE_REFUSED') return null;
+    return treeRefusalOf(this.params);
+  }
+
+  /** On a `PUBLIC_PRICE_CHANGED`, the total it would have saved and each line's figures; null on any other. */
+  get priceChanged(): PriceChanged | null {
+    if (this.code !== 'PUBLIC_PRICE_CHANGED') return null;
+    const { total, lines } = this.params;
+    return {
+      total: typeof total === 'string' ? total : null,
+      lines: typeof lines === 'object' && lines !== null ? (lines as Record<string, TreeReplyRow[]>) : {},
+    };
+  }
+
+  /** On a `PUBLIC_SOLD_OUT` (or `PUBLIC_NO_ROOM`), the row that asked for what is gone; null on any other. */
+  get soldOut(): TreeRefusal | null {
+    if (this.code !== 'PUBLIC_SOLD_OUT' && this.code !== 'PUBLIC_NO_ROOM') return null;
+    return treeRefusalOf(this.params);
+  }
+}
+
+/** Where in a create with child rows a refusal is about, and why. */
+export interface TreeRefusal {
+  child: string | null;
+  index: number | null;
+  path: (string | number)[] | null;
+  column: string | null;
+  reason: string | null;
+  /** A group of choices out of bounds (a size left out): the group row's key. */
+  group: string | number | null;
+}
+
+function treeRefusalOf(params: Readonly<Record<string, unknown>>): TreeRefusal {
+  const { child, index, path, column, reason, group } = params;
+  return {
+    child: typeof child === 'string' ? child : null,
+    index: typeof index === 'number' ? index : null,
+    path: Array.isArray(path) ? (path as (string | number)[]) : null,
+    column: typeof column === 'string' ? column : null,
+    reason: typeof reason === 'string' ? reason : null,
+    group: typeof group === 'string' || typeof group === 'number' ? group : null,
+  };
+}
+
+/** What a `PUBLIC_PRICE_CHANGED` says: the total the order came to, and its lines' figures. */
+export interface PriceChanged {
+  total: string | null;
+  lines: Record<string, TreeReplyRow[]>;
+}
+
+/** The rows a create carries below it, by the list name the entry declares; one more level below each. */
+export type TreeRows = Record<string, { values: Row; children?: Record<string, { values: Row }[]> }[]>;
+
+/** One row of a create's reply below the created one: its shown columns, and its own rows. */
+export interface TreeReplyRow<T = Row> {
+  data: T;
+  children?: Record<string, { data: Row }[]>;
+}
+
+/** A created row with the rows written below it. */
+export interface TreeCreated<T = Row> {
+  data: T;
+  children: Record<string, TreeReplyRow[]>;
+  /** Null when the endpoint does not rank. */
+  rank: number | null;
+  /** A retry of an order already made (the same retry key): nothing new was written. */
+  replayed: boolean;
+}
+
+/** What a dry run answers: every figure the save would write, and how the places it takes stand. Nothing is kept. */
+export interface Quote<T = Row> {
+  data: T;
+  children: Record<string, TreeReplyRow[]>;
+  capacity: { pool: string; state: 'available' | 'full'; at?: string }[];
+  /** False when the app runs its own code on a table of the order: the save may come out otherwise. */
+  exact: boolean;
+}
+
+/**
+ * A retry key for one order — mint one per cart and keep it until the order
+ * is made: a save sent again with it (a reply lost to the network) answers
+ * the order already made. 32 random bytes, base64url; never a cart id.
+ */
+export function newClientKey(): string {
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  let text = '';
+  for (const byte of bytes) text += String.fromCharCode(byte);
+  return btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /* ---------------------------------------------------------------- types */
@@ -551,7 +664,21 @@ export interface PublicClient {
    * keeps answering the bare row every app already reads.
    */
   createWithRank: <T = Row>(ref: string, values: Row) => Promise<Created<T>>;
-  update: <T = Row>(ref: string, id: string, values: Row) => Promise<T>;
+  /**
+   * Change a row. With `expect`, the change is saved only at that price: a
+   * different one is refused (`PUBLIC_PRICE_CHANGED`) and nothing changes.
+   */
+  update: <T = Row>(ref: string, id: string, values: Row, options?: { expect?: { total: string } }) => Promise<T>;
+  /**
+   * A create with the rows below it — an order, its lines, each line's
+   * options — as one write: every row or none. With `expect`, only at that
+   * total. Proves a person is there when the entry asks, as `create` does.
+   */
+  createTree: <T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string } }) => Promise<TreeCreated<T>>;
+  /** The same create tried without writing: every figure it would come to. Costs a read; no human check. */
+  quote: <T = Row>(ref: string, write: { values: Row; children?: TreeRows }) => Promise<Quote<T>>;
+  /** A change to a row tried without writing: the row as the change would leave it. */
+  quoteChange: <T = Row>(ref: string, id: string, values: Row) => Promise<T>;
   /**
    * Replace the row's writable columns — every one of them must be present (a
    * nullable one may be `null`). PUT, where `update` is PATCH.
@@ -932,11 +1059,35 @@ export function createPublicClient(
       return { data: out.data, rank: typeof out.rank === 'number' ? out.rank : null };
     },
 
-    async update<T = Row>(ref: string, id: string, values: Row) {
+    async update<T = Row>(ref: string, id: string, values: Row, options?: { expect?: { total: string } }) {
       const out = await request<{ data: T }>(
         `/api/v1/public/records/${ref}/${encodeURIComponent(id)}`,
-        { method: 'PATCH', body: JSON.stringify({ values }) },
+        { method: 'PATCH', body: JSON.stringify(options?.expect === undefined ? { values } : { values, expect: options.expect }) },
       );
+      return out.data;
+    },
+
+    async createTree<T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string } }) {
+      const out = await withProof('write', ref, (proof) =>
+        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true }>(
+          `/api/v1/public/records/${ref}`,
+          { method: 'POST', body: JSON.stringify(write) },
+          proof,
+        ),
+      );
+      return { data: out.data, children: out.children ?? {}, rank: typeof out.rank === 'number' ? out.rank : null, replayed: out.replayed === true };
+    },
+
+    async quote<T = Row>(ref: string, write: { values: Row; children?: TreeRows }) {
+      const out = await request<Quote<T>>(`/api/v1/public/records/${ref}/dry-run`, { method: 'POST', body: JSON.stringify(write) });
+      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false };
+    },
+
+    async quoteChange<T = Row>(ref: string, id: string, values: Row) {
+      const out = await request<{ data: T }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`, {
+        method: 'POST',
+        body: JSON.stringify({ values }),
+      });
       return out.data;
     },
 
