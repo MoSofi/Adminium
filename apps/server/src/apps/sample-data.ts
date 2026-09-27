@@ -503,18 +503,22 @@ function identityOf(ref: string, label: string | null, key: Row | null, table: R
  * Whether a kept row still reads as the sample wrote it, over every column its
  * entry hashed (a column an app update added since does not count). Anything
  * else — changed, gone, or a reused key now holding another row — is not the
- * sample's to take back.
+ * sample's to take back. Measured as the removal measured it: the
+ * {@link LEDGER_DATES_AS_DAYS} mark is not a column, and an entry recorded
+ * without it hashed a Postgres or MySQL date as its local midnight's UTC day.
  */
-function unchangedSince(entry: LedgerRow, now: Row, table: ResolvedTable): boolean {
+function unchangedSince(entry: LedgerRow, now: Row, table: ResolvedTable, dialect: string): boolean {
   let before: Record<string, string>;
   try {
     before = JSON.parse(entry.col_hashes) as Record<string, string>;
   } catch {
     return false;
   }
+  const recordedAsDays = Object.prototype.hasOwnProperty.call(before, LEDGER_DATES_AS_DAYS);
+  delete before[LEDGER_DATES_AS_DAYS];
   const recorded = Object.keys(before);
   if (recorded.length === 0) return false;
-  const { colHashes } = hashRow(now, table);
+  const { colHashes } = hashRow(now, table, dialect !== 'sqlite' && !recordedAsDays);
   return recorded.every((column) => colHashes[column] === before[column]);
 }
 
@@ -867,13 +871,19 @@ export function createSampleDataService(deps: SampleDataDeps) {
               if (keptEntry !== undefined) {
                 keptBy.delete(identity!);
                 const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
-                if (current !== undefined && unchangedSince(keptEntry, current, resolved)) {
+                if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect)) {
                   const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
                   if (label !== null) labels.set(label, resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : key);
+                  // Hashed as it reads now, so recorded as every entry this add writes: dates as days.
                   const { rowHash, colHashes } = hashRow(current, resolved);
                   await db
                     .updateTable(ledger as never)
-                    .set({ table_ref: table.ref, row_hash: rowHash, col_hashes: JSON.stringify(colHashes), created_at: now } as never)
+                    .set({
+                      table_ref: table.ref,
+                      row_hash: rowHash,
+                      col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
+                      created_at: now,
+                    } as never)
                     .where('seq' as never, '=', keptEntry.seq as never)
                     .execute();
                   if (keepsTotals) {
