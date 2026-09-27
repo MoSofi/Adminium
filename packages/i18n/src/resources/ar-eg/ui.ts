@@ -1998,6 +1998,8 @@ export default {
   },
   "record": {
     "lockedHint": "مقفل بمجرد أن يصبح {state}",
-    "deleteRefused": "لا يمكن حذف هذا السجل. ألغِه بدلًا من ذلك."
+    "deleteRefused": "لا يمكن حذف هذا السجل. ألغِه بدلًا من ذلك.",
+    "timedMoveAt": "ينتقل إلى {to} تلقائيًا في {time}.",
+    "timedMoveSoon": "ينتقل إلى {to} تلقائيًا."
   }
 } as const;

@@ -23287,6 +23287,14 @@
     "status": "mt",
     "srcHash": "3236c7daf265"
   },
+  "ui.record.timedMoveAt": {
+    "status": "mt",
+    "srcHash": "eacd29d8d973"
+  },
+  "ui.record.timedMoveSoon": {
+    "status": "mt",
+    "srcHash": "1d723a59a5b6"
+  },
   "ui.state.empty": {
     "srcHash": "e892255d168b",
     "status": "mt"

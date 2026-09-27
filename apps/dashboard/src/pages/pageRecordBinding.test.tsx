@@ -993,6 +993,19 @@ describe('a document’s states on the record page', () => {
     expect(screen.queryByText(/Locked once/)).toBeNull();
   });
 
+  it('says when a row moves on its own, and to what', async () => {
+    const timed = [{ from: 'active', to: 'closed', at: { column: 'phone', plus: { hours: 2 } } }];
+    await renderAt('/p/customers/r/1', { schemaReply: schema({ states: states({ lock: { when: ['closed'] }, timed }) }) });
+    expect(await screen.findByText('Moves to closed on its own.')).toBeDefined();
+  });
+
+  it('says nothing of a timed move that leaves another state', async () => {
+    const timed = [{ from: 'draft', to: 'closed', at: { column: 'phone' } }];
+    await renderAt('/p/customers/r/1', { schemaReply: schema({ states: states({ lock: { when: ['closed'] }, timed }) }) });
+    expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('Northwind');
+    expect(screen.queryByText(/on its own/)).toBeNull();
+  });
+
   it('hides Delete on a numbered row', async () => {
     await renderAt('/p/customers/r/1', {
       schemaReply: schema({

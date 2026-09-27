@@ -58,7 +58,8 @@ import {
   uploadFile,
   type FileDto,
 } from '../files/api.js';
-import { t } from '../i18n/t.js';
+import { getI18nInstance, t } from '../i18n/t.js';
+import { formatStamp } from '../team/teamApi.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import {
@@ -78,7 +79,7 @@ import {
   withFkDisplay,
   withLookups,
 } from './columnSpecs.js';
-import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, type TableStateFacts } from './recordLocks.js';
+import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, stateFactsQuery, stateOf, timedMove, type TableStateFacts } from './recordLocks.js';
 import type { PageTemplateProps } from './template-types.js';
 
 export function PageRecordBinding({
@@ -529,6 +530,21 @@ export function PageRecordBinding({
   const kept = linkKept.data;
   const locked = facts === null || row === null ? null : lockedFields(facts, row);
   const lockedState = facts === null || row === null ? null : lockedIn(facts, row);
+  const selfMove = facts === null || row === null ? null : timedMove(facts, row);
+  const selfMoveAt = selfMove === null || selfMove.at === null ? null : formatStamp(Date.parse(selfMove.at), getI18nInstance()?.language ?? 'en-US');
+  const selfMovePanels =
+    selfMove === null
+      ? []
+      : [
+          {
+            id: 'record-timed',
+            title:
+              selfMoveAt === null
+                ? t('ui:record.timedMoveSoon', 'Moves to {to} on its own.', { to: selfMove.to })
+                : t('ui:record.timedMoveAt', 'Moves to {to} on its own at {time}.', { to: selfMove.to, time: selfMoveAt }),
+            content: null,
+          },
+        ];
   const pageColumns = useMemo(() => {
     const released = releasedKey === null ? null : new Set(releasedKey.split('\u0000'));
     if (locked === null && released === null && (kept === undefined || kept.size === 0)) return shownColumns;
@@ -645,13 +661,14 @@ export function PageRecordBinding({
          * table — an affordance that cannot do anything is worse than no
          * affordance, because it invites a click and then explains itself.
          */
-        {...(lockedState === null && documentPanels.length === 0
+        {...(lockedState === null && selfMovePanels.length === 0 && documentPanels.length === 0
           ? {}
           : {
               panels: [
                 ...(lockedState === null
                   ? []
                   : [{ id: 'record-locked', title: t('ui:record.lockedHint', 'Locked once {state}', { state: lockedState }), content: null }]),
+                ...selfMovePanels,
                 ...documentPanels,
               ],
             })}

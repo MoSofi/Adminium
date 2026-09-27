@@ -1998,6 +1998,8 @@ export default {
   },
   "record": {
     "lockedHint": "Verrouillé une fois {state}",
-    "deleteRefused": "Cet enregistrement ne peut pas être supprimé. Annulez-le plutôt."
+    "deleteRefused": "Cet enregistrement ne peut pas être supprimé. Annulez-le plutôt.",
+    "timedMoveAt": "Passe à {to} de lui-même le {time}.",
+    "timedMoveSoon": "Passe à {to} de lui-même."
   }
 } as const;

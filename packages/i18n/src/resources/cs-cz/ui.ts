@@ -1998,6 +1998,8 @@ export default {
   },
   "record": {
     "lockedHint": "Zamčeno, jakmile je {state}",
-    "deleteRefused": "Tento záznam nelze smazat. Místo toho ho stornujte."
+    "deleteRefused": "Tento záznam nelze smazat. Místo toho ho stornujte.",
+    "timedMoveAt": "Přejde do stavu {to} sám v {time}.",
+    "timedMoveSoon": "Přejde do stavu {to} sám."
   }
 } as const;

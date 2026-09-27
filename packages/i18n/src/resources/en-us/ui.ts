@@ -1998,6 +1998,8 @@ export default {
   },
   "record": {
     "lockedHint": "Locked once {state}",
-    "deleteRefused": "This record cannot be deleted. Void it instead."
+    "deleteRefused": "This record cannot be deleted. Void it instead.",
+    "timedMoveAt": "Moves to {to} on its own at {time}.",
+    "timedMoveSoon": "Moves to {to} on its own."
   }
 } as const;

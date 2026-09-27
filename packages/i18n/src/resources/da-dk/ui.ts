@@ -1998,6 +1998,8 @@ export default {
   },
   "record": {
     "lockedHint": "Låst, når den er {state}",
-    "deleteRefused": "Denne post kan ikke slettes. Annullér den i stedet."
+    "deleteRefused": "Denne post kan ikke slettes. Annullér den i stedet.",
+    "timedMoveAt": "Skifter selv til {to} {time}.",
+    "timedMoveSoon": "Skifter selv til {to}."
   }
 } as const;

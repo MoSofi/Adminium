@@ -1998,6 +1998,8 @@ export default {
   },
   "record": {
     "lockedHint": "Gesperrt, sobald {state}",
-    "deleteRefused": "Dieser Datensatz kann nicht gelöscht werden. Stornieren Sie ihn stattdessen."
+    "deleteRefused": "Dieser Datensatz kann nicht gelöscht werden. Stornieren Sie ihn stattdessen.",
+    "timedMoveAt": "Wechselt am {time} von selbst zu {to}.",
+    "timedMoveSoon": "Wechselt von selbst zu {to}."
   }
 } as const;

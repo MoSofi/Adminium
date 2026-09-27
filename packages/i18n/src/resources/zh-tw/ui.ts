@@ -1998,6 +1998,8 @@ export default {
   },
   "record": {
     "lockedHint": "一旦為 {state} 即鎖定",
-    "deleteRefused": "無法刪除此記錄。請改為作廢。"
+    "deleteRefused": "無法刪除此記錄。請改為作廢。",
+    "timedMoveAt": "將於 {time} 自動變為 {to}。",
+    "timedMoveSoon": "將自動變為 {to}。"
   }
 } as const;
