@@ -84,6 +84,26 @@ export const BarCategorical = {
     ),
 };
 
+/** Two figures per show, side by side, in the shows' date order — with the legend and "Show data". */
+export const BarPaired = {
+  render: () =>
+    host(
+      'chart-bar',
+      'story-bar-paired',
+      { title: 'Money by show', subtitle: 'Received and still owed', series: [{ label: 'Received' }, { label: 'Still owed' }] },
+      {
+        shape: 'categorical',
+        aggregates: ['received', 'owed'],
+        total: 2380.3,
+        items: [
+          { key: '3', label: 'Paper Moons', value: 1920, values: { received: 1920, owed: 0 } },
+          { key: '1', label: 'Neon Circuit', value: 150.3, values: { received: 150.3, owed: 25 } },
+          { key: '2', label: 'Velvet Hour', value: 300, values: { received: 300, owed: 12.5 } },
+        ],
+      },
+    ),
+};
+
 export const Donut = {
   render: () =>
     host(
