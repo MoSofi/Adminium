@@ -7,7 +7,7 @@ import {
   FormDialogHeader,
   Spinner,
 } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { ArrowRight, Check, Pencil, Plus } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 

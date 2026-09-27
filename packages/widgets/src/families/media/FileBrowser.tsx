@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Breadcrumbs, Checkbox, EmptyState, IconButton, IconTile, MonoText, SegmentedControl } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { LayoutGrid, List, Star } from 'lucide-react';
 import { useMemo, useState } from 'react';
 

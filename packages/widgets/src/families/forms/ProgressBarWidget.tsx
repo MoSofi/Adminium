@@ -11,7 +11,7 @@
  */
 
 import { MonoText, ProgressBar } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import { clampPct, uiToneOf } from './forms-lib.js';
 import { progressBarConfigSchema, progressBarDemoData } from './forms-config.js';

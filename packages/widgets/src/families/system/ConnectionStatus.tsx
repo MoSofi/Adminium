@@ -10,7 +10,7 @@
  */
 
 import { Button, MonoText, Spinner, cn } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { CheckCircle2, Plug, XCircle } from 'lucide-react';
 
 import { bindingSourceOf, oneOf, recordRowOf, stringField } from './system-lib.js';

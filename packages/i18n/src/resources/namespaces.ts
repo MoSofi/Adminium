@@ -170,5 +170,24 @@ export const DEFERRED_NAMESPACES = [
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 
+/**
+ * The groups of en-US `ui` that do NOT ship eagerly: `ui.widgets.*` and
+ * `ui.templates.*`, the widget and page-template vocabulary — 1,170 call
+ * sites, all in lazily loaded widget and template code, none on the first
+ * paint and none on the server. They were ~20 KiB gz of every user's entry
+ * chunk. Unlike a deferred namespace the KEYS stay in `ui` (no codemod of
+ * the call sites): en-US's copy of the two groups is its own chunk
+ * (`en-us/ui-deferred.ts`), merged into the store's `ui` by
+ * {@link uiWordsReady} (`../ui-words.ts`), which every widget waits for
+ * before it renders (`useUiWords`). Every other locale's `ui` still loads
+ * whole at init, so only the English fallback moved.
+ *
+ * The contract, as a deferred namespace's: nothing on the first paint may
+ * read a key in these groups (the dashboard's entry-budget check refuses a
+ * build whose entry names one), and every call site's inline fallback is the
+ * catalogue's text byte for byte (the dashboard's `uiWordsNamespace.test.ts`).
+ */
+export const UI_DEFERRED_GROUPS = ['widgets', 'templates'] as const;
+
 /** A single namespace's message tree (nested string leaves). */
 export type ResourceBundle = { readonly [key: string]: string | ResourceBundle };

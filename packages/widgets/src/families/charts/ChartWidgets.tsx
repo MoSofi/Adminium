@@ -8,7 +8,7 @@
 
 import { BarChart, DonutChart, LineAreaChart, Sparkline, formatShortDate } from '@adminium/charts';
 import type { BarSeries, LineAreaPoint, SparklineTone } from '@adminium/charts';
-import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
+import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
 
 import { SlotStrip, asSlotStrip } from './SlotStrip.js';
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';

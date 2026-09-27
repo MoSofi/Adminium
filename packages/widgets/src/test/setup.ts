@@ -7,7 +7,17 @@
  * it here (no-op in node-environment files where nothing mounts).
  */
 import { cleanup, configure } from '@testing-library/react';
+import { createI18n, uiWordsReady } from '@adminium/i18n';
 import { afterEach } from 'vitest';
+
+/**
+ * The widget and template words, read once for the whole run: en-US loads
+ * them on demand and a widget waits for them (`useUiWords`), which a test
+ * that renders inside a provider and asserts at once would not. Once read in
+ * a process every instance made afterwards starts with them, as in the app
+ * after its first widget. The wait itself is `src/frame/ui-words.test.tsx`'s.
+ */
+await uiWordsReady(await createI18n({ locale: 'en_US' }));
 
 /**
  * `asyncUtilTimeout` covers every `waitFor`/`findBy*` in the package — 77 of

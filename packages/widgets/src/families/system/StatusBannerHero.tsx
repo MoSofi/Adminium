@@ -11,7 +11,7 @@
  */
 
 import { MonoText, cn } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 
 import { numberField, oneOf, recordRowsOf, stringField, worstServiceState } from './system-lib.js';

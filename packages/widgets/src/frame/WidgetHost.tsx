@@ -3,7 +3,7 @@ import { DropdownMenuItem } from '@adminium/ui';
 import { ImageDown } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
+import { useMaybeI18n, useMaybeT } from '../lib/i18n.js';
 
 import type { ChartTableOptions } from '../lib/chart-table.js';
 import { formatMetricValue, formatOptionsOf, type MetricFormat } from '../lib/format.js';

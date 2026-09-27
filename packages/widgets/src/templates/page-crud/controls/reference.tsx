@@ -29,7 +29,7 @@
  */
 import { Combobox, MonoText } from '@adminium/ui';
 import type { ComboboxOption } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../../lib/i18n.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CrudApi, CrudLookupFields, CrudLookupOption } from '../crud-api.js';

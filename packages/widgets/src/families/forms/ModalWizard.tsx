@@ -27,7 +27,7 @@ import {
   TwoPhaseModal,
   useModalFlow,
 } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useState } from 'react';
 
 import { FormFields } from './FormFields.js';

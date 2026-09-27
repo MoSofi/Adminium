@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { cn, firstDayOfWeek, FormField, MonoText, Tag } from '@adminium/ui';
 import { Sparkles } from 'lucide-react';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 

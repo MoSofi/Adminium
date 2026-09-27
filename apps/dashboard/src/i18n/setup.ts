@@ -18,6 +18,7 @@ import {
   localeFromTag,
   switchLocale,
   tagForLocale,
+  uiWordsReady,
   type I18nInstance,
   type LocaleId,
 } from '@adminium/i18n';
@@ -105,6 +106,12 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   });
 
   setI18nInstance(i18n);
+  // The widget and template words (en-US keeps them out of the entry chunk): read them just after the first
+  // paint, so the first widget a page draws has them already rather than waiting on the fetch.
+  setTimeout(() => {
+    const current = getI18nInstance();
+    if (current !== null) void uiWordsReady(current);
+  }, 0);
   // On Electron the native menu is localized by the SPA — resolve the labels
   // now that i18n is ready and push them to the shell. No-op off the desktop
   // shell (`getDesktopApi()` is null on self-host/Cloud), so this same one bundle

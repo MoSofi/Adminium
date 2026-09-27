@@ -15,7 +15,7 @@
  */
 
 import { MonoText, Select, cn } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useState } from 'react';
 
 import { DEFAULT_MAPPING_TARGETS, columnMappingTableConfigSchema, columnMappingTableDemoData } from './forms-config.js';

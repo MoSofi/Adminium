@@ -24,6 +24,7 @@ import { createI18nWithOverrides, type OverrideMap } from './overrides.js';
 import { type LocaleId } from './locales.js';
 import { loadLocaleBundle } from './resources/lazy.js';
 import { DEFERRED_NAMESPACES } from './resources/namespaces.js';
+import { uiWordsReady } from './ui-words.js';
 
 export interface CreateServerI18nOptions {
   /** Recipient's resolved locale (their pref → workspace default → en_US). */
@@ -54,6 +55,8 @@ export async function createServerI18n(opts: CreateServerI18nOptions): Promise<I
   // and the built-in template seeder `translatorForLocale` — and patching only
   // one seeds English rows into `adminium_email_templates` for 7 locales.
   await instance.loadNamespaces([...DEFERRED_NAMESPACES]);
+  // And the widget and template words en-US keeps out of its eager `ui` — for the same reason.
+  await uiWordsReady(instance);
   return instance;
 }
 

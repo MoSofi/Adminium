@@ -11,7 +11,7 @@
  * mirroring is read from ChartDirectionContext by the primitives, so no `dir`
  * prop is threaded here.
  */
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import {
   AnomalyChart,
   BumpChart,

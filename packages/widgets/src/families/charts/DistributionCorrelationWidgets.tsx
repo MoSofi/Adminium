@@ -21,7 +21,7 @@ import {
 } from '@adminium/charts';
 import type { ParallelAxisInput, ParallelRecordInput, ScatterPointInput } from '@adminium/charts';
 import { EmptyState } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import type { WidgetProps } from '../../registry/types.js';
 import {

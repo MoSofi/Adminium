@@ -13,7 +13,7 @@
 
 import { Button, MonoText, Spinner } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 

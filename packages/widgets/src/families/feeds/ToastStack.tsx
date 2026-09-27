@@ -24,7 +24,7 @@
  */
 
 import { ToastStack as UiToastStack } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useState } from 'react';
 
 import type { ToastEntry } from './feeds-types.js';

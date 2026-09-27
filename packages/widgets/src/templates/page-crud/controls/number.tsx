@@ -7,7 +7,7 @@
  * system's mono face is tabular.
  */
 import { DateInput, Input, InputGroup, NumberStepper, Slider } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../../lib/i18n.js';
 
 import { dateOnlyValue } from '../../../families/tables/column-spec.js';
 import type { ControlProps } from './types.js';

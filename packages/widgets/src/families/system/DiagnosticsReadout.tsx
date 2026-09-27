@@ -12,7 +12,7 @@
 import { KeyValueRow, MonoText, cn } from '@adminium/ui';
 import { useScrollRegion } from '../../lib/useScrollRegion.js';
 import { useWidgetHeadingId } from '../../frame/WidgetHeadingContext.js';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import { formatStamp, numberField, recordRowOf, stringField } from './system-lib.js';
 import type { SystemTone } from './system-lib.js';

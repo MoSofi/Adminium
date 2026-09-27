@@ -19,7 +19,7 @@
  */
 
 import { EmptyState, MonoText, ProgressBar, Spinner, cn } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Check, CircleAlert, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 

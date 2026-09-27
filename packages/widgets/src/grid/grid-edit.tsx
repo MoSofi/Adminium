@@ -3,7 +3,7 @@ import type { DraggableSyntheticListeners, Modifier } from '@dnd-kit/core';
 import { GripVertical } from 'lucide-react';
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../lib/i18n.js';
 
 import type { CellStep } from './layout-edit.js';
 

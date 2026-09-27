@@ -16,7 +16,7 @@
  * the family's rich shapes (`ScheduleMatrixData`/`CapacityBoardData`) and are
  * used as-is. KPI-row items and everything else render through WidgetHost.
  */
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Button, SegmentedControl } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';

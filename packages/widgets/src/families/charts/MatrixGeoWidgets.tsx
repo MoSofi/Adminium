@@ -22,7 +22,7 @@ import {
   hasUsTilegramTiles,
 } from '@adminium/charts';
 import { getFormatters, weekInfo } from '@adminium/i18n';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { z } from 'zod';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { ChoroplethGridChart, hasUsTilegramTiles } from '@adminium/charts';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { EmptyState } from '@adminium/ui';
 
 import { geoPointsOf, localeOf, metricKeysOf } from './geo-lib.js';

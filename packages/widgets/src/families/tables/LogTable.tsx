@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { latnDataTag } from '@adminium/i18n';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Avatar, Badge, IconButton, MonoText, StatusPill } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { Download, RotateCcw, Search, SearchX } from 'lucide-react';

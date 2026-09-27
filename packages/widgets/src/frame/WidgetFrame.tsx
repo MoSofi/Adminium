@@ -18,7 +18,7 @@ import { lazy, Suspense, useCallback, useId, useState } from 'react';
 import type { ReactNode, Ref } from 'react';
 
 import { WidgetHeadingProvider } from './WidgetHeadingContext.js';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../lib/i18n.js';
 
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary.js';
