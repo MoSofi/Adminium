@@ -13,6 +13,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import type { PublicMethod } from '../src/public-api/endpoint.js';
 import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -118,7 +119,7 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
     const { key } = await service.createKey({
       connectionId: h.connectionId,
       name: 'venue guests',
-      access: endpoints.map((e) => ({ ref: e.ref, methods: (e.definition as { methods: string[] }).methods })),
+      access: endpoints.map((e) => ({ ref: e.ref, methods: (e.definition as { methods: PublicMethod[] }).methods })),
       secret: { prefix: secret.prefix, tokenHash: secret.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), secret.token) },
       origins: [],
       kind: 'browser',

@@ -202,6 +202,20 @@ export function tiedToStates(table: ResolvedTable): boolean {
   return effective?.states !== undefined || (effective?.stateParents?.length ?? 0) > 0;
 }
 
+/**
+ * A row a form sends back whole (a parent form's child rows), with the state
+ * it already holds left out: naming it is no move, and a strict table would
+ * refuse it as one. Any other value is the writer's, as sent.
+ */
+export function withoutRepeatedState(table: ResolvedTable, values: Row, stored: Row | null | undefined): Row {
+  const states = table.table?.states;
+  if (states?.strict === undefined || stored === null || stored === undefined || !Object.prototype.hasOwnProperty.call(values, states.column)) return values;
+  if (!sameValue(values[states.column], text(stored[states.column]) ?? states.initial)) return values;
+  const out = { ...values };
+  delete out[states.column];
+  return out;
+}
+
 /** Whether rows of other tables keep columns of this one while they link to it (`lockLinked`). */
 export function lockedByLinks(table: ResolvedTable): boolean {
   return (table.table?.linkLocks?.length ?? 0) > 0;
