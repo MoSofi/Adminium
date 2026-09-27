@@ -33,6 +33,7 @@ import { runIntrospection } from '../src/connections/introspect.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { registerAdapters } from '../src/connections/register-adapters.js';
 import { venueClock, wallTimeToInstant } from '../src/crud/venue-time.js';
+import { normalizeWriteValue } from '../src/crud/write-values.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
@@ -351,9 +352,12 @@ for (const [dialect, available] of legs) {
 
       // Cancelling two days ahead is fine; one within the window is not.
       expect((await guest.change(session, booked.id, { status: 'cancelled' })).statusCode).toBe(200);
+      // An hour from now, as the column keeps a time: the instant in a `timestamptz`,
+      // this server's wall clock in a zone-less one (MySQL `datetime`, SQLite `timestamp`).
+      const soon = new Date(Date.now() + 60 * 60_000).toISOString();
       await guest.db
         .updateTable(guest.reservations as never)
-        .set({ status: 'booked', starts_at: new Date(Date.now() + 60 * 60_000).toISOString().replace('T', ' ').slice(0, 19) } as never)
+        .set({ status: 'booked', starts_at: dialect === 'postgres' ? soon : normalizeWriteValue({ logicalType: 'timestamp' } as never, soon) } as never)
         .where('id' as never, '=', booked.id as never)
         .execute();
       const late = await guest.change(session, booked.id, { status: 'cancelled' });
