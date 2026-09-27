@@ -58,6 +58,13 @@ describe('which columns a slot offers', () => {
     ]);
   });
 
+  it('puts a code column first for a QR code, and hides nothing', () => {
+    const withCode = [...columns, { name: 'door_code', label: 'Door code', logicalType: 'varchar', nullable: true }];
+    const qr = columnsForSlot({ type: 'qr' }, withCode);
+    expect(qr.preferred.map((c) => c.name)).toEqual(['door_code']);
+    expect(qr.preferred.length + qr.rest.length).toBe(withCode.length);
+  });
+
   it('offers everything, in some order, for a type it has no tag for', () => {
     const collection = columnsForSlot({ type: 'collection' }, columns);
     expect(collection.preferred).toEqual([]);

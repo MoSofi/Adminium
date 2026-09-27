@@ -364,7 +364,7 @@ describe('email document routes', () => {
     const rows = await jobRows(meta);
     expect(rows).toHaveLength(3);
     const payload = JSON.parse(String(rows[0]?.payload)) as { v: number; envelope: string; attachments: { fileId: string; filename: string }[]; inline: { cid: string; kind: string }[] };
-    expect(payload.v).toBe(2);
+    expect(payload.v).toBe(3);
     expect(payload.attachments).toEqual([{ fileId: pdf.id, filename: 'onboarding.pdf' }]);
     expect(payload.inline).toEqual([{ cid: 'mark', kind: 'mark', mark: 'hexagon' }]);
     const envelope = JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(TEST_SECRET))) as { subject: string; html: string; to: string };

@@ -466,6 +466,7 @@ function sameValue(stored: unknown, literal: string | number | boolean): boolean
  * zero. `row` holds the stored row with the new values over it.
  */
 export function evaluateFormula(expr: FormulaExpr, row: Readonly<Record<string, unknown>>, scale: number): string | null {
+  if (typeof expr === 'object' && 'join' in expr) return joinText(expr.join, row);
   const value = evaluate(expr, row, scale);
   return value === null ? null : ratioText(value, scale);
 }
@@ -594,6 +595,177 @@ export function dayNumberOf(value: unknown): number | null {
   const [y, mo, d] = found.slice(1, 4).map(Number) as [number, number, number];
   if (!onTheCalendar(y, mo, d, 0, 0, 0)) return null;
   return Date.UTC(y, mo - 1, d) / 86_400_000;
+}
+
+// ── a text joined from columns ─────────────────────────────────────────────
+
+/** A value as a joined text spells it: a day as `YYYY-MM-DD` when it is one, a number as its digits. */
+function joinedPart(value: unknown): string {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    const midnight = value.getHours() === 0 && value.getMinutes() === 0 && value.getSeconds() === 0 && value.getMilliseconds() === 0;
+    if (!midnight) return value.toISOString();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${String(value.getFullYear())}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+/**
+ * A `join` worked out: its columns' values and its text, in order. An empty
+ * column is left out, and so is the text between it and its neighbour (a
+ * guest with no last name is "Mia", not "Mia "); text before the first
+ * column or after the last stays while that column has a value. The result
+ * is trimmed, and empty when every column is.
+ */
+export function joinText(parts: readonly string[], row: Readonly<Record<string, unknown>>): string | null {
+  const columns = parts.map((part) => isJoinColumn(part));
+  const filled = parts.map((part, i) => (columns[i] ? joinedPart(row[part]) !== '' : true));
+  let out = '';
+  let any = false;
+  parts.forEach((part, i) => {
+    if (columns[i]) {
+      if (!filled[i]) return;
+      out += joinedPart(row[part]);
+      any = true;
+      return;
+    }
+    // Text sits between the nearest columns on each side: kept only while both (that there are) have a value.
+    let left = i - 1;
+    while (left >= 0 && !columns[left]) left -= 1;
+    let right = i + 1;
+    while (right < parts.length && !columns[right]) right += 1;
+    const leftOk = left < 0 || filled[left];
+    const rightOk = right >= parts.length || filled[right];
+    if (leftOk && rightOk) out += part;
+  });
+  const text = out.trim();
+  return any && text !== '' ? text : null;
+}
+
+// ── prices by the night ────────────────────────────────────────────────────
+
+/** The most nights one stay is priced for: two years. A longer one is refused, not priced. */
+export const PER_NIGHT_MAX = 731;
+
+const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+/**
+ * A weekdays value (`fri,sat`, `Fri Sat`) as the nights it names, 0 being
+ * Sunday: an empty set for an empty value (every night), or `null` when any
+ * word in it is not a day's three letters.
+ */
+export function weekdaysOf(value: unknown): Set<number> | null {
+  if (value === null || value === undefined) return new Set();
+  if (typeof value !== 'string') return null;
+  const out = new Set<number>();
+  for (const word of value.toLowerCase().split(/[\s,]+/)) {
+    if (word === '') continue;
+    const day = (WEEKDAYS as readonly string[]).indexOf(word);
+    if (day < 0) return null;
+    out.add(day);
+  }
+  return out;
+}
+
+/** One adjustment row as a price by the night reads it. */
+export interface NightlyAdjustment {
+  /** Added to the night (negative: a discount). */
+  add: unknown;
+  /** Its name: the night's tag. */
+  name: string;
+  /** Whether it is for this row's rate (its link empty, or the same row). */
+  typeMatch: boolean;
+  weekdays: unknown;
+  /** The first and the last night it applies on, both included; empty = open. */
+  from: unknown;
+  to: unknown;
+}
+
+/** One night of a stay: its date, its rate (rounded), the base it started from, and the adjustments' names. */
+export interface Night {
+  date: string;
+  rate: string;
+  base: string;
+  tags: string[];
+}
+
+/** An adjustment row a price cannot read (its weekdays, dates or amount): the price is refused, never guessed. */
+export class NightlyRuleUnreadable extends Error {
+  override readonly name = 'NightlyRuleUnreadable';
+
+  constructor(
+    /** Its place in the adjustments given. */
+    readonly index: number,
+    /** The column that could not be read: `weekdays`, `from`, `to` or `add`. */
+    readonly column: 'weekdays' | 'from' | 'to' | 'add',
+  ) {
+    super(`An adjustment's ${column} cannot be read.`);
+  }
+}
+
+/** The day number as `YYYY-MM-DD`. */
+function dayText(day: number): string {
+  return new Date(day * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * The nights from `from` up to the day before `to`, each priced at the base
+ * rate plus every adjustment that applies to it — its rate, its day of the
+ * week, its dates, both ends included — and rounded once, to `scale`; the
+ * total is the rounded nights added up, so a folio's lines add up to it.
+ * Days are calendar days (`dayNumberOf`): a night the clocks change is one
+ * night, whatever the zone. `null` when a date or the base is empty, the stay
+ * is no night long, or longer than {@link PER_NIGHT_MAX}. Throws
+ * {@link NightlyRuleUnreadable} for an adjustment of this rate it cannot read.
+ */
+export function nightlyRates(input: {
+  from: unknown;
+  to: unknown;
+  base: unknown;
+  scale: number;
+  adjustments: readonly NightlyAdjustment[];
+}): { nights: Night[]; total: string } | null {
+  const from = dayNumberOf(input.from);
+  const to = dayNumberOf(input.to);
+  const base = toRatio(input.base);
+  if (from === null || to === null || base === null || to <= from || to - from > PER_NIGHT_MAX) return null;
+  const rules = input.adjustments.flatMap((adjustment, index) => {
+    if (!adjustment.typeMatch) return [];
+    const weekdays = weekdaysOf(adjustment.weekdays);
+    if (weekdays === null) throw new NightlyRuleUnreadable(index, 'weekdays');
+    const first = empty(adjustment.from) ? null : dayNumberOf(adjustment.from);
+    if (!empty(adjustment.from) && first === null) throw new NightlyRuleUnreadable(index, 'from');
+    const last = empty(adjustment.to) ? null : dayNumberOf(adjustment.to);
+    if (!empty(adjustment.to) && last === null) throw new NightlyRuleUnreadable(index, 'to');
+    const add = empty(adjustment.add) ? { n: 0n, d: 1n } : toRatio(adjustment.add);
+    if (add === null) throw new NightlyRuleUnreadable(index, 'add');
+    return [{ weekdays, first, last, add, name: adjustment.name }];
+  });
+  const nights: Night[] = [];
+  let total: Ratio = { n: 0n, d: 1n };
+  for (let day = from; day < to; day += 1) {
+    const weekday = new Date(day * 86_400_000).getUTCDay();
+    let rate = base;
+    const tags: string[] = [];
+    for (const rule of rules) {
+      if (rule.weekdays.size > 0 && !rule.weekdays.has(weekday)) continue;
+      if (rule.first !== null && day < rule.first) continue;
+      if (rule.last !== null && day > rule.last) continue;
+      rate = add(rate, rule.add);
+      tags.push(rule.name);
+    }
+    const rounded = roundTo(rate, input.scale);
+    total = add(total, rounded);
+    nights.push({ date: dayText(day), rate: ratioText(rounded, input.scale), base: ratioText(base, input.scale), tags });
+  }
+  return { nights, total: ratioText(total, input.scale) };
+}
+
+function empty(value: unknown): boolean {
+  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
 }
 
 /** Whether a condition holds for the row; a comparison with an empty side does not. */

@@ -19,7 +19,7 @@
  * ships with both lists empty (a test says so).
  */
 import { AppError } from '../errors.js';
-import type { EffectiveColumn, EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
+import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 
 export interface UnbuiltTableRule {
   /** The rule's name as the refusal gives it (`capacity`, `states.timed`, …). */
@@ -37,35 +37,7 @@ export interface UnbuiltEntryRule {
   on: (entry: Readonly<Record<string, unknown>>) => boolean;
 }
 
-/** Whether any column of the table carries a rule the test finds. */
-const anyColumn = (table: EffectiveTable, test: (column: EffectiveColumn) => boolean): boolean => (table.columns ?? []).some(test);
-
-/** Whether a formula (at any depth) uses one of these operators. */
-function formulaUses(formula: unknown, ops: readonly string[]): boolean {
-  if (typeof formula !== 'object' || formula === null) return false;
-  if (Array.isArray(formula)) return formula.some((part) => formulaUses(part, ops));
-  return Object.entries(formula).some(([key, value]) => ops.includes(key) || formulaUses(value, ops));
-}
-
-/** The tables a column's foreign key points at, through the model's relations. */
-function targetOf(model: Pick<EffectiveModel, 'relations'>, tableId: string, column: string): string | undefined {
-  return (model.relations ?? []).find((r) => r.through === null && r.from.tableId === tableId && r.from.columns.length === 1 && r.from.columns[0] === column)?.to
-    .tableId;
-}
-
-export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // Prices by the night, a copy that follows its source, a text joined from columns.
-  { rule: 'perNight', on: (table) => anyColumn(table, (c) => c.perNight !== undefined) },
-  {
-    rule: 'copy.follow',
-    on: (table, model) =>
-      anyColumn(table, (c) => c.copy?.follow === true) ||
-      (model?.tables ?? []).some((other) =>
-        (other.columns ?? []).some((c) => c.copy?.follow === true && model !== undefined && targetOf(model, other.id, c.copy.via) === table.id),
-      ),
-  },
-  { rule: 'formula.join', on: (table) => anyColumn(table, (c) => formulaUses(c.formula, ['join'])) },
-];
+export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
 
 /** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */
 const ENTRY_KEYS = [

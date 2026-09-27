@@ -323,7 +323,9 @@ export async function installInvoicing(
   const user = await usersRepo(meta).create({ email: 'owner@test', name: 'Owner' });
   const registry = new AdapterRegistry<AdapterProvider>();
   await registerAdapters(registry);
-  const manager = new ConnectionManager({ meta, crypto: dsnCryptoFromSecret(TEST_SECRET), registry, metaDsn: null, blockLoopback: false });
+  // A run with the source pool at one (`ADMINIUM_TEST_SOURCE_POOL_MAX=1`) proves nothing checks out a second connection inside a write.
+  const poolMax = process.env['ADMINIUM_TEST_SOURCE_POOL_MAX'] ? Number(process.env['ADMINIUM_TEST_SOURCE_POOL_MAX']) : undefined;
+  const manager = new ConnectionManager({ meta, crypto: dsnCryptoFromSecret(TEST_SECRET), registry, metaDsn: null, blockLoopback: false, ...(poolMax === undefined ? {} : { sourcePoolMax: poolMax }) });
 
   let dsn: string;
   let drop: () => Promise<void> = async () => undefined;
