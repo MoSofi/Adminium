@@ -677,7 +677,9 @@ export default {
         "takenOnly": "{taken} obsazeno",
         "label": "{taken} z {size} obsazeno, {left} zbývá",
         "labelHeld": "{taken} z {size} obsazeno, {held} rezervováno, {left} zbývá",
-        "ratio": "{taken} / {size}"
+        "ratio": "{taken} / {size}",
+        "labelOver": "{taken} z {size} obsazeno, {over} navíc",
+        "labelHeldOver": "{taken} z {size} obsazeno, {held} rezervováno, {over} navíc"
       }
     },
     "boards": {
@@ -1971,7 +1973,6 @@ export default {
     "infoLabel": "Informace o widgetu",
     "menuLabel": "Nabídka widgetu",
     "showData": "Zobrazit data",
-    "hideData": "Skrýt data",
     "data": {
       "period": "Období",
       "value": "Hodnota",

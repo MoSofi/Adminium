@@ -21,7 +21,7 @@ import { MiniTableWidget } from '../families/tables/widgets.js';
 import { chartTableOf, type ChartTableOptions } from '../lib/chart-table.js';
 import { isEmptyData } from '../registry/data-empty.js';
 import { buildRegistry } from '../registry/index.js';
-import { defineWidget } from '../registry/types.js';
+import { defineWidget, type WidgetDefinition } from '../registry/types.js';
 import { widgetMissingDefinition } from '../registry/widget-missing.js';
 import { makeTestDefinition, testWidgetConfigSchema } from '../test/fixtures.js';
 import { localizedConfig, WidgetHost } from './WidgetHost.js';
@@ -89,7 +89,7 @@ describe('a chart\'s figures as a table', () => {
     expect(chartTableOf({ nodes: [{ id: 'w', label: 'Web', layer: 0 }, { id: 'p', label: 'Paid', layer: 1 }], links: [{ from: 'w', to: 'p', weight: 7 }] }, opts)?.rows).toEqual([['Web', 'Paid', '7']]);
     expect(chartTableOf({ candles: [{ t: '2026-07-01T00:00:00Z', o: 1, h: 3, l: 0.5, c: 2 }] }, opts)?.rows).toEqual([['2026-07-01', '1', '3', '0.5', '2']]);
     expect(chartTableOf({ roots: [{ id: 'r', label: 'Rooms', children: [{ id: 'l', label: 'Loft', value: 4, children: [] }] }] }, opts)?.rows).toEqual([['Rooms › Loft', '4']]);
-    expect(chartTableOf({ points: [{ name: 'Lisbon', values: { visits: 3 } }] }, opts)).toEqual({ headers: ['Place', 'visits'], rows: [['Lisbon', '3']], numeric: [false, true] });
+    expect(chartTableOf({ points: [{ name: 'Lisbon', values: { total_visits: 3 } }] }, opts)).toEqual({ headers: ['Place', 'Total visits'], rows: [['Lisbon', '3']], numeric: [false, true] });
     // Nothing to read: no table.
     expect(chartTableOf({ items: [] }, opts)).toBeNull();
     expect(chartTableOf({ whatever: 1 }, opts)).toBeNull();
@@ -112,12 +112,34 @@ const chartDefinition = defineWidget({
 const registry = buildRegistry([widgetMissingDefinition, makeTestDefinition(), chartDefinition]);
 const made = { status: 'success' as const, data: { shape: 'categorical', items: [{ key: 'w', label: 'Online', value: 34 }, { key: 'd', label: 'At the desk', value: 6 }], total: 40 }, refetch: () => {} };
 
+describe("a chart card's table, read as the card reads", () => {
+  it('names days in UTC fields, as the axis does, and figures in the card\'s own format', async () => {
+    const money = { ...chartDefinition, id: 'test-money-chart', dataContract: 'timeseries', configSchema: testWidgetConfigSchema.extend({ metricFormat: kpiStatCardConfigSchema.shape.metricFormat }) } as WidgetDefinition;
+    const moneyRegistry = buildRegistry([widgetMissingDefinition, money]);
+    const { container } = render(
+      <WidgetHost
+        widgetId="test-money-chart"
+        instanceId="c9"
+        config={{ title: 'Money by week', metricFormat: 'currency', format: { locale: 'en-US', currency: 'USD' }, binding: { connectionId: 'c', source: { name: 't' }, shape: 'timeseries', bucket: { column: 'at', unit: 'week' } } }}
+        data={{ status: 'success', data: { points: [{ t: '2026-07-20T00:00:00.000Z', v: 150.3 }] }, refetch: () => {} }}
+        registry={moneyRegistry}
+      />,
+    );
+    await screen.findByTestId('the-chart');
+    await screen.findByRole('button', { name: 'Show data' });
+    const cells = [...container.querySelectorAll('[data-part="chart-text-alternative"] tbody tr > *')].map((cell) => cell.textContent);
+    expect(cells).toEqual(['Jul 20, 2026', '$150.30']);
+  });
+});
+
 describe('a chart card', () => {
   it('carries its figures for a screen reader, and shows them in its place on "Show data"', async () => {
     const user = userEvent.setup();
     const { container } = render(<WidgetHost widgetId="test-chart" instanceId="c1" config={{ title: 'Made online or at the desk', subtitle: 'Last 30 days' }} data={made} registry={registry} />);
     expect(await screen.findByTestId('the-chart')).toBeDefined();
     const toggle = await screen.findByRole('button', { name: 'Show data' });
+    // A toggle keeps its name; the card's heading describes it.
+    expect(document.getElementById(toggle.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Made online or at the desk');
     // The text alternative: the same figures, hidden from sight, captioned by what they are.
     const alternative = container.querySelector('[data-part="chart-text-alternative"]');
     expect(alternative?.className).toContain('sr-only');
@@ -126,11 +148,11 @@ describe('a chart card', () => {
 
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
     await user.click(toggle);
-    expect(screen.getByRole('button', { name: 'Hide data' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Show data' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByTestId('the-chart')).toBeNull();
     expect(screen.getByRole('table').querySelector('caption')?.textContent).toBe('Made online or at the desk · Last 30 days');
     expect(screen.getByRole('rowheader', { name: 'Online' })).toBeDefined();
-    await user.click(screen.getByRole('button', { name: 'Hide data' }));
+    await user.click(screen.getByRole('button', { name: 'Show data' }));
     expect(await screen.findByTestId('the-chart')).toBeDefined();
   });
 
@@ -211,6 +233,13 @@ describe('paired bars', () => {
     expect(barInputsOf({ items: [{ key: '1', label: 'Neon', value: 3 }] }, 'Sold')?.series).toEqual([{ name: 'Sold', values: [3] }]);
   });
 
+  it('colours the legend as the bars are coloured, three figures or more included', () => {
+    const three = { ...pair, aggregates: ['received', 'owed', 'refunded'], items: pair.items.map((item) => ({ ...item, values: { ...item.values, refunded: 1 } })) };
+    const config = chartBarConfigSchema.parse({ title: 'Money by show' });
+    const { container } = render(<ChartBarWidget instanceId="m3" config={config} data={three} onEvent={() => undefined} />);
+    expect([...container.querySelectorAll('[data-part="chart-legend"] [data-fill]')].map((swatch) => swatch.getAttribute('data-fill'))).toEqual(['0', '1', '0']);
+  });
+
   it('draws the legend in the card\'s words', () => {
     const config = chartBarConfigSchema.parse({ title: 'Money by show', series: [{ label: 'Received', labels: { 'de-DE': 'Eingegangen' } }, { label: 'Still owed' }] });
     const { container } = render(<ChartBarWidget instanceId="m" config={config} data={pair} onEvent={() => undefined} />);
@@ -269,7 +298,7 @@ describe('a list row on two lines, with what a limit has taken', () => {
     expect(bars[0]!.querySelector('[data-part="capacity-bar-held"]')).not.toBeNull();
     expect(bars[0]!.querySelector('[data-part="capacity-bar-ratio"]')?.textContent).toBe('391 / 414');
     // More taken than there is: full bar, danger tone, no held segment.
-    expect(screen.getByRole('img', { name: '420 of 414 taken, -6 left' }).getAttribute('data-over')).toBe('true');
+    expect(screen.getByRole('img', { name: '420 of 414 taken, 6 over' }).getAttribute('data-over')).toBe('true');
     expect(bars[1]!.querySelector('[data-part="capacity-bar-held"]')).toBeNull();
   });
 

@@ -313,10 +313,16 @@ function CapacityBarCell({ row, value }: { row: GridRow; value: unknown }): Reac
   const left = countOf(from['left']) ?? size - taken;
   const share = (n: number) => `${String(Math.max(0, Math.min(100, (n / size) * 100)))}%`;
   const over = taken > size;
+  const figures = { taken: String(taken), size: String(size), held: String(held), left: String(left), over: String(-left) };
+  // More taken than there is says how many over, never a count below nothing left.
   const label =
-    held > 0
-      ? t('ui:widgets.tables.capacityBar.labelHeld', '{taken} of {size} taken, {held} held, {left} left', { taken: String(taken), size: String(size), held: String(held), left: String(left) })
-      : t('ui:widgets.tables.capacityBar.label', '{taken} of {size} taken, {left} left', { taken: String(taken), size: String(size), left: String(left) });
+    left < 0
+      ? held > 0
+        ? t('ui:widgets.tables.capacityBar.labelHeldOver', '{taken} of {size} taken, {held} held, {over} over', figures)
+        : t('ui:widgets.tables.capacityBar.labelOver', '{taken} of {size} taken, {over} over', figures)
+      : held > 0
+        ? t('ui:widgets.tables.capacityBar.labelHeld', '{taken} of {size} taken, {held} held, {left} left', figures)
+        : t('ui:widgets.tables.capacityBar.label', '{taken} of {size} taken, {left} left', figures);
   return (
     <span data-part="cell-capacity-bar" className="flex min-w-0 flex-1 items-center gap-2">
       <span role="img" aria-label={label} data-over={over ? 'true' : undefined} className="relative h-2 min-w-12 flex-1 overflow-hidden rounded-full bg-surface-2">

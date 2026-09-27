@@ -677,7 +677,9 @@ export default {
         "takenOnly": "已佔 {taken}",
         "label": "已佔 {taken}/{size}，剩餘 {left}",
         "labelHeld": "已佔 {taken}/{size}，保留 {held}，剩餘 {left}",
-        "ratio": "{taken} / {size}"
+        "ratio": "{taken} / {size}",
+        "labelOver": "已佔 {taken}/{size}，超出 {over}",
+        "labelHeldOver": "已佔 {taken}/{size}，保留 {held}，超出 {over}"
       }
     },
     "boards": {
@@ -1971,7 +1973,6 @@ export default {
     "infoLabel": "小工具資訊",
     "menuLabel": "小工具選單",
     "showData": "顯示資料",
-    "hideData": "隱藏資料",
     "data": {
       "period": "時段",
       "value": "數值",

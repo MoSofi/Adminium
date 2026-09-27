@@ -677,7 +677,9 @@ export default {
         "takenOnly": "{taken} taken",
         "label": "{taken} of {size} taken, {left} left",
         "labelHeld": "{taken} of {size} taken, {held} held, {left} left",
-        "ratio": "{taken} / {size}"
+        "ratio": "{taken} / {size}",
+        "labelOver": "{taken} of {size} taken, {over} over",
+        "labelHeldOver": "{taken} of {size} taken, {held} held, {over} over"
       }
     },
     "boards": {
@@ -1971,7 +1973,6 @@ export default {
     "infoLabel": "Widget info",
     "menuLabel": "Widget menu",
     "showData": "Show data",
-    "hideData": "Hide data",
     "data": {
       "period": "Period",
       "value": "Value",

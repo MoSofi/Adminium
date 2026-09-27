@@ -677,7 +677,9 @@ export default {
         "takenOnly": "{taken} محجوز",
         "label": "{taken} من {size} محجوز، {left} متبقٍ",
         "labelHeld": "{taken} من {size} محجوز، {held} قيد الانتظار، {left} متبقٍ",
-        "ratio": "{taken} / {size}"
+        "ratio": "{taken} / {size}",
+        "labelOver": "{taken} من {size} محجوز، {over} زيادة",
+        "labelHeldOver": "{taken} من {size} محجوز، {held} قيد الانتظار، {over} زيادة"
       }
     },
     "boards": {
@@ -1971,7 +1973,6 @@ export default {
     "infoLabel": "معلومات عنصر الواجهة",
     "menuLabel": "قائمة عنصر الواجهة",
     "showData": "عرض البيانات",
-    "hideData": "إخفاء البيانات",
     "data": {
       "period": "الفترة",
       "value": "القيمة",

@@ -23363,10 +23363,6 @@
     "srcHash": "9931ab7901df",
     "status": "mt"
   },
-  "ui.frame.hideData": {
-    "status": "mt",
-    "srcHash": "1c48d4d24b3d"
-  },
   "ui.frame.infoLabel": {
     "srcHash": "8cf2c028cd27",
     "status": "mt"
@@ -28382,6 +28378,14 @@
   "ui.widgets.tables.capacityBar.labelHeld": {
     "status": "mt",
     "srcHash": "8f9fcfb57a29"
+  },
+  "ui.widgets.tables.capacityBar.labelHeldOver": {
+    "status": "mt",
+    "srcHash": "b9e2773467a7"
+  },
+  "ui.widgets.tables.capacityBar.labelOver": {
+    "status": "mt",
+    "srcHash": "5099572219d2"
   },
   "ui.widgets.tables.capacityBar.ratio": {
     "status": "src",
