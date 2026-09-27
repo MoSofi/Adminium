@@ -895,6 +895,10 @@ export function compileScope(
       check(r.withhold.unlessHolder, 'SCOPE_COLUMN_UNKNOWN');
       for (const c of r.withhold.columns) {
         if (!r.expose.includes(c)) issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `"${c}" is withheld by ref "${r.ref}", so it is one of the columns it shows`, ref: r.ref, column: c });
+        // Filtering, searching or ordering by it would tell a reader what it holds without showing it.
+        if ((r.filterable ?? []).includes(c) || (r.searchable ?? []).includes(c) || (r.orderable ?? []).includes(c)) {
+          issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `"${c}" is withheld by ref "${r.ref}", so it is never filtered, searched or ordered by`, ref: r.ref, column: c });
+        }
       }
       const throughParent = r.visibleWith !== undefined || (r.claim?.column !== undefined && r.claim.column !== r.withhold.unlessHolder);
       if (doc.side !== 'customer' || !throughParent || doc.claim?.ref === r.ref) {

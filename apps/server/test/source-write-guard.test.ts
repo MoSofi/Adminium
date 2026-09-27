@@ -23,6 +23,8 @@ const ALLOWED: Record<string, string> = {
   'schema-ddl/sqlite-rebuild.ts': 'a schema change: rows are copied into the rebuilt table unchanged',
   'schema-ddl/compile.ts': 'a schema change: a required MySQL time added to a table gives the rows already there the current time',
   'routes/desktop-local-db/handlers.ts': "the desktop app's placeholder rows in a database it has just created",
+  'public-api/hold-replace.ts':
+    "a buyer's replaced hold: its end brought forward inside the new hold's own write, so it stops counting as a lapsed hold does; the move a lapse makes follows as an ordinary write",
   'apps/sample-data.ts':
     "an app's sample-data ledger: Adminium's own list of the rows it added; the sample rows themselves go through the write service",
 };

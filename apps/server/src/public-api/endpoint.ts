@@ -1502,6 +1502,10 @@ function treeAndPersonIssues(
       push('ENDPOINT_SHARE_LINK_NOT_A_CODE', `"${def.share_link.column}" is answered once as the row's own link: a 16-character code Adminium makes, never selected, on a single create`, def.share_link.column);
     }
   }
+  // A change's limits count each change as it is made: a single change, never a batch of them, and never a create.
+  if (def.limits !== undefined && (methods.has('BATCH') || !(methods.has('PATCH') || methods.has('PUT')))) {
+    push('ENDPOINT_LIMITS_SHAPE', 'limits count the changes a guest makes one at a time: a PATCH, never a batch');
+  }
   if (def.session_only === true) {
     if (def.methods.some((m) => m !== 'GET') || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined || def.auth.role !== 'authenticated') {
       push('ENDPOINT_SESSION_ONLY_READS', 'a read for a session\'s holder alone is an authenticated GET with no claim of its own');
