@@ -864,5 +864,13 @@ export default {
     "codeLabel": "Code",
     "notice": "If you didn’t ask for it, you can ignore this email: nobody can sign in without it.",
     "footer": "{appName}"
+  },
+  "detailsDeleted": {
+    "name": "Details deleted",
+    "subject": "Your details at {appName} were deleted",
+    "heading": "Your details were deleted",
+    "intro": "Hi {name}, as you asked, the details {appName} kept about you are deleted, and you are signed out everywhere.",
+    "kept": "Your tickets and bookings stay valid, and the emails you already have still open them. You won’t hear from us again unless you book again.",
+    "footer": "{appName}"
   }
 } as const;

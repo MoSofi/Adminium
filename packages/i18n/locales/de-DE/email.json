@@ -854,5 +854,13 @@
     "codeLabel": "Code",
     "notice": "Wenn Sie ihn nicht angefordert haben, können Sie diese E-Mail ignorieren: Ohne sie kann sich niemand anmelden.",
     "footer": "{appName}"
+  },
+  "detailsDeleted": {
+    "name": "Daten gelöscht",
+    "subject": "Ihre Daten bei {appName} wurden gelöscht",
+    "heading": "Ihre Daten wurden gelöscht",
+    "intro": "Hallo {name}, wie gewünscht wurden die Daten, die {appName} über Sie gespeichert hatte, gelöscht, und Sie wurden überall abgemeldet.",
+    "kept": "Ihre Tickets und Buchungen bleiben gültig, und die E-Mails, die Sie bereits haben, öffnen sie weiterhin. Sie hören nicht mehr von uns, außer Sie buchen erneut.",
+    "footer": "{appName}"
   }
 }

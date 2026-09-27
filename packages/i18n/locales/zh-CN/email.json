@@ -854,5 +854,13 @@
     "codeLabel": "验证码",
     "notice": "如果不是你本人请求的，可以忽略此邮件：没有它，任何人都无法登录。",
     "footer": "{appName}"
+  },
+  "detailsDeleted": {
+    "name": "资料已删除",
+    "subject": "您在 {appName} 的资料已删除",
+    "heading": "您的资料已删除",
+    "intro": "{name}，您好：按照您的要求，{appName} 保存的您的资料已删除，您已在所有设备上退出登录。",
+    "kept": "您的门票和预订仍然有效，您已收到的邮件仍可打开它们。除非您再次预订，否则我们不会再联系您。",
+    "footer": "{appName}"
   }
 }

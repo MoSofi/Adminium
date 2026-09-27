@@ -25,7 +25,8 @@ export const PUBLIC_ORIGIN = 'https://shop.example.com';
 /** The shop's tables and public entries; `more` changes or adds entries. */
 export function shopManifest(opts: { orders?: Record<string, unknown>; entries?: (entries: Record<string, unknown>[]) => Record<string, unknown>[] } = {}): Record<string, unknown> {
   const manifest = invoicingManifest([
-    { ref: 'settings', columns: [id, text('bank_name', 80, { nullable: true }), text('account_number', 34, { nullable: true })] },
+    // The venue's bank details: the app's own, not a person's.
+    { ref: 'settings', columns: [id, text('bank_name', 80, { nullable: true, rules: { personal: false } }), text('account_number', 34, { nullable: true, rules: { personal: false } })] },
     {
       ref: 'customers',
       columns: [

@@ -864,5 +864,13 @@ export default {
     "codeLabel": "驗證碼",
     "notice": "如果不是你本人要求的，可以忽略這封郵件：沒有它，任何人都無法登入。",
     "footer": "{appName}"
+  },
+  "detailsDeleted": {
+    "name": "資料已刪除",
+    "subject": "您在 {appName} 的資料已刪除",
+    "heading": "您的資料已刪除",
+    "intro": "{name}，您好：依照您的要求，{appName} 保存的您的資料已刪除，您已在所有裝置上登出。",
+    "kept": "您的票券和預訂仍然有效，您已收到的郵件仍可開啟它們。除非您再次預訂，否則我們不會再與您聯絡。",
+    "footer": "{appName}"
   }
 } as const;

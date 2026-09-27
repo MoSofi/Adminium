@@ -145,7 +145,7 @@ import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
 import { emailChangedLines, translatorForLocale } from '../../email/builtins.js';
-import { EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
+import { DETAILS_DELETED_TEMPLATE_KEY, EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
 import { publicConfirmSchema, sourceTable } from '../../public-api/endpoint.js';
@@ -4433,6 +4433,165 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           { document: row, profile: null, to },
         );
         return reply.send({ data: { ...documentView(row), delivery } });
+      },
+    );
+
+    /* ------------------------------------------- sign out everywhere, forget me */
+
+    /**
+     * The person a signed-in guest is, for the two account routes: a session
+     * that proved the mailbox (`verified`), through the key's sign-in by link
+     * or by emailed code — never a row's own link (a link opens a row, not a
+     * person), never a session that only found them by their details.
+     */
+    const accountOf = async (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey; session: PublicSessionContext | null }) => {
+      const claim = ok.key.scope.claim;
+      const signsIn = claim !== null && claim !== undefined && claim.email !== undefined && (claim.strategy === 'email-link' || claim.verify === 'email-code');
+      if (!signsIn || ok.session?.kind === 'token') {
+        fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        return null;
+      }
+      const session = ok.session;
+      if (session === null || session.grant.ref !== claim.ref) {
+        fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        return null;
+      }
+      // A session that only found the person must not sign a verified one out, or delete them.
+      if (session.level !== 'verified') {
+        fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
+        return null;
+      }
+      const found = await resolveResource(request, reply, ok, claim.ref, 'read', { bypassClaimGate: true });
+      if (found === null) return null;
+      const rows = (await found.db
+        .selectFrom(found.table.id)
+        .selectAll()
+        .where((eb) => eb(found.db.dynamic.ref(session.grant.column), '=', session.grant.value as never))
+        .limit(2)
+        .execute()) as Row[];
+      return {
+        found,
+        session,
+        claim: { ...claim, email: claim.email! },
+        row: rows.length === 1 ? (rows[0] as Row) : null,
+        subject: subjectOf(ok.key.connectionId, found.table.id, session.grant.column, session.grant.value),
+      };
+    };
+
+    /**
+     * SIGN OUT EVERYWHERE. Every session of this person ends — this one too —
+     * and every sign-in link still open to their address is taken back (the
+     * usual reason to press it is that someone else had their mailbox). The
+     * other devices are told why on their next request. A row's own link is
+     * not a session of the person's and stays; "Make a new link" closes one.
+     */
+    app.options('/public/session/revoke-all', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/session/revoke-all',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: { response: { 200: publicRecordReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-code');
+        if (ok === null) return reply;
+        const person = await accountOf(request, reply, ok);
+        if (person === null) return reply;
+        const now = Date.now();
+        await sessions.endBySubject(person.subject, 'elsewhere', now);
+        const address = person.row?.[person.claim.email];
+        if (typeof address === 'string' && address !== '') await challenges.revokeLinks(linkSubject(hashAddress(addressSecret, address)), [ok.key.keyId], now);
+        await auditWrite(request, ok, 'public.session.revoked-all', { ref: person.claim.ref });
+        return reply.send({ data: {} });
+      },
+    );
+
+    /**
+     * DELETE MY DETAILS. The person's own row keeps its key (the rows that
+     * point at it stay theirs: a ticket still opens at the door, the desk
+     * still finds a stay, a confirmation's link still opens its booking) and
+     * loses every column the identity names — their address first, so no
+     * link or code can sign them in again. Stamped, audited without values,
+     * and told to the rules as a forgetting; every session ends (saying why),
+     * every open sign-in link is taken back, and the old address gets one last
+     * email saying so. Only a session that proved the mailbox moments ago may.
+     */
+    app.options('/public/account', { schema: { hide: true } }, preflight);
+    app.delete(
+      '/public/account',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          response: { 200: publicRecordReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 409: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-code');
+        if (ok === null) return reply;
+        const person = await accountOf(request, reply, ok);
+        if (person === null) return reply;
+        const { found, session, row } = person;
+        const forget = found.resource.forget ?? null;
+        if (forget === null) return fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        const now = Date.now();
+        // Proved moments ago: a link pressed (or a code typed) within the step-up window.
+        const fresh =
+          session.kind === 'link'
+            ? session.openedAt !== undefined && now - session.openedAt <= STEP_UP_MS
+            : await challenges.markedSince(session.id, 'verified', now - STEP_UP_MS);
+        if (!fresh) return fail(reply, 403, 'PUBLIC_CODE_STEP_UP', 'Confirm a new code first.');
+        if (row === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const oldAddress = row[person.claim.email];
+        const values: Row = {};
+        for (const column of forget.columns) {
+          const resolved = found.table.columns.get(column);
+          values[column] = resolved?.logicalType === 'boolean' && resolved.nullable === false ? false : null;
+        }
+        if (forget.stamp !== undefined) values[forget.stamp] = new Date(now).toISOString();
+        const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
+        const entity: RecordRef = { connectionId: ok.key.connectionId, table: found.table.id, pk, label: pkLabel(found.table, pk) };
+        try {
+          await writes.update({
+            target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },
+            pk,
+            values,
+            context: await publicWriteContext(request, ok),
+            mapError: refuseWrite,
+            announce: async ({ before, after }) => {
+              // Named by the row, never by what it held.
+              await auditWrite(request, ok, 'public.identity.forgotten', { ref: person.claim.ref }, entity);
+              invalidateWidgetData(app, ok.key.connectionId, found.table.id);
+              publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, { connectionId: ok.key.connectionId, table: found.table, action: 'update', pk, row: after });
+              await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: found.table, action: 'update', entity, before, after, origin: 'public', cause: 'forget' });
+            },
+          });
+        } catch (error) {
+          if (error instanceof PublicWriteRefused) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
+          if (lostRace(error)) return busy(reply);
+          if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          throw error;
+        }
+        await sessions.endBySubject(person.subject, 'forgotten', now);
+        if (typeof oldAddress === 'string' && oldAddress !== '') {
+          await challenges.revokeLinks(linkSubject(hashAddress(addressSecret, oldAddress)), [ok.key.keyId], now);
+          if (plausibleAddress(oldAddress)) {
+            const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
+            // The name it greeted them by, as it stood: read before it went.
+            const name = found.resource.expose.find((column) => column !== person.claim.email);
+            await enqueueEmail(
+              { meta, logger: request.log },
+              {
+                to: oldAddress.trim(),
+                templateKey: DETAILS_DELETED_TEMPLATE_KEY,
+                locale,
+                always: true,
+                vars: { appName: (await senderOf(ok.key)).appName, name: name === undefined ? '' : String(row[name] ?? '') },
+              },
+            );
+          }
+        }
+        return reply.send({ data: {} });
       },
     );
 

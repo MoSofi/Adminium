@@ -854,5 +854,13 @@
     "codeLabel": "Code",
     "notice": "Si vous ne l’avez pas demandé, vous pouvez ignorer cet e-mail : personne ne peut se connecter sans lui.",
     "footer": "{appName}"
+  },
+  "detailsDeleted": {
+    "name": "Données supprimées",
+    "subject": "Vos données chez {appName} ont été supprimées",
+    "heading": "Vos données ont été supprimées",
+    "intro": "Bonjour {name}, comme vous l’avez demandé, les données que {appName} conservait à votre sujet sont supprimées et vous êtes déconnecté partout.",
+    "kept": "Vos billets et réservations restent valables, et les e-mails que vous avez déjà reçus les ouvrent toujours. Vous n’aurez plus de nouvelles de nous, sauf si vous réservez à nouveau.",
+    "footer": "{appName}"
   }
 }

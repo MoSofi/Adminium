@@ -129,6 +129,8 @@ export const SIGN_IN_CODE_TEMPLATE_KEY = 'sign-in-code';
 export const EMAIL_CHANGED_TEMPLATE_KEY = 'email-changed';
 /** A client's one-use sign-in link to an app's guest side (`public-api/sign-in-link.ts`). */
 export const SIGN_IN_LINK_TEMPLATE_KEY = 'sign-in-link';
+/** The last email to a guest who deleted their details (`DELETE /public/account`). */
+export const DETAILS_DELETED_TEMPLATE_KEY = 'details-deleted';
 
 /**
  * Inline last resort for the `notification` key, used ONLY when no row exists

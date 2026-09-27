@@ -130,6 +130,11 @@ export const BUILTIN_EMAIL_TEMPLATE_KEYS = [
    * guest side, and the same sign-in as a code for another device.
    */
   'sign-in-link',
+  /*
+   * A guest who deleted their details: told at the address they had, the
+   * last email it receives — sent even when switched off (`always`).
+   */
+  'details-deleted',
 ] as const;
 
 export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[number];
@@ -167,6 +172,7 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    */
   'email-changed': ['appName', 'name', 'newEmail', 'phoneLine', 'contactLine'],
   'sign-in-link': ['appName', 'link', 'code', 'minutes'],
+  'details-deleted': ['appName', 'name'],
 };
 
 /**
@@ -543,6 +549,38 @@ function emailChangedTemplate(t: Translate): BuiltinEmailTemplate {
 }
 
 /**
+ * Sent to the address a guest had when they deleted their details: what went
+ * and what stays (their tickets and bookings, which the emails they already
+ * have still open), so "delete" never reads as "cancel".
+ */
+function detailsDeletedTemplate(t: Translate): BuiltinEmailTemplate {
+  return {
+    key: 'details-deleted',
+    name: t('email:detailsDeleted.name', { defaultValue: 'Details deleted' }),
+    subject: t('email:detailsDeleted.subject', { appName: VAR.appName, defaultValue: 'Your details at {appName} were deleted' }),
+    category: 'transactional',
+    blocks: [
+      heading(t('email:detailsDeleted.heading', { defaultValue: 'Your details were deleted' })),
+      paragraph(
+        'intro',
+        t('email:detailsDeleted.intro', {
+          name: VAR.name,
+          appName: VAR.appName,
+          defaultValue: 'Hi {name}, as you asked, the details {appName} kept about you are deleted, and you are signed out everywhere.',
+        }),
+      ),
+      paragraph(
+        'kept',
+        t('email:detailsDeleted.kept', {
+          defaultValue: 'Your tickets and bookings stay valid, and the emails you already have still open them. You won’t hear from us again unless you book again.',
+        }),
+      ),
+    ],
+    footer: t('email:detailsDeleted.footer', { appName: VAR.appName, defaultValue: '{appName}' }),
+  };
+}
+
+/**
  * A sign-in link: the button is the whole point, the code is for the person
  * reading on one device and signing in on another. The link opens a page
  * that asks them to continue — a mail scanner that follows it signs nobody in.
@@ -591,6 +629,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
     signInCodeTemplate(t),
     emailChangedTemplate(t),
     signInLinkTemplate(t),
+    detailsDeletedTemplate(t),
   ];
 }
 

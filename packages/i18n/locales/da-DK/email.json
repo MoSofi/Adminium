@@ -854,5 +854,13 @@
     "codeLabel": "Kode",
     "notice": "Hvis du ikke har bedt om det, kan du se bort fra denne e-mail: ingen kan logge ind uden den.",
     "footer": "{appName}"
+  },
+  "detailsDeleted": {
+    "name": "Oplysninger slettet",
+    "subject": "Dine oplysninger hos {appName} er slettet",
+    "heading": "Dine oplysninger er slettet",
+    "intro": "Hej {name}, som du bad om, er de oplysninger, {appName} havde om dig, slettet, og du er logget ud overalt.",
+    "kept": "Dine billetter og bookinger gælder stadig, og de e-mails, du allerede har, åbner dem stadig. Du hører ikke fra os igen, medmindre du booker igen.",
+    "footer": "{appName}"
   }
 }
