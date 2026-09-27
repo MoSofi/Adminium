@@ -368,4 +368,25 @@ describe('a move that moves a linked row', () => {
     effects(m)[0]!['set'] = { status: 'occupied', other: 'x' };
     expect(issuesText(m)).toContain("an effect sets one column: the linked table's state");
   });
+
+  it("refuses a move judged late by another row's time, and a move of the app's outbox", () => {
+    let m = venue();
+    (tableOf(m, 'rooms')['columns'] as Doc[]).push({ ref: 'event_id', type: 'fk', references: 'events', nullable: true });
+    statesOf(m, 'rooms')['late'] = [{ to: 'occupied', moment: { via: 'event_id', column: 'starts_at' }, within: { hours: 2 }, mode: 'refuse' }];
+    expect(issuesText(m)).toContain('a move of "rooms" to "occupied" is judged late by another row\'s time, so an effect cannot make it');
+    // Its own row's time is fine.
+    m = venue();
+    (tableOf(m, 'rooms')['columns'] as Doc[]).push({ ref: 'ready_at', type: 'timestamptz', nullable: true });
+    statesOf(m, 'rooms')['late'] = [{ to: 'occupied', moment: { column: 'ready_at' }, within: { hours: 2 }, mode: 'refuse' }];
+    expect(issuesText(m)).not.toContain('judged late by another row');
+    m = venue();
+    m['outbox'] = {
+      table: 'rooms',
+      columns: { kind: 'kind', status: 'status', to: 'to_address' },
+      recipient: { via: 'room_id', table: 'stays', email: 'email' },
+      kinds: { note: 'venue-note' },
+      producers: [{ kind: 'note', link: 'id', onChange: { table: 'stays', column: 'status', to: 'in_house' } }],
+    };
+    expect(issuesText(m)).toContain('"rooms" is the app\'s outbox, whose messages move only by the outbox\'s own moves');
+  });
 });

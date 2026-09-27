@@ -115,8 +115,9 @@ import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js'
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
 import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
-import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
+import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
 import { attachWindows, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
+import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
@@ -1885,8 +1886,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * that row — fill, stamps, checks, and its table's states, judged as the
    * app's declared move of it — by the writer who made the first move. The
    * row was held for update before the write's own rows. A table whose rows
-   * keep a limit or a total, or are tied to a parent, is not moved this way:
-   * its locks and totals would be taken out of their order.
+   * keep a limit or a total, or are tied to a parent, or whose move reads
+   * another row, is not moved this way: its locks and totals would be taken
+   * out of their order. Nor is one a hook watches: its hooks cannot run
+   * inside another row's write.
    */
   function effectWriter(target: WriteTarget, context: WriteContext, clock: WriteClock): EffectWriter {
     return async (db, link, key, column, state) => {
@@ -1907,7 +1910,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // Its move may wait only for its own row: the rows it would read are taken after this write's own.
         Object.values(effective?.states?.moves ?? {}).some((list) =>
           list.some((move) => typeof move === 'object' && move.to === state && waitVias(move.requires).length > 0),
-        );
+        ) ||
+        // Nor be judged late by a time read through another row, for the same reason.
+        (effective?.states?.late ?? []).some((late) => late.to === state && momentVias(late.moment).length > 0);
       if (kept) {
         throw new StateMoveRefused(`A move of ${target.table.name} cannot move a ${moved.table.name} row too: that table keeps a limit, a total or a parent, or its move waits for another row.`, {
           column,
@@ -1915,10 +1920,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           effect: moved.table.name,
         });
       }
+      const declared: WriteContext = { ...context, declared: { to: state } };
+      // A table a hook watches is not moved this way: its hooks could not run inside this write.
+      const hooks = current();
+      if ((await hooks.wants('before', 'update', moved, declared)) || (await hooks.wants('after', 'update', moved, declared))) {
+        throw new StateMoveRefused(`A move of ${target.table.name} cannot move a ${moved.table.name} row too: a hook watches ${moved.table.name}, and it could not run inside this write.`, {
+          column,
+          to: state,
+          effect: moved.table.name,
+          hooked: true,
+        });
+      }
       const pk = { [link.key]: key };
       const before = (await fetchByPk(db, moved.table, pk)) ?? null;
       if (before === null) return null;
-      const declared: WriteContext = { ...context, declared: { to: state } };
       const zone = await zoneFor(rules, moved);
       let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
       values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
@@ -2447,6 +2462,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (parent.via !== own) add(parents, parent.table, parent.key, values[parent.via]);
         for (const link of parent.links ?? []) add(linked, link.table, link.key, values[link.via]);
       }
+      // What a new row waits for through its links (`states.create`): read for share, with the others, not row by row.
+      for (const link of (row.target.table.table?.stateLinks ?? []).filter((l) => l.via !== own && waitVias(row.target.table.table?.states?.create?.requires).includes(l.via))) {
+        add(linked, link.table, link.key, values[link.via]);
+      }
     }
     const held = await holdChain(db, dialect, starts, currency);
     const sorted = (map: typeof parents) => [...map.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, entry]) => entry);
@@ -2958,7 +2977,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // out: a writer moving it meanwhile would leave this one settling the
         // wrong parent, and a line settled meanwhile a subtotal read too early.
         // The document before its line: every writer takes the parent first (see `holdFirst`).
+        // A quote holds neither: it reads as things are (the rows its own statements write aside).
         if (!dry) await holdFirst(rules, within, pk, checkedValues);
+        // Then the rows its links point at (its conditions, its effects' rows): before its own row, held next.
+        if (!dry) await holdLinkedFirst(db, target.dialect, target.table, checkedValues, pk);
         const prior =
           limits || booking !== undefined || rolls
             ? ((!dry && (holdsParent(rules) || worked.length > 0 || limits) ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)

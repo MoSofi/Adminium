@@ -69,8 +69,8 @@ export interface AppSchemaTarget {
   ): Promise<ApplyResult>;
   /**
    * Whether two rows of `table` already hold the same values in `columns`
-   * (empty ones aside): a unique rule asked for there would be refused.
-   * Reads, never writes.
+   * (empty ones aside): a unique rule asked for there would be refused. No
+   * columns: whether the table has two rows at all. Reads, never writes.
    */
   repeats?(connectionId: string, table: string, columns: readonly string[]): Promise<boolean>;
   /** The plan `edit` would run, against a fresh snapshot, for an operator to review. Changes no table. */
@@ -97,6 +97,11 @@ export function createAppSchemaTarget(deps: SchemaTargetCoreDeps & Pick<ServerEd
     read: (connectionId, names) => readLiveTables(deps, connectionId, names),
     repeats: async (connectionId, table, columns) => {
       const { db } = await deps.manager.data(connectionId);
+      // No column to tell rows apart (a set over columns an update adds, each filled with one default): any two rows repeat.
+      if (columns.length === 0) {
+        const found = await sql<{ n: unknown }>`select count(*) as n from (select 1 as one from ${sql.table(table)} limit 2) as adm_rows`.execute(db);
+        return Number(found.rows[0]?.n ?? 0) > 1;
+      }
       const refs = columns.map((column) => sql.ref(column));
       const found = await sql<{ found: number }>`select 1 as found from ${sql.table(table)} where ${sql.join(
         refs.map((ref) => sql`${ref} is not null`),

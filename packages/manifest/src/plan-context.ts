@@ -161,7 +161,7 @@ function keepsSet(table: SchemaModelView['tables'][number] | undefined, columns:
 /**
  * The bytes MySQL's key over a set of columns takes: four a character of
  * text (a code's own width), four a character of an enum's values (32 or 64),
- * a linked key's own width (a uuid's 36 characters), eight for anything else.
+ * a uuid's 36 characters (its own, or a linked key's), eight for anything else.
  */
 export function uniqueSetBytes(set: readonly string[], table: { columns: readonly RequiredColumn[] }, tables: readonly { ref: string; columns: readonly RequiredColumn[] }[]): number {
   let bytes = 0;
@@ -176,6 +176,9 @@ export function uniqueSetBytes(set: readonly string[], table: { columns: readonl
     } else if (column.type === 'fk') {
       const target = tables.find((t) => t.ref === column.references)?.columns.find((c) => c.role === 'pk');
       bytes += target?.type === 'uuid' ? 4 * 36 : 8;
+    } else if (column.type === 'uuid') {
+      // MySQL keeps a uuid as CHAR(36).
+      bytes += 4 * 36;
     } else {
       bytes += 8;
     }

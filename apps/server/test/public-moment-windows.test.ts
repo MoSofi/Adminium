@@ -8,11 +8,12 @@
  * from half an hour before the doors and once only. The guest is told when a
  * window opens or when it closed, never anything about a row they cannot see.
  */
-import { connectionTenantConfig } from '@adminium/meta';
+import { auditRepo, connectionTenantConfig } from '@adminium/meta';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import type { PublicMethod } from '../src/public-api/endpoint.js';
 import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -79,6 +80,36 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
         },
       },
       {
+        ref: 'refunds_batch',
+        definition: {
+          ...base,
+          methods: ['GET', 'PATCH', 'BATCH'],
+          path: '/refunds_batch',
+          source: idOf('orders'),
+          select: ['id', 'status', 'event_id'],
+          filters: [{ column: 'account', op: 'eq', value: 1 }],
+          writable: ['status'],
+          writable_values: { status: ['cancelled'] },
+          writable_when: {
+            status: ['paid'],
+            event_id: { before: { column: 'refund_until', or: [{ via: 'event_id', column: 'starts_at', minus: { days: settings('refund_days') } }] } },
+          },
+        },
+      },
+      {
+        ref: 'stay_checkin',
+        definition: {
+          ...base,
+          methods: ['GET', 'PATCH', 'BATCH'],
+          path: '/stay_checkin',
+          source: idOf('stays'),
+          select: ['id', 'status'],
+          filters: [],
+          writable: ['status'],
+          writable_values: { status: ['in_house'] },
+        },
+      },
+      {
         ref: 'door',
         definition: { ...base, path: '/door', source: idOf('tickets'), select: ['id', 'status'], filters: [], writable: ['status'], writable_values: { status: ['checked_in'] } },
       },
@@ -88,7 +119,7 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
     const { key } = await service.createKey({
       connectionId: h.connectionId,
       name: 'venue guests',
-      access: endpoints.map((e) => ({ ref: e.ref, methods: ['GET', 'PATCH'] })),
+      access: endpoints.map((e) => ({ ref: e.ref, methods: (e.definition as { methods: PublicMethod[] }).methods })),
       secret: { prefix: secret.prefix, tokenHash: secret.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), secret.token) },
       origins: [],
       kind: 'browser',
@@ -111,6 +142,8 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
   };
   const patch = (ref: string, id: unknown, values: Record<string, unknown>) =>
     served.composed.app.inject({ method: 'PATCH', url: `/api/v1/public/records/${ref}/${String(id)}`, headers: served.headers(), payload: { values } });
+  const batch = (ref: string, rows: Record<string, unknown>[]) =>
+    served.composed.app.inject({ method: 'POST', url: `/api/v1/public/records/${ref}/batch`, headers: served.headers(), payload: { rows } });
 
   it.runIf(available)('asks for a refund until seven days before the show, or its own deadline, never for a show without refunds', async () => {
     const show = await w.create('events', { name: 'Show', starts_at: '2026-09-10T19:00:00Z', doors_at: '2026-09-10T18:30:00Z' });
@@ -119,7 +152,7 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
     clock('2026-09-03T19:00:00Z');
     const late = await patch('refunds', order['id'], { status: 'cancelled' });
     expect(late.statusCode, late.body).toBe(409);
-    expect(late.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_LATE', params: { at: '2026-09-03T19:00:00.000Z' } } });
+    expect(late.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_LATE', params: { at: '2026-09-03T19:00:00.000Z' }, message: 'It is too late to make this change online.' } });
     // The show's own deadline, when set, is read first.
     await w.update('events', show['id'], { refund_until: '2026-09-09T12:00:00Z' });
     const inTime = await patch('refunds', order['id'], { status: 'cancelled' });
@@ -159,12 +192,41 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
     clock('2026-07-31T18:29:00Z');
     const early = await patch('door', ticket['id'], { status: 'checked_in' });
     expect(early.statusCode, early.body).toBe(409);
-    expect(early.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_EARLY', params: { at: '2026-07-31T18:30:00.000Z' } } });
+    // The doors' time, and when the scan opens — as the published client reads a too-early refusal.
+    expect(early.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_EARLY', params: { at: '2026-07-31T19:00:00.000Z', from: '2026-07-31T18:30:00.000Z' } } });
     clock('2026-07-31T18:31:00Z');
     expect((await patch('door', ticket['id'], { status: 'checked_in' })).statusCode).toBe(200);
     const twice = await patch('door', ticket['id'], { status: 'checked_in' });
     expect(twice.statusCode, twice.body).toBe(400);
     expect(twice.json()).toMatchObject({ error: { code: 'PUBLIC_WRITE_REFUSED', params: { column: 'status', reason: 'unchanged' } } });
     expect(twice.body).not.toContain('Ivy');
+  });
+
+  it.runIf(available)('holds a batch of changes to the same windows as one change', async () => {
+    const show = await w.create('events', { name: 'Batch show', starts_at: '2026-11-10T19:00:00Z', doors_at: '2026-11-10T18:30:00Z' });
+    const order = await w.create('orders', { event_id: show['id'], email: 'batch@example.com', account: 1, pay: 'paid' });
+    await w.update('orders', order['id'], { status: 'paid' });
+    // Six days before the show: the refund window closed a day ago.
+    clock('2026-11-04T19:00:00Z');
+    const late = await batch('refunds_batch', [{ id: order['id'], status: 'cancelled' }]);
+    expect(late.statusCode, late.body).toBe(400);
+    expect(late.json()).toMatchObject({ error: { code: 'PUBLIC_WRITE_REFUSED' } });
+    const [kept] = await h.rows(`select status from ${h.real('orders')} where id = ${String(order['id'])}`);
+    expect(kept!['status']).toBe('paid');
+    clock('2026-11-02T19:00:00Z');
+    const inTime = await batch('refunds_batch', [{ id: order['id'], status: 'cancelled' }]);
+    expect(inTime.statusCode, inTime.body).toBe(200);
+  });
+
+  it.runIf(available)("announces the rows a batch's moves moved too", async () => {
+    const room = await w.create('rooms', { number: 'B1' });
+    const stay = await w.create('stays', { room_id: room['id'], arrive: '2026-08-10' });
+    const res = await batch('stay_checkin', [{ id: stay['id'], status: 'in_house' }]);
+    expect(res.statusCode, res.body).toBe(200);
+    const [after] = await h.rows(`select status from ${h.real('rooms')} where id = ${String(room['id'])}`);
+    expect(after!['status']).toBe('occupied');
+    const audit = await auditRepo(h.meta).list({ limit: 200 });
+    const roomTable = w.targetOf('rooms').table.id;
+    expect(audit.filter((e) => e.action === 'record.update' && e.entity?.table === roomTable && JSON.stringify(e.entity?.pk) === JSON.stringify({ id: room['id'] }))).toHaveLength(1);
   });
 });

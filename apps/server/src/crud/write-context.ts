@@ -22,6 +22,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
+import type { Moment } from '@adminium/manifest';
 import type { TablePrivileges } from '@adminium/engine/adapter';
 
 import type { SourceDatabase } from '../connections/manager.js';
@@ -79,9 +80,11 @@ export interface WriteContext {
    * A move the app declared that Adminium makes itself — a timed move once its
    * moment has passed, a linked row moved by an effect. The roles a listed
    * move is kept for do not stop it, for this move only (`from` absent: from
-   * any state); everything else it waits for is judged as for anyone.
+   * any state); everything else it waits for is judged as for anyone. A
+   * timed move names its moment too (`at`): it is made only while the row, as
+   * held, is still due by it.
    */
-  declared?: { from?: string | undefined; to: string } | undefined;
+  declared?: { from?: string | undefined; to: string; at?: Moment | undefined } | undefined;
 }
 
 /** The table a write goes to, and the connection it goes through. */

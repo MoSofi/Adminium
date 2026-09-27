@@ -31,6 +31,7 @@ import { bindWriteValue, normalizeWriteValue } from '../../crud/write-values.js'
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import type { FileReconciler } from '../../files/reconcile.js';
 import { getPrincipal } from '../../rbac/principal.js';
+import { announceEffects } from '../../states/effects.js';
 import type { AnyRecord, ListOptions, ProjectDb, ProjectTable, RawDatabase, RecordId } from './define.js';
 
 export const DEFAULT_LIST_LIMIT = 100;
@@ -241,7 +242,19 @@ export function createProjectDb(deps: ProjectDbDeps, scope: ProjectDbScope): Pro
           values: valuesFor(resolved, values),
           before,
           context: scope.context,
-          announce: ({ after }) => announce(resolved, 'update', before, before, after ?? before),
+          announce: async ({ after, effects }) => {
+            await announce(resolved, 'update', before, before, after ?? before);
+            // The rows this move moved too, as changes of their own made by the same code.
+            await announceEffects(deps.app, {
+              connectionId: resolved.connection.id,
+              view: resolved.view,
+              effects,
+              origin,
+              ...attribution(scope.context),
+              meta: deps.meta,
+              hops: scope.context.hops,
+            });
+          },
         });
         return (outcome.after ?? null) as R | null;
       },

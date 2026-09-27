@@ -114,6 +114,44 @@ describe.each(LEGS)('columns kept unique together — %s', (dialect, available) 
     await expect(h.rows(`INSERT INTO ${h.real('waitlist')} (event_id, email, seat) VALUES (${String(event!['id'])}, 'b@x.io', 'A1')`)).rejects.toThrow();
   }, 120_000);
 
+  it.skipIf(!available)('refuses a set over a column the same update adds filled with a default, where rows already repeat', async () => {
+    h = await installInvoicing(dialect, version('0.2.0'));
+    await h.rows(`INSERT INTO ${h.real('events')} (name) VALUES ('Show'), ('Other')`);
+    const [show, other] = await h.rows(`SELECT id FROM ${h.real('events')} ORDER BY id`);
+    await h.rows(`INSERT INTO ${h.real('waitlist')} (event_id, email) VALUES (${String(show!['id'])}, 'a@x.io'), (${String(show!['id'])}, 'b@x.io')`);
+    // Every row the update finds gets seat 'A': two rows of one show would be the same show and seat.
+    const seat = { ref: 'seat', type: 'text', maxLength: 8, nullable: true, default: 'A' };
+    await stage(version('0.2.1', { columns: [seat], unique: [['event_id', 'seat']] }));
+    const checked = await plan('0.2.1');
+    expect(checked.installable).toBe(false);
+    expect(checked.problems).toEqual([expect.objectContaining({ code: 'UNIQUE_DUPLICATES', column: 'seat', message: expect.stringContaining('event_id, seat only once') })]);
+    expect((await h.app.inject({ method: 'POST', url: '/apps/studio/update' })).statusCode).toBe(422);
+    // Nothing moved: the column is not there yet.
+    await expect(h.rows(`SELECT seat FROM ${h.real('waitlist')}`)).rejects.toThrow();
+
+    await h.rows(`UPDATE ${h.real('waitlist')} SET event_id = ${String(other!['id'])} WHERE email = 'b@x.io'`);
+    const res = await h.app.inject({ method: 'POST', url: '/apps/studio/update' });
+    expect(res.statusCode, res.body).toBe(200);
+    expect((await h.rows(`SELECT seat FROM ${h.real('waitlist')} ORDER BY id`)).map((row) => row['seat'])).toEqual(['A', 'A']);
+  }, 120_000);
+
+  it.skipIf(!available)('refuses a set of columns the update adds, each filled with one default, once the table has two rows', async () => {
+    h = await installInvoicing(dialect, version('0.2.0'));
+    await h.rows(`INSERT INTO ${h.real('events')} (name) VALUES ('Show')`);
+    const [show] = await h.rows(`SELECT id FROM ${h.real('events')}`);
+    await h.rows(`INSERT INTO ${h.real('waitlist')} (event_id, email) VALUES (${String(show!['id'])}, 'a@x.io')`);
+    const columns = [
+      { ref: 'row_code', type: 'text', maxLength: 8, nullable: true, default: 'R' },
+      { ref: 'badge', type: 'text', maxLength: 8, nullable: true, default: 'B' },
+    ];
+    await stage(version('0.2.1', { columns, unique: [['row_code', 'badge']] }));
+    // One row: one value each, nothing repeats.
+    expect((await plan('0.2.1')).installable).toBe(true);
+    await h.rows(`INSERT INTO ${h.real('waitlist')} (event_id, email) VALUES (${String(show!['id'])}, 'b@x.io')`);
+    const checked = await plan('0.2.1');
+    expect(checked.problems).toEqual([expect.objectContaining({ code: 'UNIQUE_DUPLICATES', column: 'badge' })]);
+  }, 120_000);
+
   it.skipIf(!available)('names a set clear of an index the database already has', async () => {
     const taken = `uq_studio_waitlist_event_id_email`;
     h = await installInvoicing(dialect, version('0.2.0', { unique: [['event_id', 'email']] }), undefined, {}, {
