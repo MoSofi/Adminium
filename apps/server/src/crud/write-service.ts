@@ -2563,6 +2563,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                   ...(series === null ? [] : seriesOf(rules, target.table, checked).map((name) => ({ name, busy: 'NUMBER_BUSY' as const }))),
                 ],
                 write,
+                clock,
               )
             : day !== null
               ? withBookingLock({ ...target, timezone: zone }, day, write)
@@ -2825,7 +2826,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       let outcome: TreeOutcome;
       try {
         // A row moved away from the lock it was named by: named again from a fresh read, a few times, then 409 WRITE_CONFLICT.
-        outcome = await conflicted(() => withLimitLocks(rootRow.target, lockNames, run), (error) => input.mapError(error, []));
+        outcome = await conflicted(() => withLimitLocks(rootRow.target, lockNames, run, clock), (error) => input.mapError(error, []));
       } catch (error) {
         if (error instanceof AppError && error.code === 'WRITE_CONFLICT' && !(error instanceof TreeSignal)) return input.mapError(error, []);
         if (!(error instanceof TreeSignal)) throw error;
@@ -2925,7 +2926,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             : null;
         if (limits && prior !== null) {
           // A quote of the change counts the same pools, holding none: its own places are left out by its key.
-          await judgeRows(db, [{ target: within, pk, row: { ...prior, ...checkedValues }, before: prior }], { clock, origin: context.origin, mode: dry ? 'dry' : 'save' }, input.mapError);
+          await judgeRows(db, [{ target: within, pk, row: { ...prior, ...checkedValues }, before: prior, values: checkedValues }], { clock, origin: context.origin, mode: dry ? 'dry' : 'save' }, input.mapError);
         }
         let written = checkedValues;
         if (booking !== undefined && prior !== null) {
@@ -2982,7 +2983,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               return current === null
                 ? []
                 : capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]);
-            }, write);
+            }, write, clock);
           }
           if (booking !== undefined) {
             return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {

@@ -110,7 +110,7 @@ import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
-import { answerCapacity } from './capacity-availability.js';
+import { answerCapacity, beyondReleasedSlot } from './capacity-availability.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { sendConfirmation } from '../../public-api/confirm.js';
 import {
@@ -1695,6 +1695,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         };
         const rule = found.table.table.capacity;
         if (rule !== undefined) {
+          if (beyondReleasedSlot(query)) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That request is not permitted here.');
           if (query.date === undefined || query.party === undefined || query.kind !== undefined || query.from !== undefined) {
             return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'Ask for one date and the party.');
           }

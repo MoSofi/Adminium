@@ -10,7 +10,8 @@
  *    ticket type a guest sees), at most 200. A row readable only with a
  *    typed code is never listed without that code.
  *  - night: `from` and `to` [+ `guests`] [+ `earliest`] [+ `exclude`] →
- *    each pool (a room type), and the earliest arrival with room.
+ *    each pool (a room type) the key may read through a plain public read,
+ *    and the earliest arrival with room.
  *
  * A parameter the kind does not take is refused (400), never ignored. What
  * is left is said only where the entry says, and only when it is low; a
@@ -24,7 +25,7 @@ import type { Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
 import type { SourceDatabase } from '../../connections/manager.js';
-import { fitsGuests, nightAnswer, parentAnswer, qtyCap, ruleOf, slotDayAnswer, slotStripAnswer, type ShowLeft } from '../../crud/capacity/availability.js';
+import { fitsGuests, nightAnswer, parentAnswer, ruleOf, slotDayAnswer, slotStripAnswer, type ShowLeft } from '../../crud/capacity/availability.js';
 import { ownRows } from '../../crud/capacity/availability.js';
 import { rangeOf } from '../../crud/capacity/judge.js';
 import type { Rule } from '../../crud/capacity/rules.js';
@@ -60,6 +61,15 @@ export interface CapacityQuestion {
 
 const refused = (message: string): CapacityAnswer => ({ ok: false, message });
 
+/**
+ * Whether a question to a released slot limit uses a parameter it never
+ * took. Its query was one strict object, and these were not in it: they were
+ * refused (400), and still are.
+ */
+export function beyondReleasedSlot(query: PublicAvailabilityQuery): boolean {
+  return (['to', 'guests', 'earliest', 'under', 'qty', 'code'] as const).some((name) => query[name] !== undefined);
+}
+
 /** The parameters each kind takes; any other present is refused. */
 const TAKES: Record<Rule['kind'], ReadonlySet<keyof PublicAvailabilityQuery>> = {
   slot: new Set(['date', 'party', 'from', 'days']),
@@ -90,20 +100,27 @@ export async function answerCapacity(q: CapacityQuestion): Promise<CapacityAnswe
     if (rule.via === null) return { ok: true, body: { data: [] } };
     const ids = await readableIds(q, rule.via.table, rule.via.key);
     const day = q.query.date ?? (rule.day === null ? undefined : venueClock(q.now, q.timezone).day);
+    // How many a page may ask for is capped per row (one order's most, and what is shown): see `askCap`.
     const qty = q.query.qty ?? 1;
-    // How many a page may ask for: never more than one order takes (nothing but "any left?" where nothing is shown).
-    const capped = ids.length === 0 ? 1 : Math.min(...(await Promise.all(ids.map((id) => qtyCap(q.db, rule, id, qty, showLeft)))));
-    return {
-      ok: true,
-      body: { data: await parentAnswer(q.db, q.target, rule, ids, { day, qty: Math.min(qty, capped), now: q.now, exclude, showLeft }) },
-    };
+    return { ok: true, body: { data: await parentAnswer(q.db, q.target, rule, ids, { day, qty, now: q.now, exclude, showLeft }) } };
   }
 
   const { from, to } = q.query;
   if (from === undefined || to === undefined) return refused('Ask for a from date and a to date.');
   if (to <= from || rangeOf(from, to).length > 31) return refused('Ask for at most 31 nights, from before to.');
   if (rule.via === null) return { ok: true, body: { data: [] } };
-  const all = ((await q.db.selectFrom(rule.via.table.id).selectAll().orderBy(q.db.dynamic.ref(rule.via.key)).limit(200).execute()) as Row[]).filter((row) => fitsGuests(rule, row, q.query.guests));
+  // The pools a guest may see: a room type no plain public read shows is never listed.
+  const readable = await readableIds(q, rule.via.table, rule.via.key);
+  const via = rule.via;
+  const all =
+    readable.length === 0
+      ? []
+      : ((await q.db
+          .selectFrom(via.table.id)
+          .selectAll()
+          .where((eb) => eb(q.db.dynamic.ref(via.key), 'in', readable))
+          .orderBy(q.db.dynamic.ref(via.key))
+          .execute()) as Row[]).filter((row) => fitsGuests(rule, row, q.query.guests));
   const pools = all.map((row) => String(row[rule.via!.key]));
   const answer = await nightAnswer(q.db, q.target, rule, pools, { from, to, earliest: q.query.earliest, now: q.now, exclude, showLeft });
   return { ok: true, body: { data: answer.pools, ...(q.query.earliest === undefined ? {} : { earliest: answer.earliest }) } };

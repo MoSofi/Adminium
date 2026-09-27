@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { sql, type Kysely } from 'kysely';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { connectionTenantConfig, createFirstSuperAdmin, createSqliteMetaDb, firstRun, overridesRepo, settingsRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, createFirstSuperAdmin, createSqliteMetaDb, firstRun, overridesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
@@ -100,6 +100,14 @@ export interface World {
   patch: (path: string, payload: unknown, session?: string) => Promise<{ status: number; body: Record<string, unknown> }>;
   /** A staff read of the data API, signed in as the super admin (the first call signs in). */
   staff: (path: string) => Promise<{ status: number; body: Record<string, unknown> }>;
+  /** A staff read signed in as a member of a role that may read only these tables (by name), with no personal columns. */
+  staffOf: (tables: readonly string[], path: string) => Promise<{ status: number; body: Record<string, unknown> }>;
+  /**
+   * The same database behind a second server: its own connection pool, so
+   * its own queue in front of the database's locks. Only the database keeps
+   * the two apart.
+   */
+  twin: () => Promise<{ target: (table: string) => Promise<WriteTarget> }>;
   close: () => Promise<void>;
 }
 
@@ -255,6 +263,8 @@ export async function world(dialect: Dialect, spec: WorldSpec): Promise<World> {
   const answer = (res: { statusCode: number; body: string }) => ({ status: res.statusCode, body: (res.body === '' ? {} : JSON.parse(res.body)) as Record<string, unknown> });
   const app = composed.app;
   let staffCookie: string | null = null;
+  const twins: ConnectionManager[] = [];
+  let members = 0;
   return {
     dialect,
     connectionId: connection.id,
@@ -291,7 +301,38 @@ export async function world(dialect: Dialect, spec: WorldSpec): Promise<World> {
       }
       return answer(await app.inject({ method: 'GET', url: `/api/v1/data/${connection.id}/${path}`, headers: { cookie: staffCookie } }));
     },
+    staffOf: async (tables, path) => {
+      members += 1;
+      const role = await rolesRepo(meta).create({ slug: `desk-${String(members)}`, name: `Desk ${String(members)}` });
+      for (const table of tables) {
+        await permissionsRepo(meta).grant(role.id, 'table', `${connection.id}/${id(table)}`, { read: true, create: false, update: false, delete: false, export: false, import: false });
+      }
+      const email = `desk${String(members)}@venue.example.com`;
+      const user = await usersRepo(meta).create({ email, name: `Desk ${String(members)}`, passwordHash: await adminPasswordHash(), status: 'active' });
+      await rolesRepo(meta).assignToUser(user.id, role.id);
+      const cookie = (await login(app as never, email, ADMIN_PASSWORD)).cookie ?? '';
+      return answer(await app.inject({ method: 'GET', url: `/api/v1/data/${connection.id}/${path}`, headers: { cookie } }));
+    },
+    twin: async () => {
+      const other = new ConnectionManager({
+        meta,
+        crypto: dsnCryptoFromSecret(TEST_SECRET),
+        registry,
+        metaDsn: null,
+        blockLoopback: false,
+        ...(poolMax === undefined ? {} : { sourcePoolMax: poolMax }),
+      });
+      twins.push(other);
+      return {
+        target: async (table) => {
+          const mine = await target(table);
+          const data = await other.data(connection.id);
+          return { ...mine, db: data.db, dialect: data.dialect };
+        },
+      };
+    },
     close: async () => {
+      for (const other of twins) await other.disposeAll().catch(() => undefined);
       await composed.app.close();
       await manager.disposeAll().catch(() => undefined);
       await drop();

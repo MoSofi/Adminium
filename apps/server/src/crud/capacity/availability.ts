@@ -23,9 +23,9 @@
 import type { Row } from '../mask.js';
 import { venueClock } from '../venue-time.js';
 import type { WriteTarget } from '../write-context.js';
-import { addDays, Reads } from './count.js';
+import { addDays, Reads, slotKey } from './count.js';
 import { capacityState, rangeOf, tallyFor, widerKeysOf } from './judge.js';
-import { hhmm, onSale, placeNight, slotDays, type GridSlot } from './placement.js';
+import { hhmm, onSale, placeNight, slotDays, type GridSlot, type SlotDay } from './placement.js';
 import { rulesFor, type NightRule, type ParentRule, type Rule, type SlotRule } from './rules.js';
 import type { PoolState } from './types.js';
 
@@ -52,8 +52,10 @@ export interface SlotTime {
   state: 'free' | 'full' | 'paused';
 }
 
-async function slotTaken(db: Db, target: WriteTarget, rule: SlotRule, days: readonly string[], now: Date, exclude: readonly Row[]) {
-  const states = await capacityState(db, target, { rule: rule.index, from: days[0], to: addDays(days.at(-1)!, 1), exclude, origin: 'public' }, now);
+/** What each slot of the grid holds, counted once over the grid already read. */
+async function slotTaken(db: Db, target: WriteTarget, rule: SlotRule, grid: readonly SlotDay[], now: Date, exclude: readonly Row[], reads: Reads) {
+  const asks = grid.flatMap((day) => day.slots.map((slot) => ({ part: 's', key: slotKey(slot.instant, null), at: day.day })));
+  const states = await tallyFor(db, target, rule, asks, now, exclude, 'public', reads);
   return new Map(states.map((state) => [state.key, state]));
 }
 
@@ -73,7 +75,7 @@ export async function slotDayAnswer(db: Db, target: WriteTarget, rule: SlotRule,
   const reads = new Reads(db);
   const [one] = await slotDays(rule, reads, zone, [day]);
   if (one === undefined || one.closed || one.slots.length === 0) return [];
-  const taken = await slotTaken(db, target, rule, [day], now, exclude);
+  const taken = await slotTaken(db, target, rule, [one], now, exclude, reads);
   const size = await reads.number(rule.rule.perSlot);
   const out: SlotTime[] = [];
   for (const slot of one.slots) {
@@ -100,7 +102,7 @@ export async function slotStripAnswer(db: Db, target: WriteTarget, rule: SlotRul
   const reads = new Reads(db);
   const list = rangeOf(from, addDays(from, days));
   const grid = await slotDays(rule, reads, zone, list);
-  const taken = await slotTaken(db, target, rule, list, now, exclude);
+  const taken = await slotTaken(db, target, rule, grid, now, exclude, reads);
   const size = await reads.number(rule.rule.perSlot);
   const out: SlotDayState[] = [];
   for (const day of grid) {
@@ -129,7 +131,8 @@ export interface ParentState {
 
 /**
  * Each row asked of a parent limit: on sale, soon, ended, or sold out when
- * fewer are left (in its own pool and every wider one) than `qty`.
+ * fewer are left (in its own pool and every wider one) than `qty` — asked no
+ * higher than {@link askCap} allows for the row.
  */
 export async function parentAnswer(
   db: Db,
@@ -143,14 +146,14 @@ export async function parentAnswer(
   await reads.load(rule.via.table, rule.via.key, ids);
   const day = rule.day === null ? undefined : opts.day;
   const ask = { rule: rule.index, keys: ids, ...(day === undefined ? {} : { day }), exclude: opts.exclude ?? [], origin: 'public' as const };
-  const own = new Map((await capacityState(db, target, ask, opts.now)).map((state) => [state.key, state]));
+  const own = new Map((await capacityState(db, target, ask, opts.now, reads)).map((state) => [state.key, state]));
   // The wider pools each row's sales also take from (the room across a show's types).
   const wider = await widerKeysOf(target, rule, ids, reads);
   const widerLeft = new Map<string, number | null>();
   for (const pool of rule.also) {
     const keys = [...new Set(wider.get(pool.part)?.values() ?? [])];
     if (keys.length === 0) continue;
-    for (const state of await widerState(db, target, rule, pool.part, keys, day, opts)) widerLeft.set(`${pool.part}|${state.key}`, state.left);
+    for (const state of await widerState(db, target, rule, pool.part, keys, day, opts, reads)) widerLeft.set(`${pool.part}|${state.key}`, state.left);
   }
   const out: ParentState[] = [];
   for (const id of ids) {
@@ -165,7 +168,8 @@ export async function parentAnswer(
       if (other !== null) left = left === null ? other : Math.min(left, other);
     }
     const shown = shownLeft(opts.showLeft, left, state?.size ?? null);
-    const soldOut = left !== null && left < opts.qty;
+    const qty = Math.min(opts.qty, await askCap(rule, row, state?.size ?? null, opts.showLeft, reads));
+    const soldOut = left !== null && left < qty;
     out.push({ id, state: sale !== 'on' ? sale : soldOut ? 'soldout' : 'on', ...(shown === undefined || sale !== 'on' ? {} : { left: shown }) });
   }
   return out;
@@ -180,20 +184,27 @@ async function widerState(
   keys: readonly string[],
   day: string | undefined,
   opts: { now: Date; exclude?: readonly Row[] },
+  reads: Reads,
 ): Promise<PoolState[]> {
-  return tallyFor(db, target, rule, keys.map((key) => ({ part, key, at: day })), opts.now, opts.exclude ?? [], 'public');
+  return tallyFor(db, target, rule, keys.map((key) => ({ part, key, at: day })), opts.now, opts.exclude ?? [], 'public', reads);
 }
 
-/** The largest quantity a page may ask of a row: one order's most, or one when nothing is shown. */
-export async function qtyCap(db: Db, rule: ParentRule, id: string, asked: number, showLeft: ShowLeft | undefined): Promise<number> {
+/**
+ * The largest quantity a page may ask of a pool: never more than one order
+ * may take, and never more than the count below which the entry says what is
+ * left — so asking "are N left?" tells nothing the answer would not say. One
+ * when the entry says nothing.
+ */
+export async function askCap(rule: ParentRule, row: Row | null, size: number | null, showLeft: ShowLeft | undefined, reads: Reads): Promise<number> {
   if (showLeft === undefined) return 1;
-  if (rule.perWrite === null) return asked;
-  const reads = new Reads(db);
-  const max = rule.perWrite.max;
-  const row = await reads.linked(rule.via, id);
-  const cap =
-    max.kind === 'number' ? max.value : max.kind === 'setting' ? await reads.number(max.setting) : max.kind === 'column' && row !== null ? Number(row[max.column]) : null;
-  return cap === null || !Number.isFinite(cap) ? asked : Math.max(1, Math.min(asked, cap));
+  let cap: number | null = 'below' in showLeft ? showLeft.below : size === null ? null : Math.ceil((showLeft.belowShare * size) / 100);
+  const max = rule.perWrite?.max;
+  if (max !== undefined) {
+    const most =
+      max.kind === 'number' ? max.value : max.kind === 'setting' ? await reads.number(max.setting) : max.kind === 'column' && row !== null ? Number(row[max.column]) : null;
+    if (most !== null && Number.isFinite(most)) cap = cap === null ? most : Math.min(cap, most);
+  }
+  return cap === null ? Number.POSITIVE_INFINITY : Math.max(1, cap);
 }
 
 /* ----------------------------------------------------------------- night */
@@ -223,7 +234,7 @@ export async function nightAnswer(
   const length = rangeOf(opts.from, opts.to).length;
   const search = opts.earliest ?? 0;
   const last = addDays(opts.to, search);
-  const states = await capacityState(db, target, { rule: rule.index, keys: pools, from: opts.from, to: last, exclude: opts.exclude ?? [], origin: 'public' }, opts.now);
+  const states = await capacityState(db, target, { rule: rule.index, keys: pools, from: opts.from, to: last, exclude: opts.exclude ?? [], origin: 'public' }, opts.now, reads);
   const at = new Map(states.map((state) => [`${state.key}|${state.at!}`, state]));
   // Whether a stay of these dates is one the venue sells a guest (nights, arrival, how far ahead).
   const sells = async (from: string, to: string) => (await placeNight(rule, { [rule.from.column]: from, [rule.to.column]: to }, { [rule.from.column]: from, [rule.to.column]: to }, { reads, now: opts.now, public: true, zone })) === null;

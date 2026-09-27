@@ -2,7 +2,8 @@
 /**
  * The guard's own contract, below any door: it judges only rows whose locks
  * are held (a row that moved away from the lock it was named by starts the
- * write over, three times, then 409 `WRITE_CONFLICT`), it counts the rows it
+ * write over, three times, then 409 `WRITE_CONFLICT`, each try judged by the
+ * instant after its own locks), it counts the rows it
  * is handed once whether they are in the table yet or not, and a quote holds
  * nothing and refuses exactly as a save.
  */
@@ -13,7 +14,7 @@ import { capacityLockNames, judgeCapacity } from '../src/crud/capacity/judge.js'
 import { LockMoved, withNamedLocks } from '../src/crud/capacity/locks.js';
 import { writeClock } from '../src/crud/write-clock.js';
 import { LEGS, type World } from './capacity.helpers.js';
-import { at, iso, kitchen } from './capacity-worlds.js';
+import { at, iso, kitchen, neon, NEON_NOW } from './capacity-worlds.js';
 
 for (const [dialect, available] of LEGS) {
   describe.skipIf(!available)(`the limit guard's contract on ${dialect}`, () => {
@@ -34,7 +35,8 @@ for (const [dialect, available] of LEGS) {
       const row = { pickup_at: iso('2026-07-28 13:00'), status: 'placed' };
       const names = await capacityLockNames(target.db, [{ target, row, before: null, prepared: true }]);
       expect(names).toEqual([{ name: `${w.connectionId}|${target.table.id}|cap|slot|2026-07-28`, busy: 'CAPACITY_BUSY' }]);
-      const judge = (db: typeof target.db) => judgeCapacity(db, [{ target, pk: null, row, before: null }], { clock: writeClock(), origin: 'dashboard', mode: 'save' });
+      const clock = writeClock();
+      const judge = (db: typeof target.db) => judgeCapacity(db, [{ target, pk: null, row, before: null }], { clock, origin: 'dashboard', mode: 'save' });
       // Held under another day's name: the row is not where its lock was named.
       await expect(withNamedLocks(target, [{ name: `${w.connectionId}|${target.table.id}|cap|slot|2026-07-29`, busy: 'CAPACITY_BUSY' }], judge)).rejects.toBeInstanceOf(LockMoved);
       await expect(withNamedLocks(target, names, judge)).resolves.toMatchObject([{ key: at('2026-07-28 13:00').toISOString(), taken: 1, size: 6 }]);
@@ -45,9 +47,34 @@ for (const [dialect, available] of LEGS) {
       // Named wrong once, then right: the door's second try goes through; named wrong every time: 409.
       let tries = 0;
       const wrongOnce = async () => (++tries === 1 ? [] : names);
-      await expect(withLimitLocks(target, wrongOnce, judge)).resolves.toHaveLength(1);
+      await expect(withLimitLocks(target, wrongOnce, judge, clock)).resolves.toHaveLength(1);
       expect(tries).toBe(2);
-      await expect(withLimitLocks(target, async () => [], judge)).rejects.toMatchObject({ code: 'WRITE_CONFLICT', details: { retry: true } });
+      await expect(withLimitLocks(target, async () => [], judge, clock)).rejects.toMatchObject({ code: 'WRITE_CONFLICT', details: { retry: true } });
+    });
+
+    it("judges a second try by the instant after its own locks: a sale that closes while it waits refuses it", async () => {
+      // A second before Neon Standard's sale ends.
+      const end = new Date(NEON_NOW.getTime() + 24 * 60 * 60_000);
+      vi.setSystemTime(new Date(end.getTime() - 1000));
+      w = await neon(dialect);
+      const tickets = await w.target('tickets');
+      const order = await w.create('orders', { status: 'held', held_until: new Date(end.getTime() + 10 * 60_000).toISOString() });
+      const row = { order_id: order['id'], ticket_type_id: 1, event_id: 1 };
+      const clock = writeClock();
+      let tries = 0;
+      // The first try is named wrong (the row moved); by the second, the sale is over.
+      const names = async () => {
+        tries += 1;
+        if (tries === 1) return [];
+        vi.setSystemTime(new Date(end.getTime() + 1000));
+        return capacityLockNames(tickets.db, [{ target: tickets, row, before: null, prepared: true }]);
+      };
+      const judge = (db: typeof tickets.db) => judgeCapacity(db, [{ target: tickets, pk: null, row, before: null }], { clock, origin: 'public', mode: 'save' });
+      await expect(withLimitLocks(tickets, names, judge, clock)).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+        details: { fields: { ticket_type_id: { code: 'not-on-sale' } }, reason: 'CAPACITY_NOT_ON_SALE' },
+      });
+      expect(tries).toBe(2);
     });
 
     it('counts a row it is handed once, whether it is in the table yet or not', async () => {

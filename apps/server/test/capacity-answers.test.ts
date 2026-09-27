@@ -6,8 +6,36 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LEGS, type World } from './capacity.helpers.js';
+import { overridesRepo } from '@adminium/meta';
+
+import { filled, LEGS, types, type Dialect, type World } from './capacity.helpers.js';
 import { at, house, iso, kitchen, neon, NEON_NOW } from './capacity-worlds.js';
+
+/** Ticket types and cart lines, any number to an order: 260 places, `taken` taken. */
+async function lines(dialect: Dialect, taken: number, showLeft: Record<string, number>): Promise<World> {
+  return filled(
+    dialect,
+    {
+      zone: 'Europe/London',
+      ddl: (d) => {
+        const t = types(d);
+        return [
+          `create table ticket_types (id ${t.key}, name ${t.text(40)}, capacity integer)`,
+          `create table cart_lines (id ${t.key}, ticket_type_id integer not null, qty integer not null, ${t.fk('ticket_type_id', 'ticket_types')})`,
+        ];
+      },
+      overrides: () => [{ op: 'table.capacity', table: 'cart_lines', value: { kind: 'parent', via: 'ticket_type_id', size: { column: 'capacity' }, amount: 'qty' } }],
+      endpoints: {
+        ticket_types: { source: 'ticket_types', methods: ['GET'], select: ['id', 'name'] },
+        lines_availability: { source: 'cart_lines', methods: ['GET'], kind: 'availability', show_left: showLeft },
+      },
+    },
+    async (w) => {
+      await w.seed('ticket_types', [{ id: 1, name: 'Standard', capacity: 260 }]);
+      await w.seed('cart_lines', [{ ticket_type_id: 1, qty: taken }]);
+    },
+  );
+}
 
 const errorOf = (body: Record<string, unknown>) => body['error'] as { code: string; params?: Record<string, unknown> };
 
@@ -97,9 +125,40 @@ for (const [dialect, available] of LEGS) {
       expect(errorOf(refused.body)).toEqual({ code: 'PUBLIC_SOLD_OUT', params: { column: 'ticket_type_id' }, message: 'That is sold out.' });
     });
 
+    it('asks no more of a pool than the entry would say is left, where one order may take any number', async () => {
+      w = await lines(dialect, 246, { below: 10 });
+      // 14 left, not below 10: not said. Asking whether 15 are left would say it.
+      expect((await w.get('availability/lines_availability')).body['data']).toEqual([{ id: '1', state: 'on' }]);
+      expect((await w.get('availability/lines_availability?qty=15')).body['data']).toEqual([{ id: '1', state: 'on' }]);
+      expect((await w.get('availability/lines_availability?qty=50')).body['data']).toEqual([{ id: '1', state: 'on' }]);
+      // Nine left: said, and asking for ten is sold out.
+      await w.seed('cart_lines', [{ ticket_type_id: 1, qty: 5 }]);
+      expect((await w.get('availability/lines_availability?qty=10')).body['data']).toEqual([{ id: '1', state: 'soldout', left: 9 }]);
+      await w.close();
+      // Said below 5 % of 260 (13): 14 left is not said, and 14 may not be asked.
+      w = await lines(dialect, 246, { below_share: 5 });
+      expect((await w.get('availability/lines_availability?qty=14')).body['data']).toEqual([{ id: '1', state: 'on' }]);
+    });
+
+    it("lists only the room types a guest may read", async () => {
+      vi.setSystemTime(new Date('2026-07-20T09:00:00.000Z'));
+      w = await house(dialect, {
+        room_types: { source: 'room_types', methods: ['GET'], select: ['id', 'name'], filters: [{ column: 'name', op: 'neq', value: 'Harbour' }] },
+        stays_availability: { source: 'stays', methods: ['GET'], kind: 'availability' },
+      });
+      const answer = await w.get('availability/stays_availability?from=2026-07-31&to=2026-08-02');
+      expect(answer.status, JSON.stringify(answer.body)).toBe(200);
+      expect((answer.body['data'] as { pool: string }[]).map((p) => p.pool)).toEqual(['1', '2']);
+      await w.close();
+      // No plain public read of the room types: none listed.
+      w = await house(dialect, { stays_availability: { source: 'stays', methods: ['GET'], kind: 'availability' } });
+      expect((await w.get('availability/stays_availability?from=2026-07-31&to=2026-08-02')).body['data']).toEqual([]);
+    });
+
     it('answers each room type over a stay, drops the ones too small, and finds the earliest arrival with room', async () => {
       vi.setSystemTime(new Date('2026-07-20T09:00:00.000Z'));
       w = await house(dialect, {
+        room_types: { source: 'room_types', methods: ['GET'], select: ['id', 'name'] },
         stays: { source: 'stays', methods: ['POST'], select: ['id'], writable: ['arrive', 'depart', 'room_type_id'] },
         stays_availability: { source: 'stays', methods: ['GET'], kind: 'availability', show_left: { below: 3 } },
       });
@@ -171,9 +230,37 @@ for (const [dialect, available] of LEGS) {
       await w.create('stays', { arrive: '2026-07-31', depart: '2026-08-02', room_type_id: 1 });
       const nights = ((await w.staff('stays/capacity-counts?from=2026-07-31&days=2&ids=1')).body['data'] as { rows: unknown[] }).rows;
       expect(nights).toEqual([
-        { pool: '1', date: '2026-07-31', size: 4, taken: 1, held: 0, left: 3 },
-        { pool: '1', date: '2026-08-01', size: 4, taken: 1, held: 0, left: 3 },
+        { pool: '1', date: '2026-07-31', size: 4, outOfService: 0, taken: 1, held: 0, left: 3 },
+        { pool: '1', date: '2026-08-01', size: 4, outOfService: 0, taken: 1, held: 0, left: 3 },
       ]);
+      // Room 101 closed for the Saturday night: one fewer, and said.
+      await w.query(`insert into room_closures (room_id, from_date, to_date) values (1, '2026-08-01', '2026-08-01')`);
+      const closed = ((await w.staff('stays/capacity-counts?from=2026-07-31&days=2&ids=1')).body['data'] as { rows: unknown[] }).rows;
+      expect(closed).toEqual([
+        { pool: '1', date: '2026-07-31', size: 4, outOfService: 0, taken: 1, held: 0, left: 3 },
+        { pool: '1', date: '2026-08-01', size: 3, outOfService: 1, taken: 1, held: 0, left: 2 },
+      ]);
+    });
+
+    it("counts a limit only for a desk that may read the pools' rows, under a column it sees", async () => {
+      vi.setSystemTime(NEON_NOW);
+      w = await neon(dialect);
+      await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.pii', tableName: w.id('ticket_types'), columnName: 'name', value: { masked: true, kind: 'name' } as never });
+      const onlyTickets = await w.staffOf(['tickets'], 'tickets/capacity-counts?under=event_id&value=1');
+      expect(onlyTickets.status).toBe(403);
+      expect((onlyTickets.body['error'] as { code: string }).code).toBe('TABLE_FORBIDDEN');
+      expect((await w.staffOf(['tickets'], 'tickets/capacity-counts?ids=1')).status).toBe(403);
+      const all = ['tickets', 'ticket_types', 'events'];
+      const masked = await w.staffOf(all, 'tickets/capacity-counts?under=name&value=Neon%20Standard');
+      expect(masked.status).toBe(403);
+      expect((masked.body['error'] as { code: string }).code).toBe('COLUMN_FORBIDDEN');
+      const allowed = await w.staffOf(all, 'tickets/capacity-counts?under=event_id&value=1');
+      expect(allowed.status, JSON.stringify(allowed.body)).toBe(200);
+      expect((allowed.body['data'] as { rows: unknown[] }).rows).toHaveLength(3);
+      await w.close();
+      w = await house(dialect);
+      expect((await w.staffOf(['stays'], 'stays/capacity-counts?from=2026-07-31&days=2')).status).toBe(403);
+      expect((await w.staffOf(['stays', 'room_types', 'rooms', 'room_closures'], 'stays/capacity-counts?from=2026-07-31&days=2')).status).toBe(200);
     });
   });
 }

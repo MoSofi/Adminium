@@ -10,10 +10,15 @@
  * none of a guest's filters: no notice, pause or sales window hides a pool.
  * A pool made smaller after it was sold (a room out of service) can show less
  * than nothing left; that is said, not refused.
+ *
+ * The counts read the rows the pools are held on (the ticket types, the room
+ * types and their rooms): the asker must be able to read those tables too,
+ * and a column they are asked under must be one the asker sees unmasked.
  */
+import type { ResolvedTable } from '../identifiers.js';
 import type { Row } from '../mask.js';
 import type { WriteTarget } from '../write-context.js';
-import { addDays, Reads } from './count.js';
+import { addDays, outOfService, Reads } from './count.js';
 import { capacityState, rangeOf, tallyFor, widerKeysOf } from './judge.js';
 import { hhmm, slotDays } from './placement.js';
 import { rulesFor, type Rule } from './rules.js';
@@ -29,11 +34,17 @@ export interface CountsAsk {
   ids?: readonly string[] | undefined;
 }
 
+/** What the asker may read, beyond the limited table: each refuses (403) what they may not. */
+export interface CountsAccess {
+  table(tableId: string): Promise<void>;
+  column(table: ResolvedTable, name: string): Promise<void>;
+}
+
 export type CountsAnswer = { ok: true; data: { kind: Rule['kind']; rows: Record<string, unknown>[] } } | { ok: false; message: string };
 
 const refused = (message: string): CountsAnswer => ({ ok: false, message });
 
-export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: Date): Promise<CountsAnswer> {
+export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: Date, access: CountsAccess): Promise<CountsAnswer> {
   const rule = rulesFor(target.view, target.table)[ask.rule];
   if (rule === undefined) return refused('This table has no such limit.');
   const db = target.db;
@@ -89,10 +100,13 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
 
   if (rule.kind === 'parent') {
     if (rule.via === null) return { ok: true, data: { kind: 'parent', rows: [] } };
+    await access.table(rule.via.table.id);
+    for (const wider of rule.also) if (wider.via !== null) await access.table(wider.via.table.id);
     let ids = [...(ask.ids ?? [])];
     if (ask.under !== undefined) {
       // The rows sharing a value of one of their columns (the ticket types of an event).
       if (ask.value === undefined || !rule.via.table.columns.has(ask.under)) return refused('Ask under a column of the pools\' rows, with its value.');
+      await access.column(rule.via.table, ask.under);
       const found = (await db
         .selectFrom(rule.via.table.id)
         .select(db.dynamic.ref(rule.via.key) as never)
@@ -144,6 +158,9 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
   if (!strip) return refused('Ask for a from date with a number of days.');
   if (ask.days! > 62) return refused('Ask for at most 62 nights.');
   if (rule.via === null) return { ok: true, data: { kind: 'night', rows: [] } };
+  await access.table(rule.via.table.id);
+  if (rule.pool.kind === 'count') await access.table(rule.pool.table);
+  if (rule.outOfService !== null) await access.table(rule.outOfService.table);
   const pools =
     ask.ids !== undefined && ask.ids.length > 0
       ? ask.ids.slice(0, 200)
@@ -151,11 +168,13 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
           String(row[rule.via!.key]),
         );
   const states = await capacityState(db, target, { rule: rule.index, keys: pools, from: ask.from, to: addDays(ask.from!, ask.days!) }, now);
+  // Rooms out of service, per pool and night: what the size already leaves out.
+  const closed = await outOfService(rule, pools, rangeOf(ask.from!, addDays(ask.from!, ask.days!)), new Reads(db));
   return {
     ok: true,
     data: {
       kind: 'night',
-      rows: states.map((s) => ({ pool: s.key, date: s.at, size: s.size, taken: s.taken, held: s.held, left: s.left })),
+      rows: states.map((s) => ({ pool: s.key, date: s.at, size: s.size, outOfService: closed.get(s.key)?.get(s.at!) ?? 0, taken: s.taken, held: s.held, left: s.left })),
     },
   };
 }

@@ -299,20 +299,31 @@ export function ownerColumns(rule: Rule): string[] {
   return [...out];
 }
 
-/** A rule of another table whose rows belong to rows of this one (its owner): the owner's moves are judged for them. */
+/**
+ * A rule of another table whose rows' count reads rows of this one: the rows
+ * they belong to (tickets of an order), or the row a hold's end is read on
+ * (the waitlist offer an order is held for). A change of this table's rows is
+ * judged for them, as if they had moved.
+ */
 export interface OwnedRule {
   /** The child table, resolved in the same view. */
   table: ResolvedTable;
   rule: Rule;
-  /** The child's column pointing at the owner. */
+  /** The child's column the reach follows: its owner's link, or the link its hold's end is read through. */
   via: string;
-  /** The owner's columns the rule reads. */
+  /** This table's column the child's (or its owner's) link points at. */
+  key: string;
+  /** This table's columns the rule reads. */
   watched: readonly string[];
+  /** What this table's row is to the child: its owner, or where its hold's end is read. */
+  reads: 'owner' | 'end';
+  /** Reached through the child's owner (an owner's hold read on this table): the owner's table, its key, and its column pointing here. */
+  through?: { table: ResolvedTable; key: string; column: string } | undefined;
 }
 
 const OWNED = new WeakMap<ResolvedTable, OwnedRule[]>();
 
-/** The rules whose rows belong to rows of this table, one hop down (tickets of an order, lines of an order). */
+/** The rules whose rows' count reads rows of this table (tickets of an order; an order held for a waitlist offer's end). */
 export function ownedRules(view: SnapshotView, table: ResolvedTable): OwnedRule[] {
   const cached = OWNED.get(table);
   if (cached !== undefined) return cached;
@@ -323,13 +334,39 @@ export function ownedRules(view: SnapshotView, table: ResolvedTable): OwnedRule[
       const child = view.linkTable(model.id);
       if (child === null) continue;
       for (const rule of rulesFor(view, child)) {
-        if (rule.owner === null || rule.owner.table.id !== table.id) continue;
-        const watched = ownerColumns(rule);
-        if (watched.length > 0) out.push({ table: child, rule, via: rule.owner.column, watched });
+        if (rule.owner !== null && rule.owner.table.id === table.id) {
+          const watched = ownerColumns(rule);
+          if (watched.length > 0) out.push({ table: child, rule, via: rule.owner.column, key: rule.owner.key, watched, reads: 'owner' });
+        }
+        // A hold's end read on a row of this table: moving it may make a lapsed hold count again.
+        for (const end of rule.hold?.ends ?? []) {
+          if (end.link === null || end.link.table.id !== table.id) continue;
+          if (rule.hold!.level === 'own') {
+            out.push({ table: child, rule, via: end.link.column, key: end.link.key, watched: [end.column], reads: 'end' });
+          } else if (rule.owner !== null) {
+            const through = { table: rule.owner.table, key: rule.owner.key, column: end.link.column };
+            out.push({ table: child, rule, via: rule.owner.column, key: end.link.key, watched: [end.column], reads: 'end', through });
+          }
+        }
       }
     }
   }
   OWNED.set(table, out);
+  return out;
+}
+
+/**
+ * The columns of a row through which its count reads another row a write may
+ * change meanwhile: its owner's link, and the links its own hold's end is read
+ * through. A new row takes a lock per such link, the lock a change of the
+ * linked row takes too.
+ */
+export function linkColumns(rule: Rule): { column: string; table: ResolvedTable }[] {
+  const out: { column: string; table: ResolvedTable }[] = [];
+  if (rule.owner !== null) out.push({ column: rule.owner.column, table: rule.owner.table });
+  if (rule.hold?.level === 'own') {
+    for (const end of rule.hold.ends) if (end.link !== null && !out.some((o) => o.column === end.link!.column)) out.push({ column: end.link.column, table: end.link.table });
+  }
   return out;
 }
 

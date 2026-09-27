@@ -28,7 +28,6 @@ import { sql, type Kysely, type RawBuilder } from 'kysely';
 
 import type { CapacitySetting } from '../../connections/effective-schema.js';
 import type { SourceDatabase } from '../../connections/manager.js';
-import { settingOf } from '../capacity-guard.js';
 import type { ResolvedTable } from '../identifiers.js';
 import type { Row } from '../mask.js';
 import { readDay, readInstant } from '../moments.js';
@@ -45,11 +44,14 @@ export class Reads {
 
   constructor(readonly db: Db) {}
 
-  setting(setting: CapacitySetting): Promise<unknown> {
-    const key = `${setting.table}\u0000${setting.column}`;
-    let found = this.#settings.get(key);
-    if (found === undefined) this.#settings.set(key, (found = settingOf(this.db, setting)));
-    return found;
+  /** A setting's value: its table's one row is read once per call, whichever of its columns are asked. */
+  async setting(setting: CapacitySetting): Promise<unknown> {
+    let found = this.#settings.get(setting.table);
+    if (found === undefined) {
+      this.#settings.set(setting.table, (found = this.db.selectFrom(setting.table).selectAll().limit(1).executeTakeFirst()));
+    }
+    const row = (await found) as Row | undefined;
+    return row?.[setting.column];
   }
 
   async number(value: number | CapacitySetting | undefined): Promise<number | null> {
@@ -319,7 +321,7 @@ export async function poolRow(rule: Extract<Rule, { kind: 'parent' }>, part: str
 }
 
 /** Rooms of a type out of service, per night of `nights`: counted from the closures that cover it. */
-async function outOfService(
+export async function outOfService(
   rule: Extract<Rule, { kind: 'night' }>,
   keys: readonly string[],
   nights: readonly string[],

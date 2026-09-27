@@ -92,6 +92,22 @@ for (const [dialect, available] of LEGS) {
       expect(await line('2026-07-28 13:45', 3)).toMatchObject({ code: 'CAPACITY_FULL' });
     });
 
+    it('refuses a line of none or fewer portions, new or shrunk, whatever else it asks', async () => {
+      w = await kitchen(dialect);
+      clock('2026-07-28 11:40');
+      const made = await w.create('orders', { pickup_at: iso('2026-07-28 13:00') }, 'dashboard');
+      const refused = { code: 'VALIDATION_FAILED', details: { fields: { qty: { code: 'out-of-range' } }, reason: 'CAPACITY_OUT_OF_RANGE', row: 0 } };
+      expect(await refusal(w.create('order_items', { order_id: made['id'], menu_item_id: 1, qty: 0 }))).toEqual(refused);
+      expect(await refusal(w.create('order_items', { order_id: made['id'], menu_item_id: 1, qty: 2 }))).toBe('ok');
+      const line = (await w.query('select max(id) as id from order_items'))[0]!['id'];
+      // Shrunk below nothing, the day's two portions would be sold again.
+      expect(await refusal(w.update('order_items', line, { qty: -10 }))).toEqual(refused);
+      expect(await refusal(w.update('order_items', line, { qty: 0 }))).toEqual(refused);
+      expect(await refusal(w.create('order_items', { order_id: made['id'], menu_item_id: 1, qty: 1 }))).toMatchObject({ code: 'CAPACITY_FULL' });
+      expect(await refusal(w.update('order_items', line, { qty: 1 }))).toBe('ok');
+      expect(await refusal(w.create('order_items', { order_id: made['id'], menu_item_id: 1, qty: 1 }))).toBe('ok');
+    });
+
     it("judges an order moved to a sold-out day for its lines, on the order's own column", async () => {
       w = await kitchen(dialect);
       clock('2026-07-28 11:40');
