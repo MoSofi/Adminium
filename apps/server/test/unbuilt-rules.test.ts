@@ -55,7 +55,9 @@ describe('the entries this server does not run yet', () => {
     expect(unbuiltEntryRuleOf({ writable_when: { starts_at: { after: { minus: { hours: 2 } } } } })).toBeNull();
     expect(unbuiltEntryRuleOf({ writable_when: { status: ['booked', 'held'], starts_at: { within: 30 } } })).toBeNull();
     expect(unbuiltEntryRuleOf({ writable_when: { paid_at: [null], starts_at: 'from-now' } })).toBeNull();
-    expect(unbuiltEntryRuleOf({ source: 'tickets', children: {} })).toBe('children');
+    // A create with its child rows, its checks, a dry run, a price check and a retry key run now.
+    expect(unbuiltEntryRuleOf({ source: 'tickets', children: {}, agrees: [], dry_run: true, expect: 'total', client_key: 'client_key' })).toBeNull();
+    expect(unbuiltEntryRuleOf({ source: 'tickets', children: {}, find_or_create: { identity_ref: 'customers' } })).toBe('find_or_create');
     expect(unbuiltEntryRuleOf({ source: 'tickets', withhold: { columns: ['code'], unless_holder: 'holder_customer_id' } })).toBe('withhold');
     expect(unbuiltEntryRuleOf({ source: 'tickets' })).toBeNull();
   });

@@ -80,6 +80,8 @@ import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type Upda
 import type { Dialect } from '@adminium/engine';
 import type { TablePrivileges } from '@adminium/engine/adapter';
 
+import { rollupValue } from '@adminium/manifest';
+
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
@@ -124,6 +126,7 @@ import {
   isUniqueViolation,
   regenerateCodes,
   resolveRow,
+  sequenceKey,
   type CopyMemo,
   type SequenceStore,
 } from './decided-columns.js';
@@ -132,8 +135,11 @@ import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
 import { stampNow, writeClock, type WriteClock } from './write-clock.js';
-import type { CreateTree } from './write-tree.js';
-import { notBuiltYet } from './not-built.js';
+import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
+import type { CreateTree, TreeNode, TreeOutcome, TreeWritten } from './write-tree.js';
+import { judgeCapacity } from './capacity/judge.js';
+import { LockMoved, withNamedLocks, type NamedLock } from './capacity/locks.js';
+import type { PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
 
@@ -655,14 +661,33 @@ async function rollupStatement(
   places: number,
   read: 'locking' | 'plain' = 'locking',
 ): Promise<void> {
-  const amount = rollup.times === undefined ? sql`${sql.ref(rollup.sum)}` : sql`${sql.ref(rollup.sum)} * ${sql.ref(rollup.times)}`;
-  const rounded = roundedSql(dialect, sql`coalesce(sum(${amount}), 0)`, places);
   const conditions = [
     sql`${sql.ref(rollup.via)} = ${parentKey}`,
     ...(rollup.unlessSet === undefined ? [] : [sql`${sql.ref(rollup.unlessSet)} is null`]),
     ...(rollup.where === undefined ? [] : [sql`${sql.ref(rollup.where.column)} = ${bindValue(dialect, rollup.where.eq)}`]),
   ];
-  const added = sql`(select ${rounded} from ${sql.table(rollup.child)} where ${sql.join(conditions, sql` and `)})`;
+  const where = sql.join(conditions, sql` and `);
+  /*
+   * SQLite adds decimals as floats: a line of 1.500 × 0.33 is a hair under
+   * 0.495 there and rounds to 0.49, where Postgres and MySQL, adding exact
+   * decimals, round to 0.50. So SQLite reads the rows and adds them up
+   * exactly here (it has one writer: the read needs no lock); a count is
+   * exact everywhere and stays in SQL.
+   */
+  if (dialect === 'sqlite' && rollup.count !== true) {
+    const columns = [rollup.sum, ...(rollup.times === undefined ? [] : [rollup.times])];
+    const rows = (await sql<Row>`select ${sql.join(columns.map((column) => sql.ref(column)))} from ${sql.table(rollup.child)} where ${where}`.execute(db)).rows;
+    await db
+      .updateTable(rollup.parent)
+      .set({ [rollup.column]: rollupValue(rows, { sum: rollup.sum, times: rollup.times }, places) } as never)
+      .where((eb) => eb(db.dynamic.ref(rollup.parentKey), '=', parentKey))
+      .execute();
+    return;
+  }
+  const amount = rollup.times === undefined ? sql`${sql.ref(rollup.sum)}` : sql`${sql.ref(rollup.sum)} * ${sql.ref(rollup.times)}`;
+  // A count of rows is a whole number: nothing to round.
+  const rounded = rollup.count === true ? sql`count(*)` : roundedSql(dialect, sql`coalesce(sum(${amount}), 0)`, places);
+  const added = sql`(select ${rounded} from ${sql.table(rollup.child)} where ${where})`;
   /*
    * MySQL reads the rows an UPDATE's subquery adds up with shared locks, gap
    * included — up to the end of the index for the newest parent. Taken BEFORE
@@ -880,6 +905,289 @@ export async function capRefusal(
   return null;
 }
 
+// --- totals that climb -------------------------------------------------------
+
+/** A chain climbs this many rows high at most: option → line → order → customer. */
+const CLIMB_HOPS = 3;
+
+/** Where a write's rows start a chain: each total they feed, and the parents they feed it in — before and after a move. */
+function chainStarts(rules: TableRules | null, rows: readonly { record: Row | null; before: Row | null }[]): ClimbStart[] {
+  const out: ClimbStart[] = [];
+  for (const rollup of rules?.rollupsInto ?? []) {
+    const keys = new Map<string, unknown>();
+    for (const row of rows) {
+      for (const side of [row.record, row.before]) {
+        const key = side?.[rollup.via];
+        if (key !== null && key !== undefined) keys.set(String(key), key);
+      }
+    }
+    if (keys.size > 0) out.push({ rollup, keys: [...keys.values()] });
+  }
+  return out;
+}
+
+/** One table's rows at one height of a chain: the totals that reach it, and their keys. */
+interface ChainLevel {
+  table: string;
+  keyColumn: string;
+  /** The totals of this table the chain moves (one parent's; they share its balances). */
+  rollups: RollupInto[];
+  keys: Map<string, unknown>;
+}
+
+/** The starts grouped by parent table, keys deduplicated. */
+function chainLevel(start: readonly ClimbStart[]): Map<string, ChainLevel> {
+  const out = new Map<string, ChainLevel>();
+  for (const { rollup, keys } of start) {
+    const level = out.get(rollup.parent) ?? { table: rollup.parent, keyColumn: rollup.parentKey, rollups: [], keys: new Map<string, unknown>() };
+    if (!level.rollups.includes(rollup)) level.rollups.push(rollup);
+    for (const key of keys) if (key !== null && key !== undefined) level.keys.set(String(key), key);
+    out.set(rollup.parent, level);
+  }
+  return out;
+}
+
+/** The totals one height up from these, by the link each row climbs through. */
+function climbsOf(level: ChainLevel): RollupInto[] {
+  const out: RollupInto[] = [];
+  for (const rollup of level.rollups) for (const climb of rollup.climbs) if (!out.includes(climb)) out.push(climb);
+  return out;
+}
+
+/** A write-conflict refusal: a row moved between being found and being held. */
+function climbMoved(table: string): ConflictError {
+  return new ConflictError('A row these totals climb through moved at the same moment. Try again.', 'WRITE_CONFLICT', { retry: true, table });
+}
+
+/** Rows by key, with the columns asked for — held (`FOR UPDATE`, in key order) where the engine can, else read. */
+async function rowsByKey(db: Db, dialect: Dialect, table: string, keyColumn: string, keys: Iterable<unknown>, columns: readonly string[], hold: boolean): Promise<Map<string, Row>> {
+  const unique = new Map<string, unknown>();
+  for (const key of keys) if (key !== null && key !== undefined) unique.set(String(key), key);
+  if (unique.size === 0) return new Map();
+  let query = db
+    .selectFrom(table)
+    .select([...new Set([keyColumn, ...columns])] as never)
+    .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
+    .orderBy(keyColumn as never);
+  // FOR UPDATE, as the states guard holds a parent: one row held two ways in one write would be a lock upgrade.
+  if (hold && dialect !== 'sqlite') query = query.forUpdate();
+  const rows = (await query.execute()) as Row[];
+  return new Map(rows.map((row) => [String(row[keyColumn]), row]));
+}
+
+/**
+ * HOLD a chain top-down: the rows a write's totals climb into, highest first,
+ * each height sorted by table then key — every writer takes a customer
+ * before an order and an order before its lines, so two never wait on each
+ * other crosswise. The heights above the first are found by reading, without
+ * a lock, the link each row climbs by; each row is read again once held, and
+ * a row moved in between (a line moved to another order) is 409
+ * `WRITE_CONFLICT {retry: true}`. The first height is held as a single-row
+ * write always held it: its totals added up again first when it keeps a
+ * balance (what is stored may lag), then its balances read — what a capped
+ * balance is judged against. SQLite writes one transaction at a time and
+ * takes no lock, and there the heights above the first are not read at all.
+ */
+export const holdChain: HoldChain = (db, dialect, start, currency) => holdChainWith(db, dialect, start, currency, true);
+
+/** {@link holdChain}; `catchUp: false` holds the first height without adding its totals up again (it is read again later). */
+async function holdChainWith(db: Db, dialect: Dialect, start: readonly ClimbStart[], currency: CurrencyOf, catchUp: boolean): Promise<HeldBalances> {
+  const held: HeldBalances = new Map();
+  const first = chainLevel(start);
+  // Peek up: the heights above the first, and the link each row was found through.
+  const heights: Map<string, ChainLevel>[] = [];
+  const peeked = new Map<string, Map<string, unknown>>();
+  if (dialect !== 'sqlite') {
+    let current = [...first.values()];
+    for (let hop = 1; hop < CLIMB_HOPS && current.length > 0; hop += 1) {
+      const next = new Map<string, ChainLevel>();
+      for (const level of current) {
+        const climbs = climbsOf(level);
+        if (climbs.length === 0) continue;
+        const rows = await rowsByKey(db, dialect, level.table, level.keyColumn, level.keys.values(), [...new Set(climbs.map((climb) => climb.via))], false);
+        for (const [key, row] of rows) {
+          const links = peeked.get(`${level.table}\u0000${key}`) ?? new Map<string, unknown>();
+          for (const climb of climbs) {
+            const up = row[climb.via];
+            links.set(climb.via, up ?? null);
+            if (up === null || up === undefined) continue;
+            const entry = next.get(climb.parent) ?? { table: climb.parent, keyColumn: climb.parentKey, rollups: [], keys: new Map<string, unknown>() };
+            if (!entry.rollups.includes(climb)) entry.rollups.push(climb);
+            entry.keys.set(String(up), up);
+            next.set(climb.parent, entry);
+          }
+          peeked.set(`${level.table}\u0000${key}`, links);
+        }
+      }
+      if (next.size > 0) heights.push(next);
+      current = [...next.values()];
+    }
+  }
+  /** Held rows' links, read holding them, against what the peek found. */
+  const verify = (table: string, rows: Map<string, Row>): void => {
+    for (const [key, row] of rows) {
+      const links = peeked.get(`${table}\u0000${key}`);
+      for (const [via, was] of links ?? []) {
+        if (String(row[via] ?? null) !== String(was ?? null)) throw climbMoved(table);
+      }
+    }
+  };
+  const sorted = (levels: Map<string, ChainLevel>) => [...levels.values()].sort((a, b) => (a.table < b.table ? -1 : a.table > b.table ? 1 : 0));
+  // Hold top-down: the highest rows first.
+  for (const height of [...heights].reverse()) {
+    for (const level of sorted(height)) {
+      const vias = [...new Set(climbsOf(level).map((climb) => climb.via))];
+      const balances = level.rollups[0]?.balances ?? [];
+      const rows = await rowsByKey(db, dialect, level.table, level.keyColumn, level.keys.values(), [...vias, ...balances.map((b) => b.column)], true);
+      verify(level.table, rows);
+      const known = held.get(level.table) ?? new Map<string, Row>();
+      for (const [key, row] of rows) known.set(key, row);
+      held.set(level.table, known);
+    }
+  }
+  // The first height, as a single-row write always held it.
+  for (const level of sorted(first)) {
+    const rollup = level.rollups[0]!;
+    const vias = dialect === 'sqlite' ? [] : [...new Set(climbsOf(level).map((climb) => climb.via))];
+    const found = await rowsByKey(db, dialect, level.table, level.keyColumn, level.keys.values(), [...vias, ...rollup.balances.map((b) => b.column)], true);
+    verify(level.table, found);
+    if (rollup.balances.length > 0 && catchUp) {
+      for (const key of level.keys.values()) {
+        if (!found.has(String(key))) continue;
+        // A catch-up before this write's own rows go in: read plainly (see `rollupStatement`).
+        await settleParent(db, dialect, rollup.siblings, key, rollup.balances, currency, 'plain');
+      }
+      held.set(level.table, await rowsByKey(db, dialect, level.table, level.keyColumn, level.keys.values(), rollup.balances.map((b) => b.column), true));
+    } else {
+      const known = held.get(level.table) ?? new Map<string, Row>();
+      for (const [key, row] of found) known.set(key, row);
+      held.set(level.table, known);
+    }
+  }
+  return held;
+}
+
+/**
+ * SETTLE a chain bottom-up: each parent the write moved adds up its totals,
+ * works out the formulas that read them, then its balances; then the rows
+ * one height up that add up what moved, and so on, three rows high at most.
+ * Each height is settled from the one below it just written, so the order's
+ * total takes the line amounts the line's options have just changed. A row
+ * is settled once per total however many rows below it moved (an import of a
+ * thousand options settles each line once and each order once).
+ */
+export const settleChain: SettleChain = async (db, dialect, start, currency, opts = {}) => {
+  const read = opts.read ?? 'locking';
+  const done = new Set<string>();
+  let level: ClimbStart[] = [...start];
+  for (let hop = 0; hop < CLIMB_HOPS && level.length > 0; hop += 1) {
+    const climbing = new Map<string, ChainLevel>();
+    for (const { rollup, keys } of level) {
+      const unique = new Map<string, unknown>();
+      for (const key of keys) if (key !== null && key !== undefined) unique.set(String(key), key);
+      for (const [text, key] of unique) {
+        const id = `${rollup.parent}.${rollup.column}\u0000${text}`;
+        if (done.has(id)) continue;
+        done.add(id);
+        if (opts.only !== undefined && !opts.only(rollup.parent, key)) continue;
+        await settleParent(db, dialect, [rollup], key, rollup.balances, currency, read);
+        const cap = opts.cap;
+        if (cap !== undefined && rollup.capped) {
+          const was = cap === 'strict' ? undefined : cap.get(rollup.parent)?.get(text);
+          const refusal = await capRefusal(db, rollup.parent, rollup.parentKey, key, guardedBy(rollup), was);
+          if (refusal !== null) throw refusal;
+        }
+        if (rollup.climbs.length === 0) continue;
+        const entry = climbing.get(rollup.parent) ?? { table: rollup.parent, keyColumn: rollup.parentKey, rollups: [], keys: new Map<string, unknown>() };
+        if (!entry.rollups.includes(rollup)) entry.rollups.push(rollup);
+        entry.keys.set(text, key);
+        climbing.set(rollup.parent, entry);
+      }
+    }
+    // One height up: each settled row's link to the rows that add it up, read as it is now (held on Postgres and MySQL).
+    const next: ClimbStart[] = [];
+    for (const entry of climbing.values()) {
+      const climbs = climbsOf(entry);
+      const rows = await rowsByKey(db, dialect, entry.table, entry.keyColumn, entry.keys.values(), [...new Set(climbs.map((climb) => climb.via))], read === 'locking');
+      for (const climb of climbs) {
+        const keys = [...rows.values()].map((row) => row[climb.via]).filter((key) => key !== null && key !== undefined);
+        if (keys.length > 0) next.push({ rollup: climb, keys });
+      }
+    }
+    level = next;
+  }
+};
+
+/**
+ * The columns a chain above this table's rows will write: every total the
+ * write moves, and every one it climbs into — each with the formulas that read
+ * it and the balances beside it — by table. What the connection's role must
+ * be granted before the write's first statement.
+ */
+function chainColumns(rollups: readonly RollupInto[]): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const visit = (rollup: RollupInto, hop: number): void => {
+    const columns = out.get(rollup.parent) ?? new Set<string>();
+    const before = columns.size;
+    for (const column of [rollup.column, ...rollup.derived, ...rollup.balances.map((b) => b.column)]) columns.add(column);
+    out.set(rollup.parent, columns);
+    if (hop + 1 >= CLIMB_HOPS || (columns.size === before && before > 0)) return;
+    for (const climb of rollup.climbs) visit(climb, hop + 1);
+  };
+  for (const rollup of rollups) visit(rollup, 0);
+  return out;
+}
+
+// --- a create with its child rows -------------------------------------------
+
+/** One row of a tree write: its node, its table with the role's grants, where it hangs. */
+interface TreeRow {
+  node: TreeNode;
+  target: WriteTarget;
+  parent: TreeRow | null;
+  /** Its place among the rows of the same list under the same parent. */
+  index: number;
+  depth: number;
+}
+
+/**
+ * How a tree's transaction ends without committing, and without a refusal: a
+ * quote (always rolled back), a retry of a create already made, or a twin
+ * with the same retry key that committed first.
+ */
+class TreeSignal extends Error {
+  override readonly name = 'TreeSignal';
+
+  constructor(
+    readonly kind: 'dry' | 'replayed' | 'twin',
+    readonly outcome: TreeOutcome | null,
+    readonly original?: unknown,
+  ) {
+    super(kind);
+  }
+}
+
+/** A row's key as text (its one key column's value, or its columns' values), or null while any is empty. */
+function keyOf(table: ResolvedTable, row: Row): string | null {
+  const values = table.primaryKey.map((column) => row[column]);
+  if (values.length === 0 || values.some((value) => value === null || value === undefined)) return null;
+  return values.length === 1 ? String(values[0]) : JSON.stringify(values.map(String));
+}
+
+/** Rows by key held for this transaction — for update, or for share — in key order; SQLite has one writer and holds nothing. */
+async function holdKeys(db: Db, dialect: Dialect, table: string, keyColumn: string, keys: Iterable<unknown>, share: boolean): Promise<void> {
+  if (dialect === 'sqlite') return;
+  const unique = new Map<string, unknown>();
+  for (const key of keys) if (key !== null && key !== undefined) unique.set(String(key), key);
+  if (unique.size === 0) return;
+  const query = db
+    .selectFrom(table)
+    .select(sql<number>`1`.as('adm_one'))
+    .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
+    .orderBy(keyColumn as never);
+  await (share ? query.forShare() : query.forUpdate()).execute();
+}
+
 // --- values after hooks --------------------------------------------------------
 
 /** better-sqlite3 refuses boolean binds; the import has always converted them. */
@@ -956,6 +1264,17 @@ export interface UpdateRecordInput {
   recheck?: ((values: Row) => Promise<void>) | undefined;
   mapError?: ((error: unknown) => never) | undefined;
   announce: (outcome: UpdateOutcome) => Promise<void>;
+  /**
+   * `dry`: the change tried and rolled back — a quote of it. No named lock is
+   * taken, nothing is kept and nothing announced; the outcome carries the row
+   * as the change would leave it. A save by default.
+   */
+  mode?: 'save' | 'dry' | undefined;
+  /**
+   * The row as the change leaves it, inside its transaction, against the
+   * figure the caller expected: throws to refuse the change (a save only).
+   */
+  expect?: ((db: Kysely<SourceDatabase>, after: Row) => Promise<void>) | undefined;
   /** A public entry's windows read from moments: the change is refused outside them, judged holding the row. */
   windows?: readonly StateWindow[] | undefined;
 }
@@ -1065,6 +1384,18 @@ export class BalanceBatchError extends AppError {
 
 /** The row moved to another day between naming the booking lock and holding it. */
 class DayMoved extends Error {}
+
+/** How a quote of a change ends: rolled back, with the row as the change would have left it. */
+class UpdateQuoted extends Error {
+  override readonly name = 'UpdateQuoted';
+
+  constructor(
+    readonly after: Row | null,
+    readonly count: number,
+  ) {
+    super('quoted');
+  }
+}
 
 /** The balances of the rows a write holds, per parent table, per key, as they were before it. */
 type Held = Map<string, Map<string, Row>>;
@@ -1317,6 +1648,21 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     target.rights !== undefined || opts.rights === undefined
       ? target
       : { ...target, rights: await opts.rights(target.connectionId, target.table.id) };
+
+  /**
+   * The columns a write's totals will write in other rows — each parent's
+   * total, the formulas that read it and the balances beside it, and every
+   * row they climb into — refused by name before the first statement when the
+   * connection's role may not write them. Left to the database, the refusal
+   * would come at the settle and name only a table.
+   */
+  const refuseUngrantedChain = async (target: WriteTarget, rollups: readonly RollupInto[]): Promise<void> => {
+    if (rollups.length === 0 || opts.rights === undefined) return;
+    for (const [table, columns] of chainColumns(rollups)) {
+      const rights = table === target.table.id && target.rights !== undefined ? target.rights : await opts.rights(target.connectionId, table);
+      refuseUngrantedColumns(rights, { id: table }, 'update', [...columns]);
+    }
+  };
 
   /** The connection's currency, read at most once per write, and only when a `currency` scale asks for it. */
   const currencyFor = (target: WriteTarget): CurrencyOf => {
@@ -1712,18 +2058,6 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     }
   }
 
-  /** The parents a written row feeds, per total — before and after a move. */
-  function parentsOf(rollup: RollupInto, rows: readonly { record: Row | null; before: Row | null }[]): unknown[] {
-    const parents = new Map<string, unknown>();
-    for (const row of rows) {
-      for (const side of [row.record, row.before]) {
-        const key = side?.[rollup.via];
-        if (key !== null && key !== undefined) parents.set(String(key), key);
-      }
-    }
-    return [...parents.values()];
-  }
-
   /**
    * Hold every parent row whose totals the write will move, in table then key
    * order — whether or not it keeps a balance: two writers adding lines to one
@@ -1739,25 +2073,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     rows: readonly { record: Row | null; before: Row | null }[],
     currency: CurrencyOf,
   ): Promise<Held> {
-    const held: Held = new Map();
-    const byParent = new Map<string, { rollup: RollupInto; keys: unknown[] }>();
-    for (const rollup of rules?.rollupsInto ?? []) {
-      const entry = byParent.get(rollup.parent) ?? { rollup, keys: [] };
-      entry.keys.push(...parentsOf(rollup, rows));
-      byParent.set(rollup.parent, entry);
-    }
-    for (const parent of [...byParent.keys()].sort()) {
-      const { rollup, keys } = byParent.get(parent)!;
-      const found = await holdBalances(target.db, target.dialect, parent, rollup.parentKey, keys, rollup.balances);
-      if (rollup.balances.length === 0) continue;
-      for (const key of keys) {
-        if (!found.has(String(key))) continue;
-        // A catch-up before this write's own rows go in: read plainly (see `rollupStatement`).
-        await settleParent(target.db, target.dialect, rollup.siblings, key, rollup.balances, currency, 'plain');
-      }
-      held.set(parent, await holdBalances(target.db, target.dialect, parent, rollup.parentKey, keys, rollup.balances));
-    }
-    return held;
+    // Every row the totals climb into, top-down: the grandparents before the parents.
+    return holdChain(target.db, target.dialect, chainStarts(rules, rows), currency);
   }
 
   /**
@@ -1770,22 +2087,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    */
   async function holdFirst(rules: TableRules | null, target: WriteTarget, pk: Row, values?: Row): Promise<void> {
     if (target.dialect === 'sqlite') return;
-    const feeds = rules?.rollupsInto ?? [];
-    if (feeds.length > 0) {
+    if ((rules?.rollupsInto?.length ?? 0) > 0) {
       const peek = (await fetchByPk(target.db, target.table, pk)) ?? null;
-      const byParent = new Map<string, { key: string; keys: unknown[] }>();
-      for (const rollup of feeds) {
-        const entry = byParent.get(rollup.parent) ?? { key: rollup.parentKey, keys: [] };
-        for (const side of [peek, values ?? null]) {
-          const key = side?.[rollup.via];
-          if (key !== null && key !== undefined) entry.keys.push(key);
-        }
-        byParent.set(rollup.parent, entry);
-      }
-      for (const parent of [...byParent.keys()].sort()) {
-        const { key, keys } = byParent.get(parent)!;
-        await holdBalances(target.db, target.dialect, parent, key, keys, []);
-      }
+      // The whole chain above the row, top-down; the balances are read again once the row is held.
+      await holdChainWith(target.db, target.dialect, chainStarts(rules, [{ record: values ?? null, before: peek }]), NO_CURRENCY, false);
     }
     await holdParentsFirst(target.db, target.dialect, target.table, pk, values);
   }
@@ -1820,15 +2125,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     currency: CurrencyOf,
     cap?: Held | 'strict',
   ): Promise<void> {
-    for (const rollup of rules?.rollupsInto ?? []) {
-      for (const key of parentsOf(rollup, rows)) {
-        await settleParent(target.db, target.dialect, [rollup], key, rollup.balances, currency);
-        if (cap === undefined || !rollup.capped) continue;
-        const was = cap === 'strict' ? undefined : cap.get(rollup.parent)?.get(String(key));
-        const refusal = await capRefusal(target.db, rollup.parent, rollup.parentKey, key, guardedBy(rollup), was);
-        if (refusal !== null) throw refusal;
-      }
-    }
+    // Bottom-up: each parent, then the rows above it that add it up.
+    await settleChain(target.db, target.dialect, chainStarts(rules, rows), currency, { cap });
   }
 
   /** Whether a write to this table settles a total: a parent's, or its own. */
@@ -1874,8 +2172,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const key = row?.[own[0]?.parentKey ?? ''];
     if (own.length === 0 || key === null || key === undefined) return;
     const moved = action === 'create' ? (rules?.balances ?? []) : movedBalances(rules, values);
-    // A new row's totals, and the formulas that read them; its balances just below.
-    if (action === 'create') await settleParent(target.db, target.dialect, own, key, [], currency);
+    // A new row's totals, and the formulas that read them, and what climbs from them; its balances just below.
+    if (action === 'create') await settleChain(target.db, target.dialect, own.map((rollup) => ({ rollup, keys: [key] })), currency);
     if (moved.length === 0) return;
     await settleBalances(target.db, target.dialect, target.table.id, own[0]!.parentKey, moved, key, {
       currencyColumn: rules?.currencyColumn,
@@ -1897,6 +2195,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   async function settle(action: WriteAction, target: WriteTarget, rows: WrittenRow[], settleOpts?: { cap?: boolean }): Promise<void> {
     const rules = rulesOf(target);
     if (rows.length === 0 || !settles(rules)) return;
+    await refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(action === 'delete' ? [] : (rules?.ownRollups ?? []))]);
     const currency = currencyFor(target);
     const sides = rows.map((row) => (action === 'delete' ? { record: null, before: row.record } : { record: row.record, before: row.before }));
     const run = async (db: Db): Promise<void> => {
@@ -1904,12 +2203,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (holdsParent(rules)) await holdParents(rules, within, sides, currency);
       await settleRows(rules, within, sides, currency, settleOpts?.cap === true ? 'strict' : undefined);
       if (action === 'delete' || (rules?.ownRollups?.length ?? 0) === 0) return;
-      for (const row of rows) {
-        const key = row.record[rules!.ownRollups![0]!.parentKey];
-        if (key === null || key === undefined) continue;
-        // Its own totals too, and what they feed: a restored or edited row may carry child rows written beside it.
-        await settleParent(db, target.dialect, rules!.ownRollups!, key, rules?.balances ?? [], currency);
-      }
+      const keys = rows.map((row) => row.record[rules!.ownRollups![0]!.parentKey]).filter((key) => key !== null && key !== undefined);
+      // Its own totals too, and what they feed: a restored or edited row may carry child rows written beside it.
+      if (keys.length > 0) await settleChain(db, target.dialect, rules!.ownRollups!.map((rollup) => ({ rollup, keys })), currency);
     };
     await (holdsParent(rules) || (rules?.balances?.length ?? 0) > 0 ? atomically(target, run) : run(target.db));
   }
@@ -1987,6 +2283,151 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (movedBalances(rules, values, record).some((balance) => balance.cappedBy.length > 0)) throw new BalanceBatchError(target.table.name);
   }
 
+  /** A create's row as `prepareOne` leaves it: checked, carried, and what its INSERT needs. */
+  interface PreparedCreate {
+    rules: TableRules | null;
+    zone: string | undefined;
+    /** The values after FORMULA. */
+    values: Row;
+    checked: CheckedRow;
+    /** The codes generated here, and left alone by the hooks: made again when one collides. */
+    codes: ColumnCode[];
+  }
+
+  /**
+   * A new row prepared, the one way a single create and a create with its
+   * child rows both do it: FILL, RESOLVE, DECIDE, the before hooks (when
+   * asked: a save's own row, outside any transaction), FORMULA, CHECK, then
+   * what its numbers need and what its statement is judged by. A quote
+   * (`dry`) takes no number: a column that must hold one is given the next
+   * as it stands, unclaimed. `grants` refuses, by name, every column the
+   * INSERT will write that the role may not — the decided ones included.
+   */
+  async function prepareOne(input: {
+    target: WriteTarget;
+    values: Row;
+    context: WriteContext;
+    clock: WriteClock;
+    mode: 'save' | 'dry';
+    hooks: boolean;
+    recheck?: ((values: Row) => Promise<void>) | undefined;
+    mapError?: ((error: unknown) => never) | undefined;
+    grants?: boolean | undefined;
+  }): Promise<PreparedCreate> {
+    const { target, context, clock, mapError } = input;
+    refuseUnbuiltTable(target);
+    refuseEarly(target, 'create', input.values, mapError);
+    const hooks = current();
+    const rules = rulesOf(target);
+    const zone = await zoneFor(rules, target);
+    const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone);
+    const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo'), opts.settings);
+    // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
+    const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
+    // A total, a formula and a number are Adminium's alone, whatever a hook set.
+    const hooked =
+      input.hooks && (await hooks.wants('before', 'create', target, context))
+        ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
+        : decided;
+    const values = await formulate(rules, 'create', target, hooked, null);
+    if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
+    const judged = await checkAllOrThrow(rules, 'create', target, context, values, null, mapError);
+    // What a number without gaps needs at its INSERT, read before any lock is taken; a quote takes none.
+    const numbered = input.mode === 'save' ? await prepareNumbers(rules, 'create', target, judged, context.origin, opts.settings) : await unclaimedNumbers(rules, target, judged);
+    const checked = await carry(rules, 'create', target, context, brand(numbered), null, clock);
+    if (input.grants === true) refuseUngrantedColumns(target.rights, target.table, 'create', Object.keys(checked));
+    // Only the codes generated here, and left alone by the hooks, are made again.
+    const codes = generatedCodes(rules, filled, context.origin === 'undo').filter((code) => values[code.column] === resolved[code.column]);
+    return { rules, zone, values, checked, codes };
+  }
+
+  /**
+   * A quote's running numbers: none claimed from the counter, none taken in a
+   * series. A column that must hold one is given the counter's next as it
+   * stands; any other is left empty (the reply never shows one).
+   */
+  async function unclaimedNumbers(rules: TableRules | null, target: WriteTarget, values: Row): Promise<Row> {
+    let out: Row | null = null;
+    for (const sequence of rules?.sequences ?? []) {
+      if (Object.prototype.hasOwnProperty.call(values, sequence.column) || target.table.columns.get(sequence.column)?.nullable !== false) continue;
+      const next = (await opts.sequences?.read(sequenceKey(target.connectionId, target.table, sequence.column)))?.next ?? sequence.start;
+      out ??= { ...values };
+      out[sequence.column] = sequence.logicalType === 'text' || sequence.logicalType === 'varchar' ? String(next) : next;
+    }
+    return out ?? values;
+  }
+
+  /**
+   * A tree row's values as sent, with each link a copy fills (a ticket's
+   * event, copied through its type) read through its source without a lock —
+   * what its locks and the rows it is tied to are named from. A copy through
+   * the row's own parent in the tree reads the parent's values.
+   */
+  async function peekLinks(row: TreeRow, values: Row, parent: Row | null): Promise<Row> {
+    const rules = rulesOf(row.target);
+    const links = new Set([
+      ...(rules?.rollupsInto ?? []).map((rollup) => rollup.via),
+      ...(row.target.table.table?.stateParents ?? []).flatMap((p) => [p.via, ...(p.links ?? []).map((link) => link.via)]),
+    ]);
+    let out: Row | null = null;
+    for (const copy of rules?.copies ?? []) {
+      if (!links.has(copy.column)) continue;
+      const sent = values[copy.column];
+      if (copy.mode === 'default' && sent !== null && sent !== undefined) continue;
+      out ??= { ...values };
+      if (copy.via === row.node.via?.column) {
+        out[copy.column] = parent?.[copy.from] ?? null;
+        continue;
+      }
+      const link = values[copy.via];
+      if (link === null || link === undefined) continue;
+      const db = row.target.db;
+      const found = (await db
+        .selectFrom(copy.toTable)
+        .select(sql<unknown>`${sql.ref(copy.from)}`.as('value'))
+        .where((eb) => eb(db.dynamic.ref(copy.toColumn), '=', link))
+        .executeTakeFirst()) as { value?: unknown } | undefined;
+      out[copy.column] = found?.value ?? null;
+    }
+    return out ?? values;
+  }
+
+  /**
+   * Every row outside a tree that its rows are tied to, held for ALL of them
+   * at once, before the root's INSERT, in the one order every writer takes:
+   * the totals they climb into, top-down; then the parents whose states
+   * judge them; then the rows they link to, for share. A row's own parent in
+   * the tree is new, and nobody else can hold it.
+   */
+  async function holdOutside(db: Db, dialect: Dialect, rows: readonly TreeRow[], peeked: ReadonlyMap<TreeRow, Row>, currency: CurrencyOf): Promise<HeldBalances> {
+    const starts: ClimbStart[] = [];
+    const parents = new Map<string, { table: string; key: string; keys: unknown[] }>();
+    const linked = new Map<string, { table: string; key: string; keys: unknown[] }>();
+    const add = (into: typeof parents, table: string, key: string, value: unknown) => {
+      if (value === null || value === undefined) return;
+      const entry = into.get(`${table}\u0000${key}`) ?? { table, key, keys: [] };
+      entry.keys.push(value);
+      into.set(`${table}\u0000${key}`, entry);
+    };
+    for (const row of rows) {
+      const values = peeked.get(row) ?? row.node.values;
+      const own = row.node.via?.column;
+      for (const rollup of rulesOf(row.target)?.rollupsInto ?? []) {
+        const key = values[rollup.via];
+        if (rollup.via !== own && key !== null && key !== undefined) starts.push({ rollup, keys: [key] });
+      }
+      for (const parent of row.target.table.table?.stateParents ?? []) {
+        if (parent.via !== own) add(parents, parent.table, parent.key, values[parent.via]);
+        for (const link of parent.links ?? []) add(linked, link.table, link.key, values[link.via]);
+      }
+    }
+    const held = await holdChain(db, dialect, starts, currency);
+    const sorted = (map: typeof parents) => [...map.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, entry]) => entry);
+    for (const entry of sorted(parents)) await holdKeys(db, dialect, entry.table, entry.key, entry.keys, false);
+    for (const entry of sorted(linked)) await holdKeys(db, dialect, entry.table, entry.key, entry.keys, true);
+    return held;
+  }
+
   async function runBefore(
     hooks: RecordHooks,
     action: WriteAction,
@@ -2062,36 +2503,21 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     async create(input) {
       const { context } = input;
       const target = await withRights(input.target);
-      refuseUnbuiltTable(target);
-      refuseEarly(target, 'create', input.values, input.mapError);
       const hooks = current();
-      const rules = rulesOf(target);
-      const currency = currencyFor(target);
-      const zone = await zoneFor(rules, target);
       // One clock for the write: its start for what is prepared here, its locked instant for what is judged under the locks.
       const clock = writeClock(context);
-      const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone);
-      const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo'), opts.settings);
-      // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
-      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
-      // A total, a formula and a number are Adminium's alone, whatever a hook set.
-      const hooked = (await hooks.wants('before', 'create', target, context))
-        ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
-        : decided;
-      const values = await formulate(rules, 'create', target, hooked, null);
-      if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
-      // What a number without gaps needs at its INSERT, read before any lock is taken.
-      const checked = await carry(
-        rules,
-        'create',
+      const { rules, zone, checked, codes } = await prepareOne({
         target,
+        values: input.values,
         context,
-        brand(await prepareNumbers(rules, 'create', target, await checkAllOrThrow(rules, 'create', target, context, values, null, input.mapError), context.origin, opts.settings)),
-        null,
         clock,
-      );
-      // Only the codes generated here, and left alone by the hooks, are made again.
-      const codes = generatedCodes(rules, filled, context.origin === 'undo').filter((code) => values[code.column] === resolved[code.column]);
+        mode: 'save',
+        hooks: true,
+        recheck: input.recheck,
+        mapError: input.mapError,
+      });
+      const currency = currencyFor(target);
+      await refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(rules?.ownRollups ?? [])]);
       const booking = rules?.booking;
       const need = booking === undefined ? null : bookingNeed(booking, checked, null);
       const now = new Date();
@@ -2154,7 +2580,272 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       return row;
     },
 
-    createTree: () => notBuiltYet('createTree'),
+    async createTree(input) {
+      const { context, mode } = input;
+      const hooks = current();
+      const clock = writeClock(context);
+      const dry = mode === 'dry';
+      /** A refusal about one row of the tree, through the door's own mapping. */
+      const at = async <T>(node: TreeNode, run: () => Promise<T>): Promise<T> => {
+        try {
+          return await run();
+        } catch (error) {
+          if (error instanceof LockMoved || error instanceof TreeSignal) throw error;
+          return input.mapError(error, node.at);
+        }
+      };
+
+      // 1. Every row's place, level by level, and what the role may write in each table — read outside any transaction.
+      const rights = new Map<string, WriteTarget>();
+      const withGrants = async (target: WriteTarget): Promise<WriteTarget> => {
+        const known = rights.get(target.table.id);
+        if (known !== undefined) return { ...target, rights: known.rights };
+        const granted = await withRights(target);
+        rights.set(target.table.id, granted);
+        return granted;
+      };
+      const rootRow: TreeRow = { node: input.root, target: await withGrants(input.root.target), parent: null, index: 0, depth: 0 };
+      const levels: TreeRow[][] = [[rootRow]];
+      for (let depth = 0; depth < 2; depth += 1) {
+        const next: TreeRow[] = [];
+        for (const row of levels[depth]!) {
+          const counted = new Map<string, number>();
+          for (const child of row.node.children) {
+            const index = counted.get(child.name) ?? 0;
+            counted.set(child.name, index + 1);
+            next.push({ node: child, target: await withGrants(child.target), parent: row, index, depth: depth + 1 });
+          }
+        }
+        if (next.length === 0) break;
+        levels.push(next);
+      }
+      const everyRow = levels.flat();
+      // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
+      for (const row of everyRow.slice(1)) {
+        refuseUnbuiltTable(row.target);
+        if (rulesOf(row.target)?.booking !== undefined) await at(row.node, () => Promise.reject(new GuardedBatchError(row.target.table.name)));
+        if (await hooks.wants('before', 'create', row.target, context)) {
+          await at(row.node, () =>
+            Promise.reject(
+              new ValidationFailedError(`${row.target.table.name} runs a hook, so its rows cannot be written with the row they belong to.`, {
+                child: row.node.name,
+                reason: 'hooked',
+              }),
+            ),
+          );
+        }
+      }
+      if (rulesOf(rootRow.target)?.booking !== undefined) await at(rootRow.node, () => Promise.reject(new GuardedBatchError(rootRow.target.table.name)));
+
+      // 2. The root, prepared as a single create prepares its row; its before hooks run for a save only.
+      const root = await at(rootRow.node, () =>
+        prepareOne({ target: rootRow.target, values: rootRow.node.values, context, clock, mode, hooks: !dry, grants: true }),
+      );
+      // Every column the tree's totals write in other rows, granted, before anything is written.
+      for (const target of rights.values()) {
+        const rules = rulesOf(target);
+        await at(rootRow.node, () => refuseUngrantedChain(target, [...(rules?.rollupsInto ?? []), ...(rules?.ownRollups ?? [])]));
+      }
+      const currency = currencyFor(rootRow.target);
+
+      // A retry of a create already made answers the rows it stored, with nothing written.
+      const replayed = async (db: Db): Promise<TreeOutcome | null> => {
+        if (dry || input.replay === undefined) return null;
+        const found = await input.replay(db);
+        return found === null ? null : { mode, root: found.root, rows: found.rows, capacity: [], replayed: true };
+      };
+      const before = await replayed(rootRow.target.db);
+      if (before !== null) return before;
+
+      // What each row says of the rows outside the tree it will be tied to: its values as sent, a copied link read through its source.
+      const peeked = new Map<TreeRow, Row>();
+      if (!dry) {
+        for (const row of everyRow) {
+          const own = row === rootRow ? (root.checked as Row) : row.node.values;
+          peeked.set(row, row === rootRow ? own : await peekLinks(row, own, peeked.get(row.parent!) ?? null));
+        }
+      }
+
+      // 3. The locks a save names: every limit the rows may take from, and every series they number in.
+      const lockNames = async (): Promise<NamedLock[]> => {
+        if (dry) return [];
+        const limits = await capacityLockNames(
+          rootRow.target.db,
+          everyRow.map((row) => ({
+            target: { ...row.target, timezone: row.target.timezone ?? root.zone },
+            row: row === rootRow ? (root.checked as Row) : row.node.values,
+            before: null,
+            prepared: row === rootRow,
+          })),
+        );
+        const series = everyRow.flatMap((row) =>
+          seriesOf(rulesOf(row.target), row.target.table, row === rootRow ? root.checked : row.node.values).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })),
+        );
+        return [...limits, ...series];
+      };
+
+      /** The whole write, inside one transaction holding `names`. */
+      const run = async (trx: Db): Promise<TreeOutcome> => {
+        // The instant every rule of this write judges by: now, under the locks.
+        clock.locked(trx);
+        // 5. The retry key again, under the locks: a twin that waited on them finds the rows the first one made.
+        const again = await replayed(trx);
+        if (again !== null) throw new TreeSignal('replayed', again);
+        // 6. The person found or made by address (a save only; never a quote).
+        const person = dry || input.identity === undefined ? {} : await at(rootRow.node, () => input.identity!(trx));
+        // 7. Every row outside the tree it is tied to, held for ALL rows at once in the one order: totals top-down, parents, linked rows for share.
+        const held = dry ? new Map<string, Map<string, Row>>() : await at(rootRow.node, () => holdOutside(trx, rootRow.target.dialect, everyRow, peeked, currency));
+        const heldKey = new Set<string>();
+        for (const [table, rows] of held) for (const key of rows.keys()) heldKey.add(`${table}\u0000${key}`);
+
+        // 8. The rows, root first, then each level in request order.
+        const written = new Map<TreeRow, Row>();
+        const inTree = new Set<string>();
+        const writeRow = async (row: TreeRow, prepared: PreparedCreate): Promise<Row> => {
+          const within: WriteTarget = { ...row.target, db: trx, timezone: prepared.zone ?? row.target.timezone };
+          const parent = row.parent === null ? null : written.get(row.parent)!;
+          await input.checks?.(trx, row.node, prepared.checked, parent);
+          const counted = dry ? prepared.checked : brand(await claimSequences(prepared.rules, 'create', within, prepared.checked, opts.sequences));
+          let out: { row: Row; values: CheckedRow };
+          try {
+            out = await insertWithCodes(within, counted, prepared.codes, undefined);
+          } catch (error) {
+            // A twin with the same retry key committed first: its rows are answered once this transaction is gone.
+            if (row === rootRow && input.replay !== undefined && !dry && isUniqueViolation(error)) throw new TreeSignal('twin', null, error);
+            throw error;
+          }
+          written.set(row, out.row);
+          const key = keyOf(row.target.table, out.row);
+          if (key !== null) inTree.add(`${row.target.table.id}\u0000${key}`);
+          return out.row;
+        };
+        await at(rootRow.node, async () => {
+          const values = Object.keys(person).length === 0 ? root : { ...root, checked: brand({ ...root.checked, ...person }) };
+          const made = await writeRow(rootRow, values);
+          await input.inside?.(trx, made);
+        });
+        for (let depth = 1; depth <= 2; depth += 1) {
+          const level = levels[depth] ?? [];
+          for (const row of level) {
+            await at(row.node, async () => {
+              const parent = written.get(row.parent!)!;
+              const via = row.node.via;
+              const values: Row = {
+                ...row.node.values,
+                ...(via === undefined ? {} : { [via.column]: parent[via.parentKey] }),
+                ...(row.node.position === undefined ? {} : { [row.node.position]: row.index + 1 }),
+              };
+              // The same steps as the root's, on this transaction; no before hook runs inside one.
+              const prepared = await prepareOne({ target: { ...row.target, db: trx }, values, context, clock, mode, hooks: false, grants: true });
+              // A row tied to a total outside the tree whose link a peek misread: held too late to keep the one order.
+              if (!dry) {
+                for (const rollup of prepared.rules?.rollupsInto ?? []) {
+                  const key = prepared.checked[rollup.via];
+                  if (key === null || key === undefined || inTree.has(`${rollup.parent}\u0000${String(key)}`)) continue;
+                  if (!heldKey.has(`${rollup.parent}\u0000${String(key)}`)) throw climbMoved(rollup.parent);
+                }
+              }
+              await writeRow(row, prepared);
+            });
+          }
+          // Each child list of each row one level up, once all of it is written — an empty one too: what its rows come to together.
+          if (input.siblings === undefined) continue;
+          for (const parent of levels[depth - 1] ?? []) {
+            const byName = new Map<string, TreeWritten[]>((parent.node.lists ?? []).map((name) => [name, []]));
+            for (const row of level) {
+              if (row.parent !== parent) continue;
+              const list = byName.get(row.node.name) ?? [];
+              list.push({ node: row.node, record: written.get(row)! });
+              byName.set(row.node.name, list);
+            }
+            for (const [name, rows] of byName) {
+              await at(parent.node, () => input.siblings!(trx, { node: parent.node, record: written.get(parent)! }, name, rows));
+            }
+          }
+        }
+
+        // 9. The limits, judged once over every row written.
+        const judged = everyRow.map((row) => {
+          const record = written.get(row)!;
+          const key = keyOf(row.target.table, record) === null ? null : pkOf(row.target.table, record);
+          return { target: { ...row.target, db: trx, timezone: row.target.timezone ?? root.zone }, pk: key, row: record, before: null, path: row.node.at };
+        });
+        let capacity: PoolState[];
+        try {
+          capacity = await judgeCapacity(trx, judged, { clock, origin: context.origin, mode });
+        } catch (error) {
+          if (error instanceof LockMoved) throw error;
+          const index = (error as { details?: { row?: unknown } }).details?.row;
+          const row = typeof index === 'number' ? everyRow[index] : undefined;
+          return input.mapError(error, row?.node.at ?? []);
+        }
+
+        // 10. The totals, bottom-up, climbing; a quote settles only its own rows.
+        const only = dry ? (table: string, key: unknown) => inTree.has(`${table}\u0000${String(key)}`) : undefined;
+        const read = dry ? ('plain' as const) : ('locking' as const);
+        for (const level of [...levels].reverse()) {
+          for (const row of level) {
+            const rules = rulesOf(row.target);
+            const record = written.get(row)!;
+            await at(row.node, async () => {
+              const own = rules?.ownRollups ?? [];
+              const key = own[0] === undefined ? undefined : record[own[0].parentKey];
+              if (key !== null && key !== undefined) {
+                await settleChain(trx, row.target.dialect, own.map((rollup) => ({ rollup, keys: [key] })), currency, { only, read });
+                const balances = rules?.balances ?? [];
+                if (balances.length > 0) {
+                  await settleBalances(trx, row.target.dialect, row.target.table.id, own[0]!.parentKey, balances, key, { currencyColumn: rules?.currencyColumn, currency });
+                  const refusal = await capRefusal(trx, row.target.table.id, own[0]!.parentKey, key, balances, undefined);
+                  if (refusal !== null) throw refusal;
+                }
+              }
+              await settleChain(trx, row.target.dialect, chainStarts(rules, [{ record, before: null }]), currency, { only, read, cap: dry ? undefined : held });
+            });
+          }
+        }
+        // Every row as its totals left it, sealed again over them.
+        const rows: TreeWritten[] = [];
+        for (const row of everyRow) {
+          const rules = rulesOf(row.target);
+          let record = written.get(row)!;
+          if (keepsOwnTotals(rules)) {
+            const sealing = sealsOf(row === rootRow ? root.checked : record);
+            if (sealing !== undefined && keyOf(row.target.table, record) !== null) await sealRows(trx, row.target.table, pkOf(row.target.table, record), sealing, writeSeals);
+            record = await readAgain(trx, row.target.table, record);
+          }
+          rows.push({ node: row.node, record });
+        }
+        const outcome: TreeOutcome = { mode, root: rows[0]!.record, rows, capacity, replayed: false };
+        // 11. The price the caller expected (a save only), then 12: commit — or a quote rolled back.
+        if (!dry) await input.expect?.(trx, outcome.root, rows);
+        if (dry) throw new TreeSignal('dry', outcome);
+        return outcome;
+      };
+
+      let outcome: TreeOutcome;
+      try {
+        // A row moved away from the lock it was named by: named again from a fresh read, a few times, then 409 WRITE_CONFLICT.
+        outcome = await conflicted(() => withLimitLocks(rootRow.target, lockNames, run), (error) => input.mapError(error, []));
+      } catch (error) {
+        if (error instanceof AppError && error.code === 'WRITE_CONFLICT' && !(error instanceof TreeSignal)) return input.mapError(error, []);
+        if (!(error instanceof TreeSignal)) throw error;
+        if (error.kind === 'dry' || error.kind === 'replayed') return error.outcome!;
+        // The twin's rows, read once its transaction and this one are both over.
+        const twin = await replayed(rootRow.target.db);
+        if (twin !== null) return twin;
+        return input.mapError(error.cause, rootRow.node.at);
+      }
+
+      // After the commit, root first, then each level in request order: announced, then the after hooks.
+      for (const row of outcome.rows) {
+        await input.announce(row);
+        const target = rights.get(row.node.target.table.id) ?? row.node.target;
+        if (await hooks.wants('after', 'create', target, context)) {
+          await hooks.after({ action: 'create', target, record: row.record, before: null, context });
+        }
+      }
+      return outcome;
+    },
 
     async update(input) {
       const { context, pk } = input;
@@ -2213,6 +2904,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const moved = movedBalances(rules, checkedValues);
       const rolls = (rules?.rollupsInto?.length ?? 0) > 0 || moved.length > 0 || worked.length > 0;
       const now = new Date();
+      // A quote of the change (`dry`) runs it and rolls it back; a price check runs inside the change's transaction.
+      const dry = input.mode === 'dry';
+      const quoted = dry || input.expect !== undefined;
+      if (rolls) await refuseUngrantedChain(target, rules?.rollupsInto ?? []);
       /** The day the booking lock was named by; the write refuses to go on under a different one. */
       let lockedDay: string | null = null;
       const write = async (db: Db) => {
@@ -2229,7 +2924,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             ? ((holdsParent(rules) || worked.length > 0 || limits ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
             : null;
         if (limits && prior !== null) {
-          await judgeRows(db, [{ target: within, pk, row: { ...prior, ...checkedValues }, before: prior }], { clock, origin: context.origin, mode: 'save' }, input.mapError);
+          // A quote of the change counts the same pools, holding none: its own places are left out by its key.
+          await judgeRows(db, [{ target: within, pk, row: { ...prior, ...checkedValues }, before: prior }], { clock, origin: context.origin, mode: dry ? 'dry' : 'save' }, input.mapError);
         }
         let written = checkedValues;
         if (booking !== undefined && prior !== null) {
@@ -2237,7 +2933,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           if (need !== null) {
             // Another writer moved the row between the lock's naming and now:
             // start again under the day it will really hold.
-            if (bookingDay(booking, { ...prior, ...checkedValues }, zone ?? 'UTC') !== lockedDay) throw new DayMoved();
+            if (!dry && bookingDay(booking, { ...prior, ...checkedValues }, zone ?? 'UTC') !== lockedDay) throw new DayMoved();
             const merged = { ...prior, ...checkedValues };
             const picked = await guardedValue(() => checkBooking(booking, within, { row: merged, before: prior, need, now }), input.mapError);
             if (Object.keys(picked).length > 0) written = brand({ ...checkedValues, ...picked });
@@ -2266,25 +2962,39 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           if (sealing !== undefined) await sealRows(db, target.table, pk, sealing, writeSeals);
         }
         if (written !== checkedValues) values = written;
+        if (quoted && changed > 0) {
+          const after = (await fetchByPk(db, target.table, pk)) ?? null;
+          if (!dry && after !== null) await input.expect!(db, after);
+          // A quote ends here: nothing it wrote is kept.
+          if (dry) throw new UpdateQuoted(after, changed);
+        }
         return changed;
       };
-      const count = await conflicted(async () => {
-        if (limits) {
-          // The locks are named by the pools the row will take from, from a fresh look each time.
-          return await withLimitLocks(target, async () => {
-            const current = (await fetchByPk(target.db, target.table, pk)) ?? null;
-            return current === null
-              ? []
-              : capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]);
-          }, write);
-        }
-        if (booking !== undefined) {
-          return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
-            lockedDay = day;
-          }, write, rolls, input.mapError);
-        }
-        return rolls ? await atomically(target, write) : await write(target.db);
-      }, input.mapError);
+      let count: number;
+      try {
+        count = await conflicted(async () => {
+          // A quote takes no named lock: it waits for nobody, and nobody waits for it.
+          if (dry) return await withNamedLocks(target, [], write);
+          if (limits) {
+            // The locks are named by the pools the row will take from, from a fresh look each time.
+            return await withLimitLocks(target, async () => {
+              const current = (await fetchByPk(target.db, target.table, pk)) ?? null;
+              return current === null
+                ? []
+                : capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]);
+            }, write);
+          }
+          if (booking !== undefined) {
+            return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {
+              lockedDay = day;
+            }, write, rolls || quoted, input.mapError);
+          }
+          return rolls || quoted ? await atomically(target, write) : await write(target.db);
+        }, input.mapError);
+      } catch (error) {
+        if (!(error instanceof UpdateQuoted)) throw error;
+        return { before, after: error.after, values, count: error.count };
+      }
       if (count === 0 && input.skipIfNone === true) return { before, after: null, values, count };
       const after = (await fetchByPk(target.db, target.table, pk)) ?? null;
       const effects = guardOf(checkedValues)?.effected;
@@ -2307,6 +3017,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       const currency = currencyFor(target);
       const rolls = (rules?.rollupsInto?.length ?? 0) > 0;
+      if (rolls) await refuseUngrantedChain(target, rules?.rollupsInto ?? []);
       // A document's states judge the delete — unless the caller's scope could not see the row, which then matches nothing.
       const judged =
         input.refine !== undefined && before === null ? undefined : { dialect: target.dialect, prepared: await carry(rules, 'delete', target, context, brand({}), before, writeClock(context)) };

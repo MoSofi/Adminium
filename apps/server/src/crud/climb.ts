@@ -53,12 +53,18 @@ export type HoldChain = (db: Db, dialect: Dialect, start: readonly ClimbStart[],
  * Settle a chain bottom-up, through the transaction's handle. `cap` judges
  * each capped balance the write moved: against what {@link HoldChain} read,
  * or — `strict` — against zero. `only` settles only the parents it answers
- * yes for (a quote settles only the rows of its own tree).
+ * yes for (a quote settles only the rows of its own tree). `read: 'plain'`
+ * adds child rows up without the locks MySQL takes on what it reads (a quote
+ * holds nothing another writer waits on); the default reads as a save does.
  */
 export type SettleChain = (
   db: Db,
   dialect: Dialect,
   start: readonly ClimbStart[],
   currency: ClimbCurrency,
-  opts?: { cap?: HeldBalances | 'strict' | undefined; only?: ((table: string, key: unknown) => boolean) | undefined },
+  opts?: {
+    cap?: HeldBalances | 'strict' | undefined;
+    only?: ((table: string, key: unknown) => boolean) | undefined;
+    read?: 'locking' | 'plain' | undefined;
+  },
 ) => Promise<void>;

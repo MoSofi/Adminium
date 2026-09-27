@@ -61,6 +61,11 @@ export interface TreeNode {
   position?: string | undefined;
   at: TreePath;
   children: TreeNode[];
+  /**
+   * The child lists this row's entry declares (by wire name): each is judged
+   * as a whole once written — an empty one too (a required choice left out).
+   */
+  lists?: readonly string[] | undefined;
 }
 
 /** One row the tree wrote. */
@@ -81,10 +86,23 @@ export interface CreateTreeInput {
   context: WriteContext;
   /** `dry`: a quote — no named locks, no numbers, no person, nothing announced, always rolled back. */
   mode: 'save' | 'dry';
-  /** A node's readable references, `agrees`, `counts` and row totals, on the transaction's handle. */
-  checks?: ((db: Db, node: TreeNode, values: Row) => Promise<void>) | undefined;
-  /** The root as settled against the price the caller expected; throws when they differ (a save only). */
-  expect?: ((db: Db, root: Row) => Promise<void>) | undefined;
+  /**
+   * A row's own checks — the rows it names may be read, it agrees with its
+   * parent — on the transaction's handle, before its INSERT. `parent` is the
+   * row it hangs from as written (null for the root).
+   */
+  checks?: ((db: Db, node: TreeNode, values: Row, parent: Row | null) => Promise<void>) | undefined;
+  /**
+   * The rows of one child list, once all of them are written: what they add
+   * up to together (how many of each group, a sum's most) — refused on the
+   * parent row they hang from.
+   */
+  siblings?: ((db: Db, parent: TreeWritten, name: string, rows: readonly TreeWritten[]) => Promise<void>) | undefined;
+  /**
+   * The root as settled against the price the caller expected, with every row
+   * as its totals left it; throws when they differ (a save only).
+   */
+  expect?: ((db: Db, root: Row, rows: readonly TreeWritten[]) => Promise<void>) | undefined;
   /** Links a staff form writes with the root, inside the transaction. */
   inside?: ((db: Db, root: Row) => Promise<void>) | undefined;
   /** The retry key, looked up again inside the transaction after the locks (a save only). */
