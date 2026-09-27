@@ -101,6 +101,33 @@ async function publicOf(h: Harness, appKey: string): Promise<Served> {
 
 const names = (reply: { body: string }) => ((bodyOf(reply)['data'] as Doc[]) ?? []).map((row) => row['name']);
 
+/**
+ * The shop with words of its own on the menu: its categories' and items'
+ * labels differ from the till's, and it gives none at all on the option
+ * groups and options (a shape ignores labels).
+ */
+function shopWithOwnWords(over: Doc = {}): Doc {
+  const doc = orderingSharingMenu(over);
+  for (const table of (doc['requiredSchema'] as { tables: Doc[] }).tables) {
+    if (!MENU.includes(table['ref'] as string)) continue;
+    const own = table['ref'] === 'menu_categories' || table['ref'] === 'menu_items';
+    const reword = (label: unknown) => ({ 'en-US': `Shop ${String((label as Record<string, string>)['en-US'])}` });
+    for (const key of ['label', 'labelPlural'] as const) {
+      if (table[key] === undefined) continue;
+      if (own) table[key] = reword(table[key]);
+      else delete table[key];
+    }
+    for (const column of table['columns'] as Doc[]) {
+      if (column['label'] === undefined) continue;
+      if (own) column['label'] = reword(column['label']);
+      else delete column['label'];
+      const rules = column['rules'] as Doc | undefined;
+      if (rules?.['enumLabels'] !== undefined && !own) delete rules['enumLabels'];
+    }
+  }
+  return doc;
+}
+
 for (const [dialect, available] of ENGINES) {
   describe.skipIf(!available)(`a menu two apps share — ${dialect}`, () => {
     it(
@@ -247,6 +274,132 @@ for (const [dialect, available] of ENGINES) {
         // The shop reads on.
         const menu = await (await publicOf(h, 'ordering')).get('/records/pos_menu_items');
         expect(menu.statusCode, menu.body).toBe(200);
+      },
+      SLOW,
+    );
+
+    it(
+      'the till’s rules handed to a shop with words of its own survive the shop’s updates, and leave with the last app',
+      async () => {
+        const h = (open = await installHarness(dialect, { superAdmin: true, full: true }));
+        await install(h, pointOfSale());
+        await install(h, shopWithOwnWords());
+        const tillRules = Object.values(await recordsOf(h, 'pos'))
+          .filter((r) => MENU.includes(r.ref))
+          .flatMap((r) => r.rules);
+        expect(tillRules.length).toBeGreaterThan(20);
+        const removed = await h.inject({ method: 'DELETE', url: '/apps/pos', payload: { dropTables: false, confirmKey: 'pos' } });
+        expect(removed.statusCode, removed.body).toBe(200);
+        const handed = Object.values(await recordsOf(h, 'ordering')).flatMap((r) => r.rules.filter((rule) => rule.handedFrom === 'pos'));
+        expect(handed.map((rule) => rule.overrideId).sort()).toEqual(tillRules.map((rule) => rule.overrideId).sort());
+
+        // Two updates of the shop: every target the till held keeps a rule.
+        const overrides = overridesRepo(h.meta);
+        for (const version of ['0.2.1', '0.2.2']) {
+          await h.stage(shopWithOwnWords({ version }));
+          const updated = await h.inject({ method: 'POST', url: '/apps/ordering/update' });
+          expect(updated.statusCode, updated.body).toBe(200);
+        }
+        const active = await overrides.listForConnection(h.connectionId, { status: 'active' });
+        const byId = new Map(active.map((o) => [o.id, o]));
+        const shopRules = Object.values(await recordsOf(h, 'ordering')).flatMap((r) => r.rules);
+        const model = await modelOf(h);
+        const nameOf = (id: string) => model.tables.find((t) => t.id === id)?.name ?? id;
+        let kept = 0;
+        let replaced = 0;
+        for (const rule of tillRules) {
+          const target = active.filter((o) => o.op === rule.op && o.tableName === rule.table && (o.columnName ?? '') === (rule.column ?? ''));
+          expect(target, `${rule.op} ${nameOf(rule.table)}.${rule.column ?? ''}`).toHaveLength(1);
+          if (byId.has(rule.overrideId)) {
+            // One the shop does not ask for: the till's, still marked as handed.
+            kept += 1;
+            expect(shopRules.find((r) => r.overrideId === rule.overrideId)?.handedFrom, `${rule.op} ${rule.column ?? ''}`).toBe('pos');
+          } else {
+            // One the shop asks for in its own words: the shop's now.
+            replaced += 1;
+            expect(nameOf(rule.table)).toMatch(/^pos_menu_(categories|items)$/);
+            expect(JSON.stringify(target[0]!.value)).toContain('Shop ');
+          }
+        }
+        // Option groups and options, which the shop gives no words, keep every one of the till's.
+        expect(kept).toBeGreaterThan(15);
+        expect(replaced).toBeGreaterThan(5);
+
+        // The last app on the table leaves: what the till handed over is taken back with it.
+        const gone = await h.inject({ method: 'DELETE', url: '/apps/ordering', payload: { dropTables: false, confirmKey: 'ordering' } });
+        expect(gone.statusCode, gone.body).toBe(200);
+        const left = new Set((await overrides.listForConnection(h.connectionId, { status: 'active' })).map((o) => o.id));
+        for (const rule of tillRules) expect(left.has(rule.overrideId), `${rule.op} ${rule.column ?? ''}`).toBe(false);
+      },
+      SLOW,
+    );
+
+    it(
+      'a shop that shared the till’s menu, uninstalled and installed again, is offered the menu again and never offered to rename it',
+      async () => {
+        const h = (open = await installHarness(dialect, { superAdmin: true, full: true }));
+        await install(h, pointOfSale());
+        await install(h, shopWithOwnWords());
+        const removed = await h.inject({ method: 'DELETE', url: '/apps/ordering', payload: { dropTables: false, confirmKey: 'ordering' } });
+        expect(removed.statusCode, removed.body).toBe(200);
+        for (const ref of MENU) expect((await recordsOf(h, 'ordering'))[ref]).toMatchObject({ state: 'released', owned: false, tableName: `pos_${ref}` });
+
+        const plan = await planOf(h, shopWithOwnWords());
+        expect(plan.problems).toEqual([]);
+        expect(plan.shareOffers?.[0]).toMatchObject({ with: 'pos', withName: 'Point of Sale', action: 'share', tables: MENU.map((ref) => `pos_${ref}`) });
+        for (const ref of MENU) {
+          const table = plan.tables.find((t) => t.ref === ref)!;
+          expect(table).toMatchObject({ table: `pos_${ref}`, class: 'shared', action: 'share', sharedWith: 'pos', sharedWithName: 'Point of Sale' });
+          expect(table['offers']).toEqual(['share', 'separate']);
+        }
+        await install(h, shopWithOwnWords(), { planChecksum: plan.checksum });
+        for (const ref of MENU) expect((await recordsOf(h, 'ordering'))[ref]).toMatchObject({ tableName: `pos_${ref}`, state: 'shared', owned: false, shape: 'menu@1' });
+        for (const ref of MENU) expect((await recordsOf(h, 'pos'))[ref]).toMatchObject({ state: 'created', owned: true });
+
+        // The till's own update, the shop sharing: its menu is never offered to be renamed away.
+        await h.stage({ ...pointOfSale(), version: '0.2.3' });
+        const tillPlan = await h.inject({ method: 'POST', url: '/apps/plan', payload: { key: 'pos', version: '0.2.3', connectionId: h.connectionId } });
+        expect(tillPlan.statusCode, tillPlan.body).toBe(200);
+        for (const table of (bodyOf(tillPlan)['plan'] as Plan).tables.filter((t) => MENU.includes(t.ref))) {
+          expect(table['offers'], table.ref).not.toContain('rename-existing');
+        }
+      },
+      SLOW,
+    );
+
+    it(
+      'the shop reinstalled keeps a separate menu when told, leaving the till’s alone',
+      async () => {
+        const h = (open = await installHarness(dialect, { superAdmin: true, full: true }));
+        await install(h, pointOfSale());
+        await install(h, orderingSharingMenu());
+        const removed = await h.inject({ method: 'DELETE', url: '/apps/ordering', payload: { dropTables: false, confirmKey: 'ordering' } });
+        expect(removed.statusCode, removed.body).toBe(200);
+        const answers = { shares: { 'menu@1': { action: 'separate' } } };
+        const plan = await planOf(h, orderingSharingMenu(), answers);
+        expect(plan.problems).toEqual([]);
+        for (const ref of MENU) expect(plan.tables.find((t) => t.ref === ref)).toMatchObject({ table: `ordering_${ref}`, class: 'new', action: 'create' });
+        await install(h, orderingSharingMenu(), { ...answers, planChecksum: plan.checksum });
+        for (const ref of MENU) expect((await recordsOf(h, 'ordering'))[ref]).toMatchObject({ tableName: `ordering_${ref}`, state: 'created', owned: true });
+        for (const ref of MENU) expect((await recordsOf(h, 'pos'))[ref]).toMatchObject({ tableName: `pos_${ref}`, state: 'created' });
+      },
+      SLOW,
+    );
+
+    it(
+      'an update that stops declaring the shape, nobody sharing, clears it: a later app is not offered the table',
+      async () => {
+        const h = (open = await installHarness(dialect, { superAdmin: true, full: true }));
+        await install(h, pointOfSale());
+        const unshaped: Doc = { ...pointOfSale(), version: '0.2.3' };
+        for (const table of (unshaped['requiredSchema'] as { tables: Doc[] }).tables) delete table['shape'];
+        await h.stage(unshaped);
+        const updated = await h.inject({ method: 'POST', url: '/apps/pos/update' });
+        expect(updated.statusCode, updated.body).toBe(200);
+        for (const ref of MENU) expect((await recordsOf(h, 'pos'))[ref]?.shape, ref).toBeNull();
+        const plan = await planOf(h, orderingSharingMenu());
+        expect(plan.shareOffers ?? []).toEqual([]);
+        for (const ref of MENU) expect(plan.tables.find((t) => t.ref === ref)).toMatchObject({ table: `ordering_${ref}`, class: 'new' });
       },
       SLOW,
     );

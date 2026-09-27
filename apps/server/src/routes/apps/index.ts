@@ -1441,8 +1441,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         owned: table.action === 'create' || table.action === 'rename-existing',
         // A table this app shares stays shared on an update: never taken for one it adopted.
         state: table.action === 'share' || table.class === 'shared' ? 'shared' : table.action === 'reuse' ? 'adopted' : 'created',
-        // The shape it is declared with, so another app can find it to share.
-        ...(tableShapeOf(manifest, table.ref) === null ? {} : { shape: tableShapeOf(manifest, table.ref) }),
+        // The shape it is declared with, so another app can find it to share; none clears one a version dropped.
+        shape: tableShapeOf(manifest, table.ref),
         ...shapeRecordOf(checked.shapeRecords, table.ref),
       });
     }
@@ -2588,8 +2588,8 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                   owned: true,
                   state: 'pending',
                   prefix,
-                  // The shape it is declared with, so another app can find it to share.
-                  ...(tableShapeOf(manifest, table.ref) === null ? {} : { shape: tableShapeOf(manifest, table.ref) }),
+                  // The shape it is declared with, so another app can find it to share; none clears an old one.
+                  shape: tableShapeOf(manifest, table.ref),
                   ...shapeRecordOf(tablesPlan.shapeRecords, table.ref),
                 });
                 pending.set(table.ref, record.id);
@@ -2605,7 +2605,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
                   owned: false,
                   state: shared ? 'shared' : 'adopted',
                   prefix,
-                  ...(shared ? { shape: manifest.requiredSchema?.tables.find((t) => t.ref === table.ref)?.shape ?? null } : {}),
+                  shape: tableShapeOf(manifest, table.ref),
                   ...shapeRecordOf(tablesPlan.shapeRecords, table.ref),
                 });
               }

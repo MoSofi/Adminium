@@ -189,6 +189,37 @@ describe('an app with tables of its own here', () => {
     expect(left.tables?.find((t) => t.ref === 'menu_items')?.sharedWith).toBeUndefined();
   });
 
+  it('is offered the till’s menu again when it shared it, left, and comes back: never its own, never renamed', () => {
+    // Uninstalled with its tables kept: the shop's records of the till's tables, released.
+    const records = Object.fromEntries(pos.others.map((o) => [o.ref, { table: o.table, owned: false, state: 'released' }]));
+    const plan = planInstall(shop, model(pos.live), ctx({ others: pos.others, records }));
+    expect(plan.problems).toEqual([]);
+    expect(plan.shareOffers?.[0]).toMatchObject({ with: 'pos', action: 'share', tables: MENU.map((ref) => `pos_${ref}`) });
+    for (const ref of MENU) {
+      const table = plan.tables?.find((t) => t.ref === ref);
+      expect(table).toMatchObject({ table: `pos_${ref}`, class: 'shared', action: 'share', sharedWith: 'pos', offers: ['share', 'separate'] });
+      expect(table?.adopted).toBeUndefined();
+    }
+    // Told to keep a separate menu: its own four tables.
+    const separate = planInstall(shop, model(pos.live), ctx({ others: pos.others, records, shares: { 'menu@1': { action: 'separate' } } }));
+    expect(separate.tables?.find((t) => t.ref === 'menu_items')).toMatchObject({ table: 'ordering_menu_items', class: 'new', action: 'create' });
+    // The till gone too: the tables are nobody else's, so the shop takes them back as its leftovers.
+    const alone = planInstall(shop, model(pos.live), ctx({ others: pos.others.map((o) => ({ ...o, state: 'released' })), records }));
+    expect(alone.tables?.find((t) => t.ref === 'menu_items')).toMatchObject({ table: 'pos_menu_items', class: 'own-leftover', action: 'reuse' });
+  });
+
+  it('never offers to rename a table another app still uses, even when told to', () => {
+    const tillRecords = Object.fromEntries(pos.others.map((o) => [o.ref, { table: o.table, owned: true, state: 'created' }]));
+    const shopHolds = pos.others.map((o) => ({ ...o, appKey: 'ordering', state: 'shared' }));
+    const choices = { menu_items: { action: 'rename-existing' as const, to: 'pos_menu_items_old' } };
+    const plan = planInstall(manifestOf(pointOfSale()), model(pos.live), ctx({ prefix: 'pos_', others: shopHolds, records: tillRecords, choices }));
+    for (const ref of MENU) expect(plan.tables?.find((t) => t.ref === ref)?.offers, ref).toEqual(['reuse', 'alt-prefix']);
+    expect(plan.tables?.find((t) => t.ref === 'menu_items')).toMatchObject({ class: 'own-leftover', action: 'reuse' });
+    // Nobody else on it: renaming is offered as before.
+    const own = planInstall(manifestOf(pointOfSale()), model(pos.live), ctx({ prefix: 'pos_', records: tillRecords, choices }));
+    expect(own.tables?.find((t) => t.ref === 'menu_items')).toMatchObject({ offers: ['reuse', 'rename-existing', 'alt-prefix'], action: 'rename-existing' });
+  });
+
   it('refuses an update that takes the shape off a table another app shares, naming it', () => {
     const records = Object.fromEntries(pos.others.map((o) => [o.ref, { table: o.table, owned: false, state: 'shared' }]));
     const unshaped = orderingSharingMenu();
