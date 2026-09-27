@@ -564,8 +564,12 @@ export function draftIsLossy(descriptor: QueryDescriptor): boolean {
   return (
     (descriptor.aggregations?.length ?? 0) > 1 ||
     (descriptor.orderBy?.length ?? 0) > 1 ||
-    (descriptor.filters ?? []).some((filter) => !isCondition(filter) || filter.param !== undefined) ||
+    // A group (`or` / `and`) and a venue `day` have no row in the form's filter list.
+    (descriptor.filters ?? []).some((filter) => !isCondition(filter) || filter.param !== undefined || filter.day !== undefined) ||
     descriptor.cursor !== undefined ||
+    // A list's `counts` and a limit's counts (`capacity`) have no control in the form.
+    descriptor.counts !== undefined ||
+    descriptor.capacity !== undefined ||
     // The form's window is "the last n units": one on the venue's calendar,
     // moved back, following the day control or reaching ahead ("not yet due")
     // would come back as a different window, so the editor warns first.
