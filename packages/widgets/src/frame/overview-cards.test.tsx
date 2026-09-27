@@ -272,4 +272,19 @@ describe('a list row on two lines, with what a limit has taken', () => {
     expect(screen.getByRole('img', { name: '420 of 414 taken, -6 left' }).getAttribute('data-over')).toBe('true');
     expect(bars[1]!.querySelector('[data-part="capacity-bar-held"]')).toBeNull();
   });
+
+  it("draws the bar from a limit's own counts list too (the pool's row carries its figures)", () => {
+    const counts = {
+      shape: 'record-list',
+      rows: [{ id: '1', label: 'Standing', size: 300, taken: 7, held: 2, left: 293 }],
+      columns: [
+        { name: 'label', logicalType: 'varchar', nullable: true, isPrimaryKey: false },
+        { name: 'left', logicalType: 'integer', nullable: true, isPrimaryKey: false, semantic: 'capacity-left' },
+      ],
+      total: 1,
+    };
+    const config = miniTableConfigSchema.parse({ columns: [{ name: 'label', label: 'Type' }, { name: 'left', label: 'Sold', semantic: 'capacity-bar' }] });
+    render(<MiniTableWidget instanceId="types" config={config} data={counts} onEvent={() => undefined} />);
+    expect(screen.getByRole('img', { name: '7 of 300 taken, 2 held, 293 left' })).toBeDefined();
+  });
 });

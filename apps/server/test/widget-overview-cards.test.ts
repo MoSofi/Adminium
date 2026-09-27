@@ -336,6 +336,10 @@ for (const [dialect, available] of LEGS) {
       expect((two['items'] as { key: string }[]).map((item) => item.key)).toEqual(['3', '1']);
       expect(two['aggregates']).toBeUndefined();
 
+      // Coming shows only: a venue day one link away (the show's doors, from today on).
+      const coming = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'sum', column: 'received', alias: 'received' }], filters: [{ column: 'event_id.doors_at', op: 'gte', day: 'today' }], orderBy: [{ column: 'event_id.doors_at', dir: 'asc' }] }));
+      expect((coming['items'] as { key: string }[]).map((item) => item.key)).toEqual(['1', '2']);
+
       // Through another link: no one value per show — refused.
       expect(refused(await money([{ column: 'type_id.name', dir: 'asc' }]))).toEqual([422, 'VALIDATION_FAILED']);
       // The shows' dates are read as a filter's are: a desk that may not read the shows may not order by them.
