@@ -366,6 +366,27 @@ export function strictEcho(table: ResolvedTable, states: TableStatesRule, stored
     const found = table.columns.get(column);
     return found !== undefined && !found.masked && !found.secret;
   };
+  const sources = strictSources(table, states, state, readable);
+  if (sources.at !== undefined) out['at'] = echoed(stored[sources.at] ?? null);
+  if (sources.by !== undefined) out['by'] = echoed(stored[sources.by] ?? null);
+  if (typeof states.strict === 'object') {
+    for (const column of states.strict.show) if (readable(column)) out[column] = echoed(stored[column] ?? null);
+  }
+  return out;
+}
+
+/**
+ * The stamp columns a strict refusal reads its `at` and `by` from: the first
+ * readable stamp of each kind that fires on a move into `state`. A reader who
+ * may not read one of them is told neither (see the data routes' refusals).
+ */
+export function strictSources(
+  table: Pick<ResolvedTable, 'table'>,
+  states: TableStatesRule,
+  state: unknown,
+  readable: (column: string) => boolean = () => true,
+): { at?: string; by?: string } {
+  const out: { at?: string; by?: string } = {};
   for (const column of table.table?.columns ?? []) {
     const stamp = column.stamp;
     if (stamp === undefined || !readable(column.name)) continue;
@@ -377,11 +398,8 @@ export function strictEcho(table: ResolvedTable, states: TableStatesRule, stored
     const set = stamp.set;
     const when = set === 'now' || set === 'today';
     const who = set === 'user-name' || set === 'user-id' || (typeof set === 'object' && ('byOrigin' in set || 'claim' in set));
-    if (when && out['at'] === undefined) out['at'] = echoed(stored[column.name] ?? null);
-    if (who && out['by'] === undefined) out['by'] = echoed(stored[column.name] ?? null);
-  }
-  if (typeof states.strict === 'object') {
-    for (const column of states.strict.show) if (readable(column)) out[column] = echoed(stored[column] ?? null);
+    if (when && out.at === undefined) out.at = column.name;
+    if (who && out.by === undefined) out.by = column.name;
   }
   return out;
 }

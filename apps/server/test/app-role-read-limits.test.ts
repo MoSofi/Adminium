@@ -84,7 +84,7 @@ const MANIFEST = {
       key: 'housekeeping',
       name: 'Housekeeping',
       permissions: ['table:@stays:read', 'table:@stays:export', 'table:@rooms:read', 'table:@stay_notes:read', 'page:@lodge-stays:view', 'app:@:staff'],
-      limits: { stays: { readable: ['arrive', 'depart', 'late_until'] } },
+      limits: { stays: { readable: ['arrive', 'depart', 'late_until'] }, stay_notes: { readable: ['stay_id'] } },
     },
     // Moves a stay's dates and leaves a note it may not read back.
     {
@@ -387,10 +387,11 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       const event = { channel, type: 'record.update', ts: '', data: { type: 'record.update', pk: { id: 1 }, row: { id: 1, room_id: 1, arrive: '2026-11-05', guest_name: 'Nia Obi', note: 'VIP', total: 480, late_until: '14:00' } } };
       const hk = await frames({ id: c.hk.id }, channel);
       expect(hk).not.toBeNull();
-      const shown = hk!(event).data as { row: Record<string, unknown> };
+      const shown = (await hk!(event))!.data as { row: Record<string, unknown> };
       withoutHidden(shown.row);
       expect(shown.row).toMatchObject({ id: 1, room_id: 1, late_until: '14:00' });
-      expect(await frames({ id: c.both.id }, channel)).toBeNull();
+      const whole = await frames({ id: c.both.id }, channel);
+      expect(((await whole!(event))!.data as { row: Record<string, unknown> }).row).toMatchObject({ guest_name: 'Nia Obi' });
     },
   ],
   [
@@ -399,6 +400,33 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       const profile = await documentProfilesRepo(c.s.meta).create({ addOnKey: 'invoices', kind: 'card', name: 'Stay card', connectionId: c.s.connectionId, table: c.s.table.stays, mapping: { guest: { column: 'guest_name' } } });
       const res = await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: profile.id, pk: { id: 1 } });
       refusedAsMasked(res);
+    },
+  ],
+  [
+    'a document whose balance after, or whose list order, reads a hidden column is not drawn',
+    async (c) => {
+      const profiles = documentProfilesRepo(c.s.meta);
+      const balance = await profiles.create({
+        addOnKey: 'invoices',
+        kind: 'slip',
+        name: 'Stay slip',
+        connectionId: c.s.connectionId,
+        table: c.s.table.stays,
+        mapping: { late: { column: 'late_until' } },
+        options: { balanceAfter: { via: 'room_id', column: 'number', of: 'number', sum: 'total' } },
+      });
+      refusedAsMasked(await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: balance.id, pk: { id: 1 } }));
+      const listed = (orderBy: string) =>
+        profiles.create({
+          addOnKey: 'invoices',
+          kind: `room-${orderBy}`,
+          name: 'Room sheet',
+          connectionId: c.s.connectionId,
+          table: c.s.table.rooms,
+          mapping: { stays: { collection: { table: c.s.table.stays, fkColumn: 'room_id', columns: { from: 'arrive' }, lists: { notes: { table: c.s.table.notes, fkColumn: 'stay_id', column: 'stay_id', orderBy } } } } },
+        });
+      refusedAsMasked(await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: (await listed('body')).id, pk: { id: 1 } }));
+      expect((await post(c, c.hk.cookie, '/api/v1/documents/render', { profileId: (await listed('id')).id, pk: { id: 1 } })).statusCode).not.toBe(403);
     },
   ],
   [
@@ -437,6 +465,25 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       const saved = await c.s.app.inject({ method: 'PUT', url: `/api/v1/roles/${role.id}/permissions`, headers: { cookie: c.owner }, payload: { grants: current.grants } });
       expect(saved.statusCode, saved.body).toBe(200);
       expect((await limitOf())?.readLimit).toEqual({ readable: ['arrive', 'depart', 'late_until'] });
+    },
+  ],
+  [
+    'a limit tightened on the same role holds at once: on the next card and the next live frame',
+    async (c) => {
+      const role = (await rolesRepo(c.s.meta).findBySlug('lodge-housekeeping'))!;
+      const row = (await permissionsRepo(c.s.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith(c.s.table.stays))!;
+      const channel = `widget-data:${c.s.connectionId}:${c.s.table.stays}`;
+      const frame = (await readLimitedFrames(c.s.meta)({ id: c.hk.id }, channel))!;
+      const event = { channel, type: 'record.update', ts: '', data: { type: 'record.update', pk: { id: 1 }, row: { id: 1, arrive: '2026-11-05', late_until: '14:00' } } };
+      expect((await card(c, c.hk.cookie, ['id', 'arrive'])).statusCode).toBe(200);
+      expect(((await frame(event))!.data as { row: Record<string, unknown> }).row).toHaveProperty('arrive');
+      await permissionsRepo(c.s.meta).grant(role.id, 'table', row.resourceRef, { ...(row.actions as object), readLimit: { readable: ['depart', 'late_until'] } } as never);
+      try {
+        expect((await card(c, c.hk.cookie, ['id', 'arrive'])).json().error?.code).toBe('COLUMN_FORBIDDEN');
+        expect(((await frame(event))!.data as { row: Record<string, unknown> }).row).not.toHaveProperty('arrive');
+      } finally {
+        await permissionsRepo(c.s.meta).grant(role.id, 'table', row.resourceRef, row.actions as never);
+      }
     },
   ],
 ];

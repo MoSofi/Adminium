@@ -139,7 +139,7 @@ import type { Row } from '../crud/mask.js';
 import type { RecordWriteService, UpdateRecordInput } from '../crud/write-service.js';
 import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
-import { appDocumentOff, appProfileFor } from '../documents/app-documents.js';
+import { appDocumentDetached, appDocumentOff, appProfileFor } from '../documents/app-documents.js';
 import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, replyToOf, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
@@ -816,8 +816,16 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // The changed row as it was (a stay's old dates, its old total): `{{was.<column>}}`, in each of the column's forms.
     const kept = keptBefore(box, view, row);
     if (kept !== null) {
+      // A column marked secret or personal since it was kept prints empty, in every form: never what was kept.
+      const blank = kept.columns.filter((column) => {
+        const found = kept.table.columns.get(column);
+        return found === undefined || found.secret || found.masked;
+      });
+      const record: Row = { ...kept.record };
+      for (const column of blank) record[column] = null;
       const scratch: WrittenValues = { vars: {}, withheld: new Set<string>() };
-      putValues(scratch, ctx, () => false, 'was', kept.table, kept.record);
+      putValues(scratch, ctx, () => false, 'was', kept.table, record, true);
+      for (const column of blank) scratch.vars[`was.${column}`] ??= '';
       for (const [name, text] of Object.entries(scratch.vars)) {
         if (kept.columns.some((column) => name === `was.${column}` || name.startsWith(`was.${column}.`))) vars[name] = text;
       }
@@ -1547,8 +1555,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     withhold: DocumentWithhold,
   ): Promise<{ attachment: EmailSendAttachmentRef } | { error: string; absent?: true }> {
     const pipeline = deps.documents?.();
-    // `absent`: nothing here draws the kind at all (no add-on, off, switched off) — not a drawing that failed.
-    if (pipeline === undefined) return { error: 'Documents cannot be drawn on this server', absent: true };
+    // `absent`: no add-on that draws the kind is attached to the app and on — never an attached one that is late or failing.
+    if (pipeline === undefined) return { error: 'Documents cannot be drawn on this server' };
     const column = box.definition.links?.[wanted.link];
     const id = column === undefined ? undefined : row[column];
     if (column === undefined || id === null || id === undefined) return { error: 'The message names no row to draw its document for' };
@@ -1559,12 +1567,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const facts = await appFacts(box.row.manifestId);
     const ref = (await appTablesRepo(deps.meta).forInstall(box.connectionId, box.appKey)).find((record) => record.tableName === table.name)?.ref;
     const profile = await appProfileFor(deps.meta, box.connectionId, box.appKey, tableId, wanted.kind);
+    const detached = async (addOnKey?: string) => (facts.manifest === null ? false : await appDocumentDetached(deps.meta, facts.manifest, ref, wanted.kind, addOnKey));
     if (profile === null || key === undefined || ref === undefined || facts.manifest === null) {
-      return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed`, absent: true };
+      return { error: `The ${wanted.kind} is not available: it was not made for the app, as its add-on was not there when it was installed`, ...((await detached()) ? { absent: true as const } : {}) };
     }
-    if (!profile.enabled) return { error: `The ${wanted.kind} is not available: its profile is switched off`, absent: true };
+    if (!profile.enabled) return { error: `The ${wanted.kind} is not available: its profile is switched off` };
     const off = await appDocumentOff({ meta: deps.meta, manifest: facts.manifest, profile, table: ref, runtime: pipeline.runtime });
-    if (off !== null) return { error: `The ${wanted.kind} is not available: ${off.reason}`, absent: true };
+    if (off !== null) return { error: `The ${wanted.kind} is not available: ${off.reason}`, ...((await detached(profile.addOnKey)) ? { absent: true as const } : {}) };
     const outcome = await renderDocument(pipeline, {
       profileId: profile.id,
       pk: { [key]: id },
@@ -1575,7 +1584,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       ...(locale === undefined ? {} : { locale: locale.replace(/_/g, '-') }),
     });
     if (outcome.status === 'skipped') {
-      return outcome.reason === 'row-gone' ? { error: `The ${wanted.kind} could not be drawn: its row is gone` } : { error: `The ${wanted.kind} is not available: its add-on draws nothing`, absent: true };
+      if (outcome.reason === 'row-gone') return { error: `The ${wanted.kind} could not be drawn: its row is gone` };
+      return { error: `The ${wanted.kind} is not available: its add-on draws nothing`, ...((await detached(profile.addOnKey)) ? { absent: true as const } : {}) };
     }
     if (outcome.status === 'failed') return { error: `The ${wanted.kind} could not be drawn: ${outcome.error}` };
     const fileId = outcome.document.fileId ?? outcome.document.htmlFileId;

@@ -15,7 +15,9 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withNamedLocks } from '../src/crud/capacity/locks.js';
-import { ADMIN_EMAIL, ADMIN_PASSWORD, login } from './auth-helpers.js';
+import { permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+
+import { ADMIN_EMAIL, ADMIN_PASSWORD, adminPasswordHash, login } from './auth-helpers.js';
 import { LEGS, type World } from './capacity.helpers.js';
 import { house } from './capacity-worlds.js';
 
@@ -110,6 +112,25 @@ describe.each(LEGS)('a change quote of a stay, in a house sold by the night — 
     }
     const taken = await w!.query(`select count(*) as n from stays where room_type_id = 1 and arrive <= '2026-10-05' and depart > '2026-10-05'`);
     expect(Number(taken[0]!['n'])).toBe(4);
+  });
+
+  it.runIf(available)("refuses the house's night counts to a role that may not read a stay's dates, as a masked column", async () => {
+    const role = await rolesRepo(w!.meta).create({ slug: 'counter', name: 'Counter' });
+    const grant = (table: string, actions: Record<string, unknown>) =>
+      permissionsRepo(w!.meta).grant(role.id, 'table', `${w!.connectionId}/${w!.id(table)}`, { read: true, create: false, update: false, delete: false, export: false, import: false, ...actions } as never);
+    for (const table of ['room_types', 'rooms', 'room_closures']) await grant(table, {});
+    await grant('stays', { readLimit: { readable: ['room_type_id', 'room_id', 'status'] } });
+    const user = await usersRepo(w!.meta).create({ email: 'counter@venue.example.com', name: 'Counter', passwordHash: await adminPasswordHash(), status: 'active' });
+    await rolesRepo(w!.meta).assignToUser(user.id, role.id);
+    const counter = (await login(w!.app as never, 'counter@venue.example.com', ADMIN_PASSWORD)).cookie ?? '';
+    const counts = (who: string) => w!.app.inject({ method: 'GET', url: path('/capacity-counts?rule=0&from=2026-08-10&days=2'), headers: { cookie: who } });
+    const refused = await counts(counter);
+    expect(refused.statusCode, refused.body).toBe(403);
+    expect(refused.json().error).toMatchObject({ code: 'COLUMN_FORBIDDEN', details: { reason: 'read-limit' } });
+    expect((await counts(cookie)).statusCode).toBe(200);
+    // A role that reads the dates too is answered.
+    await grant('stays', { readLimit: { readable: ['room_type_id', 'room_id', 'status', 'arrive', 'depart'] } });
+    expect((await counts(counter)).statusCode).toBe(200);
   });
 
   it.runIf(available)('answers a quote of a stay that is not there as the save does', async () => {

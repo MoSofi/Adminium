@@ -23,7 +23,7 @@
  */
 import { Readable } from 'node:stream';
 
-import { connectionTenantConfig, filesRepo, importsRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, filesRepo, importsRepo, overridesRepo, rolesRepo, settingsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { decryptSecret } from '../src/config/secrets.js';
@@ -43,7 +43,7 @@ import { servePublic, type Served } from './public-lane.helpers.js';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120, more: Record<string, unknown> = {}) => ({ ref, type: 'text', maxLength, nullable: true, ...more });
-const KINDS = ['dates', 'resend', 'cancelled', 'receipt', 'strict'] as const;
+const KINDS = ['dates', 'resend', 'cancelled', 'receipt', 'strict', 'moved'] as const;
 
 function inn(): Record<string, unknown> {
   const manifest = invoicingManifest([
@@ -101,6 +101,7 @@ function inn(): Record<string, unknown> {
         { kind: 'cancelled', link: 'stay_id', onChange: { table: 'stays', column: 'status', to: 'cancelled' } },
         { kind: 'receipt', link: 'stay_id', onChange: { table: 'stays', column: 'paid', to: true } },
         { kind: 'strict', link: 'stay_id', onChange: { table: 'stays', column: 'paid', to: true } },
+        { kind: 'moved', link: 'stay_id', onChange: { table: 'stays', columns: ['arrive'], changed: true }, repeat: true, was: ['total', 'arrive'] },
       ],
     },
     emailTemplates: [
@@ -119,6 +120,7 @@ function inn(): Record<string, unknown> {
         { kind: 'receipt', link: 'stay', optional: true },
       ),
       template('strict', 'Paid (receipt)', [{ block: 'email.text', data: { text: 'Receipt attached.' } }], { kind: 'receipt', link: 'stay' }),
+      template('moved', 'Moved', [{ block: 'email.text', data: { text: 'It was [{{was.total}}] from {{was.arrive.day_month}}.' } }]),
     ],
   };
 }
@@ -338,6 +340,25 @@ describe.each(LEGS)('emails of a change — %s', (dialect, available) => {
     expect(strict[0]).toMatchObject({ status: 'failed' });
     expect(String(strict[0]!['error'])).toContain('receipt');
     expect(sent.find((one) => one.subject === 'Paid (receipt)')).toBeUndefined();
+  });
+
+  it.runIf(available)('keeps nothing of a column marked personal since, and prints what was kept of it empty', async () => {
+    const id = await stay();
+    const pii = await overridesRepo(meta).create({ connectionId: h!.connectionId, op: 'column.pii', tableName: w.targetOf('stays').table.id, columnName: 'total', value: { masked: true } as never });
+    try {
+      expect((await staff('PATCH', `/${String(id)}`, { values: { arrive: '2026-11-04' } })).statusCode).toBe(200);
+      const kept = await messages(id, 'moved');
+      expect(kept).toHaveLength(1);
+      expect(was(kept[0]!)).toEqual({ total: null, arrive: '2026-11-05' });
+      // One kept before the mark: what it kept is not printed.
+      await h!.rows(`UPDATE ${h!.real('messages')} SET was = '{"total":480,"arrive":"2026-11-05"}' WHERE id = ${String(kept[0]!['id'])}`);
+      const sent = (await sendAll()).filter((one) => one.subject === 'Moved');
+      expect(sent).toHaveLength(1);
+      expect(sent[0]!.text).toContain('It was [] from November 5.');
+      expect(sent[0]!.text).not.toContain('480');
+    } finally {
+      await overridesRepo(meta).delete(pii.id);
+    }
   });
 
   it.runIf(available)('adds no Reply-To when the house keeps no address, or one that is not an address', async () => {

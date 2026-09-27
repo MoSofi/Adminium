@@ -53,6 +53,7 @@ import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, renewingCodeColumnsOf,
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import { readLimitsOn } from '../../rbac/read-limits.js';
+import { readsHidden, refuseHiddenIn } from '../../crud/read-view.js';
 import {
   fetchByPk,
   parseRecordId,
@@ -101,6 +102,7 @@ import type { TreeNode, TreeOutcome, TreePath } from '../../crud/write-tree.js';
 import { TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { staffTreeRules } from './tree.js';
 import { declaredColumns, expectColumnOf, priceCheck, staffRetryKey } from './staff-quote.js';
+import { scrubRefusal } from './refusal-scrub.js';
 import { clientKeySecret } from '../public/tree.js';
 
 /**
@@ -284,7 +286,8 @@ export function mapDbError(error: unknown, table?: ResolvedTable): never {
     const columns = table === undefined ? null : uniqueColumnsOf(dbError, table);
     throw new ConflictError('A record with this value already exists.', 'UNIQUE_VIOLATION', {
       constraint: dbError.constraint ?? null,
-      detail: dbError.detail ?? null,
+      // Never the database's own sentence: Postgres spells out the OTHER row's values there (a masked or hidden column's too).
+      detail: null,
       // The columns the rule keeps unique (together), so a form marks each: only the table's own.
       ...(columns === null ? {} : { columns }),
     });
@@ -396,7 +399,28 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     return resolved;
   }
 
+  /** The caller's context of a request whose reads are limited: its refusals leave out what they may not read. */
+  const readersOf = new WeakMap<FastifyRequest, DataContext>();
   return async (app) => {
+    /*
+     * A write judges the row whole, and its refusal repeats some of what it
+     * judged (a strict row's stamps, a pool's key, a balance). A caller whose
+     * role reads the table only in part is told it without the values of the
+     * columns they may not read — the refusal of a child row as they read the
+     * child's table.
+     */
+    app.addHook('onError', async (request, _reply, error) => {
+      const ctx = readersOf.get(request);
+      if (ctx === undefined || !(error instanceof AppError)) return;
+      const relation = (error.details as { relation?: unknown } | null | undefined)?.relation;
+      let table = ctx.readTable;
+      if (typeof relation === 'string') {
+        const resolution = resolveChild(ctx.readView, ctx.readTable, relation);
+        if (resolution.ok) table = resolution.child.child;
+      }
+      const scrubbed = scrubRefusal(error, ctx.readView, table);
+      if (scrubbed !== error) Object.defineProperty(error, 'details', { value: (scrubbed as AppError).details, configurable: true });
+    });
     function principalId(request: FastifyRequest): string | null {
       const user = (request as unknown as { user?: { id?: string } }).user;
       return user?.id ?? request.apiKeyPrincipal?.id ?? null;
@@ -462,7 +486,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const readTable = readView === view ? table : readView.table(table.id);
       const hidden = [...readTable.columns.values()].filter((column) => column.unreadable === true).map((column) => column.name);
       const writable = hidden.length === 0 ? null : updateLimitOf(permissions, connectionId, table.id);
-      return {
+      const ctx: DataContext = {
         connectionId,
         view,
         table,
@@ -475,6 +499,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         readTable,
         hiddenWritable: new Set(writable === null ? [] : hidden.filter((column) => writable.writable.includes(column))),
       };
+      // A refusal of this request is told as the caller reads the table (see the error hook below).
+      if (readView.readLimited) readersOf.set(request, ctx);
+      return ctx;
     }
 
     /**
@@ -1094,7 +1121,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       }
       const declared = await declaredColumns(meta, ctx.connectionId, ctx.view, ctx.table);
       const out: { expect?: (row: Row) => void; retry?: { column: string; hash: string } } = {};
-      if (expect !== undefined) out.expect = priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.view.readableColumn(ctx.table, column, ctx.unmasked)), expect.total);
+      if (expect !== undefined) out.expect = priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.readView.readableColumn(ctx.readTable, column, ctx.unmasked)), expect.total);
       if (clientKey !== undefined) {
         out.retry = staffRetryKey(retrySecret, declared, ctx.connectionId, ctx.table, principalId(request), clientKey);
         values[out.retry.column] = out.retry.hash;
@@ -1106,7 +1133,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     async function changeCheck(ctx: DataContext, expect: { total: string; column?: string | undefined } | undefined): Promise<((row: Row) => void) | null> {
       if (expect === undefined) return null;
       const declared = await declaredColumns(meta, ctx.connectionId, ctx.view, ctx.table);
-      return priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.view.readableColumn(ctx.table, column, ctx.unmasked)), expect.total);
+      return priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.readView.readableColumn(ctx.readTable, column, ctx.unmasked)), expect.total);
     }
 
     /** The target keys this record is linked to right now. */
@@ -2325,6 +2352,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const ctx = asReader(await contextFor(request, 'read'));
         if ((ctx.table.table?.capacityRules?.length ?? 0) === 0) throw new NotFoundError('This table keeps no limit.', { table: ctx.table.id });
+        // Counts are made of the rule's columns (its dates, its states, its pools' sizes): refused, as a masked column, to a role that may not read one.
+        refuseHiddenIn(ctx.view, ctx.table.table?.capacityRules?.[Number(request.query.rule ?? 0)] ?? ctx.table.table?.capacityRules);
         const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
         const { ids, ...rest } = request.query;
         // The tables the counts read beyond this one (the pools' rows), and a column asked under, as the asker may read them.
@@ -2366,6 +2395,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           throw new NotFoundError('This table has no price by the night.', { table: ctx.table.id });
         }
         ctx.view.readableColumn(ctx.table, priced.column, await canReadPii(request, ctx.connectionId, ctx.table.id));
+        // Each night spells out the row's dates and the rates it is priced from: refused to a role that may not read one of them.
+        refuseHiddenIn(ctx.view, priced);
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const row = await fetchByPk(ctx.db, ctx.table, pk);
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
@@ -2770,7 +2801,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (parent !== undefined) ((parent.children ??= {})[String(at[2])] ??= [])[Number(at[3])] = { data };
         }
         // The desk's booking summary: the nights a price by the night is made of.
-        const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked));
+        const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight));
         return { data: maskRow(tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
       },
     );
@@ -2857,7 +2888,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const after: Row = { ...outcome.after };
         // A quote never shows a code the change would make: the row's own is shown until the save makes one.
         for (const column of renewingCodeColumnsOf(ctx.table)) if (Object.hasOwn(after, column)) after[column] = before[column];
-        const readable = (column: string) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked);
+        // The nights spell out the dates and rates they are made of: shown only to a role that reads every one of them.
+        const readable = (column: string) =>
+          ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight);
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), outcome.after, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, readable);
         return { data: maskRow(after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
       },

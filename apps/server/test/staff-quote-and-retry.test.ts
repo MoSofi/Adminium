@@ -13,7 +13,7 @@
  *    stay the first made (`replayed`), one row; two sent at once make one;
  *    another person's same key is another booking.
  */
-import { rolesRepo, usersRepo } from '@adminium/meta';
+import { permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { adminPasswordHash, ADMIN_PASSWORD, login } from './auth-helpers.js';
@@ -196,6 +196,27 @@ describe.each(LEGS)("the desk's change quote, price check and retry key — %s",
     expect((await send('POST', url('stays'), { values, clientKey: 'short' })).statusCode).toBe(422);
     // A table that keeps no retry key refuses one.
     expect((await send('POST', url('charges'), { values: { stay_id: made['id'], label: 'x', amount: '1.00' }, clientKey: key })).statusCode).toBe(422);
+  });
+
+  it.runIf(available)("shows no night to a role that may not read a stay's dates: not its nights, nor a change quote's", async () => {
+    const role = await rolesRepo(h!.meta).create({ slug: 'night-porter', name: 'Night porter' });
+    const grant = (ref: string, actions: Record<string, unknown>) =>
+      permissionsRepo(h!.meta).grant(role.id, 'table', `${h!.connectionId}/${w.targetOf(ref).table.id}`, { read: true, create: false, update: false, delete: false, export: false, import: false, ...actions } as never);
+    await grant('stays', { update: true, readLimit: { readable: ['room_total', 'guests', 'first_name', 'room_type_id'] } });
+    for (const ref of ['room_types', 'rate_rules', 'stay_extras', 'extras']) await grant(ref, {});
+    const user = await usersRepo(h!.meta).create({ email: 'porter@wren.example', name: 'Porter', passwordHash: await adminPasswordHash(), status: 'active' });
+    await rolesRepo(h!.meta).assignToUser(user.id, role.id);
+    const porter = (await login(served.composed.app as never, 'porter@wren.example', ADMIN_PASSWORD)).cookie ?? '';
+    const stay = await w.create('stays', { first_name: 'Eve', room_type_id: seed.garden['id'], arrive: '2026-08-03', depart: '2026-08-05', guests: 1 });
+    const nightly = await served.composed.app.inject({ method: 'GET', url: url('stays', `/${String(stay['id'])}/nightly`), headers: { cookie: porter } });
+    expect(nightly.statusCode, nightly.body).toBe(403);
+    expect(nightly.json().error.code).toBe('COLUMN_FORBIDDEN');
+    const quoted = await send('POST', url('stays', `/${String(stay['id'])}/dry-run`), { values: { guests: 2 } }, porter);
+    expect(quoted.statusCode, quoted.body).toBe(200);
+    expect(quoted.json()).not.toHaveProperty('nights');
+    expect(quoted.json().data).not.toHaveProperty('arrive');
+    // The desk, who reads the dates, sees the nights.
+    expect((await send('POST', url('stays', `/${String(stay['id'])}/dry-run`), { values: { guests: 2 } })).json().nights).toHaveLength(2);
   });
 
   it.runIf(available)('makes one stay of two creates sent at once under one retry key', async () => {

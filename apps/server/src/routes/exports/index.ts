@@ -116,6 +116,14 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
       { schema: { body: exportsCreateBody, response: { 202: exportsCreateReply } } },
       async (request, reply) => {
         const userId = requireUserId(request);
+        /*
+         * An export is a person's: it is written later, as the person who asked
+         * reads the tables then, and kept under their name. A key is no person
+         * — told so, rather than failing on the store's own refusal.
+         */
+        if ((request as unknown as { user?: { id?: string } }).user?.id === undefined) {
+          throw new ForbiddenError('An export is asked for by a signed-in person, not by a key.', 'FORBIDDEN', {});
+        }
         const { connectionId, source, format } = request.body;
 
         if (format === 'xlsx') {

@@ -40,7 +40,7 @@ function manifestWithOutbox(): Record<string, unknown> {
     ref: 'messages',
     columns: [
       { ref: 'id', type: 'int', role: 'pk' },
-      { ref: 'kind', type: 'enum', enum: ['invoice-sent', 'note'] },
+      { ref: 'kind', type: 'enum', enum: ['invoice-sent', 'note', 'invoice-maybe'] },
       { ref: 'status', type: 'enum', enum: ['queued', 'sent', 'failed', 'skipped'], default: 'queued' },
       { ref: 'to_address', type: 'text', maxLength: 254, nullable: true },
       { ref: 'language', type: 'text', maxLength: 35, nullable: true },
@@ -50,11 +50,11 @@ function manifestWithOutbox(): Record<string, unknown> {
       { ref: 'sent_at', type: 'timestamptz', nullable: true },
     ],
   });
-  const template = (key: string, subject: string, text: string, attach?: Record<string, unknown>) => ({
+  const template = (key: string, subject: string, text: string, attach?: Record<string, unknown>, more: Record<string, unknown>[] = []) => ({
     key: `studio-${key}`,
     name: key,
     ...(attach === undefined ? {} : { attach }),
-    locales: { 'en-US': { subject, blocks: [{ block: 'email.text', data: { text } }] } },
+    locales: { 'en-US': { subject, blocks: [{ block: 'email.text', data: { text } }, ...more] } },
   });
   return {
     ...manifest,
@@ -63,11 +63,15 @@ function manifestWithOutbox(): Record<string, unknown> {
       columns: { kind: 'kind', status: 'status', to: 'to_address', language: 'language', error: 'error', sentAt: 'sent_at' },
       links: { client: 'client_id', invoice: 'invoice_id' },
       recipient: { via: 'client_id', table: 'clients', email: 'email', name: 'name', language: 'language' },
-      kinds: { 'invoice-sent': 'studio-invoice-sent', note: 'studio-note' },
+      kinds: { 'invoice-sent': 'studio-invoice-sent', note: 'studio-note', 'invoice-maybe': 'studio-invoice-maybe' },
     },
     emailTemplates: [
       template('invoice-sent', 'Invoice {{invoice.number}}', 'Your invoice {{invoice.number}} is attached.', { kind: 'invoice', link: 'invoice' }),
       template('note', 'A note', 'A note, with nothing attached.'),
+      // May go without its document, and without the line that says it is attached.
+      template('invoice-maybe', 'Invoice {{invoice.number}} (maybe)', 'Thank you.', { kind: 'invoice', link: 'invoice', optional: true }, [
+        { block: 'email.text', data: { text: 'The invoice is attached.', withAttachment: true } },
+      ]),
     ],
   };
 }
@@ -117,12 +121,14 @@ for (const [dialect, reachable] of LEGS) {
     let sender: OutboxSender;
     let pipeline: RenderDeps;
     const addOn = drawingAddOn();
+    /** The add-on runtime the pipeline reads now: the add-on's, or none (its bundle failed to load). */
+    let runtimeNow: AddOnRuntimeState | null = addOn.runtime;
     const clock = Date.parse('2026-10-02T12:00:00Z');
     const t = (ref: string) => h.real(ref);
 
     /** Queue one invoice email, send, and read back the row and the email job. */
-    const sendFor = async (invoice: number, client: number) => {
-      await h.sql(`insert into ${t('messages')} (kind, status, client_id, invoice_id) values ('invoice-sent', 'queued', ${String(client)}, ${String(invoice)})`);
+    const sendFor = async (invoice: number, client: number, kind = 'invoice-sent') => {
+      await h.sql(`insert into ${t('messages')} (kind, status, client_id, invoice_id) values ('${kind}', 'queued', ${String(client)}, ${String(invoice)})`);
       const id = Number((await h.rows(`select max(id) as id from ${t('messages')}`))[0]!['id']);
       const jobsBefore = (await emailJobs()).length;
       await sender.sendApp('studio', clock);
@@ -150,7 +156,7 @@ for (const [dialect, reachable] of LEGS) {
         secure: false,
       } as never);
       let tick = NOON;
-      pipeline = { ...createDocumentPipeline({ meta, manager: h.manager, storage: memoryStorage(), runtime: () => addOn.runtime }), now: () => (tick += 1000) };
+      pipeline = { ...createDocumentPipeline({ meta, manager: h.manager, storage: memoryStorage(), runtime: () => runtimeNow }), now: () => (tick += 1000) };
       const views = createPublicViews(meta);
       const writes = createWriteService({ sequences: documentSequencesRepo(meta) });
       const producers = createOutboxProducers({ meta, manager: h.manager, viewFor: views.viewFor, writes });
@@ -231,6 +237,39 @@ for (const [dialect, reachable] of LEGS) {
       // Back on: the same email goes, with its document.
       const sent = await sendFor(3, 1);
       expect([sent.status, sent.jobs[0]![0]!.filename]).toEqual(['sent', 'invoice.pdf']);
+    });
+
+    it('sends a message that may go without its document without it, only when the add-on is not on for the app', async () => {
+      const repo = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
+      const invoices = (await repo.findByKey('invoices'))!;
+      await repo.setAttachmentEnabled(invoices.row.id, 'studio', false);
+      try {
+        const sent = await sendFor(3, 1, 'invoice-maybe');
+        expect([sent.status, sent.error, sent.jobs]).toEqual(['sent', null, [[]]]);
+      } finally {
+        await repo.setAttachmentEnabled(invoices.row.id, 'studio', true);
+      }
+      const withIt = await sendFor(3, 1, 'invoice-maybe');
+      expect([withIt.status, withIt.jobs[0]![0]!.filename]).toEqual(['sent', 'invoice.pdf']);
+    });
+
+    it('never sends it without its document while the attached add-on is only failing to load, or refusing', async () => {
+      // An invoice never drawn before: no document to hand back.
+      await h.sql(`insert into ${t('invoices')} (id, client_id, number, status, issued_on, total, currency) values (4, 1, 'INV-1004', 'sent', '2026-10-01', '40.00', 'GBP')`);
+      runtimeNow = null;
+      try {
+        const sent = await sendFor(4, 1, 'invoice-maybe');
+        expect([sent.status, sent.sent, sent.jobs]).toEqual(['failed', false, []]);
+      } finally {
+        runtimeNow = addOn.runtime;
+      }
+      addOn.state.refuse = true;
+      try {
+        const sent = await sendFor(4, 1, 'invoice-maybe');
+        expect([sent.status, sent.sent, sent.jobs]).toEqual(['failed', false, []]);
+      } finally {
+        addOn.state.refuse = false;
+      }
     });
   });
 }

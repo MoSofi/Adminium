@@ -151,7 +151,10 @@ export function wasOf(table: ResolvedTable, columns: readonly string[], before: 
   for (const column of columns) {
     const value = before?.[column] ?? null;
     const type = table.columns.get(column)?.logicalType;
-    if (value === null) out[column] = null;
+    // A column marked secret or personal since the app was installed is kept empty: the outbox is read by others.
+    const resolved = table.columns.get(column);
+    if (resolved === undefined || resolved.secret || resolved.masked) out[column] = null;
+    else if (value === null) out[column] = null;
     else if (type === 'date') out[column] = readDay(value);
     else if (type === 'timestamp' || type === 'timestamptz') out[column] = readInstant(value)?.toISOString() ?? null;
     else if (value instanceof Date) out[column] = value.toISOString();
@@ -504,6 +507,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       for (const box of await live()) {
         if (box.connectionId !== event.connectionId) continue;
         if (box.definition.table === event.table.id) {
+          // An undo that puts a message back to queued waits for the next sweep, as it would have.
+          if (event.cause === 'undo') continue;
           // A person approved a message, or queued one again: send it now, not at the next sweep.
           const status = box.definition.columns.status;
           if (event.after[status] === 'queued' && event.before?.[status] !== 'queued') deps.onQueued?.(box.appKey);

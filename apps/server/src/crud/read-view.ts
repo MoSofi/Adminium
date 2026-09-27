@@ -60,3 +60,62 @@ export function readableImage(view: SnapshotView, tableId: string, row: Row | nu
   }
   return out;
 }
+
+/**
+ * An import as a caller whose role reads its table only in part may make it:
+ * a column they may not read is never the column rows are matched by (which
+ * rows exist would be the answer), and is brought in only when their update
+ * names it (`writable`), as a form's field is. Refused 403 as a masked
+ * column is. Nothing to check for a caller who reads the table whole.
+ */
+export function assertImportReadable(
+  view: SnapshotView,
+  tableId: string,
+  mapping: readonly { to: string | null }[],
+  match: string | null,
+  writable: readonly string[] | null,
+): void {
+  if (!view.readLimited) return;
+  const table = view.linkTable(tableId);
+  if (table === null) return;
+  const hidden = (column: string) => table.columns.get(column)?.unreadable === true;
+  if (match !== null && hidden(match)) view.column(table, match);
+  for (const entry of mapping) {
+    if (entry.to !== null && hidden(entry.to) && !(writable ?? []).includes(entry.to)) view.column(table, entry.to);
+  }
+}
+
+/** Every string anywhere inside a value: the column names a rule reads, among others. */
+export function stringsOf(value: unknown, out: Set<string> = new Set()): Set<string> {
+  if (typeof value === 'string') out.add(value);
+  else if (Array.isArray(value)) for (const item of value) stringsOf(item, out);
+  else if (typeof value === 'object' && value !== null) for (const item of Object.values(value)) stringsOf(item, out);
+  return out;
+}
+
+/**
+ * Refuse (403, as a masked column is) a figure built from a column the
+ * caller's view hides: a rule (a limit, a price by the night) that names one
+ * — on its own table or a table it reads through a link. Read by name, so a
+ * column of the same name elsewhere refuses too: it errs on telling less.
+ */
+export function refuseHiddenIn(view: SnapshotView, rule: unknown): void {
+  if (!view.readLimited) return;
+  const named = stringsOf(rule);
+  for (const model of view.model.tables) {
+    const table = view.linkTable(model.id);
+    for (const column of table?.columns.values() ?? []) {
+      if (column.unreadable === true && named.has(column.name)) view.column(table!, column.name);
+    }
+  }
+}
+
+/** Whether a rule names a column the caller's view hides (see {@link refuseHiddenIn}). */
+export function readsHidden(view: SnapshotView, rule: unknown): boolean {
+  try {
+    refuseHiddenIn(view, rule);
+    return false;
+  } catch {
+    return true;
+  }
+}
