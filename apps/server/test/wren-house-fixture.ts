@@ -107,7 +107,7 @@ export function wrenManifest(tables: Record<string, unknown>[] = wrenTables()): 
   return manifest;
 }
 
-/** The released hotel's seed: room types, the weekend and August, and three extras (Q11's prices). */
+/** The released hotel's seed: room types, the weekend and August, and three extras (at the prices the hotel app ships with). */
 export async function seedWren(create: (ref: string, values: Record<string, unknown>) => Promise<Record<string, unknown>>) {
   await create('settings', { tax_rate: '9.000' });
   const garden = await create('room_types', { code: 'garden', name: 'Garden', base_rate: '150.00', sleeps: 2 });

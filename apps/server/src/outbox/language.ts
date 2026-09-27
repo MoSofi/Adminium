@@ -13,6 +13,23 @@
 import type { Outbox, OutboxProducer } from '@adminium/manifest';
 
 import type { Row } from '../crud/mask.js';
+import { negotiateLocale } from '../plugins/surfaces.js';
+
+/** A language tag as a row may hold one: `de`, `pt-BR`, `zh_TW` — one tag, never a list. */
+const ONE_TAG = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{1,8}){0,3}$/;
+
+/**
+ * A row's language when a message can be written in it: one tag, of a
+ * language the built-in locales place, that fits the outbox's language
+ * column (`fits`, its width) — else null, and the person's language (or the
+ * workspace's) is used instead of it.
+ */
+export function usableLanguage(value: unknown, fits: number | null = null): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  if (text === '' || text.length > 35 || (fits !== null && text.length > fits) || !ONE_TAG.test(text)) return null;
+  return negotiateLocale(text.replace(/_/g, '-')) === null ? null : text;
+}
 
 /** The column of the row a message is about that holds its language, for this producer; undefined when none is named. */
 export function producedLanguageColumn(definition: Pick<Outbox, 'recipient'>, producer: OutboxProducer | undefined): string | undefined {
@@ -22,9 +39,12 @@ export function producedLanguageColumn(definition: Pick<Outbox, 'recipient'>, pr
   return typeof language === 'object' ? language.column : undefined;
 }
 
-/** The language the row a message is about holds for it (`de`, `pt-BR`), or null for none. */
-export function producedLanguage(definition: Pick<Outbox, 'recipient'>, producer: OutboxProducer | undefined, about: Row): string | null {
+/**
+ * The language the row a message is about holds for it (`de`, `pt-BR`), or
+ * null for none — or for one no message can be written in, or too long for
+ * the outbox's language column (`fits`), which then leaves the person's.
+ */
+export function producedLanguage(definition: Pick<Outbox, 'recipient'>, producer: OutboxProducer | undefined, about: Row, fits: number | null = null): string | null {
   const column = producedLanguageColumn(definition, producer);
-  const value = column === undefined ? undefined : about[column];
-  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+  return usableLanguage(column === undefined ? undefined : about[column], fits);
 }
