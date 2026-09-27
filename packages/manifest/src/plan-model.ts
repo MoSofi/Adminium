@@ -20,6 +20,8 @@ export interface SchemaModelView {
      * offered to be added.
      */
     uniques?: readonly (readonly string[])[];
+    /** The names of the table's indexes and constraints, for a new rule's name never to take one. */
+    indexNames?: readonly string[];
   }[];
   /**
    * The engine the tables live on. Only the type check reads it: SQLite
@@ -28,6 +30,8 @@ export interface SchemaModelView {
    * by the rules every engine shares.
    */
   dialect?: 'postgres' | 'mysql' | 'sqlite' | undefined;
+  /** Every index and constraint name in the database, beyond the tables read: a new rule's name takes none. */
+  indexNames?: readonly string[] | undefined;
 }
 
 /**
@@ -196,7 +200,7 @@ export type PlanEdit =
    * those columns and this one together), as a table made with it would, and
    * the table does not say so yet. Offered only where no two rows break it.
    */
-  | { kind: 'add-unique'; column: string; with?: string[] };
+  | { kind: 'add-unique'; column: string; with?: string[]; name?: string };
 
 export interface InstallTablePlan {
   /** The manifest's short name. */

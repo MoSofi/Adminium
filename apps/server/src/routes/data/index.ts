@@ -211,6 +211,27 @@ interface DataContext {
  * A lock conflict (deadlock, serialization failure, busy SQLite file) is none
  * of these: it is 409 `WRITE_CONFLICT` with `{ retry: true }`, table or not.
  */
+/**
+ * The columns of the unique rule a refused write broke, read from what each
+ * engine says — Postgres names the constraint, MySQL the key, SQLite the
+ * columns themselves — and kept only when they are the table's own.
+ */
+export function uniqueColumnsOf(dbError: { constraint?: string; message?: string }, table: ResolvedTable): string[] | null {
+  const own = (columns: readonly string[]) => (columns.length > 0 && columns.every((c) => table.columns.has(c)) ? [...columns] : null);
+  const byName = (name: string): string[] | null => {
+    const model = table.table;
+    const found = [...(model?.uniques ?? []), ...(model?.indexes ?? []).filter((index) => index.unique)].find((rule) => rule.name === name);
+    return found === undefined ? null : own(found.columns);
+  };
+  if (typeof dbError.constraint === 'string') return byName(dbError.constraint);
+  const message = dbError.message ?? '';
+  const mysql = /for key '(?:[^'.]*\.)?([^']+)'/.exec(message);
+  if (mysql !== null) return byName(mysql[1]!);
+  const sqlite = /UNIQUE constraint failed: (.+)$/.exec(message);
+  if (sqlite !== null) return own(sqlite[1]!.split(',').map((part) => part.trim().split('.').at(-1)!));
+  return null;
+}
+
 export function mapDbError(error: unknown, table?: ResolvedTable): never {
   if (isWriteConflict(error)) throw writeConflict();
   const dbError = error as { code?: string; detail?: string; constraint?: string; message?: string };
@@ -220,9 +241,12 @@ export function mapDbError(error: unknown, table?: ResolvedTable): never {
     dbError.code === 'ER_DUP_ENTRY' ||
     message.includes('UNIQUE constraint failed')
   ) {
+    const columns = table === undefined ? null : uniqueColumnsOf(dbError, table);
     throw new ConflictError('A record with this value already exists.', 'UNIQUE_VIOLATION', {
       constraint: dbError.constraint ?? null,
       detail: dbError.detail ?? null,
+      // The columns the rule keeps unique (together), so a form marks each: only the table's own.
+      ...(columns === null ? {} : { columns }),
     });
   }
   if (

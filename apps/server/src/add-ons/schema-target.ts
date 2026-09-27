@@ -178,6 +178,21 @@ export interface LiveTables {
   tables: ExistingTable[];
   /** The engine they live on; the planner's type check needs it (SQLite reports types loosely). */
   dialect: Dialect;
+  /** Every index and constraint name the snapshot knows, on any table: a new rule's name takes none. */
+  indexNames?: string[];
+}
+
+/** Every index and constraint name of every table the snapshot knows; none when there is no snapshot. */
+export async function snapshotIndexNames(meta: SchemaTargetCoreDeps['meta'], connectionId: string): Promise<string[]> {
+  try {
+    const view = await loadSnapshotView(meta, connectionId);
+    return view.model.tables.flatMap((table) => [
+      ...table.uniques.flatMap((unique) => (unique.name === null ? [] : [unique.name])),
+      ...table.indexes.map((index) => index.name),
+    ]);
+  } catch {
+    return [];
+  }
 }
 
 export async function readLiveTables(
@@ -188,7 +203,7 @@ export async function readLiveTables(
   const adapter = await deps.manager.introspectAdapter(connectionId);
   let model;
   try {
-    if (names.size === 0) return { tables: [], dialect: adapter.dialect };
+    if (names.size === 0) return { tables: [], dialect: adapter.dialect, indexNames: await snapshotIndexNames(deps.meta, connectionId) };
     model = await adapter.introspect({
       tableFilter: (table) => names.has(table.name),
       collectRowEstimates: false,
@@ -221,13 +236,15 @@ export async function readLiveTables(
         ? {}
         : { enumValues: model.enums.find((e) => e.id === column.enumRef)?.values ?? [] }),
     })),
+    // Their names, so a rule an install makes never takes one.
+    indexNames: [...table.uniques.flatMap((unique) => (unique.name === null ? [] : [unique.name])), ...table.indexes.map((index) => index.name)],
     // Every set of columns the table keeps unique: its constraints, and its unique indexes on plain columns.
     uniques: [
       ...table.uniques.map((unique) => [...unique.columns]),
       ...table.indexes.filter((index) => index.unique && !index.primary && !index.partial && index.expression === null).map((index) => [...index.columns]),
     ],
   }));
-  return { tables, dialect: model.dialect };
+  return { tables, dialect: model.dialect, indexNames: await snapshotIndexNames(deps.meta, connectionId) };
 }
 
 /**
@@ -277,6 +294,7 @@ export async function applyPlanTo(
     db: handle.db,
     dialect: handle.dialect,
     existing,
+    takenNames: await snapshotIndexNames(deps.meta, connectionId),
     onCreated,
   });
 

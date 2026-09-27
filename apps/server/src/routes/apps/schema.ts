@@ -328,6 +328,8 @@ export const appInstallPlanDto = z.object({
             values: z.array(z.string()).optional(),
             /** `add-unique`: the columns it is unique together with (a parent row), when not alone. */
             with: z.array(z.string()).optional(),
+            /** `add-unique` of a set the app declares: the rule's own name. */
+            name: z.string().optional(),
           }),
         ),
         blocked: z.array(z.object({ column: z.string(), reason: z.string() })),

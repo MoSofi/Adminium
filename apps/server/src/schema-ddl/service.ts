@@ -37,6 +37,7 @@ import {
   tableWithAddedColumns,
   tableWithAlteredColumns,
   validateSchemaEdit,
+  withUniques,
   type DatabaseModel,
   type DdlPlan,
   type DdlStep,
@@ -388,21 +389,26 @@ export function extendedTables(
     if (table === undefined) continue;
     alters.set(table.id, [...(alters.get(table.id) ?? []), entry]);
   }
+  // Rules over several columns, each by its own name: added last, over the columns the same edit adds.
+  const sets = new Map<string, { name: string; columns: string[] }[]>();
+  for (const entry of edit.addUniques ?? []) {
+    const table = find(entry.table);
+    if (table === undefined) continue;
+    sets.set(table.id, [...(sets.get(table.id) ?? []), { name: entry.name, columns: [...entry.columns] }]);
+  }
   const out = new Map<string, TableModel>();
-  for (const tableId of new Set([...alters.keys(), ...adds.keys()])) {
+  for (const tableId of new Set([...alters.keys(), ...adds.keys(), ...sets.keys()])) {
     const table = actual.tables.find((t) => t.id === tableId);
     if (table === undefined) continue;
     const uniqueAs = dialect === 'sqlite' ? 'index' : 'constraint';
     const altered = tableWithAlteredColumns(table, alters.get(tableId) ?? [], { dbTypeFor, uniqueAs });
-    out.set(
-      tableId,
-      tableWithAddedColumns(altered, adds.get(tableId) ?? [], {
-        dbTypeFor,
-        unique: unique.get(tableId) ?? new Set(),
-        uniqueAs,
-        uniqueWith: uniqueWith.get(tableId) ?? new Map(),
-      }),
-    );
+    const added = tableWithAddedColumns(altered, adds.get(tableId) ?? [], {
+      dbTypeFor,
+      unique: unique.get(tableId) ?? new Set(),
+      uniqueAs,
+      uniqueWith: uniqueWith.get(tableId) ?? new Map(),
+    });
+    out.set(tableId, withUniques(added, sets.get(tableId) ?? [], uniqueAs));
   }
   return out;
 }

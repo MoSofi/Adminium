@@ -43,7 +43,7 @@
  */
 
 import type { Dialect } from '@adminium/engine';
-import type { InstallPlan, RequiredColumn, RequiredTable } from '@adminium/manifest';
+import { uniqueSetName, type InstallPlan, type RequiredColumn, type RequiredTable } from '@adminium/manifest';
 import { sql, type CreateTableBuilder, type Kysely } from 'kysely';
 
 import { AppError } from '../errors.js';
@@ -186,6 +186,8 @@ export interface ExistingTable {
   }[];
   /** The column sets the table keeps unique, read from the live database. */
   uniques?: readonly (readonly string[])[];
+  /** The names of its indexes and constraints: a new rule's name takes none of them. */
+  indexNames?: readonly string[];
 }
 
 export interface ApplyInstallInput {
@@ -197,6 +199,8 @@ export interface ApplyInstallInput {
   db: Kysely<Record<string, Record<string, unknown>>>;
   dialect: Dialect;
   existing: readonly ExistingTable[];
+  /** Index and constraint names on tables `existing` does not hold (read from the snapshot). */
+  takenNames?: readonly string[] | undefined;
   /**
    * Called after each table is created, before the next — so a caller keeping
    * a record knows exactly what exists when a later create fails.
@@ -450,6 +454,8 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
   // SQLite keeps every FK inline: it accepts a target that does not exist yet,
   // and it has no ALTER TABLE … ADD CONSTRAINT to do it later with.
   const postHoc = dialect !== 'sqlite';
+  // Every index and constraint name already in the database, and each one made here.
+  const taken = new Set([...(input.takenNames ?? []), ...existing.flatMap((table) => table.indexNames ?? [])]);
 
   for (const table of order) {
     if (!toCreate.has(table.ref)) continue;
@@ -520,6 +526,13 @@ export async function applyInstall(input: ApplyInstallInput): Promise<ApplyInsta
       }
       if (column.rules?.code === undefined && column.unique !== true) continue;
       builder = builder.addUniqueConstraint(`uq_${table.ref}_${column.ref}`, [column.ref]);
+    }
+    // Sets of columns held unique together, each by a name no index or constraint in the database has.
+    for (const column of table.columns) taken.add(`uq_${table.ref}_${column.ref}`);
+    for (const set of table.unique ?? []) {
+      const name = uniqueSetName(table.ref, set, taken);
+      taken.add(name);
+      builder = builder.addUniqueConstraint(name, [...set]);
     }
 
     try {

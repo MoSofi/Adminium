@@ -225,6 +225,7 @@ export {
   ROLE_SLUG_LIMIT,
   uniqueWithOf,
   uniqueSetName,
+  uniqueSetBytes,
   type PlanContext,
   type TableChoice,
   type TableClass,

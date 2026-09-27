@@ -287,6 +287,16 @@ export const schemaEditSchema = z.strictObject({
   addColumns: z.array(addColumnSchema).max(50).default([]),
   /** Safe changes to existing columns — see {@link alterColumnSchema}. */
   alterColumns: z.array(alterColumnSchema).max(50).default([]),
+  /**
+   * Rules that no two rows hold the same values in several columns together
+   * (one waitlist entry per show per address), on existing tables, each by
+   * its own name. A column the same edit adds may be one of them. The rows
+   * there must not already break it — the caller checks first.
+   */
+  addUniques: z
+    .array(z.strictObject({ table: z.string().min(1), columns: z.array(identifierSchema).min(2).max(4), name: identifierSchema }))
+    .max(20)
+    .optional(),
   /** Table ids. */
   dropTables: z.array(z.string().min(1)).default([]),
 });
@@ -896,6 +906,29 @@ export function validateSchemaEdit(edit: SchemaEdit, ctx: EditValidationContext)
     }
   }
 
+  // --- addUniques ----------------------------------------------------------
+  for (const entry of edit.addUniques ?? []) {
+    if (refuseProtected(entry.table)) continue;
+    const table = byId.get(entry.table) ?? byName.get(entry.table);
+    if (table === undefined) continue; // `refuseProtected` already reported it
+    const where = { table: entry.table, column: entry.columns.at(-1)! };
+    const columns = entry.columns.map(
+      (name) =>
+        table.columns.find((c) => c.name === name) ??
+        (edit.addColumns ?? []).find((other) => (other.table === table.id || other.table === table.name) && other.column.name === name)?.column,
+    );
+    const missing = entry.columns.filter((_, index) => columns[index] === undefined);
+    if (missing.length > 0) {
+      push({ code: 'UNKNOWN_COLUMN', message: `${JSON.stringify(table.id)} has no column ${JSON.stringify(missing.join(', '))} to be unique with`, ...where });
+    }
+    if (new Set(entry.columns).size !== entry.columns.length) {
+      push({ code: 'DUPLICATE_COLUMN', message: 'a unique rule names each column once', ...where });
+    }
+    const tooLong = uniqueKeyIssue(columns.filter((c) => c !== undefined), ctx.dialect);
+    if (tooLong !== null) push({ code: 'UNSUPPORTED_TYPE', message: tooLong, ...where });
+    checkIdentifier(entry.name, where);
+  }
+
   // --- addColumns ----------------------------------------------------------
   //
   // The same gates the upsert path applies to a NEW column, and two more that
@@ -1123,7 +1156,7 @@ export function tableWithAddedColumns(
 }
 
 /** A table with more unique rules: constraints, or where `as` is `index`, unique indexes made in place. */
-function withUniques(table: TableModel, uniques: readonly { name: string; columns: string[] }[], as: 'constraint' | 'index' | undefined): TableModel {
+export function withUniques(table: TableModel, uniques: readonly { name: string; columns: string[] }[], as: 'constraint' | 'index' | undefined): TableModel {
   if (uniques.length === 0) return table;
   if (as === 'index') {
     const indexes = uniques.map((u) => ({ ...u, expression: null, unique: true, primary: false, method: null, partial: false }));
