@@ -175,8 +175,8 @@ export const recordChildrenBody = z
 export const recordDryRunReply = z.object({
   data: rowSchema.nullable(),
   children: z.record(z.string(), z.array(z.object({ data: rowSchema, children: z.record(z.string(), z.array(z.object({ data: rowSchema }))).optional() }))),
-  /** A row priced by the night (a stay): each night, its rate and the names of what was added to it. */
-  nights: z.array(z.object({ date: z.string(), rate: z.string(), tags: z.array(z.string()) })).optional(),
+  /** A row priced by the night (a stay): each night, its rate, the rate before what was added, and the names of what was added to it. */
+  nights: z.array(z.object({ date: z.string(), rate: z.string(), base: z.string(), tags: z.array(z.string()) })).optional(),
 });
 
 /**
@@ -197,12 +197,30 @@ export const recordRepeatBody = z
  */
 const occurredAtBody = z.string().datetime({ offset: true }).optional();
 
+/**
+ * The price the desk showed (a stay's total): the save is refused with 409
+ * `PRICE_CHANGED` when it comes to another figure. `column` names the money
+ * column compared; absent, the one the app's own entries check.
+ */
+const recordExpectBody = z
+  .object({ total: z.string().regex(/^-?\d{1,15}(?:\.\d{1,6})?$/), column: z.string().min(1).max(120).optional() })
+  .strict()
+  .optional();
+
 export const recordCreateBody = z.object({
   values: rowValuesSchema,
   links: recordLinksBody,
   children: recordChildrenBody,
   repeat: recordRepeatBody,
   occurredAt: occurredAtBody,
+  expect: recordExpectBody,
+  /**
+   * A key the form minted for this save: sent again after a reply that never
+   * came, it answers the record the first save made (`replayed`) instead of
+   * making a second. Kept as a keyed hash in the column the app's own entries
+   * keep a guest's retry key in.
+   */
+  clientKey: z.string().min(1).max(200).optional(),
 });
 export const recordUpdateBody = z.object({
   values: rowValuesSchema,
@@ -215,6 +233,25 @@ export const recordUpdateBody = z.object({
    * is made only with it.
    */
   from: z.string().min(1).max(64).optional(),
+  expect: recordExpectBody,
+});
+
+/** A change tried and not kept (`POST …/:recordId/dry-run`): the record's values and its child rows, as a change sends them. */
+export const recordChangeDryRunBody = z.object({
+  values: rowValuesSchema,
+  children: recordChildrenBody,
+  from: z.string().min(1).max(64).optional(),
+});
+
+/**
+ * A change tried and not kept: the record as it would stand, its child rows
+ * of each list the change sent as they would stand, and — for a row priced by
+ * the night — the nights it would then be made of.
+ */
+export const recordChangeDryRunReply = z.object({
+  data: rowSchema,
+  children: z.record(z.string(), z.array(z.object({ data: rowSchema }))),
+  nights: z.array(z.object({ date: z.string(), rate: z.string(), base: z.string(), tags: z.array(z.string()) })).optional(),
 });
 
 /** `GET …/:recordId/links/:relationId`. */
@@ -352,6 +389,8 @@ export const recordMutationReply = z.object({
    * replies would otherwise say "1 record added" about five.
    */
   created: z.number().int().min(1).optional(),
+  /** A create sent again with the retry key of one already made: that record, made nothing new. */
+  replayed: z.literal(true).optional(),
 });
 
 export const recordCascadeReply = z.object({

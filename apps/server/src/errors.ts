@@ -201,7 +201,9 @@ export class ConflictError extends AppError {
       // A price by the night whose rate rule cannot be read (`details.table`, `key`, `column`).
       | 'NIGHTLY_RATE_UNREADABLE'
       // More child rows follow the changed row than one write moves (`details.table`, `count`).
-      | 'FOLLOW_TOO_MANY' = 'CONFLICT',
+      | 'FOLLOW_TOO_MANY'
+      // A desk's save came to another figure than the price it showed (`details.column`, `total`): nothing kept.
+      | 'PRICE_CHANGED' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);

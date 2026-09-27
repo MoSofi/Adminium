@@ -99,6 +99,8 @@ import { availabilityColumns, readAvailability } from '../../crud/availability.j
 import type { TreeNode, TreeOutcome, TreePath } from '../../crud/write-tree.js';
 import { TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { staffTreeRules } from './tree.js';
+import { declaredColumns, expectColumnOf, priceCheck, staffRetryKey } from './staff-quote.js';
+import { clientKeySecret } from '../public/tree.js';
 
 /**
  * How many links one record's field reads and replaces.
@@ -159,6 +161,8 @@ import {
   recordMutationReply,
   recordReply,
   recordUpdateBody,
+  recordChangeDryRunBody,
+  recordChangeDryRunReply,
   referencesReply,
   claimLockClearedReply,
   claimLockReply,
@@ -311,6 +315,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
   const overrides = overridesRepo(meta);
   const lists = optionListsRepo(meta);
   const viewCache = new Map<string, { stamp: string; view: SnapshotView }>();
+  // What a desk's retry key is hashed under: the guest's derivation of the server's secret.
+  const retrySecret = deps.secret === undefined ? null : clientKeySecret(deps.secret);
 
   async function viewFor(connectionId: string): Promise<SnapshotView> {
     const snapshot = await snapshots.latest(connectionId);
@@ -761,9 +767,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         judged?: boolean | undefined;
         /** The rows the child rows' moves moved too, to announce once it commits. */
         effects?: EffectWritten[] | undefined;
+        /** Rows of a quote: no number claimed, nothing held they do not write. */
+        quote?: boolean | undefined;
       } = {},
     ): Promise<UndoChildren> {
-      const limits = options.judged === true ? ({ capacity: 'judged' } as const) : undefined;
+      const limits = options.judged === true ? ({ capacity: 'judged', ...(options.quote === true ? { quote: true } : {}) } as const) : options.quote === true ? { quote: true } : undefined;
       const { child } = requested;
       const target = childTargetOf(ctx, child, db);
       const keyOf = (row: Row) => Object.fromEntries(child.child.primaryKey.map((name) => [name, row[name]]));
@@ -893,6 +901,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       children: RequestedChildren[],
       raw: Record<string, { key?: Row | undefined; values: Row; children?: Record<string, { values: Row }[]> | undefined }[]>,
       mode: 'save' | 'dry',
+      /** A save's price check on the record as it leaves it, and the retry key it is found again by. */
+      guards: { expect?: ((row: Row) => void) | undefined; retry?: { column: string; hash: string } | undefined } = {},
     ): Promise<{ outcome: TreeOutcome; links: { relationId: string; before: string[]; after: string[] }[]; children: UndoChildren[]; events: ChildEvent[] }> {
       const relations = new Map<string, ResolvedChild>();
       // What the app declares for its guests' creates of these rows: the lists below each row, and what they are held to.
@@ -974,6 +984,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 for (const requested of links) written.push(await applyLinks(ctx, db, requested, made[requested.link.ownKeyColumn], context, { existing: [] }));
               },
             }),
+        // The price the desk showed, against the record as the save leaves it (a save only).
+        ...(guards.expect === undefined ? {} : { expect: async (_db, made) => guards.expect!(made) }),
+        // The record an earlier save under the same retry key made: answered again, nothing made.
+        ...(guards.retry === undefined
+          ? {}
+          : {
+              replay: async (db) => {
+                const { column, hash } = guards.retry!;
+                const found = (await db.selectFrom(ctx.table.id).selectAll().where(db.dynamic.ref(column), '=', hash as never).limit(1).executeTakeFirst()) as Row | undefined;
+                return found === undefined ? null : { root: found, rows: [{ node: { ...root, children: [] }, record: found }] };
+              },
+            }),
         announce: async (row) => {
           const of = row.node.target.table;
           const pk = Object.fromEntries(of.primaryKey.map((c) => [c, row.record[c]]));
@@ -1020,6 +1042,40 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     async function recordAgrees(ctx: DataContext): Promise<((db: Kysely<SourceDatabase>, row: Row) => Promise<void>) | null> {
       const rules = await staffTreeRules(deps.meta, ctx.connectionId, ctx.view, ctx.table, () => null);
       return rules.rootAgrees ? (db, row) => rules.judgeRecord(db, row) : null;
+    }
+
+    /**
+     * A create's price check and retry key, from its body: the check a
+     * function of the record as the save leaves it, the key's keyed hash put
+     * in the values it is kept in. Null when the body sends neither.
+     */
+    async function createGuards(
+      request: FastifyRequest,
+      ctx: DataContext,
+      values: Row,
+      body: { expect?: { total: string; column?: string | undefined } | undefined; clientKey?: string | undefined },
+      repeated: boolean,
+    ): Promise<{ expect?: (row: Row) => void; retry?: { column: string; hash: string } } | null> {
+      const { expect, clientKey } = body;
+      if (expect === undefined && clientKey === undefined) return null;
+      if (repeated) {
+        throw new ValidationFailedError('A field that makes one record per value checks no price and keeps no retry key.', { fields: { [expect !== undefined ? 'expect' : 'clientKey']: { code: 'not-allowed' } } });
+      }
+      const declared = await declaredColumns(meta, ctx.connectionId, ctx.view, ctx.table);
+      const out: { expect?: (row: Row) => void; retry?: { column: string; hash: string } } = {};
+      if (expect !== undefined) out.expect = priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.view.readableColumn(ctx.table, column, ctx.unmasked)), expect.total);
+      if (clientKey !== undefined) {
+        out.retry = staffRetryKey(retrySecret, declared, ctx.connectionId, ctx.table, principalId(request), clientKey);
+        values[out.retry.column] = out.retry.hash;
+      }
+      return out;
+    }
+
+    /** A change's price check, from its body, or null. */
+    async function changeCheck(ctx: DataContext, expect: { total: string; column?: string | undefined } | undefined): Promise<((row: Row) => void) | null> {
+      if (expect === undefined) return null;
+      const declared = await declaredColumns(meta, ctx.connectionId, ctx.view, ctx.table);
+      return priceCheck(ctx.view, ctx.table, expectColumnOf(ctx.table, declared, expect.column, (column) => void ctx.view.readableColumn(ctx.table, column, ctx.unmasked)), expect.total);
     }
 
     /** The target keys this record is linked to right now. */
@@ -2365,7 +2421,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
 
     app.post(
       '/data/:connectionId/:table',
-      { schema: { params: dataTableParams, body: recordCreateBody, response: { 201: recordMutationReply } } },
+      { schema: { params: dataTableParams, body: recordCreateBody, response: { 200: recordMutationReply, 201: recordMutationReply } } },
       async (request, reply) => {
         const ctx = await contextFor(request, 'create');
         const values = allowlistValues(ctx, request.body.values);
@@ -2375,6 +2431,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const children = await requestedChildren(request, ctx, context, request.body.children);
         const repeat = request.body.repeat;
         let undoToken: string | null = null;
+        // The price the desk showed and the key a retry finds this save by: the tree's own checks.
+        const guards = await createGuards(request, ctx, values, request.body, repeat !== undefined);
 
         /*
          * ONE ROW PER VALUE. The column is allowlisted like any other, and the
@@ -2462,9 +2520,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          */
         // A record the app holds to an agreement of its own (a room's guests) is written the tree's way, rows below or none.
         const agreed = links.length === 0 && children.length === 0 && (await staffTreeRules(deps.meta, ctx.connectionId, ctx.view, ctx.table, () => null)).rootAgrees;
-        if (agreed) {
-          const tree = await staffTree(request, ctx, context, values, [], [], {}, 'save');
+        if (agreed || (guards !== null && links.length === 0 && children.length === 0)) {
+          const tree = await staffTree(request, ctx, context, values, [], [], {}, 'save', guards ?? {});
           const created = tree.outcome.root;
+          if (tree.outcome.replayed) return reply.status(200).send({ data: maskRow(created, ctx.table, ctx.unmasked), undoToken: null, replayed: true as const });
           undoToken = issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
           return reply.status(201).send({ data: maskRow(created, ctx.table, ctx.unmasked), undoToken });
         }
@@ -2498,11 +2557,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          * table a before hook runs for keeps the one-level path below.
          */
         const rowsBelow = Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0));
-        if (children.length > 0 && !children.some((requested) => requested.hooked)) {
+        if ((children.length > 0 || guards !== null) && !children.some((requested) => requested.hooked)) {
           const hookedLink = links.find((requested) => requested.hooked);
           if (hookedLink === undefined) {
-            const tree = await staffTree(request, ctx, context, values, links, children, request.body.children ?? {}, 'save');
+            const tree = await staffTree(request, ctx, context, values, links, children, request.body.children ?? {}, 'save', guards ?? {});
             const created = tree.outcome.root;
+            if (tree.outcome.replayed) return reply.status(200).send({ data: maskRow(created, ctx.table, ctx.unmasked), undoToken: null, replayed: true as const });
             const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, created[c]]));
             undoToken = issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
@@ -2512,6 +2572,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         if (rowsBelow) {
           throw new ValidationFailedError('Rows below a child row are written only when no table of the write runs a hook.', { code: 'not-allowed' });
+        }
+        // Written row by row with a table's own hook: its totals settle after it commits, so no price is checked and no key kept here.
+        if (guards !== null) {
+          throw new ValidationFailedError('A price check and a retry key go with a save whose rows no hook runs for.', { fields: { [request.body.expect !== undefined ? 'expect' : 'clientKey']: { code: 'not-allowed' } } });
         }
 
         /*
@@ -2662,6 +2726,93 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    /**
+     * A STAFF FORM'S CHANGE TRIED FIRST — the desk's Edit of a booking: the
+     * record changed as the save would change it, with the child rows it
+     * sends, and rolled back. Its own places are left out of what it takes
+     * from; it holds no named lock, claims no number and keeps nothing;
+     * refused as the save would be. The nights of a row priced by the night
+     * are shown only to a caller who may read the price they make up.
+     */
+    app.post(
+      '/data/:connectionId/:table/:recordId/dry-run',
+      {
+        config: { audit: auditExempt('a quote writes nothing: its transaction is always rolled back') },
+        schema: { params: dataRecordParams, body: recordChangeDryRunBody, response: { 200: recordChangeDryRunReply } },
+      },
+      async (request) => {
+        const ctx = await contextFor(request, 'update');
+        const pk = parseRecordId(ctx.table, request.params.recordId);
+        const values = withSeenState(ctx.table, Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values), request.body.from);
+        await assertFileColumns(ctx, values);
+        const before = await fetchByPk(ctx.db, ctx.table, pk);
+        if (before === undefined) throw new NotFoundError('Record not found.', { pk });
+        assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values, before);
+        const context = requestWriteContext(request, 'dashboard');
+        const children = await requestedChildren(request, ctx, context, request.body.children);
+        if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
+          throw new ValidationFailedError('Rows below a child row are written with a new record only.', { code: 'not-allowed' });
+        }
+        // A quote runs no hook: a list whose table runs one cannot be tried.
+        for (const requested of children) {
+          const target = childTargetOf(ctx, requested.child, ctx.db);
+          for (const action of ['create', 'update', 'delete'] as const) {
+            if (!(await writes.wants('before', action, target, context))) continue;
+            throw new ValidationFailedError(`${requested.child.child.name} runs a hook, so a change of its rows cannot be tried first.`, {
+              fields: { [requested.child.relationId]: { code: 'not-allowed' } },
+              relation: requested.child.relationId,
+            });
+          }
+        }
+        const agrees = await recordAgrees(ctx);
+        const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
+        const shown: Record<string, { data: Row }[]> = {};
+        const outcome = await writes.update({
+          target: { ...ctx.target, timezone },
+          pk,
+          values,
+          before,
+          context,
+          mode: 'dry',
+          recheck: (final) => assertFileColumns(ctx, final),
+          mapError: (error) => mapDbError(error, ctx.table),
+          // What the record agrees to be, then its lists as the change leaves them — read before it is rolled back.
+          inside: async (db, after) => {
+            if (agrees !== null) await agrees(db, after);
+            for (const requested of children) {
+              const rows = await currentChildren(db, requested.child, after[requested.child.parentKeyColumn]);
+              shown[requested.child.relationId] = rows.map((row) => ({ data: maskRow(row, requested.child.child, false) }));
+            }
+          },
+          ...(children.length === 0
+            ? {}
+            : {
+                children: {
+                  names: async () => [],
+                  write: async (db, after) => {
+                    const judged: JudgedRow[] = [];
+                    for (const requested of children) {
+                      const undo = await applyChildren(ctx, db, requested, after[requested.child.parentKeyColumn], context, { judged: true, quote: true });
+                      const target = { ...childTargetOf(ctx, requested.child, db), timezone };
+                      for (const [i, key] of undo.added.entries()) judged.push({ target, pk: key, row: undo.addedRows![i]!, before: null });
+                      for (const change of undo.changed) if (change.after !== undefined) judged.push({ target, pk: change.key, row: change.after, before: change.before });
+                    }
+                    return judged;
+                  },
+                },
+              }),
+          announce: async () => {},
+        });
+        if (outcome.after === null) throw new NotFoundError('Record not found.', { pk });
+        const after: Row = { ...outcome.after };
+        // A quote never shows a code the change would make: the row's own is shown until the save makes one.
+        for (const column of renewingCodeColumnsOf(ctx.table)) if (Object.hasOwn(after, column)) after[column] = before[column];
+        const readable = (column: string) => ctx.table.columns.get(column)?.secret === false && (ctx.table.columns.get(column)?.masked !== true || ctx.unmasked);
+        const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), outcome.after, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, readable);
+        return { data: maskRow(after, ctx.table, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
+      },
+    );
+
     app.patch(
       '/data/:connectionId/:table/:recordId',
       {
@@ -2684,6 +2835,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // What the record agrees to be (a stay's guests within what its room sleeps), judged on the row as changed, inside the change.
         const agrees = await recordAgrees(ctx);
         const inside = agrees === null ? {} : { inside: agrees };
+        // The price the desk showed for the change, against the record as the change leaves it.
+        const check = await changeCheck(ctx, request.body.expect);
+        const priced = check === null ? {} : { expect: async (_db: Kysely<SourceDatabase>, after: Row) => check(after) };
         // Rows below a child row come with a new record only.
         if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
           throw new ValidationFailedError('Rows below a child row are written with a new record only.', { code: 'not-allowed' });
@@ -2702,6 +2856,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
            * the hooks and automations, and offer an Undo of nothing.
            */
           if (Object.keys(values).length === 0) {
+            check?.(before);
             return { data: maskRow(before, ctx.table, ctx.unmasked), undoToken: null };
           }
           const outcome = await writes.update({
@@ -2713,6 +2868,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             recheck: (final) => assertFileColumns(ctx, final),
             mapError: (error) => mapDbError(error, ctx.table),
             ...inside,
+            ...priced,
             announce: async (result) => {
               const after = result.after ?? before;
               undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
@@ -2739,7 +2895,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             requested.rows.some((row) => batchNeedsGuard(childTargetOf(ctx, requested.child, ctx.db), row.key === undefined ? 'create' : 'update', row.values)),
           );
           // So is a record whose change is settled inside its own write (a stay's dates, under its extras and its balance).
-          if (limitedRows || batchNeedsGuard(ctx.target, 'update', values) || writes.settlesInside(ctx.target, values, before)) {
+          // And a change whose price is checked: its rows and its totals settle inside it, before the check.
+          if (limitedRows || check !== null || batchNeedsGuard(ctx.target, 'update', values) || writes.settlesInside(ctx.target, values, before)) {
             let childWrites: UndoChildren[] = [];
             let childEvents: ChildEvent[] = [];
             let childEffects: EffectWritten[] = [];
@@ -2752,6 +2909,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               recheck: (final) => assertFileColumns(ctx, final),
               mapError: (error) => mapDbError(error, ctx.table),
               ...inside,
+              ...priced,
               children: {
                 // Each row as it will stand: a new one under this record, a changed one over what it holds now (read without a lock; the judge checks it again).
                 names: async () => {
@@ -2798,6 +2956,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           }
         }
 
+        // Written with a table's own hook, or with link rows: its totals settle after it commits, so no price is checked here.
+        if (check !== null) {
+          throw new ValidationFailedError('A price check goes with a change that sends no link field and no row a hook runs for.', { fields: { expect: { code: 'not-allowed' } } });
+        }
         const [prepared] = await writes.beforeEach('update', ctx.target, context, [
           { match: pk, values, record: before },
         ]);

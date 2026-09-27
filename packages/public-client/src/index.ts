@@ -343,6 +343,8 @@ export interface Quote<T = Row> {
 export interface QuoteNight {
   date: string;
   rate: string;
+  /** The night's rate before what was added to it (a weekend's raise): "was" beside a raised night. */
+  base: string;
   tags: string[];
 }
 

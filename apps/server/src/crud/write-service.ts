@@ -1439,6 +1439,13 @@ export interface BeforeEachOptions {
    * sample data — where yesterday's bookings are not new ones to be judged.
    */
   capacity?: 'refuse' | 'unchecked' | 'judged';
+  /**
+   * Rows of a quote (a staff change tried and rolled back): no running number
+   * claimed from the counter nor taken in a series, and nothing held that the
+   * quote does not write. No hook runs for a quote: its caller refuses tables
+   * that run one.
+   */
+  quote?: boolean;
 }
 
 /**
@@ -2384,9 +2391,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     prior: Row,
     after: Row,
     currency: CurrencyOf,
-    mode: 'save' | 'dry' | 'after-commit',
+    /** `dry-written`: a quote whose own child rows are written next (a form's lists): the followed rows are written too, holding nothing more, so the lists read them as the save would leave them. */
+    mode: 'save' | 'dry' | 'dry-written' | 'after-commit',
   ): Promise<void> {
-    const dry = mode === 'dry';
+    const written = mode === 'dry-written';
+    const dry = mode === 'dry' || written;
     const followed = await followChanged({
       db: target.db,
       dialect: target.dialect,
@@ -2399,7 +2408,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       ...(mode === 'after-commit' ? { max: Number.POSITIVE_INFINITY } : {}),
       // Adminium's own columns (a copy, the formulas over it): written as a settle writes, judged by no state or seal.
       write: async (table, pk, set) => {
-        if (dry) return;
+        if (dry && !written) return;
         const bound = Object.fromEntries(Object.entries(set).map(([column, value]) => [column, bindValue(target.dialect, value)]));
         let update = target.db.updateTable(table.id).set(bound as never);
         for (const [column, value] of Object.entries(pk)) update = update.where((eb) => eb(target.db.dynamic.ref(column), '=', value));
@@ -3428,7 +3437,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           await guarded(async () => {
             // The rows that follow this one (a stay's extras), brought into step, and their totals settled into it — before its own balances are judged.
-            if (following && prior !== null && after !== null) await followAndSettle(within, rules, prior, after, currency, dry ? 'dry' : 'save');
+            if (following && prior !== null && after !== null) await followAndSettle(within, rules, prior, after, currency, dry ? (input.children === undefined ? 'dry' : 'dry-written') : 'save');
             // A quote shows its own row: the totals it feeds elsewhere are not its to settle.
             if (!dry) await settleRows(rules, within, [{ record: after, before: prior }], currency, held);
             if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, written, currency, ownBefore);
@@ -3441,7 +3450,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // A form's child rows, written under the same locks and judged there.
         if (input.children !== undefined && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
-          if (after !== null) await judgeRows(db, await input.children.write(db, after, written), { clock, origin: context.origin, mode: 'save' }, input.mapError);
+          // A quote's rows are judged as they would stand, holding nothing.
+          if (after !== null) await judgeRows(db, await input.children.write(db, after, written), { clock, origin: context.origin, mode: dry ? 'dry' : 'save' }, input.mapError);
         }
         if (quoted && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
@@ -3569,6 +3579,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
         const guarded = brand(attachRequiredGuards(worked, requiredGuards(judged, action, worked, record)));
+        // A quote's rows claim no number and hold nothing they do not write.
+        if (beforeOpts?.quote === true) {
+          const carried = await carry(rules, action, target, context, brand(await unclaimedNumbers(rules, target, guarded)), record, clock);
+          quoteOnly(carried);
+          return { values: carried, issues };
+        }
         return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, guarded), record, clock), issues };
       };
       /** FILL and RESOLVE; a code typed that finds nothing is that row's own issue. An update's scope reads the row as stored. */
