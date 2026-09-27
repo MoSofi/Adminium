@@ -3750,9 +3750,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         } catch (error) {
           // Two writers at once, the engine giving this one up: the same batch a moment later goes through.
           if (lostRace(error)) return busy(reply);
-          // A row outside the window its entry opens: told when, as one write is.
-          const timed = timedRefusal(error);
-          if (timed !== null) return fail(reply, 409, timed.code, timed.code === 'PUBLIC_TOO_LATE' ? 'It is too late to make this change.' : 'This change is not open yet.', timed.params);
           // A keyed row that matched nothing, or a constraint the database
           // enforced: one opaque answer, no index, no name.
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
