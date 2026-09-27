@@ -1056,6 +1056,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const records = (await query.limit(Math.min(50, Math.max(1, from.limit ?? 50))).execute()) as Row[];
     if (records.length === 0) return [];
     // Each list one level down, for every row at once: at most twenty names a row.
+    const holders = holdersOf(box, view, holder);
     const joined = new Map<string, Map<string, string[]>>();
     const key = child.primaryKey[0];
     for (const [name, join] of Object.entries(joins)) {
@@ -1063,10 +1064,17 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       joined.set(name, byRow);
       if (key === undefined) continue;
       const table = joinTables.get(name)!;
-      let names = db.selectFrom(table.id as never).select([join.via, join.column] as never).where(join.via as never, 'in', records.map((record) => record[key]) as never);
+      // A column no reader of an email may see is listed as nothing: a secret, personal data.
+      const shown = table.columns.get(join.column)!;
+      if (shown.secret || shown.masked) continue;
+      let names = db.selectFrom(table.id as never).selectAll().where(join.via as never, 'in', records.map((record) => record[key]) as never);
       if (join.orderBy !== undefined && table.columns.has(join.orderBy)) names = names.orderBy(join.orderBy as never);
       for (const pk of table.primaryKey) names = names.orderBy(pk as never);
+      const shareCodes = ctx.shareCodes.get(table.id.slice(table.id.lastIndexOf('.') + 1)) ?? new Set<string>();
       for (const found of (await names.execute()) as Row[]) {
+        // Judged as a `{{row.*}}` is: a shared link's code only to its holder, a withheld column never to anyone else.
+        if (shareCodes.has(join.column) && !holders(table, found)) continue;
+        if ((await ctx.blankOf(table, found)).has(join.column)) continue;
         const value = found[join.column];
         if (value === null || value === undefined || String(value).trim() === '') continue;
         const owner = String(found[join.via]);
@@ -1075,7 +1083,6 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         byRow.set(owner, list);
       }
     }
-    const holders = holdersOf(box, view, holder);
     const hops = new Map<string, Row | null>();
     const out: WrittenValues[] = [];
     for (const record of records) {

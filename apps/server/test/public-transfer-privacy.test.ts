@@ -213,6 +213,29 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     void (await mailOf(h.meta));
   });
 
+  it.skipIf(!available)("lists no friend's code or address one level down, even in a list an operator wrote into the email", async () => {
+    const [first, second, third] = tickets;
+    const newCode = String((await row(first!.id))['code']);
+    const miaId = (await h.rows(`select id from ${t('customers')} where email = 'mia@buyers.org'`))[0]!['id'];
+    // Mia's orders, each with its tickets' codes and holders' addresses joined in: a list one level below the rows.
+    const listed = { from: { link: 'customer', table: t('orders'), via: 'customer_id' }, joins: { codes: { table: t('tickets'), via: 'order_id', column: 'code' }, mails: { table: t('tickets'), via: 'order_id', column: 'holder_email' } }, row: { title: 'Order {{row.id}}', meta: 'Codes [{{row.codes}}] held by [{{row.mails}}]' } };
+    await h.meta.db
+      .updateTable('adminium_email_templates')
+      .set({ blocks: JSON.stringify([{ block: 'email.text', data: { text: 'Your orders' } }, { id: 'orders', block: 'email.rows', data: listed }]) as never })
+      .where('key', '=', 'boxoffice-your-tickets')
+      .execute();
+    const before = (await sealedOf(h)).length;
+    await queue('your-tickets', { customer: miaId, order });
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const toMia = (await sealedOf(h)).slice(before).filter((m) => m.to === 'mia@buyers.org');
+    expect(toMia).toHaveLength(1);
+    expect(toMia[0]!.text).not.toContain(newCode);
+    expect(toMia[0]!.text).not.toContain('kai@friends.org');
+    // Her own tickets' codes are listed.
+    expect(toMia[0]!.text).toContain(second!.code);
+    expect(toMia[0]!.text).toContain(third!.code);
+  });
+
   it.skipIf(!available)('gives a lapsed offer that goes to someone else a new link: the first friend opens, reads and accepts nothing', async () => {
     const [, second] = tickets;
     expect((await send(second!.id, 'lee@friends.org', 'Lee')).statusCode).toBe(200);

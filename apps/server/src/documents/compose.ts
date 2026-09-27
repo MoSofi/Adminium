@@ -205,6 +205,8 @@ async function addLists(
   child: ResolvedTable,
   lines: Record<string, unknown>[],
   lists: CollectionSource['lists'],
+  /** Each listed row as the reader may see it: a column kept for its holder is listed as nothing. */
+  unheld: (table: ResolvedTable, row: Record<string, unknown>) => Record<string, unknown>,
 ): Promise<void> {
   const key = child.primaryKey[0];
   if (lists === undefined || key === undefined || lines.length === 0) return;
@@ -216,18 +218,24 @@ async function addLists(
       continue;
     }
     const names = new Map<string, string[]>();
+    // A secret is listed by nobody.
+    if (table.columns.get(list.column)?.secret === true) {
+      for (const line of lines) line[LIST_KEY(slotColumn)] = '';
+      continue;
+    }
     const keys = [...new Set(lines.map((line) => line[key]).filter((value) => value !== null && value !== undefined))];
     for (let at = 0; at < keys.length; at += LINES_PAGE) {
       let query = db
         .selectFrom(table.id as never)
-        .select([list.fkColumn, list.column] as never)
+        .selectAll()
         .where(list.fkColumn as never, 'in', keys.slice(at, at + LINES_PAGE) as never);
       if (list.orderBy !== undefined && table.columns.has(list.orderBy)) query = query.orderBy(list.orderBy as never, 'asc');
       for (const pk of table.primaryKey) query = query.orderBy(pk as never, 'asc');
-      for (const row of (await query.execute()) as Record<string, unknown>[]) {
+      for (const read of (await query.execute()) as Record<string, unknown>[]) {
+        const row = unheld(table, read);
         const name = row[list.column];
         if (name === null || name === undefined || String(name).trim() === '') continue;
-        const owner = String(row[list.fkColumn]);
+        const owner = String(read[list.fkColumn]);
         names.set(owner, [...(names.get(owner) ?? []), String(name).trim()]);
       }
     }
@@ -563,7 +571,7 @@ export async function readProfileSource(input: {
       return null;
     }
     const lines = (await readLines(db, child, source.fkColumn, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source)).map((line) => unheld(child, line));
-    await addLists(db, view, child, lines, source.lists);
+    await addLists(db, view, child, lines, source.lists, unheld);
     return { child, lines };
   };
   for (const [slotId, mapped] of Object.entries(mapping)) {

@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emailRowsDataSchema } from '../src/index.js';
+import { unlistedColumn } from '../src/public-access.js';
 import { issuesText, tableOf, venue, type Doc } from './conditioned-moves-fixture.js';
 
 /** The venue with an outbox, a ticket code, and a confirmation listing the order's tickets. */
@@ -119,6 +120,45 @@ describe('an email that lists rows', () => {
     m = mailing();
     ((rowsData(m)['joins'] as Doc)['extras'] as Doc)['column'] = 'ticket_id';
     expect(issuesText(m)).toContain('"ticket_extras.ticket_id" is not a text column');
+  });
+
+  it('refuses a join of a column no reader of an email may see listed: a secret, personal data, a code', () => {
+    for (const [rules, kept] of [
+      [{ secret: true }, 'a secret'],
+      [{ personal: true }, 'personal data'],
+      [{ code: { length: 8 } }, 'a code'],
+    ] as const) {
+      const m = mailing();
+      ((tableOf(m, 'ticket_extras')['columns'] as Doc[]).find((c) => c['ref'] === 'name')!)['rules'] = rules;
+      expect(issuesText(m)).toContain(`"ticket_extras.name" is ${kept}, which an email never lists from another row`);
+    }
+  });
+
+  it('names every column a list one level down never prints', () => {
+    const m = {
+      publicAccess: [
+        { table: 'tickets', methods: ['GET'], claim: { by: 'token', column: 'link_token' } },
+        { table: 'tickets', methods: ['GET'], withhold: { columns: ['holder_email'], unlessHolder: 'holder_id' } },
+      ],
+      requiredSchema: {
+        tables: [
+          {
+            ref: 'tickets',
+            columns: [
+              { ref: 'link_token', rules: { code: { length: 16 } } },
+              { ref: 'holder_email' },
+              { ref: 'promo' },
+              { ref: 'promo_id', rules: { lookup: { from: 'promo', table: 'promos', column: 'code' } } },
+              { ref: 'name' },
+            ],
+          },
+        ],
+      },
+    } as never;
+    expect(unlistedColumn(m, 'tickets', 'link_token')).toBe('the code a shared link opens its row with');
+    expect(unlistedColumn(m, 'tickets', 'holder_email')).toBe('withheld from all but its holder');
+    expect(unlistedColumn(m, 'tickets', 'promo')).toBe('a code a person typed');
+    expect(unlistedColumn(m, 'tickets', 'name')).toBeNull();
   });
 
   it('refuses a {{row.*}} no row fills, a form its type lacks, and one outside a rows block', () => {

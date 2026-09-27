@@ -97,3 +97,67 @@ describe.each(LEGS)('a document draws a line someone else holds without what is 
     await documentProfilesRepo(h.meta).patch(invoice.id, { deliver: {} } as never);
   });
 });
+
+/** The studio, whose lines each list notes one level below them — a note another client holds is theirs alone. */
+function heldNotes(): Record<string, unknown> {
+  const manifest = studioManifest();
+  const tables = (manifest['requiredSchema'] as { tables: Record<string, unknown>[] }).tables;
+  tables.push({
+    ref: 'line_notes',
+    columns: [
+      { ref: 'id', type: 'int', role: 'pk' },
+      { ref: 'invoice_line_id', type: 'fk', references: 'invoice_lines' },
+      { ref: 'note', type: 'text', maxLength: 120, nullable: true },
+      { ref: 'holder_id', type: 'fk', references: 'clients', nullable: true },
+    ],
+  });
+  (manifest['publicAccess'] as Record<string, unknown>[]).push({ table: 'invoice_lines', methods: ['GET'], select: ['id', 'description'], visibleWith: { table: 'invoices', via: 'invoice_id' } }, {
+    table: 'line_notes',
+    methods: ['GET'],
+    select: ['id', 'note'],
+    visibleWith: { table: 'invoice_lines', via: 'invoice_line_id' },
+    withhold: { columns: ['note'], unlessHolder: 'holder_id' },
+  });
+  return manifest;
+}
+
+describe.each(LEGS)('a document lists no note one level down that someone else holds — %s', (dialect, reachable) => {
+  let h: StudioHarness;
+  let served: Served;
+  let session: string;
+
+  beforeAll(async () => {
+    if (!reachable) return;
+    h = await installStudio(dialect, heldNotes());
+    const t = (ref: string) => h.real(ref);
+    await h.sql(`insert into ${t('clients')} (id, email, name, company) values (1, 'ann@x.test', 'Ann', 'Ann Studio Ltd'), (2, 'ben@x.test', 'Ben', 'Ben & Co')`);
+    await h.sql(`insert into ${t('invoices')} (id, client_id, number, status, issued_on, total, currency) values (1, 1, 'INV-1001', 'sent', '2026-01-15', '20.00', 'EUR')`);
+    await h.sql(`insert into ${t('invoice_lines')} (id, invoice_id, position, description, amount) values (1, 1, 1, 'Seat A', '10')`);
+    await h.sql(`insert into ${t('line_notes')} (id, invoice_line_id, note, holder_id) values (1, 1, 'Aisle', null), (2, 1, 'Ben only', 2)`);
+    // The desk's own profile lists each line's notes where its description was.
+    const invoice = (await documentProfilesRepo(h.meta).listOwnedBy(h.connectionId, 'studio')).find((p) => p.kind === 'invoice')!;
+    const mapping = JSON.parse(JSON.stringify(invoice.mapping)) as { lines: { collection: { columns: Record<string, string>; lists?: unknown } } };
+    const tableId = String((mapping.lines.collection as unknown as { table: string }).table).replace(/[^.]*$/, t('line_notes'));
+    delete mapping.lines.collection.columns['description'];
+    mapping.lines.collection.lists = { description: { table: tableId, fkColumn: 'invoice_line_id', column: 'note' } };
+    await documentProfilesRepo(h.meta).patch(invoice.id, { mapping } as never);
+    served = await h.serve();
+    session = await served.claim('ann@x.test', '198.51.100.1');
+  }, 120_000);
+  afterAll(async () => {
+    if (!reachable) return;
+    await served.close();
+    await h.close();
+  });
+
+  it.skipIf(!reachable)("draws the guest's own render with her notes and without the one another client holds", async () => {
+    const res = await served.call('POST', '/documents/render', { session, payload: { ref: 'studio_invoices_claimed', id: 1, kind: 'invoice' } });
+    expect(res.statusCode, res.body).toBe(201);
+    const id = (res.json() as { data: { id: string } }).data.id;
+    const content = await served.call('GET', `/documents/${id}/content`, { session });
+    expect(content.statusCode, content.body).toBe(200);
+    const sheet = JSON.parse(content.body) as Printed;
+    expect(sheet.collections['lines']!.map((line) => line['description'])).toEqual(['Aisle']);
+    expect(content.body).not.toContain('Ben only');
+  });
+});

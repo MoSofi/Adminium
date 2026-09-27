@@ -139,6 +139,32 @@ export function shareCodeColumns(entries: readonly PublicAccess[], table: string
 }
 
 /**
+ * Why a column of another row may never be printed in a list one level down
+ * (an email's `joins`, a document's list of names): a list is read for
+ * whoever the email or document goes to, one row further from them than the
+ * row they asked for, so no reader decides what it shows. A secret, personal
+ * data, a code (the one a shared link opens its row with, one Adminium makes,
+ * one a person typed), or a column an entry withholds from all but its
+ * holder. Null for a column any reader may see listed.
+ */
+export function unlistedColumn(
+  m: { publicAccess?: readonly PublicAccess[] | undefined; requiredSchema: { tables: readonly { ref: string; columns: readonly { ref: string; rules?: Record<string, unknown> | undefined }[] }[] } },
+  table: string,
+  column: string,
+): string | null {
+  const entries = m.publicAccess ?? [];
+  if (shareCodeColumns(entries, table).includes(column)) return 'the code a shared link opens its row with';
+  if (entries.some((entry) => entry.table === table && entry.withhold?.columns.includes(column) === true)) return 'withheld from all but its holder';
+  const columns = m.requiredSchema.tables.find((candidate) => candidate.ref === table)?.columns ?? [];
+  const rules = columns.find((candidate) => candidate.ref === column)?.rules;
+  if (rules?.['secret'] === true) return 'a secret';
+  if (rules?.['personal'] === true) return 'personal data';
+  if (rules?.['code'] !== undefined) return 'a code';
+  if (columns.some((candidate) => (candidate.rules?.['lookup'] as { from?: unknown } | undefined)?.from === column)) return 'a code a person typed';
+  return null;
+}
+
+/**
  * A time no more than `within` minutes ahead — a past time always passes. A
  * kiosk takes an arrival from an hour before the visit, and a late one too.
  * Up to a day: a longer window is no window.

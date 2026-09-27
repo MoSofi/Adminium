@@ -27,7 +27,7 @@ import { appDocumentIssues, appDocumentSchema, mappingIssues, type AppDocument }
 import { formulaColumns, formulaExprSchema, tableFormulaIssues } from './formula.js';
 import { pageCalendarIssues } from './page-calendar.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
-import { codeWhereSchema, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, type PublicAccess } from './public-access.js';
+import { codeWhereSchema, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
 import { roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
 import { statesIssues, statesSchema, type States } from './states.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
@@ -2050,6 +2050,7 @@ export function appReferenceIssues(
               column.rules?.perNight === undefined ? [] : [[column.ref, { rateVia: column.rules.perNight.rate.via }] as const],
             ),
           ),
+        unlisted: (table, column) => unlistedColumn(m, table, column),
       }),
     );
   }

@@ -28,6 +28,7 @@ import { z } from 'zod';
 
 import type { AddOnNeeds } from './add-ons.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
+import { unlistedColumn } from './public-access.js';
 import {
   bcp47TagSchema,
   refSchema,
@@ -425,7 +426,7 @@ export function outboxIssues(
     outbox?: Outbox | undefined;
     emailTemplates?: readonly EmailTemplate[] | undefined;
     addOns?: AddOnNeeds | undefined;
-  },
+  } & Parameters<typeof unlistedColumn>[0],
   index: TableIndex,
 ): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
@@ -741,7 +742,7 @@ export function outboxIssues(
       }
     }
   });
-  out.push(...emailBlockIssues(m.emailTemplates ?? [], box, index));
+  out.push(...emailBlockIssues(m.emailTemplates ?? [], box, index, (table, column) => unlistedColumn(m, table, column)));
   return out;
 }
 
@@ -813,7 +814,7 @@ function stringsIn(value: unknown, path: (string | number)[], out: { text: strin
  * can fill; the same rows in every language; and a QR code only as a whole
  * image value, of a code column.
  */
-function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, index: TableIndex): ReferenceIssue[] {
+function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, index: TableIndex, unlisted: (table: string, column: string) => string | null): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const links = box.links ?? {};
   /** The table a link names. */
@@ -919,6 +920,10 @@ function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, inde
           const shown = index.column(join.table, join.column);
           if (shown === undefined) out.push({ path: [...path, 'column'], message: `"${join.table}" has no column "${join.column}"` });
           else if (shown.type !== 'text') out.push({ path: [...path, 'column'], message: `"${join.table}.${join.column}" is not a text column` });
+          else {
+            const kept = unlisted(join.table, join.column);
+            if (kept !== null) out.push({ path: [...path, 'column'], message: `"${join.table}.${join.column}" is ${kept}, which an email never lists from another row` });
+          }
           if (join.orderBy !== undefined && index.column(join.table, join.orderBy) === undefined) out.push({ path: [...path, 'orderBy'], message: `"${join.table}" has no column "${join.orderBy}"` });
         }
         // Each {{row.*}} names something a row fills, in a form its type has.
