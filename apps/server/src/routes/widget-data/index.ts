@@ -32,6 +32,7 @@ import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { readViewFor } from '../../crud/read-view.js';
+import { venueClock } from '../../crud/venue-time.js';
 import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
 import { countsTablesOf, joinCounts, limitTablesOf } from '../../widget-data/counts-join.js';
@@ -141,7 +142,9 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const resolution = await app.rbac.resolve(request);
       const roleScope = `${[...resolution.roleIds].sort().join(',')}${resolution.superAdmin ? '+sa' : ''}:${unmasked ? 'pii' : 'masked'}`;
       // The answer carries labels in the reader's language, so it is kept per language too.
-      const key = cacheKeyOf({ descriptor, params: params ?? null, connectionId, roleScope, locale: locale ?? null });
+      // And per venue day: "today" (a day filter, a calendar window, a limit's counts) moves at the venue's midnight.
+      const venueDay = venueClock(deps.now?.() ?? new Date(), (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC').day;
+      const key = cacheKeyOf({ descriptor, params: params ?? null, connectionId, roleScope, locale: locale ?? null, day: venueDay });
       const hit = cache.get(key);
       if (hit !== undefined) return { result: hit as ShapedPayload, cached: true };
 

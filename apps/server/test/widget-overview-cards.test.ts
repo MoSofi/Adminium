@@ -279,6 +279,18 @@ for (const [dialect, available] of LEGS) {
       expect(ids(ok(await list(both)))).toEqual([1, 2, 3, 5]);
       expect(ids(ok(await list(both, { reason: 'Carpet' })))).toEqual([]);
 
+      // A kept answer is for the venue's day it was made on: past midnight, "today" is tomorrow.
+      // Ten seconds before the venue's midnight, then five after: well inside the answer's 30 s.
+      const midnight = at('2026-07-28 00:00').getTime();
+      vi.setSystemTime(new Date(midnight - 10_000));
+      expect(ids(ok(await list(outOfService)))).toEqual([2, 3, 5]);
+      expect((await list(outOfService)).body['cached']).toBe(true);
+      vi.setSystemTime(new Date(midnight + 5_000));
+      const tomorrow = await list(outOfService);
+      expect(tomorrow.body['cached']).toBe(false);
+      expect(ids(ok(tomorrow))).toEqual([2, 5]);
+      vi.setSystemTime(NOW);
+
       // Counted like the list: a KPI of the same filters.
       const count = ok(await cards.admin('room_closures', { shape: 'single-metric', aggregations: [{ fn: 'count', alias: 'n' }], filters: outOfService }));
       expect(count['value']).toBe(3);
