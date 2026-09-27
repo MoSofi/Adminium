@@ -223,6 +223,11 @@ export async function runUpdateAction(
             effects: outcome.effects,
             origin: 'automation',
             actor: { id: ctx.rule.id, label: ctx.rule.name },
+            auditCategory: 'automation',
+            meta: ctx.meta,
+            // As the rule's own write is: the loop guard reads both.
+            ruleId: ctx.rule.id,
+            hops: ctx.hops + 1,
           });
         }
       },
