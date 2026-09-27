@@ -77,9 +77,12 @@ export const EMAIL_SEND_JOB_KIND = 'email.send';
 
 /**
  * Payload envelope version. `2` (39) adds `attachments` and `inline`
- * references beside the sealed body; `1` rows still deliver.
+ * references beside the sealed body; `3` adds QR codes (a ticket's) inside the
+ * sealed envelope — their text is a door credential, never in the plain
+ * payload. `1` and `2` rows still deliver; a server older than `3` refuses a
+ * `3` row loudly rather than send it with broken images.
  */
-export const EMAIL_SEND_PAYLOAD_VERSION = 2;
+export const EMAIL_SEND_PAYLOAD_VERSION = 3;
 
 /**
  * Retry budget for one message. Five attempts on the worker's 30 s-doubling
@@ -218,6 +221,11 @@ export interface EnqueueEmailInput {
   /** Library files this one message carries besides the template's own (a drawn document). */
   attachments?: readonly EmailSendAttachmentRef[] | undefined;
   /**
+   * The rows each `email.rows` block lists, by the block's id, as the sender
+   * read them (an order's tickets): each row's variables.
+   */
+  rows?: Readonly<Record<string, readonly Readonly<Record<string, string>>[]>> | undefined;
+  /**
    * Wording a person wrote in place of the template's (a held reminder edited
    * before it was approved). The body is plain text: paragraphs split on
    * blank lines, drawn as ONE text block in place of the template's blocks,
@@ -288,6 +296,8 @@ interface EmailEnvelope {
   html: string;
   text: string;
   from?: string | undefined;
+  /** QR codes the HTML shows by `cid:`, each drawn from its text at delivery (`v: 3`). */
+  qr?: { cid: string; text: string }[] | undefined;
 }
 
 /** The plaintext `adminium_jobs.payload` of an `email.send` row. */
@@ -443,9 +453,16 @@ export async function resolveGeneratedAttachments(
   return out;
 }
 
-/** The queue-side shape of the renderer's inline references. */
+/** The queue-side shape of the renderer's inline references: the mark and library files — never a QR code (see {@link qrRefs}). */
 export function inlineRefs(rendered: RenderedEmail): EmailSendInlineRef[] {
-  return rendered.inline.map((ref: EmailInlineRef) => (ref.kind === 'mark' ? { cid: ref.cid, kind: 'mark', mark: ref.mark } : { cid: ref.cid, kind: 'file', fileId: ref.fileId }));
+  return rendered.inline.flatMap((ref: EmailInlineRef): EmailSendInlineRef[] =>
+    ref.kind === 'mark' ? [{ cid: ref.cid, kind: 'mark', mark: ref.mark }] : ref.kind === 'file' ? [{ cid: ref.cid, kind: 'file', fileId: ref.fileId }] : [],
+  );
+}
+
+/** The QR codes a render shows: sealed in the envelope, since each text is a door credential. */
+export function qrRefs(rendered: Pick<RenderedEmail, 'inline'>): { cid: string; text: string }[] {
+  return rendered.inline.flatMap((ref) => (ref.kind === 'qr' ? [{ cid: ref.cid, text: ref.text }] : []));
 }
 
 // --- enqueue ------------------------------------------------------------------------
@@ -480,12 +497,14 @@ export async function enqueueRenderedEmail(
   const to = input.to.trim();
   if (to.length === 0) return null;
 
+  const qr = qrRefs(input.rendered);
   const envelope: EmailEnvelope = {
     to,
     subject: input.rendered.subject,
     html: input.rendered.html,
     text: input.rendered.text,
     ...(input.from === undefined ? {} : { from: input.from }),
+    ...(qr.length === 0 ? {} : { qr }),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
   const attachments = [...(input.attachments ?? [])];
@@ -574,6 +593,7 @@ export async function enqueueEmail(
     locale,
     vars,
     dir: isLocaleId(locale) ? dirForLocale(locale) : 'ltr',
+    ...(input.rows === undefined ? {} : { rows: input.rows }),
   });
 
   return await enqueueRenderedEmail(

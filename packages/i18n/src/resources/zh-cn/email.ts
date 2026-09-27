@@ -137,6 +137,10 @@ export default {
     },
     "unknown": {
       "label": "区块"
+    },
+    "rows": {
+      "label": "行",
+      "hint": "应用邮件列出的行"
     }
   },
   "branding": {
@@ -218,6 +222,7 @@ export default {
     "nextOn": "下次：{next} · {note}",
     "loyaltyBalance": "积分余额",
     "loyaltyLine": "{balance} 分 · {level}",
+    "rowsOf": "{link} 的 {table} 行",
     "sections": {
       "branding": "品牌与发件人",
       "subject": "主题与预览文本",
@@ -347,7 +352,8 @@ export default {
     "finePrint": "小字条款",
     "contactName": "联系人姓名",
     "email": "邮箱",
-    "phone": "电话"
+    "phone": "电话",
+    "whenNone": "没有时显示"
   },
   "group": {
     "languages": "{count, plural, other {# 种语言}}",

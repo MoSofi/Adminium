@@ -137,6 +137,10 @@ export default {
     },
     "unknown": {
       "label": "Sekce"
+    },
+    "rows": {
+      "label": "Řádky",
+      "hint": "Řádky, které vypisuje e-mail aplikace"
     }
   },
   "branding": {
@@ -218,6 +222,7 @@ export default {
     "nextOn": "Příště {next} · {note}",
     "loyaltyBalance": "Věrnostní zůstatek",
     "loyaltyLine": "{balance} b. · {level}",
+    "rowsOf": "Řádky z {table} pro {link}",
     "sections": {
       "branding": "Značka a odesílatel",
       "subject": "Předmět a text náhledu",
@@ -347,7 +352,8 @@ export default {
     "finePrint": "Drobné písmo",
     "contactName": "Jméno kontaktu",
     "email": "E-mail",
-    "phone": "Telefon"
+    "phone": "Telefon",
+    "whenNone": "Když žádné nejsou"
   },
   "group": {
     "languages": "{count, plural, one {# jazyk} few {# jazyky} many {# jazyka} other {# jazyků}}",

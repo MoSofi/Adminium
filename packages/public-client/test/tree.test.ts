@@ -49,10 +49,20 @@ describe('a create with its child rows', () => {
     );
     const quote = await client.quote('orders', ORDER);
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders/dry-run');
-    expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true });
+    expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true, nights: [] });
     // A change the app's own code runs for: the quote says the save may come out otherwise.
-    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false });
+    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false, nights: [] });
     expect(calls[1]!.url).toBe('https://x/api/v1/public/records/lines/7/dry-run');
+  });
+
+  it("hands on a stay's nights, each with its rate and tags", async () => {
+    const nights = [
+      { date: '2026-07-31', rate: '175.00', tags: ['Weekend'] },
+      { date: '2026-08-01', rate: '195.00', tags: ['Weekend', 'August'] },
+    ];
+    const { client } = over((url) => (url.endsWith('/9/dry-run') ? { data: { room_total: '370.00' }, exact: true, nights } : { data: { room_total: '370.00' }, exact: true, nights }));
+    expect((await client.quote('stays', { values: {} })).nights).toEqual(nights);
+    expect((await client.quoteChange('stays', '9', { depart: '2026-08-02' })).nights).toEqual(nights);
   });
 
   it('sends the price shown with a change', async () => {

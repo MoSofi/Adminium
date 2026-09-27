@@ -122,11 +122,12 @@
 import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import type { AppManifest, OutboxProducer } from '@adminium/manifest';
-import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
+import { resolveColumnOptions, resolveEnumLabels, type EffectiveColumn } from '../connections/effective-schema.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { slotInstant } from '../crud/capacity-guard.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
@@ -371,6 +372,22 @@ export function valueForms(input: { locale: string; zone: string; currency: stri
     range(from: Date, to: Date): string {
       return time.formatRange(from, to);
     },
+    /** A number as the language writes one, exactly as stored and no longer: "8.25", never "8.250". */
+    number(value: unknown): string {
+      const exact = decimalText(value);
+      return exact === null ? String(value ?? '') : new Intl.NumberFormat(tag, { maximumFractionDigits: 20 }).format(exact as unknown as number);
+    },
+    /** A number of hundredths as a percentage: 8.25 → "8.25%" ("8,25 %" in German). */
+    percent(value: unknown): string {
+      const exact = decimalText(value);
+      return exact === null ? String(value ?? '') : new Intl.NumberFormat(tag, { style: 'percent', maximumFractionDigits: 20 }).format(`${exact}E-2` as unknown as number);
+    },
+    /** A time of day kept as text (`15:00`) in the reader's clock: "3:00 PM" in the US, "15:00" in Britain. */
+    clock(value: unknown): string {
+      const found = /^([01]?\d|2[0-3]):([0-5]\d)/.exec(String(value ?? '').trim());
+      if (found === null) return String(value ?? '');
+      return on({ hour: 'numeric', minute: '2-digit' }, 'UTC').format(new Date(Date.UTC(2000, 0, 1, Number(found[1]), Number(found[2]))));
+    },
     /** An amount in the row's own currency when it names one, else the connection's. */
     money(value: unknown, own: string | null = null): string {
       const amount = Number(value);
@@ -381,6 +398,15 @@ export function valueForms(input: { locale: string; zone: string; currency: stri
         : new Intl.NumberFormat(tag, { style: 'currency', currency }).format(amount);
     },
   };
+}
+
+/** A stored number as exact decimal text (a driver's `"8.250"`, SQLite's `8.25`), or null for one that is not a number. */
+function decimalText(value: unknown): string | null {
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return /^[+-]?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i.test(text) ? text : null;
 }
 
 /**
@@ -402,6 +428,163 @@ export function routeFor(box: LiveOutbox, routes: Readonly<Record<string, string
     return params.length === 0 ? path : path.replace(params[0]!, encodeURIComponent(String(id)));
   }
   return undefined;
+}
+
+/** A choice's label in the message's language (`card` → "Karte"), from the labels the app gave the column. */
+type ChoiceLabels = (tableId: string, column: string, value: string) => string | undefined;
+
+/**
+ * The labels an app gave its choice columns on a connection, each read in
+ * one language: the enum labels and a column's own listed values, in every
+ * language the app shipped them.
+ */
+async function choiceLabels(meta: MetaDb, connectionId: string): Promise<(locale: string) => ChoiceLabels> {
+  const rows = (await overridesRepo(meta).listForConnection(connectionId, { status: 'active' })).filter(
+    (row) => (row.op === 'column.enumLabels' || row.op === 'column.options') && row.columnName !== null,
+  );
+  return (locale) => {
+    const resolved = new Map<string, Record<string, string>>();
+    for (const row of rows) {
+      const key = `${row.tableName}\u0000${row.columnName!}`;
+      const into = resolved.get(key) ?? {};
+      if (row.op === 'column.enumLabels') Object.assign(into, resolveEnumLabels((row.value as { labels?: unknown }).labels, locale));
+      else {
+        const options = resolveColumnOptions(row.value, locale);
+        if ('values' in options) for (const item of options.values) if (item.label !== undefined && item.label !== '') into[item.value] = item.label;
+      }
+      resolved.set(key, into);
+    }
+    return (tableId, column, value) => resolved.get(`${tableId}\u0000${column}`)?.[value];
+  };
+}
+
+/** What a template reads, and the codes held back from it. */
+interface WrittenValues {
+  vars: Record<string, string>;
+  withheld: Set<string>;
+}
+
+/**
+ * Whether a row is the code holder's: their own, or one that links to them —
+ * by the link the outbox names its recipient by (`client_id`) where the row
+ * has one, else by every link it has to their table, all agreeing. A project
+ * with an owner and a referrer is the owner's.
+ */
+function holdersOf(box: LiveOutbox, view: SnapshotView, holder: CodeHolder | null): (table: ResolvedTable, record: Row) => boolean {
+  return (table, record) => {
+    if (holder === null) return false;
+    const key = table.primaryKey[0];
+    if (table.id === holder.table && key !== undefined && String(record[key]) === String(holder.id)) return true;
+    const links = [...table.columns.keys()].filter((column) => referenced(view, table.id, column) === holder.table);
+    const via = box.definition.recipient.via;
+    const deciding = links.includes(via) ? [via] : links;
+    return deciding.length > 0 && deciding.every((column) => record[column] !== null && record[column] !== undefined && String(record[column]) === String(holder.id));
+  };
+}
+
+const NUMBER_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
+/** A wall time of day kept as text: `15:00`, `09:30:00`. */
+const CLOCK_TEXT = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/;
+
+/**
+ * The forms a column's value is read in besides itself, by what the column
+ * holds: a number as a number, a percentage and an amount of money in the
+ * message's language (`{{order.tax_rate.percent}}` is "8.25%" on every engine,
+ * never "8.250"); a choice by its label (`{{order.paid_method.label}}` is
+ * "Card", not "card"); a time of day kept as text in the reader's clock; and a
+ * code as its QR code (`.qr`, drawn at delivery). Every form is there, empty,
+ * when the value is.
+ */
+function extraForms(
+  column: { logicalType: string; name: string },
+  effective: EffectiveColumn | undefined,
+  value: unknown,
+  forms: ReturnType<typeof valueForms>,
+  currency: string | null,
+  /** A choice's label in the message's language, when the app gave one. */
+  labelled?: (value: string) => string | undefined,
+): Record<string, string> {
+  const empty = value === null || value === undefined;
+  const out: Record<string, string> = {};
+  if (NUMBER_TYPES.has(column.logicalType) || effective?.semantics?.primary === 'money') {
+    out['number'] = empty ? '' : forms.number(value);
+    out['percent'] = empty ? '' : forms.percent(value);
+    out['money'] = empty ? '' : forms.money(value, currency);
+  }
+  const hasLabels = effective?.enumLabels !== undefined || (effective?.options !== undefined && 'values' in effective.options) || column.logicalType === 'enum';
+  if (hasLabels) out['label'] = empty ? '' : (labelled?.(String(value)) ?? labelOf(effective, String(value)));
+  // A time of day kept as text: its clock form; an empty text column reads empty in it too.
+  if (column.logicalType === 'time' || (typeof value === 'string' && CLOCK_TEXT.test(value.trim()))) out['time'] = forms.clock(value);
+  else if (empty && (column.logicalType === 'text' || column.logicalType === 'varchar')) out['time'] = '';
+  if (effective?.code !== undefined) out['qr'] = empty ? '' : String(value);
+  return out;
+}
+
+/** A choice's label: the column's own label for the value, else the value itself. */
+function labelOf(effective: EffectiveColumn | undefined, value: string): string {
+  const own = effective?.enumLabels?.[value];
+  if (own !== undefined && own !== '') return own;
+  const options = effective?.options;
+  const item = options !== undefined && 'values' in options ? options.values.find((candidate) => candidate.value === value) : undefined;
+  return item?.label !== undefined && item.label !== '' ? item.label : value;
+}
+
+/**
+ * One row's columns as a template reads them, under `prefix`: every column
+ * but a secret one or (outside the settings row) a masked one, each in its
+ * forms — and a share code only when the row is the code holder's, else held
+ * back by name (with its QR code). A row that keeps its own currency prints
+ * its money in it.
+ */
+function putValues(
+  out: WrittenValues,
+  ctx: { forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes; labels?: ChoiceLabels | undefined },
+  holders: (table: ResolvedTable, record: Row) => boolean,
+  prefix: string,
+  table: ResolvedTable,
+  record: Row,
+  settingsRow = false,
+): void {
+  const { vars, withheld } = out;
+  const { forms } = ctx;
+  const own = table.columns.has('currency') ? record['currency'] : null;
+  const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
+  // A shared link's code goes only to the person whose row it is on — never from the settings row, which is nobody's.
+  // A reference a `code` rule makes that no link opens anything with (a booking's) goes to anyone the message goes to.
+  const codes = settingsRow || !holders(table, record) ? (ctx.shareCodes.get(table.id.slice(table.id.lastIndexOf('.') + 1)) ?? new Set<string>()) : new Set<string>();
+  if (table.columns.has('starts_at')) vars[`${prefix}.time_range`] = '';
+  for (const column of table.columns.values()) {
+    if (column.secret || (column.masked && !settingsRow)) continue;
+    const name = `${prefix}.${column.name}`;
+    if (codes.has(column.name)) {
+      withheld.add(name);
+      withheld.add(`${name}.qr`);
+      continue;
+    }
+    const value = record[column.name];
+    const effective = table.table.columns.find((c) => c.name === column.name);
+    const labelled = ctx.labels === undefined ? undefined : (choice: string) => ctx.labels!(table.id, column.name, choice);
+    for (const [form, text] of Object.entries(extraForms(column, effective, value, forms, currency, labelled))) vars[`${name}.${form}`] = text;
+    if (value === null || value === undefined) {
+      vars[name] = '';
+      const empty =
+        column.logicalType === 'timestamp' || column.logicalType === 'timestamptz'
+          ? ['date', 'time', 'day_month', 'relative_day']
+          : column.logicalType === 'date'
+            ? ['day_month', 'days_since']
+            : [];
+      for (const form of empty) vars[`${name}.${form}`] = '';
+      continue;
+    }
+    if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') Object.assign(vars, forms.instant(name, value));
+    else if (column.logicalType === 'date') Object.assign(vars, forms.day(name, value));
+    else if (effective?.semantics?.primary === 'money') vars[name] = forms.money(value, currency);
+    else vars[name] = value instanceof Date ? value.toISOString() : String(value);
+  }
+  // A visit's time as a range: to its end, or for its minutes.
+  const start = slotInstant(record['starts_at']);
+  const end = slotInstant(record['ends_at']) ?? (start === null || !Number.isFinite(Number(record['minutes'])) ? null : new Date(start.getTime() + Number(record['minutes']) * 60_000));
+  if (start !== null && end !== null && end > start) vars[`${prefix}.time_range`] = forms.range(start, end);
 }
 
 export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
@@ -495,70 +678,17 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   /** Everything a template may read for one row, and the codes it held back (`{{project.share_token}}`). */
   async function variables(
     box: LiveOutbox,
-    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes },
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes; labels?: ChoiceLabels | undefined },
     row: Row,
     addressed: Addressed | null,
     /** Whose codes the email may carry: the recipient, when it goes to their own address on file; else nobody's. */
     holder: CodeHolder | null,
   ): Promise<{ vars: Record<string, string>; withheld: Set<string> }> {
-    const { db, view, forms } = ctx;
-    const vars: Record<string, string> = {};
-    const withheld = new Set<string>();
-    /**
-     * Whether a row is the code holder's: their own, or one that links to
-     * them — by the link the outbox names its recipient by (`client_id`) where
-     * the row has one, else by every link it has to their table, all agreeing.
-     * A project with an owner and a referrer is the owner's.
-     */
-    const holders = (table: ResolvedTable, record: Row): boolean => {
-      if (holder === null) return false;
-      const key = table.primaryKey[0];
-      if (table.id === holder.table && key !== undefined && String(record[key]) === String(holder.id)) return true;
-      const links = [...table.columns.keys()].filter((column) => referenced(view, table.id, column) === holder.table);
-      const via = box.definition.recipient.via;
-      const deciding = links.includes(via) ? [via] : links;
-      return deciding.length > 0 && deciding.every((column) => record[column] !== null && record[column] !== undefined && String(record[column]) === String(holder.id));
-    };
-    // A column Adminium masks (an email, a phone) is never read into an email
-    // from a linked row: the address a message goes to is looked up apart.
-    const put = (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) => {
-      // A row that keeps its own currency (an invoice in euros on a pound connection) prints its money in it.
-      const own = table.columns.has('currency') ? record['currency'] : null;
-      const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
-      // A shared link's code goes only to the person whose row it is on — never from the settings row, which is nobody's.
-      // A reference a `code` rule makes that no link opens anything with (a booking's) goes to anyone the message goes to.
-      const codes = settingsRow || !holders(table, record) ? (ctx.shareCodes.get(table.id.slice(table.id.lastIndexOf('.') + 1)) ?? new Set<string>()) : new Set<string>();
-      if (table.columns.has('starts_at')) vars[`${prefix}.time_range`] = '';
-      for (const column of table.columns.values()) {
-        if (column.secret || (column.masked && !settingsRow)) continue;
-        if (codes.has(column.name)) {
-          withheld.add(`${prefix}.${column.name}`);
-          continue;
-        }
-        const value = record[column.name];
-        const name = `${prefix}.${column.name}`;
-        if (value === null || value === undefined) {
-          vars[name] = '';
-          const forms =
-            column.logicalType === 'timestamp' || column.logicalType === 'timestamptz'
-              ? ['date', 'time', 'day_month', 'relative_day']
-              : column.logicalType === 'date'
-                ? ['day_month', 'days_since']
-                : [];
-          for (const form of forms) vars[`${name}.${form}`] = '';
-          continue;
-        }
-        const effective = table.table.columns.find((c) => c.name === column.name);
-        if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') Object.assign(vars, forms.instant(name, value));
-        else if (column.logicalType === 'date') Object.assign(vars, forms.day(name, value));
-        else if (effective?.semantics?.primary === 'money') vars[name] = forms.money(value, currency);
-        else vars[name] = value instanceof Date ? value.toISOString() : String(value);
-      }
-      // A visit's time as a range: to its end, or for its minutes.
-      const start = slotInstant(record['starts_at']);
-      const end = slotInstant(record['ends_at']) ?? (start === null || !Number.isFinite(Number(record['minutes'])) ? null : new Date(start.getTime() + Number(record['minutes']) * 60_000));
-      if (start !== null && end !== null && end > start) vars[`${prefix}.time_range`] = forms.range(start, end);
-    };
+    const { db, view } = ctx;
+    const out: WrittenValues = { vars: {}, withheld: new Set<string>() };
+    const { vars, withheld } = out;
+    const holders = holdersOf(box, view, holder);
+    const put = (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) => putValues(out, ctx, holders, prefix, table, record, settingsRow);
 
     const links = Object.entries(box.definition.links ?? {});
     const linked: { name: string; table: ResolvedTable; record: Row }[] = [];
@@ -758,13 +888,118 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   }
 
   /**
+   * The rows an `email.rows` block lists for one message (an order's
+   * tickets): the child rows of the row its link names, filtered, in order,
+   * at most its limit — each read as a template reads a row (`row.*`, one hop
+   * through its own links, `row.<join>` for each list one level down), its
+   * share codes held back unless the row is the code holder's.
+   */
+  async function rowsFor(
+    box: LiveOutbox,
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes; labels?: ChoiceLabels | undefined },
+    message: Row,
+    data: Record<string, unknown>,
+    holder: CodeHolder | null,
+  ): Promise<WrittenValues[]> {
+    const { db, view } = ctx;
+    const from = (typeof data['from'] === 'object' && data['from'] !== null ? data['from'] : {}) as {
+      link?: string;
+      table?: string;
+      via?: string;
+      orderBy?: string;
+      where?: { column: string; in: unknown[] };
+      unless?: string;
+      limit?: number;
+    };
+    const column = from.link === undefined ? undefined : box.definition.links?.[from.link];
+    const parent = column === undefined ? undefined : message[column];
+    if (parent === null || parent === undefined || from.table === undefined || from.via === undefined) return [];
+    let child: ResolvedTable;
+    try {
+      child = view.table(from.table);
+    } catch {
+      return [];
+    }
+    let query = db.selectFrom(child.id as never).selectAll().where(from.via as never, '=', parent as never);
+    if (from.where !== undefined && from.where.in.length > 0) {
+      // A yes or no as a word every engine knows (SQLite binds none).
+      query = query.where(from.where.column as never, 'in', from.where.in.map((value) => (typeof value === 'boolean' ? sql.lit(value) : value)) as never);
+    }
+    // A row whose bool is true is left out (a ticket handed on): kept while it is false or empty. `false` is a word all three engines know.
+    if (from.unless !== undefined) query = query.where(sql<boolean>`(${sql.ref(from.unless)} is null or ${sql.ref(from.unless)} = ${sql.lit(false)})`);
+    if (from.orderBy !== undefined && child.columns.has(from.orderBy)) query = query.orderBy(from.orderBy as never);
+    for (const key of child.primaryKey) query = query.orderBy(key as never);
+    const records = (await query.limit(Math.min(50, Math.max(1, from.limit ?? 50))).execute()) as Row[];
+    if (records.length === 0) return [];
+    // Each list one level down, for every row at once: at most twenty names a row.
+    const joined = new Map<string, Map<string, string[]>>();
+    const key = child.primaryKey[0];
+    const joins = (typeof data['joins'] === 'object' && data['joins'] !== null ? data['joins'] : {}) as Record<string, { table: string; via: string; column: string; orderBy?: string; separator?: string }>;
+    for (const [name, join] of Object.entries(joins)) {
+      const byRow = new Map<string, string[]>();
+      joined.set(name, byRow);
+      if (key === undefined) continue;
+      let table: ResolvedTable;
+      try {
+        table = view.table(join.table);
+      } catch {
+        continue;
+      }
+      let names = db.selectFrom(table.id as never).select([join.via, join.column] as never).where(join.via as never, 'in', records.map((record) => record[key]) as never);
+      if (join.orderBy !== undefined && table.columns.has(join.orderBy)) names = names.orderBy(join.orderBy as never);
+      for (const pk of table.primaryKey) names = names.orderBy(pk as never);
+      for (const found of (await names.execute()) as Row[]) {
+        const value = found[join.column];
+        if (value === null || value === undefined || String(value).trim() === '') continue;
+        const owner = String(found[join.via]);
+        const list = byRow.get(owner) ?? [];
+        if (list.length < 20) list.push(String(value).trim());
+        byRow.set(owner, list);
+      }
+    }
+    const holders = holdersOf(box, view, holder);
+    const hops = new Map<string, Row | null>();
+    const out: WrittenValues[] = [];
+    for (const record of records) {
+      const one: WrittenValues = { vars: {}, withheld: new Set<string>() };
+      putValues(one, ctx, holders, 'row', child, record);
+      // One hop through the row's own links: `{{row.ticket_type.name}}` through `ticket_type_id`.
+      for (const link of child.columns.keys()) {
+        if (!link.endsWith('_id') || record[link] === null || record[link] === undefined) continue;
+        const targetId = referenced(view, child.id, link);
+        if (targetId === undefined) continue;
+        const cacheKey = `${targetId}\u0000${String(record[link])}`;
+        if (!hops.has(cacheKey)) hops.set(cacheKey, await rowOf(db, view, targetId, record[link]));
+        const target = hops.get(cacheKey) ?? null;
+        if (target !== null) putValues(one, ctx, holders, `row.${link.slice(0, -'_id'.length)}`, view.table(targetId), target);
+      }
+      for (const [name, join] of Object.entries(joins)) {
+        one.vars[`row.${name}`] = (joined.get(name)?.get(String(key === undefined ? '' : record[key])) ?? []).join(join.separator ?? ', ');
+      }
+      for (const name of one.withheld) if (Object.hasOwn(one.vars, name)) one.withheld.delete(name);
+      out.push(one);
+    }
+    return out;
+  }
+
+  /**
    * One row, made ready to go: where to, in which words — or the reason it
    * will not go (`skipped`, `failed`). Nothing is written and nothing queued
    * here: the row is claimed, and its message queued, only once this is done.
    */
   async function prepare(
     box: LiveOutbox,
-    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; zone: string; currency: string | null; now: number; shareCodes: ShareCodes },
+    ctx: {
+      db: Kysely<SourceDatabase>;
+      view: SnapshotView;
+      outbox: ResolvedTable;
+      zone: string;
+      currency: string | null;
+      now: number;
+      shareCodes: ShareCodes;
+      /** The app's choice labels on the connection, read in a language. */
+      labels?: ((locale: string) => ChoiceLabels) | undefined;
+    },
     row: Row,
   ): Promise<Outcome | Prepared> {
     const cols = box.definition.columns;
@@ -789,18 +1024,16 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // A person's wording may read only what the template itself reads: never
     // another column of a linked row, however it is spelled.
     const reads = placeholders([template.subject, template.preheader, template.blocks, template.footer]);
+    // Never a list's row, nor a QR code: those are drawn by the template's own blocks, which the wording replaces.
+    const personal = new Set([...reads].filter((name) => !name.startsWith('row.') && !name.endsWith('.qr')));
     const text = (column: string | undefined) => {
       const value = column === undefined ? undefined : row[column];
-      return typeof value === 'string' && value.trim() !== '' ? onlyReads(value, reads) : undefined;
+      return typeof value === 'string' && value.trim() !== '' ? onlyReads(value, personal) : undefined;
     };
     const override = { subject: text(cols.subjectOverride), body: text(cols.bodyOverride) };
     // A person's wording replaces the blocks; the template's own are sent only without it.
     if (override.body === undefined && (template.blocks as { block?: unknown }[]).some((block) => block.block === 'email.html')) {
       return { status: 'failed', error: 'The email has an HTML block, which cannot carry what a person typed' };
-    }
-    // A list of rows (an order's tickets) is not sent by this server yet: no email rather than one without its list.
-    if (override.body === undefined && (template.blocks as { block?: unknown }[]).some((block) => block.block === 'email.rows')) {
-      return { status: 'failed', error: 'The email lists rows, which this server cannot send yet' };
     }
 
     // The template really sent writes the words — US English when the recipient's language has none —
@@ -808,7 +1041,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const forms = valueForms({ locale: formatTag(typeof language === 'string' ? language : null, template.locale), zone: ctx.zone, currency: ctx.currency, now: ctx.now });
     let to = found.trim();
     const holder = await codeHolder(box, ctx, row, to, addressed);
-    const { vars, withheld } = await variables(box, { ...ctx, forms }, row, addressed, holder);
+    // A choice reads its label in the language the template is written in.
+    const labels = ctx.labels?.(template.locale);
+    const { vars, withheld } = await variables(box, { ...ctx, forms, labels }, row, addressed, holder);
     vars['signInLink'] = '';
     if (reads.has('signInLink')) {
       const minted = await signInLink(box, ctx, row, to, addressed, producer);
@@ -817,7 +1052,22 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     }
     // Every name the email will print has its value — or it does not go, rather than go with `{{…}}` in it.
     const sent = withOverride({ subject: template.subject, blocks: template.blocks as readonly Record<string, unknown>[] }, override);
-    const unfilled = [...placeholders([sent.subject, template.preheader, sent.blocks, template.footer])].filter((name) => !Object.hasOwn(vars, name));
+    // The rows each list names (an order's tickets), each row judged the same way: every `{{row.*}}` filled, a code only to its holder.
+    const rows: Record<string, Record<string, string>[]> = {};
+    for (const block of sent.blocks) {
+      if (block['block'] !== 'email.rows' || typeof block['id'] !== 'string') continue;
+      const data = typeof block['data'] === 'object' && block['data'] !== null ? (block['data'] as Record<string, unknown>) : {};
+      const listed = await rowsFor(box, { ...ctx, forms, labels }, row, data, holder);
+      const names = [...placeholders([data['row'], data['empty']])].filter((name) => name.startsWith('row.'));
+      for (const one of listed) {
+        const missing = names.filter((name) => !Object.hasOwn(one.vars, name));
+        const held = missing.filter((name) => one.withheld.has(name));
+        if (held.length > 0) return { status: 'failed', error: codeWithheldSentence(held) };
+        if (missing.length > 0) return { status: 'failed', error: unfilledSentence(missing) };
+      }
+      rows[block['id']] = listed.map((one) => one.vars);
+    }
+    const unfilled = [...placeholders([sent.subject, template.preheader, sent.blocks, template.footer])].filter((name) => !name.startsWith('row.') && !Object.hasOwn(vars, name));
     const codes = unfilled.filter((name) => withheld.has(name));
     if (codes.length > 0) return { status: 'failed', error: codeWithheldSentence(codes) };
     if (unfilled.length > 0) return { status: 'failed', error: unfilledSentence(unfilled) };
@@ -825,7 +1075,15 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     return {
       to,
       // The template checked above is the one sent: never resolved again, as it may have been edited meanwhile.
-      email: { to, templateKey, locale, vars, template, ...(override.subject === undefined && override.body === undefined ? {} : { override }) },
+      email: {
+        to,
+        templateKey,
+        locale,
+        vars,
+        template,
+        ...(Object.keys(rows).length === 0 ? {} : { rows }),
+        ...(override.subject === undefined && override.body === undefined ? {} : { override }),
+      },
       ...(written === to ? {} : { recordTo: to }),
       ...(lookedUp && typeof language === 'string' && language !== '' && language !== own ? { language } : {}),
     };
@@ -877,6 +1135,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const at = new Date(now).toISOString();
     /** The codes shared links open rows with here, read once a message is about to be made. */
     let shareCodes: ShareCodes | undefined;
+    /** The app's choice labels, likewise. */
+    let labels: ((locale: string) => ChoiceLabels) | undefined;
     /**
      * Sent already: it says when it went and records no failure. (A message
      * that failed keeps when it was tried, with the reason, and a person may
@@ -950,7 +1210,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           continue;
         }
         shareCodes ??= await shareCodesOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
-        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes }, row);
+        labels ??= await choiceLabels(deps.meta, box.connectionId);
+        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, labels }, row);
         if ('status' in ready) {
           const values: Row = { [cols.status]: ready.status };
           if (cols.error !== undefined) values[cols.error] = ready.error;

@@ -335,6 +335,15 @@ export interface Quote<T = Row> {
   capacity: { pool: string; state: 'available' | 'full'; at?: string }[];
   /** False when the app runs its own code on a table of the order: the save may come out otherwise. */
   exact: boolean;
+  /** A row priced by the night (a stay): each night, its rate, and the names of what was added to it. Empty otherwise. */
+  nights: QuoteNight[];
+}
+
+/** One night of a row priced by the night, as a quote answers it. */
+export interface QuoteNight {
+  date: string;
+  rate: string;
+  tags: string[];
 }
 
 /** What a dry run of a change answers: the row as the change would leave it. Nothing is kept. */
@@ -342,6 +351,8 @@ export interface ChangeQuote<T = Row> {
   data: T;
   /** False when the app runs its own code on the change: the save may come out otherwise. */
   exact: boolean;
+  /** A row priced by the night: the nights the change would leave it with. Empty otherwise. */
+  nights: QuoteNight[];
 }
 
 /**
@@ -1264,16 +1275,16 @@ export function createPublicClient(
     },
 
     async quote<T = Row>(ref: string, write: { values: Row; children?: TreeRows }) {
-      const out = await request<Quote<T>>(`/api/v1/public/records/${ref}/dry-run`, { method: 'POST', body: JSON.stringify(write) });
-      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false };
+      const out = await request<Partial<Quote<T>> & { data: T }>(`/api/v1/public/records/${ref}/dry-run`, { method: 'POST', body: JSON.stringify(write) });
+      return { data: out.data, children: out.children ?? {}, capacity: out.capacity ?? [], exact: out.exact !== false, nights: out.nights ?? [] };
     },
 
     async quoteChange<T = Row>(ref: string, id: string, values: Row) {
-      const out = await request<{ data: T; exact?: boolean }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`, {
+      const out = await request<{ data: T; exact?: boolean; nights?: QuoteNight[] }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`, {
         method: 'POST',
         body: JSON.stringify({ values }),
       });
-      return { data: out.data, exact: out.exact !== false };
+      return { data: out.data, exact: out.exact !== false, nights: out.nights ?? [] };
     },
 
     async replace<T = Row>(ref: string, id: string, values: Row) {

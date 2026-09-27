@@ -137,6 +137,10 @@ export default {
     },
     "unknown": {
       "label": "Sektion"
+    },
+    "rows": {
+      "label": "Rækker",
+      "hint": "Rækker, som en apps e-mail viser"
     }
   },
   "branding": {
@@ -218,6 +222,7 @@ export default {
     "nextOn": "Næste {next} · {note}",
     "loyaltyBalance": "Loyalitetssaldo",
     "loyaltyLine": "{balance} point · {level}",
+    "rowsOf": "Rækker fra {table} for {link}",
     "sections": {
       "branding": "Brand og afsender",
       "subject": "Emne og forhåndsvisningstekst",
@@ -347,7 +352,8 @@ export default {
     "finePrint": "Det med småt",
     "contactName": "Kontaktnavn",
     "email": "E-mail",
-    "phone": "Telefon"
+    "phone": "Telefon",
+    "whenNone": "Når der ingen er"
   },
   "group": {
     "languages": "{count, plural, one {# sprog} other {# sprog}}",

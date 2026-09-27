@@ -15,10 +15,12 @@
  * membership or order, or when a kind listed here has no entry in
  * `EMAIL_BLOCKS` below. Change one and the other in the same commit.
  *
- * Two kinds are renderable but NOT in the picker: `email.spacer` (the comp
- * folds spacer into "Divider / spacer" with a `line` flag) and
- * `email.footer` (the comp's footer is a fixed envelope field). Both keep an
- * entry here so a legacy row still opens with every block recognised.
+ * Three kinds are renderable but NOT in the picker: `email.spacer` (the comp
+ * folds spacer into "Divider / spacer" with a `line` flag), `email.footer`
+ * (the comp's footer is a fixed envelope field) and `email.rows` (an app's
+ * template lists its rows with it; which rows is the app's, shown read-only).
+ * Each keeps an entry here so a stored row still opens with every block
+ * recognised.
  *
  * Labels and hints are the comp's English; the UI resolves them through
  * `t()` by kind.
@@ -52,6 +54,7 @@ export const EMAIL_BLOCK_KINDS = [
   'email.legal',
   'email.refund-policy',
   'email.contact',
+  'email.rows',
 ] as const;
 
 export type EmailBlockKind = (typeof EMAIL_BLOCK_KINDS)[number];
@@ -86,7 +89,8 @@ export type EmailBlockFamily =
   | 'Loyalty'
   | 'Delivery'
   | 'Spacer'
-  | 'Footer';
+  | 'Footer'
+  | 'Rows';
 
 /** An inspector field: `[key, label, kind]` (comp `blockSchema`). */
 export type EmailFieldKind = 'input' | 'area' | 'mono';
@@ -293,6 +297,12 @@ export const EMAIL_BLOCKS: Readonly<Record<EmailBlockKind, EmailBlockDef>> = {
   'email.contact': def('email.contact', 'Contact block', 'life-buoy', 'Support details', 'Contact', {
     fields: [f('kicker', 'Section label', 'input'), f('name', 'Contact name', 'input'), f('email', 'Email', 'mono'), f('phone', 'Phone', 'mono')],
   }),
+  // Which rows, and what each line says, is the app's; the words shown when there are none may be edited.
+  'email.rows': def('email.rows', 'Rows', 'list', "Rows an app's email lists", 'Rows', {
+    vars: true,
+    fields: [f('empty', 'When there are none', 'input')],
+    pickable: false,
+  }),
 };
 
 /** The picker's three groups, in the comp's order (`pickerCats`, 1136-1142). */
@@ -419,6 +429,8 @@ export function defaultBlockData(kind: EmailBlockKind): Record<string, unknown> 
       return { kicker: 'Refund policy', text: 'Full refunds within 30 days of purchase. Contact support to begin a return.' };
     case 'email.contact':
       return { kicker: 'Questions? Contact us', name: '{{appName}} support', email: 'support@example.com', phone: '+1 (555) 010-0100' };
+    case 'email.rows':
+      return { empty: '' };
   }
 }
 

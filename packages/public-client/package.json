@@ -17,6 +17,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./qr": {
+      "types": "./dist/qr.d.ts",
+      "default": "./dist/qr.js"
     }
   },
   "scripts": {
@@ -34,5 +38,8 @@
   "files": [
     "dist"
   ],
-  "sideEffects": false
+  "sideEffects": false,
+  "dependencies": {
+    "qr": "catalog:"
+  }
 }

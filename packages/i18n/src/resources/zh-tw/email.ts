@@ -137,6 +137,10 @@ export default {
     },
     "unknown": {
       "label": "區段"
+    },
+    "rows": {
+      "label": "列",
+      "hint": "應用程式郵件列出的列"
     }
   },
   "branding": {
@@ -218,6 +222,7 @@ export default {
     "nextOn": "下次：{next} · {note}",
     "loyaltyBalance": "點數餘額",
     "loyaltyLine": "{balance} 點 · {level}",
+    "rowsOf": "{link} 的 {table} 列",
     "sections": {
       "branding": "品牌與寄件者",
       "subject": "主旨與預覽文字",
@@ -347,7 +352,8 @@ export default {
     "finePrint": "細則",
     "contactName": "聯絡人姓名",
     "email": "電子郵件",
-    "phone": "電話"
+    "phone": "電話",
+    "whenNone": "沒有時顯示"
   },
   "group": {
     "languages": "{count, plural, other {# 種語言}}",

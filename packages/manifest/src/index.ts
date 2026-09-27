@@ -135,12 +135,19 @@ export {
   dayColumns,
   dayNumberOf,
   isJoinColumn,
+  joinText,
+  nightlyRates,
+  NightlyRuleUnreadable,
+  PER_NIGHT_MAX,
+  weekdaysOf,
   ratioText,
   rollupValue,
   sameDecimal,
   toRatio,
   type FormulaCondition,
   type FormulaExpr,
+  type Night,
+  type NightlyAdjustment,
 } from './formula.js';
 
 export {

@@ -414,6 +414,47 @@ export function requestValueIssue(
 }
 
 /**
+ * Why a slot the add-on's outline draws as a QR code is mapped to something
+ * that has none, or null: a QR code prints a code — a text column with a
+ * `code` rule, of the document's row or a row it points at, or of a list's
+ * rows — and nothing else (not a name, not a number, not a list).
+ */
+export function qrMappingIssue(plan: Pick<PlannedProfile, 'addOn' | 'kind' | 'table' | 'mapping'>, slots: readonly SubjectSlot[] | null, manifest: AppManifest): string | null {
+  if (slots === null) return null;
+  const table = (ref: string | undefined) => (ref === undefined ? undefined : manifest.requiredSchema.tables.find((t) => t.ref === ref));
+  const isCode = (ref: string | undefined, column: string) => {
+    const found = table(ref)?.columns.find((c) => c.ref === column) as { type?: string; rules?: { code?: unknown } } | undefined;
+    return found?.type === 'text' && found.rules?.code !== undefined;
+  };
+  const own = table(plan.table);
+  for (const slot of slots) {
+    const mapped = plan.mapping[slot.id] as Record<string, unknown> | undefined;
+    if (mapped === undefined) continue;
+    if (slot.type === 'qr') {
+      const column = typeof mapped['column'] === 'string' ? mapped['column'] : undefined;
+      const via = typeof mapped['via'] === 'string' ? mapped['via'] : undefined;
+      const from = via === undefined ? plan.table : own?.columns.find((c) => c.ref === via)?.references;
+      if (column === undefined || !isCode(from, column)) return `"${slot.id}" of the "${plan.addOn}" add-on's ${plan.kind} is a QR code, and prints a code column only`;
+      continue;
+    }
+    // A list's own QR codes: each maps a code column of the list's rows.
+    const qrColumns = (slot.columns ?? []).filter((column) => column.type === 'qr');
+    if (qrColumns.length === 0) continue;
+    const sources = 'collection' in mapped ? [mapped['collection']] : 'collections' in mapped ? (mapped['collections'] as unknown[]) : [];
+    for (const source of sources as { table?: string; nightly?: string; columns?: Record<string, unknown> }[]) {
+      for (const column of qrColumns) {
+        const read = source.columns?.[column.id];
+        if (read === undefined) continue;
+        if (source.nightly !== undefined || typeof read !== 'string' || !isCode(source.table, read)) {
+          return `"${slot.id}.${column.id}" of the "${plan.addOn}" add-on's ${plan.kind} is a QR code, and prints a code column only`;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Whether a planned document can be drawn for the app now: every add-on it
  * needs is attached — its own, and those of the feature it belongs to — and
  * the add-on draws its kind. `off` is the feature being off; `unknown` is the
@@ -499,7 +540,9 @@ export async function makeAppProfiles(input: {
       continue;
     }
     const slots = input.availability?.slotsOf?.(candidate.addOn, candidate.kind) ?? null;
-    const issue = (candidate.requestValues ?? []).map((slot) => requestValueIssue(slot, candidate, slots)).find((found) => found !== null);
+    const issue = [...(candidate.requestValues ?? []).map((slot) => requestValueIssue(slot, candidate, slots)), qrMappingIssue(candidate, slots, input.manifest)].find(
+      (found) => found !== null && found !== undefined,
+    );
     if (issue !== undefined) {
       result.refused.push({ kind: candidate.kind, table: candidate.table, reason: issue });
       continue;

@@ -109,6 +109,8 @@ import { generatePublicSessionToken, hashPublishableKey, keyKindOf, openPublisha
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
+import { quoteNights } from '../../crud/per-night.js';
+import { connectionTenantConfig } from '@adminium/meta';
 import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
@@ -2401,7 +2403,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (await writes.wants('before', 'create', target(of), context)) exact = false;
         }
         const capacity = outcome.capacity.map((pool) => ({ pool: pool.key, state: pool.fits ? ('available' as const) : ('full' as const), ...(pool.at === undefined ? {} : { at: pool.at }) }));
-        return reply.code(200).send({ data, children, capacity, exact });
+        // A price by the night: the nights it is made of, each with its rate and what was added.
+        const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }) });
       }
       // The person the address made, heard of once the whole write has committed.
       const made = madePerson as Row | null;
@@ -2942,7 +2946,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const shown = holder === undefined || after === null ? projected : withholding(found.resource, ok.key.scope, ok.session, found.view, found.table).apply({ ...projected, [holder]: after[holder] });
         const data = wallTimesAsInstants(shown, found.table.columns, found.dialect);
         // A quote runs no before hook: said, as a quote of a create says it.
-        if (quote === 'dry') return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)) });
+        if (quote === 'dry') {
+          // A change of the dates of a row priced by the night: the nights it would then be made of.
+          const nights = outcome.after === null ? undefined : await quoteNights(found.db, tableRulesFor({ view: found.view, table: found.table }), outcome.after, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }) });
+        }
         return reply.send({ data });
       };
 

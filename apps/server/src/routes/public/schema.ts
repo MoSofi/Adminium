@@ -298,6 +298,8 @@ export const publicDryRunReply = z.object({
   capacity: z.array(z.object({ pool: z.string(), state: z.enum(['available', 'full']), at: z.string().optional() })),
   /** False when a before hook runs on a table of the write: a dry run runs none, so a save may differ. */
   exact: z.boolean(),
+  /** A row priced by the night: each night, its rate and the names of what was added to it. */
+  nights: z.array(z.object({ date: z.string(), rate: z.string(), tags: z.array(z.string()) })).optional(),
 });
 
 /** A dry run of a change: the row as the change would leave it. */
@@ -305,6 +307,8 @@ export const publicChangeQuoteReply = z.object({
   data: z.record(z.string(), z.unknown()),
   /** False when a before hook runs on the change: a dry run runs none, so the save may differ. */
   exact: z.boolean(),
+  /** A row priced by the night: the nights the change would leave it with. */
+  nights: z.array(z.object({ date: z.string(), rate: z.string(), tags: z.array(z.string()) })).optional(),
 });
 
 /** `POST /public/claim` — the end-customer identity check. */

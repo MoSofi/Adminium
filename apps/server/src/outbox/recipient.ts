@@ -68,7 +68,7 @@ export async function addressFor(
   const onRow = columnRecipientOf(producer);
   if (onRow !== null) {
     const found = await columnAddressed(ctx, producer!, onRow, row, holder);
-    return found === null ? none : { ...none, address: found.address, byColumn: found };
+    return found === null ? none : { ...none, address: found.address, language: found.language, byColumn: found };
   }
   if (producer?.recipient !== undefined && 'setting' in producer.recipient) {
     const value = await ctx.read(producer.recipient.setting);
@@ -83,7 +83,8 @@ export async function addressFor(
       ...none,
       person,
       address: plausibleAddress(address) ? address.trim() : null,
-      language: recipient.language === undefined ? null : text(person[recipient.language]),
+      // A language read from the row the message is about is the producer's (`producedLanguage`), not the person's.
+      language: typeof recipient.language === 'string' ? text(person[recipient.language]) : null,
       identity: plausibleAddress(address) ? person : null,
     };
   }

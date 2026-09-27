@@ -137,6 +137,10 @@ export default {
     },
     "unknown": {
       "label": "قسم"
+    },
+    "rows": {
+      "label": "صفوف",
+      "hint": "صفوف يعرضها بريد التطبيق"
     }
   },
   "branding": {
@@ -218,6 +222,7 @@ export default {
     "nextOn": "التالي في {next} · {note}",
     "loyaltyBalance": "رصيد الولاء",
     "loyaltyLine": "{balance} نقطة · {level}",
+    "rowsOf": "صفوف من {table} لـ {link}",
     "sections": {
       "branding": "العلامة والمرسل",
       "subject": "الموضوع ونص المعاينة",
@@ -347,7 +352,8 @@ export default {
     "finePrint": "الشروط الدقيقة",
     "contactName": "اسم جهة الاتصال",
     "email": "البريد الإلكتروني",
-    "phone": "الهاتف"
+    "phone": "الهاتف",
+    "whenNone": "عند عدم وجود أي منها"
   },
   "group": {
     "languages": "{count, plural, zero {لا لغات} one {لغة واحدة} two {لغتان} few {# لغات} many {# لغة} other {# لغة}}",

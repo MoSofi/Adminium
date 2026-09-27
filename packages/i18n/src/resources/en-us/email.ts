@@ -137,6 +137,10 @@ export default {
     },
     "unknown": {
       "label": "Section"
+    },
+    "rows": {
+      "label": "Rows",
+      "hint": "Rows an app's email lists"
     }
   },
   "branding": {
@@ -218,6 +222,7 @@ export default {
     "nextOn": "Next on {next} · {note}",
     "loyaltyBalance": "Loyalty balance",
     "loyaltyLine": "{balance} pts · {level}",
+    "rowsOf": "Rows of {table} for this {link}",
     "sections": {
       "branding": "Brand & sender",
       "subject": "Subject & preheader",
@@ -347,7 +352,8 @@ export default {
     "finePrint": "Fine print",
     "contactName": "Contact name",
     "email": "Email",
-    "phone": "Phone"
+    "phone": "Phone",
+    "whenNone": "When there are none"
   },
   "group": {
     "languages": "{count, plural, one {# language} other {# languages}}",

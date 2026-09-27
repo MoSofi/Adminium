@@ -22,7 +22,7 @@ import type { SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 
 /** The producing row's column a producer sends to, and the column naming who it is for; null for any other producer. */
-export function columnRecipientOf(producer: OutboxProducer | undefined): { column: string; name?: string | undefined } | null {
+export function columnRecipientOf(producer: OutboxProducer | undefined): { column: string; name?: string | undefined; language?: string | undefined } | null {
   const recipient = producer?.recipient;
   return recipient !== undefined && 'column' in recipient ? recipient : null;
 }
@@ -34,6 +34,8 @@ export interface ColumnAddressed {
   id: unknown;
   address: string | null;
   name: string | null;
+  /** The language the producing row holds for the message (its `language` column), or null. */
+  language: string | null;
 }
 
 const plausible = (value: unknown): value is string => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -46,7 +48,7 @@ const plausible = (value: unknown): value is string => typeof value === 'string'
 export async function columnAddressed(
   ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outboxId: string },
   producer: OutboxProducer,
-  recipient: { column: string; name?: string | undefined },
+  recipient: { column: string; name?: string | undefined; language?: string | undefined },
   row: Row,
   holder?: { tableId: string; row: Row },
 ): Promise<ColumnAddressed | null> {
@@ -64,10 +66,12 @@ export async function columnAddressed(
   if (producing === null) return null;
   const address = producing[recipient.column];
   const name = recipient.name === undefined ? null : producing[recipient.name];
+  const language = recipient.language === undefined ? null : producing[recipient.language];
   return {
     table: tableId,
     id: producing[key],
     address: plausible(address) ? address.trim() : null,
     name: typeof name === 'string' && name.trim() !== '' ? name.trim() : null,
+    language: typeof language === 'string' && language.trim() !== '' ? language.trim() : null,
   };
 }

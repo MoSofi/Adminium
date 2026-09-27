@@ -179,6 +179,24 @@ describe('EmailCanvas', () => {
     expect((screen.getByTestId('email-subject-input') as HTMLInputElement).value).toBe('Welcome to {{appName}}');
   });
 
+  it("previews an app's list of rows: which rows, and two lines of the variables each reads, with a QR code's square", async () => {
+    const rows: EmailBlockRecord = {
+      id: 'rows-1',
+      block: 'email.rows',
+      data: {
+        from: { link: 'order', table: 'main.events_tickets', via: 'order_id' },
+        row: { title: '{{row.holder_name}}', meta: '{{row.ticket_type.name}} · {{row.code}}', image: '{{row.code.qr}}' },
+      },
+      style: {},
+    };
+    await renderCanvas(detail({}, [rows]));
+    const block = screen.getByRole('group', { name: 'Rows' });
+    expect(within(block).getByText('Rows of events_tickets for this order')).toBeDefined();
+    expect(within(block).getAllByText('{{row.holder_name}}')).toHaveLength(2);
+    expect(within(block).getAllByText('{{row.ticket_type.name}} · {{row.code}}')).toHaveLength(2);
+    expect(block.querySelectorAll('[aria-hidden="true"].size-\\[46px\\]')).toHaveLength(2);
+  });
+
   it('Add above block i opens the picker reading Inserted above {label}; the end button says Added at the end', async () => {
     const { user } = await renderCanvas(detail({}, ALL_KINDS.slice(0, 3)));
     const second = screen.getAllByTestId('email-insert-above')[1] as HTMLElement;

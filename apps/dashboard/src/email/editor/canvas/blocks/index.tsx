@@ -15,6 +15,7 @@ import {
   PayHistoryPreview,
   ProductPreview,
   RecurringPreview,
+  RowsPreview,
   StatsPreview,
   TitledRowsPreview,
 } from './commerce.js';
@@ -91,5 +92,7 @@ export function BlockPreview(props: BlockPreviewProps) {
       return <DeliveryPreview {...props} />;
     case 'Footer':
       return <FooterBlockPreview {...props} />;
+    case 'Rows':
+      return <RowsPreview {...props} />;
   }
 }

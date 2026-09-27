@@ -8303,6 +8303,14 @@
     "status": "mt",
     "srcHash": "8e072025366d"
   },
+  "email.blocks.rows.hint": {
+    "status": "mt",
+    "srcHash": "239a6fe0b44e"
+  },
+  "email.blocks.rows.label": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
   "email.blocks.social.hint": {
     "status": "mt",
     "srcHash": "394c7e25c9cc"
@@ -8682,6 +8690,10 @@
   "email.canvas.recurring": {
     "status": "mt",
     "srcHash": "51720a7598ec"
+  },
+  "email.canvas.rowsOf": {
+    "status": "mt",
+    "srcHash": "c71d83433c04"
   },
   "email.canvas.sections.attachments": {
     "status": "mt",
@@ -9154,6 +9166,10 @@
   "email.fields.value": {
     "status": "mt",
     "srcHash": "8dce170de238"
+  },
+  "email.fields.whenNone": {
+    "status": "mt",
+    "srcHash": "947ef2398606"
   },
   "email.group.emails": {
     "status": "mt",
