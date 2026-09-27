@@ -68,6 +68,7 @@ import type {
   EffectiveCapacityRule,
 } from '../connections/effective-schema.js';
 import { holdsNul } from '../security/nul-bytes.js';
+import { codeLookupsOf, type CodeLookup } from './code-lookup.js';
 import { isNowType, renderNow } from './instants.js';
 import { booleanOf, sameValue } from './write-values.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
@@ -86,7 +87,10 @@ export type IssueCode =
   | 'too-small'
   | 'too-large'
   | 'out-of-range'
-  | 'invalid-character';
+  | 'invalid-character'
+  // A code typed that finds no code the venue offers; one whose uses are all taken.
+  | 'unknown'
+  | 'used-up';
 
 /** `n` carries the bound a message needs ("Use at most {n} characters"). */
 export interface FieldIssue {
@@ -326,6 +330,8 @@ export interface TableRules {
   copies?: ColumnCopy[];
   sequences?: ColumnSequence[];
   codes?: ColumnCode[];
+  /** Links filled from a code a person types (`crud/code-lookup.ts`): resolved first, before the copies. */
+  codeLookups?: CodeLookup[];
   /** Values written when something happens (a check-in's time, who booked). */
   stamps?: ColumnStamp[];
   /** Parent totals kept in step when this table's rows change. */
@@ -355,7 +361,7 @@ export interface TableRules {
   /** Numbers without gaps, taken inside the write. */
   gapless?: GaplessSequence[];
   /** Text stored trimmed, or trimmed and in lower case. */
-  normalizes?: { column: string; how: 'trim' | 'email' }[];
+  normalizes?: { column: string; how: 'trim' | 'email' | 'code' }[];
   /** Dates kept within dates: never after today, never before another date. */
   bounds?: DateBound[];
   /** A document's life (`table.states`), and the rows of other tables that lock it. */
@@ -517,7 +523,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const scales: { column: string; scale: Scale }[] = [];
   const defaultsFrom: ColumnDefaultFrom[] = [];
   const seals: ColumnStamp[] = [];
-  const normalizes: { column: string; how: 'trim' | 'email' }[] = [];
+  const normalizes: { column: string; how: 'trim' | 'email' | 'code' }[] = [];
   const bounds: DateBound[] = [];
   const states = target.table.table?.states;
   const lockedBy = target.table.table?.lockedBy ?? [];
@@ -585,8 +591,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       if (typeof stamp.set === 'object' && 'hashOf' in stamp.set) seals.push(stamp);
       else stamps.push(stamp);
     }
-    // A code's spelling (`code`) is carried in the model and not yet applied here.
-    if (column.normalize === 'trim' || column.normalize === 'email') normalizes.push({ column: column.name, how: column.normalize });
+    if (column.normalize !== undefined) normalizes.push({ column: column.name, how: column.normalize });
     if (column.bounds !== undefined) {
       const bound: DateBound = { column: column.name, ...(column.bounds.notAfter === undefined ? {} : { notAfter: column.bounds.notAfter }) };
       const before = column.bounds.notBefore;
@@ -682,6 +687,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const capacityOwners = target.view?.model === undefined || target.table.table === undefined ? [] : ownedRules(target.view, target.table);
   const booking = target.table.table?.booking;
   const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
+  const codeLookups = codeLookupsOf(target.view, target.table.table);
   const rules =
     fills.length === 0 &&
     checks.length === 0 &&
@@ -694,6 +700,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     gapless.length === 0 &&
     seals.length === 0 &&
     normalizes.length === 0 &&
+    codeLookups.length === 0 &&
     bounds.length === 0 &&
     states === undefined &&
     stateParents.length === 0 &&
@@ -720,6 +727,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(gapless.length === 0 ? {} : { gapless, numbered }),
           ...(seals.length === 0 ? {} : { seals }),
           ...(normalizes.length === 0 ? {} : { normalizes }),
+          ...(codeLookups.length === 0 ? {} : { codeLookups }),
           ...(bounds.length === 0 ? {} : { bounds }),
           ...(states === undefined ? {} : { states, ...(lockedBy.length === 0 ? {} : { lockedBy }) }),
           ...(stateParents.length === 0 ? {} : { stateParents }),

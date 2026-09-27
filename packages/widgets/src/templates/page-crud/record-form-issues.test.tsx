@@ -176,6 +176,11 @@ describe('reading a refusal off an API error', () => {
     });
   });
 
+  it('says a typed code is not on offer, or has been used up', () => {
+    expect(fieldMessagesOf(t, { fieldIssues: { code_text: { code: 'unknown' } } })).toEqual({ code_text: 'No code like this is on offer here.' });
+    expect(fieldMessagesOf(t, { fieldIssues: { code_text: { code: 'used-up' } } })).toEqual({ code_text: 'This code has been used as many times as it can be.' });
+  });
+
   it('never shows a raw code for one it does not know', () => {
     expect(fieldMessagesOf(t, { fieldIssues: { name: { code: 'too_wibbly' } } })).toEqual({
       name: 'This value is not valid here.',

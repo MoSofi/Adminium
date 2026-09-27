@@ -85,6 +85,8 @@ export default {
       "notAllowed": "Choisissez une des valeurs proposées.",
       "invalid": "Cette valeur n'est pas valide ici.",
       "invalidCharacter": "Ce texte contient un caractère invisible qui ne peut pas être enregistré. Saisissez-le à nouveau.",
+      "unknownCode": "Aucun code de ce type n'est proposé ici.",
+      "usedUp": "Ce code a été utilisé autant de fois que possible.",
       "email": "Saisissez une adresse e-mail valide.",
       "url": "Saisissez une adresse web valide.",
       "phone": "Saisissez un numéro de téléphone valide.",

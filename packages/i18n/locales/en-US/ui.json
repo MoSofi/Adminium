@@ -75,6 +75,8 @@
       "notAllowed": "Choose one of the listed values.",
       "invalid": "This value is not valid here.",
       "invalidCharacter": "This text contains a hidden character that cannot be saved. Type it again.",
+      "unknownCode": "No code like this is on offer here.",
+      "usedUp": "This code has been used as many times as it can be.",
       "email": "Enter a valid email address.",
       "url": "Enter a valid web address.",
       "phone": "Enter a valid phone number.",

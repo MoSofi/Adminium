@@ -9,8 +9,10 @@
  *
  *     FILL → RESOLVE → before hooks → CHECK → SEQUENCE → statement
  *
- *  - RESOLVE (`column.copy`, `column.code`), before the hooks, so a hook sees
- *    the values that will be written:
+ *  - RESOLVE (`column.lookup`, `column.copy`, `column.code`), before the
+ *    hooks, so a hook sees the values that will be written:
+ *      · a code a person typed is found first (`crud/code-lookup.ts`), so a
+ *        copy through the link it fills reads the row just found;
  *      · a copy reads the linked row's column through the write's own handle
  *        (the transaction, inside one). A value the writer sent wins in
  *        `default` mode and never in `always` mode. On an update it runs only
@@ -35,6 +37,7 @@ import { randomInt } from 'node:crypto';
 import { sql, type Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
+import { clearedLinks, resolveLookups, type LookupOptions } from './code-lookup.js';
 import type { ColumnCode, ColumnSequence, TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
@@ -90,6 +93,9 @@ interface ResolveTarget {
   table: ResolvedTable;
 }
 
+/** What finding a typed code needs of the write (`crud/code-lookup.ts`); absent: a write that finds none. */
+export type ResolveOptions = LookupOptions;
+
 /**
  * The values with every copy and code resolved. Returns the SAME OBJECT when
  * nothing was added, like `fillRow`.
@@ -102,14 +108,24 @@ export async function resolveRow(
   memo: CopyMemo = new Map(),
   /** An undo: an empty code is put back as it was. */
   keepEmptyCodes = false,
+  /** A code a person typed, found first: the copies below read through the link it fills. */
+  lookups?: ResolveOptions,
 ): Promise<Row> {
   if (rules === null || action === 'delete') return values;
-  let out: Row | null = null;
+  const looked = lookups === undefined ? values : await resolveLookups(rules.codeLookups ?? [], action, target, values, lookups);
+  let out: Row | null = looked === values ? null : looked;
+  // A link a typed code filled, emptied by this write: what was copied through it goes with it.
+  const cleared = new Set(clearedLinks(looked));
   for (const copy of rules.copies ?? []) {
     // On an update, only a change of the link copies again.
-    if (!has(values, copy.via)) continue;
-    if (copy.mode === 'default' && has(values, copy.column)) continue;
-    const link = values[copy.via];
+    if (!has(looked, copy.via)) continue;
+    if (copy.mode === 'default' && has(looked, copy.column)) continue;
+    const link = looked[copy.via];
+    if ((link === null || link === undefined) && cleared.has(copy.via)) {
+      out ??= { ...looked };
+      out[copy.column] = null;
+      continue;
+    }
     if (link === null || link === undefined) continue;
     const key = `${copy.toTable}|${copy.toColumn}|${copy.from}|${String(link)}`;
     let copied = memo.get(key);
@@ -124,7 +140,7 @@ export async function resolveRow(
     }
     // A link to nothing is the database's to refuse, with its own words.
     if (copied === undefined) continue;
-    out ??= { ...values };
+    out ??= { ...looked };
     out[copy.column] = copied;
     const read = ((out as Copying)[COPIED] = { ...((out as Copying)[COPIED] ?? {}) });
     read[copy.via] = { ...(read[copy.via] ?? {}), [copy.from]: copied };
@@ -132,7 +148,7 @@ export async function resolveRow(
   if (action === 'create') {
     for (const code of rules.codes ?? []) {
       if (codeGiven(values, code.column, keepEmptyCodes)) continue;
-      out ??= { ...values };
+      out ??= { ...looked };
       out[code.column] = generateCode(code.prefix, code.length);
     }
   }

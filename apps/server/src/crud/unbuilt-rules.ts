@@ -19,7 +19,7 @@
  * ships with both lists empty (a test says so).
  */
 import { AppError } from '../errors.js';
-import type { EffectiveColumn, EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
+import type { EffectiveModel, EffectiveTable } from '../connections/effective-schema.js';
 
 export interface UnbuiltTableRule {
   /** The rule's name as the refusal gives it (`capacity`, `states.timed`, …). */
@@ -37,20 +37,10 @@ export interface UnbuiltEntryRule {
   on: (entry: Readonly<Record<string, unknown>>) => boolean;
 }
 
-/** Whether any column of the table carries a rule the test finds. */
-const anyColumn = (table: EffectiveTable, test: (column: EffectiveColumn) => boolean): boolean => (table.columns ?? []).some(test);
-
-export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // Codes a guest types.
-  { rule: 'lookup', on: (table) => anyColumn(table, (c) => c.lookup !== undefined) },
-  { rule: 'normalize.code', on: (table) => anyColumn(table, (c) => c.normalize === 'code') },
-];
+export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
 
 /** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */
 const ENTRY_KEYS = [
-  // Rows unlocked by a typed code, and pictures anyone may see.
-  'unlock_by',
-  'pictures',
   // A person found by address, the new row's own link, a read for a session, forgetting.
   'find_or_create',
   'share_link',

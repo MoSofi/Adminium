@@ -324,7 +324,8 @@ export function createDocumentAccess(deps: {
 
     const filters = new Map<string, ReadFilter>();
     for (const [tableId, why] of needed) {
-      const serving = [...ok.key.scope.byRef.values()].filter((r) => r.table === tableId && r.kind === 'records' && r.actions.has('read'));
+      // A read that shows its rows only with a typed code serves no document: a document carries no code.
+      const serving = [...ok.key.scope.byRef.values()].filter((r) => r.table === tableId && r.kind === 'records' && r.actions.has('read') && (r.unlockBy ?? null) === null);
       if (serving.length === 0) {
         if (why === 'statement') return { state: 'none' };
         continue;

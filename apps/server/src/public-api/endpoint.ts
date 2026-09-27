@@ -858,6 +858,26 @@ export function definitionToResource(
   if (def.session_only !== undefined) resource.sessionOnly = true;
   if (def.forget !== undefined) resource.forget = { columns: [...def.forget.columns], ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }) };
   if (def.withhold !== undefined) resource.withhold = { columns: [...def.withhold.columns], unlessHolder: def.withhold.unless_holder };
+  if (def.unlock_by !== undefined) {
+    const u = def.unlock_by;
+    resource.unlockBy = {
+      table: u.table,
+      column: u.column,
+      link: u.link,
+      ...(u.where === undefined
+        ? {}
+        : {
+            where: u.where.map((w) =>
+              'eq' in w
+                ? { column: w.column, eq: w.eq }
+                : 'not_before' in w
+                  ? { column: w.column, notBefore: w.not_before, ...(w.or_empty === undefined ? {} : { orEmpty: w.or_empty }) }
+                  : { column: w.column, notAfter: w.not_after, ...(w.or_empty === undefined ? {} : { orEmpty: w.or_empty }) },
+            ),
+          }),
+    };
+  }
+  if (def.pictures !== undefined) resource.pictures = [...def.pictures];
   return resource;
 }
 

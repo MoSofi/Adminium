@@ -181,6 +181,8 @@ export const PUBLIC_KEY_LIMITS = {
   linkVerify: { max: 300, windowMs: 60_000 },
   /** Shared links opened, every visitor together. */
   token: { max: 120, windowMs: 60_000 },
+  /** Pictures anyone may see, every visitor together (a picture already seen costs nothing: see the route). */
+  picture: { max: 6000, windowMs: 60_000 },
 } as const;
 
 export type PublicKeySide = keyof typeof PUBLIC_KEY_LIMITS;
@@ -192,6 +194,28 @@ export function keyRateKeyFor(keyId: string, side: PublicKeySide): string {
 
 /** Failed key resolutions one address may cause in a window. */
 export const PUBLIC_FAILED_RESOLUTION = { max: 30, windowMs: 60_000 } as const;
+
+/**
+ * Codes a guest types (a discount, a presale code): each MISS is a guess at a
+ * code, so misses are counted — per visitor (the address), and on the whole
+ * key on a rung of its own, apart from claims and writes. A code that works
+ * costs nothing, so a buyer re-quoting a cart with STUDENT10 in it is never
+ * stopped by their own page. Once either count is spent, every code typed is
+ * refused until the window opens — a working one too, which is the rung's
+ * residual: misses from many addresses can hold a key's codes for a minute.
+ */
+/**
+ * Pictures anyone may see, per address — before any key is resolved, and in
+ * place of the flood guard, which a menu page's photos would outrun: a
+ * restaurant's Wi-Fi puts many diners behind one address. IPv6 counts by its
+ * /64, as every public counter does.
+ */
+export const PUBLIC_PICTURES = { max: 1200, windowMs: 60_000 } as const;
+
+export const PUBLIC_CODE_GUESSES = {
+  visitor: { max: 5, windowMs: 60_000 },
+  key: { max: 60, windowMs: 60_000 },
+} as const;
 
 export interface RateDecision {
   allowed: boolean;
@@ -230,6 +254,12 @@ export interface PublicRateLimiter {
   resolutionBlocked: (ip: string) => RateDecision | null;
   /** One more failed resolution from this address. */
   failedResolution: (ip: string) => void;
+  /** Whether a typed code may be tried: the visitor's and the key's misses; counts nothing. */
+  guessBlocked: (keyId: string, ip: string) => RateDecision | null;
+  /** One more typed code that found nothing (or nothing left). */
+  missedGuess: (keyId: string, ip: string) => void;
+  /** A picture asked for, per address, before any key is resolved. */
+  hitPicture: (ip: string) => RateDecision;
   /** Test seam only. */
   reset: () => void;
 }
@@ -390,6 +420,10 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
   };
 
   const failKey = (ip: string): string => `fail|ip:${rateAddress(ip)}`;
+  const guessCounters = (keyId: string, ip: string): [string, { max: number; windowMs: number }][] => [
+    [`guess|pub:${keyId}:ip:${rateAddress(ip)}`, PUBLIC_CODE_GUESSES.visitor],
+    [`guess|pubkey:${keyId}`, PUBLIC_CODE_GUESSES.key],
+  ];
 
   return {
     hitUnverified(ip) {
@@ -410,6 +444,19 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     },
     failedResolution(ip) {
       decide(windows, failKey(ip), PUBLIC_FAILED_RESOLUTION, 1, true);
+    },
+    guessBlocked(keyId, ip) {
+      for (const [key, spec] of guessCounters(keyId, ip)) {
+        const decision = decide(windows, key, spec, 1, false);
+        if (!decision.allowed) return decision;
+      }
+      return null;
+    },
+    missedGuess(keyId, ip) {
+      for (const [key, spec] of guessCounters(keyId, ip)) decide(windows, key, spec, 1, true);
+    },
+    hitPicture(ip) {
+      return count(`picture|ip:${rateAddress(ip)}`, PUBLIC_PICTURES);
     },
     reset() {
       windows.clear();
