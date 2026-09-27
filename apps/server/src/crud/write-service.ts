@@ -1784,10 +1784,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * then the scaled decimals rounded and the touched formulas worked out, over
    * the stored row (an update) with the values over it.
    */
-  const formulate = async (rules: TableRules | null, action: WriteAction, target: WriteTarget, values: Row, stored: Row | null, origin?: WriteOrigin): Promise<Row> => {
+  const formulate = async (rules: TableRules | null, action: WriteAction, target: WriteTarget, values: Row, stored: Row | null, origin?: WriteOrigin, named?: true): Promise<Row> => {
     if (rules === null || action === 'delete') return values;
     const currency = currencyFor(target);
-    const priced = await priceValues(rules, action, target.db, values, stored, { origin, currency });
+    const priced = await priceValues(rules, action, target.db, values, stored, { origin, currency, named });
     return workOut(rules, action, priced, stored, readsCurrency(rules) ? await currency() : null);
   };
 
@@ -3301,15 +3301,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (wantsBefore && before !== null) {
         values = withoutReadOnly(rules, await runBefore(hooks, 'update', target, context, values, before), context.origin);
       }
-      // A price by the night this change moves (its dates, its rate): worked out again below, from the row as held.
+      // A price by the night this change names (its dates, its rate): decided below against the row as held —
+      // priced again when they differ from it, else the price it holds kept (a whole-row send repeats them).
       const perNight = rules?.perNight;
       const repricing =
         perNight !== undefined &&
         before !== null &&
-        repricedBy(perNight, values, before) &&
+        repricedBy(perNight, values) &&
         !(context.origin === 'import' && values[perNight.column] !== null && values[perNight.column] !== undefined && values[perNight.column] !== '');
       // PRICE and FORMULA, over the stored row: a change of `qty` alone still has the `rate` it multiplies.
-      values = await formulate(rules, 'update', target, values, before, context.origin);
+      values = await formulate(rules, 'update', target, values, before, context.origin, repricing ? true : undefined);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
       const carried = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
@@ -3394,10 +3395,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         // The price by the night again, from the row as held: another writer may have moved the dates it reads meanwhile.
         if (repricing && prior !== null) {
-          const again = await priceValues(rules, 'update', db, written, prior, { origin: context.origin, currency });
-          const refused = priceIssuesOf(again);
-          if (refused !== undefined) await guardedValue(() => Promise.reject(refusal(refused)), input.mapError);
-          written = brand({ ...written, [perNight!.column]: again[perNight!.column] });
+          if (repricedBy(perNight!, written, prior)) {
+            const again = await priceValues(rules, 'update', db, written, prior, { origin: context.origin, currency });
+            const refused = priceIssuesOf(again);
+            if (refused !== undefined) await guardedValue(() => Promise.reject(refusal(refused)), input.mapError);
+            written = brand({ ...written, [perNight!.column]: again[perNight!.column] });
+          } else {
+            // Its dates and rate as the row holds them: the price it was charged stays, whatever the rates are today.
+            written = brand({ ...written, [perNight!.column]: prior[perNight!.column] ?? null });
+          }
         }
         // Worked out again from the row as held: a total over child rows may have moved since it was first read.
         if (worked.length > 0 && prior !== null) {

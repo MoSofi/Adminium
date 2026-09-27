@@ -143,13 +143,22 @@ export async function priceValues(
   db: Db,
   values: Row,
   stored: Row | null,
-  opts: { origin?: WriteOrigin | undefined; currency: () => Promise<string | null> },
+  opts: {
+    origin?: WriteOrigin | undefined;
+    currency: () => Promise<string | null>;
+    /**
+     * Price whenever the change names the dates or the rate, moved or not: a
+     * change priced first against a row read before it is held, which decides
+     * again against the row as held (`update`).
+     */
+    named?: true | undefined;
+  },
 ): Promise<Row> {
   const rule = rules?.perNight;
   if (rule === undefined || action === 'delete') return values;
   // History keeps the figure it was charged at.
   if (opts.origin === 'import' && has(values, rule.column) && !empty(values[rule.column])) return values;
-  if (action === 'update' && (stored === null || !repricedBy(rule, values, stored))) return values;
+  if (action === 'update' && (stored === null || !repricedBy(rule, values, opts.named === true ? undefined : stored))) return values;
   const row = { ...(stored ?? {}), ...values };
   const places = placesFor(rule.scale, row, rules?.currencyColumn, rule.scale === 'currency' ? await opts.currency() : null);
   const priced = await priceNights(db, rule, row, places);
