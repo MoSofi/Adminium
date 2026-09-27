@@ -298,6 +298,37 @@ describe('Refusals', () => {
     expect(optional.steps.map((s) => [s.kind, s.hazard])).toEqual([['add-column', 'safe']]);
   });
 
+  it('rebuilds a SQLite table with rows to add a column given `now`: SQLite will not ADD one with a clock default', () => {
+    const before = model([tbl({ name: 't' })]);
+    const seenAt = (nullable: boolean) =>
+      tbl({
+        name: 't',
+        columns: [
+          col({ name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false }),
+          col({ name: 'seen_at', logicalType: 'timestamptz', nullable, default: { kind: 'now' } }),
+        ],
+      });
+    const plan = (nullable: boolean, rows: boolean | null) =>
+      planDdl({ actual: before, desired: [seenAt(nullable)], dialect: 'sqlite', serverVersion: '3.53.4', tableHasRows: () => rows });
+    // Rows, or rows unknown: required or not, one rebuild — the copy stamps every row.
+    for (const [nullable, rows] of [[false, true], [true, true], [false, null]] as const) {
+      const rebuilt = plan(nullable, rows);
+      expect(rebuilt.refusals).toEqual([]);
+      expect(rebuilt.steps.map((s) => [s.kind, s.hazard])).toEqual([['rebuild-table', 'rewrite']]);
+    }
+    // An empty table takes the plain ADD COLUMN.
+    expect(plan(false, false).steps.map((s) => [s.kind, s.hazard])).toEqual([['add-column', 'safe']]);
+    // A constant default is still added in place.
+    const literal = planDdl({
+      actual: before,
+      desired: [tbl({ name: 't', columns: [seenAt(false).columns[0]!, col({ name: 'n', logicalType: 'integer', nullable: false, default: { kind: 'literal', text: '0' } })] })],
+      dialect: 'sqlite',
+      serverVersion: '3.53.4',
+      tableHasRows: () => true,
+    });
+    expect(literal.steps.map((s) => [s.kind, s.hazard])).toEqual([['add-column', 'safe']]);
+  });
+
   it('refuses a comment on sqlite, which has no comment syntax', () => {
     const before = model([tbl({ name: 't', comment: null })]);
     const after = [tbl({ name: 't', comment: 'hello' })];
