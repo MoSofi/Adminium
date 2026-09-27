@@ -137,6 +137,44 @@ function noCounts(): Doc {
   return houseManifest(tables.map((table) => Object.fromEntries(Object.entries(table).filter(([, value]) => value !== undefined))));
 }
 
+/** The house whose room change moves the rooms for a booked guest too, beside the check-in's own effect. */
+function bookedToo(): Doc {
+  const tables = houseTables().map((table) => {
+    if (table['ref'] !== 'stays') return table;
+    const states = table['states'] as Doc;
+    const effects = (states['effects'] as Doc[]).map((effect) => ('change' in (effect['on'] as Doc) ? { ...effect, on: { change: 'room_id', in: ['booked', 'in_house'] } } : effect));
+    return { ...table, states: { ...states, effects } };
+  });
+  return houseManifest(tables);
+}
+
+describe.each(LEGS)('a check-in into another room, the rooms moved by both effects — %s', (dialect, available) => {
+  let h: InvoicingHarness;
+  let w: Awaited<ReturnType<typeof writerFor>>;
+  beforeAll(async () => {
+    if (!available) return;
+    h = await installInvoicing(dialect, bookedToo());
+    w = await writerFor(h, 'Europe/London');
+    await w.create('settings', {});
+  }, 180_000);
+  afterAll(async () => {
+    if (available) await h.close();
+  });
+  afterEach(() => vi.useRealTimers());
+  const status = async (key: unknown) => (await h.rows(`select status from ${h.real('rooms')} where id = ${String(key)}`))[0]!['status'];
+
+  it.runIf(available)('turns the new room occupied once, by the check-in, and the old one to cleaning', async () => {
+    at('2026-11-02T16:00:00Z');
+    const type = await w.create('room_types', { name: 'Twin' });
+    const a = await w.create('rooms', { number: '31', room_type_id: type['id'] });
+    const b = await w.create('rooms', { number: '32', room_type_id: type['id'] });
+    const stay = await w.create('stays', { guest: 'G', room_type_id: type['id'], room_id: a['id'], arrive: '2026-11-02', depart: '2026-11-03' });
+    const moved = await w.update('stays', stay['id'], { status: 'in_house', room_id: b['id'] });
+    expect(moved.count).toBe(1);
+    expect([await status(a['id']), await status(b['id'])]).toEqual(['cleaning', 'occupied']);
+  });
+});
+
 describe.each(LEGS)('rooms moved by a bulk change, and two desks moving two guests into one ready room at once — %s', (dialect, available) => {
   let h: InvoicingHarness;
   let w: Awaited<ReturnType<typeof writerFor>>;
