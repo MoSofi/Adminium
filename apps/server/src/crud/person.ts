@@ -27,9 +27,20 @@
  * On Postgres a transaction-scoped advisory lock named by the address
  * serialises every find-or-create of it, taken right after the write's named
  * locks (the one lock order). MySQL cannot take a named lock inside an open
- * transaction, so the table's unique index decides: the second INSERT waits
- * for the first to commit and fails; the caller runs its whole write again
- * once, and the fresh transaction finds the row. SQLite has one writer.
+ * transaction, so the address's lock joins the write's named locks, taken
+ * before its transaction opens ({@link personLocks}): a second writer of the
+ * same address waits there — for a known address as for a new one — and never
+ * on the first one's uncommitted row. Should a writer still meet the unique
+ * index (one that took no lock), the caller runs its whole write again once,
+ * and the fresh transaction finds the row. SQLite has one writer.
+ *
+ * ─── Found by the address as sign-in finds it ──────────────────────────────
+ * The person is looked for as signing in looks for them, by the address
+ * trimmed and in lower case, so a person kept as `Ada@Example.com` is never
+ * made again as `ada@example.com` (sign-in would then find two, and let
+ * neither in). Only a row that keeps the address exactly as typed (trimmed,
+ * lower case) is linked; one that keeps it any other way is a look-alike and
+ * links nobody, as a collation's look-alike does.
  */
 import { createHash } from 'node:crypto';
 
@@ -38,6 +49,7 @@ import { sql, type Kysely } from 'kysely';
 import type { SourceDatabase } from '../connections/manager.js';
 import { refuseUngrantedColumns } from '../connections/privileges.js';
 import { normaliseAddress } from '../public-api/claim-code.js';
+import type { NamedLock } from './capacity/locks.js';
 import { isUniqueViolation } from './decided-columns.js';
 import type { Row } from './mask.js';
 import { tableRulesFor } from './column-rules.js';
@@ -103,9 +115,19 @@ export async function personTableUnusable(writes: RecordWriteService, identity: 
   return null;
 }
 
-/** The name of the Postgres lock that serialises finding-or-making one address. */
+/** The name of the lock that serialises finding-or-making one address. */
 export function personLockName(connectionId: string, tableId: string, address: string): string {
   return `person|${connectionId}|${tableId}|${createHash('sha256').update(normaliseAddress(address)).digest('hex')}`;
+}
+
+/**
+ * The address's lock as one of the write's named locks, taken before its
+ * transaction: on MySQL only, where a named lock cannot be taken inside one.
+ * (Postgres takes it inside, in {@link resolvePerson}; SQLite has one writer.)
+ */
+export function personLocks(target: Pick<WriteTarget, 'connectionId' | 'dialect'>, tableId: string, address: unknown): NamedLock[] {
+  if (target.dialect !== 'mysql' || typeof address !== 'string' || address.trim() === '') return [];
+  return [{ name: personLockName(target.connectionId, tableId, address), busy: 'CAPACITY_BUSY' }];
 }
 
 /**
@@ -142,13 +164,18 @@ export async function resolvePerson(input: ResolvePersonInput): Promise<Resolved
     await sql`select pg_advisory_xact_lock(hashtextextended(${personLockName(identity.connectionId, identity.table.id, address)}, 0))`.execute(db);
   }
 
-  // 3. Found: the one row whose stored address is this one exactly.
+  // 3. Found: looked for as sign-in looks (trimmed, lower case); linked only to the one row that keeps it exactly so.
   const key = identity.table.primaryKey[0];
   if (key === undefined || identity.table.primaryKey.length !== 1) throw new PersonTableUnusable('it has no single-column key');
-  const candidates = (await db.selectFrom(identity.table.id).selectAll().where(db.dynamic.ref(email), '=', address as never).limit(2).execute()) as Row[];
-  const exact = candidates.filter((row) => typeof row[email] === 'string' && normaliseAddress(row[email] as string) === address);
+  const candidates = (await db
+    .selectFrom(identity.table.id)
+    .selectAll()
+    .where(sql`lower(trim(${sql.ref(email)}))`, '=', address as never)
+    .limit(20)
+    .execute()) as Row[];
+  const exact = candidates.filter((row) => row[email] === address);
   if (exact.length === 1) return { link: exact[0]![key], made: null };
-  // Only a look-alike (or, on a table that lost its unique index, two): nobody is linked.
+  // Only a look-alike — another case, spaces kept, a collation's twin (or, on a table that lost its unique index, two): nobody is linked.
   if (candidates.length > 0) return { link: null, made: null };
 
   // 4. Made, through the one write path.

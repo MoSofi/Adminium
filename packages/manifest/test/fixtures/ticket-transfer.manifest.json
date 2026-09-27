@@ -70,7 +70,7 @@
           { "ref": "ticket_type_id", "type": "fk", "references": "ticket_types" },
           { "ref": "status", "type": "enum", "enum": ["valid", "offered", "checked_in"], "default": "valid" },
           { "ref": "code", "type": "text", "maxLength": 12, "nullable": true, "rules": { "code": { "length": 12, "renew": { "on": { "column": "holder_customer_id", "changed": true } } } } },
-          { "ref": "link_token", "type": "text", "maxLength": 16, "nullable": true, "rules": { "code": { "length": 16 } } },
+          { "ref": "link_token", "type": "text", "maxLength": 16, "nullable": true, "rules": { "code": { "length": 16, "renew": { "on": [{ "column": "status", "values": ["offered"] }, { "column": "pending_email", "changed": true }] } } } },
           { "ref": "pending_email", "type": "text", "maxLength": 254, "nullable": true, "rules": { "validation": { "format": "email" } } },
           { "ref": "pending_name", "type": "text", "maxLength": 120, "nullable": true },
           { "ref": "offer_until", "type": "timestamptz", "nullable": true, "rules": { "stamp": { "set": { "addMinutes": { "hours": { "table": "settings", "column": "offer_hours" } } }, "on": { "column": "status", "values": ["offered"] } } } },

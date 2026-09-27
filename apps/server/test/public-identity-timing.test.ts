@@ -133,6 +133,29 @@ describe.each(LEGS)('a known address and an unknown one — %s', (dialect, avail
       expect(lookup).toBeGreaterThan(0);
       expect(known.sql[lookup - 1]).toMatch(/pg_advisory_xact_lock\(hashtextextended/);
     }
+    // On MySQL the address's lock is taken before the transaction, for a known address as for a new one.
+    if (dialect === 'mysql') {
+      for (const run of [known, unknown]) {
+        const lookup = run.sql.findIndex((statement) => statement.includes(h.real('customers')));
+        const lock = run.sql.findIndex((statement) => /get_lock/i.test(statement));
+        expect(lock).toBeGreaterThanOrEqual(0);
+        expect(lock).toBeLessThan(lookup);
+      }
+    }
+  });
+
+  it.skipIf(!available)('makes a new address\'s person once when several create with it at once: each waits for the address, never on a row not yet kept', async () => {
+    const sends = await Promise.all([1, 2, 3, 4].map(() => ready('together@example.com')));
+    statements.length = 0;
+    logging = true;
+    const replies = await Promise.all(sends.map((send) => send()));
+    logging = false;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(replies.map((res) => res.statusCode)).toEqual([201, 201, 201, 201]);
+    // One INSERT of the person, tried once: no writer ran into another's unkept row and started again.
+    const made = statements.filter((statement) => statement.toLowerCase().startsWith('insert') && statement.includes(h.real('customers')));
+    expect(made).toHaveLength(1);
+    expect(await h.rows(`select id from ${h.real('customers')} where email = 'together@example.com'`)).toHaveLength(1);
   });
 
   it.runIf(available && dialect === 'sqlite')('takes the same time for both, within noise', async () => {

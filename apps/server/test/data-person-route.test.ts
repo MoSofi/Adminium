@@ -60,6 +60,40 @@ describe.each(LEGS)('the desk links a person by address — %s', (dialect, avail
     expect(orders.statusCode).toBe(404);
   });
 
+  it.skipIf(!available)('fills a new person only with what a guest\'s create fills one with: never its key, a stamp or another column', async () => {
+    const before = await people();
+    for (const fill of [{ forgotten_at: '2026-01-01T00:00:00Z' }, { id: '9999' }, { phone: '+44 7700 900999' }, { name: 'Ok', email: 'other@example.com' }]) {
+      const res = await pick('customers', { email: 'filled@example.com', fill });
+      expect(res.statusCode, res.body).toBe(422);
+      expect(JSON.stringify(res.json())).toContain('not-fillable');
+    }
+    expect(await people()).toEqual(before);
+  });
+
+  it.skipIf(!available)('links nobody, and makes nobody, for an address kept on file in another case: sign-in would find two', async () => {
+    // Kept as typed at the desk long ago, before the address was kept in lower case.
+    await h.rows(`insert into ${h.real('customers')} (email, name) values ('Rae@Example.com', 'Rae')`);
+    const res = await pick('customers', { email: 'rae@example.com' });
+    expect(res.statusCode, res.body).toBe(422);
+    expect(JSON.stringify(res.json())).toContain('look-alike');
+    expect(await h.rows(`select id from ${h.real('customers')} where lower(email) = 'rae@example.com'`)).toHaveLength(1);
+  });
+
+  it.skipIf(!available)('tells a desk that may only add people nothing: neither whether the address is on file nor whose key it is', async () => {
+    await r.t.grantTable(r.t.roles.editor, r.connectionId, '*', { read: false, create: true, update: false, delete: false });
+    const before = await people();
+    for (const email of ['lena@example.com', 'someone-new@example.com']) {
+      const res = await r.t.app.inject({
+        method: 'POST',
+        url: `/api/v1/data/${r.connectionId}/${r.table('customers')}/person`,
+        headers: asUser(r.t.users.editor),
+        payload: { email },
+      });
+      expect(res.statusCode, res.body).toBe(403);
+    }
+    expect(await people()).toEqual(before);
+  });
+
   it.skipIf(!available)('needs the right to add people to the table: a desk that may only read makes nobody', async () => {
     await r.t.grantTable(r.t.roles.viewer, r.connectionId, '*', { read: true, create: false, update: false, delete: false });
     const read = await r.t.app.inject({ method: 'GET', url: `/api/v1/data/${r.connectionId}/${r.table('customers')}`, headers: asUser(r.t.users.viewer) });

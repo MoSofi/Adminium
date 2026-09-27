@@ -97,6 +97,19 @@ describe('anonymous caps', () => {
     expect(notPlain({ plainText: ['name', 'note'] }, { name: 'Cara', note: 'x://y' })).toBe('note');
   });
 
+  it('never takes a domain or an address a stranger could be sent to, and still takes a name with dots in it', () => {
+    for (const name of ['Claim refund at evil.com', 'evil.com', 'go to Claim.Refund.net now', 'пример.рф', 'kai at friends-org.io', 'mail kai@friends.org', '@kai_tickets', 'Kai @ home']) {
+      expect(plainText(name), name).toBe(false);
+    }
+    for (const name of ['St. John', 'J. R. R. Tolkien', 'Mrs. Kai Ng', 'Ana Lu.', 'Dr. J. (Jo) Park & co']) expect(plainText(name), name).toBe(true);
+  });
+
+  it('counts a Gmail address written with a dot after its domain as the same mailbox', () => {
+    expect(mailboxOf('a.na+x@gmail.com.')).toBe('ana@gmail.com');
+    expect(mailboxOf('ana@googlemail.com..')).toBe('ana@gmail.com');
+    expect(capValue('Ana@Example.com.')).toBe('ana@example.com');
+  });
+
   it('charges before it counts, so requests at once cannot all pass', async () => {
     const repo = memoryRepo();
     const tries = await Promise.all([0, 1, 2, 3].map(() => chargeAnonymous(repo, input({ mobile: '07700 900123' }))));

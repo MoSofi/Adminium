@@ -121,6 +121,8 @@
  */
 import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
+import { withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
+import { withholdsOn } from '../public-api/withholds-on.js';
 import type { AppManifest, OutboxProducer } from '@adminium/manifest';
 import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
@@ -136,7 +138,7 @@ import type { RecordWriteService, UpdateRecordInput } from '../crud/write-servic
 import { bindWriteValue, normalizeWriteValue } from '../crud/write-values.js';
 import { resolveEmailTemplate } from '../email/builtins.js';
 import { appDocumentOff, appProfileFor } from '../documents/app-documents.js';
-import { renderDocument, type RenderDeps } from '../documents/render.js';
+import { renderDocument, type DocumentWithhold, type RenderDeps } from '../documents/render.js';
 import { enqueueEmail, withOverride, type EmailSendReport, type EnqueueEmailInput } from '../email/send.js';
 import type { EmailSendAttachmentRef } from '../email/types.js';
 import { AppError } from '../errors.js';
@@ -249,6 +251,8 @@ interface CodeHolder {
 
 interface Prepared {
   to: string;
+  /** The person the message goes to, as a document it carries is drawn for (null: nobody's, every held row's columns empty). */
+  reader: WithholdReader | null;
   email: Omit<EnqueueEmailInput, 'report' | 'dedupeKey'>;
   recordTo?: string;
   language?: string;
@@ -488,6 +492,12 @@ async function choiceLabels(meta: MetaDb, connectionId: string): Promise<(locale
   };
 }
 
+/** No column left empty for a holder. */
+const NOTHING_BLANK: ReadonlySet<string> = new Set();
+
+/** The columns of a row a message prints empty, because the row's holder is someone the message does not go to. */
+type BlankOf = (table: ResolvedTable, record: Row) => Promise<ReadonlySet<string>>;
+
 /** What a template reads, and the codes held back from it. */
 interface WrittenValues {
   vars: Record<string, string>;
@@ -574,6 +584,8 @@ function putValues(
   table: ResolvedTable,
   record: Row,
   settingsRow = false,
+  /** Columns a `withhold` keeps for the row's holder, printed empty (every form of them). */
+  blank: ReadonlySet<string> = NOTHING_BLANK,
 ): void {
   const { vars, withheld } = out;
   const { forms } = ctx;
@@ -591,7 +603,7 @@ function putValues(
       withheld.add(`${name}.qr`);
       continue;
     }
-    const value = record[column.name];
+    const value = blank.has(column.name) ? null : record[column.name];
     const effective = table.table.columns.find((c) => c.name === column.name);
     const labelled = ctx.labels === undefined ? undefined : (choice: string) => ctx.labels!(table.id, column.name, choice);
     for (const [form, text] of Object.entries(extraForms(column, effective, value, forms, currency, labelled))) vars[`${name}.${form}`] = text;
@@ -708,7 +720,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
   /** Everything a template may read for one row, and the codes it held back (`{{project.share_token}}`). */
   async function variables(
     box: LiveOutbox,
-    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes; labels?: ChoiceLabels | undefined },
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes; labels?: ChoiceLabels | undefined; blankOf: BlankOf },
     row: Row,
     addressed: Addressed | null,
     /** Whose codes the email may carry: the recipient, when it goes to their own address on file; else nobody's. */
@@ -718,7 +730,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const out: WrittenValues = { vars: {}, withheld: new Set<string>() };
     const { vars, withheld } = out;
     const holders = holdersOf(box, view, holder);
-    const put = (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) => putValues(out, ctx, holders, prefix, table, record, settingsRow);
+    const put = async (prefix: string, table: ResolvedTable, record: Row, settingsRow = false) =>
+      putValues(out, ctx, holders, prefix, table, record, settingsRow, settingsRow ? NOTHING_BLANK : await ctx.blankOf(table, record));
 
     const links = Object.entries(box.definition.links ?? {});
     const linked: { name: string; table: ResolvedTable; record: Row }[] = [];
@@ -727,7 +740,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const record = await rowOf(db, view, tableId, row[column]);
       if (tableId === undefined || record === null) continue;
       const table = view.table(tableId);
-      put(name, table, record);
+      await put(name, table, record);
       linked.push({ name, table, record });
     }
     // One hop further: what a linked row points at, under it and — first come — on its own.
@@ -739,10 +752,10 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const target = await rowOf(db, view, targetId, record[column]);
         if (targetId === undefined || target === null) continue;
         const base = column.slice(0, -'_id'.length);
-        put(`${name}.${base}`, view.table(targetId), target);
+        await put(`${name}.${base}`, view.table(targetId), target);
         if (!own.has(base)) {
           own.add(base);
-          put(base, view.table(targetId), target);
+          await put(base, view.table(targetId), target);
         }
       }
     }
@@ -776,7 +789,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (settings !== undefined) {
       const record = (await db.selectFrom(settings.table as never).selectAll().limit(1).executeTakeFirst()) as Row | undefined;
       // The app's own settings row: its phone is the practice's, not a person's. None yet: each is empty.
-      put('practice', view.table(settings.table), record ?? {}, true);
+      await put('practice', view.table(settings.table), record ?? {}, true);
       if (record !== undefined && settings.name !== undefined) practiceName = record[settings.name];
     }
     vars['appName'] =
@@ -793,6 +806,66 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // A name a row of the recipient's own fills too (`client.share_token` beside a project's) is not held back.
     for (const name of withheld) if (Object.hasOwn(vars, name)) withheld.delete(name);
     return { vars, withheld };
+  }
+
+  /**
+   * The columns a message prints empty: those a `withhold` keeps for a row's
+   * holder (a ticket sent to a friend, who took it: its new code) — unless the
+   * message goes to that holder's own address as it is on file. A message to a
+   * setting's address, or about a row whose holder is kept in a table this
+   * outbox does not address people in, prints them empty. A row nobody holds
+   * prints as it always did. Held once per holder for the message.
+   */
+  function heldElsewhere(box: LiveOutbox, ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; withholds: TableWithholds }, to: string, addressed: Addressed | null): BlankOf {
+    const people = new Map<string, Promise<Row | null>>();
+    const recipient = box.definition.recipient;
+    return async (table, record) => {
+      const rules = withholdRulesOf(ctx.withholds, table.id);
+      if (rules.length === 0) return NOTHING_BLANK;
+      const out = new Set<string>();
+      for (const rule of rules) {
+        const holder = record[rule.unlessHolder];
+        if (holder === null || holder === undefined) continue;
+        let theirs = false;
+        const holderTable = referenced(ctx.view, table.id, rule.unlessHolder);
+        if (addressed?.bySetting !== true && holderTable !== undefined && holderTable === ctx.view.table(recipient.table).id) {
+          const cacheKey = `${holderTable}\u0000${String(holder)}`;
+          if (!people.has(cacheKey)) people.set(cacheKey, rowOf(ctx.db, ctx.view, holderTable, holder));
+          const stored = (await people.get(cacheKey))?.[recipient.email];
+          theirs = plausibleAddress(stored) && sameAddress(stored.trim(), to);
+        }
+        if (!theirs) for (const column of rule.columns) out.add(column);
+      }
+      return out;
+    };
+  }
+
+  /**
+   * The person a message goes to, as a document it carries is drawn for: the
+   * recipient whose own address it is — or, for a message to an address the
+   * producing row holds, the row's holder when the address is theirs on file.
+   * Otherwise nobody.
+   */
+  async function messageReader(
+    box: LiveOutbox,
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; withholds: TableWithholds },
+    holder: CodeHolder | null,
+    addressed: Addressed | null,
+    to: string,
+  ): Promise<WithholdReader | null> {
+    const people = ctx.view.table(box.definition.recipient.table).id;
+    if (holder !== null && holder.table === people) return { table: people, value: holder.id };
+    const onRow = addressed?.byColumn;
+    if (onRow === undefined || holder === null) return null;
+    const table = ctx.view.table(onRow.table);
+    const record = await rowOf(ctx.db, ctx.view, table.id, onRow.id);
+    for (const rule of withholdRulesOf(ctx.withholds, table.id)) {
+      const person = record?.[rule.unlessHolder];
+      if (person === null || person === undefined || referenced(ctx.view, table.id, rule.unlessHolder) !== people) continue;
+      const stored = (await rowOf(ctx.db, ctx.view, people, person))?.[box.definition.recipient.email];
+      if (plausibleAddress(stored) && sameAddress(stored.trim(), to)) return { table: people, value: person };
+    }
+    return null;
   }
 
   /**
@@ -930,7 +1003,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
    */
   async function rowsFor(
     box: LiveOutbox,
-    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes; labels?: ChoiceLabels | undefined },
+    ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; outbox: ResolvedTable; forms: ReturnType<typeof valueForms>; shareCodes: ShareCodes; labels?: ChoiceLabels | undefined; blankOf: BlankOf },
     message: Row,
     data: Record<string, unknown>,
     holder: CodeHolder | null,
@@ -1004,7 +1077,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const out: WrittenValues[] = [];
     for (const record of records) {
       const one: WrittenValues = { vars: {}, withheld: new Set<string>() };
-      putValues(one, ctx, holders, 'row', child, record);
+      putValues(one, ctx, holders, 'row', child, record, false, await ctx.blankOf(child, record));
       // One hop through the row's own links: `{{row.ticket_type.name}}` through `ticket_type_id`.
       for (const link of child.columns.keys()) {
         if (!link.endsWith('_id') || record[link] === null || record[link] === undefined) continue;
@@ -1013,7 +1086,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const cacheKey = `${targetId}\u0000${String(record[link])}`;
         if (!hops.has(cacheKey)) hops.set(cacheKey, await rowOf(db, view, targetId, record[link]));
         const target = hops.get(cacheKey) ?? null;
-        if (target !== null) putValues(one, ctx, holders, `row.${link.slice(0, -'_id'.length)}`, view.table(targetId), target);
+        if (target !== null) putValues(one, ctx, holders, `row.${link.slice(0, -'_id'.length)}`, view.table(targetId), target, false, await ctx.blankOf(view.table(targetId), target));
       }
       for (const [name, join] of Object.entries(joins)) {
         one.vars[`row.${name}`] = (joined.get(name)?.get(String(key === undefined ? '' : record[key])) ?? []).join(join.separator ?? ', ');
@@ -1039,6 +1112,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       currency: string | null;
       now: number;
       shareCodes: ShareCodes;
+      /** Every `withhold` the app's public entries declare, by table. */
+      withholds: TableWithholds;
       /** The app's choice labels on the connection, read in a language. */
       labels?: ((locale: string) => ChoiceLabels) | undefined;
     },
@@ -1085,7 +1160,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const holder = await codeHolder(box, ctx, row, to, addressed);
     // A choice reads its label in the language the template is written in.
     const labels = ctx.labels?.(template.locale);
-    const { vars, withheld } = await variables(box, { ...ctx, forms, labels }, row, addressed, holder);
+    const blankOf = heldElsewhere(box, ctx, to, addressed);
+    const { vars, withheld } = await variables(box, { ...ctx, forms, labels, blankOf }, row, addressed, holder);
     vars['signInLink'] = '';
     if (reads.has('signInLink')) {
       const minted = await signInLink(box, ctx, row, to, addressed, producer);
@@ -1101,7 +1177,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     for (const block of sent.blocks) {
       if (block['block'] !== 'email.rows' || typeof block['id'] !== 'string') continue;
       const data = typeof block['data'] === 'object' && block['data'] !== null ? (block['data'] as Record<string, unknown>) : {};
-      const listed = await rowsFor(box, { ...ctx, forms, labels }, row, data, holder);
+      const listed = await rowsFor(box, { ...ctx, forms, labels, blankOf }, row, data, holder);
       if (listed === null) return { status: 'failed', error: LIST_UNREADABLE };
       const names = [...placeholders([data['row'], data['empty']])].filter((name) => name.startsWith('row.'));
       for (const one of listed) {
@@ -1124,6 +1200,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
     return {
       to,
+      reader: await messageReader(box, ctx, holder, addressed, to),
       // The template checked above is the one sent: never resolved again, as it may have been edited meanwhile.
       email: {
         to,
@@ -1185,6 +1262,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const at = new Date(now).toISOString();
     /** The codes shared links open rows with here, read once a message is about to be made. */
     let shareCodes: ShareCodes | undefined;
+    /** What the app's public entries withhold from a row's parent's reader, likewise. */
+    let withholds: TableWithholds | undefined;
     /** The app's choice labels, likewise. */
     let labels: ((locale: string) => ChoiceLabels) | undefined;
     /**
@@ -1260,8 +1339,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
           continue;
         }
         shareCodes ??= await shareCodesOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
+        withholds ??= await withholdsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         labels ??= await choiceLabels(deps.meta, box.connectionId);
-        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, labels }, row);
+        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, withholds, labels }, row);
         if ('status' in ready) {
           const values: Row = { [cols.status]: ready.status };
           if (cols.error !== undefined) values[cols.error] = ready.error;
@@ -1282,7 +1362,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const wanted = (await appFacts(box.row.manifestId)).attach[ready.email.templateKey];
         let attachments: EmailSendAttachmentRef[] = [];
         if (wanted !== undefined) {
-          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale).catch((error: unknown) => {
+          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader }).catch((error: unknown) => {
             deps.logger?.warn({ err: error, appKey: box.appKey }, 'the document an app email carries could not be drawn');
             return { error: 'The document could not be drawn' };
           });
@@ -1380,6 +1460,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     row: Row,
     wanted: { kind: string; link: string },
     locale: string | undefined,
+    /** Drawn for the person the message goes to: what a row's other holder keeps is left out. */
+    withhold: DocumentWithhold,
   ): Promise<{ attachment: EmailSendAttachmentRef } | { error: string }> {
     const pipeline = deps.documents?.();
     if (pipeline === undefined) return { error: 'Documents cannot be drawn on this server' };
@@ -1405,6 +1487,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       requestedBy: null,
       actorKind: 'system',
       reuse: true,
+      withhold,
       ...(locale === undefined ? {} : { locale: locale.replace(/_/g, '-') }),
     });
     if (outcome.status === 'skipped') {

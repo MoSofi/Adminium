@@ -20,8 +20,11 @@
  * itself can be brought forward; a hold read through another row is left.
  *
  * Races: the old rows are read holding them, inside the new write's
- * transaction, after the named locks and the person lock (the one lock
- * order). Two creates of one signed-in person queue on the person's lock on
+ * transaction, after every row outside it is held — the named locks, the
+ * person's lock, the totals and parents the new rows climb into — as the
+ * write's own rows are (the one lock order: a hold's timed lapse, which holds
+ * the order's totals and then the order, never meets this write crosswise).
+ * Two creates of one signed-in person queue on the person's lock on
  * Postgres, and on the rows themselves on MySQL (a locking read sees the
  * newest committed hold); SQLite has one writer. Two creates sent with one
  * page session queue on the row it points at: the session is moved to the
@@ -103,6 +106,16 @@ export interface ReplaceInput {
 }
 
 /**
+ * One signed-in person's creates, one at a time (Postgres): the next one
+ * reads the holds the last one made. Taken with the person's lock, before any
+ * row is held; {@link replaceHolds} then reads their holds in the own rows' place.
+ */
+export async function holdBuyer(input: Pick<ReplaceInput, 'db' | 'dialect' | 'connectionId' | 'table' | 'holds' | 'person'>): Promise<void> {
+  if (input.dialect !== 'postgres' || input.person === undefined || input.holds.length === 0) return;
+  await sql`select pg_advisory_xact_lock(hashtextextended(${buyerLockName(input.connectionId, input.table.id, input.person.value)}, 0))`.execute(input.db);
+}
+
+/**
  * Let the buyer's other holds go, inside the new write's transaction and
  * before anything of it is counted. Returns how many were let go.
  */
@@ -114,7 +127,7 @@ export async function replaceHolds(input: ReplaceInput): Promise<number> {
     dialect === 'postgres' ? query.forNoKeyUpdate() : dialect === 'mysql' ? query.forUpdate() : query;
   const found: Row[] = [];
   if (input.person !== undefined) {
-    // One person's creates, one at a time: the next one reads the holds the last one made.
+    // Queued already on the person's lock ({@link holdBuyer}); taken again here for a caller that did not (re-entrant).
     if (dialect === 'postgres') await sql`select pg_advisory_xact_lock(hashtextextended(${buyerLockName(input.connectionId, table.id, input.person.value)}, 0))`.execute(db);
     const states = [...new Set(holds.flatMap((hold) => hold.states))];
     const stateColumns = [...new Set(holds.map((hold) => hold.state))];

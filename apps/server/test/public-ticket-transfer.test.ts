@@ -107,13 +107,13 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     byTicket = guest(ticket, h, 60_000);
     // Mia buys four tickets as a guest, then signs in by the link emailed to her.
     const made = await buyer.request('POST', `/records/${t('orders')}_verified_2`, {
-      payload: { values: { event_id: 1, email: 'mia@example.com', name: 'Mia' }, children: { tickets: [1, 2, 3, 4].map(() => ({ values: { ticket_type_id: 1 } })) } },
+      payload: { values: { event_id: 1, email: 'mia@buyers.org', name: 'Mia' }, children: { tickets: [1, 2, 3, 4].map(() => ({ values: { ticket_type_id: 1 } })) } },
       proof: 'write',
     });
     expect(made.statusCode, made.body).toBe(201);
     const body = made.json() as { data: { id: number }; children: { tickets: { data: { id: number; code: string } }[] }; link: { session: string } };
     order = { id: body.data.id, tickets: body.children.tickets.map((c) => c.data), linkSession: body.link.session };
-    mia = await buyer.signIn('mia@example.com');
+    mia = await buyer.signIn('mia@buyers.org');
   }, 180_000);
   afterAll(async () => {
     if (!available) return;
@@ -181,7 +181,7 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     expect(ready.map((m) => [m.template, m.to, m.qr])).toEqual([['boxoffice-ticket-ready', 'kai@friends.org', [row['code']]]]);
     expect(ready[0]!.stored).not.toContain(String(row['code']));
     expect((await mailOf(h.meta)).filter((m) => m.to === 'kai@friends.org').at(-1)!.text).toContain(String(row['code']));
-    const toBuyer = (await mailOf(h.meta)).filter((m) => m.to === 'mia@example.com');
+    const toBuyer = (await mailOf(h.meta)).filter((m) => m.to === 'mia@buyers.org');
     expect(toBuyer.filter((m) => m.text.includes(String(row['code'])) || m.html.includes(String(row['code'])))).toEqual([]);
 
     // The friend signs in: the ticket is among their own, with its new code.

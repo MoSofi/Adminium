@@ -275,3 +275,41 @@ describe.each(LEGS)('a guest who only found themselves by their details — %s',
     expect((await h.rows(`select email from ${h.real('customers')} where name = 'Ivy'`))[0]!['email']).toBe('ivy@example.com');
   });
 });
+
+/** The shop whose person entry shows the phone number first. */
+const phoneFirst = () =>
+  shopManifest({
+    entries: (entries) =>
+      entries.map((entry) => (entry['table'] === 'customers' && entry['forget'] !== undefined ? { ...entry, select: ['phone', 'name', 'email'] } : entry)),
+  });
+
+describe.each(LEGS)("the last email to a guest who deleted their details — %s", (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let shop: Served;
+  let g: ReturnType<typeof guest>;
+
+  beforeAll(async () => {
+    if (!available) return;
+    h = await installInvoicing(dialect, phoneFirst());
+    await mailReady(h.meta);
+    await h.rows(`insert into ${h.real('customers')} (email, name, phone) values ('nia@example.com', 'Nia', '+44 7700 900456')`);
+    shop = await servePublic(h, (h.reply['publicAccess'] as { keys: Record<string, string> }).keys['customer']!);
+    g = guest(shop, h);
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await shop.close();
+    await h.close();
+  });
+
+  it.skipIf(!available)('greets them by the name the app names them by, never by the first column the entry shows', async () => {
+    const session = await g.signIn('nia@example.com');
+    const before = (await mailOf(h.meta)).length;
+    const res = await g.request('DELETE', '/account', { session });
+    expect(res.statusCode, res.body).toBe(200);
+    const sent = (await mailOf(h.meta)).slice(before);
+    expect(sent.map((m) => m.template)).toEqual(['details-deleted']);
+    expect(sent[0]!.text).toContain('Nia');
+    expect(sent[0]!.text + sent[0]!.html).not.toContain('7700');
+  });
+});
