@@ -45,6 +45,9 @@ import type { WriteContext, WriteTarget } from './write-context.js';
 
 type Db = Kysely<SourceDatabase>;
 
+/** The most rows one create may carry below it, in all, through any door. */
+export const TREE_MAX_ROWS = 200;
+
 /** Where a row sits in the request: `['order_items', 3, 'order_item_modifiers', 1]`; `[]` for the root. */
 export type TreePath = readonly (string | number)[];
 

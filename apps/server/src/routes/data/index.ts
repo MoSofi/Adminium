@@ -60,6 +60,8 @@ import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-err
 import { labelColumnFor } from '../../crud/labels.js';
 import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
 import { sealRows, sealsOf } from '../../crud/seal.js';
+import { batchNeedsGuard } from '../../crud/capacity/door.js';
+import type { JudgedRow, LockNameRow } from '../../crud/capacity/types.js';
 import { guardOf, tiedToStates, withoutRepeatedState, type EffectWritten } from '../../crud/states.js';
 import {
   rowsEqual,
@@ -744,10 +746,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         existing?: Row[] | undefined;
         /** Each child row this write changed, to announce once it commits. */
         events?: ChildEvent[] | undefined;
+        /** Written under their pools' locks by a caller that judges them there. */
+        judged?: boolean | undefined;
         /** The rows the child rows' moves moved too, to announce once it commits. */
         effects?: EffectWritten[] | undefined;
       } = {},
     ): Promise<UndoChildren> {
+      const limits = options.judged === true ? ({ capacity: 'judged' } as const) : undefined;
       const { child } = requested;
       const target = childTargetOf(ctx, child, db);
       const keyOf = (row: Row) => Object.fromEntries(child.child.primaryKey.map((name) => [name, row[name]]));
@@ -777,7 +782,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
 
       for (const values of diff.added) {
         const row = { ...values, [child.foreignColumn]: parentKey };
-        const [prepared] = await writes.beforeEach('create', target, context, [{ values: row }]);
+        const [prepared] = await writes.beforeEach('create', target, context, [{ values: row }], limits);
         if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
         if (prepared.issues !== null) {
           throw new ValidationFailedError('Some values were refused.', {
@@ -807,7 +812,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const [prepared] = await writes.beforeEach('update', target, context, [
           // The state a row sent back whole already holds is no move.
           { match: change.key, values: withoutRepeatedState(child.child, change.values, before) },
-        ]);
+        ], limits);
         if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
         if (prepared.issues !== null) {
           throw new ValidationFailedError('Some values were refused.', {
@@ -834,7 +839,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // A child row removed is a delete like any other: its before hooks,
         // and the states of the document it belongs to (a sent invoice's
         // lines stay), judged where it is deleted.
-        const [prepared] = await writes.beforeEach('delete', target, context, [{ match: key, values: {}, record: before ?? null }]);
+        const [prepared] = await writes.beforeEach('delete', target, context, [{ match: key, values: {}, record: before ?? null }], limits);
         if (prepared !== undefined && prepared.issues !== null) {
           throw new ValidationFailedError('Some values were refused.', { fields: prepared.issues, relation: child.relationId });
         }
@@ -1454,6 +1459,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       }
     }
 
+    /** Rows of one table an undo took away, put back or changed back. */
+    interface UndoneRows {
+      target: WriteTarget;
+      action: 'create' | 'update' | 'delete';
+      rows: WrittenRow[];
+    }
+
     /**
      * Put a write's child rows back.
      *
@@ -1472,12 +1484,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       entry: Pick<UndoEntry, 'children'>,
       context: WriteContext,
       conflict: () => never,
+      /** What each table's rows fed, to settle once every row is back (see {@link settleUndone}). */
+      moved: UndoneRows[],
     ): Promise<void> {
       for (const children of entry.children) {
         // The rows added below the rows added here go first: they point at them.
         if ((children.nested?.length ?? 0) > 0) {
           const above = resolveChild(target.view, target.table, children.relationId);
-          if (above.ok) await undoChildren(db, { ...target, table: above.child.child }, { children: children.nested! }, context, conflict);
+          if (above.ok) await undoChildren(db, { ...target, table: above.child.child }, { children: children.nested! }, context, conflict, moved);
         }
         const resolution = resolveChild(target.view, target.table, children.relationId);
         if (!resolution.ok) continue;
@@ -1498,20 +1512,40 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const [prepared] = await writes.beforeEach(action, childTarget, context, [planned], { rules: false });
           return prepared?.values ?? uncheckedForUndo([planned.values])[0]!;
         };
+        // What each row fed as it goes, comes back or changes back: settled once every row is as it was.
+        const gone: WrittenRow[] = [];
+        const back: WrittenRow[] = [];
+        const changedBack: WrittenRow[] = [];
         for (const [i, key] of children.added.entries()) {
           await still(key, children.addedRows?.[i]);
+          const record = children.addedRows?.[i] ?? (await fetchByPk(db, child, key));
           await judge('delete', { match: key, values: {}, record: children.addedRows?.[i] });
           await deleteRows(db, child, key);
+          if (record !== undefined) gone.push({ record, before: null });
         }
         for (const row of children.removed) {
           await insertRows(db, target.dialect, child, [await judge('create', { values: row })]);
+          back.push({ record: row, before: null });
         }
         for (const change of children.changed) {
           await still(change.key, change.after);
           const current = (await fetchByPk(db, child, change.key)) ?? null;
           await updateRows(db, target.dialect, child, await judge('update', { match: change.key, values: change.before, record: current }), change.key);
+          const record = await fetchByPk(db, child, change.key);
+          if (record !== undefined) changedBack.push({ record, before: current });
         }
+        moved.push({ target: childTarget, action: 'delete', rows: gone }, { target: childTarget, action: 'create', rows: back }, { target: childTarget, action: 'update', rows: changedBack });
       }
+    }
+
+    /**
+     * The totals the rows an undo took away, put back or changed back fed —
+     * a total outside the write too (a ticket type's sales) — settled inside
+     * the undo's transaction, once every row is as it was: settled earlier,
+     * a row the undo still compares against would no longer match its image.
+     */
+    async function settleUndone(moved: readonly UndoneRows[]): Promise<void> {
+      for (const { target, action, rows } of moved) if (rows.length > 0) await writes.settle(action, target, rows);
     }
 
     async function executeUndo(
@@ -1531,6 +1565,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const tdb = trx as unknown as Kysely<SourceDatabase>;
         const restored: unknown[] = [];
         const written: { pk: Row; before: Row | null; record: Row | null }[] = [];
+        const moved: UndoneRows[] = [];
         if (entry.action === 'delete') {
           // Restore rows with their ORIGINAL PKs.
           for (const [i, before] of entry.before.entries()) {
@@ -1555,10 +1590,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               uncheckedForUndo([Object.fromEntries(compareColumns.map((c) => [c, before[c]]))])[0]!;
             await updateRows(tdb, target.dialect, table, restoreValues, pk);
             await undoLinks(tdb, target, entry, before, conflict);
-            await undoChildren(tdb, target, entry, context, conflict);
+            await undoChildren(tdb, target, entry, context, conflict, moved);
             restored.push(pkLabel(table, pk));
             written.push({ pk, before: current ?? null, record: null });
           }
+          await settleUndone(moved);
           return { restored, written };
         }
         // create undo: delete the inserted rows if untouched.
@@ -1575,11 +1611,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           await undoLinks(tdb, target, entry, after, conflict);
           // …and the child rows for the same reason, before the parent they
           // point at is gone.
-          await undoChildren(tdb, target, entry, context, conflict);
+          await undoChildren(tdb, target, entry, context, conflict, moved);
           await deleteRows(tdb, table, pk);
           restored.push(pkLabel(table, pk));
           written.push({ pk, before: null, record: current });
         }
+        await settleUndone(moved);
         return { restored, written };
       });
       // The rows as they stand now, for the totals they feed and for after
@@ -2451,6 +2488,77 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           });
           // Masked columns may be written but are never echoed back.
           return { data: maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), undoToken };
+        }
+
+        /*
+         * A RECORD OR ROWS THAT TAKE FROM A LIMIT (a booking's dates, a ticket
+         * added to an order): one lock-first write — the pools' locks named for
+         * the record and every row before the transaction, the record changed
+         * through the write service, its rows written under the same locks and
+         * judged there. A child table a before hook runs for keeps the path
+         * below, which refuses a limited row.
+         */
+        if (links.length === 0 && !children.some((requested) => requested.hooked)) {
+          const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
+          const limitedRows = children.some((requested) =>
+            requested.rows.some((row) => batchNeedsGuard(childTargetOf(ctx, requested.child, ctx.db), row.key === undefined ? 'create' : 'update', row.values)),
+          );
+          if (limitedRows || batchNeedsGuard(ctx.target, 'update', values)) {
+            let childWrites: UndoChildren[] = [];
+            let childEvents: ChildEvent[] = [];
+            let childEffects: EffectWritten[] = [];
+            const outcome = await writes.update({
+              target: { ...ctx.target, timezone },
+              pk,
+              values,
+              before,
+              context,
+              recheck: (final) => assertFileColumns(ctx, final),
+              mapError: (error) => mapDbError(error, ctx.table),
+              children: {
+                // Each row as it will stand: a new one under this record, a changed one over what it holds now (read without a lock; the judge checks it again).
+                names: async () => {
+                  const rows: LockNameRow[] = [];
+                  for (const requested of children) {
+                    const target = { ...childTargetOf(ctx, requested.child, ctx.db), timezone };
+                    const existing = await currentChildren(ctx.db, requested.child, before[requested.child.parentKeyColumn]);
+                    for (const row of requested.rows) {
+                      const stored = row.key === undefined ? undefined : existing.find((one) => requested.child.child.primaryKey.every((name) => String(one[name]) === String(row.key![name])));
+                      rows.push({ target, row: { ...(stored ?? {}), ...row.values, [requested.child.foreignColumn]: before[requested.child.parentKeyColumn] }, before: stored ?? null, prepared: false });
+                    }
+                  }
+                  return rows;
+                },
+                write: async (db, after, checked) => {
+                  // An attempt made again starts with nothing written.
+                  childWrites = [];
+                  childEvents = [];
+                  childEffects = [];
+                  const judged: JudgedRow[] = [];
+                  for (const requested of children) {
+                    const undo = await applyChildren(ctx, db, requested, after[requested.child.parentKeyColumn], context, { events: childEvents, effects: childEffects, judged: true });
+                    childWrites.push(undo);
+                    const target = { ...childTargetOf(ctx, requested.child, db), timezone };
+                    for (const [i, key] of undo.added.entries()) judged.push({ target, pk: key, row: undo.addedRows![i]!, before: null });
+                    for (const change of undo.changed) if (change.after !== undefined) judged.push({ target, pk: change.key, row: change.after, before: change.before });
+                  }
+                  // A fingerprint covers the child rows this same save wrote: sealed again, last.
+                  await sealRows(db, ctx.table, pk, sealsOf(checked), writeSeals);
+                  return judged;
+                },
+              },
+              announce: async (result) => {
+                const after = result.after ?? before;
+                undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites);
+                await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+                for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+                // The rows the record's and its child rows' moves moved too, as changes of their own.
+                await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: [...(result.effects ?? []), ...childEffects], origin: 'dashboard', request });
+              },
+            });
+            const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
+            return { data: maskRow(stored, ctx.table, ctx.unmasked), undoToken };
+          }
         }
 
         const [prepared] = await writes.beforeEach('update', ctx.target, context, [

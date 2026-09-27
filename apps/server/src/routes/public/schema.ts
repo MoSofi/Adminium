@@ -280,6 +280,13 @@ export const publicDryRunReply = z.object({
   exact: z.boolean(),
 });
 
+/** A dry run of a change: the row as the change would leave it. */
+export const publicChangeQuoteReply = z.object({
+  data: z.record(z.string(), z.unknown()),
+  /** False when a before hook runs on the change: a dry run runs none, so the save may differ. */
+  exact: z.boolean(),
+});
+
 /** `POST /public/claim` — the end-customer identity check. */
 export const publicClaimBody = z.object({
   /**

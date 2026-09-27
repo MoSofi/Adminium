@@ -130,6 +130,17 @@ describe('a dry run, a price check, a retry key', () => {
     expect(broken(kitchen, (m2) => Object.assign(entryOf(m2, 'menu_items', 'GET'), { clientKey: 'name' }))).toContain('a retry key belongs to a create');
   });
 
+  it('never sit on a row visible with its parent, created alone (a dry run and a price check there belong to a change)', () => {
+    const lines = (m: Doc) => Object.assign(entryOf(m, 'order_items', 'GET', 'link'), { methods: ['GET', 'POST'], writable: ['menu_item_id', 'qty'] });
+    expect(broken(kitchen, (m) => (lines(m)['clientKey'] = 'note'))).toContain('a row visible with a parent is created alone, and never looks a retry key up');
+    expect(broken(kitchen, (m) => (lines(m)['expect'] = 'line_total'))).toContain('a row visible with a parent is created alone, and never checks a price');
+    expect(broken(kitchen, (m) => (lines(m)['dryRun'] = true))).toContain('a row visible with a parent is created alone, and is never tried first');
+    // With a change on the same entry, the check and the dry run are the change's.
+    const change = broken(kitchen, (m) => Object.assign(lines(m), { methods: ['GET', 'POST', 'PATCH'], expect: 'line_total', dryRun: true }));
+    expect(change).not.toContain('never checks a price');
+    expect(change).not.toContain('is never tried first');
+  });
+
   it('check a money figure Adminium works out, which the create shows', () => {
     expect(broken(kitchen, (m) => (create(m)['expect'] = 'note'))).toContain('"orders.note" is not a money column');
     expect(broken(kitchen, (m) => (create(m)['select'] = ['id']))).toContain('"total" is checked, so the entry shows it (select)');

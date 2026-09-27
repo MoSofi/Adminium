@@ -137,10 +137,10 @@ import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
 import { stampNow, writeClock, type WriteClock } from './write-clock.js';
 import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
-import type { CreateTree, TreeNode, TreeOutcome, TreeWritten } from './write-tree.js';
+import { TREE_MAX_ROWS, type CreateTree, type TreeNode, type TreeOutcome, type TreeWritten } from './write-tree.js';
 import { judgeCapacity } from './capacity/judge.js';
 import { LockMoved, withNamedLocks, type NamedLock } from './capacity/locks.js';
-import type { PoolState } from './capacity/types.js';
+import type { JudgedRow, LockNameRow, PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
 import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
 
@@ -970,8 +970,14 @@ async function rowsByKey(db: Db, dialect: Dialect, table: string, keyColumn: str
     .select([...new Set([keyColumn, ...columns])] as never)
     .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
     .orderBy(keyColumn as never);
-  // FOR UPDATE, as the states guard holds a parent: one row held two ways in one write would be a lock upgrade.
-  if (hold && dialect !== 'sqlite') query = query.forUpdate();
+  /*
+   * Held as the states guard holds a parent, so no row is held two ways in
+   * one write (a lock upgrade). On Postgres that is FOR NO KEY UPDATE: it
+   * keeps every other writer of the row out, and lets a row that only points
+   * at it go in — a quote's order for a customer a save is settling never
+   * waits on the save, nor the save on it.
+   */
+  if (hold && dialect !== 'sqlite') query = dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
   const rows = (await query.execute()) as Row[];
   return new Map(rows.map((row) => [String(row[keyColumn]), row]));
 }
@@ -1175,6 +1181,12 @@ function keyOf(table: ResolvedTable, row: Row): string | null {
   return values.length === 1 ? String(values[0]) : JSON.stringify(values.map(String));
 }
 
+/** A quote of a change: the states judge it on rows read as they are, holding none it does not write. */
+function quoteOnly(values: Row): void {
+  const guard = guardOf(values);
+  if (guard !== undefined) guard.quote = true;
+}
+
 /** Rows by key held for this transaction — for update, or for share — in key order; SQLite has one writer and holds nothing. */
 async function holdKeys(db: Db, dialect: Dialect, table: string, keyColumn: string, keys: Iterable<unknown>, share: boolean): Promise<void> {
   if (dialect === 'sqlite') return;
@@ -1186,7 +1198,8 @@ async function holdKeys(db: Db, dialect: Dialect, table: string, keyColumn: stri
     .select(sql<number>`1`.as('adm_one'))
     .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
     .orderBy(keyColumn as never);
-  await (share ? query.forShare() : query.forUpdate()).execute();
+  // A parent held as the states guard holds one (FOR NO KEY UPDATE on Postgres: see `rowsByKey`).
+  await (share ? query.forShare() : dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate()).execute();
 }
 
 // --- values after hooks --------------------------------------------------------
@@ -1276,6 +1289,19 @@ export interface UpdateRecordInput {
    * figure the caller expected: throws to refuse the change (a save only).
    */
   expect?: ((db: Kysely<SourceDatabase>, after: Row) => Promise<void>) | undefined;
+  /**
+   * The row as the change leaves it, inside its transaction, before the price
+   * check: throws to refuse the change — a save and a quote alike (an entry's
+   * agreements: a stay's guests within what its room sleeps).
+   */
+  inside?: ((db: Kysely<SourceDatabase>, after: Row) => Promise<void>) | undefined;
+  /**
+   * Rows the same change writes below this one (a staff form's child rows on
+   * a table with limits): named with the row's own locks before the
+   * transaction, written inside it once the row is changed, and judged under
+   * those locks. `write` answers the rows it wrote or changed.
+   */
+  children?: { names(): Promise<LockNameRow[]>; write(db: Kysely<SourceDatabase>, after: Row, values: Row): Promise<JudgedRow[]> } | undefined;
   /** A public entry's windows read from moments: the change is refused outside them, judged holding the row. */
   windows?: readonly StateWindow[] | undefined;
 }
@@ -1351,7 +1377,7 @@ export interface BeforeEachOptions {
    * `unchecked` is the operator bringing in HISTORY — an import, an app's
    * sample data — where yesterday's bookings are not new ones to be judged.
    */
-  capacity?: 'refuse' | 'unchecked';
+  capacity?: 'refuse' | 'unchecked' | 'judged';
 }
 
 /**
@@ -2269,13 +2295,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // are the exception: written inside the form's transaction, and settled
     // and judged there (`settle` with `cap`).
     const capped = (rules?.rollupsInto ?? []).filter((rollup) => rollup.capped);
-    if (capped.length > 0 && !target.db.isTransaction && (action !== 'update' || rows.some((row) => movesTotal(rules, capped, row)))) {
+    if (capped.length > 0 && !target.db.isTransaction && !(capacity === 'judged' && inTransaction(target.db)) && (action !== 'update' || rows.some((row) => movesTotal(rules, capped, row)))) {
       throw new BalanceBatchError(target.table.name);
     }
     if (action === 'delete') return;
     // A limit is kept only under its pool's lock: a row that could take from one is refused; one leaving what counts passes.
     const limited = rules?.capacityRules !== undefined || rules?.capacityOwners !== undefined;
-    if (limited && rows.some((row) => batchNeedsGuard(target, action, row))) throw new GuardedBatchError(target.table.name);
+    // `judged`: rows written under their pools' locks by a caller that judges them there (a form's child rows).
+    if (limited && capacity !== 'judged' && rows.some((row) => batchNeedsGuard(target, action, row))) throw new GuardedBatchError(target.table.name);
     if (rules?.booking === undefined) return;
     if (action === 'update' && !rows.some((row) => movesBooking(rules.booking!, row))) return;
     throw new GuardedBatchError(target.table.name);
@@ -2640,6 +2667,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         levels.push(next);
       }
       const everyRow = levels.flat();
+      // So many rows below one create and no more, whichever door sent them.
+      if (everyRow.length - 1 > TREE_MAX_ROWS) {
+        await at(rootRow.node, () => Promise.reject(new ValidationFailedError(`A create carries ${String(TREE_MAX_ROWS)} rows below it at most.`, { child: levels[1]![0]!.node.name, reason: 'too-many' })));
+      }
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
       for (const row of everyRow.slice(1)) {
         refuseUnbuiltTable(row.target);
@@ -2720,8 +2751,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
         // 8. The rows, root first, then each level in request order.
         const written = new Map<TreeRow, Row>();
+        // Each row as prepared: what its fingerprints are sealed from again once the totals below it are in.
+        const preparedOf = new Map<TreeRow, CheckedRow>();
         const inTree = new Set<string>();
         const writeRow = async (row: TreeRow, prepared: PreparedCreate): Promise<Row> => {
+          preparedOf.set(row, prepared.checked);
           const within: WriteTarget = { ...row.target, db: trx, timezone: prepared.zone ?? row.target.timezone };
           const parent = row.parent === null ? null : written.get(row.parent)!;
           await input.checks?.(trx, row.node, prepared.checked, parent);
@@ -2758,11 +2792,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               // The same steps as the root's, on this transaction; no before hook runs inside one.
               const prepared = await prepareOne({ target: { ...row.target, db: trx }, values, context, clock, mode, hooks: false, grants: true });
               // A row tied to a total outside the tree whose link a peek misread: held too late to keep the one order.
+              // A link to no row at all is not a race: it is refused as a quote refuses it (the reference, then the key).
               if (!dry) {
                 for (const rollup of prepared.rules?.rollupsInto ?? []) {
                   const key = prepared.checked[rollup.via];
                   if (key === null || key === undefined || inTree.has(`${rollup.parent}\u0000${String(key)}`)) continue;
-                  if (!heldKey.has(`${rollup.parent}\u0000${String(key)}`)) throw climbMoved(rollup.parent);
+                  if (heldKey.has(`${rollup.parent}\u0000${String(key)}`)) continue;
+                  if ((await rowsByKey(trx, row.target.dialect, rollup.parent, rollup.parentKey, [key], [], false)).size > 0) throw climbMoved(rollup.parent);
                 }
               }
               await writeRow(row, prepared);
@@ -2829,7 +2865,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           const rules = rulesOf(row.target);
           let record = written.get(row)!;
           if (keepsOwnTotals(rules)) {
-            const sealing = sealsOf(row === rootRow ? root.checked : record);
+            const sealing = sealsOf(preparedOf.get(row) ?? record);
             if (sealing !== undefined && keyOf(row.target.table, record) !== null) await sealRows(trx, row.target.table, pkOf(row.target.table, record), sealing, writeSeals);
             record = await readAgain(trx, row.target.table, record);
           }
@@ -2853,7 +2889,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // The twin's rows, read once its transaction and this one are both over.
         const twin = await replayed(rootRow.target.db);
         if (twin !== null) return twin;
-        return input.mapError(error.cause, rootRow.node.at);
+        return input.mapError(error.original, rootRow.node.at);
       }
 
       // After the commit, root first, then each level in request order: announced, then the after hooks.
@@ -2886,7 +2922,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const zone = await zoneFor(rules, target);
       const clock = writeClock(context);
       let values = await prepareValues(rules, 'update', target, context, input.values, clock.startedAt);
-      const wantsBefore = await hooks.wants('before', 'update', target, context);
+      // A quote runs no hook: it says so (`exact`), as a quote of a create does.
+      const wantsBefore = input.mode !== 'dry' && (await hooks.wants('before', 'update', target, context));
       const wantsAfter = await hooks.wants('after', 'update', target, context);
       // The stored row: for the hooks, and for what Adminium decides and works out from it.
       const stored = needsStored(rules);
@@ -2926,7 +2963,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const now = new Date();
       // A quote of the change (`dry`) runs it and rolls it back; a price check runs inside the change's transaction.
       const dry = input.mode === 'dry';
-      const quoted = dry || input.expect !== undefined;
+      const quoted = dry || input.expect !== undefined || input.inside !== undefined;
+      // A quote reads as things are and holds no row it does not write: it never waits on a save, nor a save on it.
+      if (dry) quoteOnly(checkedValues);
       if (rolls) await refuseUngrantedChain(target, rules?.rollupsInto ?? []);
       /** The day the booking lock was named by; the write refuses to go on under a different one. */
       let lockedDay: string | null = null;
@@ -2938,12 +2977,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // out: a writer moving it meanwhile would leave this one settling the
         // wrong parent, and a line settled meanwhile a subtotal read too early.
         // The document before its line: every writer takes the parent first (see `holdFirst`).
-        await holdFirst(rules, within, pk, checkedValues);
+        // A quote holds neither: it reads as things are (the rows its own statements write aside).
+        if (!dry) await holdFirst(rules, within, pk, checkedValues);
         // Then the rows its links point at (its conditions, its effects' rows): before its own row, held next.
-        await holdLinkedFirst(db, target.dialect, target.table, checkedValues, pk);
+        if (!dry) await holdLinkedFirst(db, target.dialect, target.table, checkedValues, pk);
         const prior =
           limits || booking !== undefined || rolls
-            ? ((holdsParent(rules) || worked.length > 0 || limits ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
+            ? ((!dry && (holdsParent(rules) || worked.length > 0 || limits) ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
             : null;
         if (limits && prior !== null) {
           // A quote of the change counts the same pools, holding none: its own places are left out by its key.
@@ -2968,15 +3008,20 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         }
         // The parents whose totals the write moves, and this row's own capped
         // balances, held — and read as they are — before the statement.
-        const held = await holdParents(rules, within, [{ record: { ...(prior ?? {}), ...written }, before: prior }], currency);
+        const held = dry ? new Map<string, Map<string, Row>>() : await holdParents(rules, within, [{ record: { ...(prior ?? {}), ...written }, before: prior }], currency);
         // This row's own balances, when the write really changes what they are worked out from.
         const ownMoved = movedBalances(rules, written, prior);
-        const ownBefore = ownMoved.some((balance) => balance.cappedBy.length > 0) ? await holdOwn(rules, within, pk, ownMoved, currency) : undefined;
+        const ownBefore = !ownMoved.some((balance) => balance.cappedBy.length > 0)
+          ? undefined
+          : dry
+            ? ((await fetchByPk(db, target.table, pk)) ?? undefined)
+            : await holdOwn(rules, within, pk, ownMoved, currency);
         const changed = await statement(() => updateRows(db, target.dialect, target.table, written, pk, input.refine), input.mapError);
         if (changed > 0 && rolls) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           await guarded(async () => {
-            await settleRows(rules, within, [{ record: after, before: prior }], currency, held);
+            // A quote shows its own row: the totals it feeds elsewhere are not its to settle.
+            if (!dry) await settleRows(rules, within, [{ record: after, before: prior }], currency, held);
             if (ownMoved.length > 0) await settleOwn(rules, within, 'update', after, written, currency, ownBefore);
           }, input.mapError);
           // SEAL again over the totals the settle just wrote beside the row.
@@ -2984,9 +3029,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           if (sealing !== undefined) await sealRows(db, target.table, pk, sealing, writeSeals);
         }
         if (written !== checkedValues) values = written;
+        // A form's child rows, written under the same locks and judged there.
+        if (input.children !== undefined && changed > 0) {
+          const after = (await fetchByPk(db, target.table, pk)) ?? null;
+          if (after !== null) await judgeRows(db, await input.children.write(db, after, written), { clock, origin: context.origin, mode: 'save' }, input.mapError);
+        }
         if (quoted && changed > 0) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
-          if (!dry && after !== null) await input.expect!(db, after);
+          if (after !== null) await input.inside?.(db, after);
+          if (!dry && after !== null) await input.expect?.(db, after);
           // A quote ends here: nothing it wrote is kept.
           if (dry) throw new UpdateQuoted(after, changed);
         }
@@ -2997,13 +3048,15 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         count = await conflicted(async () => {
           // A quote takes no named lock: it waits for nobody, and nobody waits for it.
           if (dry) return await withNamedLocks(target, [], write);
-          if (limits) {
+          if (limits || input.children !== undefined) {
             // The locks are named by the pools the row will take from, from a fresh look each time.
             return await withLimitLocks(target, async () => {
-              const current = (await fetchByPk(target.db, target.table, pk)) ?? null;
-              return current === null
-                ? []
-                : capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]);
+              const current = limits ? ((await fetchByPk(target.db, target.table, pk)) ?? null) : null;
+              const below = input.children === undefined ? [] : await input.children.names();
+              return capacityLockNames(target.db, [
+                ...(current === null ? [] : [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]),
+                ...below,
+              ]);
             }, write, clock);
           }
           if (booking !== undefined) {

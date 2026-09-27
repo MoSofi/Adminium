@@ -55,7 +55,7 @@ import type { Dialect } from '@adminium/engine';
 import type { SourceDatabase } from '../connections/manager.js';
 import { AppError } from '../errors.js';
 import { inTransaction, withNamedLock } from './capacity-guard.js';
-import { withNamedLocks } from './capacity/locks.js';
+import { heldNames, withNamedLocks } from './capacity/locks.js';
 import type { GaplessSequence, TableRules } from './column-rules.js';
 import { isUniqueViolation } from './decided-columns.js';
 import type { ResolvedTable } from './identifiers.js';
@@ -340,7 +340,10 @@ async function take<T>(
     }
   }
   try {
-    for (const claim of claims) await holdAnchor(db, table, claim.sequence, row);
+    // A series this transaction holds by name has its writers one at a time already: holding a row of it as
+    // well would only stand in the way of a settle reading that row's neighbours (a deadlock with no gain).
+    const named = heldNames(db);
+    for (const claim of claims) if (!named.has(seriesName(table, claim.sequence, row))) await holdAnchor(db, table, claim.sequence, row);
   } catch (error) {
     if (isDeadlock(error)) throw numberBusy();
     throw error;

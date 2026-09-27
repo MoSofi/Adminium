@@ -233,7 +233,8 @@ export async function judgeSumMax(db: Db, name: string, sumMax: NonNullable<Scop
  * each foreign key of `columns` with a value, against the key's read
  * resources on its table — their mandatory filters, their claim for this
  * session (or none), the parents they are visible with. Held for share where
- * the engine can: a dish withdrawn meanwhile waits for this write.
+ * the engine can: a dish withdrawn meanwhile waits for this write (a quote
+ * holds nothing).
  */
 export async function judgeReadable(input: {
   db: Db;
@@ -246,6 +247,8 @@ export async function judgeReadable(input: {
   /** The columns the guest wrote: only their references are the guest's. */
   columns: ReadonlySet<string>;
   now?: Date | undefined;
+  /** False for a quote: it reads as things are and holds nothing, so it never waits on a save, nor a save on it. */
+  share?: boolean | undefined;
 }): Promise<void> {
   const { db, dialect, view, scope, session } = input;
   for (const column of [...input.columns].sort()) {
@@ -279,7 +282,7 @@ export async function judgeReadable(input: {
         query = query.where((eb) => compileFilter(eb as never, filterCtx, predicate));
       }
       if (visibility.steps.length > 0) query = query.where(visibleCondition({ db, dialect, view }, alias, visibility.steps));
-      const held = dialect === 'sqlite' ? query.limit(1) : query.limit(1).forShare();
+      const held = dialect === 'sqlite' || input.share === false ? query.limit(1) : query.limit(1).forShare();
       if ((await held.executeTakeFirst()) !== undefined) {
         reached = true;
         break;
