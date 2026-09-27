@@ -1478,7 +1478,8 @@ function followIssues(
     const reads = other.columns.some((c) => {
       const rollup = c.rules?.rollup;
       if (rollup?.from !== table.ref) return false;
-      return [rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column].some((ref) => ref !== undefined && written.has(ref));
+      // The link a total groups its rows by counts too: a copy that moves a row to another parent moves it between that table's totals.
+      return [rollup.via, rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column].some((ref) => ref !== undefined && written.has(ref));
     });
     if (reads) {
       out.push({ path: here('copy', 'follow'), message: `"${table.ref}" totals into "${other.ref}" too, so its copies cannot follow "${parent.ref}": a total "${other.ref}" keeps reads what the follow writes` });

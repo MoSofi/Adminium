@@ -222,6 +222,15 @@ describe('a copy that follows one parent while its rows total into another', () 
   it('follows when no total of the other parent reads what the follow writes', () => {
     expect(issuesText(box('price'))).toBe('');
   });
+  it('refuses a copy that moves a row between the parents another total groups by, summed or counted', () => {
+    for (const rollup of [{ sum: 'price' }, { count: true }]) {
+      const m = box('price');
+      (tableOf(m, 'events')['columns'] as Doc[]).push({ ref: 'takings', type: rollup.count === true ? 'int' : 'decimal', scale: 2, nullable: true, rules: { rollup: { from: 'tickets', via: 'event_id', ...rollup } } });
+      columnOf(m, 'tickets', 'event_id')['rules'] = { copy: { via: 'order_id', from: 'event_id', mode: 'always', follow: true } };
+      expect(issuesText(m)).toContain('"tickets" totals into "events" too, so its copies cannot follow "orders"');
+    }
+  });
+
   it('refuses when one does', () => {
     const m = box('price');
     columnOf(m, 'orders', 'total')['rules'] = { rollup: { from: 'tickets', via: 'order_id', sum: 'price', where: { column: 'doors_at', eq: 'x' } } };
