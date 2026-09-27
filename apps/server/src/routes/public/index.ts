@@ -106,6 +106,7 @@ import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
+import { answerCapacity } from './capacity-availability.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { sendConfirmation } from '../../public-api/confirm.js';
 import {
@@ -264,7 +265,7 @@ class PublicWriteRefused extends Error {
  */
 class PublicSlotRefused extends Error {
   constructor(
-    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_TOO_EARLY',
+    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_SOLD_OUT' | 'PUBLIC_NO_ROOM' | 'PUBLIC_TOO_EARLY',
     readonly params?: Record<string, unknown>,
   ) {
     super(
@@ -272,9 +273,13 @@ class PublicSlotRefused extends Error {
         ? 'That time is busy. Try again in a moment.'
         : code === 'PUBLIC_TOO_LATE'
           ? 'It is too late to cancel online.'
-          : code === 'PUBLIC_TOO_EARLY'
-            ? 'Too early for this change; `at` is the time it waits for.'
-            : 'That time is full.',
+          : code === 'PUBLIC_SOLD_OUT'
+            ? 'That is sold out.'
+            : code === 'PUBLIC_NO_ROOM'
+              ? 'There is no room on those nights.'
+              : code === 'PUBLIC_TOO_EARLY'
+                ? 'Too early for this change; `at` is the time it waits for.'
+                : 'That time is full.',
     );
   }
 }
@@ -389,12 +394,32 @@ const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
   WRITE_CONFLICT: 'PUBLIC_SLOT_BUSY',
 };
 
+/**
+ * A full limit, told by what it counts: a slot is full (a released rule's
+ * refusal says nothing more, as it never did), a line's tickets or portions
+ * are sold out, a room type has no room on a night. The column, and nothing
+ * about anybody else's rows.
+ */
+function limitRefusal(details: unknown): void {
+  const { kind, column } = (details ?? {}) as { kind?: unknown; column?: unknown };
+  if (kind === undefined) return;
+  const params = typeof column === 'string' ? { column } : undefined;
+  throw new PublicSlotRefused(kind === 'parent' ? 'PUBLIC_SOLD_OUT' : kind === 'night' ? 'PUBLIC_NO_ROOM' : 'PUBLIC_SLOT_FULL', params);
+}
+
 /** The booking refusals a guest is told as a refused write, by why. */
 const BOOKING_REASONS: Readonly<Record<string, string>> = {
   BOOKING_CLOSED: 'closed',
   BOOKING_OUT_OF_HOURS: 'out-of-hours',
   BOOKING_OUT_OF_RANGE: 'out-of-range',
   BOOKING_NOT_OFFERED: 'not-offered',
+  // A limit's place the venue does not offer (a released slot rule's refusal carries no reason, and stays bare).
+  CAPACITY_OUT_OF_RANGE: 'out-of-range',
+  CAPACITY_OUT_OF_HOURS: 'out-of-hours',
+  CAPACITY_CLOSED: 'closed',
+  CAPACITY_PAUSED: 'paused',
+  CAPACITY_NOT_ON_SALE: 'not-on-sale',
+  CAPACITY_TOO_MANY: 'too-many',
 };
 
 /**
@@ -430,6 +455,7 @@ function namedIn(fields: unknown, told: Told): { column: string; reason: string 
 }
 
 const refuseWrite = (error?: unknown, told?: Told): never => {
+  if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
   const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (slot !== undefined) throw new PublicSlotRefused(slot);
   // A move or a change judged against the clock: told when it opens, or that it has closed.
@@ -1636,6 +1662,25 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
           const slots = await slotAvailability(rule, target, query.date, query.party, own);
           return reply.send({ data: slots });
+        }
+
+        // A limit of any other kind (or shape): each asked as its kind asks it.
+        if (found.table.table.capacityRules !== undefined) {
+          const answer = await answerCapacity({
+            query,
+            resource: found.resource,
+            byRef: ok.key.scope.byRef,
+            timezone: ok.key.scope.timezone,
+            view: found.view,
+            table: found.table,
+            db: found.db,
+            dialect: found.dialect,
+            target: { ...target, view: found.view },
+            own: (table, id) => claimedRowKey(ok, found.db, table, id),
+            now: new Date(),
+          });
+          if (!answer.ok) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', answer.message);
+          return reply.send(answer.body as never);
         }
 
         /*

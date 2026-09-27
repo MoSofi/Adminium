@@ -71,6 +71,8 @@ export interface PoolState {
   taken: number;
   /** Of those, places a hold keeps that has not ended. */
   held: number;
+  /** Places kept back from the public (counted in `taken` for a guest, left out for staff). */
+  kept?: number | undefined;
   /** `size − taken`; null with no limit. Staff only: the public hears it only where the entry shows what is left. */
   left: number | null;
   /** Whether this write's rows fit. */
@@ -128,4 +130,6 @@ export interface CapacityAsk {
   to?: string | undefined;
   /** The asker's own rows, left out of the count (a guest changing their own booking). */
   exclude?: readonly Row[] | undefined;
+  /** Whose view: a guest's counts places kept back against them; staff's does not (the default). */
+  origin?: 'public' | 'staff' | undefined;
 }

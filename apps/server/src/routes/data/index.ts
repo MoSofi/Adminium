@@ -79,6 +79,7 @@ import {
 import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
+import { capacityCounts } from '../../crud/capacity/counts.js';
 import { diffLinks, resolveLink, sameKeys, type ResolvedLink } from '../../crud/links.js';
 import {
   diffChildRows,
@@ -134,6 +135,8 @@ import {
   availabilityQuery,
   availabilityReply,
   bookingSlotsQuery,
+  capacityCountsQuery,
+  capacityCountsReply,
   bookingSlotsReply,
   recordLinksParams,
   recordLinksQuery,
@@ -1837,6 +1840,29 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             ? (await bookingSlots(booking, target, query.date!, minutes, input)).slots
             : await bookingDays(booking, target, query.from!, query.days!, minutes, input),
         };
+      },
+    );
+
+    /*
+     * A LIMIT'S COUNTS FOR THE DESK — size, taken, held and left per pool
+     * (`crud/capacity/counts.ts`). Behind the table's read grant like the
+     * reads above.
+     */
+    app.get(
+      '/data/:connectionId/:table/capacity-counts',
+      { schema: { params: dataTableParams, querystring: capacityCountsQuery, response: { 200: capacityCountsReply } } },
+      async (request) => {
+        const ctx = await contextFor(request, 'read');
+        if ((ctx.table.table?.capacityRules?.length ?? 0) === 0) throw new NotFoundError('This table keeps no limit.', { table: ctx.table.id });
+        const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
+        const { ids, ...rest } = request.query;
+        const answer = await capacityCounts(
+          { connectionId: ctx.connectionId, view: ctx.view, table: ctx.table, db: ctx.db, dialect: ctx.dialect, timezone },
+          { ...rest, ...(ids === undefined ? {} : { ids: ids.split(',').map((id) => id.trim()).filter((id) => id !== '') }) },
+          new Date(),
+        );
+        if (!answer.ok) throw new ValidationFailedError(answer.message, {});
+        return { data: answer.data };
       },
     );
 

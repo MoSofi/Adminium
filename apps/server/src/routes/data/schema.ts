@@ -259,6 +259,27 @@ export const bookingSlotsReply = z.object({
   ]),
 });
 
+/** `GET …/capacity-counts`: one of the table's limits, counted for a desk. */
+export const capacityCountsQuery = z
+  .object({
+    rule: z.coerce.number().int().min(0).max(2).default(0),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    days: z.coerce.number().int().min(1).max(62).optional(),
+    /** A parent limit: the pools' rows sharing `value` in this column, or these ids (comma-separated). */
+    under: z.string().min(1).max(128).optional(),
+    value: z.string().min(1).max(200).optional(),
+    ids: z.string().min(1).max(4000).optional(),
+  })
+  .strict();
+
+export const capacityCountsReply = z.object({
+  data: z.object({
+    kind: z.enum(['slot', 'parent', 'night']),
+    rows: z.array(z.record(z.string(), z.unknown())),
+  }),
+});
+
 export const availabilityReply = z.object({
   taken: z.array(z.string()),
   /** The cap was reached, so nothing may be struck out from this reply. */

@@ -363,6 +363,12 @@ const resourceSchema = z
     kind: z.enum(['records', 'availability']).optional(),
     /** On an availability resource: the kind of limit it answers, so a page knows which question to ask. */
     capacity: z.enum(['slot', 'parent', 'night']).optional(),
+    /** On an availability resource: which of the table's limits it answers (absent: the first). */
+    capacityRule: z.number().int().min(0).max(2).optional(),
+    /** On an availability resource: what is left is said only below a number, or a share of the pool. */
+    showLeft: z.union([z.object({ below: z.number().int().min(1) }).strict(), z.object({ belowShare: z.number().int().min(1).max(100) }).strict()]).optional(),
+    /** On an availability resource of a parent limit: the column of the pools' rows a page asks by. */
+    under: columnSchema.optional(),
     /** The email sent when a guest creates a row (see the endpoint's `confirm`). */
     confirm: z.record(z.string(), z.unknown()).optional(),
     /** The only values a caller may write into these columns. */
@@ -625,6 +631,10 @@ export interface CompiledResource {
   kind: 'records' | 'availability';
   /** On an availability resource: the kind of limit it answers (absent: a booking rule, or not known). */
   capacity?: 'slot' | 'parent' | 'night';
+  /** Which of the table's limits it answers, what is left it may say, and the column a parent limit is asked by. */
+  capacityRule?: number;
+  showLeft?: { below: number } | { belowShare: number };
+  under?: string;
   /** The confirmation a guest's create sends, or null. */
   confirm: Record<string, unknown> | null;
   /*
@@ -1401,6 +1411,9 @@ export function compileScope(
       count: r.count,
       kind: r.kind ?? 'records',
       ...(r.capacity === undefined ? {} : { capacity: r.capacity }),
+      ...(r.capacityRule === undefined ? {} : { capacityRule: r.capacityRule }),
+      ...(r.showLeft === undefined ? {} : { showLeft: { ...r.showLeft } }),
+      ...(r.under === undefined ? {} : { under: r.under }),
       confirm: r.confirm ?? null,
       children: new Map(Object.entries(r.children ?? {})),
       agrees: [...(r.agrees ?? [])],
