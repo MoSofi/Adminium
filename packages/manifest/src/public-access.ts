@@ -164,6 +164,62 @@ export function unlistedColumn(
   return null;
 }
 
+/*
+ * What the install guesses is personal data from a column's name, the way
+ * its classifier does on the table it makes — kept here so the validator
+ * refuses what the install would. A column's own `personal` wins either way.
+ */
+const PERSONAL_TEXT_NAMES = [
+  /(^|_)e?mail(_address)?(_|$)/,
+  /(^|_)(phone|mobile|tele?phone|fax)(_number)?(_|$)/,
+  /(^|_)ip(_address)?$/,
+  /(^|_)(address|street|city|zip|postal_code|postcode)(_|$)/,
+];
+const PERSONAL_NAMES = [
+  /(^|_)(ssn|social_security|tax_id|vat|passport|national_id|driver_licen[cs]e)(_|$)/,
+  /(^|_)(card_number|pan|iban|account_number|routing_number|bic|swift)(_|$)/,
+  /(^|_)(birth(date|day)?|dob|date_of_birth)(_|$)/,
+];
+const PEOPLE_TABLE = /(^|_)(users?|people|persons?|employees?|staff|members?|contacts?|customers?|profiles?|teachers?|students?|drivers?|agents?|authors?|patients?)(_|$)/;
+const PERSON_NAME = /^(first_name|last_name|full_name|display_name|name|username)$/;
+
+/** `userId` → `user_id`: the form a name is matched in. */
+function nameForm(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toLowerCase();
+}
+
+/**
+ * Whether a column holds personal data: marked so (`personal: true`), or —
+ * unless marked otherwise — guessed so by its name as the install does: an
+ * address, a phone number, a birth date, an ID or account number, a person's
+ * first, last or full name on a table of people. Secrets are not personal
+ * data (they are never shown at all).
+ */
+export function personalColumn(
+  table: { ref: string; columns: readonly { ref: string; type: string; rules?: Record<string, unknown> | undefined }[] },
+  column: string,
+): 'marked' | 'guessed' | null {
+  const found = table.columns.find((candidate) => candidate.ref === column);
+  if (found === undefined) return null;
+  const personal = found.rules?.['personal'];
+  if (personal === true) return 'marked';
+  if (personal === false || found.rules?.['secret'] === true) return null;
+  const name = nameForm(column);
+  const text = found.type === 'text';
+  if (text && PERSONAL_TEXT_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
+  if (PERSONAL_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
+  if (text && /^(first_name|last_name|full_name)$/.test(name)) {
+    const names = table.columns.map((candidate) => nameForm(candidate.ref));
+    const hasEmail = table.columns.some((candidate, i) => candidate.type === 'text' && PERSONAL_TEXT_NAMES[0]!.test(names[i]!));
+    if (PEOPLE_TABLE.test(nameForm(table.ref)) || (hasEmail && names.some((n) => PERSON_NAME.test(n)))) return 'guessed';
+  }
+  return null;
+}
+
 /**
  * A time no more than `within` minutes ahead — a past time always passes. A
  * kiosk takes an arrival from an hour before the visit, and a late one too.
@@ -663,6 +719,23 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     for (const list of ['select', 'writable'] as const) {
       for (const ref of entry[list] ?? []) {
         if (!has(entry.table, ref)) out.push({ path: at(list), message: `"${entry.table}" has no column "${ref}"` });
+      }
+    }
+    // An entry anyone may call (no claim, no parent, no session asked) shows no personal data: the install refuses it too.
+    const sessionOnly = entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
+    const anyone = entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true) && !sessionOnly;
+    if (anyone) {
+      for (const ref of entry.select ?? []) {
+        const personal = personalColumn(table as Parameters<typeof personalColumn>[0], ref);
+        if (personal !== null) {
+          out.push({
+            path: at('select'),
+            message:
+              personal === 'marked'
+                ? `"${entry.table}.${ref}" is personal data, and anyone may call this entry, so it is not selected`
+                : `"${entry.table}.${ref}" is read as personal data by its name, and anyone may call this entry, so it is not selected (a column that is not personal says \`personal: false\`)`,
+          });
+        }
       }
     }
     for (const ref of [
