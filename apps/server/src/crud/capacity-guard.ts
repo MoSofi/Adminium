@@ -29,18 +29,19 @@
  * settings table, read inside the same transaction, so a venue changes its
  * capacity from its own settings screen.
  */
-import { createHash } from 'node:crypto';
-
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
 import type { CapacitySetting, TableCapacityRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
+import { ConflictError, ValidationFailedError } from '../errors.js';
+import { withNamedLocks, type LockBusy } from './capacity/locks.js';
+import { readInstant } from './moments.js';
 import type { ResolvedTable } from './identifiers.js';
 import { venueClock, wallTimeToInstant } from './venue-time.js';
 
 export { venueClock } from './venue-time.js';
+export { inTransaction } from './capacity/locks.js';
 import type { Row } from './mask.js';
 import type { WriteOrigin } from './write-context.js';
 
@@ -57,22 +58,14 @@ export interface GuardTarget {
   origin?: WriteOrigin | undefined;
 }
 
-/** How long a MySQL writer waits for the slot before giving up. */
-const LOCK_WAIT_SECONDS = 10;
-
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
 
 /**
  * The instant a slot value names. A zone-less value is this server's wall
  * clock — how the write path stores one and how the drivers read one back
- * (`crud/write-values.ts`).
+ * (`crud/write-values.ts`). The server's one reader of a stored time.
  */
-export function slotInstant(value: unknown): Date | null {
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  if (typeof value !== 'string') return null;
-  const instant = new Date(value.includes('T') ? value : value.replace(' ', 'T'));
-  return Number.isNaN(instant.getTime()) ? null : instant;
-}
+export const slotInstant = readInstant;
 
 export const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
@@ -251,73 +244,16 @@ export async function withSlotLock<T>(
  * Run `write` inside one transaction, holding a lock only writers asking for
  * the same `name` contend for, and released only once the write is
  * committed — a writer let in before the commit would count rows it cannot
- * see yet.
- *
- *  - Postgres: `pg_advisory_xact_lock`, which the commit itself releases.
- *  - MySQL: `GET_LOCK` on a pinned connection, around a transaction of this
- *    function's own, released in `finally` after it commits. Joining a
- *    caller's open transaction is refused: the lock would have to go before
- *    that transaction commits, which is the race this lock exists to close.
- *  - SQLite: one connection serialises this process; `BEGIN IMMEDIATE` takes
- *    the write lock up front against a second process.
+ * see yet. One name of {@link withNamedLocks}, which says how each engine
+ * holds it; a MySQL call inside a caller's open transaction is refused.
  */
 export async function withNamedLock<T>(
   target: Pick<GuardTarget, 'db' | 'dialect'>,
   name: string,
-  busy: 'CAPACITY_BUSY' | 'BOOKING_BUSY' | 'NUMBER_BUSY',
+  busy: LockBusy,
   write: (db: Db) => Promise<T>,
 ): Promise<T> {
-  const { db, dialect } = target;
-  if (dialect === 'postgres') {
-    const locked = async (trx: Db) => {
-      await sql`select pg_advisory_xact_lock(hashtextextended(${name}, 0))`.execute(trx);
-      return write(trx);
-    };
-    return db.isTransaction ? locked(db) : db.transaction().execute(locked);
-  }
-  if (dialect === 'mysql') {
-    if (db.isTransaction) {
-      throw new Error('A guarded write on MySQL opens its own transaction; it cannot join one already open.');
-    }
-    // MySQL's lock names stop at 64 characters.
-    const key = `adm:${createHash('sha1').update(name).digest('hex')}`;
-    return db.connection().execute(async (conn) => {
-      const got = (await sql<{ got: number | null }>`select get_lock(${key}, ${LOCK_WAIT_SECONDS}) as got`.execute(conn)).rows[0]?.got;
-      if (Number(got) !== 1) {
-        if (busy === 'NUMBER_BUSY') throw new AppError(409, busy, 'Another record is taking the next number. Try again in a moment.');
-        throw new ConflictError('That time is busy. Try again in a moment.', busy);
-      }
-      try {
-        return await conn.transaction().execute(write);
-      } finally {
-        await sql`select release_lock(${key})`.execute(conn);
-      }
-    });
-  }
-  // SQLite: this process has one connection; BEGIN IMMEDIATE holds off a second.
-  if (inTransaction(db)) return write(db);
-  return db.connection().execute(async (conn) => {
-    await sql`begin immediate`.execute(conn);
-    OPENED.add(conn);
-    try {
-      const out = await write(conn);
-      await sql`commit`.execute(conn);
-      return out;
-    } catch (error) {
-      await sql`rollback`.execute(conn);
-      throw error;
-    } finally {
-      OPENED.delete(conn);
-    }
-  });
-}
-
-/** SQLite connections inside a `BEGIN IMMEDIATE` this module opened: kysely does not know they are in a transaction. */
-const OPENED = new WeakSet<object>();
-
-/** Whether a handle is inside a transaction: kysely's own, or one `withNamedLock` opened on SQLite by hand. */
-export function inTransaction(db: Db): boolean {
-  return db.isTransaction || OPENED.has(db);
+  return withNamedLocks(target, [{ name, busy }], write);
 }
 
 /* ------------------------------------------------------------ availability */

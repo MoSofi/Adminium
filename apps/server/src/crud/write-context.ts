@@ -15,10 +15,17 @@
  *
  * `write-service.ts` re-exports them all, so every existing importer is
  * unaffected. `WriteContext` followed for the same reason: the outbox tells its
- * own writes apart by their context, and the service asks it.
+ * own writes apart by their context, and the service asks it. `WriteTarget`
+ * followed too: the capacity guard, the moments and a write with child rows
+ * name the table a write goes to, and the service reads all three.
  */
 import type { FastifyRequest } from 'fastify';
+import type { Kysely } from 'kysely';
+import type { Dialect } from '@adminium/engine';
+import type { TablePrivileges } from '@adminium/engine/adapter';
 
+import type { SourceDatabase } from '../connections/manager.js';
+import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 
 /** The three things a write does to a row. */
@@ -60,4 +67,35 @@ export interface WriteContext {
    * writes nothing.
    */
   claimed?: Row | null | undefined;
+  /**
+   * When the thing the write records really happened, as the writer's device
+   * says: a door scan made offline and sent later. Absent, the write happened
+   * now. Only a staff or API-key write may carry one, and only a little in the
+   * past; the write's clock (`write-clock.ts`) puts it in place of now for the
+   * row's own rules, never for counting a shared limit.
+   */
+  occurredAt?: Date | undefined;
+}
+
+/** The table a write goes to, and the connection it goes through. */
+export interface WriteTarget {
+  connectionId: string;
+  view: SnapshotView;
+  table: ResolvedTable;
+  db: Kysely<SourceDatabase>;
+  dialect: Dialect;
+  /**
+   * The venue's time zone (IANA), where a rule reads a wall clock: a booking
+   * limit's hours and window, a venue-local column. The public API passes its
+   * key's; otherwise the connection's is looked up when a rule needs it, and
+   * UTC stands in when the connection names none.
+   */
+  timezone?: string | undefined;
+  /**
+   * What the connection's data role may write in this table, when known
+   * (`ConnectionManager.tablePrivileges`): a column it may not write is refused
+   * when sent and never filled. Absent ⇒ unknown ⇒ everything, and the
+   * database decides.
+   */
+  rights?: TablePrivileges | null | undefined;
 }

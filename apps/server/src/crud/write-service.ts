@@ -125,18 +125,21 @@ import {
   type CopyMemo,
   type SequenceStore,
 } from './decided-columns.js';
-import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
+import type { ResolvedColumn, ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
+import { writeClock, type WriteClock } from './write-clock.js';
+import type { CreateTree } from './write-tree.js';
+import { notBuiltYet } from './not-built.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
-import type { WriteAction, WriteActor, WriteContext, WriteOrigin } from './write-context.js';
+import type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
 
 // The write's own vocabulary lives in a leaf, because `column-rules.ts` reads
 // it and this module reads the rules — see `write-context.ts`. Re-exported so
 // every caller still finds them here. `WriteContext` joined them because the
 // outbox's own context (`outbox/context.ts`) is read here and names it.
-export type { WriteAction, WriteActor, WriteContext, WriteOrigin } from './write-context.js';
+export type { WriteAction, WriteActor, WriteContext, WriteOrigin, WriteTarget } from './write-context.js';
 
 
 /**
@@ -173,29 +176,6 @@ export function requestWriteContext(request: FastifyRequest, origin: WriteOrigin
     actor: principal === null ? null : { kind: principal.kind, id: principal.id, label: principal.label },
     request,
   };
-}
-
-/** The table a write lands in, and the handle it goes through. */
-export interface WriteTarget {
-  connectionId: string;
-  view: SnapshotView;
-  table: ResolvedTable;
-  db: Kysely<SourceDatabase>;
-  dialect: Dialect;
-  /**
-   * The venue's time zone (IANA), where a rule reads a wall clock: a booking
-   * limit's hours and window, a venue-local column. The public API passes its
-   * key's; otherwise the connection's is looked up when a rule needs it, and
-   * UTC stands in when the connection names none.
-   */
-  timezone?: string | undefined;
-  /**
-   * What the connection's data role may write in this table, when known
-   * (`ConnectionManager.tablePrivileges`): a column it may not write is refused
-   * when sent and never filled. Absent ⇒ unknown ⇒ everything, and the
-   * database decides.
-   */
-  rights?: TablePrivileges | null | undefined;
 }
 
 // --- the hooks seam ----------------------------------------------------------
@@ -1105,6 +1085,8 @@ export interface RecordWriteService {
     opts?: Pick<BeforeEachOptions, 'capacity'>,
   ): Promise<{ rows: (CheckedRow | null)[]; issues: (FieldIssues | null)[] }>;
   create(input: CreateRecordInput): Promise<Row>;
+  /** A create with its child rows, every row or none; or a quote of one (`write-tree.ts`). */
+  createTree: CreateTree;
   update(input: UpdateRecordInput): Promise<UpdateOutcome>;
   delete(input: DeleteRecordInput): Promise<number>;
   /**
@@ -1479,6 +1461,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     context: WriteContext,
     values: CheckedRow,
     stored: Row | null,
+    clock: WriteClock,
   ): Promise<CheckedRow> {
     if (rules === null || context.origin === 'undo') return values;
     const history = context.origin === 'import';
@@ -1496,7 +1479,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         ...(rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored)).map((stamp) => stamp.column),
         ...(rules.formulas ?? []).map((formula) => formula.column),
       ];
-      out = attachGuard(out, { history, roles, decided, ...(history ? { created: createdBy(context) } : {}) });
+      out = attachGuard(out, { history, roles, decided, clock, ...(history ? { created: createdBy(context) } : {}) });
     }
     const seals = history || action === 'delete' ? [] : (rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored));
     if (seals.length > 0) out = attachSeals(out, { view: target.view, stamps: seals, currency: await currencyFor(target)() });
@@ -1989,7 +1972,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (action !== 'delete') refuseUnbuiltTable(target);
       const rules = rulesOf(target);
       refuseGuardedBatch(rules, action, target, rows, checkOpts?.capacity);
-      const now = new Date();
+      const clock = writeClock(context);
+      const now = clock.startedAt;
       const memo: CopyMemo = new Map();
       const out: (CheckedRow | null)[] = [];
       const issues: (FieldIssues | null)[] = [];
@@ -2004,7 +1988,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const values = await formulate(rules, action, target, await prepareValues(rules, action, target, context, row, now, memo), null);
         const issue = mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null));
         issues.push(issue);
-        out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null) : null);
+        out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null, clock) : null);
       }
       return { rows: out, issues };
     },
@@ -2018,10 +2002,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rules = rulesOf(target);
       const currency = currencyFor(target);
       const zone = await zoneFor(rules, target);
-      const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), new Date()), zone);
+      // One clock for the write: its start for what is prepared here, its locked instant for what is judged under the locks.
+      const clock = writeClock(context);
+      const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone);
       const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo'), opts.settings);
       // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
-      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, new Date(), zone));
+      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, clock.startedAt, zone));
       // A total, a formula and a number are Adminium's alone, whatever a hook set.
       const hooked = (await hooks.wants('before', 'create', target, context))
         ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
@@ -2036,6 +2022,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         context,
         brand(await prepareNumbers(rules, 'create', target, await checkAllOrThrow(rules, 'create', target, context, values, null, input.mapError), context.origin, opts.settings)),
         null,
+        clock,
       );
       // Only the codes generated here, and left alone by the hooks, are made again.
       const codes = generatedCodes(rules, filled, context.origin === 'undo').filter((code) => values[code.column] === resolved[code.column]);
@@ -2092,6 +2079,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       return row;
     },
 
+    createTree: () => notBuiltYet('createTree'),
+
     async update(input) {
       const { context, pk } = input;
       const target = await withRights(input.target);
@@ -2109,7 +2098,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
        * the edit that was just taken back.
        */
       const zone = await zoneFor(rules, target);
-      let values = await prepareValues(rules, 'update', target, context, input.values, new Date());
+      const clock = writeClock(context);
+      let values = await prepareValues(rules, 'update', target, context, input.values, clock.startedAt);
       const wantsBefore = await hooks.wants('before', 'update', target, context);
       const wantsAfter = await hooks.wants('after', 'update', target, context);
       // The stored row: for the hooks, and for what Adminium decides and works out from it.
@@ -2123,7 +2113,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // checked, written in the same statement, and carried into the undo entry.
       if (stored) {
         values = await guardedValue(
-          () => decideRow(rules, 'update', values, before, decideContext(target, context, new Date(), zone)),
+          () => decideRow(rules, 'update', values, before, decideContext(target, context, clock.startedAt, zone)),
           input.mapError,
         );
       }
@@ -2136,7 +2126,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       values = await formulate(rules, 'update', target, values, before);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
-      const checkedValues = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before);
+      const checkedValues = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
       const capacity = rules?.capacity !== undefined && touchesGuard(rules.capacity, values) ? rules.capacity : undefined;
       const booking = rules?.booking !== undefined && touchesBooking(rules.booking, values) ? rules.booking : undefined;
       // The formulas this change moves: worked out again below from the row as held.
@@ -2236,7 +2226,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const rolls = (rules?.rollupsInto?.length ?? 0) > 0;
       // A document's states judge the delete — unless the caller's scope could not see the row, which then matches nothing.
       const judged =
-        input.refine !== undefined && before === null ? undefined : { dialect: target.dialect, prepared: await carry(rules, 'delete', target, context, brand({}), before) };
+        input.refine !== undefined && before === null ? undefined : { dialect: target.dialect, prepared: await carry(rules, 'delete', target, context, brand({}), before, writeClock(context)) };
       const count = rolls
         ? await conflicted(() => atomically(target, async (db) => {
             // The parent the row fed, held first; then the row, read — and held — before it goes.
@@ -2261,7 +2251,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (!tiedToStates(target.table)) return null;
       const rules = rulesOf(target);
       for (const row of rows) {
-        const refused = await deleteRefusal(target.db, target.table, row, guardOf(await carry(rules, 'delete', target, context, brand({}), row)));
+        const refused = await deleteRefusal(target.db, target.table, row, guardOf(await carry(rules, 'delete', target, context, brand({}), row, writeClock(context))));
         if (refused !== null) return refused;
       }
       return null;
@@ -2280,7 +2270,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         rows.map((row) => row.values),
         beforeOpts?.capacity,
       );
-      const now = new Date();
+      const clock = writeClock(context);
+      const now = clock.startedAt;
       const memo: CopyMemo = new Map();
       const zone = withRules ? await zoneFor(rules, target) : undefined;
       /**
@@ -2295,7 +2286,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // A refused row is not written, so it is given no number.
         if (issues !== null) return { values: brand(worked), issues };
         const guarded = brand(attachRequiredGuards(worked, requiredGuards(judged, action, worked, record)));
-        return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, guarded), record), issues };
+        return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, guarded), record, clock), issues };
       };
       const start = (values: Row): Promise<Row> =>
         withRules ? prepareValues(rules, action, target, context, values, now, memo) : Promise.resolve(values);

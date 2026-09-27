@@ -49,14 +49,13 @@
  * the text is the table's prefix followed by digits; the series then carries
  * on after the largest.
  */
-import { createHash } from 'node:crypto';
-
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import { AppError } from '../errors.js';
 import { inTransaction, withNamedLock } from './capacity-guard.js';
+import { withNamedLocks } from './capacity/locks.js';
 import type { GaplessSequence, TableRules } from './column-rules.js';
 import { isUniqueViolation } from './decided-columns.js';
 import type { ResolvedTable } from './identifiers.js';
@@ -184,38 +183,18 @@ export function numberLockName(table: ResolvedTable, row: Row): string | null {
   return claims.map((claim) => seriesName(table, claim.sequence, row)).join('|');
 }
 
-/** How long a writer waits for a series another writer holds (MySQL's `GET_LOCK`), in seconds. */
-const SERIES_WAIT_SECONDS = 10;
-
 /**
  * One transaction for rows a caller prepared and is about to insert, holding
  * the lock of every series they take a number in until it commits. On MySQL
  * the named locks are taken BEFORE the transaction opens, on the connection
  * that then runs it — a named lock cannot be held until a commit somebody
- * else makes. On Postgres each INSERT takes its series' transaction lock
- * itself; SQLite has one writer.
+ * else makes (`withNamedLocks`). On Postgres each INSERT takes its series'
+ * transaction lock itself; SQLite has one writer.
  */
 export async function withSeriesLocks<T>(db: Db, dialect: Dialect, series: readonly string[], run: (db: Db) => Promise<T>): Promise<T> {
-  // In one order, so two writers holding the same two series never wait on each other crosswise.
-  const names = [...new Set(series)].sort();
-  if (dialect !== 'mysql' || names.length === 0 || inTransaction(db)) {
-    return inTransaction(db) ? run(db) : db.transaction().execute(run);
-  }
-  return db.connection().execute(async (conn) => {
-    const held: string[] = [];
-    try {
-      for (const name of names) {
-        // MySQL's lock names stop at 64 characters.
-        const key = `adm:${createHash('sha1').update(name).digest('hex')}`;
-        const got = (await sql<{ got: number | null }>`select get_lock(${key}, ${SERIES_WAIT_SECONDS}) as got`.execute(conn)).rows[0]?.got;
-        if (Number(got) !== 1) throw numberBusy();
-        held.push(key);
-      }
-      return await conn.transaction().execute(run);
-    } finally {
-      for (const key of held) await sql`select release_lock(${key})`.execute(conn);
-    }
-  });
+  // Held by name, sorted, so two writers holding the same two series never wait on each other crosswise.
+  const locks = dialect === 'mysql' ? series.map((name) => ({ name, busy: 'NUMBER_BUSY' as const })) : [];
+  return withNamedLocks({ db, dialect }, locks, run, { openTransaction: 'run' });
 }
 
 /** The rows of this series: the whole table, or one parent's rows. */

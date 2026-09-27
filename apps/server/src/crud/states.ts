@@ -70,6 +70,7 @@ import { inTransaction } from './capacity-guard.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import { copiedOf } from './decided-columns.js';
+import type { WriteClock } from './write-clock.js';
 import { sameValue } from './write-values.js';
 
 type Db = Kysely<SourceDatabase>;
@@ -90,6 +91,8 @@ export interface StateGuard {
   roles: ReadonlySet<string> | 'any';
   /** Columns this write's own rules decided — a stamp a move writes, a formula: the lock never refuses them. */
   decided: readonly string[];
+  /** The write's clock: a condition on the time is judged at its locked instant (`write-clock.ts`). */
+  clock?: WriteClock | undefined;
 }
 
 const GUARD = Symbol('adminium.state-guard');
