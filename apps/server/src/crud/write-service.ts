@@ -1256,7 +1256,7 @@ function decideContext(target: WriteTarget, context: WriteContext, now: Date, zo
     now,
     zone,
     claimed: context.claimed ?? null,
-    relations: target.view.model.relations,
+    relations: target.view?.model?.relations,
   };
 }
 

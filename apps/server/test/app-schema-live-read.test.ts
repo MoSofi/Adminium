@@ -73,6 +73,8 @@ describe('readLiveTables', () => {
           { ref: 'id', isPrimaryKey: true, dbType: 'integer', nullable: false, hasDefault: false, isGenerated: false, logicalType: 'integer', maxLength: null, isIdentity: false },
           { ref: 'invoice_id', isPrimaryKey: false, dbType: 'text', nullable: false, hasDefault: false, isGenerated: false, logicalType: 'text', maxLength: null, isIdentity: false },
         ],
+        indexed: [],
+        indexNames: [],
         uniques: [],
       },
     ]);
@@ -95,6 +97,9 @@ describe('readLiveTables', () => {
     ]);
     const [versions] = (await readLiveTables(deps, 'conn', new Set(['versions']))).tables;
     expect(versions?.uniques).toEqual([['code'], ['proposal_id', 'v']]);
+    // Every index's and constraint's name, and the column each index leads with.
+    expect(versions?.indexNames).toEqual(['uq_versions_code', 'uq_versions_v', 'ix_note', 'ix_v']);
+    expect(versions?.indexed).toEqual(['proposal_id', 'note', 'v']);
     expect(versions?.columns.find((c) => c.ref === 'code')?.isUnique).toBe(true);
   });
 
