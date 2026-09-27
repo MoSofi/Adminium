@@ -2616,6 +2616,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     try {
       return await run();
     } catch (error) {
+      // A row that moved away from the lock it was named by (an effect's, judged inside the statement) is the retry's, never a refusal.
+      if (error instanceof LockMoved) throw error;
       if (mapError !== undefined) mapError(error);
       throw error;
     }
