@@ -5,10 +5,6 @@
  * job has run, and the job then moves it to expired; a transfer released at
  * its deadline gives its tickets back to sale; a stay not arrived by the next
  * morning frees its nights.
- *
- * SKIPPED until the capacity judge counts holds by the clock: the tables
- * here carry the parent and night limits that judge keeps, which this server
- * refuses to write until it does (501 `RULE_NOT_BUILT`). Enable at the merge.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -97,7 +93,7 @@ function capacityVenue(): Doc {
   };
 }
 
-describe.skip.each(LEGS)('timed moves free what they held — %s (enable once holds count by the clock)', (dialect, available) => {
+describe.each(LEGS)('timed moves free what they held — %s', (dialect, available) => {
   let h: InvoicingHarness;
   let w: Awaited<ReturnType<typeof writerFor>>;
   beforeAll(async () => {
@@ -140,11 +136,14 @@ describe.skip.each(LEGS)('timed moves free what they held — %s (enable once ho
     const order = await w.create('orders', { event_id: show['id'] });
     await w.create('tickets', { order_id: order['id'], ticket_type_id: type['id'] });
     await w.update('orders', order['id'], { status: 'awaiting_transfer', pay_by: '2026-08-01T17:00:00Z' });
-    const next = await w.create('orders', { event_id: show['id'] });
+    // A buyer holding places now, while the transfer is still due.
     clock('2026-08-01T16:00:00Z');
+    const next = await w.create('orders', { event_id: show['id'] });
     await expect(w.create('tickets', { order_id: next['id'], ticket_type_id: type['id'] })).rejects.toMatchObject({ code: 'CAPACITY_FULL' });
     await tick('2026-08-01T17:00:30Z');
-    await expect(w.create('tickets', { order_id: next['id'], ticket_type_id: type['id'] })).resolves.toBeDefined();
+    expect((await h.rows(`select status from ${h.real('orders')} where id = ${String(order['id'])}`))[0]!['status']).toBe('released');
+    const later = await w.create('orders', { event_id: show['id'] });
+    await expect(w.create('tickets', { order_id: later['id'], ticket_type_id: type['id'] })).resolves.toBeDefined();
   });
 
   it.runIf(available)('frees the nights of a stay not arrived by 10:00 the next day', async () => {
