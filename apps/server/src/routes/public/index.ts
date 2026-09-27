@@ -60,6 +60,7 @@ import { publicConfigOf, type CompiledResource, type PublicAction } from '../../
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { publicWindows } from '../../public-api/moment-windows.js';
 import { timedRefusal } from '../../public-api/timed-refusals.js';
+import { announceEffects } from '../../states/effects.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -2075,7 +2076,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             // A window read from moments is judged by the statement, holding the row.
             windows: publicWindows(found.resource.writableWhen, found.view, found.table, ok.key.scope.timezone),
             mapError: refuseWriteThrough(found.resource, 'update'),
-            announce: async ({ before, after }) => {
+            announce: async ({ before, after, effects }) => {
               await auditWrite(
                 request,
                 ok,
@@ -2110,6 +2111,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 after,
                 origin: 'public',
               });
+              // The rows a guest's move moved too (a stay's room), as changes of their own.
+              await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
             },
           });
         } catch (error) {

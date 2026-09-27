@@ -60,7 +60,7 @@ import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-err
 import { labelColumnFor } from '../../crud/labels.js';
 import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
 import { sealRows, sealsOf } from '../../crud/seal.js';
-import { tiedToStates } from '../../crud/states.js';
+import { guardOf, tiedToStates, type EffectWritten } from '../../crud/states.js';
 import {
   rowsEqual,
   UndoStore,
@@ -99,6 +99,9 @@ import { availabilityColumns, readAvailability } from '../../crud/availability.j
  * links are actually managed.
  */
 const LINK_READ_CAP = 200;
+import { withOccurredAt } from '../../crud/occurred-at.js';
+import { announceEffects } from '../../states/effects.js';
+import { isStateRefusal } from '../../crud/state-conditions.js';
 import {
   createWriteService,
   deleteRows,
@@ -1470,6 +1473,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          * failure rolled back.
          */
         const events: { pk: Row; before: Row; after: Row | null }[] = [];
+        // The rows the moves moved too (`states.effects`), announced once the batch commits.
+        const effected: EffectWritten[] = [];
 
         await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
@@ -1491,9 +1496,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 beforeImages.push(before);
                 if (after !== undefined) afterImages.push(after);
                 events.push({ pk, before, after: after ?? before });
+                effected.push(...(guardOf(prepared[i]!.values)?.effected ?? []));
               }
               results.push({ id, ok: true });
             } catch (error) {
+              // A row the states refuse is named, like a refused value: one values object, one row that cannot take it.
+              if (isStateRefusal(error)) throw new AppError((error as AppError).statusCode, (error as AppError).code, (error as AppError).message, { ...((error as AppError).details as object), id });
               mapDbError(error, ctx.table);
             }
           }
@@ -1525,6 +1533,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             count: okCount,
           });
         }
+        await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effected, origin: 'bulk', request });
         // Events, not the full helper: one operator action stays ONE audit row
         // and one counted publish (see `crud/after-record-write.ts`).
         for (const event of events) {
@@ -1900,7 +1909,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const ctx = await contextFor(request, 'create');
         const values = allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
-        const context = requestWriteContext(request, 'dashboard');
+        const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, request.body.children);
         const repeat = request.body.repeat;
@@ -2117,7 +2126,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
         assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values, before);
-        const context = requestWriteContext(request, 'dashboard');
+        const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, request.body.children);
         let undoToken: string | null = null;
@@ -2148,6 +2157,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               const after = result.after ?? before;
               undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values));
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
+              // The rows this move moved too (a room turned to cleaning), as changes of their own.
+              await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
             },
           });
           // Masked columns may be written but are never echoed back.

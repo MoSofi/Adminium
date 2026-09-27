@@ -83,7 +83,7 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
         definition: { ...base, path: '/door', source: idOf('tickets'), select: ['id', 'status'], filters: [], writable: ['status'], writable_values: { status: ['checked_in'] } },
       },
     ];
-    for (const endpoint of endpoints) await service.saveEndpoint({ connectionId: h.connectionId, ref: endpoint.ref, origin: 'custom', definition: endpoint.definition });
+    for (const endpoint of endpoints) await service.saveEndpoint({ connectionId: h.connectionId, ref: endpoint.ref, origin: 'custom', definition: endpoint.definition as never });
     const secret = generatePublishableKey('browser');
     const { key } = await service.createKey({
       connectionId: h.connectionId,
