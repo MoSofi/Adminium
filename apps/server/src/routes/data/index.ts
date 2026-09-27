@@ -1212,6 +1212,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       links: UndoLinks[] = [],
       /** Child rows this write touched; the undo puts them back too. */
       children: UndoChildren[] = [],
+      /** Rows of other tables the write's move moved too (a room set to cleaning): no move back would take them back. */
+      effected: readonly unknown[] = [],
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
@@ -1221,7 +1223,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (changedColumns.length === 0) return null;
       }
       // No undo that would delete a row numbered without gaps, or take a document's state back — but a status move the app lists an undo for.
-      const moveBack = action === 'update' && children.length === 0 && links.length === 0 ? moveBackOf(ctx.table.table, before, after, changedColumns) : null;
+      const moveBack = action === 'update' && children.length === 0 && links.length === 0 && effected.length === 0 ? moveBackOf(ctx.table.table, before, after, changedColumns) : null;
       if (takesNumberBack(ctx, action, children) || (takesStateBack(ctx, children, links) && moveBack === null)) return null;
       const { token } = undoStore.issue({
         ...(moveBack === null ? {} : { moveBack }),
@@ -1816,6 +1818,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 beforeImages,
                 afterImages,
                 action === 'update' && values !== null ? changedColumns(values, prepared) : [],
+                [],
+                [],
+                [],
+                effected,
               );
         await app.rbac.audit(request, {
           category: 'data',
@@ -2619,7 +2625,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             ...inside,
             announce: async (result) => {
               const after = result.after ?? before;
-              undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values));
+              undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
               // The rows this move moved too (a room turned to cleaning), as changes of their own.
               await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
@@ -2689,7 +2695,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               },
               announce: async (result) => {
                 const after = result.after ?? before;
-                undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites);
+                undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
                 await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
                 for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
                 // The rows the record's and its child rows' moves moved too, as changes of their own.
@@ -2763,6 +2769,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           [],
           written,
           childWrites,
+          effected,
         );
         await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });

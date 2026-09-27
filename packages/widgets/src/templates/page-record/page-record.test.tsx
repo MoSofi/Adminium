@@ -219,6 +219,8 @@ describe('PageRecord', () => {
     await waitFor(() => {
       expect(api.update).toHaveBeenCalled();
     });
+    // The record as the page loaded it rides beside the change: the state the person saw.
+    expect((api.update as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[4]).toEqual(RECORD);
     expect(await screen.findByText('Changes saved.')).toBeDefined();
     // The page refetches the record so the new values render.
     expect(api.get).toHaveBeenCalledTimes(2);

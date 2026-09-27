@@ -204,6 +204,21 @@ function isOfferable(column: RequiredColumn): boolean {
 /** The states in which another app's record means its table is there, in use. */
 const SHARING_STATES: ReadonlySet<string> = new Set(['created', 'adopted', 'shared']);
 
+/**
+ * This app's record of a table it shared and left behind (uninstalled, tables
+ * kept) that another app still uses under the same shape: never the app's
+ * own. A reinstall is offered that app's tables again, as a first install is.
+ */
+function leftShare(record: PlanContext['records'][string] | undefined, shape: string | undefined, context: PlanContext): boolean {
+  if (record === undefined || record.state !== 'released' || record.owned || shape === undefined) return false;
+  return context.others.some((o) => o.table === record.table && o.shape === shape && SHARING_STATES.has(o.state));
+}
+
+/** A record this app goes on using as its own: not dropped, and not a table it only shared and left. */
+function holdsOwn(record: PlanContext['records'][string] | undefined, shape: string | undefined, context: PlanContext): boolean {
+  return record !== undefined && record.state !== 'dropped' && !leftShare(record, shape, context);
+}
+
 /** Another app whose tables of one shape cover every table of that shape this app declares. */
 interface ShareCandidate {
   appKey: string;
@@ -239,7 +254,7 @@ function shareTargetsOf(
     if (table.shape !== undefined) byShape.set(table.shape, [...(byShape.get(table.shape) ?? []), table]);
   }
   for (const [shape, tables] of byShape) {
-    if (tables.some((t) => context.records[t.ref] !== undefined && context.records[t.ref]!.state !== 'dropped')) continue;
+    if (tables.some((t) => holdsOwn(context.records[t.ref], t.shape, context))) continue;
     const apps = new Map<string, ShareCandidate>();
     for (const o of context.others) {
       if (o.ref === undefined || o.shape !== shape || !SHARING_STATES.has(o.state) || !live.has(o.table)) continue;
@@ -334,7 +349,7 @@ export function planWithContext(
   const names: Record<string, string> = {};
   for (const table of required) {
     const record = context.records[table.ref];
-    const usable = record !== undefined && record.state !== 'dropped';
+    const usable = record !== undefined && holdsOwn(record, table.shape, context);
     const target = shareTargets.get(table.ref);
     names[table.ref] =
       usable && (context.altPrefix === undefined || record.state === 'shared')
@@ -350,7 +365,8 @@ export function planWithContext(
   const tables: InstallTablePlan[] = [];
   for (const table of required) {
     const real = names[table.ref]!;
-    const record = context.records[table.ref];
+    const left = leftShare(context.records[table.ref], table.shape, context);
+    const record = left ? undefined : context.records[table.ref];
     const existing = live.get(real);
     const holders = context.others.filter((o) => o.table === real && o.state !== 'dropped');
     const choice = context.choices?.[table.ref];
@@ -451,9 +467,11 @@ export function planWithContext(
     if (klass === 'new') {
       plan.action = 'create';
     } else if (klass === 'own-leftover') {
-      plan.offers = ['reuse', 'rename-existing', 'alt-prefix'];
+      // Never renamed while another app still uses it: that would move its table from under it.
+      const used = holders.some((o) => o.state !== 'released');
+      plan.offers = used ? ['reuse', 'alt-prefix'] : ['reuse', 'rename-existing', 'alt-prefix'];
       if (record?.owned === false) plan.adopted = true;
-      plan.action = choice?.action === 'rename-existing' ? 'rename-existing' : 'reuse';
+      plan.action = choice?.action === 'rename-existing' && !used ? 'rename-existing' : 'reuse';
     } else if (klass === 'shared' && sharedRecord) {
       // An update of an app that shares the table: it goes on sharing it,
       // with whichever app still keeps it (none, once that app has left).

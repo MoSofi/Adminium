@@ -577,6 +577,12 @@ export async function writeManifestRules(input: {
         continue;
       }
       const want = wanted.get(targetOf(rule.op, rule.table, rule.column));
+      // One an app that left handed to this one (a shared table): kept, unless this version asks for another value.
+      if (rule.handedFrom !== undefined && (want === undefined || ruleHash(want.value) === rule.valueHash)) {
+        kept.push({ ...rule, overrideId: row.id });
+        if (want !== undefined) wanted.delete(targetOf(rule.op, rule.table, rule.column));
+        continue;
+      }
       // One an earlier version wrote that shows a secret of a table the app did not make: taken back.
       const shows =
         record.state !== 'created' && !NAMING_OPS.has(rule.op as RuleOp) && !TABLE_OPS.has(rule.op as RuleOp) && secretsLost(model, rule.table, active.filter((o) => o !== row), active).length > 0;
@@ -805,7 +811,8 @@ export async function removeManifestRules(meta: MetaDb, records: readonly AppTab
       // Read again: an earlier record of this uninstall may have handed it rules already.
       const holder = (await repo.find(connectionId, survivor.appKey, survivor.ref)) ?? survivor;
       const held = new Set(holder.rules.map((rule) => rule.overrideId));
-      const handed = ours.filter((rule) => !held.has(rule.overrideId));
+      // Marked with the app they came from, so the survivor's own versions never take them back.
+      const handed = ours.filter((rule) => !held.has(rule.overrideId)).map((rule) => ({ ...rule, handedFrom: rule.handedFrom ?? record.appKey }));
       if (handed.length > 0) await repo.setRules(holder.id, [...holder.rules, ...handed]);
     } else {
       for (const rule of ours) await overrides.delete(rule.overrideId);
