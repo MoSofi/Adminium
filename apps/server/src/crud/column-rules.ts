@@ -50,7 +50,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
-import { formulaColumns, type FormulaExpr } from '@adminium/manifest';
+import { formulaColumns, weekdaysOf, type FormulaExpr } from '@adminium/manifest';
 
 import type {
   ColumnCodeRule,
@@ -153,6 +153,8 @@ export interface ColumnCheck {
   requiredWhenFolds?: boolean;
   /** An admin's `column.validation`. */
   validation?: ColumnValidation;
+  /** Days of the week a price by the night reads (`fri,sat`): each word a day's three letters. */
+  weekdays?: true;
 }
 
 /** `column.copy`, resolved against the snapshot: where the value comes from. */
@@ -166,6 +168,8 @@ export interface ColumnCopy {
   /** The linked table's column to copy. */
   from: string;
   mode: 'default' | 'always';
+  /** Kept in step when the linked row's column changes (`copy.follow`). */
+  follow?: true;
 }
 
 /** `column.sequence`. */
@@ -215,6 +219,8 @@ export interface ColumnFormula {
    * out from.
    */
   limit?: { digits: number } | { max: bigint };
+  /** A joined text's longest (the column's length): cut there rather than refused. */
+  maxLength?: number;
 }
 
 /** `column.bounds`, resolved: the other date is this row's, or read through a foreign key. */
@@ -369,6 +375,12 @@ export interface TableRules {
   booking?: TableBookingRule;
   /** Columns whose zone-less wall times are read on the venue's clock. */
   venueLocal?: string[];
+  /** The column priced night by night, and where its rate and adjustments are read. */
+  perNight?: ColumnPerNight;
+  /** Copies in other tables' rows that follow a column of this table's rows (an extra's nights, its stay's). */
+  follows?: FollowOut[];
+  /** This table's columns whose change can move a column a copy follows: the column, and what works it out. */
+  followReads?: string[];
 }
 
 /** Whether any column of the table is decided by Adminium (copied, numbered, coded, stamped). */
@@ -536,6 +548,7 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           toColumn: relation.to.columns[0] as string,
           from: column.copy.from,
           mode: column.copy.mode ?? 'default',
+          ...(column.copy.follow === true ? { follow: true as const } : {}),
         });
       }
     }
@@ -632,6 +645,12 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       checks.push(check);
     }
   }
+  // A column of days a price by the night reads: judged as days, so a stored value never stops the price.
+  for (const name of weekdayColumns(target)) {
+    const found = checks.find((check) => check.column === name);
+    if (found !== undefined) found.weekdays = true;
+    else checks.push({ column: name, logicalType: target.table.columns.get(name)?.logicalType ?? 'text', weekdays: true });
+  }
   // The totals this table's rows feed, read off the parents that name it.
   const rollupsInto: RollupInto[] = [];
   // Built once per model, so each total knows the totals above it that climb from it.
@@ -646,7 +665,15 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const ownRollups: RollupInto[] = self === undefined ? [] : (model?.get(self.id) ?? rollupsOf(self));
   const balances = self === undefined ? [] : balancesOf(self);
   const formulas = self === undefined ? [] : formulasOf(self);
-  const readOnly = [...ownRollups.map((r) => r.column), ...balances.map((b) => b.column), ...formulas.map((f) => f.column)];
+  const perNight = perNightOf(target);
+  const follows = followsOf(target);
+  const followReads = follows.length === 0 ? [] : followReadsOf(formulas, perNight, follows);
+  const readOnly = [
+    ...ownRollups.map((r) => r.column),
+    ...balances.map((b) => b.column),
+    ...formulas.map((f) => f.column),
+    ...(perNight === undefined ? [] : [perNight.column]),
+  ];
   const numbered = gapless.flatMap((sequence) => [sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])]);
   const currencyColumn = columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
   const capacity = target.table.table?.capacity;
@@ -674,7 +701,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     capacityRules === undefined &&
     capacityOwners.length === 0 &&
     booking === undefined &&
-    venueLocal.length === 0
+    venueLocal.length === 0 &&
+    perNight === undefined &&
+    follows.length === 0
       ? null
       : {
           fills,
@@ -699,6 +728,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(capacityOwners.length === 0 ? {} : { capacityOwners }),
           ...(booking === undefined ? {} : { booking }),
           ...(venueLocal.length === 0 ? {} : { venueLocal }),
+          ...(perNight === undefined ? {} : { perNight }),
+          ...(follows.length === 0 ? {} : { follows, followReads }),
         };
   CACHE.set(target.table, rules);
   return rules;
@@ -803,7 +834,16 @@ export function formulasOf(table: Pick<EffectiveTable, 'columns'>): ColumnFormul
     const reads = formulaColumns(column.formula!);
     for (const read of reads) if (byName.has(read)) visit(read);
     const limit = limitOf(column);
-    out.push({ column: name, expr: column.formula!, scale: formulaScale(column), reads, ...(limit === undefined ? {} : { limit }) });
+    const lengths = [column.maxLength, column.validation?.maxLength].filter((n): n is number => typeof n === 'number' && n > 0);
+    const joined = typeof column.formula === 'object' && 'join' in column.formula && lengths.length > 0 ? Math.min(...lengths) : undefined;
+    out.push({
+      column: name,
+      expr: column.formula!,
+      scale: formulaScale(column),
+      reads,
+      ...(limit === undefined ? {} : { limit }),
+      ...(joined === undefined ? {} : { maxLength: joined }),
+    });
   };
   for (const name of byName.keys()) visit(name);
   return out;
@@ -925,7 +965,9 @@ function rollupOf(
  * past invoices keeps INV-0042 as INV-0042.
  */
 export function withoutReadOnly(rules: TableRules | null, values: Row, origin?: WriteOrigin): Row {
-  const dropped = [...(rules?.readOnly ?? []), ...(origin === 'import' ? [] : (rules?.numbered ?? []))];
+  // An import brings in history: a stay's price as it was charged, not today's rates.
+  const imported = origin === 'import' && rules?.perNight !== undefined ? rules.perNight.column : null;
+  const dropped = [...(rules?.readOnly ?? []).filter((column) => column !== imported), ...(origin === 'import' ? [] : (rules?.numbered ?? []))];
   if (!dropped.some((column) => Object.prototype.hasOwnProperty.call(values, column))) return values;
   const out = { ...values };
   for (const column of dropped) delete out[column];
@@ -1076,6 +1118,7 @@ function validationIssue(rules: ColumnValidation, value: unknown): FieldIssue | 
 
 function issueFor(check: ColumnCheck, value: unknown, dialect: Dialect): FieldIssue | null {
   if (value === null || value === undefined) return null;
+  if (check.weekdays === true && weekdaysOf(value) === null) return { code: 'format' };
   if (check.validation !== undefined) {
     const issue = validationIssue(check.validation, value);
     if (issue !== null) return issue;
@@ -1281,7 +1324,154 @@ export function checkRow(
     const given = inputs.filter((column) => Object.prototype.hasOwnProperty.call(values, column));
     for (const column of given.length > 0 ? given : inputs) add(column, { code: 'out-of-range' });
   }
+  // A price by the night the column cannot hold, or a stay too long to price: its dates are named.
+  const priced = rules.perNight;
+  if (priced !== undefined) {
+    for (const [column, issue] of Object.entries(priceIssuesOf(values) ?? {})) add(column, issue);
+    const value = values[priced.column];
+    if (priced.limit !== undefined && value !== null && value !== undefined && !withinLimit(value, priced.limit)) {
+      const given = [priced.from, priced.to, priced.rate.via].filter((column) => Object.prototype.hasOwnProperty.call(values, column));
+      for (const column of given.length > 0 ? given : [priced.to]) add(column, { code: 'out-of-range' });
+    }
+  }
   return issues;
+}
+
+// --- prices by the night, and copies that follow ------------------------------
+
+/** `column.perNight`, resolved against the snapshot: where the night's rate and its adjustments are read. */
+export interface ColumnPerNight {
+  column: string;
+  /** Date columns of the row: the first night, and the day after the last. */
+  from: string;
+  to: string;
+  /** The row's foreign key, the table and key it points at, and the rate column there. */
+  rate: { via: string; table: string; key: string; column: string };
+  adjust?: {
+    table: string;
+    key: string;
+    add: string;
+    name: string;
+    /** A foreign key of the adjustments to the rate's table; empty = every rate. */
+    via?: string;
+    weekdays?: string;
+    from?: string;
+    to?: string;
+    where?: { column: string; eq: string | number | boolean };
+  };
+  scale: Scale;
+  limit?: ColumnFormula['limit'];
+}
+
+/** A copy in another table's rows that follows a column of this table (`copy.follow`). */
+export interface FollowOut {
+  /** The child table's id, and its key. */
+  child: string;
+  childKey: string[];
+  /** The child's foreign key to this table, and this table's column it matches. */
+  via: string;
+  key: string;
+  /** The child's column, and this table's column it copies. */
+  column: string;
+  from: string;
+}
+
+const PRICE_ISSUES = Symbol('adminium.price-issues');
+
+/** What pricing a row by the night refused (a stay too long to price), carried with its values to CHECK. */
+export function attachPriceIssues<T extends Row>(values: T, issues: FieldIssues): T {
+  (values as Record<symbol, unknown>)[PRICE_ISSUES] = issues;
+  return values;
+}
+
+/** {@link attachPriceIssues}'s refusal, or undefined. */
+export function priceIssuesOf(values: Row): FieldIssues | undefined {
+  return (values as Record<symbol, unknown>)[PRICE_ISSUES] as FieldIssues | undefined;
+}
+
+/** A one-column foreign key of `tableId` through the model's relations: the table and key it points at. */
+function linkOf(view: SnapshotView | undefined, tableId: string, column: string): { table: string; key: string } | undefined {
+  const relation = view?.model?.relations.find(
+    (r) => r.through === null && r.from.tableId === tableId && r.from.columns.length === 1 && r.from.columns[0] === column,
+  );
+  return relation === undefined ? undefined : { table: relation.to.tableId, key: relation.to.columns[0] as string };
+}
+
+/** This table's price by the night, resolved; undefined when it has none, or the snapshot lost a link it reads. */
+function perNightOf(target: { view: SnapshotView; table: ResolvedTable }): ColumnPerNight | undefined {
+  const column = (target.table.table?.columns ?? []).find((c) => c.perNight !== undefined);
+  const rule = column?.perNight;
+  if (column === undefined || rule === undefined) return undefined;
+  const rate = linkOf(target.view, target.table.id, rule.rate.via);
+  if (rate === undefined) return undefined;
+  const limit = limitOf(column);
+  const out: ColumnPerNight = {
+    column: column.name,
+    from: rule.from,
+    to: rule.to,
+    rate: { via: rule.rate.via, table: rate.table, key: rate.key, column: rule.rate.column },
+    scale: column.scale ?? column.numericScale ?? 2,
+    ...(limit === undefined ? {} : { limit }),
+  };
+  const adjust = rule.adjust;
+  if (adjust !== undefined) {
+    const table = target.view?.model?.tables.find((t) => t.id === adjust.table);
+    const key = table?.primaryKey?.[0];
+    if (table === undefined || key === undefined) return undefined;
+    out.adjust = {
+      table: adjust.table,
+      key,
+      add: adjust.add,
+      name: adjust.name,
+      ...(adjust.match.via === undefined ? {} : { via: adjust.match.via }),
+      ...(adjust.match.weekdays === undefined ? {} : { weekdays: adjust.match.weekdays }),
+      ...(adjust.match.from === undefined ? {} : { from: adjust.match.from }),
+      ...(adjust.match.to === undefined ? {} : { to: adjust.match.to }),
+      ...(adjust.where === undefined ? {} : { where: adjust.where }),
+    };
+  }
+  return out;
+}
+
+/** The columns of this table a price by the night reads as days of the week (a rate rule's `weekdays`). */
+function weekdayColumns(target: { view: SnapshotView; table: ResolvedTable }): string[] {
+  const out = new Set<string>();
+  for (const table of target.view?.model?.tables ?? []) {
+    for (const column of table.columns ?? []) {
+      const adjust = column.perNight?.adjust;
+      if (adjust?.table === target.table.id && adjust.match.weekdays !== undefined) out.add(adjust.match.weekdays);
+    }
+  }
+  return [...out];
+}
+
+/** The copies in other tables that follow a column of this table's rows. */
+function followsOf(target: { view: SnapshotView; table: ResolvedTable }): FollowOut[] {
+  const out: FollowOut[] = [];
+  for (const table of target.view?.model?.tables ?? []) {
+    for (const column of table.columns ?? []) {
+      const copy = column.copy;
+      if (copy?.follow !== true) continue;
+      const link = linkOf(target.view, table.id, copy.via);
+      if (link === undefined || link.table !== target.table.id) continue;
+      out.push({ child: table.id, childKey: [...(table.primaryKey ?? [])], via: copy.via, key: link.key, column: column.name, from: copy.from });
+    }
+  }
+  return out;
+}
+
+/** The columns whose change can move a followed column: each followed column, and what works it out (its formula's and its price's inputs). */
+function followReadsOf(formulas: readonly ColumnFormula[], perNight: ColumnPerNight | undefined, follows: readonly FollowOut[]): string[] {
+  const out = new Set<string>();
+  const visit = (column: string): void => {
+    if (out.has(column)) return;
+    out.add(column);
+    const formula = formulas.find((f) => f.column === column);
+    for (const read of formula?.reads ?? []) visit(read);
+    if (perNight?.column === column) for (const read of [perNight.from, perNight.to, perNight.rate.via]) visit(read);
+  };
+  for (const follow of follows) visit(follow.from);
+  return [...out];
 }
 
 /**

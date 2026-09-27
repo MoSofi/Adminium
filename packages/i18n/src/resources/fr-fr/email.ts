@@ -137,6 +137,10 @@ export default {
     },
     "unknown": {
       "label": "Section"
+    },
+    "rows": {
+      "label": "Lignes",
+      "hint": "Lignes listées par l'e-mail d'une app"
     }
   },
   "branding": {
@@ -218,6 +222,7 @@ export default {
     "nextOn": "Prochaine le {next} · {note}",
     "loyaltyBalance": "Solde de fidélité",
     "loyaltyLine": "{balance} pts · {level}",
+    "rowsOf": "Lignes de {table} liées à {link}",
     "sections": {
       "branding": "Marque et expéditeur",
       "subject": "Objet et texte d’aperçu",
@@ -347,7 +352,8 @@ export default {
     "finePrint": "Petits caractères",
     "contactName": "Nom du contact",
     "email": "E-mail",
-    "phone": "Téléphone"
+    "phone": "Téléphone",
+    "whenNone": "Quand il n'y en a aucune"
   },
   "group": {
     "languages": "{count, plural, one {# langue} other {# langues}}",

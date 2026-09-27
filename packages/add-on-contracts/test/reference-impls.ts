@@ -642,6 +642,7 @@ const REFERENCE_OUTLINES: Readonly<Record<string, DocumentOutline>> = {
     slots: [
       { id: 'title', label: everyLocale('Title'), type: 'text', required: true },
       { id: 'reference', label: everyLocale('Reference'), type: 'text', required: true },
+      { id: 'code', label: everyLocale('Door code'), type: 'qr', required: false },
     ],
   },
   receipt: {
@@ -769,6 +770,11 @@ export class ReferenceDocumentRenderer implements DocumentRenderer {
       }
       const raw = slot.id === 'issuedAt' ? (subject.fields[slot.id] ?? subject.now.iso) : subject.fields[slot.id];
       if (raw === undefined || raw === null) continue;
+      // A QR code: a provider that draws squares reads `modules`; this one prints the code it carries.
+      if (slot.type === 'qr') {
+        lines.push(`${slot.label['en-US']}: ${(raw as { text: string }).text}`);
+        continue;
+      }
       lines.push(`${slot.label['en-US']}: ${Array.isArray(raw) ? raw.join(', ') : String(raw)}`);
     }
     if (subject.number !== null) lines.push(`No. ${subject.number}`);

@@ -72,9 +72,9 @@ function storedBlocks(blocks: ManifestTemplate['locales'][string]['blocks'], rea
 
 /**
  * The block that lists a linked row's child rows. The manifest's own check
- * proves its shape (`emailRowsDataSchema`); no renderer draws it yet, so the
- * install keeps it and a send leaves it out, as any block the renderer does
- * not know.
+ * proves its shape (`emailRowsDataSchema`) and what each row reads; the
+ * install stores its tables by their real names, and the sender reads the
+ * rows it lists.
  */
 const ROWS_BLOCK = 'email.rows';
 
@@ -119,9 +119,19 @@ export function templateProblems(manifest: Manifest): string[] {
  * day and month and its relative day; a calendar day has no clock, so only
  * its day and month and the days since it.
  */
+const NUMBER_FORMS = ['number', 'percent', 'money'] as const;
 const FORMS_OF: Readonly<Record<string, readonly string[]>> = {
   timestamptz: ['date', 'time', 'day_month', 'relative_day'],
   date: ['day_month', 'days_since'],
+  // A number as a number, a percentage and money, in the message's language.
+  int: NUMBER_FORMS,
+  bigint: NUMBER_FORMS,
+  decimal: NUMBER_FORMS,
+  money: NUMBER_FORMS,
+  float: NUMBER_FORMS,
+  // A choice by its label; a time of day kept as text in the reader's clock.
+  enum: ['label'],
+  text: ['time'],
 };
 const EVERY_FORM = new Set(Object.values(FORMS_OF).flat());
 const orList = (items: string[]): string => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)!}`);

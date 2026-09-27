@@ -32,7 +32,8 @@ export interface OutlineSlot {
     | 'percent'
     | 'currency'
     | 'number'
-    | 'collection';
+    | 'collection'
+    | 'qr';
   required: boolean;
   default?: 'sequence' | 'connection' | 'setting' | 'now';
   columns?: readonly OutlineSlot[];

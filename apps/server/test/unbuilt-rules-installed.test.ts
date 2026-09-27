@@ -21,16 +21,17 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
   }, 180_000);
   afterAll(async () => h?.close());
 
-  it.runIf(available)('refuses writes to a table with one, and leaves a table without one alone', async () => {
+  it.runIf(available)('writes a table whose rules all run now: a price by the night, copies that follow, a joined text', async () => {
     const w = await writerFor(h!);
-    const refused = await w.create('stays', { arrive: '2026-08-01', depart: '2026-08-03' }).catch((error: unknown) => error);
-    expect(refused).toBeInstanceOf(RuleNotBuiltError);
-    expect(refused).toMatchObject({ statusCode: 501, code: 'RULE_NOT_BUILT', details: { table: w.targetOf('stays').table.id } });
-    // A delete breaks no limit: nothing there, nothing refused.
-    await expect(w.writes.delete({ target: w.targetOf('stays'), pk: { id: 999_999 }, context: w.desk, announce: async () => {} })).resolves.toBe(0);
-    // The rate rules carry nothing unbuilt and take a row as before.
-    const made = await w.create('rate_rules', { name: 'August', amount: 20 }).catch((error: unknown) => error);
+    const type = await w.create('room_types', { name: 'Garden', base_rate: 150 });
+    const made = await w
+      .create('stays', { email: 'mia@example.com', first_name: 'Mia', last_name: 'Okada', room_type_id: type['id'], arrive: '2026-08-01', depart: '2026-08-03' })
+      .catch((error: unknown) => error);
     expect(made).not.toBeInstanceOf(RuleNotBuiltError);
+    expect(Number((made as Record<string, unknown>)['room_total'])).toBe(300);
+    await expect(w.writes.delete({ target: w.targetOf('stays'), pk: { id: 999_999 }, context: w.desk, announce: async () => {} })).resolves.toBe(0);
+    const rule = await w.create('rate_rules', { name: 'August', amount: 20 }).catch((error: unknown) => error);
+    expect(rule).not.toBeInstanceOf(RuleNotBuiltError);
   });
 
   it.runIf(available)('serves no entry that uses one, nor any read through it, and keeps the sign-in', async () => {

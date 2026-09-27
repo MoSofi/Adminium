@@ -44,6 +44,7 @@ import type {
   SmtpConfig,
 } from '../email/types.js';
 import type { FileStore } from '../files/store.js';
+import { QR_MAX_BYTES, qrPng } from '../qr/index.js';
 import type { JobHandlerContext, JobRegistry } from './registry.js';
 
 export { EMAIL_SEND_JOB_KIND };
@@ -68,12 +69,12 @@ export type { EmailSendAttachmentRef, EmailSendInlineRef };
  * no attachment or inline references and still deliver.
  */
 export const emailSendPayloadSchema = z.object({
-  v: z.number().int().min(1).max(2),
+  v: z.number().int().min(1).max(3),
   templateKey: z.string().min(1).max(120),
   locale: z.string().min(2).max(35),
   envelope: z.string().min(1),
   attachments: z.array(emailSendAttachmentRefSchema).max(20).optional(),
-  inline: z.array(emailSendInlineRefSchema).max(50).optional(),
+  inline: z.array(emailSendInlineRefSchema).max(60).optional(),
   report: z
     .object({
       app: z.string().min(1).max(64),
@@ -94,6 +95,11 @@ const envelopeSchema = z.object({
   /** A configured sender's `Name <addr>`; absent = the transport's
    * `email.smtp.from`. */
   from: z.string().optional(),
+  /** QR codes the HTML shows (`v: 3`): drawn here, from their text, as PNGs. */
+  qr: z
+    .array(z.object({ cid: z.string().min(1).max(80), text: z.string().min(1).max(QR_MAX_BYTES) }))
+    .max(60)
+    .optional(),
 });
 
 export interface EmailSendHandlerDeps {
@@ -143,6 +149,8 @@ async function readLibraryFile(
 export async function resolveEmailParts(
   deps: EmailSendHandlerDeps,
   refs: { inline?: readonly EmailSendInlineRef[] | undefined; attachments?: readonly EmailSendAttachmentRef[] | undefined },
+  /** QR codes from the sealed envelope: each drawn as a PNG under its `cid`. */
+  qr: readonly { cid: string; text: string }[] = [],
 ): Promise<OutboundAttachment[]> {
   const parts: OutboundAttachment[] = [];
   for (const ref of refs.inline ?? []) {
@@ -154,6 +162,10 @@ export async function resolveEmailParts(
       const file = await readLibraryFile(deps, ref.fileId, ref.cid);
       parts.push({ filename: file.filename, content: file.content, contentType: file.contentType, cid: ref.cid });
     }
+  }
+  // A ticket's QR code, drawn from its text here and nowhere earlier: the PNG is never stored.
+  for (const code of qr) {
+    parts.push({ filename: `${code.cid}.png`, content: qrPng(code.text), contentType: 'image/png', cid: code.cid });
   }
   for (const ref of refs.attachments ?? []) {
     const file = await readLibraryFile(deps, ref.fileId, ref.filename);
@@ -199,7 +211,7 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
     // ids, the message carries content, and a file trashed in between fails
     // the send instead of sending a copy nobody can revoke.
     ctx.progress(25, { step: 'attachments', message: 'reading attachments' });
-    const attachments = await resolveEmailParts(deps, payload);
+    const attachments = await resolveEmailParts(deps, payload, envelope.qr ?? []);
     ctx.progress(50, { step: 'send', message: `sending ${payload.templateKey}` });
     await makeTransport(config).send({
       to: envelope.to,

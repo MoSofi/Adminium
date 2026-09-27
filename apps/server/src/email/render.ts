@@ -8,7 +8,7 @@
  * react + react-dom + @react-email/* onto the server to lay out a closed
  * vocabulary would grow the Docker image and the published npm tarball for a
  * fixed set of kinds. Same taste as the bespoke charts (d3-scale / d3-shape
- * only) and the fetch-only LLM clients. Twenty-six kinds is still closed.
+ * only) and the fetch-only LLM clients. Twenty-seven kinds is still closed.
  *
  * WHY EVERY STYLE IS INLINE. Email HTML is not web HTML. Gmail strips
  * `<style>` blocks in forwarded mail, Outlook's Word engine ignores flexbox,
@@ -25,7 +25,9 @@
  *
  * BLOCK VOCABULARY. Server-owned kinds under an `email.*` prefix — the comp's
  * 24 block types plus two legacy kinds (`email.spacer`, `email.footer`) that
- * stay renderable because seeded rows and every install's edits hold them.
+ * stay renderable because seeded rows and every install's edits hold them,
+ * and `email.rows`, which an app's template lists child rows with (the
+ * sender reads them; a campaign, a test send and a preview have none).
  *
  * THREE COPIES OF THE LIST, AND A GATE HOLDS THEM TOGETHER.
  * `apps/dashboard/src/email/model/blocks.ts` declares the same kinds for the
@@ -67,7 +69,13 @@ import type { EmailBlockStyle, EmailBrand } from '@adminium/meta';
  */
 export type EmailInlineRef =
   | { cid: string; kind: 'mark'; mark: string }
-  | { cid: string; kind: 'file'; fileId: string };
+  | { cid: string; kind: 'file'; fileId: string }
+  /**
+   * A QR code of a code (a ticket's), drawn as a PNG at delivery. Its text is
+   * a door credential: it travels in the sealed envelope, never in the job's
+   * plain payload (`email/send.ts`).
+   */
+  | { cid: string; kind: 'qr'; text: string };
 
 export interface RenderedEmail {
   subject: string;
@@ -110,6 +118,7 @@ export const EMAIL_BLOCK_KINDS = [
   'email.legal',
   'email.refund-policy',
   'email.contact',
+  'email.rows',
 ] as const;
 
 export type EmailBlockKind = (typeof EMAIL_BLOCK_KINDS)[number];
@@ -341,6 +350,10 @@ interface RenderCtx {
   imageFiles: ReadonlySet<string>;
   /** References this render emitted — filled as blocks render. */
   used: EmailInlineRef[];
+  /** The rows each `email.rows` block lists, by the block's id: each row's variables. */
+  rows: Readonly<Record<string, readonly Readonly<Record<string, string>>[]>> | undefined;
+  /** The QR codes drawn so far, by their text: one image per code however often it is shown. */
+  qr: Map<string, string>;
 }
 
 function htmlOf(source: string, ctx: RenderCtx): string {
@@ -497,6 +510,7 @@ function renderBox(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | nu
  * the canvas's dashed placeholder is an authoring aid, not content.
  */
 function renderImage(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | null {
+  if (typeof data['qr'] === 'string' && data['qr'].trim() !== '') return renderQr(data['qr'], ctx, numOr(data['size'], QR_SIZE));
   const alt = strOr(data['alt']);
   const fileId = typeof data['fileId'] === 'string' ? data['fileId'] : '';
   const url = strOr(data['url']).trim();
@@ -513,6 +527,98 @@ function renderImage(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | 
     `<img src="${escapeHtml(src)}" alt="${escapeHtml(textOf(alt, ctx))}" width="100%" ` +
     `style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:10px;">`;
   return { html, text: alt.trim() === '' ? '' : `[${textOf(alt, ctx)}]\n\n` };
+}
+
+/** A QR code's side in the email, in CSS pixels: the PNG is drawn at twice that, so it stays sharp. */
+const QR_SIZE = 116;
+
+/** `{{<name>.qr}}`, the whole value: the QR code of the code `<name>` holds. */
+const QR_VALUE_RE = /^\{\{\s*([A-Za-z0-9_.-]+\.qr)\s*\}\}$/;
+
+/** The `cid:` a QR code of this text travels under in this render: one image per code. */
+function qrCid(text: string, ctx: RenderCtx): string {
+  const known = ctx.qr.get(text);
+  if (known !== undefined) return known;
+  const cid = `qr-${String(ctx.qr.size + 1)}`;
+  ctx.qr.set(text, cid);
+  ctx.used.push({ cid, kind: 'qr', text });
+  return cid;
+}
+
+/**
+ * The cell a QR code sits in: the image by its `cid:`, on white with white
+ * around it (a dark-mode client inverts only what is transparent), its alt
+ * the code itself. Null when the value is not a whole `{{….qr}}`, or nothing
+ * fills it — never a broken image; the sender has already refused to send a
+ * message missing one.
+ */
+function qrCell(source: string, ctx: RenderCtx, size: number): { html: string; text: string } | null {
+  const name = QR_VALUE_RE.exec(source.trim())?.[1];
+  const text = name === undefined ? undefined : ctx.vars[name];
+  if (text === undefined || text.trim() === '') return null;
+  const px = String(Math.min(200, Math.max(80, Math.round(size))));
+  const cid = qrCid(text, ctx);
+  return {
+    html:
+      `<table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td bgcolor="#ffffff" style="padding:8px;background-color:#ffffff;border:1px solid ${PALETTE.rule};border-radius:8px;">` +
+      `<img src="cid:${cid}" width="${px}" height="${px}" alt="${escapeHtml(text)}" style="display:block;border:0;background-color:#ffffff;"></td></tr></table>`,
+    text,
+  };
+}
+
+/** `email.image` holding a QR code (`{"qr": "{{ticket.code.qr}}"}`). */
+function renderQr(source: string, ctx: RenderCtx, size: number): BlockOut | null {
+  const cell = qrCell(source, ctx, size);
+  if (cell === null) return null;
+  return { html: `<table role="presentation" border="0" cellpadding="0" cellspacing="0" align="${ctx.align}"><tr><td>${cell.html}</td></tr></table>`, text: `${cell.text}\n\n` };
+}
+
+/**
+ * `email.rows`: the child rows the sender read for this block (an order's
+ * tickets), one compact line each — a QR code on white when the row's
+ * `image` names one (no image cell at all when it does not), the title and
+ * the meta line, the amount at the far side, a note under them. Each row's
+ * text reads its own `{{row.*}}` beside the message's variables. With no
+ * rows — none to list, or a send that reads none (a campaign, a test send, a
+ * preview) — the block says `empty`, or is left out.
+ */
+function renderRows(data: Record<string, unknown>, id: string | null, ctx: RenderCtx): BlockOut | null {
+  const rows = id === null ? undefined : ctx.rows?.[id];
+  const spec = isRecord(data['row']) ? data['row'] : {};
+  if (rows === undefined || rows.length === 0) {
+    const empty = filledOr(data['empty'], ctx);
+    if (empty === null) return null;
+    return { html: `<p style="margin:0;font-family:${FONT};font-size:1em;line-height:1.6;color:${PALETTE.muted};text-align:${ctx.align};">${multiline(empty, ctx)}</p>`, text: `${textOf(empty, ctx)}\n\n` };
+  }
+  const end = ctx.dir === 'rtl' ? 'left' : 'right';
+  const html: string[] = [];
+  const text: string[] = [];
+  rows.forEach((own, i) => {
+    const row: RenderCtx = { ...ctx, vars: { ...ctx.vars, ...own } };
+    const part = (key: string): string | null => filledOr(spec[key], row);
+    const title = part('title');
+    const meta = part('meta');
+    const amount = part('amount');
+    const note = part('note');
+    const image = typeof spec['image'] === 'string' ? qrCell(spec['image'], row, QR_SIZE) : null;
+    const cells =
+      (image === null ? '' : `<td width="${String(QR_SIZE + 18)}" valign="top" style="width:${String(QR_SIZE + 18)}px;padding-${ctx.dir === 'rtl' ? 'left' : 'right'}:14px;">${image.html}</td>`) +
+      `<td valign="top" style="font-family:${FONT};font-size:12px;line-height:1.5;color:${PALETTE.muted};text-align:${ctx.align};">` +
+      (title === null ? '' : `<div style="font-size:13.5px;font-weight:700;color:${PALETTE.heading};">${htmlOf(title, row)}</div>`) +
+      (meta === null ? '' : `<div>${htmlOf(meta, row)}</div>`) +
+      (note === null ? '' : `<div style="margin-top:4px;color:${PALETTE.body};">${multiline(note, row)}</div>`) +
+      `</td>` +
+      (amount === null ? '' : `<td align="${end}" valign="top" style="padding-${ctx.dir === 'rtl' ? 'right' : 'left'}:10px;font-family:${MONO};font-size:13px;font-weight:700;color:${PALETTE.heading};white-space:nowrap;">${htmlOf(amount, row)}</td>`);
+    html.push(
+      `<tr><td style="padding:12px 0;${i === 0 ? '' : `border-top:1px solid ${PALETTE.rule};`}"><table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;"><tr>${cells}</tr></table></td></tr>`,
+    );
+    const line = [title, meta, amount].filter((value): value is string => value !== null).map((value) => textOf(value, row));
+    text.push(`• ${line.join(' — ')}${note === null ? '' : `\n  ${textOf(note, row)}`}`);
+  });
+  return {
+    html: `<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;border-collapse:collapse;">${html.join('')}</table>`,
+    text: `${text.join('\n')}\n\n`,
+  };
 }
 
 function renderTwoCol(data: Record<string, unknown>, ctx: RenderCtx): BlockOut | null {
@@ -797,7 +903,7 @@ function renderDelivery(data: Record<string, unknown>, ctx: RenderCtx): BlockOut
   return { html, text: `${kickerText(kicker, ctx)}${text}\n\n` };
 }
 
-function renderBlock(kind: EmailBlockKind, data: Record<string, unknown>, ctx: RenderCtx): BlockOut | null {
+function renderBlock(kind: EmailBlockKind, data: Record<string, unknown>, ctx: RenderCtx, id: string | null = null): BlockOut | null {
   switch (kind) {
     case 'email.heading':
       return renderHeading(data, ctx);
@@ -851,6 +957,8 @@ function renderBlock(kind: EmailBlockKind, data: Record<string, unknown>, ctx: R
       return renderTitledText(data, ctx, false);
     case 'email.contact':
       return renderContact(data, ctx);
+    case 'email.rows':
+      return renderRows(data, id, ctx);
   }
 }
 
@@ -965,6 +1073,12 @@ export interface RenderEmailInput {
   /** The Files images delivery can attach by CID; an image block naming any
    * other id falls back to its URL. */
   imageFiles?: ReadonlySet<string> | undefined;
+  /**
+   * The rows each `email.rows` block lists, by the block's id, as the sender
+   * read them: each row's `{{row.*}}` variables. Absent (a campaign, a test
+   * send, a preview): every such block says its `empty`, or is left out.
+   */
+  rows?: Readonly<Record<string, readonly Readonly<Record<string, string>>[]>> | undefined;
 }
 
 /** `brand` from a row + the workspace defaults → what {@link renderEmail} takes. */
@@ -1001,6 +1115,8 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
     accent,
     imageFiles: input.imageFiles ?? new Set(),
     used: [],
+    rows: input.rows,
+    qr: new Map(),
   };
 
   const rows: string[] = [];
@@ -1011,7 +1127,7 @@ export function renderEmail(input: RenderEmailInput): RenderedEmail {
     const kind = entry['block'];
     if (!isEmailBlockKind(kind)) continue; // forward-compatible: skip, never throw
     const data = isRecord(entry['data']) ? entry['data'] : {};
-    const out = renderBlock(kind, data, ctx);
+    const out = renderBlock(kind, data, ctx, typeof entry['id'] === 'string' ? entry['id'] : null);
     if (out === null) continue;
     const style = isRecord(entry['style']) ? (entry['style'] as EmailBlockStyle) : {};
     rows.push(wrapBlock(out, style, first, ctx));

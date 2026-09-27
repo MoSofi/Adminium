@@ -43,7 +43,9 @@ import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
 import { DocumentReadError, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
 import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type BalanceAfter, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
-import type { ProfileMapping, SlotMapping } from './subject.js';
+import { LIST_KEY, type CollectionSource, type NightlySource, type ProfileMapping, type SlotMapping } from './subject.js';
+import { tableRulesFor } from '../crud/column-rules.js';
+import { storedNights } from '../crud/per-night.js';
 
 // The filter type lives with the renderer, which reads it too; importers still find it here.
 export type { ReadFilter } from './render.js';
@@ -183,6 +185,85 @@ async function readLines(
     if (page.length < LINES_PAGE) break;
   }
   return rows;
+}
+
+/** How a list of names one level below a line is printed: "Farro · Grilled chicken · Avocado". */
+const NAMES_SEPARATOR = ' · ';
+
+/**
+ * The names each line lists one level below it (a dish's options), read in
+ * one query per list for every line at once, in the list's order then by
+ * key, and put on each line as one text (see `LIST_KEY`).
+ */
+async function addLists(
+  db: Kysely<SourceDatabase>,
+  view: SnapshotView,
+  child: ResolvedTable,
+  lines: Record<string, unknown>[],
+  lists: CollectionSource['lists'],
+): Promise<void> {
+  const key = child.primaryKey[0];
+  if (lists === undefined || key === undefined || lines.length === 0) return;
+  for (const [slotColumn, list] of Object.entries(lists)) {
+    let table: ResolvedTable;
+    try {
+      table = view.table(list.table);
+    } catch {
+      continue;
+    }
+    const names = new Map<string, string[]>();
+    const keys = [...new Set(lines.map((line) => line[key]).filter((value) => value !== null && value !== undefined))];
+    for (let at = 0; at < keys.length; at += LINES_PAGE) {
+      let query = db
+        .selectFrom(table.id as never)
+        .select([list.fkColumn, list.column] as never)
+        .where(list.fkColumn as never, 'in', keys.slice(at, at + LINES_PAGE) as never);
+      if (list.orderBy !== undefined && table.columns.has(list.orderBy)) query = query.orderBy(list.orderBy as never, 'asc');
+      for (const pk of table.primaryKey) query = query.orderBy(pk as never, 'asc');
+      for (const row of (await query.execute()) as Record<string, unknown>[]) {
+        const name = row[list.column];
+        if (name === null || name === undefined || String(name).trim() === '') continue;
+        const owner = String(row[list.fkColumn]);
+        names.set(owner, [...(names.get(owner) ?? []), String(name).trim()]);
+      }
+    }
+    for (const line of lines) line[LIST_KEY(slotColumn)] = (names.get(String(line[key])) ?? []).join(NAMES_SEPARATOR);
+  }
+}
+
+/**
+ * A price by the night's nights as a document's lines, keyed by the slot's
+ * own columns: a night's `date`, `rate`, `base`, `qty` (1) and `tags`, or a
+ * column of the row the rate comes from (`room_type_id.name`). When the rates
+ * changed after the stay was priced, one line instead: the first night, the
+ * nights as its quantity, no rate — and the stored figure as its `amount` —
+ * so the folio never prints lines that disagree with its total.
+ */
+async function nightlyLines(
+  db: Kysely<SourceDatabase>,
+  view: SnapshotView,
+  table: ResolvedTable,
+  stored: Readonly<Record<string, unknown>>,
+  source: NightlySource,
+  currency: string | null,
+): Promise<Record<string, unknown>[]> {
+  const rules = tableRulesFor({ view, table });
+  if (rules?.perNight?.column !== source.column) throw new DocumentReadError(`${table.name}.${source.column} is not priced by the night`);
+  const extra = Object.values(source.columns)
+    .filter((column) => column.includes('.'))
+    .map((column) => column.split('.')[1]!);
+  const nights = await storedNights(db, rules, stored as Record<string, unknown>, currency, extra);
+  return nights.lines.map((line) => {
+    const out: Record<string, unknown> = {};
+    for (const [slotColumn, pseudo] of Object.entries(source.columns)) {
+      if (pseudo.includes('.')) out[slotColumn] = line.columns[pseudo.split('.')[1]!] ?? null;
+      else if (pseudo === 'tags') out[slotColumn] = line.tags.join(NAMES_SEPARATOR);
+      else if (pseudo === 'rate' && nights.stale) out[slotColumn] = slotColumn === 'amount' ? line.amount : null;
+      else out[slotColumn] = line[pseudo as 'date' | 'rate' | 'base' | 'qty'] ?? null;
+    }
+    if (nights.stale && !('amount' in out)) out['amount'] = line.amount;
+    return out;
+  });
 }
 
 /** The row's own currency when it has a `currency` column holding a code; else null. */
@@ -455,23 +536,43 @@ export async function readProfileSource(input: {
   const mapping = profile.mapping as ProfileMapping;
   const collections: Record<string, readonly Record<string, unknown>[]> = {};
   const parentKey = table.primaryKey[0];
-  for (const [slotId, mapped] of Object.entries(mapping)) {
-    if (!('collection' in mapped) || parentKey === undefined) continue;
+  /** One child-row source's lines, with the names each lists one level below it. */
+  const linesOf = async (source: CollectionSource): Promise<{ child: ResolvedTable; lines: Record<string, unknown>[] } | null> => {
     let child: ResolvedTable;
     try {
-      child = view.table(mapped.collection.table);
+      child = view.table(source.table);
     } catch {
+      return null;
+    }
+    const lines = await readLines(db, child, source.fkColumn, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source);
+    await addLists(db, view, child, lines, source.lists);
+    return { child, lines };
+  };
+  for (const [slotId, mapped] of Object.entries(mapping)) {
+    if (parentKey === undefined) continue;
+    if ('collection' in mapped) {
+      const read = await linesOf(mapped.collection);
+      if (read !== null) collections[slotId] = read.lines;
       continue;
     }
-    collections[slotId] = await readLines(
-      db,
-      child,
-      mapped.collection.fkColumn,
-      row[parentKey],
-      mapped.collection.orderBy ?? profile.orderBy ?? null,
-      dialect,
-      mapped.collection,
-    );
+    if (!('sources' in mapped)) continue;
+    // Several sources, read in order and put in the slot's own columns (a folio's nights, then its extras, then its charges).
+    const out: Record<string, unknown>[] = [];
+    for (const source of mapped.sources) {
+      if ('nightly' in source) {
+        out.push(...(await nightlyLines(db, view, table, stored, source.nightly, rowCurrency(table, row) ?? facts.currency)));
+      } else {
+        const read = await linesOf(source.collection);
+        for (const line of read?.lines ?? []) {
+          const keyed: Record<string, unknown> = line['id'] === undefined ? {} : { id: line['id'] };
+          for (const [slotColumn, column] of Object.entries(source.collection.columns)) keyed[slotColumn] = line[column];
+          for (const slotColumn of Object.keys(source.collection.lists ?? {})) keyed[slotColumn] = line[LIST_KEY(slotColumn)];
+          out.push(keyed);
+        }
+      }
+      if (out.length > DOCUMENT_MAX_LINES) throw new DocumentReadError(`more than ${String(DOCUMENT_MAX_LINES)} lines in ${slotId}`);
+    }
+    collections[slotId] = out;
   }
 
   const options = profile.options as ProfileOptions;

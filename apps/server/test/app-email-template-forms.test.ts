@@ -105,7 +105,7 @@ describe('which variable forms a template may read', () => {
       'The email "bills-sent" (en-US) reads {{invoice.client.since.date}}, which nothing fills: clients.since is a date column, read as {{invoice.client.since}}, {{invoice.client.since.day_month}} or {{invoice.client.since.days_since}}.',
       'The email "bills-sent" (en-US) reads {{client.since.relative_day}}, which nothing fills: clients.since is a date column, read as {{client.since}}, {{client.since.day_month}} or {{client.since.days_since}}.',
       'The email "bills-sent" (en-US) reads {{practice.opened_on.time}}, which nothing fills: settings.opened_on is a date column, read as {{practice.opened_on}}, {{practice.opened_on.day_month}} or {{practice.opened_on.days_since}}.',
-      'The email "bills-sent" (en-US) reads {{invoice.number.days_since}}, which nothing fills: invoices.number is a text column, read as {{invoice.number}}.',
+      'The email "bills-sent" (en-US) reads {{invoice.number.days_since}}, which nothing fills: invoices.number is a text column, read as {{invoice.number}} or {{invoice.number.time}}.',
       'The email "bills-sent" (en-US) reads {{invoice.sent_at.days_since}}, which nothing fills: invoices.sent_at is a timestamptz column, read as {{invoice.sent_at}}, {{invoice.sent_at.date}}, {{invoice.sent_at.time}}, {{invoice.sent_at.day_month}} or {{invoice.sent_at.relative_day}}.',
     ]);
   });

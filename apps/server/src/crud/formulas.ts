@@ -85,7 +85,9 @@ export function evaluateAll(
   const working: Row = { ...row };
   const out: Row = {};
   for (const formula of formulas) {
-    const value = evaluateFormula(formula.expr, working, placesFor(formula.scale, working, currencyColumn, connectionCurrency));
+    const worked = evaluateFormula(formula.expr, working, placesFor(formula.scale, working, currencyColumn, connectionCurrency));
+    // A joined text longer than its column holds is cut to it (by characters), never refused: a long name is still a name.
+    const value = formula.maxLength !== undefined && worked !== null && [...worked].length > formula.maxLength ? [...worked].slice(0, formula.maxLength).join('').trimEnd() : worked;
     working[formula.column] = value;
     out[formula.column] = value;
   }

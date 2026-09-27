@@ -229,3 +229,33 @@ export function DeliveryPreview({ block }: BlockPreviewProps) {
     </>
   );
 }
+
+/**
+ * An app's list of rows: the rows are read when the email is sent, so the
+ * canvas shows two sample lines with the variables each will read — a QR
+ * code's square where the line has one — and which rows it lists.
+ */
+export function RowsPreview({ block }: BlockPreviewProps) {
+  const from = typeof block.data['from'] === 'object' && block.data['from'] !== null ? (block.data['from'] as Record<string, unknown>) : {};
+  const line = typeof block.data['row'] === 'object' && block.data['row'] !== null ? (block.data['row'] as Record<string, unknown>) : {};
+  const table = str(from['table']).split('.').pop() ?? '';
+  const qr = str(line['image']) !== '';
+  return (
+    <>
+      <Kicker text={t('email:canvas.rowsOf', 'Rows of {table} for this {link}', { table, link: str(from['link']) })} />
+      <div className="overflow-hidden rounded-[10px] border border-[#ececef]">
+        {[0, 1].map((index) => (
+          <div key={index} className="flex items-start gap-3 border-b border-[#ececef] px-3 py-2.5 last:border-b-0">
+            {qr ? <div className="size-[46px] shrink-0 rounded-md border border-[#ececef] bg-white bg-[repeating-linear-gradient(45deg,#17171c_0_2px,#fff_2px_5px)] opacity-60" aria-hidden="true" /> : null}
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-mono text-[12px] font-bold text-[#17171c]">{str(line['title'])}</div>
+              <div className="truncate font-mono text-[11px] text-[#6b6b76]">{str(line['meta'])}</div>
+              {str(line['note']) === '' ? null : <div className="truncate font-mono text-[11px] text-[#55555f]">{str(line['note'])}</div>}
+            </div>
+            {str(line['amount']) === '' ? null : <span className="font-mono text-[12px] font-bold text-[#17171c]">{str(line['amount'])}</span>}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}

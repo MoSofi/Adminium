@@ -34,11 +34,13 @@ import {
   PASSWORD_RESET_TEMPLATE_KEY,
   configureEmailRuntime,
   enqueueEmail,
+  enqueueRenderedEmail,
   isEmailConfigured,
   resetEmailRuntime,
 } from '../src/email/send.js';
 import type { EmailTransport, OutboundEmail, SmtpConfig } from '../src/email/types.js';
-import { registerEmailSendHandler } from '../src/jobs/email-send.js';
+import { emailSendPayloadSchema, registerEmailSendHandler } from '../src/jobs/email-send.js';
+import { readQrPng } from './qr-decode.helpers.js';
 import { notify } from '../src/notifications/notify.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
@@ -506,7 +508,7 @@ describe('email.send delivers attachments and inline parts as bytes', () => {
     );
     expect(job).not.toBeNull();
     const payload = job?.payload as { v: number; attachments: unknown[]; inline: unknown[] };
-    expect(payload.v).toBe(2);
+    expect(payload.v).toBe(3);
     expect(payload.attachments).toEqual([{ fileId, filename: 'receipt.pdf' }]);
     expect(payload.inline).toEqual([{ cid: 'mark', kind: 'mark', mark: 'hexagon' }]);
     // The row never holds bytes.
@@ -549,6 +551,53 @@ describe('email.send delivers attachments and inline parts as bytes', () => {
     );
     expect((job?.payload as { attachments: unknown[] }).attachments).toHaveLength(1);
     expect(warnings.filter((w) => w.includes('generated attachment'))).toHaveLength(1);
+  });
+
+  it('seals a QR code in the envelope (v3), draws it as an inline PNG at delivery, and still delivers a v2 row', async () => {
+    const qr = await enqueueRenderedEmail(
+      { meta, secret: TEST_SECRET },
+      {
+        to: 'ava@example.com',
+        templateKey: 'events-e1',
+        locale: 'en_US',
+        rendered: { subject: 'Your ticket', html: '<img src="cid:qr-1">', text: 'K7QX-M2PD', inline: [{ cid: 'qr-1', kind: 'qr', text: 'K7QX-M2PD' }] },
+      },
+    );
+    const payload = qr?.payload as { v: number; inline?: unknown[] };
+    expect(payload.v).toBe(3);
+    // The code is a door credential: the plain payload never carries it.
+    expect(payload.inline).toBeUndefined();
+    expect(JSON.stringify((await jobRows(meta))[0]?.payload)).not.toContain('K7QX');
+    // A row an older server queued (v2) still goes.
+    await enqueueRenderedEmail({ meta, secret: TEST_SECRET }, { to: 'bo@example.com', templateKey: 'older', locale: 'en_US', rendered: { subject: 'Older', html: '<p>x</p>', text: 'x', inline: [] } });
+    const older = (await jobRows(meta)).find((row) => String(row.payload).includes('"older"'))!;
+    await meta.db
+      .updateTable('adminium_jobs')
+      .set({ payload: JSON.stringify({ ...(JSON.parse(String(older.payload)) as Record<string, unknown>), v: 2 }) } as never)
+      .where('id', '=', older.id)
+      .execute();
+
+    const transport = recordingTransport();
+    const { worker, hub } = runWorker(transport, { storage });
+    worker.start();
+    try {
+      await until(() => transport.sent.length === 2);
+    } finally {
+      await worker.stop();
+      hub.close();
+    }
+    const ticket = transport.sent.find((msg) => msg.subject === 'Your ticket')!;
+    expect(ticket.attachments?.map((a) => ({ filename: a.filename, cid: a.cid, contentType: a.contentType }))).toEqual([{ filename: 'qr-1.png', cid: 'qr-1', contentType: 'image/png' }]);
+    expect(readQrPng(ticket.attachments![0]!.content)).toBe('K7QX-M2PD');
+    expect(transport.sent.some((msg) => msg.subject === 'Older')).toBe(true);
+  });
+
+  it('takes up to 60 inline images in the plain payload, and no more', () => {
+    const inline = (n: number) => Array.from({ length: n }, (_, i) => ({ cid: `img-${String(i)}`, kind: 'file' as const, fileId: `file_${String(i)}` }));
+    const payload = (n: number) => ({ v: 3, templateKey: 'k', locale: 'en_US', envelope: 'enc:v1:x', inline: inline(n) });
+    expect(emailSendPayloadSchema.safeParse(payload(60)).success).toBe(true);
+    expect(emailSendPayloadSchema.safeParse(payload(61)).success).toBe(false);
+    expect(emailSendPayloadSchema.safeParse({ ...payload(1), v: 4 }).success).toBe(false);
   });
 
   it('a trashed file makes the handler throw with the filename (the dead-letter path)', async () => {
