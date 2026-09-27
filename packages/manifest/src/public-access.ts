@@ -387,6 +387,12 @@ const findOrCreateSchema = z
       .record(refSchema, refSchema)
       .refine((fill) => Object.keys(fill).length <= 4, { message: 'a new person is filled from at most four columns' })
       .optional(),
+    /**
+     * On a change through the row's own link: find the person only on the
+     * save that moves the row to this state (a ticket accepted), not on every
+     * save made while the row has no person.
+     */
+    on: z.object({ to: z.string().min(1).max(64) }).strict().optional(),
   })
   .strict();
 
@@ -1707,6 +1713,19 @@ function personIssues(
         out.push({ path: at('methods'), message: 'a person is found by address on a create alone, or on a change through the row\'s own link' });
       }
       if (!change && entry.claim !== undefined) out.push({ path: at('identity'), message: 'an identity entry claims its person; it does not find one by address' });
+      if (id.on !== undefined) {
+        const states = table.states;
+        const stateColumn = states === undefined ? undefined : ruledColumn(index, entry.table, states.column);
+        if (!change) out.push({ path: here('on'), message: 'a create finds its person when it is made; "on" names the move of a change through the row\'s own link' });
+        else if (states === undefined || stateColumn === undefined) out.push({ path: here('on'), message: `"${entry.table}" has no states, so no move finds the person` });
+        else {
+          if (!valueFits(stateColumn, id.on.to)) out.push({ path: here('on', 'to'), message: `"${id.on.to}" is not a state of "${entry.table}.${states.column}"` });
+          const values = entry.writableValues?.[states.column];
+          if (!writable.includes(states.column) || (values !== undefined && !values.includes(id.on.to))) {
+            out.push({ path: here('on', 'to'), message: `this entry never moves "${entry.table}" to "${id.on.to}", so the person would never be found` });
+          }
+        }
+      }
       if (entry.visibleWith !== undefined) out.push({ path: at('identity'), message: 'a row visible with a parent belongs to the parent\'s person; it does not find one by address' });
       // The person signs in by a link to that address: on this key, or (for an own link) on any of the app's keys.
       const signIn = change

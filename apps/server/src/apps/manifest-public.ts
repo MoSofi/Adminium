@@ -329,6 +329,8 @@ function definitionOf(
             email: entry.identity.email,
             link: entry.identity.link,
             ...(entry.identity.fill === undefined ? {} : { fill: { ...entry.identity.fill } }),
+            // Found only on the save that moves the row to this state (the table's state column, by name).
+            ...(entry.identity.on === undefined || declared?.states === undefined ? {} : { on: { column: declared.states.column, to: entry.identity.on.to } }),
           },
         }),
     ...(entry.shareLink === undefined ? {} : { share_link: { column: entry.shareLink, key: person?.shareKey ?? 'customer' } }),

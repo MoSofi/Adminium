@@ -242,6 +242,8 @@ const findOrCreateSchema = z
     email: columnSchema,
     link: columnSchema,
     fill: z.record(columnSchema, columnSchema).optional(),
+    /** On a change through the row's own link: only the save that moves `column` to `to` finds the person. */
+    on: z.object({ column: columnSchema, to: z.string().min(1).max(64) }).strict().optional(),
   })
   .strict();
 
@@ -559,7 +561,13 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.client_key !== undefined) out['client_key'] = def.client_key;
   if (def.find_or_create !== undefined) {
     const f = def.find_or_create;
-    out['find_or_create'] = { identity_ref: f.identity_ref, email: f.email, link: f.link, ...(f.fill === undefined ? {} : { fill: { ...f.fill } }) };
+    out['find_or_create'] = {
+      identity_ref: f.identity_ref,
+      email: f.email,
+      link: f.link,
+      ...(f.fill === undefined ? {} : { fill: { ...f.fill } }),
+      ...(f.on === undefined ? {} : { on: { column: f.on.column, to: f.on.to } }),
+    };
   }
   if (def.share_link !== undefined) out['share_link'] = { column: def.share_link.column, key: def.share_link.key };
   if (def.session_only !== undefined) out['session_only'] = def.session_only;
@@ -862,7 +870,7 @@ export function definitionToResource(
   if (def.client_key !== undefined) resource.clientKey = def.client_key;
   if (def.find_or_create !== undefined) {
     const f = def.find_or_create;
-    resource.findOrCreate = { identityRef: f.identity_ref, email: f.email, link: f.link, ...(f.fill === undefined ? {} : { fill: { ...f.fill } }) };
+    resource.findOrCreate = { identityRef: f.identity_ref, email: f.email, link: f.link, ...(f.fill === undefined ? {} : { fill: { ...f.fill } }), ...(f.on === undefined ? {} : { on: { ...f.on } }) };
   }
   if (def.share_link !== undefined) resource.shareLink = { ...def.share_link };
   if (def.session_only !== undefined) resource.sessionOnly = true;
@@ -1527,6 +1535,9 @@ function treeAndPersonIssues(
     const onlyCreate = def.methods.length === 1 && creates;
     if (!onlyCreate && !onChange) push('ENDPOINT_FIND_OR_CREATE_SHAPE', 'a person is found by address on a create alone (or a change through the row\'s own link)');
     if (methods.has('BATCH')) push('ENDPOINT_FIND_OR_CREATE_SHAPE', 'a person found by address is never batched');
+    if (f.on !== undefined && (!onChange || !table.columns.has(f.on.column) || !(def.writable ?? []).includes(f.on.column))) {
+      push('ENDPOINT_FIND_OR_CREATE_SHAPE', `a person is found on a move to "${f.on.to}" only by a change through the row's own link that writes "${f.on.column}"`, f.on.column);
+    }
     if (!onChange && (def.claim?.column !== f.link || def.claim.optional !== true)) {
       push('ENDPOINT_FIND_OR_CREATE_SHAPE', `a signed-in create links its person as before: claim { column: "${f.link}", optional: true }`, f.link);
     }

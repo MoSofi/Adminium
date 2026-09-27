@@ -3,6 +3,8 @@
  * The public side's later vocabulary, each rule broken once on a manifest
  * that otherwise validates and read back as the sentence it gives.
  */
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { validateManifest } from '../src/index.js';
@@ -70,5 +72,34 @@ describe('personal data on an entry anyone may call', () => {
     const mine = entryOf(m, 'orders', 'GET');
     mine['select'] = [...(mine['select'] as string[]), 'phone', 'email'];
     expect(messages(m)).toEqual([]);
+  });
+});
+
+describe("a person found on a change through the row's own link, on one move", () => {
+  const fixture = () => JSON.parse(readFileSync(new URL('./fixtures/ticket-transfer.manifest.json', import.meta.url), 'utf8')) as Doc;
+  const accept = (m: Doc) => (m['publicAccess'] as Doc[]).find((e) => e['key'] === 'ticket')!;
+  const identity = (m: Doc) => accept(m)['identity'] as Doc;
+
+  it('validates on the accept move, and is kept', () => {
+    const m = fixture();
+    expect(messages(m)).toEqual([]);
+    const result = validateManifest(m);
+    if (!result.ok || result.manifest.kind !== 'app') throw new Error('invalid');
+    expect(result.manifest.publicAccess!.find((e) => e.key === 'ticket')!.identity?.on).toEqual({ to: 'valid' });
+  });
+
+  it('names a state of the table the entry moves the row to', () => {
+    const m = fixture();
+    identity(m)['on'] = { to: 'gone' };
+    expect(issuesText(m)).toContain('"gone" is not a state of "tickets.status"');
+    const n = fixture();
+    identity(n)['on'] = { to: 'checked_in' };
+    expect(issuesText(n)).toContain('this entry never moves "tickets" to "checked_in", so the person would never be found');
+  });
+
+  it('is never on a create', () => {
+    const m = kitchen();
+    (create(m)['identity'] as Doc)['on'] = { to: 'placed' };
+    expect(issuesText(m)).toContain('a create finds its person when it is made');
   });
 });

@@ -162,6 +162,7 @@ import { blankWithheld, sessionReader, withholding, withholdRulesOf, type TableW
 import { recentWithholdsOn, withholdsOn } from '../../public-api/withholds-on.js';
 import { chargeChange, notPlainChange } from '../../public-api/change-limits.js';
 import { PersonRaced, PersonRefused, PersonTableUnusable, checkPerson, personLocks, resolvePerson } from '../../crud/person.js';
+import { sameValue } from '../../crud/write-values.js';
 import { privilegesOf } from '../../connections/privileges.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
@@ -3030,12 +3031,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
            * and was sent to someone else) makes nobody, and links nobody.
            */
           const granted = (ok.session?.grant as Partial<TokenGrant> | undefined)?.addresses;
+          /*
+           * Found only on the save that makes the move it names (a ticket
+           * accepted): any other save while the row has no person — a note, a
+           * name — finds and makes nobody.
+           */
+          const moving = finder.on === undefined || (sameValue(finder.on.to, values[finder.on.column]) && !sameValue(finder.on.to, stored?.[finder.on.column]));
           if (stored !== null && (linked === null || linked === undefined) && addresses.length > 0 && plausibleAddress(address) && (ok.session?.kind !== 'token' || !Array.isArray(granted) || !granted.includes(grantAddress(address)))) {
             request.log.warn({ ref: request.params.ref }, 'a change through an own link names an address the link was not opened for');
             await releaseLimits?.();
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
-          if (quote === 'dry' && stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
+          if (!moving) {
+            // Nothing to find: the save goes on as any other change of the row.
+          } else if (quote === 'dry' && stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
             try {
               const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
               await checkPerson({ writes, identity: { ...target, table: people.table, rights: tableRights }, email: people.email, address, fill: fillOf(finder, { ...stored, ...values }), context });

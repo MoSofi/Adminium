@@ -442,7 +442,14 @@ const resourceSchema = z
     clientKey: columnSchema.optional(),
     /** The person a create finds by address, or makes. */
     findOrCreate: z
-      .object({ identityRef: refSchema, email: columnSchema, link: columnSchema, fill: z.record(columnSchema, columnSchema).optional() })
+      .object({
+        identityRef: refSchema,
+        email: columnSchema,
+        link: columnSchema,
+        fill: z.record(columnSchema, columnSchema).optional(),
+        /** Found only on the save that moves `column` to `to` (a change through the row's own link). */
+        on: z.object({ column: columnSchema, to: z.string().min(1).max(64) }).strict().optional(),
+      })
       .strict()
       .optional(),
     /** The new row's own link, answered once by its create. */
@@ -681,7 +688,7 @@ export interface CompiledResource {
   dryRun?: boolean | undefined;
   expect?: string | null | undefined;
   clientKey?: string | null | undefined;
-  findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>> } | null | undefined;
+  findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>>; on?: { column: string; to: string } | undefined } | null | undefined;
   shareLink?: { column: string; key: string } | null | undefined;
   sessionOnly?: boolean | undefined;
   forget?: { columns: readonly string[]; stamp?: string | undefined } | null | undefined;

@@ -94,7 +94,7 @@ describe.each(LEGS)('a ticket sent to a friend, kept through install on %s', (di
     expect(order.definition.identity?.address).toEqual(['email']);
     expect(printDefinition(order.definition)).toBe(order.text);
     // The friend's accept finds their person by the address the link went to.
-    expect(ticket.definition.find_or_create).toMatchObject({ email: 'pending_email', link: 'holder_customer_id' });
+    expect(ticket.definition.find_or_create).toMatchObject({ email: 'pending_email', link: 'holder_customer_id', on: { column: 'status', to: 'valid' } });
   });
 
   it.skipIf(!available)('keeps the columns withheld from rows read through a parent, in the stored text', () => {
