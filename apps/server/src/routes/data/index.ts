@@ -2714,7 +2714,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const limitedRows = children.some((requested) =>
             requested.rows.some((row) => batchNeedsGuard(childTargetOf(ctx, requested.child, ctx.db), row.key === undefined ? 'create' : 'update', row.values)),
           );
-          if (limitedRows || batchNeedsGuard(ctx.target, 'update', values)) {
+          // So is a record whose change is settled inside its own write (a stay's dates, under its extras and its balance).
+          if (limitedRows || batchNeedsGuard(ctx.target, 'update', values) || writes.settlesInside(ctx.target, values, before)) {
             let childWrites: UndoChildren[] = [];
             let childEvents: ChildEvent[] = [];
             let childEffects: EffectWritten[] = [];
