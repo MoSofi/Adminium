@@ -672,6 +672,12 @@ export default {
         "left": "剩余 {left}",
         "taken": "已占 {taken}/{size}",
         "takenOnly": "已占 {taken}"
+      },
+      "capacityBar": {
+        "takenOnly": "已占 {taken}",
+        "label": "已占 {taken}/{size}，剩余 {left}",
+        "labelHeld": "已占 {taken}/{size}，保留 {held}，剩余 {left}",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1963,7 +1969,29 @@ export default {
     "renderError": "此小组件渲染失败。",
     "refreshing": "正在刷新",
     "infoLabel": "小组件信息",
-    "menuLabel": "小组件菜单"
+    "menuLabel": "小组件菜单",
+    "showData": "显示数据",
+    "hideData": "隐藏数据",
+    "data": {
+      "period": "时段",
+      "value": "数值",
+      "prior": "上一时段",
+      "category": "类别",
+      "share": "占比",
+      "row": "行",
+      "from": "从",
+      "to": "到",
+      "min": "最低",
+      "q1": "下四分位",
+      "median": "中位数",
+      "q3": "上四分位",
+      "max": "最高",
+      "open": "开盘",
+      "high": "最高",
+      "low": "最低",
+      "close": "收盘",
+      "place": "地点"
+    }
   },
   "charts": {
     "livePillLabel": "实时",

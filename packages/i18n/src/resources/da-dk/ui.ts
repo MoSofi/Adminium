@@ -672,6 +672,12 @@ export default {
         "left": "{left} tilbage",
         "taken": "{taken} af {size} optaget",
         "takenOnly": "{taken} optaget"
+      },
+      "capacityBar": {
+        "takenOnly": "{taken} optaget",
+        "label": "{taken} af {size} optaget, {left} tilbage",
+        "labelHeld": "{taken} af {size} optaget, {held} holdt, {left} tilbage",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1963,7 +1969,29 @@ export default {
     "renderError": "Denne widget kunne ikke vises.",
     "refreshing": "Opdaterer",
     "infoLabel": "Widget-info",
-    "menuLabel": "Widget-menu"
+    "menuLabel": "Widget-menu",
+    "showData": "Vis data",
+    "hideData": "Skjul data",
+    "data": {
+      "period": "Periode",
+      "value": "Værdi",
+      "prior": "Perioden før",
+      "category": "Kategori",
+      "share": "Andel",
+      "row": "Række",
+      "from": "Fra",
+      "to": "Til",
+      "min": "Laveste",
+      "q1": "Nedre kvartil",
+      "median": "Median",
+      "q3": "Øvre kvartil",
+      "max": "Højeste",
+      "open": "Åbning",
+      "high": "Høj",
+      "low": "Lav",
+      "close": "Lukning",
+      "place": "Sted"
+    }
   },
   "charts": {
     "livePillLabel": "Live",

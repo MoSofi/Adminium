@@ -340,6 +340,18 @@ describe('draftIsLossy', () => {
     ).toBe(true);
   });
 
+  it('flags filters joined by or / and, which the form cannot show, and leaves them out of the draft', () => {
+    const grouped: QueryDescriptor = {
+      ...base,
+      filters: [
+        { column: 'active', op: 'eq', value: true },
+        { or: [{ column: 'to_date', op: 'gte', day: 'today' }, { column: 'to_date', op: 'is_null' }] },
+      ],
+    };
+    expect(draftIsLossy(grouped)).toBe(true);
+    expect(draftFromDescriptor(grouped).filters.map((filter) => filter.column)).toEqual(['active']);
+  });
+
   it('flags a filter bound to a page control', () => {
     expect(
       draftIsLossy({ ...base, filters: [{ column: 'created_at', op: 'gte', param: 'dateRange.start' }] }),

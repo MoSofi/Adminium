@@ -672,6 +672,12 @@ export default {
         "left": "{left} frei",
         "taken": "{taken} von {size} belegt",
         "takenOnly": "{taken} belegt"
+      },
+      "capacityBar": {
+        "takenOnly": "{taken} belegt",
+        "label": "{taken} von {size} belegt, {left} frei",
+        "labelHeld": "{taken} von {size} belegt, {held} reserviert, {left} frei",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1963,7 +1969,29 @@ export default {
     "renderError": "Dieses Widget konnte nicht dargestellt werden.",
     "refreshing": "Wird aktualisiert",
     "infoLabel": "Widget-Info",
-    "menuLabel": "Widget-Menü"
+    "menuLabel": "Widget-Menü",
+    "showData": "Daten anzeigen",
+    "hideData": "Daten ausblenden",
+    "data": {
+      "period": "Zeitraum",
+      "value": "Wert",
+      "prior": "Vorheriger Zeitraum",
+      "category": "Kategorie",
+      "share": "Anteil",
+      "row": "Zeile",
+      "from": "Von",
+      "to": "Nach",
+      "min": "Niedrigster",
+      "q1": "Unteres Quartil",
+      "median": "Median",
+      "q3": "Oberes Quartil",
+      "max": "Höchster",
+      "open": "Eröffnung",
+      "high": "Hoch",
+      "low": "Tief",
+      "close": "Schluss",
+      "place": "Ort"
+    }
   },
   "charts": {
     "livePillLabel": "Live",

@@ -286,6 +286,60 @@ function CapacityLeftCell({ row, left }: { row: GridRow; left: unknown }): React
   );
 }
 
+/**
+ * What a limit has taken from a row, as a bar (`capacity-bar`, a list's
+ * `counts`): the places sold, then the places held by a checkout still
+ * running (striped), out of the row's size, with "taken / size" beside it.
+ * Read from the cell's `{ taken, held, size, left }`, else from the row's own
+ * `taken` / `held` / `size` (a limit's counts listed). More taken than the
+ * size (a pool made smaller after it sold) fills the bar in the danger tone;
+ * no size draws no bar, only what is taken. The bar is an image named by its
+ * figures, so a screen reader hears all of them.
+ */
+function CapacityBarCell({ row, value }: { row: GridRow; value: unknown }): ReactNode {
+  const t = useMaybeT();
+  const from = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : value === null ? null : row;
+  if (from === null) return EMPTY_CELL;
+  const taken = countOf(from['taken']) ?? 0;
+  const held = Math.min(countOf(from['held']) ?? 0, taken);
+  const size = countOf(from['size']);
+  if (size === null || size <= 0) {
+    return (
+      <MonoText data-part="cell-capacity-bar" className="text-caption text-fg-muted">
+        {t('ui:widgets.tables.capacityBar.takenOnly', '{taken} taken', { taken: String(taken) })}
+      </MonoText>
+    );
+  }
+  const left = countOf(from['left']) ?? size - taken;
+  const share = (n: number) => `${String(Math.max(0, Math.min(100, (n / size) * 100)))}%`;
+  const over = taken > size;
+  const label =
+    held > 0
+      ? t('ui:widgets.tables.capacityBar.labelHeld', '{taken} of {size} taken, {held} held, {left} left', { taken: String(taken), size: String(size), held: String(held), left: String(left) })
+      : t('ui:widgets.tables.capacityBar.label', '{taken} of {size} taken, {left} left', { taken: String(taken), size: String(size), left: String(left) });
+  return (
+    <span data-part="cell-capacity-bar" className="flex min-w-0 flex-1 items-center gap-2">
+      <span role="img" aria-label={label} data-over={over ? 'true' : undefined} className="relative h-2 min-w-12 flex-1 overflow-hidden rounded-full bg-surface-2">
+        <span
+          data-part="capacity-bar-sold"
+          className={`absolute inset-y-0 start-0 w-[var(--adm-sold)] ${over ? 'bg-danger' : 'bg-accent'}`}
+          style={{ '--adm-sold': share(taken - held) }}
+        />
+        {held > 0 ? (
+          <span
+            data-part="capacity-bar-held"
+            className="absolute inset-y-0 start-[var(--adm-sold)] w-[var(--adm-held)] bg-[repeating-linear-gradient(135deg,var(--accent)_0_3px,transparent_3px_6px)]"
+            style={{ '--adm-sold': share(taken - held), '--adm-held': share(held) }}
+          />
+        ) : null}
+      </span>
+      <MonoText data-part="capacity-bar-ratio" aria-hidden="true" className={`shrink-0 text-caption ${over ? 'text-danger' : 'text-fg-muted'}`}>
+        {t('ui:widgets.tables.capacityBar.ratio', '{taken} / {size}', { taken: String(taken), size: String(size) })}
+      </MonoText>
+    </span>
+  );
+}
+
 export function CellValue({
   column,
   row,
@@ -345,6 +399,8 @@ function CellContent({
   }
   // What a limit has left for a pool, beside what it has taken of its size.
   if (column.semantic === 'capacity-left') return <CapacityLeftCell row={row} left={value} />;
+  // What a limit has taken from the row, sold and held of its size.
+  if (column.semantic === 'capacity-bar') return <CapacityBarCell row={row} value={value} />;
   if (value === null || value === undefined) return EMPTY_CELL;
 
   /*

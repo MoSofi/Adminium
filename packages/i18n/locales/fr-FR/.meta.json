@@ -23287,9 +23287,85 @@
     "status": "mt",
     "srcHash": "6706d4ba55e5"
   },
+  "ui.frame.data.category": {
+    "status": "mt",
+    "srcHash": "a3c686e711e4"
+  },
+  "ui.frame.data.close": {
+    "status": "mt",
+    "srcHash": "bbfa773e5a63"
+  },
+  "ui.frame.data.from": {
+    "status": "mt",
+    "srcHash": "3f66052a107e"
+  },
+  "ui.frame.data.high": {
+    "status": "mt",
+    "srcHash": "b1a5954a483f"
+  },
+  "ui.frame.data.low": {
+    "status": "mt",
+    "srcHash": "a124947cbd2d"
+  },
+  "ui.frame.data.max": {
+    "status": "mt",
+    "srcHash": "2c40d85826e8"
+  },
+  "ui.frame.data.median": {
+    "status": "mt",
+    "srcHash": "ced02810fc9e"
+  },
+  "ui.frame.data.min": {
+    "status": "mt",
+    "srcHash": "abb490f65dea"
+  },
+  "ui.frame.data.open": {
+    "status": "mt",
+    "srcHash": "cf9b77061f7b"
+  },
+  "ui.frame.data.period": {
+    "status": "mt",
+    "srcHash": "170a28a9db6d"
+  },
+  "ui.frame.data.place": {
+    "status": "mt",
+    "srcHash": "c32a0147f2e4"
+  },
+  "ui.frame.data.prior": {
+    "status": "mt",
+    "srcHash": "b41cf1ea76fa"
+  },
+  "ui.frame.data.q1": {
+    "status": "mt",
+    "srcHash": "999391d115a4"
+  },
+  "ui.frame.data.q3": {
+    "status": "mt",
+    "srcHash": "6a21d7a4dc81"
+  },
+  "ui.frame.data.row": {
+    "status": "mt",
+    "srcHash": "9bf7a8e8909b"
+  },
+  "ui.frame.data.share": {
+    "status": "mt",
+    "srcHash": "09ca55ca52d2"
+  },
+  "ui.frame.data.to": {
+    "status": "mt",
+    "srcHash": "ae79ea1e9c63"
+  },
+  "ui.frame.data.value": {
+    "status": "mt",
+    "srcHash": "8dce170de238"
+  },
   "ui.frame.emptyTitle": {
     "srcHash": "9931ab7901df",
     "status": "mt"
+  },
+  "ui.frame.hideData": {
+    "status": "mt",
+    "srcHash": "1c48d4d24b3d"
   },
   "ui.frame.infoLabel": {
     "srcHash": "8cf2c028cd27",
@@ -23314,6 +23390,10 @@
   "ui.frame.renderError": {
     "srcHash": "4973d3f82044",
     "status": "mt"
+  },
+  "ui.frame.showData": {
+    "status": "mt",
+    "srcHash": "ec6e2eee19b2"
   },
   "ui.grid.a11y.committed": {
     "srcHash": "508483f955ba",
@@ -28294,6 +28374,22 @@
   "ui.widgets.tables.bulkActionToolbar.toolbarLabel": {
     "srcHash": "3268f92bfe52",
     "status": "mt"
+  },
+  "ui.widgets.tables.capacityBar.label": {
+    "status": "mt",
+    "srcHash": "0e514e44503a"
+  },
+  "ui.widgets.tables.capacityBar.labelHeld": {
+    "status": "mt",
+    "srcHash": "8f9fcfb57a29"
+  },
+  "ui.widgets.tables.capacityBar.ratio": {
+    "status": "src",
+    "srcHash": "4d2f7a4d10cd"
+  },
+  "ui.widgets.tables.capacityBar.takenOnly": {
+    "status": "mt",
+    "srcHash": "2edb767a9904"
   },
   "ui.widgets.tables.capacityLeft.left": {
     "status": "mt",

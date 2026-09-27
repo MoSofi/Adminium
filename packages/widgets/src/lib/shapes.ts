@@ -50,11 +50,15 @@ export interface CategoricalItemData {
   label: string;
   value: number;
   tone?: string | undefined;
+  /** Each aggregate's figure by alias, when the ranking has more than one (a pair). */
+  values?: Record<string, number> | undefined;
 }
 
 export interface CategoricalData {
   items: CategoricalItemData[];
   total?: number | undefined;
+  /** The aggregates' aliases, in order, when there is more than one. */
+  aggregates?: string[] | undefined;
 }
 
 function pointsOf(value: unknown): TsPointData[] | null {
@@ -110,14 +114,17 @@ export function asCategorical(data: unknown): CategoricalData | null {
     const value = num(item?.value);
     if (item === null || value === undefined) return null;
     const label = typeof item.label === 'string' ? item.label : String(item.key ?? '');
+    const figures = rec(item.values);
     items.push({
       key: typeof item.key === 'string' ? item.key : label,
       label,
       value,
       tone: typeof item.tone === 'string' ? item.tone : undefined,
+      ...(figures === null ? {} : { values: Object.fromEntries(Object.entries(figures).map(([alias, figure]) => [alias, num(figure) ?? 0])) }),
     });
   }
-  return { items, total: num(r.total) };
+  const aggregates = Array.isArray(r.aggregates) && r.aggregates.every((alias) => typeof alias === 'string') ? (r.aggregates as string[]) : undefined;
+  return { items, total: num(r.total), ...(aggregates !== undefined && aggregates.length > 1 ? { aggregates } : {}) };
 }
 
 /** Timeseries y-values for sparkline embedding. */

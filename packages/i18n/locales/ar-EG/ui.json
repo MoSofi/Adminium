@@ -662,6 +662,12 @@
         "left": "متبقٍ {left}",
         "taken": "تم حجز {taken} من {size}",
         "takenOnly": "تم حجز {taken}"
+      },
+      "capacityBar": {
+        "takenOnly": "{taken} محجوز",
+        "label": "{taken} من {size} محجوز، {left} متبقٍ",
+        "labelHeld": "{taken} من {size} محجوز، {held} قيد الانتظار، {left} متبقٍ",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1953,7 +1959,29 @@
     "renderError": "تعذّر عرض عنصر الواجهة هذا.",
     "refreshing": "جارٍ التحديث",
     "infoLabel": "معلومات عنصر الواجهة",
-    "menuLabel": "قائمة عنصر الواجهة"
+    "menuLabel": "قائمة عنصر الواجهة",
+    "showData": "عرض البيانات",
+    "hideData": "إخفاء البيانات",
+    "data": {
+      "period": "الفترة",
+      "value": "القيمة",
+      "prior": "الفترة السابقة",
+      "category": "الفئة",
+      "share": "الحصة",
+      "row": "الصف",
+      "from": "من",
+      "to": "إلى",
+      "min": "الأدنى",
+      "q1": "الربع الأدنى",
+      "median": "الوسط",
+      "q3": "الربع الأعلى",
+      "max": "الأعلى",
+      "open": "الافتتاح",
+      "high": "الأعلى",
+      "low": "الأدنى",
+      "close": "الإغلاق",
+      "place": "المكان"
+    }
   },
   "charts": {
     "livePillLabel": "مباشر",

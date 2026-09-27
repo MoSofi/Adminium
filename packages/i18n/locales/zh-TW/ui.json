@@ -662,6 +662,12 @@
         "left": "剩餘 {left}",
         "taken": "已佔 {taken}/{size}",
         "takenOnly": "已佔 {taken}"
+      },
+      "capacityBar": {
+        "takenOnly": "已佔 {taken}",
+        "label": "已佔 {taken}/{size}，剩餘 {left}",
+        "labelHeld": "已佔 {taken}/{size}，保留 {held}，剩餘 {left}",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1953,7 +1959,29 @@
     "renderError": "此小工具無法顯示。",
     "refreshing": "重新整理中",
     "infoLabel": "小工具資訊",
-    "menuLabel": "小工具選單"
+    "menuLabel": "小工具選單",
+    "showData": "顯示資料",
+    "hideData": "隱藏資料",
+    "data": {
+      "period": "時段",
+      "value": "數值",
+      "prior": "上一時段",
+      "category": "類別",
+      "share": "占比",
+      "row": "列",
+      "from": "從",
+      "to": "到",
+      "min": "最低",
+      "q1": "下四分位",
+      "median": "中位數",
+      "q3": "上四分位",
+      "max": "最高",
+      "open": "開盤",
+      "high": "最高",
+      "low": "最低",
+      "close": "收盤",
+      "place": "地點"
+    }
   },
   "charts": {
     "livePillLabel": "即時",

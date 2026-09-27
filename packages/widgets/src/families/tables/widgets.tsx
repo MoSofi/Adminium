@@ -219,8 +219,21 @@ export function DetailKeyValueWidget({ config, data, onEvent }: WidgetProps<Deta
   );
 }
 
+/** The columns a second line names: the card's own, else the answer's, else the bare name. */
+function secondaryColumnsOf(names: readonly string[] | undefined, columns: readonly GridColumnSpec[], data: unknown): GridColumnSpec[] {
+  if (names === undefined) return [];
+  const served = servedColumnsOf(data) ?? [];
+  return names.map((name) => {
+    const own = columns.find((column) => column.name === name);
+    if (own !== undefined) return own;
+    const answer = served.find((column) => column.name === name);
+    return { ...(answer ?? { name, logicalType: 'text', semantic: null, format: null }), label: answer?.label ?? humanize(name) } as GridColumnSpec;
+  });
+}
+
 export function MiniTableWidget({ config, data, onEvent }: WidgetProps<MiniTableConfig>) {
   const columns: readonly GridColumnSpec[] = columnsOf(config, data);
+  const secondary = secondaryColumnsOf(config.secondary, columns, data);
   // A limit's counts list pools, not the bound table's records: nothing to open.
   const source = config.binding?.kind === 'capacity-counts' ? undefined : bindingTable(config);
   return (
@@ -228,6 +241,7 @@ export function MiniTableWidget({ config, data, onEvent }: WidgetProps<MiniTable
       columns={columns}
       rows={rowsOf(data)}
       limit={config.limit}
+      secondary={secondary}
       onEvent={onEvent}
       cellContext={{ onEvent, connectionId: source?.connectionId, ...formatContext(config) }}
       {...(config.viewAllHref !== undefined ? { viewAllHref: config.viewAllHref } : {})}

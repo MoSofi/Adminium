@@ -8,6 +8,14 @@ import { queryDescriptorSchema } from '../page-config/index.js';
  * annex field `dataSource` is implemented as `binding`, see 04 Open decisions
  * #1). Every widget's `configSchema` is an `.extend()` of this schema.
  */
+/**
+ * A card's words in the other languages the page is read in, by tag
+ * (`de-DE`): the page's language picks one, else the word it translates
+ * stands (`pickLocalized`). How an app ships a card in every language it
+ * speaks — its title, subtitle, caption and empty copy alike.
+ */
+export const localizedTextSchema = z.record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/), z.string().min(1).max(240));
+
 export const widgetSharedConfigSchema = z.object({
   title: z.string().optional(),
   /**
@@ -16,6 +24,8 @@ export const widgetSharedConfigSchema = z.object({
    */
   titles: z.record(z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/), z.string().min(1).max(120)).optional(),
   subtitle: z.string().optional(),
+  /** `subtitle` in the other languages the page is read in, picked as `titles` are. */
+  subtitles: localizedTextSchema.optional(),
   icon: z.string().optional(), // lucide-react icon name
   href: z.string().optional(), // drill-through route
   binding: queryDescriptorSchema.optional(), // absent → demoData(seed)
@@ -25,6 +35,9 @@ export const widgetSharedConfigSchema = z.object({
       icon: z.string().optional(),
       titleKey: z.string().optional(),
       bodyKey: z.string().optional(),
+      /** The empty title and body in the page's languages, picked as `titles` are; `titleKey` / `bodyKey` stand otherwise. */
+      titles: localizedTextSchema.optional(),
+      bodies: localizedTextSchema.optional(),
     })
     .optional(),
   permissions: z.array(z.string()).optional(), // role ids that may see this instance

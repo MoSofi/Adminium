@@ -5,6 +5,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
 
+import type { ChartTableOptions } from '../lib/chart-table.js';
 import { pickLocalized, type Localized } from '../lib/localized.js';
 import { isEmptyData } from '../registry/data-empty.js';
 import { logConfigWarnings, validateConfigAgainst, widgetRegistry } from '../registry/index.js';
@@ -71,6 +72,33 @@ function errorMessageOf(error: unknown): string | undefined {
   if (error instanceof Error && error.message !== '') return error.message;
   if (typeof error === 'string' && error !== '') return error;
   return undefined;
+}
+
+/**
+ * The words a config carries in several languages, each picked for the page's
+ * locale: the title (`titles`), the subtitle (`subtitles`), a KPI's caption
+ * (`metricLabels`) and the empty state's title and body (`emptyState.titles`
+ * / `.bodies`, over `titleKey` / `bodyKey`). Absent maps leave the config as
+ * it was.
+ */
+export function localizedConfig(raw: Record<string, unknown>, locale: string | undefined): Record<string, unknown> {
+  const text = (value: unknown) => (typeof value === 'string' ? value : undefined);
+  let out = raw;
+  for (const [key, map] of [
+    ['title', 'titles'],
+    ['subtitle', 'subtitles'],
+    ['metricLabel', 'metricLabels'],
+  ] as const) {
+    const translations = raw[map] as Localized | undefined;
+    if (translations !== undefined) out = { ...out, [key]: pickLocalized(text(raw[key]), translations, locale) };
+  }
+  const empty = raw['emptyState'] as { titleKey?: string; bodyKey?: string; titles?: Localized; bodies?: Localized } | undefined;
+  if (empty !== undefined && (empty.titles !== undefined || empty.bodies !== undefined)) {
+    const titleKey = pickLocalized(empty.titleKey, empty.titles, locale);
+    const bodyKey = pickLocalized(empty.bodyKey, empty.bodies, locale);
+    out = { ...out, emptyState: { ...empty, ...(titleKey === undefined ? {} : { titleKey }), ...(bodyKey === undefined ? {} : { bodyKey }) } };
+  }
+  return out;
 }
 
 /**
@@ -149,16 +177,55 @@ export function WidgetHost({
 
   const t = useMaybeT();
   const locale = useMaybeI18n()?.locale;
-  // A title in the page's language, when the config carries its translations.
-  const cfg = useMemo(() => {
-    const raw = parsed.config;
-    const titles = raw['titles'] as Localized | undefined;
-    if (titles === undefined) return raw;
-    return { ...raw, title: pickLocalized(typeof raw['title'] === 'string' ? raw['title'] : undefined, titles, locale) };
-  }, [parsed.config, locale]);
+  // A card's words in the page's language, when the config carries their translations.
+  const cfg = useMemo(() => localizedConfig(parsed.config, locale), [parsed.config, locale]);
   const emptyOverride = cfg.emptyState as
     | { icon?: string; titleKey?: string; bodyKey?: string }
     | undefined;
+
+  // A chart's figures as a table: its text alternative, and what "Show data" shows.
+  const chartData = state === 'loaded' && (definition.family === 'charts' || definition.family === 'geo') ? data.data : undefined;
+  const dataTable = useMemo(() => {
+    if (chartData === undefined) return undefined;
+    const tag = locale?.replace(/_/g, '-');
+    const unit = (cfg.binding as { bucket?: { unit?: string } } | undefined)?.bucket?.unit;
+    const dates = new Intl.DateTimeFormat(tag, unit === 'hour-of-day' ? { hour: 'numeric', timeZone: 'UTC' } : unit === 'hour' ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
+    const numbers = new Intl.NumberFormat(tag);
+    const shares = new Intl.NumberFormat(tag, { style: 'percent', maximumFractionDigits: 1 });
+    const series = cfg.series as { label: string; labels?: Localized }[] | undefined;
+    const options: ChartTableOptions = {
+      words: {
+        period: t('ui:frame.data.period', 'Period'),
+        value: t('ui:frame.data.value', 'Value'),
+        prior: t('ui:frame.data.prior', 'Period before'),
+        category: t('ui:frame.data.category', 'Category'),
+        share: t('ui:frame.data.share', 'Share'),
+        row: t('ui:frame.data.row', 'Row'),
+        from: t('ui:frame.data.from', 'From'),
+        to: t('ui:frame.data.to', 'To'),
+        min: t('ui:frame.data.min', 'Lowest'),
+        q1: t('ui:frame.data.q1', 'Lower quarter'),
+        median: t('ui:frame.data.median', 'Middle'),
+        q3: t('ui:frame.data.q3', 'Upper quarter'),
+        max: t('ui:frame.data.max', 'Highest'),
+        open: t('ui:frame.data.open', 'Open'),
+        high: t('ui:frame.data.high', 'High'),
+        low: t('ui:frame.data.low', 'Low'),
+        close: t('ui:frame.data.close', 'Close'),
+        place: t('ui:frame.data.place', 'Place'),
+      },
+      number: (value) => numbers.format(value),
+      percent: (fraction) => shares.format(fraction),
+      period: (iso) => {
+        const at = new Date(iso);
+        return Number.isNaN(at.getTime()) ? iso : dates.format(at);
+      },
+      seriesNames: series?.map((entry) => pickLocalized(entry.label, entry.labels, locale)),
+    };
+    const title = typeof cfg.title === 'string' && cfg.title !== '' ? cfg.title : definition.id;
+    const subtitle = typeof cfg.subtitle === 'string' && cfg.subtitle !== '' ? cfg.subtitle : undefined;
+    return { data: chartData, options, caption: subtitle === undefined ? title : `${title} · ${subtitle}` };
+  }, [chartData, cfg, locale, t, definition.id]);
 
   // The definition's descriptionKey is an i18n key, not display text — resolve
   // it here (humanized widget id as the dangling-key fallback) so the info
@@ -230,6 +297,7 @@ export function WidgetHost({
       // widget's config drawer and did nothing when set. This is the consumer.
       subtitle={typeof cfg.subtitle === 'string' && cfg.subtitle !== '' ? cfg.subtitle : undefined}
       bleed={cfg.bleed === true}
+      dataTable={dataTable}
       info={resolvedInfo ?? undefined}
       menu={menuItems}
       dragGrip={dragGrip}

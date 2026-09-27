@@ -672,6 +672,12 @@ export default {
         "left": "{left} left",
         "taken": "{taken} of {size} taken",
         "takenOnly": "{taken} taken"
+      },
+      "capacityBar": {
+        "takenOnly": "{taken} taken",
+        "label": "{taken} of {size} taken, {left} left",
+        "labelHeld": "{taken} of {size} taken, {held} held, {left} left",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1963,7 +1969,29 @@ export default {
     "renderError": "This widget failed to render.",
     "refreshing": "Refreshing",
     "infoLabel": "Widget info",
-    "menuLabel": "Widget menu"
+    "menuLabel": "Widget menu",
+    "showData": "Show data",
+    "hideData": "Hide data",
+    "data": {
+      "period": "Period",
+      "value": "Value",
+      "prior": "Period before",
+      "category": "Category",
+      "share": "Share",
+      "row": "Row",
+      "from": "From",
+      "to": "To",
+      "min": "Lowest",
+      "q1": "Lower quarter",
+      "median": "Middle",
+      "q3": "Upper quarter",
+      "max": "Highest",
+      "open": "Open",
+      "high": "High",
+      "low": "Low",
+      "close": "Close",
+      "place": "Place"
+    }
   },
   "charts": {
     "livePillLabel": "Live",

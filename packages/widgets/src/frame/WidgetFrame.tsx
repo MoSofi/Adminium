@@ -14,7 +14,7 @@ import {
   Spinner,
 } from '@adminium/ui';
 import { AlertTriangle, EllipsisVertical, Info, RotateCcw } from 'lucide-react';
-import { useId } from 'react';
+import { lazy, Suspense, useCallback, useId, useState } from 'react';
 import type { ReactNode, Ref } from 'react';
 
 import { WidgetHeadingProvider } from './WidgetHeadingContext.js';
@@ -22,7 +22,11 @@ import { useMaybeT } from '@adminium/i18n/react';
 
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary.js';
+import type { ChartTableSource } from './ChartDataTable.js';
 import type { WidgetSkeleton } from '../registry/types.js';
+
+/** A chart's figures as a table: its own chunk, fetched only by a chart card. */
+const ChartFigures = lazy(() => import('./ChartDataTable.js'));
 
 /**
  * WidgetFrame — the universal wrapper every grid-placed widget renders
@@ -85,6 +89,12 @@ export interface WidgetFrameProps {
   /** Stale-while-revalidate: keep `loaded`, show a small header spinner. */
   refetching?: boolean;
   /**
+   * A chart's figures as a table, and what they are (the caption): kept for
+   * screen readers beside the chart — its text alternative — and shown in its
+   * place by the header's "Show data" toggle.
+   */
+  dataTable?: ChartTableSource | undefined;
+  /**
    * Frameless variant for `placement: 'page'` widgets — states only, no card
    * chrome. `inline`/`overlay` widgets skip WidgetFrame entirely.
    */
@@ -145,10 +155,16 @@ export function WidgetFrame({
   refetching = false,
   frameless = false,
   bleed = false,
+  dataTable,
   testId,
   children,
 }: WidgetFrameProps) {
   const t = useMaybeT();
+  const [showData, setShowData] = useState(false);
+  const [available, setAvailable] = useState(false);
+  const onAvailable = useCallback((has: boolean) => setAvailable(has), []);
+  const withTable = state === 'loaded' ? dataTable : undefined;
+  const offered = withTable !== undefined && available;
   const grip = typeof dragGrip === 'function' ? dragGrip() : dragGrip;
   const hasHeader =
     title !== undefined ||
@@ -156,7 +172,8 @@ export function WidgetFrame({
     headerValue !== undefined ||
     info !== undefined ||
     menu !== undefined ||
-    grip !== undefined;
+    grip !== undefined ||
+    dataTable !== undefined;
 
   // Empty-state translator: key-shaped config copy resolves via the bundle
   // (humanized-leaf English when the key has no entry); plain copy passes through.
@@ -205,7 +222,12 @@ export function WidgetFrame({
               />
             )}
           >
-            {children}
+            {offered && showData ? null : children}
+            {withTable === undefined ? null : (
+              <Suspense fallback={null}>
+                <ChartFigures source={withTable} hidden={!(offered && showData)} onAvailable={onAvailable} />
+              </Suspense>
+            )}
           </WidgetErrorBoundary>
         );
     }
@@ -238,6 +260,17 @@ export function WidgetFrame({
             </span>
           )}
           {refetching && <Spinner size="sm" label={t('ui:frame.refreshing', 'Refreshing')} className="text-fg-muted" />}
+          {offered ? (
+            <button
+              type="button"
+              data-part="show-data"
+              aria-pressed={showData}
+              onClick={() => setShowData((shown) => !shown)}
+              className="shrink-0 rounded-sm px-1.5 py-0.5 text-caption font-semibold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {showData ? t('ui:frame.hideData', 'Hide data') : t('ui:frame.showData', 'Show data')}
+            </button>
+          ) : null}
           {info !== undefined && (
             <Popover>
               <PopoverTrigger asChild>
