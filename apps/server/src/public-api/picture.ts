@@ -16,11 +16,12 @@
  *    colour profile and Adobe blocks; PNG its pixels and colour chunks; WebP
  *    its image, animation and colour profile; GIF its frames and its loop.
  *
- * A picture is cleaned ONCE, then served from memory by its file id and this
- * pipeline's version (a new file id is a new picture: files are never
- * rewritten). The entity tag is the hash of the bytes served — never of the
- * original, which would confirm a guess at it. At most two pictures are
- * cleaned at once; a third waits for nobody and is told to come back.
+ * A picture is cleaned ONCE and kept beside its file by its file id and this
+ * pipeline's version (`picture-store.ts`; a new file id is a new picture:
+ * files are never rewritten), then streamed from there. The entity tag is the
+ * hash of the bytes served — never of the original, which would confirm a
+ * guess at it. At most two pictures are cleaned at once, and one per
+ * address; one past that waits for nobody and is told to come back.
  *
  * Every refusal is the caller's one 404: which rule said no is nobody's
  * business.
@@ -28,8 +29,10 @@
 import { createHash } from 'node:crypto';
 import type { Readable } from 'node:stream';
 
+import { rateAddress } from './limiter.js';
+
 /** Bumped when the cleaning changes: a new version is a new entity tag, and the cache starts again. */
-export const PICTURE_PIPELINE = 'p1';
+export const PICTURE_PIPELINE = 'p2';
 
 /** The largest picture served to the public: a phone photo, resized for the web, is far smaller. */
 export const PICTURE_MAX_BYTES = 2 * 1024 * 1024;
@@ -69,9 +72,17 @@ const refuse = (why: string): never => {
 
 // ─── the formats ──────────────────────────────────────────────────────────
 
+/** The most frames an animated picture may carry (GIF, WebP, PNG). */
+export const PICTURE_MAX_FRAMES = 500;
+
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-/** Text, time and Exif chunks: what a camera or an editor wrote beside the pixels. */
-const PNG_DROPPED = new Set(['tEXt', 'zTXt', 'iTXt', 'eXIf', 'tIME']);
+/**
+ * The chunks a PNG keeps: its pixels, palette and transparency, its colour
+ * chunks and physical size, and an animation's frames. Anything else — text,
+ * time, Exif, a content credential (`caBX`), any private chunk — goes: a
+ * chunk this list does not know is one it cannot vouch for.
+ */
+const PNG_KEPT = new Set(['IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS', 'gAMA', 'cHRM', 'sRGB', 'iCCP', 'sBIT', 'pHYs', 'acTL', 'fcTL', 'fdAT']);
 
 function cleanPng(bytes: Buffer): { bytes: Buffer; width: number; height: number } {
   if (bytes.length < 8 + 25 || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) refuse('not a PNG');
@@ -81,6 +92,7 @@ function cleanPng(bytes: Buffer): { bytes: Buffer; width: number; height: number
   let height = 0;
   let ended = false;
   let first = true;
+  let frames = 0;
   while (at + 12 <= bytes.length) {
     const length = bytes.readUInt32BE(at);
     const type = bytes.toString('latin1', at + 4, at + 8);
@@ -92,7 +104,14 @@ function cleanPng(bytes: Buffer): { bytes: Buffer; width: number; height: number
       height = bytes.readUInt32BE(at + 12);
       first = false;
     }
-    if (!PNG_DROPPED.has(type)) kept.push(bytes.subarray(at, end));
+    if (type === 'fcTL') {
+      // A frame of an animation: inside the picture, and not one too many.
+      if (length < 26) refuse('a PNG frame too short');
+      const [w, h, x, y] = [bytes.readUInt32BE(at + 12), bytes.readUInt32BE(at + 16), bytes.readUInt32BE(at + 20), bytes.readUInt32BE(at + 24)];
+      if (w < 1 || h < 1 || x + w > width || y + h > height) refuse('a PNG frame outside the picture');
+      if ((frames += 1) > PICTURE_MAX_FRAMES) refuse('a PNG with too many frames');
+    }
+    if (PNG_KEPT.has(type)) kept.push(bytes.subarray(at, end));
     at = end;
     if (type === 'IEND') {
       ended = true;
@@ -103,24 +122,41 @@ function cleanPng(bytes: Buffer): { bytes: Buffer; width: number; height: number
   return { bytes: Buffer.concat(kept), width, height };
 }
 
-/** JPEG markers kept before the image data: JFIF, a colour profile, Adobe's colour transform, and everything that is not an APP or comment block. */
-function jpegKeeps(marker: number): boolean {
+/**
+ * Whether a JPEG block is kept: JFIF, a colour profile and Adobe's colour
+ * transform — each by what it says it is (an APP2 that is a multi-picture
+ * index, `MPF`, is not a colour profile) — and every block that is not an
+ * application block or a comment.
+ */
+function jpegKeeps(marker: number, body: Buffer): boolean {
   if (marker === 0xfe) return false; // a comment
-  if (marker >= 0xe0 && marker <= 0xef) return marker === 0xe0 || marker === 0xe2 || marker === 0xee;
-  return true;
+  if (marker < 0xe0 || marker > 0xef) return true;
+  const says = (text: string) => body.toString('latin1', 0, text.length) === text;
+  if (marker === 0xe0) return says('JFIF\0');
+  if (marker === 0xe2) return says('ICC_PROFILE\0');
+  if (marker === 0xee) return says('Adobe');
+  return false;
 }
 
 /** The start-of-frame markers, which carry the picture's size. */
 const JPEG_FRAMES = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
 
+/**
+ * A JPEG, block by block, up to its end (EOI) and not a byte after: what a
+ * camera appends after the picture (a second picture with a place of its
+ * own, a phone maker's trailer, a page someone pasted on) goes with it.
+ * Between the scans of a progressive picture, the same blocks go as before
+ * the first.
+ */
 function cleanJpeg(bytes: Buffer): { bytes: Buffer; width: number; height: number } {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) refuse('not a JPEG');
   const kept: Buffer[] = [bytes.subarray(0, 2)];
   let at = 2;
   let width = 0;
   let height = 0;
+  let scans = 0;
   for (;;) {
-    if (at + 4 > bytes.length) refuse('a JPEG that ends before its image');
+    if (at + 2 > bytes.length) refuse('a JPEG without its end');
     if (bytes[at] !== 0xff) refuse('a JPEG block out of place');
     const marker = bytes[at + 1]!;
     // Fill bytes before a marker.
@@ -128,6 +164,13 @@ function cleanJpeg(bytes: Buffer): { bytes: Buffer; width: number; height: numbe
       at += 1;
       continue;
     }
+    if (marker === 0xd9) {
+      if (scans === 0) refuse('a JPEG that ends before its image');
+      kept.push(bytes.subarray(at, at + 2));
+      break;
+    }
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) refuse('a JPEG block out of place');
+    if (at + 4 > bytes.length) refuse('a JPEG block runs past the end');
     const length = bytes.readUInt16BE(at + 2);
     const end = at + 2 + length;
     if (length < 2 || end > bytes.length) refuse('a JPEG block runs past the end');
@@ -137,36 +180,83 @@ function cleanJpeg(bytes: Buffer): { bytes: Buffer; width: number; height: numbe
       width = bytes.readUInt16BE(at + 7);
     }
     if (marker === 0xda) {
-      // The image itself, and all that follows it, as it is.
-      kept.push(bytes.subarray(at));
-      break;
+      if (width === 0 || height === 0) refuse('a JPEG scan before its frame');
+      if ((scans += 1) > PICTURE_MAX_FRAMES) refuse('a JPEG with too many scans');
+      // The scan's header, then its coded data up to the next block: a 0xFF in the data is followed by 0x00 or a restart.
+      let p = end;
+      for (;;) {
+        if (p + 1 >= bytes.length) refuse('a JPEG scan runs past the end');
+        if (bytes[p] !== 0xff) {
+          p += 1;
+          continue;
+        }
+        const next = bytes[p + 1]!;
+        if (next === 0x00 || (next >= 0xd0 && next <= 0xd7)) {
+          p += 2;
+          continue;
+        }
+        if (next === 0xff) {
+          p += 1;
+          continue;
+        }
+        break;
+      }
+      kept.push(bytes.subarray(at, p));
+      at = p;
+      continue;
     }
-    if (jpegKeeps(marker)) kept.push(bytes.subarray(at, end));
+    if (jpegKeeps(marker, bytes.subarray(at + 4, end))) kept.push(bytes.subarray(at, end));
     at = end;
   }
   if (width === 0 || height === 0) refuse('a JPEG without its size');
   return { bytes: Buffer.concat(kept), width, height };
 }
 
-/** WebP chunks dropped: Exif and XMP. */
-const WEBP_DROPPED = new Set(['EXIF', 'XMP ']);
+/**
+ * The chunks a WebP keeps: its image (lossy, lossless, alpha), the extended
+ * header, an animation and its frames, and a colour profile. Exif, XMP and
+ * any chunk this list does not know go.
+ */
+const WEBP_KEPT = new Set(['VP8 ', 'VP8L', 'VP8X', 'ALPH', 'ANIM', 'ANMF', 'ICCP']);
+/** The chunks inside an animation frame that are kept: its image. */
+const WEBP_FRAME_KEPT = new Set(['VP8 ', 'VP8L', 'ALPH']);
+
+/** The RIFF chunks of `data`, each with its type, its body and its whole bytes (padding included). */
+function riffChunks(data: Buffer, what: string): { fourcc: string; body: Buffer; whole: Buffer }[] {
+  const out: { fourcc: string; body: Buffer; whole: Buffer }[] = [];
+  let at = 0;
+  while (at + 8 <= data.length) {
+    const fourcc = data.toString('latin1', at, at + 4);
+    const size = data.readUInt32LE(at + 4);
+    if (at + 8 + size > data.length) refuse(`a ${what} chunk runs past the end`);
+    const end = Math.min(at + 8 + size + (size % 2), data.length);
+    out.push({ fourcc, body: data.subarray(at + 8, at + 8 + size), whole: data.subarray(at, end) });
+    at = end;
+  }
+  return out;
+}
+
+function riffChunk(fourcc: string, body: Buffer): Buffer {
+  const head = Buffer.alloc(8);
+  head.write(fourcc, 0, 'latin1');
+  head.writeUInt32LE(body.length, 4);
+  return Buffer.concat([head, body, body.length % 2 === 1 ? Buffer.alloc(1) : Buffer.alloc(0)]);
+}
 
 function cleanWebp(bytes: Buffer): { bytes: Buffer; width: number; height: number } {
   if (bytes.length < 20 || bytes.toString('latin1', 0, 4) !== 'RIFF' || bytes.toString('latin1', 8, 12) !== 'WEBP') refuse('not a WebP');
   const chunks: Buffer[] = [];
-  let at = 12;
   let width = 0;
   let height = 0;
-  while (at + 8 <= bytes.length) {
-    const fourcc = bytes.toString('latin1', at, at + 4);
-    const size = bytes.readUInt32LE(at + 4);
-    const end = at + 8 + size + (size % 2);
-    if (at + 8 + size > bytes.length) refuse('a WebP chunk runs past the end');
-    const data = bytes.subarray(at + 8, at + 8 + size);
+  let canvas: { width: number; height: number } | null = null;
+  let frames = 0;
+  for (const { fourcc, body: data, whole } of riffChunks(bytes.subarray(12), 'WebP')) {
+    const size = data.length;
     if (fourcc === 'VP8X') {
       if (size < 10) refuse('a WebP header too short');
       width = data.readUIntLE(4, 3) + 1;
       height = data.readUIntLE(7, 3) + 1;
+      canvas = { width, height };
     } else if (fourcc === 'VP8 ' && width === 0) {
       if (size < 10 || data[3] !== 0x9d || data[4] !== 0x01 || data[5] !== 0x2a) refuse('a WebP frame out of shape');
       width = data.readUInt16LE(6) & 0x3fff;
@@ -177,13 +267,24 @@ function cleanWebp(bytes: Buffer): { bytes: Buffer; width: number; height: numbe
       width = (bits & 0x3fff) + 1;
       height = ((bits >>> 14) & 0x3fff) + 1;
     }
-    if (!WEBP_DROPPED.has(fourcc)) {
-      const chunk = Buffer.from(bytes.subarray(at, Math.min(end, bytes.length)));
-      // The extended header says which chunks follow: Exif and XMP no longer do.
-      if (fourcc === 'VP8X') chunk[8] = chunk[8]! & ~0x0c;
-      chunks.push(chunk);
+    if (!WEBP_KEPT.has(fourcc)) continue;
+    if (fourcc === 'ANMF') {
+      // A frame of an animation: inside the canvas, not one too many, and only its image kept.
+      if (canvas === null || size < 16) return refuse('a WebP frame out of shape');
+      const x = data.readUIntLE(0, 3) * 2;
+      const y = data.readUIntLE(3, 3) * 2;
+      const w = data.readUIntLE(6, 3) + 1;
+      const h = data.readUIntLE(9, 3) + 1;
+      if (x + w > canvas.width || y + h > canvas.height) refuse('a WebP frame outside the picture');
+      if ((frames += 1) > PICTURE_MAX_FRAMES) refuse('a WebP with too many frames');
+      const inner = riffChunks(data.subarray(16), 'WebP frame').filter((chunk) => WEBP_FRAME_KEPT.has(chunk.fourcc));
+      chunks.push(riffChunk('ANMF', Buffer.concat([data.subarray(0, 16), ...inner.map((chunk) => chunk.whole)])));
+      continue;
     }
-    at = end;
+    const chunk = Buffer.from(whole);
+    // The extended header says which chunks follow: Exif and XMP no longer do.
+    if (fourcc === 'VP8X') chunk[8] = chunk[8]! & ~0x0c;
+    chunks.push(chunk);
   }
   const body = Buffer.concat(chunks);
   const head = Buffer.alloc(12);
@@ -196,6 +297,12 @@ function cleanWebp(bytes: Buffer): { bytes: Buffer; width: number; height: numbe
 /** The application blocks a GIF keeps: its loop. */
 const GIF_KEPT_APPLICATIONS = new Set(['NETSCAPE2.0', 'ANIMEXTS1.0']);
 
+/**
+ * A GIF, block by block. Its size is the logical screen's, and every frame
+ * must lie inside it: a browser grows the picture to a frame larger than
+ * its screen, so a one-pixel screen with a 65535-pixel frame would unpack
+ * into gigabytes.
+ */
 function cleanGif(bytes: Buffer): { bytes: Buffer; width: number; height: number } {
   const version = bytes.toString('latin1', 0, 6);
   if (bytes.length < 14 || (version !== 'GIF87a' && version !== 'GIF89a')) refuse('not a GIF');
@@ -205,6 +312,7 @@ function cleanGif(bytes: Buffer): { bytes: Buffer; width: number; height: number
   let at = 13 + (packed & 0x80 ? 3 * 2 ** ((packed & 0x07) + 1) : 0);
   if (at > bytes.length) refuse('a GIF colour table runs past the end');
   const kept: Buffer[] = [bytes.subarray(0, at)];
+  let frames = 0;
   /** The end of a run of sub-blocks starting at `from`. */
   const subBlocks = (from: number): number => {
     let p = from;
@@ -236,6 +344,9 @@ function cleanGif(bytes: Buffer): { bytes: Buffer; width: number; height: number
     }
     if (introducer === 0x2c) {
       if (at + 10 > bytes.length) refuse('a GIF frame runs past the end');
+      const [left, top, w, h] = [bytes.readUInt16LE(at + 1), bytes.readUInt16LE(at + 3), bytes.readUInt16LE(at + 5), bytes.readUInt16LE(at + 7)];
+      if (w < 1 || h < 1 || left + w > width || top + h > height) refuse('a GIF frame outside the picture');
+      if ((frames += 1) > PICTURE_MAX_FRAMES) refuse('a GIF with too many frames');
       const local = bytes[at + 9]!;
       let p = at + 10 + (local & 0x80 ? 3 * 2 ** ((local & 0x07) + 1) : 0);
       p = subBlocks(p + 1); // the code size, then the image data
@@ -245,6 +356,7 @@ function cleanGif(bytes: Buffer): { bytes: Buffer; width: number; height: number
     }
     refuse('a GIF block out of place');
   }
+  if (frames === 0) refuse('a GIF without a picture');
   return { bytes: Buffer.concat(kept), width, height };
 }
 
@@ -311,62 +423,49 @@ export async function readCapped(stream: Readable, max: number): Promise<Buffer>
 }
 
 /**
- * Cleaned pictures, kept by file id: every visitor after the first is served
- * from here. Bounded by bytes (the oldest go first); the tags are kept longer
- * than the bytes, so a browser asking "still this one?" is answered without
- * opening the file again.
+ * The cleaning of pictures on this server: at most `PICTURE_CLEANING_AT_ONCE`
+ * at a time, and at most one for any one address (its IPv6 /64), so one
+ * visitor naming picture after picture never holds every place and turns
+ * the real visitors away. A picture already being cleaned is waited for,
+ * not cleaned twice. The tags of pictures cleaned or read back are kept in
+ * memory, so a browser asking "still this one?" is answered without opening
+ * anything; the bytes are kept beside the file (`picture-store.ts`), not
+ * here.
  */
 export interface PictureCache {
-  get(fileId: string): CleanPicture | undefined;
   tagOf(fileId: string): string | undefined;
-  /** Clean one picture, at most `PICTURE_CLEANING_AT_ONCE` at a time; null when that many are being cleaned. */
-  clean(fileId: string, load: () => Promise<{ bytes: Buffer; mime: string }>): Promise<CleanPicture | null>;
+  remember(fileId: string, etag: string): void;
+  /** Clean one picture; null when every place is taken, or this address already holds one. */
+  clean(fileId: string, address: string, load: () => Promise<{ bytes: Buffer; mime: string }>): Promise<CleanPicture | null>;
 }
 
-export function createPictureCache(maxBytes = 24 * 1024 * 1024, maxTags = 10_000): PictureCache {
-  const pictures = new Map<string, CleanPicture>();
+export function createPictureCache(maxTags = 10_000): PictureCache {
   const tags = new Map<string, string>();
   const pending = new Map<string, Promise<CleanPicture>>();
-  let held = 0;
-  let cleaning = 0;
+  const cleaningFor = new Set<string>();
   const keyOf = (fileId: string) => `${fileId}|${PICTURE_PIPELINE}`;
-  const remember = (fileId: string, picture: CleanPicture) => {
+  const remember = (fileId: string, etag: string) => {
     const key = keyOf(fileId);
+    tags.delete(key);
     if (tags.size >= maxTags) tags.delete(tags.keys().next().value!);
-    tags.set(key, picture.etag);
-    if (picture.bytes.length > maxBytes) return;
-    pictures.set(key, picture);
-    held += picture.bytes.length;
-    for (const [oldest, old] of pictures) {
-      if (held <= maxBytes) break;
-      pictures.delete(oldest);
-      held -= old.bytes.length;
-    }
+    tags.set(key, etag);
   };
   return {
-    get(fileId) {
-      const key = keyOf(fileId);
-      const found = pictures.get(key);
-      if (found !== undefined) {
-        // Most recently used goes last: the oldest is the first to go.
-        pictures.delete(key);
-        pictures.set(key, found);
-      }
-      return found;
-    },
     tagOf(fileId) {
       return tags.get(keyOf(fileId));
     },
-    async clean(fileId, load) {
+    remember,
+    async clean(fileId, address, load) {
       const key = keyOf(fileId);
       const already = pending.get(key);
       if (already !== undefined) return already;
-      if (cleaning >= PICTURE_CLEANING_AT_ONCE) return null;
-      cleaning += 1;
+      const who = rateAddress(address);
+      if (cleaningFor.size >= PICTURE_CLEANING_AT_ONCE || cleaningFor.has(who)) return null;
+      cleaningFor.add(who);
       const work = (async () => {
         const source = await load();
         const picture = cleanPicture(source.bytes, source.mime);
-        remember(fileId, picture);
+        remember(fileId, picture.etag);
         return picture;
       })();
       pending.set(key, work);
@@ -374,7 +473,7 @@ export function createPictureCache(maxBytes = 24 * 1024 * 1024, maxTags = 10_000
         return await work;
       } finally {
         pending.delete(key);
-        cleaning -= 1;
+        cleaningFor.delete(who);
       }
     },
   };

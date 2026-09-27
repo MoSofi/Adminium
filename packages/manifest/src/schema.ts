@@ -2087,7 +2087,7 @@ function clearOnBackIssues(
   return out;
 }
 
-/** What renews a code must be another column of the row, one a person changes. */
+/** What renews a code must be another column of the row, one a person changes (or a stamp writes). */
 function codeRenewIssues(
   table: RequiredTableShape,
   column: RequiredTableShape['columns'][number],
@@ -2111,8 +2111,9 @@ function codeRenewIssues(
       for (const value of trigger.values) {
         if (!valueFits(watched, value)) out.push({ path: [...at, 'values'], message: `${JSON.stringify(value)} is not a value of "${table.ref}.${watched.ref}"` });
       }
-    } else if (decidedByRules(watched.rules)) {
-      out.push({ path: [...at, 'column'], message: 'a code is renewed by a change a person makes' });
+    } else if (decidedByRules(watched.rules) && watched.rules?.stamp === undefined) {
+      // A stamp is decided in the same step as the renewal, before it: a holder copied in as an offer is taken renews.
+      out.push({ path: [...at, 'column'], message: 'a code is renewed by a change a person makes, or a stamp' });
     }
   });
   return out;

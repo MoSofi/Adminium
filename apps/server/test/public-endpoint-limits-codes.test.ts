@@ -51,7 +51,7 @@ const model = applyClassification(
       table('events', [col('name')]),
       table('ticket_types', [col('event_id', { logicalType: 'integer' }), col('name'), col('capacity', { logicalType: 'integer' })]),
       table('tickets', [col('ticket_type_id', { logicalType: 'integer' }), col('status')]),
-      table('codes', [col('code'), col('unlocks_type_id', { logicalType: 'integer' }), col('event_id', { logicalType: 'integer' }), col('active', { logicalType: 'boolean' })]),
+      { ...table('codes', [col('code'), col('unlocks_type_id', { logicalType: 'integer' }), col('event_id', { logicalType: 'integer' }), col('active', { logicalType: 'boolean' }), col('email'), col('link_token'), col('word')]), uniques: [{ name: 'codes_code_key', columns: ['code'] }, { name: 'codes_link_token_key', columns: ['link_token'] }, { name: 'codes_word_key', columns: ['word'] }] },
       table('orders', [col('pickup_at', { logicalType: 'timestamptz' }), col('status')]),
       table('stays', [col('room_id', { logicalType: 'integer' }), col('arrive', { logicalType: 'date' }), col('depart', { logicalType: 'date' })]),
       table('rooms', [col('name')]),
@@ -67,6 +67,8 @@ const view = new SnapshotView(
     override('table.capacity', 'public.tickets', { kind: 'parent', via: 'ticket_type_id', size: { column: 'capacity' } }),
     override('table.capacity', 'public.orders', { slot: 'pickup_at', amount: 'status', perSlot: 6, slotMinutes: 15 }),
     override('table.capacity', 'public.stays', { kind: 'night', from: 'arrive', to: 'depart', pool: { via: 'room_id', size: 1 } }),
+    override('column.normalize', 'public.codes', { normalize: 'code' }, 'code'),
+    override('column.normalize', 'public.codes', { normalize: 'code' }, 'link_token'),
   ]),
 );
 
@@ -84,7 +86,8 @@ function def(source: string, over: Partial<PublicEndpointDefinition> = {}): Publ
     ...over,
   };
 }
-const issues = (d: PublicEndpointDefinition) => endpointIssues(d, { ref: d.path.slice(1), view }).map((i) => i.code);
+const issues = (d: PublicEndpointDefinition, shareCodes?: ReadonlyMap<string, ReadonlySet<string>>) =>
+  endpointIssues(d, { ref: d.path.slice(1), view, ...(shareCodes === undefined ? {} : { shareCodes }) }).map((i) => i.code);
 
 const FULL = def('ticket_types', {
   select: ['id', 'name'],
@@ -154,6 +157,18 @@ describe('rows a code unlocks', () => {
     expect(issues(unlock({ unlock_by: { table: 'public.codes', column: 'code', link: 'event_id' } }))).toEqual(['ENDPOINT_UNLOCK_UNKNOWN_COLUMN']);
     expect(issues(unlock({ unlock_by: { table: 'public.codes', column: 'text', link: 'unlocks_type_id' } }))).toEqual(['ENDPOINT_UNLOCK_UNKNOWN_COLUMN']);
     expect(issues(unlock({ unlock_by: { table: 'public.coupons', column: 'code', link: 'unlocks_type_id' } }))).toEqual(['ENDPOINT_UNLOCK_UNKNOWN_COLUMN']);
+  });
+
+  it('looks up only a code: one row per code, compared as a code, never a shared link\'s secret', () => {
+    const by = (column: string) => unlock({ unlock_by: { table: 'public.codes', column, link: 'unlocks_type_id' } });
+    // An address: not one row per value, nor kept as a code — a GET would say whether a person is on the list.
+    expect(issues(by('email'))).toEqual(['ENDPOINT_UNLOCK_NOT_A_CODE', 'ENDPOINT_UNLOCK_NOT_A_CODE']);
+    // Unique, but not compared as a code.
+    expect(issues(by('word'))).toEqual(['ENDPOINT_UNLOCK_NOT_A_CODE']);
+    // The code a shared link opens rows with, or a column kept secret: never looked up, however it is kept.
+    expect(issues(by('code'), new Map([['public.codes', new Set(['code'])]]))).toEqual(['ENDPOINT_UNLOCK_SHARE_CODE']);
+    expect(issues(by('link_token'))).toEqual(['ENDPOINT_UNLOCK_SHARE_CODE']);
+    expect(issues(by('code'))).toEqual([]);
   });
 });
 

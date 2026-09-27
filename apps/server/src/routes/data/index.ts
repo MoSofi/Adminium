@@ -48,7 +48,7 @@ import {
   type Projections,
 } from '../../crud/projections.js';
 import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
-import { renewedBy } from '../../crud/code-renew.js';
+import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import {
   fetchByPk,
@@ -828,7 +828,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           });
         }
         try {
-          await updateRows(db, ctx.dialect, child.child, prepared.values, change.key);
+          // A code the change renewed is made again if the new one is taken.
+          await withRenewRetry(db, ctx.dialect, prepared.values, (values) => updateRows(db, ctx.dialect, child.child, values, change.key));
         } catch (error) {
           mapDbError(error, child.child);
         }
@@ -1599,7 +1600,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         for (const change of children.changed) {
           await still(change.key, change.after);
           const current = (await fetchByPk(db, child, change.key)) ?? null;
-          await updateRows(db, target.dialect, child, await judge('update', { match: change.key, values: change.before, record: current }), change.key);
+          // A code a change made is never taken back: the rest of the row is.
+          const codes = codeColumnsOf(child);
+          const judged = await judge('update', { match: change.key, values: Object.fromEntries(Object.entries(change.before).filter(([column]) => !codes.has(column))), record: current });
+          const renewed = current === null ? judged : renewForUndo(tableRulesFor(childTarget)?.codes, judged, current, { table: child, rights: childTarget.rights });
+          await withRenewRetry(db, target.dialect, renewed, (values) => updateRows(db, target.dialect, child, values as typeof judged, change.key));
           const record = await fetchByPk(db, child, change.key);
           if (record !== undefined) changedBack.push({ record, before: current });
         }
@@ -1657,7 +1662,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             const restoreValues =
               prepared[i]?.values ??
               uncheckedForUndo([Object.fromEntries(compareColumns.map((c) => [c, before[c]]))])[0]!;
-            await updateRows(tdb, target.dialect, table, restoreValues, pk);
+            // A change of hands taken back makes its code again: the one handed on stops working with it.
+            const renewed = renewForUndo(tableRulesFor(target)?.codes, restoreValues, current!, { table, rights: target.rights });
+            await withRenewRetry(tdb, target.dialect, renewed, (values) => updateRows(tdb, target.dialect, table, values as typeof restoreValues, pk));
             await undoLinks(tdb, target, entry, before, conflict);
             await undoChildren(tdb, target, entry, context, conflict, moved);
             restored.push(pkLabel(table, pk));
