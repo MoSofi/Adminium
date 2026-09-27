@@ -1568,6 +1568,14 @@ export interface RecordWriteService {
    * replies with, so the caller shows the balance that is stored.
    */
   stored(target: WriteTarget, rows: readonly Row[]): Promise<Row[]>;
+  /**
+   * Whether a change of one stored row is settled inside its own write — it
+   * prices its nights again, or other rows follow it — so a form that saves
+   * it with its child rows writes both through {@link update} (with
+   * `children`): judged as a change of the row on its own, then its child
+   * rows' writes, rather than refused as a multi-row write.
+   */
+  settlesInside(target: WriteTarget, values: Row, before: Row): boolean;
 }
 
 export interface WriteServiceOptions {
@@ -3426,11 +3434,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
               const below = input.children === undefined ? [] : await input.children.names();
               // The rows its effects move, as they will stand: their pools, and the rows they own.
               const moved = effectLimits ? (await statement(() => effectRows(target.db, { ...target, timezone: zone }, context, clock, checkedValues, Promise.resolve(current)), input.mapError)).filter((effect) => keepsLimits(effect.rules)) : [];
-              return capacityLockNames(target.db, [
+              // A new child row's running number without gaps: its series held with the pools, as a form's rows always held it.
+              const series = below.filter((row) => row.before === null).flatMap((row) => seriesOf(rulesOf(row.target), row.target.table, row.row).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })));
+              return [...(await capacityLockNames(target.db, [
                 ...(current === null || !limits ? [] : [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]),
                 ...below,
                 ...moved.map((effect) => ({ target: effect.target, row: { ...effect.before, ...effect.checked }, before: effect.before, prepared: true })),
-              ]);
+              ])), ...series];
             }, write, clock);
           }
           if (booking !== undefined) {
@@ -3645,6 +3655,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const out: Row[] = [];
       for (const row of rows) out.push(await readAgain(target.db, target.table, row));
       return out;
+    },
+
+    settlesInside(target, values, before) {
+      const rules = rulesOf(target);
+      // What really changes: a whole-row form sends the fee back as it was.
+      const changed = Object.fromEntries(Object.entries(values).filter(([column, value]) => !sameValue(value, before[column])));
+      if (rules === null || Object.keys(changed).length === 0) return false;
+      return followsFrom(rules, changed) || (rules.perNight !== undefined && repricedBy(rules.perNight, changed));
     },
   };
 }
