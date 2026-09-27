@@ -47,6 +47,7 @@ import {
   type RealtimeHub,
   type RealtimeUser,
 } from './hub.js';
+import { orderedSink } from './read-frames.js';
 
 /** Max concurrent channel subscriptions per socket. */
 export const WS_MAX_CHANNELS = 64;
@@ -186,7 +187,7 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
         const shown = (await deps.frameFor?.(user, channel)) ?? null;
         subscriptions.set(
           channel,
-          deps.hub.subscribe(channel, (event) => send(shown === null ? event : shown(event))),
+          deps.hub.subscribe(channel, orderedSink(shown, (event) => send(event))),
         );
         send({ op: 'subscribed', channel });
       };

@@ -50,6 +50,9 @@ import { writeStores } from '../crud/write-stores.js';
 import { coerceCell } from '../data-io/coerce.js';
 import { EXPORT_BOM, createCsvParser, serializeCsvRow } from '../data-io/csv.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { assertImportReadable, readViewOf } from '../crud/read-view.js';
+import { resolvePermissionSet } from '../rbac/resolver.js';
+import { updateLimitOf } from '../rbac/update-limits.js';
 import type { FileStore } from '../files/store.js';
 import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
 import type { WidgetDataCache } from '../widget-data/cache.js';
@@ -208,6 +211,11 @@ async function runImport(
     throw new Error('upsert mode requires options.matchColumn');
   }
   const matchResolved = matchColumn === null ? null : view.column(table, matchColumn);
+  // As the person who asked reads the table, again now: a role narrowed since the import was made is held to it.
+  if (row.requestedBy !== null) {
+    const permissions = await resolvePermissionSet(deps.meta, { kind: 'user', id: row.requestedBy, label: row.requestedBy });
+    assertImportReadable(readViewOf(view, permissions), table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
+  }
 
   // --- stream-parse the CSV ---------------------------------------------------
   const parser = createCsvParser();

@@ -66,7 +66,8 @@ import { providerOf } from '../../documents/provider.js';
 import { mappedTables, type CollectionSource, type ProfileMapping } from '../../documents/subject.js';
 import { outboundKey } from '../../documents/compose.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
-import { readViewFor } from '../../crud/read-view.js';
+import { readsHidden, readViewFor } from '../../crud/read-view.js';
+import { tableRulesFor } from '../../crud/column-rules.js';
 import { syncProfileTrigger } from '../../documents/trigger-sync.js';
 import type { FileStore } from '../../files/store.js';
 import { DOCUMENT_RENDER_KIND } from '../../jobs/document-render.js';
@@ -182,21 +183,41 @@ function documentColumnRefused(profile: DocumentProfile, view: SnapshotView): st
   const own = (column: string | undefined) => hidden(profile.table, column);
   const listed = (source: CollectionSource): boolean =>
     [...Object.values(source.columns), source.orderBy, source.where?.column, source.unless].some((column) => hidden(source.table, column)) ||
-    Object.values(source.lists ?? {}).some((list) => hidden(list.table, list.column));
+    Object.values(source.lists ?? {}).some((list) => hidden(list.table, list.column) || hidden(list.table, list.orderBy));
+  // A night's own figures are the price's dates and rates; `<via>.<column>` is a column of the rate row.
+  const nightly = (source: { column: string; columns: Record<string, string> }): boolean => {
+    if (own(source.column)) return true;
+    if (base !== null && readsHidden(view, tableRulesFor({ view, table: base })?.perNight)) return true;
+    return Object.values(source.columns).some((read) => {
+      const [via, column] = read.split('.') as [string, string | undefined];
+      return column !== undefined && base !== null && hidden(outboundKey(view, base, via)?.tableId, column);
+    });
+  };
   for (const mapped of Object.values(profile.mapping as ProfileMapping)) {
     if ('collection' in mapped) {
       if (listed(mapped.collection)) return mapped.collection.table;
     } else if ('sources' in mapped) {
       for (const source of mapped.sources) {
-        if ('nightly' in source ? own(source.nightly.column) : listed(source.collection)) return 'nightly' in source ? profile.table : source.collection.table;
+        if ('nightly' in source ? nightly(source.nightly) : listed(source.collection)) return 'nightly' in source ? profile.table : source.collection.table;
       }
     } else if ('ref' in mapped) {
       const target = mapped.table ?? (base === null ? undefined : outboundKey(view, base, mapped.ref)?.tableId);
       if (hidden(target, mapped.column)) return target ?? profile.table;
     } else if (own(mapped.column)) return profile.table;
   }
-  const options = profile.options as { numberColumn?: string; statement?: StatementSources; balanceAfter?: { via: string; column: string } };
+  const options = profile.options as {
+    numberColumn?: string;
+    statement?: StatementSources;
+    balanceAfter?: { via: string; column: string; of?: string; minus?: string[]; sum?: string; times?: string; where?: { column: string }; unlessSet?: string; date?: string };
+  };
   if (own(options.numberColumn)) return profile.table;
+  // A receipt's balance after it: the linked row's balance and what it is worked out of, and this table's amounts.
+  const after = options.balanceAfter;
+  if (after !== undefined) {
+    const linked = base === null ? undefined : outboundKey(view, base, after.via)?.tableId;
+    if ([after.column, after.of, ...(after.minus ?? [])].some((column) => hidden(linked, column))) return linked ?? profile.table;
+    if ([after.via, after.sum, after.times, after.where?.column, after.unlessSet, after.date].some((column) => own(column))) return profile.table;
+  }
   for (const source of options.statement === undefined ? [] : [options.statement.documents, options.statement.payments]) {
     if ([source.date, source.amount, source.number, source.where?.column, source.unless].some((column) => hidden(source.table, column))) return source.table;
   }

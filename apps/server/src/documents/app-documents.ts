@@ -249,3 +249,21 @@ export async function appProfileFor(meta: MetaDb, connectionId: string, appKey: 
   const owned = await documentProfilesRepo(meta).listOwnedBy(connectionId, appKey);
   return owned.find((profile) => profile.table === tableId && profile.kind === kind) ?? null;
 }
+
+/**
+ * Whether the add-on an app's document of this kind is drawn by — with every
+ * add-on its feature needs — is NOT attached to the app and switched on: the
+ * app has nothing that draws it, and a message that may go without it goes
+ * without it. An attached add-on that is loading, restarting or failing is
+ * not "nothing": that document is only late, and its message waits or fails.
+ * `addOnKey`: the add-on a made profile names (a shape's document), else the
+ * app's own entry for the table and kind says.
+ */
+export async function appDocumentDetached(meta: MetaDb, manifest: AppManifest, table: string | undefined, kind: string, addOnKey?: string): Promise<boolean> {
+  const entry = (manifest.documents ?? []).find((d) => d.table === table && d.kind === kind);
+  const addOn = addOnKey ?? entry?.addOn;
+  if (addOn === undefined) return true;
+  const feature = entry?.feature === undefined ? undefined : manifest.addOns?.features?.find((f) => f.id === entry.feature);
+  const attached = new Set((await manifestsRepo(meta, NO_SECRETS).enabledForHost(manifest.key)).map((m) => m.row.manifestKey));
+  return [addOn, ...(feature?.requires ?? [])].some((key) => !attached.has(key));
+}

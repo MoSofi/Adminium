@@ -139,7 +139,9 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const unmasked = await canReadPii(request, connectionId, table.id);
       const piiOf = piiCheckFor(request, connectionId);
       const resolution = await app.rbac.resolve(request);
-      const roleScope = `${[...resolution.roleIds].sort().join(',')}${resolution.superAdmin ? '+sa' : ''}:${unmasked ? 'pii' : 'masked'}`;
+      // …and by what the roles read of the tables: a limit tightened on the same role is a new answer at once, never the cached one.
+      const reads = resolution.readLimits === undefined ? '' : `:${JSON.stringify(resolution.readLimits.limited.map((entry) => [entry.grant, [...entry.limit.readable].sort()]))}`;
+      const roleScope = `${[...resolution.roleIds].sort().join(',')}${resolution.superAdmin ? '+sa' : ''}:${unmasked ? 'pii' : 'masked'}${reads}`;
       // The answer carries labels in the reader's language, so it is kept per language too.
       const key = cacheKeyOf({ descriptor, params: params ?? null, connectionId, roleScope, locale: locale ?? null });
       const hit = cache.get(key);

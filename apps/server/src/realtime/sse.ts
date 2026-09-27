@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { ForbiddenError, UnauthorizedError, ValidationFailedError } from '../errors.js';
 import { authorizeChannel } from './hub.js';
 import type { RealtimeGatewayDeps } from './ws.js';
+import { orderedSink } from './read-frames.js';
 
 /** Keep-alive comment interval. */
 export const SSE_KEEPALIVE_MS = 25_000;
@@ -93,10 +94,12 @@ export function registerSseRoute(
       // As this subscriber reads each channel's table: the columns their role does not show taken out.
       const frames = await Promise.all(channels.map(async (channel) => (await deps.frameFor?.(user, channel)) ?? null));
       const unsubscribes = channels.map((channel, i) =>
-        deps.hub.subscribe(channel, (event) => {
-          const shown = frames[i] === null || frames[i] === undefined ? event : frames[i]!(event);
-          res.write(`event: ${shown.type}\ndata: ${JSON.stringify(shown)}\n\n`);
-        }),
+        deps.hub.subscribe(
+          channel,
+          orderedSink(frames[i] ?? null, (shown) => {
+            res.write(`event: ${shown.type}\ndata: ${JSON.stringify(shown)}\n\n`);
+          }),
+        ),
       );
 
       const keepAlive = setInterval(() => {

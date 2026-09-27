@@ -34,6 +34,8 @@ import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { coerceCell } from '../../data-io/coerce.js';
 import { parseCsv } from '../../data-io/csv.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { assertImportReadable, readViewOf } from '../../crud/read-view.js';
+import { updateLimitOf } from '../../rbac/update-limits.js';
 import {
   ConflictError,
   ForbiddenError,
@@ -282,6 +284,15 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
         ) {
           throw privilegeRefusal(table);
         }
+        // As this person reads the table: a column their role does not read is no match key, and no column brought in unless their update names it.
+        const permissions = await app.rbac.resolve(request);
+        assertImportReadable(
+          readViewOf(view, permissions),
+          table.id,
+          mapping.columns,
+          (options.mode ?? 'insert') === 'upsert' ? (options.matchColumn ?? null) : null,
+          updateLimitOf(permissions, connectionId, table.id)?.writable ?? null,
+        );
         if ((options.mode ?? 'insert') === 'upsert') {
           const match = options.matchColumn ?? null;
           if (match === null) {
