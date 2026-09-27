@@ -311,6 +311,10 @@ async function sweepWithToken(
     if (withKey.statusCode >= 500 && without.statusCode < 500) {
       acted.push(`${entry} -> 500 only when the key is present`);
     }
+    // Why a guest's session ended is the public namespace's to say, and nobody else's.
+    if (withKey.headers['x-adminium-session-ended'] !== undefined) {
+      acted.push(`${entry} -> told why a session ended, outside the public namespace`);
+    }
   }
   return acted;
 }
@@ -356,7 +360,17 @@ describe('Publishable keys are inert outside /api/v1/public', () => {
      * addresses, and the auth limiter's buckets would otherwise carry over
      * from the first sweep into the second and differ within a pair.
      */
-    for (const presentation of ['header', 'bearer'] as const) {
+    /*
+     * Three kinds of session: one a claim found; a row's own link, opened
+     * verified; and one its person ended from another device, which the
+     * public namespace names in a header — and nothing else ever does.
+     */
+    for (const [presentation, kind] of [
+      ['header', 'claim'],
+      ['bearer', 'claim'],
+      ['header', 'own'],
+      ['header', 'ended'],
+    ] as const) {
       const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
       await firstRun(meta);
       const composed = await composeWidest(meta);
@@ -372,16 +386,19 @@ describe('Publishable keys are inert outside /api/v1/public', () => {
       await publicSessionsRepo(meta).create({
         keyId: row!.id,
         tokenHash: session.tokenHash,
-        grants: JSON.stringify({ ref: 'menu', column: 'id', value: 1 }),
+        grants: JSON.stringify({ ref: 'menu', column: 'id', value: 1, ...(kind === 'own' ? { token: 'f'.repeat(64) } : {}) }),
         expiresAt: Date.now() + 3_600_000,
+        ...(kind === 'own' ? { kind: 'token', level: 'verified' } : {}),
+        subject: 'row:isolation',
       });
+      if (kind === 'ended') await publicSessionsRepo(meta).endBySubject('row:isolation', 'elsewhere');
       expect(session.token.startsWith('adm_pubs_')).toBe(true);
 
       const acted =
         presentation === 'header'
           ? await sweepWithToken(composed.app, key, {}, { 'x-adminium-public-session': session.token })
           : await sweepWithToken(composed.app, session.token);
-      expect(acted, `a claim session (${presentation}) CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
+      expect(acted, `a ${kind} session (${presentation}) CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
       await open.close();
       open = undefined;
     }
