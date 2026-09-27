@@ -48,6 +48,7 @@ import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
 import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
+import { renewedBy } from '../../crud/code-renew.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import {
@@ -2633,6 +2634,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const projected: Record<string, unknown> = {};
         // A quote shows figures only: no key, no running number, no code.
         const hidden = quote === 'dry' ? hiddenInQuote(found.view, found.table, [found.resource.clientKey]) : new Set<string>();
+        // A code this change made (a ticket handed on) goes to the new holder, never back to the sender.
+        for (const column of renewedBy(outcome, found.table.table.columns)) hidden.add(column);
         for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
         const data = wallTimesAsInstants(projected, found.table.columns, found.dialect);
         // A quote runs no before hook: said, as a quote of a create says it.

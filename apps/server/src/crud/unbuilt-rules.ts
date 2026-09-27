@@ -54,10 +54,9 @@ function targetOf(model: Pick<EffectiveModel, 'relations'>, tableId: string, col
 }
 
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // Codes a guest types, and a code renewed when the ticket changes hands.
+  // Codes a guest types.
   { rule: 'lookup', on: (table) => anyColumn(table, (c) => c.lookup !== undefined) },
   { rule: 'normalize.code', on: (table) => anyColumn(table, (c) => c.normalize === 'code') },
-  { rule: 'code.renew', on: (table) => anyColumn(table, (c) => c.code?.renew !== undefined) },
   // Prices by the night, a copy that follows its source, a text joined from columns.
   { rule: 'perNight', on: (table) => anyColumn(table, (c) => c.perNight !== undefined) },
   {
