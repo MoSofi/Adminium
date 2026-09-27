@@ -199,11 +199,12 @@ async function hoursEdgeOn(day: string, time: HoursEdge, context: MomentContext)
 
 const yes = (value: unknown): boolean => value === true || value === 1 || value === '1' || value === 't' || value === 'true';
 
-/** A time of day as a column keeps it (`HH:MM`, or a database time `HH:MM:SS`) as `HH:MM`, or null. */
+/** A time of day as a column keeps it (`HH:MM`, `H:MM` as a person types it, or a database time `HH:MM:SS`) as `HH:MM`, or null. */
 export function clockOf(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  const match = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d(\.\d+)?)?$/.exec(value.trim());
-  return match === null ? null : `${match[1]}:${match[2]}`;
+  const match = /^(\d{1,2}):([0-5]\d)(:[0-5]\d(\.\d+)?)?$/.exec(value.trim());
+  if (match === null || Number(match[1]) > 23) return null;
+  return `${match[1]!.padStart(2, '0')}:${match[2]}`;
 }
 
 /** The instant a wall time names on a venue day, or null. `row` is the row the moment's column was read from. */

@@ -56,6 +56,12 @@ describe.each(LEGS)("a moment's time of day kept on the row — %s", (dialect, a
     expect(await expected(s['id'])).toBe('2026-11-02T18:30:00.000Z');
     await w.update('stays', s['id'], { arrival_time: '20:00' });
     expect(await expected(s['id'])).toBe('2026-11-02T20:00:00.000Z');
+    // As a person types it, or as a database time keeps it.
+    await w.update('stays', s['id'], { arrival_time: '9:05' });
+    expect(await expected(s['id'])).toBe('2026-11-02T09:05:00.000Z');
+    // Not a time of day: the house's time stands in.
+    await w.update('stays', s['id'], { arrival_time: '25:00' });
+    expect(await expected(s['id'])).toBe('2026-11-02T15:00:00.000Z');
     await w.update('stays', s['id'], { arrival_time: null });
     expect(await expected(s['id'])).toBe('2026-11-02T15:00:00.000Z');
   });
