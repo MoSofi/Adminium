@@ -168,6 +168,59 @@ function lookupLabelOf(row: CrudRow, keyColumn: string, display?: string): strin
   return String(row[keyColumn] ?? '');
 }
 
+/**
+ * THE STATE A SAVE SAW. A table that keeps states refuses a move the app
+ * lists as an undo unless the change names the state it takes the row back
+ * from (`from`), and refuses any move of a row another screen has moved on
+ * since. So a save that changes the state column names the state the form
+ * loaded — never one read again now, which would hide exactly that.
+ *
+ * The state column comes from the connection's schema, read once a minute
+ * per connection and only when a save could need it.
+ */
+const STATE_COLUMNS_TTL_MS = 60_000;
+const stateColumnsByConnection = new Map<string, { at: number; columns: Promise<ReadonlyMap<string, string>> }>();
+
+function stateColumnsOf(connectionId: string): Promise<ReadonlyMap<string, string>> {
+  const held = stateColumnsByConnection.get(connectionId);
+  if (held !== undefined && Date.now() - held.at < STATE_COLUMNS_TTL_MS) return held.columns;
+  const columns = api
+    .get<{ model: { tables: { id: string; name: string; states?: { column: string } }[] } }>(
+      `/api/v1/connections/${encodeURIComponent(connectionId)}/schema`,
+    )
+    .then((reply) => {
+      const out = new Map<string, string>();
+      for (const table of reply.model.tables) {
+        if (table.states === undefined) continue;
+        out.set(table.id, table.states.column);
+        out.set(table.name, table.states.column);
+      }
+      return out as ReadonlyMap<string, string>;
+    })
+    .catch(() => {
+      // Unread, the save names nothing and the server judges it as before; asked again next time.
+      stateColumnsByConnection.delete(connectionId);
+      return new Map<string, string>() as ReadonlyMap<string, string>;
+    });
+  stateColumnsByConnection.set(connectionId, { at: Date.now(), columns });
+  return columns;
+}
+
+/** The state the form loaded, when this save moves the row out of it; else undefined. */
+async function seenStateOf(connectionId: string, table: string, patch: CrudRow, seen: CrudRow | undefined): Promise<string | undefined> {
+  if (seen === undefined) return undefined;
+  const column = (await stateColumnsOf(connectionId)).get(table);
+  if (column === undefined || !Object.prototype.hasOwnProperty.call(patch, column)) return undefined;
+  const was = seen[column];
+  if (was === null || was === undefined || was === '' || String(patch[column]) === String(was)) return undefined;
+  return String(was);
+}
+
+/** Forget the state columns read so far (tests; a schema change the page knows of). */
+export function forgetStateColumns(): void {
+  stateColumnsByConnection.clear();
+}
+
 export function createCrudApi(connectionId: string, table: string): BoundCrudApi {
   const conn = encodeURIComponent(connectionId);
   const baseFor = (tableName: string): string => `/api/v1/data/${conn}/${encodeURIComponent(tableName)}`;
@@ -210,12 +263,14 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
       );
     },
 
-    async update(recordId, patch, links, children): Promise<CrudMutationResult> {
+    async update(recordId, patch, links, children, seen): Promise<CrudMutationResult> {
+      const from = await seenStateOf(connectionId, table, patch, seen);
       return withFieldIssues(() =>
         api.patch<CrudMutationResult>(`${base}/${encodeURIComponent(recordId)}`, {
           values: patch,
           ...(links === undefined ? {} : { links }),
           ...(children === undefined ? {} : { children }),
+          ...(from === undefined ? {} : { from }),
         }),
       );
     },

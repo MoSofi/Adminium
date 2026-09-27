@@ -8,7 +8,7 @@ import { isDeletePreview } from '@adminium/widgets';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { jsonResponse } from '../test/fixtures.js';
-import { createCrudApi, crudListQuery } from './crud.js';
+import { createCrudApi, crudListQuery, forgetStateColumns } from './crud.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -228,6 +228,65 @@ describe('bulk', () => {
       ids: ['a'],
       values: { status: 'archived' },
     });
+  });
+});
+
+describe('a save that moves a row’s state', () => {
+  /** The connection's schema (orders keep states in `status`; customers keep none), and every PATCH answered. */
+  function server() {
+    forgetStateColumns();
+    return captureFetch((url) =>
+      url.endsWith('/schema')
+        ? jsonResponse(200, {
+            model: {
+              tables: [
+                { id: 'public.orders', name: 'orders', states: { column: 'status', initial: 'placed' } },
+                { id: 'public.customers', name: 'customers' },
+              ],
+            },
+          })
+        : jsonResponse(200, { data: { id: 7 }, undoToken: null }),
+    );
+  }
+  const patchBody = (fetchMock: ReturnType<typeof server>) => {
+    const call = fetchMock.mock.calls.find((c) => (c[1] as RequestInit | undefined)?.method === 'PATCH');
+    return JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;
+  };
+  const orders = createCrudApi('conn_1', 'public.orders');
+
+  it('names the state the form loaded, so a move the app lists as an undo is made', async () => {
+    const fetchMock = server();
+    await orders.update('7', { status: 'preparing' }, undefined, undefined, { id: 7, status: 'ready' });
+    expect(patchBody(fetchMock)).toEqual({ values: { status: 'preparing' }, from: 'ready' });
+  });
+
+  it('names nothing when the save leaves the state as it was, or the form says nothing of it', async () => {
+    const fetchMock = server();
+    await orders.update('7', { status: 'ready', note: 'x' }, undefined, undefined, { id: 7, status: 'ready' });
+    expect(patchBody(fetchMock)).toEqual({ values: { status: 'ready', note: 'x' } });
+    const again = server();
+    await orders.update('7', { note: 'y' }, undefined, undefined, { id: 7, status: 'ready' });
+    expect(patchBody(again)).toEqual({ values: { note: 'y' } });
+    const unseen = server();
+    await orders.update('7', { status: 'preparing' });
+    expect(patchBody(unseen)).toEqual({ values: { status: 'preparing' } });
+    // Nothing to name: the schema is not even read.
+    expect(unseen.mock.calls.some((c) => String(c[0]).endsWith('/schema'))).toBe(false);
+  });
+
+  it('names nothing on a table that keeps no states', async () => {
+    const fetchMock = server();
+    await createCrudApi('conn_1', 'public.customers').update('7', { status: 'gold' }, undefined, undefined, { id: 7, status: 'silver' });
+    expect(patchBody(fetchMock)).toEqual({ values: { status: 'gold' } });
+  });
+
+  it('reads the schema once for several saves', async () => {
+    const fetchMock = server();
+    await orders.update('7', { status: 'preparing' }, undefined, undefined, { id: 7, status: 'ready' });
+    await orders.update('8', { status: 'ready' }, { tags: [] }, undefined, { id: 8, status: 'preparing' });
+    expect(fetchMock.mock.calls.filter((c) => String(c[0]).endsWith('/schema'))).toHaveLength(1);
+    const last = fetchMock.mock.calls.filter((c) => (c[1] as RequestInit | undefined)?.method === 'PATCH').at(-1);
+    expect(JSON.parse(String((last?.[1] as RequestInit).body))).toEqual({ values: { status: 'ready' }, links: { tags: [] }, from: 'preparing' });
   });
 });
 

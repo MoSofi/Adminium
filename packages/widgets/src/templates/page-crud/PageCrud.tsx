@@ -886,16 +886,12 @@ export function PageCrud({
     setEditErrors({});
     api
       .update(
-        ...((children !== undefined
-          ? [recordId, values, links ?? {}, children]
-          : links === undefined
-            ? [recordId, values]
-            : [recordId, values, links]) as [
-          string,
-          CrudRow,
-          Record<string, string[]>?,
-          Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>?,
-        ]),
+        recordId,
+        values,
+        children !== undefined ? (links ?? {}) : links,
+        children,
+        // The row as the form opened it: the state the person saw, when the save moves it.
+        editRecord,
       )
       .then((result) => {
         setEditRecord(null);

@@ -322,6 +322,12 @@ for (const [dialect, reachable] of LEGS) {
         expect(after['ready_at']).toBeNull();
         expect(after['ready_by']).toBeNull();
 
+        // The records page's own save of the move back, naming the state its form loaded: made, no token needed.
+        await patch(order, { values: { status: 'ready' }, from: 'preparing' });
+        const saved = await patch(order, { values: { status: 'preparing' }, from: 'ready' });
+        expect(saved.statusCode, saved.body).toBe(200);
+        expect(await row(order)).toMatchObject({ status: 'preparing', ready_at: null, ready_by: null });
+
         // A move the app lists no undo for is not offered one; nor is a change that also wrote something else.
         await patch(order, { values: { status: 'ready' }, from: 'preparing' });
         const picked = await patch(order, { values: { status: 'picked_up' }, from: 'ready' });

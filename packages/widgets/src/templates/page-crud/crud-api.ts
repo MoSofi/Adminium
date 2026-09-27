@@ -235,6 +235,13 @@ export interface CrudApi {
     patch: CrudRow,
     links?: Record<string, string[]>,
     children?: Record<string, { key?: CrudRow | undefined; values: CrudRow }[]>,
+    /**
+     * The row as the form loaded it. A host that knows the table's state
+     * column names the state the person saw when the change moves it: a move
+     * the app lists as an undo is made only so, and a row another screen
+     * moved on since is refused rather than moved from where it is now.
+     */
+    seen?: CrudRow,
   ): Promise<CrudMutationResult>;
   /**
    * The records one relation links this record to, with their names — what the
