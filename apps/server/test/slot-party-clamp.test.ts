@@ -9,6 +9,7 @@
  * `validation.max`). A page cannot measure how full a slot is by asking for
  * ever larger parties, nor hide a free slot from a large family.
  */
+import { validateManifest } from '@adminium/manifest';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -42,6 +43,21 @@ function kitchen(): Doc {
   });
   return manifest;
 }
+
+describe('a slot a guest may ask about', () => {
+  it('needs a largest party on the column its rows take: without one, larger parties would measure how full a time is', () => {
+    expect(validateManifest(kitchen()).ok).toBe(true);
+    const open = kitchen();
+    const booked = ((open['requiredSchema'] as { tables: Doc[] }).tables).find((table) => table['ref'] === 'tables_booked')!;
+    (booked['columns'] as Doc[])[2] = { ref: 'covers', type: 'int', default: 2 };
+    const result = validateManifest(open);
+    expect(result.ok).toBe(false);
+    expect(JSON.stringify(result)).toContain('give it a largest value (validation.max)');
+    // A released app's slot rule (no kind, only its old keys) is answered as it always was, and validates as it did.
+    booked['capacity'] = { slot: 'starts_at', amount: 'covers', perSlot: 6, slotMinutes: 60, windowDays: 3, opens: '11:00', closes: '14:00' };
+    expect(validateManifest(open).ok).toBe(true);
+  });
+});
 
 describe.each(LEGS)('a slot asked about a party answers for what one row takes — %s', (dialect, available) => {
   let h: InvoicingHarness & { reply: Record<string, unknown> };

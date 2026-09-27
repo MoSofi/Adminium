@@ -22,7 +22,7 @@ import { z } from 'zod';
 
 import { addOnNeedsIssues, addOnsSchema, requiresAddOn, type AddOnNeeds } from './add-ons.js';
 import { bookingIssues, bookingSchema } from './booking.js';
-import { capacityIssues, capacitySchema, viaIndexIssues, type Capacity } from './capacity.js';
+import { capacityIssues, capacitySchema, isLegacyCapacity, kindOf, rulesOf, viaIndexIssues, type Capacity } from './capacity.js';
 import { appDocumentIssues, appDocumentSchema, mappingIssues, type AppDocument } from './documents.js';
 import { formulaColumns, formulaExprSchema, tableFormulaIssues } from './formula.js';
 import { pageCalendarIssues } from './page-calendar.js';
@@ -2059,6 +2059,7 @@ export function appReferenceIssues(
   );
   out.push(...viaIndexIssues(m.requiredSchema.tables));
   out.push(...settingTableIssues(m));
+  out.push(...slotPartyIssues(m));
   out.push(...outboxIssues(m, index));
   out.push(...roleLimitIssues(m.roles ?? [], index));
   if (shapeOf === undefined) out.push(...addOnNeedsIssues(m));
@@ -2245,6 +2246,31 @@ export function cappedFormulaWarnings(tables: readonly RequiredTableShape[]): { 
         path: ['requiredSchema', 'tables', t, 'columns', c, 'rules', 'rollup', 'balance', 'of'],
         message: `"${table.ref}.${balance.of}" is worked out from ${open.map((ref) => `"${ref}"`).join(', ')}, which can change while "${capped.join('", "')}" rows are held to the balance: a bulk edit or an import settles the balance without the cap. Lock them with the table's states while those rows can exist`,
       });
+    });
+  });
+  return out;
+}
+
+/**
+ * A slot limit a guest may ask about, whose rows each take a party written in
+ * a column: the party asked is capped at what one row may hold, so the column
+ * says it (`validation.max`) — or a page could ask ever larger parties and
+ * learn how full each time is. A released app's slot rule is answered as it
+ * always was.
+ */
+function slotPartyIssues(m: { requiredSchema: { tables: readonly RequiredTableShape[] }; publicAccess?: readonly PublicAccess[] | undefined }): ReferenceIssue[] {
+  const out: ReferenceIssue[] = [];
+  (m.publicAccess ?? []).forEach((entry, e) => {
+    if (entry.kind !== 'availability') return;
+    const table = m.requiredSchema.tables.find((t) => t.ref === entry.table);
+    if (table?.capacity === undefined || isLegacyCapacity(table.capacity)) return;
+    const rule = rulesOf(table.capacity)[entry.rule ?? 0];
+    if (rule === undefined || kindOf(rule) !== 'slot' || !('amount' in rule) || typeof rule.amount !== 'string') return;
+    const amount = rule.amount;
+    if (table.columns.find((column) => column.ref === amount)?.rules?.validation?.max !== undefined) return;
+    out.push({
+      path: ['publicAccess', e],
+      message: `"${table.ref}.${amount}" is the party a guest asks about: give it a largest value (validation.max), or a page asking ever larger parties learns how full each time is`,
     });
   });
   return out;
