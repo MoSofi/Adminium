@@ -400,6 +400,17 @@ export default {
       },
       "sparkline": {
         "description": "En indlejret mikrotendens over de seneste værdier — uden akser eller etiketter — til nøgletalskort, tabelceller og listerækker."
+      },
+      "slotStrip": {
+        "chartLabel": "Tidsrum",
+        "slot": "{slot}: {taken} af {size} optaget",
+        "slotNoSize": "{slot}: {taken} optaget",
+        "held": "{held} holdt",
+        "paused": "På pause",
+        "closedDay": "Lukket",
+        "past": "Forbi",
+        "now": "Nu",
+        "closed": "Lukket denne dag: ingen kan tage disse tidsrum."
       }
     },
     "feeds": {
@@ -654,7 +665,12 @@ export default {
       "detailKeyValue": {
         "description": "En posts felter som etiket/værdi-rækker med typebevidste værdier."
       },
-      "fileDownload": "Download"
+      "fileDownload": "Download",
+      "capacityLeft": {
+        "left": "{left} tilbage",
+        "taken": "{taken} af {size} optaget",
+        "takenOnly": "{taken} optaget"
+      }
     },
     "boards": {
       "kanbanBoard": {

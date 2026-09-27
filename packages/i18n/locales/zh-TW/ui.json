@@ -390,6 +390,17 @@
       },
       "sparkline": {
         "description": "近期數值的內嵌微型趨勢——沒有軸線或標籤——適用於 KPI 卡片、表格儲存格與清單列。"
+      },
+      "slotStrip": {
+        "chartLabel": "時段",
+        "slot": "{slot}：已佔 {taken}/{size}",
+        "slotNoSize": "{slot}：已佔 {taken}",
+        "held": "保留 {held}",
+        "paused": "已暫停",
+        "closedDay": "休息",
+        "past": "已過",
+        "now": "現在",
+        "closed": "當天休息：這些時段無法預訂。"
       }
     },
     "feeds": {
@@ -644,7 +655,12 @@
       "detailKeyValue": {
         "description": "將一筆記錄的欄位以標籤／數值列呈現，數值依型別格式化。"
       },
-      "fileDownload": "下載"
+      "fileDownload": "下載",
+      "capacityLeft": {
+        "left": "剩餘 {left}",
+        "taken": "已佔 {taken}/{size}",
+        "takenOnly": "已佔 {taken}"
+      }
     },
     "boards": {
       "kanbanBoard": {

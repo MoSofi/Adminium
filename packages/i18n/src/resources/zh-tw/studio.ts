@@ -708,7 +708,23 @@ export default {
         "checkFirst": "安裝前請重新檢查資料表。",
         "nothingYet": "按下「安裝」之前不會有任何變更。",
         "again": "重新檢查",
-        "adoptedNote": "先前安裝的 {app} 依原樣使用了此資料表。"
+        "adoptedNote": "先前安裝的 {app} 依原樣使用了此資料表。",
+        "share": {
+          "useMenu": "使用 {app} 的菜單",
+          "useTables": "使用 {app} 的資料表",
+          "useMenuNote": "兩個應用程式讀寫相同的菜品。",
+          "useTablesNote": "兩個應用程式讀寫相同的資料列。",
+          "addsColumns": "{count, plural, other {在 {app} 的資料表中新增 # 欄：}}",
+          "nothingChanges": "{app} 讀取的內容不會改變。",
+          "separateMenu": "保留獨立的菜單",
+          "separateTables": "保留獨立的資料表",
+          "separateNote": "{app} 會建立自己的 {count, plural, other {# 個資料表}}。",
+          "introMenu": "{app} 在這裡已有菜單。{self} 可以使用它，或保留自己的菜單。",
+          "introTables": "{app} 在這裡已有這些資料表。{self} 可以使用它們，或保留自己的資料表。",
+          "labelMenu": "{app} 使用哪個菜單",
+          "labelTables": "{app} 使用哪些資料表",
+          "recommended": "推薦"
+        }
       },
       "running": {
         "title": "正在安裝 {app}",
@@ -3026,7 +3042,9 @@ export default {
     "cancel": "取消",
     "confirmDrop": "解除安裝並刪除資料",
     "confirm": "解除安裝",
-    "rules": "{count, plural, other {它的 # 條欄位規則}}"
+    "rules": "{count, plural, other {它的 # 條欄位規則}}",
+    "sharedTables": "{app} 也在使用 {count, plural, other {# 個資料表}}，永不刪除：{tables}",
+    "sharedSample": "它在共用資料表中的範例資料列會保留。請先移除範例資料以將其刪除。"
   },
   "sampleData": {
     "title": "範例資料",

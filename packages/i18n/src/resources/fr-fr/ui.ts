@@ -400,6 +400,17 @@ export default {
       },
       "sparkline": {
         "description": "Une micro-tendance en ligne des valeurs récentes — sans axes ni libellés — pour les cartes d’indicateurs, les cellules de tableau et les lignes de liste."
+      },
+      "slotStrip": {
+        "chartLabel": "Créneaux",
+        "slot": "{slot} : {taken} sur {size} pris",
+        "slotNoSize": "{slot} : {taken} pris",
+        "held": "{held} retenus",
+        "paused": "En pause",
+        "closedDay": "Fermé",
+        "past": "Passé",
+        "now": "Maintenant",
+        "closed": "Fermé ce jour-là : personne ne peut prendre ces créneaux."
       }
     },
     "feeds": {
@@ -654,7 +665,12 @@ export default {
       "detailKeyValue": {
         "description": "Les champs d’un enregistrement en lignes libellé/valeur, avec des valeurs adaptées au type."
       },
-      "fileDownload": "Télécharger"
+      "fileDownload": "Télécharger",
+      "capacityLeft": {
+        "left": "{left} restants",
+        "taken": "{taken} sur {size} pris",
+        "takenOnly": "{taken} pris"
+      }
     },
     "boards": {
       "kanbanBoard": {

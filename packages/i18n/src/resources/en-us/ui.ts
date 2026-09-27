@@ -400,6 +400,17 @@ export default {
       },
       "sparkline": {
         "description": "An inline micro-trend of recent values — no axes or labels — for KPI cards, table cells and list rows."
+      },
+      "slotStrip": {
+        "chartLabel": "Slots",
+        "slot": "{slot}: {taken} of {size} taken",
+        "slotNoSize": "{slot}: {taken} taken",
+        "held": "{held} held",
+        "paused": "Paused",
+        "closedDay": "Closed",
+        "past": "Over",
+        "now": "Now",
+        "closed": "Closed this day: no one can take these slots."
       }
     },
     "feeds": {
@@ -654,7 +665,12 @@ export default {
       "detailKeyValue": {
         "description": "A record's fields as label/value rows with type-aware values."
       },
-      "fileDownload": "Download"
+      "fileDownload": "Download",
+      "capacityLeft": {
+        "left": "{left} left",
+        "taken": "{taken} of {size} taken",
+        "takenOnly": "{taken} taken"
+      }
     },
     "boards": {
       "kanbanBoard": {

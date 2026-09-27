@@ -400,6 +400,17 @@ export default {
       },
       "sparkline": {
         "description": "Ein Inline-Mikrotrend der jüngsten Werte — ohne Achsen und Beschriftungen — für Kennzahlenkarten, Tabellenzellen und Listenzeilen."
+      },
+      "slotStrip": {
+        "chartLabel": "Zeitfenster",
+        "slot": "{slot}: {taken} von {size} belegt",
+        "slotNoSize": "{slot}: {taken} belegt",
+        "held": "{held} reserviert",
+        "paused": "Pausiert",
+        "closedDay": "Geschlossen",
+        "past": "Vorbei",
+        "now": "Jetzt",
+        "closed": "An diesem Tag geschlossen: Diese Zeitfenster kann niemand buchen."
       }
     },
     "feeds": {
@@ -654,7 +665,12 @@ export default {
       "detailKeyValue": {
         "description": "Die Felder eines Datensatzes als Zeilen aus Bezeichnung und Wert, mit typbewussten Werten."
       },
-      "fileDownload": "Herunterladen"
+      "fileDownload": "Herunterladen",
+      "capacityLeft": {
+        "left": "{left} frei",
+        "taken": "{taken} von {size} belegt",
+        "takenOnly": "{taken} belegt"
+      }
     },
     "boards": {
       "kanbanBoard": {

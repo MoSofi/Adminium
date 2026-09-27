@@ -698,7 +698,23 @@
         "checkFirst": "Před instalací tabulky zkontrolujte znovu.",
         "nothingYet": "Dokud nestisknete Instalovat, nic se nezmění.",
         "again": "Zkontrolovat znovu",
-        "adoptedNote": "Dřívější instalace {app} použila tuto tabulku tak, jak ji našla."
+        "adoptedNote": "Dřívější instalace {app} použila tuto tabulku tak, jak ji našla.",
+        "share": {
+          "useMenu": "Použít menu aplikace {app}",
+          "useTables": "Použít tabulky aplikace {app}",
+          "useMenuNote": "Obě aplikace čtou a zapisují stejná jídla.",
+          "useTablesNote": "Obě aplikace čtou a zapisují stejné řádky.",
+          "addsColumns": "{count, plural, one {Přidá # sloupec do tabulek aplikace {app}:} few {Přidá # sloupce do tabulek aplikace {app}:} many {Přidá # sloupce do tabulek aplikace {app}:} other {Přidá # sloupců do tabulek aplikace {app}:}}",
+          "nothingChanges": "Nic, co aplikace {app} čte, se nemění.",
+          "separateMenu": "Mít vlastní menu",
+          "separateTables": "Mít vlastní tabulky",
+          "separateNote": "{app} si vytvoří {count, plural, one {vlastní tabulku} few {# vlastní tabulky} many {# vlastní tabulky} other {# vlastních tabulek}}.",
+          "introMenu": "Aplikace {app} tu už má menu. {self} ho může použít, nebo mít vlastní.",
+          "introTables": "Aplikace {app} tu už tyto tabulky má. {self} je může použít, nebo mít vlastní.",
+          "labelMenu": "Které menu používá {app}",
+          "labelTables": "Které tabulky používá {app}",
+          "recommended": "Doporučeno"
+        }
       },
       "running": {
         "title": "Instaluje se {app}",
@@ -3016,7 +3032,9 @@
     "cancel": "Zrušit",
     "confirmDrop": "Odinstalovat a smazat data",
     "confirm": "Odinstalovat",
-    "rules": "{count, plural, one {Její pravidlo sloupce} few {Její # pravidla sloupců} many {Jejích # pravidla sloupců} other {Jejích # pravidel sloupců}}"
+    "rules": "{count, plural, one {Její pravidlo sloupce} few {Její # pravidla sloupců} many {Jejích # pravidla sloupců} other {Jejích # pravidel sloupců}}",
+    "sharedTables": "Aplikace {app} používá i {count, plural, one {# tabulku} few {# tabulky} many {# tabulky} other {# tabulek}}, nikdy se nesmažou: {tables}",
+    "sharedSample": "Její ukázkové řádky ve sdílených tabulkách zůstanou. Chcete-li je odebrat, nejprve odeberte ukázková data."
   },
   "sampleData": {
     "title": "Ukázková data",

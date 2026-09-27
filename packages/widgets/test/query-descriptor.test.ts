@@ -44,6 +44,22 @@ describe('queryDescriptorSchema', () => {
     expect(parsed.window?.compareToPrior).toBe(true);
   });
 
+  it('accepts a limit\'s counts, following the page\'s day unless told otherwise', () => {
+    const parsed = queryDescriptorSchema.parse({ ...minimal, kind: 'capacity-counts', shape: 'categorical', capacity: { under: 'event_id', value: '1' } });
+    expect(parsed.kind).toBe('capacity-counts');
+    expect(parsed.capacity).toEqual({ rule: 0, param: 'day', under: 'event_id', value: '1' });
+  });
+
+  it('accepts the hours of the day as a bucket, and a filter one link away', () => {
+    const parsed = queryDescriptorSchema.parse({
+      ...minimal,
+      bucket: { column: 'pickup_at', unit: 'hour-of-day' },
+      filters: [{ column: 'order_id.status', op: 'neq', value: 'cancelled' }],
+    });
+    expect(parsed.bucket?.unit).toBe('hour-of-day');
+    expect(parsed.filters?.[0]?.column).toBe('order_id.status');
+  });
+
   it('defaults window.compareToPrior to false', () => {
     const parsed = queryDescriptorSchema.parse({
       ...minimal,
@@ -57,7 +73,10 @@ describe('queryDescriptorSchema', () => {
     ['missing connectionId', { connectionId: undefined }],
     ['missing source name', { source: {} }],
     ['bad source type', { source: { name: 'orders', type: 'materialized' } }],
-    ['kind other than table-query', { kind: 'raw-sql' }],
+    ['kind other than table-query or capacity-counts', { kind: 'raw-sql' }],
+    ['a counts rule past the third', { kind: 'capacity-counts', capacity: { rule: 3 } }],
+    ['a counts date that is not a day', { kind: 'capacity-counts', capacity: { date: '28/07/2026' } }],
+    ['no counts ids at all', { kind: 'capacity-counts', capacity: { ids: [] } }],
     ['more than 8 aggregations', {
       aggregations: Array.from({ length: 9 }, (_, n) => ({ fn: 'count', alias: `a${n}` })),
     }],

@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2526 entries. */
+/** `namespace:key` — 2533 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -1458,6 +1458,12 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:hostedApps.install.check.prefixTitle',
   'studio:hostedApps.install.check.renameField',
   'studio:hostedApps.install.check.renameTitle',
+  'studio:hostedApps.install.check.share.labelMenu',
+  'studio:hostedApps.install.check.share.labelTables',
+  'studio:hostedApps.install.check.share.separateMenu',
+  'studio:hostedApps.install.check.share.separateTables',
+  'studio:hostedApps.install.check.share.useMenu',
+  'studio:hostedApps.install.check.share.useTables',
   'studio:hostedApps.install.check.takenIntroShort',
   'studio:hostedApps.install.database.noWritable',
   'studio:hostedApps.install.done.pages',
@@ -2275,6 +2281,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'ui:widgets.charts.scatterBubble.chartLabel',
   'ui:widgets.charts.scatterBubble.emptyTitle',
   'ui:widgets.charts.slope.chartLabel',
+  'ui:widgets.charts.slotStrip.chartLabel',
   'ui:widgets.charts.stackedBar100.chartLabel',
   'ui:widgets.charts.stream.chartLabel',
   'ui:widgets.charts.sunburst.chartLabel',

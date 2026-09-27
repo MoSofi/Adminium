@@ -10,6 +10,7 @@ import { BarChart, DonutChart, LineAreaChart, Sparkline, formatShortDate } from 
 import type { BarSeries, LineAreaPoint, SparklineTone } from '@adminium/charts';
 import { useMaybeT } from '@adminium/i18n/react';
 
+import { SlotStrip, asSlotStrip } from './SlotStrip.js';
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asCategorical, asTimeseries, timeseriesValues } from '../../lib/shapes.js';
 import type {
@@ -80,6 +81,11 @@ export function ChartLineAreaWidget({ config, data }: WidgetProps<ChartLineAreaC
  */
 function bucketLabels(points: readonly { t: string }[], unit: string | undefined, locale: string | undefined): string[] {
   const at = points.map((point) => Date.parse(point.t));
+  // The venue's hours of the day, folded by the server: the hour in the point's UTC fields, not an instant.
+  if (unit === 'hour-of-day') {
+    const hour = new Intl.DateTimeFormat(locale, { hour: 'numeric', timeZone: 'UTC' });
+    return at.map((t) => hour.format(new Date(t)));
+  }
   const hourly = unit === 'hour' && at.every((t, i) => i === 0 || t - at[i - 1]! < 86_400_000);
   if (!hourly) return points.map((point) => formatShortDate(new Date(point.t)));
   const spansDays = at.length > 1 && at[at.length - 1]! - at[0]! >= 86_400_000;
@@ -112,6 +118,11 @@ export function barInputsOf(
 
 export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
   const t = useMaybeT();
+  // A slot limit's counts (`capacity-counts`): the day's strip of slots.
+  const strip = asSlotStrip(data);
+  if (strip !== null) {
+    return <SlotStrip data={strip} label={config.title ?? t('ui:widgets.charts.slotStrip.chartLabel', 'Slots')} height={config.height} locale={config.format?.locale} />;
+  }
   const inputs = barInputsOf(data, config.title ?? 'Value', {
     unit: (config as { binding?: { bucket?: { unit?: string } } }).binding?.bucket?.unit,
     locale: config.format?.locale,
