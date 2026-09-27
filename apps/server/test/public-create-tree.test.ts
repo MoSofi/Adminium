@@ -7,9 +7,17 @@
  * answered with the order already made, and a dry run that works out every
  * figure and keeps nothing. On every engine.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import BetterSqlite3 from 'better-sqlite3';
+import pg from 'pg';
+import { connectionTenantConfig } from '@adminium/meta';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
+import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
 import { solveProof } from '../src/public-api/proof.js';
+import { createPublicViews } from '../src/public-api/runtime.js';
+import { TEST_SECRET } from './helpers.js';
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { cents, MENU, orderPublicManifest } from './order-tree-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
@@ -20,6 +28,9 @@ interface Line {
   mods?: number[];
   note?: string;
 }
+
+const prepare = BetterSqlite3.prototype.prepare;
+const query = pg.Client.prototype.query;
 
 const body = (lines: readonly Line[], values: Record<string, unknown> = { email: 'ada@example.com', name: 'Ada' }, more: Record<string, unknown> = {}) => ({
   values,
@@ -213,5 +224,129 @@ describe.each(LEGS)('a guest order with its lines, over the public API — %s', 
     expect(refusal(short)).toMatchObject({ params: { column: 'client_key', reason: 'format' } });
     // A dry run carries no key: twice with the same one keeps nothing and blocks nothing.
     for (let i = 0; i < 2; i += 1) expect((await quote(body(SIXTY_TWO, { email: 'ada@example.com', name: 'Ada', client_key: 'dry-key-0123456789abcdefgh' }))).statusCode).toBe(200);
+  });
+
+  /** An operator's own endpoints over the installed tables, and a key to them; the served key is switched to it. */
+  const operatorKey = async (endpoints: { ref: string; table: string; methods: string[]; definition: Record<string, unknown> }[]) => {
+    const views = createPublicViews(h!.meta);
+    const service = createEndpointService({ meta: h!.meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(h!.meta, cid)) ?? undefined });
+    const view = (await views.viewFor(h!.connectionId))!;
+    for (const endpoint of endpoints) {
+      const saved = await service.saveEndpoint({
+        connectionId: h!.connectionId,
+        ref: endpoint.ref,
+        origin: 'custom',
+        definition: {
+          path: `/${endpoint.ref}`,
+          source: view.table(h!.real(endpoint.table)).id,
+          methods: endpoint.methods,
+          filters: [],
+          pagination: { default_limit: 50, max_limit: 200, order: 'id.asc' },
+          auth: { role: 'anon' },
+          rate_limit: { requests: 60, window: '1m' },
+          response: { shape: 'object', envelope: 'data' },
+          ...endpoint.definition,
+        } as never,
+      });
+      expect(saved).toBeDefined();
+    }
+    const secret = generatePublishableKey('browser');
+    const { key } = await service.createKey({
+      connectionId: h!.connectionId,
+      name: `operator ${endpoints.map((e) => e.ref).join(' ')}`,
+      access: endpoints.map((endpoint) => ({ ref: endpoint.ref, methods: endpoint.methods as never })),
+      secret: { prefix: secret.prefix, tokenHash: secret.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), secret.token) },
+      origins: [],
+      kind: 'browser',
+    });
+    await served.useKey(key.id);
+    return async () => served.useKey((h!.reply['publicAccess'] as { keyId: string }).keyId);
+  };
+
+  it.runIf(available)("a guest's change tried first: the dry run shows the new figure and keeps nothing; a save at another price is refused", async () => {
+    const made = (await save(body([{ item: 4, qty: 1 }]))).json() as { data: { id: unknown }; children: { order_items: { data: { id: unknown } }[] } };
+    const line = made.children.order_items[0]!.data.id;
+    const back = await operatorKey([{ ref: 'line_change', table: 'order_items', methods: ['PATCH'], definition: { select: ['id', 'qty', 'line_total'], writable: ['qty'], dry_run: true, expect: 'line_total' } }]);
+    try {
+      const patch = (url: string, payload: Record<string, unknown>, method: 'PATCH' | 'POST' = 'PATCH') =>
+        served.composed.app.inject({ method, url: `/api/v1/public/records/line_change/${String(line)}${url}`, remoteAddress: from(), headers: served.headers(), payload });
+      const lineRow = async () => (await h!.rows(`select qty, line_total from ${h!.real('order_items')} where id = ${String(line)}`))[0]!;
+      const orderTotal = async () => cents((await h!.rows(`select total from ${h!.real('orders')} where id = ${String(made.data.id)}`))[0]!['total']);
+      const total = await orderTotal();
+      const dry = await patch('/dry-run', { values: { qty: 3 } }, 'POST');
+      expect(dry.statusCode, dry.body).toBe(200);
+      const data = (dry.json() as { data: Record<string, unknown> }).data;
+      expect([Number(data['qty']), cents(data['line_total'])]).toEqual([3, '6.00']);
+      // The quote shows figures, not the row's key.
+      expect(data['id']).toBeUndefined();
+      expect([Number((await lineRow())['qty']), await orderTotal()]).toEqual([1, total]);
+      // Saved at a price the guest was not shown: refused, with the price it would be.
+      const changed = await patch('', { values: { qty: 3 }, expect: { total: '4.00' } });
+      expect(changed.statusCode, changed.body).toBe(409);
+      expect(refusal(changed)).toMatchObject({ code: 'PUBLIC_PRICE_CHANGED', params: { total: '6.00' } });
+      expect(Number((await lineRow())['qty'])).toBe(1);
+      // At the price shown: saved, and the order above it settled in the same write.
+      const saved = await patch('', { values: { qty: 3 }, expect: { total: '6.00' } });
+      expect(saved.statusCode, saved.body).toBe(200);
+      expect(Number((await lineRow())['qty'])).toBe(3);
+      expect(await orderTotal()).toBe((Number(total) + 4 * 1.0825).toFixed(2));
+    } finally {
+      await back();
+    }
+  });
+
+  it.runIf(available)('an entry with a price check or a retry key and no child rows goes the same one way', async () => {
+    const back = await operatorKey([
+      { ref: 'bare_order', table: 'orders', methods: ['POST'], definition: { select: ['id', 'total'], writable: ['email', 'name', 'client_key'], expect: 'total', client_key: 'client_key' } },
+    ]);
+    try {
+      const post = (payload: Record<string, unknown>) =>
+        served.composed.app.inject({ method: 'POST', url: '/api/v1/public/records/bare_order', remoteAddress: from(), headers: served.headers(), payload });
+      const key = 'bare-order-key-0123456789ab';
+      const values = { email: 'bo@example.com', name: 'Bo', client_key: key };
+      const wrong = await post({ values, expect: { total: '1.00' } });
+      expect(wrong.statusCode, wrong.body).toBe(409);
+      expect(refusal(wrong)).toMatchObject({ code: 'PUBLIC_PRICE_CHANGED', params: { total: '0.00' } });
+      const made = await post({ values, expect: { total: '0.00' } });
+      expect(made.statusCode, made.body).toBe(201);
+      const again = await post({ values, expect: { total: '0.00' } });
+      expect(again.statusCode, again.body).toBe(200);
+      expect(again.json()).toMatchObject({ replayed: true, data: (made.json() as { data: unknown }).data });
+      const rows = await post({ values: { email: 'bo@example.com', name: 'Bo' }, children: { order_items: [{ values: { menu_item_id: 4 } }] } });
+      expect(rows.statusCode).toBe(400);
+      expect(refusal(rows)).toMatchObject({ params: { child: 'order_items', reason: 'not-offered' } });
+    } finally {
+      await back();
+    }
+  });
+
+  it.runIf(available && dialect !== 'mysql')('a dry run issues the same statements for an address on file and one that is not, and never reads the people', async () => {
+    const statements: string[] = [];
+    const spy =
+      dialect === 'sqlite'
+        ? vi.spyOn(BetterSqlite3.prototype, 'prepare').mockImplementation(function (this: BetterSqlite3.Database, source: string) {
+            statements.push(source);
+            return prepare.call(this, source);
+          } as never)
+        : vi.spyOn(pg.Client.prototype, 'query').mockImplementation(function (this: pg.Client, ...args: unknown[]) {
+            if (typeof args[0] === 'string') statements.push(args[0]);
+            return (query as (...a: unknown[]) => unknown).apply(this, args);
+          } as never);
+    const run = async (email: string) => {
+      statements.length = 0;
+      const res = await quote(body(SIXTY_TWO, { email, name: 'Someone' }));
+      expect(res.statusCode, res.body).toBe(200);
+      return statements.filter((sql) => sql.includes('kitchen_'));
+    };
+    try {
+      await run('warm@example.com');
+      const known = await run('ada@example.com');
+      const unknown = await run('nobody-here@example.com');
+      expect(known.length).toBeGreaterThan(0);
+      expect(unknown).toEqual(known);
+      expect(known.some((sql) => sql.includes('kitchen_customers'))).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
