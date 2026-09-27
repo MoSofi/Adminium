@@ -41,7 +41,8 @@ import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
-import { DocumentReadError, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
+import { DocumentReadError, type DocumentWithhold, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
+import { blankWithheld, holderColumnsOf, withholdRulesOf, type TableWithholds } from '../public-api/withhold.js';
 import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type BalanceAfter, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
 import { LIST_KEY, type CollectionSource, type NightlySource, type ProfileMapping, type SlotMapping } from './subject.js';
 import { tableRulesFor } from '../crud/column-rules.js';
@@ -103,6 +104,8 @@ async function readLookups(
   mapping: ProfileMapping,
   dialect: Dialect,
   narrow?: Narrowing,
+  /** A reader's withholds: the holder link read beside what is mapped, and the columns kept for another emptied. */
+  held?: { rules: TableWithholds; unheld: (table: ResolvedTable, row: Record<string, unknown>) => Record<string, unknown> },
 ): Promise<Record<string, unknown>> {
   const wanted = new Map<string, Set<string>>();
   for (const mapped of Object.values(mapping)) {
@@ -127,9 +130,10 @@ async function readLookups(
     // that slot empty, which a required slot reports by name.
     const readable = [...columns].filter((column) => linked.columns.has(column));
     if (readable.length === 0) continue;
+    const holders = held === undefined ? [] : holderColumnsOf(held.rules, linked.id).filter((column) => linked.columns.has(column) && !readable.includes(column));
     let query = db
       .selectFrom(linked.id as never)
-      .select(readable as never)
+      .select([...readable, ...holders] as never)
       .where(target.column as never, '=', value as never);
     // A public reader sees a linked row only as far as their own access to
     // its table goes: outside it, the slot stays empty.
@@ -137,7 +141,7 @@ async function readLookups(
     if (narrowing !== null) query = narrowing(query) as typeof query;
     const found = (await query.limit(1).executeTakeFirst()) as Record<string, unknown> | undefined;
     if (found === undefined) continue;
-    const read = spelled(found, linked, dialect);
+    const read = spelled(held === undefined ? found : held.unheld(linked, found), linked, dialect);
     for (const column of readable) out[`${fk}.${column}`] = read[column];
   }
   return out;
@@ -456,7 +460,7 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
      * `tables` is the mapped-table list the ROUTE resolved grants over; the
      * read itself follows the mapping, so it is named and not used here.
      */
-    readSource: async ({ profile, pk, period, at, readFilters }): Promise<SourceRead | null> => {
+    readSource: async ({ profile, pk, period, at, readFilters, withhold }): Promise<SourceRead | null> => {
       const view = await loadSnapshotView(deps.meta, profile.connectionId);
       const { db, dialect } = await deps.manager.data(profile.connectionId);
       return await readProfileSource({
@@ -469,8 +473,18 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
         facts: await connectionFacts(deps.meta, profile.connectionId),
         dialect,
         ...(readFilters === undefined ? {} : { narrow: narrowingOf(db as Kysely<SourceDatabase>, view, dialect, readFilters) }),
+        ...(withhold === undefined ? {} : { withhold }),
       });
     },
+  };
+}
+
+/** Each row as the reader may see it: the columns a `withhold` keeps for another holder emptied (no withhold: as read). */
+function heldFrom(view: SnapshotView, withhold: DocumentWithhold | undefined): (table: ResolvedTable, row: Record<string, unknown>) => Record<string, unknown> {
+  if (withhold === undefined) return (_table, row) => row;
+  return (table, row) => {
+    const rules = withholdRulesOf(withhold.rules, table.id);
+    return rules.length === 0 ? row : blankWithheld(view, table, rules, row, withhold.reader);
   };
 }
 
@@ -514,14 +528,18 @@ export async function readProfileSource(input: {
   narrow?: Narrowing | undefined;
   /** How this connection's driver spells days and times. */
   dialect: Dialect;
+  /** Columns kept for a row's holder, emptied for the reader the document is drawn for. */
+  withhold?: DocumentWithhold | undefined;
 }): Promise<SourceRead | null> {
   const { db, view, profile, facts, dialect } = input;
   const table = view.table(profile.table);
+  const unheld = heldFrom(view, input.withhold);
 
-  const stored = (await fetchByPk(db, table, input.pk as never)) as Record<string, unknown> | undefined;
+  const found = (await fetchByPk(db, table, input.pk as never)) as Record<string, unknown> | undefined;
   // The row was deleted between the trigger and the job — the undo
   // window's ordinary outcome, and a SKIP rather than a failure.
-  if (stored === undefined) return null;
+  if (found === undefined) return null;
+  const stored = unheld(table, found);
   const row = spelled(stored, table, dialect);
 
   /*
@@ -544,7 +562,7 @@ export async function readProfileSource(input: {
     } catch {
       return null;
     }
-    const lines = await readLines(db, child, source.fkColumn, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source);
+    const lines = (await readLines(db, child, source.fkColumn, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source)).map((line) => unheld(child, line));
     await addLists(db, view, child, lines, source.lists);
     return { child, lines };
   };
@@ -596,7 +614,7 @@ export async function readProfileSource(input: {
    * after a later payment still says what was left at this one.
    */
   const lookupsWithBalance = async (): Promise<Record<string, unknown>> => {
-    const lookups = await readLookups(db, view, table, row, mapping, dialect, input.narrow);
+    const lookups = await readLookups(db, view, table, row, mapping, dialect, input.narrow, input.withhold === undefined ? undefined : { rules: input.withhold.rules, unheld });
     const spec = options.balanceAfter;
     if (spec !== undefined) {
       const left = await balanceAfter(db, view, table, row, spec, input.narrow);

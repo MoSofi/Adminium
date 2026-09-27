@@ -1769,6 +1769,13 @@ function personIssues(
   return out;
 }
 
+/** Whether a code's `renew` names a change of `ref` among its triggers. */
+function renewsOn(renew: { on: unknown } | undefined, ref: string): boolean {
+  if (renew === undefined) return false;
+  const triggers = (Array.isArray(renew.on) ? renew.on : [renew.on]) as { column?: unknown; changed?: unknown }[];
+  return triggers.some((trigger) => trigger.column === ref && trigger.changed === true);
+}
+
 /** The columns a row's own link may be emailed to, as a list (none for any other claim). */
 function ownAddressesOf(claim: Claim | undefined): readonly string[] {
   if (claim === undefined || !('by' in claim) || claim.own !== true || claim.address === undefined) return [];
@@ -1816,6 +1823,19 @@ function ownAddressAndWithholdIssues(
             out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${ref}" is an address the row's own link is emailed to, so a change through that link may not set it` });
           }
         });
+        /*
+         * An address another entry's change writes (the buyer sends a ticket on
+         * to a friend): the link must be new each time it goes to a new address,
+         * or whoever it was sent to before still holds a link to the row.
+         */
+        const changedBy = entries.findIndex((other) => other.table === entry.table && other.methods.some((m) => m === 'PATCH') && writes(other, ref));
+        const codeColumn = ruledColumn(index, entry.table, claim.column) as { rules?: { code?: { renew?: { on: unknown } } } } | undefined;
+        if (found !== undefined && changedBy >= 0 && !renewsOn(codeColumn?.rules?.code?.renew, ref)) {
+          out.push({
+            path: at('claim', 'address'),
+            message: `"${entry.table}.${ref}" is written by a change (publicAccess ${String(changedBy)}) and the row's own link is emailed to it, so "${entry.table}.${claim.column}" renews when it changes: rules.code.renew.on {"column": "${ref}", "changed": true}`,
+          });
+        }
       }
     }
 

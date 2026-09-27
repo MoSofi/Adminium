@@ -92,6 +92,8 @@ import type { FileStore } from '../files/store.js';
 import { providerByKey, providersFor, type AddOnRuntimeState } from '../add-ons/runtime.js';
 import type { EmailLogger } from '../email/send.js';
 import { AppError } from '../errors.js';
+import { withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
+import { withholdsOn } from '../public-api/withholds-on.js';
 import { ownedDocumentOff } from './app-documents.js';
 import { emailDocument, type DocumentDelivery } from './deliver.js';
 import {
@@ -140,6 +142,8 @@ export interface RenderDeps {
      * whole. Absent: a staff or triggered render, read with its own grants.
      */
     readFilters?: ReadonlyMap<string, ReadFilter> | undefined;
+    /** Columns kept for a row's holder, emptied for whoever the document is drawn for (see `RenderRequest.withhold`). */
+    withhold?: DocumentWithhold | undefined;
   }) => Promise<SourceRead | null>;
   /** The add-on's own non-secret settings. */
   settingsFor: (addOnKey: string) => Promise<Record<string, unknown>>;
@@ -201,6 +205,26 @@ export class DocumentReadError extends Error {
   }
 }
 
+/** Columns a `withhold` keeps for a row's holder, and who the document is drawn for (null: nobody's, every held row's columns emptied). */
+export interface DocumentWithhold {
+  rules: TableWithholds;
+  reader: WithholdReader | null;
+}
+
+/** The register's mark on a document drawn for one reader (`claim.column`): never a column name, so never a claim a session makes. */
+export const WITHHELD_FOR = '$withheld-for';
+
+/**
+ * Who a document was drawn for, when the tables it reads carry a `withhold`:
+ * `''` for nobody, else the reader's table and key. Null when nothing it reads
+ * is withheld from anybody (the document is anyone's who reaches its row).
+ */
+export function withheldReaderMark(withhold: DocumentWithhold | undefined, tables: readonly string[]): string | null {
+  if (withhold === undefined || !tables.some((table) => withholdRulesOf(withhold.rules, table).length > 0)) return null;
+  const reader = withhold.reader;
+  return reader === null || reader.value === null || reader.value === undefined ? '' : `${reader.table}\u0000${String(reader.value)}`;
+}
+
 export interface RenderRequest {
   profileId: string;
   pk: Readonly<Record<string, unknown>>;
@@ -216,6 +240,15 @@ export interface RenderRequest {
   period?: StatementPeriod | undefined;
   /** What a public caller may read beside the row (see `RenderDeps.readSource`). */
   readFilters?: ReadonlyMap<string, ReadFilter> | undefined;
+  /**
+   * Whoever the document is drawn for, when that is not the desk: a signed-in
+   * guest, the person an email goes to. Every row the document reads — its
+   * own, its lines, a linked row — has the columns a `withhold` keeps for its
+   * holder emptied unless the holder is this reader (a ticket the buyer sent
+   * on shows the buyer no new code). A document drawn so is the reader's: it
+   * is reused only for the same reader, and the register says whose it is.
+   */
+  withhold?: DocumentWithhold | undefined;
   /**
    * Values from whoever asked, for the slots the profile lets a request fill
    * (`options.requestValues`, from the app's manifest) — a label sheet's
@@ -477,9 +510,18 @@ export async function renderDocument(
 
   // 3 — the source row, with the requester's grants.
   const tables = mappedTables(profile.mapping as ProfileMapping, profile.table);
+  /*
+   * A document the profile emails out goes to an address a slot holds, which
+   * names no person the document knows: drawn for nobody, so a row that
+   * changed hands (a ticket sent on) is printed without what its holder alone
+   * reads. Drawn for a reader, it is that reader's.
+   */
+  const mailsOut = typeof (profile.deliver as DocumentDelivery | null)?.emailSlot === 'string' && (profile.deliver as DocumentDelivery).emailSlot !== '';
+  const drawnFor = request.withhold ?? (mailsOut ? { rules: await withholdsOn(deps.meta, profile.connectionId), reader: null } : undefined);
+  request = drawnFor === undefined ? request : { ...request, withhold: drawnFor };
   let source: SourceRead | null;
   try {
-    source = await deps.readSource({ profile, pk: request.pk, tables, period: request.period, at, readFilters: request.readFilters });
+    source = await deps.readSource({ profile, pk: request.pk, tables, period: request.period, at, readFilters: request.readFilters, withhold: request.withhold });
   } catch (cause) {
     if (!(cause instanceof DocumentReadError) && !(cause instanceof Error && cause.name === 'StatementTooLargeError')) throw cause;
     // Too much to draw honestly: said, never drawn with lines missing.
@@ -540,10 +582,13 @@ export async function renderDocument(
       ? (subject as unknown as Record<string, unknown>)
       : { ...(subject as unknown as Record<string, unknown>), requestValues: Object.keys(values).sort() };
 
+  // Drawn for one reader, from tables a `withhold` covers: reused for that reader alone.
+  const readerMark = withheldReaderMark(request.withhold, tables);
   const reuseKey = reuseKeyOf(profile, {
     // Only when sent: a key that always held them would miss every document
     // drawn before, and draw each one again under a new number.
     ...(values === undefined ? {} : { values }),
+    ...(readerMark === null ? {} : { withheldFor: readerMark }),
     pk: source.entity.pk,
     row: source.row,
     collections: source.collections,
@@ -669,7 +714,7 @@ export async function renderDocument(
 
   const stored = await storeRendered(deps, drawn.produced, source.entity, request.requestedBy ?? null, at);
 
-  const done = await documents.markRendered(
+  let done = await documents.markRendered(
     document.id,
     {
       number,
@@ -680,6 +725,8 @@ export async function renderDocument(
     },
     at,
   );
+  // Whose it is, once it is drawn: a guest's own door shows it to that reader alone.
+  if (readerMark !== null) done = (await documents.stampClaim(document.id, { column: WITHHELD_FOR, value: readerMark })) ?? done;
 
   await audit.append(
     {

@@ -62,7 +62,10 @@ import { outboundKey, type ReadFilter } from '../../documents/compose.js';
 import { compileFilter } from '../../crud/filters.js';
 import { parentOf, readerFor, visibilityOf, visibleCondition, type VisibilityStep } from '../../public-api/visible-with.js';
 import { STATEMENT_PERIODS, type StatementSources } from '../../documents/statement.js';
-import type { ProfileMapping } from '../../documents/subject.js';
+import { mappedTables, type ProfileMapping } from '../../documents/subject.js';
+import { WITHHELD_FOR, withheldReaderMark } from '../../documents/render.js';
+import { sessionReader } from '../../public-api/withhold.js';
+import { recentWithholdsOn } from '../../public-api/withholds-on.js';
 import { claimPredicateFor, combinePredicates, type PublicSessionContext } from '../../public-api/claim.js';
 import { mandatoryAt } from '../../public-api/relative-filters.js';
 import type { ResolvedKey } from '../../public-api/resolve.js';
@@ -499,6 +502,24 @@ export function createDocumentAccess(deps: {
     return keys;
   }
 
+  /**
+   * Whether a drawn document is this session's to see, by whom it was drawn
+   * for: a document of tables a `withhold` covers shows the reader it was
+   * drawn for only what is theirs (a ticket sent on, without its new code), so
+   * it is shown to that reader alone — or to anyone, when it was drawn for
+   * nobody and so shows no held row's columns. One the desk drew (for nobody
+   * in particular, with everything) is not a guest's. A document of tables no
+   * `withhold` covers is anyone's who reaches its row, as it always was.
+   */
+  async function drawnForSession(ok: PublicAccess & { session: PublicSessionContext }, profile: DocumentProfile, row: DocumentRow): Promise<boolean> {
+    const view = await deps.viewFor(ok.key.connectionId);
+    if (view === null) return false;
+    const mark = withheldReaderMark({ rules: await recentWithholdsOn(deps.meta, ok.key.connectionId), reader: sessionReader(ok.key.scope, ok.session, view) }, mappedTables(profile.mapping as ProfileMapping, profile.table));
+    if (mark === null) return true;
+    const claim = row.claim;
+    return claim !== null && claim.column === WITHHELD_FOR && (claim.value === '' || claim.value === mark);
+  }
+
   /** The register row, if this session may see it. Null is the 404 — for another's and for none alike. */
   async function visibleDocument(ok: PublicAccess, id: string): Promise<DocumentRow | null> {
     const session = ok.session;
@@ -519,6 +540,7 @@ export function createDocumentAccess(deps: {
     const withSession = { key: ok.key, session };
     // What it was drawn from beside its row, this session must be able to read.
     if ((await sourceAccess(withSession, profile)).state !== 'ok') return null;
+    if (!(await drawnForSession(withSession, profile, row))) return null;
     for (const resource of ok.key.scope.byRef.values()) {
       if (resource.table !== row.entityTable) continue;
       const kinds = declared.get(resource.ref);
@@ -598,7 +620,10 @@ export function createDocumentAccess(deps: {
           after: query.after,
           limit: want,
         });
-        for (const row of rows) found.set(row.id, row);
+        for (const row of rows) {
+          const profile = candidates.find((candidate) => candidate.id === row.profileId);
+          if (profile !== undefined && (await drawnForSession(withSession, profile, row))) found.set(row.id, row);
+        }
       }
     }
 

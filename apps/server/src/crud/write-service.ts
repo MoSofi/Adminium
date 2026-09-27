@@ -3061,7 +3061,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const series = everyRow.flatMap((row) =>
           seriesOf(rulesOf(row.target), row.target.table, row === rootRow ? root.checked : row.node.values).map((name) => ({ name, busy: 'NUMBER_BUSY' as const })),
         );
-        return [...limits, ...series];
+        return [...limits, ...series, ...(input.locks ?? [])];
       };
 
       /** The whole write, inside one transaction holding `names`. */
@@ -3075,6 +3075,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const person = dry || input.identity === undefined ? {} : await at(rootRow.node, () => input.identity!(trx));
         // 7. Every row outside the tree it is tied to, held for ALL rows at once in the one order: totals top-down, parents, linked rows for share.
         const held = dry ? new Map<string, Map<string, Row>>() : await at(rootRow.node, () => holdOutside(trx, rootRow.target.dialect, everyRow, peeked, currency));
+        // 7b. The write's own rows it changes besides the tree, held last (the own rows' place in the order).
+        if (!dry && input.ownRows !== undefined) await at(rootRow.node, () => input.ownRows!(trx));
         const heldKey = new Set<string>();
         for (const [table, rows] of held) for (const key of rows.keys()) heldKey.add(`${table}\u0000${key}`);
 

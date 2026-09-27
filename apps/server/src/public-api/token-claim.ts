@@ -11,6 +11,14 @@
  * reaches nothing from that moment — not at its expiry half an hour later.
  * The session carries the hash of the code it was opened with; a new code on
  * the row no longer matches it.
+ *
+ * ── AN OWN LINK IS BOUND TO ITS ADDRESS ────────────────────────────────────
+ * A row's own link is emailed to an address the row holds (`address`: a
+ * ticket's link goes to the friend it is offered to). A session opened by it
+ * carries the (keyed) hashes of the addresses the row held then, and opens the
+ * row only while the row still holds one of them: an offer that lapsed and
+ * went to someone else is not the first friend's to read or accept, even with
+ * a session opened while it was theirs.
  */
 import { createHash } from 'node:crypto';
 
@@ -29,6 +37,8 @@ export interface TokenClaim {
   column: string;
   expires?: string | undefined;
   stopped?: string | undefined;
+  /** An own link's address columns: where it may be emailed, and what its sessions are bound to. */
+  address?: readonly string[] | undefined;
 }
 
 export function tokenClaimOf(scope: CompiledScope): TokenClaim | null {
@@ -36,7 +46,40 @@ export function tokenClaimOf(scope: CompiledScope): TokenClaim | null {
   if (claim === null || claim === undefined || claim.strategy !== 'token') return null;
   const column = claim.match[0];
   if (column === undefined) return null;
-  return { ref: claim.ref, column, ...(claim.expires === undefined ? {} : { expires: claim.expires }), ...(claim.stopped === undefined ? {} : { stopped: claim.stopped }) };
+  return {
+    ref: claim.ref,
+    column,
+    ...(claim.expires === undefined ? {} : { expires: claim.expires }),
+    ...(claim.stopped === undefined ? {} : { stopped: claim.stopped }),
+    ...(claim.own === true && claim.address !== undefined ? { address: claim.address } : {}),
+  };
+}
+
+/** A keyed hash of an address, as a grant keeps it (never the address itself). */
+export type AddressHasher = (address: string) => string;
+
+/** The hashes of the addresses a row holds in an own link's address columns, or undefined for a link bound to none. */
+export function addressesOf(row: Row, address: readonly string[] | undefined, hash: AddressHasher): string[] | undefined {
+  if (address === undefined) return undefined;
+  const out: string[] = [];
+  for (const column of address) {
+    const value = row[column];
+    if (typeof value === 'string' && value.trim() !== '') out.push(hash(value));
+  }
+  return [...new Set(out)];
+}
+
+/**
+ * Whether a row still holds an address its session was opened for: one of the
+ * same, or — for a session opened while the row held none — still none. A
+ * grant that carries no addresses on a link bound to them opens nothing.
+ */
+export function stillAddressed(row: Row, address: readonly string[] | undefined, grant: ClaimGrant, hash: AddressHasher): boolean {
+  const now = addressesOf(row, address, hash);
+  if (now === undefined) return true;
+  const then = (grant as Partial<TokenGrant>).addresses;
+  if (!Array.isArray(then)) return false;
+  return then.length === 0 ? now.length === 0 : now.some((one) => then.includes(one));
 }
 
 /** A token as its column's `code` rule writes it (Crockford, upper case), whatever the page sent. */
@@ -82,6 +125,8 @@ export function stillOpen(row: Row, claim: TokenClaim, table: ResolvedTable, tim
 /** The grant a token session carries: the row's key, and the hash of the code that opened it. */
 export interface TokenGrant extends ClaimGrant {
   token: string;
+  /** An own link bound to its address: the hashes of the addresses the row held when the session was opened. */
+  addresses?: string[] | undefined;
 }
 
 /**
@@ -96,6 +141,8 @@ export async function tokenSessionOpen(input: {
   grant: ClaimGrant;
   timezone: string;
   now?: Date;
+  /** How an own link's addresses are hashed; without it a link bound to its address opens nothing. */
+  hashAddress?: AddressHasher | undefined;
 }): Promise<boolean> {
   const token = (input.grant as Partial<TokenGrant>).token;
   if (typeof token !== 'string') return false;
@@ -108,5 +155,6 @@ export async function tokenSessionOpen(input: {
   if (row.length !== 1) return false;
   const current = row[0]![input.claim.column];
   if (typeof current !== 'string' || hashToken(normaliseToken(input.table, input.claim.column, current)) !== token) return false;
+  if (input.claim.address !== undefined && (input.hashAddress === undefined || !stillAddressed(row[0]!, input.claim.address, input.grant, input.hashAddress))) return false;
   return stillOpen(row[0]!, input.claim, input.table, input.timezone, input.now ?? new Date());
 }

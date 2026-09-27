@@ -114,6 +114,17 @@ describe('the addresses a row\'s own link may be emailed to', () => {
     );
   });
 
+  it('get a new link whenever a change sends it on to another address', () => {
+    const renew = (m: Doc) => (columnOf(m, 'tickets', 'link_token')['rules'] as { code: Doc }).code;
+    const expected = '"tickets.pending_email" is written by a change (publicAccess 3) and the row\'s own link is emailed to it, so "tickets.link_token" renews when it changes: rules.code.renew.on {"column": "pending_email", "changed": true}';
+    // No renew at all: a friend an offer went to before keeps a link to the ticket.
+    expect(broken((m) => delete renew(m)['renew'])).toContain(expected);
+    // Renewed only on the move to offered: not enough, the address is what the link is bound to.
+    expect(broken((m) => (renew(m)['renew'] = { on: { column: 'status', values: ['offered'] } }))).toContain(expected);
+    // An address no change writes (the holder's copy) asks nothing.
+    expect(broken((m) => (renew(m)['renew'] = { on: { column: 'pending_email', changed: true } }))).toBe('');
+  });
+
   it('let the friend be found by the address the link went to, without typing it', () => {
     // Without the address, the friend would have to type (and so could change) where the ticket goes.
     expect(broken((m) => delete friendClaim(m)['address'])).toContain('"pending_email" is typed by the guest, so it is writable');

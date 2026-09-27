@@ -39,6 +39,7 @@
 import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
+import type { NamedLock } from './capacity/locks.js';
 import type { PoolState } from './capacity/types.js';
 import type { Row } from './mask.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
@@ -112,6 +113,14 @@ export interface CreateTreeInput {
   replay?: ((db: Db) => Promise<TreeReplay | null>) | undefined;
   /** The person found or created by address, as the root's link values (a save only; never in a quote). */
   identity?: ((db: Db) => Promise<Row>) | undefined;
+  /** Named locks of the door's own taken with the write's (a person's address on MySQL), a save only. */
+  locks?: readonly NamedLock[] | undefined;
+  /**
+   * Rows of the write's own tables it changes besides its tree (a buyer's
+   * old hold let go), held once every row outside the tree is — the own rows'
+   * place in the one lock order — and before the tree's rows go in (a save only).
+   */
+  ownRows?: ((db: Db) => Promise<void>) | undefined;
   /** One written row, announced after the commit — as a single create's `announce`. Never called for a quote. */
   announce: (row: TreeWritten) => Promise<void>;
   /** A refusal, with the row it is about. */

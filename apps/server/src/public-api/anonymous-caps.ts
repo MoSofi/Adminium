@@ -66,7 +66,8 @@ export function mailboxOf(address: string): string {
   const at = address.lastIndexOf('@');
   if (at <= 0) return address;
   let name = address.slice(0, at);
-  let domain = address.slice(at + 1);
+  // `gmail.com.` is `gmail.com`: a name ending in a dot is the same name.
+  let domain = address.slice(at + 1).replace(/\.+$/, '');
   const plus = name.indexOf('+');
   if (plus > 0) name = name.slice(0, plus);
   if (GMAIL.has(domain)) {
@@ -106,13 +107,20 @@ export function ipSubject(key: Buffer, keyId: string, ip: string): string {
 }
 
 const PLAIN = /^[\p{L}\p{M} .,'’()&-]*$/u;
+/** A domain written out: a word, a dot, and a name of two letters or more after it (`evil.com`, `claim.refund.net`, `пример.рф`). */
+const DOMAIN = /[\p{L}\p{N}-]+\.\p{L}{2,}/u;
 
-/** Whether a value is plain text: letters, spaces, ordinary punctuation, no link. */
+/**
+ * Whether a value is plain text: letters, spaces, ordinary punctuation — no
+ * link, no address and no domain a stranger could be sent to ("claim your
+ * refund at evil.com"). A dot is fine after a word and a space ("St. John",
+ * "J. R. Smith"); a dot between two words is a domain, and refused.
+ */
 export function plainText(value: unknown): boolean {
   if (value === null || value === undefined) return true;
   if (typeof value !== 'string') return false;
   const lower = value.toLowerCase();
-  return value.length <= PLAIN_TEXT_MAX && PLAIN.test(value) && !lower.includes('://') && !lower.includes('www.');
+  return value.length <= PLAIN_TEXT_MAX && PLAIN.test(value) && !lower.includes('://') && !lower.includes('www.') && !lower.includes('@') && !DOMAIN.test(value);
 }
 
 /** The first column whose value is not plain text, or null. */

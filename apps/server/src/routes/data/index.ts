@@ -32,7 +32,8 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFaile
 import { applyOverrides } from '../../connections/effective-schema.js';
 import { DAY_MS, PERSON_FAILURES_DAY, addressKey, hashAddress, plausibleAddress, subjectOf } from '../../public-api/claim-code.js';
 import { linkSubject } from '../../public-api/sign-in-link.js';
-import { PersonRaced, PersonRefused, PersonTableUnusable, resolvePerson } from '../../crud/person.js';
+import { PersonRaced, PersonRefused, PersonTableUnusable, personLocks, resolvePerson } from '../../crud/person.js';
+import { withNamedLocks } from '../../crud/capacity/locks.js';
 import { generateCode, isUniqueViolation } from '../../crud/decided-columns.js';
 import { auditExempt, audited } from '../../audit/coverage.js';
 import { parseDefinition } from '../../public-api/endpoint.js';
@@ -1906,20 +1907,40 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         },
       },
       async (request) => {
+        // Whether an address is on file, and whose key it is, is a read of the table: a desk that may only add people is told neither.
+        await contextFor(request, 'read');
         const ctx = await contextFor(request, 'create');
-        // The table's own sign-in by address names the column a person is found by.
+        // The table's own sign-in by address names the column a person is found by; the entries that make people by it, what a new one is filled with.
         let email: string | undefined;
-        for (const stored of await publicEndpointsRepo(meta).listByConnection(ctx.connectionId)) {
+        const definitions = (await publicEndpointsRepo(meta).listByConnection(ctx.connectionId)).flatMap((stored) => {
           const parsed = parseDefinition(stored.definition);
-          if (parsed.ok && parsed.definition.source === ctx.table.id && parsed.definition.identity?.strategy === 'email-link') email = parsed.definition.identity.email;
+          return parsed.ok ? [parsed.definition] : [];
+        });
+        for (const definition of definitions) {
+          if (definition.source === ctx.table.id && definition.identity?.strategy === 'email-link') email = definition.identity.email;
         }
         if (email === undefined) throw new NotFoundError('Nobody is found by address in this table.', { table: ctx.table.id });
         if (!plausibleAddress(request.body.email)) throw new ValidationFailedError('That is not an address.', { fields: { [email]: { code: 'format' } } });
+        const fillable = new Set<string>();
+        for (const definition of definitions) {
+          const finds = definition.find_or_create;
+          const people = finds === undefined ? undefined : definitions.find((other) => other.path === `/${finds.identity_ref}`);
+          if (finds !== undefined && people?.source === ctx.table.id) for (const column of Object.keys(finds.fill ?? {})) fillable.add(column);
+        }
+        fillable.delete(email);
+        // Only the details a new person is made with — never its key, a secret, a stamp or its address.
+        const asked = request.body.fill ?? {};
+        const refusedFill = Object.keys(asked).filter((column) => !fillable.has(column));
+        if (refusedFill.length > 0) {
+          throw new ValidationFailedError('Only the details a new person is made with may be filled.', { fields: Object.fromEntries(refusedFill.map((column) => [column, { code: 'not-fillable' }])) });
+        }
+        const fill = Object.keys(asked).length === 0 ? {} : allowlistValues(ctx, asked);
         const context = requestWriteContext(request, 'dashboard');
         const rights = privilegesOf(await manager.tablePrivilegesById(ctx.connectionId), ctx.table.id);
+        // On MySQL the address's lock is taken before the transaction, as a guest's create takes it.
         const once = () =>
-          writes.transaction(ctx.target, [], (tdb) =>
-            resolvePerson({ writes, identity: { ...ctx.target, db: tdb, rights }, email: email!, address: request.body.email, fill: request.body.fill ?? {}, context }),
+          withNamedLocks(ctx.target, personLocks(ctx.target, ctx.table.id, request.body.email), (tdb) =>
+            resolvePerson({ writes, identity: { ...ctx.target, db: tdb, rights }, email: email!, address: request.body.email, fill, context }),
           );
         let person;
         try {
