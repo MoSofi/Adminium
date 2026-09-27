@@ -34,7 +34,7 @@ function kitchenDdl(dialect: Dialect): string[] {
 
 const kitchenCounted = { column: 'status', values: ['placed', 'ready'] };
 
-export async function kitchen(dialect: Dialect, endpoints?: Record<string, Record<string, unknown>>): Promise<World> {
+export async function kitchen(dialect: Dialect, endpoints?: Record<string, Record<string, unknown>>, poolMax?: number): Promise<World> {
   return filled(
     dialect,
     {
@@ -72,6 +72,7 @@ export async function kitchen(dialect: Dialect, endpoints?: Record<string, Recor
         },
       ],
       ...(endpoints === undefined ? {} : { endpoints }),
+      poolMax,
     },
     async (w) => {
       await w.seed('settings', [{ slot_capacity: 6, slot_minutes: 15, lead_minutes: 20 }]);
@@ -174,11 +175,12 @@ function houseDdl(dialect: Dialect): string[] {
 
 const houseCounted = { column: 'status', values: ['booked', 'in_house'] };
 
-export async function house(dialect: Dialect, endpoints?: Record<string, Record<string, unknown>>): Promise<World> {
+export async function house(dialect: Dialect, endpoints?: Record<string, Record<string, unknown>>, poolMax?: number): Promise<World> {
   return filled(
     dialect,
     {
       ...(endpoints === undefined ? {} : { endpoints }),
+      poolMax,
       zone: KITCHEN_ZONE,
       ddl: houseDdl,
       overrides: (id) => [
