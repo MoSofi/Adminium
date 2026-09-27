@@ -339,6 +339,27 @@ for (const [dialect, available] of legs) {
       expect((await s.app.inject({ method: 'GET', url: data(`${s.table.stays}/1`), headers: { cookie: owner } })).json().data).toMatchObject({ late_until: '12:00' });
     });
 
+    it('holds an import made before the role was narrowed to what it reads when it runs', async () => {
+      const fileId = await upload('Late\n17:00\n');
+      const made = await importAs(fileId, [{ from: 'Late', to: 'late_until' }], { mode: 'insert' });
+      expect(made.statusCode, made.body).toBe(201);
+      const role = (await rolesRepo(s.meta).findBySlug('lodge-frontdesk'))!;
+      const row = (await permissionsRepo(s.meta).listForRole(role.id)).find((one) => one.resourceRef.endsWith(s.table.stays))!;
+      await permissionsRepo(s.meta).grant(role.id, 'table', row.resourceRef, { ...(row.actions as object), readLimit: { readable: ['status', 'arrive', 'depart'] } } as never);
+      try {
+        const importId = made.json().data.import.id as string;
+        const before = await s.app.inject({ method: 'GET', url: data(`${s.table.stays}?count=exact`), headers: { cookie: owner } });
+        await s.app.inject({ method: 'POST', url: `/api/v1/imports/${importId}/run`, headers: { cookie: front.cookie } });
+        await s.runJobs();
+        const after = await s.app.inject({ method: 'GET', url: data(`${s.table.stays}?count=exact`), headers: { cookie: owner } });
+        expect(after.json().page.total).toBe(before.json().page.total);
+        const view = await s.app.inject({ method: 'GET', url: `/api/v1/imports/${importId}`, headers: { cookie: front.cookie } });
+        expect(view.json().data?.import?.status ?? view.json().data?.status).not.toBe('succeeded');
+      } finally {
+        await permissionsRepo(s.meta).grant(role.id, 'table', row.resourceRef, row.actions as never);
+      }
+    });
+
     it.skipIf(dialect !== 'postgres')('never prints another row\'s values in a unique refusal, to anyone', async () => {
       await s.run(`CREATE UNIQUE INDEX lodge_stays_room_guest ON lodge_stays (room_id, guest_name)`);
       for (const cookie of [front.cookie, owner]) {
