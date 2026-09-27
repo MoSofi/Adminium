@@ -108,7 +108,7 @@ describe.each(LEGS)('one live hold per buyer — %s', (dialect, available) => {
     await mailReady(h.meta);
     orders = h.real('orders');
     await h.rows(`insert into ${h.real('settings')} (hold_minutes) values (10)`);
-    for (const email of ['mia@example.com', 'noa@example.com']) await h.rows(`insert into ${h.real('customers')} (email, name) values ('${email}', 'M')`);
+    for (const email of ['mia@example.com', 'noa@example.com', 'gus@example.com', 'hal@example.com']) await h.rows(`insert into ${h.real('customers')} (email, name) values ('${email}', 'M')`);
     box = await servePublic(h, (h.reply['publicAccess'] as { keys: Record<string, string> }).keys['customer']!);
     g = guest(box, h);
   }, 180_000);
@@ -200,6 +200,19 @@ describe.each(LEGS)('one live hold per buyer — %s', (dialect, available) => {
     expect(results.filter((res) => res.statusCode === 201).length).toBeGreaterThanOrEqual(1);
     for (const res of results.filter((r) => r.statusCode === 409)) expect(box.codeOf(res)).toBe('PUBLIC_SLOT_BUSY');
     expect(await live(`customer_id = ${noa}`)).toBe(1);
+  });
+
+  it.skipIf(!available)('keeps two signed-in buyers apart when both hold at once: a moment\'s wait at most, one live hold each', async () => {
+    const many = await places(40);
+    const [gus, hal] = [await g.signIn('gus@example.com'), await g.signIn('hal@example.com')];
+    const sends = [gus, hal, gus, hal, gus, hal].map((session, i) => hold(i % 2 === 0 ? 'gus@example.com' : 'hal@example.com', many, {}, session));
+    const results = await Promise.all(sends);
+    for (const res of results) expect([201, 409], res.body).toContain(res.statusCode);
+    for (const res of results.filter((r) => r.statusCode === 409)) expect(box.codeOf(res)).toBe('PUBLIC_SLOT_BUSY');
+    for (const email of ['gus@example.com', 'hal@example.com']) {
+      const person = Number((await h.rows(`select id from ${h.real('customers')} where email = '${email}'`))[0]!['id']);
+      expect(await live(`customer_id = ${String(person)}`)).toBe(1);
+    }
   });
 
   it.skipIf(!available)('holds once for a page that sends its session twice, one after the other or at once', async () => {
