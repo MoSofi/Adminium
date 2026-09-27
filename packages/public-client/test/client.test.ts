@@ -617,12 +617,12 @@ describe('availability on a booking table', () => {
 describe('rank on a create', () => {
   it('createWithRank hands back where the new row stands', async () => {
     const { client } = clientOver(() => ({ data: { id: 3 }, rank: 12 }));
-    expect(await client.createWithRank('waiting_list', { visit_type_id: 1 })).toEqual({ data: { id: 3 }, rank: 12 });
+    expect(await client.createWithRank('waiting_list', { visit_type_id: 1 })).toEqual({ data: { id: 3 }, rank: 12, link: null });
   });
 
   it('is null where the endpoint does not rank, and `create` still answers the bare row', async () => {
     const { client } = clientOver(() => ({ data: { id: 3 } }));
-    expect(await client.createWithRank('orders', {})).toEqual({ data: { id: 3 }, rank: null });
+    expect(await client.createWithRank('orders', {})).toEqual({ data: { id: 3 }, rank: null, link: null });
     expect(await client.create('orders', {})).toEqual({ id: 3 });
   });
 });

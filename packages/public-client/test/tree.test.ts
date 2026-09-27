@@ -35,7 +35,7 @@ describe('a create with its child rows', () => {
     const made = await client.createTree('orders', { ...ORDER, expect: { total: '34.64' } });
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders');
     expect(JSON.parse(String(calls[0]!.init?.body))).toEqual({ ...ORDER, expect: { total: '34.64' } });
-    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false });
+    expect(made).toEqual({ data: { id: 7, total: '34.64' }, children: { order_items: [{ data: { id: 70, line_total: '32.00' } }] }, rank: 3, replayed: false, link: null });
   });
 
   it('knows a retry answered with the order already made', async () => {

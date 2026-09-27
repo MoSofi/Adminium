@@ -3760,7 +3760,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           subject: subjectOf(ok.key.connectionId, found.table.id, grant.column, grant.value),
         });
         await auditWrite(request, ok, 'public.claim.token', { ref: claim.ref });
-        return reply.send({ data: { session: minted.token, expiresAt } });
+        return reply.send({ data: { session: minted.token, expiresAt, ...(ok.key.scope.claim?.own === true ? { level: 'verified' as const } : {}) } });
       },
     );
 

@@ -321,6 +321,8 @@ export const publicClaimReply = z.object({
     /** `adm_pubs_…`. The client sends it back in `x-adminium-public-session`. */
     session: z.string(),
     expiresAt: z.number().int(),
+    /** A row's own link opens its session `verified`; said so the page knows what it may read. */
+    level: z.enum(['lookup', 'verified']).optional(),
   }),
 });
 

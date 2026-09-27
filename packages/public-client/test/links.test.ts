@@ -221,3 +221,70 @@ describe('the documents door', () => {
     });
   });
 });
+
+describe("a guest's own account and their order's own link", () => {
+  const openLink = { data: { session: 'adm_pubs_person', expiresAt: 9_999_999_999_999, level: 'verified' } };
+
+  it('answers a new row\'s own link once, with a session a client of its key can take', async () => {
+    const { c } = client((url) =>
+      url.endsWith('/records/orders')
+        ? json(201, { data: { id: 7 }, children: {}, link: { key: 'link', token: 'ABCDEFGH23456789', session: 'adm_pubs_row', expiresAt: 42 } })
+        : json(201, { data: { id: 8 } }),
+    );
+    const made = await c.createTree('orders', { values: { email: 'mia@example.com' } });
+    expect(made.link).toEqual({ key: 'link', token: 'ABCDEFGH23456789', session: 'adm_pubs_row', expiresAt: 42 });
+    const bare = await c.createWithRank('other', { email: 'mia@example.com' });
+    expect(bare.link).toBeNull();
+    const { c: linked, calls } = client(() => json(200, { data: [] }));
+    linked.adoptSession({ token: made.link!.session!, expiresAt: made.link!.expiresAt! });
+    expect(linked.session()).toEqual({ level: 'verified', expiresAt: 42 });
+    await linked.list('orders_claimed');
+    expect(header(calls[0]!.init, 'x-adminium-public-session')).toBe('adm_pubs_row');
+  });
+
+  it('sends the hold it replaces with the next one', async () => {
+    const { c, calls } = client(() => json(201, { data: { id: 9 }, children: {} }));
+    await c.createTree('orders', { values: { email: 'mia@example.com' }, replaces: 'adm_pubs_row' });
+    expect(JSON.parse(String(calls[0]!.init?.body))).toMatchObject({ replaces: 'adm_pubs_row' });
+  });
+
+  it('opens a row\'s own link at the level the server says', async () => {
+    const { c } = client(() => json(200, openLink));
+    expect(await c.openShared('ABCDEFGH23456789')).toBe('opened');
+    expect(c.session()?.level).toBe('verified');
+  });
+
+  it('signs out everywhere and deletes the details, dropping the session', async () => {
+    const { c, calls } = client((url) => (url.endsWith('/claim/link/verify') ? json(200, openLink) : json(200, { data: {} })));
+    await c.openLink(TOKEN);
+    await c.signOutEverywhere();
+    expect(calls.at(-1)!.url).toBe('https://studio.example.com/api/v1/public/session/revoke-all');
+    expect(calls.at(-1)!.init?.method).toBe('POST');
+    expect(c.isClaimed()).toBe(false);
+    await c.openLink(TOKEN);
+    await c.forgetMe();
+    expect(calls.at(-1)!.url).toBe('https://studio.example.com/api/v1/public/account');
+    expect(calls.at(-1)!.init?.method).toBe('DELETE');
+    expect(c.isClaimed()).toBe(false);
+  });
+
+  it('asks for a fresh sign-in before deleting, and keeps the session meanwhile', async () => {
+    const { c } = client((url) => (url.endsWith('/claim/link/verify') ? json(200, openLink) : err(403, 'PUBLIC_CODE_STEP_UP')));
+    await c.openLink(TOKEN);
+    await expect(c.forgetMe()).rejects.toMatchObject({ code: 'PUBLIC_CODE_STEP_UP', status: 403 });
+    expect(c.isClaimed()).toBe(true);
+  });
+
+  it('drops a session the server says was ended elsewhere, on any reply, and says why', async () => {
+    const heard: string[] = [];
+    const s = stub((url) =>
+      url.endsWith('/claim/link/verify') ? json(200, openLink) : new Response(JSON.stringify({ error: { code: 'PUBLIC_REF_NOT_FOUND', message: 'x' } }), { status: 404, headers: { 'x-adminium-session-ended': 'elsewhere' } }),
+    );
+    const c = createPublicClient({ baseUrl: 'https://x', publishableKey: 'adm_pub_x', fetch: s.fetch, humanCheck: false, onSessionEnded: (why) => heard.push(why) })!;
+    await c.openLink(TOKEN);
+    await expect(c.list('orders_verified')).rejects.toBeInstanceOf(PublicApiError);
+    expect(c.isClaimed()).toBe(false);
+    expect(c.sessionEnded()).toBe('elsewhere');
+    expect(heard).toEqual(['elsewhere']);
+  });
+});
