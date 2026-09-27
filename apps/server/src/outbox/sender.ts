@@ -289,6 +289,22 @@ export const LIST_UNREADABLE = 'Not sent: the email lists rows from a table or l
 /** Whether a value fills a QR code: empty (no code is drawn), or text a QR code carries. */
 const fitsQr = (value: string | undefined): boolean => value === undefined || value === '' || qrCarries(value);
 
+/** A whole `{{<name>.qr}}`: what an image draws as a QR code. */
+const QR_WHOLE = /^\{\{\s*([A-Za-z0-9_.-]+\.qr)\s*\}\}$/;
+
+/** The names a template's blocks draw as QR codes: an image's `qr`, a list's row image. */
+function drawnQrCodes(blocks: readonly Record<string, unknown>[]): Set<string> {
+  const out = new Set<string>();
+  for (const block of blocks) {
+    const data = (typeof block['data'] === 'object' && block['data'] !== null ? block['data'] : {}) as Record<string, unknown>;
+    const row = (typeof data['row'] === 'object' && data['row'] !== null ? data['row'] : {}) as Record<string, unknown>;
+    const source = block['block'] === 'email.image' ? data['qr'] : block['block'] === 'email.rows' ? row['image'] : undefined;
+    const found = typeof source === 'string' ? QR_WHOLE.exec(source.trim()) : null;
+    if (found !== null) out.add(found[1]!);
+  }
+  return out;
+}
+
 /** Why an email whose QR code would hold too much text is not sent. */
 export function qrTooLongSentence(names: readonly string[]): string {
   const listed = names.slice(0, 2).map((name) => `{{${name}}}`).join(', ');
@@ -1057,6 +1073,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const sent = withOverride({ subject: template.subject, blocks: template.blocks as readonly Record<string, unknown>[] }, override);
     // The rows each list names (an order's tickets), each row judged the same way: every `{{row.*}}` filled, a code only to its holder.
     const rows: Record<string, Record<string, string>[]> = {};
+    // The codes drawn as QR codes (the whole value of an image, a row's image); met in text, a code prints as itself.
+    const drawn = drawnQrCodes(sent.blocks);
     for (const block of sent.blocks) {
       if (block['block'] !== 'email.rows' || typeof block['id'] !== 'string') continue;
       const data = typeof block['data'] === 'object' && block['data'] !== null ? (block['data'] as Record<string, unknown>) : {};
@@ -1068,7 +1086,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const held = missing.filter((name) => one.withheld.has(name));
         if (held.length > 0) return { status: 'failed', error: codeWithheldSentence(held) };
         if (missing.length > 0) return { status: 'failed', error: unfilledSentence(missing) };
-        const long = names.filter((name) => name.endsWith('.qr') && !fitsQr(one.vars[name]));
+        const long = [...drawn].filter((name) => name.startsWith('row.') && !fitsQr(one.vars[name]));
         if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
       }
       rows[block['id']] = listed.map((one) => one.vars);
@@ -1078,7 +1096,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (codes.length > 0) return { status: 'failed', error: codeWithheldSentence(codes) };
     if (unfilled.length > 0) return { status: 'failed', error: unfilledSentence(unfilled) };
     // A QR code draws so many bytes of text at most: a longer code is never queued (it could only fail later, after the row reads sent).
-    const long = [...placeholders([sent.subject, template.preheader, sent.blocks, template.footer])].filter((name) => name.endsWith('.qr') && !fitsQr(vars[name]));
+    const long = [...drawn].filter((name) => !name.startsWith('row.') && !fitsQr(vars[name]));
     if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
     return {

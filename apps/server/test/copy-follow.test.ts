@@ -148,6 +148,9 @@ describe.each(LEGS)('copies that follow their row — %s', (dialect, available) 
     await expect(prepare({ guests: 1 })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
     // A night fewer: the room priced again, and the total under the balance.
     await expect(prepare({ depart: '2026-08-02' })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
+    // Another room, or the same nights a day later: no night count moves, but the room is priced again, and the total with it.
+    await expect(prepare({ room_type_id: seed.harbour['id'] })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
+    await expect(prepare({ arrive: '2026-08-01', depart: '2026-08-04' })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
     // A whole-row edit that sends the dates and guests back as they are moves nothing, and goes through.
     await expect(prepare({ guests: 2, depart: '2026-08-03', note: 'Late check-in' })).resolves.toMatchObject([{ issues: null }]);
     // A change that moves neither: nothing follows, nothing is refused.

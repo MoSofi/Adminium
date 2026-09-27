@@ -85,6 +85,7 @@ import { hashPublishableKey, openPublishableKey } from '../src/public-api/keys.j
 import { solveProof } from '../src/public-api/proof.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import type { OutboxProducers } from '../src/outbox/producers.js';
+import { LIST_UNREADABLE } from '../src/outbox/sender.js';
 import { decryptSecret, encryptSecret } from '../src/config/secrets.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { emailEnvelopeKey, type EmailSendReport } from '../src/email/send.js';
@@ -2178,7 +2179,7 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
       enabled: true,
     });
     const htmlRow = await queue('reminder', 'ada@hill.dev', ada, adaVisit!, 'en');
-    // One whose German text lists rows it names no source for: it lists none, and goes.
+    // One whose German text lists rows it names no source for: never sent without its list.
     await emailTemplatesRepo(h.meta).upsert('pos-reminder', 'de_DE', {
       name: reminder.name,
       subject: reminder.subject,
@@ -2197,12 +2198,12 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
       { id: nobody, status: 'skipped', sent: false, error: 'A reserved address (for examples and tests)' },
       { id: offRow, status: 'failed', sent: false, error: 'The email is switched off, or has no text' },
       { id: htmlRow, status: 'failed', sent: false, error: 'The email has an HTML block, which cannot carry what a person typed' },
-      { id: rowsRow, status: 'sent', sent: true, error: null },
+      { id: rowsRow, status: 'failed', sent: false, error: LIST_UNREADABLE },
     ]);
     // In her language, on the venue's clock, in the connection's currency, linking to the app's own host.
     const sentMail = await mail();
     const message = sentMail.find((one) => one.template === 'pos-confirmation');
-    expect(sentMail.filter((one) => one !== message).map((other) => other.template)).toEqual(['pos-reminder']);
+    expect(sentMail.filter((one) => one !== message).map((other) => other.template)).toEqual([]);
     const tag = 'de-DE';
     const time = new Intl.DateTimeFormat(tag, { timeStyle: 'short', timeZone: 'Europe/London' });
     expect(message).toMatchObject({ template: 'pos-confirmation', locale: 'de_DE', to: 'ada@hill.dev', subject: 'Gebucht bei Hill Clinic' });
@@ -2233,10 +2234,16 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
     expect((await log()).find((row) => row.id === adaRow)).toEqual({ id: adaRow, status: 'failed', sent: true, error: 'Not delivered: 550 5.1.1 mailbox unavailable' });
     await h.run(`update pos_messages set status = 'queued' where id = ${adaRow}`);
     expect(await sender.sweep(now + 60_000)).toBe(1);
-    expect((await mail()).length).toBe(3);
+    expect((await mail()).length).toBe(2);
     // …and a late report of the first message no longer touches it.
     await sender.markUndelivered(message!.report!, new Error('late'));
     expect((await log()).find((row) => row.id === adaRow)!.status).toBe('sent');
+
+    // A row whose own language no message is written in: written in Ada's German, not the workspace's English.
+    const odd = await queue('confirmation', null, ada, adaVisit!, 'xx');
+    expect(await sender.sweep(now + 60_000)).toBe(1);
+    expect((await log()).find((row) => row.id === odd)!.status).toBe('sent');
+    expect((await mail()).at(-1)).toMatchObject({ template: 'pos-confirmation', locale: 'de_DE', to: 'ada@hill.dev' });
 
     // Switched off, nothing goes; switched on, it does.
     const waiting = await queue('confirmation', 'ada@hill.dev', ada, adaVisit!);

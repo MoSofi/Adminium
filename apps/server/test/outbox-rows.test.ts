@@ -13,13 +13,13 @@
  * and a message queued only while its feature is on.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { documentSequencesRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { documentSequencesRepo, emailTemplatesRepo, manifestsRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { decryptSecret } from '../src/config/secrets.js';
 import { createWriteService } from '../src/crud/write-service.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
 import { createOutboxProducers } from '../src/outbox/producers.js';
-import { codeWithheldSentence, createOutboxSender, unfilledSentence, type OutboxSender } from '../src/outbox/sender.js';
+import { codeWithheldSentence, createOutboxSender, LIST_UNREADABLE, qrTooLongSentence, unfilledSentence, type OutboxSender } from '../src/outbox/sender.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { addOnManifest } from './app-add-ons.helpers.js';
 import { TEST_SECRET } from './helpers.js';
@@ -147,6 +147,82 @@ describe.each(LEGS)('emails that list rows — %s', (dialect, available) => {
     expect(one!.text).not.toContain('Zed Handed');
     const none = await send(await queue('list', { order: 2, customer: 2, to: 'kai@waveform.dev' }));
     expect(none!.text).toContain('No tickets');
+  });
+
+  it.skipIf(!available)('never sends an email without its list: a list whose table or link is not there fails it; an empty one goes', async () => {
+    const stored = (await emailTemplatesRepo(meta).findByKeyLocale('events-stay', 'en_US'))!;
+    const withRows = async (from: Record<string, unknown>, joins?: Record<string, unknown>) =>
+      emailTemplatesRepo(meta).upsert('events-stay', 'en_US', {
+        name: stored.name,
+        subject: stored.subject,
+        blocks: (stored.blocks as { block: string; data?: Record<string, unknown> }[]).map((block) =>
+          block.block === 'email.rows' ? { ...block, data: { ...block.data, from: { ...(block.data!['from'] as Record<string, unknown>), ...from }, ...(joins === undefined ? {} : { joins }) } } : block,
+        ),
+        enabled: true,
+      });
+    const extras = w.targetOf('stay_extras').table.id;
+    try {
+      // The table renamed since the email was written: the id it keeps names nothing.
+      await withRows({ table: `${extras}_renamed` });
+      const renamed = await queue('stay', { stay: 1, language: 'en-US' });
+      await sender.sendApp('events', now);
+      expect(await message(renamed)).toEqual({ status: 'failed', error: LIST_UNREADABLE });
+      // A link the outbox does not have, a column the table lacks, a list one level down from a table that is not there.
+      for (const [from, joins] of [[{ table: extras, link: 'nope' }], [{ table: extras, via: 'no_such_column' }], [{ table: extras }, { names: { table: `${extras}_gone`, via: 'stay_id', column: 'label' } }]] as const) {
+        await withRows(from, joins);
+        const mid = await queue('stay', { stay: 1, language: 'en-US' });
+        await sender.sendApp('events', now);
+        expect(await message(mid)).toEqual({ status: 'failed', error: LIST_UNREADABLE });
+      }
+    } finally {
+      await emailTemplatesRepo(meta).upsert('events-stay', 'en_US', { name: stored.name, subject: stored.subject, blocks: stored.blocks, enabled: true });
+    }
+    // A stay there with no extras: its list is empty, and the email goes.
+    await h.rows(`INSERT INTO ${h.real('stays')} (customer_id, nights) VALUES (1, 1)`);
+    const bare = Number((await h.rows(`SELECT max(id) AS id FROM ${h.real('stays')}`))[0]!['id']);
+    const sent = await send(await queue('stay', { stay: bare, language: 'en-US' }));
+    expect(sent!.text).toContain('1 nights');
+    expect(sent!.text).not.toContain('•');
+  });
+
+  it.skipIf(!available)("queues an order's message without the order's language when no message is written in it, or it is too long for the outbox", async () => {
+    const writes = createWriteService({ sequences: documentSequencesRepo(meta) });
+    const place = async (ref: string, language: string) => {
+      const made = await writes.create({
+        target: w.targetOf('orders'),
+        values: { ref, customer_id: 2, language, paid_method: 'cash', tax_rate: '8.25', total: '18' },
+        context: w.desk,
+        announce: async (row) => {
+          await producers.onRecordEvent({
+            connectionId: h.connectionId,
+            table: w.targetOf('orders').table,
+            action: 'create',
+            entity: { connectionId: h.connectionId, table: w.targetOf('orders').table.id, pk: { id: row['id'] as number }, label: '' },
+            before: null,
+            after: row,
+            origin: 'dashboard',
+          });
+        },
+      });
+      return (await h.rows(`SELECT language, status FROM ${h.real('messages')} WHERE order_id = ${String(made['id'])} AND kind = 'order'`))[0];
+    };
+    // This outbox reads its language from the order alone: without one, the message is written in the workspace's.
+    expect(await place('WV-8818', 'xx')).toMatchObject({ language: null, status: 'queued' });
+    expect(await place('WV-8819', 'de, en;q=0.5')).toMatchObject({ language: null, status: 'queued' });
+    // 16 characters is the outbox's column: a longer tag is never written there (the write would be refused, and nothing queued).
+    expect(await place('WV-8820', 'en-Latn-US-posix')).toMatchObject({ language: 'en-Latn-US-posix', status: 'queued' });
+    expect(await place('WV-8821', 'en-Latn-US-posixx')).toMatchObject({ language: null, status: 'queued' });
+  });
+
+  // Only SQLite keeps a code longer than its column: elsewhere the database refuses it first.
+  it.skipIf(!available || dialect !== 'sqlite')('fails, naming it, a message whose QR code would hold more than a QR code carries', async () => {
+    await h.rows(`INSERT INTO ${h.real('orders')} (ref, customer_id, total) VALUES ('WV-8899', 1, 42)`);
+    const order = Number((await h.rows(`SELECT max(id) AS id FROM ${h.real('orders')}`))[0]!['id']);
+    // 22 characters, 66 bytes.
+    await h.rows(`INSERT INTO ${h.real('tickets')} (order_id, ticket_type_id, holder_customer_id, holder_name, code, position, price, status, transferred) VALUES (${String(order)}, 1, 1, 'Mia Okada', '${'€'.repeat(22)}', 1, 42, 'valid', 0)`);
+    const mid = await queue('e1', { order, language: 'en-US' });
+    await sender.sendApp('events', now);
+    expect(await message(mid)).toEqual({ status: 'failed', error: qrTooLongSentence(['row.code.qr']) });
   });
 
   it.skipIf(!available)('fails, naming it, a message whose rows read a column kept from emails', async () => {
