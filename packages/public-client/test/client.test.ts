@@ -844,7 +844,7 @@ describe('the emailed code', () => {
     const { client, calls } = await claimed(() => ({ data: { level: 'verified', expiresAt: later } }));
     expect(await client.verifyCode({ code: '123456' })).toEqual({ ok: true, level: 'verified', expiresAt: later, ended: false });
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ purpose: 'verify', code: '123456' });
-    expect(client.session()).toEqual({ level: 'verified', expiresAt: later });
+    expect(client.session()).toEqual({ token: 'adm_pubs_tok', level: 'verified', expiresAt: later });
   });
 
   it('a wrong code is a result with the tries left, not an exception', async () => {
