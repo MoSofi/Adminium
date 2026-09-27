@@ -55,10 +55,19 @@ describe.each(LEGS)('prices by the night — %s', (dialect, available) => {
     await w.update('rate_rules', seed.weekend['id'], { amount: '40.00' });
     await w.update('stays', made['id'], { note: 'Late arrival' });
     expect(money((await read(made['id']))['room_total'])).toBe('240.00');
+    // A whole-row send that repeats the dates and the room type, a note changed: still the price it was charged.
+    await w.update('stays', made['id'], { arrive: '2026-07-31', depart: '2026-08-01', room_type_id: seed.loft['id'], note: 'Very late arrival' });
+    expect(money((await read(made['id']))['room_total'])).toBe('240.00');
     // Its dates changed again: priced at the rates as they are now.
+    await w.update('stays', made['id'], { arrive: '2026-07-30' });
     await w.update('stays', made['id'], { arrive: '2026-07-31' });
     expect(money((await read(made['id']))['room_total'])).toBe('255.00');
     await w.update('rate_rules', seed.weekend['id'], { amount: '25.00' });
+    // The rates fell back: a repeated send leaves the charged price, a paid stay is not refused for it.
+    await w.create('payments', { stay_id: made['id'], amount: (await read(made['id']))['total'] as string });
+    await w.update('stays', made['id'], { arrive: '2026-07-31', depart: '2026-08-01', note: 'Paid in full' });
+    expect(money((await read(made['id']))['room_total'])).toBe('255.00');
+    expect((await read(made['id']))['note']).toBe('Paid in full');
   });
 
   it.runIf(available)('keeps the figure an import brings, and prices one that brings none', async () => {

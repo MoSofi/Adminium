@@ -2614,7 +2614,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     capacity: BeforeEachOptions['capacity'],
   ): Promise<void> {
     const perNight = rules?.perNight;
-    if (perNight !== undefined && repricedBy(perNight, given)) refuseMovedBalance(rules, target, worked, record, capacity);
+    if (perNight !== undefined && repricedBy(perNight, given, record)) refuseMovedBalance(rules, target, worked, record, capacity);
     const moved = movedFollows(rules, worked, record);
     if (moved.length === 0) return;
     await refuseUngrantedFollow(target, rules);
@@ -3286,7 +3286,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const repricing =
         perNight !== undefined &&
         before !== null &&
-        repricedBy(perNight, values) &&
+        repricedBy(perNight, values, before) &&
         !(context.origin === 'import' && values[perNight.column] !== null && values[perNight.column] !== undefined && values[perNight.column] !== '');
       // PRICE and FORMULA, over the stored row: a change of `qty` alone still has the `rate` it multiplies.
       values = await formulate(rules, 'update', target, values, before, context.origin);
@@ -3666,7 +3666,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // What really changes: a whole-row form sends the fee back as it was.
       const changed = Object.fromEntries(Object.entries(values).filter(([column, value]) => !sameValue(value, before[column])));
       if (rules === null || Object.keys(changed).length === 0) return false;
-      return followsFrom(rules, changed) || (rules.perNight !== undefined && repricedBy(rules.perNight, changed));
+      return followsFrom(rules, changed) || (rules.perNight !== undefined && repricedBy(rules.perNight, values, before));
     },
   };
 }
