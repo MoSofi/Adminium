@@ -315,6 +315,13 @@ export interface Quote<T = Row> {
   exact: boolean;
 }
 
+/** What a dry run of a change answers: the row as the change would leave it. Nothing is kept. */
+export interface ChangeQuote<T = Row> {
+  data: T;
+  /** False when the app runs its own code on the change: the save may come out otherwise. */
+  exact: boolean;
+}
+
 /**
  * A retry key for one order — mint one per cart and keep it until the order
  * is made: a save sent again with it (a reply lost to the network) answers
@@ -749,7 +756,7 @@ export interface PublicClient {
   /** The same create tried without writing: every figure it would come to. Costs a read; no human check. */
   quote: <T = Row>(ref: string, write: { values: Row; children?: TreeRows }) => Promise<Quote<T>>;
   /** A change to a row tried without writing: the row as the change would leave it. */
-  quoteChange: <T = Row>(ref: string, id: string, values: Row) => Promise<T>;
+  quoteChange: <T = Row>(ref: string, id: string, values: Row) => Promise<ChangeQuote<T>>;
   /**
    * Replace the row's writable columns — every one of them must be present (a
    * nullable one may be `null`). PUT, where `update` is PATCH.
@@ -1182,11 +1189,11 @@ export function createPublicClient(
     },
 
     async quoteChange<T = Row>(ref: string, id: string, values: Row) {
-      const out = await request<{ data: T }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`, {
+      const out = await request<{ data: T; exact?: boolean }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`, {
         method: 'POST',
         body: JSON.stringify({ values }),
       });
-      return out.data;
+      return { data: out.data, exact: out.exact !== false };
     },
 
     async replace<T = Row>(ref: string, id: string, values: Row) {

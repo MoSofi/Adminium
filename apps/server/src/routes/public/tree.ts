@@ -13,14 +13,14 @@ import type { Dialect, LogicalType } from '@adminium/engine';
 import { tableRulesFor } from '../../crud/column-rules.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Row } from '../../crud/mask.js';
-import type { TreePath } from '../../crud/write-tree.js';
+import { TREE_MAX_ROWS, type TreePath } from '../../crud/write-tree.js';
 import { sameValue } from '../../crud/write-values.js';
 import { resolveDefaults } from '../../public-api/generate.js';
 import type { ScopeChild } from '../../public-api/scope.js';
 import type { PublicTreeChildren } from './schema.js';
 
-/** The most rows one create may carry below it, in all. */
-export const TREE_MAX_ROWS = 200;
+/** The most rows one create may carry below it, in all (the write service's own bound). */
+export { TREE_MAX_ROWS };
 
 /**
  * A retry key as a browser mints one: 22 to 64 characters of base64url —

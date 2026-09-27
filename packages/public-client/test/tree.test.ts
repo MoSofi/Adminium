@@ -45,12 +45,13 @@ describe('a create with its child rows', () => {
 
   it('quotes on the dry-run route, with no proof, and a change on its own', async () => {
     const { client, calls } = over((url) =>
-      url.endsWith('/7/dry-run') ? { data: { qty: 3, line_total: '6.00' } } : { data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true },
+      url.endsWith('/7/dry-run') ? { data: { qty: 3, line_total: '6.00' }, exact: false } : { data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true },
     );
     const quote = await client.quote('orders', ORDER);
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders/dry-run');
     expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true });
-    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ qty: 3, line_total: '6.00' });
+    // A change the app's own code runs for: the quote says the save may come out otherwise.
+    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false });
     expect(calls[1]!.url).toBe('https://x/api/v1/public/records/lines/7/dry-run');
   });
 

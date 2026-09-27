@@ -111,6 +111,8 @@ export interface StateGuard {
   decided: readonly string[];
   /** The write's clock: a condition on the time is judged at its locked instant (`write-clock.ts`). */
   clock?: WriteClock | undefined;
+  /** A quote (a dry run of a change): judged on rows read as they are, holding none it does not write. */
+  quote?: boolean | undefined;
   /** The venue's time zone: where a moment's wall time and its days are read. */
   zone?: string | undefined;
   /** Where the write came from: a late move turns away a guest, or everyone. */
@@ -237,10 +239,11 @@ function within<T>(db: Db, run: (db: Db) => Promise<T>): Promise<T> {
 }
 
 /** The rows matching `match`, held for this transaction. */
-async function heldRows(db: Db, dialect: Dialect, table: string, match: Row): Promise<Row[]> {
+async function heldRows(db: Db, dialect: Dialect, table: string, match: Row, parent = false): Promise<Row[]> {
   let query = db.selectFrom(table).selectAll();
   for (const [column, value] of Object.entries(match)) query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
-  if (dialect !== 'sqlite') query = query.forUpdate();
+  // A parent is held FOR NO KEY UPDATE on Postgres, as the totals above a row are: a row that only points at it still goes in.
+  if (dialect !== 'sqlite') query = parent && dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
   return (await query.execute()) as Row[];
 }
 
@@ -359,7 +362,7 @@ async function linkLockedColumn(db: Db, dialect: Dialect, table: ResolvedTable, 
 
 /** A parent's state, and whether it is locked, read holding it. */
 async function heldParent(db: Db, dialect: Dialect, parent: StateParent, key: unknown): Promise<{ state: string | null; locked: boolean } | null> {
-  const [row] = await heldRows(db, dialect, parent.table, { [parent.key]: key });
+  const [row] = await heldRows(db, dialect, parent.table, { [parent.key]: key }, true);
   if (row === undefined) return null;
   const state = text(row[parent.column]);
   let locked = state !== null && parent.lockedIn.includes(state);
@@ -661,7 +664,7 @@ export async function holdParentsFirst(db: Db, dialect: Dialect, table: Resolved
       const key = side[parent.via];
       if (key !== null && key !== undefined) keys.set(String(key), key);
     }
-    for (const key of [...keys.keys()].sort()) await heldRows(db, dialect, parent.table, { [parent.key]: keys.get(key) });
+    for (const key of [...keys.keys()].sort()) await heldRows(db, dialect, parent.table, { [parent.key]: keys.get(key) }, true);
   }
 }
 
@@ -720,10 +723,12 @@ export async function guardedUpdate(
   const linked = lockedByLinks(table);
   const windows = windowsOf(values);
   if (!tied && !linked && windows.length === 0) return run(db);
+  // A quote reads what it judges without a lock (read as SQLite reads it): it waits on no save, and no save on it.
+  const hold: Dialect = guard?.quote === true ? 'sqlite' : dialect;
   return within(db, async (tx) => {
     // What this attempt's effects move: an attempt made again starts with none.
     if (guard !== undefined) guard.effected = [];
-    if (tied) await holdParentsFirst(tx, dialect, table, match, values);
+    if (tied) await holdParentsFirst(tx, hold, table, match, values);
     // The linked layer: every row the write's links point at, in one pass.
     const kept = tied ? lockLinkedHolds(table, values) : { holds: [], check: () => undefined };
     const reads = updateReads(table, values, windows, tied ? guard : undefined);
@@ -739,12 +744,12 @@ export async function guardedUpdate(
         if (read.stored) holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
       }
     }
-    const held = await holdLinkedRows(tx, dialect, holds);
+    const held = await holdLinkedRows(tx, hold, holds);
     kept.check(held);
     const judging: Judging = { held, settings: momentSettings(tx), links: windows.flatMap((w) => (w.link === undefined ? [] : [w.link])) };
     const peeked = new Map(peek.map((row) => [keyOf(table, row), row]));
     const moved: { stored: Row; to: string }[] = [];
-    for (const stored of await heldRows(tx, dialect, table.id, match)) {
+    for (const stored of await heldRows(tx, hold, table.id, match)) {
       // The link each linked row was named by must still be the row's.
       if (reads.length > 0) {
         const was = peeked.get(keyOf(table, stored));
@@ -765,9 +770,9 @@ export async function guardedUpdate(
         const changed = Object.keys(values).filter((column) => !sameValue(values[column], stored[column]));
         if (changed.length === 0) continue;
         if (tied) refuseUnresolvedLink(table, values, changed);
-        if (tied && states !== undefined) await judgeOwnUpdate(tx, dialect, table, states, stored, values, changed, guard, judging);
-        if (tied) await judgeParents(tx, dialect, table, { now: { ...stored, ...values }, was: stored }, guard, changed);
-        const lockedColumn = linked ? await linkLockedColumn(tx, dialect, table, stored, changed) : null;
+        if (tied && states !== undefined) await judgeOwnUpdate(tx, hold, table, states, stored, values, changed, guard, judging);
+        if (tied) await judgeParents(tx, hold, table, { now: { ...stored, ...values }, was: stored }, guard, changed);
+        const lockedColumn = linked ? await linkLockedColumn(tx, hold, table, stored, changed) : null;
         if (lockedColumn !== null) {
           throw new RecordLocked(`This ${table.name} row is linked from ${lockedColumn.by}: ${lockedColumn.column} can no longer change.`, { column: lockedColumn.column, linkedFrom: lockedColumn.by });
         }

@@ -58,6 +58,7 @@ import {
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction, type ScopeChild } from '../../public-api/scope.js';
 import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, TreeCheckRefused } from '../../public-api/tree-checks.js';
+import { isWriteConflict, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
 import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
@@ -210,6 +211,7 @@ import {
   publicCreateReply,
   publicDryRunBody,
   publicDryRunReply,
+  publicChangeQuoteReply,
   publicUpdateBody,
   type PublicTreeChildren,
   publicDocumentParams,
@@ -396,13 +398,37 @@ function unfilled(resource: CompiledResource, values: Readonly<Record<string, un
 
 /**
  * Whether a create through this entry goes the tree's way: it declares child
- * rows, a dry run, a price check, a retry key or a person found by address —
+ * rows, a dry run, a price check, a retry key, a person found by address or
+ * an agreement its row is held to —
  * whether or not a request sends rows below it. A row visible with a parent
  * keeps its own path.
  */
 function treeEntry(resource: CompiledResource): boolean {
   if (parentOf(resource) !== null) return false;
-  return (resource.children?.size ?? 0) > 0 || resource.dryRun === true || (resource.expect ?? null) !== null || (resource.clientKey ?? null) !== null || (resource.findOrCreate ?? null) !== null;
+  return (
+    (resource.children?.size ?? 0) > 0 ||
+    resource.dryRun === true ||
+    (resource.expect ?? null) !== null ||
+    (resource.clientKey ?? null) !== null ||
+    (resource.findOrCreate ?? null) !== null ||
+    (resource.agrees?.length ?? 0) > 0
+  );
+}
+
+/**
+ * An entry's agreements (`agrees`), judged on its row as a create or a change
+ * leaves it, inside the write: a miss is the guest's own value, told by
+ * column and why, as a create with child rows tells it.
+ */
+async function judgeEntryAgrees(db: Kysely<SourceDatabase>, view: SnapshotView, table: ResolvedTable, resource: CompiledResource, row: Row): Promise<void> {
+  const agrees = resource.agrees ?? [];
+  if (agrees.length === 0) return;
+  try {
+    await judgeAgrees(db, view, table, agrees, row, null);
+  } catch (error) {
+    if (error instanceof TreeCheckRefused) throw new PublicWriteRefused({ ...(error.refused.column === undefined ? {} : { column: error.refused.column }), reason: error.refused.reason });
+    throw error;
+  }
 }
 
 /** The columns of a table that point at another row. */
@@ -1959,9 +1985,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const column = notPlain(caps, values);
         if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
       }
-      if ((await openRowsFull(found, ok.session)) === true) {
-        return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
-      }
 
       /** Each row as a reply shows it: the entry's columns — a quote's without keys, numbers, codes or what it filled in. */
       const project = (at: TreePath, of: ResolvedTable, record: Row): Record<string, unknown> => {
@@ -2029,6 +2052,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return reply.code(200).send({ data: project([], table, before.root), children: projectChildren(before.rows), replayed: true as const });
         }
       }
+      // Counted after the retry key is looked up: a retry of the order that filled the last place answers that order.
+      if ((await openRowsFull(found, ok.session)) === true) {
+        return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
+      }
       if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
         const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now() });
         if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
@@ -2038,7 +2065,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       /** What the guest may be told of a refused row: where it is, and — for their own value — the column and why. */
       const writableAt = (at: TreePath): ReadonlySet<string> => (at.length === 0 ? resource.writable : new Set(entryAt(at)?.writable ?? []));
       const refuseTree = (error: unknown, at: TreePath): never => {
-        if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof PublicPriceChanged) throw error;
+        // A hook's own refusal keeps its words; the engine giving up a writer in a lock race is a moment's wait, not a refusal.
+        if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof PublicPriceChanged || error instanceof HookRejectedError) throw error;
+        if (isWriteConflict(error)) error = writeConflict();
         const where = placeOf(at);
         if (error instanceof TreeCheckRefused) {
           const r = error.refused;
@@ -2089,7 +2118,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           checks: async (db, node, row, parent) => {
             const of = node.target.table;
             // Every row a guest's value points at is one a read of this key shows them.
-            await judgeReadable({ db, dialect, view, scope: ok.key.scope, session: ok.session, table: of, values: row, columns: new Set([...(sent.get(place(node.at)) ?? [])].filter((c) => writableAt(node.at).has(c))) });
+            await judgeReadable({ db, dialect, view, scope: ok.key.scope, session: ok.session, table: of, values: row, columns: new Set([...(sent.get(place(node.at)) ?? [])].filter((c) => writableAt(node.at).has(c))), share: !dry });
             const agrees = node.at.length === 0 ? (resource.agrees ?? []) : (entryAt(node.at)?.agrees ?? []);
             if (agrees.length === 0) return;
             const parentTable = node.at.length === 0 ? null : node.at.length === 2 ? table : tableOf(entryAt(node.at.slice(0, 2))!.table);
@@ -2327,7 +2356,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             // The write service's own transaction: it holds a series without gaps before it opens.
             inserted = await writes.transaction(target, [values], async (tdb) => {
               if (!(await allowed(tdb, values))) throw new PublicWriteRefused();
-              return create(
+              const row = await create(
                 { ...target, db: tdb },
                 async (row) => {
                   made = row;
@@ -2336,6 +2365,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   if (!(await allowed(tdb, changed))) throw new PublicWriteRefused();
                 },
               );
+              // What the entry agrees its row must be, on the row as written, before anything commits.
+              await judgeEntryAgrees(tdb, found.view, found.table, found.resource, row);
+              return row;
             });
             if (made !== null) await announceCreate(made);
           }
@@ -2488,12 +2520,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           label: pkLabel(found.table, pk),
         };
         let outcome;
+        const context = await publicWriteContext(request, ok);
         try {
           outcome = await writes.update({
             target,
             pk,
             values,
-            context: await publicWriteContext(request, ok),
+            context,
             refine: inScope,
             // Only a hook reads the row first, and it reads it inside the
             // scope, so a hook never sees (and a refusal never reveals) a row
@@ -2510,6 +2543,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             windows: publicWindows(found.resource.writableWhen, found.view, found.table, ok.key.scope.timezone),
             mapError: refuseWriteThrough(found.resource, 'update'),
             mode: quote,
+            // What the entry agrees its row must be (a stay's guests within what its room sleeps), on the row as changed.
+            ...((found.resource.agrees?.length ?? 0) === 0 ? {} : { inside: (db: Kysely<SourceDatabase>, after: Row) => judgeEntryAgrees(db, found.view, found.table, found.resource, after) }),
             ...(expected === undefined || expectColumn === null
               ? {}
               : {
@@ -2585,7 +2620,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A quote shows figures only: no key, no running number, no code.
         const hidden = quote === 'dry' ? hiddenInQuote(found.view, found.table, [found.resource.clientKey]) : new Set<string>();
         for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
-        return reply.send({ data: wallTimesAsInstants(projected, found.table.columns, found.dialect) });
+        const data = wallTimesAsInstants(projected, found.table.columns, found.dialect);
+        // A quote runs no before hook: said, as a quote of a create says it.
+        if (quote === 'dry') return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)) });
+        return reply.send({ data });
       };
 
     app.patch(
@@ -2656,7 +2694,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           params: publicRecordParams,
           body: publicWriteBody,
           response: {
-            200: publicRecordReply,
+            200: publicChangeQuoteReply,
             400: publicErrorReply,
             401: publicErrorReply,
             404: publicErrorReply,
