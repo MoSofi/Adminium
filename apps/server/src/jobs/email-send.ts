@@ -44,7 +44,7 @@ import type {
   SmtpConfig,
 } from '../email/types.js';
 import type { FileStore } from '../files/store.js';
-import { QR_MAX_BYTES, qrPng } from '../qr/index.js';
+import { QR_MAX_BYTES, qrCarries, qrPng } from '../qr/index.js';
 import type { JobHandlerContext, JobRegistry } from './registry.js';
 
 export { EMAIL_SEND_JOB_KIND };
@@ -97,7 +97,7 @@ const envelopeSchema = z.object({
   from: z.string().optional(),
   /** QR codes the HTML shows (`v: 3`): drawn here, from their text, as PNGs. */
   qr: z
-    .array(z.object({ cid: z.string().min(1).max(80), text: z.string().min(1).max(QR_MAX_BYTES) }))
+    .array(z.object({ cid: z.string().min(1).max(80), text: z.string().min(1).max(QR_MAX_BYTES).refine(qrCarries, `at most ${String(QR_MAX_BYTES)} bytes`) }))
     .max(60)
     .optional(),
 });

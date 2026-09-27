@@ -36,7 +36,7 @@ function manifest(version: string, texts: string[]): Record<string, unknown> {
     requiredSchema: {
       prefixed: true,
       tables: [
-        { ref: 'settings', columns: [id, { ref: 'opened_on', type: 'date', nullable: true }] },
+        { ref: 'settings', columns: [id, { ref: 'opened_on', type: 'date', nullable: true }, { ref: 'opens', type: 'text', maxLength: 5, nullable: true }] },
         { ref: 'clients', columns: [id, { ref: 'email', type: 'text', maxLength: 254 }, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'since', type: 'date', nullable: true }] },
         {
           ref: 'invoices',
@@ -88,7 +88,7 @@ function manifest(version: string, texts: string[]): Record<string, unknown> {
 const GOOD = [
   'Due {{invoice.due_on}}, on {{invoice.due_on.day_month}}; {{invoice.due_on.days_since}} days ago.',
   'Sent {{invoice.sent_at}}: {{invoice.sent_at.date}} at {{invoice.sent_at.time}}, {{invoice.sent_at.relative_day}}, {{invoice.sent_at.day_month}}.',
-  'A client since {{invoice.client.since}} ({{client.since.day_month}}); open since {{practice.opened_on}}.',
+  'A client since {{invoice.client.since}} ({{client.since.day_month}}); open since {{practice.opened_on}}, from {{practice.opens.time}}.',
   // Names the manifest cannot place are the sender's to judge.
   '{{invoice.nope.date}} {{recipient.first_name}} {{elsewhere.due_on.date}} {{invoice.due_on.date.more}}',
 ];
@@ -97,7 +97,7 @@ describe('which variable forms a template may read', () => {
   it('takes every form a column has, and names the ones it has not', () => {
     expect(templateProblems(manifest('1.0.0', GOOD) as never)).toEqual([]);
     const refused = templateProblems(
-      manifest('1.0.0', ['Due {{ invoice.due_on.date }}.', 'At {{invoice.due_on.time}}.', 'Since {{invoice.client.since.date}} and {{client.since.relative_day}}.', '{{practice.opened_on.time}}', '{{invoice.number.days_since}}', '{{invoice.sent_at.days_since}}']) as never,
+      manifest('1.0.0', ['Due {{ invoice.due_on.date }}.', 'At {{invoice.due_on.time}}.', 'Since {{invoice.client.since.date}} and {{client.since.relative_day}}.', '{{practice.opened_on.time}}', '{{invoice.number.days_since}}', '{{invoice.sent_at.days_since}}', '{{invoice.number.time}}']) as never,
     );
     expect(refused).toEqual([
       'The email "bills-sent" (en-US) reads {{invoice.due_on.date}}, which nothing fills: invoices.due_on is a date column, read as {{invoice.due_on}}, {{invoice.due_on.day_month}} or {{invoice.due_on.days_since}}.',
@@ -105,8 +105,10 @@ describe('which variable forms a template may read', () => {
       'The email "bills-sent" (en-US) reads {{invoice.client.since.date}}, which nothing fills: clients.since is a date column, read as {{invoice.client.since}}, {{invoice.client.since.day_month}} or {{invoice.client.since.days_since}}.',
       'The email "bills-sent" (en-US) reads {{client.since.relative_day}}, which nothing fills: clients.since is a date column, read as {{client.since}}, {{client.since.day_month}} or {{client.since.days_since}}.',
       'The email "bills-sent" (en-US) reads {{practice.opened_on.time}}, which nothing fills: settings.opened_on is a date column, read as {{practice.opened_on}}, {{practice.opened_on.day_month}} or {{practice.opened_on.days_since}}.',
-      'The email "bills-sent" (en-US) reads {{invoice.number.days_since}}, which nothing fills: invoices.number is a text column, read as {{invoice.number}} or {{invoice.number.time}}.',
+      'The email "bills-sent" (en-US) reads {{invoice.number.days_since}}, which nothing fills: invoices.number is a text column, read as {{invoice.number}}.',
       'The email "bills-sent" (en-US) reads {{invoice.sent_at.days_since}}, which nothing fills: invoices.sent_at is a timestamptz column, read as {{invoice.sent_at}}, {{invoice.sent_at.date}}, {{invoice.sent_at.time}}, {{invoice.sent_at.day_month}} or {{invoice.sent_at.relative_day}}.',
+      // A time of day kept as text is a text column short enough to hold one (`15:00`): a number of twenty is not.
+      'The email "bills-sent" (en-US) reads {{invoice.number.time}}, which nothing fills: invoices.number is a text column, read as {{invoice.number}}.',
     ]);
   });
 });

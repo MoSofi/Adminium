@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { dayColumns, formulaColumns, formulaExprSchema, momentColumns, type States } from '@adminium/manifest';
+import { dayColumns, formulaColumns, formulaExprSchema, isJoinColumn, momentColumns, type States } from '@adminium/manifest';
 
 import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
 
@@ -82,6 +82,8 @@ const UUID_TYPES: ReadonlySet<LogicalType> = new Set(['uuid', 'text', 'varchar']
 const USER_TYPES: ReadonlySet<LogicalType> = new Set(['text', 'varchar', 'uuid', 'integer', 'bigint']);
 const NUMERIC_TYPES: ReadonlySet<LogicalType> = new Set(['integer', 'bigint', 'decimal', 'float']);
 const TEXTUAL_TYPES: ReadonlySet<LogicalType> = new Set(['text', 'varchar']);
+/** The columns a joined text reads: text and whole numbers, spelled alike by every database. */
+const JOINED_TYPES: ReadonlySet<LogicalType> = new Set(['text', 'varchar', 'integer', 'bigint']);
 /** Types whose answers cannot be a list: they have their own, or no, vocabulary. */
 const UNLISTABLE_TYPES: ReadonlySet<LogicalType> = new Set(['boolean', 'json', 'binary']);
 
@@ -379,10 +381,13 @@ export function columnRuleIssue(
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
       const moments = momentColumns(parsed.data).columns;
       const days = dayColumns(parsed.data).columns;
+      const joined = typeof parsed.data === 'object' && 'join' in parsed.data ? parsed.data.join.filter(isJoinColumn) : [];
       for (const ref of formulaColumns(parsed.data)) {
         if (ref === column.name) return `${name} cannot be worked out from itself.`;
         const read = table?.columns.find((c) => c.name === ref);
         if (read === undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(ref)} for the formula.`;
+        // A decimal, a yes or no or a time is spelled differently by each database: a join reads text and whole numbers.
+        if (joined.includes(ref) && !JOINED_TYPES.has(read.logicalType)) return `A joined text reads text and whole-number columns; ${JSON.stringify(ref)} is ${read.logicalType}.`;
         // SQLite keeps a timestamp as text, and may say so.
         const moment = read.logicalType === 'timestamp' || read.logicalType === 'timestamptz' || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(read.logicalType));
         if (moments.has(ref) && !moment) return `${JSON.stringify(ref)} is not a moment, so no hours are counted from it.`;

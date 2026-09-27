@@ -205,16 +205,19 @@ export async function storedNights(db: Db, rules: TableRules, row: Row, currency
 /**
  * The nights a quote's row is priced for, as a dry run answers them
  * (`[{date, rate, tags}]`), or undefined when its table prices nothing by the
- * night. Priced from the rates as they are, as the quote's own price was.
+ * night — or when the caller is not shown the priced column (`shown`): the
+ * nights are that column, line by line. Priced from the rates as they are,
+ * as the quote's own price was.
  */
 export async function quoteNights(
   db: Db,
   rules: TableRules | null,
   row: Row,
   currency: () => Promise<string | null>,
+  shown: (column: string) => boolean,
 ): Promise<{ date: string; rate: string; tags: string[] }[] | undefined> {
   const rule = rules?.perNight;
-  if (rule === undefined) return undefined;
+  if (rule === undefined || !shown(rule.column)) return undefined;
   const places = placesFor(rule.scale, row, rules?.currencyColumn, rule.scale === 'currency' ? await currency() : null);
   const priced = await priceNights(db, rule, row, places);
   return priced.nights.map(({ date, rate, tags }) => ({ date, rate, tags }));

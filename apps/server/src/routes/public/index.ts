@@ -2260,7 +2260,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         const capacity = outcome.capacity.map((pool) => ({ pool: pool.key, state: pool.fits ? ('available' as const) : ('full' as const), ...(pool.at === undefined ? {} : { at: pool.at }) }));
         // A price by the night: the nights it is made of, each with its rate and what was added.
-        const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+        const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null, (column) => data[column] !== null && data[column] !== undefined);
         return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }) });
       }
       // The guest's confirmation, when the endpoint sends one. Queued, never awaited on SMTP.
@@ -2730,7 +2730,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A quote runs no before hook: said, as a quote of a create says it.
         if (quote === 'dry') {
           // A change of the dates of a row priced by the night: the nights it would then be made of.
-          const nights = outcome.after === null ? undefined : await quoteNights(found.db, tableRulesFor({ view: found.view, table: found.table }), outcome.after, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+          const nights = outcome.after === null ? undefined : await quoteNights(found.db, tableRulesFor({ view: found.view, table: found.table }), outcome.after, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null, (column) => projected[column] !== null && projected[column] !== undefined);
           return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }) });
         }
         return reply.send({ data });

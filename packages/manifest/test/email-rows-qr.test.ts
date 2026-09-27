@@ -131,6 +131,14 @@ describe('an email that lists rows', () => {
     m = mailing();
     (rowsData(m)['row'] as Doc)['note'] = '{{row.valid_to.days_since}}';
     expect(issuesText(m)).toContain('"tickets.valid_to" is a timestamptz column, which has no "days_since" form');
+    // A time of day kept as text: only a text column short enough to hold one (`15:00`) has the form.
+    m = mailing();
+    (rowsData(m)['row'] as Doc)['note'] = '{{row.holder_name.time}}';
+    expect(issuesText(m)).toContain('{{row.holder_name.time}}: "tickets.holder_name" is not a time of day kept as text (a text column of at most 8 characters), so it has no "time" form');
+    m = mailing();
+    (tableOf(m, 'tickets')['columns'] as Doc[]).push({ ref: 'doors', type: 'text', maxLength: 5, nullable: true });
+    (rowsData(m)['row'] as Doc)['note'] = 'Doors {{row.doors.time}}';
+    expect(issuesText(m)).not.toContain('row.doors.time');
     m = mailing();
     blocksOf(m)[0]!['data'] = { text: 'Hi {{row.holder_name}}' };
     expect(issuesText(m)).toContain('{{row.…}} is read only inside an email.rows block');
