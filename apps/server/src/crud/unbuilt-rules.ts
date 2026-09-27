@@ -78,8 +78,6 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
       ),
   },
   { rule: 'formula.join', on: (table) => anyColumn(table, (c) => formulaUses(c.formula, ['join'])) },
-  // A document's timed moves.
-  { rule: 'states.timed', on: (table) => table.states?.timed !== undefined },
 ];
 
 /** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */

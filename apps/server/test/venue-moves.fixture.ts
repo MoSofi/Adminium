@@ -19,8 +19,8 @@ export type Doc = Record<string, unknown>;
 
 export interface VenueOptions {
   timed?: boolean;
-  /** The public entries (a guest's refund and change windows). */
-  publicAccess?: boolean;
+  /** An outbox telling a buyer their held tickets went back on sale. */
+  outbox?: boolean;
 }
 
 export function venueTables(opts: VenueOptions = {}): Doc[] {
@@ -267,14 +267,31 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
         { ref: 'email', type: 'text', maxLength: 200 },
         { ref: 'status', type: 'enum', enum: ['waiting', 'offered', 'claimed', 'missed'], default: 'waiting' },
         { ref: 'offered_until', type: 'timestamptz', nullable: true, rules: { stamp: { set: { addMinutes: { hours: setting('offer_hours') } }, on: { column: 'status', values: ['offered'] } } } },
+        { ref: 'blocked', type: 'bool', default: false },
       ],
       states: {
         column: 'status',
         initial: 'waiting',
-        moves: { waiting: ['offered'], offered: ['claimed', 'missed'] },
+        moves: { waiting: ['offered'], offered: ['claimed', { to: 'missed', requires: { where: [{ column: 'blocked', eq: false }] } }] },
         ...(timed ? { timed: [{ from: 'offered', to: 'missed', at: { column: 'offered_until' } }] } : {}),
       },
     },
+    ...(opts.outbox === true
+      ? [
+          {
+            ref: 'messages',
+            columns: [
+              id,
+              { ref: 'kind', type: 'enum', enum: ['released'] },
+              { ref: 'status', type: 'enum', enum: ['queued', 'held', 'sent', 'failed', 'skipped'], default: 'queued' },
+              { ref: 'order_id', type: 'fk', references: 'orders', nullable: true },
+              { ref: 'to_address', type: 'text', maxLength: 254, nullable: true },
+              { ref: 'sent_at', type: 'timestamptz', nullable: true },
+              { ref: 'error', type: 'text', maxLength: 400, nullable: true },
+            ],
+          },
+        ]
+      : []),
   ];
 }
 
@@ -294,5 +311,24 @@ export function venueManifest(opts: VenueOptions = {}): Doc {
     requiredSchema: { prefixed: true, tables: venueTables(opts) },
     pages: [{ ref: 'overview', template: 'page-dashboard', title: { key: 't', fallback: 'Overview' }, nav: { group: 'venue', icon: 'home', order: 1 } }],
     frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],
+    ...(opts.outbox === true
+      ? {
+          outbox: {
+            table: 'messages',
+            columns: { kind: 'kind', status: 'status', to: 'to_address', sentAt: 'sent_at', error: 'error' },
+            recipient: { via: 'order_id', table: 'orders', email: 'email' },
+            links: { order: 'order_id' },
+            kinds: { released: 'venue-released' },
+            producers: [{ kind: 'released', link: 'order_id', onChange: { table: 'orders', column: 'status', to: 'released' } }],
+          },
+          emailTemplates: [
+            {
+              key: 'venue-released',
+              name: 'Released',
+              locales: { 'en-US': { subject: 'Your tickets went back on sale', blocks: [{ block: 'email.text', data: { text: 'The transfer did not arrive in time.' } }] } },
+            },
+          ],
+        }
+      : {}),
   };
 }

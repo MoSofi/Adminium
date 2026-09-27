@@ -540,7 +540,12 @@ async function judgeOwnUpdate(
   }
   if (await lockedNow(db, dialect, table, stored)) {
     const lateFlags = (states.late ?? []).flatMap((rule) => (rule.flag === undefined ? [] : [rule.flag]));
-    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided, ...lateFlags]);
+    // What a timed move writes with its move is the move's own, as a stamp is.
+    const to = changed.includes(states.column) ? text(values[states.column]) : null;
+    const timedSets = (states.timed ?? [])
+      .filter((rule) => guard.declared !== undefined && rule.from === from && rule.to === to && guard.declared.to === to)
+      .flatMap((rule) => Object.keys(rule.set ?? {}));
+    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided, ...lateFlags, ...timedSets]);
     const column = changed.find((name) => !open.has(name));
     if (column !== undefined) {
       throw new RecordLocked(`This ${table.name} row is ${from}: ${column} can no longer change.`, { column, state: from });

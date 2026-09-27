@@ -222,6 +222,29 @@ export function jobsRepo(meta: MetaDb) {
     },
 
     /**
+     * Replace a job's payload while it runs: what it hands on to the next job
+     * of its kind (the rows a minute job leaves alone for a while). Checked
+     * like any payload.
+     */
+    async setPayload(id: string, payload: Record<string, unknown>): Promise<void> {
+      await db.updateTable('adminium_jobs').set({ payload: packJson(jobPayloadSchema.parse(payload)) }).where('id', '=', id).execute();
+    },
+
+    /** The payloads of the jobs of a kind that succeeded, due since `since`, newest first. */
+    async recentPayloads(kind: string, since: number, limit = 200): Promise<Record<string, unknown>[]> {
+      const rows = await db
+        .selectFrom('adminium_jobs')
+        .select(['payload'])
+        .where('status', '=', 'succeeded')
+        .where('runAt', '>=', since)
+        .where('kind', '=', kind)
+        .orderBy('runAt', 'desc')
+        .limit(limit)
+        .execute();
+      return rows.map((row) => readJson<Record<string, unknown>>(row.payload));
+    },
+
+    /**
      * Retention `jobs` policy: succeeded/cancelled past `retentionDays`,
      * failed kept twice as long.
      */
