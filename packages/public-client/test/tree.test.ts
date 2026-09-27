@@ -79,7 +79,7 @@ describe('a create with its child rows', () => {
       .client.createTree('orders', ORDER)
       .catch((error: unknown) => error as PublicApiError);
     expect(gone.code).toBe('PUBLIC_SOLD_OUT');
-    expect(gone.soldOut).toMatchObject({ child: 'tickets', index: 1, path: ['tickets', 1] });
+    expect(gone.soldOut).toEqual({ child: 'tickets', index: 1, path: ['tickets', 1] });
     expect(gone.refused).toBeNull();
   });
 

@@ -86,7 +86,8 @@ import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { columnGranted, refuseUngrantedColumns } from '../connections/privileges.js';
 import { getPrincipal } from '../rbac/principal.js';
-import { checkCapacity, touchesGuard, withSlotLock } from './capacity-guard.js';
+import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
+import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { isWriteConflict } from './db-errors.js';
@@ -135,7 +136,7 @@ import { venueLocalValue } from './venue-time.js';
 import { writeClock, type WriteClock } from './write-clock.js';
 import type { ClimbStart, HeldBalances, HoldChain, SettleChain } from './climb.js';
 import type { CreateTree, TreeNode, TreeOutcome, TreeWritten } from './write-tree.js';
-import { capacityLockNames, judgeCapacity } from './capacity/judge.js';
+import { judgeCapacity } from './capacity/judge.js';
 import { LockMoved, withNamedLocks, type NamedLock } from './capacity/locks.js';
 import type { PoolState } from './capacity/types.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
@@ -1714,7 +1715,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   /** The venue's zone for a table whose rules read a clock; undefined for every other. */
   async function zoneFor(rules: TableRules | null, target: WriteTarget): Promise<string | undefined> {
     const readsDay = (rules?.stamps ?? []).some((stamp) => stamp.set === 'today') || (rules?.bounds ?? []).some((bound) => bound.notAfter !== undefined);
-    if (rules?.capacity === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay) return undefined;
+    if (rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay) return undefined;
     return target.timezone ?? (await opts.timezoneOf?.(target.connectionId)) ?? 'UTC';
   }
 
@@ -2189,17 +2190,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       throw new BalanceBatchError(target.table.name);
     }
     if (action === 'delete') return;
-    if (rules?.capacity === undefined && rules?.booking === undefined) return;
-    if (
-      action === 'update' &&
-      !rows.some(
-        (row) =>
-          (rules.capacity !== undefined && touchesGuard(rules.capacity, row)) ||
-          (rules.booking !== undefined && movesBooking(rules.booking, row)),
-      )
-    ) {
-      return;
-    }
+    // A limit is kept only under its pool's lock: a row that could take from one is refused; one leaving what counts passes.
+    const limited = rules?.capacityRules !== undefined || rules?.capacityOwners !== undefined;
+    if (limited && rows.some((row) => batchNeedsGuard(target, action, row))) throw new GuardedBatchError(target.table.name);
+    if (rules?.booking === undefined) return;
+    if (action === 'update' && !rows.some((row) => movesBooking(rules.booking!, row))) return;
     throw new GuardedBatchError(target.table.name);
   }
 
@@ -2458,10 +2453,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const booking = rules?.booking;
       const need = booking === undefined ? null : bookingNeed(booking, checked, null);
       const now = new Date();
+      const limits = (rules?.capacityRules?.length ?? 0) > 0;
       const write = async (db: Db) => {
         const within = { ...target, db, timezone: zone, origin: context.origin };
-        const capacity = rules?.capacity;
-        if (capacity !== undefined) await guarded(() => checkCapacity(capacity, within, checked, null), input.mapError);
+        // The limits this row takes from, judged under their locks (the write's clock is read first, inside).
+        if (limits) await judgeRows(db, [{ target: within, pk: null, row: checked, before: null }], { clock, origin: context.origin, mode: 'save' }, input.mapError);
         // "Anyone" comes back as the person the guard picked, written and reported with the row.
         const placed =
           booking !== undefined && need !== null
@@ -2490,8 +2486,16 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const series = numberLockName(target.table, checked);
       const { row, values: written } = await conflicted(
         () =>
-          rules?.capacity !== undefined
-            ? withSlotLock(rules.capacity, target, checked, write)
+          limits
+            ? // The pools' locks and the numbers' series, in one call: one order for every writer.
+              withLimitLocks(
+                target,
+                async () => [
+                  ...(await capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: checked, before: null, prepared: true }])),
+                  ...(series === null ? [] : seriesOf(rules, target.table, checked).map((name) => ({ name, busy: 'NUMBER_BUSY' as const }))),
+                ],
+                write,
+              )
             : day !== null
               ? withBookingLock({ ...target, timezone: zone }, day, write)
               : series !== null && !inTransaction(target.db)
@@ -2752,20 +2756,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
       let outcome: TreeOutcome;
       try {
-        outcome = await conflicted(async () => {
-          for (let attempt = 0; ; attempt += 1) {
-            try {
-              return await withNamedLocks(rootRow.target, await lockNames(), run);
-            } catch (error) {
-              // A row moved away from the lock it was named by: named again from a fresh read, a few times.
-              if (!(error instanceof LockMoved)) throw error;
-              if (attempt >= 2) {
-                return input.mapError(new ConflictError('The places this write takes moved while it waited. Try again.', 'WRITE_CONFLICT', { retry: true }), []);
-              }
-            }
-          }
-        }, (error) => input.mapError(error, []));
+        // A row moved away from the lock it was named by: named again from a fresh read, a few times, then 409 WRITE_CONFLICT.
+        outcome = await conflicted(() => withLimitLocks(rootRow.target, lockNames, run), (error) => input.mapError(error, []));
       } catch (error) {
+        if (error instanceof AppError && error.code === 'WRITE_CONFLICT' && !(error instanceof TreeSignal)) return input.mapError(error, []);
         if (!(error instanceof TreeSignal)) throw error;
         if (error.kind === 'dry' || error.kind === 'replayed') return error.outcome!;
         // The twin's rows, read once its transaction and this one are both over.
@@ -2831,7 +2825,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
       const checkedValues = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
-      const capacity = rules?.capacity !== undefined && touchesGuard(rules.capacity, values) ? rules.capacity : undefined;
+      // A change that moves what a limit counts — its own rows', or the rows it owns — is judged under the pools' locks.
+      const limits = (rules?.capacityRules !== undefined || rules?.capacityOwners !== undefined) && touchesCapacity(target, values);
       const booking = rules?.booking !== undefined && touchesBooking(rules.booking, values) ? rules.booking : undefined;
       // The formulas this change moves: worked out again below from the row as held.
       const worked = (rules?.formulas ?? []).filter((formula) => Object.prototype.hasOwnProperty.call(checkedValues, formula.column));
@@ -2855,11 +2850,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         // The document before its line: every writer takes the parent first (see `holdFirst`).
         await holdFirst(rules, within, pk, checkedValues);
         const prior =
-          capacity !== undefined || booking !== undefined || rolls
-            ? ((holdsParent(rules) || worked.length > 0 ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
+          limits || booking !== undefined || rolls
+            ? ((holdsParent(rules) || worked.length > 0 || limits ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
             : null;
-        if (capacity !== undefined && prior !== null) {
-          await guarded(() => checkCapacity(capacity, within, checkedValues, prior), input.mapError);
+        if (limits && prior !== null) {
+          // A quote of the change counts the same pools, holding none: its own places are left out by its key.
+          await judgeRows(db, [{ target: within, pk, row: { ...prior, ...checkedValues }, before: prior }], { clock, origin: context.origin, mode: dry ? 'dry' : 'save' }, input.mapError);
         }
         let written = checkedValues;
         if (booking !== undefined && prior !== null) {
@@ -2909,10 +2905,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         count = await conflicted(async () => {
           // A quote takes no named lock: it waits for nobody, and nobody waits for it.
           if (dry) return await withNamedLocks(target, [], write);
-          if (capacity !== undefined) {
-            // The lock is named by the slot the row will hold.
-            const current = before ?? ((await fetchByPk(target.db, target.table, pk)) ?? null);
-            return await withSlotLock(capacity, target, { ...(current ?? {}), ...checkedValues }, write);
+          if (limits) {
+            // The locks are named by the pools the row will take from, from a fresh look each time.
+            return await withLimitLocks(target, async () => {
+              const current = (await fetchByPk(target.db, target.table, pk)) ?? null;
+              return current === null
+                ? []
+                : capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]);
+            }, write);
           }
           if (booking !== undefined) {
             return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {

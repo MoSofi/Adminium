@@ -64,11 +64,13 @@ import type {
   TableStatesRule,
   TableBookingRule,
   TableCapacityRule,
+  EffectiveCapacityRule,
 } from '../connections/effective-schema.js';
 import { holdsNul } from '../security/nul-bytes.js';
 import { isNowType, renderNow } from './instants.js';
 import { booleanOf, sameValue } from './write-values.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
+import { ownedRules, type OwnedRule } from './capacity/rules.js';
 import type { Row } from './mask.js';
 import type { WriteAction, WriteActor, WriteOrigin } from './write-context.js';
 
@@ -356,6 +358,10 @@ export interface TableRules {
   seals?: ColumnStamp[];
   /** The booking guard on this table. */
   capacity?: TableCapacityRule;
+  /** Every limit on this table, of every kind (the released slot rule too). */
+  capacityRules?: EffectiveCapacityRule[];
+  /** Limits of other tables whose rows belong to this table's rows (an order's tickets): its changes may move them. */
+  capacityOwners?: OwnedRule[];
   /** Booking people on this table: no overlap per resource. */
   booking?: TableBookingRule;
   /** Columns whose zone-less wall times are read on the venue's clock. */
@@ -641,6 +647,9 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   const numbered = gapless.flatMap((sequence) => [sequence.column, ...(sequence.format === undefined ? [] : [sequence.format.column])]);
   const currencyColumn = columns.some((column) => column.name === 'currency') ? 'currency' : undefined;
   const capacity = target.table.table?.capacity;
+  const capacityRules = target.table.table?.capacityRules;
+  // A hand-built target may carry no model: nothing belongs to its rows.
+  const capacityOwners = target.view?.model === undefined || target.table.table === undefined ? [] : ownedRules(target.view, target.table);
   const booking = target.table.table?.booking;
   const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
   const rules =
@@ -659,6 +668,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     states === undefined &&
     stateParents.length === 0 &&
     capacity === undefined &&
+    capacityRules === undefined &&
+    capacityOwners.length === 0 &&
     booking === undefined &&
     venueLocal.length === 0
       ? null
@@ -681,6 +692,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
           ...(states === undefined ? {} : { states, ...(lockedBy.length === 0 ? {} : { lockedBy }) }),
           ...(stateParents.length === 0 ? {} : { stateParents }),
           ...(capacity === undefined ? {} : { capacity }),
+          ...(capacityRules === undefined ? {} : { capacityRules }),
+          ...(capacityOwners.length === 0 ? {} : { capacityOwners }),
           ...(booking === undefined ? {} : { booking }),
           ...(venueLocal.length === 0 ? {} : { venueLocal }),
         };

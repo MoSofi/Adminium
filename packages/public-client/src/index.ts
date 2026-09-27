@@ -57,15 +57,16 @@ export const PUBLIC_ERROR_CODES = [
    */
   'PUBLIC_SLOT_FULL',
   'PUBLIC_SLOT_BUSY',
-  /** Too close to the time to cancel online; the venue still can. */
-  'PUBLIC_TOO_LATE',
   /**
-   * A row of the order asks for places that are gone (409): `error.soldOut`
-   * names the row. Never how many are left — ask availability again.
+   * What a line asks for is sold out: tickets of a type, today's portions of
+   * a dish (409). `error.params.column` names the line's column; on a create
+   * with child rows, `error.soldOut` says which line.
    */
   'PUBLIC_SOLD_OUT',
-  /** A night of the stay has no room of the kind asked for left (409). */
+  /** No room of the type asked for is free on one of the nights (409). */
   'PUBLIC_NO_ROOM',
+  /** Too close to the time to cancel online; the venue still can. */
+  'PUBLIC_TOO_LATE',
   /**
    * The order came to another price than the one shown (409): nothing was
    * saved; `error.priceChanged` holds the new total and each line's figures.
@@ -211,6 +212,18 @@ export class PublicApiError extends Error {
     return this.code === 'PUBLIC_CLAIM_LEVEL';
   }
 
+  /** On a `PUBLIC_SOLD_OUT` refusal, which line it names; null on any other. */
+  get soldOut(): PublicSoldOut | null {
+    if (this.code !== 'PUBLIC_SOLD_OUT') return null;
+    const { child, index, path, column } = this.params;
+    return {
+      ...(typeof child === 'string' ? { child } : {}),
+      ...(typeof index === 'number' ? { index } : {}),
+      ...(Array.isArray(path) ? { path: path as (string | number)[] } : {}),
+      ...(typeof column === 'string' ? { column } : {}),
+    };
+  }
+
   /** On a `PUBLIC_TOO_EARLY` refusal, the times it carries; null on any other. */
   get tooEarly(): PublicTooEarly | null {
     if (this.code !== 'PUBLIC_TOO_EARLY') return null;
@@ -243,11 +256,6 @@ export class PublicApiError extends Error {
     };
   }
 
-  /** On a `PUBLIC_SOLD_OUT` (or `PUBLIC_NO_ROOM`), the row that asked for what is gone; null on any other. */
-  get soldOut(): TreeRefusal | null {
-    if (this.code !== 'PUBLIC_SOLD_OUT' && this.code !== 'PUBLIC_NO_ROOM') return null;
-    return treeRefusalOf(this.params);
-  }
 }
 
 /** Where in a create with child rows a refusal is about, and why. */
@@ -350,6 +358,12 @@ export interface PublicRefConfig {
   response?: { shape: PublicResponseShape };
   /** Present on an availability ref: ask `availability` or `bookingTimes`, never `list`. */
   kind?: 'availability';
+  /**
+   * On an availability ref over a limit, which kind it answers: `slot` (ask
+   * `availability` or `slotDays`), `parent` (`parentAvailability`) or `night`
+   * (`nightAvailability`). Absent on a booking ref, and from an older server.
+   */
+  capacity?: 'slot' | 'parent' | 'night';
 }
 
 export interface PublicConfig {
@@ -627,7 +641,64 @@ const CLAIM = Symbol('claim');
 export interface SlotAvailability {
   /** `HH:mm` on the tenant's clock; {@link fromTenantLocal} turns it into the instant to book. */
   time: string;
-  state: 'free' | 'full';
+  /** `paused`: the venue paused the slot (a busy kitchen). A released slot limit never says it. */
+  state: 'free' | 'full' | 'paused';
+}
+
+/** One row a parent limit is held on (a ticket type, a dish), as its availability ref answers it. */
+export interface ParentAvailability {
+  id: string;
+  /** `soon` before its sales open, `ended` after they close, `soldout` when fewer are left than asked. */
+  state: 'on' | 'soon' | 'ended' | 'soldout';
+  /** How many are left — only when few are, and the ref says so. */
+  left?: number;
+}
+
+/** What a parent limit's availability asks. */
+export interface ParentQuery {
+  /** The value of the ref's `under` column the rows share (an event's id). */
+  under?: string;
+  /** `YYYY-MM-DD`: the venue day asked (a dish's portions); today when absent. */
+  date?: string;
+  /** How many the page wants; answered sold out when fewer are left. */
+  qty?: number;
+  /** A row of this session's own (its held order), left out of the count. */
+  exclude?: string;
+}
+
+/** One pool of a night limit (a room type), over the nights asked. */
+export interface NightPoolAvailability {
+  pool: string;
+  /** `closed`: the dates are not a stay the venue sells; `full`: a night has no room left. */
+  state: 'open' | 'full' | 'closed';
+  left?: number;
+  /** The first arrival after `from`, of the same length, when this pool is open (asked with `earliest`). */
+  earliest?: string | null;
+}
+
+/** What a night limit's availability asks. */
+export interface NightQuery {
+  from: string;
+  to: string;
+  /** Leaves out the pools that sleep fewer. */
+  guests?: number;
+  /** Search this many days after `from` for the first arrival of the same length with room. */
+  earliest?: number;
+  exclude?: string;
+}
+
+export interface NightAvailability {
+  pools: NightPoolAvailability[];
+  /** With `earliest`: the first arrival of the same length where any fitting pool is open, or null. */
+  earliest: string | null;
+}
+
+/** Which line of a create was sold out: `column`, and — on a create with child rows — its child, index and path. */
+export interface PublicSoldOut {
+  child?: string;
+  index?: number;
+  path?: (string | number)[];
+  column?: string;
 }
 
 /** A sign-in link's email is on its way — to the address typed, if it is anyone's. */
@@ -702,6 +773,12 @@ export interface PublicClient {
    * clinic): a kind of visit, with one person or anyone.
    */
   bookingTimes: (ref: string, query: BookingQuery & { date: string }, signal?: AbortSignal) => Promise<SlotAvailability[]>;
+  /** A strip of up to 31 days from `from` under a slot limit: each open, full or closed, and how many times are free. */
+  slotDays: (ref: string, query: { from: string; days: number; party?: number }, signal?: AbortSignal) => Promise<DayAvailability[]>;
+  /** The rows a parent limit is held on (ticket types of an event), each on sale, sold out, soon or ended. */
+  parentAvailability: (ref: string, query?: ParentQuery, signal?: AbortSignal) => Promise<ParentAvailability[]>;
+  /** The pools of a night limit (room types) over a stay's nights, and the earliest arrival with room. */
+  nightAvailability: (ref: string, query: NightQuery, signal?: AbortSignal) => Promise<NightAvailability>;
   /** A strip of up to 31 days from `from`, each open, full or closed, from the same ref. */
   bookingDays: (
     ref: string,
@@ -1038,6 +1115,27 @@ export function createPublicClient(
     bookingDays(ref, query, signal) {
       const { kind, resource, exclude, from, days } = query;
       return booking<DayAvailability>(ref, { kind, resource, from, days, exclude }, signal);
+    },
+
+    slotDays(ref, query, signal) {
+      const { from, days, party } = query;
+      return booking<DayAvailability>(ref, { from, days, party }, signal);
+    },
+
+    parentAvailability(ref, query = {}, signal) {
+      const { under, date, qty, exclude } = query;
+      return booking<ParentAvailability>(ref, { under, date, qty, exclude }, signal);
+    },
+
+    async nightAvailability(ref, query, signal) {
+      const init: RequestInit = {};
+      if (signal !== undefined) init.signal = signal;
+      const p = new URLSearchParams();
+      const { from, to, guests, earliest, exclude } = query;
+      for (const [name, value] of Object.entries({ from, to, guests, earliest, exclude })) if (value !== undefined) p.set(name, String(value));
+      // The whole answer: the pools, and the earliest arrival beside them.
+      const out = await request<{ data: NightPoolAvailability[]; earliest?: string | null }>(`/api/v1/public/availability/${ref}?${p.toString()}`, init);
+      return { pools: out.data, earliest: out.earliest ?? null };
     },
 
     async get<T = Row>(ref: string, id: string, signal?: AbortSignal) {

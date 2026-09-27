@@ -107,6 +107,7 @@ import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
 import { slotAvailability, slotInstant } from '../../crud/capacity-guard.js';
+import { answerCapacity } from './capacity-availability.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { sendConfirmation } from '../../public-api/confirm.js';
 import {
@@ -271,7 +272,7 @@ class PublicWriteRefused extends Error {
  */
 class PublicSlotRefused extends Error {
   constructor(
-    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE',
+    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_SOLD_OUT' | 'PUBLIC_NO_ROOM',
     /** Which row of a create with child rows: its list, index and path. */
     readonly params?: Record<string, unknown>,
   ) {
@@ -280,7 +281,11 @@ class PublicSlotRefused extends Error {
         ? 'That time is busy. Try again in a moment.'
         : code === 'PUBLIC_TOO_LATE'
           ? 'It is too late to cancel online.'
-          : 'That time is full.',
+          : code === 'PUBLIC_SOLD_OUT'
+            ? 'That is sold out.'
+            : code === 'PUBLIC_NO_ROOM'
+              ? 'There is no room on those nights.'
+              : 'That time is full.',
     );
   }
 }
@@ -423,12 +428,32 @@ const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
   NUMBER_BUSY: 'PUBLIC_SLOT_BUSY',
 };
 
+/**
+ * A full limit, told by what it counts: a slot is full (a released rule's
+ * refusal says nothing more, as it never did), a line's tickets or portions
+ * are sold out, a room type has no room on a night. The column, and nothing
+ * about anybody else's rows.
+ */
+function limitRefusal(details: unknown): void {
+  const { kind, column } = (details ?? {}) as { kind?: unknown; column?: unknown };
+  if (kind === undefined) return;
+  const params = typeof column === 'string' ? { column } : undefined;
+  throw new PublicSlotRefused(kind === 'parent' ? 'PUBLIC_SOLD_OUT' : kind === 'night' ? 'PUBLIC_NO_ROOM' : 'PUBLIC_SLOT_FULL', params);
+}
+
 /** The booking refusals a guest is told as a refused write, by why. */
 const BOOKING_REASONS: Readonly<Record<string, string>> = {
   BOOKING_CLOSED: 'closed',
   BOOKING_OUT_OF_HOURS: 'out-of-hours',
   BOOKING_OUT_OF_RANGE: 'out-of-range',
   BOOKING_NOT_OFFERED: 'not-offered',
+  // A limit's place the venue does not offer (a released slot rule's refusal carries no reason, and stays bare).
+  CAPACITY_OUT_OF_RANGE: 'out-of-range',
+  CAPACITY_OUT_OF_HOURS: 'out-of-hours',
+  CAPACITY_CLOSED: 'closed',
+  CAPACITY_PAUSED: 'paused',
+  CAPACITY_NOT_ON_SALE: 'not-on-sale',
+  CAPACITY_TOO_MANY: 'too-many',
 };
 
 /**
@@ -464,6 +489,7 @@ function namedIn(fields: unknown, told: Told): { column: string; reason: string 
 }
 
 const refuseWrite = (error?: unknown, told?: Told): never => {
+  if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
   const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (slot !== undefined) throw new PublicSlotRefused(slot);
   if (error instanceof AppError) {
@@ -1674,6 +1700,25 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return reply.send({ data: slots });
         }
 
+        // A limit of any other kind (or shape): each asked as its kind asks it.
+        if (found.table.table.capacityRules !== undefined) {
+          const answer = await answerCapacity({
+            query,
+            resource: found.resource,
+            byRef: ok.key.scope.byRef,
+            timezone: ok.key.scope.timezone,
+            view: found.view,
+            table: found.table,
+            db: found.db,
+            dialect: found.dialect,
+            target: { ...target, view: found.view },
+            own: (table, id) => claimedRowKey(ok, found.db, table, id),
+            now: new Date(),
+          });
+          if (!answer.ok) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', answer.message);
+          return reply.send(answer.body as never);
+        }
+
         /*
          * BOOKING PEOPLE: a kind of visit, one person or anyone, one day or a
          * strip. The asker's own visit, when they are moving it, is left out
@@ -1994,11 +2039,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           request.log.warn({ ref, child: where.child }, 'a create with child rows met a child table a before hook runs for');
           throw new PublicWriteRefused();
         }
-        const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
+        const slot = error instanceof AppError && error.code !== 'CAPACITY_FULL' ? SLOT_REFUSALS[error.code] : undefined;
         if (slot !== undefined) throw new PublicSlotRefused(slot, Object.keys(where).length === 0 ? undefined : where);
         try {
           refuseWrite(error, { writable: writableAt(at), reasons: TREE_NAMED });
         } catch (refusal) {
+          // A row's places gone (sold out, no room): which row, beside the column the limit counts by.
+          if (refusal instanceof PublicSlotRefused) throw new PublicSlotRefused(refusal.code, Object.keys(where).length === 0 ? refusal.params : { ...where, ...(refusal.params ?? {}) });
           if (refusal instanceof PublicWriteRefused && refusal.params !== undefined) throw new PublicWriteRefused({ ...where, ...refusal.params });
           throw refusal;
         }

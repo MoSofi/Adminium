@@ -822,6 +822,9 @@ export function definitionToResource(
     resource.kind = 'availability';
     const answered = table?.table.capacityRules?.[def.capacity_rule ?? 0]?.kind;
     if (answered !== undefined) resource.capacity = answered;
+    if (def.capacity_rule !== undefined) resource.capacityRule = def.capacity_rule;
+    if (def.show_left !== undefined) resource.showLeft = 'below' in def.show_left ? { below: def.show_left.below } : { belowShare: def.show_left.below_share };
+    if (def.under !== undefined) resource.under = def.under;
   }
   if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
   if (def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };
@@ -1163,7 +1166,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     if ([...methods].some((m) => m !== 'GET')) push('ENDPOINT_AVAILABILITY_READ_ONLY', 'availability answers GET only');
     if (capacity === undefined && rules.length === 0 && table.table.booking === undefined) {
       push('ENDPOINT_AVAILABILITY_NO_LIMIT', `${def.source} has no booking limit to answer availability from`);
-    } else if (capacity?.resource !== undefined) {
+    } else if (capacity?.resource !== undefined || rules.some((rule) => rule.kind === 'slot' && rule.resource !== undefined)) {
       // A booking rule answers per person; a capacity limit per table or room does not yet.
       push('ENDPOINT_AVAILABILITY_PER_RESOURCE', 'availability for a limit per table or room is not offered yet');
     }

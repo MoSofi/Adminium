@@ -112,12 +112,7 @@ function boxOfficeManifest(): Record<string, unknown> {
   return manifest;
 }
 
-/*
- * Skipped here: the limit judge that counts a ticket type's places inside the
- * write is built in another change, and until it lands a table with a limit
- * takes no writes. The test runs as it stands once it is in.
- */
-describe.skip.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('the last places of a ticket type, raced — %s', (dialect, available) => {
+describe.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('the last places of a ticket type, raced — %s', (dialect, available) => {
   let h: InvoicingHarness | undefined;
   let w: Awaited<ReturnType<typeof writerFor>>;
   beforeAll(async () => {

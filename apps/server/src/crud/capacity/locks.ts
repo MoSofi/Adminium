@@ -27,6 +27,15 @@
  * reader under the locks can ask whether the lock it depends on is really
  * held ({@link heldNames}) — a judge that finds its own name missing knows the
  * row moved between naming and holding, and the write starts again.
+ *
+ * In front of the database's locks stands a queue in this process: writers
+ * asking for the same names wait their turn in memory, one at a time and in
+ * the order they came, BEFORE any of them takes a connection from the pool.
+ * Twenty guests pressing Buy for the last seats of one show would otherwise
+ * park twenty connections in a lock wait, and every other page of the venue —
+ * the menu, what is left, the staff's lists — would wait behind them for a
+ * connection. The database's locks stay the ones that count: a second server
+ * has a queue of its own.
  */
 import { createHash } from 'node:crypto';
 
@@ -87,6 +96,64 @@ export class LockMoved extends Error {
   }
 }
 
+/**
+ * The queue in front of the database's locks, per set of names (the names in
+ * order, joined): whoever holds a set's turn, and who waits for it, first
+ * come first served. A set nobody holds or waits for is not kept.
+ */
+interface Turn {
+  waiting: (() => void)[];
+}
+const TURNS = new WeakMap<object, Map<string, Turn>>();
+/** Every queue with somebody in it, for {@link queuedTurns}. */
+const LIVE = new Set<Map<string, Turn>>();
+
+/**
+ * Wait for this set's turn, then hold it: answers the function that hands it
+ * on. A writer that waits longer than a database lock would make it wait is
+ * told the first name is busy, as the database would have told it.
+ */
+function awaitTurn(db: Db, names: readonly NamedLock[], waitSeconds: number): Promise<() => void> {
+  let turns = TURNS.get(db);
+  if (turns === undefined) TURNS.set(db, (turns = new Map()));
+  const queue = turns;
+  const key = names.map((lock) => lock.name).join('\n');
+  const handOn = () => {
+    const next = queue.get(key)?.waiting.shift();
+    if (next !== undefined) return next();
+    queue.delete(key);
+    if (queue.size === 0) LIVE.delete(queue);
+  };
+  const turn = queue.get(key);
+  if (turn === undefined) {
+    queue.set(key, { waiting: [] });
+    LIVE.add(queue);
+    return Promise.resolve(handOn);
+  }
+  return new Promise((resolve, reject) => {
+    const mine = () => {
+      clearTimeout(timer);
+      resolve(handOn);
+    };
+    const timer = setTimeout(() => {
+      const at = turn.waiting.indexOf(mine);
+      if (at >= 0) turn.waiting.splice(at, 1);
+      reject(busyError(names[0]!.busy));
+    }, waitSeconds * 1000);
+    turn.waiting.push(mine);
+  });
+}
+
+/** How many writers of this process hold or wait for a set's turn: for tests. */
+export function queuedTurns(): number {
+  let count = 0;
+  for (const queue of LIVE) for (const turn of queue.values()) count += 1 + turn.waiting.length;
+  return count;
+}
+
+/** Postgres: a lock another transaction held past the wait (`lock_timeout`). */
+const lockTimedOut = (error: unknown): boolean => (error as { code?: unknown } | null)?.code === '55P03';
+
 /** The refusal a writer hears when a name stays held by another. */
 function busyError(busy: LockBusy): AppError {
   if (busy === 'NUMBER_BUSY') return new AppError(409, busy, 'Another record is taking the next number. Try again in a moment.');
@@ -111,6 +178,8 @@ export interface NamedLockOptions {
    * without gaps steps past duplicates on its unique index).
    */
   openTransaction?: 'refuse' | 'run';
+  /** How long a writer waits for its turn and each lock before it is told busy, in seconds (tests shorten it). */
+  waitSeconds?: number;
 }
 
 /**
@@ -125,13 +194,44 @@ export async function withNamedLocks<T>(
   run: (db: Db) => Promise<T>,
   opts: NamedLockOptions = {},
 ): Promise<T> {
-  const { db, dialect } = target;
+  const { db } = target;
   const names = ordered(locks);
   if (names.length === 0) return inTransaction(db) ? run(db) : db.transaction().execute(run);
+  // A call inside a transaction already open takes no connection, and its
+  // caller may hold this very turn: it goes straight to the database.
+  if (inTransaction(db)) return lockedIn(target, names, run, opts);
+  const handOn = await awaitTurn(db, names, opts.waitSeconds ?? LOCK_WAIT_SECONDS);
+  try {
+    return await lockedIn(target, names, run, opts);
+  } finally {
+    handOn();
+  }
+}
 
+async function lockedIn<T>(
+  target: { db: Db; dialect: Dialect },
+  names: readonly NamedLock[],
+  run: (db: Db) => Promise<T>,
+  opts: NamedLockOptions,
+): Promise<T> {
+  const { db, dialect } = target;
+  const wait = opts.waitSeconds ?? LOCK_WAIT_SECONDS;
   if (dialect === 'postgres') {
     const locked = async (trx: Db) => {
-      for (const lock of names) await sql`select pg_advisory_xact_lock(hashtextextended(${lock.name}, 0))`.execute(trx);
+      // An advisory lock waits as long as it takes unless told otherwise: as
+      // long as a MySQL writer waits, then busy. Only for these locks — the
+      // rows the write holds after them wait as they always have.
+      const was = (await sql<{ was: string }>`select current_setting('lock_timeout') as was`.execute(trx)).rows[0]?.was ?? '0';
+      await sql`select set_config('lock_timeout', ${`${String(wait * 1000)}ms`}, true)`.execute(trx);
+      for (const lock of names) {
+        try {
+          await sql`select pg_advisory_xact_lock(hashtextextended(${lock.name}, 0))`.execute(trx);
+        } catch (error) {
+          if (lockTimedOut(error)) throw busyError(lock.busy);
+          throw error;
+        }
+      }
+      await sql`select set_config('lock_timeout', ${was}, true)`.execute(trx);
       hold(trx, names);
       return run(trx);
     };
@@ -156,7 +256,7 @@ export async function withNamedLocks<T>(
         for (const lock of names) {
           // MySQL's lock names stop at 64 characters.
           const key = `adm:${createHash('sha1').update(lock.name).digest('hex')}`;
-          const got = (await sql<{ got: number | null }>`select get_lock(${key}, ${LOCK_WAIT_SECONDS}) as got`.execute(conn)).rows[0]?.got;
+          const got = (await sql<{ got: number | null }>`select get_lock(${key}, ${wait}) as got`.execute(conn)).rows[0]?.got;
           if (Number(got) !== 1) throw busyError(lock.busy);
           taken.push(key);
         }
