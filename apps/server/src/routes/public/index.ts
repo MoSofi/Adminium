@@ -182,6 +182,8 @@ import { writeStores } from '../../crud/write-stores.js';
 import { audited } from '../../audit/coverage.js';
 import { OutboxMoveRefused } from '../../outbox/moves.js';
 import type { OutboxProducers } from '../../outbox/producers.js';
+import { quoteChildren } from '../../public-api/change-quote.js';
+import { judgeCreateWindows } from '../../public-api/create-windows.js';
 import { renewOwnLink } from '../../public-api/own-links.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
@@ -497,9 +499,11 @@ const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
  * about anybody else's rows.
  */
 function limitRefusal(details: unknown): void {
-  const { kind, column } = (details ?? {}) as { kind?: unknown; column?: unknown };
+  const { kind, column, pool } = (details ?? {}) as { kind?: unknown; column?: unknown; pool?: { at?: unknown } };
   if (kind === undefined) return;
-  const params = typeof column === 'string' ? { column } : undefined;
+  // A night that has no room: which one, of the guest's own (never how full it is, nor whose).
+  const night = kind === 'night' && typeof pool?.at === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(pool.at) ? { night: pool.at } : {};
+  const params = typeof column === 'string' ? { column, ...night } : Object.keys(night).length > 0 ? night : undefined;
   throw new PublicSlotRefused(kind === 'parent' ? 'PUBLIC_SOLD_OUT' : kind === 'night' ? 'PUBLIC_NO_ROOM' : 'PUBLIC_SLOT_FULL', params);
 }
 
@@ -2828,6 +2832,37 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const allowed = (db: Kysely<SourceDatabase>, row: Row) =>
               referencesAllowed({ db, dialect: found.dialect, view: found.view, scope: ok.key.scope, session: ok.session, resource: found.resource, table: found.table, values: row, supplied });
             let made = null as Row | null;
+            /*
+             * A child on a table with a limit (a parking space by the night):
+             * made as a create of one row, so the limit's named locks are taken
+             * before its transaction opens (MySQL holds none inside another's)
+             * and the row is judged under them — its references checked, and
+             * its agreements and window judged, inside that transaction.
+             */
+            const limited = found.table.table.capacity !== undefined || found.table.table.capacityRules !== undefined || found.table.table.booking !== undefined;
+            if (limited) {
+              const outcome = await writes.createTree({
+                root: { name: request.params.ref, target, values, at: [], children: [], lists: [] },
+                context,
+                mode: 'save',
+                checks: async (db, _node, row) => {
+                  if (!(await allowed(db, row))) throw new PublicWriteRefused();
+                },
+                inside: async (db, row) => {
+                  await judgeEntryAgrees(db, found.view, found.table, found.resource, row);
+                  await judgeCreateWindows({ db, view: found.view, table: found.table, writableWhen: found.resource.writableWhen, row, zone: ok.key.scope.timezone });
+                },
+                announce: async (row) => {
+                  made = row.record;
+                },
+                mapError: (error) => {
+                  if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof HookRejectedError) throw error;
+                  return refuseWriteThrough(found.resource, 'create')(error);
+                },
+              });
+              inserted = outcome.root;
+              if (made !== null) await announceCreate(made);
+            } else {
             // The write service's own transaction: it holds a series without gaps before it opens.
             inserted = await writes.transaction(target, [values], async (tdb) => {
               if (!(await allowed(tdb, values))) throw new PublicWriteRefused();
@@ -2842,9 +2877,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               );
               // What the entry agrees its row must be, on the row as written, before anything commits.
               await judgeEntryAgrees(tdb, found.view, found.table, found.resource, row);
+              // Inside the window its entry reads from the parent it names (an extra added until check-in time).
+              try {
+                await judgeCreateWindows({ db: tdb, view: found.view, table: found.table, writableWhen: found.resource.writableWhen, row, zone: ok.key.scope.timezone });
+              } catch (error) {
+                refuseWrite(error);
+              }
               return row;
             });
             if (made !== null) await announceCreate(made);
+            }
           }
         } catch (error) {
           if (guessing) spendMiss(request, ok, error);
@@ -3104,6 +3146,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             if (person.made !== null) madePerson = { table: people.table, row: person.made, ref: finder.identityRef };
           }
         }
+        // A quote shows the rows below the row as the change moves them: the row as it stands, read plainly, to move them from.
+        let quotedFrom: Row | null = null;
+        if (quote === 'dry') {
+          let peek = found.db.selectFrom(found.table.id).selectAll();
+          for (const [column, value] of Object.entries(pk)) peek = peek.where(found.db.dynamic.ref(column), '=', value as never);
+          quotedFrom = ((await inScope(peek).executeTakeFirst()) as Row | undefined) ?? null;
+        }
         try {
           outcome = await writes.update({
             target,
@@ -3225,7 +3274,28 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (quote === 'dry') {
           // A change of the dates of a row priced by the night: the nights it would then be made of.
           const nights = outcome.after === null ? undefined : await quoteNights(found.db, tableRulesFor({ view: found.view, table: found.table }), outcome.after, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null, (column) => projected[column] !== null && projected[column] !== undefined);
-          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }) });
+          // The rows below it the change moves (the extras that follow a stay's nights), as it would leave them.
+          const children =
+            outcome.after === null || quotedFrom === null
+              ? undefined
+              : await quoteChildren({
+                  db: found.db,
+                  dialect: found.dialect,
+                  view: found.view,
+                  scope: ok.key.scope,
+                  session: ok.session,
+                  readerKey: ok.key.purpose,
+                  resource: found.resource,
+                  table: found.table,
+                  rules: tableRulesFor({ view: found.view, table: found.table }),
+                  before: quotedFrom,
+                  after: outcome.after,
+                  currency: async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null,
+                  withholds: () => recentWithholdsOn(meta, ok.key.connectionId),
+                  spell: (row, of) => wallTimesAsInstants(row, of.columns, found.dialect),
+                  unmasked: (child) => readsOwnPii(child, ok.session),
+                });
+          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }), ...(children === undefined ? {} : { children }) });
         }
         return reply.send({ data });
       };
@@ -3660,7 +3730,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 if (!allowed) throw new PublicWriteRefused();
               }
               // A copy that follows its parent, read again from the parent as held.
-              created.push(await insertRow(tdb, found.dialect, table, await writes.followed({ ...target, db: tdb }, tdb, row.values)));
+              const inserted = await insertRow(tdb, found.dialect, table, await writes.followed({ ...target, db: tdb }, tdb, row.values));
+              // Inside the window its entry reads from the parent it names, as for one create.
+              if (parentOf(resource) !== null) await judgeCreateWindows({ db: tdb, view: found.view, table, writableWhen: resource.writableWhen, row: inserted, zone: ok.key.scope.timezone });
+              created.push(inserted);
             }
             const updated: { pk: Row; before: Row | null; after: Row | null }[] = [];
             for (const [i, row] of preparedUpdates.entries()) {
@@ -3677,6 +3750,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         } catch (error) {
           // Two writers at once, the engine giving this one up: the same batch a moment later goes through.
           if (lostRace(error)) return busy(reply);
+          // A row outside the window its entry opens: told when, as one write is.
+          const timed = timedRefusal(error);
+          if (timed !== null) return fail(reply, 409, timed.code, timed.code === 'PUBLIC_TOO_LATE' ? 'It is too late to make this change.' : 'This change is not open yet.', timed.params);
           // A keyed row that matched nothing, or a constraint the database
           // enforced: one opaque answer, no index, no name.
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');

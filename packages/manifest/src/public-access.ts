@@ -1027,8 +1027,27 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         else if (states?.column === ref && reachedOnlyByUndo(states, value)) out.push({ path: at('writableValues', ref), message: `every move to ${JSON.stringify(value)} is an undo, which only a person makes` });
       }
     }
-    if (entry.writableWhen !== undefined && !patches) {
-      out.push({ path: at('writableWhen'), message: 'writableWhen limits a change, and this entry changes nothing' });
+    /*
+     * A child's create inside a window read from its parent row (an extra
+     * added until the arrival day's check-in time): keyed by the link to the
+     * parent, every end a time of the parent's. The link names the parent a
+     * create is for, so the create writes it; the window is the parent's.
+     */
+    const createWindow =
+      creates &&
+      !patches &&
+      entry.visibleWith !== undefined &&
+      Object.entries(entry.writableWhen ?? {}).every(
+        ([ref, when]) =>
+          ref === entry.visibleWith!.via &&
+          typeof when === 'object' &&
+          !Array.isArray(when) &&
+          !('within' in when) &&
+          [when.after, when.before].some((end) => end !== undefined) &&
+          [when.after, when.before].every((end) => end === undefined || end.column !== undefined),
+      );
+    if (entry.writableWhen !== undefined && !patches && !createWindow) {
+      out.push({ path: at('writableWhen'), message: "writableWhen limits a change, and this entry changes nothing (a child's create takes a window read from its parent, keyed by the link)" });
     }
     for (const [ref, when] of Object.entries(entry.writableWhen ?? {})) {
       const found = column(ref);
@@ -1043,6 +1062,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         // The dates that open a guest's own window are never theirs to move.
         const opening = [ref, ...[when.after, when.before].flatMap((end) => (end?.or ?? []).filter((m) => m.via === undefined).map((m) => m.column))];
         for (const column of new Set(opening)) {
+          if (createWindow && column === ref) continue;
           if (writable.has(column) || entry.writableValues?.[column] !== undefined || entry.defaults?.[column] !== undefined) {
             out.push({ path: at('writableWhen', ref), message: `"${column}" decides when this row may change, so a write through this entry may not set it` });
           }

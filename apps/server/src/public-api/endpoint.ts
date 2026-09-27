@@ -1264,17 +1264,18 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
   }
 
   /*
-   * A child's create runs inside a transaction the route opens, so its
+   * A child's batch runs inside a transaction the route opens, so its
    * references are checked where the write happens. A slot or a person's
    * time is held by a named lock that MySQL refuses to take inside an open
-   * transaction, so a guarded table is not a creating child.
+   * transaction, so a guarded table is not a child a batch creates.
    */
+  // A single create of one is made as a create of one row, its limit's locks taken first (`routes/public`); a batch is not.
   if (
     def.visible_with !== undefined &&
-    (methods.has('POST') || methods.has('BATCH')) &&
+    methods.has('BATCH') &&
     (table.table.capacity !== undefined || table.table.capacityRules !== undefined || table.table.booking !== undefined)
   ) {
-    push('ENDPOINT_VISIBLE_WITH_GUARDED', `${def.source} holds a booking limit, so rows visible with a parent cannot be created here`);
+    push('ENDPOINT_VISIBLE_WITH_GUARDED', `${def.source} holds a booking limit, so rows visible with a parent are created one at a time, never in a batch`);
   }
 
   if (def.kind === 'availability') {

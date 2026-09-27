@@ -1093,7 +1093,9 @@ export function compileScope(
      */
     for (const [column, when] of Object.entries(r.writableWhen ?? {})) {
       if (isMomentWindow(when)) {
-        issues.push(...momentWindowIssues(r.ref, column, when, writable, r.writableValues ?? {}, r.defaults));
+        // A child's create inside its parent's window: the link names the parent the create is for, so it is written.
+        const createsUnder = !r.actions.includes('update') && r.visibleWith?.localColumn === column;
+        issues.push(...momentWindowIssues(r.ref, column, when, createsUnder ? new Set([...writable].filter((c) => c !== column)) : writable, r.writableValues ?? {}, r.defaults));
         continue;
       }
       if (when !== 'before-today') continue;

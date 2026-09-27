@@ -323,6 +323,8 @@ export const publicChangeQuoteReply = z.object({
   exact: z.boolean(),
   /** A row priced by the night: the nights the change would leave it with. */
   nights: z.array(z.object({ date: z.string(), rate: z.string(), tags: z.array(z.string()) })).optional(),
+  /** The rows below it a change moves (extras that follow a stay's nights), as it would leave them: by the ref each is read through. */
+  children: z.record(z.string(), z.array(z.object({ data: z.record(z.string(), z.unknown()) }))).optional(),
 });
 
 /** `POST /public/claim` — the end-customer identity check. */

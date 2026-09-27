@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { validateManifest } from '../src/index.js';
-import { entryOf, issuesText, kitchen, messages, type Doc } from './orders-stays-fixture.js';
+import { entryOf, guestHouse, issuesText, kitchen, messages, type Doc } from './orders-stays-fixture.js';
 
 const create = (m: Doc) => entryOf(m, 'orders', 'POST');
 
@@ -149,5 +149,40 @@ describe('columns held back while a condition holds', () => {
     const m = fixture();
     ticketLink(m)['select'] = ['id', 'status', 'pending_name', 'offer_until'];
     expect(issuesText(m)).toContain('"code" is not one of the columns the entry shows');
+  });
+});
+
+describe("a child's create inside its parent's window", () => {
+  const WINDOW = { stay_id: { before: { column: 'arrive', time: '15:00' } } };
+  const withAdd = (entry: Doc) => {
+    const m = guestHouse();
+    (m['publicAccess'] as Doc[]).push({ table: 'stay_extras', key: 'link', level: 'verified', visibleWith: { table: 'stays', via: 'stay_id' }, select: ['id', 'amount'], ...entry });
+    return m;
+  };
+
+  it('validates keyed by the link to the parent, the parent\'s time at each end', () => {
+    expect(messages(withAdd({ methods: ['GET', 'POST'], writable: ['stay_id', 'extra_id'], writableWhen: WINDOW }))).toEqual([]);
+  });
+
+  it('is refused keyed by anything else, or on an entry that also changes rows', () => {
+    const refused = 'writableWhen limits a change, and this entry changes nothing';
+    expect(issuesText(withAdd({ methods: ['GET', 'POST'], writable: ['stay_id', 'extra_id'], writableWhen: { extra_id: { before: { column: 'name', time: '15:00' } } } }))).toContain(refused);
+    expect(issuesText(withAdd({ methods: ['GET', 'POST'], writable: ['stay_id', 'extra_id'], writableWhen: { stay_id: { within: 60 } } }))).toContain(refused);
+    const both = withAdd({ methods: ['GET', 'POST', 'PATCH'], writable: ['stay_id', 'extra_id'], writableWhen: WINDOW });
+    expect(issuesText(both)).toContain('"stay_id" decides when this row may change, so a write through this entry may not set it');
+  });
+});
+
+describe('two changes of one row on one key', () => {
+  it('validate, each with its own window', () => {
+    const m = guestHouse();
+    const stays = (m['requiredSchema'] as { tables: Doc[] }).tables.find((t) => t['ref'] === 'stays')!;
+    (stays['columns'] as Doc[]).push({ ref: 'cancel_by', type: 'timestamptz', nullable: true, rules: { stamp: { set: { moment: { column: 'arrive', time: '15:00', minus: { days: 2 } } }, on: { columns: ['arrive'] } } } });
+    const mine = { level: 'verified', claimedBy: { table: 'guests', column: 'customer_id' }, select: ['id', 'arrive', 'depart', 'total', 'cancel_by'] };
+    (m['publicAccess'] as Doc[]).push(
+      { table: 'stays', methods: ['PATCH'], ...mine, writable: ['arrive', 'depart'], writableWhen: { cancel_by: { before: {} } }, dryRun: true, expect: 'total' },
+      { table: 'stays', methods: ['PATCH'], ...mine, writable: ['note'], writableWhen: { arrive: { before: { time: '15:00' } } } },
+    );
+    expect(messages(m)).toEqual([]);
   });
 });
