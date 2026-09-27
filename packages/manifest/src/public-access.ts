@@ -2130,7 +2130,9 @@ function ownAddressAndWithholdIssues(
           });
         });
         entries.forEach((other, j) => {
-          if (other.table === entry.table && writes(other, link.via)) {
+          // A child's create names the parent it is made under (one the guest reaches): that is no change of who reads it.
+          const createsUnder = other.visibleWith?.via === link.via && !other.methods.includes('PATCH');
+          if (other.table === entry.table && writes(other, link.via) && !createsUnder) {
             out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${link.via}" decides who reads the withheld columns, so no browser writes it` });
           }
         });

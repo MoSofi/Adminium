@@ -2624,8 +2624,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const shown = await asMade(outcome.rows, outcome.root);
         return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? outcome.root), children: projectChildren(shown), replayed: true as const });
       }
-      const data = project([], table, outcome.root);
-      const children = projectChildren(outcome.rows);
+      // The first answer shows what a read of the same rows would: a withhold (an unpaid order's codes) holds here too.
+      const shown = await asMade(outcome.rows, outcome.root);
+      const data = project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? outcome.root);
+      const children = projectChildren(shown);
       if (dry) {
         // A table a before hook runs for: the save runs it, the quote does not — its figures may differ.
         let exact = true;
@@ -2922,8 +2924,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
         // Only the exposed columns come back — a create must not return more
         // than a read of the same row would.
+        // What a read of the same row withholds (while a condition holds, or from anyone but its holder), this answer withholds too.
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource), ok.key.purpose);
+        await withheld.prepare(found.db, [inserted]);
+        const shownRow = withheld.apply({ ...inserted });
         const projected: Record<string, unknown> = {};
-        for (const column of found.resource.expose) projected[column] = inserted[column];
+        for (const column of found.resource.expose) projected[column] = shownRow[column];
         const rank = await rankOf(found, inserted);
         return reply
           .status(201)

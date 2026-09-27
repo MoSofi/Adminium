@@ -37,6 +37,8 @@ function boxOffice(): Doc {
   for (const entry of manifest['publicAccess'] as Doc[]) {
     if (entry['table'] === 'tickets' && entry['visibleWith'] !== undefined) entry['withhold'] = { ...(entry['withhold'] as Doc), when: UNPAID };
   }
+  // A signed-in buyer adds a ticket to their order, one row at a time: a create of one, answered as it was made.
+  (manifest['publicAccess'] as Doc[]).push({ table: 'tickets', methods: ['POST'], level: 'verified', visibleWith: { table: 'orders', via: 'order_id' }, select: ['id', 'code'], writable: ['order_id', 'ticket_type_id'] });
   const messages = tables.find((table) => table['ref'] === 'messages')!;
   const columns = messages['columns'] as Doc[];
   columns.find((column) => column['ref'] === 'kind')!['enum'] = ['ticket-offered', 'your-tickets', 'ticket-note'];
@@ -94,6 +96,7 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
   let order: number;
   let linkSession: string;
   let tickets: { id: number }[];
+  let firstReply: string;
   const payload = {
     values: { event_id: 1, email: 'mia@buyers.org', name: 'Mia', client_key: 'ck-withhold-when-000000000000001' },
     children: { tickets: [1, 2].map(() => ({ values: { ticket_type_id: 1 } })) },
@@ -115,6 +118,7 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     byTicket = guest(ticket, h, 60_000);
     const made = await buyer.request('POST', `/records/${t('orders')}_verified_2`, { payload, proof: 'write' });
     expect(made.statusCode, made.body).toBe(201);
+    firstReply = made.body;
     const body = made.json() as { data: { id: number }; children: { tickets: { data: { id: number } }[] }; link: { session: string } };
     order = body.data.id;
     linkSession = body.link.session;
@@ -153,6 +157,20 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     return out;
   };
 
+  it.skipIf(!available)('answers a create of an order not paid yet without its codes, a tree or one row', async () => {
+    const codes = await Promise.all(tickets.map(({ id }) => codeOf(id)));
+    for (const code of codes) expect(firstReply).not.toContain(code);
+    expect((JSON.parse(firstReply) as { children: { tickets: { data: Doc }[] } }).children.tickets.map((c) => c.data['code'])).toEqual([null, null]);
+    const config = (await buyer.request('GET', '/config')).json() as { data: { refs: Record<string, { actions: string[] }> } };
+    const addRef = Object.entries(config.data.refs).find(([ref, r]) => ref.startsWith(t('tickets')) && r.actions.includes('create'))![0];
+    const added = await buyer.request('POST', `/records/${addRef}`, { payload: { values: { order_id: order, ticket_type_id: 1 } }, session: mia });
+    expect(added.statusCode, added.body).toBe(201);
+    const id = (added.json() as { data: { id: number; code: unknown } }).data;
+    expect(id.code).toBeNull();
+    expect(added.body).not.toContain(await codeOf(id.id));
+    tickets.push({ id: id.id });
+  });
+
   it.skipIf(!available)('shows the buyer no code of an order not paid yet, through any door, and every code once it is paid', async () => {
     const codes = await Promise.all(tickets.map(({ id }) => codeOf(id)));
     const unpaid = await everything();
@@ -165,13 +183,14 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     await h.rows(`update ${t('orders')} set status = 'paid' where id = ${String(order)}`);
     const paid = await everything();
     // Door by door: the list, each row, the order's link, the retry, each email.
-    const doors = ['list', 'row 1', 'row 2', "order's link", 'retry', 'email', 'email'];
+    const doors = ['list', 'row 1', 'row 2', 'row 3', "order's link", 'retry', 'email', 'email'];
     paid.forEach((door, i) => {
-      const shown = i === 1 ? [codes[0]!] : i === 2 ? [codes[1]!] : i === 6 ? [] : codes;
+      // The retry answers the rows the create made; the third was added after.
+      const shown = i === 1 ? [codes[0]!] : i === 2 ? [codes[1]!] : i === 3 ? [codes[2]!] : i === 5 ? codes.slice(0, 2) : i === 7 ? [] : codes;
       for (const code of shown) expect(door, doors[i]).toContain(code);
     });
     // The one-ticket note carries its ticket's code, as text and QR.
-    expect(paid.slice(5).join('\n')).toContain(codes[0]!);
+    expect(paid.slice(6).join('\n')).toContain(codes[0]!);
   });
 
   it.skipIf(!available)('never filters or sorts by a column held back', async () => {
