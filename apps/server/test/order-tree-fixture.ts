@@ -21,7 +21,10 @@ export function orderTables(numbered = true): Record<string, unknown>[] {
   const tables: Record<string, unknown>[] = [
     { ref: 'settings', columns: [id, { ref: 'max_items', type: 'int', default: 12 }, { ref: 'tax_rate', type: 'decimal', scale: 3, default: 8.25 }] },
     { ref: 'customers', columns: [id, text('email', 254), money('lifetime', { rollup: { from: 'orders', via: 'customer_id', sum: 'total' } })] },
-    { ref: 'menu_items', columns: [id, text('name'), { ref: 'price', type: 'decimal', scale: 2, default: 0 }, { ref: 'available', type: 'bool', default: true }] },
+    {
+      ref: 'menu_items',
+      columns: [id, text('name'), { ref: 'price', type: 'decimal', scale: 2, default: 0 }, { ref: 'available', type: 'bool', default: true }, { ref: 'stock', type: 'int', nullable: true }],
+    },
     { ref: 'modifier_groups', columns: [id, { ref: 'item_id', type: 'fk', references: 'menu_items' }, text('name', 60), { ref: 'min', type: 'int', default: 0 }, { ref: 'max', type: 'int', nullable: true }] },
     { ref: 'modifiers', columns: [id, { ref: 'group_id', type: 'fk', references: 'modifier_groups' }, text('name', 60), { ref: 'price', type: 'decimal', scale: 2, default: 0 }] },
     {
@@ -46,7 +49,7 @@ export function orderTables(numbered = true): Record<string, unknown>[] {
         id,
         { ref: 'order_id', type: 'fk', references: 'orders' },
         { ref: 'menu_item_id', type: 'fk', references: 'menu_items' },
-        { ref: 'qty', type: 'decimal', scale: 3, default: 1, rules: { validation: { min: 1, max: 20 } } },
+        { ref: 'qty', type: 'int', default: 1, rules: { validation: { min: 1, max: 20 } } },
         { ref: 'position', type: 'int', nullable: true },
         text('note', 200, { nullable: true }),
         money('unit_price', { copy: { via: 'menu_item_id', from: 'price' } }),
@@ -54,6 +57,8 @@ export function orderTables(numbered = true): Record<string, unknown>[] {
         money('line_total', { formula: { round: { mul: ['qty', { add: [{ coalesce: ['unit_price', 0] }, { coalesce: ['options_total', 0] }] }] } } }),
         { ref: 'removed', type: 'bool', default: false },
       ],
+      // A dish with a stock sells no more portions than it has; one with none is not limited.
+      capacity: { kind: 'parent', via: 'menu_item_id', size: { column: 'stock' }, amount: 'qty' },
     },
     {
       ref: 'order_item_modifiers',
@@ -91,6 +96,8 @@ export const MENU = [
   'INSERT INTO kitchen_settings (id, max_items, tax_rate) VALUES (1, 12, 8.25)',
   "INSERT INTO kitchen_customers (id, email) VALUES (1, 'ada@example.com')",
   "INSERT INTO kitchen_menu_items (id, name, price, available) VALUES (1, 'Margherita', 12, true), (2, 'Salad', 9, true), (3, 'Tiramisu', 7, false), (4, 'Soda', 2, true)",
+  // The special: two portions left today.
+  "INSERT INTO kitchen_menu_items (id, name, price, available, stock) VALUES (5, 'Special', 15, true, 2)",
   "INSERT INTO kitchen_modifier_groups (id, item_id, name, min, max) VALUES (1, 1, 'Size', 1, 1), (2, 2, 'Extras', 0, 2)",
   "INSERT INTO kitchen_modifiers (id, group_id, name, price) VALUES (1, 1, 'Small', 0), (2, 1, 'Large', 4), (3, 2, 'Feta', 1.5), (4, 2, 'Olives', 1.5), (5, 2, 'Egg', 1.5)",
 ];

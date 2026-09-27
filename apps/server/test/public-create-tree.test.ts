@@ -170,7 +170,12 @@ describe.each(LEGS)('a guest order with its lines, over the public API — %s', 
     expect(res.statusCode, res.body).toBe(200);
     const dry = res.json() as { data: Record<string, unknown>; children: { order_items: { data: Record<string, unknown>; children?: Record<string, { data: Record<string, unknown> }[]> }[] }; capacity: unknown[]; exact: boolean };
     expect(dry.exact).toBe(true);
-    expect(dry.capacity).toEqual([]);
+    // The dishes' pools, as they stand: free, and never how much is left.
+    expect(dry.capacity.length).toBeGreaterThan(0);
+    for (const pool of dry.capacity as Record<string, unknown>[]) {
+      expect(pool['state']).toBe('available');
+      expect(pool['left']).toBeUndefined();
+    }
     expect(await counts()).toEqual(before);
     // No key and no running number: the next of either is a count of sales.
     expect(Object.keys(dry.data).sort()).toEqual(['item_count', 'subtotal', 'tax', 'total']);
@@ -348,5 +353,22 @@ describe.each(LEGS)('a guest order with its lines, over the public API — %s', 
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it.runIf(available)('a fourth line for a dish that is sold out refuses the whole order and names that line; the quote says so first', async () => {
+    const before = await counts();
+    const lines: Line[] = [{ item: 1, mods: [1] }, { item: 4 }, { item: 2 }, { item: 5, qty: 3 }];
+    const quoted = await quote(body(lines));
+    expect(quoted.statusCode, quoted.body).toBe(409);
+    expect(refusal(quoted)).toMatchObject({ code: 'PUBLIC_SOLD_OUT', params: { child: 'order_items', index: 3, path: ['order_items', 3] } });
+    const res = await save(body(lines));
+    expect(res.statusCode, res.body).toBe(409);
+    expect(refusal(res)).toMatchObject({ code: 'PUBLIC_SOLD_OUT', params: { child: 'order_items', index: 3, path: ['order_items', 3] } });
+    // Never how many are left.
+    expect(refusal(res).params?.['left']).toBeUndefined();
+    expect(await counts()).toEqual(before);
+    // The two that are left sell.
+    const two = await save(body([{ item: 5, qty: 2 }]));
+    expect(two.statusCode, two.body).toBe(201);
   });
 });

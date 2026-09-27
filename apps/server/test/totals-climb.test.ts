@@ -72,11 +72,15 @@ describe.each(LEGS)('totals that climb — %s', (dialect, available) => {
     const { root, rows } = await writeTree(w, orderTree(w, [{ item: 1, mods: [1] }], { email: 'cy@example.com', name: 'Cy', customer_id: 3 }));
     const line = rows[1]!.record;
     const lineTarget = w.targetOf('order_items');
-    // Bulk: rows prepared before the transaction, written in it, settled after it.
-    const [prepared] = await w.writes.beforeEach('update', lineTarget, w.desk, [{ match: { id: line['id'] }, values: { qty: 3 } }]);
-    await w.writes.transaction(lineTarget, [], (db) => updateRows(db, dialect, lineTarget.table, prepared!.values, { id: line['id'] }));
-    const after = (await fetchByPk(lineTarget.db, lineTarget.table, { id: line['id'] }))!;
-    await w.writes.afterEach('update', lineTarget, w.desk, [{ record: after, before: line }]);
+    // Bulk: rows prepared before the transaction, written in it, settled after it. (A line's quantity
+    // takes from its dish's stock, so bulk may not change it; a second line marked removed moves the totals.)
+    await w.update('order_items', line['id'], { qty: 3 });
+    const extra = await w.create('order_items', { order_id: root['id'], menu_item_id: 4, qty: 1 });
+    expect(await figures(root['id'], 3)).toMatchObject({ subtotal: '38.00', total: '41.14' });
+    const [prepared] = await w.writes.beforeEach('update', lineTarget, w.desk, [{ match: { id: extra['id'] }, values: { removed: true } }]);
+    await w.writes.transaction(lineTarget, [], (db) => updateRows(db, dialect, lineTarget.table, prepared!.values, { id: extra['id'] }));
+    const after = (await fetchByPk(lineTarget.db, lineTarget.table, { id: extra['id'] }))!;
+    await w.writes.afterEach('update', lineTarget, w.desk, [{ record: after, before: extra }]);
     expect(await figures(root['id'], 3)).toMatchObject({ subtotal: '36.00', total: '38.97' });
     expect((await figures(root['id'], 3)).lifetime).toBe(await lifetimeOf(3));
     // An import's fast path: checked, written in one statement, then settled.
