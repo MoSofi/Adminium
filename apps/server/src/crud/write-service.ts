@@ -900,7 +900,7 @@ export async function holdBalances(
  * row the write changes FOR NO KEY UPDATE on Postgres, as every row a write
  * keeps is held (`states.ts` `heldRows`); one it deletes FOR UPDATE.
  */
-async function fetchHeld(db: Db, target: WriteTarget, pk: Row, stays: boolean): Promise<Row | undefined> {
+export async function fetchHeld(db: Db, target: WriteTarget, pk: Row, stays: boolean): Promise<Row | undefined> {
   let query = db.selectFrom(target.table.id).selectAll();
   for (const [column, value] of Object.entries(pk)) query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
   if (target.dialect !== 'sqlite') query = stays && target.dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
@@ -3320,7 +3320,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         if (guard !== undefined) guard.effectsNamed = true;
       }
       if (rolls) await refuseUngrantedChain(target, rules?.rollupsInto ?? []);
-      if (following) await refuseUngrantedFollow(target, rules);
+      // Refused by name before anything is written, through the caller's own refusal (a public change's is opaque).
+      if (following) await guarded(() => refuseUngrantedFollow(target, rules), input.mapError);
       /** The day the booking lock was named by; the write refuses to go on under a different one. */
       let lockedDay: string | null = null;
       const write = async (db: Db) => {

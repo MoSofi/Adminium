@@ -168,6 +168,7 @@ import {
   HookRejectedError,
   bindValue,
   createWriteService,
+  fetchHeld,
   insertRow,
   updateRows,
   type PlannedRow,
@@ -3510,6 +3511,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           // A table whose rows each hold a time slot takes them one at a time.
           if (error instanceof GuardedBatchError) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          // Any other refusal of a row (a balance kept at zero, too many rows following one, a column the role may not
+          // write): the one opaque answer, never an unavailable server.
+          if (error instanceof AppError && error.statusCode < 500) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
         // A value refused for itself, in a column this entry writes, is named as for one row.
@@ -3520,7 +3524,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (row.issues !== null) return refuseRow((updates[i] as { index: number }).index, 'A value was refused.', namedIn(row.issues, { writable: resource.writable, reasons: UPDATE_NAMED }));
         }
 
-        let written: { created: Row[]; updated: { pk: Row; after: Row | null }[] };
+        let written: { created: Row[]; updated: { pk: Row; before: Row | null; after: Row | null }[] };
         try {
           // The write service's own transaction, holding every series without gaps the new rows number in first.
           written = await writes.transaction(target, preparedInserts.map((row) => row.values), async (tdb) => {
@@ -3544,13 +3548,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               }
               created.push(await insertRow(tdb, found.dialect, table, row.values));
             }
-            const updated: { pk: Row; after: Row | null }[] = [];
+            const updated: { pk: Row; before: Row | null; after: Row | null }[] = [];
             for (const [i, row] of preparedUpdates.entries()) {
               const pk = (updates[i] as { pk: Row }).pk;
+              // The row as it stood, read holding it: what its followers and the rules that watch a change compare with.
+              const before = (await fetchHeld(tdb, target, pk, true)) ?? null;
               // A window read from moments is judged by the statement, holding the row, as for one change.
               const count = await updateRows(tdb, found.dialect, table, withPublicWindows(row.values, resource.writableWhen, found.view, table, ok.key.scope.timezone), pk, inScope);
               if (count !== 1) throw new PublicWriteRefused();
-              updated.push({ pk, after: null });
+              updated.push({ pk, before, after: null });
             }
             return { created, updated };
           });
@@ -3594,7 +3600,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             table,
             action: 'update',
             entity: { connectionId: ok.key.connectionId, table: table.id, pk: u.pk, label: pkLabel(table, u.pk) },
-            before: null,
+            before: u.before,
             after: u.after,
             origin: 'public',
           });
@@ -3606,7 +3612,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           'update',
           target,
           context,
-          written.updated.filter((u) => u.after !== null).map((u) => ({ record: u.after as Row, before: null })),
+          written.updated.filter((u) => u.after !== null).map((u) => ({ record: u.after as Row, before: u.before })),
         );
         return reply.send({
           data: { count: rows.length, created: written.created.length, updated: written.updated.length },

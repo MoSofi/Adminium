@@ -421,7 +421,8 @@ async function runImport(
   /** The totals and after hooks for an upserted row, reading it again only when either needs it. */
   async function afterImportWrite(action: 'update', match: Row, before: Row): Promise<void> {
     const rules = tableRulesFor(writeTarget);
-    const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) > 0;
+    // Totals it feeds, or rows that follow it (its extras, when a stay's dates change).
+    const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) + (rules?.follows?.length ?? 0) > 0;
     if (!settles && !(await writes.wants('after', action, writeTarget, context))) return;
     const record = (await (db as Kysely<SourceDatabase>)
       .selectFrom(table.id)

@@ -1705,7 +1705,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // The rows as they stand now, for the totals they feed and for after
       // hooks — read only when either needs them.
       const rules = tableRulesFor(target);
-      const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) > 0;
+      // Totals it feeds, or rows that follow it (an undone change of a stay's dates brings its extras back into step).
+      const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) + (rules?.follows?.length ?? 0) > 0;
       const written: WrittenRow[] = [];
       if (outcome.written.length > 0 && (settles || (await writes.wants('after', UNDO_WRITE[entry.action], target, context)))) {
         for (const row of outcome.written) {

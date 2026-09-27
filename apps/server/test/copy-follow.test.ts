@@ -222,5 +222,19 @@ describe.each(LEGS)('copies that follow their row — %s', (dialect, available) 
     expect(refused).toBeInstanceOf(ForbiddenError);
     expect(refused).toMatchObject({ code: 'READ_ONLY_MODE', details: { table: extras, columns: ['nights'], reason: 'privileges' } });
     expect(Number((await stayRow(stay['id']))['nights'])).toBe(3);
+    // Through the caller's own refusal: a public change answers it as it answers any refused write.
+    const mapped = await writes
+      .update({
+        target: w.targetOf('stays'),
+        pk: { id: stay['id'] },
+        values: { depart: '2026-08-02' },
+        context: w.desk,
+        announce: async () => {},
+        mapError: (error) => {
+          throw new Error(`mapped: ${(error as { code?: string }).code ?? ''}`);
+        },
+      })
+      .catch((error: unknown) => error);
+    expect(String(mapped)).toContain('mapped: READ_ONLY_MODE');
   });
 });
