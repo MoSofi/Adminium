@@ -420,6 +420,14 @@ const resourceSchema = z
       })
       .strict()
       .optional(),
+    /** The limits on a change a guest makes: per value a day (an address a ticket is sent on to), plain-text columns. */
+    limits: z
+      .object({
+        perValue: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
+        plainText: z.array(columnSchema).min(1).max(8).optional(),
+      })
+      .strict()
+      .optional(),
     /** The rows a create carries, by the name the wire uses. */
     children: z.record(z.string().min(1).max(64), scopeChildSchema).optional(),
     /** Checks the created row's own values pass. */
@@ -630,6 +638,8 @@ export interface CompiledResource {
   humanCheck: boolean;
   /** The limits on a create nobody signed in for; null when there are none. */
   anonymous: AnonymousCaps | null;
+  /** The limits on a change: per value a day, plain text (absent in a resource built by hand: none). */
+  limits?: Pick<AnonymousCaps, 'perValue' | 'plainText'> | null | undefined;
   /** The settings switches a write here needs on. */
   requireSetting: readonly { table: string; column: string; when?: 'anonymous' | undefined }[];
   claim: z.infer<typeof claimScopeSchema> | null;
@@ -889,7 +899,7 @@ export function compileScope(
     for (const c of r.writable) check(c, 'SCOPE_WRITABLE_UNKNOWN_COLUMN');
     for (const c of Object.keys(r.writableWhen ?? {})) check(c, 'SCOPE_WRITABLE_WHEN_UNKNOWN_COLUMN');
     // The columns a create with children, a found person and a row's own link name: this table's, and each child's.
-    for (const c of [r.expect, r.clientKey, r.findOrCreate?.email, r.findOrCreate?.link, r.shareLink?.column, ...(r.forget?.columns ?? []), r.forget?.stamp]) {
+    for (const c of [r.expect, r.clientKey, r.findOrCreate?.email, r.findOrCreate?.link, r.shareLink?.column, ...(r.forget?.columns ?? []), r.forget?.stamp, ...(r.limits?.perValue?.columns ?? []), ...(r.limits?.plainText ?? [])]) {
       if (c !== undefined) check(c, 'SCOPE_COLUMN_UNKNOWN');
     }
     const childColumns = (children: Readonly<Record<string, ScopeChild | z.infer<typeof scopeGrandchildSchema>>>): void => {
@@ -911,6 +921,10 @@ export function compileScope(
       check(r.withhold.unlessHolder, 'SCOPE_COLUMN_UNKNOWN');
       for (const c of r.withhold.columns) {
         if (!r.expose.includes(c)) issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `"${c}" is withheld by ref "${r.ref}", so it is one of the columns it shows`, ref: r.ref, column: c });
+        // Filtering, searching or ordering by it would tell a reader what it holds without showing it.
+        if ((r.filterable ?? []).includes(c) || (r.searchable ?? []).includes(c) || (r.orderable ?? []).includes(c)) {
+          issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `"${c}" is withheld by ref "${r.ref}", so it is never filtered, searched or ordered by`, ref: r.ref, column: c });
+        }
       }
       const throughParent = r.visibleWith !== undefined || (r.claim?.column !== undefined && r.claim.column !== r.withhold.unlessHolder);
       if (doc.side !== 'customer' || !throughParent || doc.claim?.ref === r.ref) {
@@ -1426,6 +1440,7 @@ export function compileScope(
       rank: r.rank === undefined ? null : { ...r.rank },
       humanCheck: r.humanCheck === true,
       anonymous: r.anonymous === undefined ? null : { ...r.anonymous },
+      limits: r.limits === undefined ? null : { ...r.limits },
       requireSetting: (r.requireSetting ?? []).map((setting) => ({ ...setting })),
       claim: r.claim ?? null,
       visibleWith: r.visibleWith === undefined ? null : { ...r.visibleWith },
@@ -1723,7 +1738,8 @@ export function publicConfigOf(scope: CompiledScope): {
   refs: Record<string, ReturnType<typeof projectResource>>;
 } {
   const refs: Record<string, ReturnType<typeof projectResource>> = {};
-  for (const [ref, r] of scope.byRef) refs[ref] = projectResource(r);
+  // A read for a session's holder alone (bank details) is not advertised to every visitor.
+  for (const [ref, r] of scope.byRef) if (r.sessionOnly !== true) refs[ref] = projectResource(r);
   return {
     version: 1,
     side: scope.side,

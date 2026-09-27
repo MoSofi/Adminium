@@ -752,7 +752,12 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // Always filled — empty with no name on file — so a greeting never stops a message.
     vars['recipient.name'] = '';
     vars['recipient.first_name'] = '';
-    if (addressed?.bySetting !== true) {
+    // Sent to an address the producing row holds: greeted by the name the row holds with it.
+    const rowName = addressed?.byColumn?.name ?? null;
+    if (rowName !== null) {
+      vars['recipient.name'] = rowName;
+      vars['recipient.first_name'] = rowName.split(/\s+/)[0] ?? rowName;
+    } else if (addressed?.bySetting !== true && addressed?.byColumn === undefined) {
       const recipient = box.definition.recipient;
       const person = await rowOf(db, view, recipient.table, row[recipient.via]);
       let name: unknown = person !== null && recipient.name !== undefined ? person[recipient.name] : undefined;
@@ -804,14 +809,32 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     addressed: Addressed | null,
   ): Promise<CodeHolder | null> {
     if (addressed?.bySetting === true) return null;
+    // Sent to an address the producing row holds: that row's own codes, only to that very address.
+    const onRow = addressed?.byColumn;
+    if (onRow !== undefined) return onRow.address !== null && sameAddress(onRow.address, to) ? { table: onRow.table, id: onRow.id } : null;
     const recipient = box.definition.recipient;
     const person = addressed?.person ?? (await rowOf(ctx.db, ctx.view, recipient.table, row[recipient.via]));
-    if (person === null) return null;
+    // Nobody on file (a guest whose address looked like another's, a desk-made row): the row the fallback reads the
+    // address from holds its own codes, when the message goes to that row's own address.
+    if (person === null) return fallbackHolder(box, ctx, row, to);
     const stored = person[recipient.email];
     if (!plausibleAddress(stored) || !sameAddress(stored.trim(), to)) return null;
     const key = ctx.view.table(recipient.table).primaryKey[0];
     const id = key === undefined ? undefined : person[key];
     return id === null || id === undefined ? null : { table: recipient.table, id };
+  }
+
+  /** The fallback's row (the order a first visit made), when a message with nobody on file goes to its own address. */
+  async function fallbackHolder(box: LiveOutbox, ctx: { db: Kysely<SourceDatabase>; view: SnapshotView }, row: Row, to: string): Promise<CodeHolder | null> {
+    const fallback = box.definition.recipient.fallback;
+    if (fallback === undefined) return null;
+    const tableId = referenced(ctx.view, box.definition.table, fallback.via);
+    const holder = await rowOf(ctx.db, ctx.view, tableId, row[fallback.via]);
+    const stored = holder?.[fallback.email];
+    if (tableId === undefined || holder === null || !plausibleAddress(stored) || !sameAddress(stored.trim(), to)) return null;
+    const key = ctx.view.table(tableId).primaryKey[0];
+    const id = key === undefined ? undefined : holder[key];
+    return id === null || id === undefined ? null : { table: tableId, id };
   }
 
   /**

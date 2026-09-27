@@ -641,6 +641,8 @@ export function publicSessionsRepo(meta: MetaDb) {
         level: input.level ?? 'lookup',
         kind: input.kind ?? 'claim',
         subject: input.subject ?? null,
+        endedAt: null,
+        endedReason: null,
       };
       await db.insertInto('adminium_public_sessions').values(row).execute();
       return row;
@@ -652,6 +654,7 @@ export function publicSessionsRepo(meta: MetaDb) {
         .selectAll()
         .where('id', '=', id)
         .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
         .executeTakeFirst();
       return row === undefined ? null : sessionRow(row);
     },
@@ -667,14 +670,58 @@ export function publicSessionsRepo(meta: MetaDb) {
         .set({ level, expiresAt })
         .where('id', '=', id)
         .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
         .executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
     },
 
-    /** End every session about one subject (sign out everywhere). */
+    /** Remove every session about one subject (an address the desk changed). */
     async removeBySubject(subject: string): Promise<number> {
       const res = await db.deleteFrom('adminium_public_sessions').where('subject', '=', subject).executeTakeFirst();
       return Number(res.numDeletedRows);
+    },
+
+    /**
+     * End every live session about one subject, keeping each row until its
+     * own expiry so a device that presents it can be told why
+     * (`elsewhere`: signed out everywhere; `forgotten`: details deleted).
+     * A session already ended keeps its first reason.
+     */
+    async endBySubject(subject: string, reason: 'elsewhere' | 'forgotten', at: number = Date.now()): Promise<number> {
+      const res = await db
+        .updateTable('adminium_public_sessions')
+        .set({ endedAt: at, endedReason: reason })
+        .where('subject', '=', subject)
+        .where('endedAt', 'is', null)
+        .where('expiresAt', '>', at)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows);
+    },
+
+    /**
+     * Point a live session at another row: a page's own-link session carried
+     * from the hold it replaced to the hold that replaced it, with a fresh
+     * expiry. Whether it moved (an ended or lapsed session does not).
+     */
+    async rebind(id: string, input: { grants: string; subject: string | null; expiresAt: number }, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_sessions')
+        .set({ grants: input.grants, subject: input.subject, expiresAt: input.expiresAt })
+        .where('id', '=', id)
+        .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * A session token's row as stored — live, lapsed or ended alike: the
+     * gate tells an ended session (whose device is told why) from a lapsed
+     * or unknown one (which is told nothing).
+     */
+    async findByTokenHash(tokenHash: string): Promise<PublicSession | null> {
+      const row = await db.selectFrom('adminium_public_sessions').selectAll().where('tokenHash', '=', tokenHash).executeTakeFirst();
+      return row === undefined ? null : sessionRow(row);
     },
 
     /**
@@ -692,6 +739,7 @@ export function publicSessionsRepo(meta: MetaDb) {
         .selectAll()
         .where('tokenHash', '=', tokenHash)
         .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
         .executeTakeFirst();
       return row === undefined ? null : sessionRow(row);
     },
@@ -711,6 +759,7 @@ export function publicSessionsRepo(meta: MetaDb) {
         .set({ lastSeenAt: at, expiresAt })
         .where('id', '=', id)
         .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
         .executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
     },

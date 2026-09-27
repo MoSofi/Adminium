@@ -19,6 +19,7 @@ import type { SourceDatabase } from '../connections/manager.js';
 import type { SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import type { SettingReader } from './timing.js';
+import { columnAddressed, columnRecipientOf, type ColumnAddressed } from './column-recipient.js';
 
 export interface Addressed {
   address: string | null;
@@ -29,6 +30,8 @@ export interface Addressed {
   person: Row | null;
   /** Sent to a setting's address, not to a person. */
   bySetting: boolean;
+  /** Sent to an address the producing row holds (`recipient: {column}`): that row, and the name it greets. */
+  byColumn?: ColumnAddressed | undefined;
 }
 
 export const plausibleAddress = (value: unknown): value is string => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -61,11 +64,13 @@ export async function addressFor(
   holder?: { tableId: string; row: Row },
 ): Promise<Addressed> {
   const none: Addressed = { address: null, language: null, identity: null, person: null, bySetting: false };
-  // An address on the producing row itself (a ticket offered to a friend)
-  // goes out only with the rules that keep it from becoming a relay; until
-  // those are built, nothing is addressed and nothing is sent.
-  if (producer?.recipient !== undefined && !('setting' in producer.recipient)) return none;
-  if (producer?.recipient !== undefined) {
+  // An address on the producing row itself (a ticket offered to a friend): there, and nowhere else.
+  const onRow = columnRecipientOf(producer);
+  if (onRow !== null) {
+    const found = await columnAddressed(ctx, producer!, onRow, row, holder);
+    return found === null ? none : { ...none, address: found.address, language: found.language, byColumn: found };
+  }
+  if (producer?.recipient !== undefined && 'setting' in producer.recipient) {
     const value = await ctx.read(producer.recipient.setting);
     return { ...none, address: plausibleAddress(value) ? value.trim() : null, bySetting: true };
   }

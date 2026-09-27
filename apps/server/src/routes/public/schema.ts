@@ -258,6 +258,13 @@ const publicExpect = z.object({ total: z.string().regex(/^-?\d{1,15}(?:\.\d{1,6}
 export const publicCreateBody = publicWriteBody.extend({
   children: publicTreeChildren.optional(),
   expect: publicExpect.optional(),
+  /**
+   * The page's own-link session for the hold the new one replaces (a
+   * checkout changed before it was confirmed): that hold is let go in the
+   * same write, and the session moves to the new hold. Only a session opens
+   * it — never a typed address.
+   */
+  replaces: z.string().min(8).max(128).optional(),
 });
 
 /** `POST /public/records/:ref/dry-run` — the same create, tried without writing. */
@@ -274,9 +281,22 @@ export const publicTreeReplyChildren = z.record(
 );
 
 /** A create's reply: the row, the rows written below it, and — for a retry of one already made — `replayed`. */
+/**
+ * The new row's own link, answered once by the create that made it: the key
+ * that opens it, its code, and a session already open on it for this page (so
+ * a confirmation page opens the row without claiming the code first).
+ */
+export const publicCreatedLink = z.object({
+  key: z.string(),
+  token: z.string(),
+  session: z.string().optional(),
+  expiresAt: z.number().int().optional(),
+});
+
 export const publicCreateReply = publicRecordReply.extend({
   children: publicTreeReplyChildren.optional(),
   replayed: z.literal(true).optional(),
+  link: publicCreatedLink.optional(),
 });
 
 /** A dry run's reply: every figure a save would write, and how the limits it takes from stand. */
@@ -313,6 +333,8 @@ export const publicClaimReply = z.object({
     /** `adm_pubs_…`. The client sends it back in `x-adminium-public-session`. */
     session: z.string(),
     expiresAt: z.number().int(),
+    /** A row's own link opens its session `verified`; said so the page knows what it may read. */
+    level: z.enum(['lookup', 'verified']).optional(),
   }),
 });
 

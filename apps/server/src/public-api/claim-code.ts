@@ -79,8 +79,20 @@ export function codeMatches(key: Buffer, binding: string, typed: string, stored:
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/**
+ * An address as Adminium compares and keeps it: trimmed, in lower case —
+ * nothing more. No Unicode folding (it would change every keyed hash of an
+ * address already made), and no provider rules: a `+tag` or a dot is part of
+ * the address, since folding them on a custom domain would merge two real
+ * mailboxes. The one rule every door shares: the hash, the stored column
+ * (`normalize: 'email'`), the sign-in lookup and the find-or-create.
+ */
+export function normaliseAddress(address: string): string {
+  return address.trim().toLowerCase();
+}
+
 export function hashAddress(key: Buffer, address: string): string {
-  return createHmac('sha256', key).update(address.trim().toLowerCase()).digest('hex');
+  return createHmac('sha256', key).update(normaliseAddress(address)).digest('hex');
 }
 
 /**

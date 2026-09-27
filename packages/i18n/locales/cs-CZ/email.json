@@ -860,5 +860,13 @@
     "codeLabel": "Kód",
     "notice": "Pokud jste o něj nežádali, můžete tento e-mail ignorovat: bez něj se nikdo nepřihlásí.",
     "footer": "{appName}"
+  },
+  "detailsDeleted": {
+    "name": "Údaje smazány",
+    "subject": "Vaše údaje u {appName} byly smazány",
+    "heading": "Vaše údaje byly smazány",
+    "intro": "Dobrý den, {name}, jak jste požádali, údaje, které o vás {appName} uchovával, jsou smazány a byli jste všude odhlášeni.",
+    "kept": "Vaše vstupenky a rezervace zůstávají platné a e-maily, které už máte, je stále otevřou. Už se vám neozveme, pokud znovu nezarezervujete.",
+    "footer": "{appName}"
   }
 }

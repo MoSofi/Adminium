@@ -301,6 +301,21 @@ export interface TreeReplyRow<T = Row> {
   children?: Record<string, { data: Row }[]>;
 }
 
+/**
+ * A new row's own link, answered once by the create that made it: the key
+ * (by the purpose the app names it) that opens it, the code the page keeps in
+ * its URL fragment (`/o#<token>`), and a session already open on the row
+ * through that key — hand it to a client of that key with `adoptSession`, so
+ * the confirmation page needs no claim. Keep the session: sent back as
+ * `replaces` with the next hold, it lets this one go.
+ */
+export interface CreatedLink {
+  key: string;
+  token: string;
+  session: string | null;
+  expiresAt: number | null;
+}
+
 /** A created row with the rows written below it. */
 export interface TreeCreated<T = Row> {
   data: T;
@@ -309,6 +324,8 @@ export interface TreeCreated<T = Row> {
   rank: number | null;
   /** A retry of an order already made (the same retry key): nothing new was written. */
   replayed: boolean;
+  /** The new row's own link; null on a replay (the email carries it) and where the entry answers none. */
+  link: CreatedLink | null;
 }
 
 /** What a dry run answers: every figure the save would write, and how the places it takes stand. Nothing is kept. */
@@ -499,6 +516,12 @@ export interface PublicClientOptions {
    * sends by default: this client never sets `credentials`, and must not.
    */
   csrfToken?: string | (() => string | null | undefined);
+  /**
+   * Called when the server says the session held was ended — signed out on
+   * another device (`elsewhere`), or the person's details deleted
+   * (`forgotten`). The client has already dropped it; the page says so.
+   */
+  onSessionEnded?: (reason: SessionEnded) => void;
 }
 
 /** How far a claim session reaches: `lookup` found the person, `verified` proved their mailbox. */
@@ -568,7 +591,12 @@ export interface Created<T = Row> {
   data: T;
   /** Null when the endpoint does not rank. */
   rank: number | null;
+  /** The new row's own link, when the entry answers one. */
+  link: CreatedLink | null;
 }
+
+/** Why a session was ended before it lapsed: signed out from another device, or the person's details deleted. */
+export type SessionEnded = 'elsewhere' | 'forgotten';
 
 /** One drawn document, as a claimed visitor may see it. */
 export interface PublicDocument {
@@ -665,6 +693,8 @@ export interface PublicDocuments {
 /* --------------------------------------------------------------- client */
 
 const SESSION_HEADER = 'x-adminium-public-session';
+/** The reply header that says the session sent was ended, and why. */
+const SESSION_ENDED_HEADER = 'x-adminium-session-ended';
 /** The header a typed code travels in: a URL is kept by every log and proxy on its way. */
 const CODE_HEADER = 'x-adminium-code';
 const PROOF_HEADER = 'x-adminium-proof';
@@ -784,7 +814,7 @@ export interface PublicClient {
    * options — as one write: every row or none. With `expect`, only at that
    * total. Proves a person is there when the entry asks, as `create` does.
    */
-  createTree: <T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string } }) => Promise<TreeCreated<T>>;
+  createTree: <T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string }; replaces?: string }) => Promise<TreeCreated<T>>;
   /** The same create tried without writing: every figure it would come to. Costs a read; no human check. */
   quote: <T = Row>(ref: string, write: { values: Row; children?: TreeRows }) => Promise<Quote<T>>;
   /** A change to a row tried without writing: the row as the change would leave it. */
@@ -877,6 +907,23 @@ export interface PublicClient {
    */
   addOnSettings: (key: string, signal?: AbortSignal) => Promise<Record<string, unknown>>;
   signOut: () => Promise<void>;
+  /**
+   * Sign the person out on every device, this one too, and take back any
+   * sign-in link still open to their address. Needs a verified session of
+   * the person (not a row's own link).
+   */
+  signOutEverywhere: () => Promise<void>;
+  /**
+   * Delete the person's details: their own row is emptied (their bookings
+   * and tickets stay, and still open by their links), every session ends and
+   * the old address gets one last email. Needs a mailbox proved minutes ago:
+   * `PUBLIC_CODE_STEP_UP` asks for a fresh sign-in link first.
+   */
+  forgetMe: () => Promise<void>;
+  /** Take a session a reply handed over — a new row's own link (`link.session`), for a client of that link's key. */
+  adoptSession: (session: { token: string; expiresAt: number; level?: ClaimLevel }) => void;
+  /** Why the server last ended the session this client held, or null. */
+  sessionEnded: () => SessionEnded | null;
   /** Is a claim session currently held? */
   isClaimed: () => boolean;
   /** The claim session held, or null. */
@@ -902,6 +949,19 @@ export interface PublicClient {
 }
 
 const WRAPPED_KEYS = new Set(['data', 'page', 'cursor']);
+
+/** A create's `link` as the wire carries it. */
+interface WireLink {
+  key: string;
+  token: string;
+  session?: string;
+  expiresAt?: number;
+}
+
+function linkOf(link: WireLink | undefined): CreatedLink | null {
+  if (link === undefined || typeof link.token !== 'string') return null;
+  return { key: link.key, token: link.token, session: link.session ?? null, expiresAt: link.expiresAt ?? null };
+}
 
 /** An AbortSignal rather than options — the older form of `documents.list`. */
 function isSignal(value: AbortSignal | DocumentListOptions): value is AbortSignal {
@@ -976,7 +1036,9 @@ export function createPublicClient(
   const doFetch = options?.fetch ?? globalThis.fetch.bind(globalThis);
   const humanCheck = options?.humanCheck;
   const csrfToken = options?.csrfToken;
+  const onSessionEnded = options?.onSessionEnded;
   let session: (PublicSession & { token: string }) | null = null;
+  let ended: SessionEnded | null = null;
   let cachedConfig: Promise<PublicConfig> | null = null;
   /** Refs that asked for a proof under the session held now, and {@link CLAIM} when a claim did. */
   const asked = new Set<string | typeof CLAIM>();
@@ -1044,6 +1106,13 @@ export function createPublicClient(
       );
     }
 
+    // The session this client held was ended elsewhere: dropped, and the page told why — on any reply.
+    const why = res.headers.get(SESSION_ENDED_HEADER);
+    if ((why === 'elsewhere' || why === 'forgotten') && session !== null) {
+      holdSession(null);
+      ended = why;
+      onSessionEnded?.(why);
+    }
     if (!res.ok) throw await errorOf(res);
     return { body: (await res.json()) as T, headers: res.headers, status: res.status };
   };
@@ -1099,9 +1168,9 @@ export function createPublicClient(
     }
   };
 
-  const insert = <T>(ref: string, values: Row): Promise<{ data: T; rank?: number }> =>
+  const insert = <T>(ref: string, values: Row): Promise<{ data: T; rank?: number; link?: WireLink }> =>
     withProof('write', ref, (proof) =>
-      request<{ data: T; rank?: number }>(
+      request<{ data: T; rank?: number; link?: WireLink }>(
         `/api/v1/public/records/${ref}`,
         { method: 'POST', body: JSON.stringify({ values }) },
         proof,
@@ -1214,7 +1283,7 @@ export function createPublicClient(
 
     async createWithRank<T = Row>(ref: string, values: Row) {
       const out = await insert<T>(ref, values);
-      return { data: out.data, rank: typeof out.rank === 'number' ? out.rank : null };
+      return { data: out.data, rank: typeof out.rank === 'number' ? out.rank : null, link: linkOf(out.link) };
     },
 
     async update<T = Row>(ref: string, id: string, values: Row, options?: { expect?: { total: string } }) {
@@ -1225,15 +1294,21 @@ export function createPublicClient(
       return out.data;
     },
 
-    async createTree<T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string } }) {
+    async createTree<T = Row>(ref: string, write: { values: Row; children?: TreeRows; expect?: { total: string }; replaces?: string }) {
       const out = await withProof('write', ref, (proof) =>
-        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true }>(
+        request<{ data: T; children?: Record<string, TreeReplyRow[]>; rank?: number; replayed?: true; link?: WireLink }>(
           `/api/v1/public/records/${ref}`,
           { method: 'POST', body: JSON.stringify(write) },
           proof,
         ),
       );
-      return { data: out.data, children: out.children ?? {}, rank: typeof out.rank === 'number' ? out.rank : null, replayed: out.replayed === true };
+      return {
+        data: out.data,
+        children: out.children ?? {},
+        rank: typeof out.rank === 'number' ? out.rank : null,
+        replayed: out.replayed === true,
+        link: linkOf(out.link),
+      };
     },
 
     async quote<T = Row>(ref: string, write: { values: Row; children?: TreeRows }) {
@@ -1401,11 +1476,12 @@ export function createPublicClient(
 
     async openShared(token) {
       try {
-        const out = await request<{ data: { session: string; expiresAt: number } }>('/api/v1/public/claim/token', {
+        const out = await request<{ data: { session: string; expiresAt: number; level?: ClaimLevel } }>('/api/v1/public/claim/token', {
           method: 'POST',
           body: JSON.stringify({ token }),
         });
-        holdSession({ token: out.data.session, level: 'lookup', expiresAt: out.data.expiresAt });
+        // A row's own link opens a verified session; a shared one a lookup.
+        holdSession({ token: out.data.session, level: out.data.level === 'verified' ? 'verified' : 'lookup', expiresAt: out.data.expiresAt });
         return 'opened';
       } catch (error) {
         if (error instanceof PublicApiError && error.code === 'PUBLIC_REF_NOT_FOUND') return 'unknown';
@@ -1452,6 +1528,25 @@ export function createPublicClient(
         // out must not still be holding a session because a request failed.
         holdSession(null);
       }
+    },
+
+    async signOutEverywhere() {
+      await request('/api/v1/public/session/revoke-all', { method: 'POST', body: JSON.stringify({}) });
+      holdSession(null);
+    },
+
+    async forgetMe() {
+      await request('/api/v1/public/account', { method: 'DELETE' });
+      holdSession(null);
+    },
+
+    adoptSession(next) {
+      ended = null;
+      holdSession({ token: next.token, level: next.level ?? 'verified', expiresAt: next.expiresAt });
+    },
+
+    sessionEnded() {
+      return ended;
     },
 
     isClaimed() {

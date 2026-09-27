@@ -39,28 +39,8 @@ export interface UnbuiltEntryRule {
 
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [];
 
-/** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */
-const ENTRY_KEYS = [
-  // A person found by address, the new row's own link, a read for a session, forgetting.
-  'find_or_create',
-  'share_link',
-  'session_only',
-] as const;
-
-/*
- * Not here, on purpose: a sign-in entry's own link (`identity.own`) and its
- * "delete my details" (`forget`). Unbuilt, each gives less than it will — the
- * link opens read-only, and there is no route to forget by — never more; and
- * suspending a sign-in entry would leave every entry that needs a signed-in
- * customer with nothing to sign in by, so the app would not install.
- */
-export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
-  ...ENTRY_KEYS.map((key) => ({ rule: key, on: (entry: Readonly<Record<string, unknown>>) => entry[key] !== undefined })),
-  // A change's limits: per value a day, plain text only.
-  { rule: 'limits', on: (entry) => entry['limits'] !== undefined },
-  // Columns withheld from rows read through a parent (a ticket handed to a friend).
-  { rule: 'withhold', on: (entry) => entry['withhold'] !== undefined },
-];
+/** The public entry keys whose behaviour is not built yet: none. */
+export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [];
 
 /** 501: the table (or entry) declares a rule this server cannot keep yet. */
 export class RuleNotBuiltError extends AppError {

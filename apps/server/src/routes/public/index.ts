@@ -28,6 +28,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DocumentRow, MetaDb, RecordRef } from '@adminium/meta';
 import {
   CUSTOMER_KEY_PURPOSE,
+  keyStaffBinding,
   filesRepo,
   auditRepo,
   publicKeysRepo,
@@ -106,7 +107,7 @@ import {
   resolveClaim,
   type PublicSessionContext,
 } from '../../public-api/claim.js';
-import { generatePublicSessionToken, hashPublishableKey, keyKindOf } from '../../public-api/keys.js';
+import { generatePublicSessionToken, hashPublishableKey, keyKindOf, openPublishableKey } from '../../public-api/keys.js';
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
@@ -149,10 +150,16 @@ import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
 import { emailChangedLines, translatorForLocale } from '../../email/builtins.js';
-import { EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
+import { DETAILS_DELETED_TEMPLATE_KEY, EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
-import { publicConfirmSchema } from '../../public-api/endpoint.js';
+import { publicConfirmSchema, sourceTable } from '../../public-api/endpoint.js';
+import { entryColumnOf, fillOf, personTableOf, signedInValues, type PersonTable } from '../../public-api/person-entry.js';
+import { holdsOf, replaceHolds } from '../../public-api/hold-replace.js';
+import { withholding } from '../../public-api/withhold.js';
+import { chargeChange, notPlainChange } from '../../public-api/change-limits.js';
+import { PersonRaced, PersonRefused, PersonTableUnusable, resolvePerson } from '../../crud/person.js';
+import { privilegesOf } from '../../connections/privileges.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
   GuardedBatchError,
@@ -403,8 +410,8 @@ function unfilled(resource: CompiledResource, values: Readonly<Record<string, un
 
 /**
  * Whether a create through this entry goes the tree's way: it declares child
- * rows, a dry run, a price check, a retry key, a person found by address or
- * an agreement its row is held to —
+ * rows, a dry run, a price check, a retry key, a person found by address, a
+ * row's own link answered once, or an agreement its row is held to —
  * whether or not a request sends rows below it. A row visible with a parent
  * keeps its own path.
  */
@@ -416,6 +423,7 @@ function treeEntry(resource: CompiledResource): boolean {
     (resource.expect ?? null) !== null ||
     (resource.clientKey ?? null) !== null ||
     (resource.findOrCreate ?? null) !== null ||
+    (resource.shareLink ?? null) !== null ||
     (resource.agrees?.length ?? 0) > 0
   );
 }
@@ -440,6 +448,9 @@ async function judgeEntryAgrees(db: Kysely<SourceDatabase>, view: SnapshotView, 
 function references(view: SnapshotView, table: ResolvedTable): string[] {
   return view.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id).flatMap((relation) => relation.from.columns);
 }
+
+/** The header a device is told its session was ended by (`elsewhere`, `forgotten`). */
+export const SESSION_ENDED_HEADER = 'x-adminium-session-ended';
 
 /** The whole-key rung each class also counts on, for a browser key. */
 const KEY_RUNGS: Partial<Record<PublicLimit, PublicKeySide>> = {
@@ -853,7 +864,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        * there. Not on a preflight: a preflight response has nothing to
        * expose.
        */
-      reply.header('Access-Control-Expose-Headers', 'Retry-After, X-Next-Cursor');
+      reply.header('Access-Control-Expose-Headers', `Retry-After, X-Next-Cursor, ${SESSION_ENDED_HEADER}`);
       return true;
     }
     return sameOriginAllowed && isSameOriginRequest(request);
@@ -1065,13 +1076,24 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     /** When a sign-in link's session began: it lasts while used, up to a cap. */
     let slidesFrom: number | null = null;
     if (sessionToken !== null) {
-      const row = await sessions.findValid(hashPublishableKey(sessionToken));
+      const row = await sessions.findByTokenHash(hashPublishableKey(sessionToken));
+      const live = row !== null && Number(row.expiresAt) > Date.now();
       // A session is bound to the key that minted it. Presenting one alongside
       // a DIFFERENT key must not carry its grants across.
-      if (row !== null && row.keyId === key.keyId) {
+      if (row !== null && live && row.keyId === key.keyId && row.endedAt === null) {
         const grant = parseGrant(row.grants);
-        if (grant !== null) session = { id: row.id, keyId: row.keyId, grant, level: row.level === 'verified' ? 'verified' : 'lookup' };
-        if (grant !== null && row.kind === 'link') slidesFrom = row.createdAt;
+        const openedAt = Number(row.createdAt);
+        if (grant !== null) session = { id: row.id, keyId: row.keyId, grant, level: row.level === 'verified' ? 'verified' : 'lookup', kind: row.kind, openedAt };
+        if (grant !== null && row.kind === 'link') slidesFrom = openedAt;
+      } else if (row !== null && live && row.keyId === key.keyId && typeof row.endedReason === 'string') {
+        /*
+         * A session its person ended from another device (or ended by
+         * deleting their details): no session, and the page is told why, so
+         * it can say so rather than seem to forget them. Only to the holder of
+         * the session's own token, on its own key; a lapsed or unknown token
+         * is told nothing.
+         */
+        reply.header(SESSION_ENDED_HEADER, row.endedReason);
       }
     }
     /*
@@ -1333,6 +1355,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     }
     const claim = claimPredicateFor(resource, ok.session);
     if (!claim.reachable && opts.bypassClaimGate !== true) {
+      fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+      return null;
+    }
+    // A read for a session's holder alone (the bank details a signed-in guest may see): none without one.
+    if (resource.sessionOnly === true && ok.session === null) {
       fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
       return null;
     }
@@ -1671,6 +1698,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         }
 
+        // Columns a ticket's holder alone reads, left empty for anyone else reading it through its order.
+        const withheld = withholding(resource, ok.key.scope, ok.session, view, table);
         const result = await runList({
           // A child's rows through its parent chain; any other resource reads as it always has.
           db: readerFor({ db, dialect, view }, table, found.visibility),
@@ -1703,13 +1732,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // Scope predicate AND session predicate, both mandatory, neither
           // removable by any combination of query parameters.
           ...(predicate === null ? {} : { mandatory: predicate }),
-          exposeColumns: resource.expose,
+          exposeColumns: withheld.expose,
           searchColumns: resource.searchable,
         });
 
         await touchKey(ok.key.keyId);
         // Instants a caller elsewhere can read (SQLite keeps the server's wall clock).
-        result.data = result.data.map((row) => wallTimesAsInstants(row, table.columns, dialect));
+        result.data = result.data.map((row) => wallTimesAsInstants(withheld.apply(row), table.columns, dialect));
         /*
          * THE RESPONSE SHAPE — the list route only. `wrapped`
          * is what every published client reads. `array` is the bare rows, the
@@ -1925,6 +1954,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           ([column, value]) => ({ column, op: 'eq', value }) as RecordFilter,
         );
         const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table);
 
         const result = await runList({
           db: readerFor(found, found.table, found.visibility),
@@ -1935,18 +1965,89 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           dialect: found.dialect,
           // Never null: the key condition is always there.
           mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
-          exposeColumns: found.resource.expose,
+          exposeColumns: withheld.expose,
           searchColumns: found.resource.searchable,
         });
         const row = result.data[0];
         if (row === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
 
         await touchKey(ok.key.keyId);
-        return reply.send({ data: wallTimesAsInstants(row, found.table.columns, found.dialect) });
+        return reply.send({ data: wallTimesAsInstants(withheld.apply(row), found.table.columns, found.dialect) });
       },
     );
 
     /* --------------------------------------------------------------- writes */
+
+    /** A person a public create made by address, heard of as any public create is (after its write committed). */
+    const announcePerson = async (
+      request: FastifyRequest,
+      ok: { key: ResolvedKey; session: PublicSessionContext | null },
+      of: ResolvedTable,
+      row: Row,
+      identityRef: string,
+    ): Promise<void> => {
+      const pk = Object.fromEntries(of.primaryKey.map((c) => [c, row[c]]));
+      const entity: RecordRef = { connectionId: ok.key.connectionId, table: of.id, pk, label: pkLabel(of, pk) };
+      await auditWrite(request, ok, 'public.record.create', { ref: identityRef, table: of.id, person: true }, entity);
+      invalidateWidgetData(app, ok.key.connectionId, of.id);
+      publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, { connectionId: ok.key.connectionId, table: of, action: 'create', pk, row });
+      await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: of, action: 'create', entity, before: null, after: row, origin: 'public' });
+    };
+
+    /** The app's key that opens a row by its own link (`shareLink.key`), resolved: what a session on it carries. */
+    const ownLinkKeyOf = async (
+      ok: { key: ResolvedKey },
+      view: SnapshotView,
+      table: ResolvedTable,
+      shareLink: { column: string; key: string },
+    ): Promise<{ keyId: string; ref: string; column: string; own: boolean } | null> => {
+      if (ok.key.managedBy === null) return null;
+      const stored = await keys.newestLiveByAppAndConnection(ok.key.managedBy, 'customer', ok.key.connectionId, Date.now(), shareLink.key);
+      if (stored === null || stored.managedBy !== ok.key.managedBy || stored.tokenEncrypted === null || keyStaffBinding(stored) !== null) return null;
+      const linkKey = await resolver.resolve(openPublishableKey(addressCrypto, stored.tokenEncrypted));
+      const claim = linkKey === null ? null : tokenClaimOf(linkKey.scope);
+      const opener = claim === null ? undefined : linkKey!.scope.byRef.get(claim.ref);
+      if (linkKey === null || claim === null || opener?.claim?.column === undefined || claim.column !== shareLink.column) return null;
+      if (sourceTable(view, opener.table)?.id !== table.id) return null;
+      return { keyId: linkKey.keyId, ref: claim.ref, column: opener.claim.column, own: linkKey.scope.claim?.own === true };
+    };
+
+    /** What a session opened on a row by its own link carries: the row's key, and the hash of the code it opens by. */
+    const ownLinkSession = (linkKey: { ref: string; column: string }, ok: { key: ResolvedKey }, table: ResolvedTable, row: Row, codeColumn: string) => ({
+      grants: JSON.stringify({ ref: linkKey.ref, column: linkKey.column, value: row[linkKey.column], token: hashToken(normaliseToken(table, codeColumn, String(row[codeColumn]))) }),
+      subject: subjectOf(ok.key.connectionId, table.id, linkKey.column, row[linkKey.column]),
+    });
+
+    /**
+     * The new row's own link: its code, the key that opens it, and a session
+     * already open on it through that key — the same credential the code is,
+     * handed to the page that made the row so its confirmation needs no
+     * claim. A page that sent its session along (`replaces`) gets that same
+     * session back, now on the new row. Null when the row has no code.
+     */
+    const ownLinkOf = async (
+      ok: { key: ResolvedKey },
+      view: SnapshotView,
+      table: ResolvedTable,
+      row: Row,
+      shareLink: { column: string; key: string },
+      carried: { token: string; expiresAt: number } | null,
+    ): Promise<{ key: string; token: string; session?: string; expiresAt?: number } | null> => {
+      const token = row[shareLink.column];
+      if (typeof token !== 'string' || token === '') return null;
+      const answer = { key: shareLink.key, token };
+      if (carried !== null) return { ...answer, session: carried.token, expiresAt: carried.expiresAt };
+      const linkKey = await ownLinkKeyOf(ok, view, table, shareLink);
+      if (linkKey === null) return answer;
+      const now = Date.now();
+      const minted = generatePublicSessionToken();
+      const expiresAt = now + CLAIM_SESSION_TTL_MS;
+      await sessions.create(
+        { keyId: linkKey.keyId, tokenHash: minted.tokenHash, expiresAt, kind: 'token', ...(linkKey.own ? { level: 'verified' } : {}), ...ownLinkSession(linkKey, ok, table, row, shareLink.column) },
+        now,
+      );
+      return { ...answer, session: minted.token, expiresAt };
+    };
 
     /**
      * A CREATE WITH ITS CHILD ROWS — or a quote of one (`dry`). Every entry
@@ -1962,11 +2063,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       ok: { key: ResolvedKey; session: PublicSessionContext | null },
       found: NonNullable<Awaited<ReturnType<typeof resolveResource>>>,
       mode: 'save' | 'dry',
-      body: { values: Record<string, unknown>; children?: PublicTreeChildren | undefined; expect?: { total: string } | undefined },
+      body: { values: Record<string, unknown>; children?: PublicTreeChildren | undefined; expect?: { total: string } | undefined; replaces?: string | undefined },
     ): Promise<FastifyReply> => {
       const { resource, view, table, dialect } = found;
       const ref = (request.params as { ref: string }).ref;
       const dry = mode === 'dry';
+      // When this write began: a hold it lets go ends here, before anything of it is counted.
+      const begun = new Date();
       const lists = resource.children ?? new Map<string, ScopeChild>();
       const refused = (params?: Record<string, unknown>) => fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', params);
       // The request's lists against the entry's, before anything is read.
@@ -2005,6 +2108,29 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const values = prepareValues(resource, body.values, ok.session, 'create', dialect, table.columns);
       if (values === null) return refused();
       sent.set('', new Set(Object.keys(body.values)));
+      /*
+       * A person found by the address typed: that address first, the same for
+       * every address, before anything is read. A guest already signed in is
+       * their own person (linked by the claim, as always), and the row carries
+       * the address and details their account keeps.
+       */
+      const finder = resource.findOrCreate ?? null;
+      let people: PersonTable | null = null;
+      let signedInPerson = false;
+      if (finder !== null) {
+        people = await personTableOf(meta, view, ok.key.scope, ok.key.connectionId, finder.identityRef);
+        if (people === null) {
+          request.log.warn({ ref, identity: finder.identityRef }, 'a create finds its person through an identity that does not sign in by link');
+          return refused();
+        }
+        signedInPerson = ok.session !== null && resource.claim?.ref === ok.session.grant.ref && values[finder.link] !== undefined && values[finder.link] !== null;
+        if (signedInPerson) {
+          const own = await claimedRowOf(ok);
+          if (own !== null) signedInValues(finder, people, values, own);
+        } else if (!dry && !plausibleAddress(values[finder.email])) {
+          return refused({ column: finder.email, reason: 'format' });
+        }
+      }
       if (dry) {
         const shown = quotePlaceholders(view, table, resource.writable, resource.requires ?? [], values);
         Object.assign(values, shown);
@@ -2159,7 +2285,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
       }
       if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
-        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now() });
+        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
         if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
         release = charge.release;
       }
@@ -2169,6 +2295,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const refuseTree = (error: unknown, at: TreePath): never => {
         // A hook's own refusal keeps its words; the engine giving up a writer in a lock race is a moment's wait, not a refusal.
         if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof PublicPriceChanged || error instanceof HookRejectedError) throw error;
+        // Another writer made the same new person first: the whole write runs again, once.
+        if (error instanceof PersonRaced) throw error;
+        // The person the address makes, refused as the entry's own column — the same for a known address as for a new one.
+        if (error instanceof PersonRefused && finder !== null && people !== null) {
+          throw new PublicWriteRefused(TREE_NAMED.has(error.reason) ? { column: entryColumnOf(finder, people, error.column), reason: error.reason } : undefined);
+        }
+        if (error instanceof PersonTableUnusable) {
+          request.log.warn({ ref, why: error.why }, 'a create finds its person in a table that cannot be used for it');
+          throw new PublicWriteRefused();
+        }
         if (isWriteConflict(error)) error = writeConflict();
         const where = placeOf(at);
         if (error instanceof TreeCheckRefused) {
@@ -2211,10 +2347,78 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const expected = body.expect;
       const expectColumn = resource.expect ?? null;
       const context = await publicWriteContext(request, ok);
+      /** The person this write made (announced once it has committed), when the address was nobody's. */
+      let madePerson: Row | null = null;
+      /*
+       * One live hold per buyer: the hold this page replaces (by its own link),
+       * or a signed-in person's other holds, let go in the same write.
+       */
+      const holds = dry ? [] : holdsOf(view, table);
+      const shareLink = resource.shareLink ?? null;
+      /** The page's own-link session, when it sent one: moved to the new hold inside the write, and moved back if the write fails. */
+      let pageSession: { id: string; token: string; before: { grants: string; subject: string | null; expiresAt: number }; linkKey: { ref: string; column: string } } | null = null;
+      if (holds.length > 0 && body.replaces !== undefined && shareLink !== null) {
+        const presented = parsePublicSessionToken(body.replaces);
+        const stored = presented === null ? null : await sessions.findByTokenHash(hashPublishableKey(presented));
+        const linkKey = stored === null ? null : await ownLinkKeyOf(ok, view, table, shareLink);
+        // Only a live session of the app's own-link key, opened on a row: anything else lets nothing go, and says nothing.
+        if (stored !== null && linkKey !== null && stored.keyId === linkKey.keyId && stored.kind === 'token' && stored.endedAt === null && Number(stored.expiresAt) > begun.getTime()) {
+          pageSession = { id: stored.id, token: presented!, before: { grants: stored.grants, subject: stored.subject, expiresAt: Number(stored.expiresAt) }, linkKey };
+        }
+      }
+      const page = pageSession;
+      const replacing =
+        page === null
+          ? undefined
+          : {
+              rowKey: async (): Promise<unknown> => {
+                const now = await sessions.findById(page.id);
+                return now === null ? null : (parseGrant(now.grants)?.value ?? null);
+              },
+            };
+      /** The session moved to the new hold (inside its write); moved back when the write does not go through. */
+      let carried: { token: string; expiresAt: number } | null = null;
+      const carry =
+        page === null
+          ? undefined
+          : async (_trx: Kysely<SourceDatabase>, made: Row): Promise<void> => {
+              const expiresAt = Date.now() + CLAIM_SESSION_TTL_MS;
+              if (await sessions.rebind(page.id, { ...ownLinkSession(page.linkKey, ok, table, made, shareLink!.column), expiresAt })) carried = { token: page.token, expiresAt };
+            };
+      const buyer =
+        holds.length === 0 || ok.session === null || ok.session.level !== 'verified' || resource.claim?.column === undefined || resource.claim.ref !== ok.session.grant.ref
+          ? undefined
+          : { column: resource.claim.column, value: ok.session.grant.value };
+      /** The person found or made by the address typed (never for a quote, never for a guest signed in), then the buyer's other holds let go. */
+      const finds = !dry && finder !== null && people !== null && !signedInPerson;
+      const identity =
+        !finds && replacing === undefined && buyer === undefined
+          ? undefined
+          : async (trx: Kysely<SourceDatabase>): Promise<Row> => {
+              let linked: Row = {};
+              if (finds) {
+                const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people!.table.id);
+                const person = await resolvePerson({
+                  writes,
+                  identity: { ...target(people!.table), db: trx, rights: tableRights },
+                  email: people!.email,
+                  address: String(values[finder!.email]),
+                  fill: fillOf(finder!, values),
+                  context,
+                });
+                madePerson = person.made;
+                linked = { [finder!.link]: person.link };
+              }
+              if (replacing !== undefined || buyer !== undefined) {
+                await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing });
+              }
+              return linked;
+            };
       let rootRow: Row | null = null;
       let outcome: TreeOutcome;
       try {
-        outcome = await writes.createTree({
+        const save = () =>
+          writes.createTree({
           root,
           context,
           mode,
@@ -2248,10 +2452,28 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 },
               }),
           ...(retryKey === null ? {} : { replay }),
+          ...(identity === undefined ? {} : { identity }),
+          ...(carry === undefined ? {} : { inside: carry }),
           announce,
           mapError: refuseTree,
         });
+        try {
+          outcome = await save();
+        } catch (error) {
+          // A new address two writers made at once: run again, and find the person the other made.
+          if (!(error instanceof PersonRaced)) throw error;
+          madePerson = null;
+          carried = null;
+          try {
+            outcome = await save();
+          } catch (again) {
+            if (again instanceof PersonRaced) throw new PublicSlotRefused('PUBLIC_SLOT_BUSY');
+            throw again;
+          }
+        }
       } catch (error) {
+        // The page's session goes back to the hold it came from: that one was not let go after all.
+        if (carried !== null && page !== null) await sessions.rebind(page.id, page.before);
         if (guessing) spendMiss(request, ok, error);
         // A guest's own value refused: nothing ran that a bad value could have bought, so the charge is handed back.
         const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']) && error.params['reason'] !== 'used-up';
@@ -2279,13 +2501,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null, (column) => data[column] !== null && data[column] !== undefined);
         return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }) });
       }
+      // The person the address made, heard of once the whole write has committed.
+      const made = madePerson as Row | null;
+      if (made !== null && people !== null) await announcePerson(request, ok, people.table, made, finder!.identityRef);
       // The guest's confirmation, when the endpoint sends one. Queued, never awaited on SMTP.
       const confirm = resource.confirm === null ? null : publicConfirmSchema.safeParse(resource.confirm);
       if (confirm?.success === true) {
         await sendConfirmation({ meta, request, confirm: confirm.data, row: outcome.root, db: found.db, table, timezone: ok.key.scope.timezone, appKey: ok.key.managedBy });
       }
       const rank = await rankOf(found, outcome.root);
-      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }) });
+      // The new row's own link, answered this once (a retry answers the rows, never the link).
+      const link = shareLink === null ? null : await ownLinkOf(ok, view, table, outcome.root, shareLink, carried);
+      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }), ...(link === null ? {} : { link }) });
     };
 
     app.options('/public/claim', { schema: { hide: true } }, preflight);
@@ -2317,7 +2544,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (found === null) return reply;
         // An entry with child rows, a dry run, a price check, a retry key or a person found by address: the one tree path, rows below or none.
         if (treeEntry(found.resource)) return treeWrite(request, reply, ok, found, 'save', request.body);
-        if (request.body.children !== undefined || request.body.expect !== undefined) {
+        if (request.body.children !== undefined || request.body.expect !== undefined || request.body.replaces !== undefined) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         }
 
@@ -2361,6 +2588,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             ref: request.params.ref,
             values,
             now: Date.now(),
+            ip: request.ip,
           });
           if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
           release = charge.release;
@@ -2641,6 +2869,73 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         };
         let outcome;
         const context = await publicWriteContext(request, ok);
+        /*
+         * A change a guest sends on (a ticket offered to a friend): a name that
+         * is only a name, and so many a day to one address. A quote is free and
+         * charged nothing.
+         */
+        const limits = quote === 'save' ? (found.resource.limits ?? null) : null;
+        let releaseLimits: (() => Promise<void>) | null = null;
+        if (limits !== null) {
+          const column = notPlainChange(limits, values);
+          if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+          const charge = await chargeChange(challenges, { limits, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, ref: request.params.ref, values, now: Date.now() });
+          if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be sent online today have been sent.');
+          releaseLimits = charge.release;
+        }
+        /*
+         * A person found by address on a change through the row's own link (a
+         * friend accepting a ticket sent to them): the address the link was
+         * emailed to, or the one written, finds or makes the person, and the
+         * change links them — in its own values, so what the change sets off
+         * (a new code, the holder's copies) sets off with it.
+         */
+        let madePerson: { table: ResolvedTable; row: Row; ref: string } | null = null;
+        const finder = found.resource.findOrCreate ?? null;
+        if (quote === 'save' && finder !== null && ok.key.scope.claim?.own === true) {
+          const people = await personTableOf(meta, found.view, ok.key.scope, ok.key.connectionId, finder.identityRef);
+          if (people === null) {
+            request.log.warn({ ref: request.params.ref, identity: finder.identityRef }, 'a change finds its person through an identity that does not sign in by link');
+            await releaseLimits?.();
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+          let peek = found.db.selectFrom(found.table.id).selectAll();
+          for (const [column, value] of Object.entries(pk)) peek = peek.where(found.db.dynamic.ref(column), '=', value as never);
+          const stored = ((await inScope(peek).executeTakeFirst()) as Row | undefined) ?? null;
+          const addresses = ok.key.scope.claim.address ?? [];
+          const address = Object.prototype.hasOwnProperty.call(values, finder.email) ? values[finder.email] : addresses.includes(finder.email) ? stored?.[finder.email] : undefined;
+          const linked = stored?.[finder.link];
+          if (stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
+            const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
+            const personTarget: WriteTarget = { ...target, table: people.table };
+            const once = () =>
+              writes.transaction(personTarget, [], (tdb) =>
+                resolvePerson({ writes, identity: { ...personTarget, db: tdb, rights: tableRights }, email: people.email, address, fill: fillOf(finder, { ...stored, ...values }), context }),
+              );
+            let person;
+            try {
+              try {
+                person = await once();
+              } catch (error) {
+                if (!(error instanceof PersonRaced)) throw error;
+                person = await once();
+              }
+            } catch (error) {
+              await releaseLimits?.();
+              if (error instanceof PersonRefused) {
+                return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', UPDATE_NAMED.has(error.reason) ? { column: entryColumnOf(finder, people, error.column), reason: error.reason } : undefined);
+              }
+              if (error instanceof PersonTableUnusable) {
+                request.log.warn({ ref: request.params.ref, why: error.why }, 'a change finds its person in a table that cannot be used for it');
+                return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+              }
+              if (error instanceof PersonRaced || lostRace(error)) return busy(reply);
+              return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            }
+            if (person.link !== null) values[finder.link] = person.link;
+            if (person.made !== null) madePerson = { table: people.table, row: person.made, ref: finder.identityRef };
+          }
+        }
         try {
           outcome = await writes.update({
             target,
@@ -2715,6 +3010,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             },
           });
         } catch (error) {
+          // Nothing was sent on: what the limits counted for it is handed back.
+          await releaseLimits?.();
           if (guessing) spendMiss(request, ok, error);
           if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
           if (error instanceof PublicWriteRefused) {
@@ -2732,7 +3029,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // scope, or belongs to somebody else. One answer for all three — and
         // for a row in any other state. The one exception is the caller's own
         // row that only its time window refused: that is told when it opens.
+        // A person made for the change, heard of once it is done (they are the friend's, and real, even when nothing changed).
+        if (madePerson !== null) await announcePerson(request, ok, madePerson.table, madePerson.row, madePerson.ref);
         if (outcome.count === 0) {
+          await releaseLimits?.();
           const early = await tooEarlyFor(found, pk, now, ok.key.scope.timezone);
           if (early !== null) return fail(reply, 409, 'PUBLIC_TOO_EARLY', 'Too early for this change; `at` is the time it waits for.', early);
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
@@ -2744,7 +3044,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A code this change made (a ticket handed on) goes to the new holder, never back to the sender.
         for (const column of renewedBy(outcome, found.table.table.columns)) hidden.add(column);
         for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
-        const data = wallTimesAsInstants(projected, found.table.columns, found.dialect);
+        // What the row's holder alone reads stays theirs in the answer to a change too.
+        const holder = found.resource.withhold?.unlessHolder;
+        const after = outcome.after ?? null;
+        const shown = holder === undefined || after === null ? projected : withholding(found.resource, ok.key.scope, ok.session, found.view, found.table).apply({ ...projected, [holder]: after[holder] });
+        const data = wallTimesAsInstants(shown, found.table.columns, found.dialect);
         // A quote runs no before hook: said, as a quote of a create says it.
         if (quote === 'dry') {
           // A change of the dates of a row priced by the night: the nights it would then be made of.
@@ -3646,10 +3950,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           grants: JSON.stringify({ ...grant, token: hashToken(normaliseToken(found.table, claim.column, request.body.token)) }),
           expiresAt,
           kind: 'token',
+          // The owner's own link (emailed only to the row's own address, or handed once to whoever made it): verified.
+          ...(ok.key.scope.claim?.own === true ? { level: 'verified' } : {}),
           subject: subjectOf(ok.key.connectionId, found.table.id, grant.column, grant.value),
         });
         await auditWrite(request, ok, 'public.claim.token', { ref: claim.ref });
-        return reply.send({ data: { session: minted.token, expiresAt } });
+        return reply.send({ data: { session: minted.token, expiresAt, ...(ok.key.scope.claim?.own === true ? { level: 'verified' as const } : {}) } });
       },
     );
 
@@ -4394,6 +4700,167 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           { document: row, profile: null, to },
         );
         return reply.send({ data: { ...documentView(row), delivery } });
+      },
+    );
+
+    /* ------------------------------------------- sign out everywhere, forget me */
+
+    /**
+     * The person a signed-in guest is, for the two account routes: a session
+     * that proved the mailbox (`verified`), through the key's sign-in by link
+     * or by emailed code — never a row's own link (a link opens a row, not a
+     * person), never a session that only found them by their details.
+     */
+    const accountOf = async (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey; session: PublicSessionContext | null }) => {
+      const claim = ok.key.scope.claim;
+      const signsIn = claim !== null && claim !== undefined && claim.email !== undefined && (claim.strategy === 'email-link' || claim.verify === 'email-code');
+      if (!signsIn || ok.session?.kind === 'token') {
+        fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        return null;
+      }
+      const session = ok.session;
+      if (session === null || session.grant.ref !== claim.ref) {
+        fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        return null;
+      }
+      // A session that only found the person must not sign a verified one out, or delete them.
+      if (session.level !== 'verified') {
+        fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
+        return null;
+      }
+      const found = await resolveResource(request, reply, ok, claim.ref, 'read', { bypassClaimGate: true });
+      if (found === null) return null;
+      const rows = (await found.db
+        .selectFrom(found.table.id)
+        .selectAll()
+        .where((eb) => eb(found.db.dynamic.ref(session.grant.column), '=', session.grant.value as never))
+        .limit(2)
+        .execute()) as Row[];
+      return {
+        found,
+        session,
+        claim: { ...claim, email: claim.email! },
+        row: rows.length === 1 ? (rows[0] as Row) : null,
+        subject: subjectOf(ok.key.connectionId, found.table.id, session.grant.column, session.grant.value),
+      };
+    };
+
+    /**
+     * SIGN OUT EVERYWHERE. Every session of this person ends — this one too —
+     * and every sign-in link still open to their address is taken back (the
+     * usual reason to press it is that someone else had their mailbox). The
+     * other devices are told why on their next request. A row's own link is
+     * not a session of the person's and stays; "Make a new link" closes one.
+     */
+    app.options('/public/session/revoke-all', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/session/revoke-all',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: { response: { 200: publicRecordReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply } },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-code');
+        if (ok === null) return reply;
+        const person = await accountOf(request, reply, ok);
+        if (person === null) return reply;
+        const now = Date.now();
+        await sessions.endBySubject(person.subject, 'elsewhere', now);
+        const address = person.row?.[person.claim.email];
+        if (typeof address === 'string' && address !== '') await challenges.revokeLinks(linkSubject(hashAddress(addressSecret, address)), [ok.key.keyId], now);
+        await auditWrite(request, ok, 'public.session.revoked-all', { ref: person.claim.ref });
+        return reply.send({ data: {} });
+      },
+    );
+
+    /**
+     * DELETE MY DETAILS. The person's own row keeps its key (the rows that
+     * point at it stay theirs: a ticket still opens at the door, the desk
+     * still finds a stay, a confirmation's link still opens its booking) and
+     * loses every column the identity names — their address first, so no
+     * link or code can sign them in again. Stamped, audited without values,
+     * and told to the rules as a forgetting; every session ends (saying why),
+     * every open sign-in link is taken back, and the old address gets one last
+     * email saying so. Only a session that proved the mailbox moments ago may.
+     */
+    app.options('/public/account', { schema: { hide: true } }, preflight);
+    app.delete(
+      '/public/account',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          response: { 200: publicRecordReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 409: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-code');
+        if (ok === null) return reply;
+        const person = await accountOf(request, reply, ok);
+        if (person === null) return reply;
+        const { found, session, row } = person;
+        const forget = found.resource.forget ?? null;
+        if (forget === null) return fail(reply, 403, 'PUBLIC_CLAIM_UNAVAILABLE', 'This key does not support claims.');
+        const now = Date.now();
+        // Proved moments ago: a link pressed (or a code typed) within the step-up window.
+        const fresh =
+          session.kind === 'link'
+            ? session.openedAt !== undefined && now - session.openedAt <= STEP_UP_MS
+            : await challenges.markedSince(session.id, 'verified', now - STEP_UP_MS);
+        if (!fresh) return fail(reply, 403, 'PUBLIC_CODE_STEP_UP', 'Confirm a new code first.');
+        if (row === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        const oldAddress = row[person.claim.email];
+        const values: Row = {};
+        for (const column of forget.columns) {
+          const resolved = found.table.columns.get(column);
+          values[column] = resolved?.logicalType === 'boolean' && resolved.nullable === false ? false : null;
+        }
+        if (forget.stamp !== undefined) values[forget.stamp] = new Date(now).toISOString();
+        const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
+        const entity: RecordRef = { connectionId: ok.key.connectionId, table: found.table.id, pk, label: pkLabel(found.table, pk) };
+        try {
+          await writes.update({
+            target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },
+            pk,
+            values,
+            // The row as read: the rules hear what was forgotten, and the address watch leaves a forgetting to this route.
+            before: row,
+            context: await publicWriteContext(request, ok),
+            mapError: refuseWrite,
+            announce: async ({ before, after }) => {
+              // Named by the row, never by what it held.
+              await auditWrite(request, ok, 'public.identity.forgotten', { ref: person.claim.ref }, entity);
+              invalidateWidgetData(app, ok.key.connectionId, found.table.id);
+              publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, { connectionId: ok.key.connectionId, table: found.table, action: 'update', pk, row: after });
+              await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: found.table, action: 'update', entity, before, after, origin: 'public', cause: 'forget' });
+            },
+          });
+        } catch (error) {
+          if (error instanceof PublicWriteRefused) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
+          if (lostRace(error)) return busy(reply);
+          if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+          throw error;
+        }
+        await sessions.endBySubject(person.subject, 'forgotten', now);
+        if (typeof oldAddress === 'string' && oldAddress !== '') {
+          await challenges.revokeLinks(linkSubject(hashAddress(addressSecret, oldAddress)), [ok.key.keyId], now);
+          if (plausibleAddress(oldAddress)) {
+            const locale = negotiateLocale(request.headers['accept-language']) ?? (await recipientLocale(meta, null));
+            // The name it greeted them by, as it stood: read before it went.
+            const name = found.resource.expose.find((column) => column !== person.claim.email);
+            await enqueueEmail(
+              { meta, logger: request.log },
+              {
+                to: oldAddress.trim(),
+                templateKey: DETAILS_DELETED_TEMPLATE_KEY,
+                locale,
+                always: true,
+                vars: { appName: (await senderOf(ok.key)).appName, name: name === undefined ? '' : String(row[name] ?? '') },
+              },
+            );
+          }
+        }
+        return reply.send({ data: {} });
       },
     );
 

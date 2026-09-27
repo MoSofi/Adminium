@@ -8823,6 +8823,30 @@
     "status": "mt",
     "srcHash": "7fd57c94c8dc"
   },
+  "email.detailsDeleted.footer": {
+    "status": "src",
+    "srcHash": "401110dbbabf"
+  },
+  "email.detailsDeleted.heading": {
+    "status": "mt",
+    "srcHash": "4d52e122bd5f"
+  },
+  "email.detailsDeleted.intro": {
+    "status": "mt",
+    "srcHash": "14974e1b1d1e"
+  },
+  "email.detailsDeleted.kept": {
+    "status": "mt",
+    "srcHash": "ea4840877121"
+  },
+  "email.detailsDeleted.name": {
+    "status": "mt",
+    "srcHash": "ac38c398bab6"
+  },
+  "email.detailsDeleted.subject": {
+    "status": "mt",
+    "srcHash": "fd64f36556ab"
+  },
   "email.documentReady.attachment": {
     "status": "mt",
     "srcHash": "fec2d7abc298"

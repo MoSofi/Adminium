@@ -125,6 +125,7 @@ import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
+import { normaliseAddress } from '../public-api/claim-code.js';
 import {
   claimSequences,
   generatedCodes,
@@ -1685,7 +1686,7 @@ function normalizeText(rules: TableRules | null, values: Row): Row {
   for (const { column, how } of rules?.normalizes ?? []) {
     const value = values[column];
     if (typeof value !== 'string') continue;
-    const next = how === 'email' ? value.trim().toLowerCase() : how === 'code' ? canonicalCode(value) : value.trim();
+    const next = how === 'email' ? normaliseAddress(value) : how === 'code' ? canonicalCode(value) : value.trim();
     if (next === value) continue;
     out ??= { ...values };
     out[column] = next;

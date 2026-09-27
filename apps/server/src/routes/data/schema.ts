@@ -374,3 +374,8 @@ export const recordBulkReply = z.object({
 
 export const undoParams = z.object({ token: z.string().min(1) });
 export const undoReply = z.object({ restoredIds: z.array(z.unknown()) });
+
+/** `POST …/person`: the address the desk links a booking by, and what a new person is filled with. */
+export const findPersonBody = z.object({ email: z.string().min(3).max(254), fill: z.record(z.string().min(1).max(128), z.string().max(500)).optional() }).strict();
+/** The person's key, and whether they were already on file. */
+export const findPersonReply = z.object({ data: z.object({ key: z.unknown(), found: z.boolean() }) });

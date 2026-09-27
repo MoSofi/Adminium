@@ -11,7 +11,8 @@
  *    the one way its owner hears that mail for them now goes elsewhere.
  *
  * A change made by the person themselves never reaches here: such an address
- * is not writable through the public API. A deleted person's sessions end
+ * is not writable through the public API — except deleting their details,
+ * whose route does all of this itself. A deleted person's sessions end
  * too. An update whose event carries no before-image says nothing about what
  * changed, and is left alone (see the lane report: imports and undo emit no
  * record event at all).
@@ -136,6 +137,8 @@ export function createIdentityEmailWatch(deps: IdentityEmailWatchDeps): Identity
     async onRecordEvent(event) {
       try {
         if (event.action === 'create' || event.before === null) return;
+        // A guest deleting their details: the route ends their sessions (saying why) and takes their links back itself, and tells the old address its own way.
+        if (event.cause === 'forget') return;
         const before = event.before;
         const view = await deps.views.viewFor(event.connectionId);
         if (view === null) return;
