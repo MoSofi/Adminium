@@ -205,14 +205,24 @@ function reader(w: World) {
       }
       return post(cookie, card(table, rest), params);
     },
-    desk: async (tables: readonly string[], table: string, rest: Record<string, unknown>, params?: Record<string, unknown>) => {
-      const key = tables.join(',');
+    /** `limits`: a table this desk reads only some columns of (the key and links always). */
+    desk: async (tables: readonly string[], table: string, rest: Record<string, unknown>, params?: Record<string, unknown>, limits: Record<string, string[]> = {}) => {
+      const key = `${tables.join(',')}|${JSON.stringify(limits)}`;
       let cookie = cookies.get(key);
       if (cookie === undefined) {
         members += 1;
         const role = await rolesRepo(w.meta).create({ slug: `overview-desk-${String(members)}`, name: `Overview desk ${String(members)}` });
         for (const name of tables) {
-          await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${w.id(name)}`, { read: true, create: false, update: false, delete: false, export: false, import: false });
+          const limit = limits[name];
+          await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${w.id(name)}`, {
+            read: true,
+            create: false,
+            update: false,
+            delete: false,
+            export: false,
+            import: false,
+            ...(limit === undefined ? {} : { readLimit: { readable: limit } }),
+          } as never);
         }
         const email = `overview${String(members)}@venue.example.com`;
         const user = await usersRepo(w.meta).create({ email, name: `Overview ${String(members)}`, passwordHash: await adminPasswordHash(), status: 'active' });
@@ -498,6 +508,22 @@ for (const [dialect, available] of LEGS) {
       expect(refused(await cards.desk([...all, 'events'], 'stays', earnings))).toEqual([403, 'COLUMN_FORBIDDEN']);
       // Occupancy reads no price: still answered (four rooms taken of the two left to sell: over-sold, and said so).
       expect(ok(await cards.desk([...all, 'events'], 'stays', { ...earnings, capacity: { metric: 'occupancy' } }))['value']).toBe(2);
+    });
+
+    it("reads through a role's column limits: an order, a filter one link away and earnings refuse a column it does not show", async () => {
+      vi.setSystemTime(NOW);
+      w = await venue(dialect);
+      const cards = reader(w);
+      // The desk reads the shows' names, never their dates; the stays' dates, never their price.
+      const limits = { events: ['name'], stays: ['arrive', 'depart', 'status'] };
+      const all = ['bookings', 'events', 'stays', 'rooms', 'room_closures', 'room_types', 'rate_rules'];
+      const money = { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'sum', column: 'received', alias: 'received' }] };
+      expect(refused(await cards.desk(all, 'bookings', { ...money, orderBy: [{ column: 'event_id.doors_at', dir: 'asc' }] }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
+      expect(refused(await cards.desk(all, 'bookings', { ...money, filters: [{ or: [{ column: 'event_id.doors_at', op: 'gte', day: 'today' }, { column: 'owed', op: 'gt', value: 0 }] }] }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
+      // What it shows still answers: ordered by the shows' names.
+      expect(ok(await cards.desk(all, 'bookings', { ...money, orderBy: [{ column: 'event_id.name', dir: 'asc' }] }, undefined, limits))['items']).toHaveLength(4);
+      expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'earnings' } }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
+      expect(ok(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy' } }, undefined, limits))['value']).toBe(1);
     });
 
     it('lists the coming shows with their tickets sold and held of what each can sell', async () => {
