@@ -33,7 +33,7 @@ import { applyOverrides } from '../../connections/effective-schema.js';
 import { DAY_MS, PERSON_FAILURES_DAY, addressKey, hashAddress, subjectOf } from '../../public-api/claim-code.js';
 import { linkSubject } from '../../public-api/sign-in-link.js';
 import { generateCode, isUniqueViolation } from '../../crud/decided-columns.js';
-import { audited } from '../../audit/coverage.js';
+import { auditExempt, audited } from '../../audit/coverage.js';
 import { parseDefinition } from '../../public-api/endpoint.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { isPrivilegeRefusal, privilegeRefusal, privilegesOf, writeRefused } from '../../connections/privileges.js';
@@ -2349,7 +2349,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     app.post(
       '/data/:connectionId/:table/dry-run',
-      { schema: { params: dataTableParams, body: recordCreateBody, response: { 200: recordDryRunReply } } },
+      {
+        config: { audit: auditExempt('a quote writes nothing: its transaction is always rolled back') },
+        schema: { params: dataTableParams, body: recordCreateBody, response: { 200: recordDryRunReply } },
+      },
       async (request) => {
         const ctx = await contextFor(request, 'create');
         const values = allowlistValues(ctx, request.body.values);
