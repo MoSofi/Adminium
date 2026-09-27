@@ -534,6 +534,13 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   for (const column of columns) {
     if (column.scale !== undefined) scales.push({ column: column.name, scale: column.scale });
     if (column.venueLocal === true) venueLocal.push(column.name);
+    // A code Adminium makes (and makes again when the row changes hands) is
+    // its own random value, never a writer's: a secret column keeps it — kept
+    // out of every reply by the secret's own masking. A column named like a
+    // secret (`link_token`) would otherwise get no code at all.
+    if (column.code !== undefined) {
+      codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length, ...(column.code.renew === undefined ? {} : { renew: column.code.renew }) });
+    }
     // A secret column is refused by the write path long before this, and a
     // fill that named one would be a way to write it sideways.
     if (target.table.columns.get(column.name)?.secret === true) continue;
@@ -584,9 +591,6 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       });
     } else if (column.sequence !== undefined) {
       sequences.push({ column: column.name, logicalType: column.logicalType, start: column.sequence.start ?? 1 });
-    }
-    if (column.code !== undefined) {
-      codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length, ...(column.code.renew === undefined ? {} : { renew: column.code.renew }) });
     }
     if (column.stamp !== undefined) {
       const stamp = { ...column.stamp, column: column.name, logicalType: column.logicalType };
