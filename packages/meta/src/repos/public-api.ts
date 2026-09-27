@@ -725,6 +725,23 @@ export function publicSessionsRepo(meta: MetaDb) {
     },
 
     /**
+     * {@link rebind}, only while the session is still about the row `from`
+     * names (its subject): a write that moved a page's session and then failed
+     * moves it back only if no other write has moved it on since.
+     */
+    async rebindFrom(id: string, from: string, input: { grants: string; subject: string | null; expiresAt: number }, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_sessions')
+        .set({ grants: input.grants, subject: input.subject, expiresAt: input.expiresAt })
+        .where('id', '=', id)
+        .where('subject', '=', from)
+        .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
      * A session token's row as stored — live, lapsed or ended alike: the
      * gate tells an ended session (whose device is told why) from a lapsed
      * or unknown one (which is told nothing).

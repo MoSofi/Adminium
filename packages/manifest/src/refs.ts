@@ -83,6 +83,8 @@ export function tableIndex<C extends ColumnShape>(tables: readonly TableShape<C>
   const column = (table: string, ref: string): C | undefined => byRef.get(table)?.columns.find((c) => c.ref === ref);
   return {
     table: (ref: string) => byRef.get(ref),
+    /** Every table, in the manifest's order. */
+    tables: (): readonly TableShape<C>[] => tables,
     column,
     has: (table: string, ref: string) => column(table, ref) !== undefined,
     /** The table's primary key column, when it declares one. */

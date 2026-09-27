@@ -3084,8 +3084,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const person = dry || input.identity === undefined ? {} : await at(rootRow.node, () => input.identity!(trx));
         // 7. Every row outside the tree it is tied to, held for ALL rows at once in the one order: totals top-down, parents, linked rows for share.
         const held = dry ? new Map<string, Map<string, Row>>() : await at(rootRow.node, () => holdOutside(trx, rootRow.target.dialect, everyRow, peeked, currency));
-        // 7b. The write's own rows it changes besides the tree, held last (the own rows' place in the order).
-        if (!dry && input.ownRows !== undefined) await at(rootRow.node, () => input.ownRows!(trx));
+        // 7b. The write's own rows it changes besides the tree, held last (the own rows' place in the order); a quote's, only read.
+        const ownRows = input.ownRows === undefined ? [] : await at(rootRow.node, () => input.ownRows!(trx, dry ? 'dry' : 'save'));
         const heldKey = new Set<string>();
         for (const [table, rows] of held) for (const key of rows.keys()) heldKey.add(`${table}\u0000${key}`);
 
@@ -3171,7 +3171,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         });
         let capacity: PoolState[];
         try {
-          capacity = await judgeCapacity(trx, judged, { clock, origin: context.origin, mode });
+          // Beside them, the rows the write changes besides its tree as they will stand (a buyer's old hold let go).
+          capacity = await judgeCapacity(trx, [...judged, ...ownRows], { clock, origin: context.origin, mode });
         } catch (error) {
           if (error instanceof LockMoved) throw error;
           const index = (error as { details?: { row?: unknown } }).details?.row;

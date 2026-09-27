@@ -275,8 +275,18 @@ export function isLegacyCapacity(capacity: Capacity | undefined): boolean {
 /** What the capacity checks read of a column beyond the plain shape: its rules. */
 type ColumnWithRules = ColumnShape & {
   unique?: true | undefined;
-  rules?: { stamp?: unknown; copy?: { via: string; from: string } | undefined } | undefined;
+  rules?: { stamp?: unknown; copy?: { via: string; from: string; follow?: boolean | undefined } | undefined; code?: { renew?: { on?: unknown } | undefined } | undefined } | undefined;
 };
+
+/** The columns a trigger (a stamp's, a code renewal's) watches: `{column}` or `{columns}`, one or a list. */
+function watchedBy(on: unknown): string[] {
+  const triggers = Array.isArray(on) ? on : [on];
+  return triggers.flatMap((trigger) => {
+    if (typeof trigger !== 'object' || trigger === null) return [];
+    const t = trigger as { column?: unknown; columns?: unknown };
+    return [...(typeof t.column === 'string' ? [t.column] : []), ...(Array.isArray(t.columns) ? t.columns.filter((c): c is string => typeof c === 'string') : [])];
+  });
+}
 
 /**
  * Everything in a table's capacity that names something the manifest does
@@ -426,12 +436,36 @@ function ruleIssues(
       out.push({ path, message: `a hold ends when Adminium says: "${tableRef}.${ref}" needs a stamp` });
     }
   };
+  /**
+   * A hold's end on the row itself is written directly when a buyer's new
+   * hold lets the old one go — no rule runs on that write. So nothing may
+   * watch it: a stamp or a code renewal set off by it, or rows that follow it.
+   */
+  const unwatchedEnd = (tableRef: string | undefined, ref: string, path: (string | number)[]) => {
+    const shape = tableRef === undefined ? undefined : index.table(tableRef);
+    if (tableRef === undefined || shape === undefined) return;
+    const said = (what: string) => out.push({ path, message: `"${tableRef}.${ref}" is a hold's end, which a new hold writes directly as it lets the old one go, so ${what} may not watch it` });
+    for (const other of shape.columns as readonly ColumnWithRules[]) {
+      const stamp = other.rules?.stamp as { on?: unknown } | undefined;
+      if (stamp !== undefined && watchedBy(stamp.on).includes(ref)) said(`the stamp of "${other.ref}"`);
+      if (watchedBy(other.rules?.code?.renew?.on).includes(ref)) said(`the code renewal of "${other.ref}"`);
+    }
+    for (const child of index.tables()) {
+      for (const other of child.columns as readonly ColumnWithRules[]) {
+        const copy = other.rules?.copy;
+        if (copy?.follow !== true || copy.from !== ref) continue;
+        const via = column(child.ref, copy.via);
+        if (via?.references === tableRef) said(`"${child.ref}.${other.ref}", which follows it,`);
+      }
+    }
+  };
   if (rule.hold !== undefined) {
     const hold = rule.hold;
     const level = ownerOf(hold.via, here('hold', 'via'));
     statesCount(hold.states, hold.via, here('hold', 'states'), 'it holds nothing');
     if (typeof hold.column === 'string') {
       holdEnd(level, hold.column, here('hold', 'column'));
+      unwatchedEnd(level, hold.column, here('hold', 'column'));
     } else if (level !== undefined) {
       const moment = hold.column;
       const ends: { column: string; via?: string | undefined; path: (string | number)[] }[] = [

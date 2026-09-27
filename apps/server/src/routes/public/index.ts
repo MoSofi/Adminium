@@ -155,7 +155,8 @@ import { recipientLocale } from '../../i18n/server-i18n.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
 import { publicConfirmSchema, sourceTable } from '../../public-api/endpoint.js';
 import { entryColumnOf, fillOf, personTableOf, signedInValues, type PersonTable } from '../../public-api/person-entry.js';
-import { holdBuyer, holdsOf, replaceHolds } from '../../public-api/hold-replace.js';
+import { heldToReplace, holdBuyer, holdsOf, letGo, replaceHolds } from '../../public-api/hold-replace.js';
+import type { JudgedRow } from '../../crud/capacity/types.js';
 import { withNamedLocks } from '../../crud/capacity/locks.js';
 import { blankWithheld, sessionReader, withholding, withholdRulesOf, type TableWithholds } from '../../public-api/withhold.js';
 import { recentWithholdsOn, withholdsOn } from '../../public-api/withholds-on.js';
@@ -1295,14 +1296,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const openRowsFull = async (
     found: { resource: CompiledResource; db: Kysely<SourceDatabase>; view: SnapshotView; table: ResolvedTable; dialect: Dialect },
     session: PublicSessionContext | null,
+    /** Rows this write lets go (a buyer's old hold): not open any more once it is made. */
+    replaced: readonly Row[] = [],
   ): Promise<boolean> => {
     const max = found.resource.maxOpen;
     const column = found.resource.claim?.column;
     if (max === null || session === null || column === undefined) return false;
+    const key = found.table.primaryKey.length === 1 ? found.table.primaryKey[0] : undefined;
     const conditions: RecordFilter[] = [
       { column, op: 'eq', value: session.grant.value },
       { column: max.column, op: 'in', value: [...max.values] },
       ...(max.upcoming === undefined ? [] : [afterNow(found.table, max.upcoming)]),
+      ...(key === undefined ? [] : replaced.map((row): RecordFilter => ({ column: key, op: 'neq', value: row[key] }))),
     ];
     return (await countOf(found, { and: conditions })) >= max.n;
   };
@@ -2314,15 +2319,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? before.root), children: projectChildren(shown), replayed: true as const });
         }
       }
-      // Counted after the retry key is looked up: a retry of the order that filled the last place answers that order.
-      if ((await openRowsFull(found, ok.session)) === true) {
-        return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
-      }
-      if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
-        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
-        if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
-        release = charge.release;
-      }
 
       /** What the guest may be told of a refused row: where it is, and — for their own value — the column and why. */
       const writableAt = (at: TreePath): ReadonlySet<string> => (at.length === 0 ? resource.writable : new Set(entryAt(at)?.writable ?? []));
@@ -2385,19 +2381,21 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       let madePerson: Row | null = null;
       /*
        * One live hold per buyer: the hold this page replaces (by its own link),
-       * or a signed-in person's other holds, let go in the same write.
+       * or a signed-in person's other holds, let go in the same write. A quote
+       * reads the session and the holds as they are, lets nothing go, and
+       * judges its places as if they were.
        */
-      const holds = dry ? [] : holdsOf(view, table);
+      const holds = holdsOf(view, table);
       const shareLink = resource.shareLink ?? null;
       /** The page's own-link session, when it sent one: moved to the new hold inside the write, and moved back if the write fails. */
-      let pageSession: { id: string; token: string; before: { grants: string; subject: string | null; expiresAt: number }; linkKey: { ref: string; column: string; address?: readonly string[] | undefined } } | null = null;
+      let pageSession: { id: string; token: string; before: { grants: string; subject: string | null; expiresAt: number }; linkKey: { ref: string; column: string; address?: readonly string[] | undefined }; initial: unknown } | null = null;
       if (holds.length > 0 && body.replaces !== undefined && shareLink !== null) {
         const presented = parsePublicSessionToken(body.replaces);
         const stored = presented === null ? null : await sessions.findByTokenHash(hashPublishableKey(presented));
         const linkKey = stored === null ? null : await ownLinkKeyOf(ok, view, table, shareLink);
         // Only a live session of the app's own-link key, opened on a row: anything else lets nothing go, and says nothing.
         if (stored !== null && linkKey !== null && stored.keyId === linkKey.keyId && stored.kind === 'token' && stored.endedAt === null && Number(stored.expiresAt) > begun.getTime()) {
-          pageSession = { id: stored.id, token: presented!, before: { grants: stored.grants, subject: stored.subject, expiresAt: Number(stored.expiresAt) }, linkKey };
+          pageSession = { id: stored.id, token: presented!, before: { grants: stored.grants, subject: stored.subject, expiresAt: Number(stored.expiresAt) }, linkKey, initial: parseGrant(stored.grants)?.value ?? null };
         }
       }
       const page = pageSession;
@@ -2405,24 +2403,39 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         page === null
           ? undefined
           : {
+              initial: page.initial,
               rowKey: async (): Promise<unknown> => {
                 const now = await sessions.findById(page.id);
                 return now === null ? null : (parseGrant(now.grants)?.value ?? null);
               },
             };
-      /** The session moved to the new hold (inside its write); moved back when the write does not go through. */
-      let carried: { token: string; expiresAt: number } | null = null;
+      /** The session moved to the new hold (inside its write); moved back when the write does not go through — and only then if it still points there. */
+      let carried: { token: string; expiresAt: number; subject: string } | null = null;
       const carry =
-        page === null
+        page === null || dry
           ? undefined
           : async (_trx: Kysely<SourceDatabase>, made: Row): Promise<void> => {
               const expiresAt = Date.now() + CLAIM_SESSION_TTL_MS;
-              if (await sessions.rebind(page.id, { ...ownLinkSession(page.linkKey, ok, table, made, shareLink!.column), expiresAt })) carried = { token: page.token, expiresAt };
+              const moved = ownLinkSession(page.linkKey, ok, table, made, shareLink!.column);
+              if (await sessions.rebind(page.id, { ...moved, expiresAt })) carried = { token: page.token, expiresAt, subject: moved.subject };
             };
       const buyer =
         holds.length === 0 || ok.session === null || ok.session.level !== 'verified' || resource.claim?.column === undefined || resource.claim.ref !== ok.session.grant.ref
           ? undefined
           : { column: resource.claim.column, value: ok.session.grant.value };
+      /** What this write would let go, read as it is: left out of the buyer's open rows, and judged let go by a quote. */
+      const replaced = replacing === undefined && buyer === undefined ? [] : await heldToReplace({ db: found.db, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: page === null ? undefined : { key: await replacing!.rowKey() } });
+
+      // Counted after the retry key is looked up: a retry of the order that filled the last place answers that order.
+      // The holds this write lets go are not the buyer's any more: a buyer limited to one open hold may replace it.
+      if ((await openRowsFull(found, ok.session, replaced)) === true) {
+        return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
+      }
+      if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
+        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
+        if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
+        release = charge.release;
+      }
       /** The person found or made by the address typed (never for a quote, never for a guest signed in), then the buyer's other holds let go. */
       const finds = !dry && finder !== null && people !== null && !signedInPerson;
       const identity =
@@ -2450,8 +2463,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const ownRows =
         replacing === undefined && buyer === undefined
           ? undefined
-          : async (trx: Kysely<SourceDatabase>): Promise<void> => {
-              await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing });
+          : async (trx: Kysely<SourceDatabase>, as: 'save' | 'dry'): Promise<JudgedRow[]> => {
+              if (as === 'save') {
+                await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing });
+                return [];
+              }
+              // A quote: the same holds, as they are now, judged as let go — nothing written, nothing held.
+              const key = table.primaryKey[0]!;
+              const now = await heldToReplace({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: page === null ? undefined : { key: await replacing!.rowKey() } });
+              return now.map((row) => ({ target: { ...target(table), db: trx }, pk: { [key]: row[key] }, row: letGo(holds, row, begun), before: row }));
             };
       let rootRow: Row | null = null;
       let outcome: TreeOutcome;
@@ -2513,8 +2533,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         }
       } catch (error) {
-        // The page's session goes back to the hold it came from: that one was not let go after all.
-        if (carried !== null && page !== null) await sessions.rebind(page.id, page.before);
+        // The page's session goes back to the hold it came from: that one was not let go after all — unless
+        // another write with the same session has moved it on since (then it is that write's to keep).
+        const took = carried as { subject: string } | null;
+        if (took !== null && page !== null) await sessions.rebindFrom(page.id, took.subject, page.before);
         if (guessing) spendMiss(request, ok, error);
         // A guest's own value refused: nothing ran that a bad value could have bought, so the charge is handed back.
         const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']) && error.params['reason'] !== 'used-up';

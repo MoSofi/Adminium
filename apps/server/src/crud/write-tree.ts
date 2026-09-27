@@ -40,7 +40,7 @@ import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
 import type { NamedLock } from './capacity/locks.js';
-import type { PoolState } from './capacity/types.js';
+import type { JudgedRow, PoolState } from './capacity/types.js';
 import type { Row } from './mask.js';
 import type { WriteContext, WriteTarget } from './write-context.js';
 
@@ -118,9 +118,11 @@ export interface CreateTreeInput {
   /**
    * Rows of the write's own tables it changes besides its tree (a buyer's
    * old hold let go), held once every row outside the tree is — the own rows'
-   * place in the one lock order — and before the tree's rows go in (a save only).
+   * place in the one lock order — and before the tree's rows go in. A quote
+   * changes and holds nothing: it answers the rows as the save would leave
+   * them, and the limits judge them so (listed beside the tree's rows).
    */
-  ownRows?: ((db: Db) => Promise<void>) | undefined;
+  ownRows?: ((db: Db, mode: 'save' | 'dry') => Promise<readonly JudgedRow[]>) | undefined;
   /** One written row, announced after the commit — as a single create's `announce`. Never called for a quote. */
   announce: (row: TreeWritten) => Promise<void>;
   /** A refusal, with the row it is about. */
