@@ -61,7 +61,8 @@ export const widgetSharedConfigSchema = z.object({
        * "3h ago"-style times use it as `now` when set, else the wall clock —
        * pinning it makes demo/VRT captures byte-deterministic.
        */
-      referenceTime: z.number().int().optional(),
+      // Within the instants a Date can hold (±8.64e15 ms): past them every relative time is "Invalid time value".
+      referenceTime: z.number().int().min(-8.64e15).max(8.64e15).optional(),
     })
     .optional(),
   testId: z.string().optional(),

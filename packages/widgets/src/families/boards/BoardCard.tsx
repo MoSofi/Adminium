@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Avatar, EmptyState, MonoText, ProgressBar, Tag } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { GripVertical } from 'lucide-react';
 
 import { boardCardConfigSchema, boardCardDemoData } from './boards-config.js';
@@ -176,7 +176,7 @@ export function BoardCardWidget({ config, data, onEvent }: WidgetProps<BoardCard
       card={card}
       showGrip={false}
       columnTone={boardToneOf(config.columnTone, 'accent')}
-      {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
+      {...(config.format?.locale === undefined || config.format.locale.trim() === '' ? {} : { locale: config.format.locale })}
       {...(config.gripLabel === undefined ? {} : { gripLabel: config.gripLabel })}
       {...(config.pointsUnit === undefined ? {} : { pointsUnit: config.pointsUnit })}
     />
