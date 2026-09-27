@@ -389,4 +389,33 @@ describe('a move that moves a linked row', () => {
     };
     expect(issuesText(m)).toContain('"rooms" is the app\'s outbox, whose messages move only by the outbox\'s own moves');
   });
+  it('refuses a row whose move could not be made inside the write: one booked by the day, or a line of another table', () => {
+    let m = venue();
+    tableOf(m, 'rooms')['booking'] = {
+      start: 'status',
+      minutes: 'status',
+      resource: 'status',
+      kind: 'status',
+      countWhere: { column: 'status', values: ['occupied'] },
+      eligible: { table: 'rooms', resource: 'id', kind: 'id' },
+      hours: { practice: { table: 'rooms', weekday: 'status', opens: 'status', closes: 'status' } },
+      grid: 15,
+    };
+    expect(issuesText(m)).toContain('"rooms" books people by the day, and its lock cannot be taken inside another row\'s write');
+    m = venue();
+    (m['requiredSchema'] as { tables: Doc[] }).tables.push({
+      ref: 'floors',
+      columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'status', type: 'enum', enum: ['open', 'shut'], default: 'open' }],
+      states: { column: 'status', initial: 'open', moves: { open: ['shut'] }, children: { rooms: { via: 'floor_id', lock: true } } },
+    });
+    (tableOf(m, 'rooms')['columns'] as Doc[]).push({ ref: 'floor_id', type: 'fk', references: 'floors', nullable: true });
+    expect(issuesText(m)).toContain('"rooms" rows are lines of "floors", which would be held after this write\'s own rows');
+  });
+
+  it('takes a row that keeps a limit, owns rows a limit counts, or feeds a total: its move is judged in the write', () => {
+    const m = venue();
+    (tableOf(m, 'rooms')['columns'] as Doc[]).push({ ref: 'nights', type: 'int', nullable: true, rules: { rollup: { from: 'stays', via: 'room_id', count: true, where: { column: 'status', eq: 'in_house' } } } });
+    expect(issuesText(m)).not.toContain('an effect cannot');
+    expect(issuesText(m)).not.toContain('inside another row');
+  });
 });

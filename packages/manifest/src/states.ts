@@ -326,6 +326,10 @@ interface StatesContext<C extends ColumnShape> {
   bookingCancel?: { column: string; to: string } | undefined;
   /** Another table's states, which an effect moves. */
   statesOf?: ((table: string) => States | undefined) | undefined;
+  /** Whether another table keeps a booking guard (`table.booking`), whose lock an effect's write cannot take. */
+  bookedOf?: ((table: string) => boolean) | undefined;
+  /** The table whose states another table's rows are tied to as its lines (`states.children`), or undefined. */
+  lineOf?: ((table: string) => string | undefined) | undefined;
   /** The app's outbox table, whose rows move only by the outbox's own moves. */
   outboxTable?: string | undefined;
 }
@@ -654,6 +658,10 @@ function conditionedMoveIssues<C extends ColumnShape>(
       if (lateThrough) out.push({ path: here('set', column), message: `a move of "${target}" to "${state}" is judged late by another row's time, so an effect cannot make it` });
     }
     if (target === ctx.outboxTable) out.push({ path: here('via'), message: `"${target}" is the app's outbox, whose messages move only by the outbox's own moves` });
+    // Moved inside this write, after its own rows are held: a lock taken per day, or a parent held first, would come too late.
+    if (ctx.bookedOf?.(target) === true) out.push({ path: here('via'), message: `"${target}" books people by the day, and its lock cannot be taken inside another row's write` });
+    const parent = ctx.lineOf?.(target);
+    if (parent !== undefined) out.push({ path: here('via'), message: `"${target}" rows are lines of "${parent}", which would be held after this write's own rows` });
     if ((theirs.effects?.length ?? 0) > 0) out.push({ path: here('via'), message: `"${target}" sets off effects of its own; an effect moves one row, never a chain` });
   });
   return out;
