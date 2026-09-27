@@ -433,6 +433,8 @@ const wallTime = z.union([
       edge: z.enum(['opens', 'closes']),
     })
     .strict(),
+  // A time of day kept on the row the moment's column is read from.
+  z.object({ column: ruleColumn }).strict(),
 ]);
 const momentFields = {
   column: ruleColumn,
@@ -488,7 +490,19 @@ const statesTiming = {
     .max(8)
     .optional(),
   effects: z
-    .array(z.object({ on: z.object({ to: stateName }).strict(), via: ruleColumn, set: z.record(ruleColumn, stateName) }).strict())
+    .array(
+      z.union([
+        z.object({ on: z.object({ to: stateName }).strict(), via: ruleColumn, set: z.record(ruleColumn, stateName) }).strict(),
+        // A changed link: the row it pointed at moves by `old`, the row it points at now by `new`.
+        z
+          .object({
+            on: z.object({ change: ruleColumn, in: z.array(stateName).min(1).max(16).optional() }).strict(),
+            old: z.object({ set: z.record(ruleColumn, stateName) }).strict().optional(),
+            new: z.object({ set: z.record(ruleColumn, stateName) }).strict().optional(),
+          })
+          .strict(),
+      ]),
+    )
     .min(1)
     .max(4)
     .optional(),
@@ -504,7 +518,7 @@ const statesTiming = {
 };
 /** Stamps of a moment: now plus minutes or hours, a deadline, a moment of the row or a linked row. */
 const momentStamps = [
-  z.object({ addMinutes: z.object({ minutes: momentAmount.optional(), hours: momentAmount.optional() }).strict() }).strict(),
+  z.object({ addMinutes: z.object({ minutes: momentAmount.optional(), hours: momentAmount.optional(), notAfter: storedMoment.optional() }).strict() }).strict(),
   z.object({ deadline: z.object({ days: momentAmount, time: clockTime, notAfter: storedMoment.optional() }).strict() }).strict(),
   z.object({ moment: storedMoment }).strict(),
 ] as const;
@@ -629,6 +643,8 @@ const storedCapacityRule = z.discriminatedUnion('kind', [
         .strict()
         .optional(),
       hold: capacityHold.optional(),
+      /** The states of a stay that has begun: a change of it is judged from the venue's today on. */
+      arrived: z.object({ states: z.array(stateName).min(1).max(8), via: ruleColumn.optional() }).strict().optional(),
     })
     .strict(),
 ]);
@@ -1090,6 +1106,9 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
             via: ruleColumn,
             lock: z.literal(true).optional(),
             parentIn: z.array(stateName).min(1).max(16).optional(),
+            /** Apart from `parentIn`: the states a new child is added in, and those a child is changed or deleted in. */
+            createIn: z.array(stateName).min(1).max(16).optional(),
+            changeIn: z.array(stateName).min(1).max(16).optional(),
             clearOnCreate: z.array(ruleColumn).min(1).max(8).optional(),
             release: z.object({ when: z.array(stateName).min(1).max(16), columns: z.array(ruleColumn).min(1).max(8) }).optional(),
             lockLinked: z.record(ruleColumn, z.array(ruleColumn).min(1).max(16)).optional(),

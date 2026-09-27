@@ -62,7 +62,7 @@
  */
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
-import type { Moment } from '@adminium/manifest';
+import { isChangeEffect, type Moment, type MoveEffect } from '@adminium/manifest';
 
 import type { StateLink, StateMoveRule, StateParent, TableStatesRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -441,6 +441,7 @@ async function judgeParents(
       const key = side?.[parent.via];
       if (key !== null && key !== undefined) keys.set(String(key), key);
     }
+    const was = sides.was?.[parent.via];
     for (const key of keys.values()) {
       const found = await heldParent(db, dialect, parent, key);
       // A parent that is not there is the foreign key's to refuse.
@@ -455,12 +456,17 @@ async function judgeParents(
           state: found.state,
         });
       }
-      if (parent.parentIn !== undefined && (found.state === null || !parent.parentIn.includes(found.state))) {
-        throw new RecordLocked(`${table.name} rows can change only while their ${parent.name} is ${parent.parentIn.join(' or ')}.`, {
+      // A parent the row comes to (a new row, or one moved under it) takes it in its `createIn` states; the parent it
+      // stays with or leaves (a change, a delete) in its `changeIn` states. `parentIn` is both.
+      const joins = was === null || was === undefined || String(was) !== String(key);
+      const within = joins ? (parent.createIn ?? parent.parentIn) : (parent.changeIn ?? parent.parentIn);
+      if (within !== undefined && (found.state === null || !within.includes(found.state))) {
+        throw new RecordLocked(`${table.name} rows can ${joins ? 'be added' : 'change'} only while their ${parent.name} is ${within.join(' or ')}.`, {
           table: table.name,
           parent: parent.name,
           state: found.state,
-          parentIn: parent.parentIn,
+          parentIn: within,
+          on: joins ? 'create' : 'change',
         });
       }
     }
@@ -739,7 +745,15 @@ function updateReads(table: ResolvedTable, values: Row, windows: readonly StateW
     if (!guard.history) {
       // A late moment is the stored row's: read through the link as stored.
       for (const rule of (states.late ?? []).filter((late) => late.to === to)) for (const via of momentVias(rule.moment)) out.push({ via, forUpdate: false, stored: true });
-      for (const effect of (states.effects ?? []).filter((e) => e.on.to === to)) out.push({ via: effect.via, forUpdate: true, stored: false });
+      for (const effect of (states.effects ?? []).filter((e): e is MoveEffect => !isChangeEffect(e) && e.on.to === to)) out.push({ via: effect.via, forUpdate: true, stored: false });
+    }
+  }
+  // A link the write changes: the row it pointed at (as stored) and the row it will point at, each moved by its side of the effect.
+  if (guard !== undefined && states !== undefined && !guard.history) {
+    for (const effect of (states.effects ?? []).filter(isChangeEffect)) {
+      if (!Object.prototype.hasOwnProperty.call(values, effect.on.change)) continue;
+      if (effect.old !== undefined) out.push({ via: effect.on.change, forUpdate: true, stored: true });
+      if (effect.new !== undefined) out.push({ via: effect.on.change, forUpdate: true, stored: false });
     }
   }
   for (const window of windows) if (window.link !== undefined) out.push({ via: window.link.via, forUpdate: false, stored: false });
@@ -865,6 +879,8 @@ export async function guardedUpdate(
     const judging: Judging = { held, settings: momentSettings(tx), links: windows.flatMap((w) => (w.link === undefined ? [] : [w.link])) };
     const peeked = new Map(peek.map((row) => [keyOf(table, row), row]));
     const moved: { stored: Row; to: string }[] = [];
+    /** Rows whose links an effect watches really changed: the effects move the rows on both sides once the rows are written. */
+    const relinked: Row[] = [];
     for (const stored of await heldRows(tx, hold, table.id, match, true)) {
       // The link each linked row was named by must still be the row's.
       if (reads.length > 0) {
@@ -905,6 +921,9 @@ export async function guardedUpdate(
         if (tied && states !== undefined && changed.includes(states.column) && !guard.history) {
           moved.push({ stored, to: text(values[states.column])! });
         }
+        if (tied && states !== undefined && !guard.history && (states.effects ?? []).some((effect) => isChangeEffect(effect) && changed.includes(effect.on.change))) {
+          relinked.push(stored);
+        }
       } catch (refusal) {
         if (visible !== undefined && !(await visible(tx))) return 0;
         throw refusal;
@@ -912,8 +931,63 @@ export async function guardedUpdate(
     }
     const count = await run(tx);
     if (count > 0 && tied) await runEffects(tx, table, values, moved, guard, held);
+    if (count > 0 && tied) await runLinkEffects(tx, table, values, relinked, guard, held);
     return count;
   });
+}
+
+/**
+ * The rows a changed link moves (`states.effects` with `on.change`): for each
+ * row whose link really changed while it was — and stays — in one of the
+ * effect's states, the row the link pointed at moves by `old`, and the row it
+ * now points at by `new`, each held for update before this write's own rows
+ * and moved by its table's declared move. The old row already there is left
+ * as it is; the new row already there refuses the write (a room someone is in
+ * is no room to move into). An emptied link moves only the old side, a first
+ * one only the new.
+ */
+async function runLinkEffects(db: Db, table: ResolvedTable, values: Row, relinked: readonly Row[], guard: StateGuard, held: HeldLinks): Promise<void> {
+  const states = table.table?.states;
+  const effects = (states?.effects ?? []).filter(isChangeEffect);
+  if (states === undefined || effects.length === 0) return;
+  for (const stored of relinked) {
+    const next = { ...stored, ...values };
+    const was = text(stored[states.column]) ?? states.initial;
+    const now = text(next[states.column]) ?? states.initial;
+    for (const effect of effects) {
+      const via = effect.on.change;
+      if (!Object.prototype.hasOwnProperty.call(values, via) || sameValue(stored[via], next[via])) continue;
+      if (effect.on.in !== undefined && !(effect.on.in.includes(was) && effect.on.in.includes(now))) continue;
+      const link = stateLinkOf(table, via);
+      if (link === undefined) {
+        throw new RecordLocked(`${table.name}.${via} no longer links another table, so the move it sets off cannot be made.`, { column: via, unresolved: true });
+      }
+      const sides = [
+        { side: 'old' as const, row: stored, set: effect.old?.set },
+        { side: 'new' as const, row: next, set: effect.new?.set },
+      ];
+      for (const { side, row, set } of sides) {
+        if (set === undefined) continue;
+        const target = held.of(link, row);
+        if (target === null) continue;
+        const [column, state] = Object.entries(set)[0]!;
+        if (sameValue(target[column], state)) {
+          if (side === 'old') continue;
+          throw new StateMoveRefused(`The row ${table.name}.${via} now points at is ${state} already, so it cannot be moved to ${state}.`, {
+            column: via,
+            from: state,
+            to: state,
+            effect: side,
+          });
+        }
+        if (guard.effect === undefined) {
+          throw new RecordLocked(`A change of ${table.name}.${via} moves another row too, and this write cannot make that move.`, { column: via });
+        }
+        const written = await guard.effect(db, link, row[via], column, state, guard);
+        if (written !== null) (guard.effected ??= []).push(written);
+      }
+    }
+  }
 }
 
 /** A timed move whose row was re-dated since it was found due: left for the next look, never refused. */
@@ -934,7 +1008,7 @@ function keyOf(table: ResolvedTable, row: Row): string {
  * nothing; a row already in the state is left as it is.
  */
 async function runEffects(db: Db, table: ResolvedTable, values: Row, moved: readonly { stored: Row; to: string }[], guard: StateGuard, held: HeldLinks): Promise<void> {
-  const effects = table.table?.states?.effects ?? [];
+  const effects = (table.table?.states?.effects ?? []).filter((e): e is MoveEffect => !isChangeEffect(e));
   if (effects.length === 0) return;
   for (const { stored, to } of moved) {
     const next = { ...stored, ...values };

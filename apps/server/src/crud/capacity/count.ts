@@ -153,6 +153,13 @@ export function inHold(rule: Rule, row: Row, owner: Row | null): boolean {
   return typeof state === 'string' && rule.hold.states.includes(state);
 }
 
+/** Whether a stay has begun: its guest arrived (a night rule's `arrived` states). */
+export function hasArrived(rule: Rule, row: Row, owner: Row | null): boolean {
+  if (rule.kind !== 'night' || rule.arrived === null) return false;
+  const state = stateAt(rule, rule.arrived.level, row, owner);
+  return typeof state === 'string' && rule.arrived.states.includes(state);
+}
+
 /** Whether the row is a place kept back from the public. */
 export function isKept(rule: Rule, row: Row, owner: Row | null): boolean {
   if (rule.kept === null) return false;

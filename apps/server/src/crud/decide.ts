@@ -195,9 +195,13 @@ async function momentStamps(stamps: readonly ColumnStamp[], action: WriteAction,
   for (const stamp of firing) {
     const set = stamp.set as Exclude<ColumnStamp['set'], string>;
     if ('addMinutes' in set) {
-      const moments = await momentsFor(row, [], context, settings);
+      const moments = await momentsFor(row, momentVias(set.addMinutes.notAfter), context, settings);
       const shift = set.addMinutes.minutes !== undefined ? { minutes: set.addMinutes.minutes } : { hours: set.addMinutes.hours! };
-      out.set(stamp.column, spell(stamp, await shifted(context.now, shift, 1, moments)));
+      const first = await shifted(context.now, shift, 1, moments);
+      // Never later than its cap, judged as a deadline's: a cap that cannot be found caps nothing.
+      const cap = set.addMinutes.notAfter === undefined ? null : await momentOf(set.addMinutes.notAfter, moments);
+      const at = first === null ? cap : cap === null ? first : new Date(Math.min(first.getTime(), cap.getTime()));
+      out.set(stamp.column, spell(stamp, at));
     } else if ('deadline' in set) {
       const deadline = set.deadline;
       const moments = await momentsFor(row, momentVias(deadline.notAfter), context, settings);

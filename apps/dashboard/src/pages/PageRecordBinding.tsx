@@ -230,7 +230,7 @@ export function PageRecordBinding({
       const child = facts?.get(table);
       if (self === null || child === undefined || row === null) return true;
       const tie = child.stateParents.find((parent) => parent.table === self.id);
-      return tie === undefined || childWritable(tie, stateOf(self, row));
+      return tie === undefined || childWritable(tie, stateOf(self, row), 'create');
     }
   }, [bootstrap, connectionId, queryClient, sourceTable]);
 

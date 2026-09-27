@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { dayColumns, formulaColumns, formulaExprSchema, isJoinColumn, momentColumns, type States } from '@adminium/manifest';
+import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, type States } from '@adminium/manifest';
 
 import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
 
@@ -751,6 +751,9 @@ function momentIssue(moment: Value, table: TableModel, model: DatabaseModel): st
       for (const part of [hours['weekday'], hours['open'], hours['opens'], hours['closes']]) {
         if (part !== undefined && !source.columns.some((c) => c.name === String(part))) return `${source.name} has no column ${JSON.stringify(part)}.`;
       }
+    } else if ((time as Value)['table'] === undefined) {
+      // A time of day kept on the row the moment's column is read from.
+      if (!owner.columns.some((c) => c.name === String((time as Value)['column']))) return `${owner.name} has no column ${JSON.stringify((time as Value)['column'])}.`;
     } else {
       const issue = settingIssue(time as Value, model);
       if (issue !== null) return issue;
@@ -774,7 +777,14 @@ function momentIssue(moment: Value, table: TableModel, model: DatabaseModel): st
 /** Why a stamped moment (now plus minutes, a deadline, a moment of the row) cannot be worked out here, or `null`. */
 function momentStampIssue(set: Value, table: TableModel, model: DatabaseModel): string | null {
   const amounts: unknown[] = [];
-  if ('addMinutes' in set) amounts.push(...Object.values(set['addMinutes'] as Value));
+  if ('addMinutes' in set) {
+    const add = set['addMinutes'] as Value;
+    amounts.push(add['minutes'], add['hours']);
+    if (add['notAfter'] !== undefined) {
+      const issue = momentIssue(add['notAfter'] as Value, table, model);
+      if (issue !== null) return issue;
+    }
+  }
   if ('deadline' in set) {
     const deadline = set['deadline'] as Value;
     amounts.push(deadline['days'], deadline['time']);
@@ -860,7 +870,9 @@ function conditionedStatesIssue(states: States, table: TableModel, model: Databa
     }
   }
   for (const effect of states.effects ?? []) {
-    const issue = through(effect.via, Object.keys(effect.set));
+    const issue = isChangeEffect(effect)
+      ? through(effect.on.change, [...Object.keys(effect.old?.set ?? {}), ...Object.keys(effect.new?.set ?? {})])
+      : through(effect.via, Object.keys(effect.set));
     if (issue !== null) return issue;
   }
   return null;

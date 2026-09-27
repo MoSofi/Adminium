@@ -120,6 +120,8 @@ export interface NightRule extends Common {
   viaColumn: string;
   /** The room given, whose own type the row counts against when set. */
   given: { via: Link | null; column: string } | null;
+  /** The states of a stay that has begun: a change of it is judged from the venue's today on. */
+  arrived: Kept | null;
   pool:
     | { kind: 'count'; table: string; column: string }
     | { kind: 'size'; size: Size };
@@ -177,7 +179,10 @@ function compile(view: SnapshotView, table: ResolvedTable, rule: EffectiveCapaci
     if (typeof rule.day === 'object' && rule.day.via !== undefined) ownerVias.add(rule.day.via);
     if (rule.reserved?.via !== undefined) ownerVias.add(rule.reserved.via);
   }
-  if (rule.kind === 'night') for (const date of [rule.from, rule.to]) if (typeof date === 'object') ownerVias.add(date.via);
+  if (rule.kind === 'night') {
+    for (const date of [rule.from, rule.to]) if (typeof date === 'object') ownerVias.add(date.via);
+    if (rule.arrived?.via !== undefined) ownerVias.add(rule.arrived.via);
+  }
   const ownerColumn = [...ownerVias][0] ?? null;
   const owner = ownerColumn === null ? null : linkOf(view, table, ownerColumn);
   const levelOf = (via: string | undefined): Level => (via === undefined ? 'own' : 'owner');
@@ -240,6 +245,7 @@ function compile(view: SnapshotView, table: ResolvedTable, rule: EffectiveCapaci
       via,
       viaColumn: pool.via,
       given,
+      arrived: rule.arrived === undefined ? null : { level: levelOf(rule.arrived.via), states: [...rule.arrived.states] },
       pool: 'count' in pool ? { kind: 'count', table: pool.count.table, column: pool.count.column } : { kind: 'size', size: pool.size === 1 ? { kind: 'number', value: 1 } : sizeOf(pool.size, via, view) },
       outOfService:
         oos === undefined

@@ -257,7 +257,8 @@ export const dateColumn = (rule: NightRule, which: 'from' | 'to'): string => {
 };
 
 /** Whether a stay's dates are a stay the venue sells. */
-export async function placeNight(rule: NightRule, row: Row, owner: Row | null, ctx: PlaceContext): Promise<Placement | null> {
+/** `begun`: the guest has arrived, so the stay's first night is behind the venue's today and is no placement in the past. */
+export async function placeNight(rule: NightRule, row: Row, owner: Row | null, ctx: PlaceContext, begun = false): Promise<Placement | null> {
   const { from, to } = staysOf(rule, row, owner);
   const toColumn = dateColumn(rule, 'to');
   if (from === null || to === null || from >= to) return { column: toColumn, code: 'out-of-range' };
@@ -271,7 +272,7 @@ export async function placeNight(rule: NightRule, row: Row, owner: Row | null, c
       return { column: toColumn, code: 'out-of-range' };
     }
   }
-  if (ctx.public) {
+  if (ctx.public && !begun) {
     const today = venueClock(ctx.now, ctx.zone).day;
     const ahead = await ctx.reads.number(limits?.aheadDays);
     if (from < today || (ahead !== null && daysBetween(today, from) > ahead)) return { column: dateColumn(rule, 'from'), code: 'out-of-range' };

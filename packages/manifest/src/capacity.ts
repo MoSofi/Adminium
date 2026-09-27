@@ -204,6 +204,14 @@ const nightRuleSchema = z
       .strict()
       .optional(),
     hold: holdSchema.optional(),
+    /**
+     * The states of a stay whose guest has arrived (its own, or its owner's
+     * with `via`): a change of such a stay — another room, another type, other
+     * dates — is judged from the venue's today on. The nights already slept
+     * are never judged again (a room closed last night takes nothing from a
+     * guest moved today).
+     */
+    arrived: reservedSchema.optional(),
   })
   .strict();
 
@@ -595,6 +603,10 @@ function ruleIssues(
     } else {
       if (typeof pool.size === 'object' && target !== undefined) want(target, pool.size.column, NUMERIC_TYPES, here('pool', 'size', 'column'), 'a number');
       if (pool.outOfService !== undefined) outOfService(pool.outOfService, target, here('pool', 'outOfService'));
+    }
+    if (rule.arrived !== undefined) {
+      ownerOf(rule.arrived.via, here('arrived', 'via'));
+      statesCount(rule.arrived.states, rule.arrived.via, here('arrived', 'states'), 'no stay counted in it has begun');
     }
     if (rule.nights !== undefined) {
       number(rule.nights.min, here('nights', 'min'));

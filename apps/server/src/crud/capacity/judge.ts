@@ -61,6 +61,7 @@ import {
   countsNow,
   envelopeDay,
   has,
+  hasArrived,
   inHold,
   nightKey,
   poolRow,
@@ -364,6 +365,8 @@ interface Judged {
   ownerAfter: Row | null;
   ownerBefore: Row | null;
   units: Unit[];
+  /** A stay whose guest has arrived, and stays so: judged from the venue's today on. */
+  begun?: boolean;
 }
 
 const poolId = (rule: Rule, ask: PoolAsk) => `${rule.table.id}\u0000${String(rule.index)}\u0000${ask.part}\u0000${ask.key}\u0000${ask.at ?? ''}`;
@@ -583,7 +586,11 @@ export async function judgeCapacity(db: Db, rows: readonly JudgedRow[], opts: Ca
       }
       const { need, grew, counts } = await needOf(rule, subject.row, subject.before, ownerAfter, ownerBefore, ctx, false, subject.sent, ctxBefore);
       if (need !== 'none') requireHeld(await namesOf(rule, subject.target, subject.row, zone, reads, false));
-      judged.push({ subject, rule, need, grew, counts, ownerAfter, ownerBefore, units: need === 'none' ? [] : await unitsOf(rule, subject.row, ownerAfter, ctx) });
+      // A stay whose guest arrived before this write and is still there after it: the nights already slept are not judged again.
+      const begun = subject.reach === undefined && subject.before !== null && hasArrived(rule, subject.before, ownerBefore) && hasArrived(rule, subject.row, ownerAfter);
+      const today = venueClock(now, zone).day;
+      const units = need === 'none' ? [] : (await unitsOf(rule, subject.row, ownerAfter, ctx)).filter((unit) => !begun || unit.at === undefined || unit.at >= today);
+      judged.push({ subject, rule, need, grew, counts, ownerAfter, ownerBefore, units, begun });
     }
   }
 
@@ -596,7 +603,7 @@ export async function judgeCapacity(db: Db, rows: readonly JudgedRow[], opts: Ca
     if (j.need === 'full') {
       if (j.rule.kind === 'slot') placement = await placeSlot(j.rule, j.subject.row, place);
       else if (j.rule.kind === 'parent') placement = await placeParent(j.rule, j.subject.row, place);
-      else placement = await placeNight(j.rule, j.subject.row, j.ownerAfter, place);
+      else placement = await placeNight(j.rule, j.subject.row, j.ownerAfter, place, j.begun === true);
     }
     // A slot row that counts holds a slot: a released rule always refused one without (a restored row too).
     if (placement === null && own && j.rule.kind === 'slot' && (j.need !== 'none' || j.rule.legacy) && readInstant(j.subject.row[j.rule.rule.slot]) === null) {
