@@ -788,7 +788,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (entry.visibleWith !== undefined) {
       const v = entry.visibleWith;
       if (entry.claimedBy !== undefined) out.push({ path: at('visibleWith'), message: 'an entry is claimed or visible with a parent, not both' });
-      const parents = entries.filter((other) => other !== entry && other.table === v.table && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'));
+      const parents = entries.filter((other) => other !== entry && other.table === v.table && (other.key ?? CUSTOMER_KEY) === key && readsRows(other));
       if (parents.length === 0) {
         out.push({ path: at('visibleWith', 'table'), message: `no entry reads "${v.table}" on the "${key}" key` });
       } else if (parents.length > 1) {
@@ -1149,6 +1149,14 @@ function pictureIssues(
 }
 
 /**
+ * Whether an entry reads a table's rows: a GET that is not an availability
+ * answer (free or full per slot, never a row), so it can be a child's parent.
+ */
+function readsRows(entry: PublicAccess): boolean {
+  return entry.methods.includes('GET') && entry.kind !== 'availability';
+}
+
+/**
  * The identity entry an entry's person is claimed through: its own claim,
  * its key's identity for a claimed entry, or — for one visible with a parent —
  * whatever its parent leads to. `undefined` when the chain ends nowhere.
@@ -1165,7 +1173,7 @@ function rootIdentity(
   if (entry.claimedBy !== undefined) return identities.get(key)?.entry;
   if (entry.visibleWith === undefined || seen.has(index)) return undefined;
   const parent = entries.findIndex(
-    (other, i) => i !== index && other.table === entry.visibleWith!.table && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'),
+    (other, i) => i !== index && other.table === entry.visibleWith!.table && (other.key ?? CUSTOMER_KEY) === key && readsRows(other),
   );
   return parent === -1 ? undefined : rootIdentity(entries, parent, identities, new Set([...seen, index]));
 }
@@ -1177,7 +1185,7 @@ function hops(entries: readonly PublicAccess[], index: number, seen: ReadonlySet
   if (seen.has(index)) return Number.POSITIVE_INFINITY;
   const key = entry.key ?? CUSTOMER_KEY;
   const parent = entries.findIndex(
-    (other, i) => i !== index && other.table === entry.visibleWith!.table && (other.key ?? CUSTOMER_KEY) === key && other.methods.includes('GET'),
+    (other, i) => i !== index && other.table === entry.visibleWith!.table && (other.key ?? CUSTOMER_KEY) === key && readsRows(other),
   );
   return parent === -1 ? 1 : 1 + hops(entries, parent, new Set([...seen, index]));
 }

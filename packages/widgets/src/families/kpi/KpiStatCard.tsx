@@ -95,12 +95,20 @@ export function KpiStatCard({ config, data, onEvent }: WidgetProps<KpiStatCardCo
   const label = config.metricLabel;
   const Icon = ICONS[config.iconName];
   const spark = config.showSparkline ? metric.spark : undefined;
+  // At the default 3×1.5 the body has 74px under the frame header: enough for
+  // tile + value (76.5px, 1.5px into the padding), not for the label as well
+  // (95px — the value ran off the card and its descenders clipped). A labelled
+  // card takes the 28px tile and a 4px gap; unlabelled cards stay as they were.
+  const labelled = label !== undefined;
 
   return (
     <CardLink href={config.href} name={[config.title ?? label, value].filter(Boolean).join(': ')} onEvent={onEvent}>
-      <div className="flex h-full flex-col justify-between gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="kpi-stat-card">
+      <div
+        className={`flex h-full flex-col justify-between ${labelled ? 'gap-1' : 'gap-2'} px-[var(--widget-pad)] pb-[var(--widget-pad)]`}
+        data-widget="kpi-stat-card"
+      >
         <div className="flex items-start justify-between gap-2">
-          <IconTile tone={config.iconTone} size="md" icon={<Icon />} />
+          <IconTile tone={config.iconTone} size={labelled ? 'sm' : 'md'} icon={<Icon />} />
           {delta !== null && (
             <DeltaPill trend={delta.trend} invertGood={config.invertDeltaGood}>
               {delta.text}
@@ -109,7 +117,7 @@ export function KpiStatCard({ config, data, onEvent }: WidgetProps<KpiStatCardCo
         </div>
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
-            {label !== undefined && (
+            {labelled && (
               <p className="truncate text-body-sm text-fg-muted">{label}</p>
             )}
             <MonoText className="block text-[26px] font-bold leading-tight text-fg compact:text-[22px]">

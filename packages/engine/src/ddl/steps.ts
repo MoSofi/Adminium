@@ -326,6 +326,8 @@ export function classifyStep(
     isLastPosition?: boolean;
     /** `add-column` only: every row already there is given a value (`fillsNowWhenAdded`). */
     fillsRows?: boolean;
+    /** `add-column` only: the default is the current time, which SQLite will not add to rows (`clockDefaultNeedsRebuild`). */
+    clockDefault?: boolean;
   } = {},
 ): HazardVerdict {
   const { dialect } = ctx;
@@ -402,6 +404,12 @@ export function classifyStep(
             'A NOT NULL column cannot be added to a table that already has rows without a default — the existing rows would have no value. Give the column a default, or make it nullable.',
           refusal: 'NEEDS_DEFAULT',
         };
+      }
+      if (lite && detail.clockDefault === true && nonEmpty(ctx)) {
+        return rebuild(
+          'SQLite will not add a column whose default is the current time to a table that has rows. ' +
+            'The rebuilt table carries the default, and every row already there is given the current time as it is copied.',
+        );
       }
       if (lite) return { hazard: 'safe', rationale: 'SQLite adds a column by appending to the schema.' };
       if (my && detail.fillsRows === true && nonEmpty(ctx)) {

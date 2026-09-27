@@ -635,11 +635,11 @@ function sqliteBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
 }
 
 /**
- * A rolling-window boundary as the source driver expects it: Postgres binds
- * the `Date` directly (timestamptz), but MySQL and SQLite take a UTC
- * `'YYYY-MM-DD HH:MM:SS'` string — `windowBounds` computes in UTC, and
- * better-sqlite3 refuses to bind a `Date` at all (it accepts only numbers,
- * strings, bigints, buffers and null).
+ * A window boundary as the source driver expects it for a column that keeps
+ * an instant: Postgres binds the `Date` directly (timestamptz), but MySQL and
+ * SQLite take a UTC `'YYYY-MM-DD HH:MM:SS'` string — a MySQL `TIMESTAMP` is
+ * read on a UTC session, and better-sqlite3 refuses to bind a `Date` at all
+ * (it accepts only numbers, strings, bigints, buffers and null).
  */
 function windowBoundValue(date: Date, dialect: Dialect): Date | string {
   if (dialect === 'mysql' || dialect === 'sqlite') {
@@ -649,14 +649,26 @@ function windowBoundValue(date: Date, dialect: Dialect): Date | string {
 }
 
 /**
+ * A boundary instant spelled as the column keeps a time: a zone-less timestamp
+ * takes this server's wall clock (what every write to it stores,
+ * `crud/write-values.ts`), and a zoned one the instant. UTC's wall clock in a
+ * zone-less column moved a rolling window by this server's offset on MySQL
+ * and SQLite: "the last hour" at 23:00 UTC in Berlin counted 22:00–23:00 on
+ * a clock that read 01:00.
+ */
+function instantBoundValue(column: ResolvedColumn, instant: Date, dialect: Dialect): unknown {
+  if (column.logicalType === 'timestamp') return normalizeWriteValue(column, instant.toISOString());
+  return windowBoundValue(instant, dialect);
+}
+
+/**
  * A calendar boundary spelled as the column keeps a value: a date column takes
- * the venue's day, a zone-less timestamp this server's wall clock (what every
- * write to it stores, `crud/write-values.ts`), and a zoned one the instant.
+ * the venue's day, and a time column the instant as {@link instantBoundValue}
+ * spells it.
  */
 export function calendarBoundValue(column: ResolvedColumn, instant: Date, dialect: Dialect, timezone: string): unknown {
   if (column.logicalType === 'date') return venueClock(instant, timezone).day;
-  if (column.logicalType === 'timestamp') return normalizeWriteValue(column, instant.toISOString());
-  return windowBoundValue(instant, dialect);
+  return instantBoundValue(column, instant, dialect);
 }
 
 /**
@@ -1014,14 +1026,17 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
           ? calendarBounds(span.last, span.unit, span.offset ?? 0, now(), zone)
           : windowBounds(span.last, span.unit, now());
   /*
-   * A calendar window's bounds are spelled as the column keeps them: a date
-   * column takes the venue's days, and a zone-less timestamp this server's
-   * wall clock — what every write to it stores (`crud/write-values.ts`). A
-   * rolling window keeps its UTC spelling, as it always has (exact where the
-   * server runs on UTC, as the shipped image does).
+   * A window's bounds are spelled as the column keeps them: a zone-less
+   * timestamp takes this server's wall clock — what every write to it stores
+   * (`crud/write-values.ts`) — and a calendar window on a date column the
+   * venue's days.
    */
   const boundOf = (instant: Date): unknown =>
-    !calendar || windowColumn === null ? windowBoundValue(instant, dialect) : calendarBoundValue(windowColumn, instant, dialect, zone);
+    windowColumn === null
+      ? windowBoundValue(instant, dialect)
+      : calendar
+        ? calendarBoundValue(windowColumn, instant, dialect, zone)
+        : instantBoundValue(windowColumn, instant, dialect);
 
   const applyWhere = (qb: Qb, window: { start: Date; end: Date | null } | null): Qb => {
     let out = qb;

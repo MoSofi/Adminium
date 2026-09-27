@@ -83,6 +83,22 @@ describe('kpi-stat-card', () => {
     expect(pill?.getAttribute('data-tone')).toBe('pos');
   });
 
+  // At the default 3×1.5 a label under the 36px tile ran the value off the
+  // card; jsdom cannot measure that, so pin the two geometries instead.
+  it('takes the small tile and the tight gap only when a metric label is set', () => {
+    const { container, rerender } = render(
+      <KpiStatCard config={statCardConfig({ metricLabel: 'Revenue (30d)' })} data={{ value: 1284 }} instanceId="w1b" onEvent={noop} />,
+    );
+    const body = () => container.querySelector('[data-widget="kpi-stat-card"]');
+    const tile = () => container.querySelector('[data-tone]');
+    expect(tile()?.classList.contains('size-7')).toBe(true);
+    expect(body()?.classList.contains('gap-1')).toBe(true);
+
+    rerender(<KpiStatCard config={statCardConfig({})} data={{ value: 1284 }} instanceId="w1b" onEvent={noop} />);
+    expect(tile()?.classList.contains('size-9')).toBe(true);
+    expect(body()?.classList.contains('gap-2')).toBe(true);
+  });
+
   it('inverts the delta tone for down-is-good metrics (invertDeltaGood)', () => {
     render(
       <KpiStatCard

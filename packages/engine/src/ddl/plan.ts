@@ -121,6 +121,24 @@ export function fillsNowWhenAdded(
   );
 }
 
+/**
+ * A column given `now`, added on SQLite: part of the table's rebuild when the
+ * table holds rows (or may).
+ *
+ * SQLite refuses `ADD COLUMN … DEFAULT (datetime('now', 'localtime'))` on a
+ * table that has rows — "Cannot add a column with non-constant default",
+ * required or not — and takes it on an empty one. A rebuilt table's `CREATE
+ * TABLE` carries the default, and the row copy leaves the new column out, so
+ * every row already there is given the current time: the same outcome MySQL
+ * reaches by adding it empty and filling it (`fillsNowWhenAdded`).
+ */
+export function clockDefaultNeedsRebuild(
+  column: Pick<ColumnModel, 'default'>,
+  dialect: HazardContext['dialect'],
+): boolean {
+  return dialect === 'sqlite' && column.default?.kind === 'now';
+}
+
 let stepCounter = 0;
 /** Deterministic within a plan: ordinal, not random (plans are hashed). */
 function nextId(kind: DdlStepKind): string {
@@ -604,6 +622,8 @@ function planAlters(
           columnNullable: column?.nullable ?? true,
           hasDefault: (column?.default ?? null) !== null,
           isLastPosition: name === lastColumnName,
+          // Rebuilt, on SQLite, when the table has rows (the classifier asks).
+          clockDefault: column !== undefined && clockDefaultNeedsRebuild(column, ctx.dialect),
         },
       }),
     );

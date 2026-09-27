@@ -140,6 +140,27 @@ const db = new Kysely<SourceDatabase>({
 
 const NOW = new Date('2026-07-15T12:00:00.000Z');
 
+/** The same model with `orders.order_date` keeping a zone (a `timestamptz`). */
+const zonedView = new SnapshotView('conn_1', {
+  ...model,
+  tables: model.tables.map((table) =>
+    table.id !== 'public.orders'
+      ? table
+      : { ...table, columns: table.columns.map((column) => (column.name === 'order_date' ? { ...column, logicalType: 'timestamptz' } : column)) },
+  ),
+} as unknown as EffectiveModel);
+
+const pad = (n: number, width = 2) => String(n).padStart(width, '0');
+
+/** This process's wall clock at an instant (whole seconds): what a zone-less column holds for it. */
+function wallClock(iso: string): string {
+  const at = new Date(iso);
+  return (
+    `${pad(at.getFullYear(), 4)}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ` +
+    `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`
+  );
+}
+
 function descriptor(input: Record<string, unknown>): QueryDescriptor {
   return queryDescriptorSchema.parse({
     connectionId: 'conn_1',
@@ -210,13 +231,14 @@ describe('widget-data compiler — SQL', () => {
     const q = compiled.query.compile();
     expect(q.sql).toContain('"order_date" >= $1');
     expect(q.sql).toContain('"order_date" < $2');
-    expect(q.parameters[0]).toEqual(new Date('2026-06-15T12:00:00.000Z'));
-    expect(q.parameters[1]).toEqual(NOW);
+    // `order_date` keeps no zone: its bounds are this server's wall clock, as a write stores it.
+    expect(q.parameters[0]).toBe(wallClock('2026-06-15T12:00:00.000Z'));
+    expect(q.parameters[1]).toBe(wallClock(NOW.toISOString()));
 
     expect(compiled.prior).not.toBeNull();
     const p = compiled.prior!.compile();
-    expect(p.parameters[0]).toEqual(new Date('2026-05-16T12:00:00.000Z'));
-    expect(p.parameters[1]).toEqual(new Date('2026-06-15T12:00:00.000Z'));
+    expect(p.parameters[0]).toBe(wallClock('2026-05-16T12:00:00.000Z'));
+    expect(p.parameters[1]).toBe(wallClock('2026-06-15T12:00:00.000Z'));
   });
 
   it('record-list selects snapshot columns only and pairs an exact-count twin', () => {
@@ -558,33 +580,45 @@ describe('widget-data compiler — per-dialect bucket/window SQL', () => {
     }
   });
 
-  it('binds window bounds as UTC strings on mysql/sqlite (a Date crashes better-sqlite3)', () => {
+  it('binds window bounds as strings on mysql/sqlite (a Date crashes better-sqlite3): UTC for an instant, this server\'s clock without a zone', () => {
     for (const engine of ['mysql', 'sqlite'] as const) {
-      const params = compileWidgetQuery({
-        db: engine === 'mysql' ? mysqlDb : sqliteDb,
-        view,
-        dialect: engine,
-        descriptor: descriptor({
-          shape: 'metric+delta',
-          aggregations: [{ fn: 'count', alias: 'value' }],
-          window: { column: 'order_date', last: 30, unit: 'day', compareToPrior: true },
-        }),
-        canReadPii: false,
-        now: () => NOW,
-      }).query.compile().parameters;
+      const params = (on: SnapshotView) =>
+        compileWidgetQuery({
+          db: engine === 'mysql' ? mysqlDb : sqliteDb,
+          view: on,
+          dialect: engine,
+          descriptor: descriptor({
+            shape: 'metric+delta',
+            aggregations: [{ fn: 'count', alias: 'value' }],
+            window: { column: 'order_date', last: 30, unit: 'day', compareToPrior: true },
+          }),
+          canReadPii: false,
+          now: () => NOW,
+        }).query.compile().parameters;
       // NOW = 2026-07-15T12:00:00Z, 30d back = 2026-06-15T12:00:00Z.
-      expect(params[0], engine).toBe('2026-06-15 12:00:00');
-      expect(params[1], engine).toBe('2026-07-15 12:00:00');
+      const zoned = params(zonedView);
+      expect(zoned[0], engine).toBe('2026-06-15 12:00:00');
+      expect(zoned[1], engine).toBe('2026-07-15 12:00:00');
+      const zoneLess = params(view);
+      expect(zoneLess[0], engine).toBe(wallClock('2026-06-15T12:00:00.000Z'));
+      expect(zoneLess[1], engine).toBe(wallClock('2026-07-15T12:00:00.000Z'));
       // Never a Date instance — the whole point of the fix.
-      expect(params.every((p) => !(p instanceof Date)), engine).toBe(true);
+      expect([...zoned, ...zoneLess].every((p) => !(p instanceof Date)), engine).toBe(true);
     }
   });
 
-  it('postgres still binds window bounds as Date objects (unchanged)', () => {
-    const params = compile({
-      shape: 'metric+delta',
-      aggregations: [{ fn: 'count', alias: 'value' }],
-      window: { column: 'order_date', last: 30, unit: 'day' },
+  it('postgres still binds an instant column\'s window bounds as Date objects (unchanged)', () => {
+    const params = compileWidgetQuery({
+      db,
+      view: zonedView,
+      dialect: 'postgres',
+      descriptor: descriptor({
+        shape: 'metric+delta',
+        aggregations: [{ fn: 'count', alias: 'value' }],
+        window: { column: 'order_date', last: 30, unit: 'day' },
+      }),
+      canReadPii: false,
+      now: () => NOW,
     }).query.compile().parameters;
     expect(params[0]).toBeInstanceOf(Date);
     expect(params[1]).toBeInstanceOf(Date);

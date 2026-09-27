@@ -240,21 +240,20 @@ function compileILike(eb: Eb, dialect: Dialect, ref: Ref, pattern: string): Expr
  * A value as the engine binds it. A descriptor carries JSON, so a boolean
  * filter arrives as `true`/`false` — which better-sqlite3 refuses to bind at
  * all ("can only bind numbers, strings, …"); SQLite keeps booleans as 1 and
- * 0, as every write to it does (`bindValue` in the write service). An instant
- * compared with a column that keeps a zone is the instant a write would
- * store: a time with no zone is read on this server's clock
+ * 0, as every write to it does (`bindValue` in the write service). A time is
+ * compared as a write would store it (`bindWriteValue`). With a column that
+ * keeps a zone, a time with no zone is read on this server's clock
  * (`zonedWriteValue`), never in the database session's zone, and on MySQL
  * the instant is spelled the way a `TIMESTAMP` is written there — an ISO one
- * is refused inside an UPDATE, and read in the session's zone anywhere else
- * (`bindWriteValue`).
+ * is refused inside an UPDATE, and read in the session's zone anywhere else.
+ * With a column that keeps none, an instant with a zone is this server's wall
+ * clock, which is what the column holds: Postgres dropped the zone and MySQL
+ * and SQLite compared the text, so `…T22:00:00Z` meant 22:00 on this clock.
  */
 function bindable(ctx: CompileFilterContext, column: ResolvedColumn, value: unknown): unknown {
-  if (column.logicalType === 'timestamptz') {
-    const instant = (item: unknown): unknown => {
-      const zoned = zonedWriteValue(column, item);
-      return ctx.dialect === 'mysql' ? bindWriteValue(column, zoned, ctx.dialect) : zoned;
-    };
-    return Array.isArray(value) ? value.map(instant) : instant(value);
+  if (column.logicalType === 'timestamptz' || column.logicalType === 'timestamp') {
+    const time = (item: unknown): unknown => bindWriteValue(column, zonedWriteValue(column, item), ctx.dialect);
+    return Array.isArray(value) ? value.map(time) : time(value);
   }
   if (ctx.dialect !== 'sqlite') return value;
   if (typeof value === 'boolean') return value ? 1 : 0;

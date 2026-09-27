@@ -47,10 +47,11 @@
  * faster. It is not an option.
  */
 import { sql, type CompiledQuery, type Kysely } from 'kysely';
+import { mapSqliteType } from '@adminium/adapter-sqlite';
 import { enumCheckColumn, type Relation, type TableModel } from '@adminium/engine';
 
 import { AppError } from '../errors.js';
-import { columnDefinition, fkAction, quoteIdent, quoteLiteral } from './compile.js';
+import { columnDefinition, columnTypeOf, fkAction, quoteIdent, quoteLiteral } from './compile.js';
 
 type Db = Kysely<Record<string, Record<string, unknown>>>;
 
@@ -564,7 +565,15 @@ export function assertRebuildMatches(rebuilt: TableModel, desired: TableModel): 
       differences.push(`column ${want.name} is missing`);
       continue;
     }
-    if (got.logicalType !== want.logicalType) {
+    /*
+     * Or what SQLite reads back from the type the rebuild declared: a new
+     * `timestamptz` is declared `timestamp` (SQLite keeps no zone,
+     * `ddl/type-map.ts`) and read as one. Compared with the authored type
+     * alone, every rebuild that added one was reported failed here, after it had
+     * committed.
+     */
+    const readBack = mapSqliteType(columnTypeOf(want, 'sqlite')).logicalType;
+    if (got.logicalType !== want.logicalType && got.logicalType !== readBack) {
       differences.push(`column ${want.name} is ${got.logicalType}, expected ${want.logicalType}`);
     }
     if (got.nullable !== want.nullable) {
