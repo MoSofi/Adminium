@@ -637,9 +637,18 @@ function conditionedMoveIssues<C extends ColumnShape>(
         out.push({ path: here('set', column), message: `"${target}" moves by "${theirs.column}", not "${column}"` });
         continue;
       }
-      const moved = Object.values(theirs.moves).some((moves) => moves.some((move) => moveTarget(move) === state));
-      if (!moved) out.push({ path: here('set', column), message: `no move of "${target}" goes to "${state}"` });
+      const moves = Object.values(theirs.moves).flatMap((list) => list.filter((move) => moveTarget(move) === state));
+      if (moves.length === 0) out.push({ path: here('set', column), message: `no move of "${target}" goes to "${state}"` });
+      // The linked row is moved inside this write, after its own rows are held: its move may wait only for its own row.
+      const reaches = moves.some((move) => {
+        if (typeof move === 'string') return false;
+        const time = move.requires?.time;
+        const vias = [time?.after, time?.before].flatMap((m) => (m === undefined ? [] : [m, ...(m.or ?? [])])).some((m) => m.via !== undefined);
+        return (move.requires?.linked?.length ?? 0) > 0 || vias;
+      });
+      if (reaches) out.push({ path: here('set', column), message: `the move of "${target}" to "${state}" waits for another row, so an effect cannot make it` });
     }
+    if ((theirs.effects?.length ?? 0) > 0) out.push({ path: here('via'), message: `"${target}" sets off effects of its own; an effect moves one row, never a chain` });
   });
   return out;
 }

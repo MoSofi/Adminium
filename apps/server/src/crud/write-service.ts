@@ -113,7 +113,7 @@ import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf
 import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
 import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
-import { attachWindows, statesReadClock, type StateWindow } from './state-conditions.js';
+import { attachWindows, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
@@ -1528,9 +1528,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         (rules?.ownRollups?.length ?? 0) > 0 ||
         (rules?.balances?.length ?? 0) > 0 ||
         (effective?.stateParents?.length ?? 0) > 0 ||
-        (effective?.states?.effects?.length ?? 0) > 0;
+        (effective?.states?.effects?.length ?? 0) > 0 ||
+        // Its move may wait only for its own row: the rows it would read are taken after this write's own.
+        Object.values(effective?.states?.moves ?? {}).some((list) =>
+          list.some((move) => typeof move === 'object' && move.to === state && waitVias(move.requires).length > 0),
+        );
       if (kept) {
-        throw new StateMoveRefused(`A move of ${target.table.name} cannot move a ${moved.table.name} row too: that table keeps a limit, a total or a parent.`, {
+        throw new StateMoveRefused(`A move of ${target.table.name} cannot move a ${moved.table.name} row too: that table keeps a limit, a total or a parent, or its move waits for another row.`, {
           column,
           to: state,
           effect: moved.table.name,
