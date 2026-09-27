@@ -103,6 +103,8 @@ export function needsStored(rules: TableRules | null): boolean {
     rules?.booking?.cancel !== undefined ||
     [...(rules?.stamps ?? []), ...(rules?.seals ?? [])].some((stamp) => stamp.on !== 'create') ||
     (rules?.formulas?.length ?? 0) > 0 ||
+    // A price by the night reads the stay's other dates and its rate's link.
+    rules?.perNight !== undefined ||
     // A move is judged on the row as it is, and a lock on what the write changes.
     rules?.states !== undefined ||
     (rules?.stateParents?.length ?? 0) > 0 ||
