@@ -39,6 +39,9 @@ function boxOffice(): Doc {
   // The order's own link reads its tickets with no `withhold` of its own: what the buyer's entry withholds holds there too.
   const byLink = (manifest['publicAccess'] as Doc[]).find((entry) => entry['table'] === 'tickets' && entry['key'] === 'link')!;
   delete byLink['withhold'];
+  // The friend may quote accepting before accepting.
+  const accept = (manifest['publicAccess'] as Doc[]).find((entry) => entry['table'] === 'tickets' && entry['key'] === 'ticket' && (entry['methods'] as string[]).includes('PATCH'))!;
+  accept['dryRun'] = true;
   const messages = (manifest['requiredSchema'] as { tables: Doc[] }).tables.find((table) => table['ref'] === 'messages')!;
   const columns = messages['columns'] as Doc[];
   columns.find((column) => column['ref'] === 'kind')!['enum'] = ['ticket-offered', 'your-tickets', 'ticket-note'];
@@ -256,6 +259,9 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     expect(seen.body).not.toContain('Zoe Private');
     const accept = await byTicket.request('PATCH', `/records/${t('tickets')}_claimed/${String(second!.id)}`, { payload: { values: { status: 'valid' } }, session: lee.session });
     expect(accept.statusCode).not.toBe(200);
+    // A quote of accepting answers as the save does.
+    const quote = await byTicket.request('POST', `/records/${t('tickets')}_claimed/${String(second!.id)}/dry-run`, { payload: { values: { status: 'valid' } }, session: lee.session });
+    expect(quote.statusCode, quote.body).toBe(accept.statusCode);
     const after = await row(second!.id);
     expect([after['status'], after['holder_customer_id'], after['pending_email']]).toEqual(['offered', null, 'zoe@friends.org']);
     expect(await h.rows(`select id from ${t('customers')} where email = 'zoe@friends.org'`)).toEqual([]);
@@ -297,6 +303,8 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     expect(seen.body).not.toContain('Uma Private');
     const accept = await byTicket.request('PATCH', `/records/${t('tickets')}_claimed/${String(third!.id)}`, { payload: { values: { status: 'valid' } }, session: noa.session });
     expect(accept.statusCode).not.toBe(200);
+    const quote = await byTicket.request('POST', `/records/${t('tickets')}_claimed/${String(third!.id)}/dry-run`, { payload: { values: { status: 'valid' } }, session: noa.session });
+    expect(quote.statusCode, quote.body).toBe(accept.statusCode);
     expect(await h.rows(`select id from ${t('customers')} where email = 'uma@friends.org'`)).toEqual([]);
     expect((await row(third!.id))['holder_customer_id']).toBeNull();
   });
@@ -308,6 +316,9 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     expect(ora.status).toBe(200);
     // The row still holds Ora's address (as its holder copy), and the offer now names another.
     await h.rows(`update ${t('tickets')} set holder_email = 'ora@friends.org', pending_email = 'pia@friends.org' where id = ${String(third!.id)}`);
+    const quote = await byTicket.request('POST', `/records/${t('tickets')}_claimed/${String(third!.id)}/dry-run`, { payload: { values: { status: 'valid' } }, session: ora.session });
+    expect(quote.statusCode, quote.body).toBe(400);
+    expect(ticket.codeOf(quote)).toBe('PUBLIC_WRITE_REFUSED');
     const accept = await byTicket.request('PATCH', `/records/${t('tickets')}_claimed/${String(third!.id)}`, { payload: { values: { status: 'valid' } }, session: ora.session });
     expect(accept.statusCode, accept.body).toBe(400);
     expect(ticket.codeOf(accept)).toBe('PUBLIC_WRITE_REFUSED');

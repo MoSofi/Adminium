@@ -39,6 +39,8 @@ function boxOffice(): Doc {
   for (const entry of manifest['publicAccess'] as Doc[]) {
     const limits = entry['limits'] as { perValue?: { n: number } } | undefined;
     if (limits?.perValue !== undefined) limits.perValue.n = 2;
+    // The send may be quoted first.
+    if (limits !== undefined) entry['dryRun'] = true;
   }
   const messages = ((manifest['requiredSchema'] as { tables: Doc[] }).tables.find((table) => table['ref'] === 'messages')!['columns'] as Doc[]).find((column) => column['ref'] === 'kind')!;
   messages['enum'] = ['ticket-offered', 'ticket-ready'];
@@ -227,6 +229,15 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     expect(plain.statusCode).toBe(400);
     expect(shop.codeOf(plain)).toBe('PUBLIC_WRITE_REFUSED');
     expect((plain.json() as { error: { params?: Doc } }).error.params).toEqual({ column: 'pending_name' });
+    // Its quote refuses the same name, and a name with dots in it is a name to both.
+    for (const name of ['Claim refund at evil.com', '@kai_tickets']) {
+      const values = { status: 'offered', pending_email: 'noa@friends.org', pending_name: name };
+      const quote = await buyer.request('POST', `/records/${t('tickets')}_verified/${third!.id}/dry-run`, { payload: { values }, session: mia });
+      expect(quote.statusCode, quote.body).toBe(400);
+      expect((quote.json() as { error: { params?: Doc } }).error.params).toEqual({ column: 'pending_name' });
+    }
+    const dotted = await buyer.request('POST', `/records/${t('tickets')}_verified/${third!.id}/dry-run`, { payload: { values: { status: 'offered', pending_email: 'noa@friends.org', pending_name: 'Mary.Ann' } }, session: mia });
+    expect(dotted.statusCode, dotted.body).toBe(200);
     // Two a day to one mailbox (in this copy of the app), however its address is dressed up.
     expect((await send(third!.id, 'noa@friends.org', 'Noa')).statusCode).toBe(200);
     expect((await send(fourth!.id, 'Noa+tickets@Friends.org', 'Noa')).statusCode).toBe(200);

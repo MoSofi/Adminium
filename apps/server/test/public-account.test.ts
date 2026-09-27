@@ -63,6 +63,23 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     return res.json() as { data: { id: number }; link: { token: string; session: string } };
   };
 
+  it.skipIf(!available)('answers a quote of an order as its save, for the person the address would make', async () => {
+    // A name the person's own row cannot hold: refused by the save before any address is looked up, and by its quote.
+    const long = 'N'.repeat(80);
+    const quote = await g.request('POST', `/records/${orders}_verified_2/dry-run`, { payload: { values: { email: 'long@okada.io', name: long } } });
+    const save = await g.request('POST', `/records/${orders}_verified_2`, { payload: { values: { email: 'long@okada.io', name: long } }, proof: 'write' });
+    expect(save.statusCode, save.body).toBe(400);
+    expect(quote.statusCode, quote.body).toBe(400);
+    expect(quote.json()).toEqual(save.json());
+    // An address in no form an address has, likewise; one left out of a quote is filled in for it.
+    const badQuote = await g.request('POST', `/records/${orders}_verified_2/dry-run`, { payload: { values: { email: 'not an address', name: 'Ana' } } });
+    expect(badQuote.statusCode, badQuote.body).toBe(400);
+    expect((badQuote.json() as { error: { params?: unknown } }).error.params).toEqual({ column: 'email', reason: 'format' });
+    const early = await g.request('POST', `/records/${orders}_verified_2/dry-run`, { payload: { values: { name: 'Ana' } } });
+    expect(early.statusCode, early.body).toBe(200);
+    expect(await h.rows(`select id from ${customers} where email = 'long@okada.io'`)).toEqual([]);
+  });
+
   it.skipIf(!available)('signs a person out on every device, and tells each other device why', async () => {
     const phone = await g.signIn('kai@example.com');
     const laptop = await g.signIn('kai@example.com');

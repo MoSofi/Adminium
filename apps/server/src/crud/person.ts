@@ -131,18 +131,15 @@ export function personLocks(target: Pick<WriteTarget, 'connectionId' | 'dialect'
 }
 
 /**
- * Find the person with this address, or make one — inside the write's own
- * transaction (`identity.db`). Throws {@link PersonRefused} for a would-be
- * row the checks refuse (known and unknown alike), {@link PersonTableUnusable}
- * for a person table that cannot be used this way, and {@link PersonRaced}
- * when another writer made the same person first (the caller retries once).
+ * Everything that could refuse the person a write is for, asked the same for
+ * a known and an unknown address and before anything is looked up or held:
+ * the person table's make-up, the would-be row's checks and widths, and the
+ * role's column grants. A quote asks exactly this (it finds and makes nobody);
+ * a save asks it first. Returns the would-be row.
  */
-export async function resolvePerson(input: ResolvePersonInput): Promise<ResolvedPerson> {
+export async function checkPerson(input: Omit<ResolvePersonInput, 'identity'> & { identity: WriteTarget }): Promise<Row> {
   const { writes, identity, email, context } = input;
   const address = normaliseAddress(input.address);
-  const db = identity.db;
-
-  // 1. Everything that could refuse, for both branches alike, before the address is looked up.
   const unusable = await personTableUnusable(writes, identity, context);
   if (unusable !== null) throw new PersonTableUnusable(unusable);
   const wouldBe: Row = { ...input.fill, [email]: address };
@@ -158,6 +155,23 @@ export async function resolvePerson(input: ResolvePersonInput): Promise<Resolved
     if (typeof value === 'string' && width !== null && [...value].length > width) throw new PersonRefused(column, 'too-long');
   }
   refuseUngrantedColumns(identity.rights, identity.table, 'create', Object.keys(checked.rows[0] ?? wouldBe));
+  return wouldBe;
+}
+
+/**
+ * Find the person with this address, or make one — inside the write's own
+ * transaction (`identity.db`). Throws {@link PersonRefused} for a would-be
+ * row the checks refuse (known and unknown alike), {@link PersonTableUnusable}
+ * for a person table that cannot be used this way, and {@link PersonRaced}
+ * when another writer made the same person first (the caller retries once).
+ */
+export async function resolvePerson(input: ResolvePersonInput): Promise<ResolvedPerson> {
+  const { writes, identity, email, context } = input;
+  const address = normaliseAddress(input.address);
+  const db = identity.db;
+
+  // 1. Everything that could refuse, for both branches alike, before the address is looked up.
+  const wouldBe = await checkPerson(input);
 
   // 2. One writer per address at a time, on Postgres (released with the transaction).
   if (identity.dialect === 'postgres') {

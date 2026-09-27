@@ -161,7 +161,7 @@ import { withNamedLocks } from '../../crud/capacity/locks.js';
 import { blankWithheld, sessionReader, withholding, withholdRulesOf, type TableWithholds } from '../../public-api/withhold.js';
 import { recentWithholdsOn, withholdsOn } from '../../public-api/withholds-on.js';
 import { chargeChange, notPlainChange } from '../../public-api/change-limits.js';
-import { PersonRaced, PersonRefused, PersonTableUnusable, personLocks, resolvePerson } from '../../crud/person.js';
+import { PersonRaced, PersonRefused, PersonTableUnusable, checkPerson, personLocks, resolvePerson } from '../../crud/person.js';
 import { privilegesOf } from '../../connections/privileges.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
@@ -568,6 +568,9 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
 };
 
 /** A write the engine gave up in a lock race, or one that met a row moving under it: the same write a moment later goes through. */
+/** A value left out, or sent empty: a quote may come before it is typed. */
+const blankValue = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+
 const lostRace = (error: unknown): boolean => isWriteConflict(error) || (error instanceof AppError && error.code === 'WRITE_CONFLICT');
 
 /** `refuseWrite` for a create or a change through an entry: a refused value of a column it writes is named. */
@@ -2148,7 +2151,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (signedInPerson) {
           const own = await claimedRowOf(ok);
           if (own !== null) signedInValues(finder, people, values, own);
-        } else if (!dry && !plausibleAddress(values[finder.email])) {
+        } else if (!plausibleAddress(values[finder.email]) && (!dry || !blankValue(values[finder.email]))) {
+          // A quote may come before the address is typed; one that sends it is held to its form as the save is.
           return refused({ column: finder.email, reason: 'format' });
         }
       }
@@ -2431,6 +2435,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       if ((await openRowsFull(found, ok.session, replaced)) === true) {
         return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
       }
+      // A quote is never charged, nor told a cap is spent: a cap counts what was made, a quote makes nothing, and its
+      // save is told (the plain-text rule, which judges the values, is the quote's as the save's).
       if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
         const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
         if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
@@ -2476,6 +2482,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       let rootRow: Row | null = null;
       let outcome: TreeOutcome;
       try {
+        // A quote finds and makes nobody, and holds nothing: it asks of the person what the save would refuse first.
+        if (dry && finder !== null && people !== null && !signedInPerson && plausibleAddress(values[finder.email])) {
+          try {
+            const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
+            await checkPerson({ writes, identity: { ...target(people.table), rights: tableRights }, email: people.email, address: String(values[finder.email]), fill: fillOf(finder, values), context });
+          } catch (error) {
+            refuseTree(error, []);
+          }
+        }
         const save = () =>
           writes.createTree({
           root,
@@ -2937,14 +2952,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const context = await publicWriteContext(request, ok);
         /*
          * A change a guest sends on (a ticket offered to a friend): a name that
-         * is only a name, and so many a day to one address. A quote is free and
-         * charged nothing.
+         * is only a name, and so many a day to one address. A quote refuses
+         * the name the save refuses, and is charged nothing and never told a
+         * day's sends are spent: it sends nothing, and its save is told.
          */
-        const limits = quote === 'save' ? (found.resource.limits ?? null) : null;
+        const limits = found.resource.limits ?? null;
         let releaseLimits: (() => Promise<void>) | null = null;
         if (limits !== null) {
           const column = notPlainChange(limits, values);
           if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+        }
+        if (limits !== null && quote === 'save') {
           const charge = await chargeChange(challenges, { limits, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, ref: request.params.ref, values, now: Date.now() });
           if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be sent online today have been sent.');
           releaseLimits = charge.release;
@@ -2958,7 +2976,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          */
         let madePerson: { table: ResolvedTable; row: Row; ref: string } | null = null;
         const finder = found.resource.findOrCreate ?? null;
-        if (quote === 'save' && finder !== null && ok.key.scope.claim?.own === true) {
+        // A quote asks everything the save would refuse of the person — the link's address, the would-be row — and finds and makes nobody.
+        if (finder !== null && ok.key.scope.claim?.own === true) {
           const people = await personTableOf(meta, found.view, ok.key.scope, ok.key.connectionId, finder.identityRef);
           if (people === null) {
             request.log.warn({ ref: request.params.ref, identity: finder.identityRef }, 'a change finds its person through an identity that does not sign in by link');
@@ -2982,7 +3001,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             await releaseLimits?.();
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
-          if (stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
+          if (quote === 'dry' && stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
+            try {
+              const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
+              await checkPerson({ writes, identity: { ...target, table: people.table, rights: tableRights }, email: people.email, address, fill: fillOf(finder, { ...stored, ...values }), context });
+            } catch (error) {
+              if (error instanceof PersonRefused) {
+                return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', UPDATE_NAMED.has(error.reason) ? { column: entryColumnOf(finder, people, error.column), reason: error.reason } : undefined);
+              }
+              return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            }
+          } else if (stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
             const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
             const personTarget: WriteTarget = { ...target, table: people.table };
             // On MySQL the address's lock is taken before the transaction, as a create's is.
