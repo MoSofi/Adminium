@@ -53,9 +53,6 @@ function targetOf(model: Pick<EffectiveModel, 'relations'>, tableId: string, col
     .tableId;
 }
 
-const movesOf = (table: EffectiveTable) =>
-  Object.values(table.states?.moves ?? {}).flatMap((list) => list.filter((move): move is Exclude<typeof move, string> => typeof move === 'object'));
-
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
   // Limits by slot hours, by a parent's pool, by the night, and holds: only the released slot rule is guarded.
   { rule: 'capacity', on: (table) => table.capacityRules !== undefined && table.capacity === undefined },
@@ -81,28 +78,8 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
       ),
   },
   { rule: 'formula.join', on: (table) => anyColumn(table, (c) => formulaUses(c.formula, ['join'])) },
-  // Stamps worked out from minutes, a deadline or a moment, and one written when columns change.
-  {
-    rule: 'stamp',
-    on: (table) =>
-      anyColumn(table, (c) => {
-        const stamp = c.stamp;
-        if (stamp === undefined) return false;
-        const set = stamp.set;
-        const newSet = typeof set === 'object' && ('addMinutes' in set || 'deadline' in set || 'moment' in set);
-        const triggers = Array.isArray(stamp.on) ? stamp.on : [stamp.on];
-        return newSet || triggers.some((t) => typeof t === 'object' && 'columns' in t);
-      }),
-  },
-  // A document's life: strict moves, conditions on moves, late flags, timed moves, moves that change a linked row.
-  { rule: 'states.strict', on: (table) => table.states?.strict !== undefined },
-  { rule: 'states.late', on: (table) => table.states?.late !== undefined },
+  // A document's timed moves.
   { rule: 'states.timed', on: (table) => table.states?.timed !== undefined },
-  { rule: 'states.effects', on: (table) => table.states?.effects !== undefined },
-  {
-    rule: 'states.requires',
-    on: (table) => movesOf(table).some((move) => move.requires?.linked !== undefined || move.requires?.time !== undefined || move.requires?.setting !== undefined),
-  },
 ];
 
 /** Whether a public entry's `writable_when` has a window read from moments (not the `within` form). */

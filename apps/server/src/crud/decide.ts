@@ -48,7 +48,7 @@
  * today's person over them would be false.
  */
 import type { Kysely } from 'kysely';
-import type { Dialect } from '@adminium/engine';
+import type { Dialect, Relation } from '@adminium/engine';
 
 import type { StampTrigger, TableBookingRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -58,6 +58,9 @@ import { numberOf, slotInstant } from './capacity-guard.js';
 import type { ColumnStamp, TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
 import { instantFor, renderNow } from './instants.js';
+import { lateRuleFor, lateVerdict, lateWindow, refusedBy } from './late.js';
+import { dayPlus, momentOf, momentSettings, momentVias, shifted, wallOn, type MomentContext } from './moments.js';
+import { StateTooLate } from './state-conditions.js';
 import { dayOf } from './states.js';
 import { venueClock } from './venue-time.js';
 import { sameValue } from './write-values.js';
@@ -76,6 +79,8 @@ export interface DecideContext {
   zone?: string | undefined;
   /** The signed-in person's own row, on a public write made in a session. */
   claimed?: Row | null | undefined;
+  /** The model's links, to follow a stamp's moment through a foreign key. */
+  relations?: readonly Relation[] | undefined;
 }
 
 /** Writes that put back what already happened: nothing is decided over them. */
@@ -123,7 +128,107 @@ export async function decideRow(
   if (action === 'update' && before === null) return values;
   let out = values;
   if (action === 'update' && rules.booking?.cancel !== undefined) out = await decideLate(rules.booking, out, before!, context);
-  return stampRow(rules.stamps ?? [], action, out, before, context);
+  if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
+  const stamps = rules.stamps ?? [];
+  const worked = await momentStamps(stamps, action, out, before, context);
+  return stampRow(stamps, action, out, before, context, worked);
+}
+
+// ─── moments, read before the write ───────────────────────────────────────
+
+/** The rows a row's links point at, read as they are (DECIDE holds nothing), by the link column. */
+async function linkedRows(vias: readonly string[], row: Row, context: DecideContext): Promise<Map<string, Row | null>> {
+  const out = new Map<string, Row | null>();
+  for (const via of vias) {
+    const value = row[via];
+    const relation = (context.relations ?? []).find(
+      (r) => r.through === null && r.from.tableId === context.table.id && r.from.columns.length === 1 && r.from.columns[0] === via && r.to.columns.length === 1,
+    );
+    if (value === null || value === undefined || relation === undefined) {
+      out.set(via, null);
+      continue;
+    }
+    const found = (await context.db
+      .selectFrom(relation.to.tableId)
+      .selectAll()
+      .where((eb) => eb(context.db.dynamic.ref(relation.to.columns[0]!), '=', value))
+      .executeTakeFirst()) as Row | undefined;
+    out.set(via, found ?? null);
+  }
+  return out;
+}
+
+/** A moment context over a row as DECIDE sees it: its links read as they are, its settings read once. */
+async function momentsFor(row: Row, vias: readonly string[], context: DecideContext, settings = momentSettings(context.db)): Promise<MomentContext> {
+  return { table: context.table, row, linked: await linkedRows(vias, row, context), zone: context.zone ?? 'UTC', settings, db: context.db };
+}
+
+/**
+ * The values of the stamps worked out from a moment that fire on this write —
+ * now plus minutes or hours, a deadline, a moment of the row or a linked row —
+ * by column, spelled as the column keeps a time. Null when there is no moment
+ * (a setting that cannot be read, an empty column): the stamp writes empty.
+ */
+async function momentStamps(stamps: readonly ColumnStamp[], action: WriteAction, values: Row, before: Row | null, context: DecideContext): Promise<Map<string, unknown>> {
+  const out = new Map<string, unknown>();
+  const firing = stamps.filter((stamp) => typeof stamp.set === 'object' && ('addMinutes' in stamp.set || 'deadline' in stamp.set || 'moment' in stamp.set) && stampFires(stamp, action, values, before));
+  if (firing.length === 0) return out;
+  const row = { ...(before ?? {}), ...values };
+  const settings = momentSettings(context.db);
+  const spell = (stamp: ColumnStamp, at: Date | null) => (at === null ? null : (renderNow({ logicalType: stamp.logicalType }, at) ?? instantFor(at)));
+  for (const stamp of firing) {
+    const set = stamp.set as Exclude<ColumnStamp['set'], string>;
+    if ('addMinutes' in set) {
+      const moments = await momentsFor(row, [], context, settings);
+      const shift = set.addMinutes.minutes !== undefined ? { minutes: set.addMinutes.minutes } : { hours: set.addMinutes.hours! };
+      out.set(stamp.column, spell(stamp, await shifted(context.now, shift, 1, moments)));
+    } else if ('deadline' in set) {
+      const deadline = set.deadline;
+      const moments = await momentsFor(row, momentVias(deadline.notAfter), context, settings);
+      const days = typeof deadline.days === 'number' ? deadline.days : Number(await settings(deadline.days));
+      const time = typeof deadline.time === 'string' ? deadline.time : await settings(deadline.time);
+      const first =
+        Number.isFinite(days) && days >= 0 && typeof time === 'string'
+          ? wallOn(dayPlus(venueClock(context.now, context.zone ?? 'UTC').day, Math.trunc(days)), time, context.zone ?? 'UTC')
+          : null;
+      const cap = deadline.notAfter === undefined ? null : await momentOf(deadline.notAfter, moments);
+      const at = first === null ? cap : cap === null ? first : new Date(Math.min(first.getTime(), cap.getTime()));
+      out.set(stamp.column, spell(stamp, at));
+    } else if ('moment' in set) {
+      const moments = await momentsFor(row, momentVias(set.moment), context, settings);
+      out.set(stamp.column, spell(stamp, await momentOf(set.moment, moments)));
+    }
+  }
+  return out;
+}
+
+/**
+ * A table's own late moves (`states.late`): a move to `to` from one of
+ * `from`, made inside `within` before the moment — read from the row AS
+ * STORED and its links as they are, so a guest's later arrival typed in the
+ * same change does not move the window. In mode `flag` the flag is set when
+ * late and taken out of the writer's values when not (it is Adminium's); in
+ * mode `refuse` a guest (or, with `refuse: everyone`, anyone) is turned away.
+ * The statement judges it again under the locks (`crud/states.ts`).
+ */
+async function decideStatesLate(rules: TableRules, values: Row, before: Row, context: DecideContext): Promise<Row> {
+  const states = rules.states!;
+  if (!has(values, states.column)) return values;
+  const from = before[states.column] === null || before[states.column] === undefined ? states.initial : String(before[states.column]);
+  const to = values[states.column] === null || values[states.column] === undefined ? null : String(values[states.column]);
+  if (to === null || to === from) return values;
+  const rule = lateRuleFor(states, from, to);
+  if (rule === undefined) return values;
+  const verdict = await lateVerdict(rule, await momentsFor(before, momentVias(rule.moment), context), context.now);
+  if (verdict.inside && refusedBy(rule, context.origin)) {
+    throw new StateTooLate('It is too late to make this change.', { column: states.column, at: verdict.at?.toISOString() ?? null });
+  }
+  if (rule.mode !== 'flag' || rule.flag === undefined) return values;
+  if (verdict.inside) return { ...values, [rule.flag]: yes(context.table, rule.flag) };
+  if (!has(values, rule.flag)) return values;
+  const out = { ...values };
+  delete out[rule.flag];
+  return out;
 }
 
 /** Every trigger of a stamp: one, or a list of up to three. */
@@ -137,8 +242,8 @@ const empty = (value: unknown) => value === null || value === undefined || (type
 export function stampFires(stamp: Pick<ColumnStamp, 'on'>, action: WriteAction, values: Row, before: Row | null): boolean {
   return triggersOf(stamp as ColumnStamp).some((trigger) => {
     if (trigger === 'create') return action === 'create';
-    // Following the columns a moment is worked out from is not run here yet: it never fires.
-    if ('columns' in trigger) return false;
+    // Whenever one of the columns changes: a create sets them all.
+    if ('columns' in trigger) return action === 'create' || trigger.columns.some((column) => has(values, column) && !sameValue(before?.[column], values[column]));
     const column = trigger.column;
     if (!has(values, column)) return false;
     // First filled: empty before (or a new row), a value now.
@@ -235,13 +340,13 @@ function writerSays(stamp: ColumnStamp, origin: WriteOrigin): boolean {
   return typeof set === 'object' && 'byOrigin' in set && set.byOrigin.staff === undefined && origin !== 'public';
 }
 
-function stampRow(stamps: readonly ColumnStamp[], action: WriteAction, values: Row, before: Row | null, context: DecideContext): Row {
+function stampRow(stamps: readonly ColumnStamp[], action: WriteAction, values: Row, before: Row | null, context: DecideContext, worked: ReadonlyMap<string, unknown> = new Map()): Row {
   let out: Row | null = null;
   // Dates worked out from another go last: they read what the stamps before them wrote.
   const ordered = [...stamps.filter((stamp) => !isAddDays(stamp)), ...stamps.filter(isAddDays)];
   for (const stamp of ordered) {
     if (!stampFires(stamp, action, values, before)) continue;
-    const value = stampValue(stamp, context, { ...(before ?? {}), ...(out ?? values) });
+    const value = worked.has(stamp.column) ? worked.get(stamp.column) : stampValue(stamp, context, { ...(before ?? {}), ...(out ?? values) });
     if (value === undefined) {
       // Fired, and gave nothing: what the writer sent there is not taken for it — unless it is staff's own word.
       if (has(out ?? values, stamp.column) && !writerSays(stamp, context.origin)) {
@@ -263,7 +368,7 @@ async function decideLate(rule: TableBookingRule, values: Row, before: Row, cont
   const held = slotInstant(before[rule.start]);
   if (held === null || !bookingCounts(rule, before)) return values;
   const hours = await numberOf(context.db, cancel.hours);
-  if (hours === null || held.getTime() - context.now.getTime() >= hours * 3_600_000) return values;
+  if (hours === null || lateWindow({ moment: held, withinMs: hours * 3_600_000, now: context.now }) === 'outside') return values;
   const guest = context.origin === 'public';
 
   // Inside the window. A guest moving it is turned away, in either mode.

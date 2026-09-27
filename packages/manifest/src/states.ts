@@ -59,6 +59,10 @@
  *   has passed (a held order expiring).
  * - `effects`: a move that moves the row one of its links points at too, by a
  *   move that table lists (a guest checked out turns the room to cleaning).
+ * - `create`: what a new row must meet to be created — the conditions a move
+ *   waits for, judged when the row is written (a check-in only for a paid
+ *   ticket, on its day).
+ * - A timed move may also write fixed values to other columns (`set`).
  *
  * Adding sample data and importing past records are history: they write any
  * state their rows were in.
@@ -210,9 +214,47 @@ export const lateMoveSchema = z
   });
 export type LateMove = z.infer<typeof lateMoveSchema>;
 
-/** A listed move Adminium makes by itself once `at` has passed, for a row still in `from`. */
-export const timedMoveSchema = z.object({ from: stateName, to: stateName, at: momentSchema }).strict();
+/**
+ * A listed move Adminium makes by itself once `at` has passed, for a row still
+ * in `from`. `set` writes fixed values to other columns of the row in the same
+ * move (why an order still open at closing was cancelled).
+ */
+export const timedMoveSchema = z
+  .object({
+    from: stateName,
+    to: stateName,
+    at: momentSchema,
+    set: z
+      .record(refSchema, z.union([scalarSchema, z.null()]))
+      .refine((set) => Object.keys(set).length >= 1 && Object.keys(set).length <= 8, { message: 'a timed move sets 1 to 8 columns' })
+      .optional(),
+  })
+  .strict();
 export type TimedMove = z.infer<typeof timedMoveSchema>;
+
+/**
+ * What a row must meet to be created at all: a value of its own
+ * (`where`), of the row one of its links points at (`linked`), of the
+ * settings row (`setting`), and a window on the clock (`time`) — the same
+ * shapes a move waits for. A check-in recorded only for a paid ticket, on
+ * its day, from half an hour before the doors.
+ */
+export const createRequiresSchema = z
+  .object({
+    requires: z
+      .object({
+        where: z.array(stateConditionSchema).min(1).max(8).optional(),
+        linked: z.array(linkedConditionSchema).min(1).max(4).optional(),
+        time: timeConditionSchema.optional(),
+        setting: z.array(settingConditionSchema).min(1).max(4).optional(),
+      })
+      .strict()
+      .refine((r) => [r.where, r.linked, r.time, r.setting].some((part) => part !== undefined), {
+        message: 'a create requires where, linked, time or setting',
+      }),
+  })
+  .strict();
+export type CreateRequires = z.infer<typeof createRequiresSchema>;
 
 /**
  * When this row moves to `on.to`, the row its link `via` points at moves too,
@@ -258,6 +300,8 @@ export const statesSchema = z
     timed: z.array(timedMoveSchema).min(1).max(8).optional(),
     /** A move that moves the row one of its links points at too (see {@link stateEffectSchema}). */
     effects: z.array(stateEffectSchema).min(1).max(4).optional(),
+    /** What a new row must meet to be created (see {@link createRequiresSchema}). */
+    create: createRequiresSchema.optional(),
   })
   .strict();
 export type States = z.infer<typeof statesSchema>;
@@ -540,7 +584,39 @@ function conditionedMoveIssues<C extends ColumnShape>(
     if (after !== undefined && neverPasses(after, timed.at)) {
       out.push({ path: here('at'), message: `the move from "${timed.from}" to "${timed.to}" waits until later than this, so it could never be made in time` });
     }
+    for (const [ref, value] of Object.entries(timed.set ?? {})) {
+      const path = here('set', ref);
+      const found = index.column(table, ref);
+      if (found === undefined) out.push({ path, message: `"${table}" has no column "${ref}"` });
+      else if (ref === states.column) out.push({ path, message: 'the state moves by the timed move itself, not by what it sets' });
+      else if (found.role === 'pk') out.push({ path, message: `"${table}.${ref}" is the key, which never changes` });
+      else if (value === null ? found.nullable !== true : !valueFits(found, value)) out.push({ path, message: `${JSON.stringify(value)} is not a value of "${table}.${ref}"` });
+      else if (ctx.decided?.(ref) === true) out.push({ path, message: `"${table}.${ref}" is written by another rule already` });
+    }
   });
+
+  const create = states.create?.requires;
+  if (create !== undefined) {
+    const here = (...rest: (string | number)[]) => at('create', 'requires', ...rest);
+    (create.where ?? []).forEach((condition, w) => out.push(...conditionIssues(table, condition, index, here('where', w))));
+    (create.linked ?? []).forEach((linked, l) => {
+      const target = linkTarget(linked.via, here('linked', l, 'via'));
+      if (target === undefined) return;
+      linked.where.forEach((condition, w) => out.push(...conditionIssues(target, condition, index, here('linked', l, 'where', w))));
+    });
+    if (create.time?.after !== undefined) out.push(...momentIssues(table, create.time.after, index, here('time', 'after')));
+    if (create.time?.before !== undefined) out.push(...momentIssues(table, create.time.before, index, here('time', 'before')));
+    (create.setting ?? []).forEach((setting, k) => {
+      const path = here('setting', k);
+      if (index.table(setting.table) === undefined) {
+        out.push({ path, message: `"${setting.table}" is not a table of this manifest` });
+        return;
+      }
+      const found = index.column(setting.table, setting.column);
+      if (found === undefined) out.push({ path, message: `"${setting.table}" has no column "${setting.column}"` });
+      else if (!valueFits(found, setting.eq)) out.push({ path, message: `${JSON.stringify(setting.eq)} is not a value of "${setting.table}.${setting.column}"` });
+    });
+  }
 
   (states.effects ?? []).forEach((effect, i) => {
     const here = (...rest: (string | number)[]) => at('effects', i, ...rest);

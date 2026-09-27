@@ -190,7 +190,14 @@ export class ConflictError extends AppError {
       | 'APP_INSTALL_INCOMPLETE'
       // An app installed on one connection, asked to be installed on another:
       // `details` names the connection it is on.
-      | 'APP_INSTALLED_ELSEWHERE' = 'CONFLICT',
+      | 'APP_INSTALLED_ELSEWHERE'
+      // A write naming the state a strict row already holds (a ticket let in
+      // once): `details.at` and `details.by` say when and by whom it got there.
+      | 'STATE_UNCHANGED'
+      // A move a late rule turns away inside its window before a moment.
+      | 'STATE_TOO_LATE'
+      // A public change outside the window its entry opens (`details.bound`, `details.at`).
+      | 'WRITE_WINDOW_CLOSED' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);
