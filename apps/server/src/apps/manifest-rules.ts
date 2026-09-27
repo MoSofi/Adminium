@@ -551,6 +551,14 @@ export async function writeManifestRules(input: {
   const byId = new Map(all.map((o) => [o.id, o]));
   const knownLists = new Set((await lists.list()).map((list) => list.key));
   const wanted = new Map(desired.map((rule) => [targetOf(rule.op, rule.table, rule.column), rule]));
+  /** The rules another app's records hold (a table two apps share): which app keeps each, by its row. */
+  const keptByOther = new Map<string, string>();
+  if (records.some((record) => record.state === 'shared') || records.some((record) => record.shape !== null)) {
+    for (const other of await appTablesRepo(meta).forConnection(connectionId)) {
+      if (other.appKey === manifest.key || other.state === 'dropped' || other.state === 'released') continue;
+      for (const rule of other.rules) if (rule.released !== true) keptByOther.set(rule.overrideId, other.appKey);
+    }
+  }
 
   /** Targets whose rule the operator changed, switched off or removed: never written again. */
   const released = new Set<string>();
@@ -607,7 +615,8 @@ export async function writeManifestRules(input: {
         continue;
       }
       if (held !== undefined && held.origin !== 'auto') {
-        skip('The operator already keeps a rule for this column.');
+        const keeper = keptByOther.get(held.id);
+        skip(keeper === undefined ? 'The operator already keeps a rule for this column.' : `"${keeper}" already keeps this rule on the shared table.`);
         continue;
       }
       // One the operator switched off is still theirs: never a second row beside it.
@@ -741,22 +750,68 @@ export async function shapeRules(
   return out;
 }
 
-/** The app's rules that are still its own, for the uninstall dialog's count. */
+/**
+ * The app another app's record hands a shared table's rules to when it
+ * leaves: the first installed of the other apps still using the table, or
+ * null for a table no other app uses.
+ */
+async function survivorOf(meta: MetaDb, record: AppTableRecord, connectionId: string): Promise<AppTableRecord | null> {
+  if (record.role !== 'app') return null;
+  const live = (await appTablesRepo(meta).byTable(connectionId, record.tableName)).filter(
+    (other) => other.appKey !== record.appKey && other.role === 'app' && (other.state === 'created' || other.state === 'adopted' || other.state === 'shared'),
+  );
+  return live.sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))[0] ?? null;
+}
+
+/**
+ * The app's rules that are still its own and would be taken back, for the
+ * uninstall dialog's count: not those on a table another app goes on using,
+ * which that app keeps.
+ */
 export async function ownRules(meta: MetaDb, records: readonly AppTableRecord[], connectionId: string): Promise<SchemaOverride[]> {
   const all = await overridesRepo(meta).listForConnection(connectionId);
   const active = all.filter((o) => o.status === 'active');
   const byId = new Map(all.map((o) => [o.id, o]));
-  return records.flatMap((record) => record.rules.flatMap((rule) => stillOurs(rule, byId, active) ?? []));
+  const out: SchemaOverride[] = [];
+  for (const record of records) {
+    if (record.rules.length === 0 || (await survivorOf(meta, record, connectionId)) !== null) continue;
+    out.push(...record.rules.flatMap((rule) => stillOurs(rule, byId, active) ?? []));
+  }
+  return out;
 }
 
 /**
  * Uninstall: take back the rules the app wrote that are still as it wrote
- * them. A rule the operator changed stays, as theirs.
+ * them. A rule the operator changed stays, as theirs. On a table another app
+ * goes on using (a shared menu), the rules are handed to that app's record
+ * instead: its labels and choices stay, and are taken back when the last app
+ * using the table leaves.
  */
 export async function removeManifestRules(meta: MetaDb, records: readonly AppTableRecord[], connectionId: string): Promise<number> {
-  const rows = await ownRules(meta, records, connectionId);
+  const all = await overridesRepo(meta).listForConnection(connectionId);
+  const active = all.filter((o) => o.status === 'active');
+  const byId = new Map(all.map((o) => [o.id, o]));
   const overrides = overridesRepo(meta);
-  for (const row of rows) await overrides.delete(row.id);
-  for (const record of records) if (record.rules.length > 0) await appTablesRepo(meta).setRules(record.id, []);
-  return rows.length;
+  const repo = appTablesRepo(meta);
+  let removed = 0;
+  for (const record of records) {
+    if (record.rules.length === 0) continue;
+    const ours = record.rules.flatMap((rule) => {
+      const row = stillOurs(rule, byId, active);
+      return row === null ? [] : [{ ...rule, overrideId: row.id }];
+    });
+    const survivor = await survivorOf(meta, record, connectionId);
+    if (survivor !== null) {
+      // Read again: an earlier record of this uninstall may have handed it rules already.
+      const holder = (await repo.find(connectionId, survivor.appKey, survivor.ref)) ?? survivor;
+      const held = new Set(holder.rules.map((rule) => rule.overrideId));
+      const handed = ours.filter((rule) => !held.has(rule.overrideId));
+      if (handed.length > 0) await repo.setRules(holder.id, [...holder.rules, ...handed]);
+    } else {
+      for (const rule of ours) await overrides.delete(rule.overrideId);
+      removed += ours.length;
+    }
+    await repo.setRules(record.id, []);
+  }
+  return removed;
 }

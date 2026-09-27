@@ -1,0 +1,489 @@
+{
+  "key": "ordering",
+  "version": "0.2.0",
+  "installable": true,
+  "touchesData": true,
+  "create": [
+    {
+      "ref": "orders",
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "customer_name",
+          "type": "text"
+        },
+        {
+          "ref": "status",
+          "type": "enum"
+        },
+        {
+          "ref": "pickup_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "ref": "order_items",
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "order_id",
+          "type": "fk"
+        },
+        {
+          "ref": "menu_item_id",
+          "type": "fk"
+        },
+        {
+          "ref": "qty",
+          "type": "int"
+        }
+      ]
+    }
+  ],
+  "reuse": [
+    {
+      "ref": "menu_categories",
+      "missingColumns": []
+    },
+    {
+      "ref": "menu_items",
+      "missingColumns": [
+        "stock_today",
+        "hue"
+      ]
+    },
+    {
+      "ref": "modifier_groups",
+      "missingColumns": []
+    },
+    {
+      "ref": "modifiers",
+      "missingColumns": []
+    }
+  ],
+  "references": [
+    {
+      "fromTable": "menu_items",
+      "fromColumn": "category_id",
+      "to": "menu_categories",
+      "resolution": "internal"
+    },
+    {
+      "fromTable": "modifier_groups",
+      "fromColumn": "item_id",
+      "to": "menu_items",
+      "resolution": "internal"
+    },
+    {
+      "fromTable": "modifiers",
+      "fromColumn": "group_id",
+      "to": "modifier_groups",
+      "resolution": "internal"
+    },
+    {
+      "fromTable": "order_items",
+      "fromColumn": "order_id",
+      "to": "orders",
+      "resolution": "internal"
+    },
+    {
+      "fromTable": "order_items",
+      "fromColumn": "menu_item_id",
+      "to": "menu_items",
+      "resolution": "internal"
+    }
+  ],
+  "problems": [],
+  "requiresSchemaChange": true,
+  "pageWarnings": [],
+  "missingColumnsEdit": {
+    "addColumns": [
+      {
+        "table": "menu_items",
+        "column": {
+          "name": "stock_today",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "comment": null
+        }
+      },
+      {
+        "table": "menu_items",
+        "column": {
+          "name": "hue",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "maxLength": 32,
+          "numericPrecision": null,
+          "numericScale": null,
+          "comment": null
+        }
+      }
+    ],
+    "values": [],
+    "blocked": []
+  },
+  "tables": [
+    {
+      "ref": "menu_categories",
+      "table": "pos_menu_categories",
+      "class": "shared",
+      "action": "share",
+      "offers": [
+        "share",
+        "separate"
+      ],
+      "sharedWith": "pos",
+      "sharedWithName": "Point of Sale",
+      "shape": "menu@1",
+      "edits": [],
+      "blocked": [],
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "slug",
+          "type": "text"
+        },
+        {
+          "ref": "name",
+          "type": "text"
+        },
+        {
+          "ref": "position",
+          "type": "int"
+        },
+        {
+          "ref": "icon",
+          "type": "text"
+        },
+        {
+          "ref": "tint",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "ref": "menu_items",
+      "table": "pos_menu_items",
+      "class": "shared",
+      "action": "share",
+      "offers": [
+        "share",
+        "separate"
+      ],
+      "sharedWith": "pos",
+      "sharedWithName": "Point of Sale",
+      "shape": "menu@1",
+      "edits": [
+        {
+          "kind": "add-column",
+          "column": "stock_today"
+        },
+        {
+          "kind": "add-column",
+          "column": "hue"
+        }
+      ],
+      "blocked": [],
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "category_id",
+          "type": "fk"
+        },
+        {
+          "ref": "slug",
+          "type": "text"
+        },
+        {
+          "ref": "name",
+          "type": "text"
+        },
+        {
+          "ref": "short_name",
+          "type": "text"
+        },
+        {
+          "ref": "description",
+          "type": "text"
+        },
+        {
+          "ref": "price",
+          "type": "money"
+        },
+        {
+          "ref": "image",
+          "type": "text"
+        },
+        {
+          "ref": "available",
+          "type": "bool"
+        },
+        {
+          "ref": "featured",
+          "type": "bool"
+        },
+        {
+          "ref": "tags",
+          "type": "text"
+        },
+        {
+          "ref": "position",
+          "type": "int"
+        },
+        {
+          "ref": "barcode",
+          "type": "text"
+        },
+        {
+          "ref": "stock_today",
+          "type": "int"
+        },
+        {
+          "ref": "hue",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "ref": "modifier_groups",
+      "table": "pos_modifier_groups",
+      "class": "shared",
+      "action": "share",
+      "offers": [
+        "share",
+        "separate"
+      ],
+      "sharedWith": "pos",
+      "sharedWithName": "Point of Sale",
+      "shape": "menu@1",
+      "edits": [],
+      "blocked": [],
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "item_id",
+          "type": "fk"
+        },
+        {
+          "ref": "slug",
+          "type": "text"
+        },
+        {
+          "ref": "name",
+          "type": "text"
+        },
+        {
+          "ref": "kind",
+          "type": "enum"
+        },
+        {
+          "ref": "min",
+          "type": "int"
+        },
+        {
+          "ref": "max",
+          "type": "int"
+        },
+        {
+          "ref": "hint",
+          "type": "text"
+        },
+        {
+          "ref": "position",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "ref": "modifiers",
+      "table": "pos_modifiers",
+      "class": "shared",
+      "action": "share",
+      "offers": [
+        "share",
+        "separate"
+      ],
+      "sharedWith": "pos",
+      "sharedWithName": "Point of Sale",
+      "shape": "menu@1",
+      "edits": [],
+      "blocked": [],
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "group_id",
+          "type": "fk"
+        },
+        {
+          "ref": "slug",
+          "type": "text"
+        },
+        {
+          "ref": "name",
+          "type": "text"
+        },
+        {
+          "ref": "price_delta",
+          "type": "money"
+        },
+        {
+          "ref": "available",
+          "type": "bool"
+        },
+        {
+          "ref": "position",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "ref": "orders",
+      "table": "ordering_orders",
+      "class": "new",
+      "action": "create",
+      "offers": [],
+      "edits": [],
+      "blocked": [],
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "customer_name",
+          "type": "text"
+        },
+        {
+          "ref": "status",
+          "type": "enum"
+        },
+        {
+          "ref": "pickup_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "ref": "order_items",
+      "table": "ordering_order_items",
+      "class": "new",
+      "action": "create",
+      "offers": [],
+      "edits": [],
+      "blocked": [],
+      "columns": [
+        {
+          "ref": "id",
+          "type": "int"
+        },
+        {
+          "ref": "order_id",
+          "type": "fk"
+        },
+        {
+          "ref": "menu_item_id",
+          "type": "fk"
+        },
+        {
+          "ref": "qty",
+          "type": "int"
+        }
+      ]
+    }
+  ],
+  "names": {
+    "menu_categories": "pos_menu_categories",
+    "menu_items": "pos_menu_items",
+    "modifier_groups": "pos_modifier_groups",
+    "modifiers": "pos_modifiers",
+    "orders": "ordering_orders",
+    "order_items": "ordering_order_items"
+  },
+  "shareOffers": [
+    {
+      "shape": "menu@1",
+      "with": "pos",
+      "withName": "Point of Sale",
+      "candidates": [
+        {
+          "key": "pos",
+          "name": "Point of Sale"
+        }
+      ],
+      "action": "share",
+      "tables": [
+        "pos_menu_categories",
+        "pos_menu_items",
+        "pos_modifier_groups",
+        "pos_modifiers"
+      ],
+      "addColumns": [
+        {
+          "table": "pos_menu_items",
+          "column": "stock_today"
+        },
+        {
+          "table": "pos_menu_items",
+          "column": "hue"
+        }
+      ]
+    }
+  ],
+  "sampleData": false,
+  "publicAccess": {
+    "endpoints": [
+      {
+        "ref": "pos_menu_items",
+        "table": "menu_items",
+        "methods": [
+          "GET"
+        ],
+        "select": [
+          "id",
+          "name",
+          "price",
+          "available",
+          "stock_today"
+        ],
+        "writable": [],
+        "claim": null,
+        "kind": "records",
+        "confirms": false,
+        "pending": false,
+        "issues": []
+      }
+    ],
+    "warnings": [
+      {
+        "code": "PUBLIC_API_OFF",
+        "message": "The public API is switched off, so these endpoints will not answer until it is on."
+      }
+    ],
+    "canGrant": true
+  }
+}

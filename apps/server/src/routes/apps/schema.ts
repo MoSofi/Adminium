@@ -84,6 +84,20 @@ export const installAnswers = {
     )
     .optional(),
   altPrefix: z.string().min(2).max(40).optional(),
+  /**
+   * Per shape the app declares (`menu@1`): use another installed app's tables
+   * of that shape (`with` = its key) or keep separate ones. No answer uses the
+   * first installed app's, when there is one.
+   */
+  shares: z
+    .record(
+      z.string().regex(/^[a-z][a-z0-9-]*@\d+$/),
+      z.discriminatedUnion('action', [
+        z.object({ action: z.literal('share'), with: z.string().min(1).max(64) }),
+        z.object({ action: z.literal('separate') }),
+      ]),
+    )
+    .optional(),
 };
 
 /**
@@ -313,10 +327,14 @@ export const appInstallPlanDto = z.object({
         table: z.string(),
         class: z.enum(['new', 'own-leftover', 'shared', 'taken']),
         action: z.enum(['create', 'reuse', 'share', 'rename-existing', 'undecided']),
-        offers: z.array(z.enum(['reuse', 'share', 'rename-existing', 'alt-prefix'])),
+        offers: z.array(z.enum(['reuse', 'share', 'separate', 'rename-existing', 'alt-prefix'])),
         reuseRefusal: z.string().optional(),
         renameExistingTo: z.string().optional(),
+        /** For `share`: the key of the app whose table it is, and that app's name. */
         sharedWith: z.string().optional(),
+        sharedWithName: z.string().optional(),
+        /** The shape the app declares the table with (`menu@1`). */
+        shape: z.string().optional(),
         /** From an earlier install that used the table it found rather than making it. */
         adopted: z.literal(true).optional(),
         edits: z.array(
@@ -340,6 +358,28 @@ export const appInstallPlanDto = z.object({
     .optional(),
   /** Short name → real table. */
   names: z.record(z.string(), z.string()).optional(),
+  /**
+   * Per shape the app declares (`menu@1`), the installed apps whose tables of
+   * that shape it may use: the check step's "Use {app}'s menu" or "Keep a
+   * separate menu". Absent when no other app here has them.
+   */
+  shareOffers: z
+    .array(
+      z.object({
+        shape: z.string(),
+        /** The app whose tables the plan uses (`share`), or the one recommended (`separate`). */
+        with: z.string(),
+        withName: z.string(),
+        /** Every app whose tables could be used, recommended (the first installed) first, with its name. */
+        candidates: z.array(z.object({ key: z.string(), name: z.string() })),
+        action: z.enum(['share', 'separate']),
+        /** `with`'s real tables of the shape. */
+        tables: z.array(z.string()),
+        /** The columns sharing adds to `with`'s tables. */
+        addColumns: z.array(z.object({ table: z.string(), column: z.string() })),
+      }),
+    )
+    .optional(),
   /** The app ships sample data, which can be added once it is installed. */
   sampleData: z.boolean().optional(),
   /**
@@ -696,6 +736,7 @@ export const updateAppBody = z
   .object({
     planChecksum: z.string().min(1).max(128).optional(),
     choices: installAnswers.choices,
+    shares: installAnswers.shares,
     /**
      * The check's "Allow this public access", for what the new version adds
      * to it: an entry its keys do not hold (`onUpdate: granted`), a key it
@@ -912,9 +953,16 @@ export const uninstallPlanReply = z.object({
       table: z.string(),
       /** Made by this app and named by nothing else: the one kind the option may drop. */
       droppable: z.boolean(),
+      /** The other installed apps that use the table too (a shared menu): it is never dropped. */
+      sharedWith: z.array(z.object({ key: z.string(), name: z.string() })).optional(),
     }),
   ),
   hosts: z.array(z.string()),
+  /**
+   * The app's sample rows in tables another app uses too: an uninstall leaves
+   * them, and removing the sample data first takes them out. Absent when none.
+   */
+  sharedSampleRows: z.number().optional(),
   /** Column rules the app wrote that are still as it wrote them: taken back. */
   rules: z.number(),
   /** Discarding data is Super Admin's alone; the dialog offers the drop only when this is true. */
