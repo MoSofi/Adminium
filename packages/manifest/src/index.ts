@@ -231,6 +231,8 @@ export {
   uniqueSetBytes,
   type PlanContext,
   type TableChoice,
+  type ShareChoice,
+  type ShareOffer,
   type TableClass,
   type TableOffer,
   type PlanEdit,
