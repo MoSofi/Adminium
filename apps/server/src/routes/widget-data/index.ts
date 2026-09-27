@@ -34,7 +34,7 @@ import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { readViewFor } from '../../crud/read-view.js';
 import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
-import { countsTablesOf, joinCounts } from '../../widget-data/counts-join.js';
+import { countsTablesOf, joinCounts, limitTablesOf } from '../../widget-data/counts-join.js';
 import { groupLabelSourceOf, groupLabelsFor } from '../../widget-data/group-labels.js';
 import { resolveLinkFilters } from '../../widget-data/link-filters.js';
 import { resolvePaths } from '../../widget-data/paths.js';
@@ -167,7 +167,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
           access: countsAccessFor(request, connectionId, view),
           canReadPii: piiOf,
         });
-        cache.set(key, result, connectionId, table.id);
+        cache.set(key, result, connectionId, table.id, limitTablesOf(view, table));
         return { result, cached: false };
       }
 

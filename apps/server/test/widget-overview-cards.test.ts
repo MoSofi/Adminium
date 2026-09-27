@@ -193,6 +193,9 @@ function reader(w: World) {
   };
   const card = (table: string, rest: Record<string, unknown>) => ({ connectionId: w.connectionId, source: source(table), ...rest });
   return {
+    /** A staff write through the data route, as the super admin (after a first `admin` read). */
+    write: async (table: string, values: Record<string, unknown>) =>
+      w.app.inject({ method: 'POST', url: `/api/v1/data/${w.connectionId}/${w.id(table)}`, headers: { cookie: cookies.get('*') ?? '' }, payload: { values } as never }),
     admin: async (table: string, rest: Record<string, unknown>, params?: Record<string, unknown>) => {
       let cookie = cookies.get('*');
       if (cookie === undefined) {
@@ -504,11 +507,25 @@ for (const [dialect, available] of LEGS) {
         { taken: 2, held: 2, size: 114, left: 112 },
       ]);
       // A night limit's pools: the room types, tonight.
-      const rooms = ok(await cards.admin('room_types', { shape: 'record-list', select: ['id', 'name'], orderBy: [{ column: 'id', dir: 'asc' }], counts: { table: 'stays' } }));
+      const roomTypes = { shape: 'record-list', select: ['id', 'name'], orderBy: [{ column: 'id', dir: 'asc' }], counts: { table: 'stays' } };
+      const rooms = ok(await cards.admin('room_types', roomTypes));
       expect((rooms['rows'] as Record<string, unknown>[]).map((row) => row['counts'])).toEqual([
         { taken: 2, held: 0, size: 2, left: 0 },
         { taken: 2, held: 1, size: 2, left: 0 },
       ]);
+      // Kept for a while, and dropped by a write to any table the counts read: a Garden room closed tonight.
+      expect((await cards.admin('room_types', roomTypes)).body['cached']).toBe(true);
+      const closed = await cards.write('room_closures', { room_id: 4, reason: 'Flood', from_date: '2026-07-27', to_date: '2026-07-27', active: true });
+      expect(closed.statusCode, closed.body).toBe(201);
+      const after = await cards.admin('room_types', roomTypes);
+      expect(after.body['cached']).toBe(false);
+      expect(((ok(after)['rows'] as Record<string, unknown>[])[1]!['counts'] as { size: number }).size).toBe(1);
+      // The same for a KPI over the counts: a write to the ticket types' orders drops it.
+      const kpi = { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'taken', under: 'event_id', value: '1' } };
+      expect(ok(await cards.admin('tickets', kpi))['value']).toBe(7);
+      expect((await cards.admin('tickets', kpi)).body['cached']).toBe(true);
+      expect((await cards.write('orders', { status: 'paid' })).statusCode).toBe(201);
+      expect((await cards.admin('tickets', kpi)).body['cached']).toBe(false);
 
       // Refused, by name: beside anything but a list; rows that are not the limit's pools; a list without the key; a name the list has.
       expect(refused(await cards.admin('events', { ...coming, shape: 'categorical', groupBy: ['name'], aggregations: [{ fn: 'count', alias: 'n' }], select: undefined, window: undefined, orderBy: undefined }))).toEqual([422, 'VALIDATION_FAILED']);
