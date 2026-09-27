@@ -144,7 +144,7 @@ import {
   subjectOf,
   tryCode,
 } from '../../public-api/claim-code.js';
-import { capKey, chargeAnonymous, notPlain, plainText } from '../../public-api/anonymous-caps.js';
+import { capKey, chargeAnonymous, linkFreeText, notPlain } from '../../public-api/anonymous-caps.js';
 import { appContact } from '../../outbox/sender.js';
 import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
@@ -2194,7 +2194,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const need = (child.requires ?? []).find((column) => own[column] === null || own[column] === undefined || (typeof own[column] === 'string' && own[column].trim() === ''));
             if (need !== undefined) return { ...where, column: need, reason: 'required' };
             // Text a guest types that reaches a kitchen screen or someone's inbox: plain, no links.
-            const unplain = (child.plainText ?? []).find((column) => !plainText(own[column]));
+            const unplain = (child.plainText ?? []).find((column) => !linkFreeText(own[column]));
             if (unplain !== undefined) return { ...where, column: unplain };
             const grandchildren = (row as { children?: Record<string, { values: Record<string, unknown> }[]> }).children;
             const below = grandchildren === undefined ? [] : nodesOf(child.children ?? {}, grandchildren, childTable, at);

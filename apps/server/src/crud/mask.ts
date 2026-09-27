@@ -108,6 +108,15 @@ export function codeColumnsOf(table: ResolvedTable): Set<string> {
   return new Set(table.table.columns.filter((column) => column.code !== undefined).map((column) => column.name));
 }
 
+/**
+ * The code columns a change of hands makes again (`code.renew`): an undo never
+ * puts one back — the old secret stays dead. A code with no renew rule is put
+ * back by an undo like any other value.
+ */
+export function renewingCodeColumnsOf(table: Pick<ResolvedTable, 'table'>): Set<string> {
+  return new Set(table.table.columns.filter((column) => column.code?.renew !== undefined).map((column) => column.name));
+}
+
 const filled = (value: unknown) => value !== null && value !== undefined && value !== '';
 
 /** A row as a kept copy shows it: masked as for a reader without the PII grant, and no code in it. */

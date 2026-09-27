@@ -52,6 +52,11 @@ function manifest(): Record<string, unknown> {
           { ...text('ref', 8), rules: { code: { prefix: 'R-', length: 6, renew: { on: { column: 'status', values: ['reissued'] } } } } },
         ],
       },
+      // A voucher whose code nothing renews: a code changed by hand is undone like any value.
+      {
+        ref: 'vouchers',
+        columns: [id, { ref: 'bundle_id', type: 'fk', references: 'bundles', nullable: true }, text('note'), { ...text('code', 12), rules: { code: { length: 8 } } }],
+      },
       {
         // A badge handed on by its holder: the new holder's address is copied in when the offer is taken.
         ref: 'badges',
@@ -332,6 +337,44 @@ describe.each(LEGS)('a code renewed when its row changes hands — %s', (dialect
       expect(back[column], column).not.toBe(now[column]);
       expect(back[column], column).not.toBe(was[column]);
     }
+  });
+
+  it.skipIf(!available)('offers an undo for a change naming only a code nothing renews, as it always has, alone or in a form', async () => {
+    const key = Number((await w.create('vouchers', { note: 'Gift' }))['id']);
+    const was = String((await row('vouchers', key))['code']);
+    // The desk never types a code: the value is dropped, and the change is offered its undo as before.
+    const patched = await staff('PATCH', url('vouchers', `/${key}`), { values: { code: 'HANDMADE' } });
+    expect(patched.statusCode, patched.body).toBe(200);
+    expect((await row('vouchers', key))['code']).toBe(was);
+    const token = (patched.json() as { undoToken: string | null }).undoToken;
+    expect(token).not.toBeNull();
+    const undone = await staff('POST', `/api/v1/data/undo/${token!}`);
+    expect(undone.statusCode, undone.body).toBe(200);
+    expect((await row('vouchers', key))['code']).toBe(was);
+    // A bulk change naming only the code: offered its undo, as it always was.
+    const bulk = await staff('POST', url('vouchers', '/bulk'), { action: 'update', ids: [String(key)], values: { code: 'BULKCODE' } });
+    expect(bulk.statusCode, bulk.body).toBe(200);
+    expect((await row('vouchers', key))['code']).toBe(was);
+    const bulkToken = (bulk.json() as { undoToken: string | null }).undoToken;
+    expect(bulkToken).not.toBeNull();
+    expect((await staff('POST', `/api/v1/data/undo/${bulkToken!}`)).statusCode).toBe(200);
+    expect((await row('vouchers', key))['code']).toBe(was);
+    // Through its bundle's form, with the note changed too: the undo puts the note back and keeps the code.
+    const bundle = Number((await w.create('bundles', { name: 'Gifts' }))['id']);
+    const child = Number((await w.create('vouchers', { bundle_id: bundle, note: 'Boxed' }))['id']);
+    const first = String((await row('vouchers', child))['code']);
+    const relation = w.view.model.relations.find((r) => r.from.tableId === tableId('vouchers') && r.from.columns[0] === 'bundle_id')!;
+    const saved = await staff('PATCH', url('bundles', `/${bundle}`), { values: { name: 'Gifts' }, children: { [relation.id]: [{ key: { id: child }, values: { code: 'BYHAND01', note: 'Wrapped' } }] } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const formToken = (saved.json() as { undoToken: string | null }).undoToken;
+    expect(formToken).not.toBeNull();
+    expect((await staff('POST', `/api/v1/data/undo/${formToken!}`)).statusCode).toBe(200);
+    expect(await row('vouchers', child)).toMatchObject({ note: 'Boxed', code: first });
+    // A code a change of hands renews, named alone in a bulk change: nothing an undo may put back.
+    const passKey = await pass();
+    const byHand = await staff('POST', url('passes', '/bulk'), { action: 'update', ids: [String(passKey)], values: { code: 'ZZZZZZZZZZ' } });
+    expect(byHand.statusCode, byHand.body).toBe(200);
+    expect((byHand.json() as { undoToken: string | null }).undoToken).toBeNull();
   });
 
   it.skipIf(!available)('gives a document with states no undo, and says in the audit log only that a new code was made', async () => {

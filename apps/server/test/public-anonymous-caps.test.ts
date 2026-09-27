@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ANONYMOUS_PER_IP_HOUR, ANONYMOUS_PURPOSE, capKey, capValue, chargeAnonymous, mailboxOf, notPlain, plainText, valueSubject, type AnonymousCaps } from '../src/public-api/anonymous-caps.js';
+import { ANONYMOUS_PER_IP_HOUR, ANONYMOUS_PURPOSE, capKey, capValue, chargeAnonymous, linkFreeText, mailboxOf, notPlain, plainText, valueSubject, type AnonymousCaps } from '../src/public-api/anonymous-caps.js';
 
 /** The markers as the repo keeps them, each call a turn of the event loop — as a database round trip is. */
 function memoryRepo() {
@@ -97,11 +97,19 @@ describe('anonymous caps', () => {
     expect(notPlain({ plainText: ['name', 'note'] }, { name: 'Cara', note: 'x://y' })).toBe('note');
   });
 
-  it('never takes a domain or an address a stranger could be sent to, and still takes a name with dots in it', () => {
-    for (const name of ['Claim refund at evil.com', 'evil.com', 'go to Claim.Refund.net now', 'пример.рф', 'kai at friends-org.io', 'mail kai@friends.org', '@kai_tickets', 'Kai @ home']) {
-      expect(plainText(name), name).toBe(false);
+  it('holds a create nobody signed in for to the plain text it always has: a dotted name passes, as does a bare domain', () => {
+    for (const name of ['Mary.Ann', 'J.R.R. Tolkien', 'St. John', 'evil.com', 'Claim.Refund.net', 'пример.рф']) expect(plainText(name), name).toBe(true);
+    for (const name of ['mail kai@friends.org', '@kai_tickets', 'evil.co.uk/x', 'see www.x.io']) expect(plainText(name), name).toBe(false);
+    expect(notPlain({ plainText: ['name'] }, { name: 'Mary.Ann' })).toBeNull();
+  });
+
+  it('never takes a web address, a path or a handle where no link may go, and still takes a name with dots in it', () => {
+    for (const name of ['Claim refund at evil.com', 'evil.com', 'EVIL.COM', 'evil.co.uk/x', 'go to Claim.Refund.net now', 'пример.рф', 'kai at friends-org.io', 'mail kai@friends.org', '@handle', '@kai_tickets', 'Kai @ home', 'see www.x.io', 'Call 0800']) {
+      expect(linkFreeText(name), name).toBe(false);
     }
-    for (const name of ['St. John', 'J. R. R. Tolkien', 'Mrs. Kai Ng', 'Ana Lu.', 'Dr. J. (Jo) Park & co']) expect(plainText(name), name).toBe(true);
+    for (const name of ['Mary.Ann', 'J.R.R. Tolkien', 'St. John', 'J. R. R. Tolkien', 'Mrs. Kai Ng', 'Ana Lu.', 'Dr. J. (Jo) Park & co', 'Anne-Marie.Jo', null]) {
+      expect(linkFreeText(name), String(name)).toBe(true);
+    }
   });
 
   it('counts a Gmail address written with a dot after its domain as the same mailbox', () => {
