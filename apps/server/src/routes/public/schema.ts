@@ -61,6 +61,15 @@ export const publicAvailabilityQuery = z
     from: day.optional(),
     days: z.coerce.number().int().min(1).max(31).optional(),
     exclude: z.string().min(1).max(400).optional(),
+    /** A limit's pools: the last day of a stay's nights (exclusive), the guests a room must sleep, how far to look for the earliest arrival. */
+    to: day.optional(),
+    guests: z.coerce.number().int().min(1).max(50).optional(),
+    earliest: z.coerce.number().int().min(1).max(90).optional(),
+    /** A parent limit: the rows under this value of the entry's `under` column, and how many a page wants. */
+    under: z.string().min(1).max(200).optional(),
+    qty: z.coerce.number().int().min(1).max(50).optional(),
+    /** A typed code that unlocks rows only it shows. */
+    code: z.string().min(1).max(64).optional(),
   })
   .strict();
 export type PublicAvailabilityQuery = z.infer<typeof publicAvailabilityQuery>;
@@ -72,9 +81,17 @@ export type PublicAvailabilityQuery = z.infer<typeof publicAvailabilityQuery>;
  */
 export const publicAvailabilityReply = z.object({
   data: z.union([
-    z.array(z.object({ time: z.string(), state: z.enum(['free', 'full']) })),
+    // A paused time is a slot limit's with pauses; a released one says free or full only.
+    z.array(z.object({ time: z.string(), state: z.enum(['free', 'full', 'paused']) })),
     z.array(z.object({ date: z.string(), open: z.number().int(), state: z.enum(['open', 'full', 'closed']) })),
+    // A parent limit's rows (ticket types), and a night limit's pools (room types): `left` only when the entry shows it.
+    z.array(z.object({ id: z.string(), state: z.enum(['on', 'soon', 'ended', 'soldout']), left: z.number().int().optional() })),
+    z.array(
+      z.object({ pool: z.string(), state: z.enum(['open', 'full', 'closed']), left: z.number().int().optional(), earliest: z.string().nullable().optional() }),
+    ),
   ]),
+  /** A night limit asked with `earliest`: the first arrival of the same length where any fitting pool is open. */
+  earliest: z.string().nullable().optional(),
 });
 
 export const publicRefParams = z.object({
@@ -300,6 +317,13 @@ export const PUBLIC_ERROR_CODES = [
    */
   'PUBLIC_SLOT_FULL',
   'PUBLIC_SLOT_BUSY',
+  /**
+   * What a line asks for is sold out (409): tickets of a type, today's
+   * portions of a dish. `params.column` names the line's column.
+   */
+  'PUBLIC_SOLD_OUT',
+  /** No room of the type asked for is free on one of the nights (409). `params.column` names it. */
+  'PUBLIC_NO_ROOM',
   /** A guest cancelling closer to the time than the venue allows online (409). */
   'PUBLIC_TOO_LATE',
   /**

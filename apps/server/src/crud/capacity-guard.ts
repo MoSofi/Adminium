@@ -1,40 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * THE BOOKING GUARD — how much of a slot a table's rows may take.
+ * THE SLOT LIMIT'S OLD HELPERS — what the booking guard, the outbox and the
+ * released slot limit's availability still read.
  *
- * A venue seats twelve at half past seven. Two guests pressing Book at the
- * same moment must not both get the last four seats, whoever they write
- * through: the till, the public API, an automation. So the write runs as
- *
- *     lock the slot → add up what it holds → compare → write
- *
- * inside one transaction, with a lock only the same slot contends for:
- *
- *  - Postgres: `pg_advisory_xact_lock` on a hash of connection, table and
- *    slot, released by the commit itself.
- *  - MySQL: `GET_LOCK` on a pinned connection, released after the commit —
- *    releasing before it would let the next writer add up rows it cannot
- *    see yet.
- *  - SQLite: one connection serialises this process already; `BEGIN
- *    IMMEDIATE` takes the write lock up front for a second process.
- *
- * Only rows whose `countWhere` column holds one of its values count — a
- * cancelled booking holds no seats — and a change to an existing row leaves
- * that row's own amount out of the sum. A guest cancelling through the public
- * API must do it `cancelHours` before the time; staff are never held to it. The slot must also be one the venue
- * offers: on its grid, inside its hours, not in the past and not further
- * ahead than its window — all on the venue's clock, never the server's.
- *
- * A limit or an hour may be a number in the rule or the column of a one-row
- * settings table, read inside the same transaction, so a venue changes its
- * capacity from its own settings screen.
+ * The guard itself (every kind of limit, its locks, its counting) lives in
+ * `crud/capacity/`. Kept here: the one reader of a stored time
+ * (`slotInstant`), settings and minutes readers, the one-name lock wrapper,
+ * and the released slot limit's free-or-full day (`slotAvailability`), which
+ * answers Point of Sale exactly as it always has.
  */
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
 import type { CapacitySetting, TableCapacityRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { ConflictError, ValidationFailedError } from '../errors.js';
 import { withNamedLocks, type LockBusy } from './capacity/locks.js';
 import { readInstant } from './moments.js';
 import type { ResolvedTable } from './identifiers.js';
@@ -105,80 +84,6 @@ function counts(rule: TableCapacityRule, row: Row): boolean {
   return rule.countWhere.values.includes(String(row[rule.countWhere.column]));
 }
 
-/** Whether a write touches what the guard adds up. */
-export function touchesGuard(rule: TableCapacityRule, values: Row): boolean {
-  return [rule.slot, rule.amount, rule.resource, rule.countWhere?.column].some(
-    (column) => column !== undefined && has(values, column),
-  );
-}
-
-function refused(column: string): ValidationFailedError {
-  return new ValidationFailedError('Some values were refused.', { fields: { [column]: { code: 'out-of-range' } } });
-}
-
-/**
- * Refuse the row unless its slot is one the venue offers and has room for it.
- * Run inside the guarded transaction, after the lock. `before` is the row as
- * stored, on an update.
- */
-export async function checkCapacity(
-  rule: TableCapacityRule,
-  target: GuardTarget,
-  values: Row,
-  before: Row | null,
-  now: Date = new Date(),
-): Promise<void> {
-  const row = before === null ? values : { ...before, ...values };
-  // A guest's cancellation, too close to the time: only the venue may now.
-  if (before !== null && target.origin === 'public' && rule.cancelHours !== undefined && counts(rule, before) && !counts(rule, row)) {
-    const hours = await numberOf(target.db, rule.cancelHours);
-    const held = slotInstant(before[rule.slot]);
-    if (hours !== null && held !== null && held.getTime() - now.getTime() < hours * 3_600_000) {
-      throw new ConflictError('It is too late to cancel online.', 'CAPACITY_TOO_LATE', { column: rule.countWhere?.column ?? rule.slot });
-    }
-  }
-  if (!counts(rule, row)) return;
-  const zone = target.timezone ?? 'UTC';
-  const slotValue = row[rule.slot];
-  const instant = slotInstant(slotValue);
-  if (instant === null) throw refused(rule.slot);
-
-  // The grid, the hours and the window — only when the slot is new or moved.
-  if (before === null || has(values, rule.slot)) {
-    const step = await numberOf(target.db, rule.slotMinutes);
-    const clock = venueClock(instant, zone);
-    const opens = await timeOf(target.db, rule.opens);
-    let closes = await timeOf(target.db, rule.closes);
-    let minute = clock.minute;
-    if (opens !== null && closes !== null && closes <= opens) {
-      // Open past midnight: the small hours belong to the evening before.
-      closes += 1440;
-      if (minute < opens) minute += 1440;
-    }
-    if (step !== null && step > 0 && (clock.second !== 0 || (minute - (opens ?? 0)) % step !== 0)) throw refused(rule.slot);
-    if (opens !== null && minute < opens) throw refused(rule.slot);
-    if (closes !== null && minute + (step ?? 0) > closes) throw refused(rule.slot);
-    if (instant.getTime() < now.getTime()) throw refused(rule.slot);
-    const window = await numberOf(target.db, rule.windowDays);
-    if (window !== null && daysBetween(venueClock(now, zone).day, clock.day) > window) throw refused(rule.slot);
-  }
-
-  const amount = Number(row[rule.amount] ?? 0);
-  if (!Number.isFinite(amount) || amount <= 0) throw refused(rule.amount);
-  const limit = await numberOf(target.db, rule.perSlot);
-  if (limit === null) return;
-
-  const held = await takenBySlot(rule, target, instant, instant, {
-    ...(rule.resource === undefined ? {} : { resource: row[rule.resource] ?? null }),
-    // The row being changed holds what it held; it is not counted twice.
-    ...(before === null ? {} : { exclude: before }),
-  });
-  const taken = held.get(instant.getTime()) ?? 0;
-  if (taken + amount > limit) {
-    throw new ConflictError('That time is full.', 'CAPACITY_FULL', { column: rule.slot });
-  }
-}
-
 /** `YYYY-MM-DD`, `days` after the UTC day of `instant`. */
 const dayOf = (instant: Date, days: number) => new Date(instant.getTime() + days * 86_400_000).toISOString().slice(0, 10);
 
@@ -218,26 +123,6 @@ async function takenBySlot(
     if (at !== undefined) taken.set(at, (taken.get(at) ?? 0) + Number(row.taken));
   }
   return taken;
-}
-
-/** The lock's name: the slot, on this connection, in this table (and resource). */
-function lockName(rule: TableCapacityRule, target: GuardTarget, row: Row): string {
-  const resource = rule.resource === undefined ? '' : String(row[rule.resource] ?? '');
-  const slot = slotInstant(row[rule.slot])?.toISOString() ?? String(row[rule.slot]);
-  return `${target.connectionId}|${target.table.id}|${slot}|${resource}`;
-}
-
-/**
- * Run `write` holding the slot, inside one transaction. `write` receives the
- * handle to write through; what it returns is returned once committed.
- */
-export async function withSlotLock<T>(
-  rule: TableCapacityRule,
-  target: GuardTarget,
-  row: Row,
-  write: (db: Db) => Promise<T>,
-): Promise<T> {
-  return withNamedLock(target, lockName(rule, target, row), 'CAPACITY_BUSY', write);
 }
 
 /**
