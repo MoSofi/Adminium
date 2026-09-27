@@ -893,7 +893,16 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       } else if (!Array.isArray(when) && !('within' in when)) {
         out.push(...windowIssues(entry.table, ref, when, found, index, at('writableWhen', ref)));
         // The dates that open a guest's own window are never theirs to move.
-        const opening = [ref, ...[when.after, when.before].flatMap((end) => (end?.or ?? []).filter((m) => m.via === undefined).map((m) => m.column))];
+        // A time of day read from the row itself opens it too: a later arrival time typed in would reopen a closed window.
+        const rowTime = (time: unknown): string[] =>
+          typeof time === 'object' && time !== null && !('table' in time) && !('edge' in time) && typeof (time as { column?: unknown }).column === 'string' ? [(time as { column: string }).column] : [];
+        const opening = [
+          ref,
+          ...[when.after, when.before].flatMap((end) => [
+            ...(end !== undefined && end.column === undefined ? rowTime(end.time) : []),
+            ...(end?.or ?? []).filter((m) => m.via === undefined).flatMap((m) => [m.column, ...rowTime(m.time)]),
+          ]),
+        ];
         for (const column of new Set(opening)) {
           if (writable.has(column) || entry.writableValues?.[column] !== undefined || entry.defaults?.[column] !== undefined) {
             out.push({ path: at('writableWhen', ref), message: `"${column}" decides when this row may change, so a write through this entry may not set it` });
