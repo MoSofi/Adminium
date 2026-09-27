@@ -108,6 +108,12 @@ const INLINE_SAFE: ReadonlySet<string> = new Set([
 
 export interface FilesRoutesDeps {
   meta: MetaDb;
+  /**
+   * Whether a file attached to a record sits only in columns the reader's role
+   * does not read (their read of the table is limited to others): then it is
+   * not theirs either. Absent: a file is read with its table, whole.
+   */
+  hiddenFile?: ((request: FastifyRequest, file: StoredFile) => Promise<boolean>) | undefined;
   storage: FileStore;
   /** Storage-credential closures, for the destination names on `GET /files/usage`. */
   storageCrypto: DsnCrypto;
@@ -229,7 +235,7 @@ export function filesRoutes(deps: FilesRoutesDeps): FastifyPluginAsyncZod {
    */
   async function canRead(request: FastifyRequest, file: StoredFile): Promise<boolean> {
     const permission = entityPermission(file, 'read');
-    if (permission !== null) return request.can(permission);
+    if (permission !== null) return (await request.can(permission)) && !((await deps.hiddenFile?.(request, file)) ?? false);
     if (file.uploadedBy !== null && file.uploadedBy === request.user?.id) return true;
     return request.can(FILES_MANAGE_PERMISSION);
   }

@@ -90,9 +90,12 @@ export function registerSseRoute(
       });
       res.write(`retry: ${SSE_RETRY_MS}\n\n`);
 
-      const unsubscribes = channels.map((channel) =>
+      // As this subscriber reads each channel's table: the columns their role does not show taken out.
+      const frames = await Promise.all(channels.map(async (channel) => (await deps.frameFor?.(user, channel)) ?? null));
+      const unsubscribes = channels.map((channel, i) =>
         deps.hub.subscribe(channel, (event) => {
-          res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+          const shown = frames[i] === null || frames[i] === undefined ? event : frames[i]!(event);
+          res.write(`event: ${shown.type}\ndata: ${JSON.stringify(shown)}\n\n`);
         }),
       );
 

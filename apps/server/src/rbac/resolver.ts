@@ -11,6 +11,7 @@ import { permissionsRepo, rolesRepo, type MetaDb, type Role } from '@adminium/me
 import { grantsFromMatrixRows, isGranted } from './permissions.js';
 import type { RbacPrincipal } from './principal.js';
 import { limitOfRow, type LimitedUpdate, type UpdateLimits } from './update-limits.js';
+import { readLimitOfRow, type LimitedRead, type ReadLimits } from './read-limits.js';
 
 /** Built-in slug whose members bypass every check. */
 export const SUPER_ADMIN_SLUG = 'super-admin';
@@ -30,6 +31,11 @@ export interface PermissionSet {
    * Absent means none: a set built without it limits nothing.
    */
   updateLimits?: UpdateLimits | undefined;
+  /**
+   * The read grants that show only some columns (rbac/read-limits.ts).
+   * Absent means none: a set built without it limits nothing.
+   */
+  readLimits?: ReadLimits | undefined;
 }
 
 export function emptyPermissionSet(): PermissionSet {
@@ -68,16 +74,22 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
   // The same union without the update grants a limit narrows, and the limits.
   const unlimited = new Set<string>();
   const limited: LimitedUpdate[] = [];
+  // The same for reads: the read grants a limit narrows, and every other grant.
+  const readUnlimited = new Set<string>();
+  const readLimited: LimitedRead[] = [];
   if (!superAdmin) {
     const suspended = await suspendedApps(meta, roles);
     for (const role of roles) {
       if (role.appKey !== null && suspended.has(role.appKey)) continue;
       for (const row of await permissions.listForRole(role.id)) {
         const limit = limitOfRow(row);
+        const read = readLimitOfRow(row);
         for (const grant of grantsFromMatrixRows([row])) {
           grants.add(grant);
           if (limit !== null && grant.endsWith(':update')) limited.push({ grant, limit });
           else unlimited.add(grant);
+          if (read !== null && grant.endsWith(':read')) readLimited.push({ grant, limit: read });
+          else readUnlimited.add(grant);
         }
       }
     }
@@ -88,6 +100,7 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
     roleIds: roles.map((role) => role.id),
     screensOnly: screensOnlyApps(roles),
     ...(limited.length === 0 ? {} : { updateLimits: { limited, unlimited } }),
+    ...(readLimited.length === 0 ? {} : { readLimits: { limited: readLimited, unlimited: readUnlimited } }),
   };
 }
 

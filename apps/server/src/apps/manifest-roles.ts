@@ -34,7 +34,7 @@
  */
 import { parseDatabaseModel } from '@adminium/engine';
 import type { Manifest } from '@adminium/manifest';
-import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type TableActions, type UpdateLimit } from '@adminium/meta';
+import { pagesRepo, permissionsRepo, rolesRepo, settingsRepo, snapshotsRepo, type MetaDb, type ReadLimit, type TableActions, type UpdateLimit } from '@adminium/meta';
 
 import { matrixRowsFromGrants } from '../rbac/permissions.js';
 
@@ -65,7 +65,9 @@ function grantsOf(role: ManifestRole, roles: readonly ManifestRole[]): string[] 
  * clone of a limited role is limited alike unless it says otherwise, or a
  * copy would be a way round the limit.
  */
-function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, UpdateLimit> {
+type RoleLimit = NonNullable<ManifestRole['limits']>[string];
+
+function limitsOf(role: ManifestRole, roles: readonly ManifestRole[]): Record<string, RoleLimit> {
   const from = role.cloneFrom === undefined ? undefined : roles.find((other) => other.key === role.cloneFrom);
   return { ...(from?.limits ?? {}), ...(role.limits ?? {}) };
 }
@@ -204,9 +206,9 @@ export async function writeManifestRoles(input: {
   const settings = settingsRepo(meta);
   const seeded = new Set(await settings.get(SEEDED_APP_ROLE_GRANTS_KEY));
 
-  /** Put the manifest's limits on the role's table rows, and nothing else there. */
-  const writeLimits = async (roleId: string, limits: Record<string, UpdateLimit>): Promise<void> => {
-    const wanted = new Map<string, UpdateLimit>();
+  /** Put the manifest's limits on the role's table rows — what its update writes, what its read shows — and nothing else there. */
+  const writeLimits = async (roleId: string, limits: Record<string, RoleLimit>): Promise<void> => {
+    const wanted = new Map<string, RoleLimit>();
     for (const [ref, limit] of Object.entries(limits)) {
       const id = tableId(ref);
       if (id !== null) wanted.set(`${connectionId}/${id}`, limit);
@@ -215,9 +217,12 @@ export async function writeManifestRoles(input: {
       if (row.resourceKind !== 'table' || !row.resourceRef.startsWith(`${connectionId}/`)) continue;
       const actions = row.actions as TableActions;
       const limit = wanted.get(row.resourceRef);
-      if (limit === undefined && actions.updateLimit === undefined) continue;
-      const { updateLimit: _previous, ...rest } = actions;
-      await permissions.grant(roleId, 'table', row.resourceRef, limit === undefined ? rest : { ...rest, updateLimit: limit });
+      if (limit === undefined && actions.updateLimit === undefined && actions.readLimit === undefined) continue;
+      const { updateLimit: _previous, readLimit: _read, ...rest } = actions;
+      const update: UpdateLimit | undefined =
+        limit?.writable === undefined ? undefined : { writable: [...limit.writable], ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }) };
+      const read: ReadLimit | undefined = limit?.readable === undefined ? undefined : { readable: [...limit.readable] };
+      await permissions.grant(roleId, 'table', row.resourceRef, { ...rest, ...(update === undefined ? {} : { updateLimit: update }), ...(read === undefined ? {} : { readLimit: read }) });
     }
   };
   const before = seeded.size;
@@ -231,7 +236,7 @@ export async function writeManifestRoles(input: {
       const existing = await permissions.find(roleId, kind, ref);
       if (existing === null) return;
       const actions = { ...(existing.actions as Record<string, unknown>), [action]: false };
-      const anyLeft = Object.entries(actions).some(([name, value]) => name !== 'updateLimit' && value === true);
+      const anyLeft = Object.entries(actions).some(([name, value]) => name !== 'updateLimit' && name !== 'readLimit' && value === true);
       if (anyLeft) await permissions.grant(roleId, kind, ref, actions as never);
       else await permissions.revoke(roleId, kind, ref);
     };

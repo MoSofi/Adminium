@@ -63,9 +63,10 @@ import type { StatementSources } from '../../documents/statement.js';
 import { recordKeyOf } from '../public/documents.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { providerOf } from '../../documents/provider.js';
-import { mappedTables, type ProfileMapping } from '../../documents/subject.js';
+import { mappedTables, type CollectionSource, type ProfileMapping } from '../../documents/subject.js';
 import { outboundKey } from '../../documents/compose.js';
-import type { SnapshotView } from '../../crud/identifiers.js';
+import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
+import { readViewFor } from '../../crud/read-view.js';
 import { syncProfileTrigger } from '../../documents/trigger-sync.js';
 import type { FileStore } from '../../files/store.js';
 import { DOCUMENT_RENDER_KIND } from '../../jobs/document-render.js';
@@ -162,6 +163,46 @@ async function documentReads(profile: DocumentProfile, viewOf: () => Promise<Sna
   return [...reads];
 }
 
+/**
+ * The first table a document drawn by this profile reads a column of that
+ * the caller's role does not read (their read of it is limited to other
+ * columns), or null: a document prints what it maps, so it is theirs only
+ * when every column it prints is. `view` is the caller's own view.
+ */
+function documentColumnRefused(profile: DocumentProfile, view: SnapshotView): string | null {
+  if (!view.readLimited) return null;
+  const hidden = (tableId: string | undefined, column: string | undefined): boolean =>
+    tableId !== undefined && column !== undefined && view.linkTable(tableId)?.columns.get(column)?.unreadable === true;
+  let base: ResolvedTable | null = null;
+  try {
+    base = view.linkTable(profile.table);
+  } catch {
+    base = null;
+  }
+  const own = (column: string | undefined) => hidden(profile.table, column);
+  const listed = (source: CollectionSource): boolean =>
+    [...Object.values(source.columns), source.orderBy, source.where?.column, source.unless].some((column) => hidden(source.table, column)) ||
+    Object.values(source.lists ?? {}).some((list) => hidden(list.table, list.column));
+  for (const mapped of Object.values(profile.mapping as ProfileMapping)) {
+    if ('collection' in mapped) {
+      if (listed(mapped.collection)) return mapped.collection.table;
+    } else if ('sources' in mapped) {
+      for (const source of mapped.sources) {
+        if ('nightly' in source ? own(source.nightly.column) : listed(source.collection)) return 'nightly' in source ? profile.table : source.collection.table;
+      }
+    } else if ('ref' in mapped) {
+      const target = mapped.table ?? (base === null ? undefined : outboundKey(view, base, mapped.ref)?.tableId);
+      if (hidden(target, mapped.column)) return target ?? profile.table;
+    } else if (own(mapped.column)) return profile.table;
+  }
+  const options = profile.options as { numberColumn?: string; statement?: StatementSources; balanceAfter?: { via: string; column: string } };
+  if (own(options.numberColumn)) return profile.table;
+  for (const source of options.statement === undefined ? [] : [options.statement.documents, options.statement.payments]) {
+    if ([source.date, source.amount, source.number, source.where?.column, source.unless].some((column) => hidden(source.table, column))) return source.table;
+  }
+  return null;
+}
+
 /** The same answer for an app, a table, a kind and a row that are not there — or not the caller's to read. */
 function notFound(): never {
   throw new NotFoundError('No such document for this app.');
@@ -209,6 +250,10 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     for (const table of await documentReads(profile, viewOf(row.connectionId))) {
       if (!(await canRead(table))) return { ok: false, table };
     }
+    // …and every column it prints, when the caller's role reads a table only in part.
+    const whole = await viewOf(row.connectionId)();
+    const refused = whole === null ? null : documentColumnRefused(profile, await readViewFor(request, whole));
+    if (refused !== null) return { ok: false, table: refused };
     return { ok: true };
   }
 
@@ -557,6 +602,10 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
             throw new ForbiddenError(`This document reads ${table}, which you may not read.`);
           }
         }
+        // …and prints no column the caller's role does not read.
+        const whole = await viewOf(profile.connectionId)();
+        const hiddenIn = whole === null ? null : documentColumnRefused(profile, await readViewFor(request, whole));
+        if (hiddenIn !== null) throw new ForbiddenError(`This document prints columns of ${hiddenIn} your role does not read.`, 'COLUMN_FORBIDDEN', { table: hiddenIn, reason: 'read-limit' });
         // An app's document with its add-on switched off for the app is off
         // here too, as it is on the app's own door (and the job skips it).
         const off = await ownedDocumentOff(deps.meta, profile, deps.runtime);
@@ -649,6 +698,8 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         if (profile !== null) {
           const canRead = await canReadTableFor(deps.meta, request.user?.id ?? null, connectionId);
           for (const table of await documentReads(profile, async () => view)) if (!(await canRead(table))) notFound();
+          // …and every column it prints: a role that reads the table in part draws no document of the rest.
+          if (documentColumnRefused(profile, await readViewFor(request, view)) !== null) notFound();
         }
 
         // Declared, readable — and switched on?

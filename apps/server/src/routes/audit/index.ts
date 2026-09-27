@@ -7,10 +7,14 @@
  *
  * Requires `system:audit:read` (meta closed-set key `audit.read`).
  */
-import { auditEntityKeyPart } from '@adminium/meta';
+import { auditEntityKeyPart, type MetaDb } from '@adminium/meta';
+import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
+import type { SnapshotView } from '../../crud/identifiers.js';
+import { readableImage, readViewOf } from '../../crud/read-view.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { cursorText } from '../../security/nul-bytes.js';
 import {
@@ -67,6 +71,40 @@ function toDto(row: AuditRow): AuditEntryDto {
     requestId: row.requestId,
   };
 }
+
+/**
+ * The entries as the reader may see them: a record's before and after images
+ * without the columns their role does not read of its table (their read of it
+ * is limited to others). Nearly everyone reads every entry as it is.
+ */
+async function asReadBy(request: FastifyRequest, entries: AuditEntryDto[]): Promise<AuditEntryDto[]> {
+  const permissions = await request.server.rbac.resolve(request);
+  if (permissions.superAdmin === true || permissions.readLimits === undefined) return entries;
+  const views = new Map<string, Promise<SnapshotView | null>>();
+  const viewOf = (connectionId: string) => {
+    if (!views.has(connectionId)) views.set(connectionId, loadSnapshotView(meta(request), connectionId).then((view) => readViewOf(view, permissions)).catch(() => null));
+    return views.get(connectionId)!;
+  };
+  const out: AuditEntryDto[] = [];
+  for (const entry of entries) {
+    const entity = entry.entity as { connectionId?: unknown; table?: unknown } | null;
+    const changes = entry.changes as { before?: unknown; after?: unknown } | null;
+    if (entity === null || typeof entity.connectionId !== 'string' || typeof entity.table !== 'string' || changes === null || typeof changes !== 'object') {
+      out.push(entry);
+      continue;
+    }
+    const view = await viewOf(entity.connectionId);
+    if (view === null || !view.readLimited) {
+      out.push(entry);
+      continue;
+    }
+    const image = (value: unknown) => (typeof value === 'object' && value !== null && !Array.isArray(value) ? readableImage(view, entity.table as string, value as Record<string, unknown>) : value);
+    out.push({ ...entry, changes: { ...changes, ...('before' in changes ? { before: image(changes.before) } : {}), ...('after' in changes ? { after: image(changes.after) } : {}) } });
+  }
+  return out;
+}
+
+const meta = (request: FastifyRequest): MetaDb => request.server.rbac.meta;
 
 interface Cursor {
   createdAt: number;
@@ -147,7 +185,7 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
         rows.length > limit && last !== undefined
           ? encodeCursor({ createdAt: last.createdAt, id: last.id })
           : null;
-      return { entries: page.map((row) => toDto(row as AuditRow)), nextCursor };
+      return { entries: await asReadBy(request, page.map((row) => toDto(row as AuditRow))), nextCursor };
     },
   );
 
@@ -164,7 +202,7 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
         .where('id', '=', request.params.id)
         .executeTakeFirst();
       if (row === undefined) throw new NotFoundError('Audit entry not found.', { id: request.params.id });
-      return toDto(row as AuditRow);
+      return (await asReadBy(request, [toDto(row as AuditRow)]))[0]!;
     },
   );
 };

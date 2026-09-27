@@ -73,7 +73,7 @@ import {
 import { applyCompositionOverrides, applyOverrides } from '../../connections/effective-schema.js';
 import { writeRefused } from '../../connections/privileges.js';
 import { canReadPii } from '../../crud/mask.js';
-import { columnFactsFor } from './column-facts.js';
+import { columnFactsFor, hiddenColumnsOf, withoutColumns } from './column-facts.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { fitRefusalMessage } from './fit-prose.js';
 import { pageLayoutSchema } from './layout-schema.js';
@@ -659,21 +659,25 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
          */
         // Read in the person's own language, where the app's labels have one.
         const reader = request.user === null || request.user === undefined ? undefined : (await userPrefsRepo(deps.meta).resolve(request.user.id)).locale;
+        // As the person reads the table: a column their role does not show is neither a field nor a column here.
+        const permissions = typeof request.server.rbac?.resolve === 'function' ? await request.server.rbac.resolve(request) : undefined;
         const columnFacts =
-          source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table, reader, rights);
+          source === null ? null : await columnFactsFor(deps.meta, source.connectionId, source.table, reader, rights, permissions);
         const facts = columnFacts === null ? {} : { columnFacts };
+        const hiddenColumns = source === null || permissions === undefined ? [] : await hiddenColumnsOf(deps.meta, source.connectionId, source.table, permissions);
+        const config = hiddenColumns.length === 0 ? page.config : withoutColumns(page.config, hiddenColumns);
 
         // Layout resolution: a per-user override wins over the shared
         // default baked into the envelope's `config.layout`. Only applies when
         // the caller is a session user and their override parses as a valid
         // layout document; anything else falls back to the stored default.
         const userId = sessionUserId(request);
-        if (userId !== null && typeof page.config === 'object' && page.config !== null) {
+        if (userId !== null && typeof config === 'object' && config !== null) {
           const override = await views.findLayoutOverride(page.id, userId);
           if (override !== null) {
             const parsed = pageLayoutSchema.safeParse(override.config);
             if (parsed.success) {
-              const envelope = page.config as Record<string, unknown>;
+              const envelope = config as Record<string, unknown>;
               const templateConfig =
                 typeof envelope['config'] === 'object' && envelope['config'] !== null
                   ? (envelope['config'] as Record<string, unknown>)
@@ -696,7 +700,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
             }
           }
         }
-        return { data: page.config, canEditLayout, ...tableCapabilities, ...facts };
+        return { data: config, canEditLayout, ...tableCapabilities, ...facts };
       },
     );
 

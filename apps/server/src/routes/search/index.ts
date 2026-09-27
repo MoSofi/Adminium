@@ -45,6 +45,7 @@ import { labelColumnFor } from '../../crud/labels.js';
 import { pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { readViewFor } from '../../crud/read-view.js';
 import {
   SEARCH_LIMIT_DEFAULT,
   searchQuery,
@@ -298,7 +299,8 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
 
             let view: SnapshotView;
             try {
-              view = await loadSnapshotView(meta, connectionId);
+              // As this person reads it: a column their role does not show is never matched nor shown.
+              view = await readViewFor(req, await loadSnapshotView(meta, connectionId));
             } catch {
               continue; // no snapshot — nothing searchable on this connection
             }

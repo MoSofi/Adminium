@@ -182,9 +182,11 @@ export function registerWsRoute(app: FastifyInstance, deps: RealtimeGatewayDeps)
           send({ op: 'error', code: 'FORBIDDEN', channel });
           return;
         }
+        // As this subscriber reads the channel's table: the columns their role does not show taken out.
+        const shown = (await deps.frameFor?.(user, channel)) ?? null;
         subscriptions.set(
           channel,
-          deps.hub.subscribe(channel, (event) => send(event)),
+          deps.hub.subscribe(channel, (event) => send(shown === null ? event : shown(event))),
         );
         send({ op: 'subscribed', channel });
       };

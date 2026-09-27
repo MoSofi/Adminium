@@ -10,6 +10,7 @@
  */
 
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { readViewForUser } from '../../crud/read-view.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
 import { codesMaskedView } from '../../crud/mask.js';
 import type { AssistantTool, AssistantToolDeps, CanReadTable } from '../types.js';
@@ -28,7 +29,9 @@ export async function viewOrError(
   }
   try {
     // No code Adminium makes (a shared link's) is ever read into an answer: it would leave the instance.
-    return { view: codesMaskedView(await loadSnapshotView(deps.meta, connectionId)) };
+    const view = codesMaskedView(await loadSnapshotView(deps.meta, connectionId));
+    // Nor a column the person's role does not read: the assistant reads as they do.
+    return { view: deps.userId === null ? view : await readViewForUser(deps.meta, deps.userId, view) };
   } catch {
     return {
       error: {

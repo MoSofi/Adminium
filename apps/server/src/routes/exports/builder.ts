@@ -35,6 +35,7 @@ import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { readViewFor } from '../../crud/read-view.js';
 import { filtersToWhere, resolveExportDefinition } from '../../export/definition.js';
 import { cellText, createRowWriter, maskedKeysOf } from '../../export/writer.js';
 import { auditExempt } from '../../audit/coverage.js';
@@ -144,7 +145,8 @@ export async function registerBuilderRoutes(
       requireUserId(request);
       const { connectionId } = request.query;
       const connection = await manager.mustFind(connectionId);
-      const view = await loadSnapshotView(meta, connectionId);
+      // As this person reads it: a column their role does not show is never offered, previewed or exported.
+      const view = await readViewFor(request, await loadSnapshotView(meta, connectionId));
       const pages = await pagesRepo(meta).listForConnection(connectionId);
       const pagesByTable = new Map<string, Page[]>();
       for (const page of pages) {
@@ -209,7 +211,8 @@ export async function registerBuilderRoutes(
     async (request) => {
       const userId = requireUserId(request);
       const { connectionId } = request.query;
-      const view = await loadSnapshotView(meta, connectionId);
+      // As this person reads it: a column their role does not show is never offered, previewed or exported.
+      const view = await readViewFor(request, await loadSnapshotView(meta, connectionId));
       const table = tableOrNotFound(view, request.query.table);
       await exportGrant(request, connectionId, table);
       const unmasked = await canReadPii(request, connectionId, table.id);
@@ -253,7 +256,8 @@ export async function registerBuilderRoutes(
       const { connectionId, source, format, sampleRows } = request.body;
       const resolved = await resolveSource(meta, source, connectionId, userId);
       await manager.mustFind(connectionId);
-      const view = await loadSnapshotView(meta, connectionId);
+      // As this person reads it: a column their role does not show is never offered, previewed or exported.
+      const view = await readViewFor(request, await loadSnapshotView(meta, connectionId));
       const table = view.table(resolved.table);
       await exportGrant(request, connectionId, table);
       const unmasked = await canReadPii(request, connectionId, table.id);

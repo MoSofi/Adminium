@@ -36,6 +36,12 @@ export interface ResolvedColumn {
   masked: boolean;
   secret: boolean;
   textish: boolean;
+  /**
+   * Not shown to this caller: their role's read of the table is limited to
+   * other columns. Hidden as a secret column is (never read, never listed)
+   * and refused by name as a masked one is (403 `COLUMN_FORBIDDEN`).
+   */
+  unreadable?: true;
 }
 
 export interface ResolvedTable {
@@ -51,19 +57,25 @@ export interface ResolvedTable {
   table: EffectiveTable;
 }
 
-/** One table of the effective model, as SQL-safe identifiers. */
-function resolveTable(table: EffectiveTable): ResolvedTable {
+/**
+ * One table of the effective model, as SQL-safe identifiers. `readable`: the
+ * columns a caller's limited read shows — every other is theirs to know
+ * nothing of, but the key and the links to other rows (`links`).
+ */
+function resolveTable(table: EffectiveTable, readable?: ReadonlySet<string>, links: ReadonlySet<string> = new Set()): ResolvedTable {
   const policy = columnPolicyFor(table);
   const columns = new Map<string, ResolvedColumn>();
   for (const column of table.columns) {
+    const hidden = readable !== undefined && !readable.has(column.name) && !column.isPrimaryKey && !links.has(column.name);
     columns.set(column.name, {
       name: column.name,
       logicalType: column.logicalType,
       nullable: column.nullable,
       isPrimaryKey: column.isPrimaryKey,
       masked: policy.masked.has(column.name),
-      secret: policy.secret.has(column.name),
+      secret: hidden || policy.secret.has(column.name),
       textish: TEXTISH.has(column.logicalType),
+      ...(hidden && !policy.secret.has(column.name) ? { unreadable: true as const } : {}),
     });
   }
   return {
@@ -94,15 +106,20 @@ export class SnapshotView {
   readonly #tables = new Map<string, ResolvedTable>();
   /** Excluded tables reached through a relation, resolved on demand. */
   readonly #linkTables = new Map<string, ResolvedTable>();
+  /** Per table id, the columns a caller's limited read shows; empty for a view anyone reads whole. */
+  readonly #readable: ReadonlyMap<string, ReadonlySet<string>>;
 
   constructor(
     connectionId: string,
     model: EffectiveModel,
     optionLists: ReadonlyMap<string, readonly string[]> = new Map(),
+    /** A caller's limited reads, by table id (see {@link SnapshotView.readAs}). */
+    readable: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
   ) {
     this.connectionId = connectionId;
     this.model = model;
     this.optionLists = optionLists;
+    this.#readable = readable;
     for (const table of model.tables) {
       // A system table and an operator-excluded table are not addressable
       // through `/data` AT ALL.
@@ -126,7 +143,7 @@ export class SnapshotView {
       // every path that resolves an identifier refuses them, for every principal.
       if (table.system) continue;
       if (table.excluded === true) continue;
-      const resolved = resolveTable(table);
+      const resolved = this.#resolve(table);
       this.#tables.set(table.id, resolved);
       if (table.schema === model.defaultSchema) this.#tables.set(table.name, resolved);
     }
@@ -153,9 +170,34 @@ export class SnapshotView {
     if (cached !== undefined) return cached;
     const table = this.model.tables.find((candidate) => candidate.id === tableId);
     if (table === undefined || table.system) return null;
-    const resolved = resolveTable(table);
+    const resolved = this.#resolve(table);
     this.#linkTables.set(tableId, resolved);
     return resolved;
+  }
+
+  /** One table, with this view's limit on its read (if any): its key and its links to other rows always shown. */
+  #resolve(table: EffectiveTable): ResolvedTable {
+    const readable = this.#readable.get(table.id);
+    if (readable === undefined) return resolveTable(table);
+    const links = new Set(this.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id).flatMap((relation) => relation.from.columns));
+    return resolveTable(table, readable, links);
+  }
+
+  /** Whether some table of this view is read only in part. */
+  get readLimited(): boolean {
+    return this.#readable.size > 0;
+  }
+
+  /**
+   * This view as a caller whose reads of some tables are limited to some
+   * columns sees it: those tables' other columns hidden, as secret columns
+   * are, and refused by name. The model is the same one — rules and
+   * relations read it whole — so only what is READ changes. The same view
+   * when nothing is limited.
+   */
+  readAs(readable: ReadonlyMap<string, ReadonlySet<string>>): SnapshotView {
+    if (readable.size === 0) return this;
+    return new SnapshotView(this.connectionId, this.model, this.optionLists, readable);
   }
 
   /** Resolve the client's `:table` segment to snapshot identifiers (422 otherwise). */
@@ -169,9 +211,16 @@ export class SnapshotView {
     return resolved;
   }
 
-  /** Resolve a column; secret columns are invisible (422). */
+  /** Resolve a column; secret columns are invisible (422), and one the caller's read does not show is refused (403). */
   column(table: ResolvedTable, clientName: string): ResolvedColumn {
     const column = table.columns.get(clientName);
+    if (column?.unreadable === true) {
+      throw new ForbiddenError(`Column ${JSON.stringify(clientName)} is not shown to your role.`, 'COLUMN_FORBIDDEN', {
+        table: table.id,
+        column: clientName,
+        reason: 'read-limit',
+      });
+    }
     if (column === undefined || column.secret) {
       throw new UnknownIdentifierError(
         `Unknown column ${JSON.stringify(clientName)} on ${table.id}.`,

@@ -31,6 +31,7 @@ import {
 import type { ConnectionManager } from '../../connections/manager.js';
 import { canReadPii, piiCheckFor, piiTablesOf, UNMASK_PERMISSION } from '../../crud/mask.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import { readViewFor } from '../../crud/read-view.js';
 import { resolveExportDefinition, sanitizeFileName } from '../../export/definition.js';
 import { registerBuilderRoutes } from './builder.js';
 import { requireUserId, resolveSource } from './source.js';
@@ -126,7 +127,8 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
         const resolved = await resolveSource(meta, source, connectionId, userId);
 
         await manager.mustFind(connectionId);
-        const view = await loadSnapshotView(meta, connectionId);
+        // As this person reads it: a column their role does not show is never exported.
+        const view = await readViewFor(request, await loadSnapshotView(meta, connectionId));
         // Identifier resolution FIRST, then RBAC on the resolved name.
         const table = view.table(resolved.table);
         const permission = `table:${connectionId}:${table.id}:export`;
