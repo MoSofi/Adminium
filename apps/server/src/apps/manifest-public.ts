@@ -393,14 +393,15 @@ export function planPublicEndpoints(
   };
   /*
    * The parent endpoint a `visibleWith` entry reads through — the one GET
-   * entry on that table on the same key — and the columns that link them:
+   * entry on that table on the same key that reads rows (an availability
+   * entry answers free or full, never a row) — and the columns that link them:
    * this table's key to the parent (a line's `invoice_id`), or the parent's
    * key to this table (a proposal's `terms_version_id`).
    */
   const parentOf = (entry: PublicAccessEntry): { ref: string; localColumn: string; foreignColumn: string } | undefined => {
     const v = entry.visibleWith;
     if (v === undefined) return undefined;
-    const at = entries.findIndex((other) => other !== entry && other.table === v.table && (other.key ?? 'customer') === (entry.key ?? 'customer') && other.methods.includes('GET'));
+    const at = entries.findIndex((other) => other !== entry && other.table === v.table && (other.key ?? 'customer') === (entry.key ?? 'customer') && other.methods.includes('GET') && other.kind !== 'availability');
     if (at === -1) return undefined;
     const ref = refs[at] as string;
     return pointsAt(entry.table, v.via, v.table)
