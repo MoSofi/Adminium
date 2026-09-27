@@ -69,6 +69,9 @@ export interface NightlySource {
   columns: Record<string, string>;
 }
 
+/** Where a line carries the names a list reads one level below it, under the slot column that prints them. */
+export const LIST_KEY = (slotColumn: string): string => `\u0000list:${slotColumn}`;
+
 export interface ProfileMapping {
   [slotId: string]: SlotMapping;
 }
@@ -313,6 +316,19 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
        * with the right number of blank rows: worse than an absent block,
        * because it looks like data.
        */
+      if (mapped !== undefined && 'sources' in mapped) {
+        // Several sources, read already in the slot's own column ids (see `compose.ts`).
+        collections[slot.id] = (input.collections?.[slot.id] ?? []).map((row) => {
+          const out: Record<string, unknown> = {};
+          if (row.id !== undefined) out.id = toText(row.id);
+          for (const column of slot.columns ?? []) {
+            if (row[column.id] === undefined) continue;
+            out[column.id] = coerceSlot(column.type, row[column.id], scale, zone);
+          }
+          return out;
+        });
+        continue;
+      }
       if (mapped === undefined || !('collection' in mapped)) {
         // Supplied outright? Then it is already in the slot's own column ids
         // and needs only the same coercion a mapped row gets.
@@ -341,6 +357,11 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
         if (row.id !== undefined) out.id = toText(row.id);
         for (const column of columns) {
           const source = mapped.collection.columns[column.id];
+          // A column that lists names one level below the line (a dish's options).
+          if (source === undefined && mapped.collection.lists?.[column.id] !== undefined) {
+            out[column.id] = coerceSlot(column.type, row[LIST_KEY(column.id)], scale, zone);
+            continue;
+          }
           if (source === undefined) continue;
           out[column.id] = coerceSlot(column.type, row[source], scale, zone);
         }

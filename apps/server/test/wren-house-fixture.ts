@@ -60,7 +60,7 @@ export function wrenTables(): Record<string, unknown>[] {
         { ref: 'room_type_id', type: 'fk', references: 'room_types' },
         { ref: 'arrive', type: 'date' },
         { ref: 'depart', type: 'date' },
-        { ref: 'guests', type: 'int', default: 1 },
+        { ref: 'guests', type: 'int', default: 1, rules: { validation: { min: 1, max: 6 } } },
         { ref: 'nights', type: 'int', nullable: true, rules: { formula: { daysBetween: ['arrive', 'depart'] } } },
         money('room_total', { perNight: ROOM_TOTAL }),
         money('extras_total', { rollup: { from: 'stay_extras', via: 'stay_id', sum: 'amount', where: { column: 'removed', eq: false } } }),

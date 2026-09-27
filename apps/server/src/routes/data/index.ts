@@ -82,6 +82,7 @@ import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { capacityCounts } from '../../crud/capacity/counts.js';
+import { storedNights } from '../../crud/per-night.js';
 import { diffLinks, resolveLink, sameKeys, type ResolvedLink } from '../../crud/links.js';
 import {
   diffChildRows,
@@ -143,6 +144,8 @@ import {
   bookingSlotsQuery,
   capacityCountsQuery,
   capacityCountsReply,
+  nightlyQuery,
+  nightlyReply,
   bookingSlotsReply,
   recordLinksParams,
   recordLinksQuery,
@@ -2081,6 +2084,40 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         );
         if (!answer.ok) throw new ValidationFailedError(answer.message, {});
         return { data: answer.data };
+      },
+    );
+
+    /*
+     * A ROW'S NIGHTS FOR THE DESK — each night of a price by the night (a
+     * stay's room total) with its rate and tags, priced from the rates as
+     * they are now; one line for them all when those no longer add up to the
+     * stored figure. A night's price is a decided value of the row, so the
+     * row's read grant (and the priced column's) is what it takes.
+     */
+    app.get(
+      '/data/:connectionId/:table/:recordId/nightly',
+      { schema: { params: dataRecordParams, querystring: nightlyQuery, response: { 200: nightlyReply } } },
+      async (request) => {
+        const ctx = await contextFor(request, 'read');
+        const rules = tableRulesFor({ view: ctx.view, table: ctx.table });
+        const priced = rules?.perNight;
+        if (rules === null || priced === undefined || (request.query.column !== undefined && request.query.column !== priced.column)) {
+          throw new NotFoundError('This table has no price by the night.', { table: ctx.table.id });
+        }
+        ctx.view.readableColumn(ctx.table, priced.column, await canReadPii(request, ctx.connectionId, ctx.table.id));
+        const pk = parseRecordId(ctx.table, request.params.recordId);
+        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        if (row === undefined) throw new NotFoundError('Record not found.', { pk });
+        const currency = (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null;
+        const nights = await storedNights(ctx.db, rules, row, currency);
+        return {
+          data: {
+            column: priced.column,
+            nights: nights.lines.map(({ date, rate, base, tags, qty, amount }) => ({ date, rate, base, tags, qty, amount })),
+            total: nights.total,
+            stale: nights.stale,
+          },
+        };
       },
     );
 
