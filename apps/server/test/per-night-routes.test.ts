@@ -35,7 +35,7 @@ function publicWren(): Record<string, unknown> {
 }
 
 describe.each(LEGS)('the nights of a stay, quoted and at the desk — %s', (dialect, available) => {
-  let h: InvoicingHarness | undefined;
+  let h: (InvoicingHarness & { reply: Record<string, unknown> }) | undefined;
   let w: Awaited<ReturnType<typeof writerFor>>;
   let seed: Awaited<ReturnType<typeof seedWren>>;
   let served: Served;
