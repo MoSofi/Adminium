@@ -94,6 +94,8 @@ const MANIFEST = {
       limits: { stays: { readable: ['arrive', 'depart', 'late_until'], writable: ['arrive', 'depart', 'late_until', 'note'] } },
     },
     { key: 'manager', name: 'Manager', permissions: ['table:@stays:read', 'table:@rooms:read'] },
+    // Changes any column of a stay it reads, and none it does not.
+    { key: 'porter', name: 'Porter', permissions: ['table:@stays:read', 'table:@stays:update', 'table:@stays:create'], limits: { stays: { readable: ['arrive', 'depart', 'late_until'] } } },
   ],
   frontends: [{ side: 'staff', kind: 'spa', entry: 'index.html' }],
 };
@@ -245,6 +247,7 @@ interface Ctx {
   s: Stack;
   hk: { cookie: string; id: string };
   desk: { cookie: string; id: string };
+  porter: { cookie: string; id: string };
   both: { cookie: string; id: string };
   auditor: { cookie: string; id: string };
   owner: string;
@@ -413,6 +416,14 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
       expect(quoted.statusCode, quoted.body).toBe(200);
       withoutHidden(quoted.json().data);
       refusedAsMasked(await post(c, c.desk.cookie, data(c, `${c.s.table.stays}/1/dry-run`), { values: { total: 3 } }));
+      // A role that may change every column still changes none it does not read: one row, several, or a new one.
+      const porter = (values: Record<string, unknown>) => c.s.app.inject({ method: 'PATCH', url: data(c, `${c.s.table.stays}/1`), headers: { cookie: c.porter.cookie }, payload: { values } });
+      refusedAsMasked(await porter({ total: 4 }));
+      refusedAsMasked(await post(c, c.porter.cookie, data(c, `${c.s.table.stays}/bulk`), { action: 'update', ids: [1], values: { note: 'x' } }));
+      refusedAsMasked(await post(c, c.porter.cookie, data(c, c.s.table.stays), { values: { arrive: '2026-12-01', depart: '2026-12-02', guest_name: 'Walk-in' } }));
+      const late = await porter({ late_until: '15:00' });
+      expect(late.statusCode, late.body).toBe(200);
+      withoutHidden(late.json().data);
     },
   ],
   [
@@ -441,6 +452,7 @@ for (const [dialect, available] of legs) {
       c.owner = await signIn(c.s.app, 'owner@lodge.dev');
       c.hk = await person(c.s, 'hana@lodge.dev', ['housekeeping']);
       c.desk = await person(c.s, 'dev@lodge.dev', ['desk']);
+      c.porter = await person(c.s, 'pat@lodge.dev', ['porter']);
       c.both = await person(c.s, 'mo@lodge.dev', ['housekeeping', 'manager']);
       c.auditor = await person(c.s, 'aud@lodge.dev', ['housekeeping'], ['system:audit:read']);
       // A change the audit log keeps before and after images of.
