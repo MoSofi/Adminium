@@ -44,6 +44,19 @@ describe('a document’s states, read by the record page', () => {
     expect(childWritable(payments, 'draft')).toBe(false);
     expect(childWritable(payments, null)).toBe(false);
   });
+
+  it('adds a child in its create states, and changes one in its change states', () => {
+    // Taken while a stay is booked or in house; voided on a cancelled stay too.
+    const payments = { table: 'main.stays', key: 'id', via: 'stay_id', column: 'status', lockedIn: [], createIn: ['booked', 'in_house'], changeIn: ['booked', 'in_house', 'cancelled'] };
+    expect(childWritable(payments, 'cancelled', 'create')).toBe(false);
+    expect(childWritable(payments, 'cancelled')).toBe(true);
+    expect(childWritable(payments, 'in_house', 'create')).toBe(true);
+    expect(childWritable(payments, 'departed')).toBe(false);
+    // One tied by parentIn alone is tied alike both ways.
+    const invoicePayments = { table: 'main.invoices', key: 'id', via: 'invoice_id', column: 'status', lockedIn: ['sent'], parentIn: ['sent'] };
+    expect(childWritable(invoicePayments, 'sent', 'create')).toBe(true);
+    expect(childWritable(invoicePayments, 'draft', 'create')).toBe(false);
+  });
 });
 
 describe('a line a void invoice lets go of, and the time a line keeps', () => {
