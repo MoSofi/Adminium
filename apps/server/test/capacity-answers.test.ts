@@ -122,3 +122,54 @@ for (const [dialect, available] of LEGS) {
     });
   });
 }
+
+for (const [dialect, available] of LEGS) {
+  describe.skipIf(!available)(`a limit's counts for the desk on ${dialect}`, () => {
+    let w: World | null = null;
+    beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }));
+    afterEach(async () => {
+      vi.useRealTimers();
+      await w?.close();
+      w = null;
+    });
+
+    it("answers the kitchen's slots, the box office's types and the house's nights with sizes, what is taken, held and left", async () => {
+      vi.setSystemTime(at('2026-07-28 11:40'));
+      w = await kitchen(dialect);
+      const slots = await w.staff('orders/capacity-counts?date=2026-07-28');
+      expect(slots.status, JSON.stringify(slots.body)).toBe(200);
+      const data = slots.body['data'] as { kind: string; rows: Record<string, unknown>[] };
+      expect(data.kind).toBe('slot');
+      expect(data.rows.find((r) => r['time'] === '12:15')).toEqual({ time: '12:15', size: 6, taken: 2, held: 0 });
+      expect(data.rows.find((r) => r['time'] === '12:30')).toEqual({ time: '12:30', size: 6, taken: 0, held: 0, paused: true });
+      const days = ((await w.staff('orders/capacity-counts?from=2026-07-28&days=3')).body['data'] as { rows: unknown[] }).rows;
+      expect(days).toEqual([
+        { date: '2026-07-28', size: 216, taken: 2, held: 0 },
+        { date: '2026-07-29', size: 216, taken: 0, held: 0 },
+        { date: '2026-07-30', size: 216, taken: 0, held: 0, closed: true },
+      ]);
+      expect((await w.staff('orders/capacity-counts?rule=1&date=2026-07-28')).status).toBe(422);
+      await w.close();
+
+      vi.setSystemTime(NEON_NOW);
+      w = await neon(dialect);
+      const types = await w.staff('tickets/capacity-counts?under=event_id&value=1');
+      expect(types.status, JSON.stringify(types.body)).toBe(200);
+      expect((types.body['data'] as { rows: unknown[] }).rows).toEqual([
+        { id: '1', size: 260, taken: 246, held: 3, kept: 0, left: 14, also: [{ key: '1', size: 300, taken: 246, held: 3 }] },
+        { id: '2', size: 40, taken: 0, held: 0, kept: 0, left: 40, also: [{ key: '1', size: 300, taken: 246, held: 3 }] },
+        { id: '3', size: 20, taken: 0, held: 0, kept: 0, left: 20, also: [{ key: '1', size: 300, taken: 246, held: 3 }] },
+      ]);
+      await w.close();
+
+      vi.setSystemTime(new Date('2026-07-20T09:00:00.000Z'));
+      w = await house(dialect);
+      await w.create('stays', { arrive: '2026-07-31', depart: '2026-08-02', room_type_id: 1 });
+      const nights = ((await w.staff('stays/capacity-counts?from=2026-07-31&days=2&ids=1')).body['data'] as { rows: unknown[] }).rows;
+      expect(nights).toEqual([
+        { pool: '1', date: '2026-07-31', size: 4, taken: 1, held: 0, left: 3 },
+        { pool: '1', date: '2026-08-01', size: 4, taken: 1, held: 0, left: 3 },
+      ]);
+    });
+  });
+}

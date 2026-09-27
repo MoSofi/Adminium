@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { sql, type Kysely } from 'kysely';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { connectionTenantConfig, createSqliteMetaDb, firstRun, overridesRepo, settingsRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, createFirstSuperAdmin, createSqliteMetaDb, firstRun, overridesRepo, settingsRepo, snapshotsRepo, type MetaDb } from '@adminium/meta';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { applyOverrides } from '../src/connections/effective-schema.js';
@@ -39,6 +39,7 @@ import { createEndpointService } from '../src/public-api/endpoint-service.js';
 import type { PublicEndpointDefinition } from '../src/public-api/endpoint.js';
 import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
+import { adminPasswordHash, ADMIN_EMAIL, ADMIN_NAME, ADMIN_PASSWORD, login } from './auth-helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
 export type Dialect = 'sqlite' | 'postgres' | 'mysql';
@@ -97,6 +98,8 @@ export interface World {
   get: (path: string, session?: string) => Promise<{ status: number; body: Record<string, unknown> }>;
   post: (path: string, payload: unknown) => Promise<{ status: number; body: Record<string, unknown> }>;
   patch: (path: string, payload: unknown, session?: string) => Promise<{ status: number; body: Record<string, unknown> }>;
+  /** A staff read of the data API, signed in as the super admin (the first call signs in). */
+  staff: (path: string) => Promise<{ status: number; body: Record<string, unknown> }>;
   close: () => Promise<void>;
 }
 
@@ -251,6 +254,7 @@ export async function world(dialect: Dialect, spec: WorldSpec): Promise<World> {
   });
   const answer = (res: { statusCode: number; body: string }) => ({ status: res.statusCode, body: (res.body === '' ? {} : JSON.parse(res.body)) as Record<string, unknown> });
   const app = composed.app;
+  let staffCookie: string | null = null;
   return {
     dialect,
     connectionId: connection.id,
@@ -280,6 +284,13 @@ export async function world(dialect: Dialect, spec: WorldSpec): Promise<World> {
     get: async (path, session) => answer(await app.inject({ method: 'GET', url: `/api/v1/public/${path}`, headers: headers(session) })),
     post: async (path, payload) => answer(await app.inject({ method: 'POST', url: `/api/v1/public/${path}`, headers: headers(), payload: payload as never })),
     patch: async (path, payload, session) => answer(await app.inject({ method: 'PATCH', url: `/api/v1/public/${path}`, headers: headers(session), payload: payload as never })),
+    staff: async (path) => {
+      if (staffCookie === null) {
+        await createFirstSuperAdmin(meta, { email: ADMIN_EMAIL, name: ADMIN_NAME, passwordHash: await adminPasswordHash() });
+        staffCookie = (await login(app as never, ADMIN_EMAIL, ADMIN_PASSWORD)).cookie ?? '';
+      }
+      return answer(await app.inject({ method: 'GET', url: `/api/v1/data/${connection.id}/${path}`, headers: { cookie: staffCookie } }));
+    },
     close: async () => {
       await composed.app.close();
       await manager.disposeAll().catch(() => undefined);
