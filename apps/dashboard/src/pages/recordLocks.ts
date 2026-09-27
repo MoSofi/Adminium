@@ -27,6 +27,10 @@ export interface StatesRule {
   initial: string;
   lock?: { when: string[]; except?: string[] };
   noDelete?: { when: 'numbered' | string[] };
+  /** A write naming the state the row already holds is refused (a ticket let in once). */
+  strict?: true | { show: string[] };
+  /** Moves Adminium makes by itself once a moment of the row has passed. */
+  timed?: { from: string; to: string; at: { column: string; time?: unknown; plus?: unknown; minus?: unknown; or?: unknown } }[];
 }
 
 export interface StateParentFact {
@@ -195,4 +199,22 @@ export function stateFactsQuery(connectionId: string) {
       return out;
     },
   });
+}
+
+/**
+ * The move Adminium makes by itself from the row's state, and when, for the
+ * line under the state ("Moves to expired on its own at 10:00"). The time is
+ * given only when it is the row's own time column as it stands — no wall
+ * time, shift or fallback, which the server works out on the venue's clock;
+ * otherwise only that it moves. Null when no timed move leaves the state.
+ */
+export function timedMove(table: Pick<TableStateFacts, 'states'>, row: Row): { to: string; at: string | null } | null {
+  const state = stateOf(table, row);
+  const rule = (table.states?.timed ?? []).find((candidate) => candidate.from === state);
+  if (rule === undefined) return null;
+  const at = rule.at;
+  const plain = at.time === undefined && at.plus === undefined && at.minus === undefined && at.or === undefined;
+  const value = row[at.column];
+  const instant = plain && (typeof value === 'string' || value instanceof Date) ? new Date(value) : null;
+  return { to: rule.to, at: instant === null || Number.isNaN(instant.getTime()) ? null : instant.toISOString() };
 }

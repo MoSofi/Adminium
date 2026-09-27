@@ -113,7 +113,8 @@ import { evaluateAll, placesFor, touchedFormulas, workOut } from './formulas.js'
 import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf, withSeriesLocks } from './gapless.js';
 import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
-import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, tiedToStates, type ClearColumns } from './states.js';
+import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
+import { attachWindows, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { venueClock } from './venue-time.js';
 import { isOutboxWrite } from '../outbox/context.js';
@@ -130,7 +131,7 @@ import type { ResolvedColumn, ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import { fetchByPk } from './records.js';
 import { venueLocalValue } from './venue-time.js';
-import { writeClock, type WriteClock } from './write-clock.js';
+import { stampNow, writeClock, type WriteClock } from './write-clock.js';
 import type { CreateTree } from './write-tree.js';
 import { notBuiltYet } from './not-built.js';
 import { bindWriteValue, booleanOf, normalizeWriteValue, sameValue, zonedWriteValue } from './write-values.js';
@@ -955,6 +956,8 @@ export interface UpdateRecordInput {
   recheck?: ((values: Row) => Promise<void>) | undefined;
   mapError?: ((error: unknown) => never) | undefined;
   announce: (outcome: UpdateOutcome) => Promise<void>;
+  /** A public entry's windows read from moments: the change is refused outside them, judged holding the row. */
+  windows?: readonly StateWindow[] | undefined;
 }
 
 export interface UpdateOutcome {
@@ -964,6 +967,8 @@ export interface UpdateOutcome {
   after: Row | null;
   values: Row;
   count: number;
+  /** The rows of other tables this write's moves moved too (`states.effects`), for the caller to announce. */
+  effects?: EffectWritten[] | undefined;
 }
 
 export interface DeleteRecordInput {
@@ -1251,6 +1256,7 @@ function decideContext(target: WriteTarget, context: WriteContext, now: Date, zo
     now,
     zone,
     claimed: context.claimed ?? null,
+    relations: target.view?.model?.relations,
   };
 }
 
@@ -1282,6 +1288,8 @@ function withoutStamped(rules: TableRules | null, values: Row, origin: WriteOrig
     const set = stamp.set;
     if (typeof set !== 'object' || set === null) return false;
     if ('addDays' in set) return !guest;
+    // A deadline or a hold's end staff may move by hand (a reminder that gives a day more); the stamp wins when it fires.
+    if ('addMinutes' in set || 'deadline' in set) return !guest;
     if ('byOrigin' in set) return !guest && (set as { byOrigin: { staff?: string } }).byOrigin.staff === undefined;
     return false;
   };
@@ -1366,7 +1374,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   /** The venue's zone for a table whose rules read a clock; undefined for every other. */
   async function zoneFor(rules: TableRules | null, target: WriteTarget): Promise<string | undefined> {
     const readsDay = (rules?.stamps ?? []).some((stamp) => stamp.set === 'today') || (rules?.bounds ?? []).some((bound) => bound.notAfter !== undefined);
-    if (rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay) return undefined;
+    // A move waiting for a time, a late or timed move, a stamp worked out from a moment: all read the venue's clock.
+    const readsClock = statesReadClock(rules?.states, rules?.stamps);
+    if (rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay && !readsClock) return undefined;
     return target.timezone ?? (await opts.timezoneOf?.(target.connectionId)) ?? 'UTC';
   }
 
@@ -1480,11 +1490,72 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         ...(rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored)).map((stamp) => stamp.column),
         ...(rules.formulas ?? []).map((formula) => formula.column),
       ];
-      out = attachGuard(out, { history, roles, decided, clock, ...(history ? { created: createdBy(context) } : {}) });
+      out = attachGuard(out, {
+        history,
+        roles,
+        decided,
+        clock,
+        ...(history ? { created: createdBy(context) } : {}),
+        zone: await zoneFor(rules, target),
+        origin: context.origin,
+        declared: context.declared,
+        effect: action === 'update' && (rules.states?.effects?.length ?? 0) > 0 ? effectWriter(target, context, clock) : undefined,
+      });
     }
     const seals = history || action === 'delete' ? [] : (rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored));
     if (seals.length > 0) out = attachSeals(out, { view: target.view, stamps: seals, currency: await currencyFor(target)() });
     return brand(out);
+  }
+
+  /**
+   * An effect's move of the row a link points at (`states.effects`), inside
+   * the write's transaction on its handle: the same steps as any update of
+   * that row — fill, stamps, checks, and its table's states, judged as the
+   * app's declared move of it — by the writer who made the first move. The
+   * row was held for update before the write's own rows. A table whose rows
+   * keep a limit or a total, or are tied to a parent, is not moved this way:
+   * its locks and totals would be taken out of their order.
+   */
+  function effectWriter(target: WriteTarget, context: WriteContext, clock: WriteClock): EffectWriter {
+    return async (db, link, key, column, state) => {
+      const moved = await withRights({ ...target, table: target.view.table(link.table), db, rights: undefined });
+      const rules = rulesOf(moved);
+      const effective = moved.table.table;
+      const kept =
+        rules?.capacity !== undefined ||
+        rules?.booking !== undefined ||
+        effective?.capacityRules !== undefined ||
+        rules?.capacityRules !== undefined ||
+        rules?.capacityOwners !== undefined ||
+        (rules?.rollupsInto?.length ?? 0) > 0 ||
+        (rules?.ownRollups?.length ?? 0) > 0 ||
+        (rules?.balances?.length ?? 0) > 0 ||
+        (effective?.stateParents?.length ?? 0) > 0 ||
+        (effective?.states?.effects?.length ?? 0) > 0 ||
+        // Its move may wait only for its own row: the rows it would read are taken after this write's own.
+        Object.values(effective?.states?.moves ?? {}).some((list) =>
+          list.some((move) => typeof move === 'object' && move.to === state && waitVias(move.requires).length > 0),
+        );
+      if (kept) {
+        throw new StateMoveRefused(`A move of ${target.table.name} cannot move a ${moved.table.name} row too: that table keeps a limit, a total or a parent, or its move waits for another row.`, {
+          column,
+          to: state,
+          effect: moved.table.name,
+        });
+      }
+      const pk = { [link.key]: key };
+      const before = (await fetchByPk(db, moved.table, pk)) ?? null;
+      if (before === null) return null;
+      const declared: WriteContext = { ...context, declared: { to: state } };
+      const zone = await zoneFor(rules, moved);
+      let values = await prepareValues(rules, 'update', moved, declared, { [column]: state }, clock.startedAt);
+      values = await decideRow(rules, 'update', values, before, decideContext(moved, declared, stampNow(clock), zone));
+      values = await formulate(rules, 'update', moved, values, before);
+      const checked = await carry(rules, 'update', moved, declared, await checkAllOrThrow(rules, 'update', moved, declared, values, before, undefined), before, clock);
+      const count = await updateRows(db, moved.dialect, moved.table, checked, pk);
+      if (count === 0) return null;
+      return { table: link.table, pk, before, after: (await fetchByPk(db, moved.table, pk)) ?? null };
+    };
   }
 
   /**
@@ -2002,7 +2073,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone);
       const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo'), opts.settings);
       // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
-      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, clock.startedAt, zone));
+      const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
       // A total, a formula and a number are Adminium's alone, whatever a hook set.
       const hooked = (await hooks.wants('before', 'create', target, context))
         ? withoutReadOnly(rules, await runBefore(hooks, 'create', target, context, decided, null), context.origin)
@@ -2117,7 +2188,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       // checked, written in the same statement, and carried into the undo entry.
       if (stored) {
         values = await guardedValue(
-          () => decideRow(rules, 'update', values, before, decideContext(target, context, clock.startedAt, zone)),
+          () => decideRow(rules, 'update', values, before, decideContext(target, context, stampNow(clock), zone)),
           input.mapError,
         );
       }
@@ -2130,7 +2201,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       values = await formulate(rules, 'update', target, values, before);
       if (values !== input.values && input.recheck !== undefined) await input.recheck(values);
       // CHECK, and what the statement judges this write by: a document's states, and the fingerprints it seals.
-      const checkedValues = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
+      const carried = await carry(rules, 'update', target, context, await checkAllOrThrow(rules, 'update', target, context, values, before, input.mapError), before, clock);
+      // A public entry's windows read from moments go with the values to the statement, which judges them holding the row.
+      const checkedValues = input.windows === undefined ? carried : brand(attachWindows(carried, input.windows));
       // A change that moves what a limit counts — its own rows', or the rows it owns — is judged under the pools' locks.
       const limits = (rules?.capacityRules !== undefined || rules?.capacityOwners !== undefined) && touchesCapacity(target, values);
       const booking = rules?.booking !== undefined && touchesBooking(rules.booking, values) ? rules.booking : undefined;
@@ -2214,7 +2287,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       }, input.mapError);
       if (count === 0 && input.skipIfNone === true) return { before, after: null, values, count };
       const after = (await fetchByPk(target.db, target.table, pk)) ?? null;
-      const outcome: UpdateOutcome = { before, after, values, count };
+      const effects = guardOf(checkedValues)?.effected;
+      const outcome: UpdateOutcome = { before, after, values, count, ...(effects === undefined || effects.length === 0 ? {} : { effects }) };
       await input.announce(outcome);
       if (count > 0 && after !== null && wantsAfter) {
         await hooks.after({ action: 'update', target, record: after, before, context });
@@ -2303,7 +2377,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const decided = async (values: Row, record: Row | null): Promise<{ values: Row; refused: FieldIssues | null }> => {
         if (!withRules || action === 'delete' || (action === 'update' && !needsStored(rules))) return { values, refused: null };
         try {
-          return { values: await decideRow(rules, action, values, record, decideContext(target, context, now, zone)), refused: null };
+          return { values: await decideRow(rules, action, values, record, decideContext(target, context, stampNow(clock), zone)), refused: null };
         } catch (error) {
           const column = String(((error as { details?: { column?: unknown } }).details?.column ?? '') || 'row');
           return { values, refused: { [column]: { code: 'not-allowed' } } };

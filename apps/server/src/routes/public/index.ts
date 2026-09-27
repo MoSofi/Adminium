@@ -58,6 +58,9 @@ import {
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
+import { publicWindows } from '../../public-api/moment-windows.js';
+import { timedRefusal } from '../../public-api/timed-refusals.js';
+import { announceEffects } from '../../states/effects.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -262,7 +265,7 @@ class PublicWriteRefused extends Error {
  */
 class PublicSlotRefused extends Error {
   constructor(
-    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_SOLD_OUT' | 'PUBLIC_NO_ROOM',
+    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_SOLD_OUT' | 'PUBLIC_NO_ROOM' | 'PUBLIC_TOO_EARLY',
     readonly params?: Record<string, unknown>,
   ) {
     super(
@@ -274,7 +277,9 @@ class PublicSlotRefused extends Error {
             ? 'That is sold out.'
             : code === 'PUBLIC_NO_ROOM'
               ? 'There is no room on those nights.'
-              : 'That time is full.',
+              : code === 'PUBLIC_TOO_EARLY'
+                ? 'Too early for this change; `at` is the time it waits for.'
+                : 'That time is full.',
     );
   }
 }
@@ -385,6 +390,8 @@ const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
   BOOKING_TAKEN: 'PUBLIC_SLOT_FULL',
   BOOKING_BUSY: 'PUBLIC_SLOT_BUSY',
   BOOKING_TOO_LATE: 'PUBLIC_TOO_LATE',
+  // Two writers at once, or a row that moved while it was judged: the same write a moment later goes through.
+  WRITE_CONFLICT: 'PUBLIC_SLOT_BUSY',
 };
 
 /**
@@ -451,6 +458,12 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
   if (error instanceof AppError && error.code === 'CAPACITY_FULL') limitRefusal(error.details);
   const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (slot !== undefined) throw new PublicSlotRefused(slot);
+  // A move or a change judged against the clock: told when it opens, or that it has closed.
+  const timed = timedRefusal(error);
+  if (timed !== null) throw new PublicSlotRefused(timed.code, timed.params);
+  if (error instanceof AppError && error.code === 'STATE_UNCHANGED') {
+    throw new PublicWriteRefused({ column: String((error.details as { column?: unknown } | undefined)?.column ?? ''), reason: 'unchanged' });
+  }
   if (error instanceof AppError) {
     const details = (error.details ?? {}) as { reason?: unknown; column?: unknown; fields?: Record<string, unknown> };
     const code = error.code === 'BOOKING_CLOSED' ? 'BOOKING_CLOSED' : typeof details.reason === 'string' ? details.reason : '';
@@ -2105,8 +2118,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               return ((await inScope(query).executeTakeFirst()) as Row | undefined) ?? null;
             },
             skipIfNone: true,
+            // A window read from moments is judged by the statement, holding the row.
+            windows: publicWindows(found.resource.writableWhen, found.view, found.table, ok.key.scope.timezone),
             mapError: refuseWriteThrough(found.resource, 'update'),
-            announce: async ({ before, after }) => {
+            announce: async ({ before, after, effects }) => {
               await auditWrite(
                 request,
                 ok,
@@ -2141,6 +2156,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 after,
                 origin: 'public',
               });
+              // The rows a guest's move moved too (a stay's room), as changes of their own.
+              await announceEffects(app, { connectionId: ok.key.connectionId, view: found.view, effects, origin: 'public', actor: { id: null, label: 'Public', kind: 'system' } });
             },
           });
         } catch (error) {

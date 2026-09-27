@@ -50,6 +50,7 @@ import { normalizeWriteValue } from '../../crud/write-values.js';
 import { substitute } from '../templating.js';
 import { pairsOf } from '../trace.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
+import { announceEffects } from '../../states/effects.js';
 
 type CreateAction = Extract<AutomationAction, { kind: 'record.create' }>;
 type UpdateAction = Extract<AutomationAction, { kind: 'record.update' }>;
@@ -214,6 +215,16 @@ export async function runUpdateAction(
           before,
           after,
         });
+        // The rows this move moved too, as changes of their own made by the same rule.
+        if (ctx.app !== undefined && ctx.source !== null) {
+          await announceEffects(ctx.app, {
+            connectionId: ctx.source.connectionId,
+            view: source.view,
+            effects: outcome.effects,
+            origin: 'automation',
+            actor: { id: ctx.rule.id, label: ctx.rule.name },
+          });
+        }
       },
     }),
   );

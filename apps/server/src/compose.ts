@@ -131,6 +131,7 @@ import { automationRunsRoutes } from './routes/automations/runs.js';
 import { sealStoredWebhookSecrets } from './automations/webhook-secrets.js';
 import { createAutomations, decorateAutomations } from './automations/register.js';
 import { OUTBOX_SCAN_SCHEDULE_NAME, createOutboxProducers } from './outbox/producers.js';
+import { TIMED_MOVES_JITTER_MS, TIMED_MOVES_SCHEDULE_NAME, enqueueTimedMoves, registerTimedMovesHandler } from './states/timed-moves.js';
 import { OUTBOX_SEND_JOB_KIND, OUTBOX_SWEEP_SCHEDULE_NAME, createOutboxSender, registerOutboxSendHandler } from './outbox/sender.js';
 import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js';
 import { createSignInLinkMinter } from './public-api/sign-in-link-minter.js';
@@ -1183,6 +1184,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       if (queued > 0) app.log.info({ queued }, 'app reminders queued');
     },
     { jitterMs: AUTOMATION_WATCH_JITTER_MS },
+  );
+  // The moves an app's states make by themselves once a moment has passed: one job per connection a minute.
+  const timedMoves = { meta, manager, app, writes: recordWrites, log: app.log };
+  registerTimedMovesHandler(jobs.registry, timedMoves);
+  jobs.scheduler.registerSchedule(
+    TIMED_MOVES_SCHEDULE_NAME,
+    AUTOMATION_POLL_CRON,
+    async () => {
+      await enqueueTimedMoves({ ...timedMoves, enqueue: (input: EnqueueJobInput) => jobs.enqueue(input) });
+    },
+    { jitterMs: TIMED_MOVES_JITTER_MS },
   );
   jobs.scheduler.registerSchedule(
     AUTOMATION_SCHEDULE_SCAN_NAME,

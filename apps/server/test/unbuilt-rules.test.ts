@@ -51,8 +51,8 @@ describe('a public entry carrying a rule not built yet', () => {
 });
 
 describe('the entries this server does not run yet', () => {
-  it('knows a window read from moments, and not a list of values or a window in minutes', () => {
-    expect(unbuiltEntryRuleOf({ writable_when: { starts_at: { after: { minus: { hours: 2 } } } } })).toBe('writable_when');
+  it('serves a window read from moments, a list of values and a window in minutes alike', () => {
+    expect(unbuiltEntryRuleOf({ writable_when: { starts_at: { after: { minus: { hours: 2 } } } } })).toBeNull();
     expect(unbuiltEntryRuleOf({ writable_when: { status: ['booked', 'held'], starts_at: { within: 30 } } })).toBeNull();
     expect(unbuiltEntryRuleOf({ writable_when: { paid_at: [null], starts_at: 'from-now' } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'tickets', children: {} })).toBe('children');

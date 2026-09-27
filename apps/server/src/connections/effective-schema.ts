@@ -19,7 +19,7 @@ import type {
   TableModel,
 } from '@adminium/engine';
 import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
-import type { LateMove, Moment, StateEffect, TimedMove, LinkedCondition, SettingCondition, TimeCondition } from '@adminium/manifest';
+import type { CreateRequires, LateMove, Moment, StateEffect, TimedMove, LinkedCondition, SettingCondition, TimeCondition } from '@adminium/manifest';
 import type { SchemaOverride } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
@@ -240,6 +240,19 @@ export interface TableStatesRule {
   timed?: TimedMove[];
   /** Moves of the row a link points at, set off by a move of this one. */
   effects?: StateEffect[];
+  /** What a new row must meet to be created. */
+  create?: CreateRequires;
+}
+
+/**
+ * A link a table's states read through — a linked condition, a moment on the
+ * linked row, the row an effect moves — resolved to the table it points at
+ * and that table's one-column key.
+ */
+export interface StateLink {
+  via: string;
+  table: string;
+  key: string;
 }
 
 /** One move of a state, with what it asks for first and who may make it (role slugs). */
@@ -497,6 +510,9 @@ export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   stateParents?: StateParent[];
   /** Columns rows of other tables keep while they link here (`lockLinked`, resolved). */
   linkLocks?: LinkLock[];
+  /** The links this table's states read through, resolved; a link the snapshot cannot follow is in `unresolvedStateLinks`. */
+  stateLinks?: StateLink[];
+  unresolvedStateLinks?: string[];
 }
 
 export interface EffectiveRelation extends Relation {
@@ -940,6 +956,48 @@ export interface ApplyOverridesOptions {
   defaultLocale?: string;
 }
 
+/** Every link a table's states read through: linked conditions, moments on a linked row, the rows effects move. */
+function stateVias(states: TableStatesRule): string[] {
+  const moments = (m: Moment | undefined): string[] => (m === undefined ? [] : [m, ...(m.or ?? [])].flatMap((one) => (one.via === undefined ? [] : [one.via])));
+  const conditions = (requires: { linked?: LinkedCondition[] | undefined; time?: TimeCondition | undefined } | undefined): string[] => [
+    ...(requires?.linked ?? []).map((l) => l.via),
+    ...moments(requires?.time?.after),
+    ...moments(requires?.time?.before),
+  ];
+  const moves = Object.values(states.moves).flatMap((list) => list.flatMap((move) => (typeof move === 'string' ? [] : conditions(move.requires))));
+  return [
+    ...new Set([
+      ...moves,
+      ...conditions(states.create?.requires),
+      ...(states.late ?? []).flatMap((late) => moments(late.moment)),
+      ...(states.effects ?? []).map((effect) => effect.via),
+    ]),
+  ];
+}
+
+/**
+ * The links a table's states read through, each followed as the write path
+ * follows a link: one column to another table's one-column key. A link the
+ * snapshot cannot follow (its foreign key dropped) is kept apart: a move
+ * reading through it is refused, never judged on nothing.
+ */
+function resolveStateLinks(table: EffectiveTable, tables: ReadonlyMap<string, EffectiveTable>, relations: readonly Relation[]): void {
+  const states = table.states;
+  if (states === undefined) return;
+  const id = tableId(table as TableModel);
+  const links: StateLink[] = [];
+  const unresolved: string[] = [];
+  for (const via of stateVias(states)) {
+    const relation = relations.find(
+      (r) => r.through === null && r.from.tableId === id && r.from.columns.length === 1 && r.from.columns[0] === via && r.to.columns.length === 1,
+    );
+    if (relation === undefined || !tables.has(relation.to.tableId)) unresolved.push(via);
+    else links.push({ via, table: relation.to.tableId, key: relation.to.columns[0] as string });
+  }
+  if (links.length > 0) table.stateLinks = links;
+  if (unresolved.length > 0) table.unresolvedStateLinks = unresolved;
+}
+
 /**
  * Tie every table's states to the tables they reach: a table another's
  * `lockedWhenReferencedBy` names learns which rows lock it, and a child table
@@ -952,7 +1010,10 @@ function tieStates(tables: ReadonlyMap<string, EffectiveTable>, relations: reado
     delete table.lockedBy;
     delete table.stateParents;
     delete table.linkLocks;
+    delete table.stateLinks;
+    delete table.unresolvedStateLinks;
   }
+  for (const table of tables.values()) resolveStateLinks(table, tables, relations);
   for (const table of tables.values()) {
     const states = table.states;
     if (states === undefined) continue;

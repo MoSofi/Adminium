@@ -836,6 +836,23 @@ function conditionedStatesIssue(states: States, table: TableModel, model: Databa
   for (const timed of states.timed ?? []) {
     const issue = momentIssue(timed.at as unknown as Value, table, model);
     if (issue !== null) return issue;
+    for (const name of Object.keys(timed.set ?? {})) if (!own(name)) return `${table.name} has no column ${JSON.stringify(name)}.`;
+  }
+  const create = states.create?.requires;
+  if (create !== undefined) {
+    for (const condition of create.where ?? []) if (!own(condition.column)) return `${table.name} has no column ${JSON.stringify(condition.column)}.`;
+    for (const condition of create.linked ?? []) {
+      const issue = through(condition.via, condition.where.map((c) => c.column));
+      if (issue !== null) return issue;
+    }
+    for (const moment of [create.time?.after, create.time?.before]) {
+      const issue = moment === undefined ? null : momentIssue(moment as unknown as Value, table, model);
+      if (issue !== null) return issue;
+    }
+    for (const setting of create.setting ?? []) {
+      const issue = settingIssue(setting as unknown as Value, model);
+      if (issue !== null) return issue;
+    }
   }
   for (const effect of states.effects ?? []) {
     const issue = through(effect.via, Object.keys(effect.set));

@@ -646,7 +646,11 @@ function planAlters(
             constraint: i.name,
             summary: `Require ${i.columns.join(', ')} to be unique`,
           })
-        : make('add-index', id, ctx, { summary: `Index ${i.columns.join(', ')}` }),
+        : make('add-index', id, ctx, {
+            column: i.columns.length === 1 ? (i.columns[0] ?? null) : null,
+            constraint: i.name,
+            summary: `Index ${i.columns.join(', ')}`,
+          }),
     );
   }
   for (const fk of diff.fksAdded) {

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, type LinkLockFact, type TableStateFacts } from './recordLocks.js';
+import { childWritable, deleteRefused, linkKeptColumns, lockedFields, lockedIn, releasedColumns, timedMove, type LinkLockFact, type TableStateFacts } from './recordLocks.js';
 
 const invoices: TableStateFacts = {
   id: 'main.invoices',
@@ -88,5 +88,28 @@ describe('a line a void invoice lets go of, and the time a line keeps', () => {
     expect((await linkKeptColumns(facts, { id: 7 }, read([null], {}))).size).toBe(2);
     expect((await linkKeptColumns(facts, { id: 7 }, read([1], {}))).size).toBe(2);
     expect((await linkKeptColumns(facts, { id: null }, read([1], { 1: 'draft' }))).size).toBe(0);
+  });
+});
+
+describe('a move Adminium makes by itself', () => {
+  const orders: Pick<TableStateFacts, 'states'> = {
+    states: {
+      column: 'status',
+      initial: 'held',
+      timed: [
+        { from: 'held', to: 'expired', at: { column: 'held_until' } },
+        { from: 'awaiting_transfer', to: 'released', at: { column: 'pay_by', plus: { hours: 24 } } },
+      ],
+    },
+  };
+
+  it('says when, for the row\'s own time as it stands', () => {
+    expect(timedMove(orders, { status: 'held', held_until: '2026-07-28T09:00:00Z' })).toEqual({ to: 'expired', at: '2026-07-28T09:00:00.000Z' });
+  });
+
+  it('says only that it moves when the server works the time out, and nothing from another state', () => {
+    expect(timedMove(orders, { status: 'awaiting_transfer', pay_by: '2026-08-01T17:00:00Z' })).toEqual({ to: 'released', at: null });
+    expect(timedMove(orders, { status: 'paid' })).toBeNull();
+    expect(timedMove({ states: { column: 'status', initial: 'held' } }, { status: 'held' })).toBeNull();
   });
 });

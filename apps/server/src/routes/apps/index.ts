@@ -314,6 +314,8 @@ export function editBodyFor(
 ): EditBody {
   const addColumns: NonNullable<EditBody['addColumns']> = [];
   const alterColumns: NonNullable<EditBody['alterColumns']> = [];
+  const addUniques: NonNullable<EditBody['addUniques']> = [];
+  const addIndexes: NonNullable<EditBody['addIndexes']> = [];
   for (const table of tables) {
     const spec = manifest.requiredSchema?.tables.find((t) => t.ref === table.ref);
     const id = idOf(model, table.table);
@@ -337,6 +339,16 @@ export function editBodyFor(
         }
         continue;
       }
+      // A plain index a limit or a total counts by.
+      if (edit.kind === 'add-index') {
+        addIndexes.push({ table: id, columns: [edit.column], name: edit.name });
+        continue;
+      }
+      // A set the app declares, by its own name: never merged with a rule on its last column alone.
+      if (edit.kind === 'add-unique' && edit.name !== undefined) {
+        addUniques.push({ table: id, columns: [...(edit.with ?? []), edit.column], name: edit.name });
+        continue;
+      }
       const entry = perColumn.get(edit.column) ?? { table: id, column: edit.column };
       if (edit.kind === 'add-unique') {
         entry.unique = true;
@@ -356,7 +368,7 @@ export function editBodyFor(
     }
     alterColumns.push(...perColumn.values());
   }
-  return { addColumns, alterColumns };
+  return { addColumns, alterColumns, ...(addUniques.length === 0 ? {} : { addUniques }), ...(addIndexes.length === 0 ? {} : { addIndexes }) };
 }
 
 /**
@@ -779,7 +791,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       manifest.kind === 'app' && dialect !== undefined && dialect !== 'generic'
         ? planInstall(
             manifest,
-            { tables, dialect },
+            { tables, dialect, indexNames: live?.indexNames },
             {
               prefix,
               records,
@@ -1017,14 +1029,18 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       for (const edit of table.edits) {
         if (edit.kind !== 'add-unique') continue;
         const columns = [...(edit.with ?? []), edit.column];
+        // A column the same update adds starts empty in every row: nothing there can repeat.
+        if (table.edits.some((other) => other.kind === 'add-column' && columns.includes(other.column))) continue;
         if (!(await target.repeats(connectionId, table.table, columns))) continue;
         out.push({
           code: 'UNIQUE_DUPLICATES',
           table: table.ref,
           column: edit.column,
           message:
-            `"${table.table}.${edit.column}" may hold no value twice${edit.with === undefined ? '' : ` for the same ${edit.with.join(', ')}`}, ` +
-            'and rows already there do. Make them differ, then check again.',
+            edit.name !== undefined
+              ? `"${table.table}" may hold the same ${columns.join(', ')} only once, and rows already there do. Make them differ, then check again.`
+              : `"${table.table}.${edit.column}" may hold no value twice${edit.with === undefined ? '' : ` for the same ${edit.with.join(', ')}`}, ` +
+                'and rows already there do. Make them differ, then check again.',
         });
       }
     }

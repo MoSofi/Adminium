@@ -63,15 +63,33 @@
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
 
-import type { StateMoveRule, StateParent, TableStatesRule } from '../connections/effective-schema.js';
+import type { StateLink, StateMoveRule, StateParent, TableStatesRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import { inTransaction } from './capacity-guard.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import { copiedOf } from './decided-columns.js';
-import type { WriteClock } from './write-clock.js';
-import { sameValue } from './write-values.js';
+import { lateRuleFor, lateVerdict, refusedBy } from './late.js';
+import { momentSettings, momentVias, type MomentContext } from './moments.js';
+import {
+  HeldLinks,
+  StateTooLate,
+  StateUnchanged,
+  holdLinkedRows,
+  judgeWaits,
+  judgeWindow,
+  linkMoved,
+  stateLinkOf,
+  strictEcho,
+  waitVias,
+  windowsOf,
+  type LinkedHold,
+  type StateWindow,
+} from './state-conditions.js';
+import { ruleNow, type WriteClock } from './write-clock.js';
+import type { WriteOrigin } from './write-context.js';
+import { booleanOf, sameValue } from './write-values.js';
 
 type Db = Kysely<SourceDatabase>;
 
@@ -93,7 +111,38 @@ export interface StateGuard {
   decided: readonly string[];
   /** The write's clock: a condition on the time is judged at its locked instant (`write-clock.ts`). */
   clock?: WriteClock | undefined;
+  /** The venue's time zone: where a moment's wall time and its days are read. */
+  zone?: string | undefined;
+  /** Where the write came from: a late move turns away a guest, or everyone. */
+  origin?: WriteOrigin | undefined;
+  /**
+   * A move Adminium makes itself, declared by the app — a timed move, or a
+   * linked row moved by an effect: the roles a listed move is kept for do not
+   * stop it, for this move only (`from` absent: from any state).
+   */
+  declared?: { from?: string | undefined; to: string } | undefined;
+  /** Moves the row a link points at (an effect), by the write service's own statement, inside this transaction. */
+  effect?: EffectWriter | undefined;
+  /** The rows this write's effects moved, for the write to announce once it commits. */
+  effected?: EffectWritten[] | undefined;
 }
+
+/** A row a move of another row moved too (an effect), as it was and as it is. */
+export interface EffectWritten {
+  /** The moved row's table id. */
+  table: string;
+  pk: Row;
+  before: Row;
+  after: Row | null;
+}
+
+/**
+ * Moves one row an effect points at to `state`, through the write service's
+ * own steps (fill, stamps, checks and this table's states, judged as the
+ * app's declared move), on the transaction's handle. Returns the row moved,
+ * or null when it is already there.
+ */
+export type EffectWriter = (db: Db, link: StateLink, key: unknown, column: string, state: string) => Promise<EffectWritten | null>;
 
 const GUARD = Symbol('adminium.state-guard');
 
@@ -222,42 +271,44 @@ async function lockedNow(db: Db, dialect: Dialect, table: ResolvedTable, row: Ro
 
 /**
  * The rows a write of this table links to that keep columns while it does
- * (`StateParent.links`), held for share BEFORE the write's parents and its
- * own rows: the linked row's own writer holds it first too, so the two never
- * wait on each other crosswise. Only a link the write sets to a row is held —
- * emptying one locks nothing new.
+ * (`StateParent.links`), to be held for share with every other linked row of
+ * the write, after its parents and before its own rows (see
+ * `state-conditions.ts` for the order). Only a link the write sets to a row is
+ * held — emptying one locks nothing new.
  *
  * What the write copied from that row (a `copy` through the link, of a column
- * the link keeps) was read before anything was held. It is read again here,
- * holding the row: another writer changed it in between, and the write is
- * refused, to be made again, rather than keep what the row no longer says.
+ * the link keeps) was read before anything was held. `check` reads it again
+ * from the row as held: another writer changed it in between, and the write
+ * is refused, to be made again, rather than keep what the row no longer says.
  */
-async function holdLinkedFirst(db: Db, dialect: Dialect, table: ResolvedTable, row: Row): Promise<void> {
+function lockLinkedHolds(table: ResolvedTable, row: Row): { holds: LinkedHold[]; check: (held: HeldLinks) => void } {
   const read = copiedOf(row) ?? {};
-  const targets = new Map<string, { table: string; key: string; value: unknown; copied: [string, unknown][] }>();
+  const holds: LinkedHold[] = [];
+  const checks: { link: StateLink; copied: [string, unknown][] }[] = [];
   for (const parent of table.table?.stateParents ?? []) {
     for (const link of parent.links ?? []) {
       const value = row[link.via];
       if (value === null || value === undefined) continue;
       const copied = Object.entries(read[link.via] ?? {}).filter(([from]) => link.columns.includes(from));
-      targets.set(`${link.table}\u0000${link.key}\u0000${String(value)}`, { table: link.table, key: link.key, value, copied });
+      const target = { via: link.via, table: link.table, key: link.key };
+      holds.push({ link: target, value, forUpdate: false });
+      if (copied.length > 0) checks.push({ link: target, copied });
     }
   }
-  for (const name of [...targets.keys()].sort()) {
-    const target = targets.get(name)!;
-    let query = db
-      .selectFrom(target.table)
-      .select([sql<number>`1`.as('adm_one'), ...target.copied.map(([from], i) => sql<unknown>`${sql.ref(from)}`.as(`adm_${String(i)}`))])
-      .where((eb) => eb(db.dynamic.ref(target.key), '=', target.value));
-    if (dialect !== 'sqlite') query = query.forShare();
-    const found = (await query.executeTakeFirst()) as Row | undefined;
-    if (found === undefined) continue;
-    target.copied.forEach(([from, was], i) => {
-      if (!sameValue(found[`adm_${String(i)}`], was)) {
-        throw new ConflictError('Someone else changed what this row copies at the same moment. Try again.', 'WRITE_CONFLICT', { retry: true, column: from });
+  return {
+    holds,
+    check: (held) => {
+      for (const { link, copied } of checks) {
+        const found = held.of(link, row);
+        if (found === null) continue;
+        for (const [from, was] of copied) {
+          if (!sameValue(found[from], was)) {
+            throw new ConflictError('Someone else changed what this row copies at the same moment. Try again.', 'WRITE_CONFLICT', { retry: true, column: from });
+          }
+        }
       }
-    });
-  }
+    },
+  };
 }
 
 /**
@@ -395,26 +446,6 @@ function targetOf(move: string | StateMoveRule): string {
   return typeof move === 'string' ? move : move.to;
 }
 
-const numeric = (value: unknown): number | null => {
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-};
-
-/** Whether a move's condition holds for the row as it will be. */
-function holds(condition: NonNullable<NonNullable<StateMoveRule['requires']>['where']>[number], row: Row): boolean {
-  const value = row[condition.column];
-  if (condition.isNull !== undefined) return (value === null || value === undefined || value === '') === condition.isNull;
-  if (condition.eq !== undefined) return sameValue(condition.eq, value);
-  if (condition.in !== undefined) return condition.in.some((candidate) => sameValue(candidate, value));
-  const n = numeric(value);
-  if (n === null) return false;
-  if (condition.gt !== undefined) return n > condition.gt;
-  if (condition.gte !== undefined) return n >= condition.gte;
-  if (condition.lt !== undefined) return n < condition.lt;
-  return condition.lte !== undefined && n <= condition.lte;
-}
-
 /** A date as `YYYY-MM-DD`: a driver's Date at local midnight, or the text's first ten characters. */
 export function dayOf(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
@@ -438,7 +469,26 @@ export function instantOf(value: unknown): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
-/** An update of a row of a table that keeps states: the move, then the lock, then the dates that only move later. */
+/** What a judge of one row reads beyond it: the rows its links point at, held, and the write's clock. */
+interface Judging {
+  held: HeldLinks;
+  settings: MomentContext['settings'];
+  /** Links beyond the table's own states' that the write reads through (a public window's). */
+  links?: readonly StateLink[];
+}
+
+/** A moment context over a row of this table, its links as held. */
+function momentsOver(db: Db, table: ResolvedTable, row: Row, guard: StateGuard, judging: Judging): MomentContext {
+  const links = [...(table.table?.stateLinks ?? []), ...(judging.links ?? [])];
+  return { table, row, linked: judging.held.byVia(links, row), zone: guard.zone ?? 'UTC', settings: judging.settings, db };
+}
+
+/** "Now" for the row's own conditions: under the write's locks, or the device's time. */
+function nowOf(db: Db, guard: StateGuard): Date {
+  return guard.clock === undefined ? new Date() : ruleNow(guard.clock, db);
+}
+
+/** An update of a row of a table that keeps states: the move and what it waits for, then the lock, then the dates that only move later. */
 async function judgeOwnUpdate(
   db: Db,
   dialect: Dialect,
@@ -448,6 +498,7 @@ async function judgeOwnUpdate(
   values: Row,
   changed: readonly string[],
   guard: StateGuard,
+  judging: Judging,
 ): Promise<void> {
   const from = text(stored[states.column]) ?? states.initial;
   if (changed.includes(states.column)) {
@@ -458,7 +509,8 @@ async function judgeOwnUpdate(
     };
     if (move === undefined) refuse(`A ${table.name} row cannot go from ${from} to ${String(to)}.`);
     if (typeof move === 'object') {
-      if (move.roles !== undefined && guard.roles !== 'any' && !move.roles.some((role) => (guard.roles as ReadonlySet<string>).has(role))) {
+      const declared = guard.declared !== undefined && guard.declared.to === to && (guard.declared.from === undefined || guard.declared.from === from);
+      if (move.roles !== undefined && !declared && guard.roles !== 'any' && !move.roles.some((role) => (guard.roles as ReadonlySet<string>).has(role))) {
         refuse(`Only some roles may move a ${table.name} row from ${from} to ${String(to)}.`, { roles: move.roles });
       }
       const key = table.primaryKey[0];
@@ -475,13 +527,24 @@ async function judgeOwnUpdate(
         if (found < min) refuse(`A ${table.name} row goes from ${from} to ${String(to)} only with at least ${String(min)} ${child} row(s).`, { requires: child, min });
       }
       const next = { ...stored, ...values };
-      for (const condition of move.requires?.where ?? []) {
-        if (!holds(condition, next)) refuse(`A ${table.name} row goes from ${from} to ${String(to)} only when ${condition.column} allows it.`, { requires: condition.column });
+      // An import's move of a row already there is a move like anyone's: it waits for what the move waits for.
+      const waits = move.requires;
+      if (waits !== undefined) {
+        await judgeWaits(waits, table, { moments: momentsOver(db, table, next, guard, judging), now: nowOf(db, guard) }, (message, details) =>
+          refuse(`A ${table.name} row goes from ${from} to ${String(to)} ${message}.`, details),
+        );
       }
     }
+    if (to !== null && !guard.history) await judgeLate(db, table, states, stored, values, from, to, guard, judging);
   }
   if (await lockedNow(db, dialect, table, stored)) {
-    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided]);
+    const lateFlags = (states.late ?? []).flatMap((rule) => (rule.flag === undefined ? [] : [rule.flag]));
+    // What a timed move writes with its move is the move's own, as a stamp is.
+    const to = changed.includes(states.column) ? text(values[states.column]) : null;
+    const timedSets = (states.timed ?? [])
+      .filter((rule) => guard.declared !== undefined && rule.from === from && rule.to === to && guard.declared.to === to)
+      .flatMap((rule) => Object.keys(rule.set ?? {}));
+    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided, ...lateFlags, ...timedSets]);
     const column = changed.find((name) => !open.has(name));
     if (column !== undefined) {
       throw new RecordLocked(`This ${table.name} row is ${from}: ${column} can no longer change.`, { column, state: from });
@@ -499,13 +562,35 @@ async function judgeOwnUpdate(
   }
 }
 
+/**
+ * A late move judged again under the locks (DECIDE marked it on the row read
+ * before them, on the clock the write began by). The moment is the STORED
+ * row's. A move turned away is refused here too; a flag DECIDE set, or did
+ * not, that the window now says otherwise makes the write start again.
+ */
+async function judgeLate(db: Db, table: ResolvedTable, states: TableStatesRule, stored: Row, values: Row, from: string, to: string, guard: StateGuard, judging: Judging): Promise<void> {
+  const rule = lateRuleFor(states, from, to);
+  if (rule === undefined) return;
+  const verdict = await lateVerdict(rule, momentsOver(db, table, stored, guard, judging), nowOf(db, guard));
+  if (verdict.inside && refusedBy(rule, guard.origin)) {
+    throw new StateTooLate(`It is too late to move this ${table.name} row to ${to}.`, { column: states.column, at: verdict.at?.toISOString() ?? null });
+  }
+  if (rule.mode !== 'flag' || rule.flag === undefined) return;
+  const flagged = Object.prototype.hasOwnProperty.call(values, rule.flag) && booleanOf(values[rule.flag]) === true;
+  if (flagged !== verdict.inside) {
+    throw new ConflictError('The time this change is judged by moved while it was made. Try again.', 'WRITE_CONFLICT', { retry: true, column: rule.flag });
+  }
+}
+
 // ─── the statements ────────────────────────────────────────────────────────
 
 /**
  * An INSERT of a row tied to states. A new row of a table that keeps states
- * starts in its first state; a child row's parent is held and judged; a
+ * starts in its first state, and meets what the table asks of a new row
+ * (`states.create`): its own values, the rows its links point at, the
+ * settings row and the clock; a child row's parent is held and judged; a
  * child created empties the parent's `clearOnCreate` columns in the same
- * transaction.
+ * transaction. Held in the one order: the parents, then the linked rows.
  */
 /** Empties columns of one row: the statement lives in the write service, the one place a source row is written. */
 export type ClearColumns = (db: Db, table: string, keyColumn: string, key: unknown, columns: readonly string[]) => Promise<void>;
@@ -522,7 +607,6 @@ export async function guardedInsert<T>(
   if (guard === undefined || !tiedToStates(table)) return run(db);
   return within(db, async (tx) => {
     refuseUnresolvedLink(table, row);
-    await holdLinkedFirst(tx, dialect, table, row);
     const states = table.table?.states;
     if (states !== undefined && !guard.history) {
       const state = text(row[states.column]);
@@ -530,7 +614,23 @@ export async function guardedInsert<T>(
         throw new StateMoveRefused(`A new ${table.name} row starts as ${states.initial}.`, { column: states.column, from: null, to: state });
       }
     }
+    // The parents first, then the rows the new row's links point at (the one order every writer takes).
     const parents = await judgeParents(tx, dialect, table, { now: row, was: null }, guard);
+    const waits = guard.history ? undefined : states?.create?.requires;
+    const kept = lockLinkedHolds(table, row);
+    const reads: LinkedHold[] = waitVias(waits).flatMap((via) => {
+      const link = stateLinkOf(table, via);
+      return link === undefined ? [] : [{ link, value: row[via], forUpdate: false }];
+    });
+    const held = await holdLinkedRows(tx, dialect, [...kept.holds, ...reads]);
+    kept.check(held);
+    if (waits !== undefined && states !== undefined) {
+      const state = text(row[states.column]) ?? states.initial;
+      const judging: Judging = { held, settings: momentSettings(tx) };
+      await judgeWaits(waits, table, { moments: momentsOver(tx, table, row, guard, judging), now: nowOf(tx, guard) }, (message, details) => {
+        throw new StateMoveRefused(`A new ${table.name} row is created ${message}.`, { column: states.column, from: null, to: state, create: true, ...details });
+      });
+    }
     const out = await run(tx);
     // What this history brought in: its own children may follow it, in its past state.
     const key = table.primaryKey.length === 1 ? (out as Row | null)?.[table.primaryKey[0]!] : undefined;
@@ -545,15 +645,6 @@ export async function guardedInsert<T>(
   });
 }
 
-/**
- * An UPDATE of rows tied to states: each row matched is held and judged
- * against what it holds NOW. A row the write does not really change (a form
- * sending a locked line back as it was) is judged by nothing.
- *
- * `visible` answers whether the caller's own scope reaches the row (the
- * public API's): a refusal about a row the caller could not see would tell
- * them it exists, so the write then simply matches nothing.
- */
 /**
  * The parents rows of this table are tied to, held BEFORE the rows
  * themselves: every writer takes a document before its lines, so a send and
@@ -574,6 +665,46 @@ export async function holdParentsFirst(db: Db, dialect: Dialect, table: Resolved
   }
 }
 
+/**
+ * The links an update reads through, for a row as peeked: a move's linked
+ * conditions and time moments (every listed move to the state it names —
+ * which one applies is judged on the row as held), a late rule's moment, the
+ * rows the move's effects move (held for update), and a public window's link.
+ */
+function updateReads(table: ResolvedTable, values: Row, windows: readonly StateWindow[], guard: StateGuard | undefined): { via: string; forUpdate: boolean; stored: boolean }[] {
+  const out: { via: string; forUpdate: boolean; stored: boolean }[] = [];
+  const states = table.table?.states;
+  if (guard !== undefined && states !== undefined && Object.prototype.hasOwnProperty.call(values, states.column)) {
+    const to = text(values[states.column]);
+    const moves = Object.values(states.moves).flatMap((list) => list.filter((move): move is StateMoveRule => typeof move === 'object' && move.to === to));
+    for (const move of moves) for (const via of waitVias(move.requires)) out.push({ via, forUpdate: false, stored: false });
+    // History decides nothing late and sets nothing off: it brings in what already happened.
+    if (!guard.history) {
+      // A late moment is the stored row's: read through the link as stored.
+      for (const rule of (states.late ?? []).filter((late) => late.to === to)) for (const via of momentVias(rule.moment)) out.push({ via, forUpdate: false, stored: true });
+      for (const effect of (states.effects ?? []).filter((e) => e.on.to === to)) out.push({ via: effect.via, forUpdate: true, stored: false });
+    }
+  }
+  for (const window of windows) if (window.link !== undefined) out.push({ via: window.link.via, forUpdate: false, stored: false });
+  return out;
+}
+
+/**
+ * An UPDATE of rows tied to states: each row matched is held and judged
+ * against what it holds NOW. A row the write does not really change (a form
+ * sending a locked line back as it was) is judged by nothing — unless the
+ * table is strict and the write names the state the row already holds, which
+ * is refused, saying when and by whom it got there.
+ *
+ * Held in the one order: the parents, then every row the write's links point
+ * at (for share; for update when an effect moves it), then the rows
+ * themselves. A link the row moved between the peek that named its linked row
+ * and the hold refuses the write, to be made again.
+ *
+ * `visible` answers whether the caller's own scope reaches the row (the
+ * public API's): a refusal about a row the caller could not see would tell
+ * them it exists, so the write then simply matches nothing.
+ */
 export async function guardedUpdate(
   db: Db,
   dialect: Dialect,
@@ -587,31 +718,111 @@ export async function guardedUpdate(
   // The states judge a write that carries a guard; a link lock judges every update, an undo's too.
   const tied = guard !== undefined && tiedToStates(table);
   const linked = lockedByLinks(table);
-  if (!tied && !linked) return run(db);
+  const windows = windowsOf(values);
+  if (!tied && !linked && windows.length === 0) return run(db);
   return within(db, async (tx) => {
-    if (tied) {
-      await holdLinkedFirst(tx, dialect, table, values);
-      await holdParentsFirst(tx, dialect, table, match, values);
+    // What this attempt's effects move: an attempt made again starts with none.
+    if (guard !== undefined) guard.effected = [];
+    if (tied) await holdParentsFirst(tx, dialect, table, match, values);
+    // The linked layer: every row the write's links point at, in one pass.
+    const kept = tied ? lockLinkedHolds(table, values) : { holds: [], check: () => undefined };
+    const reads = updateReads(table, values, windows, tied ? guard : undefined);
+    const peek = reads.length === 0 ? [] : await heldRows(tx, 'sqlite', table.id, match);
+    const linkOf = (via: string) => stateLinkOf(table, via) ?? windows.find((w) => w.link?.via === via)?.link;
+    const holds: LinkedHold[] = [...kept.holds];
+    for (const read of reads) {
+      const link = linkOf(read.via);
+      if (link === undefined) continue;
+      for (const row of peek) {
+        if (!read.stored && Object.prototype.hasOwnProperty.call(values, read.via)) holds.push({ link, value: values[read.via], forUpdate: read.forUpdate });
+        else holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
+        if (read.stored) holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
+      }
     }
+    const held = await holdLinkedRows(tx, dialect, holds);
+    kept.check(held);
+    const judging: Judging = { held, settings: momentSettings(tx), links: windows.flatMap((w) => (w.link === undefined ? [] : [w.link])) };
+    const peeked = new Map(peek.map((row) => [keyOf(table, row), row]));
+    const moved: { stored: Row; to: string }[] = [];
     for (const stored of await heldRows(tx, dialect, table.id, match)) {
-      const changed = Object.keys(values).filter((column) => !sameValue(values[column], stored[column]));
-      if (changed.length === 0) continue;
+      // The link each linked row was named by must still be the row's.
+      if (reads.length > 0) {
+        const was = peeked.get(keyOf(table, stored));
+        for (const read of reads) {
+          if (!read.stored && Object.prototype.hasOwnProperty.call(values, read.via)) continue;
+          if (was === undefined || !sameValue(was[read.via], stored[read.via])) throw linkMoved(read.via);
+        }
+      }
+      const states = table.table?.states;
       try {
-        const states = table.table?.states;
+        // Once means once: a write naming the state the row already holds.
+        if (tied && states?.strict !== undefined && !guard.history && Object.prototype.hasOwnProperty.call(values, states.column)) {
+          const state = text(stored[states.column]) ?? states.initial;
+          if (sameValue(values[states.column], state)) {
+            throw new StateUnchanged(`This ${table.name} row is ${state} already.`, { column: states.column, state, ...strictEcho(table, states, stored, state) });
+          }
+        }
+        const changed = Object.keys(values).filter((column) => !sameValue(values[column], stored[column]));
+        if (changed.length === 0) continue;
         if (tied) refuseUnresolvedLink(table, values, changed);
-        if (tied && states !== undefined) await judgeOwnUpdate(tx, dialect, table, states, stored, values, changed, guard);
+        if (tied && states !== undefined) await judgeOwnUpdate(tx, dialect, table, states, stored, values, changed, guard, judging);
         if (tied) await judgeParents(tx, dialect, table, { now: { ...stored, ...values }, was: stored }, guard, changed);
-        const kept = linked ? await linkLockedColumn(tx, dialect, table, stored, changed) : null;
-        if (kept !== null) {
-          throw new RecordLocked(`This ${table.name} row is linked from ${kept.by}: ${kept.column} can no longer change.`, { column: kept.column, linkedFrom: kept.by });
+        const lockedColumn = linked ? await linkLockedColumn(tx, dialect, table, stored, changed) : null;
+        if (lockedColumn !== null) {
+          throw new RecordLocked(`This ${table.name} row is linked from ${lockedColumn.by}: ${lockedColumn.column} can no longer change.`, { column: lockedColumn.column, linkedFrom: lockedColumn.by });
+        }
+        // A guest's change inside the window its entry opens, judged on the row as held and the clock under the locks.
+        for (const window of windows) {
+          const moments = momentsOver(tx, table, { ...stored, ...values }, guard ?? { history: false, roles: new Set(), decided: [] }, judging);
+          await judgeWindow(window, { moments: { ...moments, zone: window.zone ?? moments.zone }, now: guard === undefined ? new Date() : nowOf(tx, guard) });
+        }
+        if (tied && states !== undefined && changed.includes(states.column) && !guard.history) {
+          moved.push({ stored, to: text(values[states.column])! });
         }
       } catch (refusal) {
         if (visible !== undefined && !(await visible(tx))) return 0;
         throw refusal;
       }
     }
-    return run(tx);
+    const count = await run(tx);
+    if (count > 0 && tied) await runEffects(tx, table, values, moved, guard, held);
+    return count;
   });
+}
+
+/** A row's key as text, to find it again among rows read before. */
+function keyOf(table: ResolvedTable, row: Row): string {
+  return table.primaryKey.map((column) => String(row[column])).join('\u0000');
+}
+
+/**
+ * The rows the moves just made move too (`states.effects`): each linked row,
+ * held for update before this write's own rows, moved by the app's declared
+ * move of its table through the write service's own statement. A link the
+ * database no longer has refuses the whole write; an empty link moves
+ * nothing; a row already in the state is left as it is.
+ */
+async function runEffects(db: Db, table: ResolvedTable, values: Row, moved: readonly { stored: Row; to: string }[], guard: StateGuard, held: HeldLinks): Promise<void> {
+  const effects = table.table?.states?.effects ?? [];
+  if (effects.length === 0) return;
+  for (const { stored, to } of moved) {
+    const next = { ...stored, ...values };
+    for (const effect of effects.filter((e) => e.on.to === to)) {
+      const link = stateLinkOf(table, effect.via);
+      if (link === undefined) {
+        throw new RecordLocked(`${table.name}.${effect.via} no longer links another table, so the move it sets off cannot be made.`, { column: effect.via, unresolved: true });
+      }
+      const target = held.of(link, next);
+      if (target === null) continue;
+      const [column, state] = Object.entries(effect.set)[0]!;
+      if (sameValue(target[column], state)) continue;
+      if (guard.effect === undefined) {
+        throw new RecordLocked(`A move of ${table.name} moves another row too, and this write cannot make that move.`, { column: effect.via });
+      }
+      const written = await guard.effect(db, link, next[effect.via], column, state);
+      if (written !== null) (guard.effected ??= []).push(written);
+    }
+  }
 }
 
 /**

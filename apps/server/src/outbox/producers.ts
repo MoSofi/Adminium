@@ -79,6 +79,8 @@ import type { Row } from '../crud/mask.js';
 import type { RecordWriteService } from '../crud/write-service.js';
 import { bindWriteValue, normalizeWriteValue, sameValue } from '../crud/write-values.js';
 import { asInstant } from '../automations/conditions.js';
+import { wallOn } from '../crud/moments.js';
+import { venueClock } from '../crud/venue-time.js';
 import { outboxContext } from './context.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
@@ -457,11 +459,14 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       // Everything that could be due within the largest lead anyone may
       // choose, bounded in the spelling the engine keeps the column in.
       const spelled = (ms: number) => bindWriteValue(atColumn, new Date(ms).toISOString(), dialect);
+      // A lead sent at a wall time may fall up to a day earlier than the hour itself: look a day further.
+      const reach = before.lead.max * HOUR + (before.lead.at === undefined ? 0 : 24 * HOUR);
+      const zone = before.lead.at === undefined ? 'UTC' : await zoneOf(box.connectionId);
       const rows = (await db
         .selectFrom(source.id as never)
         .selectAll()
         .where(before.at as never, '>', spelled(now) as never)
-        .where(before.at as never, '<=', spelled(now + before.lead.max * HOUR) as never)
+        .where(before.at as never, '<=', spelled(now + reach) as never)
         .execute()) as Row[];
       const fallback =
         before.lead.fallback === undefined
@@ -476,7 +481,11 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         const hours = Number(chosen === null || chosen === undefined ? fallback : chosen);
         if (!Number.isFinite(hours) || hours <= 0) continue;
         const instant = asInstant(row[before.at]);
-        if (instant === null || instant - Math.min(hours, before.lead.max) * HOUR > now) continue;
+        if (instant === null) continue;
+        const reached = instant - Math.min(hours, before.lead.max) * HOUR;
+        // "The day before at 09:00": the venue's day the lead reaches, at that wall time.
+        const due = before.lead.at === undefined ? reached : (wallOn(venueClock(new Date(reached), zone).day, before.lead.at, zone)?.getTime() ?? reached);
+        if (due > now) continue;
         if (await queue(box, producer, source, row, { at: instant, now })) queued += 1;
       }
     }
