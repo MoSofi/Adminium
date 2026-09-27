@@ -37,6 +37,7 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
         { ref: 'cutoff_days', type: 'int', default: 3 },
         { ref: 'offer_hours', type: 'int', default: 12 },
         { ref: 'grace_hours', type: 'int', default: 24 },
+        { ref: 'reminder_hours', type: 'int', default: 24 },
         { ref: 'arrive_from', type: 'text', maxLength: 5, default: '15:00' },
         { ref: 'no_show_at', type: 'text', maxLength: 5, default: '10:00' },
         { ref: 'transfer_time', type: 'text', maxLength: 5, default: '18:00' },
@@ -62,6 +63,7 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
         { ref: 'doors_at', type: 'timestamptz' },
         { ref: 'refund_until', type: 'timestamptz', nullable: true },
         { ref: 'refunds_on', type: 'bool', default: true },
+        { ref: 'lead_hours', type: 'int', nullable: true },
       ],
     },
     {
@@ -92,6 +94,7 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
           },
         },
         { ref: 'cancel_code', type: 'text', maxLength: 20, nullable: true },
+        { ref: 'show_at', type: 'timestamptz', nullable: true },
       ],
       states: {
         column: 'status',
@@ -282,7 +285,8 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
             ref: 'messages',
             columns: [
               id,
-              { ref: 'kind', type: 'enum', enum: ['released'] },
+              { ref: 'kind', type: 'enum', enum: ['released', 'reminder', 'soon'] },
+              { ref: 'due_at', type: 'timestamptz', nullable: true },
               { ref: 'status', type: 'enum', enum: ['queued', 'held', 'sent', 'failed', 'skipped'], default: 'queued' },
               { ref: 'order_id', type: 'fk', references: 'orders', nullable: true },
               { ref: 'to_address', type: 'text', maxLength: 254, nullable: true },
@@ -315,11 +319,21 @@ export function venueManifest(opts: VenueOptions = {}): Doc {
       ? {
           outbox: {
             table: 'messages',
-            columns: { kind: 'kind', status: 'status', to: 'to_address', sentAt: 'sent_at', error: 'error' },
+            columns: { kind: 'kind', status: 'status', to: 'to_address', due: 'due_at', sentAt: 'sent_at', error: 'error' },
             recipient: { via: 'order_id', table: 'orders', email: 'email' },
             links: { order: 'order_id' },
-            kinds: { released: 'venue-released' },
-            producers: [{ kind: 'released', link: 'order_id', onChange: { table: 'orders', column: 'status', to: 'released' } }],
+            kinds: { released: 'venue-released', reminder: 'venue-released', soon: 'venue-released' },
+            producers: [
+              { kind: 'released', link: 'order_id', onChange: { table: 'orders', column: 'status', to: 'released' } },
+              // The day before, at 09:00 on the venue's clock.
+              {
+                kind: 'reminder',
+                link: 'order_id',
+                before: { table: 'orders', at: 'show_at', lead: { via: 'event_id', table: 'events', column: 'lead_hours', fallback: setting('reminder_hours'), max: 48, at: '09:00' } },
+              },
+              // Three hours before, to the hour.
+              { kind: 'soon', link: 'order_id', before: { table: 'orders', at: 'show_at', lead: { via: 'event_id', table: 'events', column: 'lead_hours', fallback: setting('reminder_hours'), max: 3 } } },
+            ],
           },
           emailTemplates: [
             {

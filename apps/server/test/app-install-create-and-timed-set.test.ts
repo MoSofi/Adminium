@@ -53,7 +53,7 @@ for (const [dialect, available] of LEGS) {
       expect(stays.stateLinks).toEqual([{ via: 'room_id', table: idOf('rooms'), key: 'id' }]);
 
       // A database that lost the link a create reads through is told so before a rule is kept.
-      const unlinked = { ...snapshot!.schema, relations: (snapshot!.schema as { relations: { from: { tableId: string } }[] }).relations.filter((r) => r.from.tableId !== idOf('check_ins')) };
+      const unlinked = { ...(snapshot!.schema as object), relations: (snapshot!.schema as { relations: { from: { tableId: string } }[] }).relations.filter((r) => r.from.tableId !== idOf('check_ins')) };
       const lost = parseDatabaseModel(unlinked);
       const table = lost.tables.find((t) => t.id === idOf('check_ins'))!;
       expect(statesRuleIssue(states('check_ins'), table, lost)).toContain('ticket_id does not point at another table');

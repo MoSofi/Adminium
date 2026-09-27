@@ -189,6 +189,12 @@ export const outboxProducerSchema = z.union([
               fallback: settingRefSchema.optional(),
               /** The largest lead anyone may choose, in hours — how far ahead Adminium looks. */
               max: z.number().int().min(1).max(24 * 14),
+              /**
+               * Sent at this wall time on the venue's day the lead reaches,
+               * not at the hour itself: 24 hours before an 20:00 show, at
+               * 09:00, is 09:00 the day before.
+               */
+              at: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'a time such as 09:00').optional(),
             })
             .strict(),
           where: conditionSchema.optional(),
