@@ -65,7 +65,11 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_SOLD_OUT',
   /** No room of the type asked for is free on one of the nights (409). */
   'PUBLIC_NO_ROOM',
-  /** Too close to the time to cancel online; the venue still can. */
+  /**
+   * Too late for this change online — a cancellation, a refund, a check-in
+   * past its window (409); the venue still can. `error.params.at`, when
+   * present, is when the window closed.
+   */
   'PUBLIC_TOO_LATE',
   /**
    * The order came to another price than the one shown (409): nothing was
@@ -74,8 +78,9 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_PRICE_CHANGED',
   /**
    * Too early for this change — a kiosk check-in more than an hour before the
-   * visit (409). `error.tooEarly` holds the row's time and when the window
-   * opens; say them in the venue's zone (`toTenantMinutes`).
+   * visit, a door scan before the doors open (409). `error.tooEarly` holds the
+   * time the window is counted from (the visit, the doors) and when it opens;
+   * say them in the venue's zone (`toTenantMinutes`).
    */
   'PUBLIC_TOO_EARLY',
   /**

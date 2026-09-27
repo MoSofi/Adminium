@@ -283,7 +283,7 @@ class PublicSlotRefused extends Error {
       code === 'PUBLIC_SLOT_BUSY'
         ? 'That time is busy. Try again in a moment.'
         : code === 'PUBLIC_TOO_LATE'
-          ? 'It is too late to cancel online.'
+          ? 'It is too late to make this change online.'
           : code === 'PUBLIC_SOLD_OUT'
             ? 'That is sold out.'
             : code === 'PUBLIC_NO_ROOM'

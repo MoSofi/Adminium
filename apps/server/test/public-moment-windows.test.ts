@@ -152,7 +152,7 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
     clock('2026-09-03T19:00:00Z');
     const late = await patch('refunds', order['id'], { status: 'cancelled' });
     expect(late.statusCode, late.body).toBe(409);
-    expect(late.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_LATE', params: { at: '2026-09-03T19:00:00.000Z' } } });
+    expect(late.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_LATE', params: { at: '2026-09-03T19:00:00.000Z' }, message: 'It is too late to make this change online.' } });
     // The show's own deadline, when set, is read first.
     await w.update('events', show['id'], { refund_until: '2026-09-09T12:00:00Z' });
     const inTime = await patch('refunds', order['id'], { status: 'cancelled' });
@@ -192,7 +192,8 @@ describe.each(LEGS)('public windows read from moments — %s', (dialect, availab
     clock('2026-07-31T18:29:00Z');
     const early = await patch('door', ticket['id'], { status: 'checked_in' });
     expect(early.statusCode, early.body).toBe(409);
-    expect(early.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_EARLY', params: { at: '2026-07-31T18:30:00.000Z' } } });
+    // The doors' time, and when the scan opens — as the published client reads a too-early refusal.
+    expect(early.json()).toMatchObject({ error: { code: 'PUBLIC_TOO_EARLY', params: { at: '2026-07-31T19:00:00.000Z', from: '2026-07-31T18:30:00.000Z' } } });
     clock('2026-07-31T18:31:00Z');
     expect((await patch('door', ticket['id'], { status: 'checked_in' })).statusCode).toBe(200);
     const twice = await patch('door', ticket['id'], { status: 'checked_in' });
