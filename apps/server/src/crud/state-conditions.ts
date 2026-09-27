@@ -47,8 +47,6 @@ import { sameValue } from './write-values.js';
 
 type Db = Kysely<SourceDatabase>;
 
-const has = (row: Row, column: string) => Object.prototype.hasOwnProperty.call(row, column);
-
 const numeric = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);

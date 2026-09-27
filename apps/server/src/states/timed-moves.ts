@@ -275,7 +275,7 @@ export async function runTimedMoves(deps: TimedMovesDeps, connectionId: string, 
   tick.skipped = Math.max(0, due.length - perTick);
   for (const one of due.slice(0, perTick)) {
     try {
-      (await moveOne(deps, writes, one)) ? (tick.moved += 1) : undefined;
+      if (await moveOne(deps, writes, one)) tick.moved += 1;
     } catch (error) {
       if (!(error instanceof AppError) || error.statusCode >= 500) throw error;
       if (TRANSIENT.has(error.code)) continue;
