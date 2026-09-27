@@ -67,7 +67,7 @@
  */
 import type { Dialect } from '@adminium/engine';
 import type { Outbox, OutboxProducer, SettingSource } from '@adminium/manifest';
-import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, type AppOutboxRow, type MetaDb } from '@adminium/meta';
+import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
 import type { ConnectionManager, SourceDatabase } from '../connections/manager.js';
@@ -83,6 +83,7 @@ import { wallOn } from '../crud/moments.js';
 import { venueClock } from '../crud/venue-time.js';
 import { outboxContext } from './context.js';
 import { notDropped } from './dropped.js';
+import { producedLanguage } from './language.js';
 import { addressFor, referenced, rowOf } from './recipient.js';
 import { cameDue, dropReason, dueFor, groupRanks, producerOf, settingReader, skipSentence, sourceOf, type SettingReader, type SkipReason } from './timing.js';
 
@@ -148,13 +149,37 @@ export function withRealTables(definition: Outbox, realId: (name: string) => str
       const days = producer.due?.days;
       return {
         ...producer,
-        ...(typeof producer.gate === 'object' ? { gate: { setting: { ...producer.gate.setting, table: realId(producer.gate.setting.table) } } } : {}),
+        ...(typeof producer.gate === 'object' && 'setting' in producer.gate ? { gate: { setting: { ...producer.gate.setting, table: realId(producer.gate.setting.table) } } } : {}),
         ...(producer.onSent === undefined ? {} : { onSent: { ...producer.onSent, table: realId(producer.onSent.table) } }),
         ...(producer.recipient === undefined || !('setting' in producer.recipient) ? {} : { recipient: { setting: setting(producer.recipient.setting) } }),
         ...(producer.due !== undefined && typeof days === 'object' && 'setting' in days ? { due: { ...producer.due, days: { ...days, setting: setting(days.setting) } } } : {}),
       };
     }),
   };
+}
+
+/** An app's manifest holds no credential: nothing here seals or opens one. */
+const NEVER_A_SECRET = {
+  encrypt: (): string => {
+    throw new Error('an outbox never stores a credential');
+  },
+  decrypt: (): string => {
+    throw new Error('an outbox never reads a credential');
+  },
+};
+
+/**
+ * Whether a feature of an installed app is on: every add-on it needs is
+ * attached to the app and switched on — the same test its documents and
+ * pages take. A feature the app no longer declares is off.
+ */
+export async function featureOn(meta: MetaDb, appKey: string, feature: string): Promise<boolean> {
+  const manifests = manifestsRepo(meta, NEVER_A_SECRET);
+  const manifest = (await manifests.findByKey(appKey))?.document as { kind?: string; addOns?: { features?: { id: string; requires?: string[] }[] } } | undefined;
+  const found = manifest?.addOns?.features?.find((candidate) => candidate.id === feature);
+  if (found === undefined) return false;
+  const attached = new Set((await manifests.enabledForHost(appKey)).map((m) => m.row.manifestKey));
+  return (found.requires ?? []).every((key) => attached.has(key));
 }
 
 /**
@@ -296,6 +321,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
    * sends nothing it did not mean to.
    */
   async function switchedOn(db: Kysely<SourceDatabase>, box: LiveOutbox, gate: OutboxProducer['gate']): Promise<boolean> {
+    // A feature of the app: on while every add-on it needs is attached and switched on (a receipt, with Invoices & Receipts).
+    if (typeof gate === 'object' && 'feature' in gate) return await featureOn(deps.meta, box.appKey, gate.feature);
     // The outbox's own switch, or the producer's (each studio notice has one).
     const at = typeof gate === 'object' ? gate.setting : box.definition.settings?.enabled === undefined ? undefined : { table: box.definition.settings.table, column: box.definition.settings.enabled };
     if (at === undefined) return true;
@@ -399,7 +426,9 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       );
       if (addressed.person !== null && producer.optIn === true && recipient.optIn !== undefined && !sameValue(true, addressed.person[recipient.optIn])) return null;
       values[cols.to] = addressed.address;
-      if (cols.language !== undefined && addressed.language !== null) values[cols.language] = addressed.language;
+      // The row the message is about may say its language (an order placed in German): it wins over the person's.
+      const language = producedLanguage(box.definition, producer, about.row) ?? addressed.language;
+      if (cols.language !== undefined && language !== null) values[cols.language] = language;
       // A held message waits for a person whatever its address: it is looked up again when approved.
       values[cols.status] = producer.hold === true ? 'held' : addressed.address !== null ? 'queued' : 'skipped';
       if (values[cols.status] === 'skipped' && cols.error !== undefined) values[cols.error] = 'No email on file';

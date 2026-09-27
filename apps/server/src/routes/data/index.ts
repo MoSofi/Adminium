@@ -48,6 +48,7 @@ import {
   type Projections,
 } from '../../crud/projections.js';
 import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
+import { renewedBy } from '../../crud/code-renew.js';
 import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import {
   fetchByPk,
@@ -82,6 +83,7 @@ import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { capacityCounts } from '../../crud/capacity/counts.js';
+import { quoteNights, storedNights } from '../../crud/per-night.js';
 import { diffLinks, resolveLink, sameKeys, type ResolvedLink } from '../../crud/links.js';
 import {
   diffChildRows,
@@ -145,6 +147,8 @@ import {
   bookingSlotsQuery,
   capacityCountsQuery,
   capacityCountsReply,
+  nightlyQuery,
+  nightlyReply,
   bookingSlotsReply,
   recordLinksParams,
   recordLinksQuery,
@@ -1182,6 +1186,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return childTied || linkTied;
     }
 
+    /**
+     * A change's reply without the codes it made (a ticket handed on), for a
+     * caller who may change the table but not read it — as "make a new link"
+     * answers: one who may only change a row is not handed its new secret.
+     */
+    async function unreadCodesOut(request: FastifyRequest, ctx: DataContext, data: Row, before: Row, after: Row | null): Promise<Row> {
+      if (renewedBy({ values: {}, before, after }, ctx.table.table.columns).size === 0) return data;
+      if (await request.can(`table:${ctx.connectionId}:${ctx.table.id}:read`)) return data;
+      for (const name of codeColumnsOf(ctx.table)) delete data[name];
+      return data;
+    }
+
     function issueUndo(
       request: FastifyRequest,
       ctx: DataContext,
@@ -1198,6 +1214,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
+      // A code a change made (a ticket handed on) is never taken back: the old secret stays dead, the rest is undone.
+      if (action === 'update' && changedColumns.some((column) => codeColumnsOf(ctx.table).has(column))) {
+        changedColumns = changedColumns.filter((column) => !codeColumnsOf(ctx.table).has(column));
+        if (changedColumns.length === 0) return null;
+      }
       // No undo that would delete a row numbered without gaps, or take a document's state back — but a status move the app lists an undo for.
       const moveBack = action === 'update' && children.length === 0 && links.length === 0 ? moveBackOf(ctx.table.table, before, after, changedColumns) : null;
       if (takesNumberBack(ctx, action, children) || (takesStateBack(ctx, children, links) && moveBack === null)) return null;
@@ -2120,6 +2141,40 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    /*
+     * A ROW'S NIGHTS FOR THE DESK — each night of a price by the night (a
+     * stay's room total) with its rate and tags, priced from the rates as
+     * they are now; one line for them all when those no longer add up to the
+     * stored figure. A night's price is a decided value of the row, so the
+     * row's read grant (and the priced column's) is what it takes.
+     */
+    app.get(
+      '/data/:connectionId/:table/:recordId/nightly',
+      { schema: { params: dataRecordParams, querystring: nightlyQuery, response: { 200: nightlyReply } } },
+      async (request) => {
+        const ctx = await contextFor(request, 'read');
+        const rules = tableRulesFor({ view: ctx.view, table: ctx.table });
+        const priced = rules?.perNight;
+        if (rules === null || priced === undefined || (request.query.column !== undefined && request.query.column !== priced.column)) {
+          throw new NotFoundError('This table has no price by the night.', { table: ctx.table.id });
+        }
+        ctx.view.readableColumn(ctx.table, priced.column, await canReadPii(request, ctx.connectionId, ctx.table.id));
+        const pk = parseRecordId(ctx.table, request.params.recordId);
+        const row = await fetchByPk(ctx.db, ctx.table, pk);
+        if (row === undefined) throw new NotFoundError('Record not found.', { pk });
+        const currency = (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null;
+        const nights = await storedNights(ctx.db, rules, row, currency);
+        return {
+          data: {
+            column: priced.column,
+            nights: nights.lines.map(({ date, rate, base, tags, qty, amount }) => ({ date, rate, base, tags, qty, amount })),
+            total: nights.total,
+            stale: nights.stale,
+          },
+        };
+      },
+    );
+
     app.get(
       '/data/:connectionId/:table/:recordId/links/:relationId',
       {
@@ -2498,7 +2553,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const parent = byPlace.get(`${String(at[0])}\u0000${String(at[1])}`);
           if (parent !== undefined) ((parent.children ??= {})[String(at[2])] ??= [])[Number(at[3])] = { data };
         }
-        return { data: maskRow(tree.outcome.root, ctx.table, ctx.unmasked), children: shown };
+        // The desk's booking summary: the nights a price by the night is made of.
+        const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null);
+        return { data: maskRow(tree.outcome.root, ctx.table, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
       },
     );
 
@@ -2562,7 +2619,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             },
           });
           // Masked columns may be written but are never echoed back.
-          return { data: maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), undoToken };
+          return { data: await unreadCodesOut(request, ctx, maskRow(outcome.after ?? before, ctx.table, ctx.unmasked), before, outcome.after), undoToken };
         }
 
         /*
@@ -2633,7 +2690,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               },
             });
             const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
-            return { data: maskRow(stored, ctx.table, ctx.unmasked), undoToken };
+            return { data: await unreadCodesOut(request, ctx, maskRow(stored, ctx.table, ctx.unmasked), before, stored), undoToken };
           }
         }
 
@@ -2707,7 +2764,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
         after = (await writes.stored(ctx.target, [after]))[0] ?? after;
-        return { data: maskRow(after, ctx.table, ctx.unmasked), undoToken };
+        return { data: await unreadCodesOut(request, ctx, maskRow(after, ctx.table, ctx.unmasked), before, after), undoToken };
       },
     );
 

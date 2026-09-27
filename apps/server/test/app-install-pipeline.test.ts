@@ -2178,7 +2178,7 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
       enabled: true,
     });
     const htmlRow = await queue('reminder', 'ada@hill.dev', ada, adaVisit!, 'en');
-    // One whose German text lists rows: not sent by this server yet, and never sent without its list.
+    // One whose German text lists rows it names no source for: it lists none, and goes.
     await emailTemplatesRepo(h.meta).upsert('pos-reminder', 'de_DE', {
       name: reminder.name,
       subject: reminder.subject,
@@ -2197,11 +2197,12 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
       { id: nobody, status: 'skipped', sent: false, error: 'A reserved address (for examples and tests)' },
       { id: offRow, status: 'failed', sent: false, error: 'The email is switched off, or has no text' },
       { id: htmlRow, status: 'failed', sent: false, error: 'The email has an HTML block, which cannot carry what a person typed' },
-      { id: rowsRow, status: 'failed', sent: false, error: 'The email lists rows, which this server cannot send yet' },
+      { id: rowsRow, status: 'sent', sent: true, error: null },
     ]);
     // In her language, on the venue's clock, in the connection's currency, linking to the app's own host.
-    const [message, ...others] = await mail();
-    expect(others).toEqual([]);
+    const sentMail = await mail();
+    const message = sentMail.find((one) => one.template === 'pos-confirmation');
+    expect(sentMail.filter((one) => one !== message).map((other) => other.template)).toEqual(['pos-reminder']);
     const tag = 'de-DE';
     const time = new Intl.DateTimeFormat(tag, { timeStyle: 'short', timeZone: 'Europe/London' });
     expect(message).toMatchObject({ template: 'pos-confirmation', locale: 'de_DE', to: 'ada@hill.dev', subject: 'Gebucht bei Hill Clinic' });
@@ -2232,7 +2233,7 @@ async function sendEmails(h: Harness, dialect: Dialect): Promise<void> {
     expect((await log()).find((row) => row.id === adaRow)).toEqual({ id: adaRow, status: 'failed', sent: true, error: 'Not delivered: 550 5.1.1 mailbox unavailable' });
     await h.run(`update pos_messages set status = 'queued' where id = ${adaRow}`);
     expect(await sender.sweep(now + 60_000)).toBe(1);
-    expect((await mail()).length).toBe(2);
+    expect((await mail()).length).toBe(3);
     // …and a late report of the first message no longer touches it.
     await sender.markUndelivered(message!.report!, new Error('late'));
     expect((await log()).find((row) => row.id === adaRow)!.status).toBe('sent');

@@ -197,7 +197,11 @@ export class ConflictError extends AppError {
       // A move a late rule turns away inside its window before a moment.
       | 'STATE_TOO_LATE'
       // A public change outside the window its entry opens (`details.bound`, `details.at`).
-      | 'WRITE_WINDOW_CLOSED' = 'CONFLICT',
+      | 'WRITE_WINDOW_CLOSED'
+      // A price by the night whose rate rule cannot be read (`details.table`, `key`, `column`).
+      | 'NIGHTLY_RATE_UNREADABLE'
+      // More child rows follow the changed row than one write moves (`details.table`, `count`).
+      | 'FOLLOW_TOO_MANY' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);

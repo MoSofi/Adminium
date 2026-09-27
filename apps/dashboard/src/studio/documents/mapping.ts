@@ -108,6 +108,9 @@ export function columnsForSlot(
       case 'text[]':
       case 'text':
         return /^(varchar|text|char|citext)/i.test(column.logicalType);
+      // A QR code prints a code: a text column, those named like one first.
+      case 'qr':
+        return /^(varchar|text|char|citext)/i.test(column.logicalType) && /code|token/i.test(column.name);
       default:
         return false;
     }

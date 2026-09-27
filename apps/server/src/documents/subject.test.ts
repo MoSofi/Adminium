@@ -8,6 +8,7 @@
  * column and a provider.
  */
 import { describe, expect, it } from 'vitest';
+import { documentQrValueSchema } from '@adminium/add-on-contracts';
 
 import {
   buildSubject,
@@ -137,6 +138,18 @@ describe('coercion per slot type', () => {
     expect(coerceSlot('number', '  ')).toBeNull();
     expect(coerceSlot('number', 0)).toBe(0);
     expect(coerceSlot('number', '0')).toBe(0);
+  });
+
+  it('draws a QR code of a code — its text, its modules and a PNG — and none of anything longer or empty', async () => {
+    const value = coerceSlot('qr', ' K7QX-M2PD ') as { text: string; modules: string[]; png: string };
+    expect(value.text).toBe('K7QX-M2PD');
+    expect(value.modules).toHaveLength(21);
+    expect(documentQrValueSchema.safeParse(value).success).toBe(true);
+    const { readQrPng } = await import('../../test/qr-decode.helpers.js');
+    expect(readQrPng(Buffer.from(value.png.slice('data:image/png;base64,'.length), 'base64'))).toBe('K7QX-M2PD');
+    expect(coerceSlot('qr', '')).toBeNull();
+    expect(coerceSlot('qr', null)).toBeNull();
+    expect(coerceSlot('qr', 'x'.repeat(65))).toBeNull();
   });
 
   it('never lets an object reach a provider as "[object Object]"', () => {

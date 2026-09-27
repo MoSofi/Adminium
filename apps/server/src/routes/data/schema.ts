@@ -175,6 +175,8 @@ export const recordChildrenBody = z
 export const recordDryRunReply = z.object({
   data: rowSchema.nullable(),
   children: z.record(z.string(), z.array(z.object({ data: rowSchema, children: z.record(z.string(), z.array(z.object({ data: rowSchema }))).optional() }))),
+  /** A row priced by the night (a stay): each night, its rate and the names of what was added to it. */
+  nights: z.array(z.object({ date: z.string(), rate: z.string(), tags: z.array(z.string()) })).optional(),
 });
 
 /**
@@ -301,6 +303,29 @@ export const capacityCountsReply = z.object({
   data: z.object({
     kind: z.enum(['slot', 'parent', 'night']),
     rows: z.array(z.record(z.string(), z.unknown())),
+  }),
+});
+
+/** `GET …/:recordId/nightly`: the nights a row's price by the night is made of. */
+export const nightlyQuery = z.object({ column: z.string().min(1).max(128).optional() }).strict();
+
+export const nightlyReply = z.object({
+  data: z.object({
+    column: z.string(),
+    /** One line per night, or — when the rates changed since the row was priced — one line for them all. */
+    nights: z.array(
+      z.object({
+        date: z.string(),
+        rate: z.string().nullable(),
+        base: z.string().nullable(),
+        tags: z.array(z.string()),
+        qty: z.string(),
+        amount: z.string().nullable(),
+      }),
+    ),
+    total: z.string().nullable(),
+    /** The nights priced now no longer add up to the stored figure: the rates changed after the row was priced. */
+    stale: z.boolean(),
   }),
 });
 

@@ -36,6 +36,7 @@ const FIELD_LABELS: Record<string, () => string> = {
   'Contact name': () => t('email:fields.contactName', 'Contact name'),
   Email: () => t('email:fields.email', 'Email'),
   Phone: () => t('email:fields.phone', 'Phone'),
+  'When there are none': () => t('email:fields.whenNone', 'When there are none'),
 };
 
 const ROW_LABELS: Record<string, () => string> = {

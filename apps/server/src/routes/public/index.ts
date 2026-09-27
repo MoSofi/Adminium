@@ -48,6 +48,7 @@ import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
 import type { Dialect } from '@adminium/engine';
 import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
+import { renewedBy } from '../../crud/code-renew.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import {
@@ -107,6 +108,8 @@ import { generatePublicSessionToken, hashPublishableKey, keyKindOf } from '../..
 import type { RequestStats } from '../../public-api/stats.js';
 import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
 import { tableRulesFor, unstorableText } from '../../crud/column-rules.js';
+import { quoteNights } from '../../crud/per-night.js';
+import { connectionTenantConfig } from '@adminium/meta';
 import { needsStored } from '../../crud/decide.js';
 import { keptRow, type Row } from '../../crud/mask.js';
 import { wallTimesAsInstants } from '../../crud/instants.js';
@@ -2179,7 +2182,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (await writes.wants('before', 'create', target(of), context)) exact = false;
         }
         const capacity = outcome.capacity.map((pool) => ({ pool: pool.key, state: pool.fits ? ('available' as const) : ('full' as const), ...(pool.at === undefined ? {} : { at: pool.at }) }));
-        return reply.code(200).send({ data, children, capacity, exact });
+        // A price by the night: the nights it is made of, each with its rate and what was added.
+        const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+        return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }) });
       }
       // The guest's confirmation, when the endpoint sends one. Queued, never awaited on SMTP.
       const confirm = resource.confirm === null ? null : publicConfirmSchema.safeParse(resource.confirm);
@@ -2633,10 +2638,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const projected: Record<string, unknown> = {};
         // A quote shows figures only: no key, no running number, no code.
         const hidden = quote === 'dry' ? hiddenInQuote(found.view, found.table, [found.resource.clientKey]) : new Set<string>();
+        // A code this change made (a ticket handed on) goes to the new holder, never back to the sender.
+        for (const column of renewedBy(outcome, found.table.table.columns)) hidden.add(column);
         for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
         const data = wallTimesAsInstants(projected, found.table.columns, found.dialect);
         // A quote runs no before hook: said, as a quote of a create says it.
-        if (quote === 'dry') return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)) });
+        if (quote === 'dry') {
+          // A change of the dates of a row priced by the night: the nights it would then be made of.
+          const nights = outcome.after === null ? undefined : await quoteNights(found.db, tableRulesFor({ view: found.view, table: found.table }), outcome.after, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+          return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }) });
+        }
         return reply.send({ data });
       };
 

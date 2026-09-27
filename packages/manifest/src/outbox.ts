@@ -104,7 +104,14 @@ const producerBase = {
    * one, while that bool of the settings row is false (each of a studio's
    * notices has its own switch).
    */
-  gate: z.union([z.literal('enabled'), z.object({ setting: settingRefSchema }).strict()]).optional(),
+  gate: z
+    .union([
+      z.literal('enabled'),
+      z.object({ setting: settingRefSchema }).strict(),
+      /** Only while a feature of the app is on (its add-ons attached): a receipt, with Invoices & Receipts. */
+      z.object({ feature: z.string().regex(/^[a-z][a-z0-9-]{0,39}$/, 'a feature id') }).strict(),
+    ])
+    .optional(),
   /** Skipped for a recipient whose `recipient.optIn` column is false. */
   optIn: z.literal(true).optional(),
   /** Written `held`: sent only once someone approves it. */
@@ -131,7 +138,8 @@ const producerBase = {
   recipient: z
     .union([
       z.object({ setting: settingSourceSchema }).strict(),
-      z.object({ column: refSchema, name: refSchema.optional() }).strict(),
+      /** `language`: a text column of the same row, the language the message is written in. */
+      z.object({ column: refSchema, name: refSchema.optional(), language: refSchema.optional() }).strict(),
     ])
     .optional(),
   /** One message per linked row in each window of this many minutes. */
@@ -218,7 +226,12 @@ const recipientSchema = z
     table: refSchema,
     email: refSchema,
     name: refSchema.optional(),
-    language: refSchema.optional(),
+    /**
+     * The language the message is written in: a text column of the person's
+     * row, or (`{column}`) of the row the message is about — an order placed
+     * in German is written to in German, whatever the person's own row says.
+     */
+    language: z.union([refSchema, z.object({ column: refSchema }).strict()]).optional(),
     /** A bool the person sets: false means no reminders. */
     optIn: refSchema.optional(),
     /**
@@ -542,7 +555,10 @@ export function outboxIssues(
   fk(box.table, r.via, r.table, at('recipient', 'via'));
   col(r.table, r.email, ['text'], at('recipient', 'email'), 'a text column');
   if (r.name !== undefined) col(r.table, r.name, ['text'], at('recipient', 'name'), 'a text column');
-  if (r.language !== undefined) col(r.table, r.language, ['text'], at('recipient', 'language'), 'a text column');
+  if (typeof r.language === 'string') col(r.table, r.language, ['text'], at('recipient', 'language'), 'a text column');
+  else if (r.language !== undefined && box.columns.language === undefined) {
+    out.push({ path: at('recipient', 'language'), message: 'a message\'s language read from the row it is about is kept in the outbox\'s language column: name it' });
+  }
   if (r.optIn !== undefined) col(r.table, r.optIn, ['bool'], at('recipient', 'optIn'), 'a bool');
   if (r.fallback !== undefined) {
     const via = fk(box.table, r.fallback.via, undefined, at('recipient', 'fallback', 'via'));
@@ -574,6 +590,11 @@ export function outboxIssues(
     if (box.kinds[producer.kind] === undefined) out.push({ path: here('kind'), message: `"${producer.kind}" is not one of the outbox's kinds` });
     if (producer.gate === 'enabled' && box.settings?.enabled === undefined) {
       out.push({ path: here('gate'), message: 'the outbox names no settings column to be gated by' });
+    } else if (typeof producer.gate === 'object' && 'feature' in producer.gate) {
+      const feature = producer.gate.feature;
+      if (!(m.addOns?.features ?? []).some((candidate) => candidate.id === feature)) {
+        out.push({ path: here('gate', 'feature'), message: `"${feature}" is not one of the app's addOns.features` });
+      }
     } else if (typeof producer.gate === 'object') {
       col(producer.gate.setting.table, producer.gate.setting.column, ['bool'], here('gate', 'setting'), 'a bool');
     }
@@ -643,8 +664,14 @@ export function outboxIssues(
       else {
         col(linked, producer.recipient.column, ['text'], here('recipient', 'column'), 'a text column');
         if (producer.recipient.name !== undefined) col(linked, producer.recipient.name, ['text'], here('recipient', 'name'), 'a text column');
+        if (producer.recipient.language !== undefined) {
+          col(linked, producer.recipient.language, ['text'], here('recipient', 'language'), 'a text column');
+          if (box.columns.language === undefined) out.push({ path: here('recipient', 'language'), message: 'a message\'s language is kept in the outbox\'s language column: name it' });
+        }
       }
     }
+    // The language read from the row a message is about: every producer's row has it.
+    if (typeof r.language === 'object') col(linked, r.language.column, ['text'], here(), 'a text column (the message\'s language)');
     if (producer.batchMinutes !== undefined && 'before' in producer) {
       out.push({ path: here('batchMinutes'), message: 'a reminder before a moment is one per row already' });
     }
@@ -919,8 +946,19 @@ function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, inde
   return out;
 }
 
+/** The forms of a number: as a number, a percentage and an amount of money, in the message's language. */
+const NUMBER_FORMS = ['number', 'percent', 'money'] as const;
+
 /** The forms of a value a row's column may be read in, by its type (as the sender fills a template's). */
 const ROW_FORMS: Readonly<Record<string, readonly string[]>> = {
   timestamptz: ['date', 'time', 'day_month', 'relative_day'],
   date: ['day_month', 'days_since'],
+  int: NUMBER_FORMS,
+  bigint: NUMBER_FORMS,
+  decimal: NUMBER_FORMS,
+  money: NUMBER_FORMS,
+  float: NUMBER_FORMS,
+  // A choice by its label; a time of day kept as text (`15:00`) in the reader's clock.
+  enum: ['label'],
+  text: ['time'],
 };

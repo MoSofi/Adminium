@@ -19,12 +19,14 @@ import { artworkRefSchema, type ArtworkSource, type JobSpec } from '../artwork-s
 import {
   documentKindSchema,
   documentOutlineSchema,
+  documentQrValueSchema,
   isDocumentError,
   localizedTextSchema,
   renderedDocumentSchema,
   type DocumentError,
   type DocumentKind,
   type DocumentOutline,
+  type DocumentQrValue,
   type DocumentRenderer,
   type DocumentSubject,
   type OutlineSlot,
@@ -325,6 +327,40 @@ export function describeProductPersonalizer(
  * of a required one), and it keeps the cost of a second implementer near zero,
  * which is the claim `shipping-carrier` makes and this contract inherits.
  */
+/**
+ * A `qr` slot's value as the host hands it over — the ticket code
+ * `K7QX-M2PD`: its text, its modules (21 × 21, no quiet zone) and the same
+ * code as a PNG data URL. Precomputed by the host's own encoder, so a
+ * provider's fixture needs no encoder either.
+ */
+export const SAMPLE_DOCUMENT_QR: DocumentQrValue = {
+  text: 'K7QX-M2PD',
+  modules: [
+    '111111100110001111111',
+    '100000101001001000001',
+    '101110101111001011101',
+    '101110101101101011101',
+    '101110100000101011101',
+    '100000100001001000001',
+    '111111101010101111111',
+    '000000001100000000000',
+    '100000101111011001110',
+    '101110011001110010010',
+    '001101101010101101101',
+    '010110010011111001100',
+    '010110100001111111010',
+    '000000001100100011111',
+    '111111100001010111001',
+    '100000100100001111001',
+    '101110100011010111110',
+    '101110100111111100100',
+    '101110100111110101011',
+    '100000100101111111001',
+    '111111101010100100100',
+  ],
+  png: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOgAAADoAQAAAADN0pXVAAAAsElEQVR42u3YQQ6AIAwEwP3/p9egbSmonHWpMQYyXoTSguDqQmlp6dcV19Uauaer9umg3QMoavv684ne20Hpb22hHgP6mptva0FILX/Bx+Ix1+loFCesapmORpzjWt+0wdDVqM2Wvymt7Hk75XBhtTm3dd7DXlqnxKasKZvF/lpYh/qEWOG6yrwRwQbqAR6Hiltul9R+TOY+6iVLWSPax/FQ1eE0wXn25bT+XpaW/lIPV7bmFz5b7OwAAAAASUVORK5CYII=',
+};
+
 export interface DocumentRendererFixtures {
   /** The add-on's own non-secret values, as the engine would pass them. */
   settings: Readonly<Record<string, unknown>>;
@@ -614,6 +650,28 @@ export function describeDocumentRenderer(
           if (slot.type === 'money' || slot.type === 'percent') {
             expect(Number.isInteger(value), `${kind.id}.${slot.id} is ${String(value)}`).toBe(true);
           }
+        }
+      }
+    });
+
+    it('is given a QR code as the host draws it: its text, its modules and a PNG', () => {
+      // The host encodes a `qr` slot (a provider needs no encoder); a fixture holding anything else tests a shape no host sends.
+      for (const kind of kinds) {
+        const outline = impl.describe(kind.id);
+        const subject = fixtures.subject(kind);
+        for (const slot of outline.slots) {
+          const columns = slot.type === 'collection' ? (slot.columns ?? []).filter((column) => column.type === 'qr') : [];
+          for (const column of columns) {
+            for (const row of subject.collections[slot.id] ?? []) {
+              const cell = row[column.id];
+              if (cell === undefined || cell === null) continue;
+              expect(documentQrValueSchema.safeParse(cell).success, `${kind.id}.${slot.id}[].${column.id}`).toBe(true);
+            }
+          }
+          if (slot.type !== 'qr') continue;
+          const value = subject.fields[slot.id];
+          if (value === undefined || value === null) continue;
+          expect(documentQrValueSchema.safeParse(value).success, `${kind.id}.${slot.id}`).toBe(true);
         }
       }
     });

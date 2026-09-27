@@ -41,4 +41,10 @@ export const EMAIL_BLOCK_SAMPLES: Record<string, Record<string, unknown>> = {
   'email.legal': { kicker: '', text: 'This email is confidential.' },
   'email.refund-policy': { kicker: 'Refund policy', text: 'Full refunds within 30 days.' },
   'email.contact': { kicker: 'Questions?', name: 'Support', email: 'support@example.test', phone: '+1 555 010 0100' },
+  // An app's list of rows: with no rows read (a preview), it says its `empty`.
+  'email.rows': {
+    from: { link: 'order', table: 'main.orders_tickets', via: 'order_id', orderBy: 'position' },
+    row: { title: '{{row.holder_name}}', meta: '{{row.code}}', image: '{{row.code.qr}}' },
+    empty: 'No tickets yet',
+  },
 };

@@ -10,7 +10,8 @@
  * decided here and written later, in a statement of its own, would be left
  * out of the undo entry and put back by nobody.
  *
- * Two rules live here.
+ * Three rules live here: stamps, the booking rule's cancellation window
+ * below, and a code renewed when its row changes hands (`crud/code-renew.ts`).
  *
  * STAMPS (`column.stamp`): a value written when a row is created, when a
  * watched column changes to one of the rule's values, or when a column is
@@ -49,11 +50,13 @@
  */
 import type { Kysely } from 'kysely';
 import type { Dialect, Relation } from '@adminium/engine';
+import type { TablePrivileges } from '@adminium/engine/adapter';
 
 import type { StampTrigger, TableBookingRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { ConflictError, ValidationFailedError } from '../errors.js';
 import { bookingCounts } from './booking-guard.js';
+import { renewCodes } from './code-renew.js';
 import { numberOf, slotInstant } from './capacity-guard.js';
 import type { ColumnStamp, TableRules } from './column-rules.js';
 import type { ResolvedTable } from './identifiers.js';
@@ -82,6 +85,8 @@ export interface DecideContext {
   claimed?: Row | null | undefined;
   /** The model's links, to follow a stamp's moment through a foreign key. */
   relations?: readonly Relation[] | undefined;
+  /** What the connection's role may write: a renewed code it may not is refused by name. */
+  rights?: TablePrivileges | null | undefined;
 }
 
 /** Writes that put back what already happened: nothing is decided over them. */
@@ -104,12 +109,16 @@ export function needsStored(rules: TableRules | null): boolean {
     rules?.booking?.cancel !== undefined ||
     [...(rules?.stamps ?? []), ...(rules?.seals ?? [])].some((stamp) => stamp.on !== 'create') ||
     (rules?.formulas?.length ?? 0) > 0 ||
+    // A price by the night reads the stay's other dates and its rate's link.
+    rules?.perNight !== undefined ||
     // A move is judged on the row as it is, and a lock on what the write changes.
     rules?.states !== undefined ||
     (rules?.stateParents?.length ?? 0) > 0 ||
     (rules?.bounds ?? []).some((bound) => bound.notBefore !== undefined) ||
     // A column required while another holds a value is judged on the row as the write leaves it.
-    (rules?.checks ?? []).some((check) => check.requiredWhen !== undefined)
+    (rules?.checks ?? []).some((check) => check.requiredWhen !== undefined) ||
+    // A code renewed when the row changes hands: a change is judged against what is stored.
+    (rules?.codes ?? []).some((code) => code.renew !== undefined)
   );
 }
 
@@ -130,6 +139,8 @@ export async function decideRow(
   let out = values;
   if (action === 'update' && rules.booking?.cancel !== undefined) out = await decideLate(rules.booking, out, before!, context);
   if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
+  // A code renewed by this change: in the same statement, so the old one stops at the commit.
+  out = renewCodes(rules.codes, action, out, before, context);
   // A move marked undo keeps the stamps of the state it returns to, and empties those marked clearOnBack of the one it leaves.
   const undo = action === 'update' ? undoMoveOf(rules.states, before, out) : null;
   const stamps = undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo));
