@@ -55,7 +55,8 @@ export function eventsManifest(): Record<string, unknown> {
           id,
           text('ref', 16),
           fk('customer_id', 'customers'),
-          text('language', 16),
+          // Wider than the outbox's own language column (16).
+          text('language', 40),
           { ref: 'paid_method', type: 'enum', enum: ['card', 'cash'], nullable: true, rules: { enumLabels: { labels: { card: { 'en-US': 'Card', 'de-DE': 'Karte' }, cash: 'Cash' } } } },
           { ref: 'tax_rate', type: 'decimal', scale: 3, nullable: true },
           money('total'),
