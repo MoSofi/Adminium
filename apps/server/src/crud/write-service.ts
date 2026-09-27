@@ -967,7 +967,11 @@ async function rowsByKey(db: Db, dialect: Dialect, table: string, keyColumn: str
     .select([...new Set([keyColumn, ...columns])] as never)
     .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
     .orderBy(keyColumn as never);
-  if (hold && dialect !== 'sqlite') query = query.forUpdate();
+  // Postgres: FOR NO KEY UPDATE — it keeps every other writer of the row out, and
+  // lets through the key-share lock a new child row's foreign key takes (a
+  // quote's line on the same dish waits for nobody, and nobody for it).
+  if (hold && dialect === 'postgres') query = query.forNoKeyUpdate();
+  else if (hold && dialect === 'mysql') query = query.forUpdate();
   const rows = (await query.execute()) as Row[];
   return new Map(rows.map((row) => [String(row[keyColumn]), row]));
 }
@@ -1182,7 +1186,7 @@ async function holdKeys(db: Db, dialect: Dialect, table: string, keyColumn: stri
     .select(sql<number>`1`.as('adm_one'))
     .where((eb) => eb(db.dynamic.ref(keyColumn), 'in', [...unique.values()] as never))
     .orderBy(keyColumn as never);
-  await (share ? query.forShare() : query.forUpdate()).execute();
+  await (share ? query.forShare() : dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate()).execute();
 }
 
 // --- values after hooks --------------------------------------------------------
