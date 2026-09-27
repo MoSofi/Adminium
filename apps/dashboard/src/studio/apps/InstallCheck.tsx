@@ -25,6 +25,12 @@
  *  again". A changed answer changes what the install would do, so the check is
  *  re-run before Install is offered: a pick re-checks at once, and a typed
  *  name or prefix turns Install into "Check again" until it has been.
+ *
+ *  **Sharing.** The comp has no shared table: its badges are new, yours and
+ *  taken. The choice between another app's menu and a separate one reuses the
+ *  taken-table cards — one card above the tables per shape the app shares,
+ *  "Use {app}'s menu" (recommended) or "Keep a separate menu" — and a shared
+ *  table's badge names the other app.
  */
 import type { ReactNode } from 'react';
 import { Badge, Button, MonoText, RadioCard, RadioGroup, Spinner } from '@adminium/ui';
@@ -48,12 +54,17 @@ import { t } from '../../i18n/t.js';
 import {
   ddlPreview,
   type AppInstallPlan,
+  type InstallAnswers,
   type InstallStoppedDetails,
   type PlannedAppTable,
+  type ShareOffer,
 } from './appsApi.js';
 
 /** What the operator picked for one taken table. */
 export type TakenPick = 'reuse' | 'rename-existing' | 'alt-prefix';
+
+/** What the operator picked for the tables of one shape: another app's, or separate ones. */
+export type SharePick = NonNullable<InstallAnswers['shares']>[string];
 
 const MARK = '\u2063';
 
@@ -118,6 +129,8 @@ export interface TableCheckProps {
    * prefix for the whole app is an uninstall and an install, not a choice.
    */
   allowAltPrefix?: boolean | undefined;
+  /** Pick another app's tables of a shape, or separate ones; the check is made again at once. */
+  onShare?: ((shape: string, pick: SharePick) => void) | undefined;
 }
 
 export function TableCheck(props: TableCheckProps) {
@@ -194,6 +207,10 @@ export function TableCheck(props: TableCheckProps) {
         )}
       </div>
 
+      {(plan.shareOffers ?? []).map((offer) => (
+        <ShareChoice key={offer.shape} offer={offer} {...props} />
+      ))}
+
       <div className="flex flex-col gap-[9px]">
         {plan.tables.map((table) => (
           <TableRow key={table.ref} table={table} {...props} />
@@ -218,7 +235,7 @@ function TableRow({ table, ...props }: TableCheckProps & { table: PlannedAppTabl
           ? {
               tone: 'info' as const,
               label: t('studio:hostedApps.install.check.badgeShared', 'Shared with {app}', {
-                app: table.sharedWith ?? '',
+                app: table.sharedWithName ?? table.sharedWith ?? '',
               }),
             }
           : { tone: 'warn' as const, label: t('studio:hostedApps.install.check.badgeTaken', 'Name taken') };
@@ -266,7 +283,7 @@ function TableRow({ table, ...props }: TableCheckProps & { table: PlannedAppTabl
                     ? t(
                         'studio:hostedApps.install.check.sharedNote',
                         '{app} uses this table too. Both apps keep reading and writing the same rows.',
-                        { app: table.sharedWith ?? '' },
+                        { app: table.sharedWithName ?? table.sharedWith ?? '' },
                       )
                     : table.adopted === true
                       ? t(
@@ -287,6 +304,128 @@ function TableRow({ table, ...props }: TableCheckProps & { table: PlannedAppTabl
           {table.class === 'taken' ? <TakenChoices table={table} {...props} /> : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The radio value of one share card: `share:<app>` or `separate`. */
+function shareValue(pick: SharePick): string {
+  return pick.action === 'share' ? `share:${pick.with}` : 'separate';
+}
+
+/**
+ * The tables of one shape (a menu) another installed app already has: use
+ * that app's — the first installed is recommended — or keep separate ones.
+ * Built in the taken-table cards' style.
+ */
+function ShareChoice({ offer, ...props }: TableCheckProps & { offer: ShareOffer }) {
+  const menu = offer.shape.startsWith('menu@');
+  const current: SharePick = offer.action === 'separate' ? { action: 'separate' } : { action: 'share', with: offer.with };
+  const own = props.plan.tables.filter((table) => table.shape === offer.shape).length;
+  const cards: { pick: SharePick; title: string; note: ReactNode; recommended: boolean }[] = [
+    ...offer.candidates.map((candidate, index) => ({
+      pick: { action: 'share' as const, with: candidate.key },
+      title: menu
+        ? t('studio:hostedApps.install.check.share.useMenu', 'Use {app}’s menu', { app: candidate.name })
+        : t('studio:hostedApps.install.check.share.useTables', 'Use {app}’s tables', { app: candidate.name }),
+      note: (
+        <>
+          {menu
+            ? t('studio:hostedApps.install.check.share.useMenuNote', 'Both apps read and write the same dishes.')
+            : t('studio:hostedApps.install.check.share.useTablesNote', 'Both apps read and write the same rows.')}{' '}
+          {candidate.key === offer.with && offer.addColumns.length > 0 ? (
+            <>
+              {t(
+                'studio:hostedApps.install.check.share.addsColumns',
+                '{count, plural, one {Adds # column to {app}’s tables:} other {Adds # columns to {app}’s tables:}}',
+                { count: offer.addColumns.length, app: candidate.name },
+              )}{' '}
+              {offer.addColumns.map((added, i) => (
+                <span key={`${added.table}.${added.column}`}>
+                  <MonoText className="font-semibold text-fg">{added.column}</MonoText>
+                  {i < offer.addColumns.length - 1 ? ', ' : '. '}
+                </span>
+              ))}
+            </>
+          ) : null}
+          {t('studio:hostedApps.install.check.share.nothingChanges', 'Nothing {app} reads changes.', { app: candidate.name })}
+        </>
+      ),
+      recommended: index === 0,
+    })),
+    {
+      pick: { action: 'separate' },
+      title: menu
+        ? t('studio:hostedApps.install.check.share.separateMenu', 'Keep a separate menu')
+        : t('studio:hostedApps.install.check.share.separateTables', 'Keep separate tables'),
+      note: t('studio:hostedApps.install.check.share.separateNote', '{app} makes its own {count, plural, one {table} other {# tables}}.', {
+        app: props.appName,
+        count: own,
+      }),
+      recommended: false,
+    },
+  ];
+  const selected = shareValue(current);
+  return (
+    <div data-testid={`share-${offer.shape}`} className="rounded-[13px] border border-border bg-surface px-[15px] py-3.5 shadow-sm">
+      <p className="mb-[11px] text-[12.5px] leading-[1.55] text-fg-muted">
+        {menu
+          ? t('studio:hostedApps.install.check.share.introMenu', '{app} already keeps a menu here. {self} can use it, or keep a menu of its own.', {
+              app: offer.withName,
+              self: props.appName,
+            })
+          : t('studio:hostedApps.install.check.share.introTables', '{app} already keeps these tables here. {self} can use them, or keep its own.', {
+              app: offer.withName,
+              self: props.appName,
+            })}
+      </p>
+      <RadioGroup
+        value={selected}
+        onValueChange={(value) => {
+          const card = cards.find((candidate) => shareValue(candidate.pick) === value);
+          if (card !== undefined) props.onShare?.(offer.shape, card.pick);
+        }}
+        disabled={props.busy || props.onShare === undefined}
+        aria-label={
+          menu
+            ? t('studio:hostedApps.install.check.share.labelMenu', 'Which menu {app} uses', { app: props.appName })
+            : t('studio:hostedApps.install.check.share.labelTables', 'Which tables {app} uses', { app: props.appName })
+        }
+        className="flex flex-col gap-[9px]"
+      >
+        {cards.map((card) => {
+          const value = shareValue(card.pick);
+          return (
+            <div
+              key={value}
+              className={`overflow-hidden rounded-xl border-[1.5px] ${selected === value ? 'border-accent' : 'border-border'} bg-surface`}
+            >
+              <RadioCard
+                value={value}
+                hideIndicator
+                className="rounded-none border-0 bg-transparent px-[15px] py-[13px] disabled:opacity-100 data-[state=checked]:bg-transparent"
+                icon={
+                  <span
+                    aria-hidden
+                    className="mt-px grid size-[18px] shrink-0 place-items-center rounded-full border border-border-strong bg-surface group-data-[state=checked]:border-transparent group-data-[state=checked]:bg-accent"
+                  >
+                    <span className="size-[7px] rounded-full bg-accent-fg opacity-0 group-data-[state=checked]:opacity-100" />
+                  </span>
+                }
+                title={<span className="font-bold">{card.title}</span>}
+                description={<span className="text-xs leading-[1.5] text-fg-muted">{card.note}</span>}
+                trailing={
+                  card.recommended ? (
+                    <Badge tone="accent" className="px-[9px] py-[3px] leading-[normal]">
+                      {t('studio:hostedApps.install.check.share.recommended', 'Recommended')}
+                    </Badge>
+                  ) : undefined
+                }
+              />
+            </div>
+          );
+        })}
+      </RadioGroup>
     </div>
   );
 }

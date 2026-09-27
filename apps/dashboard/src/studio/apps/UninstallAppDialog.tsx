@@ -9,6 +9,10 @@
  * the API keys bound to it; the dialog says so, with the counts, before
  * anything happens. The drop is offered only to someone who may discard data
  * (Super Admin), and only for tables the app made and nothing else names.
+ *
+ * Departure from the comp: it has no table another app uses. Such a table is
+ * never deleted, so the Kept list names each app that uses one, with its
+ * tables, and says when this app's sample rows stay in them.
  */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -99,6 +103,32 @@ export function UninstallAppDialog({ appKey, name, subtitle, onClose, onUninstal
         t('studio:uninstall.tables', '{count, plural, one {# table and every record in it} other {# tables and every record in them}}', {
           count: keptTables,
         }),
+      );
+    }
+    // A table another app uses too (a shared menu) is never deleted: each such app named, with its tables.
+    const partners = new Map<string, { name: string; tables: string[] }>();
+    for (const table of data.tables) {
+      for (const other of table.sharedWith ?? []) {
+        const entry = partners.get(other.key) ?? { name: other.name, tables: [] };
+        entry.tables.push(table.table);
+        partners.set(other.key, entry);
+      }
+    }
+    for (const partner of partners.values()) {
+      kept.push(
+        t('studio:uninstall.sharedTables', '{app} also uses {count, plural, one {# table} other {# tables}}, never deleted: {tables}', {
+          app: partner.name,
+          count: partner.tables.length,
+          tables: partner.tables.join(', '),
+        }),
+      );
+    }
+    if ((data.sharedSampleRows ?? 0) > 0) {
+      kept.push(
+        t(
+          'studio:uninstall.sharedSample',
+          'Its sample rows in the shared tables stay. Remove the sample data first to take them out.',
+        ),
       );
     }
     if (data.pages.kept.length > 0) {
