@@ -212,6 +212,57 @@ export const publicWriteBody = z.object({
   values: rowValues(z.record(z.string(), z.unknown())),
 });
 
+/*
+ * ── A CREATE WITH ITS CHILD ROWS ─────────────────────────────────────────
+ * The rows below the created one, by the name the wire uses, two levels at
+ * most (spelled out, so the schema has no recursion); two hundred rows per
+ * list here, and two hundred in all where the write is judged.
+ */
+const treeValues = rowValues(z.record(z.string(), z.unknown()));
+const publicTreeGrandchildren = z.record(z.string().min(1).max(64), z.array(z.object({ values: treeValues }).strict()).max(200));
+export const publicTreeChildren = z.record(
+  z.string().min(1).max(64),
+  z.array(z.object({ values: treeValues, children: publicTreeGrandchildren.optional() }).strict()).max(200),
+);
+export type PublicTreeChildren = z.infer<typeof publicTreeChildren>;
+
+/** The price a guest was shown, as a decimal string: the save refuses a different one. */
+const publicExpect = z.object({ total: z.string().regex(/^-?\d{1,15}(?:\.\d{1,6})?$/) }).strict();
+
+/** `POST /public/records/:ref` — a create, with the rows below it and the price expected. */
+export const publicCreateBody = publicWriteBody.extend({
+  children: publicTreeChildren.optional(),
+  expect: publicExpect.optional(),
+});
+
+/** `POST /public/records/:ref/dry-run` — the same create, tried without writing. */
+export const publicDryRunBody = publicWriteBody.extend({ children: publicTreeChildren.optional() });
+
+/** `PATCH …/:id` — a change, and the price expected after it. */
+export const publicUpdateBody = publicWriteBody.extend({ expect: publicExpect.optional() });
+
+/** One written row of a tree as a reply carries it: its shown columns, and its own rows below. */
+const publicTreeReplyGrandchildren = z.record(z.string(), z.array(z.object({ data: z.record(z.string(), z.unknown()) })));
+export const publicTreeReplyChildren = z.record(
+  z.string(),
+  z.array(z.object({ data: z.record(z.string(), z.unknown()), children: publicTreeReplyGrandchildren.optional() })),
+);
+
+/** A create's reply: the row, the rows written below it, and — for a retry of one already made — `replayed`. */
+export const publicCreateReply = publicRecordReply.extend({
+  children: publicTreeReplyChildren.optional(),
+  replayed: z.literal(true).optional(),
+});
+
+/** A dry run's reply: every figure a save would write, and how the limits it takes from stand. */
+export const publicDryRunReply = z.object({
+  data: z.record(z.string(), z.unknown()),
+  children: publicTreeReplyChildren.optional(),
+  capacity: z.array(z.object({ pool: z.string(), state: z.enum(['available', 'full']), at: z.string().optional() })),
+  /** False when a before hook runs on a table of the write: a dry run runs none, so a save may differ. */
+  exact: z.boolean(),
+});
+
 /** `POST /public/claim` — the end-customer identity check. */
 export const publicClaimBody = z.object({
   /**
@@ -302,6 +353,19 @@ export const PUBLIC_ERROR_CODES = [
   'PUBLIC_SLOT_BUSY',
   /** A guest cancelling closer to the time than the venue allows online (409). */
   'PUBLIC_TOO_LATE',
+  /**
+   * A row of the write asks for places that are gone (409): `params.child`,
+   * `index` and `path` name the row. Never how many are left.
+   */
+  'PUBLIC_SOLD_OUT',
+  /** A night of the stay has no room left of the kind asked for (409). */
+  'PUBLIC_NO_ROOM',
+  /**
+   * The write came to a different price than the one the guest was shown
+   * (409): `params.total` is what it would have saved, `params.lines` its
+   * rows' figures. Nothing was written.
+   */
+  'PUBLIC_PRICE_CHANGED',
   /**
    * The caller's own row is not yet inside the endpoint's time window (409):
    * `params.at` is the row's time and `params.from` when the window opens,

@@ -113,12 +113,6 @@ const ENTRY_KEYS = [
   // Rows unlocked by a typed code, and pictures anyone may see.
   'unlock_by',
   'pictures',
-  // A create with its child rows, its checks, a dry run, the price it expects, a retry key.
-  'children',
-  'agrees',
-  'dry_run',
-  'expect',
-  'client_key',
   // A person found by address, the new row's own link, a read for a session, forgetting.
   'find_or_create',
   'share_link',

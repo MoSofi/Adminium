@@ -150,3 +150,52 @@ export async function writeTree(w: Writer, root: TreeNode, mode: 'save' | 'dry' 
 
 /** A money value as the text a person reads: `12.50`. */
 export const cents = (value: unknown): string | null => (value === null || value === undefined ? null : Number(value).toFixed(2));
+
+/** The public side of the kitchen: the menu anyone may read, and a guest's order with its lines and options. */
+export function orderPublicManifest(): Record<string, unknown> {
+  const manifest = orderManifest();
+  manifest['frontends'] = [
+    { side: 'staff', kind: 'spa', entry: 'index.html' },
+    { side: 'customer', kind: 'spa', entry: 'index.html' },
+  ];
+  manifest['publicAccess'] = [
+    { table: 'menu_items', methods: ['GET'], select: ['id', 'name', 'price'], filters: [{ column: 'available', op: 'eq', value: true }] },
+    { table: 'modifier_groups', methods: ['GET'], select: ['id', 'item_id', 'name', 'min', 'max'] },
+    { table: 'modifiers', methods: ['GET'], select: ['id', 'group_id', 'name', 'price'] },
+    {
+      table: 'orders',
+      methods: ['POST'],
+      humanCheck: true,
+      writable: ['email', 'name', 'client_key'],
+      requires: ['email', 'name'],
+      select: ['id', 'number', 'subtotal', 'item_count', 'tax', 'total'],
+      anonymous: { perValue: { columns: ['email'], n: 20 } },
+      children: {
+        order_items: {
+          via: 'order_id',
+          writable: ['menu_item_id', 'qty', 'note'],
+          select: ['id', 'position', 'unit_price', 'options_total', 'line_total'],
+          position: 'position',
+          min: 1,
+          max: 40,
+          plainText: ['note'],
+          sumMax: { column: 'qty', max: { table: 'settings', column: 'max_items' } },
+          children: {
+            order_item_modifiers: {
+              via: 'order_item_id',
+              writable: ['modifier_id'],
+              select: ['id', 'price'],
+              max: 20,
+              agrees: [{ column: 'modifier_id', path: ['group_id', 'item_id'], eq: { parent: 'menu_item_id' } }],
+              counts: [{ by: ['modifier_id', 'group_id'], every: { column: 'item_id', eq: { parent: 'menu_item_id' } }, min: 'min', max: 'max' }],
+            },
+          },
+        },
+      },
+      dryRun: true,
+      expect: 'total',
+      clientKey: 'client_key',
+    },
+  ];
+  return manifest;
+}

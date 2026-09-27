@@ -11,6 +11,7 @@ import { rollupValue } from '@adminium/manifest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AppError } from '../src/errors.js';
+import type { TreeOutcome } from '../src/crud/write-tree.js';
 import { isWriteConflict } from '../src/crud/db-errors.js';
 import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { cents, MENU, orderManifest, orderTree, writeTree } from './order-tree-fixture.js';
@@ -62,7 +63,7 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('totals that cli
   };
 
   it.runIf(available)('twenty option writes and ten new lines across five orders: every one lands or is retried, and every total adds up', async () => {
-    const orders = [];
+    const orders: TreeOutcome[] = [];
     for (let i = 0; i < 5; i += 1) orders.push(await writeTree(w, orderTree(w, [{ item: 1, mods: [1] }, { item: 2 }], { email: 'ada@example.com', name: 'Ada', customer_id: (i % 2) + 1 })));
     const lines = orders.flatMap((order) => order.rows.filter((row) => row.node.name === 'order_items').map((row) => row.record));
     const conflicts = { n: 0 };

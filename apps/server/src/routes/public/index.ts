@@ -56,7 +56,11 @@ import {
   createTouchThrottle,
   type PublicViews,
 } from '../../public-api/runtime.js';
-import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
+import { publicConfigOf, type CompiledResource, type PublicAction, type ScopeChild } from '../../public-api/scope.js';
+import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, TreeCheckRefused } from '../../public-api/tree-checks.js';
+import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
+import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
+import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
@@ -129,7 +133,7 @@ import {
   subjectOf,
   tryCode,
 } from '../../public-api/claim-code.js';
-import { capKey, chargeAnonymous, notPlain } from '../../public-api/anonymous-caps.js';
+import { capKey, chargeAnonymous, notPlain, plainText } from '../../public-api/anonymous-caps.js';
 import { appContact } from '../../outbox/sender.js';
 import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
@@ -198,6 +202,12 @@ import {
   publicRecordReply,
   publicRefParams,
   publicWriteBody,
+  publicCreateBody,
+  publicCreateReply,
+  publicDryRunBody,
+  publicDryRunReply,
+  publicUpdateBody,
+  type PublicTreeChildren,
   publicDocumentParams,
   publicDocumentReply,
   publicDocumentsReply,
@@ -249,7 +259,7 @@ export interface PublicRoutesDeps {
  * `out-of-hours`, …) — nothing the day's availability does not already say.
  */
 class PublicWriteRefused extends Error {
-  constructor(readonly params?: { column: string; reason: string }) {
+  constructor(readonly params?: Record<string, unknown>) {
     super('That write was refused.');
   }
 }
@@ -260,7 +270,11 @@ class PublicWriteRefused extends Error {
  * availability of that time already does.
  */
 class PublicSlotRefused extends Error {
-  constructor(readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE') {
+  constructor(
+    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE',
+    /** Which row of a create with child rows: its list, index and path. */
+    readonly params?: Record<string, unknown>,
+  ) {
     super(
       code === 'PUBLIC_SLOT_BUSY'
         ? 'That time is busy. Try again in a moment.'
@@ -270,6 +284,23 @@ class PublicSlotRefused extends Error {
     );
   }
 }
+
+/**
+ * A write that came to another price than the one the guest was shown: what
+ * it would have saved, and its rows' figures. Nothing was written.
+ */
+class PublicPriceChanged extends Error {
+  constructor(readonly params: { total: string | null; lines?: Record<string, unknown> }) {
+    super('The price changed. Nothing was saved.');
+  }
+}
+
+/**
+ * The refusals of a guest's own value in a create with child rows that are
+ * named: those a create names, and a number outside its bounds (a quantity of
+ * minus three) — what the form already says.
+ */
+const TREE_NAMED: ReadonlySet<string> = new Set(['too-long', 'format', 'required', 'invalid-character', 'too-short', 'too-small', 'too-large']);
 
 /**
  * The state a row must be in for an update to touch it (`writable_when`), as
@@ -353,6 +384,17 @@ function unfilled(resource: CompiledResource, values: Readonly<Record<string, un
   return null;
 }
 
+/**
+ * Whether a create through this entry goes the tree's way: it declares child
+ * rows, a dry run, a price check, a retry key or a person found by address —
+ * whether or not a request sends rows below it. A row visible with a parent
+ * keeps its own path.
+ */
+function treeEntry(resource: CompiledResource): boolean {
+  if (parentOf(resource) !== null) return false;
+  return (resource.children?.size ?? 0) > 0 || resource.dryRun === true || (resource.expect ?? null) !== null || (resource.clientKey ?? null) !== null || (resource.findOrCreate ?? null) !== null;
+}
+
 /** The columns of a table that point at another row. */
 function references(view: SnapshotView, table: ResolvedTable): string[] {
   return view.model.relations.filter((relation) => relation.through === null && relation.from.tableId === table.id).flatMap((relation) => relation.from.columns);
@@ -377,6 +419,8 @@ const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
   BOOKING_TAKEN: 'PUBLIC_SLOT_FULL',
   BOOKING_BUSY: 'PUBLIC_SLOT_BUSY',
   BOOKING_TOO_LATE: 'PUBLIC_TOO_LATE',
+  // Another write is taking the next number of the same series this instant.
+  NUMBER_BUSY: 'PUBLIC_SLOT_BUSY',
 };
 
 /** The booking refusals a guest is told as a refused write, by why. */
@@ -585,6 +629,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const codeSecret = codeKey(env.ADMINIUM_SECRET);
   const addressSecret = addressKey(env.ADMINIUM_SECRET);
   const capSecret = capKey(env.ADMINIUM_SECRET);
+  // A retry key is kept only as a hash under this key.
+  const clientKeySecretBytes = clientKeySecret(env.ADMINIUM_SECRET);
   // An app's settings switches, trusted for fifteen seconds.
   const switches = createSwitches(async (connectionId) => (await manager.data(connectionId)).db);
   const csrfKey = csrfSigningKey(env.ADMINIUM_SECRET);
@@ -771,6 +817,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       proof?: 'create' | 'claim';
       /** Counted per visitor only: a challenge costs nothing to hand out. */
       keyWide?: false;
+      /**
+       * The endpoint bucket this request spends, where the endpoint has its
+       * own rate: a dry run counts in its own (`<ref>#dry-run`), so quoting
+       * never spends what a save needs.
+       */
+      bucket?: string;
     } = {},
   ): Promise<{ key: ResolvedKey; session: PublicSessionContext | null } | null> => {
     /*
@@ -982,7 +1034,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
         return null;
       }
-      if (!admit(reply, limiter.hitEndpoint({ ...counted, ref, kind: key.kind }, rated, cost))) return null;
+      if (!admit(reply, limiter.hitEndpoint({ ...counted, ref: opts.bucket ?? ref, kind: key.kind }, rated, cost))) return null;
     } else if (!admit(reply, limiter.hit(counts, counted))) {
       return null;
     }
@@ -1713,6 +1765,330 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
     /* --------------------------------------------------------------- writes */
 
+    /**
+     * A CREATE WITH ITS CHILD ROWS — or a quote of one (`dry`). Every entry
+     * that declares child rows, a dry run, a price check or a retry key comes
+     * through here, with rows below it or none: one path, so a quote and a
+     * save work out the same figures and refuse alike. The write is the write
+     * service's (`writes.createTree`); what is checked inside it that a single
+     * create does not check is `public-api/tree-checks.ts`.
+     */
+    const treeWrite = async (
+      request: FastifyRequest,
+      reply: FastifyReply,
+      ok: { key: ResolvedKey; session: PublicSessionContext | null },
+      found: NonNullable<Awaited<ReturnType<typeof resolveResource>>>,
+      mode: 'save' | 'dry',
+      body: { values: Record<string, unknown>; children?: PublicTreeChildren | undefined; expect?: { total: string } | undefined },
+    ): Promise<FastifyReply> => {
+      const { resource, view, table, dialect } = found;
+      const ref = (request.params as { ref: string }).ref;
+      const dry = mode === 'dry';
+      const lists = resource.children ?? new Map<string, ScopeChild>();
+      const refused = (params?: Record<string, unknown>) => fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', params);
+      // The request's lists against the entry's, before anything is read.
+      const shape = treeShape(lists, body.children);
+      if (shape !== null) return refused({ ...shape });
+      if (body.expect !== undefined && (resource.expect ?? null) === null) return refused();
+
+      /** A child list's entry by its place (`['order_items', 3]` or deeper); undefined for the root. */
+      const entryAt = (at: TreePath): Omit<ScopeChild, 'children'> & { children?: ScopeChild['children'] } | undefined => {
+        const first = typeof at[0] === 'string' ? lists.get(at[0]) : undefined;
+        if (at.length <= 2 || first === undefined) return first;
+        return typeof at[2] === 'string' ? first.children?.[at[2]] : undefined;
+      };
+      const tableOf = (name: string): ResolvedTable | null => {
+        try {
+          return view.table(name);
+        } catch {
+          return null;
+        }
+      };
+      const target = (of: ResolvedTable): WriteTarget => ({
+        connectionId: ok.key.connectionId,
+        view,
+        table: of,
+        db: found.db,
+        dialect,
+        // The venue's clock is the key's scope's, as for every public date.
+        timezone: ok.key.scope.timezone,
+      });
+      /** What the guest wrote of each row (its references are theirs to answer for), and what a quote filled in. */
+      const sent = new Map<string, ReadonlySet<string>>();
+      const filledIn = new Map<string, ReadonlySet<string>>();
+      const place = (at: TreePath) => at.join('\u0000');
+
+      // The root: the columns the guest may write, the entry's defaults, the claim.
+      const values = prepareValues(resource, body.values, ok.session, 'create', dialect, table.columns);
+      if (values === null) return refused();
+      sent.set('', new Set(Object.keys(body.values)));
+      if (dry) {
+        const shown = quotePlaceholders(view, table, resource.writable, resource.requires ?? [], values);
+        Object.assign(values, shown);
+        filledIn.set('', new Set(Object.keys(shown)));
+      }
+      const missing = unfilled(resource, values);
+      if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this write needs is missing.', { column: missing });
+      // The retry key: kept only as a keyed hash; a quote carries none (an uncommitted one would hold the real save back).
+      const keyColumn = resource.clientKey ?? null;
+      let retryKey: string | null = null;
+      if (keyColumn !== null && values[keyColumn] !== undefined && values[keyColumn] !== null) {
+        const key = values[keyColumn];
+        if (dry) delete values[keyColumn];
+        else {
+          if (typeof key !== 'string' || !CLIENT_KEY_FORMAT.test(key)) return refused({ column: keyColumn, reason: 'format' });
+          retryKey = clientKeyHash(clientKeySecretBytes, ok.key.connectionId, table.id, key);
+          values[keyColumn] = retryKey;
+        }
+      }
+
+      // The rows below it, level by level, as their entries let a guest write them.
+      const childCounts: Record<string, number> = {};
+      const nodesOf = (
+        declared: Readonly<Record<string, Omit<ScopeChild, 'children'> & { children?: ScopeChild['children'] }>>,
+        sentLists: PublicTreeChildren | Record<string, { values: Record<string, unknown> }[]>,
+        parentTable: ResolvedTable,
+        prefix: TreePath,
+      ): TreeNode[] | Record<string, unknown> => {
+        const nodes: TreeNode[] = [];
+        for (const [name, rows] of Object.entries(sentLists)) {
+          const child = declared[name]!;
+          const childTable = tableOf(child.table);
+          if (childTable === null) return { child: name };
+          const link = foreignKeyOf(view, childTable.id, child.via);
+          for (const [index, row] of rows.entries()) {
+            const at = [...prefix, name, index];
+            const where = { child: name, index, path: at };
+            const own = childValues(child, row.values, dialect, childTable.columns);
+            if (own === null) return where;
+            sent.set(place(at), new Set(Object.keys(row.values)));
+            if (dry) {
+              const shown = quotePlaceholders(view, childTable, child.writable, child.requires ?? [], own);
+              Object.assign(own, shown);
+              filledIn.set(place(at), new Set(Object.keys(shown)));
+            }
+            const need = (child.requires ?? []).find((column) => own[column] === null || own[column] === undefined || (typeof own[column] === 'string' && own[column].trim() === ''));
+            if (need !== undefined) return { ...where, column: need, reason: 'required' };
+            // Text a guest types that reaches a kitchen screen or someone's inbox: plain, no links.
+            const unplain = (child.plainText ?? []).find((column) => !plainText(own[column]));
+            if (unplain !== undefined) return { ...where, column: unplain };
+            const grandchildren = (row as { children?: Record<string, { values: Record<string, unknown> }[]> }).children;
+            const below = grandchildren === undefined ? [] : nodesOf(child.children ?? {}, grandchildren, childTable, at);
+            if (!Array.isArray(below)) return below;
+            childCounts[name] = (childCounts[name] ?? 0) + 1;
+            nodes.push({
+              name,
+              target: target(childTable),
+              values: own,
+              via: { column: child.via, parentKey: link?.key ?? parentTable.primaryKey[0]! },
+              position: child.position,
+              at,
+              children: below,
+              lists: Object.keys(child.children ?? {}),
+            });
+          }
+        }
+        return nodes;
+      };
+      const level1 = nodesOf(Object.fromEntries(lists), body.children ?? {}, table, []);
+      if (!Array.isArray(level1)) return refused(level1);
+      const root: TreeNode = { name: ref, target: target(table), values, at: [], children: level1, lists: [...lists.keys()] };
+
+      // A create nobody signed in for: a name that is only a name, and so many a day per address and an hour per key.
+      const caps = resource.anonymous;
+      if (caps !== null && (ok.session === null || resource.claim === null)) {
+        const column = notPlain(caps, values);
+        if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+      }
+      if ((await openRowsFull(found, ok.session)) === true) {
+        return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
+      }
+
+      /** Each row as a reply shows it: the entry's columns — a quote's without keys, numbers, codes or what it filled in. */
+      const project = (at: TreePath, of: ResolvedTable, record: Row): Record<string, unknown> => {
+        const entry = entryAt(at);
+        const columns = at.length === 0 ? resource.expose : (entry?.select ?? of.primaryKey);
+        const hidden = dry ? hiddenInQuote(view, of, at.length === 0 ? [keyColumn] : []) : new Set<string>();
+        const blank = filledIn.get(place(at)) ?? new Set<string>();
+        const out: Record<string, unknown> = {};
+        for (const column of columns) {
+          if (hidden.has(column)) continue;
+          out[column] = blank.has(column) ? null : record[column];
+        }
+        return wallTimesAsInstants(out, of.columns, dialect);
+      };
+      /** The rows below the root, nested as the request sent them. */
+      const projectChildren = (rows: readonly TreeWritten[]): Record<string, { data: Record<string, unknown>; children?: Record<string, { data: Record<string, unknown> }[]> }[]> => {
+        const out: Record<string, { data: Record<string, unknown>; children?: Record<string, { data: Record<string, unknown> }[]> }[]> = {};
+        const byPlace = new Map<string, { data: Record<string, unknown>; children?: Record<string, { data: Record<string, unknown> }[]> }>();
+        const ordered = [...rows].sort((a, b) => a.node.at.length - b.node.at.length);
+        for (const row of ordered) {
+          const at = row.node.at;
+          if (at.length === 0) continue;
+          const shown = { data: project(at, row.node.target.table, row.record) };
+          if (at.length === 2) {
+            (out[String(at[0])] ??= [])[Number(at[1])] = shown;
+            byPlace.set(place(at), shown);
+            continue;
+          }
+          const parent = byPlace.get(place(at.slice(0, 2)));
+          if (parent !== undefined) ((parent.children ??= {})[String(at[2])] ??= [])[Number(at[3])] = { data: shown.data };
+        }
+        return out;
+      };
+      /** The rows a create under the same retry key stored, read on `db`, or null. */
+      const replay = async (db: Kysely<SourceDatabase>): Promise<TreeReplay | null> => {
+        if (retryKey === null || keyColumn === null) return null;
+        const found = (await db.selectFrom(table.id).selectAll().where(db.dynamic.ref(keyColumn), '=', retryKey as never).limit(1).executeTakeFirst()) as Row | undefined;
+        if (found === undefined) return null;
+        const rows: TreeWritten[] = [{ node: { ...root, children: [] }, record: found }];
+        const below = async (declared: Readonly<Record<string, Omit<ScopeChild, 'children'> & { children?: ScopeChild['children'] }>>, parent: Row, parentTable: ResolvedTable, prefix: TreePath) => {
+          for (const [name, child] of Object.entries(declared)) {
+            const childTable = tableOf(child.table);
+            if (childTable === null) continue;
+            const key = parent[foreignKeyOf(view, childTable.id, child.via)?.key ?? parentTable.primaryKey[0]!];
+            if (key === null || key === undefined) continue;
+            let query = db.selectFrom(childTable.id).selectAll().where(db.dynamic.ref(child.via), '=', key as never);
+            for (const column of [...(child.position === undefined ? [] : [child.position]), ...childTable.primaryKey]) query = query.orderBy(column as never);
+            const found = (await query.limit(200).execute()) as Row[];
+            for (const [index, record] of found.entries()) {
+              const at = [...prefix, name, index];
+              rows.push({ node: { name, target: target(childTable), values: {}, at, children: [] }, record });
+              if (prefix.length === 0 && child.children !== undefined) await below(child.children, record, childTable, at);
+            }
+          }
+        };
+        await below(Object.fromEntries(lists), found, table, []);
+        return { root: found, rows };
+      };
+
+      // Charged only for a save that gets this far; handed back only when the guest's own value was refused.
+      let release: (() => Promise<void>) | null = null;
+      if (!dry && retryKey !== null) {
+        const before = await replay(found.db);
+        if (before !== null) {
+          return reply.code(200).send({ data: project([], table, before.root), children: projectChildren(before.rows), replayed: true as const });
+        }
+      }
+      if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
+        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now() });
+        if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
+        release = charge.release;
+      }
+
+      /** What the guest may be told of a refused row: where it is, and — for their own value — the column and why. */
+      const writableAt = (at: TreePath): ReadonlySet<string> => (at.length === 0 ? resource.writable : new Set(entryAt(at)?.writable ?? []));
+      const refuseTree = (error: unknown, at: TreePath): never => {
+        if (error instanceof PublicWriteRefused || error instanceof PublicSlotRefused || error instanceof PublicPriceChanged) throw error;
+        const where = placeOf(at);
+        if (error instanceof TreeCheckRefused) {
+          const r = error.refused;
+          throw new PublicWriteRefused(
+            r.child !== undefined
+              ? { child: r.child, ...(where.path === undefined ? {} : { path: where.path }), ...(r.column === undefined ? {} : { column: r.column }), reason: r.reason }
+              : { ...where, ...(r.column === undefined ? {} : { column: r.column }), reason: r.reason, ...(r.group === undefined ? {} : { group: r.group }) },
+          );
+        }
+        // A child table a before hook runs for: the app's own make-up, never a guest's business.
+        if (error instanceof ValidationFailedError && (error.details as { reason?: unknown } | undefined)?.reason === 'hooked') {
+          request.log.warn({ ref, child: where.child }, 'a create with child rows met a child table a before hook runs for');
+          throw new PublicWriteRefused();
+        }
+        const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
+        if (slot !== undefined) throw new PublicSlotRefused(slot, Object.keys(where).length === 0 ? undefined : where);
+        try {
+          refuseWrite(error, { writable: writableAt(at), reasons: TREE_NAMED });
+        } catch (refusal) {
+          if (refusal instanceof PublicWriteRefused && refusal.params !== undefined) throw new PublicWriteRefused({ ...where, ...refusal.params });
+          throw refusal;
+        }
+        throw new PublicWriteRefused();
+      };
+      const announce = async (row: TreeWritten): Promise<void> => {
+        const of = row.node.target.table;
+        const pk = Object.fromEntries(of.primaryKey.map((c) => [c, row.record[c]]));
+        const entity: RecordRef = { connectionId: ok.key.connectionId, table: of.id, pk, label: pkLabel(of, pk) };
+        if (row.node.at.length === 0) {
+          await auditWrite(request, ok, 'public.record.create', { ref, table: resource.table, ...(Object.keys(childCounts).length === 0 ? {} : { children: childCounts }) }, entity);
+          await touchKey(ok.key.keyId);
+        }
+        invalidateWidgetData(app, ok.key.connectionId, of.id);
+        publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, { connectionId: ok.key.connectionId, table: of, action: 'create', pk, row: row.record });
+        await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: of, action: 'create', entity, before: null, after: row.record, origin: 'public' });
+      };
+      const expected = body.expect;
+      const expectColumn = resource.expect ?? null;
+      const context = await publicWriteContext(request, ok);
+      let outcome: TreeOutcome;
+      try {
+        outcome = await writes.createTree({
+          root,
+          context,
+          mode,
+          checks: async (db, node, row, parent) => {
+            const of = node.target.table;
+            // Every row a guest's value points at is one a read of this key shows them.
+            await judgeReadable({ db, dialect, view, scope: ok.key.scope, session: ok.session, table: of, values: row, columns: new Set([...(sent.get(place(node.at)) ?? [])].filter((c) => writableAt(node.at).has(c))) });
+            const agrees = node.at.length === 0 ? (resource.agrees ?? []) : (entryAt(node.at)?.agrees ?? []);
+            if (agrees.length === 0) return;
+            const parentTable = node.at.length === 0 ? null : node.at.length === 2 ? table : tableOf(entryAt(node.at.slice(0, 2))!.table);
+            await judgeAgrees(db, view, of, agrees, row, parent === null || parentTable === null ? null : { table: parentTable, row: parent });
+          },
+          siblings: async (db, parent, name, rows) => {
+            const entry = entryAt([...parent.node.at, name, 0]);
+            const childTable = entry === undefined ? null : tableOf(entry.table);
+            if (entry === undefined || childTable === null) return;
+            if (entry.counts !== undefined) await judgeCounts(db, view, { counts: entry.counts, table: childTable }, rows.map((row) => row.record), parent.record);
+            if (entry.sumMax !== undefined) await judgeSumMax(db, name, entry.sumMax, rows.map((row) => row.record));
+          },
+          ...(dry || expected === undefined || expectColumn === null
+            ? {}
+            : {
+                expect: async (_db, saved, rows) => {
+                  const places = placesOfColumn(view, table, expectColumn);
+                  if (sameDecimal(saved[expectColumn], expected.total, places)) return;
+                  const total = toRatio(saved[expectColumn]);
+                  throw new PublicPriceChanged({ total: total === null ? null : ratioText(total, places), lines: projectChildren(rows) });
+                },
+              }),
+          ...(retryKey === null ? {} : { replay }),
+          announce,
+          mapError: refuseTree,
+        });
+      } catch (error) {
+        // A guest's own value refused: nothing ran that a bad value could have bought, so the charge is handed back.
+        const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']);
+        if (own) await release?.();
+        if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
+        if (error instanceof PublicWriteRefused) return refused(error.params);
+        if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
+        if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+        // A move an app's outbox refuses: named for the desk, never for a public caller.
+        if (error instanceof OutboxMoveRefused) return refused();
+        throw error;
+      }
+
+      const data = project([], table, outcome.root);
+      const children = projectChildren(outcome.rows);
+      if (outcome.replayed) return reply.code(200).send({ data, children, replayed: true as const });
+      if (dry) {
+        // A table a before hook runs for: the save runs it, the quote does not — its figures may differ.
+        let exact = true;
+        for (const of of new Set(outcome.rows.map((row) => row.node.target.table))) {
+          if (await writes.wants('before', 'create', target(of), context)) exact = false;
+        }
+        const capacity = outcome.capacity.map((pool) => ({ pool: pool.key, state: pool.fits ? ('available' as const) : ('full' as const), ...(pool.at === undefined ? {} : { at: pool.at }) }));
+        return reply.code(200).send({ data, children, capacity, exact });
+      }
+      // The guest's confirmation, when the endpoint sends one. Queued, never awaited on SMTP.
+      const confirm = resource.confirm === null ? null : publicConfirmSchema.safeParse(resource.confirm);
+      if (confirm?.success === true) {
+        await sendConfirmation({ meta, request, confirm: confirm.data, row: outcome.root, db: found.db, table, timezone: ok.key.scope.timezone, appKey: ok.key.managedBy });
+      }
+      const rank = await rankOf(found, outcome.root);
+      return reply.code(201).send({ data, children, ...(rank === null ? {} : { rank }) });
+    };
+
     app.options('/public/claim', { schema: { hide: true } }, preflight);
 
     app.post(
@@ -1721,9 +2097,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         config: { rateLimitBucket: 'public', audit: audited('rbac') },
         schema: {
           params: publicRefParams,
-          body: publicWriteBody,
+          body: publicCreateBody,
           response: {
-            201: publicRecordReply,
+            200: publicCreateReply,
+            201: publicCreateReply,
             400: publicErrorReply,
             401: publicErrorReply,
             403: publicErrorReply,
@@ -1739,6 +2116,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (ok === null) return reply;
         const found = await resolveResource(request, reply, ok, request.params.ref, 'create');
         if (found === null) return reply;
+        // An entry with child rows, a dry run, a price check, a retry key or a person found by address: the one tree path, rows below or none.
+        if (treeEntry(found.resource)) return treeWrite(request, reply, ok, found, 'save', request.body);
+        if (request.body.children !== undefined || request.body.expect !== undefined) {
+          return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+        }
 
         const values = prepareValues(
           found.resource,
@@ -1902,7 +2284,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
-          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
@@ -1942,15 +2324,21 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * only adds that the body must be complete.
      */
     const updateHandler =
-      (mode: 'update' | 'replace') =>
+      (mode: 'update' | 'replace', quote: 'save' | 'dry' = 'save') =>
       async (
-        request: FastifyRequest<{ Params: { ref: string; id: string }; Body: { values: Record<string, unknown> } }>,
+        request: FastifyRequest<{ Params: { ref: string; id: string }; Body: { values: Record<string, unknown>; expect?: { total: string } | undefined } }>,
         reply: FastifyReply,
       ) => {
-        const ok = await gate(request, reply, 'public-write');
+        // A quote of a change costs a read, in its own bucket where the endpoint has its own rate.
+        const ok = quote === 'dry' ? await gate(request, reply, 'public-read', { bucket: `${request.params.ref}#dry-run` }) : await gate(request, reply, 'public-write');
         if (ok === null) return reply;
         const found = await resolveResource(request, reply, ok, request.params.ref, mode);
         if (found === null) return reply;
+        if (quote === 'dry' && found.resource.dryRun !== true) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        // The price a guest was shown for the change: only where the entry checks one.
+        const expected = request.body.expect;
+        const expectColumn = found.resource.expect ?? null;
+        if (expected !== undefined && (expectColumn === null || quote === 'dry')) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
 
         const values = prepareValues(
           found.resource,
@@ -2058,6 +2446,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             },
             skipIfNone: true,
             mapError: refuseWriteThrough(found.resource, 'update'),
+            mode: quote,
+            ...(expected === undefined || expectColumn === null
+              ? {}
+              : {
+                  expect: async (_db: Kysely<SourceDatabase>, after: Row) => {
+                    const places = placesOfColumn(found.view, found.table, expectColumn);
+                    if (sameDecimal(after[expectColumn], expected.total, places)) return;
+                    const total = toRatio(after[expectColumn]);
+                    throw new PublicPriceChanged({ total: total === null ? null : ratioText(total, places) });
+                  },
+                }),
             announce: async ({ before, after }) => {
               await auditWrite(
                 request,
@@ -2096,10 +2495,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             },
           });
         } catch (error) {
+          if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
-          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
@@ -2117,12 +2517,74 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
 
         const projected: Record<string, unknown> = {};
-        for (const column of found.resource.expose) projected[column] = outcome.after?.[column];
+        // A quote shows figures only: no key, no running number, no code.
+        const hidden = quote === 'dry' ? hiddenInQuote(found.view, found.table, [found.resource.clientKey]) : new Set<string>();
+        for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
         return reply.send({ data: wallTimesAsInstants(projected, found.table.columns, found.dialect) });
       };
 
     app.patch(
       '/public/records/:ref/:id',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicRecordParams,
+          body: publicUpdateBody,
+          response: {
+            200: publicRecordReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            404: publicErrorReply,
+            409: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      updateHandler('update'),
+    );
+
+    /*
+     * A DRY RUN: the same write, tried and rolled back — every figure a save
+     * would work out (a line's price, the tax, the total), and how the limits
+     * it takes from stand; nothing kept, nothing held, no number, nothing
+     * announced. Its own route (never a flag on the save's): no proof, the
+     * read class, its own bucket, and no branch that could commit.
+     */
+    app.options('/public/records/:ref/dry-run', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/records/:ref/dry-run',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicRefParams,
+          body: publicDryRunBody,
+          response: {
+            200: publicDryRunReply,
+            400: publicErrorReply,
+            401: publicErrorReply,
+            403: publicErrorReply,
+            404: publicErrorReply,
+            409: publicErrorReply,
+            429: publicErrorReply,
+            503: publicErrorReply,
+          },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-read', { bucket: `${request.params.ref}#dry-run` });
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'create');
+        if (found === null) return reply;
+        if (found.resource.dryRun !== true || !treeEntry(found.resource)) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        return treeWrite(request, reply, ok, found, 'dry', request.body);
+      },
+    );
+
+    /** A dry run of a change: the guest's own row as the change would leave it — new dates, new nights, new total. */
+    app.options('/public/records/:ref/:id/dry-run', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/records/:ref/:id/dry-run',
       {
         config: { rateLimitBucket: 'public', audit: audited('rbac') },
         schema: {
@@ -2139,7 +2601,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           },
         },
       },
-      updateHandler('update'),
+      updateHandler('update', 'dry'),
     );
 
     app.put(
@@ -2293,7 +2755,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
-          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
