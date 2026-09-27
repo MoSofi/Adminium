@@ -2750,12 +2750,13 @@ for (const [dialect, available] of legs) {
           ['set-not-null', 'rewrite', 'Require closed_at on every row'],
         ]);
         expect(plan.steps[0]!.sql[1]).toMatch(/^UPDATE `pos_shifts` SET `closed_at` = UTC_TIMESTAMP\(3\)/);
+      } else if (dialect === 'sqlite') {
+        // SQLite will not ADD a clock default to a table with rows: the table is rebuilt carrying it.
+        expect(plan.steps.map((s) => [s.kind, s.hazard])).toEqual([['rebuild-table', 'rewrite']]);
       } else {
-        // Postgres and SQLite give the column the database's own `now`, as before.
+        // Postgres gives the column the database's own `now`, as before.
         expect(plan.steps.map((s) => s.kind)).toEqual(['add-column']);
       }
-      // SQLite cannot add a column whose default is a clock, rows or none; that is not this change.
-      if (dialect === 'sqlite') return;
       const before = Date.now();
       await applyServerEdit(deps, h.connectionId, build, { superAdmin: false, createdBy: null });
       const after = Date.now();
