@@ -43,6 +43,8 @@ export interface StaffTreeRules {
   listsOf: (parentTable: ResolvedTable, depth: 0 | 1) => string[];
   /** Whether the record itself is held to an agreement (guests no more than the room sleeps). */
   rootAgrees: boolean;
+  /** The record's own agreements, judged on its row as a create or a change leaves it (on the write's own handle). */
+  judgeRecord: (db: Db, row: Row) => Promise<void>;
 }
 
 const tableIdOf = (view: SnapshotView, name: string): string | null => {
@@ -98,6 +100,9 @@ export async function staffTreeRules(
     )?.id ?? null;
   return {
     rootAgrees: agrees.length > 0,
+    async judgeRecord(db, row) {
+      if (agrees.length > 0) await judgeAgrees(db, view, table, agrees, row, null);
+    },
     listsOf(parentTable, depth) {
       const among = depth === 0 ? lists : lists.flatMap((above) => above.below);
       return [...new Set(among.map((list) => relationOf(list, parentTable)).filter((id): id is string => id !== null))];

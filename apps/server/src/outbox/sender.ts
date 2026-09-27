@@ -143,6 +143,7 @@ import { bcp47, formatTag, proseNumber } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
+import type { EffectsAnnouncement } from '../states/effects.js';
 import { outboxContext, outboxEffectContext } from './context.js';
 import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
@@ -194,6 +195,12 @@ export interface OutboxSenderDeps {
    * the other producers (a paused project's notice) and the screens hear it.
    */
   emit?: ((event: RecordWriteEvent) => Promise<void>) | undefined;
+  /**
+   * The rows an `onSent` change's move moved too (`states.effects`), told as
+   * changes of their own — audited as the outbox's, heard by the rules and
+   * the screens — as every write's effects are (`states/effects.ts`).
+   */
+  announceEffects?: ((input: EffectsAnnouncement) => Promise<void>) | undefined;
   /**
    * The document pipeline, for an email that carries a document (a
    * template's `attach`); with none, such an email fails and says so.
@@ -1182,6 +1189,12 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         hops: context.hops,
       })
       .catch((error: unknown) => deps.logger?.warn({ err: error, appKey: box.appKey }, 'the change an app email made was not announced'));
+    // The rows that change's move moved too (a project's room, an order's offer), each a change of its own.
+    if ((outcome.effects?.length ?? 0) > 0) {
+      await deps
+        .announceEffects?.({ connectionId: box.connectionId, view, effects: outcome.effects, origin: 'automation', actor: { kind: 'system', id: null, label: context.actor?.label ?? `${box.appKey} outbox` }, hops: context.hops })
+        .catch((error: unknown) => deps.logger?.warn({ err: error, appKey: box.appKey }, 'the rows an app email’s change moved too were not announced'));
+    }
     return null;
   }
 

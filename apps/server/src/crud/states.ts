@@ -76,7 +76,7 @@ import { momentOf, momentSettings, momentVias, type MomentContext } from './mome
 import {
   HeldLinks,
   StateTooLate,
-  compareKeys,
+  rowsInKeyOrder,
   StateUnchanged,
   holdLinkedRows,
   judgeWaits,
@@ -113,8 +113,21 @@ export interface StateGuard {
   decided: readonly string[];
   /** The write's clock: a condition on the time is judged at its locked instant (`write-clock.ts`). */
   clock?: WriteClock | undefined;
-  /** A quote (a dry run of a change): judged on rows read as they are, holding none it does not write. */
+  /** A quote (a dry run of a change or a create): judged on rows read as they are, holding none it does not write. */
   quote?: boolean | undefined;
+  /**
+   * A quote's own rows (a tree's rows, new in its transaction): a parent among
+   * them has its `clearOnCreate` columns emptied as a save's would be. Any
+   * other parent a quote leaves as it is — it writes no row it did not make.
+   */
+  quoteOwns?: ((table: string, key: unknown) => boolean) | undefined;
+  /**
+   * The write named, before its transaction, the locks of the limits its
+   * effects' rows count in (a single change does): a row that moved since is
+   * the retry's. A write that named none (a bulk edit, an import) cannot hold
+   * a pool's lock, and an effect whose row needs one is refused.
+   */
+  effectsNamed?: boolean | undefined;
   /** The venue's time zone: where a moment's wall time and its days are read. */
   zone?: string | undefined;
   /** Where the write came from: a late move turns away a guest, or everyone. */
@@ -144,11 +157,12 @@ export interface EffectWritten {
 
 /**
  * Moves one row an effect points at to `state`, through the write service's
- * own steps (fill, stamps, checks and this table's states, judged as the
- * app's declared move), on the transaction's handle. Returns the row moved,
- * or null when it is already there.
+ * own steps (fill, stamps, checks, its limits and totals, and this table's
+ * states, judged as the app's declared move), on the transaction's handle.
+ * `guard` is the moving row's: a quote's effect is judged the same way and
+ * written nowhere. Returns the row moved, or null when it is already there.
  */
-export type EffectWriter = (db: Db, link: StateLink, key: unknown, column: string, state: string) => Promise<EffectWritten | null>;
+export type EffectWriter = (db: Db, link: StateLink, key: unknown, column: string, state: string, guard: StateGuard) => Promise<EffectWritten | null>;
 
 const GUARD = Symbol('adminium.state-guard');
 
@@ -256,12 +270,17 @@ function within<T>(db: Db, run: (db: Db) => Promise<T>): Promise<T> {
   return inTransaction(db) ? run(db) : db.transaction().execute(run);
 }
 
-/** The rows matching `match`, held for this transaction. */
-async function heldRows(db: Db, dialect: Dialect, table: string, match: Row, parent = false): Promise<Row[]> {
+/**
+ * The rows matching `match`, held for this transaction. On Postgres a row the
+ * write leaves in place — a parent, a row it changes — is held FOR NO KEY
+ * UPDATE, as the totals above a row and the rows an effect moves are: one
+ * mode for every row a write keeps, so none is held two ways (a row pointing
+ * at it still goes in). Only a row a delete takes away is held FOR UPDATE.
+ */
+async function heldRows(db: Db, dialect: Dialect, table: string, match: Row, stays = false): Promise<Row[]> {
   let query = db.selectFrom(table).selectAll();
   for (const [column, value] of Object.entries(match)) query = query.where((eb) => eb(db.dynamic.ref(column), '=', value));
-  // A parent is held FOR NO KEY UPDATE on Postgres, as the totals above a row are: a row that only points at it still goes in.
-  if (dialect !== 'sqlite') query = parent && dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
+  if (dialect !== 'sqlite') query = stays && dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
   return (await query.execute()) as Row[];
 }
 
@@ -626,6 +645,8 @@ export async function guardedInsert<T>(
 ): Promise<T> {
   const guard = guardOf(row);
   if (guard === undefined || !tiedToStates(table)) return run(db);
+  // A quote reads what it judges without a lock (read as SQLite reads it): it waits on no save, and no save on it.
+  const hold: Dialect = guard.quote === true ? 'sqlite' : dialect;
   return within(db, async (tx) => {
     refuseUnresolvedLink(table, row);
     const states = table.table?.states;
@@ -636,14 +657,14 @@ export async function guardedInsert<T>(
       }
     }
     // The parents first, then the rows the new row's links point at (the one order every writer takes).
-    const parents = await judgeParents(tx, dialect, table, { now: row, was: null }, guard);
+    const parents = await judgeParents(tx, hold, table, { now: row, was: null }, guard);
     const waits = guard.history ? undefined : states?.create?.requires;
     const kept = lockLinkedHolds(table, row);
     const reads: LinkedHold[] = waitVias(waits).flatMap((via) => {
       const link = stateLinkOf(table, via);
       return link === undefined ? [] : [{ link, value: row[via], forUpdate: false }];
     });
-    const held = await holdLinkedRows(tx, dialect, [...kept.holds, ...reads]);
+    const held = await holdLinkedRows(tx, hold, [...kept.holds, ...reads]);
     kept.check(held);
     if (waits !== undefined && states !== undefined) {
       const state = text(row[states.column]) ?? states.initial;
@@ -659,6 +680,8 @@ export async function guardedInsert<T>(
     if (!guard.history) {
       for (const { parent, key } of parents) {
         if ((parent.clearOnCreate?.length ?? 0) === 0) continue;
+        // A quote empties only a parent it made itself: any other is a real row it neither holds nor writes.
+        if (guard.quote === true && guard.quoteOwns?.(parent.table, key) !== true) continue;
         await clear(tx, parent.table, parent.key, key, parent.clearOnCreate!);
       }
     }
@@ -676,13 +699,18 @@ export async function holdParentsFirst(db: Db, dialect: Dialect, table: Resolved
   const parents = table.table?.stateParents ?? [];
   if (parents.length === 0 || dialect === 'sqlite') return;
   const peek = await heldRows(db, 'sqlite', table.id, match);
-  for (const parent of [...parents].sort((a, b) => (a.table < b.table ? -1 : a.table > b.table ? 1 : 0))) {
-    const keys = new Map<string, unknown>();
+  // Every parent row of one table in one pass (two links to one table too), tables in name order, keys in the database's.
+  const byTable = new Map<string, { table: string; key: string; keys: unknown[] }>();
+  for (const parent of parents) {
+    const entry = byTable.get(`${parent.table}\u0000${parent.key}`) ?? { table: parent.table, key: parent.key, keys: [] };
     for (const side of [...peek, ...(values === undefined ? [] : [values])]) {
       const key = side[parent.via];
-      if (key !== null && key !== undefined) keys.set(String(key), key);
+      if (key !== null && key !== undefined) entry.keys.push(key);
     }
-    for (const key of [...keys.values()].sort(compareKeys)) await heldRows(db, dialect, parent.table, { [parent.key]: key }, true);
+    byTable.set(`${parent.table}\u0000${parent.key}`, entry);
+  }
+  for (const [, entry] of [...byTable.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    await rowsInKeyOrder(db, entry.table, entry.key, entry.keys, 'change', dialect);
   }
 }
 
@@ -829,7 +857,7 @@ export async function guardedUpdate(
     const judging: Judging = { held, settings: momentSettings(tx), links: windows.flatMap((w) => (w.link === undefined ? [] : [w.link])) };
     const peeked = new Map(peek.map((row) => [keyOf(table, row), row]));
     const moved: { stored: Row; to: string }[] = [];
-    for (const stored of await heldRows(tx, hold, table.id, match)) {
+    for (const stored of await heldRows(tx, hold, table.id, match, true)) {
       // The link each linked row was named by must still be the row's.
       if (reads.length > 0) {
         const was = peeked.get(keyOf(table, stored));
@@ -914,7 +942,7 @@ async function runEffects(db: Db, table: ResolvedTable, values: Row, moved: read
       if (guard.effect === undefined) {
         throw new RecordLocked(`A move of ${table.name} moves another row too, and this write cannot make that move.`, { column: effect.via });
       }
-      const written = await guard.effect(db, link, next[effect.via], column, state);
+      const written = await guard.effect(db, link, next[effect.via], column, state, guard);
       if (written !== null) (guard.effected ??= []).push(written);
     }
   }

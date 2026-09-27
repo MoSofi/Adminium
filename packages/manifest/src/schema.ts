@@ -1979,6 +1979,8 @@ export function appReferenceIssues(
             decided: (column) => decided.get(table.ref)?.has(column) === true,
             bookingCancel: table.booking?.cancel === undefined ? undefined : table.booking.cancel.when,
             statesOf: (ref) => tables.get(ref)?.states,
+            bookedOf: (ref) => tables.get(ref)?.booking !== undefined,
+            lineOf: (ref) => [...tables.values()].find((other) => other.states?.children?.[ref] !== undefined)?.ref,
             outboxTable: m.outbox?.table,
           },
           (...rest) => at('states', ...rest),

@@ -40,7 +40,8 @@
  * row twice. A time is compared as the instant it names, however the column
  * spells it (a fraction finer than a millisecond, SQLite's text).
  * A sample row is moved too (it sends no email — the outbox leaves sample rows
- * alone) and its sample record is brought up to date, so "Remove sample data"
+ * alone) and its sample record is brought up to date, as is the record of a
+ * sample row its move moved too (an effect), so "Remove sample data"
  * still takes it for the app's own.
  *
  * Holds never wait for this job: a held order stops counting against a limit
@@ -385,10 +386,13 @@ async function moveOne(deps: TimedMovesDeps, writes: RecordWriteService, one: Du
     },
   });
   if (outcome.count === 0) return false;
-  // A sample row moved stays the app's own to take away.
-  await rehashSampleRow(deps.meta, target, one.pk).catch((error: unknown) => {
-    deps.log?.warn({ err: error, table: target.table.id, pk: one.pk }, 'sample row not re-recorded after a timed move');
-  });
+  // A sample row moved stays the app's own to take away — and so does a sample row its move moved too.
+  const moved = [{ table: target.table, pk: one.pk }, ...(outcome.effects ?? []).map((effect) => ({ table: target.view.table(effect.table), pk: effect.pk }))];
+  for (const row of moved) {
+    await rehashSampleRow(deps.meta, { ...target, table: row.table }, row.pk).catch((error: unknown) => {
+      deps.log?.warn({ err: error, table: row.table.id, pk: row.pk }, 'sample row not re-recorded after a timed move');
+    });
+  }
   return true;
 }
 
