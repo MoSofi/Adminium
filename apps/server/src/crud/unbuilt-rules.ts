@@ -76,19 +76,8 @@ const ENTRY_KEYS = [
   // Rows unlocked by a typed code, and pictures anyone may see.
   'unlock_by',
   'pictures',
-  // A person found by address, the new row's own link, a read for a session, forgetting.
-  'find_or_create',
-  'share_link',
-  'session_only',
 ] as const;
 
-/*
- * Not here, on purpose: a sign-in entry's own link (`identity.own`) and its
- * "delete my details" (`forget`). Unbuilt, each gives less than it will — the
- * link opens read-only, and there is no route to forget by — never more; and
- * suspending a sign-in entry would leave every entry that needs a signed-in
- * customer with nothing to sign in by, so the app would not install.
- */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
   ...ENTRY_KEYS.map((key) => ({ rule: key, on: (entry: Readonly<Record<string, unknown>>) => entry[key] !== undefined })),
   // A change's limits: per value a day, plain text only.

@@ -1694,7 +1694,8 @@ export function publicConfigOf(scope: CompiledScope): {
   refs: Record<string, ReturnType<typeof projectResource>>;
 } {
   const refs: Record<string, ReturnType<typeof projectResource>> = {};
-  for (const [ref, r] of scope.byRef) refs[ref] = projectResource(r);
+  // A read for a session's holder alone (bank details) is not advertised to every visitor.
+  for (const [ref, r] of scope.byRef) if (r.sessionOnly !== true) refs[ref] = projectResource(r);
   return {
     version: 1,
     side: scope.side,

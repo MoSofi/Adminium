@@ -1184,6 +1184,10 @@ export interface AdminiumPublicSessionsTable {
   kind: string;
   /** What the session is about — for a claim, the claimed row. */
   subject: string | null;
+  /** When the session was ended before its expiry (wave 0046): signed out everywhere, or forgotten. */
+  endedAt: Ts | null;
+  /** `elsewhere` | `forgotten`, with `endedAt`. */
+  endedReason: string | null;
 }
 
 /**

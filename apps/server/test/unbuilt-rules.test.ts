@@ -57,7 +57,10 @@ describe('the entries this server does not run yet', () => {
     expect(unbuiltEntryRuleOf({ writable_when: { paid_at: [null], starts_at: 'from-now' } })).toBeNull();
     // A create with its child rows, its checks, a dry run, a price check and a retry key run now.
     expect(unbuiltEntryRuleOf({ source: 'tickets', children: {}, agrees: [], dry_run: true, expect: 'total', client_key: 'client_key' })).toBeNull();
-    expect(unbuiltEntryRuleOf({ source: 'tickets', children: {}, find_or_create: { identity_ref: 'customers' } })).toBe('find_or_create');
+    // A person found by address, the new row's own link, and a read for a session alone run now.
+    expect(unbuiltEntryRuleOf({ source: 'tickets', children: {}, find_or_create: { identity_ref: 'customers' } })).toBeNull();
+    expect(unbuiltEntryRuleOf({ source: 'orders', share_link: { column: 'link_token', key: 'link' } })).toBeNull();
+    expect(unbuiltEntryRuleOf({ source: 'settings', session_only: true })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'tickets', withhold: { columns: ['code'], unless_holder: 'holder_customer_id' } })).toBe('withhold');
     expect(unbuiltEntryRuleOf({ source: 'tickets' })).toBeNull();
   });

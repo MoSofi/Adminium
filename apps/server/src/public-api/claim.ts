@@ -56,6 +56,10 @@ export interface PublicSessionContext {
   grant: ClaimGrant;
   /** `lookup` from matching a row's details; `verified` once an emailed code is confirmed. */
   level: 'lookup' | 'verified';
+  /** How it was opened: `claim` (details), `link` (an emailed sign-in link), `token` (a row's link). Absent: a claim. */
+  kind?: string | undefined;
+  /** When it was opened (ms): a link's session proves the mailbox as recently as this. */
+  openedAt?: number | undefined;
 }
 
 export function parseGrant(json: string): ClaimGrant | null {

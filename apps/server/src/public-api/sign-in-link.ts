@@ -55,7 +55,7 @@ import type { Row } from '../crud/mask.js';
 import { SIGN_IN_LINK_TEMPLATE_KEY, enqueueEmail } from '../email/send.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { appContact } from '../outbox/sender.js';
-import { CODE_TRIES, DAY_MS, codeBinding, codeMatches, hashAddress, hashCode, newCode } from './claim-code.js';
+import { CODE_TRIES, DAY_MS, codeBinding, codeMatches, hashAddress, hashCode, newCode, normaliseAddress } from './claim-code.js';
 import { guestBase } from './guest-base.js';
 import { mandatoryAt } from './relative-filters.js';
 import type { PublicViews } from './runtime.js';
@@ -178,7 +178,7 @@ export async function personByAddress(input: {
 }): Promise<Row | null> {
   const typed = hashAddress(input.addressSecret, input.address);
   const candidates = (await identityQuery(input.db, input.view, input.table, input.identity, input.timezone, input.dialect)
-    .where(sql`lower(trim(${sql.ref(input.identity.email)}))`, '=', input.address.trim().toLowerCase() as never)
+    .where(sql`lower(trim(${sql.ref(input.identity.email)}))`, '=', normaliseAddress(input.address) as never)
     .limit(20)
     .execute()) as Row[];
   const rows = candidates.filter((row) => {
