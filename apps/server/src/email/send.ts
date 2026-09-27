@@ -58,6 +58,7 @@ import { deriveKey, encryptSecret } from '../config/secrets.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import { builtinEmailTemplates, resolveEmailTemplate, translatorForLocale } from './builtins.js';
 import { proseNumber } from '../i18n/bcp47.js';
+import { qrCarries } from '../qr/index.js';
 import { emailSecretKey, resolveSmtpConfig } from './config.js';
 import { bareAddress } from './document.js';
 import { isShippedMark } from './marks.js';
@@ -80,9 +81,15 @@ export const EMAIL_SEND_JOB_KIND = 'email.send';
  * references beside the sealed body; `3` adds QR codes (a ticket's) inside the
  * sealed envelope — their text is a door credential, never in the plain
  * payload. `1` and `2` rows still deliver; a server older than `3` refuses a
- * `3` row loudly rather than send it with broken images.
+ * `3` row loudly rather than send it with broken images. Only a message that
+ * carries a QR code is queued as `3`: every other one stays `2`, which a
+ * server of the release before reads, so mail queued during a rolling deploy
+ * (or before a rollback) is still delivered.
  */
 export const EMAIL_SEND_PAYLOAD_VERSION = 3;
+
+/** The version a message without a QR code is queued as ({@link EMAIL_SEND_PAYLOAD_VERSION}). */
+export const EMAIL_SEND_PAYLOAD_VERSION_PLAIN = 2;
 
 /**
  * Retry budget for one message. Five attempts on the worker's 30 s-doubling
@@ -496,6 +503,12 @@ export async function enqueueRenderedEmail(
   if (to.length === 0) return null;
 
   const qr = qrRefs(input.rendered);
+  // A QR code draws at most so many bytes of text: one longer is never queued, to be refused by the worker after it was told sent.
+  const unfit = qr.find((code) => !qrCarries(code.text));
+  if (unfit !== undefined) {
+    deps.logger?.warn({ templateKey: input.templateKey, cid: unfit.cid }, 'an email was not queued: its QR code holds more text than a QR code here carries');
+    return null;
+  }
   const envelope: EmailEnvelope = {
     to,
     subject: input.rendered.subject,
@@ -507,7 +520,7 @@ export async function enqueueRenderedEmail(
   const inline = inlineRefs(input.rendered as RenderedEmail);
   const attachments = [...(input.attachments ?? [])];
   const payload: EmailSendPayload = {
-    v: EMAIL_SEND_PAYLOAD_VERSION,
+    v: qr.length > 0 ? EMAIL_SEND_PAYLOAD_VERSION : EMAIL_SEND_PAYLOAD_VERSION_PLAIN,
     templateKey: input.templateKey,
     locale: input.locale,
     envelope: encryptSecret(JSON.stringify(envelope), emailEnvelopeKey(secret)),

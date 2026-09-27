@@ -183,6 +183,7 @@ export function formulaIssues(
   for (const [start, stop] of days.pairs) {
     if (start === stop) out.push('days are counted between two different columns');
   }
+  const joined = typeof expr === 'object' && 'join' in expr ? expr.join.filter(isJoinColumn) : [];
   for (const name of formulaColumns(expr)) {
     if (name === own) {
       out.push(`a formula does not read its own column "${name}"`);
@@ -192,6 +193,9 @@ export function formulaIssues(
     if (found === undefined) {
       out.push(`the table has no column "${name}"`);
       continue;
+    }
+    if (joined.includes(name) && !JOIN_COLUMN_TYPES.includes(found.type)) {
+      out.push(`"${name}" is a ${found.type} column: a join reads text and whole-number columns only`);
     }
     if (arithmetic.has(name) && !NUMERIC_TYPES.includes(found.type)) {
       out.push(`"${name}" is not a number, so a formula cannot count with it`);
@@ -599,17 +603,18 @@ export function dayNumberOf(value: unknown): number | null {
 
 // ── a text joined from columns ─────────────────────────────────────────────
 
-/** A value as a joined text spells it: a day as `YYYY-MM-DD` when it is one, a number as its digits. */
+/**
+ * The column types a join reads: text, and whole numbers. A decimal
+ * (`8.250` on one database, `8.25` on another), a yes or no (`true`, `1`) or
+ * a time (on the server's clock) would join differently on each engine.
+ */
+export const JOIN_COLUMN_TYPES: readonly string[] = ['text', 'int', 'bigint'];
+
+/** A value as a joined text spells it: text trimmed, a whole number as its digits; anything else adds nothing. */
 function joinedPart(value: unknown): string {
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return '';
-    const midnight = value.getHours() === 0 && value.getMinutes() === 0 && value.getSeconds() === 0 && value.getMilliseconds() === 0;
-    if (!midnight) return value.toISOString();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${String(value.getFullYear())}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
-  }
   if (typeof value === 'string') return value.trim();
-  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'bigint') return String(value);
+  if (typeof value === 'number' && Number.isSafeInteger(value)) return String(value);
   return '';
 }
 
