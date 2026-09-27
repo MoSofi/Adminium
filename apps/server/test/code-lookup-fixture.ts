@@ -149,8 +149,8 @@ export function boxOfficeManifest(): Record<string, unknown> {
 }
 
 /** Two shows, their ticket types, and the codes a guest may type. */
-export async function boxOffice(dialect: Dialect): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
-  const h = await installInvoicing(dialect, boxOfficeManifest());
+export async function boxOffice(dialect: Dialect, manifest: Record<string, unknown> = boxOfficeManifest()): Promise<InvoicingHarness & { reply: Record<string, unknown> }> {
+  const h = await installInvoicing(dialect, manifest);
   const t = (on: boolean) => (dialect === 'postgres' ? String(on) : on ? '1' : '0');
   await h.rows(`INSERT INTO ${h.real('events')} (id, name) VALUES (1, 'Static Bloom'), (2, 'Home Studio Basics')`);
   await h.rows(

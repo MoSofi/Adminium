@@ -1001,8 +1001,14 @@ function availabilityShapeIssues(def: PublicEndpointDefinition, table: ResolvedT
   return out;
 }
 
-/** An endpoint that shows rows only with the code that unlocks them: a read, of its own, through a real link. */
-function unlockIssues(def: PublicEndpointDefinition, table: ResolvedTable, view: SnapshotView): ScopeIssue[] {
+/**
+ * An endpoint that shows rows only with the code that unlocks them: a read, of
+ * its own, through a real link — and a column that is a code: one row per
+ * code (unique, alone or with its scope, or a code Adminium makes), compared
+ * as a code, and never a shared link's secret (which would make the GET a
+ * way to test guesses at it).
+ */
+function unlockIssues(def: PublicEndpointDefinition, table: ResolvedTable, view: SnapshotView, shareCodes?: ReadonlyMap<string, ReadonlySet<string>>): ScopeIssue[] {
   const out: ScopeIssue[] = [];
   const unlock = def.unlock_by!;
   if (def.methods.some((m) => m !== 'GET')) out.push({ code: 'ENDPOINT_UNLOCK_READ_ONLY', message: 'an unlock only reads' });
@@ -1022,6 +1028,21 @@ function unlockIssues(def: PublicEndpointDefinition, table: ResolvedTable, view:
   );
   if (codes.columns.has(unlock.link) && link?.to.tableId !== table.id) {
     out.push({ code: 'ENDPOINT_UNLOCK_UNKNOWN_COLUMN', message: `${unlock.table}.${unlock.link} does not point at ${def.source}`, column: 'unlock_by.link' });
+  }
+  const code = codes.table.columns.find((column) => column.name === unlock.column);
+  if (code !== undefined) {
+    const made = code.code !== undefined;
+    const unique =
+      made ||
+      (codes.table.primaryKey.length === 1 && codes.table.primaryKey[0] === unlock.column) ||
+      (codes.table.uniques ?? []).some((u) => u.columns.includes(unlock.column)) ||
+      (codes.table.indexes ?? []).some((index) => index.unique && index.columns.includes(unlock.column));
+    if (!unique) out.push({ code: 'ENDPOINT_UNLOCK_NOT_A_CODE', message: `a code finds one row: make ${unlock.table}.${unlock.column} unique (or unique with its scope)`, column: 'unlock_by.column' });
+    if (!made && code.normalize !== 'code') out.push({ code: 'ENDPOINT_UNLOCK_NOT_A_CODE', message: `${unlock.table}.${unlock.column} is compared as a code: store it as one (normalize "code")`, column: 'unlock_by.column' });
+    const secret = codes.columns.get(unlock.column)?.secret === true;
+    if (secret || shareCodes?.get(unlock.table)?.has(unlock.column) === true || shareCodes?.get(codes.id)?.has(unlock.column) === true) {
+      out.push({ code: 'ENDPOINT_UNLOCK_SHARE_CODE', message: `${unlock.table}.${unlock.column} opens rows by a shared link, so it is never looked up`, column: 'unlock_by.column' });
+    }
   }
   return out;
 }
@@ -1203,7 +1224,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
       if (value !== undefined) push('ENDPOINT_AVAILABILITY_SHAPE', `${name} shapes an availability answer, and this endpoint reads rows`, name);
     }
   }
-  if (def.unlock_by !== undefined) issues.push(...unlockIssues(def, table, view as SnapshotView).map((issue) => ({ ...issue, ref })));
+  if (def.unlock_by !== undefined) issues.push(...unlockIssues(def, table, view as SnapshotView, ctx.shareCodes).map((issue) => ({ ...issue, ref })));
   if (def.pictures !== undefined) issues.push(...pictureIssues(def, table).map((issue) => ({ ...issue, ref })));
 
   /*

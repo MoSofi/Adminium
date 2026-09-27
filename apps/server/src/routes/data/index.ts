@@ -49,7 +49,7 @@ import {
   type Projections,
 } from '../../crud/projections.js';
 import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
-import { renewedBy } from '../../crud/code-renew.js';
+import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import {
   fetchByPk,
@@ -831,7 +831,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           });
         }
         try {
-          await updateRows(db, ctx.dialect, child.child, prepared.values, change.key);
+          // A code the change renewed is made again if the new one is taken.
+          await withRenewRetry(db, ctx.dialect, prepared.values, (values) => updateRows(db, ctx.dialect, child.child, values, change.key));
         } catch (error) {
           mapDbError(error, child.child);
         }
@@ -1214,6 +1215,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       links: UndoLinks[] = [],
       /** Child rows this write touched; the undo puts them back too. */
       children: UndoChildren[] = [],
+      /** Rows of other tables the write's move moved too (a room set to cleaning): no move back would take them back. */
+      effected: readonly unknown[] = [],
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
@@ -1223,7 +1226,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (changedColumns.length === 0) return null;
       }
       // No undo that would delete a row numbered without gaps, or take a document's state back — but a status move the app lists an undo for.
-      const moveBack = action === 'update' && children.length === 0 && links.length === 0 ? moveBackOf(ctx.table.table, before, after, changedColumns) : null;
+      const moveBack = action === 'update' && children.length === 0 && links.length === 0 && effected.length === 0 ? moveBackOf(ctx.table.table, before, after, changedColumns) : null;
       if (takesNumberBack(ctx, action, children) || (takesStateBack(ctx, children, links) && moveBack === null)) return null;
       const { token } = undoStore.issue({
         ...(moveBack === null ? {} : { moveBack }),
@@ -1602,7 +1605,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         for (const change of children.changed) {
           await still(change.key, change.after);
           const current = (await fetchByPk(db, child, change.key)) ?? null;
-          await updateRows(db, target.dialect, child, await judge('update', { match: change.key, values: change.before, record: current }), change.key);
+          // A code a change made is never taken back: the rest of the row is.
+          const codes = codeColumnsOf(child);
+          const judged = await judge('update', { match: change.key, values: Object.fromEntries(Object.entries(change.before).filter(([column]) => !codes.has(column))), record: current });
+          const renewed = current === null ? judged : renewForUndo(tableRulesFor(childTarget)?.codes, judged, current, { table: child, rights: childTarget.rights });
+          await withRenewRetry(db, target.dialect, renewed, (values) => updateRows(db, target.dialect, child, values as typeof judged, change.key));
           const record = await fetchByPk(db, child, change.key);
           if (record !== undefined) changedBack.push({ record, before: current });
         }
@@ -1660,7 +1667,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             const restoreValues =
               prepared[i]?.values ??
               uncheckedForUndo([Object.fromEntries(compareColumns.map((c) => [c, before[c]]))])[0]!;
-            await updateRows(tdb, target.dialect, table, restoreValues, pk);
+            // A change of hands taken back makes its code again: the one handed on stops working with it.
+            const renewed = renewForUndo(tableRulesFor(target)?.codes, restoreValues, current!, { table, rights: target.rights });
+            await withRenewRetry(tdb, target.dialect, renewed, (values) => updateRows(tdb, target.dialect, table, values as typeof restoreValues, pk));
             await undoLinks(tdb, target, entry, before, conflict);
             await undoChildren(tdb, target, entry, context, conflict, moved);
             restored.push(pkLabel(table, pk));
@@ -1812,6 +1821,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 beforeImages,
                 afterImages,
                 action === 'update' && values !== null ? changedColumns(values, prepared) : [],
+                [],
+                [],
+                [],
+                effected,
               );
         await app.rbac.audit(request, {
           category: 'data',
@@ -2620,7 +2633,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (parent !== undefined) ((parent.children ??= {})[String(at[2])] ??= [])[Number(at[3])] = { data };
         }
         // The desk's booking summary: the nights a price by the night is made of.
-        const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null);
+        const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.table.columns.get(column)?.secret === false && (ctx.table.columns.get(column)?.masked !== true || ctx.unmasked));
         return { data: maskRow(tree.outcome.root, ctx.table, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
       },
     );
@@ -2678,7 +2691,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             ...inside,
             announce: async (result) => {
               const after = result.after ?? before;
-              undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values));
+              undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
               // The rows this move moved too (a room turned to cleaning), as changes of their own.
               await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
@@ -2748,7 +2761,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               },
               announce: async (result) => {
                 const after = result.after ?? before;
-                undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites);
+                undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
                 await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
                 for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
                 // The rows the record's and its child rows' moves moved too, as changes of their own.
@@ -2822,6 +2835,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           [],
           written,
           childWrites,
+          effected,
         );
         await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });

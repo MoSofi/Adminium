@@ -25,7 +25,7 @@ import type { Dialect } from '@adminium/engine';
 
 import { ConflictError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { tableRulesFor, type FollowOut, type TableRules } from './column-rules.js';
+import { tableRulesFor, type FollowOut, type RollupInto, type TableRules } from './column-rules.js';
 import { evaluateAll, touchedFormulas } from './formulas.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
@@ -73,6 +73,59 @@ export function followColumns(view: SnapshotView, rules: TableRules | null): Map
   return out;
 }
 
+/**
+ * The totals the rows that follow this table's rows add up into it (a stay's
+ * extras into its extras total): what a follow settles, whose columns the
+ * role must be granted, and whose balance a follow may take below zero.
+ */
+export function followedRollups(view: SnapshotView, rules: TableRules | null): RollupInto[] {
+  if (rules === null) return [];
+  const out: RollupInto[] = [];
+  for (const [child, follows] of byChild(rules)) {
+    for (const rollup of rulesOf(view, child)?.rollupsInto ?? []) {
+      if (follows.some((follow) => follow.via === rollup.via) && !out.includes(rollup)) out.push(rollup);
+    }
+  }
+  return out;
+}
+
+/** The follows of `rules` a change from `before` to `after` moves: a followed column that differs. */
+export function movedFollows(rules: TableRules | null, after: Row, before: Row | null): FollowOut[] {
+  return (rules?.follows ?? []).filter(
+    (follow) => Object.prototype.hasOwnProperty.call(after, follow.from) && (before === null || !sameValue(before[follow.from], after[follow.from])),
+  );
+}
+
+/** The refusal of a change more rows follow than one change moves. */
+function tooMany(table: ResolvedTable, count: number): ConflictError {
+  return new ConflictError(`More ${table.name} rows follow this row than one change moves; change them in smaller steps.`, 'FOLLOW_TOO_MANY', {
+    table: table.id,
+    count,
+  });
+}
+
+/**
+ * Refuse, before anything is written, a change of `row` more than
+ * {@link FOLLOW_MAX} child rows follow (a multi-row write, whose follow runs
+ * once its rows are written): counted without holding them.
+ */
+export async function refuseTooManyFollowers(db: Db, view: SnapshotView, moved: readonly FollowOut[], row: Row): Promise<void> {
+  const seen = new Set<string>();
+  for (const follow of moved) {
+    const key = row[follow.key];
+    if (key === null || key === undefined || seen.has(`${follow.child}\u0000${follow.via}`)) continue;
+    seen.add(`${follow.child}\u0000${follow.via}`);
+    const table = view.table(follow.child);
+    const counted = (await db
+      .selectFrom(table.id)
+      .select((eb) => eb.fn.countAll().as('n'))
+      .where((eb) => eb(db.dynamic.ref(follow.via), '=', key))
+      .executeTakeFirst()) as { n?: unknown } | undefined;
+    const count = Number(counted?.n ?? 0);
+    if (count > FOLLOW_MAX) throw tooMany(table, count);
+  }
+}
+
 function rulesOf(view: SnapshotView, tableId: string): TableRules | null {
   try {
     return tableRulesFor({ view, table: view.table(tableId) });
@@ -98,8 +151,10 @@ export async function followChanged(input: {
   after: Row;
   /** The connection's currency, for a formula at a currency's places. */
   currency: () => Promise<string | null>;
-  /** False for a quote: it reads the rows as they are, holding none it does not write. */
+  /** False for a quote: it reads the rows as they are, and holds none. */
   hold?: boolean;
+  /** The most rows it moves before it refuses; a write whose rows were counted before they were written moves them all. */
+  max?: number;
   /** Writes one child row's changed columns by its key (the write service's own statement). */
   write: (table: ResolvedTable, pk: Row, set: Row) => Promise<void>;
 }): Promise<Followed[]> {
@@ -121,20 +176,18 @@ export async function followChanged(input: {
       .selectAll()
       .where((eb) => eb(db.dynamic.ref(via), '=', key));
     for (const column of table.primaryKey) query = query.orderBy(column as never);
-    query = query.limit(FOLLOW_MAX + 1);
+    const max = input.max ?? FOLLOW_MAX;
+    if (Number.isFinite(max)) query = query.limit(max + 1);
     // Held as every row a write changes is (FOR NO KEY UPDATE on Postgres); SQLite has one writer.
     if (dialect !== 'sqlite' && input.hold !== false) query = dialect === 'postgres' ? query.forNoKeyUpdate() : query.forUpdate();
     const rows = (await query.execute()) as Row[];
-    if (rows.length > FOLLOW_MAX) {
+    if (rows.length > max) {
       const counted = (await db
         .selectFrom(table.id)
         .select((eb) => eb.fn.countAll().as('n'))
         .where((eb) => eb(db.dynamic.ref(via), '=', key))
         .executeTakeFirst()) as { n?: unknown } | undefined;
-      throw new ConflictError(`More ${table.name} rows follow this row than one change moves; change them in smaller steps.`, 'FOLLOW_TOO_MANY', {
-        table: table.id,
-        count: Number(counted?.n ?? rows.length),
-      });
+      throw tooMany(table, Number(counted?.n ?? rows.length));
     }
     const written: Followed['rows'] = [];
     let currency: string | null | undefined;

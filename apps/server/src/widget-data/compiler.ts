@@ -59,6 +59,7 @@ import { compileFilter, type CompileFilterContext, type FilterCondition } from '
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
+import { offsetSpans, stepsOf, wallText, type OffsetSpan } from './zone-offsets.js';
 import { normalizeWriteValue } from '../crud/write-values.js';
 import { choiceWordsOf } from './choice-words.js';
 
@@ -495,12 +496,6 @@ function assertAheadWindow(window: NonNullable<QueryDescriptor['window']>): void
   }
 }
 
-/** How far a zone's clock is ahead of UTC at `instant`, in minutes. */
-function offsetMinutes(instant: Date, timezone: string): number {
-  const clock = venueClock(instant, timezone);
-  return Math.round((naive(clock.day, clock.minute).getTime() - Math.floor(instant.getTime() / 60_000) * 60_000) / 60_000);
-}
-
 /** This process's own zone: what a zone-less timestamp column holds (`crud/write-values.ts`). */
 const serverZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -510,10 +505,13 @@ type Ref = ReturnType<DynamicModule<SourceDatabase>['ref']>;
  * An hour or day bucket on the venue's clock, as `YYYY-MM-DD HH:MM:SS` text,
  * per dialect — or, for `hour-of-day`, the venue's hour alone (`00`–`23`), so
  * every day folds into the same 24. Postgres converts every row exactly (`AT
- * TIME ZONE`, clock changes included); MySQL and SQLite, which may not know
- * zone names, move by the venue's offset at `at` — exact except across a
- * clock change inside the window. SQLite keeps text, so a value written with
- * a zone and one without are moved apart.
+ * TIME ZONE`, clock changes included). MySQL and SQLite, which may not know
+ * zone names, add minutes chosen per row by where the row falls against the
+ * instants the venue's (and, for a value kept on the server's wall clock, the
+ * server's) clock moves between `range.from` and `range.to` — so a week
+ * across a clock change is exact on every engine; a row outside the range
+ * takes the minutes of its nearer end. SQLite keeps text, so a value written
+ * with a zone and one without are moved apart.
  */
 function venueBucketExpr(
   dialect: Dialect,
@@ -521,17 +519,35 @@ function venueBucketExpr(
   column: ResolvedColumn,
   unit: 'hour' | 'day' | 'hour-of-day',
   timezone: string,
-  at: Date,
+  range: { from: Date; to: Date },
 ): RawBuilder<unknown> {
-  const venue = offsetMinutes(at, timezone);
-  const server = offsetMinutes(at, serverZone());
   const pgFormat = unit === 'hour-of-day' ? 'HH24' : unit === 'hour' ? 'YYYY-MM-DD HH24:00:00' : 'YYYY-MM-DD 00:00:00';
   const format = unit === 'hour-of-day' ? '%H' : unit === 'hour' ? '%Y-%m-%d %H:00:00' : '%Y-%m-%d 00:00:00';
+  const spans = dialect === 'mysql' || dialect === 'sqlite' ? offsetSpans(timezone, serverZone(), range.from, range.to) : [];
+  /** The minutes a row is moved by, chosen by `compared` (the row as `YYYY-MM-DD HH:MM:SS` on the clock `boundary` spells). */
+  const perRow = (compared: RawBuilder<unknown> | Ref, minutes: (span: OffsetSpan) => number, boundary: (at: number, span: OffsetSpan) => string, spell: (n: number) => RawBuilder<unknown>) => {
+    const steps = stepsOf(spans, minutes);
+    if (steps.length === 1) return spell(steps[0]!.value);
+    // Newest first: most rows a widget reads are recent.
+    const whens = steps
+      .slice(1)
+      .reverse()
+      .map((step) => sql`when ${compared} >= ${sql.lit(boundary(step.at!, step.span))} then ${spell(step.value)}`);
+    return sql`case ${sql.join(whens, sql` `)} else ${spell(steps[0]!.value)} end`;
+  };
+  const text = (n: number) => sql.lit(`${String(n)} minutes`);
   switch (dialect) {
-    case 'mysql':
-      return sql`date_format(date_add(${ref}, interval ${sql.lit(venue - server)} minute), ${sql.lit(format)})`;
-    case 'sqlite':
-      return sql`strftime(${sql.lit(format)}, ${ref}, case when ${ref} like '%Z' or ${ref} like '%+__:__' then ${sql.lit(`${String(venue)} minutes`)} else ${sql.lit(`${String(venue - server)} minutes`)} end)`;
+    case 'mysql': {
+      // A DATETIME keeps the server's wall clock: compared as such.
+      const minutes = perRow(ref, (span) => span.venue - span.server, (at, span) => wallText(at, span.server), (n) => sql.lit(n));
+      return sql`date_format(date_add(${ref}, interval ${minutes} minute), ${sql.lit(format)})`;
+    }
+    case 'sqlite': {
+      const read = sql`strftime('%Y-%m-%d %H:%M:%S', ${ref})`;
+      const zoned = perRow(read, (span) => span.venue, (at) => wallText(at, 0), text);
+      const wall = perRow(read, (span) => span.venue - span.server, (at, span) => wallText(at, span.server), text);
+      return sql`strftime(${sql.lit(format)}, ${ref}, case when ${ref} like '%Z' or ${ref} like '%+__:__' then ${zoned} else ${wall} end)`;
+    }
     default: {
       const wall =
         column.logicalType === 'timestamp'
@@ -542,6 +558,19 @@ function venueBucketExpr(
         : sql`to_char(date_trunc(${sql.lit(unit)}, ${wall}), ${sql.lit(pgFormat)})`;
     }
   }
+}
+
+/** Ten years back and two ahead: the clock changes a bucket with no window reads rows across. */
+const OPEN_RANGE_BACK_MS = 10 * 366 * 86_400_000;
+const OPEN_RANGE_AHEAD_MS = 2 * 366 * 86_400_000;
+
+/** The instants a venue bucket's rows can fall between: the window's, a day wider; else years around now. */
+function bucketRange(bounds: { start: Date; end: Date | null } | null, now: Date): { from: Date; to: Date } {
+  const day = 86_400_000;
+  return {
+    from: new Date((bounds?.start.getTime() ?? now.getTime() - OPEN_RANGE_BACK_MS) - day),
+    to: new Date((bounds?.end?.getTime() ?? now.getTime() + OPEN_RANGE_AHEAD_MS) + day),
+  };
 }
 
 /**
@@ -1130,10 +1159,10 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
        * zone): each row's own hour on that clock, whatever day it fell on.
        */
       const bucket = hourOfDay
-        ? venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, 'hour-of-day', zone, bounds?.start ?? now())
+        ? venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, 'hour-of-day', zone, bucketRange(window, now()))
         : bucketZone === null
           ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit as PeriodUnit)
-          : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as 'hour' | 'day', bucketZone, bounds?.start ?? now());
+          : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as 'hour' | 'day', bucketZone, bucketRange(window, now()));
       qb = qb.select(bucket.as(BUCKET_ALIAS));
       if (ohlcColumn !== null) {
         // Candles are folded in process, so the ONE thing SQL must guarantee is
@@ -1165,7 +1194,8 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
          */
         const groupColumn = view.readableColumn(table, groupColumns[0] as string, canReadPii);
         const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect);
-        if (label !== null) qb = qb.orderBy(label, 'asc');
+        // A group with no label comes after every labelled one, on every engine (Postgres alone puts nulls last by itself).
+        if (label !== null) qb = qb.orderBy(sql`case when ${label} is null then 1 else 0 end`, 'asc').orderBy(label, 'asc');
         qb = qb.orderBy(dynamic.ref(groupColumn.name), 'asc');
       } else if (shape !== 'categorical') {
         // Stable header order so `matrix` rows/columns and the series list of

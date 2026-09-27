@@ -6,7 +6,7 @@
  * one line for them all once the rates changed after it was priced. On every
  * engine.
  */
-import { connectionTenantConfig, rolesRepo, usersRepo } from '@adminium/meta';
+import { connectionTenantConfig, overridesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
@@ -132,6 +132,59 @@ describe.each(LEGS)('the nights of a stay, quoted and at the desk — %s', (dial
     }
   });
 
+  it.runIf(available)('keeps the nights from a quote whose entry does not show the price they make up', async () => {
+    const stay = await w.create('stays', { first_name: 'Noa', room_type_id: seed.garden['id'], arrive: '2026-08-03', depart: '2026-08-05', guests: 1 });
+    const views = createPublicViews(h!.meta);
+    const service = createEndpointService({ meta: h!.meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(h!.meta, cid)) ?? undefined });
+    // An entry that shows a stay's nights and total, never its room price: the nights are that price, night by night.
+    await service.saveEndpoint({
+      connectionId: h!.connectionId,
+      ref: 'stay_totals',
+      origin: 'custom',
+      definition: {
+        path: '/stay_totals',
+        source: w.targetOf('stays').table.id,
+        methods: ['POST', 'PATCH'],
+        filters: [],
+        pagination: { default_limit: 50, max_limit: 200, order: 'id.asc' },
+        auth: { role: 'anon' },
+        rate_limit: { requests: 60, window: '1m' },
+        response: { shape: 'object', envelope: 'data' },
+        select: ['id', 'nights', 'total'],
+        writable: ['first_name', 'room_type_id', 'arrive', 'depart', 'guests'],
+        dry_run: true,
+      } as never,
+    });
+    const secret = generatePublishableKey('browser');
+    const { key } = await service.createKey({
+      connectionId: h!.connectionId,
+      name: 'stay totals',
+      // The room types it books are the app's own entry's.
+      access: [{ ref: 'stay_totals', methods: ['POST', 'PATCH'] as never }, { ref: 'wren_room_types', methods: ['GET'] as never }],
+      secret: { prefix: secret.prefix, tokenHash: secret.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), secret.token) },
+      origins: [],
+      kind: 'browser',
+    });
+    await served.useKey(key.id);
+    try {
+      const created = await served.post('/records/stay_totals/dry-run', {
+        values: { first_name: 'Mia', room_type_id: seed.garden['id'], arrive: '2026-07-31', depart: '2026-08-02', guests: 2 },
+      });
+      expect(created.statusCode, created.body).toBe(200);
+      const quote = created.json() as { data: Record<string, unknown>; nights?: unknown };
+      expect(Number(quote.data['nights'])).toBe(2);
+      expect(quote.data['room_total']).toBeUndefined();
+      expect(quote.nights).toBeUndefined();
+      const changed = await served.post(`/records/stay_totals/${String(stay['id'])}/dry-run`, { values: { depart: '2026-08-08' } });
+      expect(changed.statusCode, changed.body).toBe(200);
+      const moved = changed.json() as { data: Record<string, unknown>; nights?: unknown };
+      expect(Number(moved.data['nights'])).toBe(5);
+      expect(moved.nights).toBeUndefined();
+    } finally {
+      await served.useKey((h!.reply['publicAccess'] as { keyId: string }).keyId);
+    }
+  });
+
   it.runIf(available)("answers the desk's quote of a booking with its nights too", async () => {
     const res = await served.composed.app.inject({
       method: 'POST',
@@ -179,5 +232,30 @@ describe.each(LEGS)('the nights of a stay, quoted and at the desk — %s', (dial
     });
     expect(other.statusCode).toBe(404);
     expect((await nightly(999_999)).statusCode).toBe(404);
+  });
+
+  // Last: it marks the room price personal for the rest of the file.
+  it.runIf(available)("keeps the nights from a desk's quote when the desk may not read the price they make up", async () => {
+    const stays = w.targetOf('stays').table.id;
+    await overridesRepo(h!.meta).create({ connectionId: h!.connectionId, op: 'column.pii', tableName: stays, columnName: 'room_total', value: { masked: true, kind: 'other' } as never });
+    const role = await rolesRepo(h!.meta).create({ slug: 'front-desk', name: 'Front desk' });
+    await permissionsRepo(h!.meta).grant(role.id, 'table', `${h!.connectionId}/${stays}`, { read: true, create: true, update: false, delete: false, export: false, import: false });
+    const user = await usersRepo(h!.meta).create({ email: 'front@wren.example', name: 'Front', passwordHash: await adminPasswordHash(), status: 'active' });
+    await rolesRepo(h!.meta).assignToUser(user.id, role.id);
+    const front = (await login(served.composed.app as never, 'front@wren.example', ADMIN_PASSWORD)).cookie ?? '';
+    const quote = (as: string) =>
+      served.composed.app.inject({
+        method: 'POST',
+        url: `/api/v1/data/${h!.connectionId}/${encodeURIComponent(stays)}/dry-run`,
+        headers: { cookie: as },
+        payload: { values: { first_name: 'Desk', room_type_id: seed.loft['id'], arrive: '2026-07-23', depart: '2026-07-25', guests: 2 } },
+      });
+    const masked = await quote(front);
+    expect(masked.statusCode, masked.body).toBe(200);
+    const body = masked.json() as { data: Record<string, unknown>; nights?: unknown };
+    expect(body.data['room_total']).toBeNull();
+    expect(body.nights).toBeUndefined();
+    // A desk that may read it is shown them.
+    expect(((await quote(cookie)).json() as { nights?: unknown[] }).nights).toHaveLength(2);
   });
 });

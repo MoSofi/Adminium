@@ -123,3 +123,14 @@ for (const dialect of TEST_DIALECTS) {
     });
   });
 }
+
+describe('the wave’s checksum', () => {
+  it('covers everything the wave decides: what a shape looks like and how a manifest is read are inside `up`', () => {
+    const wave = ALL_MIGRATIONS.find((m) => m.name === '0045_app_table_shapes')!;
+    const text = wave.up.toString();
+    expect(text).toContain('[a-z][a-z0-9-]*@');
+    expect(text).toContain('requiredSchema');
+    expect(text).toContain('JSON.parse');
+    expect(text).toContain('shape.length > 48');
+  });
+});

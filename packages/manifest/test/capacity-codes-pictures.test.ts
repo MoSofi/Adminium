@@ -469,7 +469,7 @@ describe('a code that renews', () => {
     ['by another column', (doc) => renew(doc, { column: 'code', changed: true }), 'a code is renewed by another column'],
     ['by a column there is', (doc) => renew(doc, { column: 'holder', changed: true }), '"tickets" has no column "holder"'],
     ['by a value of its column', (doc) => renew(doc, { column: 'status', values: ['sent'] }), '"sent" is not a value of "tickets.status"'],
-    ['by a change a person makes', (doc) => renew(doc, { column: 'event_id', changed: true }), 'a code is renewed by a change a person makes'],
+    ['by a change a person makes', (doc) => renew(doc, { column: 'event_id', changed: true }), 'a code is renewed by a change a person makes, or a stamp'],
     ['by one to three triggers', (doc) => renew(doc, [{ column: 'status', values: ['valid'] }]), 'Too small'],
   ];
   for (const [name, edit, message] of cases) {
@@ -477,6 +477,15 @@ describe('a code that renews', () => {
       expect(issuesOf(changed(edit))).toContain(message);
     });
   }
+
+  it('by a column a stamp writes in the same change', () => {
+    const doc = changed((d) => {
+      table(d, 'tickets').columns.push({ ref: 'pending_email', type: 'text', maxLength: 254, nullable: true });
+      column(d, 'tickets', 'holder_email')['rules'] = { stamp: { set: { copy: 'pending_email' }, on: { column: 'status', values: ['valid'] } } };
+      renew(d, { column: 'holder_email', changed: true });
+    });
+    expect(issuesOf(doc)).toBe('');
+  });
 });
 
 describe('pictures anyone may see', () => {

@@ -110,6 +110,30 @@ describe('a joined name', () => {
     expect(broken(guestHouse, (m) => (rules(m, 'stays', 'guest_name')['formula'] = { join: ['first_name', ' ', 'middle_name'] }))).toContain('the table has no column "middle_name"');
     expect(broken(guestHouse, (m) => (rules(m, 'stays', 'total')['formula'] = { add: [1, { join: ['first_name', 'last_name'] }] }))).toContain('a join is the whole formula, not a part of one');
   });
+
+  it('reads text and whole numbers only, spelled alike by every database', () => {
+    const joining = (parts: string[]) => broken(guestHouse, (m) => (rules(m, 'stays', 'guest_name')['formula'] = { join: parts }));
+    expect(joining(['first_name', ' × ', 'guests'])).not.toContain('a join reads');
+    // A decimal is `8.250` on one engine and `8.25` on another; a yes or no `true` or `1`; a day by the server's clock.
+    expect(joining(['first_name', ' ', 'total'])).toContain('"total" is a decimal column: a join reads text and whole-number columns only');
+    expect(joining(['first_name', ' ', 'link_stopped'])).toContain('"link_stopped" is a bool column: a join reads text and whole-number columns only');
+    expect(joining(['first_name', ' ', 'arrive'])).toContain('"arrive" is a date column: a join reads text and whole-number columns only');
+  });
+
+  it('never reads a column kept from readers into one that is not', () => {
+    expect(
+      broken(guestHouse, (m) => {
+        columnOf(m, 'stays', 'last_name')['rules'] = { personal: true };
+      }),
+    ).toContain('"stays.last_name" is personal data, so no formula reads it');
+    // Kept alike in the column it lands in, it may.
+    expect(
+      broken(guestHouse, (m) => {
+        columnOf(m, 'stays', 'last_name')['rules'] = { personal: true };
+        rules(m, 'stays', 'guest_name')['personal'] = true;
+      }),
+    ).not.toContain('so no formula reads it');
+  });
 });
 
 describe('a price by the night', () => {
@@ -185,6 +209,33 @@ describe('a copy that follows its row', () => {
 
   it('never follows what its own rows total into', () => {
     expect(broken(guestHouse, (m) => (copy(m, 'nights')['from'] = 'total'))).toContain('"stays.total" is worked out from "stay_extras", so "stay_extras.nights" cannot follow it');
+  });
+
+  it('never follows what changes without a change of the row: a total, a balance, a stamp, or a formula over one', () => {
+    const paying = (m: Doc) => {
+      (m['requiredSchema'] as { tables: Doc[] }).tables.push({
+        ref: 'payments',
+        columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'stay_id', type: 'fk', references: 'stays' }, { ref: 'amount', type: 'decimal', scale: 2 }],
+      });
+      (tableOf(m, 'stays')['columns'] as Doc[]).push(
+        { ref: 'paid', type: 'decimal', scale: 2, nullable: true, rules: { rollup: { from: 'payments', via: 'stay_id', sum: 'amount', balance: { column: 'balance', of: 'total' } } } },
+        { ref: 'balance', type: 'decimal', scale: 2, nullable: true },
+        { ref: 'paid_twice', type: 'decimal', scale: 2, nullable: true, rules: { formula: { mul: ['paid', 2] } } },
+        { ref: 'booked_at', type: 'timestamptz', nullable: true, rules: { stamp: { set: 'now', on: 'create' } } },
+      );
+      (tableOf(m, 'stay_extras')['columns'] as Doc[]).push({ ref: 'copied', type: 'decimal', scale: 2, nullable: true }, { ref: 'copied_at', type: 'timestamptz', nullable: true });
+    };
+    const following = (column: string, from: string) =>
+      broken(guestHouse, (m) => {
+        paying(m);
+        columnOf(m, 'stay_extras', column)['rules'] = { copy: { via: 'stay_id', from, mode: 'always', follow: true } };
+      });
+    expect(following('copied', 'paid')).toContain('"stays.paid" is a total, which changes without a change of the row, so "stay_extras.copied" cannot follow it');
+    expect(following('copied', 'balance')).toContain('"stays.balance" is a balance, which changes without a change of the row');
+    expect(following('copied_at', 'booked_at')).toContain('"stays.booked_at" is a stamp, which changes without a change of the row');
+    expect(following('copied', 'paid_twice')).toContain('"stays.paid_twice" (it is worked out from "paid", a total), which changes without a change of the row');
+    // Its own copied nights and guests stay as they were.
+    expect(broken(guestHouse, paying)).not.toContain('cannot follow it');
   });
 
   it('comes from a table that totals into that row alone', () => {

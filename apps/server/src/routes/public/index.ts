@@ -51,7 +51,7 @@ import { sql, type Kysely } from 'kysely';
 import { runList } from '../../crud/list.js';
 import { renewedBy } from '../../crud/code-renew.js';
 import { registerPictures } from './pictures.js';
-import { CODE_HEADER, missedCode, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
+import { CODE_HEADER, GuessesSpent, guessRung, treeTypesCode, typedCodeOf, typesCode, unlockedByRow, unlockedKeys } from './code-guesses.js';
 import { compileFilter, parseWhereParam, type RecordFilter } from '../../crud/filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import {
@@ -1448,15 +1448,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     };
   };
 
-  /** Whether a visitor may try a typed code: their misses, and the key's, not spent (else answered 429). */
-  const admitGuess = (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey }): boolean => {
-    const spent = limiter.guessBlocked(ok.key.keyId, request.ip);
-    return spent === null || admit(reply, spent);
-  };
+  /** Codes typed: a guess reserved before the lookup, kept for a miss, handed back when the reply has gone (`code-guesses.ts`). */
+  const guesses = guessRung(limiter, admit);
+  /** Whether a visitor may try the codes typed: a guess held (else answered 429). */
+  const admitGuess = (request: FastifyRequest, reply: FastifyReply, ok: { key: ResolvedKey }, typed: readonly string[]): boolean =>
+    guesses.admit(request, reply, ok.key.keyId, typed);
 
-  /** A write whose typed code missed (`unknown`, `used-up`): one guess spent. */
-  const spendMiss = (request: FastifyRequest, ok: { key: ResolvedKey }, error: unknown): void => {
-    if (missedCode(error)) limiter.missedGuess(ok.key.keyId, request.ip);
+  /** A write whose typed code missed (`unknown`, `used-up`): its guess spent. */
+  const spendMiss = (request: FastifyRequest, _ok: { key: ResolvedKey }, error: unknown): void => {
+    guesses.spendMiss(request, error);
   };
 
   /**
@@ -1478,10 +1478,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     const none: RecordFilter = { column: table.primaryKey[0]!, op: 'is_null' };
     const typed = typedCodeOf(request);
     if (typed === null) return none;
-    if (!admitGuess(request, reply, ok)) return false;
+    if (!admitGuess(request, reply, ok, [typed])) return false;
     const keys = await unlockedKeys(db, view, resource, typed, new Date(), ok.key.scope.timezone);
     if (keys.length === 0) {
-      limiter.missedGuess(ok.key.keyId, request.ip);
+      guesses.missed(request);
       return none;
     }
     return { column: table.primaryKey[0]!, op: 'in', value: keys };
@@ -1527,6 +1527,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   };
 
   return async (app) => {
+    // A guess held for a typed code is handed back once the reply has gone, unless it missed.
+    app.addHook('onResponse', async (request, reply) => {
+      guesses.settle(request, reply);
+    });
     // A link's job on the shared queue, and the watch on a signed-in person's address.
     if (app.hasDecorator('jobs')) registerSignInLinkJob(app.jobs.registry, { ...linkDeps, logger: app.log, hostFor: hostForOf(app) });
     if (deps.stats !== undefined) {
@@ -1840,19 +1844,22 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // A code goes in a header. A row it unlocks is listed with it; a code that unlocks nothing is a guess spent.
           if (query.code !== undefined) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', `A code is sent in the ${CODE_HEADER} header.`);
           const typed = typedCodeOf(request);
-          if (typed !== null && !admitGuess(request, reply, ok)) return reply;
           let tried = false;
           let unlockedAny = false;
+          // A guess is held only when a read shown with a code is asked: plain availability costs none.
+          const held: { spent: RateDecision | null } = { spent: null };
           const unlocked =
             typed === null
               ? undefined
               : async (reader: CompiledResource): Promise<unknown[]> => {
+                  held.spent ??= guesses.reserve(request, ok.key.keyId, [typed]);
+                  if (held.spent !== null) throw new GuessesSpent();
                   tried = true;
                   const keys = await unlockedKeys(found.db, found.view, reader, typed, new Date(), ok.key.scope.timezone);
                   if (keys.length > 0) unlockedAny = true;
                   return keys;
                 };
-          const answer = await answerCapacity({
+          const asked = answerCapacity({
             ...(unlocked === undefined ? {} : { unlocked }),
             query,
             resource: found.resource,
@@ -1866,7 +1873,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             own: (table, id) => claimedRowKey(ok, found.db, table, id),
             now: new Date(),
           });
-          if (tried && !unlockedAny) limiter.missedGuess(ok.key.keyId, request.ip);
+          const answer = await asked.catch((error: unknown) => {
+            if (error instanceof GuessesSpent) return null;
+            throw error;
+          });
+          if (answer === null) {
+            admit(reply, held.spent!);
+            return reply;
+          }
+          if (tried && !unlockedAny) guesses.missed(request);
           if (!answer.ok) return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', answer.message);
           return reply.send(answer.body as never);
         }
@@ -2188,8 +2203,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       if (!Array.isArray(level1)) return refused(level1);
       const root: TreeNode = { name: ref, target: target(table), values, at: [], children: level1, lists: [...lists.keys()] };
       // A code typed anywhere in it is a guess, a quote's too: a visitor whose guesses are spent is told so first.
-      const guessing = treeTypesCode(root);
-      if (guessing && !admitGuess(request, reply, ok)) return reply;
+      const typedCodes = treeTypesCode(root);
+      const guessing = typedCodes.length > 0;
+      if (guessing && !admitGuess(request, reply, ok, typedCodes)) return reply;
 
       // A create nobody signed in for: a name that is only a name, and so many a day per address and an hour per key.
       const caps = resource.anonymous;
@@ -2482,7 +2498,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         const capacity = outcome.capacity.map((pool) => ({ pool: pool.key, state: pool.fits ? ('available' as const) : ('full' as const), ...(pool.at === undefined ? {} : { at: pool.at }) }));
         // A price by the night: the nights it is made of, each with its rate and what was added.
-        const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+        const nights = await quoteNights(found.db, tableRulesFor({ view, table }), outcome.root, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null, (column) => data[column] !== null && data[column] !== undefined);
         return reply.code(200).send({ data, children, capacity, exact, ...(nights === undefined ? {} : { nights }) });
       }
       // The person the address made, heard of once the whole write has committed.
@@ -2544,8 +2560,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
-        const guessing = typesCode(found.table, values);
-        if (guessing && !admitGuess(request, reply, ok)) return reply;
+        const typedCodes = typesCode(found.table, values);
+        const guessing = typedCodes.length > 0;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes)) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this write needs is missing.', { column: missing });
         // A signed-in person may hold only so many open rows: a found session
@@ -2771,8 +2788,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
         // A code typed is a guess: a visitor whose guesses are spent is told so before anything is looked up.
-        const guessing = typesCode(found.table, values);
-        if (guessing && !admitGuess(request, reply, ok)) return reply;
+        const typedCodes = typesCode(found.table, values);
+        const guessing = typedCodes.length > 0;
+        if (guessing && !admitGuess(request, reply, ok, typedCodes)) return reply;
         const missing = unfilled(found.resource, values);
         if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this change needs is missing.', { column: missing });
         // A child's references are fixed when it is made: a change never moves it under another parent.
@@ -3034,7 +3052,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A quote runs no before hook: said, as a quote of a create says it.
         if (quote === 'dry') {
           // A change of the dates of a row priced by the night: the nights it would then be made of.
-          const nights = outcome.after === null ? undefined : await quoteNights(found.db, tableRulesFor({ view: found.view, table: found.table }), outcome.after, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null);
+          const nights = outcome.after === null ? undefined : await quoteNights(found.db, tableRulesFor({ view: found.view, table: found.table }), outcome.after, async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null, (column) => projected[column] !== null && projected[column] !== undefined);
           return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }) });
         }
         return reply.send({ data });
@@ -3334,7 +3352,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (found === null) return reply;
         const { resource, table } = found;
         // A code a guest types is tried one write at a time, where each miss is counted.
-        if (rows.some((row) => typesCode(table, row as Row))) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A code is applied one write at a time.');
+        if (rows.some((row) => typesCode(table, row as Row).length > 0)) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A code is applied one write at a time.');
 
         const refuseRow = (index: number, message: string, named: { column: string; reason: string } | null = null) =>
           fail(reply, 400, 'PUBLIC_WRITE_REFUSED', message, { index, ...(named ?? {}) });

@@ -48,6 +48,12 @@ export interface AppTableRule {
   released?: true;
   /** The add-on whose shape the rule comes from (`invoices`), when a shape owns it. */
   shape?: string;
+  /**
+   * The app that wrote it and left (`pos`), on a table this app goes on
+   * sharing: kept whatever this app's own versions ask for, and taken back
+   * only when the last app using the table leaves.
+   */
+  handedFrom?: string;
 }
 
 export interface AppTableRecord {
@@ -122,6 +128,7 @@ function parseRules(value: unknown): AppTableRule[] {
         overrideId: e['overrideId'],
         ...(e['released'] === true ? { released: true as const } : {}),
         ...(typeof e['shape'] === 'string' ? { shape: e['shape'] } : {}),
+        ...(typeof e['handedFrom'] === 'string' ? { handedFrom: e['handedFrom'] } : {}),
       },
     ];
   });
@@ -229,7 +236,8 @@ export function appTablesRepo(meta: MetaDb) {
             state,
             role: input.role ?? held.role,
             prefix: input.prefix ?? held.prefix,
-            shape: input.shape ?? held.shape,
+            // `null` clears a shape a later version no longer declares; left out, the held one stays.
+            shape: input.shape === undefined ? held.shape : input.shape,
             ...(input.builtOn === undefined ? {} : { builtOn: input.builtOn }),
             ...(input.shapeColumns === undefined ? {} : { shapeColumns: input.shapeColumns === null ? null : JSON.stringify(input.shapeColumns) }),
             releasedAt: null,

@@ -131,17 +131,29 @@ for (const [dialect, available] of LEGS) {
       expect((await cards.admin('orders', { ...week, window: { column: 'pickup_at', last: 1, unit: 'hour-of-day' } })).status).toBe(422);
     });
 
-    it.skipIf(dialect !== 'postgres')('keeps each pickup in its own hour across the week the clocks go back', async () => {
+    it('keeps each pickup in its own hour across the weeks the clocks go forward and back', async () => {
       vi.setSystemTime(at('2026-11-05 09:00'));
+      // Thursday 29 October to Wednesday 4 November: noon every day; the clocks go back on Sunday the 1st.
+      const days = ['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04'];
       w = await venue(dialect, async (v) => {
-        // Thursday 29 October to Wednesday 4 November: noon every day; the clocks go back on Sunday the 1st.
-        const days = ['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04'];
         await v.seed('orders', days.map((day) => ({ pickup_at: iso(`${day} 12:00`) })));
       });
+      const cards = reader(w);
       const folded = ok(
-        await reader(w).admin('orders', { shape: 'timeseries', aggregations: [{ fn: 'count', alias: 'n' }], bucket: { column: 'pickup_at', unit: 'hour-of-day' }, window: { column: 'pickup_at', last: 7, unit: 'day', calendar: true, offset: 1 } }),
+        await cards.admin('orders', { shape: 'timeseries', aggregations: [{ fn: 'count', alias: 'n' }], bucket: { column: 'pickup_at', unit: 'hour-of-day' }, window: { column: 'pickup_at', last: 7, unit: 'day', calendar: true, offset: 1 } }),
       );
       expect(hours(folded)).toEqual({ '12:00': 7 });
+      // With no window, a week in spring across the clocks going forward (Sunday 8 March) folds in too.
+      await w.seed('orders', ['2026-03-05', '2026-03-06', '2026-03-07', '2026-03-08', '2026-03-09', '2026-03-10', '2026-03-11'].map((day) => ({ pickup_at: iso(`${day} 12:00`) })));
+      const year = ok(
+        await cards.admin('orders', { shape: 'timeseries', aggregations: [{ fn: 'count', alias: 'n' }], bucket: { column: 'pickup_at', unit: 'hour-of-day' } }),
+      );
+      expect(hours(year)).toEqual({ '12:00': 14 });
+      // And by the hour, day by day across the change: every one at noon.
+      const byHour = ok(
+        await cards.admin('orders', { shape: 'timeseries', aggregations: [{ fn: 'count', alias: 'n' }], bucket: { column: 'pickup_at', unit: 'hour' }, window: { column: 'pickup_at', last: 7, unit: 'day', calendar: true, offset: 1 } }),
+      );
+      expect((byHour['points'] as { t: string; v: number }[]).filter((point) => point.v > 0).map((point) => point.t)).toEqual(days.map((day) => iso(`${day} 12:00`)));
     });
 
     it('counts order lines through their order: its status and its pickup day, as the reader may read them', async () => {
@@ -239,6 +251,11 @@ for (const [dialect, available] of LEGS) {
       await overridesRepo(w.meta).create({ connectionId: w.connectionId, op: 'column.enumLabels', tableName: w.id('orders'), columnName: 'status', value: { labels: { placed: 'Placed', ready: 'Awaiting pickup' } } as never });
       const first = ok(await cards.admin('orders', { shape: 'categorical', aggregations: [{ fn: 'count', alias: 'n' }], groupBy: ['status'], limit: 1 }))['items'];
       expect(first).toEqual([{ key: 'ready', label: 'Awaiting pickup', value: 1 }]);
+      // A group whose row has no label comes after a labelled one on every engine, though its key is smaller.
+      await w.seed('customers', [{ id: 1, name: null }, { id: 2, name: 'Zed' }]);
+      await w.query(`update ${w.id('orders')} set customer_id = id`);
+      const byCustomer = { shape: 'categorical', aggregations: [{ fn: 'count', alias: 'n' }], groupBy: ['customer_id'], groupLabel: 'customer_id.name', limit: 1 };
+      expect((ok(await cards.admin('orders', byCustomer))['items'] as { key: string }[]).map((item) => item.key)).toEqual(['2']);
     });
   });
 }

@@ -48,20 +48,20 @@ export function png(opts: { width?: number; height?: number; text?: string; exif
   return { bytes: Buffer.concat([sig, ihdr, ...extras, idat, iend]), clean: Buffer.concat([sig, ihdr, idat, iend]) };
 }
 
-const segment = (marker: number, data: Buffer) => Buffer.concat([Buffer.from([0xff, marker]), u16be(data.length + 2), data]);
+export const jpegSegment = (marker: number, data: Buffer): Buffer => Buffer.concat([Buffer.from([0xff, marker]), u16be(data.length + 2), data]);
 
 /** A JPEG's blocks (not an image a decoder draws: the blocks are what the cleaning reads), with Exif GPS and a comment. */
 export function jpeg(opts: { width?: number; height?: number } = {}): { bytes: Buffer; clean: Buffer } {
   const soi = Buffer.from([0xff, 0xd8]);
-  const app0 = segment(0xe0, Buffer.from('JFIF\0\x01\x01\0\0\x01\0\x01\0\0', 'latin1'));
-  const app1 = segment(0xe1, Buffer.from('Exif\0\0MM\0*GPSLatitude 51.5074 N GPSLongitude 0.1278 W', 'latin1'));
-  const app2 = segment(0xe2, Buffer.from('ICC_PROFILE\0\x01\x01profile', 'latin1'));
-  const com = segment(0xfe, Buffer.from('taken in the kitchen at 14 Elm Row', 'latin1'));
-  const app13 = segment(0xed, Buffer.from('Photoshop 3.0\0IPTC', 'latin1'));
-  const dqt = segment(0xdb, Buffer.alloc(65, 1));
-  const sof = segment(0xc0, Buffer.concat([Buffer.from([8]), u16be(opts.height ?? 8), u16be(opts.width ?? 8), Buffer.from([1, 1, 0x11, 0])]));
-  const dht = segment(0xc4, Buffer.alloc(20, 0));
-  const sos = segment(0xda, Buffer.from([1, 1, 0, 0, 63, 0]));
+  const app0 = jpegSegment(0xe0, Buffer.from('JFIF\0\x01\x01\0\0\x01\0\x01\0\0', 'latin1'));
+  const app1 = jpegSegment(0xe1, Buffer.from('Exif\0\0MM\0*GPSLatitude 51.5074 N GPSLongitude 0.1278 W', 'latin1'));
+  const app2 = jpegSegment(0xe2, Buffer.from('ICC_PROFILE\0\x01\x01profile', 'latin1'));
+  const com = jpegSegment(0xfe, Buffer.from('taken in the kitchen at 14 Elm Row', 'latin1'));
+  const app13 = jpegSegment(0xed, Buffer.from('Photoshop 3.0\0IPTC', 'latin1'));
+  const dqt = jpegSegment(0xdb, Buffer.alloc(65, 1));
+  const sof = jpegSegment(0xc0, Buffer.concat([Buffer.from([8]), u16be(opts.height ?? 8), u16be(opts.width ?? 8), Buffer.from([1, 1, 0x11, 0])]));
+  const dht = jpegSegment(0xc4, Buffer.alloc(20, 0));
+  const sos = jpegSegment(0xda, Buffer.from([1, 1, 0, 0, 63, 0]));
   const scan = Buffer.from([0x12, 0x34, 0xff, 0x00, 0x56, 0xff, 0xd9]);
   return {
     bytes: Buffer.concat([soi, app0, app1, app2, com, app13, dqt, sof, dht, sos, scan]),
@@ -69,11 +69,20 @@ export function jpeg(opts: { width?: number; height?: number } = {}): { bytes: B
   };
 }
 
-const riffChunk = (fourcc: string, data: Buffer) => Buffer.concat([Buffer.from(fourcc, 'latin1'), u32le(data.length), data, data.length % 2 === 1 ? Buffer.alloc(1) : Buffer.alloc(0)]);
+export const riffChunk = (fourcc: string, data: Buffer): Buffer => Buffer.concat([Buffer.from(fourcc, 'latin1'), u32le(data.length), data, data.length % 2 === 1 ? Buffer.alloc(1) : Buffer.alloc(0)]);
 const riff = (chunks: Buffer[]) => {
   const body = Buffer.concat(chunks);
   return Buffer.concat([Buffer.from('RIFF', 'latin1'), u32le(4 + body.length), Buffer.from('WEBP', 'latin1'), body]);
 };
+
+/** An extended WebP canvas, `width` × `height`, of these chunks after its header. */
+export function webpFile(width: number, height: number, chunks: Buffer[]): Buffer {
+  const d = Buffer.alloc(10);
+  d[0] = 0x02;
+  d.writeUIntLE(width - 1, 4, 3);
+  d.writeUIntLE(height - 1, 7, 3);
+  return riff([riffChunk('VP8X', d), ...chunks]);
+}
 
 /** An extended WebP with a lossless frame, a colour profile, Exif and XMP. */
 export function webp(opts: { width?: number; height?: number } = {}): { bytes: Buffer; clean: Buffer } {
@@ -98,14 +107,19 @@ export function webp(opts: { width?: number; height?: number } = {}): { bytes: B
 
 const gifExtension = (label: number, blocks: Buffer[]) => Buffer.concat([Buffer.from([0x21, label]), ...blocks.map((b) => Buffer.concat([Buffer.from([b.length]), b])), Buffer.from([0])]);
 
+/** One GIF frame, `width` × `height` at `left`, `top`. */
+export function gifFrame(width: number, height: number, left = 0, top = 0): Buffer {
+  return Buffer.concat([Buffer.from([0x2c]), u16le(left), u16le(top), u16le(width), u16le(height), Buffer.from([0]), Buffer.from([2, 2, 0x4c, 0x01, 0])]);
+}
+
 /** An animated GIF's blocks: its loop kept, a comment and an XMP block gone. */
-export function gif(opts: { width?: number; height?: number } = {}): { bytes: Buffer; clean: Buffer } {
+export function gif(opts: { width?: number; height?: number; frame?: { width: number; height: number; left?: number } } = {}): { bytes: Buffer; clean: Buffer } {
   const head = Buffer.concat([Buffer.from('GIF89a', 'latin1'), u16le(opts.width ?? 10), u16le(opts.height ?? 10), Buffer.from([0x80, 0, 0]), Buffer.from([0, 0, 0, 255, 255, 255])]);
   const loop = gifExtension(0xff, [Buffer.from('NETSCAPE2.0', 'latin1'), Buffer.from([1, 0, 0])]);
   const comment = gifExtension(0xfe, [Buffer.from('made at 14 Elm Row', 'latin1')]);
   const xmp = gifExtension(0xff, [Buffer.from('XMP DataXMP', 'latin1'), Buffer.from('<x:xmpmeta/>', 'latin1')]);
   const control = gifExtension(0xf9, [Buffer.from([0, 0, 0, 0])]);
-  const image = Buffer.concat([Buffer.from([0x2c]), u16le(0), u16le(0), u16le(10), u16le(10), Buffer.from([0]), Buffer.from([2, 2, 0x4c, 0x01, 0])]);
+  const image = gifFrame(opts.frame?.width ?? 10, opts.frame?.height ?? 10, opts.frame?.left ?? 0);
   const trailer = Buffer.from([0x3b]);
   return { bytes: Buffer.concat([head, loop, comment, xmp, control, image, trailer]), clean: Buffer.concat([head, loop, control, image, trailer]) };
 }

@@ -144,8 +144,10 @@ import { bcp47, formatTag, proseNumber } from '../i18n/bcp47.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import type { JobRegistry } from '../jobs/registry.js';
 import { negotiateLocale } from '../plugins/surfaces.js';
+import { QR_MAX_BYTES, qrCarries } from '../qr/index.js';
 import type { EffectsAnnouncement } from '../states/effects.js';
 import { outboxContext, outboxEffectContext } from './context.js';
+import { usableLanguage } from './language.js';
 import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
@@ -279,6 +281,34 @@ export function unfilledSentence(names: readonly string[]): string {
 export function codeWithheldSentence(names: readonly string[]): string {
   const listed = names.slice(0, 2).map((name) => `{{${name}}}`).join(', ');
   return sentence(`Not sent: ${listed} is a code, and goes only to the address on file of the person it belongs to`);
+}
+
+/** Why an email whose list of rows cannot be read is not sent: never without its list. */
+export const LIST_UNREADABLE = 'Not sent: the email lists rows from a table or link that is not there';
+
+/** Whether a value fills a QR code: empty (no code is drawn), or text a QR code carries. */
+const fitsQr = (value: string | undefined): boolean => value === undefined || value === '' || qrCarries(value);
+
+/** A whole `{{<name>.qr}}`: what an image draws as a QR code. */
+const QR_WHOLE = /^\{\{\s*([A-Za-z0-9_.-]+\.qr)\s*\}\}$/;
+
+/** The names a template's blocks draw as QR codes: an image's `qr`, a list's row image. */
+function drawnQrCodes(blocks: readonly Record<string, unknown>[]): Set<string> {
+  const out = new Set<string>();
+  for (const block of blocks) {
+    const data = (typeof block['data'] === 'object' && block['data'] !== null ? block['data'] : {}) as Record<string, unknown>;
+    const row = (typeof data['row'] === 'object' && data['row'] !== null ? data['row'] : {}) as Record<string, unknown>;
+    const source = block['block'] === 'email.image' ? data['qr'] : block['block'] === 'email.rows' ? row['image'] : undefined;
+    const found = typeof source === 'string' ? QR_WHOLE.exec(source.trim()) : null;
+    if (found !== null) out.add(found[1]!);
+  }
+  return out;
+}
+
+/** Why an email whose QR code would hold too much text is not sent. */
+export function qrTooLongSentence(names: readonly string[]): string {
+  const listed = names.slice(0, 2).map((name) => `{{${name}}}`).join(', ');
+  return sentence(`Not sent: ${listed} holds more than a QR code carries (${String(QR_MAX_BYTES)} bytes)`);
 }
 
 /** The same address, as a sign-in link or a code is sent to it: the same characters, or the same ASCII letters in another case. */
@@ -892,7 +922,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
    * tickets): the child rows of the row its link names, filtered, in order,
    * at most its limit — each read as a template reads a row (`row.*`, one hop
    * through its own links, `row.<join>` for each list one level down), its
-   * share codes held back unless the row is the code holder's.
+   * share codes held back unless the row is the code holder's. Null when the
+   * block's source cannot be read — a link the outbox does not have, a table
+   * that is not there (renamed since), a column it names that the table lacks
+   * — so the email is never sent without its list; a source that is there
+   * and holds no rows is an empty list, and sends.
    */
   async function rowsFor(
     box: LiveOutbox,
@@ -900,7 +934,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     message: Row,
     data: Record<string, unknown>,
     holder: CodeHolder | null,
-  ): Promise<WrittenValues[]> {
+  ): Promise<WrittenValues[] | null> {
     const { db, view } = ctx;
     const from = (typeof data['from'] === 'object' && data['from'] !== null ? data['from'] : {}) as {
       link?: string;
@@ -912,14 +946,28 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       limit?: number;
     };
     const column = from.link === undefined ? undefined : box.definition.links?.[from.link];
-    const parent = column === undefined ? undefined : message[column];
-    if (parent === null || parent === undefined || from.table === undefined || from.via === undefined) return [];
+    if (column === undefined || !ctx.outbox.columns.has(column) || from.table === undefined || from.via === undefined) return null;
     let child: ResolvedTable;
     try {
       child = view.table(from.table);
     } catch {
-      return [];
+      return null;
     }
+    const named = [from.via, ...(from.where === undefined ? [] : [from.where.column]), ...(from.unless === undefined ? [] : [from.unless])];
+    if (named.some((name) => !child.columns.has(name))) return null;
+    const joins = (typeof data['joins'] === 'object' && data['joins'] !== null ? data['joins'] : {}) as Record<string, { table: string; via: string; column: string; orderBy?: string; separator?: string }>;
+    const joinTables = new Map<string, ResolvedTable>();
+    for (const [name, join] of Object.entries(joins)) {
+      try {
+        joinTables.set(name, view.table(join.table));
+      } catch {
+        return null;
+      }
+      if (!joinTables.get(name)!.columns.has(join.via) || !joinTables.get(name)!.columns.has(join.column)) return null;
+    }
+    const parent = message[column];
+    // The message names no row to list from: its list is empty.
+    if (parent === null || parent === undefined) return [];
     let query = db.selectFrom(child.id as never).selectAll().where(from.via as never, '=', parent as never);
     if (from.where !== undefined && from.where.in.length > 0) {
       // A yes or no as a word every engine knows (SQLite binds none).
@@ -934,17 +982,11 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     // Each list one level down, for every row at once: at most twenty names a row.
     const joined = new Map<string, Map<string, string[]>>();
     const key = child.primaryKey[0];
-    const joins = (typeof data['joins'] === 'object' && data['joins'] !== null ? data['joins'] : {}) as Record<string, { table: string; via: string; column: string; orderBy?: string; separator?: string }>;
     for (const [name, join] of Object.entries(joins)) {
       const byRow = new Map<string, string[]>();
       joined.set(name, byRow);
       if (key === undefined) continue;
-      let table: ResolvedTable;
-      try {
-        table = view.table(join.table);
-      } catch {
-        continue;
-      }
+      const table = joinTables.get(name)!;
       let names = db.selectFrom(table.id as never).select([join.via, join.column] as never).where(join.via as never, 'in', records.map((record) => record[key]) as never);
       if (join.orderBy !== undefined && table.columns.has(join.orderBy)) names = names.orderBy(join.orderBy as never);
       for (const pk of table.primaryKey) names = names.orderBy(pk as never);
@@ -1015,8 +1057,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (templateKey === undefined) return { status: 'failed', error: sentence(`No email is set for "${kind}"`) };
 
     const own = cols.language === undefined ? undefined : row[cols.language];
-    // The row's own language first; for a row addressed now, the one looked up with the address.
-    const language = typeof own === 'string' && own !== '' ? own : (addressed?.language ?? undefined);
+    // The row's own language first, when a message can be written in it; for a row addressed now, the one looked up with the address.
+    const language = usableLanguage(own) ?? addressed?.language ?? undefined;
     const locale =
       (typeof language === 'string' && language !== '' ? negotiateLocale(language.replace(/_/g, '-')) : null) ?? (await recipientLocale(deps.meta, null));
     const template = await resolveEmailTemplate(deps.meta, templateKey, locale);
@@ -1054,16 +1096,21 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const sent = withOverride({ subject: template.subject, blocks: template.blocks as readonly Record<string, unknown>[] }, override);
     // The rows each list names (an order's tickets), each row judged the same way: every `{{row.*}}` filled, a code only to its holder.
     const rows: Record<string, Record<string, string>[]> = {};
+    // The codes drawn as QR codes (the whole value of an image, a row's image); met in text, a code prints as itself.
+    const drawn = drawnQrCodes(sent.blocks);
     for (const block of sent.blocks) {
       if (block['block'] !== 'email.rows' || typeof block['id'] !== 'string') continue;
       const data = typeof block['data'] === 'object' && block['data'] !== null ? (block['data'] as Record<string, unknown>) : {};
       const listed = await rowsFor(box, { ...ctx, forms, labels }, row, data, holder);
+      if (listed === null) return { status: 'failed', error: LIST_UNREADABLE };
       const names = [...placeholders([data['row'], data['empty']])].filter((name) => name.startsWith('row.'));
       for (const one of listed) {
         const missing = names.filter((name) => !Object.hasOwn(one.vars, name));
         const held = missing.filter((name) => one.withheld.has(name));
         if (held.length > 0) return { status: 'failed', error: codeWithheldSentence(held) };
         if (missing.length > 0) return { status: 'failed', error: unfilledSentence(missing) };
+        const long = [...drawn].filter((name) => name.startsWith('row.') && !fitsQr(one.vars[name]));
+        if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
       }
       rows[block['id']] = listed.map((one) => one.vars);
     }
@@ -1071,6 +1118,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const codes = unfilled.filter((name) => withheld.has(name));
     if (codes.length > 0) return { status: 'failed', error: codeWithheldSentence(codes) };
     if (unfilled.length > 0) return { status: 'failed', error: unfilledSentence(unfilled) };
+    // A QR code draws so many bytes of text at most: a longer code is never queued (it could only fail later, after the row reads sent).
+    const long = [...drawn].filter((name) => !name.startsWith('row.') && !fitsQr(vars[name]));
+    if (long.length > 0) return { status: 'failed', error: qrTooLongSentence(long) };
     const written = typeof row[cols.to] === 'string' ? (row[cols.to] as string).trim() : null;
     return {
       to,

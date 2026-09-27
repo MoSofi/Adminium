@@ -1050,13 +1050,8 @@ export function PageRecord({
   const handleUpdate = (values: CrudRow, changedLinks?: Record<string, string[]>) => {
     setEditErrors({});
     api
-      .update(
-        ...((changedLinks === undefined ? [recordId, values] : [recordId, values, changedLinks]) as [
-          string,
-          CrudRow,
-          Record<string, string[]>?,
-        ]),
-      )
+      // The record as the page loaded it: the state the person saw, when the save moves it.
+      .update(recordId, values, changedLinks, undefined, record ?? undefined)
       .then((updated) => {
         setEditOpen(false);
         queue.push({

@@ -155,7 +155,7 @@ export function validateManifest(
   return { ok: true, manifest, warnings };
 }
 
-/** `sampleData.skipWhenShared` names the app's own tables, and its `table` is one it shares. */
+/** `sampleData.skipWhenShared` names the app's own tables, its `table` is one it shares, and no table left in links to a skipped one. */
 function sampleDataIssues(manifest: Manifest): ManifestIssue[] {
   const rule = manifest.kind === 'app' ? manifest.sampleData?.skipWhenShared : undefined;
   if (rule === undefined) return [];
@@ -176,6 +176,20 @@ function sampleDataIssues(manifest: Manifest): ManifestIssue[] {
     else if (seen.has(ref)) out.push({ path: `sampleData.skipWhenShared.skip.${String(i)}`, message: `"${ref}" is listed twice` });
     seen.add(ref);
   });
+  /*
+   * Closed under links: a table left in whose rows point at a skipped table
+   * would point its sample rows at rows never added, so every add would fail.
+   */
+  for (const table of tables.values()) {
+    if (seen.has(table.ref)) continue;
+    for (const column of table.columns) {
+      if (column.type !== 'fk' || column.references === undefined || !seen.has(column.references)) continue;
+      out.push({
+        path: 'sampleData.skipWhenShared.skip',
+        message: `"${table.ref}" links to "${column.references}" (${column.ref}), which is skipped: skip "${table.ref}" too, or its sample rows point at rows never added`,
+      });
+    }
+  }
   return out;
 }
 

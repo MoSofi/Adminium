@@ -74,5 +74,23 @@ for (const dialect of TEST_DIALECTS) {
       expect((await repo.find(connectionId, 'pos', 'ticket_items'))?.rules).toEqual([rule]);
       expect((await repo.byTable(connectionId, 'ticket_items')).map((r) => r.appKey)).toEqual(['pos']);
     });
+
+    it('keeps the app a handed-over rule came from', async () => {
+      const connectionId = await connection(t.meta);
+      const repo = appTablesRepo(t.meta);
+      const rec = await repo.record({ appKey: 'ordering', manifestId: null, connectionId, ref: 'menu_items', tableName: 'pos_menu_items', owned: false, state: 'shared' });
+      const rule = { op: 'column.label', table: 'pos_menu_items', column: 'name', valueHash: 'h1', overrideId: 'ovr_1', handedFrom: 'pos' };
+      await repo.setRules(rec.id, [rule]);
+      expect((await repo.find(connectionId, 'ordering', 'menu_items'))?.rules).toEqual([rule]);
+    });
+
+    it('clears a shape when told null, and keeps it when told nothing', async () => {
+      const connectionId = await connection(t.meta);
+      const repo = appTablesRepo(t.meta);
+      const base = { appKey: 'pos', manifestId: null, connectionId, ref: 'menu_items', tableName: 'pos_menu_items', owned: true, state: 'created' as const };
+      await repo.record({ ...base, shape: 'menu@1' });
+      expect((await repo.record(base)).shape).toBe('menu@1');
+      expect((await repo.record({ ...base, shape: null })).shape).toBeNull();
+    });
   });
 }

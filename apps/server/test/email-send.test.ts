@@ -508,7 +508,8 @@ describe('email.send delivers attachments and inline parts as bytes', () => {
     );
     expect(job).not.toBeNull();
     const payload = job?.payload as { v: number; attachments: unknown[]; inline: unknown[] };
-    expect(payload.v).toBe(3);
+    // No QR code: queued as v2, which a server of the release before still delivers.
+    expect(payload.v).toBe(2);
     expect(payload.attachments).toEqual([{ fileId, filename: 'receipt.pdf' }]);
     expect(payload.inline).toEqual([{ cid: 'mark', kind: 'mark', mark: 'hexagon' }]);
     // The row never holds bytes.
@@ -571,6 +572,8 @@ describe('email.send delivers attachments and inline parts as bytes', () => {
     // A row an older server queued (v2) still goes.
     await enqueueRenderedEmail({ meta, secret: TEST_SECRET }, { to: 'bo@example.com', templateKey: 'older', locale: 'en_US', rendered: { subject: 'Older', html: '<p>x</p>', text: 'x', inline: [] } });
     const older = (await jobRows(meta)).find((row) => String(row.payload).includes('"older"'))!;
+    // Without a QR code a message is queued as v2 in the first place: an older worker (a rolling deploy, a rollback) delivers it.
+    expect((JSON.parse(String(older.payload)) as { v: number }).v).toBe(2);
     await meta.db
       .updateTable('adminium_jobs')
       .set({ payload: JSON.stringify({ ...(JSON.parse(String(older.payload)) as Record<string, unknown>), v: 2 }) } as never)
@@ -590,6 +593,25 @@ describe('email.send delivers attachments and inline parts as bytes', () => {
     expect(ticket.attachments?.map((a) => ({ filename: a.filename, cid: a.cid, contentType: a.contentType }))).toEqual([{ filename: 'qr-1.png', cid: 'qr-1', contentType: 'image/png' }]);
     expect(readQrPng(ticket.attachments![0]!.content)).toBe('K7QX-M2PD');
     expect(transport.sent.some((msg) => msg.subject === 'Older')).toBe(true);
+  });
+
+  it('never queues a QR code holding more bytes than a QR code carries, however few its characters', async () => {
+    const before = (await jobRows(meta)).length;
+    // 22 characters, 66 bytes: over the 64 a code carries.
+    const long = '€'.repeat(22);
+    const queued = await enqueueRenderedEmail(
+      { meta, secret: TEST_SECRET },
+      { to: 'ava@example.com', templateKey: 'events-e1', locale: 'en_US', rendered: { subject: 'Your ticket', html: '<img src="cid:qr-1">', text: long, inline: [{ cid: 'qr-1', kind: 'qr', text: long }] } },
+    );
+    expect(queued).toBeNull();
+    expect((await jobRows(meta)).length).toBe(before);
+    // 21 of them (63 bytes) go.
+    const fits = '€'.repeat(21);
+    const sent = await enqueueRenderedEmail(
+      { meta, secret: TEST_SECRET },
+      { to: 'ava@example.com', templateKey: 'events-e1', locale: 'en_US', rendered: { subject: 'Your ticket', html: '<img src="cid:qr-1">', text: fits, inline: [{ cid: 'qr-1', kind: 'qr', text: fits }] } },
+    );
+    expect((sent?.payload as { v: number }).v).toBe(3);
   });
 
   it('takes up to 60 inline images in the plain payload, and no more', () => {
