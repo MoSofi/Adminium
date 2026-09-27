@@ -154,6 +154,18 @@ describe.each(LEGS)('the vocabulary, kept through install on %s', (dialect, avai
     expect(codes((d) => (extras(d).agrees![0]!.eq = { parent: 'nope' }))).toContain('ENDPOINT_CHILD_AGREES_PATH');
     expect(codes((d) => (extras(d).counts![0]!.by = ['note']))).toContain('ENDPOINT_CHILD_COUNTS');
     expect(codes((d) => d.methods.push('BATCH'))).toContain('ENDPOINT_CHILDREN_NO_CREATE');
+    // A batch creates its rows one by one: a retry key, a price check or an agreement on it would never run.
+    const batched = (d: PublicEndpointDefinition) => {
+      delete d.children;
+      delete d.client_key;
+      delete d.expect;
+      delete d.agrees;
+      d.methods.push('BATCH');
+    };
+    expect(codes(batched)).not.toContain('ENDPOINT_CHILDREN_NO_CREATE');
+    expect(codes((d) => [batched(d), (d.client_key = 'client_key')])).toContain('ENDPOINT_CHILDREN_NO_CREATE');
+    expect(codes((d) => [batched(d), (d.expect = 'total')])).toContain('ENDPOINT_CHILDREN_NO_CREATE');
+    expect(codes((d) => [batched(d), (d.agrees = [{ column: 'guests', lte: { via: 'room_type_id', column: 'sleeps' } }])])).toContain('ENDPOINT_CHILDREN_NO_CREATE');
     expect(codes((d) => delete d.human_check)).toContain('ENDPOINT_CHILDREN_NEED_PROOF');
     expect(codes((d) => (d.expect = 'note'))).toContain('ENDPOINT_EXPECT_COLUMN');
     expect(codes((d) => d.select.push('client_key'))).toContain('ENDPOINT_CLIENT_KEY');

@@ -1401,6 +1401,14 @@ function treeAndPersonIssues(
   }
   if (def.dry_run === true && !creates && !methods.has('PATCH')) push('ENDPOINT_CHILDREN_NO_CREATE', 'a dry run tries a create or a change, and this endpoint makes neither');
   if (def.client_key !== undefined && !creates) push('ENDPOINT_CHILDREN_NO_CREATE', 'a retry key belongs to a create');
+  // A batch, and a row visible with a parent, are created one by one, alone: what belongs to a single create would never run there.
+  const batches = methods.has('BATCH');
+  const alone = def.visible_with !== undefined;
+  const changes = methods.has('PATCH');
+  if (def.client_key !== undefined && (batches || alone)) push('ENDPOINT_CHILDREN_NO_CREATE', 'a retry key belongs to a single create: a batch, or a row visible with a parent, never looks one up');
+  if (def.expect !== undefined && (batches || (alone && !changes))) push('ENDPOINT_CHILDREN_NO_CREATE', 'a price check belongs to a single create or a change: a batch, or a row visible with a parent created alone, never checks one');
+  if (def.dry_run === true && alone && !changes) push('ENDPOINT_CHILDREN_NO_CREATE', 'a row visible with a parent is created alone, and is never tried first: a dry run here belongs to a change');
+  if (def.agrees !== undefined && batches) push('ENDPOINT_CHILDREN_NO_CREATE', 'a batch never judges an agreement: an endpoint that agrees takes its rows one write at a time');
 
   if (def.expect !== undefined) {
     const column = table.table.columns.find((c) => c.name === def.expect);

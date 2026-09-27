@@ -1405,6 +1405,11 @@ function treeIssues(
     }
     if (entry.dryRun === true && !creates && !changes) out.push({ path: at('dryRun'), message: 'a dry run tries a create or a change, and this entry makes neither' });
     if (entry.clientKey !== undefined && !creates) out.push({ path: at('clientKey'), message: 'a retry key belongs to a create' });
+    // A row visible with a parent is created alone, not the tree's way: what belongs to a single create's tree would never run there.
+    const alone = entry.visibleWith !== undefined;
+    if (entry.clientKey !== undefined && alone) out.push({ path: at('clientKey'), message: 'a row visible with a parent is created alone, and never looks a retry key up' });
+    if (entry.expect !== undefined && alone && !changes) out.push({ path: at('expect'), message: 'a row visible with a parent is created alone, and never checks a price: a price check here belongs to a change' });
+    if (entry.dryRun === true && alone && !changes) out.push({ path: at('dryRun'), message: 'a row visible with a parent is created alone, and is never tried first: a dry run here belongs to a change' });
 
     if (entry.expect !== undefined) {
       const column = index.column(entry.table, entry.expect);
