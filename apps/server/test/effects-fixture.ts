@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Two box offices whose moves move a row of another table (`states.effects`)
- * that a limit or a total reads: door sales, where a ticket collected pays its
- * order (the order owns the tickets its state counts, keeps their total, and
+ * that a limit or a total reads: door sales, where the money taken at the
+ * door for an order — the whole of it, in one collection — pays the order
+ * (the order owns the tickets its state counts, keeps their total, and
  * climbs into what its event took in); and a waitlist, whose entry follows
  * the order made for its offer (the entry owns the orders held until its
  * offer ends; its list counts the entries that claimed).
@@ -33,7 +34,12 @@ function app(key: string, tables: Doc[]): Doc {
   };
 }
 
-/** Door sales: a ticket collected pays its order; the event adds up what its paid orders came to. */
+/**
+ * Door sales: the order's money taken at the door pays it; the event adds up
+ * what its paid orders came to. (A ticket collected is no payment of its
+ * order: an order of two is paid when both are, and an effect moves its row
+ * whatever the other tickets say.)
+ */
 export function door(): Doc {
   return app('door', [
     settings,
@@ -69,7 +75,11 @@ export function door(): Doc {
         ],
         hold: { via: 'order_id', states: ['held'], column: 'held_until' },
       },
-      states: { column: 'status', initial: 'valid', moves: { valid: ['collected'] }, effects: [{ on: { to: 'collected' }, via: 'order_id', set: { status: 'paid' } }] },
+    },
+    {
+      ref: 'collections',
+      columns: [id, { ref: 'order_id', type: 'fk', references: 'orders' }, { ref: 'amount', type: 'decimal', scale: 2, default: 0 }, { ref: 'status', type: 'enum', enum: ['due', 'taken'], default: 'due' }],
+      states: { column: 'status', initial: 'due', moves: { due: ['taken'] }, effects: [{ on: { to: 'taken' }, via: 'order_id', set: { status: 'paid' } }] },
     },
   ]);
 }

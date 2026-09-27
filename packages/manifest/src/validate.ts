@@ -10,6 +10,7 @@ import {
   FIRST_PARTY_PUBLISHER_ID,
   RESERVED_KEYS,
   addOnIssues,
+  cappedFormulaWarnings,
   manifestSchema,
   type Manifest,
 } from './schema.js';
@@ -85,6 +86,8 @@ export function manifestWarnings(manifest: Manifest): ManifestIssue[] {
       }
     });
   });
+  // A capped balance worked out from a formula whose columns stay open while the capped rows exist.
+  for (const warning of cappedFormulaWarnings(manifest.requiredSchema?.tables ?? [])) out.push({ path: warning.path.map(String).join('.'), message: warning.message });
   /*
    * Every manifest setting that is not secret is published to the app's
    * customer side. Bank details belong in the app's settings table, read

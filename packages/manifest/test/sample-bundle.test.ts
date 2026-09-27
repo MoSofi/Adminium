@@ -150,11 +150,13 @@ describe('adminium.sample/1', () => {
   it('reads a directive for what it is', () => {
     expect(sampleDirective({ '@ref': 'x' })).toEqual({ kind: 'ref', label: 'x' });
     expect(sampleDirective({ '@ago': 'PT5M' })).toEqual({ kind: 'ago', duration: 'PT5M' });
-    expect(sampleDirective({ '@in': 'PT20M', '@grid': 15 })).toEqual({ kind: 'in', duration: 'PT20M', grid: 15 });
-    expect(sampleDirective({ '@in': 'PT5M' })).toEqual({ kind: 'in', duration: 'PT5M', grid: null });
-    expect(sampleDirective({ '@day': -1, '@time': '09:30' })).toEqual({ kind: 'wall', day: -1, time: '09:30', workdays: false });
+    expect(sampleDirective({ '@in': 'PT20M', '@grid': 15 })).toEqual({ kind: 'in', duration: 'PT20M', grid: 15, slot: null });
+    expect(sampleDirective({ '@in': 'PT5M' })).toEqual({ kind: 'in', duration: 'PT5M', grid: null, slot: null });
+    expect(sampleDirective({ '@day': -1, '@time': '09:30' })).toEqual({ kind: 'wall', day: -1, time: '09:30', workdays: false, week: false });
     expect(sampleDirective({ '@t': { 'en-US': 'Hi' } })).toEqual({ kind: 't', texts: { 'en-US': 'Hi' } });
     expect(sampleDirective({ '@asset': 'img' })).toEqual({ kind: 'asset', label: 'img' });
+    expect(sampleDirective({ '@in': 'PT20M', '@slot': 'orders' })).toEqual({ kind: 'in', duration: 'PT20M', grid: null, slot: 'orders' });
+    expect(sampleDirective({ '@day': 3, '@week': true })).toEqual({ kind: 'date', day: 3, workdays: false, week: true });
     expect(sampleDirective('plain')).toBeNull();
     expect(sampleDirective({ a: 1 })).toBeNull();
     expect(sampleDirective([1])).toBeNull();
@@ -199,9 +201,9 @@ describe('days, working days and the clock', () => {
     });
 
   it('reads a date alone, and working days on either form', () => {
-    expect(sampleDirective({ '@day': 2 })).toEqual({ kind: 'date', day: 2, workdays: false });
-    expect(sampleDirective({ '@day': 0, '@workdays': true })).toEqual({ kind: 'date', day: 0, workdays: true });
-    expect(sampleDirective({ '@day': -1, '@time': '09:30', '@workdays': true })).toEqual({ kind: 'wall', day: -1, time: '09:30', workdays: true });
+    expect(sampleDirective({ '@day': 2 })).toEqual({ kind: 'date', day: 2, workdays: false, week: false });
+    expect(sampleDirective({ '@day': 0, '@workdays': true })).toEqual({ kind: 'date', day: 0, workdays: true, week: false });
+    expect(sampleDirective({ '@day': -1, '@time': '09:30', '@workdays': true })).toEqual({ kind: 'wall', day: -1, time: '09:30', workdays: true, week: false });
     expect(sampleBundleIssues(bundleWith({ added_at: { '@day': 1, '@workdays': true } }), manifest())).toEqual([]);
     // A malformed one is refused rather than written into the column.
     expect(sampleBundleIssues(bundleWith({ added_at: { '@day': 1, '@workdays': 'yes' } }), manifest()).map((i) => i.message)).toEqual([

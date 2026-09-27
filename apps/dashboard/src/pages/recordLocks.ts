@@ -44,6 +44,9 @@ export interface StateParentFact {
   lockedIn: string[];
   lock?: true;
   parentIn?: string[];
+  /** The states a new child is added in, and those a child is changed or deleted in (each `parentIn` when not said apart). */
+  createIn?: string[];
+  changeIn?: string[];
   /** While the parent is in one of `when`, a locked child may still empty these columns. */
   release?: { when: string[]; columns: string[] };
 }
@@ -113,11 +116,14 @@ export function deleteRefused(table: TableStateFacts, row: Row): boolean {
 /**
  * Whether a child row may change while its parent is in `parentState`: not
  * while a parent that locks its children is locked, and — for a table tied to
- * some of the parent's states (payments to a sent invoice) — only in those.
+ * some of the parent's states (payments to a sent invoice) — only in those:
+ * the states a new child is added in (`on: 'create'`), or those an existing
+ * one is changed in.
  */
-export function childWritable(parent: StateParentFact, parentState: string | null): boolean {
+export function childWritable(parent: StateParentFact, parentState: string | null, on: 'create' | 'change' = 'change'): boolean {
   if (parent.lock === true && parentState !== null && parent.lockedIn.includes(parentState)) return false;
-  if (parent.parentIn !== undefined && (parentState === null || !parent.parentIn.includes(parentState))) return false;
+  const within = (on === 'create' ? parent.createIn : parent.changeIn) ?? parent.parentIn;
+  if (within !== undefined && (parentState === null || !within.includes(parentState))) return false;
   return true;
 }
 
@@ -127,7 +133,7 @@ export function childWritable(parent: StateParentFact, parentState: string | nul
  * nothing — or does not close it at all.
  */
 export function releasedColumns(parent: StateParentFact, parentState: string | null): string[] | null {
-  if (childWritable(parent, parentState) || parent.parentIn !== undefined) return null;
+  if (childWritable(parent, parentState) || (parent.changeIn ?? parent.parentIn) !== undefined) return null;
   const release = parent.release;
   return release !== undefined && parentState !== null && release.when.includes(parentState) ? release.columns : null;
 }

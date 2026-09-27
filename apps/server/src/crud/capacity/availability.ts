@@ -69,8 +69,23 @@ async function takeable(rule: SlotRule, slot: GridSlot, day: string, reads: Read
   return window === null || Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) <= window;
 }
 
+/**
+ * What one row may take of a slot, for a party asked about: a rule whose
+ * rows each take a fixed amount (an order is one of a slot's orders, however
+ * many it feeds) is asked for that amount; a party column is never asked for
+ * more than one row may hold (its `validation.max`). A page cannot learn how
+ * full a slot is by asking for ever larger parties.
+ */
+export function slotParty(target: Pick<WriteTarget, 'table'>, rule: SlotRule, party: number): number {
+  if ('value' in rule.amount) return rule.amount.value;
+  const column = rule.amount.column;
+  const max = target.table.table?.columns.find((c) => c.name === column)?.validation?.max;
+  return max === undefined ? party : Math.min(party, max);
+}
+
 /** Each time of a venue day, for a party: free, full or paused. A day the venue is closed, or does not open, has none. */
-export async function slotDayAnswer(db: Db, target: WriteTarget, rule: SlotRule, day: string, party: number, now: Date, exclude: readonly Row[] = []): Promise<SlotTime[]> {
+export async function slotDayAnswer(db: Db, target: WriteTarget, rule: SlotRule, day: string, asked: number, now: Date, exclude: readonly Row[] = []): Promise<SlotTime[]> {
+  const party = slotParty(target, rule, asked);
   const zone = target.timezone ?? 'UTC';
   const reads = new Reads(db);
   const [one] = await slotDays(rule, reads, zone, [day]);
@@ -97,7 +112,8 @@ export interface SlotDayState {
 }
 
 /** A strip of venue days: each closed (or not opening), full, or open with how many times are free. */
-export async function slotStripAnswer(db: Db, target: WriteTarget, rule: SlotRule, from: string, days: number, party: number, now: Date, exclude: readonly Row[] = []): Promise<SlotDayState[]> {
+export async function slotStripAnswer(db: Db, target: WriteTarget, rule: SlotRule, from: string, days: number, asked: number, now: Date, exclude: readonly Row[] = []): Promise<SlotDayState[]> {
+  const party = slotParty(target, rule, asked);
   const zone = target.timezone ?? 'UTC';
   const reads = new Reads(db);
   const list = rangeOf(from, addDays(from, days));

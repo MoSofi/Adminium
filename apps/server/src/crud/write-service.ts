@@ -80,7 +80,7 @@ import { sql, type DeleteQueryBuilder, type DeleteResult, type Kysely, type Upda
 import type { Dialect } from '@adminium/engine';
 import type { TablePrivileges } from '@adminium/engine/adapter';
 
-import { rollupValue } from '@adminium/manifest';
+import { isChangeEffect, rollupValue, type MoveEffect } from '@adminium/manifest';
 
 import { AppError, ConflictError, ValidationFailedError } from '../errors.js';
 import type { StateLink } from '../connections/effective-schema.js';
@@ -2031,10 +2031,17 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   /** The rules of each table a change's effects would move a row of (the effects its new state sets off). */
   function effectTablesOf(target: WriteTarget, values: Row): (TableRules | null)[] {
     const states = target.table.table?.states;
-    if (states === undefined || !Object.prototype.hasOwnProperty.call(values, states.column)) return [];
+    if (states === undefined) return [];
     const out: (TableRules | null)[] = [];
-    for (const effect of (states.effects ?? []).filter((e) => sameValue(values[states.column], e.on.to))) {
-      const link = (target.table.table?.stateLinks ?? []).find((candidate) => candidate.via === effect.via);
+    // A move's effects, and a changed link's (the rows on both sides of it).
+    const vias = [
+      ...(Object.prototype.hasOwnProperty.call(values, states.column)
+        ? (states.effects ?? []).flatMap((e) => (!isChangeEffect(e) && sameValue(values[states.column], e.on.to) ? [e.via] : []))
+        : []),
+      ...(states.effects ?? []).flatMap((e) => (isChangeEffect(e) && Object.prototype.hasOwnProperty.call(values, e.on.change) ? [e.on.change] : [])),
+    ];
+    for (const via of vias) {
+      const link = (target.table.table?.stateLinks ?? []).find((candidate) => candidate.via === via);
       if (link === undefined) continue;
       try {
         out.push(rulesOf({ ...target, table: target.view.table(link.table) }));
@@ -2057,12 +2064,31 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    */
   async function effectRows(db: Db, target: WriteTarget, context: WriteContext, clock: WriteClock, values: Row, storedRow: Promise<Row | null>): Promise<PreparedEffect[]> {
     const states = target.table.table?.states;
-    if (states === undefined || !Object.prototype.hasOwnProperty.call(values, states.column)) return [];
+    if (states === undefined) return [];
+    const relinks = (states.effects ?? []).filter((e) => isChangeEffect(e) && Object.prototype.hasOwnProperty.call(values, e.on.change));
+    if (!Object.prototype.hasOwnProperty.call(values, states.column) && relinks.length === 0) return [];
     const stored = await storedRow;
     if (stored === null) return [];
     const to = values[states.column];
     const out: PreparedEffect[] = [];
-    for (const effect of (states.effects ?? []).filter((e) => sameValue(to, e.on.to))) {
+    // A changed link's rows, as they would move: the one it pointed at, and the one it will point at.
+    for (const effect of (states.effects ?? []).filter(isChangeEffect)) {
+      const via = effect.on.change;
+      if (!Object.prototype.hasOwnProperty.call(values, via) || sameValue(stored[via], values[via])) continue;
+      const was = String(stored[states.column] ?? states.initial);
+      const now = String({ ...stored, ...values }[states.column] ?? states.initial);
+      if (effect.on.in !== undefined && !(effect.on.in.includes(was) && effect.on.in.includes(now))) continue;
+      const link = (target.table.table?.stateLinks ?? []).find((candidate) => candidate.via === via);
+      if (link === undefined) continue;
+      for (const [key, set] of [[stored[via], effect.old?.set], [values[via], effect.new?.set]] as const) {
+        if (set === undefined || key === null || key === undefined) continue;
+        const [column, state] = Object.entries(set)[0]!;
+        const prepared = await prepareEffect(db, target, context, clock, link, key, column, String(state));
+        if (prepared !== null && !sameValue(prepared.before[column], state)) out.push(prepared);
+      }
+    }
+    if (!Object.prototype.hasOwnProperty.call(values, states.column)) return out;
+    for (const effect of (states.effects ?? []).filter((e): e is MoveEffect => !isChangeEffect(e) && sameValue(to, e.on.to))) {
       const link = (target.table.table?.stateLinks ?? []).find((candidate) => candidate.via === effect.via);
       const key = { ...stored, ...values }[effect.via];
       if (link === undefined || key === null || key === undefined) continue;

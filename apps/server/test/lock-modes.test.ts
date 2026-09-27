@@ -10,7 +10,7 @@
  *
  *  - a line's change settles its order's subtotal, then the tax and total
  *    worked out from it: another line added to the order meanwhile goes in;
- *  - a door ticket collected pays its order (an effect): another ticket
+ *  - an order's money taken at the door pays it (an effect): another ticket
  *    added to the order meanwhile goes in.
  *
  * (MySQL has one lock for a row a write changes, and a new row's key check
@@ -75,7 +75,7 @@ describe.runIf(postgres)('one lock mode for every row a write keeps — postgres
     }
   }, 120_000);
 
-  it('a door ticket collected pays its order, and a ticket added meanwhile goes in', async () => {
+  it("an order's money taken at the door pays it, and a ticket added meanwhile goes in", async () => {
     const h = await installInvoicing('postgres', door());
     try {
       const w = await writerFor(h, 'Europe/London');
@@ -83,13 +83,14 @@ describe.runIf(postgres)('one lock mode for every row a write keeps — postgres
       const event = await w.create('events', { name: 'Show' });
       const type = await w.create('ticket_types', { event_id: event['id'], capacity: 9 });
       const order = await w.create('orders', { event_id: event['id'] });
-      const ticket = await w.create('tickets', { order_id: order['id'], ticket_type_id: type['id'], price: 10 });
+      await w.create('tickets', { order_id: order['id'], ticket_type_id: type['id'], price: 10 });
       await w.update('orders', order['id'], { status: 'door' });
+      const money = await w.create('collections', { order_id: order['id'], amount: 10 });
       let meanwhile = '';
       const collected = await w.writes.update({
-        target: w.targetOf('tickets'),
-        pk: { id: ticket['id'] },
-        values: { status: 'collected' },
+        target: w.targetOf('collections'),
+        pk: { id: money['id'] },
+        values: { status: 'taken' },
         context: w.desk,
         inside: async () => {
           meanwhile = await goesIn(h, `insert into ${h.real('tickets')} (order_id, ticket_type_id, price, status) values (${String(order['id'])}, ${String(type['id'])}, 5, 'valid')`);

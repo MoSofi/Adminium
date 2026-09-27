@@ -19,7 +19,7 @@ import type {
   TableModel,
 } from '@adminium/engine';
 import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
-import type { CreateRequires, LateMove, Moment, StateEffect, TimedMove, LinkedCondition, SettingCondition, TimeCondition } from '@adminium/manifest';
+import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type TimeCondition } from '@adminium/manifest';
 import type { SchemaOverride } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
@@ -179,8 +179,8 @@ export type StampSet =
   | { claim: string; staff?: 'user-name' | 'user-id' }
   | { addDays: { date: string; days: string | number; map?: Record<string, number> } }
   | { hashOf: HashOf }
-  /** Now plus minutes or hours; a setting's number is read from the settings row (its table id). */
-  | { addMinutes: { minutes?: StampAmount; hours?: StampAmount } }
+  /** Now plus minutes or hours, never later than `notAfter`; a setting's number is read from the settings row (its table id). */
+  | { addMinutes: { minutes?: StampAmount; hours?: StampAmount; notAfter?: Moment } }
   /** Days after today at a time of day, never later than `notAfter`. */
   | { deadline: { days: StampAmount; time: string | { table: string; column: string }; notAfter?: Moment } }
   /** A moment of the row or a linked row; none found writes empty. */
@@ -224,6 +224,9 @@ export interface TableStatesRule {
       via: string;
       lock?: true;
       parentIn?: string[];
+      /** Apart from `parentIn`: the states a new child is added in, and those a child is changed or deleted in. */
+      createIn?: string[];
+      changeIn?: string[];
       clearOnCreate?: string[];
       /** While the parent is in one of `when`, a locked child may still empty these columns of its own, and change nothing else. */
       release?: { when: string[]; columns: string[] };
@@ -306,6 +309,10 @@ export interface StateParent {
   lockedBy: LockedByReference[];
   lock?: true;
   parentIn?: string[];
+  /** The states a new row is added in (`createIn`, else `parentIn`): absent, any. */
+  createIn?: string[];
+  /** The states a row is changed or deleted in (`changeIn`, else `parentIn`): absent, any. */
+  changeIn?: string[];
   clearOnCreate?: string[];
   release?: { when: string[]; columns: string[] };
   /**
@@ -974,7 +981,7 @@ function stateVias(states: TableStatesRule): string[] {
       ...moves,
       ...conditions(states.create?.requires),
       ...(states.late ?? []).flatMap((late) => moments(late.moment)),
-      ...(states.effects ?? []).map((effect) => effect.via),
+      ...(states.effects ?? []).map((effect) => (isChangeEffect(effect) ? effect.on.change : effect.via)),
     ]),
   ];
 }
@@ -1083,6 +1090,8 @@ function tieStates(tables: ReadonlyMap<string, EffectiveTable>, relations: reado
         lockedBy: table.lockedBy ?? [],
         ...(rule.lock === undefined ? {} : { lock: rule.lock }),
         ...(rule.parentIn === undefined ? {} : { parentIn: rule.parentIn }),
+        ...((rule.createIn ?? rule.parentIn) === undefined ? {} : { createIn: rule.createIn ?? rule.parentIn }),
+        ...((rule.changeIn ?? rule.parentIn) === undefined ? {} : { changeIn: rule.changeIn ?? rule.parentIn }),
         ...(rule.clearOnCreate === undefined ? {} : { clearOnCreate: rule.clearOnCreate }),
         ...(rule.release === undefined ? {} : { release: rule.release }),
         ...(links.length === 0 ? {} : { links }),

@@ -46,15 +46,16 @@ describe.each(LEGS)("an effect's row that moved away from its lock — %s", (dia
     const event = await w.create('events', { name: 'Show' });
     const type = await w.create('ticket_types', { event_id: event['id'], capacity: 4 });
     const order = await w.create('orders', { event_id: event['id'] });
-    const ticket = await w.create('tickets', { order_id: order['id'], ticket_type_id: type['id'], price: 10 });
+    await w.create('tickets', { order_id: order['id'], ticket_type_id: type['id'], price: 10 });
     await w.update('orders', order['id'], { status: 'door' });
+    const money = await w.create('collections', { order_id: order['id'], amount: 10 });
     const mapped: string[] = [];
     looks.count = 0;
     looks.blind = true;
     const collected = await w.writes.update({
-      target: w.targetOf('tickets'),
-      pk: { id: ticket['id'] },
-      values: { status: 'collected' },
+      target: w.targetOf('collections'),
+      pk: { id: money['id'] },
+      values: { status: 'taken' },
       context: w.desk,
       // A door's own mapping: what it is handed becomes its refusal.
       mapError: (error) => {

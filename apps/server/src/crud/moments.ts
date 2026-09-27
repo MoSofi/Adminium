@@ -79,9 +79,12 @@ export interface MomentContext {
 }
 
 /**
- * A setting reader over a handle, each setting read once: the first row of
- * the settings table, as the write's own handle sees it. What cannot be read
- * is undefined — a moment then has none.
+ * A setting reader over a handle, each setting read once: the ONE row of the
+ * settings table, as the write's own handle sees it. What cannot be read is
+ * undefined — a moment then has none, and a move waiting for a setting is
+ * refused. A table holding more than one row has no setting to read: which
+ * row would be "the" settings is anybody's guess (another guest's arrival
+ * time, say), so none of them is read.
  */
 export function momentSettings(db: Kysely<SourceDatabase>): MomentSettings {
   const memo = new Map<string, Promise<unknown>>();
@@ -92,9 +95,9 @@ export function momentSettings(db: Kysely<SourceDatabase>): MomentSettings {
       found = db
         .selectFrom(setting.table)
         .select(sql<unknown>`${sql.ref(setting.column)}`.as('value'))
-        .limit(1)
-        .executeTakeFirst()
-        .then((row) => (row as { value?: unknown } | undefined)?.value ?? undefined)
+        .limit(2)
+        .execute()
+        .then((rows) => (rows.length === 1 ? ((rows[0] as { value?: unknown }).value ?? undefined) : undefined))
         .catch(() => undefined);
       memo.set(key, found);
     }
@@ -170,12 +173,15 @@ async function hoursEdgeOn(day: string, time: HoursEdge, context: MomentContext)
   const dayEnd = wallOn(dayPlus(day, 1), '00:00', context.zone);
   let row: Row | undefined;
   try {
-    row = (await context.db
+    const rows = (await context.db
       .selectFrom(hours.table)
       .selectAll()
       .where((eb) => eb(context.db.dynamic.ref(hours.weekday), '=', weekdayOf(day)))
-      .limit(1)
-      .executeTakeFirst()) as Row | undefined;
+      .limit(2)
+      .execute()) as Row[];
+    // Two rows for one weekday say two things: neither is read as the day's hours.
+    if (rows.length > 1) return null;
+    row = rows[0];
   } catch {
     return null;
   }
@@ -193,10 +199,23 @@ async function hoursEdgeOn(day: string, time: HoursEdge, context: MomentContext)
 
 const yes = (value: unknown): boolean => value === true || value === 1 || value === '1' || value === 't' || value === 'true';
 
-/** The instant a wall time names on a venue day, or null. */
-async function wallTimeOn(day: string, time: WallTime, context: MomentContext): Promise<Date | null> {
+/** A time of day as a column keeps it (`HH:MM`, `H:MM` as a person types it, or a database time `HH:MM:SS`) as `HH:MM`, or null. */
+export function clockOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const match = /^(\d{1,2}):([0-5]\d)(:[0-5]\d(\.\d+)?)?$/.exec(value.trim());
+  if (match === null || Number(match[1]) > 23) return null;
+  return `${match[1]!.padStart(2, '0')}:${match[2]}`;
+}
+
+/** The instant a wall time names on a venue day, or null. `row` is the row the moment's column was read from. */
+async function wallTimeOn(day: string, time: WallTime, context: MomentContext, row: Row): Promise<Date | null> {
   if (typeof time === 'string') return wallOn(day, time, context.zone);
   if ('edge' in time) return hoursEdgeOn(day, time, context);
+  // A time kept on the row itself: empty, or no time of day, is no moment.
+  if (!('table' in time)) {
+    const clock = clockOf(row[time.column]);
+    return clock === null ? null : wallOn(day, clock, context.zone);
+  }
   const read = await context.settings(time);
   return typeof read === 'string' ? wallOn(day, read, context.zone) : null;
 }
@@ -220,10 +239,10 @@ async function plainMomentOf(moment: PlainMoment, context: MomentContext): Promi
   let base: Date | null;
   if (isDay(value, type)) {
     const day = readDay(value);
-    base = day === null || moment.time === undefined ? null : await wallTimeOn(day, moment.time, context);
+    base = day === null || moment.time === undefined ? null : await wallTimeOn(day, moment.time, context, row);
   } else {
     const at = readInstant(value);
-    base = at === null ? null : moment.time === undefined ? at : await wallTimeOn(venueClock(at, context.zone).day, moment.time, context);
+    base = at === null ? null : moment.time === undefined ? at : await wallTimeOn(venueClock(at, context.zone).day, moment.time, context, row);
   }
   if (base === null) return null;
   if (moment.plus !== undefined) return shifted(base, moment.plus, 1, context);
