@@ -7,7 +7,8 @@
  * out again when it changes, falling back to the house's time when empty);
  * a check-in is allowed from two hours before it; the clock makes the stay a
  * no-show six hours after it. A time the clocks pass twice (01:30 on 25
- * October 2026) is read as the first.
+ * October 2026) is read as the first. A time that does not read as one
+ * ("9pm") is refused when it is written, never kept as no moment.
  *
  * And the settings a moment reads come from the ONE settings row: a table
  * found holding two rows has no setting at all — never whichever came first.
@@ -59,9 +60,13 @@ describe.each(LEGS)("a moment's time of day kept on the row — %s", (dialect, a
     // As a person types it, or as a database time keeps it.
     await w.update('stays', s['id'], { arrival_time: '9:05' });
     expect(await expected(s['id'])).toBe('2026-11-02T09:05:00.000Z');
-    // Not a time of day: the house's time stands in.
-    await w.update('stays', s['id'], { arrival_time: '25:00' });
-    expect(await expected(s['id'])).toBe('2026-11-02T15:00:00.000Z');
+    // Not a time of day: refused, never kept as no moment at all.
+    for (const typed of ['25:00', '9pm', '9:00 pm', '21.30']) {
+      await expect(w.update('stays', s['id'], { arrival_time: typed })).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { fields: { arrival_time: { code: 'format' } } } });
+    }
+    await expect(stay({ arrival_time: 'soon' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(await expected(s['id'])).toBe('2026-11-02T09:05:00.000Z');
+    // Emptied: the house's time stands in.
     await w.update('stays', s['id'], { arrival_time: null });
     expect(await expected(s['id'])).toBe('2026-11-02T15:00:00.000Z');
   });
