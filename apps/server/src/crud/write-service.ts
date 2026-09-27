@@ -92,7 +92,7 @@ import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
-import { canonicalCode } from './code-lookup.js';
+import { canonicalCode, isLookupIssue, lookupIssue, type LookupMiss } from './code-lookup.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   attachRequiredGuards,
@@ -2735,7 +2735,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           continue;
         }
         // No stored row here: an update's formulas are worked out by a path that reads one (`beforeEach`).
-        const values = await formulate(rules, action, target, await prepareValues(rules, action, target, context, row, now, memo), null, context.origin);
+        const prepared = await lookupIssue(prepareValues(rules, action, target, context, row, now, memo));
+        if (isLookupIssue(prepared)) {
+          issues.push(prepared.issues);
+          out.push(null);
+          continue;
+        }
+        const values = await formulate(rules, action, target, prepared, null, context.origin);
         const issue = mergeIssues(checkRow(judgedBy(rules, target, context), action, values, { dialect: target.dialect, columns: target.table.columns }), await boundIssues(rules, action, target, context, values, null));
         issues.push(issue);
         out.push(issue === null ? await carry(rules, action, target, context, await numbered(rules, action, target, context, brand(values)), null, clock) : null);
@@ -3410,8 +3416,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         const guarded = brand(attachRequiredGuards(worked, requiredGuards(judged, action, worked, record)));
         return { values: await carry(rules, action, target, context, await numbered(rules, action, target, context, guarded), record, clock), issues };
       };
-      const start = (values: Row): Promise<Row> =>
-        withRules ? prepareValues(rules, action, target, context, values, now, memo) : Promise.resolve(values);
+      /** FILL and RESOLVE; a code typed that finds nothing is that row's own issue. An update's scope reads the row as stored. */
+      const start = (values: Row, row?: PlannedRow): Promise<Row | LookupMiss> =>
+        withRules ? lookupIssue(prepareValues(rules, action, target, context, values, now, memo, row === undefined || action !== 'update' ? undefined : () => storedOf(row))) : Promise.resolve(values);
       /** DECIDE against the stored row, as a single-row write does; a refusal is that row's own issue. */
       const decided = async (values: Row, record: Row | null): Promise<{ values: Row; refused: FieldIssues | null }> => {
         if (!withRules || action === 'delete' || (action === 'update' && !needsStored(rules))) return { values, refused: null };
@@ -3434,7 +3441,11 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             out.push({ values: brand(row.values), issues: unstorable, record: undefined });
             continue;
           }
-          const filled = await start(row.values);
+          const filled = await start(row.values, row);
+          if (isLookupIssue(filled)) {
+            out.push({ values: brand(row.values), issues: filled.issues, record: undefined });
+            continue;
+          }
           if (action === 'update' && withRules && movedBalances(rules, filled).some((balance) => balance.cappedBy.length > 0)) {
             refuseMovedBalance(rules, target, filled, await storedOf(row), beforeOpts?.capacity);
           }
@@ -3455,7 +3466,12 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           prepared.push({ values: brand(row.values), record: undefined, issues: unstorable });
           continue;
         }
-        const filled = await start(row.values);
+        const started = await start(row.values, row);
+        if (isLookupIssue(started)) {
+          prepared.push({ values: brand(row.values), record: undefined, issues: started.issues });
+          continue;
+        }
+        const filled = started;
         let record: Row | null = null;
         if (action !== 'create') {
           record = await storedOf(row);

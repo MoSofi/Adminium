@@ -196,15 +196,6 @@ export function keyRateKeyFor(keyId: string, side: PublicKeySide): string {
 export const PUBLIC_FAILED_RESOLUTION = { max: 30, windowMs: 60_000 } as const;
 
 /**
- * Codes a guest types (a discount, a presale code): each MISS is a guess at a
- * code, so misses are counted — per visitor (the address), and on the whole
- * key on a rung of its own, apart from claims and writes. A code that works
- * costs nothing, so a buyer re-quoting a cart with STUDENT10 in it is never
- * stopped by their own page. Once either count is spent, every code typed is
- * refused until the window opens — a working one too, which is the rung's
- * residual: misses from many addresses can hold a key's codes for a minute.
- */
-/**
  * Pictures anyone may see, per address — before any key is resolved, and in
  * place of the flood guard, which a menu page's photos would outrun: a
  * restaurant's Wi-Fi puts many diners behind one address. IPv6 counts by its
@@ -212,10 +203,43 @@ export const PUBLIC_FAILED_RESOLUTION = { max: 30, windowMs: 60_000 } as const;
  */
 export const PUBLIC_PICTURES = { max: 1200, windowMs: 60_000 } as const;
 
+/**
+ * Codes a guest types (a discount, a presale code): each MISS is a guess at a
+ * code, so misses are counted — per visitor (the address), and on the whole
+ * key on a rung of its own, apart from claims and writes.
+ *
+ * A guess is RESERVED before its code is looked up, on both counts at once,
+ * and given back when the code worked (or nothing was looked up): so however
+ * many arrive together, no more are looked up than the count has room for —
+ * a count read before the lookup and added to after it let every request in
+ * flight through. A code that works costs nothing, so a buyer re-quoting a
+ * cart with STUDENT10 in it is never stopped by their own page.
+ *
+ * Once either count is spent, every code typed is refused until the window
+ * opens. A visitor's own code that already worked (by key, address and the
+ * code spelled as codes are kept, for an hour) is not held against the key's
+ * count, nor reserved — it is counted only if it misses now (gone by date or
+ * by uses since) — so misses from many addresses cannot take a code out of a
+ * cart that holds it, and a page asking several things with it at once is
+ * not refused. The visitor's own misses still stop it. The residual: a
+ * visitor typing a code for the first time while the key's misses are spent
+ * waits for the window.
+ */
 export const PUBLIC_CODE_GUESSES = {
   visitor: { max: 5, windowMs: 60_000 },
   key: { max: 60, windowMs: 60_000 },
 } as const;
+
+/** How long a code that worked is remembered for its visitor. */
+export const PUBLIC_CODE_KNOWN_MS = 60 * 60_000;
+
+/** A guess held while its code is looked up: given back when it was no miss. */
+export interface GuessTicket {
+  /** The code worked, or nothing was looked up: the guess is handed back (once). */
+  giveBack: () => void;
+  /** The code missed: the guess is kept (a code that had worked before is counted now). */
+  keep: () => void;
+}
 
 export interface RateDecision {
   allowed: boolean;
@@ -254,10 +278,16 @@ export interface PublicRateLimiter {
   resolutionBlocked: (ip: string) => RateDecision | null;
   /** One more failed resolution from this address. */
   failedResolution: (ip: string) => void;
-  /** Whether a typed code may be tried: the visitor's and the key's misses; counts nothing. */
-  guessBlocked: (keyId: string, ip: string) => RateDecision | null;
-  /** One more typed code that found nothing (or nothing left). */
-  missedGuess: (keyId: string, ip: string) => void;
+  /**
+   * Reserve one guess before a typed code is looked up, on the visitor's
+   * count and the key's; refused (nothing counted) when either is spent. When
+   * every code typed already worked for this visitor, only the visitor's
+   * count is asked and nothing is reserved: the guess is counted if it is
+   * kept (a miss).
+   */
+  reserveGuess: (keyId: string, ip: string, codes: readonly string[]) => { refused: RateDecision } | { ticket: GuessTicket };
+  /** These codes worked for this visitor: remembered, so they are not held back again. */
+  knownCodes: (keyId: string, ip: string, codes: readonly string[]) => void;
   /** A picture asked for, per address, before any key is resolved. */
   hitPicture: (ip: string) => RateDecision;
   /** Test seam only. */
@@ -424,6 +454,13 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     [`guess|pub:${keyId}:ip:${rateAddress(ip)}`, PUBLIC_CODE_GUESSES.visitor],
     [`guess|pubkey:${keyId}`, PUBLIC_CODE_GUESSES.key],
   ];
+  /** Codes that worked, by key, visitor and the code as typed: a window of an hour each, kept apart from every count. */
+  const known = new Map<string, Window>();
+  const knownKey = (keyId: string, ip: string, code: string): string => `known|${keyId}|${rateAddress(ip)}|${code}`;
+  const isKnown = (keyId: string, ip: string, code: string): boolean => {
+    const window = known.get(knownKey(keyId, ip, code));
+    return window !== undefined && window.resetAt > now();
+  };
 
   return {
     hitUnverified(ip) {
@@ -445,15 +482,58 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     failedResolution(ip) {
       decide(windows, failKey(ip), PUBLIC_FAILED_RESOLUTION, 1, true);
     },
-    guessBlocked(keyId, ip) {
-      for (const [key, spec] of guessCounters(keyId, ip)) {
-        const decision = decide(windows, key, spec, 1, false);
-        if (!decision.allowed) return decision;
+    reserveGuess(keyId, ip, codes) {
+      const counters = guessCounters(keyId, ip);
+      if (codes.length > 0 && codes.every((code) => isKnown(keyId, ip, code))) {
+        const own = decide(windows, counters[0]![0], counters[0]![1], 1, false);
+        if (!own.allowed) return { refused: own };
+        let settled = false;
+        return {
+          ticket: {
+            giveBack: () => {
+              settled = true;
+            },
+            keep: () => {
+              if (settled) return;
+              settled = true;
+              for (const [key, spec] of counters) decide(windows, key, spec, 1, true);
+            },
+          },
+        };
       }
-      return null;
+      // Both counts judged before either is added to: one that is spent adds nothing to the other.
+      for (const [key, spec] of counters) {
+        const decision = decide(windows, key, spec, 1, false);
+        if (!decision.allowed) return { refused: decision };
+      }
+      const held: Window[] = [];
+      for (const [key, spec] of counters) {
+        decide(windows, key, spec, 1, true);
+        held.push(windows.get(key)!);
+      }
+      let given = false;
+      return {
+        ticket: {
+          giveBack: () => {
+            if (given) return;
+            given = true;
+            // The window it was counted in; one that has since closed has nothing to give back.
+            for (const window of held) window.count = Math.max(0, window.count - 1);
+          },
+          keep: () => {
+            given = true;
+          },
+        },
+      };
     },
-    missedGuess(keyId, ip) {
-      for (const [key, spec] of guessCounters(keyId, ip)) decide(windows, key, spec, 1, true);
+    knownCodes(keyId, ip, codes) {
+      const at = now();
+      sweep(known, at);
+      for (const code of codes) {
+        const key = knownKey(keyId, ip, code);
+        known.delete(key);
+        known.set(key, { count: 1, resetAt: at + PUBLIC_CODE_KNOWN_MS });
+      }
     },
     hitPicture(ip) {
       return count(`picture|ip:${rateAddress(ip)}`, PUBLIC_PICTURES);
@@ -461,6 +541,7 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     reset() {
       windows.clear();
       endpointWindows.clear();
+      known.clear();
     },
   };
 }

@@ -225,6 +225,7 @@ import { createEndpointService } from './public-api/endpoint-service.js';
 import { writeStores } from './crud/write-stores.js';
 import { createPublicResolver, createPublicViews, createRevisionWatch } from './public-api/runtime.js';
 import { createRequestStats } from './public-api/stats.js';
+import { removeCleanedPicture } from './public-api/picture-store.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
 
@@ -2173,7 +2174,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         try {
           // BYTES FIRST, then the row: a row that survives a failed byte
           // deletion is retried on the next tick, where a byte deletion with no
-          // row left is unreachable garbage forever.
+          // row left is unreachable garbage forever. A picture's cleaned copy goes first of all.
+          await removeCleanedPicture(storage, file);
           await storage.remove(file);
           await repo.purge(file.id);
           purged += 1;
