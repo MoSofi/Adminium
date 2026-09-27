@@ -126,7 +126,11 @@ export interface PlanProblem {
     // Added by the server, which can read the rows: a unique a table lacks, which rows already there break.
     | 'UNIQUE_DUPLICATES'
     // Added by the server, which knows where each app is installed: the app runs on another connection.
-    | 'APP_INSTALLED_ELSEWHERE';
+    | 'APP_INSTALLED_ELSEWHERE'
+    // An update that would take a shape off a table another installed app shares under it.
+    | 'SHAPE_IN_USE'
+    // Added by the server: a public endpoint this app would add under a name another app's endpoint already has.
+    | 'SHARE_REF_TAKEN';
   message: string;
   table: string;
   column?: string;
@@ -165,7 +169,31 @@ export interface InstallPlan {
   tables?: InstallTablePlan[];
   /** With a plan context: short name → real table. */
   names?: Record<string, string>;
+  /**
+   * With a plan context: per shape the app declares (`menu@1`), the other
+   * apps whose tables of that shape this app may use as its own, and what the
+   * plan does. Absent when no other app here has them.
+   */
+  shareOffers?: ShareOffer[];
 }
+
+/** One shape another installed app's tables have, offered to this app. */
+export interface ShareOffer {
+  shape: string;
+  /** The app whose tables the plan uses (`share`), or the one recommended (`separate`). */
+  with: string;
+  /** Every app whose tables could be used, the recommended one (the first installed) first. */
+  candidates: string[];
+  /** `share`: the app uses `with`'s tables. `separate`: it makes its own. */
+  action: 'share' | 'separate';
+  /** `with`'s real tables of the shape, by this app's short names. */
+  tables: string[];
+  /** The columns sharing would add to `with`'s tables (this app's own, nullable). */
+  addColumns: { table: string; column: string }[];
+}
+
+/** What the operator answered for the tables of one shape: use another app's, or keep separate ones. */
+export type ShareChoice = { action: 'share'; with: string } | { action: 'separate' };
 
 /** What the operator answered for one taken table. */
 export type TableChoice =
@@ -180,16 +208,23 @@ export interface PlanContext {
   altPrefix?: string | undefined;
   /** This app's own records on this connection, by short name. */
   records: Readonly<Record<string, { table: string; owned: boolean; state: string }>>;
-  /** What OTHER apps record on this connection. */
-  others: readonly { appKey: string; table: string; shape: string | null; state: string }[];
+  /**
+   * What OTHER apps record on this connection. `ref` (their short name) and
+   * `createdAt` let a table of a shape be found under any real name; a record
+   * without `ref` is matched by its real name only. `appName` words a
+   * refusal that names the app.
+   */
+  others: readonly { appKey: string; table: string; shape: string | null; state: string; ref?: string | undefined; createdAt?: number | undefined; appName?: string | undefined }[];
   /** The operator's answers, by short name. */
   choices?: Readonly<Record<string, TableChoice>> | undefined;
+  /** The operator's answers per shape (`menu@1`): use another app's tables, or keep separate ones. */
+  shares?: Readonly<Record<string, ShareChoice>> | undefined;
   dialect: 'postgres' | 'mysql' | 'sqlite';
 }
 
 export type TableClass = 'new' | 'own-leftover' | 'shared' | 'taken';
 export type ContextTableAction = 'create' | 'reuse' | 'share' | 'rename-existing' | 'undecided';
-export type TableOffer = 'reuse' | 'share' | 'rename-existing' | 'alt-prefix';
+export type TableOffer = 'reuse' | 'share' | 'separate' | 'rename-existing' | 'alt-prefix';
 
 /** One change a reused table needs, every one of them unable to lose data. */
 export type PlanEdit =
@@ -221,6 +256,8 @@ export interface InstallTablePlan {
   renameExistingTo?: string | undefined;
   /** For `share`: the app whose table this is. */
   sharedWith?: string | undefined;
+  /** The shape the app declares the table with (`menu@1`). */
+  shape?: string | undefined;
   /**
    * For `own-leftover`: the earlier install used a table that was already
    * there rather than making it. The check step words the two apart.

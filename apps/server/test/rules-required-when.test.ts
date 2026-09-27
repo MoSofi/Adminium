@@ -362,7 +362,10 @@ for (const [dialect, available] of LEGS) {
 
     it.skipIf(dialect === 'sqlite')('holds two writers that each saw the row before the other changed it', async () => {
       const { h, w, ann, row } = await harness();
-      const { db } = await h.manager.data(h.connectionId);
+      // The holder, the watcher and the second writer each come through a pool of their own: a pool of one stays the first writer's.
+      const { db } = await (await h.twin()).manager.data(h.connectionId);
+      const { db: watch } = await (await h.twin()).manager.data(h.connectionId);
+      const second = await writerFor(await h.twin());
       const table = h.real('events');
       /** The writers at their UPDATE, waiting on the held row — read on a connection of its own. */
       const waiting = async (): Promise<number> => {
@@ -370,7 +373,7 @@ for (const [dialect, available] of LEGS) {
           dialect === 'postgres'
             ? sql<{ n: number }>`select count(*)::int as n from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'`
             : sql<{ n: number }>`select count(*) as n from information_schema.processlist where db = database() and command = 'Query' and info like 'update %'`;
-        return Number((await query.execute(db)).rows[0]?.n ?? 0);
+        return Number((await query.execute(watch)).rows[0]?.n ?? 0);
       };
       /** Both writes read the row as it is, then wait at their UPDATE while a third connection holds it. */
       const race = async (a: Record<string, unknown>, b: Record<string, unknown>) => {
@@ -378,7 +381,7 @@ for (const [dialect, available] of LEGS) {
         let settled: Promise<PromiseSettledResult<unknown>[]> | undefined;
         await db.transaction().execute(async (tx) => {
           await sql`select id from ${sql.table(table)} where id = ${made['id']} for update`.execute(tx);
-          settled = Promise.allSettled([w.update('events', made['id'], a), w.update('events', made['id'], b)]);
+          settled = Promise.allSettled([w.update('events', made['id'], a), second.update('events', made['id'], b)]);
           const deadline = Date.now() + 10_000;
           while ((await waiting()) < 2) {
             if (Date.now() > deadline) throw new Error('the two writers never reached their UPDATE');

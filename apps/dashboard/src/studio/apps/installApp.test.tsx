@@ -28,6 +28,8 @@ import { AppBrowser } from './AppBrowser.js';
 import { InstallAppWizard } from './InstallAppWizard.js';
 import { InstalledAppsCard } from './InstalledAppsCard.js';
 import { APP_CATALOG_QUERY_KEY, APPS_QUERY_KEY, ddlPreview, type CatalogApp } from './appsApi.js';
+// The plan the server answers for a shop planned beside a till whose menu it may share (its test keeps it so).
+import sharePlan from './__fixtures__/share-menu-plan.json' with { type: 'json' };
 
 const CONNECTION = { id: 'con_1', name: 'Practice', engine: 'postgres', readOnly: false, tableCount: 9 };
 
@@ -857,6 +859,83 @@ describe('the table check', () => {
   });
 });
 
+describe('a menu another app keeps here', () => {
+  const MENU = ['menu_categories', 'menu_items', 'modifier_groups', 'modifiers'];
+  /** The server's answer once the shop keeps a separate menu: its own four tables, nothing shared. */
+  function separatePlan(): Record<string, unknown> {
+    const next = structuredClone(sharePlan) as unknown as {
+      shareOffers: { action: string }[];
+      tables: Record<string, unknown>[];
+      names: Record<string, string>;
+    };
+    next.shareOffers[0]!.action = 'separate';
+    for (const table of next.tables) {
+      if (!MENU.includes(String(table['ref']))) continue;
+      Object.assign(table, { table: `ordering_${String(table['ref'])}`, class: 'new', action: 'create', offers: [], edits: [] });
+      delete table['sharedWith'];
+      delete table['sharedWithName'];
+      next.names[String(table['ref'])] = `ordering_${String(table['ref'])}`;
+    }
+    return { ...(next as unknown as Record<string, unknown>), checksum: 's'.repeat(64) };
+  }
+
+  beforeEach(() => {
+    uploadReply = {
+      status: 200,
+      body: { key: 'ordering', version: '0.2.0', name: 'Online Ordering', files: 3, integrity: 'sha512-x', sides: ['staff'] },
+    };
+    plan = { ...(sharePlan as unknown as Record<string, unknown>), checksum: 'm'.repeat(64) };
+  });
+
+  it('offers the other app’s menu, recommended and chosen, and says what sharing adds', async () => {
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+
+    const card = screen.getByTestId('share-menu@1');
+    expect(card.textContent).toContain('Point of Sale already keeps a menu here. Online Ordering can use it, or keep a menu of its own.');
+    const use = within(card).getByRole('radio', { name: /Use Point of Sale’s menu/ });
+    expect(use.getAttribute('aria-checked')).toBe('true');
+    expect(within(card).getByText('Recommended')).toBeTruthy();
+    expect(card.textContent).toContain('Adds 2 columns to Point of Sale’s tables: stock_today, hue.');
+    expect(card.textContent).toContain('Nothing Point of Sale reads changes.');
+    expect(within(card).getByRole('radio', { name: /Keep a separate menu/ }).getAttribute('aria-checked')).toBe('false');
+    expect(card.textContent).toContain('Online Ordering makes its own 4 tables.');
+    // The shared tables are badged with the app's name, and the summary counts them.
+    expect(screen.getByTestId('check-table-menu_items').textContent).toContain('Shared with Point of Sale');
+    expect(document.querySelector('[data-part="check-summary"]')?.textContent).toContain('4 shared with another app');
+
+    // Installed as the check says: no answer needed for the recommended menu.
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await waitFor(() => expect(calls.find((call) => call.url === '/api/v1/apps/install')).toBeTruthy());
+    const install = calls.find((call) => call.url === '/api/v1/apps/install')!.body as Record<string, unknown>;
+    expect(install['planChecksum']).toBe('m'.repeat(64));
+    expect(install['shares']).toBeUndefined();
+  });
+
+  it('keeps a separate menu when picked: checks again with the answer, and installs with it', async () => {
+    planReplies = [plan, separatePlan()];
+    const user = userEvent.setup();
+    renderWizard();
+    await reachCheck(user);
+
+    await user.click(within(screen.getByTestId('share-menu@1')).getByRole('radio', { name: /Keep a separate menu/ }));
+    await waitFor(() => expect(calls.filter((call) => call.url === '/api/v1/apps/plan')).toHaveLength(2));
+    expect(calls.filter((call) => call.url === '/api/v1/apps/plan')[1]?.body).toMatchObject({ shares: { 'menu@1': { action: 'separate' } } });
+    await waitFor(() =>
+      expect(within(screen.getByTestId('share-menu@1')).getByRole('radio', { name: /Keep a separate menu/ }).getAttribute('aria-checked')).toBe('true'),
+    );
+    expect(screen.getByTestId('check-table-menu_items').textContent).toContain('ordering_menu_items');
+
+    await user.click(screen.getByRole('button', { name: 'Install' }));
+    await waitFor(() => expect(calls.find((call) => call.url === '/api/v1/apps/install')).toBeTruthy());
+    expect(calls.find((call) => call.url === '/api/v1/apps/install')?.body).toMatchObject({
+      planChecksum: 's'.repeat(64),
+      shares: { 'menu@1': { action: 'separate' } },
+    });
+  });
+});
+
 describe('sample data at install', () => {
   const ready = () => ({ ...checkPlan({ action: 'rename-existing', renameExistingTo: 'clinic_shifts_old' }), sampleData: true });
   const summary = () => document.querySelector('[data-part="done-summary"]')?.textContent ?? '';
@@ -1134,6 +1213,42 @@ describe('the installed list', () => {
         confirmKey: 'clinic',
       });
     });
+  });
+
+  it('names the other app that uses a table too, and never offers to delete that table', async () => {
+    uninstallPlan = {
+      ...uninstallPlan,
+      canDropTables: true,
+      tables: [
+        { table: 'clinic_menu_items', droppable: false, sharedWith: [{ key: 'ordering', name: 'Online Ordering' }] },
+        { table: 'clinic_menu_categories', droppable: false, sharedWith: [{ key: 'ordering', name: 'Online Ordering' }] },
+        { table: 'clinicians', droppable: true },
+      ],
+      sharedSampleRows: 12,
+    };
+    installed = {
+      apps: [{ key: 'clinic', version: '1.0.0', source: 'file', installedAt: 0, connectionId: null, missing: false, sides: [] }],
+      staged: [],
+    };
+    const client = createQueryClient();
+    client.setQueryData(APP_CATALOG_QUERY_KEY, { apps: [] });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={client}>
+        {inRouter(<InstalledAppsCard onInstall={() => {}} onUpdate={() => {}} />)}
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole('button', { name: /Uninstall/i }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByText('Online Ordering also uses 2 tables, never deleted: clinic_menu_items, clinic_menu_categories'),
+    ).toBeTruthy();
+    expect(within(dialog).getByText('Its sample rows in the shared tables stay. Remove the sample data first to take them out.')).toBeTruthy();
+    // Only the table nothing else uses is offered for deletion.
+    await user.click(within(dialog).getByRole('checkbox'));
+    const listed = [...dialog.querySelectorAll('li code, li span')].map((node) => node.textContent);
+    expect(listed).toContain('clinicians');
+    expect(listed).not.toContain('clinic_menu_items');
   });
 
   it('discards a bundle that was uploaded and never installed', async () => {

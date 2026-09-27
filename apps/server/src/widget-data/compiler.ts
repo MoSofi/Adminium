@@ -60,6 +60,7 @@ import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identi
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { normalizeWriteValue } from '../crud/write-values.js';
+import { choiceWordsOf } from './choice-words.js';
 
 /** Hard row cap on any compiled query (guardrails). */
 export const WIDGET_LIMIT_MAX = 1000;
@@ -167,6 +168,38 @@ export function isRowShape(descriptor: QueryDescriptor): boolean {
 
 type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
 
+/** A unit a window counts in: every bucket unit but the folded `hour-of-day`. */
+export type PeriodUnit = Exclude<BucketUnit, 'hour-of-day'>;
+
+/**
+ * A column one link away (`fkColumn.column`), resolved by the caller with the
+ * reader's read checks (`widget-data/paths.ts`): a filter or a window on it
+ * compiles to `fkColumn IN (SELECT key FROM parent WHERE …)`.
+ */
+export interface ResolvedPath {
+  /** The key column on the source table. */
+  fkColumn: ResolvedColumn;
+  parent: ResolvedTable;
+  /** The parent's column the key points at. */
+  parentKey: string;
+  /** The parent's column filtered on. */
+  column: ResolvedColumn;
+  /** Whether the reader sees the parent's personal columns. */
+  unmasked: boolean;
+}
+
+/**
+ * Where a foreign-key group's label is read (`groupLabel`), when the reader
+ * may read it: ties in a ranking fall to the label.
+ */
+export interface GroupLabelSource {
+  table: ResolvedTable;
+  /** The column of `table` the grouped key points at. */
+  key: string;
+  /** The label column. */
+  column: string;
+}
+
 export interface CompileWidgetQueryOptions {
   db: Kysely<SourceDatabase>;
   view: SnapshotView;
@@ -191,6 +224,14 @@ export interface CompileWidgetQueryOptions {
    * the shaper, exactly as on the CRUD read.
    */
   lookups?: readonly ResolvedLookup[] | undefined;
+  /**
+   * Filter and window columns one link away, already resolved and read-checked
+   * by the caller, keyed by their `fkColumn.column` spelling. A path the
+   * caller did not resolve is refused.
+   */
+  paths?: ReadonlyMap<string, ResolvedPath> | undefined;
+  /** The group label's source when the reader may read it (ranking ties). */
+  groupLabel?: GroupLabelSource | undefined;
 }
 
 /**
@@ -262,6 +303,8 @@ export interface CompiledWidgetQuery {
    * the shaper reads each one as the instant it names in this zone.
    */
   bucketZone: string | null;
+  /** Set when buckets are the venue's hours of the day (`00`–`23` text), not instants. */
+  hourOfDay: boolean;
 }
 
 /** Resolve the descriptor's source against the snapshot (422 on unknown). */
@@ -281,7 +324,7 @@ function reject(message: string, details?: unknown): never {
  */
 export function windowBounds(
   last: number,
-  unit: BucketUnit,
+  unit: PeriodUnit,
   now: Date,
 ): { start: Date; end: Date; priorStart: Date; priorEnd: Date } {
   const shift = (from: Date, steps: number): Date => {
@@ -317,7 +360,7 @@ const naive = (day: string, minute: number) => new Date(Date.parse(`${day}T00:00
 const spellNaive = (date: Date) => `${date.toISOString().slice(0, 10)} ${date.toISOString().slice(11, 16)}`;
 
 /** Move a naive wall clock by whole periods. */
-function shiftPeriods(date: Date, unit: BucketUnit, steps: number): Date {
+function shiftPeriods(date: Date, unit: PeriodUnit, steps: number): Date {
   const d = new Date(date.getTime());
   switch (unit) {
     case 'hour':
@@ -351,7 +394,7 @@ function shiftPeriods(date: Date, unit: BucketUnit, steps: number): Date {
  */
 export function calendarBounds(
   last: number,
-  unit: BucketUnit,
+  unit: PeriodUnit,
   offset: number,
   now: Date,
   timezone: string,
@@ -396,7 +439,7 @@ export function calendarBounds(
  * `week` (from Monday), or a `YYYY-MM-DD` day on the venue's calendar, never
  * one still to come.
  */
-export function dayWindow(value: unknown, now: Date, timezone: string): { last: number; unit: BucketUnit; offset: number } {
+export function dayWindow(value: unknown, now: Date, timezone: string): { last: number; unit: PeriodUnit; offset: number } {
   if (value === 'today') return { last: 1, unit: 'day', offset: 0 };
   if (value === 'yesterday') return { last: 1, unit: 'day', offset: 1 };
   if (value === 'week') return { last: 1, unit: 'week', offset: 0 };
@@ -420,7 +463,7 @@ interface WindowBounds {
  * venue's clock (today's midnight, this Monday, the 1st of this month) with no
  * end. It has no prior span — `compareToPrior` is refused on it.
  */
-export function aheadBounds(unit: BucketUnit, now: Date, timezone: string): WindowBounds {
+export function aheadBounds(unit: PeriodUnit, now: Date, timezone: string): WindowBounds {
   const { start } = calendarBounds(1, unit, 0, now, timezone);
   return { start, end: null, priorStart: start, priorEnd: start };
 }
@@ -465,23 +508,25 @@ type Ref = ReturnType<DynamicModule<SourceDatabase>['ref']>;
 
 /**
  * An hour or day bucket on the venue's clock, as `YYYY-MM-DD HH:MM:SS` text,
- * per dialect. Postgres converts every row exactly (`AT TIME ZONE`); MySQL
- * and SQLite, which may not know zone names, move by the venue's offset at
- * `at` — exact except across a clock change inside the window. SQLite keeps
- * text, so a value written with a zone and one without are moved apart.
+ * per dialect — or, for `hour-of-day`, the venue's hour alone (`00`–`23`), so
+ * every day folds into the same 24. Postgres converts every row exactly (`AT
+ * TIME ZONE`, clock changes included); MySQL and SQLite, which may not know
+ * zone names, move by the venue's offset at `at` — exact except across a
+ * clock change inside the window. SQLite keeps text, so a value written with
+ * a zone and one without are moved apart.
  */
 function venueBucketExpr(
   dialect: Dialect,
   ref: Ref,
   column: ResolvedColumn,
-  unit: 'hour' | 'day',
+  unit: 'hour' | 'day' | 'hour-of-day',
   timezone: string,
   at: Date,
 ): RawBuilder<unknown> {
   const venue = offsetMinutes(at, timezone);
   const server = offsetMinutes(at, serverZone());
-  const pgFormat = unit === 'hour' ? 'YYYY-MM-DD HH24:00:00' : 'YYYY-MM-DD 00:00:00';
-  const format = unit === 'hour' ? '%Y-%m-%d %H:00:00' : '%Y-%m-%d 00:00:00';
+  const pgFormat = unit === 'hour-of-day' ? 'HH24' : unit === 'hour' ? 'YYYY-MM-DD HH24:00:00' : 'YYYY-MM-DD 00:00:00';
+  const format = unit === 'hour-of-day' ? '%H' : unit === 'hour' ? '%Y-%m-%d %H:00:00' : '%Y-%m-%d 00:00:00';
   switch (dialect) {
     case 'mysql':
       return sql`date_format(date_add(${ref}, interval ${sql.lit(venue - server)} minute), ${sql.lit(format)})`;
@@ -492,7 +537,9 @@ function venueBucketExpr(
         column.logicalType === 'timestamp'
           ? sql`((${ref} at time zone ${sql.lit(serverZone())}) at time zone ${sql.lit(timezone)})`
           : sql`(${ref} at time zone ${sql.lit(timezone)})`;
-      return sql`to_char(date_trunc(${sql.lit(unit)}, ${wall}), ${sql.lit(pgFormat)})`;
+      return unit === 'hour-of-day'
+        ? sql`to_char(${wall}, ${sql.lit(pgFormat)})`
+        : sql`to_char(date_trunc(${sql.lit(unit)}, ${wall}), ${sql.lit(pgFormat)})`;
     }
   }
 }
@@ -505,7 +552,7 @@ function venueBucketExpr(
  * and every format token is a source constant — no caller string is inlined;
  * the only interpolation is the snapshot's own column ref.
  */
-function bucketExpr(dialect: Dialect, ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
+function bucketExpr(dialect: Dialect, ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
   switch (dialect) {
     case 'mysql':
       return mysqlBucketExpr(ref, unit);
@@ -519,7 +566,7 @@ function bucketExpr(dialect: Dialect, ref: Ref, unit: BucketUnit): RawBuilder<un
 }
 
 /** MySQL bucket start (`DATE_FORMAT` / calendar arithmetic). */
-function mysqlBucketExpr(ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
+function mysqlBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
   switch (unit) {
     case 'hour':
       return sql`date_format(${ref}, '%Y-%m-%d %H:00:00')`;
@@ -539,7 +586,7 @@ function mysqlBucketExpr(ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
 }
 
 /** SQLite bucket start (`strftime` over ISO-text/epoch storage). */
-function sqliteBucketExpr(ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
+function sqliteBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
   switch (unit) {
     case 'hour':
       return sql`strftime('%Y-%m-%d %H:00:00', ${ref})`;
@@ -865,6 +912,12 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   const params = opts.params ?? {};
   const now = opts.now ?? (() => new Date());
 
+  if (descriptor.kind === 'capacity-counts') {
+    reject('A `capacity-counts` binding is answered from the table\'s limit, not compiled into a query.', { kind: descriptor.kind });
+  }
+  if (descriptor.capacity !== undefined) {
+    reject('`capacity` belongs to a `capacity-counts` binding.', { kind: descriptor.kind });
+  }
   assertShapeRules(descriptor);
   // A lookup is a row key, so only a shape that returns rows as rows can carry
   // one. Every other shape would drop it silently — refused instead, so a page
@@ -876,22 +929,50 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   const dynamic = db.dynamic;
   const filterCtx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
+  /*
+   * A column one link away (`order_id.status`): resolved by the caller, who
+   * asked whether this reader may read the table and the column it reaches.
+   * A column of the source whose own name has a dot stays the source's.
+   */
+  const isPath = (name: string) => name.includes('.') && !table.columns.has(name);
+  const pathOf = (name: string): ResolvedPath => {
+    const path = opts.paths?.get(name);
+    if (path === undefined) {
+      reject(`"${name}" reaches another table, which this read does not follow here.`, { column: name });
+    }
+    return path;
+  };
+  // The key column in `IN (SELECT key FROM parent WHERE …)`: a row whose key is empty matches nothing.
+  const throughPath = (qb: Qb, path: ResolvedPath, where: (inner: Qb) => Qb): Qb =>
+    qb.where((eb) => eb(dynamic.ref(path.fkColumn.name), 'in', where(db.selectFrom(path.parent.id).select(dynamic.ref(path.parentKey)) as unknown as Qb) as never));
+
   // --- WHERE: descriptor filters (CRUD DSL compiler) + rolling window -------
   const conditions =
     descriptor.filters === undefined ? [] : resolveFilterParams(descriptor.filters, params);
   // Column resolution happens inside compileFilter via readableColumn.
+  const ownConditions = conditions.filter((condition) => !isPath(condition.column));
+  const pathConditions = conditions
+    .filter((condition) => isPath(condition.column))
+    .map((condition) => ({ condition, path: pathOf(condition.column) }));
 
+  if (descriptor.window?.unit === 'hour-of-day') {
+    reject('A window counts whole periods: `hour-of-day` is a bucket, not a window unit.', { window: { unit: descriptor.window.unit } });
+  }
+  const windowPath = descriptor.window !== undefined && isPath(descriptor.window.column) ? pathOf(descriptor.window.column) : null;
   const windowColumn =
     descriptor.window === undefined
       ? null
-      : view.readableColumn(table, descriptor.window.column, canReadPii);
+      : windowPath !== null
+        ? windowPath.column
+        : view.readableColumn(table, descriptor.window.column, canReadPii);
   const zone = opts.timezone ?? 'UTC';
   // A window that follows the page's day control takes the day it names.
   const followed = descriptor.window?.param === undefined ? undefined : params[descriptor.window.param];
+  const ownWindow = descriptor.window === undefined ? undefined : { ...descriptor.window, unit: descriptor.window.unit as PeriodUnit };
   const span =
-    descriptor.window === undefined || followed === undefined
-      ? descriptor.window
-      : { ...descriptor.window, ...dayWindow(followed, now(), zone), calendar: true };
+    ownWindow === undefined || followed === undefined
+      ? ownWindow
+      : { ...ownWindow, ...dayWindow(followed, now(), zone), calendar: true };
   const ahead = descriptor.window?.ahead === true;
   if (ahead && descriptor.window !== undefined) assertAheadWindow(descriptor.window);
   const calendar = span?.calendar === true || ahead;
@@ -915,15 +996,23 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
 
   const applyWhere = (qb: Qb, window: { start: Date; end: Date | null } | null): Qb => {
     let out = qb;
-    if (conditions.length > 0) {
-      out = out.where((eb) => compileFilter(eb as never, filterCtx, { and: conditions }));
+    if (ownConditions.length > 0) {
+      out = out.where((eb) => compileFilter(eb as never, filterCtx, { and: ownConditions }));
+    }
+    for (const { condition, path } of pathConditions) {
+      // The parent's column, compiled by the same filter compiler against the parent.
+      const parentCtx: CompileFilterContext = { view, table: path.parent, canReadPii: path.unmasked, dynamic, dialect };
+      out = throughPath(out, path, (inner) => inner.where((eb) => compileFilter(eb as never, parentCtx, { ...condition, column: path.column.name })));
     }
     if (window !== null && windowColumn !== null) {
       const ref = dynamic.ref(windowColumn.name);
-      out = out.where((eb) => eb(ref, '>=', boundOf(window.start)));
-      // A window that reaches forward has no end: every row from its start on.
       const end = window.end;
-      if (end !== null) out = out.where((eb) => eb(ref, '<', boundOf(end)));
+      // A window that reaches forward has no end: every row from its start on.
+      const bounded = (inner: Qb): Qb => {
+        const from = inner.where((eb) => eb(ref, '>=', boundOf(window.start)));
+        return end === null ? from : from.where((eb) => eb(ref, '<', boundOf(end)));
+      };
+      out = windowPath === null ? bounded(out) : throughPath(out, windowPath, bounded);
     }
     return out;
   };
@@ -990,6 +1079,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   const groupAliases = [GROUP_ALIAS, COL_ALIAS];
 
   let bucketZone: string | null = null;
+  const hourOfDay = descriptor.bucket?.unit === 'hour-of-day';
   const build = (window: { start: Date; end: Date | null } | null): Qb => {
     let qb = applyWhere(db.selectFrom(table.id) as unknown as Qb, window);
 
@@ -1020,6 +1110,14 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       (shape === 'timeseries' || shape === 'multi-timeseries' || ohlcColumn !== null)
     ) {
       const bucketColumn = view.readableColumn(table, descriptor.bucket.column, canReadPii);
+      if (hourOfDay && (bucketColumn.logicalType === 'date' || ohlcColumn !== null)) {
+        reject(
+          ohlcColumn !== null
+            ? 'Candles follow time, so an "ohlc" cannot fold into the hours of the day.'
+            : `"${bucketColumn.name}" keeps days, not times: it has no hour of the day to fold into.`,
+          { bucket: descriptor.bucket },
+        );
+      }
       // A week asked for by the day control is drawn in days, not 168 hours.
       const unit = descriptor.bucket.unit === 'hour' && span?.unit === 'week' && followed !== undefined ? 'day' : descriptor.bucket.unit;
       // The venue's hours and days, where the venue is not on UTC.
@@ -1027,9 +1125,14 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         opts.timezone !== undefined && opts.timezone !== 'UTC' && (unit === 'hour' || unit === 'day') && bucketColumn.logicalType !== 'date'
           ? opts.timezone
           : null;
-      const bucket =
-        bucketZone === null
-          ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit)
+      /*
+       * The hours of the day are always the venue's (UTC where it names no
+       * zone): each row's own hour on that clock, whatever day it fell on.
+       */
+      const bucket = hourOfDay
+        ? venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, 'hour-of-day', zone, bounds?.start ?? now())
+        : bucketZone === null
+          ? bucketExpr(dialect, dynamic.ref(bucketColumn.name), unit as PeriodUnit)
           : venueBucketExpr(dialect, dynamic.ref(bucketColumn.name), bucketColumn, unit as 'hour' | 'day', bucketZone, bounds?.start ?? now());
       qb = qb.select(bucket.as(BUCKET_ALIAS));
       if (ohlcColumn !== null) {
@@ -1054,6 +1157,16 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       if (shape === 'categorical' && first !== undefined) {
         // Deterministic fold order: biggest buckets first, by the first alias.
         qb = qb.orderBy(sql.ref(first.alias), 'desc');
+        /*
+         * Ties fall to the group's label, then its key, so the last row a
+         * `limit` keeps is the same on every engine and every run. The label
+         * is the one the reader is shown: the row the key points at, or the
+         * choice column's word for it.
+         */
+        const groupColumn = view.readableColumn(table, groupColumns[0] as string, canReadPii);
+        const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect);
+        if (label !== null) qb = qb.orderBy(label, 'asc');
+        qb = qb.orderBy(dynamic.ref(groupColumn.name), 'asc');
       } else if (shape !== 'categorical') {
         // Stable header order so `matrix` rows/columns and the series list of
         // `multi-timeseries` are the same on every request.
@@ -1134,5 +1247,36 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     lookups,
     limit,
     bucketZone,
+    hourOfDay: hourOfDay && (shape === 'timeseries' || shape === 'multi-timeseries'),
   };
+}
+
+/**
+ * The label a categorical group is shown by, as SQL, to break ties in its
+ * ranking: the foreign-key row's label column (a correlated subquery, only
+ * when the reader may read it), or a choice column's words for its values.
+ * Null when the key is its own label.
+ */
+function groupLabelExpr(
+  db: Kysely<SourceDatabase>,
+  table: ResolvedTable,
+  column: ResolvedColumn,
+  source: GroupLabelSource | undefined,
+  dialect: Dialect,
+): RawBuilder<unknown> | null {
+  const dynamic = db.dynamic;
+  const outer = dynamic.ref(`${table.name}.${column.name}`);
+  if (source !== undefined) {
+    const alias = source.table.name === '__label' ? '__label_' : '__label';
+    return sql`${db
+      .selectFrom(`${source.table.id} as ${alias}`)
+      .select(dynamic.ref(`${alias}.${source.column}`))
+      .whereRef(dynamic.ref(`${alias}.${source.key}`), '=', outer)
+      .limit(1)}`;
+  }
+  const words = choiceWordsOf(table.table?.columns.find((candidate) => candidate.name === column.name)).labels;
+  if (words === undefined || Object.keys(words).length === 0) return null;
+  const text = dialect === 'mysql' ? sql`cast(${outer} as char)` : sql`cast(${outer} as text)`;
+  const cases = Object.entries(words).map(([value, word]) => sql`when ${text} = ${value} then ${word}`);
+  return sql`(case ${sql.join(cases, sql` `)} else ${text} end)`;
 }

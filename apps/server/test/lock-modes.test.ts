@@ -26,9 +26,12 @@ import { MENU, orderManifest, orderTree, writeTree } from './order-tree-fixture.
 
 const postgres = LEGS.find(([dialect]) => dialect === 'postgres')![1];
 
-/** Whether `statement` goes in on its own connection within two seconds, rolled back after: 'in', or the engine's code. */
+/**
+ * Whether `statement` goes in on its own connection within two seconds, rolled back after: 'in', or the engine's code.
+ * The connection is from a pool of its own, so a pool of one stays the write's under way.
+ */
 async function goesIn(h: InvoicingHarness, statement: string): Promise<string> {
-  const { db } = await h.manager.data(h.connectionId);
+  const { db } = await (await h.twin()).manager.data(h.connectionId);
   try {
     await db.transaction().execute(async (trx) => {
       await sql`set local lock_timeout = '2s'`.execute(trx);

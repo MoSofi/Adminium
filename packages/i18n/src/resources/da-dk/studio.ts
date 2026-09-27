@@ -708,7 +708,23 @@ export default {
         "checkFirst": "Tjek tabellerne igen, før du installerer.",
         "nothingYet": "Intet ændres, før du trykker på Installer.",
         "again": "Tjek igen",
-        "adoptedNote": "En tidligere installation af {app} brugte denne tabel, som den fandt den."
+        "adoptedNote": "En tidligere installation af {app} brugte denne tabel, som den fandt den.",
+        "share": {
+          "useMenu": "Brug menuen fra {app}",
+          "useTables": "Brug tabellerne fra {app}",
+          "useMenuNote": "Begge apps læser og skriver de samme retter.",
+          "useTablesNote": "Begge apps læser og skriver de samme rækker.",
+          "addsColumns": "{count, plural, one {Tilføjer # kolonne til tabellerne fra {app}:} other {Tilføjer # kolonner til tabellerne fra {app}:}}",
+          "nothingChanges": "Intet af det, {app} læser, ændres.",
+          "separateMenu": "Hold en separat menu",
+          "separateTables": "Hold separate tabeller",
+          "separateNote": "{app} opretter {count, plural, one {sin egen tabel} other {sine egne # tabeller}}.",
+          "introMenu": "{app} har allerede en menu her. {self} kan bruge den eller have sin egen menu.",
+          "introTables": "{app} har allerede disse tabeller her. {self} kan bruge dem eller have sine egne.",
+          "labelMenu": "Hvilken menu {app} bruger",
+          "labelTables": "Hvilke tabeller {app} bruger",
+          "recommended": "Anbefalet"
+        }
       },
       "running": {
         "title": "Installerer {app}",
@@ -3026,7 +3042,9 @@ export default {
     "cancel": "Annuller",
     "confirmDrop": "Afinstaller og slet data",
     "confirm": "Afinstaller",
-    "rules": "{count, plural, one {Dens kolonneregel} other {Dens # kolonneregler}}"
+    "rules": "{count, plural, one {Dens kolonneregel} other {Dens # kolonneregler}}",
+    "sharedTables": "{app} bruger også {count, plural, one {# tabel} other {# tabeller}}, slettes aldrig: {tables}",
+    "sharedSample": "Dens eksempelrækker i de delte tabeller bliver. Fjern eksempeldataene først for at tage dem ud."
   },
   "sampleData": {
     "title": "Eksempeldata",

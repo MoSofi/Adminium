@@ -708,7 +708,23 @@ export default {
         "checkFirst": "Prüfen Sie die Tabellen vor der Installation erneut.",
         "nothingYet": "Nichts ändert sich, bevor Sie auf Installieren klicken.",
         "again": "Erneut prüfen",
-        "adoptedNote": "Eine frühere Installation von {app} hat diese Tabelle so verwendet, wie sie sie vorfand."
+        "adoptedNote": "Eine frühere Installation von {app} hat diese Tabelle so verwendet, wie sie sie vorfand.",
+        "share": {
+          "useMenu": "Die Speisekarte von {app} verwenden",
+          "useTables": "Die Tabellen von {app} verwenden",
+          "useMenuNote": "Beide Apps lesen und schreiben dieselben Gerichte.",
+          "useTablesNote": "Beide Apps lesen und schreiben dieselben Zeilen.",
+          "addsColumns": "{count, plural, one {Fügt den Tabellen von {app} # Spalte hinzu:} other {Fügt den Tabellen von {app} # Spalten hinzu:}}",
+          "nothingChanges": "An dem, was {app} liest, ändert sich nichts.",
+          "separateMenu": "Eine eigene Speisekarte führen",
+          "separateTables": "Eigene Tabellen führen",
+          "separateNote": "{app} legt {count, plural, one {eine eigene Tabelle} other {# eigene Tabellen}} an.",
+          "introMenu": "{app} führt hier bereits eine Speisekarte. {self} kann sie verwenden oder eine eigene führen.",
+          "introTables": "{app} führt hier bereits diese Tabellen. {self} kann sie verwenden oder eigene führen.",
+          "labelMenu": "Welche Speisekarte {app} verwendet",
+          "labelTables": "Welche Tabellen {app} verwendet",
+          "recommended": "Empfohlen"
+        }
       },
       "running": {
         "title": "{app} wird installiert",
@@ -3026,7 +3042,9 @@ export default {
     "cancel": "Abbrechen",
     "confirmDrop": "Deinstallieren und Daten löschen",
     "confirm": "Deinstallieren",
-    "rules": "{count, plural, one {Ihre Spaltenregel} other {Ihre # Spaltenregeln}}"
+    "rules": "{count, plural, one {Ihre Spaltenregel} other {Ihre # Spaltenregeln}}",
+    "sharedTables": "{app} nutzt {count, plural, one {# Tabelle} other {# Tabellen}} ebenfalls, nie gelöscht: {tables}",
+    "sharedSample": "Seine Beispielzeilen in den geteilten Tabellen bleiben. Entfernen Sie zuerst die Beispieldaten, um sie herauszunehmen."
   },
   "sampleData": {
     "title": "Beispieldaten",

@@ -30,7 +30,8 @@ describe.each(LEGS)('rows a move moved too, told — %s', (dialect, available) =
   let app: FastifyInstance;
   beforeAll(async () => {
     if (!available) return;
-    h = await installInvoicing(dialect, venueManifest({ timed: false }));
+    // A database whose name carries no `adminium_`: a rule refuses every table whose id does, and a MySQL table's id carries its database's name.
+    h = await installInvoicing(dialect, venueManifest({ timed: false }), undefined, {}, { database: 'rule_effects' });
     w = await writerFor(h, 'Europe/London');
     await w.create('settings', {});
     // What the fan-out reaches with no server around it: the audit store and the rules' ear.
@@ -53,8 +54,7 @@ describe.each(LEGS)('rows a move moved too, told — %s', (dialect, available) =
   const roomEvents = (room: Record<string, unknown>) =>
     events.filter((e) => e.table.id === w.targetOf('rooms').table.id && JSON.stringify(e.entity.pk) === JSON.stringify({ id: room['id'] }));
 
-  // A rule refuses every table whose name carries `adminium_`, and this MySQL leg's database is named so.
-  it.runIf(available && dialect !== 'mysql')("tells a rule's move of the room as the rule's own write, so the rule never hears it", async () => {
+  it.runIf(available)("tells a rule's move of the room as the rule's own write, so the rule never hears it", async () => {
     const { room, stay } = await stayInRoom();
     const target = w.targetOf('stays');
     const rule = { id: 'aut_checkin', name: 'Check in on arrival' } as Automation;

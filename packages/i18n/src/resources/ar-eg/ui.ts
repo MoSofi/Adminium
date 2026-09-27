@@ -402,6 +402,17 @@ export default {
       },
       "sparkline": {
         "description": "اتجاه مصغّر مضمَّن للقيم الأخيرة — بلا محاور أو تسميات — لبطاقات المؤشرات وخلايا الجداول وصفوف القوائم."
+      },
+      "slotStrip": {
+        "chartLabel": "الفترات",
+        "slot": "{slot}: تم حجز {taken} من {size}",
+        "slotNoSize": "{slot}: تم حجز {taken}",
+        "held": "{held} محجوزة مؤقتًا",
+        "paused": "متوقفة مؤقتًا",
+        "closedDay": "مغلق",
+        "past": "انتهت",
+        "now": "الآن",
+        "closed": "مغلق في هذا اليوم: لا يمكن لأحد حجز هذه الفترات."
       }
     },
     "feeds": {
@@ -656,7 +667,12 @@ export default {
       "detailKeyValue": {
         "description": "حقول السجل كصفوف تسمية/قيمة مع قيم تراعي نوع البيانات."
       },
-      "fileDownload": "تنزيل"
+      "fileDownload": "تنزيل",
+      "capacityLeft": {
+        "left": "متبقٍ {left}",
+        "taken": "تم حجز {taken} من {size}",
+        "takenOnly": "تم حجز {taken}"
+      }
     },
     "boards": {
       "kanbanBoard": {

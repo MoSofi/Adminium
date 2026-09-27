@@ -16,11 +16,14 @@ import { cents, MENU, orderManifest, orderTree, writeTree } from './order-tree-f
 describe.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('a create with its child rows, raced — %s', (dialect, available) => {
   let h: InvoicingHarness | undefined;
   let w: Awaited<ReturnType<typeof writerFor>>;
+  /** The other writer of a race, through a pool of its own: a pool of one stays `w`'s. */
+  let other: Awaited<ReturnType<typeof writerFor>>;
   beforeAll(async () => {
     if (!available) return;
     h = await installInvoicing(dialect, orderManifest());
     for (const statement of MENU) await h.rows(statement);
     w = await writerFor(h);
+    other = await writerFor(await h.twin());
   }, 180_000);
   afterAll(async () => h?.close());
 
@@ -31,7 +34,7 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('a create with i
       return found === undefined ? null : { root: found, rows: [] };
     };
     const both = await Promise.all(
-      [0, 1].map(() => writeTree(w, orderTree(w, [{ item: 4, qty: 2 }], { email: 'ada@example.com', name: 'Ada', customer_id: 1, client_key: key }), 'save', w.desk, { replay })),
+      [w, other].map((by) => writeTree(by, orderTree(by, [{ item: 4, qty: 2 }], { email: 'ada@example.com', name: 'Ada', customer_id: 1, client_key: key }), 'save', by.desk, { replay })),
     );
     expect(both[0]!.root['id']).toBe(both[1]!.root['id']);
     expect(both.map((outcome) => outcome.replayed).sort()).toEqual([false, true]);
@@ -51,7 +54,7 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('a create with i
     // quote is (for no one on file — a quote's foreign key would hold a customer's row shared, a
     // few milliseconds in real life, until it ends).
     const guest = { email: 'ada@example.com', name: 'Ada' };
-    const quote = writeTree(w, orderTree(w, [{ item: 1, mods: [2] }, { item: 4 }], guest), 'dry', w.desk, {
+    const quote = writeTree(other, orderTree(other, [{ item: 1, mods: [2] }, { item: 4 }], guest), 'dry', other.desk, {
       siblings: async () => {
         entered();
         await held;

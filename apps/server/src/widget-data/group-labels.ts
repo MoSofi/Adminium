@@ -13,13 +13,51 @@
 import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
-import type { SnapshotView } from '../crud/identifiers.js';
+import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { piiAllows, type PiiAccess, type Row } from '../crud/mask.js';
 import { ValidationFailedError } from '../errors.js';
-import type { CompiledWidgetQuery } from './compiler.js';
+import type { CompiledWidgetQuery, GroupLabelSource } from './compiler.js';
 
 /** Keys labelled per query: the shaper folds anything past its own cap anyway. */
 const LABEL_KEYS_MAX = 500;
+
+/**
+ * Where `path`'s labels are read, checked as the lookup rules say: 422 for a
+ * path that names no label, undefined when this reader may not read it (the
+ * groups keep their keys). Asked before the query runs, so a ranking can
+ * break its ties by the label the reader is shown.
+ */
+export async function groupLabelSourceOf(input: {
+  path: string | undefined;
+  /** The column grouped by. */
+  groupColumn: string | undefined;
+  table: ResolvedTable;
+  view: SnapshotView;
+  canReadPii: PiiAccess;
+  canReadTable: (tableId: string) => Promise<boolean>;
+}): Promise<GroupLabelSource | undefined> {
+  const { path, view } = input;
+  if (path === undefined) return undefined;
+  const [link, column] = path.split('.');
+  if (link === undefined || column === undefined || link !== input.groupColumn) {
+    throw new ValidationFailedError('groupLabel names a column one link away from the column grouped by: "<grouped column>.<label column>".', { groupLabel: path });
+  }
+  const relation = view.model.relations.find(
+    (candidate) => candidate.from.tableId === input.table.id && candidate.from.columns.length === 1 && candidate.from.columns[0] === link,
+  );
+  const referenced = relation?.to.columns[0];
+  if (relation === undefined || referenced === undefined) {
+    throw new ValidationFailedError(`"${link}" does not point at another table, so its groups have no label to read.`, { groupLabel: path });
+  }
+  const target = view.table(relation.to.tableId);
+  const label = target.columns.get(column);
+  if (label === undefined || label.secret) {
+    throw new ValidationFailedError(`"${column}" is not a column of ${target.id} a label can be read from.`, { groupLabel: path });
+  }
+  if (!(await input.canReadTable(target.id))) return undefined;
+  if (label.masked && !(await piiAllows(input.canReadPii, target.id))) return undefined;
+  return { table: target, key: referenced, column };
+}
 
 export async function groupLabelsFor(input: {
   path: string | undefined;
@@ -33,24 +71,19 @@ export async function groupLabelsFor(input: {
 }): Promise<ReadonlyMap<string, string> | undefined> {
   const { path, compiled, view } = input;
   if (path === undefined) return undefined;
-  const [link, column] = path.split('.');
-  if (link === undefined || column === undefined || link !== compiled.groupColumns[0] || compiled.groupAlias === null) {
+  if (compiled.groupAlias === null) {
     throw new ValidationFailedError('groupLabel names a column one link away from the column grouped by: "<grouped column>.<label column>".', { groupLabel: path });
   }
-  const relation = view.model.relations.find(
-    (candidate) => candidate.from.tableId === compiled.table.id && candidate.from.columns.length === 1 && candidate.from.columns[0] === link,
-  );
-  const referenced = relation?.to.columns[0];
-  if (relation === undefined || referenced === undefined) {
-    throw new ValidationFailedError(`"${link}" does not point at another table, so its groups have no label to read.`, { groupLabel: path });
-  }
-  const target = view.table(relation.to.tableId);
-  const label = target.columns.get(column);
-  if (label === undefined || label.secret) {
-    throw new ValidationFailedError(`"${column}" is not a column of ${target.id} a label can be read from.`, { groupLabel: path });
-  }
-  if (!(await input.canReadTable(target.id))) return undefined;
-  if (label.masked && !(await piiAllows(input.canReadPii, target.id))) return undefined;
+  const source = await groupLabelSourceOf({
+    path,
+    groupColumn: compiled.groupColumns[0],
+    table: compiled.table,
+    view,
+    canReadPii: input.canReadPii,
+    canReadTable: input.canReadTable,
+  });
+  if (source === undefined) return undefined;
+  const { table: target, key: referenced, column } = source;
 
   const alias = compiled.groupAlias;
   const keys = [...new Set(input.rows.map((row) => row[alias]).filter((key) => key !== null && key !== undefined))].slice(0, LABEL_KEYS_MAX);
