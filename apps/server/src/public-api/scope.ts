@@ -21,7 +21,7 @@
  * here is in service of that sentence.
  */
 
-import type { AnonymousCaps } from './anonymous-caps.js';
+import { ANONYMOUS_PER_IP_HOUR, type AnonymousCaps } from './anonymous-caps.js';
 import { z } from 'zod';
 
 import type { CodeUnlock } from '../crud/code-lookup.js';
@@ -416,6 +416,8 @@ const resourceSchema = z
       .object({
         perValue: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
         perKeyHour: z.number().int().min(1).max(1000).optional(),
+        /** At most this many an hour from one visitor through this entry: only ever fewer than the 60 any visitor may make. */
+        perIpHour: z.number().int().min(1).max(ANONYMOUS_PER_IP_HOUR).optional(),
         plainText: z.array(columnSchema).min(1).max(8).optional(),
       })
       .strict()

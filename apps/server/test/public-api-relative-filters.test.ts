@@ -208,6 +208,19 @@ describe('the rules that come with them', () => {
     expect(rows(doc(caps), doc({ ...caps, perValue: { columns: ['mobile'], n: 2 } }))).toEqual([true]);
     expect(rows(doc(caps), doc({ ...caps, plainText: undefined }))).toEqual([true]);
     expect(rows(doc(), doc(caps))).toEqual([]);
+    // One visitor's own hour: dropped or raised is wider, lowered is not.
+    const perIp = { ...caps, perIpHour: 10 };
+    expect(rows(doc(perIp), doc({ ...perIp, perIpHour: 5 }))).toEqual([]);
+    expect(rows(doc(perIp), doc({ ...perIp, perIpHour: 20 }))).toEqual([true]);
+    expect(rows(doc(perIp), doc(caps))).toEqual([true]);
+    expect(rows(doc(caps), doc(perIp))).toEqual([]);
+  });
+
+  it("refuses an entry's hour per visitor above the 60 every visitor is held to", () => {
+    expect(codes({ methods: ['POST'], writable: ['status'], anonymous: { per_ip_hour: 10 } })).toEqual([]);
+    for (const n of [0, 61, 1.5]) {
+      expect(codes({ methods: ['POST'], writable: ['status'], anonymous: { per_ip_hour: n } }).some((c) => c.startsWith('ENDPOINT_SHAPE_INVALID')), String(n)).toBe(true);
+    }
   });
 
   it('counts a loosened write as a widening of the rows a key reaches', () => {

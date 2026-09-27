@@ -34,6 +34,7 @@ import type { EffectiveColumn } from '../connections/effective-schema.js';
 import { columnPolicyFor } from '../connections/effective-schema.js';
 import { FILTER_OPS } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
+import { ANONYMOUS_PER_IP_HOUR } from './anonymous-caps.js';
 import { readGenerator } from './generate.js';
 import { DAY_TYPES, isMomentWindow, isTimeWindow } from './relative-filters.js';
 import {
@@ -377,6 +378,7 @@ export const publicEndpointDefinitionSchema = z
       .object({
         per_value: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
         per_key_hour: z.number().int().min(1).max(1000).optional(),
+        per_ip_hour: z.number().int().min(1).max(ANONYMOUS_PER_IP_HOUR).optional(),
         plain_text: z.array(columnSchema).min(1).max(8).optional(),
       })
       .strict()
@@ -842,6 +844,7 @@ export function definitionToResource(
     resource.anonymous = {
       ...(caps.per_value === undefined ? {} : { perValue: { columns: [...caps.per_value.columns], n: caps.per_value.n } }),
       ...(caps.per_key_hour === undefined ? {} : { perKeyHour: caps.per_key_hour }),
+      ...(caps.per_ip_hour === undefined ? {} : { perIpHour: caps.per_ip_hour }),
       ...(caps.plain_text === undefined ? {} : { plainText: [...caps.plain_text] }),
     };
   }

@@ -437,6 +437,12 @@ export const publicAccessSchema = z
       .object({
         perValue: z.object({ columns: z.array(refSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
         perKeyHour: z.number().int().min(1).max(1000).optional(),
+        /**
+         * At most this many an hour from one visitor (an IPv6 subscriber's
+         * whole /64) through this entry: never more than the 60 every
+         * visitor is held to on any key, only fewer.
+         */
+        perIpHour: z.number().int().min(1).max(60).optional(),
         plainText: z.array(refSchema).min(1).max(8).optional(),
       })
       .strict()

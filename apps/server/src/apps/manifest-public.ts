@@ -269,6 +269,7 @@ function definitionOf(
           anonymous: {
             ...(entry.anonymous.perValue === undefined ? {} : { per_value: { columns: [...entry.anonymous.perValue.columns], n: entry.anonymous.perValue.n } }),
             ...(entry.anonymous.perKeyHour === undefined ? {} : { per_key_hour: entry.anonymous.perKeyHour }),
+            ...(entry.anonymous.perIpHour === undefined ? {} : { per_ip_hour: entry.anonymous.perIpHour }),
             ...(entry.anonymous.plainText === undefined ? {} : { plain_text: [...entry.anonymous.plainText] }),
           },
         }),

@@ -284,6 +284,7 @@ function capsLoosened(before: PublicScopeResource['anonymous'], after: PublicSco
   if (before === undefined) return false;
   if (after === undefined) return true;
   if (before.perKeyHour !== undefined && (after.perKeyHour === undefined || after.perKeyHour > before.perKeyHour)) return true;
+  if (before.perIpHour !== undefined && (after.perIpHour === undefined || after.perIpHour > before.perIpHour)) return true;
   const was = before.perValue;
   const now = after.perValue;
   if (was !== undefined && (now === undefined || now.n > was.n || was.columns.some((column) => !now.columns.includes(column)))) return true;
