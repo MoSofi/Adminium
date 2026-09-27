@@ -76,6 +76,7 @@ import { momentOf, momentSettings, momentVias, type MomentContext } from './mome
 import {
   HeldLinks,
   StateTooLate,
+  compareKeys,
   StateUnchanged,
   holdLinkedRows,
   judgeWaits,
@@ -678,7 +679,7 @@ export async function holdParentsFirst(db: Db, dialect: Dialect, table: Resolved
       const key = side[parent.via];
       if (key !== null && key !== undefined) keys.set(String(key), key);
     }
-    for (const key of [...keys.keys()].sort()) await heldRows(db, dialect, parent.table, { [parent.key]: keys.get(key) });
+    for (const key of [...keys.values()].sort(compareKeys)) await heldRows(db, dialect, parent.table, { [parent.key]: key });
   }
 }
 
@@ -704,6 +705,78 @@ function updateReads(table: ResolvedTable, values: Row, windows: readonly StateW
   }
   for (const window of windows) if (window.link !== undefined) out.push({ via: window.link.via, forUpdate: false, stored: false });
   return out;
+}
+
+/** What the linked layer of an update holds: the rows its links point at, named from the row as peeked. */
+interface LinkedLayer {
+  kept: ReturnType<typeof lockLinkedHolds>;
+  reads: ReturnType<typeof updateReads>;
+  peek: Row[];
+  holds: LinkedHold[];
+}
+
+async function linkedLayer(
+  tx: Db,
+  table: ResolvedTable,
+  values: Row,
+  match: Row,
+  windows: readonly StateWindow[],
+  guard: StateGuard | undefined,
+  peeked?: Row[] | undefined,
+): Promise<LinkedLayer> {
+  const kept = guard !== undefined ? lockLinkedHolds(table, values) : { holds: [], check: () => undefined };
+  const reads = updateReads(table, values, windows, guard);
+  const peek = reads.length === 0 ? [] : (peeked ?? (await heldRows(tx, 'sqlite', table.id, match)));
+  const linkOf = (via: string) => stateLinkOf(table, via) ?? windows.find((w) => w.link?.via === via)?.link;
+  const holds: LinkedHold[] = [...kept.holds];
+  for (const read of reads) {
+    const link = linkOf(read.via);
+    if (link === undefined) continue;
+    for (const row of peek) {
+      if (!read.stored && Object.prototype.hasOwnProperty.call(values, read.via)) holds.push({ link, value: values[read.via], forUpdate: read.forUpdate });
+      else holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
+      if (read.stored) holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
+    }
+  }
+  return { kept, reads, peek, holds };
+}
+
+/** The rows an update peeked when it took its linked layer early, by the transaction behind them, table and key. */
+const LINKED_FIRST = new WeakMap<object, Map<string, Row[]>>();
+
+const matchKey = (table: ResolvedTable, match: Row) => `${table.id}\u0000${JSON.stringify(Object.entries(match).map(([k, v]) => [k, String(v)]))}`;
+
+function takeLinkedFirst(tx: Db, table: ResolvedTable, match: Row): Row[] | undefined {
+  const byKey = LINKED_FIRST.get(tx);
+  const key = matchKey(table, match);
+  const found = byKey?.get(key);
+  byKey?.delete(key);
+  return found;
+}
+
+/**
+ * The linked layer of an update taken BEFORE the write holds its own row:
+ * for a write that holds that row early — to count a limit, work out a
+ * formula, settle a total — the rows its links point at (a move's linked
+ * conditions, the rows its effects move, for update) come first, as for
+ * every writer (the one order: parents, linked rows, own rows). What was
+ * peeked to name them is kept for the statement's own judge
+ * (`guardedUpdate`), which holds them again as named, and refuses the write
+ * if the row's link moved in between. Nothing outside a transaction, and
+ * nothing on SQLite, which writes one transaction at a time.
+ */
+export async function holdLinkedFirst(db: Db, dialect: Dialect, table: ResolvedTable, values: Row, match: Row): Promise<void> {
+  if (dialect === 'sqlite' || !inTransaction(db)) return;
+  const guard = guardOf(values);
+  const tied = guard !== undefined && tiedToStates(table);
+  const windows = windowsOf(values);
+  if (!tied && windows.length === 0) return;
+  const layer = await linkedLayer(db, table, values, match, windows, tied ? guard : undefined);
+  if (layer.holds.length === 0) return;
+  await holdLinkedRows(db, dialect, layer.holds);
+  let byKey = LINKED_FIRST.get(db);
+  if (byKey === undefined) LINKED_FIRST.set(db, (byKey = new Map()));
+  byKey.set(matchKey(table, match), layer.peek);
 }
 
 /**
@@ -741,21 +814,11 @@ export async function guardedUpdate(
     // What this attempt's effects move: an attempt made again starts with none.
     if (guard !== undefined) guard.effected = [];
     if (tied) await holdParentsFirst(tx, dialect, table, match, values);
-    // The linked layer: every row the write's links point at, in one pass.
-    const kept = tied ? lockLinkedHolds(table, values) : { holds: [], check: () => undefined };
-    const reads = updateReads(table, values, windows, tied ? guard : undefined);
-    const peek = reads.length === 0 ? [] : await heldRows(tx, 'sqlite', table.id, match);
-    const linkOf = (via: string) => stateLinkOf(table, via) ?? windows.find((w) => w.link?.via === via)?.link;
-    const holds: LinkedHold[] = [...kept.holds];
-    for (const read of reads) {
-      const link = linkOf(read.via);
-      if (link === undefined) continue;
-      for (const row of peek) {
-        if (!read.stored && Object.prototype.hasOwnProperty.call(values, read.via)) holds.push({ link, value: values[read.via], forUpdate: read.forUpdate });
-        else holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
-        if (read.stored) holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
-      }
-    }
+    // The linked layer: every row the write's links point at, in one pass —
+    // taken already, before the write held its own row, when the write
+    // service holds that row early (`holdLinkedFirst`); held again here, as
+    // it was then, which waits for nobody.
+    const { kept, reads, peek, holds } = await linkedLayer(tx, table, values, match, windows, tied ? guard : undefined, takeLinkedFirst(tx, table, match));
     const held = await holdLinkedRows(tx, dialect, holds);
     kept.check(held);
     const judging: Judging = { held, settings: momentSettings(tx), links: windows.flatMap((w) => (w.link === undefined ? [] : [w.link])) };

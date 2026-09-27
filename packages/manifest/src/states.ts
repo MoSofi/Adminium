@@ -326,6 +326,8 @@ interface StatesContext<C extends ColumnShape> {
   bookingCancel?: { column: string; to: string } | undefined;
   /** Another table's states, which an effect moves. */
   statesOf?: ((table: string) => States | undefined) | undefined;
+  /** The app's outbox table, whose rows move only by the outbox's own moves. */
+  outboxTable?: string | undefined;
 }
 
 /** Everything wrong with one table's `states` against the manifest's tables. */
@@ -647,7 +649,11 @@ function conditionedMoveIssues<C extends ColumnShape>(
         return (move.requires?.linked?.length ?? 0) > 0 || vias;
       });
       if (reaches) out.push({ path: here('set', column), message: `the move of "${target}" to "${state}" waits for another row, so an effect cannot make it` });
+      // Judged late by a time read through another row: that row would be read after this write's own rows.
+      const lateThrough = (theirs.late ?? []).some((late) => late.to === state && [late.moment, ...(late.moment.or ?? [])].some((m) => m.via !== undefined));
+      if (lateThrough) out.push({ path: here('set', column), message: `a move of "${target}" to "${state}" is judged late by another row's time, so an effect cannot make it` });
     }
+    if (target === ctx.outboxTable) out.push({ path: here('via'), message: `"${target}" is the app's outbox, whose messages move only by the outbox's own moves` });
     if ((theirs.effects?.length ?? 0) > 0) out.push({ path: here('via'), message: `"${target}" sets off effects of its own; an effect moves one row, never a chain` });
   });
   return out;

@@ -142,6 +142,21 @@ export interface LinkedHold {
 
 const holdKey = (link: Pick<StateLink, 'table' | 'key'>, value: unknown) => `${link.table}\u0000${link.key}\u0000${String(value)}`;
 
+/**
+ * Two keys in the order a database returns them sorted: whole numbers as
+ * numbers (9 before 10, as `ORDER BY` a number column holds them), anything
+ * else as text. Every writer that holds several rows of one table takes them
+ * in this order — the linked rows here, a document's parents, the rows a
+ * total climbs into — so two writers never take the same two crosswise.
+ */
+export function compareKeys(a: unknown, b: unknown): number {
+  const whole = (v: unknown) => typeof v === 'number' || typeof v === 'bigint' || (typeof v === 'string' && /^-?\d{1,15}$/.test(v));
+  if (whole(a) && whole(b)) return Number(a) - Number(b);
+  const x = String(a);
+  const y = String(b);
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 /** The rows a write's links point at, as held: by table, key and value (null for a row that is gone). */
 export class HeldLinks {
   constructor(private readonly rows: ReadonlyMap<string, Row | null>) {}
@@ -177,8 +192,12 @@ export async function holdLinkedRows(db: Db, dialect: Dialect, holds: readonly L
     wanted.set(key, found === undefined ? hold : { ...found, forUpdate: found.forUpdate || hold.forUpdate });
   }
   const rows = new Map<string, Row | null>();
-  for (const key of [...wanted.keys()].sort()) {
-    const hold = wanted.get(key)!;
+  const order = [...wanted.entries()].sort(([, a], [, b]) => {
+    const on = `${a.link.table}\u0000${a.link.key}`;
+    const other = `${b.link.table}\u0000${b.link.key}`;
+    return on < other ? -1 : on > other ? 1 : compareKeys(a.value, b.value);
+  });
+  for (const [key, hold] of order) {
     let query = db
       .selectFrom(hold.link.table)
       .selectAll()
