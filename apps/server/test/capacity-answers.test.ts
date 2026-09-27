@@ -71,6 +71,10 @@ for (const [dialect, available] of LEGS) {
       ]);
       // Asking for 20 is asking for 6, the most one order takes.
       expect((await w.get('availability/tickets_availability?under=1&qty=20')).body['data']).toMatchObject([{ id: '1', state: 'on' }, { id: '2' }]);
+      // Another's held order named to be left out, with no session to own it: ignored, the same answer.
+      expect((await w.get('availability/tickets_availability?under=1&exclude=2')).body['data']).toEqual(answer.body['data']);
+      // A typed code widens nothing while no entry unlocks by one.
+      expect((await w.get('availability/tickets_availability?under=1&code=BLOOMEARLY')).body['data']).toEqual(answer.body['data']);
       // No event asked: nothing listed.
       expect((await w.get('availability/tickets_availability')).body['data']).toEqual([]);
       // Eleven minutes on, the hold is over: 17 left, still under 15 %.
