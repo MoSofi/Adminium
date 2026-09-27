@@ -316,6 +316,17 @@ export type States = z.infer<typeof statesSchema>;
 
 
 /** A move written as a bare state is a move with nothing asked first. */
+/**
+ * Whether a state is reached only by moves marked `undo`: made only by a
+ * person naming the state they saw — never by a door that names none (a
+ * timed move, an effect, an email's `onSent`, a guest's writable value).
+ */
+export function reachedOnlyByUndo(states: { moves: Readonly<Record<string, readonly StateMove[]>> } | undefined, state: unknown): boolean {
+  if (states === undefined) return false;
+  const moves = Object.values(states.moves).flatMap((list) => list.filter((move) => moveTarget(move) === String(state)));
+  return moves.length > 0 && moves.every((move) => typeof move === 'object' && move.undo === true);
+}
+
 export function moveTarget(move: StateMove): string {
   return typeof move === 'string' ? move : move.to;
 }

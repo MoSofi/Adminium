@@ -40,7 +40,7 @@ import {
   type TableIndex,
 } from './refs.js';
 import { momentIssues, momentOffsetSchema, plainMomentSchema, wallTimeSchema, type Moment } from './refs.js';
-import { conditionIssues, stateConditionSchema } from './states.js';
+import { conditionIssues, reachedOnlyByUndo, stateConditionSchema, type StateMove } from './states.js';
 
 /** The key every entry uses unless it names another. */
 export const CUSTOMER_KEY = 'customer';
@@ -869,11 +869,14 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     for (const ref of entry.requires ?? []) {
       if (!writable.has(ref)) out.push({ path: at('requires'), message: `"${ref}" is not writable, so a write cannot fill it` });
     }
+    const states = (table as { states?: { column: string; moves: Readonly<Record<string, readonly StateMove[]>> } }).states;
     for (const [ref, values] of Object.entries(entry.writableValues ?? {})) {
       if (!writable.has(ref)) out.push({ path: at('writableValues', ref), message: `"${ref}" is not writable` });
       const found = column(ref);
       if (found !== undefined) for (const value of values) {
         if (!valueFits(found, value)) out.push({ path: at('writableValues', ref), message: `${JSON.stringify(value)} is not a value of "${entry.table}.${ref}"` });
+        // A guest's write names no state it saw: a state only an undo reaches is never theirs to write.
+        else if (states?.column === ref && reachedOnlyByUndo(states, value)) out.push({ path: at('writableValues', ref), message: `every move to ${JSON.stringify(value)} is an undo, which only a person makes` });
       }
     }
     if (entry.writableWhen !== undefined && !patches) {

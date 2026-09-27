@@ -29,6 +29,7 @@ import { z } from 'zod';
 import type { AddOnNeeds } from './add-ons.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
 import { unlistedColumn } from './public-access.js';
+import { reachedOnlyByUndo, type StateMove } from './states.js';
 import {
   bcp47TagSchema,
   refSchema,
@@ -712,8 +713,13 @@ export function outboxIssues(
         } else {
           fk(linked, effect.via, effect.table, here('onSent', 'via'));
         }
+        const states = (index.table(effect.table) as { states?: { column: string; moves: Readonly<Record<string, readonly StateMove[]>> } } | undefined)?.states;
         for (const [ref, value] of Object.entries(effect.set)) {
           const found = col(effect.table, ref, null, here('onSent', 'set', ref), '');
+          // An email's change names no state it saw: a state only an undo reaches is never its to make.
+          if (states?.column === ref && value !== null && reachedOnlyByUndo(states, value)) {
+            out.push({ path: here('onSent', 'set', ref), message: `every move of "${effect.table}" to ${JSON.stringify(value)} is an undo, which only a person makes` });
+          }
           if (found !== undefined && value === null && found.nullable !== true) {
             out.push({ path: here('onSent', 'set', ref), message: `"${effect.table}.${ref}" is never empty` });
           } else if (found !== undefined && value !== null && !valueFits(found, value)) {

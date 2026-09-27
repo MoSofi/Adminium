@@ -291,6 +291,15 @@ function checkValues(
       );
     }
   }
+  // A state reached only by a move marked undo is a person's to make, naming the state they saw: a rule never can.
+  const states = table.table.states;
+  const value = states === undefined ? undefined : values[states.column];
+  if (states !== undefined && typeof value === 'string') {
+    const moves = Object.values(states.moves).flatMap((list) => list.filter((move) => (typeof move === 'string' ? move : move.to) === value));
+    if (moves.length > 0 && moves.every((move) => typeof move === 'object' && move.undo === true)) {
+      throw new ValidationFailedError(`${where}: every move to "${value}" is an undo, which only a person makes.`, { column: states.column });
+    }
+  }
 }
 
 /** Every refusal that needs a schema. Throws 422; returns the trigger table. */
