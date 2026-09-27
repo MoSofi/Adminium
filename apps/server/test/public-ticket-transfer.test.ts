@@ -252,4 +252,20 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     expect(carrying.length).toBeGreaterThan(0);
     expect(new Set(carrying.map((m) => m.to))).toEqual(new Set([String(row['pending_email'])]));
   });
+
+  it.skipIf(!available)("writes no more to a holder who deleted their details, though the ticket keeps its copy of the address", async () => {
+    const [first] = order.tickets;
+    const kaiSession = await buyer.signIn('kai@friends.org');
+    const forgot = await buyer.request('DELETE', '/account', { session: kaiSession });
+    expect(forgot.statusCode, forgot.body).toBe(200);
+    // The ticket is still Kai's at the door: its copy of his address stays for the desk.
+    expect((await ticketRow(first!.id))['holder_email']).toBe('kai@friends.org');
+    const quoted = dialect === 'mysql' ? '`to`' : '"to"';
+    await h.rows(`insert into ${t('messages')} (kind, status, ticket_id, ${quoted}) values ('ticket-ready', 'queued', ${String(first!.id)}, 'kai@friends.org')`);
+    const before = (await mailOf(h.meta)).length;
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect((await mailOf(h.meta)).slice(before).filter((m) => m.to === 'kai@friends.org')).toEqual([]);
+    const held = await h.rows(`select status from ${t('messages')} where kind = 'ticket-ready' and ticket_id = ${String(first!.id)} and status <> 'sent'`);
+    expect(held.map((m) => m['status'])).toEqual(['skipped']);
+  });
 });

@@ -123,6 +123,8 @@ import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
 import { withholdsOn } from '../public-api/withholds-on.js';
+import { forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
+import { toForgotten } from './forgotten.js';
 import type { AppManifest, OutboxProducer } from '@adminium/manifest';
 import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
@@ -152,6 +154,7 @@ import { outboxContext, outboxEffectContext } from './context.js';
 import { usableLanguage } from './language.js';
 import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
+import { columnRecipientOf } from './column-recipient.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence } from './timing.js';
 
@@ -1114,6 +1117,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       shareCodes: ShareCodes;
       /** Every `withhold` the app's public entries declare, by table. */
       withholds: TableWithholds;
+      /** Every `forget` declared on the connection, by table: a forgotten person is written to no more. */
+      forgets: TableForgets;
       /** The app's choice labels on the connection, read in a language. */
       labels?: ((locale: string) => ChoiceLabels) | undefined;
     },
@@ -1127,6 +1132,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key)) return { status: 'skipped', error: 'Sample data (never sent)' };
     const { addressed, to: found, lookedUp } = await addressOf(ctx, box, producer, row);
     if (!plausibleAddress(found)) return { status: 'skipped', error: 'No email on file' };
+    // A person who deleted their details since the message was queued: read as they are now, and written to no more.
+    if (await toForgotten(ctx, box.definition, row, addressed, columnRecipientOf(producer)?.column)) return { status: 'skipped', error: 'No email on file' };
     if (reservedAddress(found)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
     const templateKey = box.definition.kinds[kind];
     if (templateKey === undefined) return { status: 'failed', error: sentence(`No email is set for "${kind}"`) };
@@ -1264,6 +1271,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     let shareCodes: ShareCodes | undefined;
     /** What the app's public entries withhold from a row's parent's reader, likewise. */
     let withholds: TableWithholds | undefined;
+    /** What the connection's people may forget of themselves, likewise. */
+    let forgets: TableForgets | undefined;
     /** The app's choice labels, likewise. */
     let labels: ((locale: string) => ChoiceLabels) | undefined;
     /**
@@ -1340,8 +1349,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         }
         shareCodes ??= await shareCodesOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         withholds ??= await withholdsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
+        forgets ??= await forgetsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         labels ??= await choiceLabels(deps.meta, box.connectionId);
-        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, withholds, labels }, row);
+        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, withholds, forgets, labels }, row);
         if ('status' in ready) {
           const values: Row = { [cols.status]: ready.status };
           if (cols.error !== undefined) values[cols.error] = ready.error;
