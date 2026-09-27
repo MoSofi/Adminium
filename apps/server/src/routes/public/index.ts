@@ -58,6 +58,8 @@ import {
 } from '../../public-api/runtime.js';
 import { publicConfigOf, type CompiledResource, type PublicAction } from '../../public-api/scope.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
+import { publicWindows } from '../../public-api/moment-windows.js';
+import { timedRefusal } from '../../public-api/timed-refusals.js';
 import { prepareValues } from '../../public-api/values.js';
 import { publishPublicWrite } from '../../public-api/publish.js';
 import { customerHostIn, guestBase } from '../../public-api/guest-base.js';
@@ -260,13 +262,18 @@ class PublicWriteRefused extends Error {
  * availability of that time already does.
  */
 class PublicSlotRefused extends Error {
-  constructor(readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE') {
+  constructor(
+    readonly code: 'PUBLIC_SLOT_FULL' | 'PUBLIC_SLOT_BUSY' | 'PUBLIC_TOO_LATE' | 'PUBLIC_TOO_EARLY',
+    readonly params?: Record<string, unknown>,
+  ) {
     super(
       code === 'PUBLIC_SLOT_BUSY'
         ? 'That time is busy. Try again in a moment.'
         : code === 'PUBLIC_TOO_LATE'
           ? 'It is too late to cancel online.'
-          : 'That time is full.',
+          : code === 'PUBLIC_TOO_EARLY'
+            ? 'Too early for this change; `at` is the time it waits for.'
+            : 'That time is full.',
     );
   }
 }
@@ -377,6 +384,8 @@ const SLOT_REFUSALS: Readonly<Record<string, PublicSlotRefused['code']>> = {
   BOOKING_TAKEN: 'PUBLIC_SLOT_FULL',
   BOOKING_BUSY: 'PUBLIC_SLOT_BUSY',
   BOOKING_TOO_LATE: 'PUBLIC_TOO_LATE',
+  // Two writers at once, or a row that moved while it was judged: the same write a moment later goes through.
+  WRITE_CONFLICT: 'PUBLIC_SLOT_BUSY',
 };
 
 /** The booking refusals a guest is told as a refused write, by why. */
@@ -422,6 +431,12 @@ function namedIn(fields: unknown, told: Told): { column: string; reason: string 
 const refuseWrite = (error?: unknown, told?: Told): never => {
   const slot = error instanceof AppError ? SLOT_REFUSALS[error.code] : undefined;
   if (slot !== undefined) throw new PublicSlotRefused(slot);
+  // A move or a change judged against the clock: told when it opens, or that it has closed.
+  const timed = timedRefusal(error);
+  if (timed !== null) throw new PublicSlotRefused(timed.code, timed.params);
+  if (error instanceof AppError && error.code === 'STATE_UNCHANGED') {
+    throw new PublicWriteRefused({ column: String((error.details as { column?: unknown } | undefined)?.column ?? ''), reason: 'unchanged' });
+  }
   if (error instanceof AppError) {
     const details = (error.details ?? {}) as { reason?: unknown; column?: unknown; fields?: Record<string, unknown> };
     const code = error.code === 'BOOKING_CLOSED' ? 'BOOKING_CLOSED' : typeof details.reason === 'string' ? details.reason : '';
@@ -1902,7 +1917,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
-          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
@@ -2057,6 +2072,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
               return ((await inScope(query).executeTakeFirst()) as Row | undefined) ?? null;
             },
             skipIfNone: true,
+            // A window read from moments is judged by the statement, holding the row.
+            windows: publicWindows(found.resource.writableWhen, found.view, found.table, ok.key.scope.timezone),
             mapError: refuseWriteThrough(found.resource, 'update'),
             announce: async ({ before, after }) => {
               await auditWrite(
@@ -2099,7 +2116,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
-          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
@@ -2293,7 +2310,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
-          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message);
+          if (error instanceof PublicSlotRefused) return fail(reply, 409, error.code, error.message, error.params);
           if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
           // A move an app's outbox refuses: named for the desk, never for a public caller.
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');

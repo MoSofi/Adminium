@@ -70,6 +70,7 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
         id,
         { ref: 'event_id', type: 'fk', references: 'events' },
         { ref: 'email', type: 'text', maxLength: 200 },
+        { ref: 'account', type: 'int', nullable: true },
         { ref: 'pay', type: 'enum', enum: ['paid', 'door', 'none', 'transfer'], default: 'none' },
         { ref: 'status', type: 'enum', enum: ['held', 'awaiting_transfer', 'overdue', 'paid', 'expired', 'released', 'cancelled'], default: 'held' },
         { ref: 'held_until', type: 'timestamptz', nullable: true, rules: { stamp: { set: { addMinutes: { minutes: setting('hold_minutes') } }, on: 'create' } } },

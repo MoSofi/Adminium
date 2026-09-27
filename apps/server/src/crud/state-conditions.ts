@@ -85,6 +85,8 @@ export interface StateWindow {
   where?: readonly StateCondition[] | undefined;
   /** The venue's zone the entry reads its wall times in. */
   zone?: string | undefined;
+  /** Keyed by a link the database no longer has: nothing can be read, so the window is shut. */
+  unresolved?: true | undefined;
 }
 
 const WINDOWS = Symbol('adminium.write-windows');
@@ -272,6 +274,7 @@ export async function judgeWindow(window: StateWindow, input: { moments: MomentC
       { bound, at: at === null ? null : at.toISOString(), column: window.column, ...(reason === undefined ? {} : { reason }) },
     );
   };
+  if (window.unresolved === true) close('before', null, 'linked');
   if (window.link !== undefined) {
     const linked = moments.linked.get(window.link.via) ?? null;
     if (linked === null || (window.where ?? []).some((condition) => !holds(condition, linked))) close('before', null, 'linked');

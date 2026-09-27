@@ -82,12 +82,6 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
   { rule: 'states.timed', on: (table) => table.states?.timed !== undefined },
 ];
 
-/** Whether a public entry's `writable_when` has a window read from moments (not the `within` form). */
-const momentWindow = (entry: Readonly<Record<string, unknown>>): boolean =>
-  Object.values((entry['writable_when'] as Record<string, unknown> | undefined) ?? {}).some(
-    (when) => typeof when === 'object' && when !== null && !Array.isArray(when) && !('within' in when),
-  );
-
 /** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */
 const ENTRY_KEYS = [
   // Availability for every kind of limit, and what is left said only when little is.
@@ -118,7 +112,6 @@ const ENTRY_KEYS = [
  */
 export const UNBUILT_ENTRY_RULES: readonly UnbuiltEntryRule[] = [
   ...ENTRY_KEYS.map((key) => ({ rule: key, on: (entry: Readonly<Record<string, unknown>>) => entry[key] !== undefined })),
-  { rule: 'writable_when', on: momentWindow },
   // A change's limits: per value a day, plain text only.
   { rule: 'limits', on: (entry) => entry['limits'] !== undefined },
   // Columns withheld from rows read through a parent (a ticket handed to a friend).
