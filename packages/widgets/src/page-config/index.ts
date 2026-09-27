@@ -22,13 +22,19 @@ export {
   aggregationSchema,
   bucketUnitSchema,
   capacityCountsSchema,
+  countsJoinSchema,
+  filterGroupSchema,
+  filterNodeSchema,
   filterSchema,
   queryDescriptorSchema,
   type Aggregation,
   type BucketUnit,
   type CapacityCountsAsk,
+  type CountsJoin,
   type QueryDescriptor,
   type QueryFilter,
+  type QueryFilterGroup,
+  type QueryFilterNode,
 } from './query-descriptor.js';
 export { layoutItemSchema, pageLayoutSchema, type LayoutItem, type PageLayout } from './layout.js';
 export {

@@ -33,6 +33,7 @@ import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
+import { countsTablesOf, joinCounts } from '../../widget-data/counts-join.js';
 import { groupLabelSourceOf, groupLabelsFor } from '../../widget-data/group-labels.js';
 import { resolveLinkFilters } from '../../widget-data/link-filters.js';
 import { resolvePaths } from '../../widget-data/paths.js';
@@ -149,6 +150,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
        */
       if (descriptor.kind === 'capacity-counts') {
         const { db, dialect } = await manager.data(connectionId);
+        const tenant = await connectionTenantConfig(deps.meta, connectionId);
         const result = await answerCapacityCounts({
           descriptor,
           params: params ?? {},
@@ -157,7 +159,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
           table,
           db,
           dialect,
-          timezone: (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? undefined,
+          timezone: tenant?.timezone ?? undefined,
+          currency: tenant?.currency ?? null,
           now: deps.now?.() ?? new Date(),
           access: countsAccessFor(request, connectionId, view),
           canReadPii: piiOf,
@@ -222,7 +225,28 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         canReadPii: piiOf,
         canReadTable: (tableId) => request.can(`table:${connectionId}:${tableId}:read`),
       });
-      const result = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels });
+      const shaped = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId, groupLabels });
+      // What a limit has taken from each row listed (`counts`), on the counts route's read rules.
+      const result =
+        descriptor.counts === undefined || shaped.shape !== 'record-list'
+          ? shaped
+          : {
+              ...shaped,
+              ...(await joinCounts({
+                descriptor,
+                params: params ?? {},
+                connectionId,
+                view,
+                source: compiled.table,
+                rows: shaped.rows,
+                columns: shaped.columns,
+                db,
+                dialect,
+                timezone,
+                now: deps.now?.() ?? new Date(),
+                access: countsAccessFor(request, connectionId, view),
+              })),
+            };
 
       // Execution metrics for the Studio slow-query panel — the
       // structured log line is the v1 sink.
@@ -239,7 +263,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         'widget-data query',
       );
 
-      cache.set(key, result, connectionId, compiled.table.id);
+      cache.set(key, result, connectionId, compiled.table.id, countsTablesOf(view, descriptor));
       return { result, cached: false };
     }
 

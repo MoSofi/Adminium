@@ -42,7 +42,35 @@ export const filterSchema = z.object({
   ]),
   value: z.unknown().optional(),
   param: z.string().optional(), // late-bound from page controls, e.g. 'dateRange.start'
+  /**
+   * A day on the venue's calendar in place of `value`, for a date or time
+   * column: `today`, n days from it (`today+7`, `today-30`) or `YYYY-MM-DD`,
+   * with `eq`, `neq`, `gt`, `gte`, `lt` or `lte`. On a time column a day is
+   * its whole span where the venue is (`lte` today ends at tomorrow's
+   * midnight there), as a link's filter reads it.
+   */
+  day: z.string().regex(/^(today([+-]\d{1,4})?|\d{4}-\d{2}-\d{2})$/).optional(),
 });
+
+/**
+ * `{ or: [...] }` / `{ and: [...] }` — filters joined some other way than the
+ * list's plain "all of these": rooms out of service today or later are
+ * `active` AND (`to_date` from today OR no `to_date`). The CRUD list's own
+ * grammar: groups nest at most two deep, sixteen conditions in all (the
+ * server counts them). A condition whose `param` is unset stands for "no
+ * filter", so an `or` holding one keeps every row.
+ */
+const innerGroupSchema = z.union([
+  z.object({ and: z.array(filterSchema).min(1).max(16) }).strict(),
+  z.object({ or: z.array(filterSchema).min(1).max(16) }).strict(),
+]);
+const filterItemSchema = z.union([filterSchema, innerGroupSchema]);
+export const filterGroupSchema = z.union([
+  z.object({ and: z.array(filterItemSchema).min(1).max(16) }).strict(),
+  z.object({ or: z.array(filterItemSchema).min(1).max(16) }).strict(),
+]);
+/** One entry of a descriptor's `filters`: a condition, or a group of them. */
+export const filterNodeSchema = z.union([filterSchema, filterGroupSchema]);
 
 /**
  * `hour-of-day` folds every day into its hours on the venue's clock: a week of
@@ -71,8 +99,9 @@ const paramNameSchema = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_.]{0,63}$/);
  *   in their column `under`, and a day where the limit counts by day.
  *
  * Answered as `categorical` (one item per slot, day or pool, valued by what is
- * taken) or `record-list` (one row per slot, day or pool, as the route
- * answers it, a pool's row with its `label`).
+ * taken), `record-list` (one row per slot, day or pool, as the route
+ * answers it, a pool's row with its `label`), or a KPI — `single-metric` /
+ * `metric+delta` — of one figure over them all (`metric`).
  */
 export const capacityCountsSchema = z.object({
   /** Which of the table's limits: its index in the table's rules. */
@@ -84,6 +113,35 @@ export const capacityCountsSchema = z.object({
   ids: z.array(z.string().min(1).max(200)).min(1).max(200).optional(),
   /** A column of the pools' rows a pool is called by; its display column otherwise. */
   label: z.string().min(1).max(128).optional(),
+  /**
+   * A KPI's figure (`single-metric` / `metric+delta`), over every pool and
+   * day or night counted: what is `taken` (holds included), `held`, `left`,
+   * the `size` there is to take, `occupancy` (taken ÷ size, 0.66 for 66 %;
+   * none when there is nothing to take) or, for a night limit on a table
+   * priced by the night, the `earnings` of the rows sold (holds still running
+   * earn nothing yet) at each night's own rate. `metric+delta` compares the
+   * span just before (yesterday, last week). `taken` unless said.
+   */
+  metric: z.enum(['taken', 'held', 'left', 'size', 'occupancy', 'earnings']).optional(),
+});
+
+/**
+ * `counts` on a `record-list` table query: each row it lists with what a
+ * table's limit has taken from it, under `as` — `{ taken, held, size, left }`
+ * — as the desk's counts count them. The rows are the limit's pools (the
+ * ticket types) or the pools it also takes from (the events of `also`):
+ * "coming shows, sold and held of what they can sell", listed, filtered and
+ * put in order like any other rows. The day counted is the page's day
+ * control, else `date`, else today on the venue's clock, where the limit
+ * counts by day.
+ */
+export const countsJoinSchema = z.object({
+  /** The limited table (`tickets`): `name`, or `schema.name`. */
+  table: z.string().min(1).max(200),
+  rule: z.number().int().min(0).max(2).default(0),
+  as: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/).default('counts'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  param: paramNameSchema.default('day'),
 });
 
 export const queryDescriptorSchema = z.object({
@@ -120,7 +178,7 @@ export const queryDescriptorSchema = z.object({
       unit: bucketUnitSchema,
     })
     .optional(),
-  filters: z.array(filterSchema).max(16).optional(),
+  filters: z.array(filterNodeSchema).max(16).optional(),
   window: z
     .object({
       // rolling window + prior-period comparison
@@ -161,10 +219,15 @@ export const queryDescriptorSchema = z.object({
   cursor: z.string().optional(), // keyset pagination for record-list
   /** `kind: 'capacity-counts'` only (and required there): which limit, which pools. */
   capacity: capacityCountsSchema.optional(),
+  /** A `record-list` only: what a table's limit has taken from each row listed. */
+  counts: countsJoinSchema.optional(),
 });
 
 export type QueryDescriptor = z.infer<typeof queryDescriptorSchema>;
 export type Aggregation = z.infer<typeof aggregationSchema>;
 export type QueryFilter = z.infer<typeof filterSchema>;
+export type QueryFilterGroup = z.infer<typeof filterGroupSchema>;
+export type QueryFilterNode = z.infer<typeof filterNodeSchema>;
 export type BucketUnit = z.infer<typeof bucketUnitSchema>;
 export type CapacityCountsAsk = z.infer<typeof capacityCountsSchema>;
+export type CountsJoin = z.infer<typeof countsJoinSchema>;

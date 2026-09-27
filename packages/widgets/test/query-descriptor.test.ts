@@ -57,7 +57,28 @@ describe('queryDescriptorSchema', () => {
       filters: [{ column: 'order_id.status', op: 'neq', value: 'cancelled' }],
     });
     expect(parsed.bucket?.unit).toBe('hour-of-day');
-    expect(parsed.filters?.[0]?.column).toBe('order_id.status');
+    expect(parsed.filters?.[0]).toMatchObject({ column: 'order_id.status' });
+  });
+
+  it('accepts filters joined by or / and, two groups deep', () => {
+    const filters = [
+      { column: 'active', op: 'eq', value: true },
+      { or: [{ column: 'to_date', op: 'gte', param: 'day' }, { column: 'to_date', op: 'is_null' }] },
+      { and: [{ column: 'room', op: 'neq', value: '101' }, { or: [{ column: 'reason', op: 'like', value: '%leak%' }, { column: 'reason', op: 'is_null' }] }] },
+    ];
+    const parsed = queryDescriptorSchema.parse({ ...minimal, shape: 'record-list', filters });
+    // Stored and read back as written.
+    expect(queryDescriptorSchema.parse(JSON.parse(JSON.stringify(parsed))).filters).toEqual(filters);
+  });
+
+  it.each([
+    ['a third group deep', [{ or: [{ and: [{ or: [{ column: 'a', op: 'eq', value: 1 }] }] }] }]],
+    ['an empty group', [{ or: [] }]],
+    ['a group that is both', [{ or: [{ column: 'a', op: 'eq', value: 1 }], and: [{ column: 'b', op: 'eq', value: 1 }] }]],
+    ['a group with a stray key', [{ or: [{ column: 'a', op: 'eq', value: 1 }], column: 'b' }]],
+    ['a group member that is not a filter', [{ or: [{ column: 'a' }] }]],
+  ])('rejects %s', (_label, filters) => {
+    expect(queryDescriptorSchema.safeParse({ ...minimal, shape: 'record-list', filters }).success).toBe(false);
   });
 
   it('defaults window.compareToPrior to false', () => {

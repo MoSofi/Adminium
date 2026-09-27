@@ -133,7 +133,7 @@ export function withDateWindow(
   return requests.map((request) => {
     if (request.instanceId !== target.instanceId) return request;
     const filters = request.descriptor.filters ?? [];
-    if (filters.some((filter) => filter.param === 'dateRange.start')) return request;
+    if (filters.some((filter) => 'param' in filter && filter.param === 'dateRange.start')) return request;
     return {
       instanceId: request.instanceId,
       descriptor: {

@@ -23,7 +23,8 @@
  * refused before anything is written — never a form silently dropped.
  */
 import { pageSourceTable, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
-import { pageLayoutSchema, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
+import { z } from 'zod';
+import { capacityCountsSchema, countsJoinSchema, filterNodeSchema, pageLayoutSchema, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
 import type { Manifest } from '@adminium/manifest';
 
 import { childRelations } from '../crud/child-rows.js';
@@ -191,6 +192,14 @@ export function bindLayout(
         const schema = model.dialect === 'postgres' && table.schema !== null ? { schema: table.schema } : {};
         node['source'] = { ...(source as object), name: table.name, ...schema };
       }
+      // A list's counts name the limited table too (`counts: {table}`): bound the same way.
+      const counts = node['counts'];
+      if (typeof counts === 'object' && counts !== null && typeof (counts as { table?: unknown }).table === 'string') {
+        const named = (counts as { table: string }).table;
+        const limited = model.tables.find((t) => t.name === (names[named] ?? named));
+        if (limited === undefined) problem ??= `"${named}" is not a table of this connection`;
+        else node['counts'] = { ...(counts as object), table: model.dialect === 'postgres' && limited.schema !== null ? `${limited.schema}.${limited.name}` : limited.name };
+      }
     }
     for (const child of Object.values(node)) visit(child);
   };
@@ -206,9 +215,47 @@ export function layoutTables(layout: PageLayout): string[] {
     if (typeof value !== 'object' || value === null) return;
     const node = value as Record<string, unknown>;
     const source = node['source'] as { name?: unknown } | undefined;
-    if (node['shape'] !== undefined && typeof source?.name === 'string') out.add(source.name);
+    if (node['shape'] !== undefined && typeof source?.name === 'string') {
+      out.add(source.name);
+      const counts = node['counts'] as { table?: unknown } | undefined;
+      if (typeof counts?.table === 'string') out.add(counts.table);
+    }
     for (const child of Object.values(node)) visit(child);
   };
   visit(layout.items);
   return [...out];
+}
+
+/**
+ * What a layout's widget queries carry that the dashboard could not read: a
+ * filter group (`or` / `and`) or a filter on a venue `day` that is not one, a
+ * list's `counts` that are not, a KPI figure (`capacity.metric`) that is not
+ * one. Judged when the install is planned, so an app whose Overview asks for
+ * one is refused before anything is written — never a card that fails on
+ * every read. Only these parts are judged here: the rest of a query is read
+ * as it always was.
+ */
+export function layoutQueryProblems(layout: PageLayout): string[] {
+  const out: string[] = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (typeof value !== 'object' || value === null) return;
+    const node = value as Record<string, unknown>;
+    const source = node['source'] as { name?: unknown } | undefined;
+    if (node['shape'] !== undefined && typeof source?.name === 'string') {
+      const where = `the card over "${source.name}"`;
+      const filters = node['filters'];
+      const grouped = Array.isArray(filters) && filters.some((filter) => typeof filter === 'object' && filter !== null && ('or' in filter || 'and' in filter || 'day' in filter));
+      if (grouped && !z.array(filterNodeSchema).max(16).safeParse(filters).success) out.push(`${where} has filters that are not ones a card can read`);
+      if (node['counts'] !== undefined) {
+        if (!countsJoinSchema.safeParse(node['counts']).success) out.push(`${where} asks for counts that are not ones a card can read`);
+        else if (node['shape'] !== 'record-list') out.push(`${where} asks for counts beside something other than a list`);
+      }
+      const capacity = node['capacity'] as { metric?: unknown } | undefined;
+      if (capacity?.metric !== undefined && !capacityCountsSchema.shape.metric.safeParse(capacity.metric).success) out.push(`${where} asks for a figure that is not one`);
+    }
+    for (const child of Object.values(node)) visit(child);
+  };
+  visit(layout.items);
+  return out;
 }

@@ -142,7 +142,7 @@ import {
 } from '../../apps/sample-data.js';
 import { ownRules, removeManifestRules, rulesKeptBack, shapeRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
-import { formIssues, layoutTables } from '../../apps/manifest-page-config.js';
+import { formIssues, layoutQueryProblems, layoutTables } from '../../apps/manifest-page-config.js';
 import {
   addOnGrantsOf,
   forgetAppRoleGrants,
@@ -1161,6 +1161,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           for (const name of layoutTables(parsed.data)) {
             if (!declared.has(name)) issues.push(`its layout reads "${name}", which is not a table of the app`);
           }
+          issues.push(...layoutQueryProblems(parsed.data));
         }
       }
       return issues.map((issue) => ({
