@@ -28,6 +28,8 @@ import { z } from 'zod';
 
 import type { AddOnNeeds } from './add-ons.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
+import { unlistedColumn } from './public-access.js';
+import { reachedOnlyByUndo, type StateMove } from './states.js';
 import {
   bcp47TagSchema,
   refSchema,
@@ -151,6 +153,13 @@ const producerBase = {
    */
   holdSeconds: z.number().int().min(1).max(3600).optional(),
   /**
+   * A column of the row the message is about: one message for each value it
+   * holds, not one for the row for ever — a ticket offered again, its link
+   * made afresh, is emailed again. Kept as a digest in the outbox's
+   * `repeatKey` column.
+   */
+  repeatBy: refSchema.optional(),
+  /**
    * A change made once the message has gone, through the ordinary write: to
    * the source row, or (with `via`) the row its foreign key points at.
    */
@@ -267,6 +276,8 @@ export const outboxSchema = z
         /** When `onSent`'s change was made, or why it was refused. */
         effectAt: refSchema.optional(),
         effectError: refSchema.optional(),
+        /** A text column (at least 43 characters) Adminium fills with the digest of a producer's `repeatBy` value. */
+        repeatKey: refSchema.optional(),
       })
       .strict(),
     /**
@@ -369,6 +380,9 @@ export type EmailTemplate = z.infer<typeof emailTemplateSchema>;
 const DECIDING_RULES = ['copy', 'default', 'sequence', 'format', 'code', 'rollup', 'formula', 'stamp', 'perNight'] as const;
 /** The column rules that refuse a value: Adminium's own writes to the column would be refused by them. */
 const REFUSING_RULES = ['options', 'validation', 'required', 'requiredWhen', 'notAfter', 'notBefore'] as const;
+/** How long a `repeatKey` is: a SHA-256 digest in base64url. */
+export const REPEAT_KEY_LENGTH = 43;
+
 /** What the outbox writes, and which rules each refuses: everything, but a check of the address a person types. */
 export const OUTBOX_WRITTEN = {
   status: [...DECIDING_RULES, ...REFUSING_RULES],
@@ -378,6 +392,7 @@ export const OUTBOX_WRITTEN = {
   approvedBy: [...DECIDING_RULES, ...REFUSING_RULES],
   effectAt: [...DECIDING_RULES, ...REFUSING_RULES],
   effectError: [...DECIDING_RULES, ...REFUSING_RULES],
+  repeatKey: [...DECIDING_RULES, ...REFUSING_RULES],
   // Left empty by a desk that asks Adminium to look the address up, and written when it sends.
   to: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
   language: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
@@ -412,7 +427,7 @@ export function outboxIssues(
     outbox?: Outbox | undefined;
     emailTemplates?: readonly EmailTemplate[] | undefined;
     addOns?: AddOnNeeds | undefined;
-  },
+  } & Parameters<typeof unlistedColumn>[0],
   index: TableIndex,
 ): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
@@ -487,6 +502,12 @@ export function outboxIssues(
     if (ref !== undefined) col(box.table, ref, name === 'skipReason' ? ['text', 'enum'] : ['text'], at('columns', name), 'a text column');
   }
   if (box.columns.effectAt !== undefined) col(box.table, box.columns.effectAt, ['timestamptz'], at('columns', 'effectAt'), 'a timestamptz');
+  if (box.columns.repeatKey !== undefined) {
+    const found = col(box.table, box.columns.repeatKey, ['text'], at('columns', 'repeatKey'), 'a text column');
+    if (found !== undefined && found.maxLength !== undefined && found.maxLength < REPEAT_KEY_LENGTH) {
+      out.push({ path: at('columns', 'repeatKey'), message: `"${box.table}.${found.ref}" must hold ${REPEAT_KEY_LENGTH} characters (a digest)` });
+    }
+  }
   /*
    * The columns Adminium writes as it sends and as a person approves or skips
    * a message — and the address and language it writes when it looks them up.
@@ -659,6 +680,13 @@ export function outboxIssues(
       const other = producer.hold === true ? 'hold' : producer.due !== undefined ? 'due' : producer.batchMinutes !== undefined ? 'batchMinutes' : 'before' in producer ? 'before' : null;
       if (other !== null) out.push({ path: here('holdSeconds'), message: `a message that waits a few seconds takes no ${other} as well` });
     }
+    // One message per value of a column of the row it is about: kept as a digest in the outbox.
+    if (producer.repeatBy !== undefined) {
+      col(linked, producer.repeatBy, null, here('repeatBy'), '');
+      if (box.columns.repeatKey === undefined) out.push({ path: here('repeatBy'), message: 'which value a message was sent for is kept in the outbox\'s repeatKey column, and none is named' });
+      const other = 'before' in producer ? 'before' : producer.batchMinutes !== undefined ? 'batchMinutes' : null;
+      if (other !== null) out.push({ path: here('repeatBy'), message: `a message sent again for each value takes no ${other}: that is one per row or window already` });
+    }
     if (producer.recipient !== undefined) {
       if ('setting' in producer.recipient) setting(producer.recipient.setting, here('recipient', 'setting'));
       else {
@@ -685,8 +713,13 @@ export function outboxIssues(
         } else {
           fk(linked, effect.via, effect.table, here('onSent', 'via'));
         }
+        const states = (index.table(effect.table) as { states?: { column: string; moves: Readonly<Record<string, readonly StateMove[]>> } } | undefined)?.states;
         for (const [ref, value] of Object.entries(effect.set)) {
           const found = col(effect.table, ref, null, here('onSent', 'set', ref), '');
+          // An email's change names no state it saw: a state only an undo reaches is never its to make.
+          if (states?.column === ref && value !== null && reachedOnlyByUndo(states, value)) {
+            out.push({ path: here('onSent', 'set', ref), message: `every move of "${effect.table}" to ${JSON.stringify(value)} is an undo, which only a person makes` });
+          }
           if (found !== undefined && value === null && found.nullable !== true) {
             out.push({ path: here('onSent', 'set', ref), message: `"${effect.table}.${ref}" is never empty` });
           } else if (found !== undefined && value !== null && !valueFits(found, value)) {
@@ -715,7 +748,7 @@ export function outboxIssues(
       }
     }
   });
-  out.push(...emailBlockIssues(m.emailTemplates ?? [], box, index));
+  out.push(...emailBlockIssues(m.emailTemplates ?? [], box, index, (table, column) => unlistedColumn(m, table, column)));
   return out;
 }
 
@@ -787,7 +820,7 @@ function stringsIn(value: unknown, path: (string | number)[], out: { text: strin
  * can fill; the same rows in every language; and a QR code only as a whole
  * image value, of a code column.
  */
-function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, index: TableIndex): ReferenceIssue[] {
+function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, index: TableIndex, unlisted: (table: string, column: string) => string | null): ReferenceIssue[] {
   const out: ReferenceIssue[] = [];
   const links = box.links ?? {};
   /** The table a link names. */
@@ -893,6 +926,10 @@ function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, inde
           const shown = index.column(join.table, join.column);
           if (shown === undefined) out.push({ path: [...path, 'column'], message: `"${join.table}" has no column "${join.column}"` });
           else if (shown.type !== 'text') out.push({ path: [...path, 'column'], message: `"${join.table}.${join.column}" is not a text column` });
+          else {
+            const kept = unlisted(join.table, join.column);
+            if (kept !== null) out.push({ path: [...path, 'column'], message: `"${join.table}.${join.column}" is ${kept}, which an email never lists from another row` });
+          }
           if (join.orderBy !== undefined && index.column(join.table, join.orderBy) === undefined) out.push({ path: [...path, 'orderBy'], message: `"${join.table}" has no column "${join.orderBy}"` });
         }
         // Each {{row.*}} names something a row fills, in a form its type has.

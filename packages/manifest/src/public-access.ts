@@ -40,7 +40,7 @@ import {
   type TableIndex,
 } from './refs.js';
 import { momentIssues, momentOffsetSchema, plainMomentSchema, wallTimeSchema, type Moment } from './refs.js';
-import { conditionIssues, stateConditionSchema } from './states.js';
+import { conditionIssues, reachedOnlyByUndo, stateConditionSchema, type StateMove } from './states.js';
 
 /** The key every entry uses unless it names another. */
 export const CUSTOMER_KEY = 'customer';
@@ -136,6 +136,32 @@ export function shareCodeColumns(entries: readonly PublicAccess[], table: string
     if (!out.includes(claim.column)) out.push(claim.column);
   }
   return out;
+}
+
+/**
+ * Why a column of another row may never be printed in a list one level down
+ * (an email's `joins`, a document's list of names): a list is read for
+ * whoever the email or document goes to, one row further from them than the
+ * row they asked for, so no reader decides what it shows. A secret, personal
+ * data, a code (the one a shared link opens its row with, one Adminium makes,
+ * one a person typed), or a column an entry withholds from all but its
+ * holder. Null for a column any reader may see listed.
+ */
+export function unlistedColumn(
+  m: { publicAccess?: readonly PublicAccess[] | undefined; requiredSchema: { tables: readonly { ref: string; columns: readonly { ref: string; rules?: Record<string, unknown> | undefined }[] }[] } },
+  table: string,
+  column: string,
+): string | null {
+  const entries = m.publicAccess ?? [];
+  if (shareCodeColumns(entries, table).includes(column)) return 'the code a shared link opens its row with';
+  if (entries.some((entry) => entry.table === table && entry.withhold?.columns.includes(column) === true)) return 'withheld from all but its holder';
+  const columns = m.requiredSchema.tables.find((candidate) => candidate.ref === table)?.columns ?? [];
+  const rules = columns.find((candidate) => candidate.ref === column)?.rules;
+  if (rules?.['secret'] === true) return 'a secret';
+  if (rules?.['personal'] === true) return 'personal data';
+  if (rules?.['code'] !== undefined) return 'a code';
+  if (columns.some((candidate) => (candidate.rules?.['lookup'] as { from?: unknown } | undefined)?.from === column)) return 'a code a person typed';
+  return null;
 }
 
 /**
@@ -843,11 +869,14 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     for (const ref of entry.requires ?? []) {
       if (!writable.has(ref)) out.push({ path: at('requires'), message: `"${ref}" is not writable, so a write cannot fill it` });
     }
+    const states = (table as { states?: { column: string; moves: Readonly<Record<string, readonly StateMove[]>> } }).states;
     for (const [ref, values] of Object.entries(entry.writableValues ?? {})) {
       if (!writable.has(ref)) out.push({ path: at('writableValues', ref), message: `"${ref}" is not writable` });
       const found = column(ref);
       if (found !== undefined) for (const value of values) {
         if (!valueFits(found, value)) out.push({ path: at('writableValues', ref), message: `${JSON.stringify(value)} is not a value of "${entry.table}.${ref}"` });
+        // A guest's write names no state it saw: a state only an undo reaches is never theirs to write.
+        else if (states?.column === ref && reachedOnlyByUndo(states, value)) out.push({ path: at('writableValues', ref), message: `every move to ${JSON.stringify(value)} is an undo, which only a person makes` });
       }
     }
     if (entry.writableWhen !== undefined && !patches) {

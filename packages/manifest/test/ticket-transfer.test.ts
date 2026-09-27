@@ -180,3 +180,24 @@ describe('columns withheld from rows read through a parent', () => {
     ).toContain('"tickets.holder_customer_id" decides who reads the withheld columns, so no browser writes it');
   });
 });
+
+describe('an offer emailed once per offer', () => {
+  const producer = (m: Doc) => ((m['outbox'] as { producers: Doc[] }).producers.find((p) => p['kind'] === 'ticket-offered')!);
+  const columns = (m: Doc) => (m['outbox'] as { columns: Doc }).columns;
+
+  it('keeps which offer a message was for in the outbox, by the link each offer makes afresh', () => {
+    const m = boxOffice();
+    expect(producer(m)['repeatBy']).toBe('link_token');
+    expect(columns(m)['repeatKey']).toBe('repeat_key');
+    expect(issuesText(m)).toBe('');
+  });
+
+  it('refuses a repeat with nowhere to keep it, a column the row lacks, a key too short, or a key a rule decides', () => {
+    expect(broken((m) => delete columns(m)['repeatKey'])).toMatch(/repeatBy: .*repeatKey column/);
+    expect(broken((m) => (producer(m)['repeatBy'] = 'nope'))).toMatch(/"tickets" has no column "nope"/);
+    expect(broken((m) => (columnOf(m, 'messages', 'repeat_key')['maxLength'] = 40))).toMatch(/must hold 43 characters/);
+    expect(broken((m) => (columnOf(m, 'messages', 'repeat_key')['type'] = 'int'))).toMatch(/repeatKey: .*a text column/);
+    expect(broken((m) => (columnOf(m, 'messages', 'repeat_key')['rules'] = { required: true }))).toMatch(/Adminium writes/);
+    expect(broken((m) => (producer(m)['batchMinutes'] = 5))).toMatch(/takes no batchMinutes/);
+  });
+});

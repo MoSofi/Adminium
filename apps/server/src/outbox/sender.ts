@@ -123,6 +123,8 @@ import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
 import { withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
 import { withholdsOn } from '../public-api/withholds-on.js';
+import { forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
+import { toForgotten } from './forgotten.js';
 import type { AppManifest, OutboxProducer } from '@adminium/manifest';
 import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
@@ -152,6 +154,7 @@ import { outboxContext, outboxEffectContext } from './context.js';
 import { usableLanguage } from './language.js';
 import { isSampleRow, verdictsFor, type LiveOutbox, type OutboxLogger } from './producers.js';
 import { addressFor, plausibleAddress, referenced, rowOf, type Addressed } from './recipient.js';
+import { columnRecipientOf } from './column-recipient.js';
 import type { SignInLinkMinter } from './sign-in-link.js';
 import { producerOf, settingReader, skipSentence } from './timing.js';
 
@@ -1053,6 +1056,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const records = (await query.limit(Math.min(50, Math.max(1, from.limit ?? 50))).execute()) as Row[];
     if (records.length === 0) return [];
     // Each list one level down, for every row at once: at most twenty names a row.
+    const holders = holdersOf(box, view, holder);
     const joined = new Map<string, Map<string, string[]>>();
     const key = child.primaryKey[0];
     for (const [name, join] of Object.entries(joins)) {
@@ -1060,10 +1064,17 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       joined.set(name, byRow);
       if (key === undefined) continue;
       const table = joinTables.get(name)!;
-      let names = db.selectFrom(table.id as never).select([join.via, join.column] as never).where(join.via as never, 'in', records.map((record) => record[key]) as never);
+      // A column no reader of an email may see is listed as nothing: a secret, personal data.
+      const shown = table.columns.get(join.column)!;
+      if (shown.secret || shown.masked) continue;
+      let names = db.selectFrom(table.id as never).selectAll().where(join.via as never, 'in', records.map((record) => record[key]) as never);
       if (join.orderBy !== undefined && table.columns.has(join.orderBy)) names = names.orderBy(join.orderBy as never);
       for (const pk of table.primaryKey) names = names.orderBy(pk as never);
+      const shareCodes = ctx.shareCodes.get(table.id.slice(table.id.lastIndexOf('.') + 1)) ?? new Set<string>();
       for (const found of (await names.execute()) as Row[]) {
+        // Judged as a `{{row.*}}` is: a shared link's code only to its holder, a withheld column never to anyone else.
+        if (shareCodes.has(join.column) && !holders(table, found)) continue;
+        if ((await ctx.blankOf(table, found)).has(join.column)) continue;
         const value = found[join.column];
         if (value === null || value === undefined || String(value).trim() === '') continue;
         const owner = String(found[join.via]);
@@ -1072,7 +1083,6 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         byRow.set(owner, list);
       }
     }
-    const holders = holdersOf(box, view, holder);
     const hops = new Map<string, Row | null>();
     const out: WrittenValues[] = [];
     for (const record of records) {
@@ -1114,6 +1124,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       shareCodes: ShareCodes;
       /** Every `withhold` the app's public entries declare, by table. */
       withholds: TableWithholds;
+      /** Every `forget` declared on the connection, by table: a forgotten person is written to no more. */
+      forgets: TableForgets;
       /** The app's choice labels on the connection, read in a language. */
       labels?: ((locale: string) => ChoiceLabels) | undefined;
     },
@@ -1127,6 +1139,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     if (await isSampleRow(deps.meta, ctx.db, box, ctx.outbox, key)) return { status: 'skipped', error: 'Sample data (never sent)' };
     const { addressed, to: found, lookedUp } = await addressOf(ctx, box, producer, row);
     if (!plausibleAddress(found)) return { status: 'skipped', error: 'No email on file' };
+    // A person who deleted their details since the message was queued: read as they are now, and written to no more.
+    if (await toForgotten(ctx, box.definition, row, addressed, columnRecipientOf(producer)?.column)) return { status: 'skipped', error: 'No email on file' };
     if (reservedAddress(found)) return { status: 'skipped', error: 'A reserved address (for examples and tests)' };
     const templateKey = box.definition.kinds[kind];
     if (templateKey === undefined) return { status: 'failed', error: sentence(`No email is set for "${kind}"`) };
@@ -1264,6 +1278,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     let shareCodes: ShareCodes | undefined;
     /** What the app's public entries withhold from a row's parent's reader, likewise. */
     let withholds: TableWithholds | undefined;
+    /** What the connection's people may forget of themselves, likewise. */
+    let forgets: TableForgets | undefined;
     /** The app's choice labels, likewise. */
     let labels: ((locale: string) => ChoiceLabels) | undefined;
     /**
@@ -1340,8 +1356,9 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         }
         shareCodes ??= await shareCodesOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         withholds ??= await withholdsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
+        forgets ??= await forgetsOn(deps.meta, box.connectionId, { key: box.appKey, manifest: (await appFacts(box.row.manifestId)).manifest });
         labels ??= await choiceLabels(deps.meta, box.connectionId);
-        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, withholds, labels }, row);
+        const ready = await prepare(box, { db, view, outbox, zone, currency: tenant?.currency ?? null, now, shareCodes, withholds, forgets, labels }, row);
         if ('status' in ready) {
           const values: Row = { [cols.status]: ready.status };
           if (cols.error !== undefined) values[cols.error] = ready.error;

@@ -268,7 +268,11 @@ export const publicCreateBody = publicWriteBody.extend({
 });
 
 /** `POST /public/records/:ref/dry-run` — the same create, tried without writing. */
-export const publicDryRunBody = publicWriteBody.extend({ children: publicTreeChildren.optional() });
+export const publicDryRunBody = publicWriteBody.extend({
+  children: publicTreeChildren.optional(),
+  /** The page's own-link session for the hold the create would replace: judged as let go, never moved. */
+  replaces: z.string().min(8).max(128).optional(),
+});
 
 /** `PATCH …/:id` — a change, and the price expected after it. */
 export const publicUpdateBody = publicWriteBody.extend({ expect: publicExpect.optional() });

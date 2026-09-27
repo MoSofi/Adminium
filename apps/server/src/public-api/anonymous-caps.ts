@@ -107,20 +107,57 @@ export function ipSubject(key: Buffer, keyId: string, ip: string): string {
 }
 
 const PLAIN = /^[\p{L}\p{M} .,'’()&-]*$/u;
-/** A domain written out: a word, a dot, and a name of two letters or more after it (`evil.com`, `claim.refund.net`, `пример.рф`). */
-const DOMAIN = /[\p{L}\p{N}-]+\.\p{L}{2,}/u;
 
 /**
- * Whether a value is plain text: letters, spaces, ordinary punctuation — no
- * link, no address and no domain a stranger could be sent to ("claim your
- * refund at evil.com"). A dot is fine after a word and a space ("St. John",
- * "J. R. Smith"); a dot between two words is a domain, and refused.
+ * Whether a value is plain text: letters, spaces, ordinary punctuation, at
+ * most 80 characters, and no link. A create nobody signed in for is held to
+ * exactly this (`anonymous.plainText`), as it always has been.
  */
 export function plainText(value: unknown): boolean {
   if (value === null || value === undefined) return true;
   if (typeof value !== 'string') return false;
   const lower = value.toLowerCase();
-  return value.length <= PLAIN_TEXT_MAX && PLAIN.test(value) && !lower.includes('://') && !lower.includes('www.') && !lower.includes('@') && !DOMAIN.test(value);
+  return value.length <= PLAIN_TEXT_MAX && PLAIN.test(value) && !lower.includes('://') && !lower.includes('www.');
+}
+
+/**
+ * The endings a web address a stranger could be sent to ends in: the common
+ * generic ones and the country ones a link is usually made with. Never a
+ * short word a name is made of ("Mary.Ann", "J.R.R.", "Jo").
+ */
+const KNOWN_TLDS: ReadonlySet<string> = new Set([
+  // generic
+  'com', 'net', 'org', 'info', 'biz', 'edu', 'gov', 'mil', 'int', 'io', 'co', 'ai', 'app', 'dev', 'xyz', 'online', 'site',
+  'top', 'shop', 'store', 'club', 'live', 'me', 'tv', 'cc', 'ly', 'gg', 'sh', 'fm', 'ws', 'link', 'click', 'help', 'support',
+  'page', 'pro', 'name', 'mobi', 'tech', 'website', 'space', 'world', 'today', 'news', 'blog', 'cloud', 'email', 'host', 'lol',
+  'vip', 'win', 'bid', 'loan', 'work', 'review', 'download', 'racing', 'date', 'trade', 'science', 'party', 'stream', 'fun',
+  'icu', 'buzz', 'cam', 'rest', 'bar', 'cyou', 'monster', 'sbs', 'cfd', 'ink', 'wiki', 'social', 'events', 'tickets',
+  'finance', 'money', 'bank', 'pay', 'gift', 'gifts', 'deals', 'sale', 'promo', 'claims', 'refund',
+  // countries a link is usually made with
+  'uk', 'de', 'fr', 'nl', 'eu', 'us', 'ca', 'au', 'in', 'br', 'jp', 'cn', 'ru', 'it', 'es', 'pl', 'ch', 'se', 'dk', 'fi',
+  'at', 'cz', 'pt', 'ie', 'nz', 'za', 'mx', 'tr', 'ua', 'kr', 'hk', 'sg', 'tw', 'vn', 'ng', 'ke', 'gr', 'ro', 'hu', 'su',
+  'рф', 'срб', 'укр', 'бел', 'қаз',
+]);
+
+/** A name with dots between its parts (`evil.com`, `claim.refund.net`, `J.R.R`); the last part is read as an ending. */
+const DOTTED = /[\p{L}\p{M}-]+(?:\.[\p{L}\p{M}-]+)+/gu;
+
+/**
+ * Plain text that names no place to go (`limits.plainText`, a child row's
+ * `plainText`): {@link plainText}, and no `@` handle, no path and no web
+ * address ending in a known ending ("Claim your refund at evil.com",
+ * "evil.co.uk/x", "@handle") — while "Mary.Ann", "J.R.R. Tolkien" and
+ * "St. John" are names, and pass.
+ */
+export function linkFreeText(value: unknown): boolean {
+  if (!plainText(value)) return false;
+  if (typeof value !== 'string') return true;
+  if (value.includes('@') || value.includes('/')) return false;
+  for (const [dotted] of value.matchAll(DOTTED)) {
+    const ending = dotted.slice(dotted.lastIndexOf('.') + 1).toLowerCase();
+    if (KNOWN_TLDS.has(ending)) return false;
+  }
+  return true;
 }
 
 /** The first column whose value is not plain text, or null. */

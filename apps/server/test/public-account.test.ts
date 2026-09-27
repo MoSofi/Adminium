@@ -37,7 +37,7 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     orders = h.real('orders');
     customers = h.real('customers');
     // Each test signs its own people in: a person gets three sign-in links in fifteen minutes.
-    await h.rows(`insert into ${customers} (email, name, phone) values ('mia@example.com', 'Mia', '+44 7700 900123')`);
+    await h.rows(`insert into ${customers} (email, name, phone) values ('mia@okada.io', 'Mia', '+44 7700 900123')`);
     for (const name of ['Kai', 'Ana', 'Ben', 'Cy', 'Dee', 'Eve', 'Fay']) {
       await h.rows(`insert into ${customers} (email, name) values ('${name.toLowerCase()}@example.com', '${name}')`);
     }
@@ -63,6 +63,23 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     return res.json() as { data: { id: number }; link: { token: string; session: string } };
   };
 
+  it.skipIf(!available)('answers a quote of an order as its save, for the person the address would make', async () => {
+    // A name the person's own row cannot hold: refused by the save before any address is looked up, and by its quote.
+    const long = 'N'.repeat(80);
+    const quote = await g.request('POST', `/records/${orders}_verified_2/dry-run`, { payload: { values: { email: 'long@okada.io', name: long } } });
+    const save = await g.request('POST', `/records/${orders}_verified_2`, { payload: { values: { email: 'long@okada.io', name: long } }, proof: 'write' });
+    expect(save.statusCode, save.body).toBe(400);
+    expect(quote.statusCode, quote.body).toBe(400);
+    expect(quote.json()).toEqual(save.json());
+    // An address in no form an address has, likewise; one left out of a quote is filled in for it.
+    const badQuote = await g.request('POST', `/records/${orders}_verified_2/dry-run`, { payload: { values: { email: 'not an address', name: 'Ana' } } });
+    expect(badQuote.statusCode, badQuote.body).toBe(400);
+    expect((badQuote.json() as { error: { params?: unknown } }).error.params).toEqual({ column: 'email', reason: 'format' });
+    const early = await g.request('POST', `/records/${orders}_verified_2/dry-run`, { payload: { values: { name: 'Ana' } } });
+    expect(early.statusCode, early.body).toBe(200);
+    expect(await h.rows(`select id from ${customers} where email = 'long@okada.io'`)).toEqual([]);
+  });
+
   it.skipIf(!available)('signs a person out on every device, and tells each other device why', async () => {
     const phone = await g.signIn('kai@example.com');
     const laptop = await g.signIn('kai@example.com');
@@ -77,6 +94,10 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
       expect(after.headers[SESSION_ENDED_HEADER]).toBe('elsewhere');
       // A page on another origin can read why.
       expect(String(after.headers['access-control-expose-headers'])).toContain(SESSION_ENDED_HEADER);
+      // Told once: the same token is told nothing again.
+      const again = await mine(session);
+      expect(again.statusCode).toBe(404);
+      expect(again.headers[SESSION_ENDED_HEADER]).toBeUndefined();
     }
     // Another person's session is untouched.
     const theirs = await mine(kai);
@@ -154,17 +175,17 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
   });
 
   it.skipIf(!available)('deletes the details, keeps the rows, ends the sessions and the links, and tells the old address once', async () => {
-    const made = await order('mia@example.com', 'Mia Okada');
+    const made = await order('mia@okada.io', 'Mia Okada');
     const heard: { cause?: unknown; table: { id: string } }[] = [];
     const listen = vi.spyOn(shop.composed.app.automations, 'onRecordEvent').mockImplementation(async (event) => {
       heard.push(event as never);
     });
-    const other = await g.signIn('mia@example.com');
-    const session = await g.signIn('mia@example.com');
-    const asked = await g.request('POST', '/claim/link', { payload: { email: 'mia@example.com' }, proof: 'claim' });
+    const other = await g.signIn('mia@okada.io');
+    const session = await g.signIn('mia@okada.io');
+    const asked = await g.request('POST', '/claim/link', { payload: { email: 'mia@okada.io' }, proof: 'claim' });
     expect(asked.statusCode).toBe(202);
     await g.drain();
-    const pending = (await mailOf(h.meta)).filter((m) => m.template === 'sign-in-link' && m.to === 'mia@example.com').at(-1)!;
+    const pending = (await mailOf(h.meta)).filter((m) => m.template === 'sign-in-link' && m.to === 'mia@okada.io').at(-1)!;
     const token = /\/c#([A-Za-z0-9_-]{43})/.exec(pending.text + pending.html)![1]!;
     const mailBefore = (await mailOf(h.meta)).length;
 
@@ -178,7 +199,7 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     expect(person['forgotten_at']).not.toBeNull();
     // The order keeps its own copies and its link.
     const kept = (await h.rows(`select customer_id, email, name, link_token from ${orders} where id = ${made.data.id}`))[0]!;
-    expect([Number(kept['customer_id']), kept['email'], kept['name'], kept['link_token']]).toEqual([1, 'mia@example.com', 'Mia Okada', made.link.token]);
+    expect([Number(kept['customer_id']), kept['email'], kept['name'], kept['link_token']]).toEqual([1, 'mia@okada.io', 'Mia Okada', made.link.token]);
     // The order's own link still opens it.
     const opened = await own.request('POST', '/claim/token', { payload: { token: made.link.token } });
     expect(opened.statusCode, opened.body).toBe(200);
@@ -189,31 +210,38 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     expect((await g.request('POST', '/claim/link/verify', { payload: { token } })).statusCode).toBe(410);
     // One email, to the old address: what went and what stays. None about a change of address.
     const sent = (await mailOf(h.meta)).slice(mailBefore);
-    expect(sent.map((m) => [m.template, m.to])).toEqual([['details-deleted', 'mia@example.com']]);
+    expect(sent.map((m) => [m.template, m.to])).toEqual([['details-deleted', 'mia@okada.io']]);
     expect(sent[0]!.text).toContain('Mia');
     // The rules hear it as a forgetting.
     expect(heard.filter((e) => e.table.id.endsWith(customers)).map((e) => e.cause)).toContain('forget');
     // The audit names the row, never what it held.
     const audit = (await auditRepo(h.meta).list({ limit: 200 })).find((row) => row.action === 'public.identity.forgotten');
     expect(audit).toBeDefined();
-    expect(JSON.stringify(audit)).not.toContain('mia@example.com');
+    expect(JSON.stringify(audit)).not.toContain('mia@okada.io');
     // Signing in again finds nobody: the address is gone.
-    const again = await g.request('POST', '/claim/link', { payload: { email: 'mia@example.com' }, proof: 'claim' });
+    const again = await g.request('POST', '/claim/link', { payload: { email: 'mia@okada.io' }, proof: 'claim' });
     expect(again.statusCode).toBe(202);
     const before = (await mailOf(h.meta)).length;
     await g.drain();
     expect((await mailOf(h.meta)).slice(before).filter((m) => m.template === 'sign-in-link')).toEqual([]);
-    // Mail for her ends: a message about her order finds no address on file, and goes nowhere.
+    // Mail for her ends: a message about her order finds no address on file, and goes nowhere —
+    // one queued now, and one queued before she deleted her details, its address written then.
     const messages = h.real('messages');
+    const toCol = dialect === 'mysql' ? '`to`' : '"to"';
+    await h.meta.db.updateTable('adminium_email_templates').set({ blocks: JSON.stringify([{ block: 'email.text', data: { text: 'Hello {{recipient.name}}, see you soon.' } }]) as never }).where('key', '=', 'shop-order-placed').execute();
     await h.rows(`insert into ${messages} (kind, status, customer_id, order_id) values ('order-placed', 'queued', 1, ${String(made.data.id)})`);
+    await h.rows(`insert into ${messages} (kind, status, customer_id, order_id, ${toCol}) values ('order-placed', 'queued', 1, ${String(made.data.id)}, 'mia@okada.io')`);
     const beforeMail = (await mailOf(h.meta)).length;
     await shop.composed.app.outboxSender.sendApp('shop');
-    expect((await mailOf(h.meta)).slice(beforeMail).filter((m) => m.to === 'mia@example.com')).toEqual([]);
-    const skipped = await h.rows(`select status, error from ${messages} where customer_id = 1 and order_id = ${String(made.data.id)} and ${dialect === 'mysql' ? '`to`' : '"to"'} is null`);
-    expect(skipped.length).toBeGreaterThan(0);
+    await g.drain();
+    expect((await mailOf(h.meta)).slice(beforeMail).filter((m) => m.to === 'mia@okada.io')).toEqual([]);
+    const skipped = await h.rows(`select status, error, ${toCol} as sent_to from ${messages} where customer_id = 1 and order_id = ${String(made.data.id)} and kind = 'order-placed' and status <> 'sent'`);
+    expect(skipped.map((m) => m['sent_to'])).toContain('mia@okada.io');
     expect(skipped.map((m) => [m['status'], m['error']])).toEqual(skipped.map(() => ['skipped', 'No email on file']));
+    // Every message about her order that went, went before she deleted her details.
+    expect(await h.rows(`select id from ${messages} where customer_id = 1 and status = 'queued'`)).toEqual([]);
     // A later order by the same address makes a new person; the old orders stay with the old one.
-    const later = await order('mia@example.com', 'Mia');
+    const later = await order('mia@okada.io', 'Mia');
     const newer = (await h.rows(`select customer_id from ${orders} where id = ${later.data.id}`))[0]!;
     expect(Number(newer['customer_id'])).not.toBe(1);
   });

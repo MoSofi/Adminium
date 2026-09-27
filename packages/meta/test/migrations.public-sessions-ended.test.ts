@@ -108,5 +108,35 @@ for (const dialect of TEST_DIALECTS) {
       await m.db.updateTable('adminium_public_sessions').set({ endedReason: 'x'.repeat(16), endedAt: T0 }).where('subject', '=', 'row:w').execute();
       expect((await sessions.findByTokenHash('e'.repeat(64)))?.endedReason).toBe('x'.repeat(16));
     });
+
+    it('tells an ended session once: the row goes as it is told, and a live one is never taken', async () => {
+      const m = t.meta;
+      await applyMigrations(m.db, { dialect: m.dialect });
+      const keyId = await keyOf(m);
+      const sessions = publicSessionsRepo(m);
+      const live = await sessions.create({ keyId, tokenHash: 'f'.repeat(64), grants: '{}', expiresAt: T0 + 30 * MIN, subject: 'row:t' }, T0);
+      expect(await sessions.takeEnded(live.id)).toBe(false);
+      await sessions.endBySubject('row:t', 'elsewhere', T0);
+      expect(await sessions.takeEnded(live.id)).toBe(true);
+      expect(await sessions.takeEnded(live.id)).toBe(false);
+      expect(await sessions.findByTokenHash('f'.repeat(64))).toBeNull();
+    });
+
+    it("moves a page's session back only while it still points where the failed write put it", async () => {
+      const m = t.meta;
+      await applyMigrations(m.db, { dialect: m.dialect });
+      const keyId = await keyOf(m);
+      const sessions = publicSessionsRepo(m);
+      const page = await sessions.create({ keyId, tokenHash: 'g'.repeat(64), grants: '{"value":1}', expiresAt: Date.now() + 30 * MIN, subject: 'row:1' });
+      const back = { grants: '{"value":1}', subject: 'row:1', expiresAt: Date.now() + 30 * MIN };
+      // One write moved it to its hold 2, then another to its hold 3: the first's failure leaves it at 3.
+      expect(await sessions.rebind(page.id, { grants: '{"value":2}', subject: 'row:2', expiresAt: back.expiresAt })).toBe(true);
+      expect(await sessions.rebind(page.id, { grants: '{"value":3}', subject: 'row:3', expiresAt: back.expiresAt })).toBe(true);
+      expect(await sessions.rebindFrom(page.id, 'row:2', back)).toBe(false);
+      expect((await sessions.findByTokenHash('g'.repeat(64)))?.subject).toBe('row:3');
+      // The second's failure, with nothing after it, puts it back.
+      expect(await sessions.rebindFrom(page.id, 'row:3', back)).toBe(true);
+      expect((await sessions.findByTokenHash('g'.repeat(64)))?.subject).toBe('row:1');
+    });
   });
 }

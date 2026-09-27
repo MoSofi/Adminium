@@ -49,7 +49,7 @@ import {
   type ProjectionRefusal,
   type Projections,
 } from '../../crud/projections.js';
-import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, type Row } from '../../crud/mask.js';
+import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, renewingCodeColumnsOf, type Row } from '../../crud/mask.js';
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import {
@@ -1221,9 +1221,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
-      // A code a change made (a ticket handed on) is never taken back: the old secret stays dead, the rest is undone.
-      if (action === 'update' && changedColumns.some((column) => codeColumnsOf(ctx.table).has(column))) {
-        changedColumns = changedColumns.filter((column) => !codeColumnsOf(ctx.table).has(column));
+      // A code a change of hands made (a ticket handed on) is never taken back: the old secret stays dead, the rest is undone.
+      const renewing = renewingCodeColumnsOf(ctx.table);
+      if (action === 'update' && changedColumns.some((column) => renewing.has(column))) {
+        changedColumns = changedColumns.filter((column) => !renewing.has(column));
         if (changedColumns.length === 0) return null;
       }
       // No undo that would delete a row numbered without gaps, or take a document's state back — but a status move the app lists an undo for.
@@ -1606,8 +1607,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         for (const change of children.changed) {
           await still(change.key, change.after);
           const current = (await fetchByPk(db, child, change.key)) ?? null;
-          // A code a change made is never taken back: the rest of the row is.
-          const codes = codeColumnsOf(child);
+          // A code a change of hands made is never taken back: the rest of the row is.
+          const codes = renewingCodeColumnsOf(child);
           const judged = await judge('update', { match: change.key, values: Object.fromEntries(Object.entries(change.before).filter(([column]) => !codes.has(column))), record: current });
           const renewed = current === null ? judged : renewForUndo(tableRulesFor(childTarget)?.codes, judged, current, { table: child, rights: childTarget.rights });
           await withRenewRetry(db, target.dialect, renewed, (values) => updateRows(db, target.dialect, child, values as typeof judged, change.key));
@@ -1704,7 +1705,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // The rows as they stand now, for the totals they feed and for after
       // hooks — read only when either needs them.
       const rules = tableRulesFor(target);
-      const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) > 0;
+      // Totals it feeds, or rows that follow it (an undone change of a stay's dates brings its extras back into step).
+      const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) + (rules?.follows?.length ?? 0) > 0;
       const written: WrittenRow[] = [];
       if (outcome.written.length > 0 && (settles || (await writes.wants('after', UNDO_WRITE[entry.action], target, context)))) {
         for (const row of outcome.written) {
@@ -2416,7 +2418,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             for (const [index, row] of prepared.entries()) {
               let made: Row;
               try {
-                made = await insertRow(tdb, ctx.dialect, ctx.table, row.values);
+                // A copy that follows its parent, read again from the parent as held.
+                made = await insertRow(tdb, ctx.dialect, ctx.table, await writes.followed({ ...ctx.target, db: tdb }, tdb, row.values));
               } catch (error) {
                 return mapDbError(error, ctx.table);
               }

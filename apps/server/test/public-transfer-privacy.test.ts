@@ -18,7 +18,14 @@ import { readFileSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { connectionTenantConfig } from '@adminium/meta';
+
 import { decryptSecret } from '../src/config/secrets.js';
+import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
+import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
+import { createPublicViews } from '../src/public-api/runtime.js';
+import { appEntriesOn } from '../src/public-api/withholds-on.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
 import { runTimedMoves } from '../src/states/timed-moves.js';
 import { TEST_SECRET } from './helpers.js';
@@ -39,6 +46,9 @@ function boxOffice(): Doc {
   // The order's own link reads its tickets with no `withhold` of its own: what the buyer's entry withholds holds there too.
   const byLink = (manifest['publicAccess'] as Doc[]).find((entry) => entry['table'] === 'tickets' && entry['key'] === 'link')!;
   delete byLink['withhold'];
+  // The friend may quote accepting before accepting.
+  const accept = (manifest['publicAccess'] as Doc[]).find((entry) => entry['table'] === 'tickets' && entry['key'] === 'ticket' && (entry['methods'] as string[]).includes('PATCH'))!;
+  accept['dryRun'] = true;
   const messages = (manifest['requiredSchema'] as { tables: Doc[] }).tables.find((table) => table['ref'] === 'messages')!;
   const columns = messages['columns'] as Doc[];
   columns.find((column) => column['ref'] === 'kind')!['enum'] = ['ticket-offered', 'your-tickets', 'ticket-note'];
@@ -127,11 +137,13 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     tickets = body.children.tickets.map((c) => c.data);
     mia = await buyer.signIn('mia@buyers.org');
   }, 180_000);
+  let board: Served | undefined;
   afterAll(async () => {
     if (!available) return;
     await shop.close();
     await ticket.close();
     await link.close();
+    await board?.close();
     await h.close();
   });
 
@@ -213,9 +225,87 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     void (await mailOf(h.meta));
   });
 
+  it.skipIf(!available)("lists no friend's code or address one level down, even in a list an operator wrote into the email", async () => {
+    const [first, second, third] = tickets;
+    const newCode = String((await row(first!.id))['code']);
+    const miaId = (await h.rows(`select id from ${t('customers')} where email = 'mia@buyers.org'`))[0]!['id'];
+    // Mia's orders, each with its tickets' codes and holders' addresses joined in: a list one level below the rows.
+    const listed = { from: { link: 'customer', table: t('orders'), via: 'customer_id' }, joins: { codes: { table: t('tickets'), via: 'order_id', column: 'code' }, mails: { table: t('tickets'), via: 'order_id', column: 'holder_email' } }, row: { title: 'Order {{row.id}}', meta: 'Codes [{{row.codes}}] held by [{{row.mails}}]' } };
+    await h.meta.db
+      .updateTable('adminium_email_templates')
+      .set({ blocks: JSON.stringify([{ block: 'email.text', data: { text: 'Your orders' } }, { id: 'orders', block: 'email.rows', data: listed }]) as never })
+      .where('key', '=', 'boxoffice-your-tickets')
+      .execute();
+    const before = (await sealedOf(h)).length;
+    await queue('your-tickets', { customer: miaId, order });
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const toMia = (await sealedOf(h)).slice(before).filter((m) => m.to === 'mia@buyers.org');
+    expect(toMia).toHaveLength(1);
+    expect(toMia[0]!.text).not.toContain(newCode);
+    expect(toMia[0]!.text).not.toContain('kai@friends.org');
+    // Her own tickets' codes are listed.
+    expect(toMia[0]!.text).toContain(second!.code);
+    expect(toMia[0]!.text).toContain(third!.code);
+  });
+
+  it.skipIf(!available)("keeps a friend's code from every other public read of the tickets: an operator's own door, its filters and its order", async () => {
+    const [first] = tickets;
+    const newCode = String((await row(first!.id))['code']);
+    // The rule is the app's own, read from its manifest whatever public doors are taken up.
+    expect((await appEntriesOn(h.meta, h.connectionId)).some(({ entry }) => entry.table === 'tickets' && entry.withhold !== undefined)).toBe(true);
+    const views = createPublicViews(h.meta);
+    const service = createEndpointService({ meta: h.meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(h.meta, cid)) ?? undefined });
+    const source = (await views.viewFor(h.connectionId))!.table(t('tickets')).id;
+    await service.saveEndpoint({
+      connectionId: h.connectionId,
+      ref: 'ticket_board',
+      origin: 'custom',
+      definition: {
+        path: '/ticket_board',
+        source,
+        methods: ['GET'],
+        select: ['id', 'status', 'code'],
+        filters: [],
+        filterable: ['code', 'status'],
+        orderable: ['code', 'id'],
+        searchable: ['code'],
+        pagination: { default_limit: 50, max_limit: 200, order: 'code.asc' },
+        auth: { role: 'anon' },
+        rate_limit: { requests: 60, window: '1m' },
+        response: { shape: 'object', envelope: 'data' },
+      },
+    });
+    const secret = generatePublishableKey('browser');
+    const { key } = await service.createKey({
+      connectionId: h.connectionId,
+      name: 'board',
+      access: [{ ref: 'ticket_board', methods: ['GET'] }],
+      secret: { prefix: secret.prefix, tokenHash: secret.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), secret.token) },
+      origins: [],
+      kind: 'browser',
+    });
+    board = await servePublic(h, key.id);
+    {
+      const listed = await board.get('/records/ticket_board');
+      expect(listed.statusCode, listed.body).toBe(200);
+      expect(listed.body).not.toContain(newCode);
+      expect((listed.json() as { data: Record<string, unknown>[] }).data.find((r) => Number(r['id']) === first!.id)).toMatchObject({ code: null });
+      // Never an oracle: no filter, search or sort by what it withholds.
+      const where = (column: string, value: string) => `where=${encodeURIComponent(JSON.stringify({ column, op: 'eq', value }))}`;
+      for (const query of [where('code', newCode), 'order=code.desc', `q=${newCode}`]) {
+        const asked = await board.get(`/records/ticket_board?${query}`);
+        expect(asked.statusCode, query).toBe(400);
+        expect(board.codeOf(asked)).toBe('PUBLIC_QUERY_REFUSED');
+      }
+      const fine = await board.get(`/records/ticket_board?${where('status', 'valid')}`);
+      expect(fine.statusCode, fine.body).toBe(200);
+    }
+  });
+
   it.skipIf(!available)('gives a lapsed offer that goes to someone else a new link: the first friend opens, reads and accepts nothing', async () => {
     const [, second] = tickets;
     expect((await send(second!.id, 'lee@friends.org', 'Lee')).statusCode).toBe(200);
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
     const leeToken = String((await row(second!.id))['link_token']);
     const lee = await openLink(leeToken);
     expect(lee.status).toBe(200);
@@ -232,9 +322,37 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     expect(seen.body).not.toContain('Zoe Private');
     const accept = await byTicket.request('PATCH', `/records/${t('tickets')}_claimed/${String(second!.id)}`, { payload: { values: { status: 'valid' } }, session: lee.session });
     expect(accept.statusCode).not.toBe(200);
+    // A quote of accepting answers as the save does.
+    const quote = await byTicket.request('POST', `/records/${t('tickets')}_claimed/${String(second!.id)}/dry-run`, { payload: { values: { status: 'valid' } }, session: lee.session });
+    expect(quote.statusCode, quote.body).toBe(accept.statusCode);
     const after = await row(second!.id);
     expect([after['status'], after['holder_customer_id'], after['pending_email']]).toEqual(['offered', null, 'zoe@friends.org']);
     expect(await h.rows(`select id from ${t('customers')} where email = 'zoe@friends.org'`)).toEqual([]);
+    // Each offer is emailed: Lee his link, Zoe hers.
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const zoeToken = String(now['link_token']);
+    const carries = (to: string, token: string) => sealedOf(h).then((all) => all.filter((m) => m.to === to && (m.text.includes(token) || m.qr.includes(token))).length);
+    expect(await carries('lee@friends.org', leeToken)).toBe(1);
+    expect(await carries('zoe@friends.org', zoeToken)).toBe(1);
+    // Offered to Lee again once Zoe's lapses: a new link, and a new email carrying it.
+    await lapse();
+    expect((await send(second!.id, 'lee@friends.org', 'Lee')).statusCode).toBe(200);
+    const again = String((await row(second!.id))['link_token']);
+    expect(again).not.toBe(leeToken);
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect(await carries('lee@friends.org', again)).toBe(1);
+    // Sent once each: nothing sent twice for one offer.
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect((await sealedOf(h)).filter((m) => m.to === 'lee@friends.org' || m.to === 'zoe@friends.org')).toHaveLength(3);
+    // An offer that lapsed before its email went, offered on since, is never emailed: the new offer is.
+    await lapse();
+    expect((await send(second!.id, 'ivy@friends.org', 'Ivy')).statusCode).toBe(200);
+    await lapse();
+    expect((await send(second!.id, 'lee@friends.org', 'Lee')).statusCode).toBe(200);
+    const last = String((await row(second!.id))['link_token']);
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect((await sealedOf(h)).filter((m) => m.to === 'ivy@friends.org')).toEqual([]);
+    expect(await carries('lee@friends.org', last)).toBe(1);
   });
 
   it.skipIf(!available)("binds a friend's session to the address the link went to, whatever else changes on the row", async () => {
@@ -248,6 +366,8 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     expect(seen.body).not.toContain('Uma Private');
     const accept = await byTicket.request('PATCH', `/records/${t('tickets')}_claimed/${String(third!.id)}`, { payload: { values: { status: 'valid' } }, session: noa.session });
     expect(accept.statusCode).not.toBe(200);
+    const quote = await byTicket.request('POST', `/records/${t('tickets')}_claimed/${String(third!.id)}/dry-run`, { payload: { values: { status: 'valid' } }, session: noa.session });
+    expect(quote.statusCode, quote.body).toBe(accept.statusCode);
     expect(await h.rows(`select id from ${t('customers')} where email = 'uma@friends.org'`)).toEqual([]);
     expect((await row(third!.id))['holder_customer_id']).toBeNull();
   });
@@ -259,6 +379,9 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     expect(ora.status).toBe(200);
     // The row still holds Ora's address (as its holder copy), and the offer now names another.
     await h.rows(`update ${t('tickets')} set holder_email = 'ora@friends.org', pending_email = 'pia@friends.org' where id = ${String(third!.id)}`);
+    const quote = await byTicket.request('POST', `/records/${t('tickets')}_claimed/${String(third!.id)}/dry-run`, { payload: { values: { status: 'valid' } }, session: ora.session });
+    expect(quote.statusCode, quote.body).toBe(400);
+    expect(ticket.codeOf(quote)).toBe('PUBLIC_WRITE_REFUSED');
     const accept = await byTicket.request('PATCH', `/records/${t('tickets')}_claimed/${String(third!.id)}`, { payload: { values: { status: 'valid' } }, session: ora.session });
     expect(accept.statusCode, accept.body).toBe(400);
     expect(ticket.codeOf(accept)).toBe('PUBLIC_WRITE_REFUSED');

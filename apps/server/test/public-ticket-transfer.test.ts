@@ -39,6 +39,8 @@ function boxOffice(): Doc {
   for (const entry of manifest['publicAccess'] as Doc[]) {
     const limits = entry['limits'] as { perValue?: { n: number } } | undefined;
     if (limits?.perValue !== undefined) limits.perValue.n = 2;
+    // The send may be quoted first.
+    if (limits !== undefined) entry['dryRun'] = true;
   }
   const messages = ((manifest['requiredSchema'] as { tables: Doc[] }).tables.find((table) => table['ref'] === 'messages')!['columns'] as Doc[]).find((column) => column['ref'] === 'kind')!;
   messages['enum'] = ['ticket-offered', 'ticket-ready'];
@@ -227,6 +229,15 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     expect(plain.statusCode).toBe(400);
     expect(shop.codeOf(plain)).toBe('PUBLIC_WRITE_REFUSED');
     expect((plain.json() as { error: { params?: Doc } }).error.params).toEqual({ column: 'pending_name' });
+    // Its quote refuses the same name, and a name with dots in it is a name to both.
+    for (const name of ['Claim refund at evil.com', '@kai_tickets']) {
+      const values = { status: 'offered', pending_email: 'noa@friends.org', pending_name: name };
+      const quote = await buyer.request('POST', `/records/${t('tickets')}_verified/${third!.id}/dry-run`, { payload: { values }, session: mia });
+      expect(quote.statusCode, quote.body).toBe(400);
+      expect((quote.json() as { error: { params?: Doc } }).error.params).toEqual({ column: 'pending_name' });
+    }
+    const dotted = await buyer.request('POST', `/records/${t('tickets')}_verified/${third!.id}/dry-run`, { payload: { values: { status: 'offered', pending_email: 'noa@friends.org', pending_name: 'Mary.Ann' } }, session: mia });
+    expect(dotted.statusCode, dotted.body).toBe(200);
     // Two a day to one mailbox (in this copy of the app), however its address is dressed up.
     expect((await send(third!.id, 'noa@friends.org', 'Noa')).statusCode).toBe(200);
     expect((await send(fourth!.id, 'Noa+tickets@Friends.org', 'Noa')).statusCode).toBe(200);
@@ -251,5 +262,21 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     const carrying = sent.filter((m) => m.text.includes(String(row['link_token'])));
     expect(carrying.length).toBeGreaterThan(0);
     expect(new Set(carrying.map((m) => m.to))).toEqual(new Set([String(row['pending_email'])]));
+  });
+
+  it.skipIf(!available)("writes no more to a holder who deleted their details, though the ticket keeps its copy of the address", async () => {
+    const [first] = order.tickets;
+    const kaiSession = await buyer.signIn('kai@friends.org');
+    const forgot = await buyer.request('DELETE', '/account', { session: kaiSession });
+    expect(forgot.statusCode, forgot.body).toBe(200);
+    // The ticket is still Kai's at the door: its copy of his address stays for the desk.
+    expect((await ticketRow(first!.id))['holder_email']).toBe('kai@friends.org');
+    const quoted = dialect === 'mysql' ? '`to`' : '"to"';
+    await h.rows(`insert into ${t('messages')} (kind, status, ticket_id, ${quoted}) values ('ticket-ready', 'queued', ${String(first!.id)}, 'kai@friends.org')`);
+    const before = (await mailOf(h.meta)).length;
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    expect((await mailOf(h.meta)).slice(before).filter((m) => m.to === 'kai@friends.org')).toEqual([]);
+    const held = await h.rows(`select status from ${t('messages')} where kind = 'ticket-ready' and ticket_id = ${String(first!.id)} and status <> 'sent'`);
+    expect(held.map((m) => m['status'])).toEqual(['skipped']);
   });
 });

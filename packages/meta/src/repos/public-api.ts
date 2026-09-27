@@ -699,6 +699,16 @@ export function publicSessionsRepo(meta: MetaDb) {
     },
 
     /**
+     * An ended session's device told why, once: the row goes as it is told,
+     * so the same token is unknown from then on. Whether this call took it —
+     * of two requests at once, only one is told.
+     */
+    async takeEnded(id: string): Promise<boolean> {
+      const res = await db.deleteFrom('adminium_public_sessions').where('id', '=', id).where('endedAt', 'is not', null).executeTakeFirst();
+      return Number(res.numDeletedRows) === 1;
+    },
+
+    /**
      * Point a live session at another row: a page's own-link session carried
      * from the hold it replaced to the hold that replaced it, with a fresh
      * expiry. Whether it moved (an ended or lapsed session does not).
@@ -708,6 +718,23 @@ export function publicSessionsRepo(meta: MetaDb) {
         .updateTable('adminium_public_sessions')
         .set({ grants: input.grants, subject: input.subject, expiresAt: input.expiresAt })
         .where('id', '=', id)
+        .where('expiresAt', '>', at)
+        .where('endedAt', 'is', null)
+        .executeTakeFirst();
+      return Number(res.numUpdatedRows) === 1;
+    },
+
+    /**
+     * {@link rebind}, only while the session is still about the row `from`
+     * names (its subject): a write that moved a page's session and then failed
+     * moves it back only if no other write has moved it on since.
+     */
+    async rebindFrom(id: string, from: string, input: { grants: string; subject: string | null; expiresAt: number }, at: number = Date.now()): Promise<boolean> {
+      const res = await db
+        .updateTable('adminium_public_sessions')
+        .set({ grants: input.grants, subject: input.subject, expiresAt: input.expiresAt })
+        .where('id', '=', id)
+        .where('subject', '=', from)
         .where('expiresAt', '>', at)
         .where('endedAt', 'is', null)
         .executeTakeFirst();

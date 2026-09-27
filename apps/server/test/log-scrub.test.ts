@@ -8,11 +8,25 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { Writable } from 'node:stream';
+
+import pino from 'pino';
+
+import { REDACT_PATHS } from '../src/app.js';
 import { REDACTED, SENSITIVE_QUERY_PARAMS, scrubUrlForLog } from '../src/log-scrub.js';
 
 const TOKEN = 'f'.repeat(64);
 
 describe('scrubUrlForLog', () => {
+  it('redacts a code a guest typed, in the query and in its header', () => {
+    expect(scrubUrlForLog('/public/records/tickets?code=K7PX2QWE&limit=5')).toBe(`/public/records/tickets?code=${REDACTED}&limit=5`);
+    const lines: string[] = [];
+    const log = pino({ redact: { paths: [...REDACT_PATHS], censor: REDACTED } }, new Writable({ write: (chunk, _enc, done) => (lines.push(String(chunk)), done()) }));
+    log.info({ req: { headers: { 'x-adminium-code': 'K7PX2QWE', accept: 'application/json' } } }, 'request');
+    expect(lines.join('')).not.toContain('K7PX2QWE');
+    expect(lines.join('')).toContain('application/json');
+  });
+
   it('redacts the boot token and keeps everything else', () => {
     expect(scrubUrlForLog(`/?bootToken=${TOKEN}`)).toBe(`/?bootToken=${REDACTED}`);
     expect(scrubUrlForLog(`/p/orders?bootToken=${TOKEN}&tab=open`)).toBe(

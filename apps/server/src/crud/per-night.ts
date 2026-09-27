@@ -39,9 +39,21 @@ type Db = Kysely<SourceDatabase>;
 const has = (values: Row, column: string) => Object.prototype.hasOwnProperty.call(values, column);
 const empty = (value: unknown) => value === null || value === undefined || value === '';
 
-/** Whether a change writes what the price is worked out from: its dates, or its rate's link. */
-export function repricedBy(rule: ColumnPerNight, values: Row): boolean {
-  return [rule.from, rule.to, rule.rate.via].some((column) => has(values, column));
+/** The same day, however each side spells it (a driver's date, a text day); else the same value. */
+const sameDay = (a: unknown, b: unknown): boolean => {
+  const [x, y] = [dayNumberOf(a), dayNumberOf(b)];
+  return x === null || y === null ? sameValue(a, b) : x === y;
+};
+
+/**
+ * Whether a change moves what the price is worked out from: its dates, or its
+ * rate's link. Given the row as stored, only a value that differs from it —
+ * a whole-row send that repeats the dates (a note changed) prices nothing
+ * again, whatever the rates are today.
+ */
+export function repricedBy(rule: ColumnPerNight, values: Row, stored?: Row | null): boolean {
+  const moves = (column: string, same: (a: unknown, b: unknown) => boolean) => has(values, column) && (stored === undefined || stored === null || !same(values[column], stored[column]));
+  return moves(rule.from, sameDay) || moves(rule.to, sameDay) || moves(rule.rate.via, sameValue);
 }
 
 /** A price's nights as read: the rate row it read (with the columns asked for), the nights, and their total. */
@@ -131,13 +143,22 @@ export async function priceValues(
   db: Db,
   values: Row,
   stored: Row | null,
-  opts: { origin?: WriteOrigin | undefined; currency: () => Promise<string | null> },
+  opts: {
+    origin?: WriteOrigin | undefined;
+    currency: () => Promise<string | null>;
+    /**
+     * Price whenever the change names the dates or the rate, moved or not: a
+     * change priced first against a row read before it is held, which decides
+     * again against the row as held (`update`).
+     */
+    named?: true | undefined;
+  },
 ): Promise<Row> {
   const rule = rules?.perNight;
   if (rule === undefined || action === 'delete') return values;
   // History keeps the figure it was charged at.
   if (opts.origin === 'import' && has(values, rule.column) && !empty(values[rule.column])) return values;
-  if (action === 'update' && (stored === null || !repricedBy(rule, values))) return values;
+  if (action === 'update' && (stored === null || !repricedBy(rule, values, opts.named === true ? undefined : stored))) return values;
   const row = { ...(stored ?? {}), ...values };
   const places = placesFor(rule.scale, row, rules?.currencyColumn, rule.scale === 'currency' ? await opts.currency() : null);
   const priced = await priceNights(db, rule, row, places);

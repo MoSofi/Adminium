@@ -108,12 +108,35 @@ export function codeColumnsOf(table: ResolvedTable): Set<string> {
   return new Set(table.table.columns.filter((column) => column.code !== undefined).map((column) => column.name));
 }
 
+/**
+ * The code columns a change of hands makes again (`code.renew`): an undo never
+ * puts one back — the old secret stays dead. A code with no renew rule is put
+ * back by an undo like any other value.
+ */
+export function renewingCodeColumnsOf(table: Pick<ResolvedTable, 'table'>): Set<string> {
+  return new Set(table.table.columns.filter((column) => column.code?.renew !== undefined).map((column) => column.name));
+}
+
 const filled = (value: unknown) => value !== null && value !== undefined && value !== '';
+
+/**
+ * The code columns a kept copy never shows: the codes Adminium makes, and the
+ * columns a person types a code into to find a row by it (`lookup.from`, a
+ * presale code) — as much a key as the code it finds.
+ */
+export function keptCodeColumnsOf(table: Pick<ResolvedTable, 'table'>): Set<string> {
+  const out = new Set<string>();
+  for (const column of table.table.columns) {
+    if (column.code !== undefined) out.add(column.name);
+    if (column.lookup !== undefined) out.add(column.lookup.from);
+  }
+  return out;
+}
 
 /** A row as a kept copy shows it: masked as for a reader without the PII grant, and no code in it. */
 export function keptRow(row: Row, table: ResolvedTable): Row {
   const out = maskRow(row, table, false);
-  for (const column of codeColumnsOf(table)) {
+  for (const column of keptCodeColumnsOf(table)) {
     if (Object.hasOwn(out, column) && filled(out[column])) out[column] = CODE_KEPT;
   }
   return out;
@@ -127,7 +150,7 @@ export function keptRow(row: Row, table: ResolvedTable): Row {
 export function keptImages(table: ResolvedTable, before: Row | null, after: Row | null): { before: Row | null; after: Row | null } {
   const kept = { before: before === null ? null : keptRow(before, table), after: after === null ? null : keptRow(after, table) };
   if (before === null || after === null || kept.after === null) return kept;
-  for (const column of codeColumnsOf(table)) {
+  for (const column of keptCodeColumnsOf(table)) {
     if (kept.after[column] === CODE_KEPT && Object.hasOwn(before, column) && String(before[column] ?? '') !== String(after[column] ?? '')) {
       kept.after[column] = CODE_CHANGED;
     }

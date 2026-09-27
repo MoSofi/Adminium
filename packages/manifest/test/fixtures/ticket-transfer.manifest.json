@@ -95,7 +95,8 @@
           { "ref": "status", "type": "enum", "enum": ["queued", "sent", "failed", "skipped"], "default": "queued" },
           { "ref": "to", "type": "text", "maxLength": 254, "nullable": true },
           { "ref": "customer_id", "type": "fk", "references": "customers", "nullable": true },
-          { "ref": "ticket_id", "type": "fk", "references": "tickets", "nullable": true }
+          { "ref": "ticket_id", "type": "fk", "references": "tickets", "nullable": true },
+          { "ref": "repeat_key", "type": "text", "maxLength": 64, "nullable": true }
         ]
       }
     ]
@@ -197,12 +198,12 @@
   ],
   "outbox": {
     "table": "messages",
-    "columns": { "kind": "kind", "status": "status", "to": "to" },
+    "columns": { "kind": "kind", "status": "status", "to": "to", "repeatKey": "repeat_key" },
     "links": { "customer": "customer_id", "ticket": "ticket_id" },
     "recipient": { "via": "customer_id", "table": "customers", "email": "email", "name": "name" },
     "kinds": { "ticket-offered": "boxoffice-ticket-offered" },
     "producers": [
-      { "kind": "ticket-offered", "link": "ticket_id", "onChange": { "table": "tickets", "column": "status", "to": "offered" }, "recipient": { "column": "pending_email", "name": "pending_name" } }
+      { "kind": "ticket-offered", "link": "ticket_id", "onChange": { "table": "tickets", "column": "status", "to": "offered" }, "recipient": { "column": "pending_email", "name": "pending_name" }, "repeatBy": "link_token" }
     ]
   },
   "emailTemplates": [

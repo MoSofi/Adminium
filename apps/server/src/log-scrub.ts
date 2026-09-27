@@ -53,6 +53,10 @@ export const SENSITIVE_QUERY_PARAMS: readonly string[] = [
   // is scrubbed rather than printing the key that opens the bucket.
   'accessKey',
   'secretKey',
+  // A code a guest typed (a ticket's, a gift card's): refused on a public list
+  // with a 400, but the request is logged before the refusal. It travels in
+  // the `x-adminium-code` header, which `REDACT_PATHS` covers.
+  'code',
 ];
 
 const SENSITIVE_LOWER = new Set(SENSITIVE_QUERY_PARAMS.map((name) => name.toLowerCase()));

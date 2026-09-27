@@ -517,7 +517,8 @@ export function createDocumentAccess(deps: {
     const mark = withheldReaderMark({ rules: await recentWithholdsOn(deps.meta, ok.key.connectionId), reader: sessionReader(ok.key.scope, ok.session, view) }, mappedTables(profile.mapping as ProfileMapping, profile.table));
     if (mark === null) return true;
     const claim = row.claim;
-    return claim !== null && claim.column === WITHHELD_FOR && (claim.value === '' || claim.value === mark);
+    const drawnFor = claim?.withheldFor ?? (claim?.column === WITHHELD_FOR ? claim.value : undefined);
+    return drawnFor !== undefined && (drawnFor === '' || drawnFor === mark);
   }
 
   /** The register row, if this session may see it. Null is the 404 — for another's and for none alike. */

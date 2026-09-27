@@ -101,8 +101,46 @@ export interface ReplaceInput {
   begun: Date;
   /** A signed-in buyer: their other holds, by the table's column that names them. */
   person?: { column: string; value: unknown } | undefined;
-  /** The page's own-link session: the key of the row it points at now, read afresh each time. */
-  page?: { rowKey: () => Promise<unknown> } | undefined;
+  /**
+   * The page's own-link session: the key of the row it points at now, read
+   * afresh each time — and the row it named when the request came in, let go
+   * whatever the session says since (a write that failed may have moved it on
+   * to a hold that is not there, and back only later).
+   */
+  page?: { rowKey: () => Promise<unknown>; initial?: unknown } | undefined;
+}
+
+/**
+ * The rows a new hold would let go, read as they are — no row held, no lock
+ * taken: a quote judges its places as if they were let go, and a limit on
+ * how many a buyer has open leaves them out.
+ */
+export async function heldToReplace(input: Omit<ReplaceInput, 'page'> & { page?: { key: unknown } | undefined }): Promise<Row[]> {
+  const { db, table, holds, begun } = input;
+  const key = table.primaryKey[0];
+  if (holds.length === 0 || key === undefined || table.primaryKey.length !== 1) return [];
+  const found: Row[] = [];
+  if (input.person !== undefined) {
+    const states = [...new Set(holds.flatMap((hold) => hold.states))];
+    const stateColumns = [...new Set(holds.map((hold) => hold.state))];
+    let query = db.selectFrom(table.id).selectAll().where(db.dynamic.ref(input.person.column), '=', input.person.value as never);
+    query = query.where((eb) => eb.or(stateColumns.map((column) => eb(eb.ref(column as never), 'in', states as never))));
+    found.push(...((await query.orderBy(key as never).execute()) as Row[]));
+  }
+  const at = input.page?.key;
+  if (at !== null && at !== undefined && !found.some((row) => String(row[key]) === String(at))) {
+    const row = (await db.selectFrom(table.id).selectAll().where(db.dynamic.ref(key), '=', at as never).executeTakeFirst()) as Row | undefined;
+    if (row !== undefined) found.push(row);
+  }
+  return found.filter((row) => liveHold(holds, row, begun));
+}
+
+/** A hold let go as a new hold lets it go: its end a whole second before the new write began. */
+export function letGo(holds: readonly RowHold[], row: Row, begun: Date): Row {
+  const out = { ...row };
+  const at = new Date(Math.floor(begun.getTime() / 1000) * 1000 - 1000);
+  for (const hold of holds) if (hold.states.includes(String(row[hold.state]))) out[hold.end] = at;
+  return out;
 }
 
 /**
@@ -136,6 +174,12 @@ export async function replaceHolds(input: ReplaceInput): Promise<number> {
     found.push(...((await locked(query.orderBy(key as never)).execute()) as Row[]));
   }
   if (input.page !== undefined) {
+    // The row the session named when the request came in, held first: let go whatever the session points at since.
+    const initial = input.page.initial;
+    if (initial !== null && initial !== undefined && !found.some((other) => String(other[key]) === String(initial))) {
+      const row = (await locked(db.selectFrom(table.id).selectAll().where(db.dynamic.ref(key), '=', initial as never)).executeTakeFirst()) as Row | undefined;
+      if (row !== undefined) found.push(row);
+    }
     // The row the page's session points at, held; then asked again: a create sent with the same session a moment
     // earlier may have moved it on to its own new hold while this one waited — then that one is the page's hold.
     let at = await input.page.rowKey();

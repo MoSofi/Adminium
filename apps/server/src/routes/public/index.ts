@@ -144,7 +144,7 @@ import {
   subjectOf,
   tryCode,
 } from '../../public-api/claim-code.js';
-import { capKey, chargeAnonymous, notPlain, plainText } from '../../public-api/anonymous-caps.js';
+import { capKey, chargeAnonymous, linkFreeText, notPlain } from '../../public-api/anonymous-caps.js';
 import { appContact } from '../../outbox/sender.js';
 import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
@@ -155,12 +155,13 @@ import { recipientLocale } from '../../i18n/server-i18n.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
 import { publicConfirmSchema, sourceTable } from '../../public-api/endpoint.js';
 import { entryColumnOf, fillOf, personTableOf, signedInValues, type PersonTable } from '../../public-api/person-entry.js';
-import { holdBuyer, holdsOf, replaceHolds } from '../../public-api/hold-replace.js';
+import { heldToReplace, holdBuyer, holdsOf, letGo, replaceHolds } from '../../public-api/hold-replace.js';
+import type { JudgedRow } from '../../crud/capacity/types.js';
 import { withNamedLocks } from '../../crud/capacity/locks.js';
 import { blankWithheld, sessionReader, withholding, withholdRulesOf, type TableWithholds } from '../../public-api/withhold.js';
 import { recentWithholdsOn, withholdsOn } from '../../public-api/withholds-on.js';
 import { chargeChange, notPlainChange } from '../../public-api/change-limits.js';
-import { PersonRaced, PersonRefused, PersonTableUnusable, personLocks, resolvePerson } from '../../crud/person.js';
+import { PersonRaced, PersonRefused, PersonTableUnusable, checkPerson, personLocks, resolvePerson } from '../../crud/person.js';
 import { privilegesOf } from '../../connections/privileges.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
 import {
@@ -168,6 +169,7 @@ import {
   HookRejectedError,
   bindValue,
   createWriteService,
+  fetchHeld,
   insertRow,
   updateRows,
   type PlannedRow,
@@ -566,6 +568,9 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
 };
 
 /** A write the engine gave up in a lock race, or one that met a row moving under it: the same write a moment later goes through. */
+/** A value left out, or sent empty: a quote may come before it is typed. */
+const blankValue = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+
 const lostRace = (error: unknown): boolean => isWriteConflict(error) || (error instanceof AppError && error.code === 'WRITE_CONFLICT');
 
 /** `refuseWrite` for a create or a change through an entry: a refused value of a column it writes is named. */
@@ -1092,10 +1097,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * A session its person ended from another device (or ended by
          * deleting their details): no session, and the page is told why, so
          * it can say so rather than seem to forget them. Only to the holder of
-         * the session's own token, on its own key; a lapsed or unknown token
-         * is told nothing.
+         * the session's own token, on its own key, and once: the session goes
+         * as it is told. A lapsed or unknown token is told nothing.
          */
-        reply.header(SESSION_ENDED_HEADER, row.endedReason);
+        if (await sessions.takeEnded(row.id)) reply.header(SESSION_ENDED_HEADER, row.endedReason);
       }
     }
     /*
@@ -1203,9 +1208,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     }
   };
 
-  /** What the connection withholds, for an entry read through a parent that declares no `withhold` of its own (none needed otherwise). */
+  /** What the connection withholds, for an entry that declares no `withhold` of its own: every rule on its table holds on every read of it. */
   const declaredWithholds = async (connectionId: string, resource: CompiledResource): Promise<TableWithholds | undefined> =>
-    (resource.withhold ?? null) === null && (resource.visibleWith ?? null) !== null ? await recentWithholdsOn(meta, connectionId) : undefined;
+    (resource.withhold ?? null) === null ? await recentWithholdsOn(meta, connectionId) : undefined;
 
   /** An address as an own link's session keeps it: a keyed hash. */
   const grantAddress = (address: string): string => hashAddress(addressSecret, address);
@@ -1294,14 +1299,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const openRowsFull = async (
     found: { resource: CompiledResource; db: Kysely<SourceDatabase>; view: SnapshotView; table: ResolvedTable; dialect: Dialect },
     session: PublicSessionContext | null,
+    /** Rows this write lets go (a buyer's old hold): not open any more once it is made. */
+    replaced: readonly Row[] = [],
   ): Promise<boolean> => {
     const max = found.resource.maxOpen;
     const column = found.resource.claim?.column;
     if (max === null || session === null || column === undefined) return false;
+    const key = found.table.primaryKey.length === 1 ? found.table.primaryKey[0] : undefined;
     const conditions: RecordFilter[] = [
       { column, op: 'eq', value: session.grant.value },
       { column: max.column, op: 'in', value: [...max.values] },
       ...(max.upcoming === undefined ? [] : [afterNow(found.table, max.upcoming)]),
+      ...(key === undefined ? [] : replaced.map((row): RecordFilter => ({ column: key, op: 'neq', value: row[key] }))),
     ];
     return (await countOf(found, { and: conditions })) >= max.n;
   };
@@ -1679,7 +1688,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * bounds both — this is the outer of two gates, and the point
          * of the pair is that neither is the only one.
          */
-        if (q.q !== undefined && q.q.length > 0 && resource.searchable.length === 0) {
+        // Columns a ticket's holder alone reads, left empty for anyone else: never filtered, searched or sorted by either.
+        const withheld = withholding(resource, ok.key.scope, ok.session, view, table, await declaredWithholds(ok.key.connectionId, resource));
+        const searchable = resource.searchable.filter((column) => !withheld.columns.has(column));
+        if (q.q !== undefined && q.q.length > 0 && searchable.length === 0) {
           return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'Search is not enabled for this resource.');
         }
         let where: string | undefined;
@@ -1687,7 +1699,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           try {
             const parsed = parseWhereParam(q.where);
             const named = collectFilterColumns(parsed);
-            const outside = named.filter((c) => !resource.filterable.has(c));
+            const outside = named.filter((c) => !resource.filterable.has(c) || withheld.columns.has(c));
             if (outside.length > 0) {
               return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That filter is not permitted here.');
             }
@@ -1701,14 +1713,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             .split(',')
             .map((part) => (part.split('.')[0] ?? '').trim())
             .filter((c) => c.length > 0);
-          const outside = named.filter((c) => !resource.orderable.has(c));
+          const outside = named.filter((c) => !resource.orderable.has(c) || withheld.columns.has(c));
           if (outside.length > 0) {
             return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That sort is not permitted here.');
           }
         }
+        // The endpoint's own order by a withheld column is left for the key's: an order says what the column holds.
+        const defaultOrder =
+          resource.defaultOrder !== null && resource.defaultOrder.split(',').some((part) => withheld.columns.has((part.split('.')[0] ?? '').trim())) ? null : resource.defaultOrder;
 
-        // Columns a ticket's holder alone reads, left empty for anyone else reading it through its order.
-        const withheld = withholding(resource, ok.key.scope, ok.session, view, table, await declaredWithholds(ok.key.connectionId, resource));
         const result = await runList({
           // A child's rows through its parent chain; any other resource reads as it always has.
           db: readerFor({ db, dialect, view }, table, found.visibility),
@@ -1722,9 +1735,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             // already refused one that sorts by a column the ref hides.
             ...(q.order !== undefined
               ? { order: q.order }
-              : resource.defaultOrder === null
+              : defaultOrder === null
                 ? {}
-                : { order: resource.defaultOrder }),
+                : { order: defaultOrder }),
             // `defaultLimit` is `limit` for a scope that states none, so a
             // scope written before 54 pages exactly as it did. A `single`
             // endpoint reads two rows: one is the answer, two is a refusal.
@@ -1742,7 +1755,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // removable by any combination of query parameters.
           ...(predicate === null ? {} : { mandatory: predicate }),
           exposeColumns: withheld.expose,
-          searchColumns: resource.searchable,
+          searchColumns: searchable,
         });
 
         await touchKey(ok.key.keyId);
@@ -2142,7 +2155,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (signedInPerson) {
           const own = await claimedRowOf(ok);
           if (own !== null) signedInValues(finder, people, values, own);
-        } else if (!dry && !plausibleAddress(values[finder.email])) {
+        } else if (!plausibleAddress(values[finder.email]) && (!dry || !blankValue(values[finder.email]))) {
+          // A quote may come before the address is typed; one that sends it is held to its form as the save is.
           return refused({ column: finder.email, reason: 'format' });
         }
       }
@@ -2194,7 +2208,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const need = (child.requires ?? []).find((column) => own[column] === null || own[column] === undefined || (typeof own[column] === 'string' && own[column].trim() === ''));
             if (need !== undefined) return { ...where, column: need, reason: 'required' };
             // Text a guest types that reaches a kitchen screen or someone's inbox: plain, no links.
-            const unplain = (child.plainText ?? []).find((column) => !plainText(own[column]));
+            const unplain = (child.plainText ?? []).find((column) => !linkFreeText(own[column]));
             if (unplain !== undefined) return { ...where, column: unplain };
             const grandchildren = (row as { children?: Record<string, { values: Record<string, unknown> }[]> }).children;
             const below = grandchildren === undefined ? [] : nodesOf(child.children ?? {}, grandchildren, childTable, at);
@@ -2313,15 +2327,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? before.root), children: projectChildren(shown), replayed: true as const });
         }
       }
-      // Counted after the retry key is looked up: a retry of the order that filled the last place answers that order.
-      if ((await openRowsFull(found, ok.session)) === true) {
-        return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
-      }
-      if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
-        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
-        if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
-        release = charge.release;
-      }
 
       /** What the guest may be told of a refused row: where it is, and — for their own value — the column and why. */
       const writableAt = (at: TreePath): ReadonlySet<string> => (at.length === 0 ? resource.writable : new Set(entryAt(at)?.writable ?? []));
@@ -2384,19 +2389,21 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       let madePerson: Row | null = null;
       /*
        * One live hold per buyer: the hold this page replaces (by its own link),
-       * or a signed-in person's other holds, let go in the same write.
+       * or a signed-in person's other holds, let go in the same write. A quote
+       * reads the session and the holds as they are, lets nothing go, and
+       * judges its places as if they were.
        */
-      const holds = dry ? [] : holdsOf(view, table);
+      const holds = holdsOf(view, table);
       const shareLink = resource.shareLink ?? null;
       /** The page's own-link session, when it sent one: moved to the new hold inside the write, and moved back if the write fails. */
-      let pageSession: { id: string; token: string; before: { grants: string; subject: string | null; expiresAt: number }; linkKey: { ref: string; column: string; address?: readonly string[] | undefined } } | null = null;
+      let pageSession: { id: string; token: string; before: { grants: string; subject: string | null; expiresAt: number }; linkKey: { ref: string; column: string; address?: readonly string[] | undefined }; initial: unknown } | null = null;
       if (holds.length > 0 && body.replaces !== undefined && shareLink !== null) {
         const presented = parsePublicSessionToken(body.replaces);
         const stored = presented === null ? null : await sessions.findByTokenHash(hashPublishableKey(presented));
         const linkKey = stored === null ? null : await ownLinkKeyOf(ok, view, table, shareLink);
         // Only a live session of the app's own-link key, opened on a row: anything else lets nothing go, and says nothing.
         if (stored !== null && linkKey !== null && stored.keyId === linkKey.keyId && stored.kind === 'token' && stored.endedAt === null && Number(stored.expiresAt) > begun.getTime()) {
-          pageSession = { id: stored.id, token: presented!, before: { grants: stored.grants, subject: stored.subject, expiresAt: Number(stored.expiresAt) }, linkKey };
+          pageSession = { id: stored.id, token: presented!, before: { grants: stored.grants, subject: stored.subject, expiresAt: Number(stored.expiresAt) }, linkKey, initial: parseGrant(stored.grants)?.value ?? null };
         }
       }
       const page = pageSession;
@@ -2404,24 +2411,41 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         page === null
           ? undefined
           : {
+              initial: page.initial,
               rowKey: async (): Promise<unknown> => {
                 const now = await sessions.findById(page.id);
                 return now === null ? null : (parseGrant(now.grants)?.value ?? null);
               },
             };
-      /** The session moved to the new hold (inside its write); moved back when the write does not go through. */
-      let carried: { token: string; expiresAt: number } | null = null;
+      /** The session moved to the new hold (inside its write); moved back when the write does not go through — and only then if it still points there. */
+      let carried: { token: string; expiresAt: number; subject: string } | null = null;
       const carry =
-        page === null
+        page === null || dry
           ? undefined
           : async (_trx: Kysely<SourceDatabase>, made: Row): Promise<void> => {
               const expiresAt = Date.now() + CLAIM_SESSION_TTL_MS;
-              if (await sessions.rebind(page.id, { ...ownLinkSession(page.linkKey, ok, table, made, shareLink!.column), expiresAt })) carried = { token: page.token, expiresAt };
+              const moved = ownLinkSession(page.linkKey, ok, table, made, shareLink!.column);
+              if (await sessions.rebind(page.id, { ...moved, expiresAt })) carried = { token: page.token, expiresAt, subject: moved.subject };
             };
       const buyer =
         holds.length === 0 || ok.session === null || ok.session.level !== 'verified' || resource.claim?.column === undefined || resource.claim.ref !== ok.session.grant.ref
           ? undefined
           : { column: resource.claim.column, value: ok.session.grant.value };
+      /** What this write would let go, read as it is: left out of the buyer's open rows, and judged let go by a quote. */
+      const replaced = replacing === undefined && buyer === undefined ? [] : await heldToReplace({ db: found.db, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: page === null ? undefined : { key: await replacing!.rowKey() } });
+
+      // Counted after the retry key is looked up: a retry of the order that filled the last place answers that order.
+      // The holds this write lets go are not the buyer's any more: a buyer limited to one open hold may replace it.
+      if ((await openRowsFull(found, ok.session, replaced)) === true) {
+        return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'You already have as many of these as can be made online.');
+      }
+      // A quote is never charged, nor told a cap is spent: a cap counts what was made, a quote makes nothing, and its
+      // save is told (the plain-text rule, which judges the values, is the quote's as the save's).
+      if (!dry && caps !== null && (ok.session === null || resource.claim === null)) {
+        const charge = await chargeAnonymous(challenges, { caps, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, table: found.table.id, ref, values, now: Date.now(), ip: request.ip });
+        if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
+        release = charge.release;
+      }
       /** The person found or made by the address typed (never for a quote, never for a guest signed in), then the buyer's other holds let go. */
       const finds = !dry && finder !== null && people !== null && !signedInPerson;
       const identity =
@@ -2449,12 +2473,28 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const ownRows =
         replacing === undefined && buyer === undefined
           ? undefined
-          : async (trx: Kysely<SourceDatabase>): Promise<void> => {
-              await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing });
+          : async (trx: Kysely<SourceDatabase>, as: 'save' | 'dry'): Promise<JudgedRow[]> => {
+              if (as === 'save') {
+                await replaceHolds({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: replacing });
+                return [];
+              }
+              // A quote: the same holds, as they are now, judged as let go — nothing written, nothing held.
+              const key = table.primaryKey[0]!;
+              const now = await heldToReplace({ db: trx, dialect, connectionId: ok.key.connectionId, table, holds, begun, person: buyer, page: page === null ? undefined : { key: await replacing!.rowKey() } });
+              return now.map((row) => ({ target: { ...target(table), db: trx }, pk: { [key]: row[key] }, row: letGo(holds, row, begun), before: row }));
             };
       let rootRow: Row | null = null;
       let outcome: TreeOutcome;
       try {
+        // A quote finds and makes nobody, and holds nothing: it asks of the person what the save would refuse first.
+        if (dry && finder !== null && people !== null && !signedInPerson && plausibleAddress(values[finder.email])) {
+          try {
+            const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
+            await checkPerson({ writes, identity: { ...target(people.table), rights: tableRights }, email: people.email, address: String(values[finder.email]), fill: fillOf(finder, values), context });
+          } catch (error) {
+            refuseTree(error, []);
+          }
+        }
         const save = () =>
           writes.createTree({
           root,
@@ -2512,8 +2552,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         }
       } catch (error) {
-        // The page's session goes back to the hold it came from: that one was not let go after all.
-        if (carried !== null && page !== null) await sessions.rebind(page.id, page.before);
+        // The page's session goes back to the hold it came from: that one was not let go after all — unless
+        // another write with the same session has moved it on since (then it is that write's to keep).
+        const took = carried as { subject: string } | null;
+        if (took !== null && page !== null) await sessions.rebindFrom(page.id, took.subject, page.before);
         if (guessing) spendMiss(request, ok, error);
         // A guest's own value refused: nothing ran that a bad value could have bought, so the charge is handed back.
         const own = error instanceof PublicWriteRefused && typeof error.params?.['reason'] === 'string' && error.params['column'] !== undefined && TREE_NAMED.has(error.params['reason']) && error.params['reason'] !== 'used-up';
@@ -2914,14 +2956,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const context = await publicWriteContext(request, ok);
         /*
          * A change a guest sends on (a ticket offered to a friend): a name that
-         * is only a name, and so many a day to one address. A quote is free and
-         * charged nothing.
+         * is only a name, and so many a day to one address. A quote refuses
+         * the name the save refuses, and is charged nothing and never told a
+         * day's sends are spent: it sends nothing, and its save is told.
          */
-        const limits = quote === 'save' ? (found.resource.limits ?? null) : null;
+        const limits = found.resource.limits ?? null;
         let releaseLimits: (() => Promise<void>) | null = null;
         if (limits !== null) {
           const column = notPlainChange(limits, values);
           if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+        }
+        if (limits !== null && quote === 'save') {
           const charge = await chargeChange(challenges, { limits, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, ref: request.params.ref, values, now: Date.now() });
           if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be sent online today have been sent.');
           releaseLimits = charge.release;
@@ -2935,7 +2980,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          */
         let madePerson: { table: ResolvedTable; row: Row; ref: string } | null = null;
         const finder = found.resource.findOrCreate ?? null;
-        if (quote === 'save' && finder !== null && ok.key.scope.claim?.own === true) {
+        // A quote asks everything the save would refuse of the person — the link's address, the would-be row — and finds and makes nobody.
+        if (finder !== null && ok.key.scope.claim?.own === true) {
           const people = await personTableOf(meta, found.view, ok.key.scope, ok.key.connectionId, finder.identityRef);
           if (people === null) {
             request.log.warn({ ref: request.params.ref, identity: finder.identityRef }, 'a change finds its person through an identity that does not sign in by link');
@@ -2959,7 +3005,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             await releaseLimits?.();
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           }
-          if (stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
+          if (quote === 'dry' && stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
+            try {
+              const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
+              await checkPerson({ writes, identity: { ...target, table: people.table, rights: tableRights }, email: people.email, address, fill: fillOf(finder, { ...stored, ...values }), context });
+            } catch (error) {
+              if (error instanceof PersonRefused) {
+                return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', UPDATE_NAMED.has(error.reason) ? { column: entryColumnOf(finder, people, error.column), reason: error.reason } : undefined);
+              }
+              return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            }
+          } else if (stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
             const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
             const personTarget: WriteTarget = { ...target, table: people.table };
             // On MySQL the address's lock is taken before the transaction, as a create's is.
@@ -3510,6 +3566,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof OutboxMoveRefused) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           // A table whose rows each hold a time slot takes them one at a time.
           if (error instanceof GuardedBatchError) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          // Any other refusal of a row (a balance kept at zero, too many rows following one, a column the role may not
+          // write): the one opaque answer, never an unavailable server.
+          if (error instanceof AppError && error.statusCode < 500) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
           throw error;
         }
         // A value refused for itself, in a column this entry writes, is named as for one row.
@@ -3520,7 +3579,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (row.issues !== null) return refuseRow((updates[i] as { index: number }).index, 'A value was refused.', namedIn(row.issues, { writable: resource.writable, reasons: UPDATE_NAMED }));
         }
 
-        let written: { created: Row[]; updated: { pk: Row; after: Row | null }[] };
+        let written: { created: Row[]; updated: { pk: Row; before: Row | null; after: Row | null }[] };
         try {
           // The write service's own transaction, holding every series without gaps the new rows number in first.
           written = await writes.transaction(target, preparedInserts.map((row) => row.values), async (tdb) => {
@@ -3542,15 +3601,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 });
                 if (!allowed) throw new PublicWriteRefused();
               }
-              created.push(await insertRow(tdb, found.dialect, table, row.values));
+              // A copy that follows its parent, read again from the parent as held.
+              created.push(await insertRow(tdb, found.dialect, table, await writes.followed({ ...target, db: tdb }, tdb, row.values)));
             }
-            const updated: { pk: Row; after: Row | null }[] = [];
+            const updated: { pk: Row; before: Row | null; after: Row | null }[] = [];
             for (const [i, row] of preparedUpdates.entries()) {
               const pk = (updates[i] as { pk: Row }).pk;
+              // The row as it stood, read holding it: what its followers and the rules that watch a change compare with.
+              const before = (await fetchHeld(tdb, target, pk, true)) ?? null;
               // A window read from moments is judged by the statement, holding the row, as for one change.
               const count = await updateRows(tdb, found.dialect, table, withPublicWindows(row.values, resource.writableWhen, found.view, table, ok.key.scope.timezone), pk, inScope);
               if (count !== 1) throw new PublicWriteRefused();
-              updated.push({ pk, after: null });
+              updated.push({ pk, before, after: null });
             }
             return { created, updated };
           });
@@ -3594,7 +3656,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             table,
             action: 'update',
             entity: { connectionId: ok.key.connectionId, table: table.id, pk: u.pk, label: pkLabel(table, u.pk) },
-            before: null,
+            before: u.before,
             after: u.after,
             origin: 'public',
           });
@@ -3606,7 +3668,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           'update',
           target,
           context,
-          written.updated.filter((u) => u.after !== null).map((u) => ({ record: u.after as Row, before: null })),
+          written.updated.filter((u) => u.after !== null).map((u) => ({ record: u.after as Row, before: u.before })),
         );
         return reply.send({
           data: { count: rows.length, created: written.created.length, updated: written.updated.length },
@@ -4296,6 +4358,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const byKey: RecordFilter[] = Object.entries(pk).map(([name, value]) => ({ column: name, op: 'eq', value }) as RecordFilter);
         const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
         let value: unknown;
+        // A file a rule keeps for the row's holder (a pass handed on) is served to the holder alone, as its column reads.
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource));
         try {
           // The row as the list would read it: the scope, the claim, the parent chain, the key.
           const result = await runList({
@@ -4306,9 +4370,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             canReadPii: readsOwnPii(found.resource, ok.session),
             dialect: found.dialect,
             mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
-            exposeColumns: [column],
+            // The holder columns a rule reads beside it; only the file column leaves.
+            exposeColumns: [...new Set([column, ...withheld.expose])],
           });
-          value = result.data[0]?.[column];
+          const row = result.data[0];
+          value = row === undefined ? undefined : withheld.apply(row)[column];
         } catch {
           return none();
         }

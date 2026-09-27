@@ -8,7 +8,7 @@
  *    its mailbox, whatever tags it wears), across every table of the
  *    connection — five tickets a day to one friend, however they are sent;
  *  - plain text: the name it is sent to holds letters, spaces and ordinary
- *    punctuation, and never a link.
+ *    punctuation, and never a link, a handle or a web address.
  *
  * Charged first and counted with the charge, as the create's caps are, and
  * handed back when the change does not go through.
@@ -18,7 +18,7 @@ import { createHmac } from 'node:crypto';
 import type { PublicChallengesRepo } from '@adminium/meta';
 
 import { DAY_MS } from './claim-code.js';
-import { capValue, plainText, type AnonymousCaps, type CapCharge } from './anonymous-caps.js';
+import { capValue, linkFreeText, type AnonymousCaps, type CapCharge } from './anonymous-caps.js';
 
 /** The markers' purpose: changes counted per value. */
 export const CHANGE_LIMIT_PURPOSE = 'change-limit';
@@ -32,7 +32,7 @@ export function limitSubject(key: Buffer, connectionId: string, value: string): 
 
 /** The first plain-text column this change writes something else into, or null. */
 export function notPlainChange(limits: ChangeLimits, values: Readonly<Record<string, unknown>>): string | null {
-  return (limits.plainText ?? []).find((column) => Object.prototype.hasOwnProperty.call(values, column) && !plainText(values[column])) ?? null;
+  return (limits.plainText ?? []).find((column) => Object.prototype.hasOwnProperty.call(values, column) && !linkFreeText(values[column])) ?? null;
 }
 
 /** Charge a change for every limited value it writes; refused (and taken back) when one is over its day. */

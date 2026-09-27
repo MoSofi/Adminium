@@ -188,4 +188,90 @@ describe.each(LEGS)('one live hold per buyer — %s', (dialect, available) => {
     expect(released).toBe(1);
     expect(await live(`id = ${String(now)}`)).toBe(0);
   });
+
+  it.skipIf(!available)('lets go the hold the session named when the request came in, even while the session points at a hold that is not there', async () => {
+    const many = await places(20);
+    const first = await hold('gil@example.com', many);
+    const was = (first.json() as { data: { id: number } }).data.id;
+    // A write that failed moved the page's session to a hold it never kept, and has not moved it back yet.
+    const w = await writerFor(h);
+    const target = w.targetOf('orders');
+    const released = await w.writes.transaction(target, [], (db) =>
+      replaceHolds({ db, dialect: target.dialect, connectionId: h.connectionId, table: target.table, holds: holdsOf(target.view, target.table), begun: new Date(), page: { initial: was, rowKey: async () => 999_999 } }),
+    );
+    expect(released).toBe(1);
+    expect(await live(`id = ${String(was)}`)).toBe(0);
+  });
+});
+
+/** The box office whose buyers may quote a hold, and have one open at a time. */
+function quoted(): Doc {
+  const manifest = boxOffice();
+  for (const entry of manifest['publicAccess'] as Doc[]) {
+    if (entry['table'] === 'orders' && (entry['methods'] as string[]).includes('POST')) Object.assign(entry, { dryRun: true, maxOpen: { column: 'status', values: ['held'], n: 1 } });
+  }
+  return manifest;
+}
+
+describe.each(LEGS)('a new hold quoted and made as the old one is let go — %s', (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let box: Served;
+  let g: ReturnType<typeof guest>;
+  let type = 0;
+
+  beforeAll(async () => {
+    if (!available) return;
+    h = await installInvoicing(dialect, quoted());
+    await mailReady(h.meta);
+    await h.rows(`insert into ${h.real('settings')} (hold_minutes) values (10)`);
+    await h.rows(`insert into ${h.real('customers')} (email, name) values ('mia@example.com', 'M')`);
+    box = await servePublic(h, (h.reply['publicAccess'] as { keys: Record<string, string> }).keys['customer']!);
+    g = guest(box, h);
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await box.close();
+    await h.close();
+  });
+
+  const orders = () => `${h.real('orders')}_verified`;
+  const one = async () => {
+    type += 1;
+    await h.rows(`insert into ${h.real('ticket_types')} (id, name, capacity) values (${type}, 'Type ${type}', 1)`);
+    return type;
+  };
+  const payload = (email: string, ticketType: number, more: Doc = {}) => ({ values: { email, name: 'Guest' }, children: { tickets: [{ values: { ticket_type_id: ticketType } }] }, ...more });
+
+  it.skipIf(!available)('answers the quote of a signed-in buyer as the save: their one place is theirs to hold again, one open hold at a time', async () => {
+    const place = await one();
+    const session = await g.signIn('mia@example.com');
+    const first = await g.request('POST', `/records/${orders()}`, { payload: payload('mia@example.com', place), proof: 'write', session });
+    expect(first.statusCode, first.body).toBe(201);
+    const quote = await g.request('POST', `/records/${orders()}/dry-run`, { payload: payload('mia@example.com', place), session });
+    expect(quote.statusCode, quote.body).toBe(200);
+    const save = await g.request('POST', `/records/${orders()}`, { payload: payload('mia@example.com', place), proof: 'write', session });
+    expect(save.statusCode, save.body).toBe(201);
+    // The quote let nothing go: the first hold was let go by the save alone.
+    const firstId = (first.json() as { data: { id: number } }).data.id;
+    const end = readInstant((await h.rows(`select held_until from ${h.real('orders')} where id = ${String(firstId)}`))[0]!['held_until']);
+    expect(end!.getTime()).toBeLessThan(Date.now());
+  });
+
+  it.skipIf(!available)("answers the quote of a page that sends its hold's own link as the save, and moves nothing", async () => {
+    const place = await one();
+    const first = await g.request('POST', `/records/${orders()}`, { payload: payload('noa@example.com', place), proof: 'write' });
+    expect(first.statusCode, first.body).toBe(201);
+    const token = (first.json() as { link: { session: string } }).link.session;
+    const stranger = await g.request('POST', `/records/${orders()}/dry-run`, { payload: payload('noa@example.com', place) });
+    expect(stranger.statusCode).toBe(409);
+    expect(box.codeOf(stranger)).toBe('PUBLIC_SOLD_OUT');
+    const quote = await g.request('POST', `/records/${orders()}/dry-run`, { payload: payload('noa@example.com', place, { replaces: token }) });
+    expect(quote.statusCode, quote.body).toBe(200);
+    // The session still opens the first hold, which is still live.
+    const firstId = (first.json() as { data: { id: number } }).data.id;
+    const end = readInstant((await h.rows(`select held_until from ${h.real('orders')} where id = ${String(firstId)}`))[0]!['held_until']);
+    expect(end!.getTime()).toBeGreaterThan(Date.now());
+    const save = await g.request('POST', `/records/${orders()}`, { payload: payload('noa@example.com', place, { replaces: token }), proof: 'write' });
+    expect(save.statusCode, save.body).toBe(201);
+  });
 });

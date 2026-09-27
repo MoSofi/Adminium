@@ -33,7 +33,7 @@
 import type { AutomationTraceStep, AutomationTrace } from '@adminium/meta';
 
 import type { ResolvedTable } from '../crud/identifiers.js';
-import { codeColumnsOf, maskRow, type Row } from '../crud/mask.js';
+import { keptCodeColumnsOf, maskRow, type Row } from '../crud/mask.js';
 
 export type TraceKind = AutomationTraceStep['kind'];
 export type TraceStatus = AutomationTraceStep['status'];
@@ -171,8 +171,8 @@ export class TraceBuilder {
 export function triggerSummary(table: ResolvedTable, row: Row | null): string {
   if (row === null) return '';
   const masked = maskRow(row, table, false);
-  // A code (a shared link's) is the key to something, not a way to recognise the row.
-  const codes = codeColumnsOf(table);
+  // A code (a shared link's, or one a person typed) is the key to something, not a way to recognise the row.
+  const codes = keptCodeColumnsOf(table);
   const parts: string[] = [];
   for (const [name, column] of table.columns) {
     if (column.isPrimaryKey || column.masked || column.secret || codes.has(name)) continue;

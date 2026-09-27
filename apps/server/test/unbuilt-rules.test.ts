@@ -9,6 +9,8 @@ import { describe, expect, it } from 'vitest';
 import type { EffectiveTable } from '../src/connections/effective-schema.js';
 import {
   RuleNotBuiltError,
+  UNBUILT_ENTRY_RULES,
+  UNBUILT_TABLE_RULES,
   refuseUnbuiltTable,
   unbuiltEntryRuleOf,
   unbuiltRuleOf,
@@ -65,5 +67,12 @@ describe('the entries this server does not run yet', () => {
     expect(unbuiltEntryRuleOf({ source: 'tickets', withhold: { columns: ['code'], unless_holder: 'holder_customer_id' } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'tickets', limits: { per_value: { columns: ['pending_email'], n: 5 } } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'tickets' })).toBeNull();
+  });
+});
+
+describe('a release', () => {
+  it('ships with every rule built: both lists of rules not run yet are empty', () => {
+    expect(UNBUILT_TABLE_RULES.map((rule) => rule.rule)).toEqual([]);
+    expect(UNBUILT_ENTRY_RULES.map((rule) => rule.rule)).toEqual([]);
   });
 });

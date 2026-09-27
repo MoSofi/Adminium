@@ -275,6 +275,13 @@ describe('a document listing several sources', () => {
     expect(messages(m)).toEqual([]);
     (extras['columns'] as Doc)['options'] = { list: { table: 'extra_notes', via: 'stay_extra_id', column: 'n' } };
     expect(issuesText(m)).toContain('"extra_notes.n" is not a text column, so it lists no names');
+    // Never a column no reader may see listed from another row.
+    (extras['columns'] as Doc)['options'] = { list: { table: 'extra_notes', via: 'stay_extra_id', column: 'text' } };
+    const text = ((m['requiredSchema'] as { tables: Doc[] }).tables.find((t) => t['ref'] === 'extra_notes')!['columns'] as Doc[]).find((c) => c['ref'] === 'text')!;
+    text['rules'] = { secret: true };
+    expect(issuesText(m)).toContain('"extra_notes.text" is a secret, which a document never lists from another row');
+    text['rules'] = { code: { length: 8 } };
+    expect(issuesText(m)).toContain('"extra_notes.text" is a code, which a document never lists from another row');
   });
 });
 

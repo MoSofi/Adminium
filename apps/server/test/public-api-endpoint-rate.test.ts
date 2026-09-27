@@ -3,11 +3,12 @@
  * An endpoint's own rate limit, and the failed-resolution bucket.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createPublicRateLimiter,
   endpointRateKeyFor,
+  knownCodeKey,
   PUBLIC_FAILED_RESOLUTION,
 } from '../src/public-api/limiter.js';
 import { createPublicKeyResolver } from '../src/public-api/resolve.js';
@@ -17,6 +18,28 @@ import { PUBLIC_ORIGIN, SOURCE_LEGS, type ServedSource, type SourceSpec } from '
 const RATE = { max: 3, windowMs: 60_000 };
 const visitor = (ip: string, extra: Record<string, unknown> = {}) =>
   ({ keyId: 'pbk_1', ref: 'orders', kind: 'browser' as const, ip, ...extra });
+
+describe('the memory of codes that worked', () => {
+  it('remembers a code by a keyed hash, never the code a guest typed', () => {
+    const set = vi.spyOn(Map.prototype, 'set');
+    try {
+      const limiter = createPublicRateLimiter(() => 1_000);
+      limiter.knownCodes('pbk_1', '198.51.100.7', ['K7PX2QWE9']);
+      const keys = set.mock.calls.map(([key]) => String(key));
+      expect(keys.some((key) => key.startsWith('known|'))).toBe(true);
+      expect(keys.join('\n')).not.toContain('K7PX2QWE9');
+      // Still known: the visitor's next guess of it is not held back.
+      const reserved = limiter.reserveGuess('pbk_1', '198.51.100.7', ['K7PX2QWE9']);
+      expect('ticket' in reserved).toBe(true);
+    } finally {
+      set.mockRestore();
+    }
+    // Another secret, another name for the same code.
+    const a = knownCodeKey(Buffer.alloc(32, 1), 'pbk_1', '198.51.100.7', 'K7PX2QWE9');
+    expect(a).toBe(knownCodeKey(Buffer.alloc(32, 1), 'pbk_1', '198.51.100.7', 'K7PX2QWE9'));
+    expect(a).not.toBe(knownCodeKey(Buffer.alloc(32, 2), 'pbk_1', '198.51.100.7', 'K7PX2QWE9'));
+  });
+});
 
 describe('the endpoint limiter', () => {
   it('counts per visitor for a browser key, and key-wide for a server key', () => {

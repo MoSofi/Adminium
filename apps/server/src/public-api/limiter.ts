@@ -95,6 +95,7 @@
  * instances behind a load balancer gets double the published numbers.
  */
 
+import { createHmac, randomBytes } from 'node:crypto';
 import { isIPv4, isIPv6 } from 'node:net';
 
 /** Fixed-window counters. */
@@ -232,6 +233,16 @@ export const PUBLIC_CODE_GUESSES = {
 
 /** How long a code that worked is remembered for its visitor. */
 export const PUBLIC_CODE_KNOWN_MS = 60 * 60_000;
+
+/**
+ * Where a code that worked is remembered: a keyed hash of the key, the
+ * visitor and the code, under a secret made fresh for each process — so the
+ * memory never holds a code a guest typed, and nothing outside it can tell
+ * which codes are there.
+ */
+export function knownCodeKey(secret: Buffer, keyId: string, ip: string, code: string): string {
+  return `known|${createHmac('sha256', secret).update(JSON.stringify([keyId, rateAddress(ip), code])).digest('base64url')}`;
+}
 
 /** A guess held while its code is looked up: given back when it was no miss. */
 export interface GuessTicket {
@@ -456,7 +467,8 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
   ];
   /** Codes that worked, by key, visitor and the code as typed: a window of an hour each, kept apart from every count. */
   const known = new Map<string, Window>();
-  const knownKey = (keyId: string, ip: string, code: string): string => `known|${keyId}|${rateAddress(ip)}|${code}`;
+  const knownSecret = randomBytes(32);
+  const knownKey = (keyId: string, ip: string, code: string): string => knownCodeKey(knownSecret, keyId, ip, code);
   const isKnown = (keyId: string, ip: string, code: string): boolean => {
     const window = known.get(knownKey(keyId, ip, code));
     return window !== undefined && window.resetAt > now();

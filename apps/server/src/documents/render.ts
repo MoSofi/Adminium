@@ -726,7 +726,11 @@ export async function renderDocument(
     at,
   );
   // Whose it is, once it is drawn: a guest's own door shows it to that reader alone.
-  if (readerMark !== null) done = (await documents.stampClaim(document.id, { column: WITHHELD_FOR, value: readerMark })) ?? done;
+  // Merged into a claim it already carries, never in its place.
+  if (readerMark !== null) {
+    const claim = done?.claim ?? null;
+    done = (await documents.stampClaim(document.id, claim === null ? { column: WITHHELD_FOR, value: readerMark, withheldFor: readerMark } : { ...claim, withheldFor: readerMark })) ?? done;
+  }
 
   await audit.append(
     {
@@ -937,7 +941,11 @@ export async function renderIntent(
    * invoice could not be made" is a sentence the operator should say, not a
    * status a stranger discovers.
    */
-  if (request.claim !== undefined) await documents.stampClaim(document.id, request.claim);
+  if (request.claim !== undefined) {
+    // Whom it was drawn for, kept beside the claim that asked for it.
+    const drawnFor = (await documents.findById(document.id))?.claim?.withheldFor;
+    await documents.stampClaim(document.id, drawnFor === undefined ? request.claim : { ...request.claim, withheldFor: drawnFor });
+  }
 
   return { status: 'rendered', document: (await documents.findById(document.id)) ?? done! };
 }

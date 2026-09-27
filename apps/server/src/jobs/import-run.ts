@@ -263,8 +263,11 @@ async function runImport(
       let written = false;
       try {
         await db.transaction().execute(async (trx) => {
+          const tdb = trx as unknown as Kysely<SourceDatabase>;
+          // A copy that follows its parent, read again from the parent inside the chunk's transaction.
+          for (const entry of good) entry.values = await writes.followed({ ...writeTarget, db: tdb }, tdb, entry.values);
           await insertRows(
-            trx as unknown as Kysely<SourceDatabase>,
+            tdb,
             dialect,
             table,
             good.map((entry) => entry.values),
@@ -394,7 +397,7 @@ async function runImport(
           refuseRow(item, prepared.issues);
           return;
         }
-        const stored = await insertRow(db, dialect, table, prepared.values);
+        const stored = await insertRow(db, dialect, table, await writes.followed(writeTarget, db as Kysely<SourceDatabase>, prepared.values));
         inserted += 1;
         await writes.afterEach('create', writeTarget, context, [{ record: stored, before: null }]);
         return;
@@ -405,9 +408,10 @@ async function runImport(
         refuseRow(item, checked.issues[0] ?? null);
         return;
       }
-      await insertRows(db, dialect, table, [values]);
+      const current = await writes.followed(writeTarget, db as Kysely<SourceDatabase>, values);
+      await insertRows(db, dialect, table, [current]);
       inserted += 1;
-      await writes.settle('create', writeTarget, [{ record: values, before: null }]);
+      await writes.settle('create', writeTarget, [{ record: current, before: null }]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (!skipInvalid) fail(`row ${item.rowNumber}: ${message}`);
@@ -421,7 +425,8 @@ async function runImport(
   /** The totals and after hooks for an upserted row, reading it again only when either needs it. */
   async function afterImportWrite(action: 'update', match: Row, before: Row): Promise<void> {
     const rules = tableRulesFor(writeTarget);
-    const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) > 0;
+    // Totals it feeds, or rows that follow it (its extras, when a stay's dates change).
+    const settles = (rules?.rollupsInto?.length ?? 0) + (rules?.ownRollups?.length ?? 0) + (rules?.follows?.length ?? 0) > 0;
     if (!settles && !(await writes.wants('after', action, writeTarget, context))) return;
     const record = (await (db as Kysely<SourceDatabase>)
       .selectFrom(table.id)
