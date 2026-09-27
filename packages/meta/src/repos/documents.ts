@@ -94,6 +94,8 @@ export interface DocumentClaim {
   keyId?: string | undefined;
   /** The identity (the resource) the claim was made through. */
   ref?: string | undefined;
+  /** Who a document of rows a `withhold` covers was drawn for: `''` nobody, else the reader's table and key. */
+  withheldFor?: string | undefined;
 }
 
 /** Where a page of a claim's documents ends: the last row's time and id. */

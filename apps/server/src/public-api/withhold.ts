@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * COLUMNS WITHHELD FROM ROWS READ THROUGH A PARENT (`withhold`).
+ * COLUMNS WITHHELD FROM ROWS READ THROUGH A PARENT (`withhold`) — and on
+ * every other public read of the same table.
  *
  * A ticket sent to a friend is still a row of the buyer's order, so every
  * read of the order's tickets — the buyer's "My tickets", the order's own
@@ -23,6 +24,8 @@ import type { CompiledResource, CompiledScope } from './scope.js';
 export interface Withholding {
   /** The columns the read must fetch: the resource's own, and the holder column when it is not one of them. */
   expose: readonly string[];
+  /** Every column a rule may withhold: never filtered, searched or sorted by, which would tell what it holds. */
+  columns: ReadonlySet<string>;
   /** The row as the reader may see it: the withheld columns emptied unless the reader holds it, the holder column dropped when it was fetched only to decide. */
   apply: (row: Row) => Row;
 }
@@ -73,13 +76,14 @@ export function withholding(
   declared?: TableWithholds,
 ): Withholding {
   const own = resource.withhold ?? null;
-  const rules: readonly WithholdRule[] =
-    own !== null ? [own] : resource.visibleWith !== null && resource.visibleWith !== undefined && declared !== undefined ? withholdRulesOf(declared, table.id) : [];
-  if (rules.length === 0) return { expose: resource.expose, apply: (row) => row };
+  // An entry's own rule; else every rule declared on its table, whichever entry or key declared it.
+  const rules: readonly WithholdRule[] = own !== null ? [own] : declared !== undefined ? withholdRulesOf(declared, table.id) : [];
+  if (rules.length === 0) return { expose: resource.expose, columns: new Set(), apply: (row) => row };
   const fetched = [...new Set(rules.map((rule) => rule.unlessHolder))].filter((column) => !resource.expose.includes(column));
   const readers = rules.map((rule) => readerOf(scope, session, view, table, rule.unlessHolder));
   return {
     expose: [...resource.expose, ...fetched],
+    columns: new Set(rules.flatMap((rule) => rule.columns)),
     apply: (row) => {
       const out: Row = { ...row };
       rules.forEach((rule, i) => {

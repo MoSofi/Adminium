@@ -1208,9 +1208,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     }
   };
 
-  /** What the connection withholds, for an entry read through a parent that declares no `withhold` of its own (none needed otherwise). */
+  /** What the connection withholds, for an entry that declares no `withhold` of its own: every rule on its table holds on every read of it. */
   const declaredWithholds = async (connectionId: string, resource: CompiledResource): Promise<TableWithholds | undefined> =>
-    (resource.withhold ?? null) === null && (resource.visibleWith ?? null) !== null ? await recentWithholdsOn(meta, connectionId) : undefined;
+    (resource.withhold ?? null) === null ? await recentWithholdsOn(meta, connectionId) : undefined;
 
   /** An address as an own link's session keeps it: a keyed hash. */
   const grantAddress = (address: string): string => hashAddress(addressSecret, address);
@@ -1688,7 +1688,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * bounds both — this is the outer of two gates, and the point
          * of the pair is that neither is the only one.
          */
-        if (q.q !== undefined && q.q.length > 0 && resource.searchable.length === 0) {
+        // Columns a ticket's holder alone reads, left empty for anyone else: never filtered, searched or sorted by either.
+        const withheld = withholding(resource, ok.key.scope, ok.session, view, table, await declaredWithholds(ok.key.connectionId, resource));
+        const searchable = resource.searchable.filter((column) => !withheld.columns.has(column));
+        if (q.q !== undefined && q.q.length > 0 && searchable.length === 0) {
           return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'Search is not enabled for this resource.');
         }
         let where: string | undefined;
@@ -1696,7 +1699,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           try {
             const parsed = parseWhereParam(q.where);
             const named = collectFilterColumns(parsed);
-            const outside = named.filter((c) => !resource.filterable.has(c));
+            const outside = named.filter((c) => !resource.filterable.has(c) || withheld.columns.has(c));
             if (outside.length > 0) {
               return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That filter is not permitted here.');
             }
@@ -1710,14 +1713,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             .split(',')
             .map((part) => (part.split('.')[0] ?? '').trim())
             .filter((c) => c.length > 0);
-          const outside = named.filter((c) => !resource.orderable.has(c));
+          const outside = named.filter((c) => !resource.orderable.has(c) || withheld.columns.has(c));
           if (outside.length > 0) {
             return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'That sort is not permitted here.');
           }
         }
+        // The endpoint's own order by a withheld column is left for the key's: an order says what the column holds.
+        const defaultOrder =
+          resource.defaultOrder !== null && resource.defaultOrder.split(',').some((part) => withheld.columns.has((part.split('.')[0] ?? '').trim())) ? null : resource.defaultOrder;
 
-        // Columns a ticket's holder alone reads, left empty for anyone else reading it through its order.
-        const withheld = withholding(resource, ok.key.scope, ok.session, view, table, await declaredWithholds(ok.key.connectionId, resource));
         const result = await runList({
           // A child's rows through its parent chain; any other resource reads as it always has.
           db: readerFor({ db, dialect, view }, table, found.visibility),
@@ -1731,9 +1735,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             // already refused one that sorts by a column the ref hides.
             ...(q.order !== undefined
               ? { order: q.order }
-              : resource.defaultOrder === null
+              : defaultOrder === null
                 ? {}
-                : { order: resource.defaultOrder }),
+                : { order: defaultOrder }),
             // `defaultLimit` is `limit` for a scope that states none, so a
             // scope written before 54 pages exactly as it did. A `single`
             // endpoint reads two rows: one is the answer, two is a refusal.
@@ -1751,7 +1755,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // removable by any combination of query parameters.
           ...(predicate === null ? {} : { mandatory: predicate }),
           exposeColumns: withheld.expose,
-          searchColumns: resource.searchable,
+          searchColumns: searchable,
         });
 
         await touchKey(ok.key.keyId);
@@ -4353,6 +4357,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const byKey: RecordFilter[] = Object.entries(pk).map(([name, value]) => ({ column: name, op: 'eq', value }) as RecordFilter);
         const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
         let value: unknown;
+        // A file a rule keeps for the row's holder (a pass handed on) is served to the holder alone, as its column reads.
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource));
         try {
           // The row as the list would read it: the scope, the claim, the parent chain, the key.
           const result = await runList({
@@ -4363,9 +4369,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             canReadPii: readsOwnPii(found.resource, ok.session),
             dialect: found.dialect,
             mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
-            exposeColumns: [column],
+            // The holder columns a rule reads beside it; only the file column leaves.
+            exposeColumns: [...new Set([column, ...withheld.expose])],
           });
-          value = result.data[0]?.[column];
+          const row = result.data[0];
+          value = row === undefined ? undefined : withheld.apply(row)[column];
         } catch {
           return none();
         }

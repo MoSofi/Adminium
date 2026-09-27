@@ -18,7 +18,14 @@ import { readFileSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { connectionTenantConfig } from '@adminium/meta';
+
 import { decryptSecret } from '../src/config/secrets.js';
+import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
+import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
+import { createPublicViews } from '../src/public-api/runtime.js';
+import { appEntriesOn } from '../src/public-api/withholds-on.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
 import { runTimedMoves } from '../src/states/timed-moves.js';
 import { TEST_SECRET } from './helpers.js';
@@ -130,11 +137,13 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     tickets = body.children.tickets.map((c) => c.data);
     mia = await buyer.signIn('mia@buyers.org');
   }, 180_000);
+  let board: Served | undefined;
   afterAll(async () => {
     if (!available) return;
     await shop.close();
     await ticket.close();
     await link.close();
+    await board?.close();
     await h.close();
   });
 
@@ -237,6 +246,60 @@ describe.each(LEGS)('a ticket handed on shows its sender nothing of its new hold
     // Her own tickets' codes are listed.
     expect(toMia[0]!.text).toContain(second!.code);
     expect(toMia[0]!.text).toContain(third!.code);
+  });
+
+  it.skipIf(!available)("keeps a friend's code from every other public read of the tickets: an operator's own door, its filters and its order", async () => {
+    const [first] = tickets;
+    const newCode = String((await row(first!.id))['code']);
+    // The rule is the app's own, read from its manifest whatever public doors are taken up.
+    expect((await appEntriesOn(h.meta, h.connectionId)).some(({ entry }) => entry.table === 'tickets' && entry.withhold !== undefined)).toBe(true);
+    const views = createPublicViews(h.meta);
+    const service = createEndpointService({ meta: h.meta, viewFor: views.viewFor, tenantConfigOf: async (cid) => (await connectionTenantConfig(h.meta, cid)) ?? undefined });
+    const source = (await views.viewFor(h.connectionId))!.table(t('tickets')).id;
+    await service.saveEndpoint({
+      connectionId: h.connectionId,
+      ref: 'ticket_board',
+      origin: 'custom',
+      definition: {
+        path: '/ticket_board',
+        source,
+        methods: ['GET'],
+        select: ['id', 'status', 'code'],
+        filters: [],
+        filterable: ['code', 'status'],
+        orderable: ['code', 'id'],
+        searchable: ['code'],
+        pagination: { default_limit: 50, max_limit: 200, order: 'code.asc' },
+        auth: { role: 'anon' },
+        rate_limit: { requests: 60, window: '1m' },
+        response: { shape: 'object', envelope: 'data' },
+      },
+    });
+    const secret = generatePublishableKey('browser');
+    const { key } = await service.createKey({
+      connectionId: h.connectionId,
+      name: 'board',
+      access: [{ ref: 'ticket_board', methods: ['GET'] }],
+      secret: { prefix: secret.prefix, tokenHash: secret.tokenHash, tokenEncrypted: sealPublishableKey(dsnCryptoFromSecret(TEST_SECRET), secret.token) },
+      origins: [],
+      kind: 'browser',
+    });
+    board = await servePublic(h, key.id);
+    {
+      const listed = await board.get('/records/ticket_board');
+      expect(listed.statusCode, listed.body).toBe(200);
+      expect(listed.body).not.toContain(newCode);
+      expect((listed.json() as { data: Record<string, unknown>[] }).data.find((r) => Number(r['id']) === first!.id)).toMatchObject({ code: null });
+      // Never an oracle: no filter, search or sort by what it withholds.
+      const where = (column: string, value: string) => `where=${encodeURIComponent(JSON.stringify({ column, op: 'eq', value }))}`;
+      for (const query of [where('code', newCode), 'order=code.desc', `q=${newCode}`]) {
+        const asked = await board.get(`/records/ticket_board?${query}`);
+        expect(asked.statusCode, query).toBe(400);
+        expect(board.codeOf(asked)).toBe('PUBLIC_QUERY_REFUSED');
+      }
+      const fine = await board.get(`/records/ticket_board?${where('status', 'valid')}`);
+      expect(fine.statusCode, fine.body).toBe(200);
+    }
   });
 
   it.skipIf(!available)('gives a lapsed offer that goes to someone else a new link: the first friend opens, reads and accepts nothing', async () => {

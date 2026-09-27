@@ -160,3 +160,65 @@ describe.each(LEGS)('a private file, through the row that names it — %s', (dia
     expect((await download(2, ada)).body).toBe(unknown.body);
   });
 });
+
+/** The same studio, whose versions a client may hand to another: the file is then the holder's alone. */
+function handedOn(): Record<string, unknown> {
+  const m = manifest();
+  const versions = ((m['requiredSchema'] as { tables: Record<string, unknown>[] }).tables.find((t) => t['ref'] === 'deliverable_versions')!['columns'] as Record<string, unknown>[]);
+  versions.push({ ref: 'holder_id', type: 'fk', references: 'clients', nullable: true });
+  const entry = (m['publicAccess'] as Record<string, unknown>[]).find((e) => e['table'] === 'deliverable_versions')!;
+  entry['withhold'] = { columns: ['file'], unlessHolder: 'holder_id' };
+  return m;
+}
+
+describe.each(LEGS)('a private file its row keeps for another holder — %s', (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let served: Served;
+  let dataDir: string;
+  let ada: string;
+  let ben: string;
+  const versions = () => `${h.real('deliverable_versions')}_claimed`;
+
+  beforeAll(async () => {
+    if (!available) return;
+    dataDir = await mkdtemp(join(tmpdir(), 'public-files-held-'));
+    h = await installInvoicing(dialect, handedOn());
+    served = await servePublic(h, (h.reply['publicAccess'] as { keyId: string }).keyId, { ADMINIUM_DATA_DIR: dataDir });
+    const desk = await usersRepo(h.meta).create({ email: 'desk@studio.dev', name: 'Desk', passwordHash: await adminPasswordHash() });
+    await rolesRepo(h.meta).assignToUser(desk.id, (await rolesRepo(h.meta).findBySlug('super-admin'))!.id);
+    const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'desk@studio.dev', password: ADMIN_PASSWORD } });
+    const cookie = sessionCookie(login.headers['set-cookie']);
+    const upload = await served.composed.app.inject({ method: 'POST', url: `/api/v1/files?filename=pass.pdf&connectionId=${h.connectionId}`, headers: { cookie, 'content-type': 'application/pdf' }, payload: PDF });
+    expect(upload.statusCode, upload.body).toBe(201);
+    const file = (upload.json() as { data: { id: string } }).data.id;
+    const t = h.real;
+    await h.rows(`insert into ${t('clients')} (email, name) values ('ada@example.com', 'Ada')`);
+    await h.rows(`insert into ${t('clients')} (email, name) values ('ben@example.com', 'Ben')`);
+    await h.rows(`insert into ${t('deliverables')} (client_id, status) values (1, 'pending')`);
+    // 1: Ada's own pass; 2: a pass of her deliverable she handed to Ben.
+    await h.rows(`insert into ${t('deliverable_versions')} (deliverable_id, file, note, holder_id) values (1, '${file}', 'n', null)`);
+    await h.rows(`insert into ${t('deliverable_versions')} (deliverable_id, file, note, holder_id) values (1, '${file}', 'n', 2)`);
+    const claim = async (email: string, name: string) =>
+      ((await served.post('/claim', { match: { email, name } })).json() as { data: { session: string } }).data.session;
+    ada = await claim('ada@example.com', 'Ada');
+    ben = await claim('ben@example.com', 'Ben');
+  }, 120_000);
+
+  afterAll(async () => {
+    if (!available) return;
+    await served.close();
+    await h.close();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  it.skipIf(!available)('serves the sender the file of a row they still hold, and never one handed on', async () => {
+    expect((await served.get(`/files/${versions()}/1/file`, ada)).statusCode).toBe(200);
+    const handed = await served.get(`/files/${versions()}/2/file`, ada);
+    expect(handed.statusCode).toBe(404);
+    // The list shows her the row, without its file.
+    const listed = await served.get(`/records/${versions()}`, ada);
+    expect(listed.statusCode, listed.body).toBe(200);
+    expect((listed.json() as { data: Record<string, unknown>[] }).data.find((row) => Number(row['id']) === 2)?.['file']).toBeNull();
+    void ben;
+  });
+});

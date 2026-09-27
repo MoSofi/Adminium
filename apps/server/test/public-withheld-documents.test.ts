@@ -91,9 +91,12 @@ describe.each(LEGS)('a document draws a line someone else holds without what is 
     expect(mailed.status).toBe('rendered');
     const doc = (mailed as { document: { id: string } }).document;
     expect(JSON.stringify(h.drawn.at(-1)!.subject)).not.toContain('Seat B for Ben');
-    expect((await documentsRepo(h.meta).findById(doc.id))!.claim).toMatchObject({ value: '' });
+    expect((await documentsRepo(h.meta).findById(doc.id))!.claim).toMatchObject({ value: '', withheldFor: '' });
     const { sheet } = await printed(doc.id, sessions['ann']!);
     expect(lines(sheet!)).toEqual(['Seat A', '']);
+    // Whom it was drawn for sits beside any other claim the document carries, and is read there.
+    await documentsRepo(h.meta).stampClaim(doc.id, { column: 'client_id', value: '1', withheldFor: '' });
+    expect((await printed(doc.id, sessions['ann']!)).status).toBe(200);
     await documentProfilesRepo(h.meta).patch(invoice.id, { deliver: {} } as never);
   });
 });

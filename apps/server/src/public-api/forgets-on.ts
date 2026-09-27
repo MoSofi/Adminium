@@ -9,10 +9,11 @@
  * nowhere, whatever address was written on it before they did.
  */
 import type { AppManifest } from '@adminium/manifest';
-import { appTablesRepo, publicEndpointsRepo, publicScopesRepo, type MetaDb } from '@adminium/meta';
+import { publicEndpointsRepo, publicScopesRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import { parseDefinition } from './endpoint.js';
+import { appEntriesOn } from './withholds-on.js';
 
 /** What a table's people forget: the columns emptied, and the stamp that says when. */
 export interface ForgetRule {
@@ -53,12 +54,7 @@ export async function forgetsOn(meta: MetaDb, connectionId: string, app?: { key:
     const parsed = scopeSchema.safeParse(document);
     if (parsed.success) for (const resource of parsed.data.resources) add(resource.table, resource.forget);
   }
-  const entries = app?.manifest?.publicAccess ?? [];
-  if (app !== undefined && entries.some((entry) => entry.forget !== undefined)) {
-    for (const record of await appTablesRepo(meta).forInstall(connectionId, app.key)) {
-      for (const entry of entries) if (entry.table === record.ref) add(record.tableName, entry.forget);
-    }
-  }
+  for (const { tableName, entry } of await appEntriesOn(meta, connectionId, app)) add(tableName, entry.forget);
   return out;
 }
 

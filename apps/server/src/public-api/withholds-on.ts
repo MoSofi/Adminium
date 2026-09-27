@@ -45,13 +45,50 @@ export async function withholdsOn(
     const parsed = scopeSchema.safeParse(document);
     if (parsed.success) for (const resource of parsed.data.resources) declared.push({ table: resource.table, withhold: resource.withhold });
   }
-  const entries = app?.manifest?.publicAccess ?? [];
-  if (app !== undefined && entries.some((entry) => entry.withhold !== undefined)) {
-    for (const record of await appTablesRepo(meta).forInstall(connectionId, app.key)) {
-      for (const entry of entries) if (entry.table === record.ref && entry.withhold !== undefined) declared.push({ table: record.tableName, withhold: entry.withhold });
-    }
+  for (const { tableName, entry } of await appEntriesOn(meta, connectionId, app)) {
+    if (entry.withhold !== undefined) declared.push({ table: tableName, withhold: entry.withhold });
   }
   return collectWithholds(declared);
+}
+
+/**
+ * The public entries apps declare on this connection's tables, with the real
+ * table each is on — the one app given, or (none given) every app installed
+ * on the connection, read from its manifest: a rule an app declared is kept on
+ * every read of its table, whether or not its public access was taken up.
+ */
+export async function appEntriesOn(
+  meta: MetaDb,
+  connectionId: string,
+  app?: { key: string; manifest: AppManifest | null } | undefined,
+): Promise<{ tableName: string; entry: NonNullable<AppManifest['publicAccess']>[number] }[]> {
+  const out: { tableName: string; entry: NonNullable<AppManifest['publicAccess']>[number] }[] = [];
+  if (app !== undefined) {
+    const entries = app.manifest?.publicAccess ?? [];
+    if (entries.length === 0) return out;
+    for (const record of await appTablesRepo(meta).forInstall(connectionId, app.key)) {
+      for (const entry of entries) if (entry.table === record.ref) out.push({ tableName: record.tableName, entry });
+    }
+    return out;
+  }
+  const records = await appTablesRepo(meta).forConnection(connectionId);
+  const ids = [...new Set(records.flatMap((record) => (record.manifestId === null ? [] : [record.manifestId])))];
+  if (ids.length === 0) return out;
+  const manifests = new Map<string, AppManifest>();
+  for (const row of await meta.db.selectFrom('adminium_manifests').select(['id', 'manifest', 'status']).where('id', 'in', ids).execute()) {
+    if (row.status !== 'installed') continue;
+    try {
+      const parsed = (typeof row.manifest === 'string' ? JSON.parse(row.manifest) : row.manifest) as AppManifest;
+      if (parsed?.kind === 'app') manifests.set(row.id, parsed);
+    } catch {
+      continue;
+    }
+  }
+  for (const record of records) {
+    const manifest = record.manifestId === null ? undefined : manifests.get(record.manifestId);
+    for (const entry of manifest?.publicAccess ?? []) if (entry.table === record.ref) out.push({ tableName: record.tableName, entry });
+  }
+  return out;
 }
 
 /** A few seconds of what a connection declares, for the reads that ask on every request. */
