@@ -14,7 +14,7 @@
 import { ForbiddenError } from '../src/errors.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { resolvePerson } from '../src/crud/person.js';
+import { PersonTableUnusable, resolvePerson } from '../src/crud/person.js';
 import { solveProof } from '../src/public-api/proof.js';
 import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { shopManifest } from './person-fixture.js';
@@ -101,5 +101,24 @@ describe.each(LEGS)('a person found by address, when writers meet — %s', (dial
     expect(unknown).toBeInstanceOf(ForbiddenError);
     expect((known as ForbiddenError).details).toEqual((unknown as ForbiddenError).details);
     expect(await h.rows(`select id from ${h.real('customers')} where email = 'nobody-yet@example.com'`)).toEqual([]);
+  });
+
+  it.skipIf(!available)('refuses a person table with a hook alike for a known and a new address, before the address is looked up', async () => {
+    const w = await writerFor(h);
+    const identity = w.targetOf('customers');
+    // A hook runs when a person row is made: a new address would run it and a known one would not.
+    const hooked = { ...w.writes, wants: async (timing: string, action: string) => timing === 'before' && action === 'create' };
+    const tryOne = (address: string) =>
+      w.writes
+        .transaction(identity, [], (db) =>
+          resolvePerson({ writes: hooked as unknown as typeof w.writes, identity: { ...identity, db, rights: { insert: true, update: true, delete: true } }, email: 'email', address, fill: { name: 'X' }, context: w.desk }),
+        )
+        .catch((error: unknown) => error);
+    const known = await tryOne('ada@example.com');
+    const unknown = await tryOne('hooked-yet@example.com');
+    expect(known).toBeInstanceOf(PersonTableUnusable);
+    expect(unknown).toBeInstanceOf(PersonTableUnusable);
+    expect((known as PersonTableUnusable).why).toBe((unknown as PersonTableUnusable).why);
+    expect(await h.rows(`select id from ${h.real('customers')} where email = 'hooked-yet@example.com'`)).toEqual([]);
   });
 });

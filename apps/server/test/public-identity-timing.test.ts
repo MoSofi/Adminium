@@ -127,6 +127,12 @@ describe.each(LEGS)('a known address and an unknown one — %s', (dialect, avail
       expect(statement.toLowerCase()).toMatch(/^(insert|select)/);
     }
     expect(extra.filter((statement) => statement.toLowerCase().startsWith('insert'))).toHaveLength(1);
+    // On Postgres one writer per address at a time: the address's lock, taken right before the person is looked for.
+    if (dialect === 'postgres') {
+      const lookup = known.sql.findIndex((statement) => statement.includes(h.real('customers')));
+      expect(lookup).toBeGreaterThan(0);
+      expect(known.sql[lookup - 1]).toMatch(/pg_advisory_xact_lock\(hashtextextended/);
+    }
   });
 
   it.runIf(available && dialect === 'sqlite')('takes the same time for both, within noise', async () => {

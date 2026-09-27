@@ -11,8 +11,9 @@ import { validateManifest } from '@adminium/manifest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { readInstant } from '../src/crud/moments.js';
+import { holdsOf, replaceHolds } from '../src/public-api/hold-replace.js';
 import { runTimedMoves } from '../src/states/timed-moves.js';
-import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
+import { installInvoicing, invoicingManifest, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { guest, mailReady } from './person-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
@@ -212,5 +213,33 @@ describe.each(LEGS)('one live hold per buyer — %s', (dialect, available) => {
     const results = await Promise.all(Array.from({ length: 4 }, () => hold('dee@example.com', many, { replaces: token })));
     for (const res of results) expect([201, 409], res.body).toContain(res.statusCode);
     expect(await live(`email = 'dee@example.com'`)).toBe(1);
+  });
+
+  it.skipIf(!available)('holds once for a page that sends its session with other tickets at once, whose places are counted apart', async () => {
+    const first = await hold('eve@example.com', await places(20));
+    const token = (first.json() as { link: { session: string } }).link.session;
+    // Each its own ticket type: no shared limit queues them, so they meet at the held row itself.
+    const types = [await places(20), await places(20), await places(20), await places(20)];
+    const results = await Promise.all(types.map((ticketType) => hold('eve@example.com', ticketType, { replaces: token })));
+    for (const res of results) expect([201, 409], res.body).toContain(res.statusCode);
+    expect(results.filter((res) => res.statusCode === 201).length).toBeGreaterThanOrEqual(1);
+    expect(await live(`email = 'eve@example.com'`)).toBe(1);
+  });
+
+  it.skipIf(!available)("follows a page's session that moved on while the row it pointed at was waited for, and lets that hold go", async () => {
+    const many = await places(20);
+    const first = await hold('fay@example.com', many);
+    const moved = await hold('fay@example.com', many);
+    const [was, now] = [(first.json() as { data: { id: number } }).data.id, (moved.json() as { data: { id: number } }).data.id];
+    // The hold the page's session pointed at is over already (another write let it go); the session now points at the next.
+    await h.rows(`update ${orders} set held_until = ${dialect === 'sqlite' ? `'2020-01-01T00:00:00.000Z'` : `'2020-01-01 00:00:00'`} where id = ${String(was)}`);
+    const w = await writerFor(h);
+    const target = w.targetOf('orders');
+    const asked = [was, now, now];
+    const released = await w.writes.transaction(target, [], (db) =>
+      replaceHolds({ db, dialect: target.dialect, connectionId: h.connectionId, table: target.table, holds: holdsOf(target.view, target.table), begun: new Date(), page: { rowKey: async () => asked.shift() ?? now } }),
+    );
+    expect(released).toBe(1);
+    expect(await live(`id = ${String(now)}`)).toBe(0);
   });
 });

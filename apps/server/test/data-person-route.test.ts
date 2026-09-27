@@ -59,4 +59,19 @@ describe.each(LEGS)('the desk links a person by address — %s', (dialect, avail
     const orders = await pick('orders', { email: 'lena@example.com' });
     expect(orders.statusCode).toBe(404);
   });
+
+  it.skipIf(!available)('needs the right to add people to the table: a desk that may only read makes nobody', async () => {
+    await r.t.grantTable(r.t.roles.viewer, r.connectionId, '*', { read: true, create: false, update: false, delete: false });
+    const read = await r.t.app.inject({ method: 'GET', url: `/api/v1/data/${r.connectionId}/${r.table('customers')}`, headers: asUser(r.t.users.viewer) });
+    expect(read.statusCode, read.body).toBe(200);
+    const before = await people();
+    const res = await r.t.app.inject({
+      method: 'POST',
+      url: `/api/v1/data/${r.connectionId}/${r.table('customers')}/person`,
+      headers: asUser(r.t.users.viewer),
+      payload: { email: 'viewer-typed@example.com', fill: { name: 'V' } },
+    });
+    expect(res.statusCode, res.body).toBe(403);
+    expect(await people()).toEqual(before);
+  });
 });

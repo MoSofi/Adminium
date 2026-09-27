@@ -17,7 +17,10 @@ import { readFileSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { decryptSecret } from '../src/config/secrets.js';
+import { emailEnvelopeKey } from '../src/email/send.js';
 import { runTimedMoves } from '../src/states/timed-moves.js';
+import { TEST_SECRET } from './helpers.js';
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { guest, mailOf, mailReady } from './person-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
@@ -25,14 +28,55 @@ import { servePublic, type Served } from './public-lane.helpers.js';
 type Doc = Record<string, unknown>;
 const FIXTURE = new URL('../../../packages/manifest/test/fixtures/ticket-transfer.manifest.json', import.meta.url);
 
-/** The box office, with two sends a day allowed to one address (five in the fixture) so the limit is reached quickly. */
+/**
+ * The box office, with two sends a day allowed to one address (five in the
+ * fixture) so the limit is reached quickly; the friend's email shows the
+ * ticket's link as a QR code too, and an accepted ticket is emailed to its
+ * new holder with its new code, as text and as a QR code.
+ */
 function boxOffice(): Doc {
   const manifest = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Doc;
   for (const entry of manifest['publicAccess'] as Doc[]) {
     const limits = entry['limits'] as { perValue?: { n: number } } | undefined;
     if (limits?.perValue !== undefined) limits.perValue.n = 2;
   }
+  const messages = ((manifest['requiredSchema'] as { tables: Doc[] }).tables.find((table) => table['ref'] === 'messages')!['columns'] as Doc[]).find((column) => column['ref'] === 'kind')!;
+  messages['enum'] = ['ticket-offered', 'ticket-ready'];
+  const outbox = manifest['outbox'] as { kinds: Record<string, string>; producers: Doc[] };
+  outbox.kinds['ticket-ready'] = 'boxoffice-ticket-ready';
+  outbox.producers.push({
+    kind: 'ticket-ready',
+    link: 'ticket_id',
+    onChange: { table: 'tickets', column: 'status', to: 'valid', where: { column: 'holder_customer_id', isNull: false } },
+    recipient: { column: 'holder_email', name: 'holder_name' },
+  });
+  const templates = manifest['emailTemplates'] as { key: string; locales: Record<string, { blocks: Doc[] }> }[];
+  templates.find((template) => template.key === 'boxoffice-ticket-offered')!.locales['en-US']!.blocks.push({ block: 'email.image', data: { qr: '{{ticket.link_token.qr}}' } });
+  templates.push({
+    key: 'boxoffice-ticket-ready',
+    name: 'Ticket ready',
+    locales: {
+      'en-US': {
+        subject: 'Your ticket',
+        blocks: [
+          { block: 'email.text', data: { text: '{{recipient.first_name}}, your ticket: {{ticket.code}}' } },
+          { block: 'email.image', data: { qr: '{{ticket.code.qr}}' } },
+        ],
+      },
+    },
+  } as never);
   return manifest;
+}
+
+/** Every email queued so far as the sender sealed it: who it went to, its QR codes' texts, and the job as stored (never the codes). */
+async function sealedOf(h: InvoicingHarness): Promise<{ template: string; to: string; qr: string[]; stored: string }[]> {
+  const jobs = await h.meta.db.selectFrom('adminium_jobs').selectAll().where('kind', '=', 'email.send').orderBy('createdAt').execute();
+  return jobs.map((job) => {
+    const stored = typeof job.payload === 'string' ? job.payload : JSON.stringify(job.payload);
+    const payload = JSON.parse(stored) as { templateKey: string; envelope: string };
+    const envelope = JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(TEST_SECRET))) as { to: string; qr?: { text: string }[] };
+    return { template: payload.templateKey, to: envelope.to, qr: (envelope.qr ?? []).map((code) => code.text), stored };
+  });
 }
 
 describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => {
@@ -106,6 +150,10 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     expect(mail[0]!.text).toContain('Kai');
     const orderToken = String((await h.rows(`select link_token from ${t('orders')} where id = ${order.id}`))[0]!['link_token']);
     expect(mail[0]!.text).not.toContain(orderToken);
+    // Its QR code is the ticket's link, sealed with the message: never in the job as it is stored.
+    const offered = (await sealedOf(h)).filter((m) => m.to === 'kai@friends.org');
+    expect(offered.map((m) => m.qr)).toEqual([[token]]);
+    expect(offered[0]!.stored).not.toContain(token);
 
     // The friend opens the ticket's link: a verified session on that one ticket.
     const opened = await byTicket.request('POST', '/claim/token', { payload: { token } });
@@ -125,6 +173,16 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     expect(row['code']).not.toBe(first!.code);
     // The change's answer never carries the new code.
     expect(JSON.stringify(accepted.json())).not.toContain(String(row['code']));
+
+    // The new holder is emailed the new code, as text and as a QR code; the buyer is sent nothing that carries it.
+    const beforeReady = (await sealedOf(h)).length;
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const ready = (await sealedOf(h)).slice(beforeReady);
+    expect(ready.map((m) => [m.template, m.to, m.qr])).toEqual([['boxoffice-ticket-ready', 'kai@friends.org', [row['code']]]]);
+    expect(ready[0]!.stored).not.toContain(String(row['code']));
+    expect((await mailOf(h.meta)).filter((m) => m.to === 'kai@friends.org').at(-1)!.text).toContain(String(row['code']));
+    const toBuyer = (await mailOf(h.meta)).filter((m) => m.to === 'mia@example.com');
+    expect(toBuyer.filter((m) => m.text.includes(String(row['code'])) || m.html.includes(String(row['code'])))).toEqual([]);
 
     // The friend signs in: the ticket is among their own, with its new code.
     const kaiSession = await buyer.signIn('kai@friends.org');
@@ -178,5 +236,20 @@ describe.each(LEGS)('a ticket sent to a friend — %s', (dialect, available) => 
     expect(shop.codeOf(again)).toBe('PUBLIC_LIMIT_REACHED');
     // A refused send is not counted, and changed nothing.
     expect((await ticketRow(third!.id))['status']).toBe('valid');
+  });
+
+  it.skipIf(!available)("sends a ticket's own link only to the address the ticket holds, whatever the message row names", async () => {
+    const [, , , fourth] = order.tickets;
+    const row = await ticketRow(fourth!.id);
+    const quoted = dialect === 'mysql' ? '`to`' : '"to"';
+    await h.rows(`insert into ${t('messages')} (kind, status, ticket_id, ${quoted}) values ('ticket-offered', 'queued', ${String(fourth!.id)}, 'someone@elsewhere.net')`);
+    const before = (await mailOf(h.meta)).length;
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const sent = (await mailOf(h.meta)).slice(before);
+    expect(sent.filter((m) => m.to === 'someone@elsewhere.net')).toEqual([]);
+    // It goes to the ticket's pending address, and no other message carries the ticket's link.
+    const carrying = sent.filter((m) => m.text.includes(String(row['link_token'])));
+    expect(carrying.length).toBeGreaterThan(0);
+    expect(new Set(carrying.map((m) => m.to))).toEqual(new Set([String(row['pending_email'])]));
   });
 });
