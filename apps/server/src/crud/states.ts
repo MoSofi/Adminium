@@ -968,11 +968,15 @@ async function runLinkEffects(db: Db, table: ResolvedTable, values: Row, relinke
       ];
       for (const { side, row, set } of sides) {
         if (set === undefined) continue;
-        const target = held.of(link, row);
-        if (target === null) continue;
+        const heldRow = held.of(link, row);
+        if (heldRow === null) continue;
+        // As this write left it: a move's effect earlier in the same write may have moved this row already (a check-in
+        // into the new room) — that is this write's own doing, not a room someone is in.
+        const moved = (guard.effected ?? []).filter((e) => e.table === link.table && sameValue(e.pk[link.key], row[via])).at(-1)?.after ?? undefined;
+        const target = moved ?? heldRow;
         const [column, state] = Object.entries(set)[0]!;
         if (sameValue(target[column], state)) {
-          if (side === 'old') continue;
+          if (side === 'old' || moved !== undefined) continue;
           throw new StateMoveRefused(`The row ${table.name}.${via} now points at is ${state} already, so it cannot be moved to ${state}.`, {
             column: via,
             from: state,

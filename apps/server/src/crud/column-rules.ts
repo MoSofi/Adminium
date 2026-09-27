@@ -50,7 +50,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
-import { formulaColumns, weekdaysOf, type FormulaExpr } from '@adminium/manifest';
+import { formulaColumns, weekdaysOf, type FormulaExpr, type Moment } from '@adminium/manifest';
 
 import type {
   ColumnCodeRule,
@@ -70,6 +70,7 @@ import type {
 import { holdsNul } from '../security/nul-bytes.js';
 import { codeLookupsOf, type CodeLookup } from './code-lookup.js';
 import { isNowType, renderNow } from './instants.js';
+import { clockOf } from './moments.js';
 import { booleanOf, sameValue } from './write-values.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import { ownedRules, type OwnedRule } from './capacity/rules.js';
@@ -159,6 +160,8 @@ export interface ColumnCheck {
   validation?: ColumnValidation;
   /** Days of the week a price by the night reads (`fri,sat`): each word a day's three letters. */
   weekdays?: true;
+  /** A time of day a moment reads from the row (`time: {column}`): `HH:MM`, or no moment at all. */
+  clock?: true;
 }
 
 /** `column.copy`, resolved against the snapshot: where the value comes from. */
@@ -531,6 +534,13 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   for (const column of columns) {
     if (column.scale !== undefined) scales.push({ column: column.name, scale: column.scale });
     if (column.venueLocal === true) venueLocal.push(column.name);
+    // A code Adminium makes (and makes again when the row changes hands) is
+    // its own random value, never a writer's: a secret column keeps it — kept
+    // out of every reply by the secret's own masking. A column named like a
+    // secret (`link_token`) would otherwise get no code at all.
+    if (column.code !== undefined) {
+      codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length, ...(column.code.renew === undefined ? {} : { renew: column.code.renew }) });
+    }
     // A secret column is refused by the write path long before this, and a
     // fill that named one would be a way to write it sideways.
     if (target.table.columns.get(column.name)?.secret === true) continue;
@@ -581,9 +591,6 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
       });
     } else if (column.sequence !== undefined) {
       sequences.push({ column: column.name, logicalType: column.logicalType, start: column.sequence.start ?? 1 });
-    }
-    if (column.code !== undefined) {
-      codes.push({ column: column.name, prefix: column.code.prefix ?? '', length: column.code.length, ...(column.code.renew === undefined ? {} : { renew: column.code.renew }) });
     }
     if (column.stamp !== undefined) {
       const stamp = { ...column.stamp, column: column.name, logicalType: column.logicalType };
@@ -655,6 +662,12 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     const found = checks.find((check) => check.column === name);
     if (found !== undefined) found.weekdays = true;
     else checks.push({ column: name, logicalType: target.table.columns.get(name)?.logicalType ?? 'text', weekdays: true });
+  }
+  // A time of day a moment reads from the row: one that does not read as `HH:MM` would silently be no moment at all.
+  for (const name of clockColumns(target)) {
+    const found = checks.find((check) => check.column === name);
+    if (found !== undefined) found.clock = true;
+    else checks.push({ column: name, logicalType: target.table.columns.get(name)?.logicalType ?? 'text', clock: true });
   }
   // The totals this table's rows feed, read off the parents that name it.
   const rollupsInto: RollupInto[] = [];
@@ -1127,6 +1140,7 @@ function validationIssue(rules: ColumnValidation, value: unknown): FieldIssue | 
 function issueFor(check: ColumnCheck, value: unknown, dialect: Dialect): FieldIssue | null {
   if (value === null || value === undefined) return null;
   if (check.weekdays === true && weekdaysOf(value) === null) return { code: 'format' };
+  if (check.clock === true && value !== '' && clockOf(value) === null) return { code: 'format' };
   if (check.validation !== undefined) {
     const issue = validationIssue(check.validation, value);
     if (issue !== null) return issue;
@@ -1448,6 +1462,44 @@ function weekdayColumns(target: { view: SnapshotView; table: ResolvedTable }): s
     for (const column of table.columns ?? []) {
       const adjust = column.perNight?.adjust;
       if (adjust?.table === target.table.id && adjust.match.weekdays !== undefined) out.add(adjust.match.weekdays);
+    }
+  }
+  return [...out];
+}
+
+/**
+ * The columns of this table a moment reads as a time of day (`time: {column}`)
+ * — in any table's states (a move's window, a new row's, a late rule, a timed
+ * move) or stamps, on its own row or through a link to this one.
+ */
+function clockColumns(target: { view: SnapshotView; table: ResolvedTable }): string[] {
+  const out = new Set<string>();
+  const model = target.view?.model;
+  for (const table of model?.tables ?? []) {
+    const id = (table as { id?: string }).id ?? '';
+    const linkTo = (via: string) => model?.relations.find((r) => r.through === null && r.from.tableId === id && r.from.columns.length === 1 && r.from.columns[0] === via)?.to.tableId;
+    const moments: (Moment | undefined)[] = [];
+    const states = table.states;
+    for (const list of Object.values(states?.moves ?? {})) {
+      for (const move of list) if (typeof move === 'object') moments.push(move.requires?.time?.after, move.requires?.time?.before);
+    }
+    moments.push(states?.create?.requires.time?.after, states?.create?.requires.time?.before);
+    for (const late of states?.late ?? []) moments.push(late.moment);
+    for (const timed of states?.timed ?? []) moments.push(timed.at);
+    for (const column of table.columns ?? []) {
+      const set = column.stamp?.set;
+      if (typeof set !== 'object' || set === null) continue;
+      if ('moment' in set) moments.push(set.moment);
+      if ('deadline' in set) moments.push(set.deadline.notAfter);
+      if ('addMinutes' in set) moments.push(set.addMinutes.notAfter);
+    }
+    for (const moment of moments) {
+      for (const one of moment === undefined ? [] : [moment, ...(moment.or ?? [])]) {
+        const time = one.time;
+        if (typeof time !== 'object' || time === null || 'table' in time || 'edge' in time) continue;
+        const on = one.via === undefined ? id : linkTo(one.via);
+        if (on === target.table.id) out.add(time.column);
+      }
     }
   }
   return [...out];

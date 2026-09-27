@@ -160,6 +160,8 @@ const whenTime = z.union([
       edge: z.enum(['opens', 'closes']),
     })
     .strict(),
+  // A time of day kept on the row the end's date is read from (a guest's arrival time).
+  z.object({ column: columnSchema }).strict(),
 ]);
 const whenMoment = { time: whenTime.optional(), plus: whenOffset.optional(), minus: whenOffset.optional() };
 const whenEnd = z
@@ -1826,7 +1828,16 @@ function momentWindowIssues(
   if (when.where !== undefined && ends.length > 0 && linked === 0) {
     issues.push({ code: 'SCOPE_WRITABLE_WHEN_MOMENT_INVALID', message: `conditions on a linked row are keyed by a link, and "${column}" is read as a date`, ref, column });
   }
-  const opening = [column, ...ends.flatMap((end) => (end.or ?? []).filter((m) => m['via'] === undefined).map((m) => String(m['column'])))];
+  // A time of day read from the row itself opens the window too: a guest typing a later arrival time would reopen it.
+  const rowTime = (time: unknown): string[] =>
+    typeof time === 'object' && time !== null && !('table' in time) && !('edge' in time) && typeof (time as { column?: unknown }).column === 'string' ? [(time as { column: string }).column] : [];
+  const opening = [
+    column,
+    ...ends.flatMap((end) => [
+      ...(end.column === undefined ? rowTime(end.time) : []),
+      ...(end.or ?? []).filter((m) => m['via'] === undefined).flatMap((m) => [String(m['column']), ...rowTime(m['time'])]),
+    ]),
+  ];
   for (const own of new Set(opening)) {
     const reachable = writable.has(own) || Object.prototype.hasOwnProperty.call(writableValues, own) || Object.prototype.hasOwnProperty.call(defaults, own);
     if (reachable) {

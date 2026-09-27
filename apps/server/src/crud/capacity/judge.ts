@@ -593,8 +593,9 @@ export async function judgeCapacity(db: Db, rows: readonly JudgedRow[], opts: Ca
       }
       const { need, grew, counts, leaving } = await needOf(rule, subject.row, subject.before, ownerAfter, ownerBefore, ctx, false, subject.sent, ctxBefore);
       if (need !== 'none') requireHeld(await namesOf(rule, subject.target, subject.row, zone, reads, false));
-      // A stay whose guest arrived before this write and is still there after it: the nights already slept are not judged again.
-      const begun = subject.reach === undefined && subject.before !== null && hasArrived(rule, subject.before, ownerBefore) && hasArrived(rule, subject.row, ownerAfter);
+      // A stay whose guest arrived before this write and is still there after it: the nights already slept are not judged
+      // again — nor those of a row judged through it (an extra whose nights are its stay's, read as the stay was and will be).
+      const begun = subject.before !== null && hasArrived(rule, subject.before, ownerBefore) && hasArrived(rule, subject.row, ownerAfter);
       const today = venueClock(now, zone).day;
       const units = need === 'none' ? [] : (await unitsOf(rule, subject.row, ownerAfter, ctx)).filter((unit) => !begun || unit.at === undefined || unit.at >= today);
       judged.push({ subject, rule, need, grew, counts, ownerAfter, ownerBefore, units, begun, leaving: leaving === true });
