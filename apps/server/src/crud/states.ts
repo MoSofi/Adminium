@@ -62,6 +62,7 @@
  */
 import { sql, type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
+import type { Moment } from '@adminium/manifest';
 
 import type { StateLink, StateMoveRule, StateParent, TableStatesRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -71,10 +72,11 @@ import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import { copiedOf } from './decided-columns.js';
 import { lateRuleFor, lateVerdict, refusedBy } from './late.js';
-import { momentSettings, momentVias, type MomentContext } from './moments.js';
+import { momentOf, momentSettings, momentVias, type MomentContext } from './moments.js';
 import {
   HeldLinks,
   StateTooLate,
+  compareKeys,
   StateUnchanged,
   holdLinkedRows,
   judgeWaits,
@@ -118,9 +120,11 @@ export interface StateGuard {
   /**
    * A move Adminium makes itself, declared by the app — a timed move, or a
    * linked row moved by an effect: the roles a listed move is kept for do not
-   * stop it, for this move only (`from` absent: from any state).
+   * stop it, for this move only (`from` absent: from any state). A timed
+   * move's moment (`at`) is read again on the row as held: a row re-dated
+   * since it was found due is left as it is.
    */
-  declared?: { from?: string | undefined; to: string } | undefined;
+  declared?: { from?: string | undefined; to: string; at?: Moment | undefined } | undefined;
   /** Moves the row a link points at (an effect), by the write service's own statement, inside this transaction. */
   effect?: EffectWriter | undefined;
   /** The rows this write's effects moved, for the write to announce once it commits. */
@@ -197,6 +201,20 @@ const rowKey = (table: string, key: unknown) => `${table}\u0000${String(key)}`;
 export function tiedToStates(table: ResolvedTable): boolean {
   const effective = table.table;
   return effective?.states !== undefined || (effective?.stateParents?.length ?? 0) > 0;
+}
+
+/**
+ * A row a form sends back whole (a parent form's child rows), with the state
+ * it already holds left out: naming it is no move, and a strict table would
+ * refuse it as one. Any other value is the writer's, as sent.
+ */
+export function withoutRepeatedState(table: ResolvedTable, values: Row, stored: Row | null | undefined): Row {
+  const states = table.table?.states;
+  if (states?.strict === undefined || stored === null || stored === undefined || !Object.prototype.hasOwnProperty.call(values, states.column)) return values;
+  if (!sameValue(values[states.column], text(stored[states.column]) ?? states.initial)) return values;
+  const out = { ...values };
+  delete out[states.column];
+  return out;
 }
 
 /** Whether rows of other tables keep columns of this one while they link to it (`lockLinked`). */
@@ -661,7 +679,7 @@ export async function holdParentsFirst(db: Db, dialect: Dialect, table: Resolved
       const key = side[parent.via];
       if (key !== null && key !== undefined) keys.set(String(key), key);
     }
-    for (const key of [...keys.keys()].sort()) await heldRows(db, dialect, parent.table, { [parent.key]: keys.get(key) });
+    for (const key of [...keys.values()].sort(compareKeys)) await heldRows(db, dialect, parent.table, { [parent.key]: key });
   }
 }
 
@@ -687,6 +705,78 @@ function updateReads(table: ResolvedTable, values: Row, windows: readonly StateW
   }
   for (const window of windows) if (window.link !== undefined) out.push({ via: window.link.via, forUpdate: false, stored: false });
   return out;
+}
+
+/** What the linked layer of an update holds: the rows its links point at, named from the row as peeked. */
+interface LinkedLayer {
+  kept: ReturnType<typeof lockLinkedHolds>;
+  reads: ReturnType<typeof updateReads>;
+  peek: Row[];
+  holds: LinkedHold[];
+}
+
+async function linkedLayer(
+  tx: Db,
+  table: ResolvedTable,
+  values: Row,
+  match: Row,
+  windows: readonly StateWindow[],
+  guard: StateGuard | undefined,
+  peeked?: Row[] | undefined,
+): Promise<LinkedLayer> {
+  const kept = guard !== undefined ? lockLinkedHolds(table, values) : { holds: [], check: () => undefined };
+  const reads = updateReads(table, values, windows, guard);
+  const peek = reads.length === 0 ? [] : (peeked ?? (await heldRows(tx, 'sqlite', table.id, match)));
+  const linkOf = (via: string) => stateLinkOf(table, via) ?? windows.find((w) => w.link?.via === via)?.link;
+  const holds: LinkedHold[] = [...kept.holds];
+  for (const read of reads) {
+    const link = linkOf(read.via);
+    if (link === undefined) continue;
+    for (const row of peek) {
+      if (!read.stored && Object.prototype.hasOwnProperty.call(values, read.via)) holds.push({ link, value: values[read.via], forUpdate: read.forUpdate });
+      else holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
+      if (read.stored) holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
+    }
+  }
+  return { kept, reads, peek, holds };
+}
+
+/** The rows an update peeked when it took its linked layer early, by the transaction behind them, table and key. */
+const LINKED_FIRST = new WeakMap<object, Map<string, Row[]>>();
+
+const matchKey = (table: ResolvedTable, match: Row) => `${table.id}\u0000${JSON.stringify(Object.entries(match).map(([k, v]) => [k, String(v)]))}`;
+
+function takeLinkedFirst(tx: Db, table: ResolvedTable, match: Row): Row[] | undefined {
+  const byKey = LINKED_FIRST.get(tx);
+  const key = matchKey(table, match);
+  const found = byKey?.get(key);
+  byKey?.delete(key);
+  return found;
+}
+
+/**
+ * The linked layer of an update taken BEFORE the write holds its own row:
+ * for a write that holds that row early — to count a limit, work out a
+ * formula, settle a total — the rows its links point at (a move's linked
+ * conditions, the rows its effects move, for update) come first, as for
+ * every writer (the one order: parents, linked rows, own rows). What was
+ * peeked to name them is kept for the statement's own judge
+ * (`guardedUpdate`), which holds them again as named, and refuses the write
+ * if the row's link moved in between. Nothing outside a transaction, and
+ * nothing on SQLite, which writes one transaction at a time.
+ */
+export async function holdLinkedFirst(db: Db, dialect: Dialect, table: ResolvedTable, values: Row, match: Row): Promise<void> {
+  if (dialect === 'sqlite' || !inTransaction(db)) return;
+  const guard = guardOf(values);
+  const tied = guard !== undefined && tiedToStates(table);
+  const windows = windowsOf(values);
+  if (!tied && windows.length === 0) return;
+  const layer = await linkedLayer(db, table, values, match, windows, tied ? guard : undefined);
+  if (layer.holds.length === 0) return;
+  await holdLinkedRows(db, dialect, layer.holds);
+  let byKey = LINKED_FIRST.get(db);
+  if (byKey === undefined) LINKED_FIRST.set(db, (byKey = new Map()));
+  byKey.set(matchKey(table, match), layer.peek);
 }
 
 /**
@@ -724,21 +814,11 @@ export async function guardedUpdate(
     // What this attempt's effects move: an attempt made again starts with none.
     if (guard !== undefined) guard.effected = [];
     if (tied) await holdParentsFirst(tx, dialect, table, match, values);
-    // The linked layer: every row the write's links point at, in one pass.
-    const kept = tied ? lockLinkedHolds(table, values) : { holds: [], check: () => undefined };
-    const reads = updateReads(table, values, windows, tied ? guard : undefined);
-    const peek = reads.length === 0 ? [] : await heldRows(tx, 'sqlite', table.id, match);
-    const linkOf = (via: string) => stateLinkOf(table, via) ?? windows.find((w) => w.link?.via === via)?.link;
-    const holds: LinkedHold[] = [...kept.holds];
-    for (const read of reads) {
-      const link = linkOf(read.via);
-      if (link === undefined) continue;
-      for (const row of peek) {
-        if (!read.stored && Object.prototype.hasOwnProperty.call(values, read.via)) holds.push({ link, value: values[read.via], forUpdate: read.forUpdate });
-        else holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
-        if (read.stored) holds.push({ link, value: row[read.via], forUpdate: read.forUpdate });
-      }
-    }
+    // The linked layer: every row the write's links point at, in one pass —
+    // taken already, before the write held its own row, when the write
+    // service holds that row early (`holdLinkedFirst`); held again here, as
+    // it was then, which waits for nobody.
+    const { kept, reads, peek, holds } = await linkedLayer(tx, table, values, match, windows, tied ? guard : undefined, takeLinkedFirst(tx, table, match));
     const held = await holdLinkedRows(tx, dialect, holds);
     kept.check(held);
     const judging: Judging = { held, settings: momentSettings(tx), links: windows.flatMap((w) => (w.link === undefined ? [] : [w.link])) };
@@ -755,6 +835,11 @@ export async function guardedUpdate(
       }
       const states = table.table?.states;
       try {
+        // A timed move is made only while the row, as held, is still due by its own moment.
+        if (tied && states !== undefined && guard.declared?.at !== undefined && (text(stored[states.column]) ?? states.initial) === guard.declared.from) {
+          const at = await momentOf(guard.declared.at, momentsOver(tx, table, stored, guard, judging));
+          if (at === null || at.getTime() > nowOf(tx, guard).getTime()) throw notDue(states.column);
+        }
         // Once means once: a write naming the state the row already holds.
         if (tied && states?.strict !== undefined && !guard.history && Object.prototype.hasOwnProperty.call(values, states.column)) {
           const state = text(stored[states.column]) ?? states.initial;
@@ -788,6 +873,11 @@ export async function guardedUpdate(
     if (count > 0 && tied) await runEffects(tx, table, values, moved, guard, held);
     return count;
   });
+}
+
+/** A timed move whose row was re-dated since it was found due: left for the next look, never refused. */
+function notDue(column: string): ConflictError {
+  return new ConflictError('This row is no longer due to move on its own; it is left as it is.', 'WRITE_CONFLICT', { retry: true, column });
 }
 
 /** A row's key as text, to find it again among rows read before. */

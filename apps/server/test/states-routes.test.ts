@@ -103,4 +103,30 @@ describe.each(LEGS)('moves through the data routes — %s', (dialect, available)
     expect(roomEntry).toBeDefined();
     expect(roomEntry!.actorLabel).toBe(audit.find((entry) => entry.entity?.table === routes.table('stays') && entry.action === 'record.update')!.actorLabel);
   });
+
+  it.runIf(available)('saves an order with its checked-in ticket sent back whole, as the form sends it', async () => {
+    const t = await ticket();
+    clock('2026-07-31T18:45:00Z');
+    expect((await routes.patch('tickets', t['id'], { values: { status: 'checked_in', door: 'Door 1' } })).statusCode).toBe(200);
+    const [was] = await h.rows(`select checked_in_at from ${h.real('tickets')} where id = ${String(t['id'])}`);
+    const saved = await routes.patch('orders', t['order_id'], {
+      values: { email: `again${String(n)}@example.com` },
+      children: { [routes.relation('tickets', 'orders')]: [{ key: { id: t['id'] }, values: { status: 'checked_in', door: 'Door 1', holder_email: 'holder@example.com' } }] },
+    });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const [row] = await h.rows(`select status, holder_email, checked_in_at from ${h.real('tickets')} where id = ${String(t['id'])}`);
+    expect(row).toMatchObject({ status: 'checked_in', holder_email: 'holder@example.com', checked_in_at: was!['checked_in_at'] });
+  });
+
+  it.runIf(available)("announces the rows a parent form's child rows moved too", async () => {
+    const event = await made('events', { name: `Festival ${String((n += 1))}`, starts_at: '2026-08-10T19:30:00Z', doors_at: '2026-08-10T19:00:00Z' });
+    const room = await made('rooms', { number: `F${String(n)}` });
+    const stay = await made('stays', { room_id: room['id'], event_id: event['id'], arrive: '2026-08-10' });
+    const saved = await routes.patch('events', event['id'], { values: {}, children: { [routes.relation('stays', 'events')]: [{ key: { id: stay['id'] }, values: { status: 'in_house' } }] } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const [after] = await h.rows(`select status from ${h.real('rooms')} where id = ${String(room['id'])}`);
+    expect(after!['status']).toBe('occupied');
+    const audit = await auditRepo(routes.t.meta).list({ category: 'data', limit: 100 });
+    expect(audit.filter((entry) => entry.entity?.table === routes.table('rooms') && entry.action === 'record.update' && JSON.stringify(entry.entity?.pk) === JSON.stringify({ id: room['id'] }))).toHaveLength(1);
+  });
 });

@@ -561,6 +561,16 @@ describe('the codes the server can say', () => {
     expect.assertions(4);
   });
 
+  it('reads a door scan made before the doors open: the doors, and when the scan opens', async () => {
+    // As the server sends a window read from moments: `at` the doors, `from` half an hour before.
+    const times = { at: '2026-07-31T19:00:00.000Z', from: '2026-07-31T18:30:00.000Z' };
+    const { client } = clientOver(() => new Response(JSON.stringify({ error: { code: 'PUBLIC_TOO_EARLY', params: times, message: 'x' } }), { status: 409 }));
+    await client.update('door', '12', { status: 'checked_in' }).catch((e: PublicApiError) => {
+      expect(e.tooEarly).toEqual(times);
+    });
+    expect.assertions(1);
+  });
+
   it('has empty params when the reply named none', async () => {
     const { client } = clientOver(() => err(404, 'PUBLIC_REF_NOT_FOUND'));
     await client.list('menu').catch((e: PublicApiError) => {

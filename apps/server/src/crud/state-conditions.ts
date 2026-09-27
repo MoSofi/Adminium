@@ -105,9 +105,13 @@ export function windowsOf(row: Row): readonly StateWindow[] {
 
 // ─── refusals ──────────────────────────────────────────────────────────────
 
-/** A public change outside its window: `bound` says which end, `at` the moment. */
+/**
+ * A public change outside its window: `bound` says which end, `at` the
+ * moment; before a window opens, `rowAt` the time it is counted from (the
+ * row's, or its linked row's, before the shift — the doors, the visit).
+ */
 export class WriteWindowClosed extends ConflictError {
-  constructor(message: string, details: { bound: 'after' | 'before'; at: string | null; column: string; reason?: string }) {
+  constructor(message: string, details: { bound: 'after' | 'before'; at: string | null; rowAt?: string; column: string; reason?: string }) {
     super(message, 'WRITE_WINDOW_CLOSED', details);
   }
 }
@@ -141,6 +145,21 @@ export interface LinkedHold {
 }
 
 const holdKey = (link: Pick<StateLink, 'table' | 'key'>, value: unknown) => `${link.table}\u0000${link.key}\u0000${String(value)}`;
+
+/**
+ * Two keys in the order a database returns them sorted: whole numbers as
+ * numbers (9 before 10, as `ORDER BY` a number column holds them), anything
+ * else as text. Every writer that holds several rows of one table takes them
+ * in this order — the linked rows here, a document's parents, the rows a
+ * total climbs into — so two writers never take the same two crosswise.
+ */
+export function compareKeys(a: unknown, b: unknown): number {
+  const whole = (v: unknown) => typeof v === 'number' || typeof v === 'bigint' || (typeof v === 'string' && /^-?\d{1,15}$/.test(v));
+  if (whole(a) && whole(b)) return Number(a) - Number(b);
+  const x = String(a);
+  const y = String(b);
+  return x < y ? -1 : x > y ? 1 : 0;
+}
 
 /** The rows a write's links point at, as held: by table, key and value (null for a row that is gone). */
 export class HeldLinks {
@@ -177,8 +196,12 @@ export async function holdLinkedRows(db: Db, dialect: Dialect, holds: readonly L
     wanted.set(key, found === undefined ? hold : { ...found, forUpdate: found.forUpdate || hold.forUpdate });
   }
   const rows = new Map<string, Row | null>();
-  for (const key of [...wanted.keys()].sort()) {
-    const hold = wanted.get(key)!;
+  const order = [...wanted.entries()].sort(([, a], [, b]) => {
+    const on = `${a.link.table}\u0000${a.link.key}`;
+    const other = `${b.link.table}\u0000${b.link.key}`;
+    return on < other ? -1 : on > other ? 1 : compareKeys(a.value, b.value);
+  });
+  for (const [key, hold] of order) {
     let query = db
       .selectFrom(hold.link.table)
       .selectAll()
@@ -195,6 +218,23 @@ export function stateLinkOf(table: ResolvedTable, via: string): StateLink | unde
 }
 
 // ─── judging what a move waits for ────────────────────────────────────────
+
+/** A moment without its shift: the time a window's opening is counted from. */
+function unshifted(moment: Moment): Moment {
+  const bare = <M extends { plus?: unknown; minus?: unknown }>(m: M): M => {
+    const out = { ...m };
+    delete out.plus;
+    delete out.minus;
+    return out;
+  };
+  return { ...bare(moment), ...(moment.or === undefined ? {} : { or: moment.or.map(bare) }) };
+}
+
+/** The time a window that has not opened yet is counted from, as a refusal says it. */
+async function rowAtOf(moment: Moment, moments: MomentContext): Promise<{ rowAt: string } | Record<string, never>> {
+  const at = await momentOf(unshifted(moment), moments);
+  return at === null ? {} : { rowAt: at.toISOString() };
+}
 
 /** What a move or a create waits for, beyond its own row's `where`. */
 export interface Waits {
@@ -250,7 +290,7 @@ export async function judgeWaits(
   if (time?.after !== undefined) {
     const at = await momentOf(time.after, moments);
     if (at === null) refuse('only once a time it reads is set', { requires: 'time', bound: 'after', reason: 'no-moment' });
-    if (now.getTime() < at!.getTime()) refuse(`only from ${at!.toISOString()}`, { requires: 'time', bound: 'after', at: at!.toISOString() });
+    if (now.getTime() < at!.getTime()) refuse(`only from ${at!.toISOString()}`, { requires: 'time', bound: 'after', at: at!.toISOString(), ...(await rowAtOf(time.after, moments)) });
   }
   if (time?.before !== undefined) {
     const at = await momentOf(time.before, moments);
@@ -266,10 +306,10 @@ export async function judgeWaits(
  */
 export async function judgeWindow(window: StateWindow, input: { moments: MomentContext; now: Date }): Promise<void> {
   const { moments, now } = input;
-  const close = (bound: 'after' | 'before', at: Date | null, reason?: string): never => {
+  const close = (bound: 'after' | 'before', at: Date | null, reason?: string, rowAt?: { rowAt: string } | Record<string, never>): never => {
     throw new WriteWindowClosed(
       bound === 'after' ? 'This change is not open yet.' : 'It is too late to make this change.',
-      { bound, at: at === null ? null : at.toISOString(), column: window.column, ...(reason === undefined ? {} : { reason }) },
+      { bound, at: at === null ? null : at.toISOString(), ...rowAt, column: window.column, ...(reason === undefined ? {} : { reason }) },
     );
   };
   if (window.unresolved === true) close('before', null, 'linked');
@@ -281,7 +321,7 @@ export async function judgeWindow(window: StateWindow, input: { moments: MomentC
   if (window.after !== undefined) {
     const at = await momentOf(read(window.after), moments);
     if (at === null) close('after', null, 'no-moment');
-    if (now.getTime() < at!.getTime()) close('after', at);
+    if (now.getTime() < at!.getTime()) close('after', at, undefined, await rowAtOf(read(window.after), moments));
   }
   if (window.before !== undefined) {
     const at = await momentOf(read(window.before), moments);

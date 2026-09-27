@@ -20,8 +20,8 @@ export interface DataRoutes {
   connectionId: string;
   /** A table's id, as the data routes take it. */
   table: (ref: string) => string;
-  /** The id of the one-to-many relation from a child table to its parent. */
-  relation: (childRef: string) => string;
+  /** The id of the one-to-many relation from a child table to its parent (the first, or the one to `parentRef`). */
+  relation: (childRef: string, parentRef?: string) => string;
   post: (ref: string, body: unknown) => Promise<Reply>;
   patch: (ref: string, id: unknown, body: unknown) => Promise<Reply>;
   undo: (token: string) => Promise<Reply>;
@@ -56,7 +56,8 @@ export async function dataRoutesOver(
     model: { tables: { id: string; name: string }[]; relations: { id: string; through: unknown; from: { tableId: string }; to: { tableId: string } }[] };
   }>().model;
   const table = (ref: string) => model.tables.find((candidate) => candidate.name === h.real(ref))!.id;
-  const relation = (childRef: string) => model.relations.find((r) => r.through === null && r.from.tableId === table(childRef))!.id;
+  const relation = (childRef: string, parentRef?: string) =>
+    model.relations.find((r) => r.through === null && r.from.tableId === table(childRef) && (parentRef === undefined || r.to.tableId === table(parentRef)))!.id;
   const headers = asUser(t.users.admin);
   return {
     t,

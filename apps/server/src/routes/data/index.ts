@@ -60,7 +60,7 @@ import { isWriteConflict, readDbRefusal, writeConflict } from '../../crud/db-err
 import { labelColumnFor } from '../../crud/labels.js';
 import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
 import { sealRows, sealsOf } from '../../crud/seal.js';
-import { guardOf, tiedToStates, type EffectWritten } from '../../crud/states.js';
+import { guardOf, tiedToStates, withoutRepeatedState, type EffectWritten } from '../../crud/states.js';
 import {
   rowsEqual,
   UndoStore,
@@ -103,7 +103,7 @@ import { staffTreeRules } from './tree.js';
  */
 const LINK_READ_CAP = 200;
 import { withOccurredAt } from '../../crud/occurred-at.js';
-import { announceEffects } from '../../states/effects.js';
+import { announceEffects, effectsOf } from '../../states/effects.js';
 import { isStateRefusal } from '../../crud/state-conditions.js';
 import {
   createWriteService,
@@ -744,6 +744,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         existing?: Row[] | undefined;
         /** Each child row this write changed, to announce once it commits. */
         events?: ChildEvent[] | undefined;
+        /** The rows the child rows' moves moved too, to announce once it commits. */
+        effects?: EffectWritten[] | undefined;
       } = {},
     ): Promise<UndoChildren> {
       const { child } = requested;
@@ -803,7 +805,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // Every existing row a form sends is "changed"; only what moved is judged.
         assertWithinLimit(requested.updateLimit, child.child.id, change.values, before ?? null);
         const [prepared] = await writes.beforeEach('update', target, context, [
-          { match: change.key, values: change.values },
+          // The state a row sent back whole already holds is no move.
+          { match: change.key, values: withoutRepeatedState(child.child, change.values, before) },
         ]);
         if (prepared === undefined) throw new AppError(500, 'INTERNAL', 'The write could not be prepared.');
         if (prepared.issues !== null) {
@@ -817,6 +820,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         } catch (error) {
           mapDbError(error, child.child);
         }
+        options.effects?.push(...effectsOf(prepared.values));
         const after = (await fetchByPk(db, child.child, change.key)) ?? null;
         if (before !== undefined) undo.changed.push({ key: change.key, before, ...(after === null ? {} : { after }) });
         if (after !== null) settled.push({ action: 'update', record: after, before: before ?? null });
@@ -2462,6 +2466,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const written: UndoLinks[] = [];
         const childWrites: UndoChildren[] = [];
         const childEvents: ChildEvent[] = [];
+        const effected: EffectWritten[] = [];
         // The series a child row added here takes a number in, held until the save commits.
         const numbered = children.map((requested) => ({
           target: childTargetOf(ctx, requested.child, ctx.db),
@@ -2475,6 +2480,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             } catch (error) {
               mapDbError(error, ctx.table);
             }
+            effected.push(...effectsOf(prepared.values));
           }
           const row = (await fetchByPk(tdb, ctx.table, pk)) ?? before;
           for (const requested of links) {
@@ -2487,6 +2493,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             childWrites.push(
               await applyChildren(ctx, tdb, requested, row[requested.child.parentKeyColumn], context, {
                 events: childEvents,
+                effects: effected,
               }),
             );
           }
@@ -2509,6 +2516,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         );
         await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+        // The rows the record's and its child rows' moves moved too, as changes of their own.
+        await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effected, origin: 'dashboard', request });
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
         after = (await writes.stored(ctx.target, [after]))[0] ?? after;

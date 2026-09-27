@@ -230,12 +230,16 @@ export function jobsRepo(meta: MetaDb) {
       await db.updateTable('adminium_jobs').set({ payload: packJson(jobPayloadSchema.parse(payload)) }).where('id', '=', id).execute();
     },
 
-    /** The payloads of the jobs of a kind that succeeded, due since `since`, newest first. */
+    /**
+     * The payloads of the jobs of a kind that ended — succeeded, or failed for
+     * good (what a failed job handed on before it stopped counts too) — due
+     * since `since`, newest first.
+     */
     async recentPayloads(kind: string, since: number, limit = 200): Promise<Record<string, unknown>[]> {
       const rows = await db
         .selectFrom('adminium_jobs')
         .select(['payload'])
-        .where('status', '=', 'succeeded')
+        .where('status', 'in', ['succeeded', 'failed'])
         .where('runAt', '>=', since)
         .where('kind', '=', kind)
         .orderBy('runAt', 'desc')

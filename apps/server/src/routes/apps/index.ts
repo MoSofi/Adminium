@@ -825,7 +825,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       ...(await roleSlugProblems(deps.meta, manifest)).map((issue) => ({ code: issue.code, table: issue.role, message: issue.message })),
       // The tables built on an add-on's shape, against the shape the install will run on.
       ...shapeIssues.map((issue) => ({ code: issue.code as PlanProblem['code'], table: issue.table, message: issue.message })),
-      ...(await repeatedUniques(pure, connectionId)),
+      ...(await repeatedUniques(pure, connectionId, manifest, dialect)),
     ];
     const plan: InstallPlan =
       pageProblems.length === 0
@@ -1021,17 +1021,25 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
    * two of them break: refused on the check, by name, before anything moves —
    * never a half-done update the database stops midway.
    */
-  async function repeatedUniques(plan: InstallPlan, connectionId: string): Promise<PlanProblem[]> {
+  async function repeatedUniques(plan: InstallPlan, connectionId: string, manifest?: Manifest, dialect?: string): Promise<PlanProblem[]> {
     const target = deps.schemaTarget;
     if (target?.repeats === undefined) return [];
     const out: PlanProblem[] = [];
     for (const table of plan.tables ?? []) {
+      const added = new Set(table.edits.flatMap((other) => (other.kind === 'add-column' ? [other.column] : [])));
+      const declared = (manifest?.requiredSchema?.tables ?? []).find((candidate) => candidate.ref === table.ref)?.columns ?? [];
+      // A column the update adds with a default holds that one value in every row (MySQL gives a `now` time column none).
+      const filled = (column: string) => {
+        const value = declared.find((candidate) => candidate.ref === column)?.default;
+        return value !== undefined && !(value === 'now' && dialect === 'mysql');
+      };
       for (const edit of table.edits) {
         if (edit.kind !== 'add-unique') continue;
         const columns = [...(edit.with ?? []), edit.column];
-        // A column the same update adds starts empty in every row: nothing there can repeat.
-        if (table.edits.some((other) => other.kind === 'add-column' && columns.includes(other.column))) continue;
-        if (!(await target.repeats(connectionId, table.table, columns))) continue;
+        // A column the same update adds empty stays empty in every row: nothing there can repeat.
+        if (columns.some((column) => added.has(column) && !filled(column))) continue;
+        // One it adds filled is the same in every row: the rows repeat where the rest of the set does.
+        if (!(await target.repeats(connectionId, table.table, columns.filter((column) => !added.has(column))))) continue;
         out.push({
           code: 'UNIQUE_DUPLICATES',
           table: table.ref,

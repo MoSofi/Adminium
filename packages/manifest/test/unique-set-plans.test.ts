@@ -94,6 +94,9 @@ describe('a set MySQL cannot index', () => {
       ],
     } as never;
     expect(uniqueSetBytes(['a', 'b', 'c', 'd'], table, [{ ref: 't', columns: [{ ref: 'id', type: 'uuid', role: 'pk' }] }] as never)).toBe(40 + 128 + 144 + 8);
+    // A uuid of the row's own is 36 characters on MySQL too, linked or not.
+    const own = { columns: [{ ref: 'token', type: 'uuid' }, { ref: 'e', type: 'text', maxLength: 10 }] } as never;
+    expect(uniqueSetBytes(['token', 'e'], own, [] as never)).toBe(144 + 40);
   });
 });
 
