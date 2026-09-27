@@ -943,6 +943,14 @@ export interface PublicClient {
    * `PUBLIC_CODE_STEP_UP` asks for a fresh sign-in link first.
    */
   forgetMe: () => Promise<void>;
+  /**
+   * "Make a new link" for one of the signed-in person's rows (a verified
+   * session, never a row's own link): the row's own link stops opening it —
+   * every session it opened too — and the new link is emailed to the person.
+   * The new link never comes back here. `PUBLIC_LIMIT_REACHED` after so many
+   * a day for one row.
+   */
+  newLink: (ref: string, id: string | number) => Promise<void>;
   /** Take a session a reply handed over — a new row's own link (`link.session`), for a client of that link's key. */
   adoptSession: (session: { token: string; expiresAt: number; level?: ClaimLevel }) => void;
   /** Why the server last ended the session this client held, or null. */
@@ -1595,6 +1603,10 @@ export function createPublicClient(
     async forgetMe() {
       await request('/api/v1/public/account', { method: 'DELETE' });
       holdSession(null);
+    },
+
+    async newLink(ref, id) {
+      await request(`/api/v1/public/records/${ref}/${encodeURIComponent(String(id))}/new-link`, { method: 'POST', body: JSON.stringify({}) });
     },
 
     adoptSession(next) {

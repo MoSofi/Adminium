@@ -103,3 +103,51 @@ describe("a person found on a change through the row's own link, on one move", (
     expect(issuesText(m)).toContain('a create finds its person when it is made');
   });
 });
+
+describe('columns held back while a condition holds', () => {
+  const fixture = () => JSON.parse(readFileSync(new URL('./fixtures/ticket-transfer.manifest.json', import.meta.url), 'utf8')) as Doc;
+  const ticketLink = (m: Doc) => (m['publicAccess'] as Doc[]).find((e) => e['key'] === 'ticket')!;
+  const buyers = (m: Doc) => (m['publicAccess'] as Doc[]).find((e) => e['table'] === 'tickets' && e['key'] === undefined && e['visibleWith'] !== undefined)!;
+
+  it("validates on a row's own link, and on a read through a parent beside its holder, and is kept", () => {
+    const m = fixture();
+    buyers(m)['withhold'] = { ...(buyers(m)['withhold'] as Doc), when: { where: [{ column: 'offer_until', isNull: false }], linked: [{ via: 'order_id', where: [{ column: 'ticket_count', gt: 0 }] }] } };
+    expect(messages(m)).toEqual([]);
+    const result = validateManifest(m);
+    if (!result.ok || result.manifest.kind !== 'app') throw new Error('invalid');
+    expect(result.manifest.publicAccess!.find((e) => e.key === 'ticket')!.withhold).toEqual({ columns: ['code'], when: { where: [{ column: 'holder_customer_id', isNull: true }] } });
+  });
+
+  it('names a holder, a when, or both', () => {
+    const m = fixture();
+    ticketLink(m)['withhold'] = { columns: ['code'] };
+    expect(issuesText(m)).toContain('a withhold names its holder, a when, or both');
+  });
+
+  it("holds a row's own link to when alone: it names nobody", () => {
+    const m = fixture();
+    ticketLink(m)['withhold'] = { columns: ['code'], unlessHolder: 'holder_customer_id', when: { where: [{ column: 'holder_customer_id', isNull: true }] } };
+    expect(issuesText(m)).toContain("a row's own link names nobody, so it holds columns back by when alone");
+  });
+
+  it('reads columns the table has, with values they hold, through links it has', () => {
+    const m = fixture();
+    ticketLink(m)['withhold'] = { columns: ['code'], when: { where: [{ column: 'status', eq: 'gone' }] } };
+    expect(issuesText(m)).toContain('gone');
+    const n = fixture();
+    ticketLink(n)['withhold'] = { columns: ['code'], when: { linked: [{ via: 'pending_name', where: [{ column: 'id', gt: 0 }] }] } };
+    expect(issuesText(n)).toContain('"tickets.pending_name" is not a foreign key of this app');
+  });
+
+  it('decides by nothing a browser writes', () => {
+    const m = fixture();
+    ticketLink(m)['withhold'] = { columns: ['code'], when: { where: [{ column: 'pending_name', isNull: false }] } };
+    expect(issuesText(m)).toContain('"tickets.pending_name" decides who reads the withheld columns, so no browser writes it');
+  });
+
+  it('holds back only columns the entry shows', () => {
+    const m = fixture();
+    ticketLink(m)['select'] = ['id', 'status', 'pending_name', 'offer_until'];
+    expect(issuesText(m)).toContain('"code" is not one of the columns the entry shows');
+  });
+});

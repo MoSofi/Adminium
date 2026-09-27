@@ -21,7 +21,9 @@
  * here is in service of that sentence.
  */
 
+import { linkedConditionSchema, stateConditionSchema } from '@adminium/manifest';
 import { ANONYMOUS_PER_IP_HOUR, type AnonymousCaps } from './anonymous-caps.js';
+import type { WithholdWhen } from './withhold.js';
 import { z } from 'zod';
 
 import type { CodeUnlock } from '../crud/code-lookup.js';
@@ -457,9 +459,36 @@ const resourceSchema = z
     /** Read only by the holder of a live session. */
     sessionOnly: z.literal(true).optional(),
     /** On the identity: what "delete my details" empties, and the time it stamps. */
-    forget: z.object({ columns: z.array(columnSchema).min(1).max(16), stamp: columnSchema.optional() }).strict().optional(),
+    forget: z
+      .object({
+        columns: z.array(columnSchema).min(1).max(16),
+        stamp: columnSchema.optional(),
+        /** Also stopped: the own links of the person's rows. */
+        links: z
+          .array(z.object({ table: z.string().min(1).max(256), column: columnSchema, people: z.array(columnSchema).min(1).max(8) }).strict())
+          .min(1)
+          .max(8)
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    /** On a signed-in person's rows: "Make a new link" for a row's own link, emailed as the outbox's `kind`. */
+    newLink: z.object({ column: columnSchema, kind: z.string().min(1).max(40) }).strict().optional(),
     /** On rows read through a parent: columns left out unless `unlessHolder` is empty or names the session's own person. */
-    withhold: z.object({ columns: z.array(columnSchema).min(1).max(8), unlessHolder: columnSchema }).strict().optional(),
+    withhold: z
+      .object({
+        columns: z.array(columnSchema).min(1).max(8),
+        unlessHolder: columnSchema.optional(),
+        /** Withheld from whoever reads while this holds of the row, or of a row it links to. */
+        when: z
+          .object({ where: z.array(stateConditionSchema).min(1).max(8).optional(), linked: z.array(linkedConditionSchema).min(1).max(4).optional() })
+          .strict()
+          .refine((w) => w.where !== undefined || w.linked !== undefined, { message: 'a when names where, linked, or both' })
+          .optional(),
+      })
+      .strict()
+      .refine((w) => w.unlessHolder !== undefined || w.when !== undefined, { message: 'a withhold names its holder, a when, or both' })
+      .optional(),
     /** Rows read only with a code that unlocks them: a row of `table` whose `column` holds the code typed and whose `link` points at the row. */
     unlockBy: z
       .object({
@@ -691,9 +720,11 @@ export interface CompiledResource {
   findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>>; on?: { column: string; to: string } | undefined } | null | undefined;
   shareLink?: { column: string; key: string } | null | undefined;
   sessionOnly?: boolean | undefined;
-  forget?: { columns: readonly string[]; stamp?: string | undefined } | null | undefined;
+  forget?: { columns: readonly string[]; stamp?: string | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
+  /** "Make a new link" for a signed-in person's row: the own link's code column, and the outbox kind that emails it. */
+  newLink?: { column: string; kind: string } | null | undefined;
   /** Columns left out of rows read through a parent unless the row's holder is the session's own person. */
-  withhold?: { columns: readonly string[]; unlessHolder: string } | null | undefined;
+  withhold?: { columns: readonly string[]; unlessHolder?: string | undefined; when?: WithholdWhen | undefined } | null | undefined;
   /** Rows read only with a code that unlocks them (`routes/public/code-guesses.ts`); null for none. */
   unlockBy?: CodeUnlock | null | undefined;
   /** Image columns any visitor may see (`routes/public/pictures.ts`). */
@@ -927,7 +958,9 @@ export function compileScope(
     }
     // Withheld columns: shown ones, on a signed-in person's rows reached through a parent (or another person's column).
     if (r.withhold !== undefined) {
-      check(r.withhold.unlessHolder, 'SCOPE_COLUMN_UNKNOWN');
+      if (r.withhold.unlessHolder !== undefined) check(r.withhold.unlessHolder, 'SCOPE_COLUMN_UNKNOWN');
+      for (const condition of r.withhold.when?.where ?? []) check(condition.column, 'SCOPE_COLUMN_UNKNOWN');
+      for (const link of r.withhold.when?.linked ?? []) check(link.via, 'SCOPE_COLUMN_UNKNOWN');
       for (const c of r.withhold.columns) {
         if (!r.expose.includes(c)) issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `"${c}" is withheld by ref "${r.ref}", so it is one of the columns it shows`, ref: r.ref, column: c });
         // Filtering, searching or ordering by it would tell a reader what it holds without showing it.
@@ -936,7 +969,9 @@ export function compileScope(
         }
       }
       const throughParent = r.visibleWith !== undefined || (r.claim?.column !== undefined && r.claim.column !== r.withhold.unlessHolder);
-      if (doc.side !== 'customer' || !throughParent || doc.claim?.ref === r.ref) {
+      // A row's own link may hold back columns while a condition holds (it names nobody, so no holder).
+      const ownLink = doc.claim?.ref === r.ref && doc.claim.strategy === 'token' && r.withhold.when !== undefined && r.withhold.unlessHolder === undefined;
+      if (doc.side !== 'customer' || (!throughParent && !ownLink) || (doc.claim?.ref === r.ref && !ownLink)) {
         issues.push({ code: 'SCOPE_WITHHOLD_SHAPE', message: `ref "${r.ref}" withholds columns only from a signed-in person's rows read through a parent`, ref: r.ref });
       }
     }
@@ -1474,8 +1509,23 @@ export function compileScope(
       findOrCreate: r.findOrCreate === undefined ? null : { ...r.findOrCreate, fill: { ...(r.findOrCreate.fill ?? {}) } },
       shareLink: r.shareLink === undefined ? null : { ...r.shareLink },
       sessionOnly: r.sessionOnly === true,
-      forget: r.forget === undefined ? null : { columns: [...r.forget.columns], ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }) },
-      withhold: r.withhold === undefined ? null : { columns: [...r.withhold.columns], unlessHolder: r.withhold.unlessHolder },
+      forget:
+        r.forget === undefined
+          ? null
+          : {
+              columns: [...r.forget.columns],
+              ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }),
+              ...(r.forget.links === undefined ? {} : { links: r.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
+            },
+      newLink: r.newLink === undefined ? null : { ...r.newLink },
+      withhold:
+        r.withhold === undefined
+          ? null
+          : {
+              columns: [...r.withhold.columns],
+              ...(r.withhold.unlessHolder === undefined ? {} : { unlessHolder: r.withhold.unlessHolder }),
+              ...(r.withhold.when === undefined ? {} : { when: structuredClone(r.withhold.when) as WithholdWhen }),
+            },
       unlockBy: r.unlockBy === undefined ? null : { ...r.unlockBy, ...(r.unlockBy.where === undefined ? {} : { where: r.unlockBy.where.map((w) => ({ ...w })) }) },
       pictures: [...(r.pictures ?? [])],
     });

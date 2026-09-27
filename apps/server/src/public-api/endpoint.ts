@@ -27,7 +27,7 @@
  * order, methods in GET POST PATCH PUT DELETE BATCH order, two-space indent.
  */
 
-import { formulaColumns } from '@adminium/manifest';
+import { formulaColumns, linkedConditionSchema, stateConditionSchema } from '@adminium/manifest';
 import { z } from 'zod';
 
 import type { EffectiveColumn } from '../connections/effective-schema.js';
@@ -439,12 +439,44 @@ export const publicEndpointDefinitionSchema = z
     /** Read only by the holder of a live session of the key (no claim of its own). */
     session_only: z.literal(true).optional(),
     /** On an identity endpoint: the columns "delete my details" empties, and the time it stamps. */
-    forget: z.object({ columns: z.array(columnSchema).min(1).max(16), stamp: columnSchema.optional() }).strict().optional(),
+    forget: z
+      .object({
+        columns: z.array(columnSchema).min(1).max(16),
+        stamp: columnSchema.optional(),
+        /** Also stopped: the own links of the person's rows — each table, its code column, and the columns that point at the person. */
+        links: z
+          .array(z.object({ table: z.string().min(1).max(256), column: columnSchema, people: z.array(columnSchema).min(1).max(8) }).strict())
+          .min(1)
+          .max(8)
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    /** On a signed-in person's rows: "Make a new link" renews `column` and emails the new link as the outbox's `kind`. */
+    new_link: z.object({ column: columnSchema, kind: z.string().min(1).max(40) }).strict().optional(),
     /**
      * On rows reached through a parent: these columns are left out unless
      * `unless_holder` is empty or names the session's own person.
      */
-    withhold: z.object({ columns: z.array(columnSchema).min(1).max(8), unless_holder: columnSchema }).strict().optional(),
+    withhold: z
+      .object({
+        columns: z.array(columnSchema).min(1).max(8),
+        unless_holder: columnSchema.optional(),
+        /** Withheld from whoever reads while this holds of the row, or of a row it links to (every condition). */
+        when: z
+          .object({
+            where: z.array(stateConditionSchema).min(1).max(8).optional(),
+            linked: z.array(linkedConditionSchema).min(1).max(4).optional(),
+          })
+          .strict()
+          .refine((w) => w.where !== undefined || w.linked !== undefined, { message: 'a when names where, linked, or both' })
+          .optional(),
+        /** The key (its purpose) the declaring entry is served through: its `when` is that key's readers' alone. */
+        key: z.string().min(1).max(64).optional(),
+      })
+      .strict()
+      .refine((w) => w.unless_holder !== undefined || w.when !== undefined, { message: 'a withhold names its holder, a when, or both' })
+      .optional(),
   })
   .strict();
 
@@ -571,8 +603,22 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   }
   if (def.share_link !== undefined) out['share_link'] = { column: def.share_link.column, key: def.share_link.key };
   if (def.session_only !== undefined) out['session_only'] = def.session_only;
-  if (def.forget !== undefined) out['forget'] = { columns: [...def.forget.columns], ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }) };
-  if (def.withhold !== undefined) out['withhold'] = { columns: [...def.withhold.columns], unless_holder: def.withhold.unless_holder };
+  if (def.forget !== undefined) {
+    out['forget'] = {
+      columns: [...def.forget.columns],
+      ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }),
+      ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ table: link.table, column: link.column, people: [...link.people] })) }),
+    };
+  }
+  if (def.new_link !== undefined) out['new_link'] = { column: def.new_link.column, kind: def.new_link.kind };
+  if (def.withhold !== undefined) {
+    out['withhold'] = {
+      columns: [...def.withhold.columns],
+      ...(def.withhold.unless_holder === undefined ? {} : { unless_holder: def.withhold.unless_holder }),
+      ...(def.withhold.when === undefined ? {} : { when: structuredClone(def.withhold.when) }),
+      ...(def.withhold.key === undefined ? {} : { key: def.withhold.key }),
+    };
+  }
   return out;
 }
 
@@ -874,8 +920,21 @@ export function definitionToResource(
   }
   if (def.share_link !== undefined) resource.shareLink = { ...def.share_link };
   if (def.session_only !== undefined) resource.sessionOnly = true;
-  if (def.forget !== undefined) resource.forget = { columns: [...def.forget.columns], ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }) };
-  if (def.withhold !== undefined) resource.withhold = { columns: [...def.withhold.columns], unlessHolder: def.withhold.unless_holder };
+  if (def.forget !== undefined) {
+    resource.forget = {
+      columns: [...def.forget.columns],
+      ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }),
+      ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
+    };
+  }
+  if (def.new_link !== undefined) resource.newLink = { ...def.new_link };
+  if (def.withhold !== undefined) {
+    resource.withhold = {
+      columns: [...def.withhold.columns],
+      ...(def.withhold.unless_holder === undefined ? {} : { unlessHolder: def.withhold.unless_holder }),
+      ...(def.withhold.when === undefined ? {} : { when: structuredClone(def.withhold.when) }),
+    };
+  }
   if (def.unlock_by !== undefined) {
     const u = def.unlock_by;
     resource.unlockBy = {
@@ -1577,6 +1636,24 @@ function treeAndPersonIssues(
     if (stamp !== undefined && !['timestamp', 'timestamptz'].includes(table.columns.get(stamp)?.logicalType ?? '')) {
       push('SCOPE_FORGET_COLUMN', `"${stamp}" is not a time to stamp when a person is forgotten`, stamp);
     }
+    for (const link of def.forget.links ?? []) {
+      let other: ResolvedTable | null = null;
+      try {
+        other = view.table(link.table);
+      } catch {
+        other = null;
+      }
+      const code = other?.table.columns.find((c) => c.name === link.column)?.code;
+      if (other === null || code === undefined || link.people.some((column) => !other!.columns.has(column))) {
+        push('SCOPE_FORGET_COLUMN', `"${link.table}.${link.column}" is no own link of the person's rows to stop`, link.column);
+      }
+    }
+  }
+  if (def.new_link !== undefined) {
+    const code = table.table.columns.find((c) => c.name === def.new_link!.column)?.code;
+    if (code === undefined || code.length < 16 || def.select.includes(def.new_link.column) || def.claim === undefined || def.claim.optional === true || !def.methods.includes('GET')) {
+      push('ENDPOINT_NEW_LINK_SHAPE', `a new link renews a row's own link code (16 characters or more, never shown) on a signed-in person's rows`, def.new_link.column);
+    }
   }
 }
 
@@ -1608,8 +1685,26 @@ function ownAddressAndWithholdIssues(
   if (withhold === undefined) return;
   // A row reached through a parent, or claimed through a column naming someone other than its holder.
   const throughParent = def.visible_with !== undefined || (def.claim?.column !== undefined && def.claim.column !== withhold.unless_holder);
-  if (def.auth.role !== 'authenticated' || def.identity !== undefined || !throughParent) {
-    push('ENDPOINT_WITHHOLD_SHAPE', 'columns are withheld from a signed-in person\'s rows read through a parent, never on an identity or a staff endpoint');
+  // A row's own link (a ticket sent to a friend) may hold back columns while a condition holds: it names nobody, so no holder.
+  const ownLink = def.identity?.strategy === 'token' && withhold.when !== undefined && withhold.unless_holder === undefined;
+  if (def.auth.role !== 'authenticated' || (def.identity !== undefined && !ownLink) || (!throughParent && !ownLink)) {
+    push('ENDPOINT_WITHHOLD_SHAPE', 'columns are withheld from a signed-in person\'s rows read through a parent (or while a condition holds, on a row\'s own link), never on another identity or a staff endpoint');
+  }
+  const writable = def.methods.some((m) => WRITING_METHODS.has(m)) ? (def.writable ?? definitionToResource(def.path.slice(1), def, def.methods, table).writable) : [];
+  for (const condition of withhold.when?.where ?? []) {
+    if (!table.columns.has(condition.column)) push('ENDPOINT_COLUMN_UNKNOWN', `"${condition.column}" (withhold.when) is not a column of ${def.source}`, condition.column);
+    else if (writable.includes(condition.column)) push('ENDPOINT_WITHHOLD_SHAPE', `"${condition.column}" decides who reads the withheld columns, so it is not writable`, condition.column);
+  }
+  for (const link of withhold.when?.linked ?? []) {
+    if (!table.columns.has(link.via) || pointsAt(view, table, link.via) === null) push('ENDPOINT_WITHHOLD_SHAPE', `"${link.via}" (withhold.when.linked) is not a foreign key of ${def.source}`, link.via);
+    else if (writable.includes(link.via)) push('ENDPOINT_WITHHOLD_SHAPE', `"${link.via}" decides who reads the withheld columns, so it is not writable`, link.via);
+  }
+  if (withhold.unless_holder === undefined) {
+    if (new Set(withhold.columns).size !== withhold.columns.length) push('ENDPOINT_WITHHOLD_SHAPE', 'a column is withheld once');
+    for (const name of withhold.columns) {
+      if (!def.select.includes(name)) push('ENDPOINT_WITHHOLD_SHAPE', `"${name}" is withheld, so it is one of the columns selected`, name);
+    }
+    return;
   }
   if (new Set(withhold.columns).size !== withhold.columns.length) push('ENDPOINT_WITHHOLD_SHAPE', 'a column is withheld once');
   for (const name of withhold.columns) {

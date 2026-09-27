@@ -42,7 +42,7 @@ import { connectionTenantConfig } from '@adminium/meta';
 import type { EmailLogger } from '../email/send.js';
 import type { FileStore } from '../files/store.js';
 import { DocumentReadError, type DocumentWithhold, type ReadFilter, type RenderDeps, type SourceRead } from './render.js';
-import { blankWithheld, holderColumnsOf, withholdRulesOf, type TableWithholds } from '../public-api/withhold.js';
+import { blankWithheld, holderColumnsOf, linkedRowsOf, withholdRulesOf, type TableWithholds } from '../public-api/withhold.js';
 import { dayOf, dayOn, keptBy, readStatement, scaled, unscaled, type BalanceAfter, type Narrowing, type StatementPeriod, type StatementSources } from './statement.js';
 import { LIST_KEY, type CollectionSource, type NightlySource, type ProfileMapping, type SlotMapping } from './subject.js';
 import { tableRulesFor } from '../crud/column-rules.js';
@@ -105,7 +105,7 @@ async function readLookups(
   dialect: Dialect,
   narrow?: Narrowing,
   /** A reader's withholds: the holder link read beside what is mapped, and the columns kept for another emptied. */
-  held?: { rules: TableWithholds; unheld: (table: ResolvedTable, row: Record<string, unknown>) => Record<string, unknown> },
+  held?: { rules: TableWithholds; unheld: Unheld },
 ): Promise<Record<string, unknown>> {
   const wanted = new Map<string, Set<string>>();
   for (const mapped of Object.values(mapping)) {
@@ -141,6 +141,7 @@ async function readLookups(
     if (narrowing !== null) query = narrowing(query) as typeof query;
     const found = (await query.limit(1).executeTakeFirst()) as Record<string, unknown> | undefined;
     if (found === undefined) continue;
+    await held?.unheld.warm?.(db, linked, [found]);
     const read = spelled(held === undefined ? found : held.unheld(linked, found), linked, dialect);
     for (const column of readable) out[`${fk}.${column}`] = read[column];
   }
@@ -206,7 +207,7 @@ async function addLists(
   lines: Record<string, unknown>[],
   lists: CollectionSource['lists'],
   /** Each listed row as the reader may see it: a column kept for its holder is listed as nothing. */
-  unheld: (table: ResolvedTable, row: Record<string, unknown>) => Record<string, unknown>,
+  unheld: Unheld,
 ): Promise<void> {
   const key = child.primaryKey[0];
   if (lists === undefined || key === undefined || lines.length === 0) return;
@@ -231,7 +232,9 @@ async function addLists(
         .where(list.fkColumn as never, 'in', keys.slice(at, at + LINES_PAGE) as never);
       if (list.orderBy !== undefined && table.columns.has(list.orderBy)) query = query.orderBy(list.orderBy as never, 'asc');
       for (const pk of table.primaryKey) query = query.orderBy(pk as never, 'asc');
-      for (const read of (await query.execute()) as Record<string, unknown>[]) {
+      const page = (await query.execute()) as Record<string, unknown>[];
+      await unheld.warm?.(db, table, page);
+      for (const read of page) {
         const row = unheld(table, read);
         const name = row[list.column];
         if (name === null || name === undefined || String(name).trim() === '') continue;
@@ -488,13 +491,28 @@ export function createDocumentPipeline(deps: DocumentPipelineDeps): RenderDeps {
 }
 
 /** Each row as the reader may see it: the columns a `withhold` keeps for another holder emptied (no withhold: as read). */
-function heldFrom(view: SnapshotView, withhold: DocumentWithhold | undefined): (table: ResolvedTable, row: Record<string, unknown>) => Record<string, unknown> {
-  if (withhold === undefined) return (_table, row) => row;
-  return (table, row) => {
+function heldFrom(view: SnapshotView, withhold: DocumentWithhold | undefined): Unheld {
+  if (withhold === undefined) return Object.assign((_table: ResolvedTable, row: Record<string, unknown>) => row, { warm: async () => {} });
+  // The rows a rule's linked conditions read (a ticket's order), by table, read before the rows are shown: not read, withheld.
+  const linked = new Map<string, Map<string, Map<string, Record<string, unknown>>>>();
+  const unheld = (table: ResolvedTable, row: Record<string, unknown>) => {
     const rules = withholdRulesOf(withhold.rules, table.id);
-    return rules.length === 0 ? row : blankWithheld(view, table, rules, row, withhold.reader);
+    return rules.length === 0 ? row : blankWithheld(view, table, rules, row, withhold.reader, { readerKey: withhold.readerKey, linked: linked.get(table.id) });
   };
+  const warm = async (db: Kysely<SourceDatabase>, table: ResolvedTable, rows: readonly Record<string, unknown>[]) => {
+    const rules = withholdRulesOf(withhold.rules, table.id);
+    if (!rules.some((rule) => (rule.when?.linked ?? []).length > 0) || rows.length === 0) return;
+    const into = linked.get(table.id) ?? new Map<string, Map<string, Record<string, unknown>>>();
+    for (const [via, found] of await linkedRowsOf(db, view, table, rules, rows)) into.set(via, new Map([...(into.get(via) ?? []), ...found]));
+    linked.set(table.id, into);
+  };
+  return Object.assign(unheld, { warm });
 }
+
+/** Each row as the reader may see it, and — before — the rows its rules' linked conditions read. */
+type Unheld = ((table: ResolvedTable, row: Record<string, unknown>) => Record<string, unknown>) & {
+  warm?: (db: Kysely<SourceDatabase>, table: ResolvedTable, rows: readonly Record<string, unknown>[]) => Promise<void>;
+};
 
 /**
  * A public reader's filters as a {@link Narrowing}: each table's filter
@@ -547,6 +565,7 @@ export async function readProfileSource(input: {
   // The row was deleted between the trigger and the job — the undo
   // window's ordinary outcome, and a SKIP rather than a failure.
   if (found === undefined) return null;
+  await unheld.warm?.(db, table, [found]);
   const stored = unheld(table, found);
   const row = spelled(stored, table, dialect);
 
@@ -570,7 +589,9 @@ export async function readProfileSource(input: {
     } catch {
       return null;
     }
-    const lines = (await readLines(db, child, source.fkColumn, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source)).map((line) => unheld(child, line));
+    const read = await readLines(db, child, source.fkColumn, row[parentKey!], source.orderBy ?? profile.orderBy ?? null, dialect, source);
+    await unheld.warm?.(db, child, read);
+    const lines = read.map((line) => unheld(child, line));
     await addLists(db, view, child, lines, source.lists, unheld);
     return { child, lines };
   };

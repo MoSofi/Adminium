@@ -24,7 +24,7 @@
  * stop the key working — the public API off, no `self` in the origin list,
  * a database with no time zone — before anything is written.
  */
-import type { Manifest } from '@adminium/manifest';
+import { ownLinksOfPerson, type Manifest } from '@adminium/manifest';
 import {
   CUSTOMER_KEY_PURPOSE,
   connectionTenantConfig,
@@ -335,9 +335,30 @@ function definitionOf(
         }),
     ...(entry.shareLink === undefined ? {} : { share_link: { column: entry.shareLink, key: person?.shareKey ?? 'customer' } }),
     ...(sessionOnly(entry) ? { session_only: true } : {}),
-    ...(entry.forget === undefined ? {} : { forget: { columns: [...entry.forget.columns], ...(entry.forget.stamp === undefined ? {} : { stamp: entry.forget.stamp }) } }),
+    ...(entry.forget === undefined
+      ? {}
+      : {
+          forget: {
+            columns: [...entry.forget.columns],
+            ...(entry.forget.stamp === undefined ? {} : { stamp: entry.forget.stamp }),
+            // The own links of the person's rows, stopped too: each table by its real id.
+            ...(entry.forget.links === true
+              ? { links: ownLinksOfPerson(manifest.publicAccess ?? [], entry.table).map((link) => ({ table: idOf(link.table), column: link.column, people: [...link.people] })) }
+              : {}),
+          },
+        }),
+    ...(entry.newLink === undefined ? {} : { new_link: { column: entry.newLink.column, kind: entry.newLink.kind } }),
     // Columns left out of rows read through a parent, unless the row's holder is the session's own person.
-    ...(entry.withhold === undefined ? {} : { withhold: { columns: [...entry.withhold.columns], unless_holder: entry.withhold.unlessHolder } }),
+    ...(entry.withhold === undefined
+      ? {}
+      : {
+          withhold: {
+            columns: [...entry.withhold.columns],
+            ...(entry.withhold.unlessHolder === undefined ? {} : { unless_holder: entry.withhold.unlessHolder }),
+            // A condition holds for that key's readers alone: the key it is served through goes with it.
+            ...(entry.withhold.when === undefined ? {} : { when: structuredClone(entry.withhold.when), key: entry.key ?? CUSTOMER_KEY_PURPOSE }),
+          },
+        }),
   } as PublicEndpointDefinition;
 }
 

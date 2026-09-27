@@ -158,7 +158,7 @@ import { entryColumnOf, fillOf, personTableOf, signedInValues, type PersonTable 
 import { heldToReplace, holdBuyer, holdsOf, letGo, replaceHolds } from '../../public-api/hold-replace.js';
 import type { JudgedRow } from '../../crud/capacity/types.js';
 import { withNamedLocks } from '../../crud/capacity/locks.js';
-import { blankWithheld, sessionReader, withholding, withholdRulesOf, type TableWithholds } from '../../public-api/withhold.js';
+import { blankWithheld, linkedRowsOf, sessionReader, withholdFor, withholding, withholdRulesOf, type TableWithholds } from '../../public-api/withhold.js';
 import { recentWithholdsOn, withholdsOn } from '../../public-api/withholds-on.js';
 import { chargeChange, notPlainChange } from '../../public-api/change-limits.js';
 import { PersonRaced, PersonRefused, PersonTableUnusable, checkPerson, personLocks, resolvePerson } from '../../crud/person.js';
@@ -181,6 +181,8 @@ import {
 import { writeStores } from '../../crud/write-stores.js';
 import { audited } from '../../audit/coverage.js';
 import { OutboxMoveRefused } from '../../outbox/moves.js';
+import type { OutboxProducers } from '../../outbox/producers.js';
+import { renewOwnLink } from '../../public-api/own-links.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
 import {
@@ -456,6 +458,12 @@ function references(view: SnapshotView, table: ResolvedTable): string[] {
 
 /** The header a device is told its session was ended by (`elsewhere`, `forgotten`). */
 export const SESSION_ENDED_HEADER = 'x-adminium-session-ended';
+
+/** What "Make a new link" charges, and how many new links one row may have made online a day. */
+const NEW_LINK_PURPOSE = 'new-link';
+const NEW_LINKS_PER_DAY = 5;
+/** A new link made this recently is the new link: a second press or a retry makes no other. */
+const NEW_LINK_QUIET_MS = 60_000;
 
 /** The whole-key rung each class also counts on, for a browser key. */
 const KEY_RUNGS: Partial<Record<PublicLimit, PublicKeySide>> = {
@@ -1709,7 +1717,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * of the pair is that neither is the only one.
          */
         // Columns a ticket's holder alone reads, left empty for anyone else: never filtered, searched or sorted by either.
-        const withheld = withholding(resource, ok.key.scope, ok.session, view, table, await declaredWithholds(ok.key.connectionId, resource));
+        const withheld = withholding(resource, ok.key.scope, ok.session, view, table, await declaredWithholds(ok.key.connectionId, resource), ok.key.purpose);
         const searchable = resource.searchable.filter((column) => !withheld.columns.has(column));
         if (q.q !== undefined && q.q.length > 0 && searchable.length === 0) {
           return fail(reply, 400, 'PUBLIC_QUERY_REFUSED', 'Search is not enabled for this resource.');
@@ -1779,6 +1787,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
 
         await touchKey(ok.key.keyId);
+        // The rows a rule's linked conditions read (a ticket's order), for this page.
+        await withheld.prepare(db, result.data);
         // Instants a caller elsewhere can read (SQLite keeps the server's wall clock).
         result.data = result.data.map((row) => wallTimesAsInstants(withheld.apply(row), table.columns, dialect));
         /*
@@ -1996,7 +2006,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           ([column, value]) => ({ column, op: 'eq', value }) as RecordFilter,
         );
         const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
-        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource));
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource), ok.key.purpose);
 
         const result = await runList({
           db: readerFor(found, found.table, found.visibility),
@@ -2014,6 +2024,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (row === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
 
         await touchKey(ok.key.keyId);
+        await withheld.prepare(found.db, [row]);
         return reply.send({ data: wallTimesAsInstants(withheld.apply(row), found.table.columns, found.dialect) });
       },
     );
@@ -2339,10 +2350,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const personColumn = finder?.link ?? resource.claim?.column;
         const personTable = personColumn === undefined ? undefined : (people?.table.id ?? foreignKeyOf(view, table.id, personColumn)?.table.id);
         const reader = personColumn === undefined || personTable === undefined ? null : { table: personTable, value: madeRoot[personColumn] };
-        return rows.map((row) => {
+        const out: TreeWritten[] = [];
+        for (const row of rows) {
           const rules = withholdRulesOf(withholds, row.node.target.table.id);
-          return rules.length === 0 ? row : { ...row, record: blankWithheld(view, row.node.target.table, rules, row.record, reader) };
-        });
+          if (rules.length === 0) {
+            out.push(row);
+            continue;
+          }
+          const linked = await linkedRowsOf(found.db, view, row.node.target.table, rules, [row.record]);
+          out.push({ ...row, record: blankWithheld(view, row.node.target.table, rules, row.record, reader, { readerKey: ok.key.purpose, linked }) });
+        }
+        return out;
       };
 
       // Charged only for a save that gets this far; handed back only when the guest's own value was refused.
@@ -3196,8 +3214,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
         // What the row's holder alone reads stays theirs in the answer to a change too.
         const after = outcome.after ?? null;
-        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource));
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource), ok.key.purpose);
         const holders = withheld.expose.filter((column) => !found.resource.expose.includes(column) || !(column in projected));
+        if (after !== null) await withheld.prepare(found.db, [after]);
         const shown = after === null ? projected : withheld.apply({ ...projected, ...Object.fromEntries(holders.map((column) => [column, after[column]])) });
         // A holder read only to decide is never answered.
         for (const column of holders) if (!(column in projected)) delete shown[column];
@@ -4398,7 +4417,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
         let value: unknown;
         // A file a rule keeps for the row's holder (a pass handed on) is served to the holder alone, as its column reads.
-        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource));
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource), ok.key.purpose);
         try {
           // The row as the list would read it: the scope, the claim, the parent chain, the key.
           const result = await runList({
@@ -4413,6 +4432,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             exposeColumns: [...new Set([column, ...withheld.expose])],
           });
           const row = result.data[0];
+          if (row !== undefined) await withheld.prepare(found.db, [row]);
           value = row === undefined ? undefined : withheld.apply(row)[column];
         } catch {
           return none();
@@ -4655,7 +4675,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             reuse: true,
             readFilters: access.filters,
             // A row the session's parent reaches but somebody else now holds (a ticket sent on): drawn without what is theirs.
-            withhold: { rules: await withholdsOn(meta, ok.key.connectionId), reader: sessionReader(ok.key.scope, ok.session, found.view) },
+            withhold: withholdFor(await withholdsOn(meta, ok.key.connectionId), sessionReader(ok.key.scope, ok.session, found.view), ok.key.purpose),
             ...(body.period === undefined ? {} : { period: body.period }),
             ...(body.locale === undefined ? {} : { locale: body.locale }),
           });
@@ -5002,6 +5022,21 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (forget.stamp !== undefined) values[forget.stamp] = new Date(now).toISOString();
         const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
         const entity: RecordRef = { connectionId: ok.key.connectionId, table: found.table.id, pk, label: pkLabel(found.table, pk) };
+        /*
+         * The app stops the person's own links too (its choice): each of their
+         * rows' links gets a new code — closing every session the old one
+         * opened — and those sessions end, told why. First, so a link that
+         * could not be stopped leaves the person as they were, to try again.
+         */
+        if ((forget.links ?? []).length > 0) {
+          try {
+            await stopOwnLinks(request, ok, found.view, found.db, found.dialect, forget.links!, session.grant.value, now);
+          } catch (error) {
+            request.log.warn({ err: error }, 'a forgotten person\'s own links could not all be stopped');
+            if (lostRace(error)) return busy(reply);
+            return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+        }
         try {
           await writes.update({
             target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },
@@ -5046,6 +5081,187 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         }
         return reply.send({ data: {} });
+      },
+    );
+
+    /** A row's own link, made again (its new code written as a server action), heard of as any public change is. */
+    const renewed = async (
+      request: FastifyRequest,
+      ok: { key: ResolvedKey; session: PublicSessionContext | null },
+      target: WriteTarget,
+      row: Row,
+      column: string,
+      refine?: (query: never) => never,
+    ): Promise<Row | null> => {
+      const pk = Object.fromEntries(target.table.primaryKey.map((c) => [c, row[c]]));
+      const entity: RecordRef = { connectionId: ok.key.connectionId, table: target.table.id, pk, label: pkLabel(target.table, pk) };
+      const context = await publicWriteContext(request, ok);
+      return renewOwnLink({
+        writes: refine === undefined ? writes : { update: (input) => writes.update({ ...input, refine: refine as never }) },
+        target,
+        row,
+        column,
+        context,
+        announce: async ({ before, after }) => {
+          // Named by the row, never by the code.
+          await auditWrite(request, ok, 'public.link.renewed', { table: target.table.id, column }, entity);
+          publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, { connectionId: ok.key.connectionId, table: target.table, action: 'update', pk, row: after });
+          await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: target.table, action: 'update', entity, before, after, origin: 'public' });
+        },
+      });
+    };
+
+    /**
+     * Every own link of a forgotten person's rows made again, and the sessions
+     * those links opened ended ('forgotten'): each table the app named, its
+     * rows whose person columns hold this person.
+     */
+    const stopOwnLinks = async (
+      request: FastifyRequest,
+      ok: { key: ResolvedKey; session: PublicSessionContext | null },
+      view: SnapshotView,
+      db: Kysely<SourceDatabase>,
+      dialect: Dialect,
+      links: readonly { table: string; column: string; people: readonly string[] }[],
+      person: unknown,
+      now: number,
+    ): Promise<void> => {
+      for (const link of links) {
+        let table: ResolvedTable;
+        try {
+          table = view.table(link.table);
+        } catch {
+          continue;
+        }
+        const people = link.people.filter((column) => table.columns.has(column));
+        if (people.length === 0 || !table.columns.has(link.column)) continue;
+        const rows = (await db
+          .selectFrom(table.id)
+          .selectAll()
+          .where((eb) => eb.or(people.map((column) => eb(db.dynamic.ref(column), '=', person as never))))
+          .limit(1000)
+          .execute()) as Row[];
+        const target: WriteTarget = { connectionId: ok.key.connectionId, view, table, db, dialect, timezone: ok.key.scope.timezone };
+        for (const row of rows) {
+          if (row[link.column] === null || row[link.column] === undefined) continue;
+          await renewed(request, ok, target, row, link.column);
+          const key = table.primaryKey[0];
+          if (key !== undefined) await sessions.endBySubject(subjectOf(ok.key.connectionId, table.id, key, row[key]), 'forgotten', now);
+        }
+      }
+    };
+
+    /**
+     * MAKE A NEW LINK. A person signed in by email makes their row's own link
+     * again: a forwarded confirmation link stops opening the row — every
+     * session it opened with it — and the new link is emailed as the app's
+     * own message, to the row's person, once per new code. Never through a
+     * row's own link (that session is the one being closed), never answered
+     * with the code. Two asks at once make one new link: the second finds the
+     * code already changed and changes nothing.
+     */
+    app.options('/public/records/:ref/:id/new-link', { schema: { hide: true } }, preflight);
+    app.post(
+      '/public/records/:ref/:id/new-link',
+      {
+        config: { rateLimitBucket: 'public', audit: audited('rbac') },
+        schema: {
+          params: publicRecordParams,
+          response: { 202: publicRecordReply, 401: publicErrorReply, 403: publicErrorReply, 404: publicErrorReply, 409: publicErrorReply, 429: publicErrorReply, 503: publicErrorReply },
+        },
+      },
+      async (request, reply) => {
+        const ok = await gate(request, reply, 'public-link');
+        if (ok === null) return reply;
+        const found = await resolveResource(request, reply, ok, request.params.ref, 'read');
+        if (found === null) return reply;
+        const newLink = found.resource.newLink ?? null;
+        const session = ok.session;
+        // Only a person's own rows, read signed in by email at the verified level: the one 404 for anything else.
+        if (newLink === null || session === null || session.kind === 'token' || session.level !== 'verified' || found.resource.claim === null) {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+        }
+        let pk;
+        try {
+          pk = parseRecordId(found.table, request.params.id);
+        } catch {
+          return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        }
+        const predicate = found.predicate;
+        const inScope = <Q extends { where: (...args: never[]) => Q }>(query: Q): Q =>
+          predicate === null
+            ? query
+            : (query.where as (factory: (eb: never) => unknown) => Q)((eb) =>
+                compileFilter(eb, { view: found.view, table: found.table, canReadPii: false, dynamic: found.db.dynamic, dialect: found.dialect }, predicate),
+              );
+        let read = found.db.selectFrom(found.table.id).selectAll();
+        for (const [column, value] of Object.entries(pk)) read = read.where(found.db.dynamic.ref(column), '=', value as never);
+        let row: Row | null;
+        try {
+          row = ((await inScope(read).executeTakeFirst()) as Row | undefined) ?? null;
+        } catch {
+          // A key this table could never hold (text for a number): no such row, as any other.
+          row = null;
+        }
+        // Another person's row and a row that is not there are one answer.
+        if (row === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        const code = row[newLink.column];
+        if (code === null || code === undefined || code === '') return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+        // Nothing is made that could not be sent: mail set up, and the app's message there to carry it.
+        const producers = app.hasDecorator('outbox') ? (app.outbox as Partial<OutboxProducers>) : undefined;
+        const box = ok.key.managedBy === null || producers?.live === undefined || producers.queueKind === undefined ? undefined : (await producers.live()).find((b) => b.appKey === ok.key.managedBy && b.connectionId === ok.key.connectionId);
+        if (box === undefined || box.definition.kinds[newLink.kind] === undefined || !(await isEmailConfigured(meta, null))) {
+          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
+        }
+        /*
+         * One ask at a time for one row, holding its name: an ask that finds a
+         * new link made moments ago (a second press, a retry) changes nothing
+         * — that one's email carries the link — and so many a day at most.
+         */
+        const subject = `new-link:${subjectOf(ok.key.connectionId, found.table.id, newLink.column, JSON.stringify(pk))}`;
+        type Asked = { made: Row } | { recent: true } | { limit: true } | { gone: true };
+        let asked: Asked;
+        // The ask counted holding the row's name, nothing else: of asks at once, one finds none before it.
+        let charged: Asked | { mark: string };
+        try {
+          charged = await withNamedLocks({ db: found.db, dialect: found.dialect }, [{ name: `new-link|${subject}`, busy: 'CAPACITY_BUSY' }], async (): Promise<Asked | { mark: string }> => {
+            const now = Date.now();
+            if ((await challenges.sentSince(subject, now - NEW_LINK_QUIET_MS, NEW_LINK_PURPOSE)) > 0) return { recent: true };
+            const mark = await challenges.mark({ keyId: ok.key.keyId, ref: request.params.ref, sessionId: session.id, subject, purpose: NEW_LINK_PURPOSE }, now);
+            if ((await challenges.sentSince(subject, now - DAY_MS, NEW_LINK_PURPOSE)) > NEW_LINKS_PER_DAY) {
+              await challenges.unmark([mark]);
+              return { limit: true };
+            }
+            return { mark };
+          });
+        } catch (error) {
+          if (lostRace(error)) return busy(reply);
+          throw error;
+        }
+        if (!('mark' in charged)) asked = charged;
+        else {
+          const mark = charged.mark;
+          const target: WriteTarget = { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone };
+          try {
+            // Only while the code is still the one read, and the row still this person's.
+            const made = await renewed(request, ok, target, row, newLink.column, ((query: { where: (...args: never[]) => unknown }) =>
+              (inScope(query as never) as { where: (column: unknown, op: string, value: unknown) => unknown }).where(found.db.dynamic.ref(newLink.column), '=', code)) as never);
+            if (made === null) await challenges.unmark([mark]);
+            asked = made === null ? { gone: true } : { made };
+          } catch (error) {
+            await challenges.unmark([mark]);
+            if (lostRace(error)) return busy(reply);
+            if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+            request.log.warn({ err: error, ref: request.params.ref }, 'a new link could not be made');
+            return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+        }
+        if ('limit' in asked) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many new links as can be made online today have been made. Please get in touch instead.');
+        if ('gone' in asked) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+        if ('made' in asked) {
+          await producers!.queueKind!({ connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, row: asked.made, repeatBy: newLink.column });
+        }
+        return reply.code(202).send({ data: {} });
       },
     );
 

@@ -123,3 +123,20 @@ describe("the server's clock", () => {
     expect((await c.now()).toISOString()).toBe('2026-07-27T09:00:00.000Z');
   });
 });
+
+describe('a new link for a row', () => {
+  it('asks for it with the session, and hands nothing back', async () => {
+    const { c, calls } = make(() => new Response(JSON.stringify({ data: {} }), { status: 202, headers: { 'content-type': 'application/json' } }), {
+      session: { token: TOKEN, level: 'verified', expiresAt: Date.now() + 60_000 },
+    });
+    await expect(c.newLink('stays_verified', 'WH/7')).resolves.toBeUndefined();
+    expect(calls[0]!.url).toBe('https://studio.example.com/api/v1/public/records/stays_verified/WH%2F7/new-link');
+    expect(calls[0]!.init?.method).toBe('POST');
+    expect(header(calls[0]!.init, 'x-adminium-public-session')).toBe(TOKEN);
+  });
+
+  it('throws the refusal it meets', async () => {
+    const { c } = make(() => new Response(JSON.stringify({ error: { code: 'PUBLIC_LIMIT_REACHED', message: 'x' } }), { status: 409, headers: { 'content-type': 'application/json' } }));
+    await expect(c.newLink('stays_verified', 7)).rejects.toMatchObject({ code: 'PUBLIC_LIMIT_REACHED', status: 409 });
+  });
+});
