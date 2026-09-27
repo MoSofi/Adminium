@@ -139,16 +139,15 @@ export async function decideRow(
   let out = values;
   if (action === 'update' && rules.booking?.cancel !== undefined) out = await decideLate(rules.booking, out, before!, context);
   if (action === 'update' && (rules.states?.late?.length ?? 0) > 0) out = await decideStatesLate(rules, out, before!, context);
-  // A code renewed by this change: in the same statement, so the old one stops at the commit.
-  out = renewCodes(rules.codes, action, out, before, context);
   // A move marked undo keeps the stamps of the state it returns to, and empties those marked clearOnBack of the one it leaves.
   const undo = action === 'update' ? undoMoveOf(rules.states, before, out) : null;
   const stamps = undo === null ? (rules.stamps ?? []) : (rules.stamps ?? []).filter((stamp) => !keptByUndo(stamp, rules.states!.column, undo));
   const worked = await momentStamps(stamps, action, out, before, context);
   const stamped = stampRow(stamps, action, out, before, context, worked);
-  if (undo === null) return stamped;
-  const emptied = (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
-  return emptied.length === 0 ? stamped : { ...stamped, ...Object.fromEntries(emptied.map((stamp) => [stamp.column, null])) };
+  const emptied = undo === null ? [] : (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
+  const moved = emptied.length === 0 ? stamped : { ...stamped, ...Object.fromEntries(emptied.map((stamp) => [stamp.column, null])) };
+  // A code renewed by this change — judged last, so a column a stamp just set (the holder copied in on accept) sets it off too — in the same statement, so the old one stops at the commit.
+  return renewCodes(rules.codes, action, moved, before, context);
 }
 
 // ─── moments, read before the write ───────────────────────────────────────

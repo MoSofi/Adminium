@@ -16,13 +16,17 @@
  *  - the row: read through that entry's own conditions (an unpublished show,
  *    a dish off the menu, are no rows at all), whose column names EXACTLY this
  *    file — an old address of a replaced picture answers nothing;
- *  - the file: live, on the key's own connection, a PNG, JPEG, WebP or GIF by
- *    what its bytes were found to be, and small (`picture.ts`).
+ *  - the file: live, on the key's own connection, attached to this very row
+ *    (a file id another row's column was made to name is nothing), a PNG,
+ *    JPEG, WebP or GIF by what its bytes were found to be, and small
+ *    (`picture.ts`).
  *
  * Every refusal is one 404. A picture already seen by this browser is
- * answered 304 before the whole key's count is touched; one already cleaned is
- * served from memory; cleaning is bounded, and a request past the bound is
- * told to come back (503 with `Retry-After`).
+ * answered 304 before the whole key's count is touched — from the tag in
+ * memory, or the first bytes of the cleaned copy; one already cleaned is
+ * streamed from its copy beside the file (`picture-store.ts`), never cleaned
+ * again; cleaning is bounded (two at once, one per address), and a request
+ * past the bound is told to come back (503 with `Retry-After`).
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { filesRepo, publicKeysRepo, type DsnCrypto, type MetaDb } from '@adminium/meta';
@@ -31,14 +35,15 @@ import { z } from 'zod';
 import type { ConnectionManager } from '../../connections/manager.js';
 import type { RecordFilter } from '../../crud/filters.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
-import { parseRecordId } from '../../crud/records.js';
+import { parseRecordId, pkLabel } from '../../crud/records.js';
 import { runList } from '../../crud/list.js';
 import type { FileStore } from '../../files/store.js';
 import { combinePredicates } from '../../public-api/claim.js';
 import { openPublishableKey } from '../../public-api/keys.js';
 import type { PublicRateLimiter, RateDecision } from '../../public-api/limiter.js';
 import { fileIdOf } from '../../public-api/private-file.js';
-import { createPictureCache, isPictureMime, matchesTag, pictureHeaders, PICTURE_MAX_BYTES, readCapped, type CleanPicture, type PictureMime } from '../../public-api/picture.js';
+import { createPictureCache, isPictureMime, matchesTag, pictureHeaders, PICTURE_MAX_BYTES, readCapped, type PictureMime } from '../../public-api/picture.js';
+import { createPictureStore } from '../../public-api/picture-store.js';
 import { mandatoryAt } from '../../public-api/relative-filters.js';
 import type { PublicKeyResolver, ResolvedKey } from '../../public-api/resolve.js';
 import type { Switches } from '../../public-api/switches.js';
@@ -73,6 +78,7 @@ const KEY_MEMORY_MS = 30_000;
 
 export function registerPictures(app: FastifyInstance, deps: PictureDeps): void {
   const cache = createPictureCache();
+  const kept = deps.storage === undefined ? null : createPictureStore(deps.storage);
   const tokens = new Map<string, { token: string | null; until: number }>();
 
   /** The token of a key, by its id: remembered a little while, a key that is none too. */
@@ -173,12 +179,31 @@ export function registerPictures(app: FastifyInstance, deps: PictureDeps): void 
     if (fileIdOf(value) !== fileId) return none();
     // The file as it stands now: gone, moved to another connection, not a picture by its bytes, or too big — nothing.
     const file = await filesRepo(deps.meta).findById(fileId);
-    if (file === null || file.deletedAt !== null || file.entityConnectionId !== key.connectionId || !isPictureMime(file.mime) || file.sizeBytes > PICTURE_MAX_BYTES) {
+    if (
+      file === null ||
+      file.deletedAt !== null ||
+      file.entityConnectionId !== key.connectionId ||
+      // The row the file was attached to, and no other: a column made to name another row's file shows nothing.
+      file.entityTable !== table.id ||
+      file.entityId !== pkLabel(table, pk) ||
+      !isPictureMime(file.mime) ||
+      file.sizeBytes > PICTURE_MAX_BYTES
+    ) {
       return none();
     }
+    const storage = deps.storage;
+    if (storage === undefined || kept === null) return none();
 
-    // Seen already by this browser: said so before the whole key's count, and before the bytes are opened.
-    const tag = cache.tagOf(fileId);
+    // Seen already by this browser: said so before the whole key's count, and before the picture is opened.
+    let stored = null;
+    let tag = cache.tagOf(fileId);
+    if (tag === undefined) {
+      stored = await kept.head(file).catch(() => null);
+      if (stored !== null) {
+        tag = stored.etag;
+        cache.remember(fileId, tag);
+      }
+    }
     if (tag !== undefined && matchesTag(request.headers['if-none-match'], tag)) {
       reply.headers(pictureHeaders({ mime: file.mime as PictureMime, etag: tag }, column));
       return reply.code(304).send();
@@ -186,23 +211,34 @@ export function registerPictures(app: FastifyInstance, deps: PictureDeps): void 
     const rung = deps.limiter.hitKey(key.keyId, 'picture');
     if (!rung.allowed) return refused(rung);
 
-    let picture: CleanPicture | null | undefined = cache.get(fileId);
-    if (picture === undefined) {
-      const storage = deps.storage;
-      if (storage === undefined) return none();
-      try {
-        picture = await cache.clean(fileId, async () => {
-          const opened = await storage.open(file);
-          return { bytes: await readCapped(opened.stream, PICTURE_MAX_BYTES), mime: file.mime };
-        });
-      } catch (error) {
-        request.log.info({ fileId, reason: error instanceof Error ? error.message : String(error) }, 'a picture was not served');
-        return none();
-      }
-      if (picture === null) {
-        reply.header('Retry-After', '1');
-        return deps.fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'Busy; try again in a moment.');
-      }
+    // Cleaned before: streamed from its copy beside the file.
+    stored ??= await kept.head(file).catch(() => null);
+    const streamed = stored === null ? null : await kept.open(file, stored).catch(() => null);
+    if (stored !== null && streamed !== null) {
+      reply.headers(pictureHeaders(stored, column, streamed.length));
+      return reply.send(streamed.stream);
+    }
+
+    // Never cleaned (or its copy does not read back): cleaned now, kept, and served.
+    let picture;
+    try {
+      picture = await cache.clean(fileId, request.ip, async () => {
+        const opened = await storage.open(file);
+        return { bytes: await readCapped(opened.stream, PICTURE_MAX_BYTES), mime: file.mime };
+      });
+    } catch (error) {
+      request.log.info({ fileId, reason: error instanceof Error ? error.message : String(error) }, 'a picture was not served');
+      return none();
+    }
+    if (picture === null) {
+      reply.header('Retry-After', '1');
+      return deps.fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'Busy; try again in a moment.');
+    }
+    try {
+      await kept.save(file, picture);
+    } catch (error) {
+      // Served all the same; the next visitor cleans it again and tries once more to keep it.
+      request.log.warn({ fileId, err: error }, 'a cleaned picture could not be kept');
     }
     if (matchesTag(request.headers['if-none-match'], picture.etag)) {
       reply.headers(pictureHeaders(picture, column));

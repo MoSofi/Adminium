@@ -7,9 +7,11 @@
  * in the same statement, so the old one finds nothing from the commit on; a
  * name corrected, or the same address sent again, keeps it. A ticket handed on
  * renews when the friend accepts it — the person it belongs to changes — and
- * never when an offer lapses back to the sender. History (an import, an undo)
- * never renews, an undo never brings the old code back, and the person who
- * sent a row away is not handed the new code in the reply.
+ * never when an offer lapses back to the sender, and when the holder changes
+ * by a stamp of the same write (the address copied in as an offer is taken).
+ * History (an import) never renews; an undo of a hand-over puts the holder
+ * back with a code neither person had; and the person who sent a row away is
+ * not handed the new code in the reply.
  */
 import { validateManifest } from '@adminium/manifest';
 import { permissionsRepo, publicKeysRepo, rolesRepo, usersRepo } from '@adminium/meta';
@@ -35,16 +37,30 @@ function manifest(): Record<string, unknown> {
   return {
     ...invoicingManifest([
       { ref: 'customers', columns: [id, text('name'), { ...text('email', 254), rules: { normalize: 'email' } }] },
+      // A family's bundle of passes, changed in one form with its passes.
+      { ref: 'bundles', columns: [id, text('name')] },
       {
         ref: 'passes',
         columns: [
           id,
+          { ref: 'bundle_id', type: 'fk', references: 'bundles', nullable: true },
           text('holder_name'),
           { ...text('holder_email', 254), rules: { normalize: 'email' } },
           { ref: 'status', type: 'enum', enum: ['active', 'reissued', 'void'], default: 'active' },
           { ...text('code', 12), rules: { code: { length: 10, renew: { on: { column: 'holder_email', changed: true } } } } },
           { ...text('link_token', 16), rules: { code: { length: 16, renew: { on: { column: 'holder_email', changed: true } } } } },
           { ...text('ref', 8), rules: { code: { prefix: 'R-', length: 6, renew: { on: { column: 'status', values: ['reissued'] } } } } },
+        ],
+      },
+      {
+        // A badge handed on by its holder: the new holder's address is copied in when the offer is taken.
+        ref: 'badges',
+        columns: [
+          id,
+          { ref: 'offer', type: 'enum', enum: ['none', 'made', 'taken'], default: 'none' },
+          { ...text('pending_email', 254), rules: { normalize: 'email' } },
+          { ...text('holder_email', 254), rules: { stamp: { set: { copy: 'pending_email' }, on: { column: 'offer', values: ['taken'] } } } },
+          { ...text('code', 12), rules: { code: { length: 10, renew: { on: { column: 'holder_email', changed: true } } } } },
         ],
       },
       {
@@ -260,7 +276,20 @@ describe.each(LEGS)('a code renewed when its row changes hands — %s', (dialect
     expect((await row('passes', key))['holder_name']).toBe('Fay');
   });
 
-  it.skipIf(!available)('is shown to the desk that changed it, and an undo puts the holder back but never the old code', async () => {
+  it.skipIf(!available)('renews when the change of holder is a stamp of the same write: the address copied in as the offer is taken', async () => {
+    const badge = Number((await w.create('badges', { holder_email: 'mia@example.com' }))['id']);
+    const first = String((await row('badges', badge))['code']);
+    await w.update('badges', badge, { offer: 'made', pending_email: 'kai@example.com' });
+    expect((await row('badges', badge))['code']).toBe(first);
+    // Taken: only the offer is sent; the stamp copies the address in, and that change renews the code.
+    await w.update('badges', badge, { offer: 'taken' });
+    const taken = await row('badges', badge);
+    expect(taken['holder_email']).toBe('kai@example.com');
+    expect(String(taken['code'])).toMatch(/^[0-9A-Z]{10}$/);
+    expect(taken['code']).not.toBe(first);
+  });
+
+  it.skipIf(!available)('is shown to the desk that changed it, and an undo puts the holder back with a code neither of them had', async () => {
     const key = await pass();
     const was = await row('passes', key);
     const patched = await staff('PATCH', url('passes', `/${key}`), { values: { holder_email: 'gus@example.com' } });
@@ -274,8 +303,35 @@ describe.each(LEGS)('a code renewed when its row changes hands — %s', (dialect
     expect(undone.statusCode, undone.body).toBe(200);
     const back = await row('passes', key);
     expect(back['holder_email']).toBe('mia@example.com');
-    expect(back['code']).toBe(now['code']);
-    expect(back['link_token']).toBe(now['link_token']);
+    // Neither the old code (dead since the change) nor the one handed on (no longer that person's) works after it.
+    for (const column of ['code', 'link_token']) {
+      expect(back[column], column).not.toBe(now[column]);
+      expect(back[column], column).not.toBe(was[column]);
+      expect(String(back[column])).toMatch(/^[0-9A-Z]+$/);
+    }
+    // The code handed on finds nothing now.
+    expect(await h.rows(`select id from ${h.real('passes')} where code = '${String(now['code'])}'`)).toEqual([]);
+  });
+
+  it.skipIf(!available)('renews a pass handed on in its bundle’s form, and an undo of the form gives it a code neither holder had', async () => {
+    const bundle = Number((await w.create('bundles', { name: 'Okada family' }))['id']);
+    const key = Number((await w.create('passes', { bundle_id: bundle, holder_name: 'Mia', holder_email: 'mia@example.com' }))['id']);
+    const was = await row('passes', key);
+    const relation = w.view.model.relations.find((r) => r.from.tableId === tableId('passes') && r.from.columns[0] === 'bundle_id')!;
+    const saved = await staff('PATCH', url('bundles', `/${bundle}`), { values: { name: 'Okada family' }, children: { [relation.id]: [{ key: { id: key }, values: { holder_email: 'zed@example.com' } }] } });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const now = await row('passes', key);
+    expect(now['code']).not.toBe(was['code']);
+    const token = (saved.json() as { undoToken: string | null }).undoToken;
+    expect(token).not.toBeNull();
+    const undone = await staff('POST', `/api/v1/data/undo/${token!}`);
+    expect(undone.statusCode, undone.body).toBe(200);
+    const back = await row('passes', key);
+    expect(back['holder_email']).toBe('mia@example.com');
+    for (const column of ['code', 'link_token']) {
+      expect(back[column], column).not.toBe(now[column]);
+      expect(back[column], column).not.toBe(was[column]);
+    }
   });
 
   it.skipIf(!available)('gives a document with states no undo, and says in the audit log only that a new code was made', async () => {

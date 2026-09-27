@@ -13,6 +13,9 @@
 import { filesRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { cleanPicture } from '../src/public-api/picture.js';
 import { adminPasswordHash, ADMIN_PASSWORD, sessionCookie } from './auth-helpers.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
@@ -66,10 +69,15 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     const body = res.json() as { ref: string; data: { id: string } };
     return { ref: body.ref, id: body.data.id };
   };
+  /** A dish written by staff: its photo is attached to it, as every write through Adminium attaches one. */
   const dish = async (name: string, image: string | null, on = true): Promise<number> => {
-    const t = (v: boolean) => (dialect === 'postgres' ? String(v) : v ? '1' : '0');
-    await h.rows(`INSERT INTO ${h.real('menu_items')} (name, image, available) VALUES ('${name}', ${image === null ? 'NULL' : `'${image}'`}, ${t(on)})`);
+    const res = await served.composed.app.inject({ method: 'POST', url: `/api/v1/data/${h.connectionId}/${encodeURIComponent(table)}`, headers: { cookie }, payload: { values: { name, image, available: on } } });
+    expect(res.statusCode, res.body).toBe(201);
     return Number((await h.rows(`select max(id) as id from ${h.real('menu_items')}`))[0]!['id']);
+  };
+  const rephoto = async (row: number, image: string) => {
+    const res = await served.composed.app.inject({ method: 'PATCH', url: `/api/v1/data/${h.connectionId}/${encodeURIComponent(table)}/${String(row)}`, headers: { cookie }, payload: { values: { image } } });
+    expect(res.statusCode, res.body).toBe(200);
   };
   /** An `<img>`'s request: no key, no session, no origin. */
   const picture = (row: number, fileId: string, headers: Record<string, string> = {}, method: 'GET' | 'HEAD' = 'GET', address = fresh()) =>
@@ -142,6 +150,9 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     const res = await picture(row, file.id);
     expect(res.statusCode, res.body).toBe(200);
     expect(res.body).not.toMatch(/GPS|Elm Row|kitchen/);
+    // Nothing after the picture's end is served: the page pasted on it goes.
+    expect(res.body).not.toContain('<script>');
+    expect(res.rawPayload.equals(photo.clean)).toBe(true);
     expect(res.headers).toMatchObject({ 'content-type': 'image/jpeg', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox" });
   });
 
@@ -152,7 +163,7 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     expect((await picture(hidden, first.id)).statusCode).toBe(404);
     const row = await dish('Soup', first.ref);
     expect((await picture(row, first.id)).statusCode).toBe(200);
-    await h.rows(`UPDATE ${h.real('menu_items')} SET image = '${second.ref}' WHERE id = ${String(row)}`);
+    await rephoto(row, second.ref);
     const replaced = await picture(row, first.id);
     expect(replaced.statusCode).toBe(404);
     expect((await picture(row, second.id)).statusCode).toBe(200);
@@ -163,6 +174,18 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     for (const res of [replaced, await picture(row, privateFile.id), await picture(999_999, second.id), await picture(row, 'file_00000000000000000000000000')]) {
       expect(res.json()).toMatchObject({ error: { code: 'PUBLIC_REF_NOT_FOUND' } });
     }
+  });
+
+  it.skipIf(!available)('never serves a file another row’s column was made to name', async () => {
+    const photo = await upload(png({ fill: 40 }).bytes, 'mine.png');
+    const mine = await dish('Mine', photo.ref);
+    expect((await picture(mine, photo.id)).statusCode).toBe(200);
+    // Another dish's column written by hand to name the first dish's file: the file is not that row's.
+    const other = await dish('Other', null);
+    await h.rows(`UPDATE ${h.real('menu_items')} SET image = '${photo.ref}' WHERE id = ${String(other)}`);
+    const borrowed = await picture(other, photo.id);
+    expect(borrowed.statusCode).toBe(404);
+    expect(borrowed.json()).toMatchObject({ error: { code: 'PUBLIC_REF_NOT_FOUND' } });
   });
 
   it.skipIf(!available)('never serves a file that is not a picture by its bytes, or one too big to be one', async () => {
@@ -223,4 +246,34 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     // Another address is not held to it.
     expect((await picture(row, file.id)).statusCode).toBe(200);
   }, 120_000);
+
+  // Last: a second server on the same stores closes the connections they share when it stops.
+  it.skipIf(!available)('keeps a picture cleaned once beside its file, and serves it from there after a restart', async () => {
+    const photo = png({ width: 12, height: 12, text: 'GPS 51.5074 N, 14 Elm Row' });
+    const file = await upload(photo.bytes, 'kept.png');
+    const row = await dish('Kept', file.ref);
+    const first = await picture(row, file.id);
+    expect(first.statusCode, first.body).toBe(200);
+    const etag = first.headers['etag'] as string;
+    // The original's bytes gone: only a kept copy could still answer.
+    const stored = (await filesRepo(h.meta).findById(file.id))!;
+    await rm(join(h.dataDir, 'files', stored.storageKey), { force: true });
+    const restarted = await servePublic(h, (h.reply['publicAccess'] as { keyId: string }).keyId, { ADMINIUM_DATA_DIR: h.dataDir });
+    try {
+      const ask = (headers: Record<string, string> = {}) =>
+        restarted.composed.app.inject({ method: 'GET', url: `${base}/kitchen_menu_items/${String(row)}/image/${file.id}`, remoteAddress: fresh(), headers });
+      // Seen already: 304 from the copy's first bytes, before anything else is opened.
+      const seen = await ask({ 'if-none-match': etag });
+      expect(seen.statusCode).toBe(304);
+      expect(seen.headers['etag']).toBe(etag);
+      const again = await ask();
+      expect(again.statusCode, again.body).toBe(200);
+      expect(again.rawPayload.equals(photo.clean)).toBe(true);
+      expect(again.headers['etag']).toBe(etag);
+      expect(again.headers['content-length']).toBe(String(photo.clean.length));
+      expect(again.body).not.toContain('Elm Row');
+    } finally {
+      await restarted.close();
+    }
+  });
 });

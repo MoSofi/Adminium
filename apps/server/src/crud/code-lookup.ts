@@ -229,9 +229,38 @@ export function usedUpOf(table: { table?: Pick<EffectiveTable, 'columns'> | unde
   return from === undefined ? {} : { fields: { [from]: { code: 'used-up' } } };
 }
 
+/** A typed code that finds no code: a refusal of the write's values, told apart so a many-row write can name the row. */
+export class CodeNotFoundError extends ValidationFailedError {
+  constructor(readonly fields: Record<string, { code: 'unknown' }>) {
+    super('Some values were refused.', { fields });
+  }
+}
+
 /** The refusal every miss gets: one reason, on the column the person typed into. */
 export function unknownCode(from: string): ValidationFailedError {
-  return new ValidationFailedError('Some values were refused.', { fields: { [from]: { code: 'unknown' } } });
+  return new CodeNotFoundError({ [from]: { code: 'unknown' } });
+}
+
+/** A row whose typed code found nothing: its own issue, for a write of many rows to report and go on. */
+export interface LookupMiss {
+  readonly issues: Record<string, { code: 'unknown' }>;
+}
+
+/** The values a write prepared, or — when a code typed in them found nothing — that row's issue. */
+export async function lookupIssue(work: Promise<Row>): Promise<Row | LookupMiss> {
+  try {
+    return await work;
+  } catch (error) {
+    if (error instanceof CodeNotFoundError) return { [MISSED]: true, issues: error.fields } as LookupMiss;
+    throw error;
+  }
+}
+
+const MISSED = Symbol('adminium.codeMissed');
+
+/** Whether what `lookupIssue` gave back is a row's issue. */
+export function isLookupIssue(value: Row | LookupMiss): value is LookupMiss {
+  return (value as { [MISSED]?: true })[MISSED] === true;
 }
 
 /** A foreign key filled by a lookup, set empty by this write: the copies made through it are emptied too. */

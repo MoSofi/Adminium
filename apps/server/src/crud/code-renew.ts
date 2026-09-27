@@ -12,10 +12,12 @@
  * same UPDATE: the old code stops at the commit, and there is no moment when
  * both work.
  *
- * What never renews: a create (it makes a code anyway), an import or an undo
- * (history, which puts back what was), a writer whose own value for the code
- * is taken (the server's "make a new link", one new code rather than two), and
- * a change that re-sends the value the row already holds.
+ * What never renews: a create (it makes a code anyway), an import or a write
+ * marked as history (which puts back what was), a writer whose own value for
+ * the code is taken (the server's "make a new link", one new code rather than
+ * two), and a change that re-sends the value the row already holds. An undo
+ * of a change of hands renews once more (`renewForUndo`): the holder comes
+ * back, and neither the old code nor the one handed on works after it.
  *
  * The columns renewed are carried on the values under a symbol (as copies
  * are), so the statement can make the code again when the new one collides
@@ -73,6 +75,30 @@ export function renewCodes(
   context: { origin: WriteOrigin; table: { id: string }; rights?: TablePrivileges | null | undefined },
 ): Row {
   if (action !== 'update' || before === null || HISTORY.has(context.origin)) return values;
+  return renewing(codes, values, before, context);
+}
+
+/**
+ * An undo that takes a change of hands back: the holder is put back, and the
+ * code is made AGAIN — neither the old one (dead since the change) nor the
+ * one the other person was given, which must stop working now that the row
+ * is no longer theirs. The values an undo writes, with those codes.
+ */
+export function renewForUndo(
+  codes: readonly ColumnCode[] | undefined,
+  values: Row,
+  current: Row,
+  context: { table: { id: string }; rights?: TablePrivileges | null | undefined },
+): Row {
+  return renewing(codes, values, current, context);
+}
+
+function renewing(
+  codes: readonly ColumnCode[] | undefined,
+  values: Row,
+  before: Row,
+  context: { table: { id: string }; rights?: TablePrivileges | null | undefined },
+): Row {
   const renewed: ColumnCode[] = [];
   for (const code of codes ?? []) {
     if (code.renew === undefined) continue;
