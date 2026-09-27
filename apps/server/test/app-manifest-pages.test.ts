@@ -376,7 +376,24 @@ describe('a page’s own form and layout', () => {
 
 describe('what a layout\'s cards ask for, judged when the install is planned', () => {
   const card = (query: Record<string, unknown>) => ({ version: 1, items: [{ i: 'a', widget: 'mini-table', x: 0, y: 0, w: 3, h: 2, config: { binding: { source: { name: 'rooms' }, shape: 'record-list', ...query } } }] });
-  const problems = (query: Record<string, unknown>) => layoutQueryProblems(pageLayoutSchema.parse(card(query)));
+  // The app declares `rooms`: a date, a time and a text column.
+  const app = {
+    kind: 'app',
+    requiredSchema: {
+      tables: [
+        {
+          ref: 'rooms',
+          columns: [
+            { ref: 'id', type: 'int', role: 'pk' },
+            { ref: 'to_date', type: 'date' },
+            { ref: 'made_at', type: 'timestamptz' },
+            { ref: 'reason', type: 'text' },
+          ],
+        },
+      ],
+    },
+  } as unknown as Manifest;
+  const problems = (query: Record<string, unknown>) => layoutQueryProblems(pageLayoutSchema.parse(card(query)), app);
 
   it('passes what a card can read, and every query it read before', () => {
     expect(problems({ filters: [{ column: 'active', op: 'eq', value: true }, { or: [{ column: 'to_date', op: 'gte', day: 'today' }, { column: 'to_date', op: 'is_null' }] }] })).toEqual([]);
@@ -385,9 +402,28 @@ describe('what a layout\'s cards ask for, judged when the install is planned', (
     expect(problems({ shape: 'single-metric', kind: 'capacity-counts', capacity: { metric: 'occupancy' } })).toEqual([]);
   });
 
+  it.each([
+    ['seventeen conditions over groups', { filters: [{ or: Array.from({ length: 9 }, () => ({ column: 'reason', op: 'eq', value: 'x' })) }, { and: Array.from({ length: 8 }, () => ({ column: 'reason', op: 'eq', value: 'x' })) }] }, 'Filters are limited to 16 conditions'],
+    ['a day ten thousand days on', { filters: [{ column: 'to_date', op: 'gte', day: 'today+9999' }] }, '"today+9999" is not a day'],
+    ['a day that is not one', { filters: [{ column: 'to_date', op: 'eq', day: '2026-02-30' }] }, '"2026-02-30" is not a day'],
+    ['a day and a value', { filters: [{ column: 'to_date', op: 'gte', day: 'today', value: '2026-01-01' }] }, 'not both'],
+    ['a day with in', { filters: [{ column: 'to_date', op: 'in', day: 'today' }] }, 'not "in"'],
+    ['a day on text', { filters: [{ column: 'reason', op: 'eq', day: 'today' }] }, 'keeps neither a date nor a time'],
+    ['neq with a day on a time', { filters: [{ column: 'made_at', op: 'neq', day: 'today' }] }, '"neq" takes a date column only'],
+  ])('refuses what every read refuses: %s', (_label, query, words) => {
+    const found = problems(query);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain(words);
+  });
+
+  it('passes a day on the app\'s date and time columns, and neq on a date', () => {
+    expect(problems({ filters: [{ column: 'made_at', op: 'eq', day: 'today-1' }, { column: 'to_date', op: 'neq', day: '2026-07-28' }] })).toEqual([]);
+  });
+
   it('refuses a group, a day, counts or a figure no card can read', () => {
-    expect(problems({ filters: [{ or: [{ and: [{ or: [{ column: 'a', op: 'eq', value: 1 }] }] }] }] })).toEqual(['the card over "rooms" has filters that are not ones a card can read']);
-    expect(problems({ filters: [{ column: 'to_date', op: 'gte', day: 'tomorrow' }] })).toEqual(['the card over "rooms" has filters that are not ones a card can read']);
+    const shapeless = ['the card over "rooms" has filters no card can read: they are not ones a card can read'];
+    expect(problems({ filters: [{ or: [{ and: [{ or: [{ column: 'a', op: 'eq', value: 1 }] }] }] }] })).toEqual(shapeless);
+    expect(problems({ filters: [{ column: 'to_date', op: 'gte', day: 'tomorrow' }] })).toEqual(shapeless);
     expect(problems({ counts: { table: 'stays', as: '1st' } })).toEqual(['the card over "rooms" asks for counts that are not ones a card can read']);
     expect(problems({ shape: 'categorical', counts: { table: 'stays' } })).toEqual(['the card over "rooms" asks for counts beside something other than a list']);
     expect(problems({ kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'revenue' } })).toEqual(['the card over "rooms" asks for a figure that is not one']);

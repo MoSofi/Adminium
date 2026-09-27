@@ -300,6 +300,10 @@ for (const [dialect, available] of LEGS) {
       expect(refused(await list([{ column: 'reason', op: 'eq', day: 'today' }]))).toEqual([422, 'VALIDATION_FAILED']);
       expect(refused(await list([{ column: 'to_date', op: 'eq', day: '2026-02-30' }]))).toEqual([422, 'VALIDATION_FAILED']);
       expect(refused(await list([{ column: 'to_date', op: 'in', day: 'today' }]))).toEqual([422, 'VALIDATION_FAILED']);
+      expect(refused(await list([{ column: 'to_date', op: 'gte', day: 'today+9999' }]))).toEqual([422, 'VALIDATION_FAILED']);
+      // `neq` a day: a date column only (on a time a day is a span).
+      expect(refused(await list([{ column: 'made_at', op: 'neq', day: 'today' }]))).toEqual([422, 'VALIDATION_FAILED']);
+      expect(ok(await list([{ column: 'to_date', op: 'neq', day: 'today' }]))['total']).toBe(2);
       // A link inside a group is read-checked as one outside it is.
       const linked = [{ or: [{ column: 'room_id.floor', op: 'eq', value: 2 }, { column: 'reason', op: 'is_null' }] }];
       expect(refused(await cards.desk(['room_closures'], 'room_closures', { shape: 'record-list', select: ['id'], filters: linked }))).toEqual([403, 'TABLE_FORBIDDEN']);
@@ -355,6 +359,9 @@ for (const [dialect, available] of LEGS) {
       }
       const unordered = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'max', column: 'owed', alias: 'owed' }], limit: 3 }));
       expect((unordered['items'] as { key: string }[]).map((item) => item.key)).toEqual(['1', '2', '3']);
+
+      // An alias that is not a plain name (it would read as a table and a column): refused by name, never run.
+      expect(refused(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'sum', column: 'received', alias: 'event_id.name' }], orderBy: [{ column: 'event_id.name', dir: 'asc' }] }))).toEqual([422, 'VALIDATION_FAILED']);
 
       // Through another link: no one value per show — refused.
       expect(refused(await money([{ column: 'type_id.name', dir: 'asc' }]))).toEqual([422, 'VALIDATION_FAILED']);

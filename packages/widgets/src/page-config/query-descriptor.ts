@@ -44,10 +44,11 @@ export const filterSchema = z.object({
   param: z.string().optional(), // late-bound from page controls, e.g. 'dateRange.start'
   /**
    * A day on the venue's calendar in place of `value`, for a date or time
-   * column: `today`, n days from it (`today+7`, `today-30`) or `YYYY-MM-DD`,
-   * with `eq`, `neq`, `gt`, `gte`, `lt` or `lte`. On a time column a day is
-   * its whole span where the venue is (`lte` today ends at tomorrow's
-   * midnight there), as a link's filter reads it.
+   * column: `today`, n days from it (`today+7`, `today-30`, at most ten
+   * years) or `YYYY-MM-DD`, with `eq`, `gt`, `gte`, `lt` or `lte` — and `neq`
+   * on a date column only. On a time column a day is its whole span where
+   * the venue is (`lte` today ends at tomorrow's midnight there), as a link's
+   * filter reads it.
    */
   day: z.string().regex(/^(today([+-]\d{1,4})?|\d{4}-\d{2}-\d{2})$/).optional(),
 });

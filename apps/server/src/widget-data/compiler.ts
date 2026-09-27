@@ -55,13 +55,14 @@ import type { Dialect } from '@adminium/engine';
 
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { compileFilter, MAX_FILTER_CONDITIONS, MAX_FILTER_GROUP_DEPTH, type CompileFilterContext, type FilterCondition, type RecordFilter } from '../crud/filters.js';
+import { compileFilter, type CompileFilterContext, type FilterCondition, type RecordFilter } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { offsetSpans, stepsOf, wallText, type OffsetSpan } from './zone-offsets.js';
 import { choiceWordsOf } from './choice-words.js';
 import { calendarBoundValue, instantBoundValue, windowBoundValue } from './bound-values.js';
+import { filterProblem } from './filter-checks.js';
 import { venueDayConditions } from './link-filters.js';
 
 /** Hard row cap on any compiled query (guardrails). */
@@ -779,12 +780,8 @@ function resolveNode(node: FilterNode, params: Record<string, unknown>): Resolve
     const kept = resolved.filter((child): child is ResolvedFilterNode => child !== null);
     return kept.length === 0 ? null : { and: kept };
   }
-  if (node.day !== undefined) {
-    if (node.value !== undefined || node.param !== undefined) {
-      reject('A filter compares with a `day` or with a `value` (or a `param`), not both.', { column: node.column });
-    }
-    return { column: node.column, op: node.op, day: node.day };
-  }
+  // A day's rules are judged before (`assertDescriptorFilterLimits`).
+  if (node.day !== undefined) return { column: node.column, op: node.op, day: node.day };
   if (node.param !== undefined) {
     const value = params[node.param];
     if (value === undefined) return null; // control unset — filter inactive
@@ -808,23 +805,21 @@ export function filterConditionsOf(filters: QueryDescriptor['filters']): { colum
 }
 
 /**
- * The list grammar's limits, on a descriptor's filters: sixteen conditions in
- * all, groups two deep. The schema holds the depth already; this holds the
- * count, which a schema of nested lists cannot.
+ * The list grammar's limits and a day's rules, on a descriptor's filters
+ * (`filter-checks.ts`, the rules an app's install judges too): sixteen
+ * conditions in all, groups two deep, and a `day` that is one.
  */
-function assertDescriptorFilterLimits(filters: QueryDescriptor['filters']): void {
-  let conditions = 0;
-  const walk = (node: FilterNode, depth: number): void => {
-    if ('and' in node || 'or' in node) {
-      if (depth >= MAX_FILTER_GROUP_DEPTH) reject('Filter groups may nest at most 2 levels deep.', { maxDepth: MAX_FILTER_GROUP_DEPTH });
-      for (const child of ('and' in node ? node.and : node.or) as FilterNode[]) walk(child, depth + 1);
-      return;
-    }
-    conditions += 1;
-  };
-  for (const node of filters ?? []) walk(node, 0);
-  if (conditions > MAX_FILTER_CONDITIONS) reject('Filters are limited to 16 conditions.', { maxConditions: MAX_FILTER_CONDITIONS });
+function assertDescriptorFilterLimits(filters: QueryDescriptor['filters'], table: ResolvedTable): void {
+  const problem = filterProblem(filters, (name) => {
+    const column = table.columns.get(name);
+    if (column === undefined) return 'unknown';
+    return column.logicalType === 'date' ? 'date' : TIME_TYPES.has(column.logicalType) ? 'time' : 'other';
+  });
+  if (problem !== null) reject(problem.message, problem.details);
 }
+
+/** The column types that keep a time (a day on one is its whole span). */
+const TIME_TYPES = new Set(['timestamp', 'timestamptz']);
 
 /** Shape ⇄ descriptor structural rules (semantics). */
 function assertShapeRules(descriptor: QueryDescriptor): void {
@@ -991,6 +986,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     reject('`lookups` is supported on "record-list" descriptors only.', { shape: descriptor.shape });
   }
   const table = resolveSource(view, descriptor);
+  assertDescriptorFilterLimits(descriptor.filters, table);
   const dynamic = db.dynamic;
   const filterCtx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
@@ -1012,7 +1008,6 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     qb.where((eb) => eb(dynamic.ref(path.fkColumn.name), 'in', where(db.selectFrom(path.parent.id).select(dynamic.ref(path.parentKey)) as unknown as Qb) as never));
 
   // --- WHERE: descriptor filters (CRUD DSL compiler) + rolling window -------
-  assertDescriptorFilterLimits(descriptor.filters);
   const conditions =
     descriptor.filters === undefined ? [] : resolveFilterParams(descriptor.filters, params);
   /*

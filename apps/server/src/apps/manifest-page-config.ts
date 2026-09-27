@@ -28,6 +28,7 @@ import { capacityCountsSchema, countsJoinSchema, filterNodeSchema, pageLayoutSch
 import type { Manifest } from '@adminium/manifest';
 
 import { childRelations } from '../crud/child-rows.js';
+import { filterProblem, type DayColumnKind } from '../widget-data/filter-checks.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { linkableRelations } from '../crud/links.js';
 
@@ -235,8 +236,15 @@ export function layoutTables(layout: PageLayout): string[] {
  * every read. Only these parts are judged here: the rest of a query is read
  * as it always was.
  */
-export function layoutQueryProblems(layout: PageLayout): string[] {
+export function layoutQueryProblems(layout: PageLayout, manifest?: Manifest): string[] {
   const out: string[] = [];
+  // What each declared column keeps, for a filter's `day` (a column one link away is judged when read).
+  const kindOf = (table: string) => (name: string): DayColumnKind => {
+    const declared = manifest?.kind === 'app' ? manifest.requiredSchema?.tables.find((t) => t.ref === table) : undefined;
+    const column = declared?.columns.find((c) => c.ref === name);
+    if (column === undefined) return 'unknown';
+    return column.type === 'date' ? 'date' : column.type === 'timestamptz' ? 'time' : 'other';
+  };
   const visit = (value: unknown): void => {
     if (Array.isArray(value)) return value.forEach(visit);
     if (typeof value !== 'object' || value === null) return;
@@ -246,7 +254,11 @@ export function layoutQueryProblems(layout: PageLayout): string[] {
       const where = `the card over "${source.name}"`;
       const filters = node['filters'];
       const grouped = Array.isArray(filters) && filters.some((filter) => typeof filter === 'object' && filter !== null && ('or' in filter || 'and' in filter || 'day' in filter));
-      if (grouped && !z.array(filterNodeSchema).max(16).safeParse(filters).success) out.push(`${where} has filters that are not ones a card can read`);
+      if (grouped) {
+        // The rules every read of the card judges: the shape, then the count, the depth and each day.
+        const problem = z.array(filterNodeSchema).max(16).safeParse(filters).success ? filterProblem(filters as unknown[], kindOf(source.name)) : { message: 'they are not ones a card can read' };
+        if (problem !== null) out.push(`${where} has filters no card can read: ${problem.message.replace(/\.$/, '')}`);
+      }
       if (node['counts'] !== undefined) {
         if (!countsJoinSchema.safeParse(node['counts']).success) out.push(`${where} asks for counts that are not ones a card can read`);
         else if (node['shape'] !== 'record-list') out.push(`${where} asks for counts beside something other than a list`);
