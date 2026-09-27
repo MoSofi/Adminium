@@ -75,8 +75,8 @@ describe.each(LEGS)('the nights of a stay, quoted and at the desk — %s', (dial
     const body = res.json() as { data: Record<string, unknown>; nights: unknown };
     expect(Number(body.data['room_total'])).toBe(370);
     expect(body.nights).toEqual([
-      { date: '2026-07-31', rate: '175.00', tags: ['Weekend'] },
-      { date: '2026-08-01', rate: '195.00', tags: ['Weekend', 'August'] },
+      { date: '2026-07-31', rate: '175.00', base: '150.00', tags: ['Weekend'] },
+      { date: '2026-08-01', rate: '195.00', base: '150.00', tags: ['Weekend', 'August'] },
     ]);
   });
 
@@ -116,14 +116,14 @@ describe.each(LEGS)('the nights of a stay, quoted and at the desk — %s', (dial
     try {
       const res = await served.post(`/records/stay_dates/${String(stay['id'])}/dry-run`, { values: { depart: '2026-08-08' } });
       expect(res.statusCode, res.body).toBe(200);
-      const body = res.json() as { data: Record<string, unknown>; nights: { date: string; rate: string }[] };
+      const body = res.json() as { data: Record<string, unknown>; nights: { date: string; rate: string; base: string }[] };
       // Mon 3 – Sat 8 August: four August nights and an August Friday.
-      expect(body.nights.map((night) => [night.date, night.rate])).toEqual([
-        ['2026-08-03', '170.00'],
-        ['2026-08-04', '170.00'],
-        ['2026-08-05', '170.00'],
-        ['2026-08-06', '170.00'],
-        ['2026-08-07', '195.00'],
+      expect(body.nights.map((night) => [night.date, night.rate, night.base])).toEqual([
+        ['2026-08-03', '170.00', '150.00'],
+        ['2026-08-04', '170.00', '150.00'],
+        ['2026-08-05', '170.00', '150.00'],
+        ['2026-08-06', '170.00', '150.00'],
+        ['2026-08-07', '195.00', '150.00'],
       ]);
       expect(Number(body.data['room_total'])).toBe(875);
       expect(Number((await h!.rows(`SELECT room_total FROM ${h!.real('stays')} WHERE id = ${String(stay['id'])}`))[0]!['room_total'])).toBe(340);
@@ -194,8 +194,8 @@ describe.each(LEGS)('the nights of a stay, quoted and at the desk — %s', (dial
     });
     expect(res.statusCode, res.body).toBe(200);
     expect((res.json() as { nights: unknown }).nights).toEqual([
-      { date: '2026-07-23', rate: '215.00', tags: [] },
-      { date: '2026-07-24', rate: '240.00', tags: ['Weekend'] },
+      { date: '2026-07-23', rate: '215.00', base: '215.00', tags: [] },
+      { date: '2026-07-24', rate: '240.00', base: '215.00', tags: ['Weekend'] },
     ]);
   });
 

@@ -66,7 +66,7 @@
  * producer and the repair — cannot both add the row.
  */
 import type { Dialect } from '@adminium/engine';
-import type { Outbox, OutboxProducer, SettingSource } from '@adminium/manifest';
+import { sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
 import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
@@ -79,7 +79,7 @@ import type { Row } from '../crud/mask.js';
 import type { RecordWriteService } from '../crud/write-service.js';
 import { bindWriteValue, normalizeWriteValue, sameValue } from '../crud/write-values.js';
 import { asInstant } from '../automations/conditions.js';
-import { wallOn } from '../crud/moments.js';
+import { readDay, readInstant, wallOn } from '../crud/moments.js';
 import { venueClock } from '../crud/venue-time.js';
 import { outboxContext } from './context.js';
 import { notDropped } from './dropped.js';
@@ -123,6 +123,43 @@ const SCAN_BATCH = 200;
 
 /** The once-a-minute pass that queues the reminders now due. */
 export const OUTBOX_SCAN_SCHEDULE_NAME = 'app-outbox-reminders';
+
+/** Why a message that keeps its row's old values was not sent: they are more than the outbox's column holds. */
+export const WAS_TOO_LONG = 'Not sent: the values before the change are more than the outbox keeps';
+
+const NUMBER_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
+
+/**
+ * Whether a column really changed between the stored row and the row after
+ * a write, read as its type is: a number by its value (`8.250` is `8.25`), a
+ * calendar day by its day, an instant by its moment, anything else as it is.
+ */
+export function changedValue(table: ResolvedTable, column: string, before: unknown, after: unknown): boolean {
+  const type = table.columns.get(column)?.logicalType;
+  if (type === 'date') return readDay(before) !== readDay(after);
+  if (type !== undefined && NUMBER_TYPES.has(type)) return !sameDecimal(before, after, 12);
+  return !sameValue(before, after);
+}
+
+/**
+ * The columns a message keeps of its row as it was, as the text the outbox's
+ * `was` column holds: a calendar day as its day, an instant as its moment, a
+ * number as its text — read back by the sender in every form the column has.
+ */
+export function wasOf(table: ResolvedTable, columns: readonly string[], before: Row | null): string {
+  const out: Record<string, unknown> = {};
+  for (const column of columns) {
+    const value = before?.[column] ?? null;
+    const type = table.columns.get(column)?.logicalType;
+    if (value === null) out[column] = null;
+    else if (type === 'date') out[column] = readDay(value);
+    else if (type === 'timestamp' || type === 'timestamptz') out[column] = readInstant(value)?.toISOString() ?? null;
+    else if (value instanceof Date) out[column] = value.toISOString();
+    else if (typeof value === 'bigint') out[column] = String(value);
+    else out[column] = value;
+  }
+  return JSON.stringify(out);
+}
 
 type Condition = { column: string; eq?: unknown; in?: unknown[] | undefined; isNull?: boolean | undefined };
 
@@ -354,7 +391,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     producer: OutboxProducer,
     source: ResolvedTable,
     row: Row,
-    opts: { at?: number | undefined; now: number },
+    opts: { at?: number | undefined; now: number; before?: Row | null | undefined },
   ): Promise<boolean> {
     const view = await deps.viewFor(box.connectionId);
     if (view === null) return false;
@@ -403,7 +440,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       // One per value of the row's repeat column (an offer's own link): a second offer is a second message.
       const repeat = repeatKeyOf(box.definition, producer, about.row);
       if (repeat !== undefined) seen = repeat.key === null ? seen.where(repeat.column as never, 'is', null) : seen.where(repeat.column as never, '=', repeat.key as never);
-      if ((await seen.executeTakeFirst()) !== undefined) return null;
+      // One per change heard of (`repeat`): each change is its own message, never one already there.
+      if (producer.repeat !== true && (await seen.executeTakeFirst()) !== undefined) return null;
 
       // The links the template reads through, and the recipient's.
       const recipient = box.definition.recipient;
@@ -438,6 +476,15 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       // A held message waits for a person whatever its address: it is looked up again when approved.
       values[cols.status] = producer.hold === true ? 'held' : addressed.address !== null ? 'queued' : 'skipped';
       if (values[cols.status] === 'skipped' && cols.error !== undefined) values[cols.error] = 'No email on file';
+      // The changed row as it was (a stay's old dates and total), kept on the message for its template.
+      if (producer.was !== undefined && cols.was !== undefined) {
+        const kept = wasOf(source, producer.was, opts.before ?? null);
+        const width = outbox.table.columns.find((column) => column.name === cols.was)?.maxLength;
+        if (width !== undefined && width !== null && kept.length > width) {
+          values[cols.status] = 'failed';
+          if (cols.error !== undefined) values[cols.error] = WAS_TOO_LONG;
+        } else values[cols.was] = kept;
+      }
 
       return await deps.writes.create({
         target: { connectionId: box.connectionId, view, table: outbox, db, dialect: handle.dialect },
@@ -472,11 +519,20 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
             if (event.action !== 'update' || change.table !== event.table.id || !holds(change.where, event.after)) continue;
             // "Changed to": with no stored row to compare, nothing is assumed to have changed.
             if (event.before === null) continue;
-            const to = Array.isArray(change.to) ? change.to : [change.to];
-            const value = event.after[change.column];
-            if (!to.some((candidate) => sameValue(candidate, value)) || sameValue(event.before[change.column], value)) continue;
+            if ('columns' in change) {
+              // Any of these columns really changed, compared with the row as it was stored.
+              const before = event.before;
+              if (!change.columns.some((column) => changedValue(event.table, column, before[column], event.after![column]))) continue;
+            } else {
+              // An undo puts back what a change moved: only a producer of "these columns changed" hears it.
+              if (event.cause === 'undo') continue;
+              const to = Array.isArray(change.to) ? change.to : [change.to];
+              const value = event.after[change.column];
+              if (!to.some((candidate) => sameValue(candidate, value)) || sameValue(event.before[change.column], value)) continue;
+            }
           } else continue;
-          const made = await queue(box, producer, event.table, event.after, { now });
+          if (event.cause === 'undo' && 'onCreate' in producer) continue;
+          const made = await queue(box, producer, event.table, event.after, { now, before: event.before });
           queued = (made && producer.hold !== true) || queued;
         }
         if (queued) deps.onQueued?.(box.appKey);
@@ -545,7 +601,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     let made = 0;
     const outbox = view.table(box.definition.table);
     for (const producer of box.definition.producers ?? []) {
-      if (producer.hold !== true || !('onChange' in producer) || producer.onChange.via !== undefined) continue;
+      // Only a producer of a state reached: "these columns changed" says no state a row sits in.
+      if (producer.hold !== true || !('onChange' in producer) || producer.onChange.via !== undefined || 'columns' in producer.onChange) continue;
       const change = producer.onChange;
       const source = view.table(change.table);
       const key = source.primaryKey[0];

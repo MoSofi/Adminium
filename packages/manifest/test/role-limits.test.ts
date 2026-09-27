@@ -88,3 +88,24 @@ describe('a role’s limits', () => {
     expect(messages([{ ...clinician, limits: { appointments: { writable: ['status'], columns: ['status'] } } }]).length).toBeGreaterThan(0);
   });
 });
+
+describe('a role’s read of a table limited to some columns', () => {
+  const housekeeping = {
+    key: 'housekeeping',
+    name: 'Housekeeping',
+    permissions: ['table:@appointments:read'],
+    limits: { appointments: { readable: ['status'] } },
+  };
+  it('validates on the role’s own read, alone or beside what its update writes', () => {
+    expect(messages([housekeeping])).toEqual([]);
+    expect(messages([{ ...clinician, limits: { appointments: { writable: ['status', 'note'], readable: ['status'] } } }])).toEqual([]);
+  });
+  it('refuses a read the role does not grant, a column the table lacks, one named twice, and a limit of nothing', () => {
+    expect(messages([{ ...housekeeping, permissions: ['table:@patients:read'] }]).join('\n')).toContain('does not grant table:@appointments:read');
+    expect(messages([{ ...housekeeping, limits: { appointments: { readable: ['nope'] } } }]).join('\n')).toContain('"appointments" has no column "nope"');
+    expect(messages([{ ...housekeeping, limits: { appointments: { readable: ['status', 'status'] } } }]).join('\n')).toContain('"status" is listed twice');
+    expect(messages([{ ...housekeeping, limits: { appointments: {} } }]).join('\n')).toContain('writable) or read (readable)');
+    expect(messages([{ ...housekeeping, limits: { appointments: { readable: [] } } }])).not.toEqual([]);
+    expect(messages([{ ...housekeeping, limits: { appointments: { readable: ['status'], writableValues: { status: ['ready'] } } } }]).join('\n')).toContain('name them (writable)');
+  });
+});

@@ -160,6 +160,19 @@ const producerBase = {
    */
   repeatBy: refSchema.optional(),
   /**
+   * One message for each change it hears of, not one for the row for ever:
+   * "Resend tickets" twice is two messages, a stay's dates moved twice is two
+   * notices. On a producer that listens for changes (`onChange`).
+   */
+  repeat: z.literal(true).optional(),
+  /**
+   * The columns of the changed row as they were before the change (a stay's
+   * old dates, its old total), kept on the message in the outbox's `was`
+   * column and read by its template as `{{was.<column>}}`, in every form the
+   * column has. On a producer that listens for changes (`onChange`).
+   */
+  was: z.array(refSchema).min(1).max(8).optional(),
+  /**
    * A change made once the message has gone, through the ordinary write: to
    * the source row, or (with `via`) the row its foreign key points at.
    */
@@ -184,15 +197,27 @@ export const outboxProducerSchema = z.union([
   z
     .object({
       ...producerBase,
-      onChange: z
-        .object({
-          table: refSchema,
-          via: refSchema.optional(),
-          column: refSchema,
-          to: z.union([scalarSchema, z.array(scalarSchema).min(1).max(16)]),
-          where: conditionSchema.optional(),
-        })
-        .strict(),
+      onChange: z.union([
+        z
+          .object({
+            table: refSchema,
+            via: refSchema.optional(),
+            column: refSchema,
+            to: z.union([scalarSchema, z.array(scalarSchema).min(1).max(16)]),
+            where: conditionSchema.optional(),
+          })
+          .strict(),
+        /** Any change of one of these columns, compared with the row as it was stored (a stay's dates, whatever they became). */
+        z
+          .object({
+            table: refSchema,
+            via: refSchema.optional(),
+            columns: z.array(refSchema).min(1).max(8),
+            changed: z.literal(true),
+            where: conditionSchema.optional(),
+          })
+          .strict(),
+      ]),
     })
     .strict(),
   z
@@ -278,6 +303,8 @@ export const outboxSchema = z
         effectError: refSchema.optional(),
         /** A text column (at least 43 characters) Adminium fills with the digest of a producer's `repeatBy` value. */
         repeatKey: refSchema.optional(),
+        /** A text column (unbounded, or at least 1000 characters) Adminium fills with a producer's `was` columns, as they were. */
+        was: refSchema.optional(),
       })
       .strict(),
     /**
@@ -293,7 +320,14 @@ export const outboxSchema = z
      * the one sent to an old address after a change of email.
      */
     settings: z
-      .object({ table: refSchema, enabled: refSchema.optional(), name: refSchema.optional(), phone: refSchema.optional() })
+      .object({
+        table: refSchema,
+        enabled: refSchema.optional(),
+        name: refSchema.optional(),
+        phone: refSchema.optional(),
+        /** The address a reply to any of the app's messages goes to (the house's own): a Reply-To on each. Empty or not an address: none. */
+        replyTo: refSchema.optional(),
+      })
       .strict()
       .optional(),
     /**
@@ -365,7 +399,20 @@ export const emailTemplateSchema = z
      * else the print copy. A message whose document cannot be drawn fails
      * rather than going without it.
      */
-    attach: z.object({ kind: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a document kind'), link: z.string().min(1).max(40) }).strict().optional(),
+    attach: z
+      .object({
+        kind: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a document kind'),
+        link: z.string().min(1).max(40),
+        /**
+         * Sent without the document when no add-on the app has draws its
+         * kind (a receipt, without Invoices & Receipts): the part is left out,
+         * and so is every block marked `data.withAttachment: true`. Without
+         * it, such a message fails rather than go without its document.
+         */
+        optional: z.literal(true).optional(),
+      })
+      .strict()
+      .optional(),
     /** The variables it reads, for the editor's list. */
     vars: z.array(templateVariableSchema).max(60).optional(),
     /** The template in each language it ships, US English always among them. */
@@ -382,6 +429,10 @@ const DECIDING_RULES = ['copy', 'default', 'sequence', 'format', 'code', 'rollup
 const REFUSING_RULES = ['options', 'validation', 'required', 'requiredWhen', 'notAfter', 'notBefore'] as const;
 /** How long a `repeatKey` is: a SHA-256 digest in base64url. */
 export const REPEAT_KEY_LENGTH = 43;
+/** The fewest characters a bounded `was` column holds: the columns a message keeps, as they were. */
+export const WAS_MIN_LENGTH = 1000;
+/** The mark on a template's block that is sent only with the document the template carries (`attach.optional`). */
+export const WITH_ATTACHMENT = 'withAttachment';
 
 /** What the outbox writes, and which rules each refuses: everything, but a check of the address a person types. */
 export const OUTBOX_WRITTEN = {
@@ -393,6 +444,7 @@ export const OUTBOX_WRITTEN = {
   effectAt: [...DECIDING_RULES, ...REFUSING_RULES],
   effectError: [...DECIDING_RULES, ...REFUSING_RULES],
   repeatKey: [...DECIDING_RULES, ...REFUSING_RULES],
+  was: [...DECIDING_RULES, ...REFUSING_RULES],
   // Left empty by a desk that asks Adminium to look the address up, and written when it sends.
   to: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
   language: [...DECIDING_RULES, 'options', 'required', 'requiredWhen'],
@@ -435,6 +487,16 @@ export function outboxIssues(
   (m.emailTemplates ?? []).forEach((template, i) => {
     if (template.attach !== undefined && m.outbox?.links?.[template.attach.link] === undefined) {
       out.push({ path: ['emailTemplates', i, 'attach', 'link'], message: `"${template.attach.link}" is not one of the outbox's links` });
+    }
+    // A block sent only with the document: marked `true`, and only where the document may be left out.
+    for (const [locale, content] of Object.entries(template.locales)) {
+      content.blocks.forEach((block, b) => {
+        const mark = block.data?.[WITH_ATTACHMENT];
+        if (mark === undefined) return;
+        const path = ['emailTemplates', i, 'locales', locale, 'blocks', b, 'data', WITH_ATTACHMENT];
+        if (mark !== true) out.push({ path, message: `${WITH_ATTACHMENT} is true or absent` });
+        else if (template.attach?.optional !== true) out.push({ path, message: 'a block is sent only with the document when the template may go without it (attach.optional)' });
+      });
     }
     if (!template.key.startsWith(`${m.key}-`)) {
       out.push({ path: ['emailTemplates', i, 'key'], message: `an app's template key starts with "${m.key}-"` });
@@ -506,6 +568,12 @@ export function outboxIssues(
     const found = col(box.table, box.columns.repeatKey, ['text'], at('columns', 'repeatKey'), 'a text column');
     if (found !== undefined && found.maxLength !== undefined && found.maxLength < REPEAT_KEY_LENGTH) {
       out.push({ path: at('columns', 'repeatKey'), message: `"${box.table}.${found.ref}" must hold ${REPEAT_KEY_LENGTH} characters (a digest)` });
+    }
+  }
+  if (box.columns.was !== undefined) {
+    const found = col(box.table, box.columns.was, ['text'], at('columns', 'was'), 'a text column');
+    if (found !== undefined && found.maxLength !== undefined && found.maxLength < WAS_MIN_LENGTH) {
+      out.push({ path: at('columns', 'was'), message: `"${box.table}.${found.ref}" keeps a message's values from before a change: it holds ${WAS_MIN_LENGTH} characters or more` });
     }
   }
   /*
@@ -597,6 +665,7 @@ export function outboxIssues(
     if (box.settings.enabled !== undefined) col(box.settings.table, box.settings.enabled, ['bool'], at('settings', 'enabled'), 'a bool');
     if (box.settings.name !== undefined) col(box.settings.table, box.settings.name, ['text'], at('settings', 'name'), 'a text column');
     if (box.settings.phone !== undefined) col(box.settings.table, box.settings.phone, ['text'], at('settings', 'phone'), 'a text column');
+    if (box.settings.replyTo !== undefined) col(box.settings.table, box.settings.replyTo, ['text'], at('settings', 'replyTo'), 'a text column (an address)');
   }
 
   for (const [value, template] of Object.entries(box.kinds)) {
@@ -606,6 +675,7 @@ export function outboxIssues(
     if (!templates.has(template)) out.push({ path: at('kinds', value), message: `"${template}" is not one of the app's emailTemplates` });
   }
 
+  const unlisted = (table: string, column: string) => unlistedColumn(m, table, column);
   (box.producers ?? []).forEach((producer, p) => {
     const here = (...rest: (string | number)[]) => at('producers', p, ...rest);
     if (box.kinds[producer.kind] === undefined) out.push({ path: here('kind'), message: `"${producer.kind}" is not one of the outbox's kinds` });
@@ -730,10 +800,37 @@ export function outboxIssues(
     }
     if ('onChange' in producer) {
       const change = producer.onChange;
-      const watched = col(change.table, change.column, null, here('onChange', 'column'), '');
-      if (watched !== undefined) for (const value of Array.isArray(change.to) ? change.to : [change.to]) {
-        if (!valueFits(watched, value)) out.push({ path: here('onChange', 'to'), message: `${JSON.stringify(value)} is not a value of "${change.table}.${change.column}"` });
+      if ('columns' in change) {
+        change.columns.forEach((column, c) => {
+          col(change.table, column, null, here('onChange', 'columns', c), '');
+          if (change.columns.indexOf(column) !== c) out.push({ path: here('onChange', 'columns', c), message: `"${column}" is listed twice` });
+        });
+      } else {
+        const watched = col(change.table, change.column, null, here('onChange', 'column'), '');
+        if (watched !== undefined) for (const value of Array.isArray(change.to) ? change.to : [change.to]) {
+          if (!valueFits(watched, value)) out.push({ path: here('onChange', 'to'), message: `${JSON.stringify(value)} is not a value of "${change.table}.${change.column}"` });
+        }
       }
+    }
+    // One message per change it hears of: a producer that listens for changes, and repeats no other way.
+    if (producer.repeat === true) {
+      if (!('onChange' in producer)) out.push({ path: here('repeat'), message: 'a message is sent for each change by a producer that listens for changes (onChange)' });
+      const other = producer.repeatBy !== undefined ? 'repeatBy' : producer.batchMinutes !== undefined ? 'batchMinutes' : null;
+      if (other !== null) out.push({ path: here('repeat'), message: `a message sent for each change takes no ${other}` });
+    }
+    // The changed row's columns as they were: kept on the message, read as {{was.<column>}}.
+    if (producer.was !== undefined) {
+      if (!('onChange' in producer)) out.push({ path: here('was'), message: 'a message keeps what a row was before a change on a producer that listens for changes (onChange)' });
+      else {
+        const table = producer.onChange.table;
+        producer.was.forEach((column, c) => {
+          const found = col(table, column, null, here('was', c), '');
+          if (producer.was!.indexOf(column) !== c) out.push({ path: here('was', c), message: `"${column}" is listed twice` });
+          const kept = found === undefined ? null : unlisted(table, column);
+          if (kept !== null) out.push({ path: here('was', c), message: `"${table}.${column}" is ${kept}, which a message never keeps` });
+        });
+      }
+      if (box.columns.was === undefined) out.push({ path: here('was'), message: 'a message keeps what a row was in the outbox\'s was column, and none is named' });
     }
     if ('before' in producer) {
       const before = producer.before;
@@ -1021,8 +1118,28 @@ export function clockShaped(column: { type: string; maxLength?: number | undefin
   return widths.length > 0 && Math.min(...widths) <= CLOCK_TEXT_MAX;
 }
 
-/** The forms a row's column may be read in: its type's, and a text column's `time` only when it keeps a time of day. */
-function rowFormsOf(column: Parameters<typeof clockShaped>[0]): readonly string[] {
+/** The form of a code in groups of four (`K7QX-M2PD`), as a person reads it out. */
+export const GROUPED_FORM = 'grouped';
+
+/**
+ * A code in groups of four joined by `-` (`K7QXM2PD` → `K7QX-M2PD`), the way
+ * a person reads it out; separators already in it are dropped first. Empty
+ * stays empty.
+ */
+export function groupedCode(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const bare = String(value).replace(/[\s-]+/g, '');
+  return (bare.match(/.{1,4}/g) ?? []).join('-');
+}
+
+/** Whether a column holds a code Adminium makes: a text column with a `code` rule. */
+export function isCodeColumn(column: { type: string; rules?: { code?: unknown } | undefined }): boolean {
+  return column.type === 'text' && column.rules?.code !== undefined;
+}
+
+/** The forms a row's column may be read in: its type's, a text column's `time` only when it keeps a time of day, and a code's groups. */
+export function rowFormsOf(column: Parameters<typeof clockShaped>[0] & { rules?: { code?: unknown } | undefined }): readonly string[] {
   const forms = ROW_FORMS[column.type] ?? [];
-  return column.type === 'text' && !clockShaped(column) ? forms.filter((form) => form !== 'time') : forms;
+  const own = column.type === 'text' && !clockShaped(column) ? forms.filter((form) => form !== 'time') : forms;
+  return isCodeColumn(column) ? [...own, GROUPED_FORM] : own;
 }

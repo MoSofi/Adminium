@@ -186,10 +186,12 @@ export async function resolveLookups(opts: ResolveLookupsOptions): Promise<Resol
       current = refTable;
     }
 
-    const target = view.column(current, parsed.select); // 422 unknown/secret
+    // A column the caller's read of that table does not show is refused as a masked one is: empty, and said so.
+    const hidden = current.columns.get(parsed.select);
+    const target = hidden?.unreadable === true ? hidden : view.column(current, parsed.select); // 422 unknown/secret
     if (target.masked) maskedOn.add(current.id);
 
-    let refused = false;
+    let refused = target.unreadable === true;
     for (const tableId of maskedOn) {
       if (!(await piiAllows(canReadPii, tableId))) {
         refused = true;

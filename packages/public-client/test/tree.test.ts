@@ -55,10 +55,10 @@ describe('a create with its child rows', () => {
     expect(calls[1]!.url).toBe('https://x/api/v1/public/records/lines/7/dry-run');
   });
 
-  it("hands on a stay's nights, each with its rate and tags", async () => {
+  it("hands on a stay's nights, each with its rate, its rate before what was added, and tags", async () => {
     const nights = [
-      { date: '2026-07-31', rate: '175.00', tags: ['Weekend'] },
-      { date: '2026-08-01', rate: '195.00', tags: ['Weekend', 'August'] },
+      { date: '2026-07-31', rate: '175.00', base: '150.00', tags: ['Weekend'] },
+      { date: '2026-08-01', rate: '195.00', base: '150.00', tags: ['Weekend', 'August'] },
     ];
     const { client } = over((url) => (url.endsWith('/9/dry-run') ? { data: { room_total: '370.00' }, exact: true, nights } : { data: { room_total: '370.00' }, exact: true, nights }));
     expect((await client.quote('stays', { values: {} })).nights).toEqual(nights);

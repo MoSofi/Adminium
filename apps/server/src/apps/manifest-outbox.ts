@@ -18,7 +18,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import { clockShaped, emailRowsDataSchema, type Manifest, type Outbox } from '@adminium/manifest';
+import { GROUPED_FORM, clockShaped, emailRowsDataSchema, isCodeColumn, type Manifest, type Outbox } from '@adminium/manifest';
 import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
@@ -133,10 +133,12 @@ const FORMS_OF: Readonly<Record<string, readonly string[]>> = {
   enum: ['label'],
   text: ['time'],
 };
-const EVERY_FORM = new Set(Object.values(FORMS_OF).flat());
-/** A column's forms: its type's — a text column's `time` only when it keeps a time of day (`clockShaped`), as the sender fills one. */
-const formsOf = (column: Parameters<typeof clockShaped>[0]): readonly string[] =>
-  column.type === 'text' && !clockShaped(column) ? (FORMS_OF['text'] ?? []).filter((form) => form !== 'time') : (FORMS_OF[column.type] ?? []);
+const EVERY_FORM = new Set([...Object.values(FORMS_OF).flat(), GROUPED_FORM]);
+/** A column's forms: its type's — a text column's `time` only when it keeps a time of day (`clockShaped`), and a code's groups — as the sender fills them. */
+const formsOf = (column: Parameters<typeof clockShaped>[0] & { rules?: { code?: unknown } | undefined }): readonly string[] => {
+  const own = column.type === 'text' && !clockShaped(column) ? (FORMS_OF['text'] ?? []).filter((form) => form !== 'time') : (FORMS_OF[column.type] ?? []);
+  return isCodeColumn(column) ? [...own, GROUPED_FORM] : own;
+};
 const orList = (items: string[]): string => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)!}`);
 const PLACEHOLDER = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 

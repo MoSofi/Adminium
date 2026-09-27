@@ -95,6 +95,12 @@ export interface ChannelAuthDeps {
    * read permission. Optional — without it only `system:jobs:read` grants.
    */
   getJobOwner?(jobId: string): Promise<string | null> | string | null;
+  /**
+   * The frames of a channel as one subscriber reads them (a table their role
+   * reads only in part: its other columns taken out), or null for as they
+   * are. Decided at subscribe time, as the channel's own check is.
+   */
+  frameFor?(user: RealtimeUser, channel: string): Promise<((event: RealtimeEvent) => RealtimeEvent) | null>;
 }
 
 /**

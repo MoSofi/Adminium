@@ -141,7 +141,7 @@ export function eventsManifest(): Record<string, unknown> {
       template('leak', 'Holders', [{ block: 'email.rows', data: { from: TICKET_ROWS, row: { title: '{{row.holder_email}}' } } }]),
       template('receipt', 'Receipt {{order.ref}}', [{ block: 'email.text', data: { text: 'Paid.' } }]),
       template('override', 'Tickets', [e1Rows]),
-      template('link', 'Your links', [{ block: 'email.rows', data: { from: TICKET_ROWS, row: { title: '{{row.holder_name}}', meta: '{{row.link_token}}', image: '{{row.link_token.qr}}' } } }]),
+      template('link', 'Your links', [{ block: 'email.rows', data: { from: TICKET_ROWS, row: { title: '{{row.holder_name}}', meta: '{{row.link_token}}', note: 'Read out: {{row.link_token.grouped}}', image: '{{row.link_token.qr}}' } } }]),
     ],
     // A ticket's link token opens it: it goes only to its holder.
     publicKeys: { door: {} },

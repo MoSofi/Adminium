@@ -301,7 +301,7 @@ export function storedProfile(
       const references = own.columns.find((column) => column.ref === source.via)?.references;
       const linked = references === undefined ? null : realId(references);
       if (linked === null) return { reason: `"${plan.table}.${source.via}" does not point at a table the install made` };
-      mapping[slot] = { ref: source.via, column: source.column, table: linked };
+      mapping[slot] = { ref: source.via, column: source.column, table: linked, ...(source.form === undefined ? {} : { form: source.form }) };
       /*
        * A slot reading the linked row's BALANCE, where that balance is kept by
        * a rollup over this very table (a receipt reading its invoice's
@@ -329,7 +329,7 @@ export function storedProfile(
         };
       }
     } else {
-      mapping[slot] = { column: source.column };
+      mapping[slot] = { column: source.column, ...(source.form === undefined ? {} : { form: source.form }) };
     }
   }
 

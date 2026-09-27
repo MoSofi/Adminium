@@ -42,6 +42,9 @@ import { labelColumnFor } from '../../crud/labels.js';
 import { linkableRelations } from '../../crud/links.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
 import { columnGranted, privilegesOf } from '../../connections/privileges.js';
+import { readViewOf } from '../../crud/read-view.js';
+import { loadSnapshotView } from '../../data-io/snapshot-view.js';
+import type { ReadLimits } from '../../rbac/read-limits.js';
 
 export interface ColumnFact {
   /** The `config.columns[]` entry a regeneration would produce for it. */
@@ -280,6 +283,12 @@ export async function columnFactsFor(
    * not a schema change.
    */
   rights?: TablePrivilegeMap | null,
+  /**
+   * The reader's limited reads (their role reads a table only in part): the
+   * columns it does not show are left out of the facts, a list's too — a form
+   * never shows, nor asks for, a column the person may not read.
+   */
+  read?: { superAdmin?: boolean; readLimits?: ReadLimits | undefined } | undefined,
 ): Promise<ColumnFactsBlock | null> {
   const snapshot = await snapshotsRepo(meta).latest(connectionId);
   if (snapshot === null) return null;
@@ -301,7 +310,7 @@ export async function columnFactsFor(
     CACHE.set(cacheKey, entry);
   }
   const cached = entry.facts.get(tableName);
-  if (cached !== undefined) return granted(cached, entry.view.table(tableName).id, rights ?? null);
+  if (cached !== undefined) return readable(granted(cached, entry.view.table(tableName).id, rights ?? null), entry.view, entry.view.table(tableName).id, read);
   let table: ResolvedTable;
   try {
     table = entry.view.table(tableName);
@@ -310,7 +319,23 @@ export async function columnFactsFor(
   }
   const block = blockFor(entry.view, table);
   entry.facts.set(tableName, block);
-  return granted(block, table.id, rights ?? null);
+  return readable(granted(block, table.id, rights ?? null), entry.view, table.id, read);
+}
+
+/** The block without the columns the reader's role does not read (a copy; the cached block is everyone's). */
+function readable(block: ColumnFactsBlock, view: SnapshotView, tableId: string, read: Parameters<typeof readViewOf>[1] | undefined): ColumnFactsBlock {
+  if (read === undefined) return block;
+  const limited = readViewOf(view, read);
+  if (!limited.readLimited) return block;
+  const shown = (id: string, columns: ColumnFact[]): ColumnFact[] => {
+    const table = limited.linkTable(id);
+    return table === null ? columns : columns.filter((column) => table.columns.get(String(column.spec['name']))?.unreadable !== true);
+  };
+  return {
+    ...block,
+    columns: shown(tableId, block.columns),
+    children: block.children.map((child) => ({ ...child, columns: shown(child.childTable, child.columns) })),
+  };
 }
 
 /** Each column's grants, on a copy of the block (its children too). */
@@ -333,4 +358,54 @@ function granted(block: ColumnFactsBlock, tableId: string, rights: TablePrivileg
     columns: withGrants(tableId, block.columns),
     children: block.children.map((child) => ({ ...child, columns: withGrants(child.childTable, child.columns) })),
   };
+}
+
+/**
+ * The columns of a table the reader's role does not read (their read of it
+ * is limited to others): none for nearly everyone.
+ */
+export async function hiddenColumnsOf(
+  meta: MetaDb,
+  connectionId: string,
+  table: string,
+  read: { superAdmin?: boolean; readLimits?: ReadLimits | undefined },
+): Promise<string[]> {
+  if (read.superAdmin === true || read.readLimits === undefined) return [];
+  let view: SnapshotView;
+  try {
+    view = readViewOf(await loadSnapshotView(meta, connectionId), read);
+  } catch {
+    return [];
+  }
+  if (!view.readLimited) return [];
+  const resolved = view.linkTable(table) ?? (() => {
+    try {
+      return view.table(table);
+    } catch {
+      return null;
+    }
+  })();
+  return resolved === null ? [] : [...resolved.columns.values()].filter((column) => column.unreadable === true).map((column) => column.name);
+}
+
+/**
+ * A page's stored envelope without the columns named: the grid's columns
+ * (`config.config.columns`, and `config.columns` on an older one), a default
+ * sort by one, and a record's name read from one (`keyField` — the key names
+ * it instead).
+ */
+export function withoutColumns(config: unknown, hidden: readonly string[]): unknown {
+  if (typeof config !== 'object' || config === null) return config;
+  const drop = new Set(hidden);
+  const named = (item: unknown, key: string) => typeof item === 'object' && item !== null && drop.has(String((item as Record<string, unknown>)[key]));
+  const strip = (block: Record<string, unknown>): Record<string, unknown> => {
+    const out: Record<string, unknown> = { ...block };
+    if (Array.isArray(block['columns'])) out['columns'] = (block['columns'] as unknown[]).filter((column) => !named(column, 'name'));
+    if (Array.isArray(block['defaultSort'])) out['defaultSort'] = (block['defaultSort'] as unknown[]).filter((sort) => !named(sort, 'column'));
+    if (typeof block['keyField'] === 'string' && drop.has(block['keyField'])) delete out['keyField'];
+    return out;
+  };
+  const envelope = strip(config as Record<string, unknown>);
+  const inner = envelope['config'];
+  return typeof inner === 'object' && inner !== null ? { ...envelope, config: strip(inner as Record<string, unknown>) } : envelope;
 }

@@ -79,9 +79,12 @@ const nightlySourceSchema = z
 /** The pseudo-columns every night has. */
 export const NIGHTLY_COLUMNS: readonly string[] = ['date', 'rate', 'base', 'qty', 'tags'];
 
+/** A code printed in groups of four (`K7QX-M2PD`), as a person reads it out; on a code column only. */
+const formSchema = z.literal('grouped').optional();
+
 export const slotMappingSchema = z.union([
-  z.object({ column: refSchema }).strict(),
-  z.object({ via: refSchema, column: refSchema }).strict(),
+  z.object({ column: refSchema, form: formSchema }).strict(),
+  z.object({ via: refSchema, column: refSchema, form: formSchema }).strict(),
   z.object({ collection: z.union([tableSourceSchema, nightlySourceSchema]) }).strict(),
   /** One list from several sources, in order (a folio's nights, extras and charges). */
   z.object({ collections: z.array(z.union([tableSourceSchema, nightlySourceSchema])).min(1).max(4) }).strict(),
@@ -190,6 +193,12 @@ function nightlySourceIssues(
   return out;
 }
 
+/** A code's groups are read of a code column only: a text column with a `code` rule. */
+function formIssues(index: TableIndex, table: string, column: string, here: (...rest: (string | number)[]) => (string | number)[]): ReferenceIssue[] {
+  const found = index.column(table, column) as { type?: string; rules?: { code?: unknown } } | undefined;
+  return found?.type === 'text' && found.rules?.code !== undefined ? [] : [{ path: here('form'), message: `"${table}.${column}" is not a code column, so it is not printed in groups` }];
+}
+
 /** Why a column of another row may never be listed one level down, or null (see `unlistedColumn`). */
 export type Unlisted = (table: string, column: string) => string | null;
 
@@ -222,10 +231,10 @@ export function mappingIssues(
         out.push({ path: here('via'), message: `"${source.via}" is not a foreign key of "${table}"` });
       } else if (!index.has(via.references, source.column)) {
         out.push({ path: here('column'), message: `"${via.references}" has no column "${source.column}"` });
-      }
+      } else if (source.form !== undefined) out.push(...formIssues(index, via.references, source.column, here));
     } else if (!index.has(table, source.column)) {
       out.push({ path: here('column'), message: `"${table}" has no column "${source.column}"` });
-    }
+    } else if (source.form !== undefined) out.push(...formIssues(index, table, source.column, here));
   }
   return out;
 }

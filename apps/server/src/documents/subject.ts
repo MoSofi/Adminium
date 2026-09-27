@@ -26,7 +26,7 @@
  */
 
 import { qrCarries, qrPngDataUrl, qrRows } from '../qr/index.js';
-import { currencyScale } from '@adminium/manifest';
+import { currencyScale, groupedCode } from '@adminium/manifest';
 import type { RecordRef } from '@adminium/meta';
 
 /**
@@ -39,8 +39,9 @@ import type { RecordRef } from '@adminium/meta';
  * itself always follows the foreign key the snapshot declares.
  */
 export type SlotMapping =
-  | { column: string }
-  | { ref: string; column: string; table?: string | undefined }
+  /** `form: 'grouped'`: a code printed in groups of four (`K7QX-M2PD`). */
+  | { column: string; form?: 'grouped' | undefined }
+  | { ref: string; column: string; table?: string | undefined; form?: 'grouped' | undefined }
   | { collection: CollectionSource }
   /** One list read from several sources, in order: child rows, or the nights of a price by the night. */
   | { sources: readonly ({ collection: CollectionSource } | { nightly: NightlySource })[] };
@@ -409,12 +410,14 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
       continue;
     }
 
-    const raw =
+    const read =
       'column' in mapped && !('ref' in mapped)
         ? input.row[mapped.column]
         : 'ref' in mapped
           ? input.lookups?.[`${mapped.ref}.${mapped.column}`]
           : undefined;
+    // A code read out in groups of four; an empty one stays empty.
+    const raw = 'form' in mapped && mapped.form === 'grouped' && read !== null && read !== undefined && read !== '' ? groupedCode(read) : read;
 
     const value = coerceSlot(slot.type, raw, scale, zone);
     if (value === null || value === '') {

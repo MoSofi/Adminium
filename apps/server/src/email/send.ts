@@ -91,6 +91,21 @@ export const EMAIL_SEND_PAYLOAD_VERSION = 3;
 /** The version a message without a QR code is queued as ({@link EMAIL_SEND_PAYLOAD_VERSION}). */
 export const EMAIL_SEND_PAYLOAD_VERSION_PLAIN = 2;
 
+/** One plain address, and nothing a header could be split on or a list made of. */
+export const REPLY_TO = /^[^\s@,;:<>"()[\]\\]+@[^\s@,;:<>"()[\]\\]+\.[^\s@,;:<>"()[\]\\]+$/;
+
+/**
+ * A Reply-To as a message carries it: the value trimmed when it is one plain
+ * address of at most 254 characters, else null (no header). It rides the
+ * sealed envelope, which an older server reads without it: that server sends
+ * the message without the header, never refuses it.
+ */
+export function replyToOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const address = value.trim();
+  return address.length > 0 && address.length <= 254 && REPLY_TO.test(address) ? address : null;
+}
+
 /**
  * Retry budget for one message. Five attempts on the worker's 30 s-doubling
  * backoff spans ~8 minutes, which covers a restarting relay without keeping a
@@ -227,6 +242,8 @@ export interface EnqueueEmailInput {
   template?: EmailRenderSource | undefined;
   /** Library files this one message carries besides the template's own (a drawn document). */
   attachments?: readonly EmailSendAttachmentRef[] | undefined;
+  /** Where a reply goes (`Reply-To`); anything but one plain address is left out. */
+  replyTo?: string | undefined;
   /**
    * The rows each `email.rows` block lists, by the block's id, as the sender
    * read them (an order's tickets): each row's variables.
@@ -303,6 +320,8 @@ interface EmailEnvelope {
   html: string;
   text: string;
   from?: string | undefined;
+  /** Where a reply goes: one plain address. Absent: the From. */
+  replyTo?: string | undefined;
   /** QR codes the HTML shows by `cid:`, each drawn from its text at delivery (`v: 3`). */
   qr?: { cid: string; text: string }[] | undefined;
 }
@@ -480,6 +499,8 @@ export interface EnqueueRenderedEmailInput {
   locale: string;
   rendered: Pick<RenderedEmail, 'subject' | 'html' | 'text' | 'inline'>;
   from?: string | undefined;
+  /** Where a reply goes; anything but one plain address is left out. */
+  replyTo?: string | undefined;
   attachments?: readonly EmailSendAttachmentRef[] | undefined;
   /** Collapses duplicates while a job with the same key is pending/running. */
   dedupeKey?: string | null | undefined;
@@ -517,6 +538,8 @@ export async function enqueueRenderedEmail(
     html: input.rendered.html,
     text: input.rendered.text,
     ...(input.from === undefined ? {} : { from: input.from }),
+    // A Reply-To that is one plain address: never a list, a name or anything a header could be split on.
+    ...(replyToOf(input.replyTo) === null ? {} : { replyTo: replyToOf(input.replyTo)! }),
     ...(qr.length === 0 ? {} : { qr }),
   };
   const inline = inlineRefs(input.rendered as RenderedEmail);
@@ -617,6 +640,7 @@ export async function enqueueEmail(
       locale,
       rendered,
       from: prepared.from,
+      ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
       attachments: [...prepared.attachments, ...generated, ...(input.attachments ?? [])],
       report: input.report,
       ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),

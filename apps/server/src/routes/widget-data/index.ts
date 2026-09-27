@@ -31,6 +31,7 @@ import { resolveLookups } from '../../crud/lookups.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
+import { readViewFor } from '../../crud/read-view.js';
 import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
 import { countsTablesOf, joinCounts } from '../../widget-data/counts-join.js';
@@ -116,7 +117,8 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const connectionId = descriptor.connectionId;
       await manager.mustFind(connectionId);
       const locale = await readerLocale(request);
-      const view = await viewFor(connectionId, locale);
+      // As this person reads it: a column their role does not show is refused by name, and never a card's.
+      const view = await readViewFor(request, await viewFor(connectionId, locale));
 
       // Identifier resolution FIRST, then RBAC on the resolved name.
       const table = resolveSource(view, descriptor);
@@ -297,7 +299,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         await app.rbac.resolve(request); // 401 without a principal
         const { connectionId, filters } = request.body;
         await manager.mustFind(connectionId);
-        const view = await viewFor(connectionId, await readerLocale(request));
+        const view = await readViewFor(request, await viewFor(connectionId, await readerLocale(request)));
         const table = view.table(request.body.table);
         const permission = `table:${connectionId}:${table.id}:read`;
         if (!(await request.can(permission))) {

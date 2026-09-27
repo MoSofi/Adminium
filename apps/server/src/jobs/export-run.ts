@@ -34,6 +34,7 @@ import type { DerivedField } from '@adminium/engine/config';
 import type { ConnectionManager } from '../connections/manager.js';
 import { LIST_LIMIT_MAX, runList, type ListResult } from '../crud/list.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { readViewForUser } from '../crud/read-view.js';
 import { filtersToWhere, resolveExportDefinition, sanitizeFileName } from '../export/definition.js';
 import { createRowWriter, type WriterColumn } from '../export/writer.js';
 import type { FileStore } from '../files/store.js';
@@ -153,7 +154,9 @@ async function runExport(
     );
   }
 
-  const view = await loadSnapshotView(deps.meta, row.connectionId);
+  // As the person who asked reads it (a scheduled report's too): a column their role does not show is left out.
+  const whole = await loadSnapshotView(deps.meta, row.connectionId);
+  const view = payload.userId === undefined ? whole : await readViewForUser(deps.meta, payload.userId, whole);
   const table = view.table(row.source.table);
   const { db, dialect } = await deps.manager.data(row.connectionId);
 

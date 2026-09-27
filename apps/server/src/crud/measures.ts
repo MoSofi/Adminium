@@ -171,6 +171,7 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
     // Masked columns are asked about per table: the folded table's, the base's.
     let maskedTouched = fkColumn.masked;
     let baseMaskedTouched = false;
+    let unreadTouched = false;
     const baseColumn = table.columns.get(toColumn);
     if (baseColumn?.secret === true) secretTouched = true;
     else if (baseColumn?.masked === true) baseMaskedTouched = true;
@@ -182,8 +183,11 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
         // 422 for unknown or secret: a factor is the client naming a column
         // it wants folded, and a secret column is invisible,
         // so naming one is an author mistake and not a degrade.
-        const column = view.column(refTable, factor);
+        // A column the caller's read of the table does not show is theirs to fold as little as a masked one.
+        const hidden = refTable.columns.get(factor);
+        const column = hidden?.unreadable === true ? hidden : view.column(refTable, factor);
         maskedTouched ||= column.masked;
+        unreadTouched ||= column.unreadable === true;
         factors.push(column.name);
       }
       terms.push({ sign: term.sign, factors });
@@ -191,6 +195,7 @@ export async function resolveMeasures(opts: ResolveMeasuresOptions): Promise<Res
 
     let reason: MeasureRefusal['reason'] | null = null;
     if (secretTouched) reason = 'secret-column';
+    else if (unreadTouched) reason = 'masked-column';
     else if (maskedTouched && !(await piiAllows(canReadPii, refTable.id))) reason = 'masked-column';
     else if (baseMaskedTouched && !(await piiAllows(canReadPii, table.id))) reason = 'masked-column';
     else if (!(await canReadTable(refTable.id))) reason = 'table-read';

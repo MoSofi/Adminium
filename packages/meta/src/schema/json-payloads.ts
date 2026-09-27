@@ -115,6 +115,17 @@ export const updateLimitSchema = z.object({
 });
 export type UpdateLimit = z.infer<typeof updateLimitSchema>;
 
+/**
+ * What a read grant on one table shows, when it may not show everything:
+ * these columns (the key and the links to other rows are always shown). An
+ * app's role carries it (housekeeping reads a stay's room and dates, never
+ * its guest or its money).
+ */
+export const readLimitSchema = z.object({
+  readable: z.array(z.string().min(1)).min(1),
+});
+export type ReadLimit = z.infer<typeof readLimitSchema>;
+
 export const tableActionsSchema = z.object({
   read: z.boolean(),
   create: z.boolean(),
@@ -129,6 +140,8 @@ export const tableActionsSchema = z.object({
   read_pii: z.boolean().optional(),
   /** Narrows `update` on this row; absent, the grant writes every column. */
   updateLimit: updateLimitSchema.optional(),
+  /** Narrows `read` on this row; absent, the grant reads every column. */
+  readLimit: readLimitSchema.optional(),
 });
 export type TableActions = z.infer<typeof tableActionsSchema>;
 
