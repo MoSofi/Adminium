@@ -161,3 +161,72 @@ describe.each(LEGS)('a person found by address on a create — %s', (dialect, av
     expect((again.json() as { link?: unknown }).link).toBeUndefined();
   });
 });
+
+/** The shop whose guest create finds nobody by address: it answers the new order's own link and nothing else. */
+const linkOnly = () =>
+  shopManifest({
+    entries: (entries) =>
+      entries.map((entry) =>
+        entry['identity'] === undefined
+          ? entry
+          : {
+              table: 'orders',
+              methods: ['POST'],
+              humanCheck: true,
+              select: ['id', 'status'],
+              writable: ['email', 'name', 'note'],
+              requires: ['email', 'name'],
+              shareLink: 'link_token',
+              anonymous: { perValue: { columns: ['email'], n: 10 } },
+            },
+      ),
+  });
+
+describe('the shop that finds nobody by address', () => {
+  it('validates', () => {
+    const result = validateManifest(linkOnly());
+    expect(result.ok ? [] : result.issues).toEqual([]);
+  });
+});
+
+describe.each(LEGS)("a row's own link on a create that finds nobody — %s", (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let shop: Served;
+  let link: Served;
+  let g: ReturnType<typeof guest>;
+  let ref: string;
+
+  beforeAll(async () => {
+    if (!available) return;
+    h = await installInvoicing(dialect, linkOnly());
+    const keys = (h.reply['publicAccess'] as { keys: Record<string, string> }).keys;
+    shop = await servePublic(h, keys['customer']!);
+    link = await servePublic(h, keys['link']!);
+    g = guest(shop, h);
+    const config = (await g.request('GET', '/config')).json() as { data: { refs: Record<string, { actions: string[] }> } };
+    ref = Object.entries(config.data.refs).find(([name, r]) => name.startsWith(h.real('orders')) && r.actions.includes('create'))![0];
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await shop.close();
+    await link.close();
+    await h.close();
+  });
+
+  it.skipIf(!available)('answers the new row its own link, with a session open on it, and makes nobody', async () => {
+    const res = await g.request('POST', `/records/${ref}`, { payload: { values: { email: 'solo@example.com', name: 'Solo' } }, proof: 'write' });
+    expect(res.statusCode, res.body).toBe(201);
+    const body = res.json() as { data: { id: number }; link?: { key: string; token: string; session?: string } };
+    const stored = (await h.rows(`select customer_id, link_token from ${h.real('orders')} where id = ${String(body.data.id)}`))[0]!;
+    expect(body.link).toMatchObject({ key: 'link', token: stored['link_token'] });
+    expect(stored['customer_id']).toBeNull();
+    expect(await h.rows(`select id from ${h.real('customers')}`)).toEqual([]);
+    // The session it came with opens that row on the link key, and no other.
+    const byLink = guest(link, h, 40_000);
+    const linkRefs = ((await byLink.request('GET', '/config')).json() as { data: { refs: Record<string, unknown> } }).data.refs;
+    const own = Object.keys(linkRefs).find((name) => name.startsWith(h.real('orders')))!;
+    const opened = await byLink.request('GET', `/records/${own}`, { session: body.link!.session! });
+    expect(opened.statusCode, opened.body).toBe(200);
+    expect((opened.json() as { data: { id: number }[] }).data.map((row) => row.id)).toEqual([body.data.id]);
+  });
+});

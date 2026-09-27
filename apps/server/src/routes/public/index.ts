@@ -410,8 +410,8 @@ function unfilled(resource: CompiledResource, values: Readonly<Record<string, un
 
 /**
  * Whether a create through this entry goes the tree's way: it declares child
- * rows, a dry run, a price check, a retry key, a person found by address or
- * an agreement its row is held to —
+ * rows, a dry run, a price check, a retry key, a person found by address, a
+ * row's own link answered once, or an agreement its row is held to —
  * whether or not a request sends rows below it. A row visible with a parent
  * keeps its own path.
  */
@@ -423,6 +423,7 @@ function treeEntry(resource: CompiledResource): boolean {
     (resource.expect ?? null) !== null ||
     (resource.clientKey ?? null) !== null ||
     (resource.findOrCreate ?? null) !== null ||
+    (resource.shareLink ?? null) !== null ||
     (resource.agrees?.length ?? 0) > 0
   );
 }
@@ -4803,6 +4804,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             target: { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone },
             pk,
             values,
+            // The row as read: the rules hear what was forgotten, and the address watch leaves a forgetting to this route.
+            before: row,
             context: await publicWriteContext(request, ok),
             mapError: refuseWrite,
             announce: async ({ before, after }) => {

@@ -203,6 +203,15 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     const before = (await mailOf(h.meta)).length;
     await g.drain();
     expect((await mailOf(h.meta)).slice(before).filter((m) => m.template === 'sign-in-link')).toEqual([]);
+    // Mail for her ends: a message about her order finds no address on file, and goes nowhere.
+    const messages = h.real('messages');
+    await h.rows(`insert into ${messages} (kind, status, customer_id, order_id) values ('order-placed', 'queued', 1, ${String(made.data.id)})`);
+    const beforeMail = (await mailOf(h.meta)).length;
+    await shop.composed.app.outboxSender.sendApp('shop');
+    expect((await mailOf(h.meta)).slice(beforeMail).filter((m) => m.to === 'mia@example.com')).toEqual([]);
+    const skipped = await h.rows(`select status, error from ${messages} where customer_id = 1 and order_id = ${String(made.data.id)} and ${dialect === 'mysql' ? '`to`' : '"to"'} is null`);
+    expect(skipped.length).toBeGreaterThan(0);
+    expect(skipped.map((m) => [m['status'], m['error']])).toEqual(skipped.map(() => ['skipped', 'No email on file']));
     // A later order by the same address makes a new person; the old orders stay with the old one.
     const later = await order('mia@example.com', 'Mia');
     const newer = (await h.rows(`select customer_id from ${orders} where id = ${later.data.id}`))[0]!;
@@ -213,4 +222,56 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     const { hashPublishableKey } = await import('../src/public-api/keys.js');
     return (await publicSessionsRepo(h.meta).findByTokenHash(hashPublishableKey(token)))?.id;
   }
+});
+
+/** The shop where a guest finds themselves by their address and phone, and proves the mailbox by an emailed code. */
+const byDetails = () => {
+  const manifest = shopManifest({
+    entries: () => [
+      {
+        table: 'customers',
+        methods: ['GET'],
+        select: ['name'],
+        claim: { match: ['email', 'phone'], verify: 'email-code', email: 'email' },
+        humanCheck: true,
+        forget: { columns: ['email', 'name', 'phone'], stamp: 'forgotten_at' },
+      },
+      { table: 'orders', methods: ['GET'], level: 'verified', claimedBy: { table: 'customers', column: 'customer_id' }, select: ['id', 'status'] },
+    ],
+  });
+  // No row opens by its own link here.
+  delete manifest['publicKeys'];
+  return manifest;
+};
+
+describe.each(LEGS)('a guest who only found themselves by their details — %s', (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let shop: Served;
+  let g: ReturnType<typeof guest>;
+
+  beforeAll(async () => {
+    if (!available) return;
+    h = await installInvoicing(dialect, byDetails());
+    await mailReady(h.meta);
+    await h.rows(`insert into ${h.real('customers')} (email, name, phone) values ('ivy@example.com', 'Ivy', '07700900123')`);
+    shop = await servePublic(h, (h.reply['publicAccess'] as { keys: Record<string, string> }).keys['customer']!);
+    g = guest(shop, h);
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await shop.close();
+    await h.close();
+  });
+
+  it.skipIf(!available)('may neither sign the person out everywhere nor delete them', async () => {
+    const claimed = await g.request('POST', '/claim', { payload: { match: { email: 'ivy@example.com', phone: '07700900123' } }, proof: 'claim' });
+    expect(claimed.statusCode, claimed.body).toBe(200);
+    const session = (claimed.json() as { data: { session: string } }).data;
+    for (const [method, url] of [['POST', '/session/revoke-all'], ['DELETE', '/account']] as const) {
+      const res = await g.request(method, url, { session: session.session, ...(method === 'POST' ? { payload: {} } : {}) });
+      expect(res.statusCode, res.body).toBe(403);
+      expect(shop.codeOf(res)).toBe('PUBLIC_CLAIM_LEVEL');
+    }
+    expect((await h.rows(`select email from ${h.real('customers')} where name = 'Ivy'`))[0]!['email']).toBe('ivy@example.com');
+  });
 });
