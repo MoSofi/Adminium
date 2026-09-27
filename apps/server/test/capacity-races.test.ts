@@ -7,7 +7,7 @@
  *
  * Run with the source pool at one (`poolMax: 1`) beside the default: a guard
  * that checked out a second connection inside its transaction would stall.
- * And across two servers over one database: each has its own queue in front
+ * And across ten servers over one database: each has its own queue in front
  * of the database's locks, so only the database's locks keep them apart.
  */
 import { sql } from 'kysely';
@@ -85,15 +85,15 @@ for (const [dialect, available] of LEGS) {
       }, 20_000);
 
       // Two servers over one SQLite file is not a deployment: one server serialises its writers.
-      it.skipIf(dialect === 'sqlite')('sells 20 checkouts of 2 for the last 14 to exactly 7 across two servers', async () => {
+      it.skipIf(dialect === 'sqlite')('sells 20 checkouts of 2 for the last 14 to exactly 7 across ten servers', async () => {
         w = await lastFourteen(dialect, poolMax);
-        const other = await w.twin();
-        const here = await w.target('cart_lines');
-        const there = await other.target('cart_lines');
+        // Ten servers, two guests each: each server's queue lets one of its two in at a time, so ten meet at the database.
+        const servers = [await w.target('cart_lines')];
+        for (let i = 1; i < 10; i += 1) servers.push(await (await w.twin()).target('cart_lines'));
         const context = { origin: 'public' as const, hops: 0, actor: null, request: null };
         const outcomes = await Promise.all(
           Array.from({ length: 20 }, (_, i) =>
-            refusal(w!.writes.create({ target: i % 2 === 0 ? here : there, values: { ticket_type_id: 1, qty: 2 }, context, announce: async () => {} })),
+            refusal(w!.writes.create({ target: servers[i % 10]!, values: { ticket_type_id: 1, qty: 2 }, context, announce: async () => {} })),
           ),
         );
         expect(outcomes.filter((o) => o === 'ok')).toHaveLength(7);

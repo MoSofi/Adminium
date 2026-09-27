@@ -21,6 +21,9 @@ import { at, iso, kitchen, neon, NEON_NOW, NEON_RULE } from './capacity-worlds.j
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Writes still held open: let go after a test that failed before it could. */
+const holding: (() => void)[] = [];
+
 /** A create that has named and taken its locks and been judged, and waits to be let go before it writes its row. */
 async function heldCreate(w: World, table: string, row: Row, origin: WriteOrigin): Promise<{ release: () => void; done: Promise<void> }> {
   const target = await w.target(table);
@@ -36,6 +39,7 @@ async function heldCreate(w: World, table: string, row: Row, origin: WriteOrigin
     await db.insertInto(target.table.id).values(row as never).execute();
   });
   done.catch(() => judged());
+  holding.push(go);
   await ready;
   return { release: go, done };
 }
@@ -48,6 +52,7 @@ for (const [dialect, available] of LEGS) {
     beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }));
     afterEach(async () => {
       vi.useRealTimers();
+      for (const go of holding.splice(0)) go();
       await w?.close();
       w = null;
     });
