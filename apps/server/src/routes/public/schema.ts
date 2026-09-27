@@ -34,6 +34,8 @@ export const publicListQuery = z.object({
   offset: z.coerce.number().int().min(0).optional(),
   cursor: z.string().max(2048).optional(),
   // No `count`: the vocabulary is `none` and nothing else.
+  /** Named only to be refused: a code a guest types is sent in the `x-adminium-code` header, never in a URL. */
+  code: z.string().max(64).optional(),
 });
 export type PublicListQuery = z.infer<typeof publicListQuery>;
 
@@ -139,6 +141,8 @@ export const publicConfigReply = z.object({
      * name — `publicConfigOf` returning a field is not enough to send it.
      */
     documents: z.object({ create: z.boolean() }),
+    /** Where this key's pictures are asked for (`<base>/<ref>/<rowId>/<column>/<fileId>`); absent when it shows none. */
+    pictures: z.string().optional(),
     refs: z.record(
       z.string(),
       z.object({
@@ -159,6 +163,10 @@ export const publicConfigReply = z.object({
         children: z.record(z.string(), publicConfigChild).optional(),
         /** The create (or change) may be tried without writing (`…/dry-run`). */
         dryRun: z.literal(true).optional(),
+        /** Rows listed only with the code that unlocks them, sent in the `x-adminium-code` header; none without one. */
+        unlock: z.literal(true).optional(),
+        /** Image columns any visitor may see, at `/public/pictures`. */
+        pictures: z.array(z.string()).optional(),
       }),
     ),
   }),

@@ -36,7 +36,7 @@ import type { Row } from '../crud/mask.js';
 import { sameValue } from '../crud/write-values.js';
 import { claimPredicateFor, combinePredicates, type PublicSessionContext } from './claim.js';
 import { mandatoryAt } from './relative-filters.js';
-import type { CompiledScope, ScopeAgree, ScopeChild } from './scope.js';
+import type { CompiledResource, CompiledScope, ScopeAgree, ScopeChild } from './scope.js';
 import { visibilityOf, visibleCondition } from './visible-with.js';
 
 type Db = Kysely<SourceDatabase>;
@@ -249,6 +249,11 @@ export async function judgeReadable(input: {
   now?: Date | undefined;
   /** False for a quote: it reads as things are and holds nothing, so it never waits on a save, nor a save on it. */
   share?: boolean | undefined;
+  /**
+   * The rows a read shown only with a code unlocks for this write — through
+   * the code its own order carries. Absent: such a read shows nothing here.
+   */
+  unlocked?: ((reader: CompiledResource) => Promise<unknown[]>) | undefined;
 }): Promise<void> {
   const { db, dialect, view, scope, session } = input;
   for (const column of [...input.columns].sort()) {
@@ -271,7 +276,13 @@ export async function judgeReadable(input: {
       if (reader.level === 'verified' && session?.level !== 'verified') continue;
       const claim = claimPredicateFor(reader, session);
       if (!claim.reachable) continue;
-      const predicate = combinePredicates(mandatoryAt(reader.where, target.table, scope.timezone, input.now), claim.predicate);
+      let predicate = combinePredicates(mandatoryAt(reader.where, target.table, scope.timezone, input.now), claim.predicate);
+      // Shown only with a code: a row the write's own code unlocks, or none.
+      if (reader.unlockBy !== null && reader.unlockBy !== undefined) {
+        const keys = input.unlocked === undefined ? [] : await input.unlocked(reader);
+        if (keys.length === 0) continue;
+        predicate = combinePredicates(predicate, { column: target.key, op: 'in', value: keys });
+      }
       const alias = 'adm_ref';
       let query = db
         .selectFrom(`${target.table.id} as ${alias}` as never)

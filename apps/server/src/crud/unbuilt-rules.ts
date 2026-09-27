@@ -54,9 +54,6 @@ function targetOf(model: Pick<EffectiveModel, 'relations'>, tableId: string, col
 }
 
 export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
-  // Codes a guest types.
-  { rule: 'lookup', on: (table) => anyColumn(table, (c) => c.lookup !== undefined) },
-  { rule: 'normalize.code', on: (table) => anyColumn(table, (c) => c.normalize === 'code') },
   // Prices by the night, a copy that follows its source, a text joined from columns.
   { rule: 'perNight', on: (table) => anyColumn(table, (c) => c.perNight !== undefined) },
   {
@@ -72,9 +69,6 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
 
 /** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */
 const ENTRY_KEYS = [
-  // Rows unlocked by a typed code, and pictures anyone may see.
-  'unlock_by',
-  'pictures',
   // A person found by address, the new row's own link, a read for a session, forgetting.
   'find_or_create',
   'share_link',

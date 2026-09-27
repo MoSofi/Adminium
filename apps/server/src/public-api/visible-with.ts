@@ -284,7 +284,8 @@ export async function referencesAllowed(input: {
     const target = view.linkTable(relation.to.tableId);
     if (target === null) return false;
     const readers = [...scope.byRef.values()].filter(
-      (candidate) => candidate.kind === 'records' && candidate.actions.has('read') && tableIdOf(view, candidate.table) === target.id,
+      // A read that shows its rows only with a typed code is no reader here: none was typed.
+      (candidate) => candidate.kind === 'records' && candidate.actions.has('read') && tableIdOf(view, candidate.table) === target.id && (candidate.unlockBy ?? null) === null,
     );
     if (readers.length === 0) return false;
 

@@ -78,6 +78,7 @@ import {
   type Unit,
 } from './count.js';
 import { heldNames, LockMoved, type NamedLock } from './locks.js';
+import { usedUpOf } from '../code-lookup.js';
 import { placeNight, placeParent, placeSlot, slotDays, type PlaceContext, type Placement } from './placement.js';
 import { hasLimits, linkColumns, ownedRules, ownColumns, rulesFor, stateColumn, type OwnedRule, type Rule } from './rules.js';
 import {
@@ -645,6 +646,8 @@ function fullRefusal(rule: Rule, t: Tally, culprit: Judged): ConflictError {
     row: culprit.subject.index,
     pool: { key: rule.kind === 'slot' ? t.ask.key.split('|')[0] : t.ask.key, ...(t.ask.at === undefined ? {} : { at: t.ask.at }) },
     ...(t.size === null ? {} : { left: Math.max(0, t.size - t.others) }),
+    // A code's uses all taken: told on the column the person typed it into.
+    ...usedUpOf(rule.table, column),
   };
   const message = rule.kind === 'slot' ? 'That time is full.' : rule.kind === 'parent' ? 'That is sold out.' : 'There is no room on those nights.';
   return new ConflictError(message, 'CAPACITY_FULL', details);

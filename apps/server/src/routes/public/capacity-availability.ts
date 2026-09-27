@@ -57,6 +57,11 @@ export interface CapacityQuestion {
   /** The key of a row of `table` this session reaches, by the id asked, or null. */
   own: (table: ResolvedTable, id: string) => Promise<string | null>;
   now: Date;
+  /**
+   * The rows a read readable only with a code unlocks, for the code the
+   * guest sent (absent: no code, and such a read shows nothing).
+   */
+  unlocked?: ((reader: CompiledResource) => Promise<unknown[]>) | undefined;
 }
 
 const refused = (message: string): CapacityAnswer => ({ ok: false, message });
@@ -141,8 +146,9 @@ async function excluded(q: CapacityQuestion, rule: Rule): Promise<Row[]> {
 
 /**
  * The keys of the rows of `target` this key may read through a plain public
- * read of that table — no claim, no parent, no code — under the entry's
- * `under` column when asked, at most 200.
+ * read of that table — no claim, no parent; one shown only with a code, for
+ * the rows the guest's code unlocks — under the entry's `under` column when
+ * asked, at most 200.
  */
 async function readableIds(q: CapacityQuestion, target: ResolvedTable, key: string): Promise<string[]> {
   const readers = [...q.byRef.values()].filter(
@@ -153,7 +159,13 @@ async function readableIds(q: CapacityQuestion, target: ResolvedTable, key: stri
   if (q.resource.under !== undefined && q.query.under === undefined) return [];
   const out = new Set<string>();
   for (const reader of readers) {
-    const mandatory = combinePredicates(mandatoryAt(reader.where, target, q.timezone, q.now), under);
+    let mandatory = combinePredicates(mandatoryAt(reader.where, target, q.timezone, q.now), under);
+    // A read that shows its rows only with a code: counted only for the rows the guest's code unlocks.
+    if (reader.unlockBy !== null && reader.unlockBy !== undefined) {
+      const keys = q.unlocked === undefined ? [] : await q.unlocked(reader);
+      if (keys.length === 0) continue;
+      mandatory = combinePredicates(mandatory, { column: target.primaryKey[0]!, op: 'in', value: keys });
+    }
     const result = await runList({
       db: q.db,
       view: q.view,

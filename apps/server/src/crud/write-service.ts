@@ -92,6 +92,7 @@ import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
 import { renewedColumns, withRenewRetry } from './code-renew.js';
+import { canonicalCode } from './code-lookup.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   attachRequiredGuards,
@@ -1636,7 +1637,7 @@ function normalizeText(rules: TableRules | null, values: Row): Row {
   for (const { column, how } of rules?.normalizes ?? []) {
     const value = values[column];
     if (typeof value !== 'string') continue;
-    const next = how === 'email' ? value.trim().toLowerCase() : value.trim();
+    const next = how === 'email' ? value.trim().toLowerCase() : how === 'code' ? canonicalCode(value) : value.trim();
     if (next === value) continue;
     out ??= { ...values };
     out[column] = next;
@@ -1760,7 +1761,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
   async function zoneFor(rules: TableRules | null, target: WriteTarget): Promise<string | undefined> {
     const readsDay = (rules?.stamps ?? []).some((stamp) => stamp.set === 'today') || (rules?.bounds ?? []).some((bound) => bound.notAfter !== undefined);
     // A move waiting for a time, a late or timed move, a stamp worked out from a moment: all read the venue's clock.
-    const readsClock = statesReadClock(rules?.states, rules?.stamps);
+    const readsClock = statesReadClock(rules?.states, rules?.stamps) || (rules?.codeLookups?.length ?? 0) > 0;
     if (rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay && !readsClock) return undefined;
     return target.timezone ?? (await opts.timezoneOf?.(target.connectionId)) ?? 'UTC';
   }
@@ -2097,6 +2098,8 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     values: Row,
     now: Date,
     memo?: CopyMemo,
+    /** The row as stored, read when a typed code's scope needs a column the change does not send. */
+    stored?: () => Promise<Row | null>,
   ): Promise<Row> =>
     fillFromElsewhere(
       rules,
@@ -2109,6 +2112,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         localize(rules, target, fill(rules, action, target, context, withoutTypedCodes(rules, context, values), now), await zoneFor(rules, target)),
         memo,
         context.origin === 'undo',
+        { origin: context.origin, zone: await zoneFor(rules, target), now, stored, rights: target.rights },
       ),
       opts.settings,
     );
@@ -2487,7 +2491,14 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     const rules = rulesOf(target);
     const zone = await zoneFor(rules, target);
     const filled = localize(rules, target, fill(rules, 'create', target, context, withoutTypedCodes(rules, context, input.values), clock.startedAt), zone);
-    const resolved = await fillFromElsewhere(rules, 'create', target, await resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo'), opts.settings);
+    const resolved = await fillFromElsewhere(
+      rules,
+      'create',
+      target,
+      // A code a person typed is found here: a miss is the caller's to word.
+      await guardedValue(() => resolveRow(rules, 'create', target, filled, undefined, context.origin === 'undo', { origin: context.origin, zone, now: clock.startedAt, rights: target.rights }), mapError),
+      opts.settings,
+    );
     // DECIDE: what creating the row makes Adminium write (a stamp), before the hooks and CHECK.
     const decided = await decideRow(rules, 'create', resolved, null, decideContext(target, context, stampNow(clock), zone));
     // A total, a formula and a number are Adminium's alone, whatever a hook set.
@@ -3052,7 +3063,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
        */
       const zone = await zoneFor(rules, target);
       const clock = writeClock(context);
-      let values = await prepareValues(rules, 'update', target, context, input.values, clock.startedAt);
+      // A code a person typed is found against the row as stored (its show), read inside the caller's scope.
+      const storedRow = async () => (input.before !== undefined ? input.before : input.load !== undefined ? await input.load() : ((await fetchByPk(target.db, target.table, pk)) ?? null));
+      let values = await guardedValue(() => prepareValues(rules, 'update', target, context, input.values, clock.startedAt, undefined, storedRow), input.mapError);
       // A quote runs no hook: it says so (`exact`), as a quote of a create does.
       const wantsBefore = input.mode !== 'dry' && (await hooks.wants('before', 'update', target, context));
       const wantsAfter = await hooks.wants('after', 'update', target, context);
