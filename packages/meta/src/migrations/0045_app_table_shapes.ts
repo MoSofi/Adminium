@@ -49,32 +49,33 @@ type ShapeDb = Kysely<{
   };
 }>;
 
-/** A shape as a manifest writes it: `<name>@<version>`, as the column holds (48). */
-const SHAPE = /^[a-z][a-z0-9-]*@\d+$/;
-
-/** Each declared table's shape, by its short name, from one stored manifest; empty when it does not parse. */
-function shapesOf(stored: unknown): Map<string, string> {
-  const out = new Map<string, string>();
-  let doc: unknown = stored;
-  try {
-    if (typeof stored === 'string') doc = JSON.parse(stored) as unknown;
-  } catch {
-    return out;
-  }
-  if (typeof doc !== 'object' || doc === null) return out;
-  const tables = (doc as { requiredSchema?: { tables?: unknown } }).requiredSchema?.tables;
-  if (!Array.isArray(tables)) return out;
-  for (const table of tables) {
-    if (typeof table !== 'object' || table === null) continue;
-    const { ref, shape } = table as { ref?: unknown; shape?: unknown };
-    if (typeof ref !== 'string' || typeof shape !== 'string' || shape.length > 48 || !SHAPE.test(shape)) continue;
-    out.set(ref, shape);
-  }
-  return out;
-}
-
 // No column-helpers parameter: this wave moves data, not shape.
 export async function up(db: Kysely<unknown>): Promise<void> {
+  // Everything this wave decides lives inside `up`: its text is the checksum once released.
+  /** A shape as a manifest writes it: `<name>@<version>`, as the column holds (48). */
+  const SHAPE = /^[a-z][a-z0-9-]*@\d+$/;
+
+  /** Each declared table's shape, by its short name, from one stored manifest; empty when it does not parse. */
+  const shapesOf = (stored: unknown): Map<string, string> => {
+    const out = new Map<string, string>();
+    let doc: unknown = stored;
+    try {
+      if (typeof stored === 'string') doc = JSON.parse(stored) as unknown;
+    } catch {
+      return out;
+    }
+    if (typeof doc !== 'object' || doc === null) return out;
+    const tables = (doc as { requiredSchema?: { tables?: unknown } }).requiredSchema?.tables;
+    if (!Array.isArray(tables)) return out;
+    for (const table of tables) {
+      if (typeof table !== 'object' || table === null) continue;
+      const { ref, shape } = table as { ref?: unknown; shape?: unknown };
+      if (typeof ref !== 'string' || typeof shape !== 'string' || shape.length > 48 || !SHAPE.test(shape)) continue;
+      out.set(ref, shape);
+    }
+    return out;
+  };
+
   const shapes = db as unknown as ShapeDb;
   const records = (await shapes
     .selectFrom(metaTable('app_tables'))
