@@ -375,6 +375,15 @@ export function editBodyFor(
 }
 
 /**
+ * An edit that changes a column the reused table already has — made before
+ * the app's new tables link to it (`applyTables`). Anything else (a column
+ * added, a unique set, an index) comes after, as it may name an added column.
+ */
+function changesExistingColumn(kind: InstallTablePlan['edits'][number]['kind']): boolean {
+  return kind === 'widen' || kind === 'set-identity' || kind === 'enum-values';
+}
+
+/**
  * A link column an update adds, and the foreign key beside it: the target is
  * the app's own table under its real name (made a moment earlier, when the
  * update adds it too) or one the host already had, and the column is shaped
@@ -1454,18 +1463,21 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
    *
    *   1. rename a stranger's table out of the way (the schema editor's own
    *      rename, so its pages and rules follow it);
-   *   2. alter the tables the app reuses — a key made to number itself, a
-   *      column widened, enum values added — through the schema editor's
-   *      narrow doors;
+   *   2. change the columns the tables the app reuses already have — a key
+   *      made to number itself, a column widened, enum values added —
+   *      through the schema editor's narrow doors;
    *   3. create the app's tables under their REAL names, foreign keys pointing
    *      at real names too;
-   *   4. add the columns the check step listed to the tables the app reuses
-   *      (a link among them may point at a table step 3 made).
+   *   4. the rest of the check step's edits to the tables the app reuses: the
+   *      columns it adds (a link among them may point at a table step 3
+   *      made), and the unique sets and indexes, which may name one of them.
    *
    * Step 2 comes BEFORE the new tables: MySQL refuses to change a column a
    * foreign key points at ("Cannot change column 'id': used in a foreign key
    * constraint"), so a reused key made to number itself after a new table
-   * linked to it stopped every such install halfway.
+   * linked to it stopped every such install halfway. Only a change to a
+   * column already there goes early: a set over a column the same update
+   * adds, made before that column, is refused and stops the update.
    *
    * `onCreated` is told each table's SHORT name as it is created.
    * `afterRenames` runs between steps 1 and 2: a record naming the app's own
@@ -1530,7 +1542,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         .filter((t) => t.edits.length > 0);
 
     let existing = checked.existing;
-    const altered = editsWhere((kind) => kind !== 'add-column');
+    const altered = editsWhere(changesExistingColumn);
     if (altered.length > 0) {
       await target.edit(connectionId, (model) => editBodyFor(altered, manifest, model, idOf, plan.names ?? {}), opts);
       // A new table's link takes the key's type as the database has it NOW.
@@ -1542,7 +1554,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
       await hooks.onCreated?.(refOf.get(real) ?? real);
     });
 
-    const extended = editsWhere((kind) => kind === 'add-column');
+    const extended = editsWhere((kind) => !changesExistingColumn(kind));
     if (extended.length > 0) {
       await target.edit(connectionId, (model) => editBodyFor(extended, manifest, model, idOf, plan.names ?? {}), opts);
     }
