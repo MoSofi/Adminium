@@ -18,9 +18,12 @@ describe.each(LEGS.filter(([dialect]) => dialect === 'mysql'))('a series held by
   let h: InvoicingHarness | undefined;
   let w: Awaited<ReturnType<typeof settledWriter>>;
   let client: Record<string, unknown>;
+  /** The other connection, from a pool of its own: a pool of one stays the writer's. */
+  let other: InvoicingHarness;
   beforeAll(async () => {
     if (!available) return;
     h = await installInvoicing(dialect, writeManifest());
+    other = await h.twin();
     await seedSettings(h, { prefix: 'INV-', start: 2040 });
     await setConnectionCurrency(h, 'EUR');
     w = await settledWriter(h);
@@ -32,7 +35,7 @@ describe.each(LEGS.filter(([dialect]) => dialect === 'mysql'))('a series held by
   /** Whether another connection can hold the invoice right now, without waiting. */
   const free = async (id: unknown): Promise<boolean> => {
     try {
-      await h!.rows(`select id from ${h!.real('invoices')} where id = ${String(id)} for update nowait`);
+      await other.rows(`select id from ${other.real('invoices')} where id = ${String(id)} for update nowait`);
       return true;
     } catch {
       return false;
