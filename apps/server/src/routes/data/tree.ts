@@ -41,6 +41,8 @@ export interface StaffTreeRules {
    * once written, an empty one too (a size the desk left out).
    */
   listsOf: (parentTable: ResolvedTable, depth: 0 | 1) => string[];
+  /** Whether the record itself is held to an agreement (guests no more than the room sleeps). */
+  rootAgrees: boolean;
 }
 
 const tableIdOf = (view: SnapshotView, name: string): string | null => {
@@ -95,6 +97,7 @@ export async function staffTreeRules(
         relation.to.tableId === parentTable.id,
     )?.id ?? null;
   return {
+    rootAgrees: agrees.length > 0,
     listsOf(parentTable, depth) {
       const among = depth === 0 ? lists : lists.flatMap((above) => above.below);
       return [...new Set(among.map((list) => relationOf(list, parentTable)).filter((id): id is string => id !== null))];

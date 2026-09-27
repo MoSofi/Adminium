@@ -2127,6 +2127,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          * hooks — and a create that names no relation still goes through it,
          * untouched, without opening a transaction it does not need.
          */
+        // A record the app holds to an agreement of its own (a room's guests) is written the tree's way, rows below or none.
+        const agreed = links.length === 0 && children.length === 0 && (await staffTreeRules(deps.meta, ctx.connectionId, ctx.view, ctx.table, () => null)).rootAgrees;
+        if (agreed) {
+          const tree = await staffTree(request, ctx, context, values, [], [], {}, 'save');
+          const created = tree.outcome.root;
+          undoToken = issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
+          return reply.status(201).send({ data: maskRow(created, ctx.table, ctx.unmasked), undoToken });
+        }
         if (links.length === 0 && children.length === 0) {
           const inserted = await writes.create({
             target: ctx.target,
