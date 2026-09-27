@@ -85,9 +85,11 @@ describe.each(CAPACITY_LEGS.filter(([dialect]) => dialect !== 'sqlite'))('a quot
         announce: async () => {},
       });
     const lines = sql.table(w.id('order_items'));
+    // The other writers come through a pool of their own: a pool of one here stays the quote's.
+    const other = (await (await w.twin()).target('orders')).db;
 
     // A save holding one of the order's lines: the quote does not wait for it.
-    const save = await holding(w.db, (trx) => sql`select id from ${lines} where id = ${line['id']} for update`.execute(trx));
+    const save = await holding(other, (trx) => sql`select id from ${lines} where id = ${line['id']} for update`.execute(trx));
     const quoted = await within(quote(), 3_000);
     save.release();
     await save.done;
@@ -100,7 +102,7 @@ describe.each(CAPACITY_LEGS.filter(([dialect]) => dialect !== 'sqlite'))('a quot
     const step = new Promise<void>((resolve) => (go = resolve));
     let shared!: () => void;
     const hasShare = new Promise<void>((resolve) => (shared = resolve));
-    const scan = w.db.transaction().execute(async (trx) => {
+    const scan = other.transaction().execute(async (trx) => {
       await sql`select id from ${sql.table(w!.id('orders'))} where id = ${order['id']} for share`.execute(trx);
       shared();
       await Promise.race([step, pause(20_000)]);
