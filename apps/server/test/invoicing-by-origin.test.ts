@@ -10,7 +10,7 @@
  * (`approved_on: byOrigin {public: 'today'}`); the desk recording an approval
  * says the day itself.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { decideRow, stampYields } from '../src/crud/decide.js';
 import type { ColumnStamp, TableRules } from '../src/crud/column-rules.js';
@@ -89,7 +89,31 @@ describe('a byOrigin word that is a stamp word, as DECIDE writes it', () => {
 
 for (const [dialect, available] of LEGS) {
   describe.skipIf(!available)(`a byOrigin stamp of today on ${dialect}`, () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+    // 23:06 in UTC is six minutes into the next day in London (summer time): the venue's day, not the server's.
+    for (const [at, day] of [
+      ['2026-09-27T23:06:00.000Z', '2026-09-28'],
+      ['2026-09-28T12:00:00.000Z', '2026-09-28'],
+    ] as const) {
+      it(`stamps the venue's day at ${at}, whatever the server's day`, async () => {
+        vi.useFakeTimers({ toFake: ['Date'], now: new Date(at) });
+        const h = await installInvoicing(dialect, manifest());
+        open = h;
+        await seedSettings(h);
+        await setConnectionCurrency(h, 'EUR');
+        const w = await settledWriter(h);
+        const client = await w.create('clients', { email: 'ann@example.test', name: 'Ann' });
+        const online = await w.create('proposals', { client_id: client['id'], status: 'sent' });
+        await w.update('proposals', online['id'], { status: 'accepted' }, guest);
+        const approved = (await h.rows(`select approved_on from ${h.real('proposals')} where id = ${String(online['id'])}`))[0]!;
+        expect(dayOf(approved['approved_on'])).toBe(day);
+      });
+    }
+
     it("stamps the venue's date for a client's approval, and keeps the day the desk says", async () => {
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-27T23:06:00.000Z') });
       const h = await installInvoicing(dialect, manifest());
       open = h;
       // Every rule kept: a date column takes a stamp of today, whichever side says it.
@@ -104,6 +128,7 @@ for (const [dialect, available] of LEGS) {
       await w.update('proposals', online['id'], { status: 'accepted', approved_on: '1999-01-01', approved_via: 'desk' }, guest);
       const approved = await row(online['id']);
       expect(dayOf(approved['approved_on'])).toBe(venueClock(new Date(), 'Europe/London').day);
+      expect(dayOf(approved['approved_on'])).toBe('2026-09-28');
       expect(approved['approved_via']).toBe('portal');
 
       const byPhone = await w.create('proposals', { client_id: client['id'], status: 'sent' });
