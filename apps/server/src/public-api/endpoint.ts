@@ -822,6 +822,9 @@ export function definitionToResource(
     resource.kind = 'availability';
     const answered = table?.table.capacityRules?.[def.capacity_rule ?? 0]?.kind;
     if (answered !== undefined) resource.capacity = answered;
+    if (def.capacity_rule !== undefined) resource.capacityRule = def.capacity_rule;
+    if (def.show_left !== undefined) resource.showLeft = 'below' in def.show_left ? { below: def.show_left.below } : { belowShare: def.show_left.below_share };
+    if (def.under !== undefined) resource.under = def.under;
   }
   if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
   if (def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };

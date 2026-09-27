@@ -566,6 +566,21 @@ export async function capacityState(db: Db, target: WriteTarget, ask: CapacityAs
   return [...counted.values()].map((t) => stateOf(t, t.size === null || t.taken <= t.size));
 }
 
+/** Pools of a rule asked by hand (a wider pool's keys), counted without a lock or a write. */
+export async function tallyFor(
+  db: Db,
+  target: WriteTarget,
+  rule: Rule,
+  asks: readonly PoolAsk[],
+  now: Date,
+  exclude: readonly Row[],
+  origin: 'public' | 'staff',
+): Promise<PoolState[]> {
+  const ctx: CountContext = { reads: new Reads(db), now, origin, zone: zoneOf(target) };
+  const counted = await tally(rule, asks, ctx, exclude, []);
+  return [...counted.values()].map((t) => stateOf(t, t.size === null || t.taken <= t.size));
+}
+
 /** The days `from` (inclusive) to `to` (exclusive). */
 export function rangeOf(from: string, to: string): string[] {
   const out: string[] = [];

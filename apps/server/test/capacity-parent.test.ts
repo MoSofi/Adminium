@@ -12,62 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { capacityState } from '../src/crud/capacity/judge.js';
 import { withNamedLocks } from '../src/crud/capacity/locks.js';
-import { filled, LEGS, refusal, types, type Dialect, type World } from './capacity.helpers.js';
+import { LEGS, refusal, type World } from './capacity.helpers.js';
+import { neon, NEON_NOW as NOW } from './capacity-worlds.js';
 
-const ZONE = 'Europe/London';
-const NOW = new Date('2026-07-20T18:00:00.000Z');
 const later = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000).toISOString();
-
-function ddl(dialect: Dialect): string[] {
-  const t = types(dialect);
-  return [
-    `create table rooms (id ${t.key}, capacity integer not null)`,
-    `create table events (id ${t.key}, room_id integer, name ${t.text(40)}, ${t.fk('room_id', 'rooms')})`,
-    `create table ticket_types (id ${t.key}, event_id integer, name ${t.text(40)}, capacity integer, max_per_order integer, sales_start ${t.at} null, sales_end ${t.at} null, ${t.fk('event_id', 'events')})`,
-    `create table waitlist (id ${t.key}, email ${t.text(80)}, offered_until ${t.at} null)`,
-    `create table orders (id ${t.key}, status ${t.text(16)} not null default 'held', held_until ${t.at} null, waitlist_id integer, ${t.fk('waitlist_id', 'waitlist')})`,
-    `create table tickets (id ${t.key}, order_id integer not null, ticket_type_id integer not null, event_id integer, status ${t.text(16)} not null default 'valid', ${t.fk('order_id', 'orders')}, ${t.fk('ticket_type_id', 'ticket_types')}, ${t.fk('event_id', 'events')})`,
-  ];
-}
-
-const RULE = {
-  kind: 'parent',
-  via: 'ticket_type_id',
-  size: { column: 'capacity' },
-  countWhere: [
-    { column: 'status', values: ['valid', 'returned'] },
-    { via: 'order_id', column: 'status', values: ['held', 'offered', 'paid'] },
-  ],
-  window: { opens: 'sales_start', closes: 'sales_end' },
-  perWrite: { max: { column: 'max_per_order' }, within: 'order_id' },
-  also: [{ via: 'event_id', size: { via: 'room_id', column: 'capacity' } }],
-  lockBy: 'event_id',
-  hold: { via: 'order_id', states: ['held', 'offered'], column: { column: 'offered_until', via: 'waitlist_id', or: [{ column: 'held_until' }] } },
-  reserved: { states: ['returned'] },
-};
-
-async function neon(dialect: Dialect, roomCapacity = 300): Promise<World> {
-  return filled(dialect, { zone: ZONE, ddl, overrides: () => [
-      { op: 'column.copy', table: 'tickets', column: 'event_id', value: { via: 'ticket_type_id', from: 'event_id' } },
-      { op: 'table.capacity', table: 'tickets', value: RULE },
-    ] }, async (w) => {
-  await w.seed('rooms', [{ id: 1, capacity: roomCapacity }]);
-  await w.seed('events', [{ id: 1, room_id: 1, name: 'Neon' }]);
-  await w.seed('ticket_types', [
-    { id: 1, event_id: 1, name: 'Neon Standard', capacity: 260, max_per_order: 6, sales_start: later(-7 * 24 * 60), sales_end: later(24 * 60) },
-    { id: 2, event_id: 1, name: 'Balcony', capacity: 40, max_per_order: 6, sales_start: later(24 * 60), sales_end: later(3 * 24 * 60) },
-  ]);
-  // 243 sold on one paid order; 3 held for ten minutes.
-  await w.seed('orders', [
-    { id: 1, status: 'paid', held_until: later(-60) },
-    { id: 2, status: 'held', held_until: later(10) },
-  ]);
-  await w.seed('tickets', [
-    ...Array.from({ length: 243 }, () => ({ order_id: 1, ticket_type_id: 1, event_id: 1, status: 'valid' })),
-    ...Array.from({ length: 3 }, () => ({ order_id: 2, ticket_type_id: 1, event_id: 1, status: 'valid' })),
-  ]);
-  });
-}
 
 for (const [dialect, available] of LEGS) {
   describe.skipIf(!available)(`a limit per ticket type on ${dialect}`, () => {

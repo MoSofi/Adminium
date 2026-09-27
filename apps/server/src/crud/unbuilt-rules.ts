@@ -111,10 +111,6 @@ const momentWindow = (entry: Readonly<Record<string, unknown>>): boolean =>
 
 /** The entry keys (as the endpoint definition spells them) whose behaviour is not built yet. */
 const ENTRY_KEYS = [
-  // Availability for every kind of limit, and what is left said only when little is.
-  'capacity_rule',
-  'show_left',
-  'under',
   // Rows unlocked by a typed code, and pictures anyone may see.
   'unlock_by',
   'pictures',

@@ -11,93 +11,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { capacityState } from '../src/crud/capacity/judge.js';
-import { filled, LEGS, refusal, types, type Dialect, type World } from './capacity.helpers.js';
+import { LEGS, refusal, type World } from './capacity.helpers.js';
+import { house, roomId } from './capacity-worlds.js';
 
-const ZONE = 'Europe/London';
 const NOW = new Date('2026-07-20T09:00:00.000Z');
-
-function ddl(dialect: Dialect): string[] {
-  const t = types(dialect);
-  return [
-    `create table settings (id ${t.key}, max_nights integer, ahead_days integer)`,
-    `create table room_types (id ${t.key}, name ${t.text(40)}, sleeps integer)`,
-    `create table rooms (id ${t.key}, room_type_id integer not null, number ${t.text(8)}, ${t.fk('room_type_id', 'room_types')})`,
-    `create table room_closures (id ${t.key}, room_id integer not null, from_date date not null, to_date date null, ${t.fk('room_id', 'rooms')})`,
-    `create table stays (id ${t.key}, arrive date not null, depart date not null, room_type_id integer not null, room_id integer null, status ${t.text(16)} not null default 'booked', ${t.fk('room_type_id', 'room_types')}, ${t.fk('room_id', 'rooms')})`,
-    `create table extras (id ${t.key}, name ${t.text(40)}, spaces integer null)`,
-    `create table stay_extras (id ${t.key}, stay_id integer not null, extra_id integer not null, ${t.fk('stay_id', 'stays')}, ${t.fk('extra_id', 'extras')})`,
-  ];
-}
-
-const counted = { column: 'status', values: ['booked', 'in_house'] };
-
-async function house(dialect: Dialect): Promise<World> {
-  return filled(
-    dialect,
-    {
-      zone: ZONE,
-      ddl,
-      overrides: (id) => [
-        {
-          op: 'table.capacity',
-          table: 'stays',
-          value: {
-            rules: [
-              {
-                kind: 'night',
-                from: 'arrive',
-                to: 'depart',
-                countWhere: counted,
-                pool: {
-                  via: 'room_type_id',
-                  count: { table: id('rooms'), column: 'room_type_id', outOfService: { table: id('room_closures'), room: 'room_id', from: 'from_date', to: 'to_date' } },
-                  fits: { column: 'sleeps' },
-                  given: { via: 'room_id', column: 'room_type_id' },
-                },
-                nights: { min: 1, max: { table: id('settings'), column: 'max_nights' }, minByArrival: { sat: 2 }, aheadDays: { table: id('settings'), column: 'ahead_days' } },
-              },
-              {
-                kind: 'night',
-                from: 'arrive',
-                to: 'depart',
-                countWhere: counted,
-                pool: { via: 'room_id', size: 1, outOfService: { table: id('room_closures'), room: 'room_id', from: 'from_date', to: 'to_date' } },
-              },
-            ],
-          },
-        },
-        {
-          op: 'table.capacity',
-          table: 'stay_extras',
-          value: {
-            kind: 'night',
-            from: { via: 'stay_id', column: 'arrive' },
-            to: { via: 'stay_id', column: 'depart' },
-            countWhere: { ...counted, via: 'stay_id' },
-            pool: { via: 'extra_id', size: { column: 'spaces' } },
-          },
-        },
-      ],
-    },
-    async (w) => {
-      await w.seed('settings', [{ max_nights: 14, ahead_days: 365 }]);
-      await w.seed('room_types', [
-        { id: 1, name: 'Loft', sleeps: 2 },
-        { id: 2, name: 'Garden', sleeps: 3 },
-        { id: 3, name: 'Harbour', sleeps: 2 },
-      ]);
-      const rooms = [
-        ...[101, 102, 103, 104].map((n) => ({ room_type_id: 1, number: String(n) })),
-        ...Array.from({ length: 14 }, (_, i) => ({ room_type_id: 2, number: String(105 + i) })),
-        ...[204, 205, 206].map((n) => ({ room_type_id: 3, number: String(n) })),
-      ];
-      await w.seed('rooms', rooms.map((room, i) => ({ id: i + 1, ...room })));
-      await w.seed('extras', [{ id: 1, name: 'Parking', spaces: 2 }]);
-    },
-  );
-}
-
-const roomId = async (w: World, number: string) => (await w.query(`select id from rooms where number = '${number}'`))[0]!['id'];
 
 for (const [dialect, available] of LEGS) {
   describe.skipIf(!available)(`stays by the night on ${dialect}`, () => {
