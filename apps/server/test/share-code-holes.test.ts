@@ -61,7 +61,7 @@ function model() {
         kind: 'table',
         comment: null,
         primaryKey: ['id'],
-        columns: [column('id', 0, false), column('name', 1, false), column('share_token', 2, true), column('api_token', 3, true), column('ref_code', 4, false)],
+        columns: [column('id', 0, false), column('name', 1, false), column('share_token', 2, true), column('api_token', 3, true), column('ref_code', 4, false), column('promo', 5, false), column('promo_id', 6, false)],
       },
     ],
     relations: [],
@@ -114,6 +114,22 @@ describe('a copy of a row kept for other readers', () => {
 
   it('is never recognised in Workflow Logs by its code', () => {
     expect(triggerSummary(table, { id: 1, share_token: 'ABCDEFGHJKMNPQRS', name: 'Harbour', ref_code: 'ABC123' })).toBe('Harbour');
+  });
+});
+
+describe('a copy of a row whose code a person typed', () => {
+  // The promo a guest typed finds the row it names: as much a key as the code it found.
+  const view = new SnapshotView('c', applyOverrides(model() as never, [row('column.lookup', 'promo_id', { from: 'promo', table: 'public.projects', column: 'ref_code' })]));
+  const table = view.table('public.projects');
+
+  it('keeps no typed code in the audit images or in Workflow Logs', () => {
+    const before = { id: 1, name: 'Harbour', promo: null, promo_id: null };
+    const after = { ...before, promo: 'STUDENT10', promo_id: 7 };
+    const kept = keptImages(table, before, after);
+    expect(JSON.stringify(kept)).not.toContain('STUDENT10');
+    expect(kept.after!['promo']).toBe(CODE_CHANGED);
+    expect(keptRow(after, table)['promo']).toBe(CODE_KEPT);
+    expect(triggerSummary(table, { id: 1, promo: 'STUDENT10', name: 'Harbour' })).toBe('Harbour');
   });
 });
 

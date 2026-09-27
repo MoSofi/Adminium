@@ -61,6 +61,8 @@ export const REDACT_PATHS: readonly string[] = [
   'req.headers.cookie',
   // A found (or verified) patient's public session: a bearer credential like any other.
   'req.headers["x-adminium-public-session"]',
+  // A code a guest typed to find or unlock a row: as good as the row's key.
+  'req.headers["x-adminium-code"]',
   'ADMINIUM_SECRET',
   '*.ADMINIUM_SECRET',
   '*.password',

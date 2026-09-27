@@ -77,6 +77,10 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
       expect(after.headers[SESSION_ENDED_HEADER]).toBe('elsewhere');
       // A page on another origin can read why.
       expect(String(after.headers['access-control-expose-headers'])).toContain(SESSION_ENDED_HEADER);
+      // Told once: the same token is told nothing again.
+      const again = await mine(session);
+      expect(again.statusCode).toBe(404);
+      expect(again.headers[SESSION_ENDED_HEADER]).toBeUndefined();
     }
     // Another person's session is untouched.
     const theirs = await mine(kai);

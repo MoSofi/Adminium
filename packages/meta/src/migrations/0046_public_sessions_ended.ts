@@ -6,14 +6,14 @@
  * "Sign out everywhere" and "delete my details" end every session of one
  * person at once. A session simply deleted would leave the person's other
  * devices silently signed out, a page that cannot say why. So an ended
- * session is kept until its own expiry, marked with the moment and the
- * reason (`elsewhere` — signed out from another device; `forgotten` — the
- * person's details were deleted), and a device that presents it is told the
- * reason in a response header, once, while it opens nothing.
+ * session is kept, marked with the moment and the reason (`elsewhere` —
+ * signed out from another device; `forgotten` — the person's details were
+ * deleted), and a device that presents it is told the reason in a response
+ * header, once, while it opens nothing: the row goes as it is told.
  *
  * Both columns are empty for every session made before this wave and for
- * every live one; housekeeping removes an ended row at its original expiry,
- * as it removes any other.
+ * every live one; housekeeping removes an ended row never presented at its
+ * original expiry, as it removes any other.
  */
 import type { Kysely } from 'kysely';
 

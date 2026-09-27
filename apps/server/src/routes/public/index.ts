@@ -1092,10 +1092,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * A session its person ended from another device (or ended by
          * deleting their details): no session, and the page is told why, so
          * it can say so rather than seem to forget them. Only to the holder of
-         * the session's own token, on its own key; a lapsed or unknown token
-         * is told nothing.
+         * the session's own token, on its own key, and once: the session goes
+         * as it is told. A lapsed or unknown token is told nothing.
          */
-        reply.header(SESSION_ENDED_HEADER, row.endedReason);
+        if (await sessions.takeEnded(row.id)) reply.header(SESSION_ENDED_HEADER, row.endedReason);
       }
     }
     /*

@@ -699,6 +699,16 @@ export function publicSessionsRepo(meta: MetaDb) {
     },
 
     /**
+     * An ended session's device told why, once: the row goes as it is told,
+     * so the same token is unknown from then on. Whether this call took it —
+     * of two requests at once, only one is told.
+     */
+    async takeEnded(id: string): Promise<boolean> {
+      const res = await db.deleteFrom('adminium_public_sessions').where('id', '=', id).where('endedAt', 'is not', null).executeTakeFirst();
+      return Number(res.numDeletedRows) === 1;
+    },
+
+    /**
      * Point a live session at another row: a page's own-link session carried
      * from the hold it replaced to the hold that replaced it, with a fresh
      * expiry. Whether it moved (an ended or lapsed session does not).
