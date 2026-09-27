@@ -106,22 +106,27 @@ describe.each(LEGS)('copies that follow their row — %s', (dialect, available) 
     expect(await figures(stay['id'])).toMatchObject({ nights: 4, room: '710.00', extras: '128.00' });
   });
 
-  it.runIf(available)('follows through bulk, an import update and an undo', async () => {
+  /** A multi-row door's write of one stay: prepared, written, committed, then its totals and follows settled. */
+  const bulkOf = (id: unknown) => async (values: Record<string, unknown>, context: WriteContext, options?: { capacity: 'unchecked' }) => {
+    const target = w.targetOf('stays');
+    const before = (await fetchByPk(target.db, target.table, { id }))!;
+    const [prepared] = await w.writes.beforeEach('update', target, context, [{ match: { id }, values, record: before }], options);
+    expect(prepared!.issues).toBeNull();
+    await w.writes.transaction(target, [], (db) => updateRows(db, dialect, target.table, prepared!.values, { id }));
+    const after = (await fetchByPk(target.db, target.table, { id }))!;
+    await w.writes.afterEach('update', target, context, [{ record: after, before }]);
+    return before;
+  };
+
+  it.runIf(available)('follows through an import update and an undo', async () => {
     const { stay, breakfast } = await breakfastStay();
     const target = w.targetOf('stays');
-    const bulk = async (values: Record<string, unknown>, context: WriteContext) => {
-      const before = (await fetchByPk(target.db, target.table, { id: stay['id'] }))!;
-      const [prepared] = await w.writes.beforeEach('update', target, context, [{ match: { id: stay['id'] }, values, record: before }]);
-      expect(prepared!.issues).toBeNull();
-      await w.writes.transaction(target, [], (db) => updateRows(db, dialect, target.table, prepared!.values, { id: stay['id'] }));
-      const after = (await fetchByPk(target.db, target.table, { id: stay['id'] }))!;
-      await w.writes.afterEach('update', target, context, [{ record: after, before }]);
-      return before;
-    };
-    await bulk({ depart: '2026-08-02' }, { ...w.desk, origin: 'bulk' });
+    const bulk = bulkOf(stay['id']);
+    // An import brings in history: judged by no balance, its follows settled after its rows are written.
+    await bulk({ depart: '2026-08-02' }, { ...w.desk, origin: 'import' }, { capacity: 'unchecked' });
     expect(Number((await extraRow(breakfast['id']))['nights'])).toBe(2);
     expect(await figures(stay['id'])).toMatchObject({ room: '370.00', extras: '64.00', total: '473.06' });
-    await bulk({ guests: 1 }, { ...w.desk, origin: 'import' });
+    await bulk({ guests: 1 }, { ...w.desk, origin: 'import' }, { capacity: 'unchecked' });
     expect(money((await extraRow(breakfast['id']))['amount'])).toBe('32.00');
     // An undo puts the row back as it was, and its extras follow it back.
     const restoring = (await fetchByPk(target.db, target.table, { id: stay['id'] }))!;
@@ -131,6 +136,65 @@ describe.each(LEGS)('copies that follow their row — %s', (dialect, available) 
     const extra = await extraRow(breakfast['id']);
     expect([Number(extra['nights']), Number(extra['guests']), money(extra['amount'])]).toEqual([3, 2, '96.00']);
     expect((await figures(stay['id'])).extras).toBe('96.00');
+  });
+
+  it.runIf(available)('refuses a bulk change of a stay whose balance is kept at zero or above — before anything is written', async () => {
+    const { stay, breakfast } = await breakfastStay();
+    await w.create('payments', { stay_id: stay['id'], amount: '693.24' });
+    const target = w.targetOf('stays');
+    const before = (await fetchByPk(target.db, target.table, { id: stay['id'] }))!;
+    const prepare = (values: Record<string, unknown>) => w.writes.beforeEach('update', target, { ...w.desk, origin: 'bulk' }, [{ match: { id: stay['id'] }, values, record: before }]);
+    // Fewer guests: the breakfast that follows them would take the paid stay below zero, after its rows were written.
+    await expect(prepare({ guests: 1 })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
+    // A night fewer: the room priced again, and the total under the balance.
+    await expect(prepare({ depart: '2026-08-02' })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
+    // Another room, or the same nights a day later: no night count moves, but the room is priced again, and the total with it.
+    await expect(prepare({ room_type_id: seed.harbour['id'] })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
+    await expect(prepare({ arrive: '2026-08-01', depart: '2026-08-04' })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'BALANCE_ONE_AT_A_TIME' } });
+    // A whole-row edit that sends the dates and guests back as they are moves nothing, and goes through.
+    await expect(prepare({ guests: 2, depart: '2026-08-03', note: 'Late check-in' })).resolves.toMatchObject([{ issues: null }]);
+    // A change that moves neither: nothing follows, nothing is refused.
+    await expect(prepare({ note: 'Late check-in' })).resolves.toMatchObject([{ issues: null }]);
+    expect(await figures(stay['id'])).toMatchObject({ nights: 3, room: '540.00', extras: '96.00', total: '693.24', paid: '693.24', balance: '0.00' });
+    const extra = await extraRow(breakfast['id']);
+    expect([Number(extra['nights']), Number(extra['guests']), money(extra['amount'])]).toEqual([3, 2, '96.00']);
+    // One at a time, the same change is judged in its own write: refused, and nothing is kept.
+    await expect(w.update('stays', stay['id'], { guests: 1 })).rejects.toMatchObject({ code: 'BALANCE_EXCEEDED' });
+    expect(Number((await extraRow(breakfast['id']))['guests'])).toBe(2);
+  });
+
+  it.runIf(available)('refuses a bulk change more than 500 rows follow before anything is written', async () => {
+    const { stay } = await breakfastStay();
+    const table = h!.real('stay_extras');
+    const values = Array.from({ length: 500 }, () => `(${String(stay['id'])}, ${String(seed.late['id'])}, 3, 2, 35, 'stay', 'Late leaving', ${dialect === 'postgres' ? 'false' : '0'})`).join(', ');
+    const q = (name: string) => (dialect === 'mysql' ? `\`${name}\`` : `"${name}"`);
+    await h!.rows(`INSERT INTO ${table} (${['stay_id', 'extra_id', 'nights', 'guests', 'each', 'per', 'label', 'removed'].map(q).join(', ')}) VALUES ${values}`);
+    const target = w.targetOf('stays');
+    const before = (await fetchByPk(target.db, target.table, { id: stay['id'] }))!;
+    // An import (history, judged by no balance) still moves at most 500 rows in one change.
+    const refused = await w.writes
+      .beforeEach('update', target, { ...w.desk, origin: 'import' }, [{ match: { id: stay['id'] }, values: { guests: 3 }, record: before }], { capacity: 'unchecked' })
+      .catch((error: unknown) => error);
+    expect(refused).toMatchObject({ statusCode: 409, code: 'FOLLOW_TOO_MANY', details: { table: w.targetOf('stay_extras').table.id, count: 501 } });
+    expect(Number((await stayRow(stay['id']))['guests'])).toBe(2);
+    await h!.rows(`DELETE FROM ${table} WHERE stay_id = ${String(stay['id'])}`);
+  });
+
+  it.runIf(available)("refuses a bulk change, by name, when the role may not write a follower's column or the total it adds into", async () => {
+    const { stay } = await breakfastStay();
+    const extras = w.targetOf('stay_extras').table.id;
+    const stays = w.targetOf('stays').table.id;
+    const writesWith = (rights: (table: string) => unknown) => createWriteService({ ...writeStores(h!.meta), rights: async (_connection, table) => rights(table) as never });
+    const target = w.targetOf('stays');
+    const before = (await fetchByPk(target.db, target.table, { id: stay['id'] }))!;
+    const prepare = (writes: ReturnType<typeof createWriteService>) =>
+      writes.beforeEach('update', target, { ...w.desk, origin: 'import' }, [{ match: { id: stay['id'] }, values: { guests: 3 }, record: before }], { capacity: 'unchecked' }).catch((error: unknown) => error);
+    const guests = await prepare(writesWith((table) => (table === extras ? { insert: true, update: true, delete: true, columns: { guests: { insert: true, update: false } } } : null)));
+    expect(guests).toMatchObject({ code: 'READ_ONLY_MODE', details: { table: extras, columns: ['guests'], reason: 'privileges' } });
+    // The stay's extras total, which the follow settles, is the stay's own column: named too.
+    const total = await prepare(writesWith((table) => (table === stays ? { insert: true, update: true, delete: true, columns: { extras_total: { insert: true, update: false } } } : null)));
+    expect(total).toMatchObject({ code: 'READ_ONLY_MODE', details: { table: stays, columns: ['extras_total'], reason: 'privileges' } });
+    expect(Number((await stayRow(stay['id']))['guests'])).toBe(2);
   });
 
   it.runIf(available)('refuses a change more than 500 rows follow, and writes none of them', async () => {

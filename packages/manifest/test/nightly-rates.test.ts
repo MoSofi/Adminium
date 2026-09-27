@@ -114,6 +114,11 @@ describe('a joined text', () => {
     expect(joinText(['ref_prefix', '-', 'ref_code'], { ref_prefix: 'WH', ref_code: 3283 })).toBe('WH-3283');
     expect(joinText(['Room ', 'number'], { number: 12 })).toBe('Room 12');
     expect(joinText(['Room ', 'number'], { number: null })).toBeNull();
+    // Only text and whole numbers join: a decimal, a yes or no or a moment would read differently on each engine.
+    expect(joinText(['first_name', ' ', 'last_name'], { first_name: 'Mia', last_name: 8.25 })).toBe('Mia');
+    expect(joinText(['first_name', ' ', 'last_name'], { first_name: 'Mia', last_name: true })).toBe('Mia');
+    expect(joinText(['first_name', ' ', 'last_name'], { first_name: 'Mia', last_name: new Date('2026-07-31T00:00:00Z') })).toBe('Mia');
+    expect(joinText(['ref_prefix', '-', 'ref_code'], { ref_prefix: 'WH', ref_code: 3283n })).toBe('WH-3283');
   });
 
   it('is what a join formula works out', () => {

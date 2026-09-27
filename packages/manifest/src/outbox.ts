@@ -928,8 +928,14 @@ function emailBlockIssues(templates: readonly EmailTemplate[], box: Outbox, inde
               if (path.join('.') !== 'row.image') continue; // said above
               const issue = qrIssue(table, `${table}.${column}`);
               if (issue !== null) out.push({ path: where, message: issue });
-            } else if (form !== undefined && !(ROW_FORMS[found.type] ?? []).includes(form)) {
-              out.push({ path: where, message: `{{${name}}}: "${table}.${column}" is a ${found.type} column, which has no "${form}" form` });
+            } else if (form !== undefined && !rowFormsOf(found).includes(form)) {
+              out.push({
+                path: where,
+                message:
+                  form === 'time' && found.type === 'text'
+                    ? `{{${name}}}: "${table}.${column}" is not a time of day kept as text (a text column of at most 8 characters), so it has no "time" form`
+                    : `{{${name}}}: "${table}.${column}" is a ${found.type} column, which has no "${form}" form`,
+              });
             }
           }
         }
@@ -962,3 +968,24 @@ const ROW_FORMS: Readonly<Record<string, readonly string[]>> = {
   enum: ['label'],
   text: ['time'],
 };
+
+/** The most characters a time of day kept as text takes: `09:30:00`. */
+export const CLOCK_TEXT_MAX = 8;
+
+/**
+ * Whether a text column keeps a time of day (`15:00`): one no longer than
+ * {@link CLOCK_TEXT_MAX} characters. Only such a column has a `time` form —
+ * the sender fills it from a value shaped like a clock, and a longer text
+ * column (a note, a name) never holds one.
+ */
+export function clockShaped(column: { type: string; maxLength?: number | undefined; rules?: { validation?: { maxLength?: number | undefined } | undefined } | undefined }): boolean {
+  if (column.type !== 'text') return false;
+  const widths = [column.maxLength, column.rules?.validation?.maxLength].filter((width): width is number => typeof width === 'number');
+  return widths.length > 0 && Math.min(...widths) <= CLOCK_TEXT_MAX;
+}
+
+/** The forms a row's column may be read in: its type's, and a text column's `time` only when it keeps a time of day. */
+function rowFormsOf(column: Parameters<typeof clockShaped>[0]): readonly string[] {
+  const forms = ROW_FORMS[column.type] ?? [];
+  return column.type === 'text' && !clockShaped(column) ? forms.filter((form) => form !== 'time') : forms;
+}

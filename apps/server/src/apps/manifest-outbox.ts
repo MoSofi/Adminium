@@ -18,7 +18,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import { emailRowsDataSchema, type Manifest, type Outbox } from '@adminium/manifest';
+import { clockShaped, emailRowsDataSchema, type Manifest, type Outbox } from '@adminium/manifest';
 import { appOutboxesRepo, emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
 
 import { EMAIL_BLOCK_DATA_SCHEMAS } from '../email/document.js';
@@ -134,6 +134,9 @@ const FORMS_OF: Readonly<Record<string, readonly string[]>> = {
   text: ['time'],
 };
 const EVERY_FORM = new Set(Object.values(FORMS_OF).flat());
+/** A column's forms: its type's — a text column's `time` only when it keeps a time of day (`clockShaped`), as the sender fills one. */
+const formsOf = (column: Parameters<typeof clockShaped>[0]): readonly string[] =>
+  column.type === 'text' && !clockShaped(column) ? (FORMS_OF['text'] ?? []).filter((form) => form !== 'time') : (FORMS_OF[column.type] ?? []);
 const orList = (items: string[]): string => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)!}`);
 const PLACEHOLDER = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g;
 
@@ -191,10 +194,10 @@ function unfillableForms(
       const column = parts.at(-2) as string;
       const candidates = [...(prefixes.get(prefix) ?? [])].map((table) => ({ table, declared: columnOf(table, column) }));
       if (candidates.length === 0 || candidates.some((c) => c.declared === undefined)) continue;
-      if (candidates.some((c) => (FORMS_OF[c.declared!.type] ?? []).includes(form))) continue;
+      if (candidates.some((c) => formsOf(c.declared!).includes(form))) continue;
       const first = candidates[0]!;
       seen.add(name);
-      out.push({ name, bare: parts.slice(0, -1).join('.'), column: `${first.table}.${column}`, type: first.declared!.type, allowed: FORMS_OF[first.declared!.type] ?? [] });
+      out.push({ name, bare: parts.slice(0, -1).join('.'), column: `${first.table}.${column}`, type: first.declared!.type, allowed: formsOf(first.declared!) });
     }
   }
   return out;

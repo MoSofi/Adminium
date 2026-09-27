@@ -427,7 +427,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       if (addressed.person !== null && producer.optIn === true && recipient.optIn !== undefined && !sameValue(true, addressed.person[recipient.optIn])) return null;
       values[cols.to] = addressed.address;
       // The row the message is about may say its language (an order placed in German): it wins over the person's.
-      const language = producedLanguage(box.definition, producer, about.row) ?? addressed.language;
+      const width = cols.language === undefined ? null : (outbox.table.columns.find((column) => column.name === cols.language)?.maxLength ?? null);
+      const language = producedLanguage(box.definition, producer, about.row, width) ?? addressed.language;
       if (cols.language !== undefined && language !== null) values[cols.language] = language;
       // A held message waits for a person whatever its address: it is looked up again when approved.
       values[cols.status] = producer.hold === true ? 'held' : addressed.address !== null ? 'queued' : 'skipped';

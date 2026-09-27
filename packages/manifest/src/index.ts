@@ -104,6 +104,7 @@ export {
 
 export {
   OUTBOX_WRITTEN,
+  clockShaped,
   rulesReading,
   OUTBOX_HELD,
   OUTBOX_SKIP_REASONS,
@@ -135,6 +136,7 @@ export {
   dayColumns,
   dayNumberOf,
   isJoinColumn,
+  JOIN_COLUMN_TYPES,
   joinText,
   nightlyRates,
   NightlyRuleUnreadable,

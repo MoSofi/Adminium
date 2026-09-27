@@ -1440,6 +1440,22 @@ function followIssues(
   const loop = [...inputs].find((ref) => moved.has(ref));
   if (loop !== undefined) {
     out.push({ path: here('copy', 'follow'), message: `"${parent.ref}.${copy.from}" is worked out from "${table.ref}", so "${table.ref}.${own}" cannot follow it` });
+  } else {
+    // A total, a balance or a stamp changes by a settle or a move, never by a change of the row the copies follow:
+    // a copy of one — or of a formula over one — would keep the value it had.
+    const balances = new Set(parent.columns.flatMap((c) => (c.rules?.rollup?.balance === undefined ? [] : [c.rules.rollup.balance.column])));
+    const settled = [...inputs].find((ref) => {
+      const rules = parent.columns.find((c) => c.ref === ref)?.rules;
+      return rules?.rollup !== undefined || rules?.stamp !== undefined || balances.has(ref);
+    });
+    if (settled !== undefined) {
+      const kind = balances.has(settled) ? 'a balance' : parent.columns.find((c) => c.ref === settled)?.rules?.rollup !== undefined ? 'a total' : 'a stamp';
+      const over = settled === copy.from ? '' : ` (it is worked out from "${settled}", ${kind})`;
+      out.push({
+        path: here('copy', 'follow'),
+        message: `"${parent.ref}.${copy.from}"${over === '' ? ` is ${kind}` : over}, which changes without a change of the row, so "${table.ref}.${own}" cannot follow it`,
+      });
+    }
   }
   for (const other of tables) {
     if (other.ref === parent.ref) continue;
