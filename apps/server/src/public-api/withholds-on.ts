@@ -10,7 +10,7 @@
  * a document (see `withhold.ts`).
  */
 import type { AppManifest } from '@adminium/manifest';
-import { appTablesRepo, publicEndpointsRepo, publicScopesRepo, type MetaDb } from '@adminium/meta';
+import { CUSTOMER_KEY_PURPOSE, appTablesRepo, publicEndpointsRepo, publicScopesRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
 import { parseDefinition } from './endpoint.js';
@@ -19,7 +19,17 @@ import { collectWithholds, type TableWithholds, type WithholdRule } from './with
 /** Just what a stored scope says about its resources' withholds. */
 const scopeSchema = z.object({
   resources: z
-    .array(z.object({ table: z.string(), withhold: z.object({ columns: z.array(z.string()), unlessHolder: z.string() }).optional() }).passthrough())
+    .array(
+      z
+        .object({
+          table: z.string(),
+          withhold: z
+            .object({ columns: z.array(z.string()), unlessHolder: z.string().optional(), when: z.object({}).passthrough().optional() })
+            .refine((w) => w.unlessHolder !== undefined || w.when !== undefined)
+            .optional(),
+        })
+        .passthrough(),
+    )
     .default([]),
 });
 
@@ -33,7 +43,17 @@ export async function withholdsOn(
   for (const row of await publicEndpointsRepo(meta).listByConnection(connectionId)) {
     const parsed = parseDefinition(row.definition);
     const rule = parsed.ok ? parsed.definition.withhold : undefined;
-    if (parsed.ok && rule !== undefined) declared.push({ table: parsed.definition.source, withhold: { columns: rule.columns, unlessHolder: rule.unless_holder } });
+    if (parsed.ok && rule !== undefined) {
+      declared.push({
+        table: parsed.definition.source,
+        withhold: {
+          columns: rule.columns,
+          ...(rule.unless_holder === undefined ? {} : { unlessHolder: rule.unless_holder }),
+          ...(rule.when === undefined ? {} : { when: rule.when }),
+          ...(rule.key === undefined ? {} : { key: rule.key }),
+        },
+      });
+    }
   }
   for (const scope of await publicScopesRepo(meta).listByConnection(connectionId)) {
     let document: unknown;
@@ -43,10 +63,10 @@ export async function withholdsOn(
       continue;
     }
     const parsed = scopeSchema.safeParse(document);
-    if (parsed.success) for (const resource of parsed.data.resources) declared.push({ table: resource.table, withhold: resource.withhold });
+    if (parsed.success) for (const resource of parsed.data.resources) declared.push({ table: resource.table, withhold: resource.withhold as WithholdRule | undefined });
   }
   for (const { tableName, entry } of await appEntriesOn(meta, connectionId, app)) {
-    if (entry.withhold !== undefined) declared.push({ table: tableName, withhold: entry.withhold });
+    if (entry.withhold !== undefined) declared.push({ table: tableName, withhold: { ...entry.withhold, ...(entry.withhold.when === undefined ? {} : { key: entry.key ?? CUSTOMER_KEY_PURPOSE }) } });
   }
   return collectWithholds(declared);
 }

@@ -186,12 +186,13 @@
       "table": "tickets",
       "key": "ticket",
       "methods": ["GET", "PATCH"],
-      "select": ["id", "status", "pending_name", "offer_until"],
+      "select": ["id", "status", "code", "pending_name", "offer_until"],
+      "withhold": { "columns": ["code"], "when": { "where": [{ "column": "holder_customer_id", "isNull": true }] } },
       "writable": ["status"],
       "writableValues": { "status": ["valid"] },
       "writableWhen": { "status": ["offered"] },
       "claim": { "by": "token", "column": "link_token", "own": true, "address": ["pending_email", "holder_email"] },
-      "identity": { "table": "customers", "email": "pending_email", "link": "holder_customer_id" }
+      "identity": { "table": "customers", "email": "pending_email", "link": "holder_customer_id", "on": { "to": "valid" } }
     },
     { "table": "events", "methods": ["GET"], "select": ["id", "name", "starts_at"] },
     { "table": "ticket_types", "methods": ["GET"], "select": ["id", "event_id", "name", "price"] }

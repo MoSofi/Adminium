@@ -37,8 +37,11 @@ const SIGNED_IN = {
   csrfToken: expect.any(String) as unknown as string,
 };
 
-/** The server's own zone, which every staff config names. */
-const SERVER_CLOCK = { serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+/** The server's clock when it answered: every config says it, so a page never trusts a wrong device clock. */
+const NOW = { now: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/) as unknown as string };
+
+/** The server's own zone, which every staff config names, and its clock. */
+const SERVER_CLOCK = { serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...NOW };
 
 /** The venue's clock and money for a connection made with no zone of its own: the host's, and no currency. */
 const HOST_VENUE = { timezone: SERVER_CLOCK.serverTimezone, timezoneSource: 'host', currency: null, ...SERVER_CLOCK };
@@ -371,7 +374,7 @@ describe('surface-config.json (D10)', () => {
     const res = await app.inject({ method: 'GET', url: CONFIG_URL });
     expect(res.statusCode).toBe(200);
     expect(res.headers['cache-control']).toBe('no-store');
-    expect(res.json()).toEqual({ baseUrl: '', publishableKey: newer.token, appName: null });
+    expect(res.json()).toEqual({ baseUrl: '', publishableKey: newer.token, appName: null, ...NOW });
 
     // Rotation-by-revocation: the older live key takes over on the next load —
     // zero rebuilds, which is the whole point of serving this (criterion 9).
@@ -380,6 +383,7 @@ describe('surface-config.json (D10)', () => {
       baseUrl: '',
       publishableKey: older.token,
       appName: null,
+      ...NOW,
     });
   });
 
@@ -389,7 +393,7 @@ describe('surface-config.json (D10)', () => {
     await setDomains(t!, { [CUSTOMER_HOST]: { appKey: 'clients', side: 'customer' } });
     const res = await get(app, CONFIG_URL, CUSTOMER_HOST);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ baseUrl: '', publishableKey: seeded.token, appName: null });
+    expect(res.json()).toEqual({ baseUrl: '', publishableKey: seeded.token, appName: null, ...NOW });
   });
 
   it('the staff variant carries NO key — that half is still customer-only', async () => {

@@ -17,6 +17,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { sql } from 'kysely';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { desiredTableSchema, parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
+import { validateManifest } from '@adminium/manifest';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
 import {
   appOutboxesRepo,
@@ -4494,13 +4495,11 @@ for (const [dialect, available] of legs) {
         },
         publicAccess: [{ table: 'venue', methods: ['GET'], select: ['id', 'venue_name', 'phone'] }],
       });
-      // A column named `phone` is taken for a person's: no anonymous endpoint may show it.
-      const h = (open = await harness(dialect));
-      await stageManifest(h, venue({}));
-      const refused = await post(h, '/apps/install');
-      expect(refused.statusCode, refused.body).toBe(409);
-      expect(refused.json().message).toContain('"phone" is marked personal data');
-      await h.close();
+      // A column named `phone` is taken for a person's: no anonymous endpoint may show it — refused as the bundle is read.
+      const refused = validateManifest(venue({}));
+      expect(refused.ok ? [] : refused.issues.map((issue) => issue.message)).toContain(
+        '"venue.phone" is read as personal data by its name, and anyone may call this entry, so it is not selected (a column that is not personal says `personal: false`)',
+      );
 
       // The app knows better: it is the venue's own number.
       const again = (open = await harness(dialect));

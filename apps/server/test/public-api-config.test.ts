@@ -23,7 +23,7 @@ import {
   settingsRepo,
   type MetaDb,
 } from '@adminium/meta';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
 import { ConnectionManager } from '../src/connections/manager.js';
@@ -162,6 +162,39 @@ describe('GET /public/config reports the documents capability', () => {
     const { app, token } = await servingWithKey(document);
     const { status, body } = await readConfig(app, token);
     expect(status).toBe(200);
-    expect(body.data).toEqual(publicConfigOf(compileScope(document)));
+    expect(body.data).toEqual({ ...publicConfigOf(compileScope(document)), now: expect.any(String) });
+  }, 60_000);
+});
+
+describe("GET /public/config says the server's clock", () => {
+  it('as an ISO instant taken when it answered, never kept', async () => {
+    const { app, token } = await servingWithKey(scopeDocument());
+    const before = Date.now();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/public/config',
+      headers: { origin: ALLOWED, 'sec-fetch-site': 'cross-site', authorization: `Bearer ${token}` },
+    });
+    const after = Date.now();
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['etag']).toBeUndefined();
+    const now = (res.json() as { data: { now: string } }).data.now;
+    expect(now).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(Date.parse(now)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(now)).toBeLessThanOrEqual(after);
+  }, 60_000);
+
+  it('as the server tells it, whatever the caller thinks the time is', async () => {
+    vi.useFakeTimers({ now: new Date('2026-07-28T09:05:00.000Z'), toFake: ['Date'] });
+    try {
+      const { app, token } = await servingWithKey(scopeDocument());
+      const { body } = await readConfig(app, token);
+      expect(body.data?.['now']).toBe('2026-07-28T09:05:00.000Z');
+      vi.setSystemTime(new Date('2026-07-29T00:00:00.000Z'));
+      expect((await readConfig(app, token)).body.data?.['now']).toBe('2026-07-29T00:00:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
   }, 60_000);
 });

@@ -220,7 +220,7 @@ describe.each(LEGS)('the vocabulary, kept through install on %s', (dialect, avai
     expect(person.forget).toEqual({ columns: ['email', 'name', 'phone'], stamp: 'forgotten_at' });
 
     // The config answer names the tree by the wire's names, and never a real table.
-    const config = publicConfigReply.parse({ data: publicConfigOf(customer) }).data;
+    const config = publicConfigReply.parse({ data: { ...publicConfigOf(customer), now: new Date().toISOString() } }).data;
     expect(config.refs[create.ref]!.children).toEqual({
       stay_extras: { writable: ['extra_id', 'note'], select: ['id', 'amount'], max: 10, children: { stay_extra_notes: { writable: ['text'], select: [], max: 3 } } },
     });

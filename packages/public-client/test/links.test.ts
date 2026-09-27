@@ -95,7 +95,7 @@ describe('signing in by link', () => {
       url.endsWith('/claim/link/verify') ? { data: { session: 'adm_pubs_1', expiresAt: 42, level: 'verified' } } : { data: [], page: { limit: 50, offset: 0, total: null } },
     );
     expect(await c.openLink(TOKEN)).toBe(true);
-    expect(c.session()).toEqual({ level: 'verified', expiresAt: 42 });
+    expect(c.session()).toEqual({ token: 'adm_pubs_1', level: 'verified', expiresAt: 42 });
     await c.list('invoices');
     expect(header(calls[1]!.init, 'x-adminium-public-session')).toBe('adm_pubs_1');
     const used = client(() => err(410, 'LINK_EXPIRED')).c;
@@ -112,7 +112,7 @@ describe('signing in by link', () => {
     expect(await c.verifyLinkCode({ email: 'ada@example.com', code: '000000' })).toEqual({ ok: false, triesLeft: 0 });
     answer = { data: { session: 'adm_pubs_2', expiresAt: 7, level: 'verified' } };
     expect(await c.verifyLinkCode({ email: 'ada@example.com', code: '123456' })).toEqual({ ok: true, level: 'verified', expiresAt: 7, ended: false });
-    expect(c.session()).toEqual({ level: 'verified', expiresAt: 7 });
+    expect(c.session()).toEqual({ token: 'adm_pubs_2', level: 'verified', expiresAt: 7 });
     answer = err(403, 'PUBLIC_CLAIM_LOCKED');
     await expect(c.verifyLinkCode({ email: 'ada@example.com', code: '1' })).rejects.toMatchObject({ code: 'PUBLIC_CLAIM_LOCKED' });
   });
@@ -123,7 +123,7 @@ describe('a row shared by link', () => {
     let answer: unknown = { data: { session: 'adm_pubs_3', expiresAt: 9 } };
     const { c } = client(() => answer);
     expect(await c.openShared('ABCD EFGH JKMN PQRS')).toBe('opened');
-    expect(c.session()).toEqual({ level: 'lookup', expiresAt: 9 });
+    expect(c.session()).toEqual({ token: 'adm_pubs_3', level: 'lookup', expiresAt: 9 });
     answer = err(404, 'PUBLIC_REF_NOT_FOUND');
     expect(await c.openShared('x')).toBe('unknown');
     answer = err(410, 'LINK_EXPIRED');
@@ -237,7 +237,7 @@ describe("a guest's own account and their order's own link", () => {
     expect(bare.link).toBeNull();
     const { c: linked, calls } = client(() => json(200, { data: [] }));
     linked.adoptSession({ token: made.link!.session!, expiresAt: made.link!.expiresAt! });
-    expect(linked.session()).toEqual({ level: 'verified', expiresAt: 42 });
+    expect(linked.session()).toEqual({ token: 'adm_pubs_row', level: 'verified', expiresAt: 42 });
     await linked.list('orders_claimed');
     expect(header(calls[0]!.init, 'x-adminium-public-session')).toBe('adm_pubs_row');
   });

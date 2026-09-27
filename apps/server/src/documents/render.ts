@@ -209,6 +209,8 @@ export class DocumentReadError extends Error {
 export interface DocumentWithhold {
   rules: TableWithholds;
   reader: WithholdReader | null;
+  /** The key a person reader reads through: a rule's `when` declared on another key is not theirs to meet (none: every one applies). */
+  readerKey?: string | undefined;
 }
 
 /** The register's mark on a document drawn for one reader (`claim.column`): never a column name, so never a claim a session makes. */

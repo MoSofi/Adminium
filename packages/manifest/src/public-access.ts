@@ -40,7 +40,7 @@ import {
   type TableIndex,
 } from './refs.js';
 import { momentIssues, momentOffsetSchema, plainMomentSchema, wallTimeSchema, type Moment } from './refs.js';
-import { conditionIssues, reachedOnlyByUndo, stateConditionSchema, type StateMove } from './states.js';
+import { conditionIssues, linkedConditionSchema, reachedOnlyByUndo, stateConditionSchema, type StateMove } from './states.js';
 
 /** The key every entry uses unless it names another. */
 export const CUSTOMER_KEY = 'customer';
@@ -161,6 +161,62 @@ export function unlistedColumn(
   if (rules?.['personal'] === true) return 'personal data';
   if (rules?.['code'] !== undefined) return 'a code';
   if (columns.some((candidate) => (candidate.rules?.['lookup'] as { from?: unknown } | undefined)?.from === column)) return 'a code a person typed';
+  return null;
+}
+
+/*
+ * What the install guesses is personal data from a column's name, the way
+ * its classifier does on the table it makes — kept here so the validator
+ * refuses what the install would. A column's own `personal` wins either way.
+ */
+const PERSONAL_TEXT_NAMES = [
+  /(^|_)e?mail(_address)?(_|$)/,
+  /(^|_)(phone|mobile|tele?phone|fax)(_number)?(_|$)/,
+  /(^|_)ip(_address)?$/,
+  /(^|_)(address|street|city|zip|postal_code|postcode)(_|$)/,
+];
+const PERSONAL_NAMES = [
+  /(^|_)(ssn|social_security|tax_id|vat|passport|national_id|driver_licen[cs]e)(_|$)/,
+  /(^|_)(card_number|pan|iban|account_number|routing_number|bic|swift)(_|$)/,
+  /(^|_)(birth(date|day)?|dob|date_of_birth)(_|$)/,
+];
+const PEOPLE_TABLE = /(^|_)(users?|people|persons?|employees?|staff|members?|contacts?|customers?|profiles?|teachers?|students?|drivers?|agents?|authors?|patients?)(_|$)/;
+const PERSON_NAME = /^(first_name|last_name|full_name|display_name|name|username)$/;
+
+/** `userId` → `user_id`: the form a name is matched in. */
+function nameForm(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toLowerCase();
+}
+
+/**
+ * Whether a column holds personal data: marked so (`personal: true`), or —
+ * unless marked otherwise — guessed so by its name as the install does: an
+ * address, a phone number, a birth date, an ID or account number, a person's
+ * first, last or full name on a table of people. Secrets are not personal
+ * data (they are never shown at all).
+ */
+export function personalColumn(
+  table: { ref: string; columns: readonly { ref: string; type: string; rules?: Record<string, unknown> | undefined }[] },
+  column: string,
+): 'marked' | 'guessed' | null {
+  const found = table.columns.find((candidate) => candidate.ref === column);
+  if (found === undefined) return null;
+  const personal = found.rules?.['personal'];
+  if (personal === true) return 'marked';
+  if (personal === false || found.rules?.['secret'] === true) return null;
+  const name = nameForm(column);
+  const text = found.type === 'text';
+  if (text && PERSONAL_TEXT_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
+  if (PERSONAL_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
+  if (text && /^(first_name|last_name|full_name)$/.test(name)) {
+    const names = table.columns.map((candidate) => nameForm(candidate.ref));
+    const hasEmail = table.columns.some((candidate, i) => candidate.type === 'text' && PERSONAL_TEXT_NAMES[0]!.test(names[i]!));
+    if (PEOPLE_TABLE.test(nameForm(table.ref)) || (hasEmail && names.some((n) => PERSON_NAME.test(n)))) return 'guessed';
+  }
   return null;
 }
 
@@ -331,14 +387,49 @@ const findOrCreateSchema = z
       .record(refSchema, refSchema)
       .refine((fill) => Object.keys(fill).length <= 4, { message: 'a new person is filled from at most four columns' })
       .optional(),
+    /**
+     * On a change through the row's own link: find the person only on the
+     * save that moves the row to this state (a ticket accepted), not on every
+     * save made while the row has no person.
+     */
+    on: z.object({ to: z.string().min(1).max(64) }).strict().optional(),
   })
   .strict();
 
-/** Columns left out of rows read through a parent, unless the row's holder is the session's own person. */
-const withholdSchema = z.object({ columns: z.array(refSchema).min(1).max(8), unlessHolder: refSchema }).strict();
+/**
+ * Columns left out of a row: once it has a holder who is not the reader
+ * (`unlessHolder`, on rows read through a parent), and — `when` — while the
+ * row, or a row one of its links points at, holds these values (a ticket of
+ * an order not paid yet; a ticket a friend has not taken yet, read by its own
+ * link). A `when` holds for the readers of the key the entry is served
+ * through; a holder is every reader's.
+ */
+const withholdSchema = z
+  .object({
+    columns: z.array(refSchema).min(1).max(8),
+    unlessHolder: refSchema.optional(),
+    when: z
+      .object({ where: z.array(stateConditionSchema).min(1).max(8).optional(), linked: z.array(linkedConditionSchema).min(1).max(4).optional() })
+      .strict()
+      .refine((when) => when.where !== undefined || when.linked !== undefined, { message: 'a when names where, linked, or both' })
+      .optional(),
+  })
+  .strict()
+  .refine((w) => w.unlessHolder !== undefined || w.when !== undefined, { message: 'a withhold names its holder, a when, or both' });
 
-/** What "delete my details" empties on a person's own row, and the time it stamps. */
-const forgetSchema = z.object({ columns: z.array(refSchema).min(1).max(16), stamp: refSchema.optional() }).strict();
+/**
+ * What "delete my details" empties on a person's own row, and the time it
+ * stamps. `links`: it also stops the person's rows' own links (each gets a
+ * new code, which closes every session its old one opened) — an app's choice.
+ */
+const forgetSchema = z.object({ columns: z.array(refSchema).min(1).max(16), stamp: refSchema.optional(), links: z.literal(true).optional() }).strict();
+
+/**
+ * "Make a new link" for a signed-in person's row: its own link (`column`)
+ * gets a new code, which closes every session the old one opened, and the new
+ * link is emailed as the app's outbox message `kind` (sent once per code).
+ */
+const newLinkSchema = z.object({ column: refSchema, kind: z.string().min(1).max(40) }).strict();
 
 export const publicAccessSchema = z
   .object({
@@ -366,6 +457,8 @@ export const publicAccessSchema = z
     shareLink: refSchema.optional(),
     /** On an identity entry: what "delete my details" empties. */
     forget: forgetSchema.optional(),
+    /** On a signed-in person's rows: "Make a new link" for a row's own link. */
+    newLink: newLinkSchema.optional(),
     /**
      * Rows readable only where a parent entry (the one on `table`, on the same
      * key) reads the row they belong to. `via` is this table's foreign key to
@@ -437,6 +530,12 @@ export const publicAccessSchema = z
       .object({
         perValue: z.object({ columns: z.array(refSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
         perKeyHour: z.number().int().min(1).max(1000).optional(),
+        /**
+         * At most this many an hour from one visitor (an IPv6 subscriber's
+         * whole /64) through this entry: never more than the 60 every
+         * visitor is held to on any key, only fewer.
+         */
+        perIpHour: z.number().int().min(1).max(60).optional(),
         plainText: z.array(refSchema).min(1).max(8).optional(),
       })
       .strict()
@@ -551,6 +650,38 @@ interface PublicAccessContext {
   capacityOf?: (table: string) => Capacity | undefined;
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
   roles: readonly { key: string; screensOnly?: boolean | undefined; cloneFrom?: string | undefined; permissions?: readonly string[] | undefined }[];
+  /** The app's outbox, for a new link it emails (absent: the app has none). */
+  outbox?: { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined } | undefined;
+}
+
+/** A row's own link a person reaches: its table, the code column that opens it, and the columns that link its rows to the person. */
+export interface PersonOwnLink {
+  table: string;
+  column: string;
+  people: string[];
+}
+
+/**
+ * The own links of the rows a person of `identityTable` holds: each table a
+ * token claims with `own: true`, by its code column, and the columns of it
+ * that point at the person — the ones a signed-in read claims by, or a found
+ * person is linked through.
+ */
+export function ownLinksOfPerson(entries: readonly PublicAccess[], identityTable: string): PersonOwnLink[] {
+  const out: PersonOwnLink[] = [];
+  for (const entry of entries) {
+    const claim = entry.claim;
+    if (claim === undefined || !('by' in claim) || claim.own !== true) continue;
+    if (out.some((link) => link.table === entry.table && link.column === claim.column)) continue;
+    const people = new Set<string>();
+    for (const other of entries) {
+      if (other.table !== entry.table) continue;
+      if (other.claimedBy !== undefined && other.claimedBy.table === identityTable) people.add(other.claimedBy.column);
+      if (other.identity !== undefined && other.identity.table === identityTable) people.add(other.identity.link);
+    }
+    if (people.size > 0) out.push({ table: entry.table, column: claim.column, people: [...people].sort() });
+  }
+  return out;
 }
 
 /** Everything in `publicAccess` and `publicKeys` that names something undeclared, or breaks a rule. */
@@ -657,6 +788,23 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     for (const list of ['select', 'writable'] as const) {
       for (const ref of entry[list] ?? []) {
         if (!has(entry.table, ref)) out.push({ path: at(list), message: `"${entry.table}" has no column "${ref}"` });
+      }
+    }
+    // An entry anyone may call (no claim, no parent, no session asked) shows no personal data: the install refuses it too.
+    const sessionOnly = entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
+    const anyone = entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true) && !sessionOnly;
+    if (anyone) {
+      for (const ref of entry.select ?? []) {
+        const personal = personalColumn(table as Parameters<typeof personalColumn>[0], ref);
+        if (personal !== null) {
+          out.push({
+            path: at('select'),
+            message:
+              personal === 'marked'
+                ? `"${entry.table}.${ref}" is personal data, and anyone may call this entry, so it is not selected`
+                : `"${entry.table}.${ref}" is read as personal data by its name, and anyone may call this entry, so it is not selected (a column that is not personal says \`personal: false\`)`,
+          });
+        }
       }
     }
     for (const ref of [
@@ -879,8 +1027,27 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
         else if (states?.column === ref && reachedOnlyByUndo(states, value)) out.push({ path: at('writableValues', ref), message: `every move to ${JSON.stringify(value)} is an undo, which only a person makes` });
       }
     }
-    if (entry.writableWhen !== undefined && !patches) {
-      out.push({ path: at('writableWhen'), message: 'writableWhen limits a change, and this entry changes nothing' });
+    /*
+     * A child's create inside a window read from its parent row (an extra
+     * added until the arrival day's check-in time): keyed by the link to the
+     * parent, every end a time of the parent's. The link names the parent a
+     * create is for, so the create writes it; the window is the parent's.
+     */
+    const createWindow =
+      creates &&
+      !patches &&
+      entry.visibleWith !== undefined &&
+      Object.entries(entry.writableWhen ?? {}).every(
+        ([ref, when]) =>
+          ref === entry.visibleWith!.via &&
+          typeof when === 'object' &&
+          !Array.isArray(when) &&
+          !('within' in when) &&
+          [when.after, when.before].some((end) => end !== undefined) &&
+          [when.after, when.before].every((end) => end === undefined || end.column !== undefined),
+      );
+    if (entry.writableWhen !== undefined && !patches && !createWindow) {
+      out.push({ path: at('writableWhen'), message: "writableWhen limits a change, and this entry changes nothing (a child's create takes a window read from its parent, keyed by the link)" });
     }
     for (const [ref, when] of Object.entries(entry.writableWhen ?? {})) {
       const found = column(ref);
@@ -904,6 +1071,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
           ]),
         ];
         for (const column of new Set(opening)) {
+          if (createWindow && column === ref) continue;
           if (writable.has(column) || entry.writableValues?.[column] !== undefined || entry.defaults?.[column] !== undefined) {
             out.push({ path: at('writableWhen', ref), message: `"${column}" decides when this row may change, so a write through this entry may not set it` });
           }
@@ -1637,6 +1805,19 @@ function personIssues(
         out.push({ path: at('methods'), message: 'a person is found by address on a create alone, or on a change through the row\'s own link' });
       }
       if (!change && entry.claim !== undefined) out.push({ path: at('identity'), message: 'an identity entry claims its person; it does not find one by address' });
+      if (id.on !== undefined) {
+        const states = table.states;
+        const stateColumn = states === undefined ? undefined : ruledColumn(index, entry.table, states.column);
+        if (!change) out.push({ path: here('on'), message: 'a create finds its person when it is made; "on" names the move of a change through the row\'s own link' });
+        else if (states === undefined || stateColumn === undefined) out.push({ path: here('on'), message: `"${entry.table}" has no states, so no move finds the person` });
+        else {
+          if (!valueFits(stateColumn, id.on.to)) out.push({ path: here('on', 'to'), message: `"${id.on.to}" is not a state of "${entry.table}.${states.column}"` });
+          const values = entry.writableValues?.[states.column];
+          if (!writable.includes(states.column) || (values !== undefined && !values.includes(id.on.to))) {
+            out.push({ path: here('on', 'to'), message: `this entry never moves "${entry.table}" to "${id.on.to}", so the person would never be found` });
+          }
+        }
+      }
       if (entry.visibleWith !== undefined) out.push({ path: at('identity'), message: 'a row visible with a parent belongs to the parent\'s person; it does not find one by address' });
       // The person signs in by a link to that address: on this key, or (for an own link) on any of the app's keys.
       const signIn = change
@@ -1763,11 +1944,33 @@ function personIssues(
       if (address !== undefined && !entry.forget.columns.includes(address)) {
         out.push({ path: here('columns'), message: `"${address}" signs the person in, so forgetting them empties it` });
       }
+      if (entry.forget.links === true && ownLinksOfPerson(entries, entry.table).length === 0) {
+        out.push({ path: here('links'), message: `no row a "${entry.table}" person holds opens by its own link, so there is no link to stop` });
+      }
       if (entry.forget.stamp !== undefined) {
         const stamp = index.column(entry.table, entry.forget.stamp);
         if (stamp === undefined) out.push({ path: here('stamp'), message: `"${entry.table}" has no column "${entry.forget.stamp}"` });
         else if (stamp.type !== 'timestamptz' || stamp.nullable !== true) out.push({ path: here('stamp'), message: `"${entry.table}.${entry.forget.stamp}" is not a nullable timestamptz` });
         if (entry.forget.columns.includes(entry.forget.stamp)) out.push({ path: here('stamp'), message: 'the time a person was forgotten is kept, not emptied' });
+      }
+    }
+
+    if (entry.newLink !== undefined) {
+      const here = (...rest: Path) => at('newLink', ...rest);
+      const signIn = identities.get(key)?.entry;
+      const verifies = signIn?.claim !== undefined && (claimKind(signIn.claim) === 'link' || ('verify' in signIn.claim && signIn.claim.verify === 'email-code'));
+      if (!entry.methods.includes('GET') || entry.claimedBy === undefined || entry.claimedBy.optional === true || !verifies) {
+        out.push({ path: at('newLink'), message: 'a new link is made for a row a person reads signed in by email (claimedBy), and nowhere else' });
+      } else if (!ownLinksOfPerson(entries, signIn!.table).some((link) => link.table === entry.table && link.column === entry.newLink!.column)) {
+        out.push({ path: here('column'), message: `"${entry.table}.${entry.newLink.column}" is no own link of a row this person holds (a token claim with own: true)` });
+      }
+      const box = ctx.outbox;
+      if (box === undefined) out.push({ path: here('kind'), message: 'a new link is emailed by the app\'s outbox, and the app has none' });
+      else {
+        if (box.kinds[entry.newLink.kind] === undefined) out.push({ path: here('kind'), message: `"${entry.newLink.kind}" is not one of the outbox's kinds` });
+        if (box.columns.repeatKey === undefined) out.push({ path: here('kind'), message: 'each new link is its own message, so the outbox keeps a repeatKey column' });
+        const linked = Object.values(box.links ?? {}).some((column) => index.column(box.table, column)?.references === entry.table);
+        if (!linked) out.push({ path: here('kind'), message: `the outbox links no message to "${entry.table}", so the new link could not be sent about its row` });
       }
     }
 
@@ -1887,17 +2090,54 @@ function ownAddressAndWithholdIssues(
 
     const withhold = entry.withhold;
     if (withhold === undefined) return;
-    const holder = withhold.unlessHolder;
-    // Only a row reached through a parent (or through a column naming someone else) has a holder apart from its reader.
-    if (entry.visibleWith === undefined && entry.claimedBy === undefined) {
-      out.push({ path: at('withhold'), message: 'columns are withheld from rows read through a parent: the entry needs visibleWith (or claimedBy)' });
-    } else if (entry.claimedBy !== undefined && entry.claimedBy.column === holder) {
-      out.push({ path: at('withhold', 'unlessHolder'), message: `"${holder}" is the column this entry is claimed by, so every row it reads is already its holder's` });
+    // A row's own link (a ticket a friend has not taken yet) holds back columns while a condition holds: it names nobody, so no holder.
+    const ownLink = claim !== undefined && claimKind(claim) === 'token' && 'own' in claim && claim.own === true;
+    if (ownLink && withhold.unlessHolder !== undefined) {
+      out.push({ path: at('withhold', 'unlessHolder'), message: "a row's own link names nobody, so it holds columns back by when alone" });
+    } else if (!ownLink && entry.visibleWith === undefined && entry.claimedBy === undefined) {
+      out.push({ path: at('withhold'), message: "columns are withheld from rows read through a parent (visibleWith or claimedBy), or by a row's own link while a condition holds" });
+    } else if (entry.claimedBy !== undefined && entry.claimedBy.column === withhold.unlessHolder) {
+      out.push({ path: at('withhold', 'unlessHolder'), message: `"${withhold.unlessHolder}" is the column this entry is claimed by, so every row it reads is already its holder's` });
     }
     if (new Set(withhold.columns).size !== withhold.columns.length) out.push({ path: at('withhold', 'columns'), message: 'a column is withheld once' });
     for (const ref of withhold.columns) {
       if (entry.select === undefined || !entry.select.includes(ref)) out.push({ path: at('withhold', 'columns'), message: `"${ref}" is not one of the columns the entry shows` });
     }
+    // What a `when` reads decides who sees the columns: never a browser's to write.
+    const ruled = ruledTable(index, entry.table);
+    if (withhold.when !== undefined && ruled !== undefined) {
+      (withhold.when.where ?? []).forEach((condition, w) => {
+        out.push(...conditionIssues(entry.table, condition, index, at('withhold', 'when', 'where', w)));
+        entries.forEach((other, j) => {
+          if (other.table === entry.table && writes(other, condition.column)) {
+            out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${condition.column}" decides who reads the withheld columns, so no browser writes it` });
+          }
+        });
+      });
+      (withhold.when.linked ?? []).forEach((link, l) => {
+        const via = column(link.via);
+        const target = via?.type === 'fk' && via.references !== undefined ? ruledTable(index, via.references) : undefined;
+        if (target === undefined) {
+          out.push({ path: at('withhold', 'when', 'linked', l, 'via'), message: `"${entry.table}.${link.via}" is not a foreign key of this app` });
+          return;
+        }
+        link.where.forEach((condition, w) => {
+          out.push(...conditionIssues(target.ref, condition, index, at('withhold', 'when', 'linked', l, 'where', w)));
+          entries.forEach((other, j) => {
+            if (other.table === target.ref && writes(other, condition.column)) {
+              out.push({ path: ['publicAccess', j, 'writable'], message: `"${target.ref}.${condition.column}" decides who reads "${entry.table}"'s withheld columns, so no browser writes it` });
+            }
+          });
+        });
+        entries.forEach((other, j) => {
+          if (other.table === entry.table && writes(other, link.via)) {
+            out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${link.via}" decides who reads the withheld columns, so no browser writes it` });
+          }
+        });
+      });
+    }
+    const holder = withhold.unlessHolder;
+    if (holder === undefined) return;
     const link = column(holder);
     const root = rootIdentity(entries, i, identities);
     if (link === undefined) {

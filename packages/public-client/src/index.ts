@@ -418,6 +418,12 @@ export interface PublicConfig {
   /** IANA zone. Build every day and time from this, never from the browser. */
   timezone: string;
   /**
+   * The server's clock when the config was answered (ISO). The config is
+   * fetched once, so read the time now with `now()`, which keeps the
+   * difference. Absent from servers up to 0.3.4.
+   */
+  now?: string;
+  /**
    * ISO-4217, or null when this scope serves no money.
    *
    * A `money` column arrives as a bare decimal string (`"45.00"`) with no
@@ -524,6 +530,18 @@ export interface PublicClientOptions {
    * (`forgotten`). The client has already dropped it; the page says so.
    */
   onSessionEnded?: (reason: SessionEnded) => void;
+  /**
+   * A session this page kept from before a reload (what `session()` handed
+   * it), held from the start as if it had just been opened. One already past
+   * its `expiresAt` is not held. `signOut()` ends it on the server too.
+   */
+  session?: HeldSession;
+  /**
+   * Called whenever the session held changes — opened, adopted, raised,
+   * ended or dropped (then with null) — so a page can keep it across a
+   * reload (in `sessionStorage`, say) and hand it back as `session`.
+   */
+  onSessionChange?: (session: HeldSession | null) => void;
 }
 
 /** How far a claim session reaches: `lookup` found the person, `verified` proved their mailbox. */
@@ -534,6 +552,11 @@ export interface PublicSession {
   level: ClaimLevel;
   /** Epoch ms. */
   expiresAt: number;
+}
+
+/** The claim session a client holds, with the token that carries it: what a page keeps across a reload. */
+export interface HeldSession extends PublicSession {
+  token: string;
 }
 
 /** A day of a strip of days, as a booking availability ref answers it. */
@@ -922,14 +945,31 @@ export interface PublicClient {
    * `PUBLIC_CODE_STEP_UP` asks for a fresh sign-in link first.
    */
   forgetMe: () => Promise<void>;
+  /**
+   * "Make a new link" for one of the signed-in person's rows (a verified
+   * session, never a row's own link): the row's own link stops opening it —
+   * every session it opened too — and the new link is emailed to the person.
+   * The new link never comes back here. `PUBLIC_LIMIT_REACHED` after so many
+   * a day for one row.
+   */
+  newLink: (ref: string, id: string | number) => Promise<void>;
   /** Take a session a reply handed over — a new row's own link (`link.session`), for a client of that link's key. */
   adoptSession: (session: { token: string; expiresAt: number; level?: ClaimLevel }) => void;
   /** Why the server last ended the session this client held, or null. */
   sessionEnded: () => SessionEnded | null;
   /** Is a claim session currently held? */
   isClaimed: () => boolean;
-  /** The claim session held, or null. */
-  session: () => PublicSession | null;
+  /**
+   * The claim session held, or null — with its token, so a page can keep it
+   * across a reload and hand it back as the `session` option.
+   */
+  session: () => HeldSession | null;
+  /**
+   * The server's clock now: the device's clock set right by the difference
+   * `config()` saw (the config says the server's time). The device's own clock
+   * when the server did not say.
+   */
+  now: () => Promise<Date>;
   /**
    * The documents this visitor may see and ask for.
    *
@@ -1039,7 +1079,14 @@ export function createPublicClient(
   const humanCheck = options?.humanCheck;
   const csrfToken = options?.csrfToken;
   const onSessionEnded = options?.onSessionEnded;
-  let session: (PublicSession & { token: string }) | null = null;
+  const onSessionChange = options?.onSessionChange;
+  const seeded = options?.session;
+  let session: HeldSession | null =
+    seeded !== undefined && typeof seeded.token === 'string' && seeded.token !== '' && Number(seeded.expiresAt) > Date.now()
+      ? { token: seeded.token, level: seeded.level === 'lookup' ? 'lookup' : 'verified', expiresAt: Number(seeded.expiresAt) }
+      : null;
+  /** How far the server's clock is ahead of this device's, in ms, as the config said; 0 until then. */
+  let clockSkew = 0;
   let ended: SessionEnded | null = null;
   let cachedConfig: Promise<PublicConfig> | null = null;
   /** Refs that asked for a proof under the session held now, and {@link CLAIM} when a claim did. */
@@ -1050,9 +1097,11 @@ export function createPublicClient(
    * with it: a signed-in person is excused the proof on a ref that caps what
    * they hold, so what asked of a stranger need not ask of them.
    */
-  const holdSession = (next: (PublicSession & { token: string }) | null): void => {
+  const holdSession = (next: HeldSession | null): void => {
+    const changed = session !== next;
     session = next;
     asked.clear();
+    if (changed) onSessionChange?.(next === null ? null : { ...next });
   };
 
   /** The error a refused reply carries, as the client throws it. */
@@ -1216,8 +1265,24 @@ export function createPublicClient(
     config() {
       // One fetch per client, shared by every concurrent caller — a boot that
       // renders six components must not make six identical requests.
-      cachedConfig ??= request<{ data: PublicConfig }>('/api/v1/public/config').then((r) => r.data);
+      cachedConfig ??= (async () => {
+        const sentAt = Date.now();
+        const out = await request<{ data: PublicConfig }>('/api/v1/public/config');
+        const told = typeof out.data.now === 'string' ? Date.parse(out.data.now) : Number.NaN;
+        // Measured against the middle of the round trip: the server answered somewhere inside it.
+        if (Number.isFinite(told)) clockSkew = told - (sentAt + Date.now()) / 2;
+        return out.data;
+      })();
+      // A failed fetch is not kept: the next caller asks again.
+      cachedConfig.catch(() => {
+        cachedConfig = null;
+      });
       return cachedConfig;
+    },
+
+    async now() {
+      await client.config().catch(() => undefined);
+      return new Date(Date.now() + clockSkew);
     },
 
     async list<T = Row>(ref: string, options?: ListOptions) {
@@ -1542,6 +1607,10 @@ export function createPublicClient(
       holdSession(null);
     },
 
+    async newLink(ref, id) {
+      await request(`/api/v1/public/records/${ref}/${encodeURIComponent(String(id))}/new-link`, { method: 'POST', body: JSON.stringify({}) });
+    },
+
     adoptSession(next) {
       ended = null;
       holdSession({ token: next.token, level: next.level ?? 'verified', expiresAt: next.expiresAt });
@@ -1556,7 +1625,7 @@ export function createPublicClient(
     },
 
     session() {
-      return session === null ? null : { level: session.level, expiresAt: session.expiresAt };
+      return session === null ? null : { token: session.token, level: session.level, expiresAt: session.expiresAt };
     },
 
     async assertRefs(required) {

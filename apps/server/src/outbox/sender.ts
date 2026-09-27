@@ -121,12 +121,12 @@
  */
 import { guestBase as guestBaseOf } from '../public-api/guest-base.js';
 import { shareCodesOn, type ShareCodes } from '../public-api/share-codes.js';
-import { withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
+import { linkedRowsOf, withheldColumns, withholdRulesOf, type TableWithholds, type WithholdReader } from '../public-api/withhold.js';
 import { withholdsOn } from '../public-api/withholds-on.js';
 import { forgetsOn, type TableForgets } from '../public-api/forgets-on.js';
 import { toForgotten } from './forgotten.js';
 import { GROUPED_FORM, WITH_ATTACHMENT, groupedCode, type AppManifest, type OutboxProducer } from '@adminium/manifest';
-import { addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
+import { CUSTOMER_KEY_PURPOSE, addOnSettingsRepo, appOutboxesRepo, appTablesRepo, connectionTenantConfig, filesRepo, jobsRepo, overridesRepo, settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 import { z } from 'zod';
 
@@ -886,7 +886,12 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
       const rules = withholdRulesOf(ctx.withholds, table.id);
       if (rules.length === 0) return NOTHING_BLANK;
       const out = new Set<string>();
+      // A rule's `when` (a ticket of an order not paid yet): withheld from a person on the key they sign in on, from anyone else whatever key declared it.
+      const person = addressed?.bySetting !== true && addressed?.byColumn === undefined;
+      const linked = rules.some((rule) => (rule.when?.linked ?? []).length > 0) ? await linkedRowsOf(ctx.db, ctx.view, table, rules, [record]) : undefined;
+      for (const column of withheldColumns(ctx.view, table, rules.flatMap((rule) => (rule.when === undefined ? [] : [{ columns: rule.columns, when: rule.when, key: rule.key }])), record, null, { readerKey: person ? CUSTOMER_KEY_PURPOSE : undefined, linked })) out.add(column);
       for (const rule of rules) {
+        if (rule.unlessHolder === undefined) continue;
         const holder = record[rule.unlessHolder];
         if (holder === null || holder === undefined) continue;
         let theirs = false;
@@ -923,6 +928,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const table = ctx.view.table(onRow.table);
     const record = await rowOf(ctx.db, ctx.view, table.id, onRow.id);
     for (const rule of withholdRulesOf(ctx.withholds, table.id)) {
+      if (rule.unlessHolder === undefined) continue;
       const person = record?.[rule.unlessHolder];
       if (person === null || person === undefined || referenced(ctx.view, table.id, rule.unlessHolder) !== people) continue;
       const stored = (await rowOf(ctx.db, ctx.view, people, person))?.[box.definition.recipient.email];
@@ -1442,7 +1448,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const wanted = (await appFacts(box.row.manifestId)).attach[ready.email.templateKey];
         let attachments: EmailSendAttachmentRef[] = [];
         if (wanted !== undefined) {
-          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader }).catch((error: unknown): { error: string; absent?: true } => {
+          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader, ...(ready.reader === null ? {} : { readerKey: CUSTOMER_KEY_PURPOSE }) }).catch((error: unknown): { error: string; absent?: true } => {
             deps.logger?.warn({ err: error, appKey: box.appKey }, 'the document an app email carries could not be drawn');
             return { error: 'The document could not be drawn' };
           });

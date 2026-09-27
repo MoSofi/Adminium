@@ -290,6 +290,13 @@ export interface OutboxProducers {
   watches(connectionId: string, tableId: string): Promise<boolean>;
   /** Forget the cached list: an app was installed, updated or removed. */
   reset(): void;
+  /**
+   * Queue the app's message `kind` about one row now, once per value of the
+   * row's `repeatBy` column (a new link, emailed once per code): true when it
+   * was queued to go. Nothing when the app has no outbox, its kind or a link
+   * to the row's table.
+   */
+  queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string }): Promise<boolean>;
 }
 
 /** Whether a row is one the app added as sample data: its sample ledger lists it. */
@@ -733,6 +740,21 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     );
   }
 
+  async function queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string }): Promise<boolean> {
+    const box = (await live()).find((candidate) => candidate.connectionId === input.connectionId && candidate.appKey === input.appKey);
+    if (box === undefined || box.definition.kinds[input.kind] === undefined) return false;
+    const view = await deps.viewFor(box.connectionId);
+    if (view === null) return false;
+    const outbox = view.table(box.definition.table);
+    // The outbox's own link to the row's table: the column its message is about.
+    const link = Object.values(box.definition.links ?? {}).find((column) => referenced(view, outbox.id, column) === input.table.id);
+    if (link === undefined) return false;
+    const producer = { kind: input.kind, link, onCreate: { table: input.table.id }, repeatBy: input.repeatBy } as OutboxProducer;
+    const queued = await queue(box, producer, input.table, input.row, { now: Date.now() });
+    if (queued) deps.onQueued?.(box.appKey);
+    return queued;
+  }
+
   return {
     onRecordEvent,
     scan,
@@ -742,6 +764,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     reset: () => {
       cached = null;
     },
+    queueKind,
   };
 }
 

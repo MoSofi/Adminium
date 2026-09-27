@@ -116,6 +116,8 @@ export const publicConfigReply = z.object({
     side: z.enum(['staff', 'customer']),
     /** IANA zone. The client builds every day/minute conversion from this. */
     timezone: z.string(),
+    /** The server's clock when this was answered (ISO): a page whose device clock is wrong still asks for the venue's today. */
+    now: z.string(),
     /** ISO-4217, or null when this scope serves no money. */
     currency: z.string().nullable(),
     claim: z
@@ -321,6 +323,8 @@ export const publicChangeQuoteReply = z.object({
   exact: z.boolean(),
   /** A row priced by the night: the nights the change would leave it with. */
   nights: z.array(z.object({ date: z.string(), rate: z.string(), base: z.string(), tags: z.array(z.string()) })).optional(),
+  /** The rows below it a change moves (extras that follow a stay's nights), as it would leave them: by the ref each is read through. */
+  children: z.record(z.string(), z.array(z.object({ data: z.record(z.string(), z.unknown()) }))).optional(),
 });
 
 /** `POST /public/claim` — the end-customer identity check. */

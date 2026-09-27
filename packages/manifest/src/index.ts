@@ -125,7 +125,7 @@ export {
   type OutboxProducer,
 } from './outbox.js';
 
-export { CUSTOMER_KEY, claimKind, claimSchema, codeWhereSchema, publicKeySchema, shareCodeColumns, type Claim, type PublicKey } from './public-access.js';
+export { CUSTOMER_KEY, claimKind, claimSchema, codeWhereSchema, ownLinksOfPerson, personalColumn, publicKeySchema, shareCodeColumns, type Claim, type PersonOwnLink, type PublicKey } from './public-access.js';
 
 export {
   FORMULA_MAX_DEPTH,

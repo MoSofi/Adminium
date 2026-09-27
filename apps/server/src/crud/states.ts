@@ -913,9 +913,10 @@ export async function guardedUpdate(
         if (lockedColumn !== null) {
           throw new RecordLocked(`This ${table.name} row is linked from ${lockedColumn.by}: ${lockedColumn.column} can no longer change.`, { column: lockedColumn.column, linkedFrom: lockedColumn.by });
         }
-        // A guest's change inside the window its entry opens, judged on the row as held and the clock under the locks.
+        // A guest's change inside the window its entry opens, judged on the row as held — before the change: a date moved
+        // later never re-opens a window its own stamps would move with it — and the clock under the locks.
         for (const window of windows) {
-          const moments = momentsOver(tx, table, { ...stored, ...values }, guard ?? { history: false, roles: new Set(), decided: [] }, judging);
+          const moments = momentsOver(tx, table, stored, guard ?? { history: false, roles: new Set(), decided: [] }, judging);
           await judgeWindow(window, { moments: { ...moments, zone: window.zone ?? moments.zone }, now: guard === undefined ? new Date() : nowOf(tx, guard) });
         }
         if (tied && states !== undefined && changed.includes(states.column) && !guard.history) {

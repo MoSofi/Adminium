@@ -141,7 +141,7 @@ describe('columns withheld from rows read through a parent', () => {
 
   it('are withheld from rows reached through a parent, or claimed by a column naming someone else', () => {
     expect(broken((m) => (entryOf(m, 'events', 'GET')['withhold'] = { columns: ['name'], unlessHolder: 'id' }))).toContain(
-      'columns are withheld from rows read through a parent: the entry needs visibleWith (or claimedBy)',
+      'columns are withheld from rows read through a parent (visibleWith or claimedBy), or by a row\'s own link while a condition holds',
     );
     const holders = (m: Doc) => entryOf(m, 'tickets', 'GET', undefined, false);
     expect(broken((m) => (holders(m)['withhold'] = { columns: ['code'], unlessHolder: 'holder_customer_id' }))).toContain(

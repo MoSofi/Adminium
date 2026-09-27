@@ -657,6 +657,8 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
             ? {}
             : { timezone: venue.timezone, timezoneSource: venue.timezoneSource, currency: venue.currency }),
           serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          // The server's clock when this was answered: a device whose clock is off still asks for the venue's today.
+          now: new Date().toISOString(),
           ...signedIn,
         };
       }
@@ -691,6 +693,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         ...(Object.keys(shared).length === 0 ? {} : { publicKeys: shared }),
         ...(tables === null ? {} : { tables }),
         ...(values === null ? {} : { settings: values }),
+        now: new Date().toISOString(),
       };
     }
 

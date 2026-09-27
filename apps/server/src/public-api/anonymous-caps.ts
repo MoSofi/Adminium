@@ -44,6 +44,8 @@ export interface AnonymousCaps {
   perValue?: { columns: string[]; n: number } | undefined;
   /** At most this many an hour through the key. */
   perKeyHour?: number | undefined;
+  /** At most this many an hour from one visitor through this entry (never above {@link ANONYMOUS_PER_IP_HOUR}). */
+  perIpHour?: number | undefined;
   /** Columns that hold plain text only. */
   plainText?: string[] | undefined;
 }
@@ -104,6 +106,11 @@ export function keySubject(keyId: string): string {
 /** Where one visitor's creates through a key are counted: never the address itself, a keyed hash of it. */
 export function ipSubject(key: Buffer, keyId: string, ip: string): string {
   return `anon-ip:${createHmac('sha256', key).update(JSON.stringify([keyId, rateAddress(ip)])).digest('hex')}`;
+}
+
+/** Where one visitor's creates through one entry of a key are counted, for the entry's own lower cap. */
+export function entryIpSubject(key: Buffer, keyId: string, ref: string, ip: string): string {
+  return `anon-ip:${createHmac('sha256', key).update(JSON.stringify([keyId, ref, rateAddress(ip)])).digest('hex')}`;
 }
 
 const PLAIN = /^[\p{L}\p{M} .,'’()&-]*$/u;
@@ -178,8 +185,14 @@ export async function chargeAnonymous(
 ): Promise<CapCharge> {
   const { caps } = input;
   const charges: { subject: string; limit: number; since: number }[] = [];
+  // One visitor first, then everyone through the key: a visitor over their own hour never counts as the key's.
+  if (input.ip !== undefined) {
+    if (caps.perIpHour !== undefined && caps.perIpHour < ANONYMOUS_PER_IP_HOUR) {
+      charges.push({ subject: entryIpSubject(input.key, input.keyId, input.ref, input.ip), limit: caps.perIpHour, since: input.now - HOUR_MS });
+    }
+    charges.push({ subject: ipSubject(input.key, input.keyId, input.ip), limit: ANONYMOUS_PER_IP_HOUR, since: input.now - HOUR_MS });
+  }
   if (caps.perKeyHour !== undefined) charges.push({ subject: keySubject(input.keyId), limit: caps.perKeyHour, since: input.now - HOUR_MS });
-  if (input.ip !== undefined) charges.push({ subject: ipSubject(input.key, input.keyId, input.ip), limit: ANONYMOUS_PER_IP_HOUR, since: input.now - HOUR_MS });
   const perValue = caps.perValue;
   if (perValue !== undefined) {
     for (const column of perValue.columns) {

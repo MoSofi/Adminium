@@ -91,6 +91,37 @@ describe('anonymous caps', () => {
     expect(JSON.stringify(repo.rows)).not.toContain('203.0.113');
   });
 
+  it("holds one visitor to an entry's own lower hour, per /64, before the key's hour is counted", async () => {
+    const repo = memoryRepo();
+    const from = (ip: string, i: number, caps: AnonymousCaps = { perIpHour: 10, perKeyHour: 12 }) => ({ ...input({ email: `p${String(i)}@example.com` }, caps), ip });
+    for (let i = 0; i < 10; i += 1) expect((await chargeAnonymous(repo, from('203.0.113.9', i))).ok).toBe(true);
+    // The eleventh from one visitor is refused, and takes none of the key's hour with it.
+    expect((await chargeAnonymous(repo, from('203.0.113.9', 10))).ok).toBe(false);
+    expect((await chargeAnonymous(repo, from('2001:db8:1:2::1', 11))).ok).toBe(true);
+    expect((await chargeAnonymous(repo, from('2001:db8:1:3::1', 12))).ok).toBe(true);
+    // The key's hour (12) is spent by the twelve that passed: another visitor is now refused by the key's cap.
+    expect((await chargeAnonymous(repo, from('198.51.100.7', 13))).ok).toBe(false);
+    // One IPv6 subscriber's /64 is one visitor for the entry's cap too.
+    const v6 = memoryRepo();
+    for (let i = 0; i < 3; i += 1) expect((await chargeAnonymous(v6, from(`2001:db8:9:9::${String(i + 1)}`, i, { perIpHour: 3 }))).ok).toBe(true);
+    expect((await chargeAnonymous(v6, from('2001:db8:9:9:ffff::1', 99, { perIpHour: 3 }))).ok).toBe(false);
+    expect((await chargeAnonymous(v6, from('2001:db8:9:a::1', 100, { perIpHour: 3 }))).ok).toBe(true);
+  });
+
+  it("counts an entry's own hour per entry, and the 60 every visitor is held to across the key", async () => {
+    const repo = memoryRepo();
+    const at = (ref: string, i: number, caps: AnonymousCaps) => ({ ...input({ email: `q${String(i)}@example.com` }, caps), ref, ip: '203.0.113.50' });
+    for (let i = 0; i < 2; i += 1) expect((await chargeAnonymous(repo, at('orders', i, { perIpHour: 2 }))).ok).toBe(true);
+    expect((await chargeAnonymous(repo, at('orders', 2, { perIpHour: 2 }))).ok).toBe(false);
+    // Another entry of the key has its own hour for this visitor.
+    expect((await chargeAnonymous(repo, at('bookings', 3, { perIpHour: 2 }))).ok).toBe(true);
+    // Everything this visitor made through the key still counts toward the 60.
+    for (let i = 0; i < ANONYMOUS_PER_IP_HOUR - 3; i += 1) expect((await chargeAnonymous(repo, at('visits', 100 + i, {}))).ok).toBe(true);
+    expect((await chargeAnonymous(repo, at('visits', 999, {}))).ok).toBe(false);
+    // Where it is kept, the address is a keyed hash.
+    expect(JSON.stringify(repo.rows)).not.toContain('203.0.113');
+  });
+
   it('takes a name, and never a link, a number or a long story', () => {
     for (const name of ['Cara O’Neil', 'Zoë Brontë-Smith', 'Dr. J. (Jo) Park & co', 'محمد', null]) expect(plainText(name)).toBe(true);
     for (const name of ['see www.x.io', 'http://x', 'https://x.io', 'Call 0800', 'a'.repeat(81), '<b>hi</b>', 42]) expect(plainText(name)).toBe(false);

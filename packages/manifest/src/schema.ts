@@ -2055,6 +2055,7 @@ export function appReferenceIssues(
       mailsOnCreate: (table) => (m.outbox?.producers ?? []).some((producer) => 'onCreate' in producer && producer.onCreate.table === table),
       publicKeys: m.publicKeys,
       roles: m.roles ?? [],
+      outbox: m.outbox,
     }),
   );
   out.push(...viaIndexIssues(m.requiredSchema.tables));

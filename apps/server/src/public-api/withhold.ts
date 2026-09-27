@@ -16,17 +16,28 @@
  * Every door that answers such rows applies it: a list, one row, and the row
  * a change answers with.
  */
+import type { StateCondition } from '@adminium/manifest';
+import type { Kysely } from 'kysely';
+
+import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { holds } from '../crud/state-conditions.js';
 import type { PublicSessionContext } from './claim.js';
 import type { CompiledResource, CompiledScope } from './scope.js';
 
 export interface Withholding {
-  /** The columns the read must fetch: the resource's own, and the holder column when it is not one of them. */
+  /** The columns the read must fetch: the resource's own, and the columns a rule decides by when they are not among them. */
   expose: readonly string[];
   /** Every column a rule may withhold: never filtered, searched or sorted by, which would tell what it holds. */
   columns: ReadonlySet<string>;
-  /** The row as the reader may see it: the withheld columns emptied unless the reader holds it, the holder column dropped when it was fetched only to decide. */
+  /**
+   * Read the rows a rule's linked conditions look at (the order a ticket
+   * belongs to), for these rows, before `apply`. Without it a linked
+   * condition cannot be read, and the columns are withheld.
+   */
+  prepare: (db: Kysely<SourceDatabase>, rows: readonly Row[]) => Promise<void>;
+  /** The row as the reader may see it: the withheld columns emptied, the columns fetched only to decide dropped. */
   apply: (row: Row) => Row;
 }
 
@@ -74,23 +85,29 @@ export function withholding(
   table: ResolvedTable,
   /** Every `withhold` declared on the connection: an entry read through a parent that declares none keeps what another entry withholds on its table. */
   declared?: TableWithholds,
+  /** The key the read comes through (its purpose): a rule's `when` declared on another key is that key's readers' alone. */
+  readerKey?: string,
 ): Withholding {
   const own = resource.withhold ?? null;
   // An entry's own rule; else every rule declared on its table, whichever entry or key declared it.
-  const rules: readonly WithholdRule[] = own !== null ? [own] : declared !== undefined ? withholdRulesOf(declared, table.id) : [];
-  if (rules.length === 0) return { expose: resource.expose, columns: new Set(), apply: (row) => row };
-  const fetched = [...new Set(rules.map((rule) => rule.unlessHolder))].filter((column) => !resource.expose.includes(column));
-  const readers = rules.map((rule) => readerOf(scope, session, view, table, rule.unlessHolder));
+  const rules: readonly WithholdRule[] = own !== null ? [{ ...own, ...(readerKey === undefined ? {} : { key: readerKey }) }] : declared !== undefined ? withholdRulesOf(declared, table.id) : [];
+  if (rules.length === 0) return { expose: resource.expose, columns: new Set(), prepare: async () => {}, apply: (row) => row };
+  const fetched = [...new Set(rules.flatMap(decidingColumns))].filter((column) => !resource.expose.includes(column) && table.columns.has(column));
+  const readers = rules.map((rule) => (rule.unlessHolder === undefined ? null : readerOf(scope, session, view, table, rule.unlessHolder)));
+  let linked: LinkedRows | undefined;
   return {
     expose: [...resource.expose, ...fetched],
     columns: new Set(rules.flatMap((rule) => rule.columns)),
+    prepare: async (db, rows) => {
+      linked = await linkedRowsOf(db, view, table, rules, rows);
+    },
     apply: (row) => {
       const out: Row = { ...row };
       rules.forEach((rule, i) => {
-        const holder = row[rule.unlessHolder];
+        const holder = rule.unlessHolder === undefined ? undefined : row[rule.unlessHolder];
         const reader = readers[i];
-        const theirs = holder === null || holder === undefined || (reader !== null && String(holder) === String(reader));
-        if (!theirs) for (const column of rule.columns) if (column in out) out[column] = null;
+        const heldElsewhere = rule.unlessHolder !== undefined && holder !== null && holder !== undefined && (reader === null || String(holder) !== String(reader));
+        if (heldElsewhere || whenHolds(rule, row, readerKey, linked)) for (const column of rule.columns) if (column in out) out[column] = null;
       });
       for (const column of fetched) delete out[column];
       return out;
@@ -112,10 +129,94 @@ export function withholding(
  * document is drawn for.
  */
 
-/** One `withhold` as declared: the columns, and the link naming the row's holder. */
+/**
+ * When a rule withholds its columns whoever reads the row: while the row
+ * holds a value (a ticket whose order is not paid yet), or the row one of its
+ * links points at does. Every condition must hold.
+ */
+export interface WithholdWhen {
+  where?: readonly StateCondition[] | undefined;
+  linked?: readonly { via: string; where: readonly StateCondition[] }[] | undefined;
+}
+
+/**
+ * One `withhold` as declared: the columns; the link naming the row's holder
+ * (withheld from anyone but the holder once one is set); and `when` (withheld
+ * while it holds). `key`: the key the declaring entry is served through — a
+ * `when` is its readers' alone (a pending friend's link), where a holder is
+ * every reader's.
+ */
 export interface WithholdRule {
   columns: readonly string[];
-  unlessHolder: string;
+  unlessHolder?: string | undefined;
+  when?: WithholdWhen | undefined;
+  key?: string | undefined;
+}
+
+/** The rows linked conditions read, by the link column and then the linked key (as text). */
+export type LinkedRows = ReadonlyMap<string, ReadonlyMap<string, Row>>;
+
+/** The row's own columns a rule decides by: its holder link, the columns of its conditions, and the links its linked conditions follow. */
+function decidingColumns(rule: WithholdRule): string[] {
+  return [
+    ...(rule.unlessHolder === undefined ? [] : [rule.unlessHolder]),
+    ...(rule.when?.where ?? []).map((condition) => condition.column),
+    ...(rule.when?.linked ?? []).map((link) => link.via),
+  ];
+}
+
+/** The rows a table's rules decide by: every column the read must fetch to judge them. */
+export function decidingColumnsOf(withholds: TableWithholds, table: string): string[] {
+  return [...new Set(withholdRulesOf(withholds, table).flatMap(decidingColumns))];
+}
+
+/**
+ * Whether a rule's `when` holds for a row, for a reader on `readerKey` (none:
+ * a reader of no key — an email, a document mailed out — and every rule
+ * applies). A condition that cannot be read — a link that is empty, a linked
+ * row not read or gone — holds: a column is never shown on nothing.
+ */
+function whenHolds(rule: WithholdRule, row: Row, readerKey: string | undefined, linked: LinkedRows | undefined): boolean {
+  const when = rule.when;
+  if (when === undefined) return false;
+  if (rule.key !== undefined && readerKey !== undefined && rule.key !== readerKey) return false;
+  if (!(when.where ?? []).every((condition) => holds(condition, row))) return false;
+  for (const link of when.linked ?? []) {
+    const key = row[link.via];
+    if (key === null || key === undefined) return true;
+    // Not read (a door that reads no linked rows), or gone: withheld.
+    const target = linked?.get(link.via)?.get(String(key));
+    if (target === undefined) return true;
+    if (!link.where.every((condition) => holds(condition, target))) return false;
+  }
+  return true;
+}
+
+/** The rows every rule's linked conditions look at, for these rows: one read per link. */
+export async function linkedRowsOf(db: Kysely<SourceDatabase>, view: SnapshotView, table: ResolvedTable, rules: readonly WithholdRule[], rows: readonly Row[]): Promise<LinkedRows> {
+  const out = new Map<string, Map<string, Row>>();
+  const vias = [...new Set(rules.flatMap((rule) => (rule.when?.linked ?? []).map((link) => link.via)))];
+  for (const via of vias) {
+    const targetId = pointsTo(view, table, via);
+    if (targetId === undefined) continue;
+    let target: ResolvedTable;
+    try {
+      target = view.table(targetId);
+    } catch {
+      continue;
+    }
+    const key = target.primaryKey[0];
+    const values = [...new Set(rows.map((row) => row[via]).filter((value) => value !== null && value !== undefined))];
+    const found = new Map<string, Row>();
+    if (key !== undefined && values.length > 0) {
+      for (let at = 0; at < values.length; at += 500) {
+        const read = (await db.selectFrom(target.id).selectAll().where(db.dynamic.ref(key), 'in', values.slice(at, at + 500) as never).execute()) as Row[];
+        for (const one of read) found.set(String(one[key]), one);
+      }
+    }
+    out.set(via, found);
+  }
+  return out;
 }
 
 /** Every `withhold` declared on a connection's tables, by table name (schema left off, which errs on the side of withholding). */
@@ -128,9 +229,9 @@ export function withholdRulesOf(withholds: TableWithholds, table: string): reado
   return withholds.get(bareName(table)) ?? [];
 }
 
-/** The columns a table's rules name as the holder link: what a read must fetch to decide. */
+/** The columns a table's rules decide by (the holder link, the columns a `when` reads): what a read must fetch to decide. */
 export function holderColumnsOf(withholds: TableWithholds, table: string): string[] {
-  return [...new Set(withholdRulesOf(withholds, table).map((rule) => rule.unlessHolder))];
+  return decidingColumnsOf(withholds, table);
 }
 
 /** Who reads a row, for a withhold: a person, as the table they are kept in and their key — or nobody (null). */
@@ -151,9 +252,22 @@ function pointsTo(view: SnapshotView, table: ResolvedTable, column: string): str
  * address no person keeps — reads no held row's columns. A holder link that
  * points at another table than the reader's never names the reader.
  */
-export function withheldColumns(view: SnapshotView, table: ResolvedTable, rules: readonly WithholdRule[], row: Row, reader: WithholdReader | null): Set<string> {
+export function withheldColumns(
+  view: SnapshotView,
+  table: ResolvedTable,
+  rules: readonly WithholdRule[],
+  row: Row,
+  reader: WithholdReader | null,
+  /** The key the reader reads through, when there is one; the linked rows `when` reads, when read. */
+  opts: { readerKey?: string | undefined; linked?: LinkedRows | undefined } = {},
+): Set<string> {
   const out = new Set<string>();
   for (const rule of rules) {
+    if (whenHolds(rule, row, opts.readerKey, opts.linked)) {
+      for (const column of rule.columns) out.add(column);
+      continue;
+    }
+    if (rule.unlessHolder === undefined) continue;
     const holder = row[rule.unlessHolder];
     if (holder === null || holder === undefined) continue;
     const theirs = reader !== null && reader.value !== null && reader.value !== undefined && pointsTo(view, table, rule.unlessHolder) === reader.table && String(holder) === String(reader.value);
@@ -164,23 +278,59 @@ export function withheldColumns(view: SnapshotView, table: ResolvedTable, rules:
 }
 
 /** The row with the columns withheld from `reader` emptied. */
-export function blankWithheld(view: SnapshotView, table: ResolvedTable, rules: readonly WithholdRule[], row: Row, reader: WithholdReader | null): Row {
-  const hidden = withheldColumns(view, table, rules, row, reader);
+export function blankWithheld(
+  view: SnapshotView,
+  table: ResolvedTable,
+  rules: readonly WithholdRule[],
+  row: Row,
+  reader: WithholdReader | null,
+  opts: { readerKey?: string | undefined; linked?: LinkedRows | undefined } = {},
+): Row {
+  const hidden = withheldColumns(view, table, rules, row, reader, opts);
   if (hidden.size === 0) return row;
   const out: Row = { ...row };
   for (const column of hidden) if (column in out) out[column] = null;
   return out;
 }
 
+/**
+ * What a document drawn for a session withholds: the rules, the person (a
+ * signed-in person, else nobody), and — for a person — the key they read
+ * through. Drawn for nobody, every rule's `when` applies, whichever key
+ * declared it: such a document is anyone's who reaches its row.
+ */
+export function withholdFor(rules: TableWithholds, reader: WithholdReader | null, readerKey: string): { rules: TableWithholds; reader: WithholdReader | null; readerKey?: string } {
+  return reader === null ? { rules, reader } : { rules, reader, readerKey };
+}
+
 /** The rules an entry list declares (endpoint definitions, a key's compiled resources, an app's manifest entries), by table name. */
 export function collectWithholds(declared: Iterable<{ table: string; withhold: WithholdRule | null | undefined }>): Map<string, WithholdRule[]> {
   const out = new Map<string, WithholdRule[]>();
+  const alike = (a: WithholdRule, b: WithholdRule) =>
+    a.unlessHolder === b.unlessHolder && a.columns.join('\u0000') === b.columns.join('\u0000') && JSON.stringify(a.when ?? null) === JSON.stringify(b.when ?? null);
   for (const { table, withhold } of declared) {
     if (withhold === null || withhold === undefined) continue;
     const name = bareName(table);
     const list = out.get(name) ?? [];
-    if (!list.some((rule) => rule.unlessHolder === withhold.unlessHolder && rule.columns.join('\u0000') === withhold.columns.join('\u0000'))) {
-      list.push({ columns: [...withhold.columns], unlessHolder: withhold.unlessHolder });
+    /*
+     * A `when` said on a key, and the same said again with no key (a key's
+     * scope written out from its endpoints): the key's. One said with no key
+     * anywhere is every reader's.
+     */
+    const keyed = withhold.when === undefined ? undefined : withhold.key;
+    // Already said: by the same key, by no key (every reader's), or — said again with no key — by a key.
+    if (list.some((rule) => alike(rule, withhold) && (rule.key === keyed || rule.key === undefined || keyed === undefined))) {
+      out.set(name, list);
+      continue;
+    }
+    {
+      list.push({
+        columns: [...withhold.columns],
+        ...(withhold.unlessHolder === undefined ? {} : { unlessHolder: withhold.unlessHolder }),
+        ...(withhold.when === undefined ? {} : { when: structuredClone(withhold.when) as WithholdWhen }),
+        // Only a `when` is a key's own: a holder rule is every reader's.
+        ...(withhold.when === undefined || withhold.key === undefined ? {} : { key: withhold.key }),
+      });
     }
     out.set(name, list);
   }
