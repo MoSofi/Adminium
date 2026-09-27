@@ -20,6 +20,7 @@ import type { Kysely } from 'kysely';
 import type { SourceDatabase } from '../../connections/manager.js';
 import { writeConflict } from '../db-errors.js';
 import type { Row } from '../mask.js';
+import { lockAgain, type WriteClock } from '../write-clock.js';
 import type { WriteAction, WriteTarget } from '../write-context.js';
 import { has } from './count.js';
 import { judgeCapacity } from './judge.js';
@@ -34,11 +35,18 @@ const ATTEMPTS = 3;
 
 /**
  * Run `run` holding the locks `names` answers, named again (from a fresh
- * look) each time the judge finds a row moved away from its lock.
+ * look) each time the judge finds a row moved away from its lock. Each
+ * attempt judges by its own locked instant on `clock`, read after its locks.
  */
-export async function withLimitLocks<T>(target: Pick<WriteTarget, 'db' | 'dialect'>, names: () => Promise<NamedLock[]>, run: (db: Db) => Promise<T>): Promise<T> {
+export async function withLimitLocks<T>(
+  target: Pick<WriteTarget, 'db' | 'dialect'>,
+  names: () => Promise<NamedLock[]>,
+  run: (db: Db) => Promise<T>,
+  clock: WriteClock,
+): Promise<T> {
   for (let attempt = 1; ; attempt += 1) {
     try {
+      if (attempt > 1) lockAgain(clock);
       return await withNamedLocks(target, await names(), run);
     } catch (error) {
       if (!(error instanceof LockMoved)) throw error;

@@ -5,6 +5,7 @@
  * refusals with no reason, a full slot told with its column and nothing more.
  * Two changes only, both loosenings: a status step on a slot already over its
  * limit (history, or a smaller limit) goes through, and so does a bulk cancel.
+ * A party shrunk to none or fewer is refused, as it always was.
  */
 import { readFileSync } from 'node:fs';
 
@@ -67,6 +68,29 @@ describe.each(LEGS)('the released Point of Sale limit on %s', (dialect, availabl
       await expect(
         w.writes.beforeEach('update', target, { ...w.desk, origin: 'bulk' }, rows.map((row) => ({ ...row, values: { status: 'confirmed' } }))),
       ).rejects.toMatchObject({ details: { reason: 'CAPACITY_ONE_AT_A_TIME' } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.runIf(available)('refuses a party shrunk to none or fewer, and lets one shrink to fewer', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-20T12:00:00.000Z'));
+    try {
+      const w = await writerFor(h!, ZONE);
+      await h!.rows(`update ${h!.real('booking_rules')} set covers_per_slot = 6`);
+      await h!.rows(`delete from ${h!.real('reservations')}`);
+      const book = (party: number) => refusal(w.create('reservations', { name: 'Guest', starts_at: at('2026-07-22 19:00'), party_size: party, status: 'confirmed', channel: 'phone' }));
+      expect(await book(6)).toBe('ok');
+      const [first] = await h!.rows(`select id from ${h!.real('reservations')} order by id`);
+      const bare = { code: 'VALIDATION_FAILED', details: { fields: { party_size: { code: 'out-of-range' } } } };
+      expect(await refusal(w.update('reservations', first!['id'], { party_size: -10 }))).toEqual(bare);
+      expect(await refusal(w.update('reservations', first!['id'], { party_size: 0 }))).toEqual(bare);
+      expect(await book(0)).toEqual(bare);
+      // Nothing was freed: the slot is still full.
+      expect(await book(1)).toEqual({ code: 'CAPACITY_FULL', details: { column: 'starts_at' } });
+      expect(await refusal(w.update('reservations', first!['id'], { party_size: 2 }))).toBe('ok');
+      expect(await book(4)).toBe('ok');
     } finally {
       vi.useRealTimers();
     }

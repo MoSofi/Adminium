@@ -7,6 +7,8 @@
  *
  * Run with the source pool at one (`poolMax: 1`) beside the default: a guard
  * that checked out a second connection inside its transaction would stall.
+ * And across two servers over one database: each has its own queue in front
+ * of the database's locks, so only the database's locks keep them apart.
  */
 import { sql } from 'kysely';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -81,6 +83,24 @@ for (const [dialect, available] of LEGS) {
         expect(asked.status).toBe(200);
         expect(waited).toBeLessThan(1000);
       }, 20_000);
+
+      // Two servers over one SQLite file is not a deployment: one server serialises its writers.
+      it.skipIf(dialect === 'sqlite')('sells 20 checkouts of 2 for the last 14 to exactly 7 across two servers', async () => {
+        w = await lastFourteen(dialect, poolMax);
+        const other = await w.twin();
+        const here = await w.target('cart_lines');
+        const there = await other.target('cart_lines');
+        const context = { origin: 'public' as const, hops: 0, actor: null, request: null };
+        const outcomes = await Promise.all(
+          Array.from({ length: 20 }, (_, i) =>
+            refusal(w!.writes.create({ target: i % 2 === 0 ? here : there, values: { ticket_type_id: 1, qty: 2 }, context, announce: async () => {} })),
+          ),
+        );
+        expect(outcomes.filter((o) => o === 'ok')).toHaveLength(7);
+        expect(new Set(outcomes.filter((o) => o !== 'ok').map((o) => (o as { code: string }).code))).toEqual(new Set(['CAPACITY_FULL']));
+        const [total] = await w.query('select sum(qty) as n from cart_lines');
+        expect(Number(total!['n'])).toBe(260);
+      }, 30_000);
 
       it('fills the last four places of a pickup slot with five orders at once', async () => {
         w = await kitchen(dialect, undefined, poolMax);

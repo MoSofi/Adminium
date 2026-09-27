@@ -35,6 +35,13 @@ export interface JudgedRow {
   row: Row;
   /** The row as stored, read holding it; null for a create. */
   before: Row | null;
+  /**
+   * A change's columns as the writer sent them (before the stored row is laid
+   * under them). A released slot rule asks of a change what it always asked
+   * of what was sent — a slot sent again is placed again. Absent: the columns
+   * whose values differ from `before`.
+   */
+  values?: Row | undefined;
   /** Where the row sits in a create with child rows (`['order_items', 3]`); absent for a single row. */
   path?: readonly (string | number)[] | undefined;
 }

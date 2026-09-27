@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Three venues whose tables carry limits, each on a fresh database of any
+ * Four venues whose tables carry limits, each on a fresh database of any
  * engine: a kitchen (orders in pickup slots, portions of a dish per day), a
- * show (tickets of a type within the room's cap, held for ten minutes) and a
- * house (stays by the night, a room per stay, parking per night).
+ * show (tickets of a type within the room's cap, held for ten minutes), a
+ * house (stays by the night, a room per stay, parking per night) and a diner
+ * whose table limit is a released app's (covers per half-hour slot).
  */
 import { wallTimeToInstant } from '../src/crud/venue-time.js';
 import { filled, types, type Dialect, type World } from './capacity.helpers.js';
@@ -127,13 +128,13 @@ export const NEON_RULE = {
   reserved: { states: ['returned'] },
 };
 
-export async function neon(dialect: Dialect, roomCapacity = 300, endpoints?: Record<string, Record<string, unknown>>): Promise<World> {
+export async function neon(dialect: Dialect, roomCapacity = 300, endpoints?: Record<string, Record<string, unknown>>, rule: Record<string, unknown> = NEON_RULE): Promise<World> {
   const spec = {
     zone: KITCHEN_ZONE,
     ddl: neonDdl,
     overrides: () => [
       { op: 'column.copy', table: 'tickets', column: 'event_id', value: { via: 'ticket_type_id', from: 'event_id' } },
-      { op: 'table.capacity', table: 'tickets', value: NEON_RULE },
+      { op: 'table.capacity', table: 'tickets', value: rule },
     ],
     ...(endpoints === undefined ? {} : { endpoints }),
   };
@@ -245,3 +246,42 @@ export async function house(dialect: Dialect, endpoints?: Record<string, Record<
 
 export const roomId = async (w: World, number: string) => (await w.query(`select id from rooms where number = '${number}'`))[0]!['id'];
 
+
+/* -------------------------------------------------------------- the diner */
+
+/** Opens 17:00 to 22:00, half-hour slots, six covers, a week ahead: a released app's rule, over columns that may be empty. */
+export async function diner(dialect: Dialect, endpoints?: Record<string, Record<string, unknown>>): Promise<World> {
+  return filled(
+    dialect,
+    {
+      zone: KITCHEN_ZONE,
+      ddl: (d) => {
+        const t = types(d);
+        return [
+          `create table covers (id ${t.key}, per_slot integer)`,
+          `create table bookings (id ${t.key}, name ${t.text(40)}, starts_at ${t.at} null, party integer null, status ${t.text(16)} not null default 'confirmed')`,
+        ];
+      },
+      overrides: (id) => [
+        {
+          op: 'table.capacity',
+          table: 'bookings',
+          value: {
+            slot: 'starts_at',
+            amount: 'party',
+            perSlot: { table: id('covers'), column: 'per_slot' },
+            countWhere: { column: 'status', values: ['confirmed', 'seated'] },
+            slotMinutes: 30,
+            opens: '17:00',
+            closes: '22:00',
+            windowDays: 7,
+          },
+        },
+      ],
+      ...(endpoints === undefined ? {} : { endpoints }),
+    },
+    async (w) => {
+      await w.seed('covers', [{ per_slot: 6 }]);
+    },
+  );
+}

@@ -12,9 +12,13 @@ import type { ResolvedColumn } from './identifiers.js';
 import { normalizeWriteValue } from './write-values.js';
 
 /** A day and a minute of the day on the venue's clock. */
-export function venueClock(instant: Date, timezone: string): { day: string; minute: number; second: number } {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
+/** One formatter per zone: making one costs far more than using it, and a count reads thousands of instants. */
+const FORMATS = new Map<string, Intl.DateTimeFormat>();
+
+function formatIn(timezone: string): Intl.DateTimeFormat {
+  let format = FORMATS.get(timezone);
+  if (format === undefined) {
+    format = new Intl.DateTimeFormat('en-CA', {
       timeZone: timezone,
       year: 'numeric',
       month: '2-digit',
@@ -23,7 +27,15 @@ export function venueClock(instant: Date, timezone: string): { day: string; minu
       minute: '2-digit',
       second: '2-digit',
       hourCycle: 'h23',
-    })
+    });
+    FORMATS.set(timezone, format);
+  }
+  return format;
+}
+
+export function venueClock(instant: Date, timezone: string): { day: string; minute: number; second: number } {
+  const parts = Object.fromEntries(
+    formatIn(timezone)
       .formatToParts(instant)
       .map((part) => [part.type, part.value]),
   );

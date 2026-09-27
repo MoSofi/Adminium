@@ -2066,6 +2066,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
                   ...(series === null ? [] : seriesOf(rules, target.table, checked).map((name) => ({ name, busy: 'NUMBER_BUSY' as const }))),
                 ],
                 write,
+                clock,
               )
             : day !== null
               ? withBookingLock({ ...target, timezone: zone }, day, write)
@@ -2156,7 +2157,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             ? ((holdsParent(rules) || worked.length > 0 || limits ? await fetchHeld(db, target, pk) : await fetchByPk(db, target.table, pk)) ?? null)
             : null;
         if (limits && prior !== null) {
-          await judgeRows(db, [{ target: within, pk, row: { ...prior, ...checkedValues }, before: prior }], { clock, origin: context.origin, mode: 'save' }, input.mapError);
+          await judgeRows(db, [{ target: within, pk, row: { ...prior, ...checkedValues }, before: prior, values: checkedValues }], { clock, origin: context.origin, mode: 'save' }, input.mapError);
         }
         let written = checkedValues;
         if (booking !== undefined && prior !== null) {
@@ -2203,7 +2204,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
             return current === null
               ? []
               : capacityLockNames(target.db, [{ target: { ...target, timezone: zone }, row: { ...current, ...checkedValues }, before: current, prepared: true }]);
-          }, write);
+          }, write, clock);
         }
         if (booking !== undefined) {
           return await bookedUpdate(booking, target, zone, pk, checkedValues, (day) => {

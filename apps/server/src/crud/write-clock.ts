@@ -42,11 +42,14 @@ export interface WriteClock {
   locked(db: Kysely<SourceDatabase>): Date;
 }
 
+/** How to let go of each clock's locked instant, for {@link lockAgain}. */
+const UNFIX = new WeakMap<WriteClock, () => void>();
+
 /** A clock for one write. `now` is for tests that fix the time without faking the whole process clock. */
 export function writeClock(context?: Pick<WriteContext, 'occurredAt'> | null, now: () => Date = () => new Date()): WriteClock {
   const startedAt = now();
   let fixed: Date | null = null;
-  return {
+  const clock: WriteClock = {
     startedAt,
     occurredAt: context?.occurredAt ?? null,
     locked(db) {
@@ -57,6 +60,18 @@ export function writeClock(context?: Pick<WriteContext, 'occurredAt'> | null, no
       return fixed;
     },
   };
+  UNFIX.set(clock, () => (fixed = null));
+  return clock;
+}
+
+/**
+ * A write that starts its transaction over (its locks named again after a
+ * row moved) judges by a new locked instant, read after the new locks: the
+ * first attempt's instant is from before a wait of up to ten seconds, and a
+ * sale may have closed, or a hold ended, meanwhile.
+ */
+export function lockAgain(clock: WriteClock): void {
+  UNFIX.get(clock)?.();
 }
 
 /** "Now" for the row's own stamps: the device's time, else when the write began. */

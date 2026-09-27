@@ -1823,10 +1823,21 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if ((ctx.table.table?.capacityRules?.length ?? 0) === 0) throw new NotFoundError('This table keeps no limit.', { table: ctx.table.id });
         const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
         const { ids, ...rest } = request.query;
+        // The tables the counts read beyond this one (the pools' rows), and a column asked under, as the asker may read them.
+        const access = {
+          table: async (tableId: string) => {
+            const permission = `table:${ctx.connectionId}:${tableId}:read`;
+            if (!(await request.can(permission))) throw new ForbiddenError('You do not have access to this table.', 'TABLE_FORBIDDEN', { permission });
+          },
+          column: async (table: ResolvedTable, name: string) => {
+            ctx.view.readableColumn(table, name, await canReadPii(request, ctx.connectionId, table.id));
+          },
+        };
         const answer = await capacityCounts(
           { connectionId: ctx.connectionId, view: ctx.view, table: ctx.table, db: ctx.db, dialect: ctx.dialect, timezone },
           { ...rest, ...(ids === undefined ? {} : { ids: ids.split(',').map((id) => id.trim()).filter((id) => id !== '') }) },
           new Date(),
+          access,
         );
         if (!answer.ok) throw new ValidationFailedError(answer.message, {});
         return { data: answer.data };
