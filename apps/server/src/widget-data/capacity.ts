@@ -32,7 +32,7 @@ import { capacityCounts, type CountsAccess, type CountsAsk } from '../crud/capac
 import { rangeOf } from '../crud/capacity/judge.js';
 import { rulesFor, type Rule } from '../crud/capacity/rules.js';
 import { tableRulesFor } from '../crud/column-rules.js';
-import { storedNights } from '../crud/per-night.js';
+import { storedNights, type RateReads } from '../crud/per-night.js';
 import type { WriteTarget } from '../crud/write-context.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { labelColumnFor } from '../crud/labels.js';
@@ -205,8 +205,10 @@ export async function answerCapacityCounts(input: {
 
   if (kpi) {
     const metric = capacity.metric ?? 'taken';
+    // Each rate read once for this answer, however many stays and nights it prices.
+    const rates: RateReads = new Map();
     const figureOf = async (counted: readonly CountsRow[], from: string, days: number): Promise<number | null> =>
-      metric === 'earnings' ? earningsOf(input, target, rule, from, days, capacity.ids) : figure(metric, counted);
+      metric === 'earnings' ? earningsOf(input, target, rule, from, days, capacity.ids, rates) : figure(metric, counted);
     if (metric === 'earnings') await assertEarningsReadable(input, rule);
     const value = await figureOf(rows, asked.from, asked.days);
     // The span just before, where the counts have days: yesterday, the week before.
@@ -319,9 +321,14 @@ async function assertEarningsReadable(
   input: { view: SnapshotView; table: ResolvedTable; access: CountsAccess; canReadPii: (tableId: string) => Promise<boolean> },
   rule: Rule,
 ): Promise<void> {
-  const priced = tableRulesFor({ view: input.view, table: input.table })?.perNight;
+  const rules = tableRulesFor({ view: input.view, table: input.table });
+  const priced = rules?.perNight;
   if (rule.kind !== 'night' || priced === undefined) {
     reject('Earnings are counted for a night limit on a table priced by the night.', { metric: 'earnings' });
+  }
+  // One figure is one amount: rows priced in several currencies do not add up to one.
+  if (rules?.currencyColumn !== undefined) {
+    reject(`Earnings add up one currency, and this table keeps each row's own ("${rules.currencyColumn}").`, { metric: 'earnings', column: rules.currencyColumn });
   }
   input.view.readableColumn(input.table, priced.column, await input.canReadPii(input.table.id));
   await input.access.table(input.view.table(priced.rate.table).id);
@@ -349,6 +356,7 @@ async function earningsOf(
   from: string,
   days: number,
   ids: readonly string[] | undefined,
+  rates: RateReads,
 ): Promise<number | null> {
   const rules = tableRulesFor({ view: input.view, table: input.table });
   if (rule.kind !== 'night' || rules?.perNight === undefined) return null;
@@ -368,7 +376,7 @@ async function earningsOf(
     }
     const { from: arrive, to: leave } = staysOf(rule, stored.row, stored.owner);
     if (arrive === null || leave === null) continue;
-    const nights = await storedNights(input.db, rules, stored.row, input.currency ?? null);
+    const nights = await storedNights(input.db, rules, stored.row, input.currency ?? null, [], rates);
     for (const line of nights.lines) {
       const amount = toRatio(line.amount);
       if (amount === null) continue;

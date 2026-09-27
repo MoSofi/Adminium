@@ -60,8 +60,8 @@ import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identi
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { offsetSpans, stepsOf, wallText, type OffsetSpan } from './zone-offsets.js';
-import { normalizeWriteValue } from '../crud/write-values.js';
 import { choiceWordsOf } from './choice-words.js';
+import { calendarBoundValue, instantBoundValue, windowBoundValue } from './bound-values.js';
 import { venueDayConditions } from './link-filters.js';
 
 /** Hard row cap on any compiled query (guardrails). */
@@ -636,43 +636,6 @@ function sqliteBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
 }
 
 /**
- * A window boundary as the source driver expects it for a column that keeps
- * an instant: Postgres binds the `Date` directly (timestamptz), but MySQL and
- * SQLite take a UTC `'YYYY-MM-DD HH:MM:SS'` string — a MySQL `TIMESTAMP` is
- * read on a UTC session, and better-sqlite3 refuses to bind a `Date` at all
- * (it accepts only numbers, strings, bigints, buffers and null).
- */
-function windowBoundValue(date: Date, dialect: Dialect): Date | string {
-  if (dialect === 'mysql' || dialect === 'sqlite') {
-    return date.toISOString().slice(0, 19).replace('T', ' ');
-  }
-  return date;
-}
-
-/**
- * A boundary instant spelled as the column keeps a time: a zone-less timestamp
- * takes this server's wall clock (what every write to it stores,
- * `crud/write-values.ts`), and a zoned one the instant. UTC's wall clock in a
- * zone-less column moved a rolling window by this server's offset on MySQL
- * and SQLite: "the last hour" at 23:00 UTC in Berlin counted 22:00–23:00 on
- * a clock that read 01:00.
- */
-function instantBoundValue(column: ResolvedColumn, instant: Date, dialect: Dialect): unknown {
-  if (column.logicalType === 'timestamp') return normalizeWriteValue(column, instant.toISOString());
-  return windowBoundValue(instant, dialect);
-}
-
-/**
- * A calendar boundary spelled as the column keeps a value: a date column takes
- * the venue's day, and a time column the instant as {@link instantBoundValue}
- * spells it.
- */
-export function calendarBoundValue(column: ResolvedColumn, instant: Date, dialect: Dialect, timezone: string): unknown {
-  if (column.logicalType === 'date') return venueClock(instant, timezone).day;
-  return instantBoundValue(column, instant, dialect);
-}
-
-/**
  * Does this engine have an ordered-set quantile aggregate? Postgres (and the
  * schema-only `generic`) do; MySQL 8 has no `percentile_cont` and SQLite has
  * no percentile function at all, so both take the in-process scan.
@@ -1214,11 +1177,16 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   const aggregateAliases = new Set(aggregations.map((aggregation) => aggregation.alias));
   const rankingKey = (name: string): boolean =>
     aggregateAliases.has(name) || name === groupColumns[0] || isPath(name);
-  const rankingOrder = (groupColumn: ResolvedColumn): { expr: RawBuilder<unknown>; dir: 'asc' | 'desc'; nullable: boolean }[] =>
+  const rankingOrder = (groupColumn: ResolvedColumn): { expr: RawBuilder<unknown>; dir: 'asc' | 'desc'; nullable: boolean; isNull?: RawBuilder<unknown> }[] =>
     (descriptor.orderBy ?? [])
       .filter((key) => rankingKey(key.column))
       .map((key) => {
-        if (aggregateAliases.has(key.column)) return { expr: sql`${sql.ref(key.column)}`, dir: key.dir, nullable: false };
+        // An aggregate over nothing but empty values is null: last, on every engine. Inside an
+        // expression an ORDER BY cannot name the output alias (Postgres reads a column), so the aggregate is repeated.
+        if (aggregateAliases.has(key.column)) {
+          const compiled = compiledAggs.find((aggregation) => aggregation.alias === key.column);
+          return { expr: sql`${sql.ref(key.column)}`, dir: key.dir, nullable: compiled !== undefined, ...(compiled === undefined ? {} : { isNull: compiled.expr }) };
+        }
         if (key.column === groupColumn.name) return { expr: sql`${dynamic.ref(groupColumn.name)}`, dir: key.dir, nullable: true };
         const path = pathOf(key.column);
         if (path.fkColumn.name !== groupColumn.name) {
@@ -1314,12 +1282,12 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect);
         const ranking = rankingOrder(groupColumn);
         if (ranking.length === 0) {
-          // Deterministic fold order: biggest buckets first, by the first alias.
-          qb = qb.orderBy(sql.ref(first.alias), 'desc');
+          // Deterministic fold order: biggest buckets first, by the first alias; a group with no value last on every engine.
+          qb = qb.orderBy(sql`case when ${first.expr} is null then 1 else 0 end`, 'asc').orderBy(sql.ref(first.alias), 'desc');
         } else {
           // The order asked for: an aggregate, the group, or a column of the row it points at (no value last).
-          for (const { expr, dir, nullable } of ranking) {
-            if (nullable) qb = qb.orderBy(sql`case when ${expr} is null then 1 else 0 end`, 'asc');
+          for (const { expr, dir, nullable, isNull } of ranking) {
+            if (nullable) qb = qb.orderBy(sql`case when ${isNull ?? expr} is null then 1 else 0 end`, 'asc');
             qb = qb.orderBy(expr, dir);
           }
         }

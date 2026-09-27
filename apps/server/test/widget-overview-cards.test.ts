@@ -20,8 +20,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { overridesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 
+import { SnapshotView } from '../src/crud/identifiers.js';
 import { wallTimeToInstant } from '../src/crud/venue-time.js';
+import { queryDescriptorSchema } from '@adminium/engine/config';
+
 import { WidgetDataCache } from '../src/widget-data/cache.js';
+import { answerCapacityCounts } from '../src/widget-data/capacity.js';
 import { adminPasswordHash, ADMIN_EMAIL, ADMIN_PASSWORD, login } from './auth-helpers.js';
 import { filled, LEGS, types, type Dialect, type World } from './capacity.helpers.js';
 
@@ -46,7 +50,7 @@ function venueDdl(dialect: Dialect): string[] {
     `create table ticket_types (id ${t.key}, event_id integer not null, name ${t.text(40)} not null, capacity integer not null, ${t.fk('event_id', 'events')})`,
     `create table orders (id ${t.key}, status ${t.text(16)} not null default 'held', held_until ${t.at} null)`,
     `create table tickets (id ${t.key}, order_id integer not null, ticket_type_id integer not null, event_id integer null, status ${t.text(16)} not null default 'valid', ${t.fk('order_id', 'orders')}, ${t.fk('ticket_type_id', 'ticket_types')}, ${t.fk('event_id', 'events')})`,
-    `create table bookings (id ${t.key}, event_id integer null, type_id integer null, received ${money} not null, owed ${money} not null, ${t.fk('event_id', 'events')}, ${t.fk('type_id', 'ticket_types')})`,
+    `create table bookings (id ${t.key}, event_id integer null, type_id integer null, received ${money} not null, owed ${money} null, ${t.fk('event_id', 'events')}, ${t.fk('type_id', 'ticket_types')})`,
   ];
 }
 
@@ -340,6 +344,15 @@ for (const [dialect, available] of LEGS) {
       const coming = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'sum', column: 'received', alias: 'received' }], filters: [{ column: 'event_id.doors_at', op: 'gte', day: 'today' }], orderBy: [{ column: 'event_id.doors_at', dir: 'asc' }] }));
       expect((coming['items'] as { key: string }[]).map((item) => item.key)).toEqual(['1', '2']);
 
+      // A figure over nothing but empty values (no owed amount on To be announced's bookings) is last, on every engine.
+      await w.query('update bookings set owed = null where event_id = 4');
+      for (const dir of ['asc', 'desc'] as const) {
+        const ranked = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'max', column: 'owed', alias: 'owed' }], orderBy: [{ column: 'owed', dir }] }));
+        expect((ranked['items'] as { key: string }[]).at(-1)?.key).toBe('4');
+      }
+      const unordered = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'max', column: 'owed', alias: 'owed' }], limit: 3 }));
+      expect((unordered['items'] as { key: string }[]).map((item) => item.key)).toEqual(['1', '2', '3']);
+
       // Through another link: no one value per show — refused.
       expect(refused(await money([{ column: 'type_id.name', dir: 'asc' }]))).toEqual([422, 'VALIDATION_FAILED']);
       // The shows' dates are read as a filter's are: a desk that may not read the shows may not order by them.
@@ -383,6 +396,62 @@ for (const [dialect, available] of LEGS) {
       expect(sold).toMatchObject({ value: 7 });
       expect(sold['prior']).toBeUndefined();
       expect(ok(await cards.admin('tickets', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy', ids: ['2'] } }))['value']).toBeCloseTo(2 / 114, 10);
+    });
+
+    it('reads each rate once for an answer, however many stays it prices', async () => {
+      vi.setSystemTime(NOW);
+      w = await venue(dialect);
+      // Forty more stays this week, Lofts and Gardens.
+      await w.seed(
+        'stays',
+        Array.from({ length: 40 }, (_, i) => ({ arrive: `2026-07-${String(27 + (i % 4))}`, depart: `2026-07-${String(28 + (i % 4))}`, room_type_id: 1 + (i % 2), status: 'booked', room_total: i % 2 === 0 ? '100.00' : '150.00' })),
+      );
+      const target = await w.target('stays');
+      const statements = async (metric: 'earnings' | 'taken') => {
+        let count = 0;
+        const db = target.db.withPlugin({ transformQuery: (args) => ((count += 1), args.node), transformResult: async (args) => args.result });
+        const answer = await answerCapacityCounts({
+          descriptor: queryDescriptorSchema.parse({ kind: 'capacity-counts', connectionId: w!.connectionId, source: { name: 'stays' }, shape: 'metric+delta', capacity: { metric } }),
+          params: { day: 'week' },
+          connectionId: w!.connectionId,
+          view: target.view,
+          table: target.table,
+          db,
+          dialect: target.dialect,
+          timezone: ZONE,
+          now: NOW,
+          access: { table: async () => undefined, column: async () => undefined },
+          canReadPii: async () => true,
+          currency: 'USD',
+        });
+        return { count, value: (answer as { value: unknown }).value };
+      };
+      const taken = await statements('taken');
+      const earned = await statements('earnings');
+      // Two rates (Loft, Garden), each with its rules, read once each for the week and once for the week before.
+      expect(earned.count - taken.count).toBeLessThanOrEqual(2 * (2 + 2) + 2);
+      expect(earned.value).toBe(720 + 20 * 100 + 20 * 150);
+
+      // A table that keeps each row's currency: its prices do not add up to one amount — refused, never summed.
+      const model = structuredClone(target.view.model);
+      const stays = model.tables.find((table) => table.id === target.table.id)!;
+      (stays.columns as unknown[]).push({ ...stays.columns.find((column) => column.name === 'status')!, name: 'currency' });
+      const priced = new SnapshotView(w.connectionId, model);
+      await expect(
+        answerCapacityCounts({
+          descriptor: queryDescriptorSchema.parse({ kind: 'capacity-counts', connectionId: w.connectionId, source: { name: 'stays' }, shape: 'single-metric', capacity: { metric: 'earnings' } }),
+          params: {},
+          connectionId: w.connectionId,
+          view: priced,
+          table: priced.table(target.table.id),
+          db: target.db,
+          dialect: target.dialect,
+          timezone: ZONE,
+          now: NOW,
+          access: { table: async () => undefined, column: async () => undefined },
+          canReadPii: async () => true,
+        }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { metric: 'earnings', column: 'currency' } });
     });
 
     it('says nothing is full where nothing can be sold, and refuses earnings to a reader who may not see them', async () => {
