@@ -91,6 +91,7 @@ import { capacityLockNames, touchesCapacity } from './capacity/judge.js';
 import { batchNeedsGuard, judgeRows, withLimitLocks } from './capacity/door.js';
 import { bookingCounts, bookingDay, bookingNeed, bookingRefusal, checkBooking, touchesBooking, withBookingLock } from './booking-guard.js';
 import { decideRow, needsStored, stampFires, stampYields, type DecideContext } from './decide.js';
+import { renewedColumns, withRenewRetry } from './code-renew.js';
 import { isWriteConflict } from './db-errors.js';
 import {
   attachRequiredGuards,
@@ -1626,6 +1627,7 @@ function decideContext(target: WriteTarget, context: WriteContext, now: Date, zo
     zone,
     claimed: context.claimed ?? null,
     relations: target.view?.model?.relations,
+    rights: target.rights,
   };
 }
 
@@ -1873,6 +1875,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           .map((stamp) => stamp.column),
         ...(rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored)).map((stamp) => stamp.column),
         ...(rules.formulas ?? []).map((formula) => formula.column),
+        ...renewedColumns(values),
       ];
       out = attachGuard(out, {
         history,
@@ -3161,7 +3164,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
           : dry
             ? ((await fetchByPk(db, target.table, pk)) ?? undefined)
             : await holdOwn(rules, within, pk, ownMoved, currency);
-        const changed = await statement(() => updateRows(db, target.dialect, target.table, written, pk, input.refine), input.mapError);
+        // A renewed code that collides with a stored one is made again (`crud/code-renew.ts`).
+        const renewing = await statement(() => withRenewRetry(db, target.dialect, written, (row) => updateRows(db, target.dialect, target.table, row, pk, input.refine)), input.mapError);
+        written = renewing.values;
+        const changed = renewing.result;
         if (changed > 0 && rolls) {
           const after = (await fetchByPk(db, target.table, pk)) ?? null;
           await guarded(async () => {
