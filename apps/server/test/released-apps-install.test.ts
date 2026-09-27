@@ -14,7 +14,8 @@
  *    `updatesFrom` starts at 0.2.0) is refused as an update, at the plan and
  *    at the update, and the 0.1.3 install stays as it was;
  *  - once the 0.1.3 app is uninstalled with its tables kept, a fresh install
- *    of a prefixed release sits beside those tables and Point of Sale's.
+ *    of a prefixed release sits beside those tables and Point of Sale's —
+ *    and one declaring its menu on the core menu shape shares Point of Sale's.
  *
  * The asserts are "still installs", never a snapshot of the plan.
  */
@@ -24,6 +25,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { addOnHarness, type Harness as AddOnHarness } from './app-add-ons.helpers.js';
 import { ENGINES, installHarness, type Dialect, type Harness } from './app-install-harness.js';
+import { orderingSharingMenu } from '../../../packages/manifest/test/menu-sharing-fixture.js';
 
 type Doc = Record<string, unknown>;
 
@@ -235,12 +237,37 @@ for (const [dialect, available] of ENGINES) {
       SLOW,
     );
 
-    // Needs the Online Ordering 0.2.0 release (its menu tables declared on the
-    // core menu shape) and the planner's offer to share a same-shaped table
-    // under another app's name. When both exist: Point of Sale 0.2.2 plus the
-    // kept Online Ordering 0.1.3 tables, then a fresh Online Ordering 0.2.0
-    // plan offers Point of Sale's menu (`pos_menu_*`) to share and collides
-    // with neither the kept plain `menu_*` tables nor Point of Sale's.
-    it.todo('a fresh Online Ordering 0.2.0 beside Point of Sale and kept 0.1.3 tables is offered Point of Sale’s menu');
+    it(
+      'a fresh Online Ordering 0.2.0 beside Point of Sale and kept 0.1.3 tables is offered Point of Sale’s menu',
+      async () => {
+        const h = (open = await installHarness(dialect));
+        const ordering = released('ordering');
+        expect((await h.install(released('pos'))).statusCode).toBe(200);
+        expect((await h.install(ordering)).statusCode).toBe(200);
+        const removed = await del(h, '/apps/ordering', { dropTables: false });
+        expect(removed.statusCode, removed.body).toBe(200);
+
+        // Its menu tables declared on the core menu shape, prefixed, updating from 0.2.0.
+        const next = orderingSharingMenu();
+        await h.stage(next);
+        const payload = { key: 'ordering', version: '0.2.0', connectionId: h.connectionId };
+        const planned = await h.inject({ method: 'POST', url: '/apps/plan', payload });
+        expect(planned.statusCode, planned.body).toBe(200);
+        const plan = (JSON.parse(planned.body) as { plan: { problems: unknown[]; installable: boolean; names: Record<string, string>; shareOffers?: { with: string; action: string }[] } }).plan;
+        expect(plan.problems).toEqual([]);
+        expect(plan.installable).toBe(true);
+        expect(plan.shareOffers).toEqual([expect.objectContaining({ with: 'pos', action: 'share' })]);
+        expect(plan.names['menu_items']).toBe('pos_menu_items');
+        expect(plan.names['orders']).toBe('ordering_orders');
+
+        const installed = await h.inject({ method: 'POST', url: '/apps/install', payload });
+        expect(installed.statusCode, installed.body).toBe(200);
+        const names = await tableNames(h, dialect);
+        // Point of Sale's menu shared, the kept plain tables untouched, the new tables its own.
+        expect(names).toEqual(expect.arrayContaining(['pos_menu_items', 'ordering_orders', 'ordering_order_items', ...refs(ordering)]));
+        expect(names).not.toContain('ordering_menu_items');
+      },
+      SLOW,
+    );
   });
 }

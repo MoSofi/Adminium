@@ -132,7 +132,8 @@ describe.each(LEGS.filter(([dialect]) => dialect !== 'sqlite'))('a quote of a cr
     try {
       for (const statement of MENU) await h.rows(statement);
       const wr = await writerFor(h);
-      const { db } = await h.manager.data(h.connectionId);
+      // The save comes through a pool of its own: a pool of one here stays the quote's.
+      const { db } = await (await h.twin()).manager.data(h.connectionId);
       // A save changing the dish's name: the lock its UPDATE takes (on Postgres, one a new row's key check does not wait for).
       const save = await holding(db as unknown as World['db'], (trx) => sql`update ${sql.table(h.real('menu_items'))} set name = 'Margherita!' where id = 1`.execute(trx));
       const quoted = await within(writeTree(wr, orderTree(wr, [{ item: 1 }]), 'dry'), 3_000);
@@ -191,7 +192,8 @@ describe.each(LEGS)('a quote writes no row it did not make — %s', (dialect, av
       const wr = await writerFor(h);
       const room = await wr.create('rooms', { number: '1' });
       const stay = await wr.create('stays', { room_id: room['id'] });
-      const { db } = await h.manager.data(h.connectionId);
+      // The save comes through a pool of its own: a pool of one here stays the quote's.
+      const { db } = await (await h.twin()).manager.data(h.connectionId);
       const save = await holding(db as unknown as World['db'], (trx) => sql`update ${sql.table(h.real('rooms'))} set number = '1a' where id = ${room['id']}`.execute(trx));
       const quote = wr.writes.update({ target: wr.targetOf('stays'), pk: { id: stay['id'] }, values: { status: 'in_house' }, context: wr.desk, mode: 'dry', announce: async () => {} });
       const quoted = await within(quote, 3_000);
@@ -233,7 +235,8 @@ describe.each(LEGS)('a quote writes no row it did not make — %s', (dialect, av
       if (dialect === 'sqlite') return;
       // Another account, which a save holds while it changes it: the quote of an entry on it waits for nothing (Postgres) and writes nothing.
       const other = await wr.create('accounts', { settled: true });
-      const { db } = await h.manager.data(h.connectionId);
+      // The save comes through a pool of its own: a pool of one here stays the quote's.
+      const { db } = await (await h.twin()).manager.data(h.connectionId);
       const save = await holding(db as unknown as World['db'], (trx) => sql`update ${sql.table(h.real('accounts'))} set settled = true where id = ${other['id']}`.execute(trx));
       const entry = { name: 'entries', target: wr.targetOf('entries'), values: { account_id: other['id'], amount: 5 }, at: [], children: [] };
       const quote = await within(writeTree(wr, entry, 'dry'), 3_000);

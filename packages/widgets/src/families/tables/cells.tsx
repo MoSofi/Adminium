@@ -254,6 +254,38 @@ function FileCell({
   );
 }
 
+const countOf = (value: unknown): number | null => {
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * A pool's counts as a desk reads them (`capacity-counts`): what is left,
+ * and "taken of size" beside it. None left, or fewer than none (a pool made
+ * smaller after it sold), reads in the danger tone. A pool with no size says
+ * only what is taken.
+ */
+function CapacityLeftCell({ row, left }: { row: GridRow; left: unknown }): ReactNode {
+  const t = useMaybeT();
+  const remaining = countOf(left);
+  const taken = countOf(row['taken']) ?? 0;
+  const size = countOf(row['size']);
+  return (
+    <span data-part="cell-capacity-left" className="inline-flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+      {remaining === null ? null : (
+        <MonoText data-part="capacity-left" data-empty={remaining <= 0 ? 'true' : undefined} className={remaining <= 0 ? 'font-semibold text-danger' : 'font-semibold'}>
+          {t('ui:widgets.tables.capacityLeft.left', '{left} left', { left: String(remaining) })}
+        </MonoText>
+      )}
+      <span data-part="capacity-taken" className="text-caption text-fg-muted">
+        {size === null
+          ? t('ui:widgets.tables.capacityLeft.takenOnly', '{taken} taken', { taken: String(taken) })
+          : t('ui:widgets.tables.capacityLeft.taken', '{taken} of {size} taken', { taken: String(taken), size: String(size) })}
+      </span>
+    </span>
+  );
+}
+
 export function CellValue({
   column,
   row,
@@ -311,6 +343,8 @@ function CellContent({
     const drawn = custom(column, row);
     if (drawn !== undefined) return drawn;
   }
+  // What a limit has left for a pool, beside what it has taken of its size.
+  if (column.semantic === 'capacity-left') return <CapacityLeftCell row={row} left={value} />;
   if (value === null || value === undefined) return EMPTY_CELL;
 
   /*

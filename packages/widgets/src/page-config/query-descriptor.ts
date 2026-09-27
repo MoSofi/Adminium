@@ -18,6 +18,13 @@ export const aggregationSchema = z.object({
 });
 
 export const filterSchema = z.object({
+  /**
+   * A column of the source, or one of the row a foreign key points at,
+   * `fkColumn.column` (`order_id.status`): one link, read-checked as a lookup
+   * is — the reader must be able to read that table, and a masked column
+   * only with personal data. A row whose key is empty matches no such filter.
+   * `window.column` takes the same.
+   */
   column: z.string(),
   op: z.enum([
     'eq',
@@ -37,10 +44,50 @@ export const filterSchema = z.object({
   param: z.string().optional(), // late-bound from page controls, e.g. 'dateRange.start'
 });
 
-export const bucketUnitSchema = z.enum(['hour', 'day', 'week', 'month', 'quarter', 'year']);
+/**
+ * `hour-of-day` folds every day into its hours on the venue's clock: a week of
+ * pickups between 11:00 and 20:00 is ten bars, one per hour, not seventy. A
+ * `window` still picks the days folded; an hour with no rows has no bar, as
+ * with every bucket (nothing is filled with zeros). Each point's `t` is that
+ * hour on 1970-01-01 in UTC fields — a wall hour, not an instant. It is a
+ * bucket only: a window counts whole periods, and is refused this one.
+ */
+export const bucketUnitSchema = z.enum(['hour', 'day', 'week', 'month', 'quarter', 'year', 'hour-of-day']);
+
+/**
+ * A page param's name, as the day control publishes one (`day`).
+ */
+const paramNameSchema = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_.]{0,63}$/);
+
+/**
+ * `kind: 'capacity-counts'` — what a table's limit has taken, the desk's
+ * counts (`GET /data/:conn/:table/capacity-counts`) as a widget reads them,
+ * under exactly that route's read rules. `source` is the limited table.
+ *
+ * - A slot limit counts one day, slot by slot: the day the page's day control
+ *   names (`param`, `day` unless said otherwise), else `date`, else today on
+ *   the venue's clock. The control's `week` is the week from Monday, day by day.
+ * - A parent limit counts the pools' rows by `ids`, or those sharing `value`
+ *   in their column `under`, and a day where the limit counts by day.
+ *
+ * Answered as `categorical` (one item per slot, day or pool, valued by what is
+ * taken) or `record-list` (one row per slot, day or pool, as the route
+ * answers it, a pool's row with its `label`).
+ */
+export const capacityCountsSchema = z.object({
+  /** Which of the table's limits: its index in the table's rules. */
+  rule: z.number().int().min(0).max(2).default(0),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  param: paramNameSchema.default('day'),
+  under: z.string().min(1).max(128).optional(),
+  value: z.string().min(1).max(200).optional(),
+  ids: z.array(z.string().min(1).max(200)).min(1).max(200).optional(),
+  /** A column of the pools' rows a pool is called by; its display column otherwise. */
+  label: z.string().min(1).max(128).optional(),
+});
 
 export const queryDescriptorSchema = z.object({
-  kind: z.literal('table-query').default('table-query'),
+  kind: z.enum(['table-query', 'capacity-counts']).default('table-query'),
   connectionId: z.string(), // adminium_connections.id
   source: z.object({
     schema: z.string().optional(), // pg schema; omitted for MySQL/SQLite
@@ -112,9 +159,12 @@ export const queryDescriptorSchema = z.object({
     .optional(),
   limit: z.number().int().min(1).max(1000).optional(),
   cursor: z.string().optional(), // keyset pagination for record-list
+  /** `kind: 'capacity-counts'` only (and required there): which limit, which pools. */
+  capacity: capacityCountsSchema.optional(),
 });
 
 export type QueryDescriptor = z.infer<typeof queryDescriptorSchema>;
 export type Aggregation = z.infer<typeof aggregationSchema>;
 export type QueryFilter = z.infer<typeof filterSchema>;
 export type BucketUnit = z.infer<typeof bucketUnitSchema>;
+export type CapacityCountsAsk = z.infer<typeof capacityCountsSchema>;

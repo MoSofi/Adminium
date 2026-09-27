@@ -16,18 +16,19 @@ import { venueManifest } from './venue-moves.fixture.js';
 
 type Writer = Awaited<ReturnType<typeof writerFor>>;
 const SERVERS = LEGS.filter(([dialect]) => dialect !== 'sqlite');
-/** One pooled connection cannot hold a row open in one transaction while a second write waits on it. */
-const SINGLE = process.env['ADMINIUM_SOURCE_POOL_MAX'] === '1';
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe.each(SERVERS)('moves that wait for another row, at once — %s', (dialect, available) => {
   let h: InvoicingHarness;
   let w: Writer;
+  /** The other writer of a race, through a pool of its own: a pool of one stays `w`'s. */
+  let other: Writer;
   let n = 0;
   beforeAll(async () => {
     if (!available) return;
     h = await installInvoicing(dialect, venueManifest({ timed: false }));
     w = await writerFor(h, 'Europe/London');
+    other = await writerFor(await h.twin(), 'Europe/London');
     await w.create('settings', {});
   }, 180_000);
   afterAll(async () => {
@@ -49,10 +50,10 @@ describe.each(SERVERS)('moves that wait for another row, at once — %s', (diale
     return { event, order, ticket };
   }
 
-  it.runIf(available && !SINGLE)('refuses a scan whose order link moved while it waited, to be made again', async () => {
+  it.runIf(available)('refuses a scan whose order link moved while it waited, to be made again', async () => {
     const paid = await ticketFor('paid');
     const unpaid = await w.create('orders', { event_id: paid.event['id'], email: `moved${String(n)}@example.com`, pay: 'transfer' });
-    const { db } = await h.manager.data(h.connectionId);
+    const { db } = other.targetOf('tickets');
     let scan: Promise<unknown> | undefined;
     await db.transaction().execute(async (trx) => {
       // Another writer moves the ticket to an unpaid order and holds it...
@@ -72,7 +73,7 @@ describe.each(SERVERS)('moves that wait for another row, at once — %s', (diale
   it.runIf(available)('pays an order while its ticket is scanned, never deadlocking, and lets the ticket in only once paid', async () => {
     for (let round = 0; round < 8; round += 1) {
       const { order, ticket } = await ticketFor('transfer');
-      const [pay, scan] = await Promise.allSettled([w.update('orders', order['id'], { pay: 'paid' }), w.update('tickets', ticket['id'], { status: 'checked_in' })]);
+      const [pay, scan] = await Promise.allSettled([other.update('orders', order['id'], { pay: 'paid' }), w.update('tickets', ticket['id'], { status: 'checked_in' })]);
       expect(pay.status).toBe('fulfilled');
       if (scan.status === 'rejected') expect(scan.reason).toMatchObject({ code: 'STATE_MOVE_REFUSED', details: { requires: 'linked' } });
       const [row] = await h.rows(`select status from ${h.real('tickets')} where id = ${String(ticket['id'])}`);
@@ -87,7 +88,7 @@ describe.each(SERVERS)('moves that wait for another row, at once — %s', (diale
       const b = await w.create('stays', { arrive: '2026-08-10' });
       const results = await Promise.allSettled([
         w.update('stays', a['id'], { status: 'in_house', room_id: room['id'] }),
-        w.update('stays', b['id'], { status: 'in_house', room_id: room['id'] }),
+        other.update('stays', b['id'], { status: 'in_house', room_id: room['id'] }),
       ]);
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
       const refused = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')!;

@@ -14,8 +14,9 @@
  *
  *   new           the real name is free                     → create
  *   own-leftover  this app recorded it (an earlier install) → reuse (default)
- *   shared        another app recorded it under the SAME shape (`menu@1`)
- *                                                            → share (default)
+ *   shared        another app records a table of the SAME shape (`menu@1`)
+ *                 and short name, whatever its real name     → share (default)
+ *                 or keep a separate one (`separate`)
  *   taken         it exists and nothing records it as this app's
  *                                                            → the operator chooses
  *
@@ -44,6 +45,7 @@ import type {
   PlanContext,
   PlanProblem,
   SchemaModelView,
+  ShareOffer,
   TableClass,
 } from './plan-model.js';
 import { typeConflict } from './plan-types.js';
@@ -54,6 +56,8 @@ export type {
   InstallTablePlan,
   PlanContext,
   PlanEdit,
+  ShareChoice,
+  ShareOffer,
   TableChoice,
   TableClass,
   TableOffer,
@@ -197,6 +201,100 @@ function isOfferable(column: RequiredColumn): boolean {
   return column.type !== 'id' && column.type !== 'blob';
 }
 
+/** The states in which another app's record means its table is there, in use. */
+const SHARING_STATES: ReadonlySet<string> = new Set(['created', 'adopted', 'shared']);
+
+/** Another app whose tables of one shape cover every table of that shape this app declares. */
+interface ShareCandidate {
+  appKey: string;
+  /** This app's short name → that app's real table. */
+  tables: Map<string, string>;
+  /** When its first record of them was made: the first installed is recommended. */
+  since: number;
+}
+
+/**
+ * Per shape the app declares, the other apps whose tables of that shape it
+ * may use, and the operator's answer applied: `targets` names each shared
+ * table's real name by the app's short name.
+ *
+ * A candidate records every table of the shape the app declares, by the same
+ * short name and shape, each one there. An app with any record of its own
+ * for those tables (an update, a reinstall) is offered nothing: it keeps the
+ * tables it has, and two menus are never merged. Two candidates that are the
+ * same tables (one app already shares the other's) are offered once, as the
+ * first installed.
+ */
+function shareTargetsOf(
+  required: readonly RequiredTable[],
+  model: SchemaModelView,
+  context: PlanContext,
+): { offers: ShareOffer[]; targets: Map<string, { appKey: string; table: string }>; problems: PlanProblem[] } {
+  const offers: ShareOffer[] = [];
+  const targets = new Map<string, { appKey: string; table: string }>();
+  const problems: PlanProblem[] = [];
+  const live = new Map(model.tables.map((t) => [t.ref, t]));
+  const byShape = new Map<string, RequiredTable[]>();
+  for (const table of required) {
+    if (table.shape !== undefined) byShape.set(table.shape, [...(byShape.get(table.shape) ?? []), table]);
+  }
+  for (const [shape, tables] of byShape) {
+    if (tables.some((t) => context.records[t.ref] !== undefined && context.records[t.ref]!.state !== 'dropped')) continue;
+    const apps = new Map<string, ShareCandidate>();
+    for (const o of context.others) {
+      if (o.ref === undefined || o.shape !== shape || !SHARING_STATES.has(o.state) || !live.has(o.table)) continue;
+      if (!tables.some((t) => t.ref === o.ref)) continue;
+      const entry = apps.get(o.appKey) ?? { appKey: o.appKey, tables: new Map<string, string>(), since: Number.POSITIVE_INFINITY };
+      entry.tables.set(o.ref, o.table);
+      entry.since = Math.min(entry.since, o.createdAt ?? Number.POSITIVE_INFINITY);
+      apps.set(o.appKey, entry);
+    }
+    const complete = [...apps.values()]
+      .filter((a) => tables.every((t) => a.tables.has(t.ref)))
+      .sort((a, b) => a.since - b.since || (a.appKey < b.appKey ? -1 : a.appKey > b.appKey ? 1 : 0));
+    const seen = new Set<string>();
+    const candidates = complete.filter((a) => {
+      const key = tables.map((t) => a.tables.get(t.ref)!).join('\u0000');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (candidates.length === 0) continue;
+
+    const answer = context.shares?.[shape];
+    let chosen = candidates[0]!;
+    if (answer?.action === 'share') {
+      const picked = candidates.find((c) => c.appKey === answer.with);
+      if (picked === undefined) {
+        problems.push({
+          code: 'TABLE_TAKEN',
+          table: tables[0]!.ref,
+          message: `"${answer.with}" has no "${shape}" tables this app can use here. Pick again.`,
+        });
+      } else chosen = picked;
+    }
+    const action = answer?.action === 'separate' ? 'separate' : 'share';
+    const addColumns: ShareOffer['addColumns'] = [];
+    for (const table of tables) {
+      const real = chosen.tables.get(table.ref)!;
+      const have = live.get(real)!;
+      for (const column of table.columns) {
+        if (!have.columns.some((c) => c.ref === column.ref) && isOfferable(column)) addColumns.push({ table: real, column: column.ref });
+      }
+      if (action === 'share') targets.set(table.ref, { appKey: chosen.appKey, table: real });
+    }
+    offers.push({
+      shape,
+      with: chosen.appKey,
+      candidates: candidates.map((c) => c.appKey),
+      action,
+      tables: tables.map((t) => chosen.tables.get(t.ref)!),
+      addColumns,
+    });
+  }
+  return { offers, targets, problems };
+}
+
 /**
  * The context half of `planInstall`. Called by it when a context is given;
  * the returned plan keeps every field older callers read (`create`, `reuse`,
@@ -224,13 +322,28 @@ export function planWithContext(
     });
   }
 
-  // 1. Real names. A record wins (it is what this app already uses here); an
-  //    alternative prefix re-names everything that is not recorded.
+  // 0. Tables another app has under a shape this app declares, whatever their
+  //    real names: offered to be used as this app's own (the first installed
+  //    recommended), unless the operator keeps separate ones.
+  const { offers: shareOffers, targets: shareTargets, problems: shareProblems } = shareTargetsOf(required, model, context);
+  problems.push(...shareProblems);
+
+  // 1. Real names. A record wins (it is what this app already uses here); a
+  //    table shared with another app keeps that app's name; an alternative
+  //    prefix re-names everything else.
   const names: Record<string, string> = {};
   for (const table of required) {
     const record = context.records[table.ref];
     const usable = record !== undefined && record.state !== 'dropped';
-    names[table.ref] = usable && context.altPrefix === undefined ? record.table : prefix === null ? table.ref : `${prefix}${table.ref}`;
+    const target = shareTargets.get(table.ref);
+    names[table.ref] =
+      usable && (context.altPrefix === undefined || record.state === 'shared')
+        ? record.table
+        : target !== undefined
+          ? target.table
+          : prefix === null
+            ? table.ref
+            : `${prefix}${table.ref}`;
   }
   const realNames = new Set(Object.values(names));
 
@@ -262,12 +375,41 @@ export function planWithContext(
       }
     }
 
-    // 2. Classify.
-    const ownRecord = record !== undefined && record.state !== 'dropped' && context.altPrefix === undefined;
+    // 2. Classify. A table this app already shares with another (an update)
+    //    stays shared: it is never taken for the app's own.
+    const sharedRecord = record !== undefined && record.state === 'shared';
+    const ownRecord = record !== undefined && record.state !== 'dropped' && (context.altPrefix === undefined || sharedRecord);
+    const target = shareTargets.get(table.ref);
     const sharer =
-      table.shape === undefined ? undefined : holders.find((o) => o.shape === table.shape && o.state !== 'released');
+      target !== undefined
+        ? { appKey: target.appKey }
+        : table.shape === undefined
+          ? undefined
+          : holders.find((o) => o.shape === table.shape && o.state !== 'released');
     const klass: TableClass =
-      existing === undefined ? 'new' : ownRecord ? 'own-leftover' : sharer !== undefined ? 'shared' : 'taken';
+      existing === undefined
+        ? 'new'
+        : sharedRecord
+          ? 'shared'
+          : ownRecord
+            ? 'own-leftover'
+            : sharer !== undefined
+              ? 'shared'
+              : 'taken';
+
+    // An update taking the shape off a table another app shares under it.
+    if (ownRecord && existing !== undefined) {
+      const partner = holders.find((o) => o.shape !== null && o.state !== 'released' && o.shape !== table.shape);
+      if (partner !== undefined) {
+        problems.push({
+          code: 'SHAPE_IN_USE',
+          table: table.ref,
+          message:
+            `"${real}" is shared with ${partner.appName ?? `"${partner.appKey}"`} as "${partner.shape!}", so this version must keep declaring it that way. ` +
+            `Uninstall ${partner.appName ?? `"${partner.appKey}"`} first, or keep the shape.`,
+        });
+      }
+    }
 
     // Two apps whose prefixed names meet. A declared shape both share is the
     // one way two apps may use one table.
@@ -303,6 +445,7 @@ export function planWithContext(
       offers: [],
       edits: [],
       blocked: [],
+      ...(table.shape === undefined ? {} : { shape: table.shape }),
     };
 
     if (klass === 'new') {
@@ -311,8 +454,16 @@ export function planWithContext(
       plan.offers = ['reuse', 'rename-existing', 'alt-prefix'];
       if (record?.owned === false) plan.adopted = true;
       plan.action = choice?.action === 'rename-existing' ? 'rename-existing' : 'reuse';
+    } else if (klass === 'shared' && sharedRecord) {
+      // An update of an app that shares the table: it goes on sharing it,
+      // with whichever app still keeps it (none, once that app has left).
+      const live = holders.filter((o) => o.state !== 'released');
+      const keeper = live.find((o) => o.state === 'created' || o.state === 'adopted') ?? live[0];
+      plan.offers = ['share'];
+      if (keeper !== undefined) plan.sharedWith = keeper.appKey;
+      plan.action = 'share';
     } else if (klass === 'shared') {
-      plan.offers = ['share', 'alt-prefix'];
+      plan.offers = target !== undefined ? ['share', 'separate'] : ['share', 'alt-prefix'];
       plan.sharedWith = sharer!.appKey;
       plan.action = 'share';
     } else {
@@ -530,6 +681,7 @@ export function planWithContext(
   return {
     addOnKey: manifest.key,
     version: manifest.version,
+    ...(shareOffers.length === 0 ? {} : { shareOffers }),
     create: tables.filter((t) => t.action === 'create' || t.action === 'rename-existing').map(planned),
     reuse: tables.filter((t) => t.action === 'reuse' || t.action === 'share').map(planned),
     references,

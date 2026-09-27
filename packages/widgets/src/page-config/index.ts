@@ -21,10 +21,12 @@ export {
 export {
   aggregationSchema,
   bucketUnitSchema,
+  capacityCountsSchema,
   filterSchema,
   queryDescriptorSchema,
   type Aggregation,
   type BucketUnit,
+  type CapacityCountsAsk,
   type QueryDescriptor,
   type QueryFilter,
 } from './query-descriptor.js';

@@ -221,7 +221,8 @@ export function DetailKeyValueWidget({ config, data, onEvent }: WidgetProps<Deta
 
 export function MiniTableWidget({ config, data, onEvent }: WidgetProps<MiniTableConfig>) {
   const columns: readonly GridColumnSpec[] = columnsOf(config, data);
-  const source = bindingTable(config);
+  // A limit's counts list pools, not the bound table's records: nothing to open.
+  const source = config.binding?.kind === 'capacity-counts' ? undefined : bindingTable(config);
   return (
     <MiniTable
       columns={columns}

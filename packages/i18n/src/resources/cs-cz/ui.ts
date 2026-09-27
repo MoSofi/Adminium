@@ -402,6 +402,17 @@ export default {
       },
       "sparkline": {
         "description": "Vložený mikrotrend posledních hodnot — bez os a popisků — pro karty ukazatelů, buňky tabulek a řádky seznamů."
+      },
+      "slotStrip": {
+        "chartLabel": "Časové sloty",
+        "slot": "{slot}: obsazeno {taken} z {size}",
+        "slotNoSize": "{slot}: obsazeno {taken}",
+        "held": "{held} drženo",
+        "paused": "Pozastaveno",
+        "closedDay": "Zavřeno",
+        "past": "Uplynulo",
+        "now": "Teď",
+        "closed": "V tento den zavřeno: tyto sloty nikdo nemůže obsadit."
       }
     },
     "feeds": {
@@ -656,7 +667,12 @@ export default {
       "detailKeyValue": {
         "description": "Pole záznamu jako řádky popisek/hodnota s hodnotami podle typu."
       },
-      "fileDownload": "Stáhnout"
+      "fileDownload": "Stáhnout",
+      "capacityLeft": {
+        "left": "zbývá {left}",
+        "taken": "obsazeno {taken} z {size}",
+        "takenOnly": "obsazeno {taken}"
+      }
     },
     "boards": {
       "kanbanBoard": {

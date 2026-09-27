@@ -16,11 +16,15 @@ import BetterSqlite3 from 'better-sqlite3';
 import { sql } from 'kysely';
 import { expect } from 'vitest';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
-import { createSqliteMetaDb, firstRun, manifestsRepo, usersRepo, type MetaDb } from '@adminium/meta';
+import { connectionTenantConfig, createSqliteMetaDb, firstRun, manifestsRepo, usersRepo, type MetaDb } from '@adminium/meta';
 
 import { createInstalledApps } from '../src/apps/installed.js';
 import { createAppSchemaTarget } from '../src/apps/schema-target.js';
 import { createAppStore } from '../src/apps/store.js';
+import { createSampleDataService, type SampleDataDeps } from '../src/apps/sample-data.js';
+import type { FileStore } from '../src/files/store.js';
+import { createEndpointService } from '../src/public-api/endpoint-service.js';
+import { createPublicViews } from '../src/public-api/runtime.js';
 import { sha512Integrity } from '../src/add-ons/store.js';
 import { runIntrospection } from '../src/connections/introspect.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
@@ -51,14 +55,17 @@ export interface InstallReply {
 
 export interface Harness {
   meta: MetaDb;
+  manager: ConnectionManager;
   dsn: string;
   connectionId: string;
-  /** Stage `manifest` and install it on the connection. */
-  install: (manifest: Record<string, unknown>) => Promise<InstallReply>;
-  /** Stage `manifest` only (an upload), for a test that then plans, installs or updates by hand. */
-  stage: (manifest: Record<string, unknown>) => Promise<void>;
+  /** Stage `manifest` and install it on the connection, with the check step's answers when given. */
+  install: (manifest: Record<string, unknown>, answers?: Record<string, unknown>, files?: Record<string, string>) => Promise<InstallReply>;
+  /** Stage `manifest` only (an upload), for a test that then plans, installs or updates by hand; `files` join the package. */
+  stage: (manifest: Record<string, unknown>, files?: Record<string, string>) => Promise<void>;
   /** A request to the app routes, signed in as the owner. */
-  inject: (request: { method: 'GET' | 'POST'; url: string; payload?: Record<string, unknown> }) => Promise<InstallReply>;
+  inject: (request: { method: 'GET' | 'POST' | 'DELETE'; url: string; payload?: Record<string, unknown> }) => Promise<InstallReply>;
+  /** With `full`: the sample-data service the routes use, for a test to add and remove sample rows directly. */
+  samples?: ReturnType<typeof createSampleDataService>;
   /** A second connection, to a fresh SQLite file of its own. */
   otherConnection: () => Promise<{ id: string; tables: () => Promise<string[]> }>;
   run: (statement: string) => Promise<void>;
@@ -66,8 +73,19 @@ export interface Harness {
   close: () => Promise<void>;
 }
 
+export interface HarnessOptions {
+  /** Signed in as Super Admin: the one who may drop an app's tables on uninstall. */
+  superAdmin?: boolean;
+  /** The sample-data routes and the public API installer, as the server wires them. */
+  full?: boolean;
+}
+
+const memoryFiles = {
+  write: async () => ({ storageKey: 'x', sizeBytes: 0, sha256: '', destinationId: null, storage: 'memory' }),
+} as unknown as FileStore;
+
 /** A real database per engine, a meta store, and the app routes signed in as its owner. */
-export async function installHarness(dialect: Dialect): Promise<Harness> {
+export async function installHarness(dialect: Dialect, options: HarnessOptions = {}): Promise<Harness> {
   const dataDir = await mkdtemp(join(tmpdir(), 'app-junction-'));
   const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
   await firstRun(meta);
@@ -120,7 +138,7 @@ export async function installHarness(dialect: Dialect): Promise<Harness> {
   const app = Fastify();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-  app.decorate('rbac', { require: () => async () => {}, resolve: async () => ({ superAdmin: false }) } as never);
+  app.decorate('rbac', { require: () => async () => {}, resolve: async () => ({ superAdmin: options.superAdmin === true }) } as never);
   app.decorate('requireAuth', (async () => {}) as never);
   // Refusals in the server's own envelope, details included.
   app.setErrorHandler((error, _request, reply) => {
@@ -132,6 +150,7 @@ export async function installHarness(dialect: Dialect): Promise<Harness> {
     (request as { user?: unknown }).user = { id: user.id, email: 'owner@test' };
   });
   const store = createAppStore({ dataDir });
+  const sampleDeps: SampleDataDeps = { meta, manager, store, files: memoryFiles };
   const manifests = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
   await app.register(
     appRoutes({
@@ -145,12 +164,28 @@ export async function installHarness(dialect: Dialect): Promise<Harness> {
       directoryKeys: () => [],
       serverVersion: '0.4.0',
       schemaTarget: createAppSchemaTarget({ meta, manager, crypto: dsnCryptoFromSecret(TEST_SECRET) }),
+      ...(options.full === true
+        ? {
+            sampleData: sampleDeps,
+            publicAccess: {
+              service: createEndpointService({
+                meta,
+                viewFor: createPublicViews(meta).viewFor,
+                tenantConfigOf: async (cid: string) => (await connectionTenantConfig(meta, cid)) ?? undefined,
+              }),
+              viewFor: createPublicViews(meta).viewFor,
+              crypto: dsnCryptoFromSecret(TEST_SECRET),
+              origins: ['self'],
+              invalidateKey: () => {},
+            },
+          }
+        : {}),
     }),
   );
   await app.ready();
   const handle = await manager.data(connection.id);
-  const stage = async (manifest: Record<string, unknown>) => {
-    const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), 'staff/index.html': '<!doctype html><html><body></body></html>' });
+  const stage = async (manifest: Record<string, unknown>, files: Record<string, string> = {}) => {
+    const tarball = packageTarball({ 'manifest.json': JSON.stringify(manifest), 'staff/index.html': '<!doctype html><html><body></body></html>', ...files });
     const staged = await app.inject({
       method: 'POST',
       url: `/apps/upload?expectedSha512=${encodeURIComponent(sha512Integrity(tarball))}`,
@@ -161,11 +196,13 @@ export async function installHarness(dialect: Dialect): Promise<Harness> {
   };
   return {
     meta,
+    manager,
     dsn,
     connectionId: connection.id,
-    install: async (manifest) => {
-      await stage(manifest);
-      return app.inject({ method: 'POST', url: '/apps/install', payload: { key: manifest['key'], version: manifest['version'], connectionId: connection.id } });
+    ...(options.full === true ? { samples: createSampleDataService(sampleDeps) } : {}),
+    install: async (manifest, answers = {}, files = {}) => {
+      await stage(manifest, files);
+      return app.inject({ method: 'POST', url: '/apps/install', payload: { ...answers, key: manifest['key'], version: manifest['version'], connectionId: connection.id } });
     },
     stage,
     inject: async (request) => app.inject(request),

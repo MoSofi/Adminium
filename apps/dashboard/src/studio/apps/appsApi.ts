@@ -153,7 +153,7 @@ export function downloadApp(key: string, version: string): Promise<{ jobId: stri
 export function updateApp(
   key: string,
   /** The check the operator saw for the new version: its checksum, what they chose, and their say on its public access. */
-  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; publicAccess?: boolean },
+  checked?: { planChecksum?: string; choices?: InstallAnswers['choices']; shares?: InstallAnswers['shares']; publicAccess?: boolean },
 ): Promise<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }> {
   return api.post<{ app: InstalledAppResult; from: string; to: string; pruned: string[] }>(
     `/api/v1/apps/${encodeURIComponent(key)}/update`,
@@ -606,6 +606,12 @@ export interface AppInstallPlan {
   tables?: PlannedAppTable[];
   /** Short name → real table. Absent from an older server. */
   names?: Record<string, string>;
+  /**
+   * Per shape the app declares (`menu@1`), the installed apps whose tables of
+   * it this app may use as its own: the check's "Use {app}'s menu" or "Keep a
+   * separate menu". Absent when no other app here has them.
+   */
+  shareOffers?: ShareOffer[];
   /** The add-ons the app names, each with its state, source and own plan. Absent for an app that names none. */
   addOns?: AppAddOnRow[];
   /**
@@ -618,7 +624,22 @@ export interface AppInstallPlan {
 
 export type TableClass = 'new' | 'own-leftover' | 'shared' | 'taken';
 export type TableAction = 'create' | 'reuse' | 'share' | 'rename-existing' | 'undecided';
-export type TableOffer = 'reuse' | 'share' | 'rename-existing' | 'alt-prefix';
+export type TableOffer = 'reuse' | 'share' | 'separate' | 'rename-existing' | 'alt-prefix';
+
+/** Mirrors one entry of the server's plan `shareOffers`. */
+export interface ShareOffer {
+  shape: string;
+  /** The app whose tables the plan uses (`share`), or the one recommended (`separate`). */
+  with: string;
+  withName: string;
+  /** Every app whose tables could be used, the recommended (first installed) one first. */
+  candidates: { key: string; name: string }[];
+  action: 'share' | 'separate';
+  /** `with`'s real tables of the shape. */
+  tables: string[];
+  /** The columns sharing adds to `with`'s tables. */
+  addColumns: { table: string; column: string }[];
+}
 
 /** Mirrors one entry of the server's plan `tables`. */
 export interface PlannedAppTable {
@@ -632,7 +653,11 @@ export interface PlannedAppTable {
   /** Why using a taken table as it is would not work, for a person. */
   reuseRefusal?: string;
   renameExistingTo?: string;
+  /** For a shared table: the key of the app whose table it is, and that app's name. */
   sharedWith?: string;
+  sharedWithName?: string;
+  /** The shape the app declares the table with (`menu@1`). */
+  shape?: string;
   /** From an earlier install that used the table it found rather than making it. */
   adopted?: true;
   edits: {
@@ -656,6 +681,8 @@ export interface InstallAnswers {
   choices?: Record<string, { action: 'reuse' } | { action: 'share' } | { action: 'rename-existing'; to: string }>;
   /** A different prefix for all of the app's tables. */
   altPrefix?: string;
+  /** By shape (`menu@1`): use another installed app's tables of it, or keep separate ones. */
+  shares?: Record<string, { action: 'share'; with: string } | { action: 'separate' }>;
 }
 
 /** Mirrors the server's `MissingColumnsEdit` (`apps/server/src/apps/missing-columns.ts`). */
@@ -746,8 +773,11 @@ export interface UninstallPlan {
   endpoints: number;
   /** Deleting a role takes its members' membership and hard-deletes its `adm_sk_` keys. */
   roles: { slug: string; name: string; members: number; apiKeys: number }[];
-  tables: { table: string; droppable: boolean }[];
+  /** `sharedWith`: the other installed apps that use the table too (a shared menu); it is never dropped. */
+  tables: { table: string; droppable: boolean; sharedWith?: { key: string; name: string }[] }[];
   hosts: string[];
+  /** The app's sample rows in tables another app uses too: they stay. Absent when none. */
+  sharedSampleRows?: number;
   /** Column rules the app wrote that are still as it wrote them. Absent from an older server. */
   rules?: number;
   /** Discarding data is Super Admin's alone. */

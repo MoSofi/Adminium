@@ -97,6 +97,7 @@ interface UpdateConsent {
 export interface UpdateChecked {
   planChecksum?: string;
   choices?: InstallAnswers['choices'];
+  shares?: InstallAnswers['shares'];
   publicAccess?: boolean;
 }
 
@@ -271,7 +272,8 @@ export function useAppAcquisition() {
            */
           if (plan.tables !== undefined) {
             const askable = plan.problems.every((problem) => problem.code === 'TABLE_TAKEN');
-            if ((checkAsks(plan.tables) || publicAccessAdded(plan) !== null) && (plan.installable || askable)) {
+            const asksShare = (plan.shareOffers ?? []).length > 0;
+            if ((checkAsks(plan.tables) || asksShare || publicAccessAdded(plan) !== null) && (plan.installable || askable)) {
               setConsent({ key: app.key, to, plan, connectionId: app.connectionId });
               return;
             }
@@ -455,6 +457,11 @@ function UpdateCheckDialog({
   const [picks, setPicks] = useState<Record<string, TakenPick>>({});
   const [renameTo, setRenameTo] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState<InstallAnswers['choices']>(undefined);
+  // A new version's tables of a shape another app has: that app's, or separate ones.
+  const [sharePicks, setSharePicks] = useState<NonNullable<InstallAnswers['shares']>>({});
+  const [checkedShares, setCheckedShares] = useState<InstallAnswers['shares']>(undefined);
+  const sharesOf = (next: NonNullable<InstallAnswers['shares']>): InstallAnswers['shares'] =>
+    Object.keys(next).length === 0 ? undefined : Object.fromEntries(Object.keys(next).sort().map((shape) => [shape, next[shape]!]));
 
   const choicesOf = (
     nextPicks: Record<string, TakenPick>,
@@ -468,19 +475,23 @@ function UpdateCheckDialog({
     return Object.keys(choices).length === 0 ? undefined : choices;
   };
   const choices = choicesOf(picks, renameTo);
-  const dirty = JSON.stringify(choices ?? null) !== JSON.stringify(checked ?? null);
+  const dirty =
+    JSON.stringify(choices ?? null) !== JSON.stringify(checked ?? null) ||
+    JSON.stringify(sharesOf(sharePicks) ?? null) !== JSON.stringify(checkedShares ?? null);
 
   const recheck = useMutation({
-    mutationFn: (next: InstallAnswers['choices']) =>
+    mutationFn: ({ next, shares }: { next: InstallAnswers['choices']; shares: InstallAnswers['shares'] }) =>
       planApp({
         key: consent.key,
         version: consent.to,
         connectionId: consent.connectionId,
         ...(next === undefined ? {} : { choices: next }),
+        ...(shares === undefined ? {} : { shares }),
       }),
-    onSuccess: (reply, next) => {
+    onSuccess: (reply, { next, shares }) => {
       setPlan(reply.plan);
       setChecked(next);
+      setCheckedShares(shares);
     },
   });
 
@@ -497,7 +508,8 @@ function UpdateCheckDialog({
   );
 
   const tables = plan.tables ?? [];
-  const asksTables = checkAsks(tables);
+  // A menu another app already has is a question too: its own, or that app's.
+  const asksTables = checkAsks(tables) || (plan.shareOffers ?? []).length > 0;
   const access = publicAccessAdded(plan);
   return (
     <Modal
@@ -545,7 +557,12 @@ function UpdateCheckDialog({
                     : renameTo;
                 setPicks(nextPicks);
                 setRenameTo(nextRename);
-                recheck.mutate(choicesOf(nextPicks, nextRename));
+                recheck.mutate({ next: choicesOf(nextPicks, nextRename), shares: sharesOf(sharePicks) });
+              }}
+              onShare={(shape, pick) => {
+                const next = { ...sharePicks, [shape]: pick };
+                setSharePicks(next);
+                recheck.mutate({ next: choices, shares: sharesOf(next) });
               }}
               renameTo={renameTo}
               onRenameTo={(ref, value) => setRenameTo((names) => ({ ...names, [ref]: value }))}
@@ -569,7 +586,7 @@ function UpdateCheckDialog({
           {t('studio:hostedApps.update.cancel', 'Cancel')}
         </Button>
         {dirty ? (
-          <Button disabled={recheck.isPending} onClick={() => recheck.mutate(choices)}>
+          <Button disabled={recheck.isPending} onClick={() => recheck.mutate({ next: choices, shares: sharesOf(sharePicks) })}>
             {recheck.isPending ? <Spinner size="sm" /> : null}
             {t('studio:hostedApps.install.check.again', 'Check again')}
           </Button>
@@ -580,6 +597,7 @@ function UpdateCheckDialog({
               void state.confirmUpdate({
                 ...(plan.checksum === undefined ? {} : { planChecksum: plan.checksum }),
                 ...(checked === undefined ? {} : { choices: checked }),
+                ...(checkedShares === undefined ? {} : { shares: checkedShares }),
                 ...(access === null ? {} : { publicAccess: allowPublic && !publicAccessBlocked(access) }),
               })
             }

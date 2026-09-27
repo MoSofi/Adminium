@@ -204,6 +204,8 @@ export type StampTrigger =
 export interface ColumnStampRule {
   set: StampSet;
   on: StampTrigger | StampTrigger[];
+  /** Emptied again when a move marked `undo` takes the row back out of a state it watches. */
+  clearOnBack?: true;
 }
 
 /**
@@ -269,6 +271,8 @@ export interface StateMoveRule {
     setting?: SettingCondition[];
   };
   roles?: string[];
+  /** The move takes back the listed one the other way: made only by a write naming the state it saw. */
+  undo?: true;
 }
 
 /**

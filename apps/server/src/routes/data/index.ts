@@ -108,6 +108,8 @@ import { staffTreeRules } from './tree.js';
  */
 const LINK_READ_CAP = 200;
 import { withOccurredAt } from '../../crud/occurred-at.js';
+import { withSeenState } from '../../crud/seen-state.js';
+import { moveBackOf } from '../../crud/undo-moves.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
 import { isStateRefusal } from '../../crud/state-conditions.js';
 import {
@@ -1212,14 +1214,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
-      // No undo that would delete a row numbered without gaps, or take a document's state back.
-      if (takesNumberBack(ctx, action, children) || takesStateBack(ctx, children, links)) return null;
       // A code a change made (a ticket handed on) is never taken back: the old secret stays dead, the rest is undone.
       if (action === 'update' && changedColumns.some((column) => codeColumnsOf(ctx.table).has(column))) {
         changedColumns = changedColumns.filter((column) => !codeColumnsOf(ctx.table).has(column));
         if (changedColumns.length === 0) return null;
       }
+      // No undo that would delete a row numbered without gaps, or take a document's state back — but a status move the app lists an undo for.
+      const moveBack = action === 'update' && children.length === 0 && links.length === 0 ? moveBackOf(ctx.table.table, before, after, changedColumns) : null;
+      if (takesNumberBack(ctx, action, children) || (takesStateBack(ctx, children, links) && moveBack === null)) return null;
       const { token } = undoStore.issue({
+        ...(moveBack === null ? {} : { moveBack }),
         auditId: null,
         userId,
         connectionId: ctx.connectionId,
@@ -1377,6 +1381,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             { reason: 'UNDO_NUMBERED' },
           );
         }
+        // A status move the app lists an undo for is taken back by that move: judged, stamped and told like any.
+        if (entry.moveBack !== undefined) return undoByMove(request, undone, entry, entry.moveBack);
         // A token issued before the table kept states: the rule decides now.
         if (takesStateBack(undone, entry.children, entry.links)) {
           throw new ConflictError('This record moves through states, so a change to it cannot be undone.', 'CONFLICT', { reason: 'UNDO_STATES' });
@@ -1434,6 +1440,36 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         return { restoredIds };
       },
     );
+
+    /**
+     * An undo of a status move: the table's move marked `undo` the other way,
+     * made as the writer's own change naming the state it left the row in —
+     * so a row moved on since is refused, what the move waits for is judged,
+     * the stamps it wrote are emptied and a waiting message is dropped.
+     */
+    async function undoByMove(request: FastifyRequest, ctx: DataContext, entry: UndoEntry, back: NonNullable<UndoEntry['moveBack']>) {
+      const pk = Object.fromEntries(entry.pkColumns.map((column) => [column, entry.after[0]?.[column]]));
+      const outcome = await writes.update({
+        target: ctx.target,
+        pk,
+        values: withSeenState(ctx.table, { [back.column]: back.to }, back.from),
+        context: requestWriteContext(request, 'dashboard'),
+        mapError: (error) => mapDbError(error, ctx.table),
+        announce: async (result) => {
+          await afterMutation(request, ctx, 'update', recordRef(ctx, pk), result.before ?? entry.after[0]!, result.after ?? entry.before[0]!);
+          await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
+        },
+      });
+      invalidateWidgetData(app, entry.connectionId, entry.tableId);
+      await app.rbac.audit(request, {
+        category: 'data',
+        action: 'record.undo',
+        connectionId: entry.connectionId,
+        changes: { after: { table: entry.tableId, action: entry.action, restored: outcome.count, moveBack: back } },
+      });
+      if (app.hasDecorator('realtime')) app.realtime.publish(`table:${entry.connectionId}:${entry.tableId}`, 'record.undo', { action: entry.action });
+      return { restoredIds: outcome.count > 0 ? [pkLabel(ctx.table, pk)] : [] };
+    }
 
     /**
      * The rows an undo writes, in the order `executeUndo` writes them: the
@@ -2533,7 +2569,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const pk = parseRecordId(ctx.table, request.params.recordId);
         // An edit form sends only what changed, so an edit of links or line
         // items alone — or of nothing — arrives with no values at all.
-        const values = Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values);
+        // The state the writer saw the row in, when it names one, travels as a condition of the change.
+        const values = withSeenState(ctx.table, Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values), request.body.from);
         await assertFileColumns(ctx, values);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });

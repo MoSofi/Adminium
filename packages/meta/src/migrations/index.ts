@@ -66,6 +66,7 @@ import { up as up0041 } from './0041_session_persistent.js';
 import { up as up0042 } from './0042_clinic_platform.js';
 import { up as up0043 } from './0043_roles_namespace.js';
 import { up as up0044 } from './0044_invoicing_platform.js';
+import { up as up0045 } from './0045_app_table_shapes.js';
 import { up as up0030 } from './0030_report_documents.js';
 
 export interface MetaMigration {
@@ -119,4 +120,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0042_clinic_platform', up: up0042 },
   { name: '0043_roles_namespace', up: up0043 },
   { name: '0044_invoicing_platform', up: up0044 },
+  { name: '0045_app_table_shapes', up: up0045 },
 ];
