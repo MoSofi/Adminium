@@ -152,6 +152,8 @@ import { negotiateLocale } from '../../plugins/surfaces.js';
 import { publicConfirmSchema, sourceTable } from '../../public-api/endpoint.js';
 import { entryColumnOf, fillOf, personTableOf, signedInValues, type PersonTable } from '../../public-api/person-entry.js';
 import { holdsOf, replaceHolds } from '../../public-api/hold-replace.js';
+import { withholding } from '../../public-api/withhold.js';
+import { chargeChange, notPlainChange } from '../../public-api/change-limits.js';
 import { PersonRaced, PersonRefused, PersonTableUnusable, resolvePerson } from '../../crud/person.js';
 import { privilegesOf } from '../../connections/privileges.js';
 import { emitRecordEvent, invalidateWidgetData } from '../../crud/after-record-write.js';
@@ -1637,6 +1639,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         }
 
+        // Columns a ticket's holder alone reads, left empty for anyone else reading it through its order.
+        const withheld = withholding(resource, ok.key.scope, ok.session, view, table);
         const result = await runList({
           // A child's rows through its parent chain; any other resource reads as it always has.
           db: readerFor({ db, dialect, view }, table, found.visibility),
@@ -1669,13 +1673,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // Scope predicate AND session predicate, both mandatory, neither
           // removable by any combination of query parameters.
           ...(predicate === null ? {} : { mandatory: predicate }),
-          exposeColumns: resource.expose,
+          exposeColumns: withheld.expose,
           searchColumns: resource.searchable,
         });
 
         await touchKey(ok.key.keyId);
         // Instants a caller elsewhere can read (SQLite keeps the server's wall clock).
-        result.data = result.data.map((row) => wallTimesAsInstants(row, table.columns, dialect));
+        result.data = result.data.map((row) => wallTimesAsInstants(withheld.apply(row), table.columns, dialect));
         /*
          * THE RESPONSE SHAPE — the list route only. `wrapped`
          * is what every published client reads. `array` is the bare rows, the
@@ -1863,6 +1867,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           ([column, value]) => ({ column, op: 'eq', value }) as RecordFilter,
         );
         const keyFilter: RecordFilter = byKey.length === 1 ? (byKey[0] as RecordFilter) : { and: byKey };
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table);
 
         const result = await runList({
           db: readerFor(found, found.table, found.visibility),
@@ -1873,14 +1878,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           dialect: found.dialect,
           // Never null: the key condition is always there.
           mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
-          exposeColumns: found.resource.expose,
+          exposeColumns: withheld.expose,
           searchColumns: found.resource.searchable,
         });
         const row = result.data[0];
         if (row === undefined) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
 
         await touchKey(ok.key.keyId);
-        return reply.send({ data: wallTimesAsInstants(row, found.table.columns, found.dialect) });
+        return reply.send({ data: wallTimesAsInstants(withheld.apply(row), found.table.columns, found.dialect) });
       },
     );
 
@@ -2757,6 +2762,73 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         };
         let outcome;
         const context = await publicWriteContext(request, ok);
+        /*
+         * A change a guest sends on (a ticket offered to a friend): a name that
+         * is only a name, and so many a day to one address. A quote is free and
+         * charged nothing.
+         */
+        const limits = quote === 'save' ? (found.resource.limits ?? null) : null;
+        let releaseLimits: (() => Promise<void>) | null = null;
+        if (limits !== null) {
+          const column = notPlainChange(limits, values);
+          if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+          const charge = await chargeChange(challenges, { limits, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, ref: request.params.ref, values, now: Date.now() });
+          if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be sent online today have been sent.');
+          releaseLimits = charge.release;
+        }
+        /*
+         * A person found by address on a change through the row's own link (a
+         * friend accepting a ticket sent to them): the address the link was
+         * emailed to, or the one written, finds or makes the person, and the
+         * change links them — in its own values, so what the change sets off
+         * (a new code, the holder's copies) sets off with it.
+         */
+        let madePerson: { table: ResolvedTable; row: Row; ref: string } | null = null;
+        const finder = found.resource.findOrCreate ?? null;
+        if (quote === 'save' && finder !== null && ok.key.scope.claim?.own === true) {
+          const people = await personTableOf(meta, found.view, ok.key.scope, ok.key.connectionId, finder.identityRef);
+          if (people === null) {
+            request.log.warn({ ref: request.params.ref, identity: finder.identityRef }, 'a change finds its person through an identity that does not sign in by link');
+            await releaseLimits?.();
+            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+          }
+          let peek = found.db.selectFrom(found.table.id).selectAll();
+          for (const [column, value] of Object.entries(pk)) peek = peek.where(found.db.dynamic.ref(column), '=', value as never);
+          const stored = ((await inScope(peek).executeTakeFirst()) as Row | undefined) ?? null;
+          const addresses = ok.key.scope.claim.address ?? [];
+          const address = Object.prototype.hasOwnProperty.call(values, finder.email) ? values[finder.email] : addresses.includes(finder.email) ? stored?.[finder.email] : undefined;
+          const linked = stored?.[finder.link];
+          if (stored !== null && (linked === null || linked === undefined) && plausibleAddress(address)) {
+            const tableRights = privilegesOf(await manager.tablePrivilegesById(ok.key.connectionId), people.table.id);
+            const personTarget: WriteTarget = { ...target, table: people.table };
+            const once = () =>
+              writes.transaction(personTarget, [], (tdb) =>
+                resolvePerson({ writes, identity: { ...personTarget, db: tdb, rights: tableRights }, email: people.email, address, fill: fillOf(finder, { ...stored, ...values }), context }),
+              );
+            let person;
+            try {
+              try {
+                person = await once();
+              } catch (error) {
+                if (!(error instanceof PersonRaced)) throw error;
+                person = await once();
+              }
+            } catch (error) {
+              await releaseLimits?.();
+              if (error instanceof PersonRefused) {
+                return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', UPDATE_NAMED.has(error.reason) ? { column: entryColumnOf(finder, people, error.column), reason: error.reason } : undefined);
+              }
+              if (error instanceof PersonTableUnusable) {
+                request.log.warn({ ref: request.params.ref, why: error.why }, 'a change finds its person in a table that cannot be used for it');
+                return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+              }
+              if (error instanceof PersonRaced || lostRace(error)) return busy(reply);
+              return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            }
+            if (person.link !== null) values[finder.link] = person.link;
+            if (person.made !== null) madePerson = { table: people.table, row: person.made, ref: finder.identityRef };
+          }
+        }
         try {
           outcome = await writes.update({
             target,
@@ -2831,6 +2903,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             },
           });
         } catch (error) {
+          // Nothing was sent on: what the limits counted for it is handed back.
+          await releaseLimits?.();
           if (error instanceof PublicPriceChanged) return fail(reply, 409, 'PUBLIC_PRICE_CHANGED', error.message, error.params);
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
@@ -2847,7 +2921,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // scope, or belongs to somebody else. One answer for all three — and
         // for a row in any other state. The one exception is the caller's own
         // row that only its time window refused: that is told when it opens.
+        // A person made for the change, heard of once it is done (they are the friend's, and real, even when nothing changed).
+        if (madePerson !== null) await announcePerson(request, ok, madePerson.table, madePerson.row, madePerson.ref);
         if (outcome.count === 0) {
+          await releaseLimits?.();
           const early = await tooEarlyFor(found, pk, now, ok.key.scope.timezone);
           if (early !== null) return fail(reply, 409, 'PUBLIC_TOO_EARLY', 'Too early for this change; `at` is the time it waits for.', early);
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
@@ -2859,7 +2936,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // A code this change made (a ticket handed on) goes to the new holder, never back to the sender.
         for (const column of renewedBy(outcome, found.table.table.columns)) hidden.add(column);
         for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
-        const data = wallTimesAsInstants(projected, found.table.columns, found.dialect);
+        // What the row's holder alone reads stays theirs in the answer to a change too.
+        const holder = found.resource.withhold?.unlessHolder;
+        const after = outcome.after ?? null;
+        const shown = holder === undefined || after === null ? projected : withholding(found.resource, ok.key.scope, ok.session, found.view, found.table).apply({ ...projected, [holder]: after[holder] });
+        const data = wallTimesAsInstants(shown, found.table.columns, found.dialect);
         // A quote runs no before hook: said, as a quote of a create says it.
         if (quote === 'dry') return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)) });
         return reply.send({ data });

@@ -2,9 +2,8 @@
 /**
  * An installed app whose manifest declares rules the server does not run yet:
  * the tables carrying one take no creates or changes (501 `RULE_NOT_BUILT`),
- * a table carrying none writes as ever, and a public entry using one — with
- * every entry read through it — is left out of the key's served scope, while
- * the key's sign-in stays.
+ * a table carrying none writes as ever, and a public entry whose rule now
+ * runs (a person found by address) is served, with the key's sign-in.
  */
 import { publicEndpointsRepo, publicScopesRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -33,7 +32,7 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
     expect(made).not.toBeInstanceOf(RuleNotBuiltError);
   });
 
-  it.runIf(available)('serves no entry that uses one, nor any read through it, and keeps the sign-in', async () => {
+  it.runIf(available)('serves an entry that finds its person by address, now that it runs, and keeps the sign-in', async () => {
     const definitions = new Map<string, Record<string, unknown>>();
     for (const row of await publicEndpointsRepo(h!.meta).listByConnection(h!.connectionId)) {
       const parsed = parseDefinition(row.definition);
@@ -43,7 +42,7 @@ describe.each(LEGS)('rules not built yet, on an installed app — %s', (dialect,
     expect(withTree.length).toBeGreaterThan(0);
     const scopes = await publicScopesRepo(h!.meta).listByConnection(h!.connectionId);
     const served = scopes.flatMap((scope) => (JSON.parse(scope.document) as { resources: { ref: string; visibleWith?: { ref: string } }[] }).resources);
-    for (const ref of withTree) expect(served.map((r) => r.ref)).not.toContain(ref);
+    for (const ref of withTree) expect(served.map((r) => r.ref)).toContain(ref);
     // Nothing served reads through an entry that is not served.
     const refs = new Set(served.map((r) => r.ref));
     for (const r of served) if (r.visibleWith !== undefined) expect(refs.has(r.visibleWith.ref)).toBe(true);

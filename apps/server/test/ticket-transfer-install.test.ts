@@ -8,10 +8,9 @@
  *
  *  - the public endpoints, from their stored text (printed and parsed again);
  *  - each key's derived scope: the own link's addresses carried into its
- *    claim, and every entry that withholds columns left out (suspended) until
- *    the server that keeps the rule is built.
+ *    claim, and every entry that withholds columns served.
  *
- * Nothing here runs the rules: a later build does. Each is only kept.
+ * Nothing here runs the rules (`public-ticket-transfer.test.ts` does): each is only kept.
  */
 import { readFileSync } from 'node:fs';
 
@@ -143,21 +142,18 @@ describe.each(LEGS)('a ticket sent to a friend, kept through install on %s', (di
     expect(byClaim(orderLink().ref).claim).toMatchObject({ strategy: 'token', own: true, address: ['email'] });
   });
 
-  it.skipIf(!available)('leaves an entry that withholds columns out of every derived scope, as suspended', async () => {
+  it.skipIf(!available)('serves every entry that withholds columns, in the derived scopes', async () => {
     const withholding = [buyerTickets(), linkTickets()];
-    // What install stored: no scope serves them.
+    // What install stored: each is served by its key's scope.
     const scopes = await publicScopesRepo(h!.meta).listByConnection(h!.connectionId);
-    for (const scope of scopes) {
-      const refs = (JSON.parse(scope.document) as PublicScopeDocument).resources.map((r) => r.ref);
-      for (const tickets of withholding) expect(refs).not.toContain(tickets.ref);
-    }
-    // Derived again from every endpoint: the two are reported suspended (with any other entry whose rules are not built yet).
+    const refs = scopes.flatMap((scope) => (JSON.parse(scope.document) as PublicScopeDocument).resources.map((r) => r.ref));
+    for (const tickets of withholding) expect(refs).toContain(tickets.ref);
+    // Derived again from every endpoint: none of them is suspended.
     const all = new Map([...endpoints].map(([ref, e]) => [e.id, { id: e.id, ref, definition: e.definition }]));
     const access = Object.fromEntries([...all.values()].map((e) => [e.id, e.definition.methods as PublicMethod[]]));
     const derived = deriveScopeDocument({ kind: 'browser', access }, all, view);
-    expect(derived.suspended.map((s) => s.ref)).toEqual(expect.arrayContaining(withholding.map((t) => t.ref)));
-    expect(derived.suspended.find((s) => s.ref === buyerTickets().ref)?.methods).toEqual(['GET', 'PATCH']);
-    expect(derived.document.resources.map((r) => r.ref)).not.toContain(buyerTickets().ref);
+    expect(derived.suspended.map((s) => s.ref)).not.toEqual(expect.arrayContaining([buyerTickets().ref]));
+    expect(derived.document.resources.map((r) => r.ref)).toContain(buyerTickets().ref);
   });
 
   it.skipIf(!available)('maps a withholding entry to its scope resource and compiled form, once built', () => {

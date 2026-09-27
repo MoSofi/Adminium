@@ -419,6 +419,14 @@ const resourceSchema = z
       })
       .strict()
       .optional(),
+    /** The limits on a change a guest makes: per value a day (an address a ticket is sent on to), plain-text columns. */
+    limits: z
+      .object({
+        perValue: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
+        plainText: z.array(columnSchema).min(1).max(8).optional(),
+      })
+      .strict()
+      .optional(),
     /** The rows a create carries, by the name the wire uses. */
     children: z.record(z.string().min(1).max(64), scopeChildSchema).optional(),
     /** Checks the created row's own values pass. */
@@ -608,6 +616,8 @@ export interface CompiledResource {
   humanCheck: boolean;
   /** The limits on a create nobody signed in for; null when there are none. */
   anonymous: AnonymousCaps | null;
+  /** The limits on a change: per value a day, plain text (absent in a resource built by hand: none). */
+  limits?: Pick<AnonymousCaps, 'perValue' | 'plainText'> | null | undefined;
   /** The settings switches a write here needs on. */
   requireSetting: readonly { table: string; column: string; when?: 'anonymous' | undefined }[];
   claim: z.infer<typeof claimScopeSchema> | null;
@@ -863,7 +873,7 @@ export function compileScope(
     for (const c of r.writable) check(c, 'SCOPE_WRITABLE_UNKNOWN_COLUMN');
     for (const c of Object.keys(r.writableWhen ?? {})) check(c, 'SCOPE_WRITABLE_WHEN_UNKNOWN_COLUMN');
     // The columns a create with children, a found person and a row's own link name: this table's, and each child's.
-    for (const c of [r.expect, r.clientKey, r.findOrCreate?.email, r.findOrCreate?.link, r.shareLink?.column, ...(r.forget?.columns ?? []), r.forget?.stamp]) {
+    for (const c of [r.expect, r.clientKey, r.findOrCreate?.email, r.findOrCreate?.link, r.shareLink?.column, ...(r.forget?.columns ?? []), r.forget?.stamp, ...(r.limits?.perValue?.columns ?? []), ...(r.limits?.plainText ?? [])]) {
       if (c !== undefined) check(c, 'SCOPE_COLUMN_UNKNOWN');
     }
     const childColumns = (children: Readonly<Record<string, ScopeChild | z.infer<typeof scopeGrandchildSchema>>>): void => {
@@ -1399,6 +1409,7 @@ export function compileScope(
       rank: r.rank === undefined ? null : { ...r.rank },
       humanCheck: r.humanCheck === true,
       anonymous: r.anonymous === undefined ? null : { ...r.anonymous },
+      limits: r.limits === undefined ? null : { ...r.limits },
       requireSetting: (r.requireSetting ?? []).map((setting) => ({ ...setting })),
       claim: r.claim ?? null,
       visibleWith: r.visibleWith === undefined ? null : { ...r.visibleWith },

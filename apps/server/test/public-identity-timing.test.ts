@@ -90,7 +90,7 @@ describe.each(LEGS)('a known address and an unknown one — %s', (dialect, avail
     return () => shop.composed.app.inject({ method: 'POST', url, remoteAddress: address, headers, payload: { values: { email, name: 'Guest' } } });
   };
   /** One request's statements. */
-  const traced = async (send: () => ReturnType<Served['composed']['app']['inject']>) => {
+  const traced = async (send: () => Promise<{ statusCode: number; body: string }>) => {
     statements.length = 0;
     logging = true;
     const res = await send();

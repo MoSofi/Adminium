@@ -61,7 +61,9 @@ describe('the entries this server does not run yet', () => {
     expect(unbuiltEntryRuleOf({ source: 'tickets', children: {}, find_or_create: { identity_ref: 'customers' } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'orders', share_link: { column: 'link_token', key: 'link' } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'settings', session_only: true })).toBeNull();
-    expect(unbuiltEntryRuleOf({ source: 'tickets', withhold: { columns: ['code'], unless_holder: 'holder_customer_id' } })).toBe('withhold');
+    // A ticket sent on to a friend: the change's limits and what its holder alone reads run now.
+    expect(unbuiltEntryRuleOf({ source: 'tickets', withhold: { columns: ['code'], unless_holder: 'holder_customer_id' } })).toBeNull();
+    expect(unbuiltEntryRuleOf({ source: 'tickets', limits: { per_value: { columns: ['pending_email'], n: 5 } } })).toBeNull();
     expect(unbuiltEntryRuleOf({ source: 'tickets' })).toBeNull();
   });
 });

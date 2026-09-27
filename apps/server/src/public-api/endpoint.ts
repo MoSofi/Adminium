@@ -845,6 +845,13 @@ export function definitionToResource(
       ...(caps.plain_text === undefined ? {} : { plainText: [...caps.plain_text] }),
     };
   }
+  if (def.limits !== undefined) {
+    const limits = def.limits;
+    resource.limits = {
+      ...(limits.per_value === undefined ? {} : { perValue: { columns: [...limits.per_value.columns], n: limits.per_value.n } }),
+      ...(limits.plain_text === undefined ? {} : { plainText: [...limits.plain_text] }),
+    };
+  }
   if (def.children !== undefined) resource.children = childResources(def.children);
   if (def.agrees !== undefined) resource.agrees = def.agrees.map((agree) => structuredClone(agree));
   if (def.dry_run !== undefined) resource.dryRun = true;
@@ -1250,6 +1257,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     ...(def.rank === undefined ? [] : [['rank', def.rank.order_by] as const, ...(def.rank.where === undefined ? [] : [['rank', def.rank.where.column] as const])]),
     ...(def.identity?.email === undefined ? [] : [['identity', def.identity.email] as const]),
     ...[...(def.anonymous?.per_value?.columns ?? []), ...(def.anonymous?.plain_text ?? [])].map((column) => ['anonymous', column] as const),
+    ...[...(def.limits?.per_value?.columns ?? []), ...(def.limits?.plain_text ?? [])].map((column) => ['limits', column] as const),
   ];
   for (const [key, column] of named) {
     if (!table.columns.has(column)) push('ENDPOINT_COLUMN_UNKNOWN', `"${column}" (${key}) is not a column of ${def.source}`, column);
