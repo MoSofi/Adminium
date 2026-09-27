@@ -89,6 +89,8 @@ import {
   type ResolvedChild,
 } from '../../crud/child-rows.js';
 import { availabilityColumns, readAvailability } from '../../crud/availability.js';
+import type { TreeNode, TreeOutcome, TreePath } from '../../crud/write-tree.js';
+import { staffTreeRules } from './tree.js';
 
 /**
  * How many links one record's field reads and replaces.
@@ -124,6 +126,7 @@ import {
   recordBulkBody,
   recordBulkReply,
   recordCreateBody,
+  recordDryRunReply,
   recordDeleteQuery,
   recordDeleteReply,
   recordGetQuery,
@@ -821,6 +824,142 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return undo;
     }
 
+
+    /**
+     * A RECORD WITH ITS CHILD ROWS, AND THEIR ROWS (an order, its lines, each
+     * line's options): one write through the write service's tree — every
+     * row's rules, every limit, the totals settled bottom-up, every row or
+     * none — held to what the app declares for its guests' creates of the
+     * same rows (`routes/data/tree.ts`). A quote (`dry`) runs the same and
+     * keeps nothing. Refusals name the relation and the row.
+     */
+    async function staffTree(
+      request: FastifyRequest,
+      ctx: DataContext,
+      context: WriteContext,
+      values: Row,
+      links: RequestedLink[],
+      children: RequestedChildren[],
+      raw: Record<string, { key?: Row | undefined; values: Row; children?: Record<string, { values: Row }[]> | undefined }[]>,
+      mode: 'save' | 'dry',
+    ): Promise<{ outcome: TreeOutcome; links: { relationId: string; before: string[]; after: string[] }[]; children: UndoChildren[]; events: ChildEvent[] }> {
+      const relations = new Map<string, ResolvedChild>();
+      // What the app declares for its guests' creates of these rows: the lists below each row, and what they are held to.
+      const rules = await staffTreeRules(deps.meta, ctx.connectionId, ctx.view, ctx.table, (name, parentTable) => {
+        let relation = relations.get(name);
+        if (relation === undefined) {
+          const resolution = resolveChild(ctx.view, parentTable, name);
+          if (!resolution.ok) return null;
+          relation = resolution.child;
+          relations.set(name, relation);
+        }
+        return { table: relation.child, via: relation.foreignColumn };
+      });
+      const forbidden = (child: ResolvedChild): never => {
+        throw new ForbiddenError(`You do not have permission to create rows of ${child.child.name}.`, 'TABLE_FORBIDDEN', {
+          permission: `table:${ctx.connectionId}:${child.child.id}:create`,
+        });
+      };
+      const level1: TreeNode[] = [];
+      for (const requested of children) {
+        const { child } = requested;
+        if (requested.rows.length > 0 && !requested.canCreate) forbidden(child);
+        relations.set(child.relationId, child);
+        for (const [index, row] of requested.rows.entries()) {
+          const at = [child.relationId, index];
+          const below: TreeNode[] = [];
+          for (const [relationId, rows] of Object.entries(raw[child.relationId]?.[index]?.children ?? {})) {
+            const resolution = resolveChild(ctx.view, child.child, relationId);
+            if (!resolution.ok) {
+              throw new ValidationFailedError(resolution.refusal.reason, { fields: { [relationId]: { code: 'not-allowed' } }, relation: relationId });
+            }
+            const grandchild = resolution.child;
+            if (rows.length > 0 && !(await request.can(`table:${ctx.connectionId}:${grandchild.child.id}:create`))) forbidden(grandchild);
+            relations.set(relationId, grandchild);
+            for (const [j, grandRow] of rows.entries()) {
+              below.push({
+                name: relationId,
+                target: childTargetOf(ctx, grandchild, ctx.db),
+                values: allowlistChild(ctx, grandchild, grandRow.values),
+                via: { column: grandchild.foreignColumn, parentKey: grandchild.parentKeyColumn },
+                at: [...at, relationId, j],
+                children: [],
+              });
+            }
+          }
+          level1.push({
+            name: child.relationId,
+            target: childTargetOf(ctx, child, ctx.db),
+            values: row.values,
+            via: { column: child.foreignColumn, parentKey: child.parentKeyColumn },
+            at,
+            children: below,
+            lists: [...new Set([...Object.keys(raw[child.relationId]?.[index]?.children ?? {}), ...rules.listsOf(child.child, 1)])],
+          });
+        }
+      }
+      const root: TreeNode = {
+        name: ctx.table.name,
+        target: ctx.target,
+        values,
+        at: [],
+        children: level1,
+        lists: [...new Set([...children.map((requested) => requested.child.relationId), ...rules.listsOf(ctx.table, 0)])],
+      };
+      const tableAt = (at: TreePath): ResolvedTable => (at.length === 0 ? ctx.table : (relations.get(String(at[at.length - 2]))?.child ?? ctx.table));
+      const written: { relationId: string; before: string[]; after: string[] }[] = [];
+      const events: ChildEvent[] = [];
+      const outcome = await writes.createTree({
+        root,
+        context,
+        mode,
+        checks: rules.checks,
+        siblings: rules.siblings,
+        // The record's link rows, in the same transaction (a quote links nothing).
+        ...(mode === 'dry' || links.length === 0
+          ? {}
+          : {
+              inside: async (db, made) => {
+                for (const requested of links) written.push(await applyLinks(ctx, db, requested, made[requested.link.ownKeyColumn], context, { existing: [] }));
+              },
+            }),
+        announce: async (row) => {
+          const of = row.node.target.table;
+          const pk = Object.fromEntries(of.primaryKey.map((c) => [c, row.record[c]]));
+          if (row.node.at.length === 0) await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row.record);
+          else events.push({ table: of, action: 'create', pk, row: row.record });
+        },
+        mapError: (error, at) => {
+          // The row a refusal is about: its relation and its place, and the row it hangs from.
+          const where =
+            at.length >= 2
+              ? { relation: String(at[at.length - 2]), row: Number(at[at.length - 1]), ...(at.length === 4 ? { under: { relation: String(at[0]), row: Number(at[1]) } } : {}) }
+              : {};
+          if (error instanceof ValidationFailedError) throw new ValidationFailedError(error.message, { ...((error.details as Record<string, unknown> | undefined) ?? {}), ...where });
+          if (error instanceof AppError) throw error;
+          return mapDbError(error, tableAt(at));
+        },
+      });
+      // What the undo takes away: the rows added, by relation, and below each the rows added under them.
+      const undo = new Map<string, UndoChildren>();
+      for (const row of outcome.rows) {
+        const at = row.node.at;
+        if (at.length === 0) continue;
+        const top = undo.get(String(at[0])) ?? { relationId: String(at[0]), added: [], addedRows: [], removed: [], changed: [], nested: [] };
+        undo.set(String(at[0]), top);
+        let list = top;
+        if (at.length === 4) {
+          const nested = top.nested!.find((entry) => entry.relationId === String(at[2]));
+          list = nested ?? { relationId: String(at[2]), added: [], addedRows: [], removed: [], changed: [] };
+          if (nested === undefined) top.nested!.push(list);
+        }
+        const of = row.node.target.table;
+        list.added.push(Object.fromEntries(of.primaryKey.map((c) => [c, row.record[c]])));
+        list.addedRows!.push(row.record);
+      }
+      return { outcome, links: written, children: [...undo.values()], events };
+    }
+
     /** The target keys this record is linked to right now. */
     async function currentLinks(
       db: Kysely<SourceDatabase>,
@@ -945,6 +1084,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       }
     }
 
+    /** A write's child rows at every level: each list, then the lists below its rows. */
+    function everyLevel(children: readonly UndoChildren[]): UndoChildren[] {
+      return children.flatMap((child) => [child, ...everyLevel(child.nested ?? [])]);
+    }
+
     /**
      * Whether undoing this write would delete a row numbered without gaps: a
      * create of one, or child rows added to a table that numbers them. An undo
@@ -954,7 +1098,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     function takesNumberBack(ctx: DataContext, action: UndoAction, children: readonly UndoChildren[]): boolean {
       if (action === 'create' && numbersWithoutGaps(tableRulesFor(ctx.target))) return true;
-      return children.some((child) => {
+      return everyLevel(children).some((child) => {
         if (child.added.length === 0) return false;
         const relation = ctx.view.model.relations.find((candidate) => candidate.id === child.relationId);
         if (relation === undefined) return false;
@@ -972,7 +1116,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      */
     function takesStateBack(ctx: DataContext, children: readonly UndoChildren[], links: readonly UndoLinks[] = []): boolean {
       if (tiedToStates(ctx.table)) return true;
-      const childTied = children.some((child) => {
+      const childTied = everyLevel(children).some((child) => {
         const relation = ctx.view.model.relations.find((candidate) => candidate.id === child.relationId);
         return relation !== undefined && tiedToStates(ctx.view.table(relation.from.tableId));
       });
@@ -1291,11 +1435,16 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     async function undoChildren(
       db: Kysely<SourceDatabase>,
       target: WriteTarget,
-      entry: UndoEntry,
+      entry: Pick<UndoEntry, 'children'>,
       context: WriteContext,
       conflict: () => never,
     ): Promise<void> {
       for (const children of entry.children) {
+        // The rows added below the rows added here go first: they point at them.
+        if ((children.nested?.length ?? 0) > 0) {
+          const above = resolveChild(target.view, target.table, children.relationId);
+          if (above.ok) await undoChildren(db, { ...target, table: above.child.child }, { children: children.nested! }, context, conflict);
+        }
         const resolution = resolveChild(target.view, target.table, children.relationId);
         if (!resolution.ok) continue;
         const child = resolution.child.child;
@@ -2002,6 +2151,29 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
          * roll back.
          */
         /*
+         * WITH CHILD ROWS — and their own rows, two levels — one write through
+         * the write service's tree (`staffTree`): every rule and limit of
+         * every row, the totals settled bottom-up, every row or none. A child
+         * table a before hook runs for keeps the one-level path below.
+         */
+        const rowsBelow = Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0));
+        if (children.length > 0 && !children.some((requested) => requested.hooked)) {
+          const hookedLink = links.find((requested) => requested.hooked);
+          if (hookedLink === undefined) {
+            const tree = await staffTree(request, ctx, context, values, links, children, request.body.children ?? {}, 'save');
+            const created = tree.outcome.root;
+            const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, created[c]]));
+            undoToken = issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
+            for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
+            await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
+            return reply.status(201).send({ data: maskRow(created, ctx.table, ctx.unmasked), undoToken });
+          }
+        }
+        if (rowsBelow) {
+          throw new ValidationFailedError('Rows below a child row are written only when no table of the write runs a hook.', { code: 'not-allowed' });
+        }
+
+        /*
          * A CHILD TABLE'S before hook cannot run on a row whose foreign key
          * does not exist yet — and child tables carry hooks far more often than
          * join tables do, so this refusal is one real people will meet. It says
@@ -2102,6 +2274,42 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
     );
 
+    /**
+     * A STAFF FORM'S RECORD TRIED FIRST — the desk's "Take a booking" summary:
+     * the record with its child rows written and rolled back, every figure the
+     * save would work out, refused as the save would be; nothing kept, nothing
+     * announced, no number taken.
+     */
+    app.post(
+      '/data/:connectionId/:table/dry-run',
+      { schema: { params: dataTableParams, body: recordCreateBody, response: { 200: recordDryRunReply } } },
+      async (request) => {
+        const ctx = await contextFor(request, 'create');
+        const values = allowlistValues(ctx, request.body.values);
+        await assertFileColumns(ctx, values);
+        const context = requestWriteContext(request, 'dashboard');
+        const children = await requestedChildren(request, ctx, context, request.body.children);
+        const tree = await staffTree(request, ctx, context, values, [], children, request.body.children ?? {}, 'dry');
+        const shown: Record<string, { data: Row; children?: Record<string, { data: Row }[]> }[]> = {};
+        const byPlace = new Map<string, { data: Row; children?: Record<string, { data: Row }[]> }>();
+        for (const row of [...tree.outcome.rows].sort((a, b) => a.node.at.length - b.node.at.length)) {
+          const at = row.node.at;
+          if (at.length === 0) continue;
+          // A child table's own columns are shown as a read of it would show them.
+          const data = maskRow(row.record, row.node.target.table, false);
+          if (at.length === 2) {
+            const entry = { data };
+            (shown[String(at[0])] ??= [])[Number(at[1])] = entry;
+            byPlace.set(`${String(at[0])}\u0000${String(at[1])}`, entry);
+            continue;
+          }
+          const parent = byPlace.get(`${String(at[0])}\u0000${String(at[1])}`);
+          if (parent !== undefined) ((parent.children ??= {})[String(at[2])] ??= [])[Number(at[3])] = { data };
+        }
+        return { data: maskRow(tree.outcome.root, ctx.table, ctx.unmasked), children: shown };
+      },
+    );
+
     app.patch(
       '/data/:connectionId/:table/:recordId',
       {
@@ -2120,6 +2328,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const context = requestWriteContext(request, 'dashboard');
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, request.body.children);
+        // Rows below a child row come with a new record only.
+        if (Object.values(request.body.children ?? {}).some((rows) => rows.some((row) => Object.keys(row.children ?? {}).length > 0))) {
+          throw new ValidationFailedError('Rows below a child row are written with a new record only.', { code: 'not-allowed' });
+        }
         let undoToken: string | null = null;
 
         /*

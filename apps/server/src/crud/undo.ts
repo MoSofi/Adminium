@@ -48,6 +48,8 @@ export interface UndoChildren {
   removed: Row[];
   /** `after` is the row as the write left it: an undo puts `before` back only over that. */
   changed: { key: Row; before: Row; after?: Row }[];
+  /** Rows the write added below the rows it added here (an order line's options), by their own relation. */
+  nested?: UndoChildren[];
 }
 
 export interface UndoEntry {

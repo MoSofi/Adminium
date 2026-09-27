@@ -156,8 +156,26 @@ export const recordLinksBody = z
  * is the leaf's — a dialog that can hold two hundred lines is already a page.
  */
 export const recordChildrenBody = z
-  .record(z.string().min(1), z.array(z.object({ key: rowSchema.optional(), values: rowValuesSchema })).max(MAX_CHILD_ROWS))
+  .record(
+    z.string().min(1),
+    z
+      .array(
+        z.object({
+          key: rowSchema.optional(),
+          values: rowValuesSchema,
+          /** A new row's own new rows, one level further (an order line's options): on a create only. */
+          children: z.record(z.string().min(1), z.array(z.object({ values: rowValuesSchema })).max(MAX_CHILD_ROWS)).optional(),
+        }),
+      )
+      .max(MAX_CHILD_ROWS),
+  )
   .optional();
+
+/** A staff form's record with its rows tried and not kept: every figure the save would work out. */
+export const recordDryRunReply = z.object({
+  data: rowSchema.nullable(),
+  children: z.record(z.string(), z.array(z.object({ data: rowSchema, children: z.record(z.string(), z.array(z.object({ data: rowSchema }))).optional() }))),
+});
 
 /**
  * ONE ROW PER VALUE: the invitations field (comp 484–488).

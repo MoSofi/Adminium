@@ -17,8 +17,8 @@ const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, maxLength = 120, more: Record<string, unknown> = {}) => ({ ref, type: 'text', maxLength, ...more });
 const money = (ref: string, rules?: Record<string, unknown>) => ({ ref, type: 'decimal', scale: 2, nullable: true, ...(rules === undefined ? {} : { rules }) });
 
-export function orderTables(): Record<string, unknown>[] {
-  return [
+export function orderTables(numbered = true): Record<string, unknown>[] {
+  const tables: Record<string, unknown>[] = [
     { ref: 'settings', columns: [id, { ref: 'max_items', type: 'int', default: 12 }, { ref: 'tax_rate', type: 'decimal', scale: 3, default: 8.25 }] },
     { ref: 'customers', columns: [id, text('email', 254), money('lifetime', { rollup: { from: 'orders', via: 'customer_id', sum: 'total' } })] },
     { ref: 'menu_items', columns: [id, text('name'), { ref: 'price', type: 'decimal', scale: 2, default: 0 }, { ref: 'available', type: 'bool', default: true }] },
@@ -31,7 +31,7 @@ export function orderTables(): Record<string, unknown>[] {
         { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true },
         text('email', 254, { rules: { validation: { format: 'email' } } }),
         text('name', 80),
-        { ref: 'number', type: 'int', nullable: true, rules: { sequence: { gapless: true } } },
+        ...(numbered ? [{ ref: 'number', type: 'int', nullable: true, rules: { sequence: { gapless: true } } }] : []),
         text('client_key', 64, { nullable: true, unique: true }),
         { ref: 'tax_rate', type: 'decimal', scale: 3, nullable: true, rules: { default: { from: { table: 'settings', column: 'tax_rate' } } } },
         money('subtotal', { rollup: { from: 'order_items', via: 'order_id', sum: 'line_total', where: { column: 'removed', eq: false } } }),
@@ -71,10 +71,12 @@ export function orderTables(): Record<string, unknown>[] {
       columns: [id, { ref: 'tally_id', type: 'fk', references: 'tallies' }, { ref: 'qty', type: 'decimal', scale: 3, default: 1 }, { ref: 'rate', type: 'decimal', scale: 4, default: 0 }],
     },
   ];
+  return tables;
 }
 
-export function orderManifest(): Record<string, unknown> {
-  const manifest = invoicingManifest(orderTables());
+/** The kitchen app; `numbered: false` leaves orders without a running number (so a create can be undone). */
+export function orderManifest(numbered = true): Record<string, unknown> {
+  const manifest = invoicingManifest(orderTables(numbered));
   manifest['key'] = 'kitchen';
   (manifest['pages'] as { bindings: Record<string, string> }[])[0]!.bindings = { rows: 'orders' };
   return manifest;
@@ -152,8 +154,8 @@ export async function writeTree(w: Writer, root: TreeNode, mode: 'save' | 'dry' 
 export const cents = (value: unknown): string | null => (value === null || value === undefined ? null : Number(value).toFixed(2));
 
 /** The public side of the kitchen: the menu anyone may read, and a guest's order with its lines and options. */
-export function orderPublicManifest(): Record<string, unknown> {
-  const manifest = orderManifest();
+export function orderPublicManifest(numbered = true): Record<string, unknown> {
+  const manifest = orderManifest(numbered);
   manifest['frontends'] = [
     { side: 'staff', kind: 'spa', entry: 'index.html' },
     { side: 'customer', kind: 'spa', entry: 'index.html' },
@@ -168,7 +170,7 @@ export function orderPublicManifest(): Record<string, unknown> {
       humanCheck: true,
       writable: ['email', 'name', 'client_key'],
       requires: ['email', 'name'],
-      select: ['id', 'number', 'subtotal', 'item_count', 'tax', 'total'],
+      select: ['id', ...(numbered ? ['number'] : []), 'subtotal', 'item_count', 'tax', 'total'],
       anonymous: { perValue: { columns: ['email'], n: 20 } },
       children: {
         order_items: {
