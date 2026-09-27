@@ -36,7 +36,7 @@ export interface JudgedRow {
   /** The row as stored, read holding it; null for a create. */
   before: Row | null;
   /** Where the row sits in a create with child rows (`['order_items', 3]`); absent for a single row. */
-  at?: readonly (string | number)[] | undefined;
+  path?: readonly (string | number)[] | undefined;
 }
 
 export interface CapacityJudgeOptions {
