@@ -118,8 +118,8 @@ for (const [dialect, available] of LEGS) {
         await released;
       });
       await held;
-      // Past the hold's end: the confirm must count the order again, under the lock.
-      vi.setSystemTime(new Date(NOW.getTime() + 10 * 60_000 + 50));
+      // Fifty milliseconds before the hold's end: by the time the confirm holds the lock the hold may be over, so it counts again under it.
+      vi.setSystemTime(new Date(NOW.getTime() + 10 * 60_000 - 50));
       let done = false;
       const confirm = w.update('orders', 2, { status: 'paid' }).then(() => (done = true));
       await new Promise((resolve) => setTimeout(resolve, 150));

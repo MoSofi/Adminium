@@ -1166,7 +1166,7 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     if ([...methods].some((m) => m !== 'GET')) push('ENDPOINT_AVAILABILITY_READ_ONLY', 'availability answers GET only');
     if (capacity === undefined && rules.length === 0 && table.table.booking === undefined) {
       push('ENDPOINT_AVAILABILITY_NO_LIMIT', `${def.source} has no booking limit to answer availability from`);
-    } else if (capacity?.resource !== undefined) {
+    } else if (capacity?.resource !== undefined || rules.some((rule) => rule.kind === 'slot' && rule.resource !== undefined)) {
       // A booking rule answers per person; a capacity limit per table or room does not yet.
       push('ENDPOINT_AVAILABILITY_PER_RESOURCE', 'availability for a limit per table or room is not offered yet');
     }

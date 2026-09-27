@@ -23,7 +23,7 @@ import type { FastifyRequest } from 'fastify';
 import { sql, type Kysely } from 'kysely';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
-import type { CapacitySetting } from '../connections/effective-schema.js';
+import type { CapacitySetting, EffectiveCapacityRule } from '../connections/effective-schema.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import { slotInstant } from '../crud/capacity-guard.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
@@ -128,7 +128,7 @@ export async function sendConfirmation(input: ConfirmInput): Promise<boolean> {
         },
         // Said in the email's own digits: how many hours before, and how many are coming.
         counts: {
-          cancelHours: await hoursOf(input.db, input.table.table.capacity?.cancelHours),
+          cancelHours: await hoursOf(input.db, input.table.table.capacity?.cancelHours ?? slotCancelHours(input.table.table.capacityRules)),
           ...(confirm.party === undefined ? {} : { party: text(row[confirm.party]) }),
         },
       },
@@ -138,4 +138,10 @@ export async function sendConfirmation(input: ConfirmInput): Promise<boolean> {
     input.request.log.warn({ err: error }, 'the booking was made, but its confirmation email could not be queued');
     return false;
   }
+}
+
+/** The cancellation window of a table's slot limit, when its limits are listed with kinds. */
+function slotCancelHours(rules: readonly EffectiveCapacityRule[] | undefined): number | CapacitySetting | undefined {
+  const slot = rules?.find((rule) => rule.kind === 'slot');
+  return slot?.kind === 'slot' ? slot.cancelHours : undefined;
 }
