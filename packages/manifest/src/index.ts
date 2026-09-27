@@ -136,6 +136,8 @@ export {
   dayNumberOf,
   isJoinColumn,
   ratioText,
+  rollupValue,
+  sameDecimal,
   toRatio,
   type FormulaCondition,
   type FormulaExpr,

@@ -299,6 +299,13 @@ export interface RollupInto {
    * a capped balance is read: what is stored may lag what the rows say.
    */
   siblings: RollupInto[];
+  /**
+   * The totals one table higher that add up what this one moves — its column,
+   * the parent's formulas that read it, the parent's balances: a line's
+   * options into the line, the line's amount into the order. A write climbs
+   * them after this one settles, up to three rows high.
+   */
+  climbs: RollupInto[];
 }
 
 export interface TableRules {
@@ -618,16 +625,16 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   }
   // The totals this table's rows feed, read off the parents that name it.
   const rollupsInto: RollupInto[] = [];
-  for (const parent of target.view?.model?.tables ?? []) {
-    if (parent.primaryKey.length !== 1) continue;
-    const totals = rollupsOf(parent as EffectiveTable);
+  // Built once per model, so each total knows the totals above it that climb from it.
+  const model = target.view?.model?.tables === undefined ? undefined : modelRollups(target.view.model as { tables: readonly EffectiveTable[] });
+  for (const totals of model?.values() ?? []) {
     rollupsInto.push(...totals.filter((rollup) => rollup.child === target.table.id));
   }
   // This table's own totals and balances: settled when one of its rows is
   // created or its `of`/`minus` changes, and written by nothing else.
   // A hand-built target may carry an empty table: it has no totals.
   const self = target.table.table?.columns === undefined ? undefined : target.table.table;
-  const ownRollups: RollupInto[] = self === undefined ? [] : rollupsOf(self);
+  const ownRollups: RollupInto[] = self === undefined ? [] : (model?.get(self.id) ?? rollupsOf(self));
   const balances = self === undefined ? [] : balancesOf(self);
   const formulas = self === undefined ? [] : formulasOf(self);
   const readOnly = [...ownRollups.map((r) => r.column), ...balances.map((b) => b.column), ...formulas.map((f) => f.column)];
@@ -796,6 +803,35 @@ export function derivedFrom(formulas: readonly ColumnFormula[], column: string):
   return [...out];
 }
 
+/** Every table's totals, per model: built once, so a total and the totals that climb from it are the same objects. */
+const ROLLUPS = new WeakMap<object, Map<string, RollupInto[]>>();
+
+/**
+ * The totals of every table of a model, by table id, each knowing the totals
+ * one table higher that add up what it moves (`RollupInto.climbs`).
+ */
+function modelRollups(model: { tables: readonly EffectiveTable[] }): Map<string, RollupInto[]> {
+  const cached = ROLLUPS.get(model);
+  if (cached !== undefined) return cached;
+  const out = new Map<string, RollupInto[]>();
+  for (const table of model.tables) {
+    const totals = rollupsOf(table);
+    if (totals.length > 0) out.set(table.id, totals);
+  }
+  const all = [...out.values()].flat();
+  for (const rollup of all) {
+    const moved = new Set([rollup.column, ...rollup.derived, ...rollup.balances.map((balance) => balance.column)]);
+    rollup.climbs = all.filter(
+      (above) =>
+        above !== rollup &&
+        above.child === rollup.parent &&
+        [above.sum, above.times, above.unlessSet, above.where?.column].some((column) => column !== undefined && column !== '' && moved.has(column)),
+    );
+  }
+  ROLLUPS.set(model, out);
+  return out;
+}
+
 /** A table's totals, as the writes to its child rows settle them; none for a table without a one-column key. */
 function rollupsOf(parent: EffectiveTable): RollupInto[] {
   if (parent.primaryKey?.length !== 1) return [];
@@ -853,6 +889,7 @@ function rollupOf(
     balances,
     capped: false,
     siblings,
+    climbs: [],
     formulas,
     ...(currencyColumn === undefined ? {} : { currencyColumn }),
     derived: derivedFrom(formulas, column.name),

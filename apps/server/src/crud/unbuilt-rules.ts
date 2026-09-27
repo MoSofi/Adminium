@@ -63,13 +63,6 @@ export const UNBUILT_TABLE_RULES: readonly UnbuiltTableRule[] = [
   { rule: 'lookup', on: (table) => anyColumn(table, (c) => c.lookup !== undefined) },
   { rule: 'normalize.code', on: (table) => anyColumn(table, (c) => c.normalize === 'code') },
   { rule: 'code.renew', on: (table) => anyColumn(table, (c) => c.code?.renew !== undefined) },
-  // Totals that count rows: the parent's column, and every table whose rows it counts.
-  {
-    rule: 'rollup.count',
-    on: (table, model) =>
-      anyColumn(table, (c) => c.rollup?.count === true) ||
-      (model?.tables ?? []).some((other) => (other.columns ?? []).some((c) => c.rollup?.count === true && c.rollup.from === table.id)),
-  },
   // Prices by the night, a copy that follows its source, a text joined from columns.
   { rule: 'perNight', on: (table) => anyColumn(table, (c) => c.perNight !== undefined) },
   {

@@ -411,6 +411,42 @@ export function ratioText(value: Ratio, scale: number): string {
   return `${negative && units !== 0n ? '-' : ''}${whole}${fraction}`;
 }
 
+/**
+ * What a total over child rows comes to, exactly: each row's `sum` (times its
+ * `times`) added up as fractions and rounded once to `places`, or the rows
+ * counted. A row whose value is empty or not a number adds nothing, as SQL's
+ * `sum` leaves it out. SQLite adds decimals as floats, where 1.500 × 0.33 is
+ * a hair under 0.495 and rounds to 0.49; this answers 0.50, as Postgres and
+ * MySQL do.
+ */
+export function rollupValue(
+  rows: readonly Readonly<Record<string, unknown>>[],
+  spec: { sum?: string | undefined; times?: string | undefined; count?: true | undefined },
+  places: number,
+): string {
+  if (spec.count === true) return String(rows.length);
+  let total: Ratio = { n: 0n, d: 1n };
+  for (const row of rows) {
+    const amount = spec.sum === undefined ? null : toRatio(row[spec.sum]);
+    if (amount === null) continue;
+    if (spec.times === undefined) {
+      total = add(total, amount);
+      continue;
+    }
+    const times = toRatio(row[spec.times]);
+    if (times !== null) total = add(total, mul(amount, times));
+  }
+  return ratioText(total, places);
+}
+
+/** Whether two decimals are the same number at `places` (`90` and `"90.00"` are; `"89.999"` at 2 is `"90.00"`). */
+export function sameDecimal(a: unknown, b: unknown, places: number): boolean {
+  const left = toRatio(a);
+  const right = toRatio(b);
+  if (left === null || right === null) return left === right;
+  return ratioText(left, places) === ratioText(right, places);
+}
+
 function sameValue(stored: unknown, literal: string | number | boolean): boolean {
   if (stored === null || stored === undefined) return false;
   if (typeof literal === 'boolean') {

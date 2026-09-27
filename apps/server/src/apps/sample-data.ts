@@ -799,8 +799,11 @@ export function createSampleDataService(deps: SampleDataDeps) {
            * Each settled row is hashed again as it now stands, or its removal
            * would take the new total for an edit and keep the row.
            */
-          for (const [ref, { target, rows }] of totals) {
+          for (const { target, rows } of totals.values()) {
             await writes.settle('create', target, rows.map((row) => ({ record: row.record, before: null })));
+          }
+          // Hashed only once every total is settled: a line's settle climbs into its order, after the order's own.
+          for (const [ref, { target, rows }] of totals) {
             for (const row of rows) {
               const now = (await fetchByPk(db, target.table, row.key)) ?? row.record;
               const { rowHash, colHashes } = hashRow(now, target.table);
