@@ -662,6 +662,12 @@
         "left": "{left} restants",
         "taken": "{taken} sur {size} pris",
         "takenOnly": "{taken} pris"
+      },
+      "capacityBar": {
+        "takenOnly": "{taken} pris",
+        "label": "{taken} sur {size} pris, {left} restant(s)",
+        "labelHeld": "{taken} sur {size} pris, {held} en attente, {left} restant(s)",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1953,7 +1959,29 @@
     "renderError": "Ce widget n’a pas pu s’afficher.",
     "refreshing": "Actualisation",
     "infoLabel": "Infos du widget",
-    "menuLabel": "Menu du widget"
+    "menuLabel": "Menu du widget",
+    "showData": "Afficher les données",
+    "hideData": "Masquer les données",
+    "data": {
+      "period": "Période",
+      "value": "Valeur",
+      "prior": "Période précédente",
+      "category": "Catégorie",
+      "share": "Part",
+      "row": "Ligne",
+      "from": "De",
+      "to": "À",
+      "min": "Le plus bas",
+      "q1": "Quartile inférieur",
+      "median": "Médiane",
+      "q3": "Quartile supérieur",
+      "max": "Le plus haut",
+      "open": "Ouverture",
+      "high": "Haut",
+      "low": "Bas",
+      "close": "Clôture",
+      "place": "Lieu"
+    }
   },
   "charts": {
     "livePillLabel": "En direct",

@@ -60,5 +60,12 @@ export const miniTableConfigSchema = widgetSharedConfigSchema.extend({
   columns: z.array(gridColumnSpecSchema).default([]),
   limit: z.number().int().min(1).max(6).default(5),
   viewAllHref: z.string().optional(),
+  /**
+   * A second, muted line under each row's first column: these columns, in
+   * this order, joined by " · " ("Loft suite · Tue 28 Jul" under the
+   * guest's name). A column here is not drawn on the first line, which keeps
+   * up to three of the others.
+   */
+  secondary: z.array(z.string().min(1)).min(1).max(3).optional(),
 });
 export type MiniTableConfig = z.infer<typeof miniTableConfigSchema>;

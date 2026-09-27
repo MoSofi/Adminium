@@ -672,6 +672,12 @@ export default {
         "left": "zbývá {left}",
         "taken": "obsazeno {taken} z {size}",
         "takenOnly": "obsazeno {taken}"
+      },
+      "capacityBar": {
+        "takenOnly": "{taken} obsazeno",
+        "label": "{taken} z {size} obsazeno, {left} zbývá",
+        "labelHeld": "{taken} z {size} obsazeno, {held} rezervováno, {left} zbývá",
+        "ratio": "{taken} / {size}"
       }
     },
     "boards": {
@@ -1963,7 +1969,29 @@ export default {
     "renderError": "Tento widget se nepodařilo vykreslit.",
     "refreshing": "Obnovování",
     "infoLabel": "Informace o widgetu",
-    "menuLabel": "Nabídka widgetu"
+    "menuLabel": "Nabídka widgetu",
+    "showData": "Zobrazit data",
+    "hideData": "Skrýt data",
+    "data": {
+      "period": "Období",
+      "value": "Hodnota",
+      "prior": "Předchozí období",
+      "category": "Kategorie",
+      "share": "Podíl",
+      "row": "Řádek",
+      "from": "Od",
+      "to": "Do",
+      "min": "Nejnižší",
+      "q1": "Dolní kvartil",
+      "median": "Medián",
+      "q3": "Horní kvartil",
+      "max": "Nejvyšší",
+      "open": "Otevření",
+      "high": "Maximum",
+      "low": "Minimum",
+      "close": "Uzavření",
+      "place": "Místo"
+    }
   },
   "charts": {
     "livePillLabel": "Živě",

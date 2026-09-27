@@ -19,7 +19,7 @@
  */
 import { z } from 'zod';
 
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+import { localizedTextSchema, widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 // --- chart-line-area ---------------------------------------------------------
 
@@ -43,6 +43,12 @@ export const chartBarConfigSchema = widgetSharedConfigSchema.extend({
   axis: z.boolean().default(true),
   barRadius: z.number().int().min(0).max(12).default(3),
   height: z.number().int().min(80).max(600).default(220),
+  /**
+   * What each figure of a pair is called in the legend and the data table,
+   * in the binding's `aggregations` order ("Received", "Still owed"), with
+   * its translations; the aggregate's alias otherwise.
+   */
+  series: z.array(z.object({ label: z.string().min(1).max(80), labels: localizedTextSchema.optional() })).max(8).optional(),
 });
 
 export type ChartBarConfig = z.infer<typeof chartBarConfigSchema>;

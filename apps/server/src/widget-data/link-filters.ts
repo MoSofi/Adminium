@@ -246,6 +246,28 @@ function conditionsFor(column: ResolvedColumn, op: LinkOp, value: string | null,
   throw new Refused('wrong-operator');
 }
 
+/**
+ * A widget filter's day (`{ column, op, day: 'today' }`): the list-grammar
+ * conditions it stands for on this column, on the venue's calendar — the
+ * same reading as a link's. Null when the column cannot be compared with a
+ * day, the operator is not a comparison or the day is not one.
+ */
+export function venueDayConditions(
+  column: ResolvedColumn,
+  op: string,
+  day: string,
+  clock: { now: Date; dialect: Dialect; timezone: string },
+): FilterCondition[] | null {
+  const kind = kindOf(column);
+  if ((kind !== 'date' && kind !== 'time') || !['eq', 'neq', 'gt', 'gte', 'lt', 'lte'].includes(op)) return null;
+  try {
+    return conditionsFor(column, op as LinkOp, day, { ...clock, today: venueClock(clock.now, clock.timezone).day });
+  } catch (error) {
+    if (error instanceof Refused) return null;
+    throw error;
+  }
+}
+
 /** `a,b,c`, each trimmed, none empty, at most {@link LINK_IN_VALUES_MAX}. */
 function listOf(value: string | null): string[] {
   const items = (value ?? '').split(',').map((item) => item.trim());

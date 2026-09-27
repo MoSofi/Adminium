@@ -19,8 +19,10 @@ import {
   snapshotsRepo,
   type MetaDb,
 } from '@adminium/meta';
+import { pageLayoutSchema } from '@adminium/engine/config';
 import type { Manifest } from '@adminium/manifest';
 
+import { layoutQueryProblems } from '../src/apps/manifest-page-config.js';
 import { materialiseManifestPages } from '../src/apps/manifest-pages.js';
 import { isUntouched } from '../src/pages/generated-stamp.js';
 import { bcp47, pickLabel } from '../src/i18n/bcp47.js';
@@ -342,5 +344,52 @@ describe('a page’s own form and layout', () => {
     expect(stored.items.map((item) => item.config.query)).toEqual([
       { connectionId, source: { name: 'visits' }, shape: 'scalar' },
     ]);
+  });
+
+  it('binds the limited table a list\'s counts name, as it binds the list\'s own', async () => {
+    const layout = {
+      version: 1,
+      items: [
+        {
+          i: 'coming',
+          widget: 'mini-table',
+          x: 0,
+          y: 0,
+          w: 6,
+          h: 4,
+          config: { binding: { source: { name: 'visits' }, shape: 'record-list', select: ['id'], counts: { table: 'visit_notes', as: 'sold' } } },
+        },
+      ],
+    };
+    const result = await write(manifest([{ ref: 'clinic-overview', template: 'page-dashboard', config: { layout } }]));
+    expect(result.warnings).toEqual([]);
+    const page = await pagesRepo(meta).findBySlug(connectionId, 'clinic-overview');
+    const stored = (page?.config as { config: { layout: { items: { config: { binding: Record<string, unknown> } }[] } } }).config.layout;
+    expect(stored.items[0]!.config.binding['counts']).toEqual({ table: 'visit_notes', as: 'sold' });
+    // A table the connection has not got: the layout is not drawn.
+    const missing = structuredClone(layout);
+    (missing.items[0]!.config.binding as { counts: { table: string } }).counts.table = 'tickets';
+    const refused = await write(manifest([{ ref: 'clinic-overview-2', template: 'page-dashboard', config: { layout: missing } }]));
+    expect(refused.warnings.map((w) => w.message).join(' ')).toContain('"tickets" is not a table of this connection');
+  });
+});
+
+describe('what a layout\'s cards ask for, judged when the install is planned', () => {
+  const card = (query: Record<string, unknown>) => ({ version: 1, items: [{ i: 'a', widget: 'mini-table', x: 0, y: 0, w: 3, h: 2, config: { binding: { source: { name: 'rooms' }, shape: 'record-list', ...query } } }] });
+  const problems = (query: Record<string, unknown>) => layoutQueryProblems(pageLayoutSchema.parse(card(query)));
+
+  it('passes what a card can read, and every query it read before', () => {
+    expect(problems({ filters: [{ column: 'active', op: 'eq', value: true }, { or: [{ column: 'to_date', op: 'gte', day: 'today' }, { column: 'to_date', op: 'is_null' }] }] })).toEqual([]);
+    expect(problems({ counts: { table: 'stays' } })).toEqual([]);
+    expect(problems({ filters: [{ column: 'active', op: 'eq', value: true, stray: 1 }], anything: 'else' })).toEqual([]);
+    expect(problems({ shape: 'single-metric', kind: 'capacity-counts', capacity: { metric: 'occupancy' } })).toEqual([]);
+  });
+
+  it('refuses a group, a day, counts or a figure no card can read', () => {
+    expect(problems({ filters: [{ or: [{ and: [{ or: [{ column: 'a', op: 'eq', value: 1 }] }] }] }] })).toEqual(['the card over "rooms" has filters that are not ones a card can read']);
+    expect(problems({ filters: [{ column: 'to_date', op: 'gte', day: 'tomorrow' }] })).toEqual(['the card over "rooms" has filters that are not ones a card can read']);
+    expect(problems({ counts: { table: 'stays', as: '1st' } })).toEqual(['the card over "rooms" asks for counts that are not ones a card can read']);
+    expect(problems({ shape: 'categorical', counts: { table: 'stays' } })).toEqual(['the card over "rooms" asks for counts beside something other than a list']);
+    expect(problems({ kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'revenue' } })).toEqual(['the card over "rooms" asks for a figure that is not one']);
   });
 });

@@ -26,8 +26,8 @@ const MAX_ENTRIES = 500;
 interface CacheEntry {
   value: unknown;
   expiresAt: number;
-  /** `${connectionId}:${tableId}` for mutation invalidation. */
-  tableKey: string;
+  /** `${connectionId}:${tableId}` of every table the answer read, for mutation invalidation. */
+  tableKeys: string[];
 }
 
 export function cacheKeyOf(input: {
@@ -61,7 +61,8 @@ export class WidgetDataCache {
     return entry.value;
   }
 
-  set(key: string, value: unknown, connectionId: string, tableId: string): void {
+  /** `also`: more tables the answer read, whose writes drop it too (a limit's counts beside a list). */
+  set(key: string, value: unknown, connectionId: string, tableId: string, also: readonly string[] = []): void {
     // FIFO eviction at the cap — Map iteration order is insertion order.
     if (!this.#entries.has(key) && this.#entries.size >= MAX_ENTRIES) {
       const oldest = this.#entries.keys().next().value;
@@ -70,7 +71,7 @@ export class WidgetDataCache {
     this.#entries.set(key, {
       value,
       expiresAt: this.#now() + this.#ttlMs,
-      tableKey: `${connectionId}:${tableId}`,
+      tableKeys: [tableId, ...also].map((id) => `${connectionId}:${id}`),
     });
   }
 
@@ -78,7 +79,7 @@ export class WidgetDataCache {
   invalidateTable(connectionId: string, tableId: string): void {
     const tableKey = `${connectionId}:${tableId}`;
     for (const [key, entry] of this.#entries) {
-      if (entry.tableKey === tableKey) this.#entries.delete(key);
+      if (entry.tableKeys.includes(tableKey)) this.#entries.delete(key);
     }
   }
 

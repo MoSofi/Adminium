@@ -22,7 +22,7 @@ import { demoSparkline, mulberry32 } from '@adminium/charts';
 import { z } from 'zod';
 
 import { DEFAULT_GAUGE_BANDS, DERIVED_OPS, INSIGHT_ICONS } from './kpi-lib.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+import { localizedTextSchema, widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /** The annex `format` vocabulary, shared by every metric-bearing kpi widget. */
 const metricFormatSchema = z.enum(['plain', 'compact', 'currency', 'percent', 'duration']);
@@ -35,6 +35,8 @@ const toneSchema = z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']
 export const kpiStatCardConfigSchema = widgetSharedConfigSchema.extend({
   /** Card label under the icon row (falls back to `title`). */
   metricLabel: z.string().optional(),
+  /** `metricLabel` in the other languages the page is read in, by tag, picked as `titles` are. */
+  metricLabels: localizedTextSchema.optional(),
   /** Value formatting (annex `format`). */
   metricFormat: z.enum(['plain', 'compact', 'currency', 'percent', 'duration']).default('plain'),
   deltaMode: z.enum(['none', 'pct', 'abs']).default('pct'),
@@ -73,6 +75,17 @@ export const kpiStatCardConfigSchema = widgetSharedConfigSchema.extend({
       'hand-coins',
       'message-square-diff',
       'inbox',
+      // A hotel's: in house, arriving, leaving, on guests' accounts, cancelled late.
+      'bed-double',
+      'log-in',
+      'log-out',
+      'wallet',
+      'calendar-x',
+      // A box office's: tickets, at the door, money in the bank, refunds to make.
+      'ticket',
+      'door-open',
+      'landmark',
+      'undo-2',
     ])
     .default('activity'),
   iconTone: z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']).default('accent'),
@@ -119,6 +132,8 @@ export function usageMeterDemoData(seed: number): { value: number } {
 export const kpiStatTileCompactConfigSchema = widgetSharedConfigSchema.extend({
   /** Uppercase micro-label above the value (falls back to `title`). */
   metricLabel: z.string().optional(),
+  /** `metricLabel` in the other languages the page is read in, by tag, picked as `titles` are. */
+  metricLabels: localizedTextSchema.optional(),
   metricFormat: metricFormatSchema.default('compact'),
   deltaMode: deltaModeSchema.default('pct'),
   /** Down-is-good (costs, error rates, churn) — flips the chip tones. */
@@ -149,6 +164,8 @@ export function kpiStatTileCompactDemoData(seed: number): {
 
 export const metricHeroConfigSchema = widgetSharedConfigSchema.extend({
   metricLabel: z.string().optional(),
+  /** `metricLabel` in the other languages the page is read in, by tag, picked as `titles` are. */
+  metricLabels: localizedTextSchema.optional(),
   metricFormat: metricFormatSchema.default('currency'),
   deltaMode: deltaModeSchema.default('pct'),
   invertDeltaGood: z.boolean().default(false),

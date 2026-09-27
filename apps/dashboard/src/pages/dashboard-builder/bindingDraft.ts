@@ -538,13 +538,19 @@ export function draftFromDescriptor(descriptor: QueryDescriptor): BindingDraft {
     orderByColumn: order?.column ?? '',
     orderByDir: order?.dir ?? base.orderByDir,
     limit: descriptor.limit ?? base.limit,
-    filters: (descriptor.filters ?? []).map((filter) => ({
+    // A group of filters (`or` / `and`) has no row in this form: it is left out, and the editor warns first.
+    filters: (descriptor.filters ?? []).filter(isCondition).map((filter) => ({
       column: filter.column,
       op: filter.op,
       value: valueTextOf(filter.value),
       kind: valueKindOf(filter.value),
     })),
   };
+}
+
+/** A plain condition of a descriptor's filters, not a group of them. */
+function isCondition(filter: NonNullable<QueryDescriptor['filters']>[number]): filter is QueryFilter {
+  return !('and' in filter) && !('or' in filter);
 }
 
 /**
@@ -558,7 +564,7 @@ export function draftIsLossy(descriptor: QueryDescriptor): boolean {
   return (
     (descriptor.aggregations?.length ?? 0) > 1 ||
     (descriptor.orderBy?.length ?? 0) > 1 ||
-    (descriptor.filters ?? []).some((filter) => filter.param !== undefined) ||
+    (descriptor.filters ?? []).some((filter) => !isCondition(filter) || filter.param !== undefined) ||
     descriptor.cursor !== undefined ||
     // The form's window is "the last n units": one on the venue's calendar,
     // moved back, following the day control or reaching ahead ("not yet due")

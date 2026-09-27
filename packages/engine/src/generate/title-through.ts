@@ -135,12 +135,22 @@ export function titleThroughEntry(
   };
 }
 
+/** The columns a descriptor's filters name, inside their `and` / `or` groups too. */
+function conditionColumns(filters: readonly unknown[]): string[] {
+  return filters.flatMap((node) => {
+    const group = node as { and?: unknown[]; or?: unknown[]; column?: string };
+    if (Array.isArray(group.and)) return conditionColumns(group.and);
+    if (Array.isArray(group.or)) return conditionColumns(group.or);
+    return group.column === undefined ? [] : [group.column];
+  });
+}
+
 /** Every column name a descriptor reads, outside `select`. */
 function columnsReadOutsideSelect(d: QueryDescriptor): string[] {
   return [
     ...(d.groupBy ?? []),
     ...(d.orderBy ?? []).map((o) => o.column),
-    ...(d.filters ?? []).map((f) => f.column),
+    ...conditionColumns(d.filters ?? []),
     ...(d.aggregations ?? []).flatMap((a) => (a.column === undefined ? [] : [a.column])),
     ...(d.bucket === undefined ? [] : [d.bucket.column]),
     ...(d.window === undefined ? [] : [d.window.column]),

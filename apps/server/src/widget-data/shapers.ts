@@ -67,8 +67,15 @@ export interface ShapedMultiTimeseries {
 
 export interface ShapedCategorical {
   shape: 'categorical';
-  items: { key: string; label: string; value: number }[];
+  /**
+   * `value` is the first aggregate's. With more than one aggregate, `values`
+   * holds each, by alias, in `aggregates` order: paired bars (received and
+   * still owed, per show).
+   */
+  items: { key: string; label: string; value: number; values?: Record<string, number> }[];
   total: number;
+  /** The aggregates' aliases, in the descriptor's order, when there is more than one. */
+  aggregates?: string[];
 }
 
 export interface ShapedMatrix {
@@ -878,7 +885,13 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
     case 'categorical': {
       const alias = firstAlias(compiled);
       const groupAlias = compiled.groupAlias ?? '__group';
-      const items = rows.map((row) => ({ ...keyOf(row[groupAlias], groupNames), value: toNumber(row[alias]) }));
+      const aliases = compiled.aggregationAliases;
+      const paired = aliases.length > 1;
+      const items = rows.map((row) => ({
+        ...keyOf(row[groupAlias], groupNames),
+        value: toNumber(row[alias]),
+        ...(paired ? { values: Object.fromEntries(aliases.map((name) => [name, toNumber(row[name])])) } : {}),
+      }));
       // Cardinality cap: rows arrive ordered by value desc (compiler); fold
       // the tail into `__other` (guardrails — fold is over fetched
       // rows, themselves bounded by the hard LIMIT).
@@ -886,10 +899,12 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
       if (items.length > GROUP_BUCKET_CAP) {
         const head = items.slice(0, GROUP_BUCKET_CAP);
         const otherValue = items.slice(GROUP_BUCKET_CAP).reduce((sum, item) => sum + item.value, 0);
-        capped = [...head, { key: '__other', label: 'Other', value: otherValue }];
+        const tail = items.slice(GROUP_BUCKET_CAP);
+        const otherValues = paired ? { values: Object.fromEntries(aliases.map((name) => [name, tail.reduce((sum, item) => sum + (item.values?.[name] ?? 0), 0)])) } : {};
+        capped = [...head, { key: '__other', label: 'Other', value: otherValue, ...otherValues }];
       }
       const total = capped.reduce((sum, item) => sum + item.value, 0);
-      return { shape: 'categorical', items: capped, total };
+      return { shape: 'categorical', items: capped, total, ...(paired ? { aggregates: [...aliases] } : {}) };
     }
 
     case 'record': {

@@ -48,20 +48,21 @@
  * scan described at {@link PERCENTILE_SCAN_MAX}.
  */
 
-import { sql, type DynamicModule, type Kysely, type RawBuilder, type SelectQueryBuilder } from 'kysely';
+import { sql, type DynamicModule, type Expression, type ExpressionBuilder, type Kysely, type RawBuilder, type SelectQueryBuilder, type SqlBool } from 'kysely';
 import { COMPILABLE_DATA_SHAPES } from '@adminium/engine/config';
 import type { Aggregation, BucketUnit, QueryDescriptor } from '@adminium/engine/config';
 import type { Dialect } from '@adminium/engine';
 
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { compileFilter, type CompileFilterContext, type FilterCondition } from '../crud/filters.js';
+import { compileFilter, MAX_FILTER_CONDITIONS, MAX_FILTER_GROUP_DEPTH, type CompileFilterContext, type FilterCondition, type RecordFilter } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { offsetSpans, stepsOf, wallText, type OffsetSpan } from './zone-offsets.js';
 import { normalizeWriteValue } from '../crud/write-values.js';
 import { choiceWordsOf } from './choice-words.js';
+import { venueDayConditions } from './link-filters.js';
 
 /** Hard row cap on any compiled query (guardrails). */
 export const WIDGET_LIMIT_MAX = 1000;
@@ -783,26 +784,83 @@ function compileAggregation(
  * from the page-control params; an unset param drops the filter (the
  * control is not active). Filters with neither value nor param pass
  * through — `is_null`/`not_null` need no value.
+ *
+ * A group keeps what is left of it: an `and` without its inactive filters
+ * (none left: no filter), and an `or` holding an inactive one is no filter at
+ * all — "any of these, or anything" keeps every row, where dropping just that
+ * branch would narrow the card to the others.
  */
 export function resolveFilterParams(
   filters: NonNullable<QueryDescriptor['filters']>,
   params: Record<string, unknown>,
-): FilterCondition[] {
-  const out: FilterCondition[] = [];
+): ResolvedFilterNode[] {
+  const out: ResolvedFilterNode[] = [];
   for (const filter of filters) {
-    if (filter.param !== undefined) {
-      const value = params[filter.param];
-      if (value === undefined) continue; // control unset — filter inactive
-      out.push({ column: filter.column, op: filter.op, value });
-      continue;
-    }
-    out.push(
-      filter.value === undefined
-        ? { column: filter.column, op: filter.op }
-        : { column: filter.column, op: filter.op, value: filter.value },
-    );
+    const resolved = resolveNode(filter, params);
+    if (resolved !== null) out.push(resolved);
   }
   return out;
+}
+
+/** A descriptor filter with its params read: a condition (on a venue day, when it names one), or a group of them. */
+export type ResolvedFilterNode = (FilterCondition & { day?: string }) | { and: ResolvedFilterNode[] } | { or: ResolvedFilterNode[] };
+
+type FilterNode = NonNullable<QueryDescriptor['filters']>[number];
+
+/** One filter with its params read; null when it filters nothing (an unset param). */
+function resolveNode(node: FilterNode, params: Record<string, unknown>): ResolvedFilterNode | null {
+  if ('and' in node || 'or' in node) {
+    const children = ('and' in node ? node.and : node.or) as FilterNode[];
+    const resolved = children.map((child) => resolveNode(child, params));
+    if ('or' in node) return resolved.some((child) => child === null) ? null : { or: resolved as ResolvedFilterNode[] };
+    const kept = resolved.filter((child): child is ResolvedFilterNode => child !== null);
+    return kept.length === 0 ? null : { and: kept };
+  }
+  if (node.day !== undefined) {
+    if (node.value !== undefined || node.param !== undefined) {
+      reject('A filter compares with a `day` or with a `value` (or a `param`), not both.', { column: node.column });
+    }
+    return { column: node.column, op: node.op, day: node.day };
+  }
+  if (node.param !== undefined) {
+    const value = params[node.param];
+    if (value === undefined) return null; // control unset — filter inactive
+    return { column: node.column, op: node.op, value };
+  }
+  return node.value === undefined ? { column: node.column, op: node.op } : { column: node.column, op: node.op, value: node.value };
+}
+
+/** Every condition of a descriptor's filters, groups opened. */
+export function filterConditionsOf(filters: QueryDescriptor['filters']): { column: string }[] {
+  const out: { column: string }[] = [];
+  const walk = (node: FilterNode): void => {
+    if ('and' in node || 'or' in node) {
+      for (const child of ('and' in node ? node.and : node.or) as FilterNode[]) walk(child);
+      return;
+    }
+    out.push(node);
+  };
+  for (const node of filters ?? []) walk(node);
+  return out;
+}
+
+/**
+ * The list grammar's limits, on a descriptor's filters: sixteen conditions in
+ * all, groups two deep. The schema holds the depth already; this holds the
+ * count, which a schema of nested lists cannot.
+ */
+function assertDescriptorFilterLimits(filters: QueryDescriptor['filters']): void {
+  let conditions = 0;
+  const walk = (node: FilterNode, depth: number): void => {
+    if ('and' in node || 'or' in node) {
+      if (depth >= MAX_FILTER_GROUP_DEPTH) reject('Filter groups may nest at most 2 levels deep.', { maxDepth: MAX_FILTER_GROUP_DEPTH });
+      for (const child of ('and' in node ? node.and : node.or) as FilterNode[]) walk(child, depth + 1);
+      return;
+    }
+    conditions += 1;
+  };
+  for (const node of filters ?? []) walk(node, 0);
+  if (conditions > MAX_FILTER_CONDITIONS) reject('Filters are limited to 16 conditions.', { maxConditions: MAX_FILTER_CONDITIONS });
 }
 
 /** Shape ⇄ descriptor structural rules (semantics). */
@@ -959,6 +1017,9 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   if (descriptor.capacity !== undefined) {
     reject('`capacity` belongs to a `capacity-counts` binding.', { kind: descriptor.kind });
   }
+  if (descriptor.counts !== undefined && descriptor.shape !== 'record-list') {
+    reject('`counts` sits beside the rows of a "record-list".', { shape: descriptor.shape });
+  }
   assertShapeRules(descriptor);
   // A lookup is a row key, so only a shape that returns rows as rows can carry
   // one. Every other shape would drop it silently — refused instead, so a page
@@ -988,13 +1049,38 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     qb.where((eb) => eb(dynamic.ref(path.fkColumn.name), 'in', where(db.selectFrom(path.parent.id).select(dynamic.ref(path.parentKey)) as unknown as Qb) as never));
 
   // --- WHERE: descriptor filters (CRUD DSL compiler) + rolling window -------
+  assertDescriptorFilterLimits(descriptor.filters);
   const conditions =
     descriptor.filters === undefined ? [] : resolveFilterParams(descriptor.filters, params);
-  // Column resolution happens inside compileFilter via readableColumn.
-  const ownConditions = conditions.filter((condition) => !isPath(condition.column));
-  const pathConditions = conditions
-    .filter((condition) => isPath(condition.column))
-    .map((condition) => ({ condition, path: pathOf(condition.column) }));
+  /*
+   * One filter as SQL: a column of the source through the CRUD filter
+   * compiler (which resolves it with `readableColumn`), a column one link
+   * away as `fkColumn IN (SELECT key FROM parent WHERE …)`, and a group as
+   * the `and` / `or` of its members.
+   */
+  const compileNode = (eb: ExpressionBuilder<SourceDatabase, string>, node: ResolvedFilterNode): Expression<SqlBool> => {
+    if ('and' in node) return eb.and(node.and.map((child) => compileNode(eb, child)));
+    if ('or' in node) return eb.or(node.or.map((child) => compileNode(eb, child)));
+    if (!isPath(node.column)) return compileFilter(eb as never, filterCtx, onDay(node, view.readableColumn(table, node.column, canReadPii)));
+    const path = pathOf(node.column);
+    // The parent's column, compiled by the same filter compiler against the parent.
+    const parentCtx: CompileFilterContext = { view, table: path.parent, canReadPii: path.unmasked, dynamic, dialect };
+    const keys = db
+      .selectFrom(path.parent.id)
+      .select(dynamic.ref(path.parentKey))
+      .where((inner) => compileFilter(inner as never, parentCtx, onDay({ ...node, column: path.column.name }, path.column)));
+    return eb(dynamic.ref(path.fkColumn.name), 'in', keys as never);
+  };
+  /** A condition on a venue day, as the plain conditions it stands for (a time column's day is its span). */
+  const onDay = (node: FilterCondition & { day?: string }, column: ResolvedColumn): RecordFilter => {
+    if (node.day === undefined) return { column: node.column, op: node.op, ...(node.value === undefined ? {} : { value: node.value }) };
+    const conditions = venueDayConditions(column, node.op, node.day, { now: now(), dialect, timezone: opts.timezone ?? 'UTC' });
+    if (conditions === null) {
+      reject(`"${node.column}" cannot be compared with the day "${node.day}" by "${node.op}": a day is compared with a date or a time, by eq, neq, gt, gte, lt or lte.`, { column: node.column, op: node.op, day: node.day });
+    }
+    const named = conditions.map((condition) => ({ ...condition, column: node.column }));
+    return named.length === 1 ? named[0]! : { and: named };
+  };
 
   if (descriptor.window?.unit === 'hour-of-day') {
     reject('A window counts whole periods: `hour-of-day` is a bucket, not a window unit.', { window: { unit: descriptor.window.unit } });
@@ -1040,13 +1126,8 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
 
   const applyWhere = (qb: Qb, window: { start: Date; end: Date | null } | null): Qb => {
     let out = qb;
-    if (ownConditions.length > 0) {
-      out = out.where((eb) => compileFilter(eb as never, filterCtx, { and: ownConditions }));
-    }
-    for (const { condition, path } of pathConditions) {
-      // The parent's column, compiled by the same filter compiler against the parent.
-      const parentCtx: CompileFilterContext = { view, table: path.parent, canReadPii: path.unmasked, dynamic, dialect };
-      out = throughPath(out, path, (inner) => inner.where((eb) => compileFilter(eb as never, parentCtx, { ...condition, column: path.column.name })));
+    if (conditions.length > 0) {
+      out = out.where((eb) => eb.and(conditions.map((node) => compileNode(eb as never, node))));
     }
     if (window !== null && windowColumn !== null) {
       const ref = dynamic.ref(windowColumn.name);
@@ -1122,6 +1203,36 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   // `__group` then `__col`, positionally — the descriptor caps `groupBy` at 2.
   const groupAliases = [GROUP_ALIAS, COL_ALIAS];
 
+  /*
+   * What a ranking (`categorical`) may be put in order by, other than its
+   * value: one of its aggregates (the second of a pair), the column it groups
+   * by, or a column of the row its group points at — its label
+   * (`event_id.name`) or another (`event_id.doors_at`: the shows in date
+   * order) — read-checked as a filter one link away is. A path through another column is refused: it has no
+   * one value per group.
+   */
+  const aggregateAliases = new Set(aggregations.map((aggregation) => aggregation.alias));
+  const rankingKey = (name: string): boolean =>
+    aggregateAliases.has(name) || name === groupColumns[0] || isPath(name);
+  const rankingOrder = (groupColumn: ResolvedColumn): { expr: RawBuilder<unknown>; dir: 'asc' | 'desc'; nullable: boolean }[] =>
+    (descriptor.orderBy ?? [])
+      .filter((key) => rankingKey(key.column))
+      .map((key) => {
+        if (aggregateAliases.has(key.column)) return { expr: sql`${sql.ref(key.column)}`, dir: key.dir, nullable: false };
+        if (key.column === groupColumn.name) return { expr: sql`${dynamic.ref(groupColumn.name)}`, dir: key.dir, nullable: true };
+        const path = pathOf(key.column);
+        if (path.fkColumn.name !== groupColumn.name) {
+          reject(`A ranking grouped by "${groupColumn.name}" is put in order through that column only.`, { orderBy: key.column });
+        }
+        const alias = path.parent.name === '__order' ? '__order_' : '__order';
+        const outer = dynamic.ref(`${table.name}.${groupColumn.name}`);
+        const value = sql`${db
+          .selectFrom(`${path.parent.id} as ${alias}`)
+          .select(dynamic.ref(`${alias}.${path.column.name}`))
+          .whereRef(dynamic.ref(`${alias}.${path.parentKey}`), '=', outer)
+          .limit(1)}`;
+        return { expr: sql`(${value})`, dir: key.dir, nullable: true };
+      });
   let bucketZone: string | null = null;
   const hourOfDay = descriptor.bucket?.unit === 'hour-of-day';
   const build = (window: { start: Date; end: Date | null } | null): Qb => {
@@ -1199,16 +1310,25 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     if (!scan && groupColumns.length > 0) {
       const first = compiledAggs[0];
       if (shape === 'categorical' && first !== undefined) {
-        // Deterministic fold order: biggest buckets first, by the first alias.
-        qb = qb.orderBy(sql.ref(first.alias), 'desc');
+        const groupColumn = view.readableColumn(table, groupColumns[0] as string, canReadPii);
+        const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect);
+        const ranking = rankingOrder(groupColumn);
+        if (ranking.length === 0) {
+          // Deterministic fold order: biggest buckets first, by the first alias.
+          qb = qb.orderBy(sql.ref(first.alias), 'desc');
+        } else {
+          // The order asked for: an aggregate, the group, or a column of the row it points at (no value last).
+          for (const { expr, dir, nullable } of ranking) {
+            if (nullable) qb = qb.orderBy(sql`case when ${expr} is null then 1 else 0 end`, 'asc');
+            qb = qb.orderBy(expr, dir);
+          }
+        }
         /*
          * Ties fall to the group's label, then its key, so the last row a
          * `limit` keeps is the same on every engine and every run. The label
          * is the one the reader is shown: the row the key points at, or the
          * choice column's word for it.
          */
-        const groupColumn = view.readableColumn(table, groupColumns[0] as string, canReadPii);
-        const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect);
         // A group with no label comes after every labelled one, on every engine (Postgres alone puts nulls last by itself).
         if (label !== null) qb = qb.orderBy(sql`case when ${label} is null then 1 else 0 end`, 'asc').orderBy(label, 'asc');
         qb = qb.orderBy(dynamic.ref(groupColumn.name), 'asc');
@@ -1222,6 +1342,8 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     }
 
     for (const key of descriptor.orderBy ?? []) {
+      // A ranking's own order is placed above, before its ties.
+      if (shape === 'categorical' && rankingKey(key.column)) continue;
       const column = view.readableColumn(table, key.column, canReadPii);
       qb = qb.orderBy(dynamic.ref(column.name), key.dir);
     }

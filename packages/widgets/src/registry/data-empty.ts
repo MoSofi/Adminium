@@ -6,8 +6,9 @@ import type { DataShape } from '../page-config/index.js';
  * the schemas — WidgetFrame uses these to switch to the empty state").
  *
  * `record-list` empty ⇔ total === 0 && no cursor; `timeseries` empty ⇔ no
- * points; scalar shapes (`single-metric`, `metric+delta`) and `form-state` /
- * `static` are never "empty" — a zero metric is data. Predicates are lenient
+ * points; scalar shapes (`single-metric`, `metric+delta`) are empty only with
+ * no figure at all (`value: null`) — a zero metric is data; `form-state` /
+ * `static` are never "empty". Predicates are lenient
  * about payload shape (unknown in, boolean out) because they run before the
  * widget component narrows the payload.
  */
@@ -25,8 +26,9 @@ function emptyArrayAt(value: unknown, key: string): boolean {
 }
 
 export const isEmptyByShape: Record<DataShape, (data: unknown) => boolean> = {
-  'single-metric': () => false,
-  'metric+delta': () => false,
+  // No figure at all (`value: null` — a share of nothing to take) is empty; zero is not.
+  'single-metric': (d) => rec(d)?.value === null,
+  'metric+delta': (d) => rec(d)?.value === null,
   timeseries: (d) => emptyArrayAt(d, 'points'),
   'multi-timeseries': (d) =>
     emptyArrayAt(d, 'series') ||

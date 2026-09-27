@@ -142,7 +142,7 @@ import {
 } from '../../apps/sample-data.js';
 import { ownRules, removeManifestRules, rulesKeptBack, shapeRules, writeManifestRules, type RulesResult } from '../../apps/manifest-rules.js';
 import { SCHEMA_REMAP } from '../schema/index.js';
-import { formIssues, layoutTables } from '../../apps/manifest-page-config.js';
+import { formIssues, layoutQueryProblems, layoutTables } from '../../apps/manifest-page-config.js';
 import {
   addOnGrantsOf,
   forgetAppRoleGrants,
@@ -1161,6 +1161,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           for (const name of layoutTables(parsed.data)) {
             if (!declared.has(name)) issues.push(`its layout reads "${name}", which is not a table of the app`);
           }
+          issues.push(...layoutQueryProblems(parsed.data));
         }
       }
       return issues.map((issue) => ({
@@ -1541,7 +1542,17 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         .map((t) => ({ ...t, edits: t.edits.filter((edit) => keep(edit.kind)) }))
         .filter((t) => t.edits.length > 0);
 
-    let existing = checked.existing;
+    /*
+     * The live read the plan was made from still holds a table moved aside
+     * under its OLD name — the name the app's own new table now takes. Left
+     * so, a new table's link to the app's table would point at the moved
+     * table's key column (a column the app's table does not have).
+     */
+    const movedTo = new Map(renames.map((t) => [t.table, t.renameExistingTo!]));
+    let existing = checked.existing.map((table) => {
+      const to = movedTo.get(table.ref);
+      return to === undefined ? table : { ...table, ref: to };
+    });
     const altered = editsWhere(changesExistingColumn);
     if (altered.length > 0) {
       await target.edit(connectionId, (model) => editBodyFor(altered, manifest, model, idOf, plan.names ?? {}), opts);

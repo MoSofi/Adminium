@@ -20,11 +20,15 @@ import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { resolveLookups } from '../crud/lookups.js';
 import { piiAllows, type PiiAccess } from '../crud/mask.js';
-import type { ResolvedPath } from './compiler.js';
+import { filterConditionsOf, type ResolvedPath } from './compiler.js';
 
-/** The filter and window columns of a descriptor that reach another table. */
+/** The filter and window columns of a descriptor that reach another table, and a ranking's order through its group. */
 export function pathColumnsOf(descriptor: QueryDescriptor, table: ResolvedTable): string[] {
-  const names = [...(descriptor.filters ?? []).map((filter) => filter.column), ...(descriptor.window === undefined ? [] : [descriptor.window.column])];
+  const names = [
+    ...filterConditionsOf(descriptor.filters).map((filter) => filter.column),
+    ...(descriptor.window === undefined ? [] : [descriptor.window.column]),
+    ...(descriptor.shape === 'categorical' ? (descriptor.orderBy ?? []).map((key) => key.column) : []),
+  ];
   return [...new Set(names.filter((name) => name.includes('.') && !table.columns.has(name)))];
 }
 

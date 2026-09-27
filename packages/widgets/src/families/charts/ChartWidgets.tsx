@@ -8,10 +8,11 @@
 
 import { BarChart, DonutChart, LineAreaChart, Sparkline, formatShortDate } from '@adminium/charts';
 import type { BarSeries, LineAreaPoint, SparklineTone } from '@adminium/charts';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
 
 import { SlotStrip, asSlotStrip } from './SlotStrip.js';
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
+import { pickLocalized } from '../../lib/localized.js';
 import { asCategorical, asTimeseries, timeseriesValues } from '../../lib/shapes.js';
 import type {
   ChartBarConfig,
@@ -96,8 +97,8 @@ function bucketLabels(points: readonly { t: string }[], unit: string | undefined
 export function barInputsOf(
   data: unknown,
   seriesName: string,
-  /** The binding's bucket unit and the page's locale, when the card has them. */
-  opts: { unit?: string | undefined; locale?: string | undefined } = {},
+  /** The binding's bucket unit, the page's locale and a pair's names, when the card has them. */
+  opts: { unit?: string | undefined; locale?: string | undefined; seriesNames?: readonly string[] | undefined } = {},
 ): { categories: string[]; series: BarSeries[] } | null {
   const ts = asTimeseries(data);
   if (ts !== null && ts.points.length > 0) {
@@ -108,6 +109,16 @@ export function barInputsOf(
   }
   const cat = asCategorical(data);
   if (cat !== null && cat.items.length > 0) {
+    // A pair of figures per group (received and still owed): one series each, side by side.
+    if (cat.aggregates !== undefined) {
+      return {
+        categories: cat.items.map((item) => item.label),
+        series: cat.aggregates.map((alias, index) => ({
+          name: opts.seriesNames?.[index] ?? alias,
+          values: cat.items.map((item) => item.values?.[alias] ?? 0),
+        })),
+      };
+    }
     return {
       categories: cat.items.map((item) => item.label),
       series: [{ name: seriesName, values: cat.items.map((item) => item.value) }],
@@ -116,8 +127,29 @@ export function barInputsOf(
   return null;
 }
 
+/** The names a pair's figures are shown by, in the page's language: the card's `series`, else the aliases. */
+export function seriesNamesOf(series: ChartBarConfig['series'], locale: string | undefined): string[] | undefined {
+  return series?.map((entry) => pickLocalized(entry.label, entry.labels, locale));
+}
+
+/** The legend of a pair of series: a swatch in each series' colour, and its name. */
+function PairLegend({ names }: { names: readonly string[] }) {
+  const fills = ['bg-[var(--viz-1)]', 'bg-[var(--viz-2)]'];
+  return (
+    <ul data-part="chart-legend" className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-caption text-fg-muted">
+      {names.map((name, index) => (
+        <li key={`${String(index)}-${name}`} className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className={`size-2.5 rounded-sm ${fills[index] ?? 'bg-[var(--viz-3)]'}`} />
+          {name}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
   const t = useMaybeT();
+  const locale = useMaybeI18n()?.locale;
   // A slot limit's counts (`capacity-counts`): the day's strip of slots.
   const strip = asSlotStrip(data);
   if (strip !== null) {
@@ -126,10 +158,12 @@ export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
   const inputs = barInputsOf(data, config.title ?? 'Value', {
     unit: (config as { binding?: { bucket?: { unit?: string } } }).binding?.bucket?.unit,
     locale: config.format?.locale,
+    seriesNames: seriesNamesOf(config.series, locale),
   });
   if (inputs === null) return <BadShape />;
   return (
     <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-bar">
+      {inputs.series.length > 1 ? <PairLegend names={inputs.series.map((entry) => entry.name)} /> : null}
       <BarChart
         categories={inputs.categories}
         series={inputs.series}

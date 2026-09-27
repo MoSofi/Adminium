@@ -42,7 +42,11 @@ export {
   DATA_SHAPES,
   aggregationSchema,
   bucketUnitSchema,
+  capacityCountsSchema,
+  countsJoinSchema,
   dataShapeSchema,
+  filterGroupSchema,
+  filterNodeSchema,
   filterSchema,
   isCompilableShape,
   layoutItemSchema,
@@ -50,12 +54,16 @@ export {
   queryDescriptorSchema,
   type Aggregation,
   type BucketUnit,
+  type CapacityCountsAsk,
   type CompilableDataShape,
+  type CountsJoin,
   type DataShape,
   type LayoutItem,
   type PageLayout,
   type QueryDescriptor,
   type QueryFilter,
+  type QueryFilterGroup,
+  type QueryFilterNode,
 } from '@adminium/widgets/page-config';
 // `page-crud`'s config body is a `columns[]` of these. Re-exported here so
 // the two consumers that must validate one — the server's page-config PATCH
