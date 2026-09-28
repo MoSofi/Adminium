@@ -138,6 +138,24 @@ describe.each(LEGS)("the desk's change quote, price check and retry key — %s",
     expect(gone.statusCode, gone.body).toBe(404);
   });
 
+  it.runIf(available)('refuses a price check sent with a quote, of a new stay or of a change, and keeps nothing', async () => {
+    const stay = await w.create('stays', { first_name: 'Uma', room_type_id: seed.garden['id'], arrive: '2026-08-03', depart: '2026-08-05', guests: 1 });
+    const before = await count('stays');
+    const values = { first_name: 'Uma', room_type_id: seed.loft['id'], arrive: '2026-07-23', depart: '2026-07-25', guests: 2 };
+    for (const res of [
+      await send('POST', url('stays', '/dry-run'), { values, expect: { total: '495.95' } }),
+      await send('POST', url('stays', `/${String(stay['id'])}/dry-run`), { values: { depart: '2026-08-06' }, expect: { total: '1.00' } }),
+    ]) {
+      expect(res.statusCode, res.body).toBe(422);
+      expect(codeOf(res)).toMatchObject({ code: 'VALIDATION_FAILED', details: { fields: { expect: { code: 'not-allowed' } } } });
+    }
+    expect(await count('stays')).toBe(before);
+    expect(money((await stayRow(stay['id']))['room_total'])).toBe('340.00');
+    // The same quotes without it are answered.
+    expect((await send('POST', url('stays', '/dry-run'), { values })).statusCode).toBe(200);
+    expect((await send('POST', url('stays', `/${String(stay['id'])}/dry-run`), { values: { depart: '2026-08-06' } })).statusCode).toBe(200);
+  });
+
   it.runIf(available)('saves a change at the price the desk showed, and refuses another price keeping nothing', async () => {
     const stay = await w.create('stays', { first_name: 'Ivy', room_type_id: seed.garden['id'], arrive: '2026-08-03', depart: '2026-08-05', guests: 1 });
     const quoted = (await send('POST', url('stays', `/${String(stay['id'])}/dry-run`), { values: { depart: '2026-08-06' } })).json() as { data: Record<string, unknown> };

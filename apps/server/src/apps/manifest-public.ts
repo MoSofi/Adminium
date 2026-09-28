@@ -341,6 +341,8 @@ function definitionOf(
           forget: {
             columns: [...entry.forget.columns],
             ...(entry.forget.stamp === undefined ? {} : { stamp: entry.forget.stamp }),
+            // The app's yes/no columns: SQLite keeps them as numbers, and a forgetting sets them to no.
+            ...(boolsOf(manifest, entry.table, entry.forget.columns).length === 0 ? {} : { flags: boolsOf(manifest, entry.table, entry.forget.columns) }),
             // The own links of the person's rows, stopped too: each table by its real id.
             ...(entry.forget.links === true
               ? { links: ownLinksOfPerson(manifest.publicAccess ?? [], entry.table).map((link) => ({ table: idOf(link.table), column: link.column, people: [...link.people] })) }
@@ -371,6 +373,12 @@ function ownLinkKeys(manifest: Manifest): Set<string> {
 }
 
 /** An entry read only by the holder of a live session: a level, and no claim of its own. */
+/** Of `columns`, those the app declares `bool` on its table `ref`. */
+function boolsOf(manifest: Manifest, ref: string, columns: readonly string[]): string[] {
+  const declared = manifest.kind === 'app' ? manifest.requiredSchema?.tables.find((table) => table.ref === ref)?.columns : undefined;
+  return columns.filter((column) => declared?.some((candidate) => candidate.ref === column && candidate.type === 'bool') === true);
+}
+
 function sessionOnly(entry: PublicAccessEntry): boolean {
   return entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
 }
@@ -505,8 +513,16 @@ export function planPublicEndpoints(
     }
     const identityTable = identityTableOf(entry);
     if (entry.visibleWith !== undefined && identityTable !== undefined) {
+      /*
+       * A child's create names its parent by its link (an extra added to the
+       * stay its own link opened): that is no copy of the person but the row
+       * it is made under, which the create proves the session reaches (and it
+       * is the column the scope asks such a create to name). A create-only
+       * entry may write it; an entry that changes rows never.
+       */
+      const namesParent = (column: string) => column === entry.visibleWith!.via && entry.methods.includes('POST') && !entry.methods.includes('PATCH');
       for (const column of entry.writable ?? []) {
-        if (pointsAt(entry.table, column, identityTable)) {
+        if (pointsAt(entry.table, column, identityTable) && !namesParent(column)) {
           safety.push(`"${entry.table}.${column}" points at the signed-in person's own table, so it is filled from the parent and never written publicly`);
         }
       }

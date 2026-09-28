@@ -1558,12 +1558,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * caller had been — the writes an operator most wants to trace.
      */
     entity: RecordRef | null = null,
+    /** Adminium's own write on the caller's asking (a row's own link made again): the system's, not the key's. */
+    system = false,
   ): Promise<void> => {
     const userAgent = request.headers['user-agent'];
     await audit.append({
-      actorKind: 'api-key',
+      actorKind: system ? 'system' : 'api-key',
       actorId: null,
-      actorLabel: `public:${ok.key.keyId}`,
+      actorLabel: system ? 'system' : `public:${ok.key.keyId}`,
       category: 'data',
       action,
       connectionId: ok.key.connectionId,
@@ -2159,7 +2161,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // The request's lists against the entry's, before anything is read.
       const shape = treeShape(lists, body.children);
       if (shape !== null) return refused({ ...shape });
-      if (body.expect !== undefined && (resource.expect ?? null) === null) return refused();
+      // A price check goes with a save: a quote shows the figures and checks none, refused as a change's quote is.
+      if (body.expect !== undefined && ((resource.expect ?? null) === null || mode === 'dry')) return refused();
 
       /** A child list's entry by its place (`['order_items', 3]` or deeper); undefined for the root. */
       const entryAt = (at: TreePath): Omit<ScopeChild, 'children'> & { children?: ScopeChild['children'] } | undefined => {
@@ -3403,7 +3406,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         config: { rateLimitBucket: 'public', audit: audited('rbac') },
         schema: {
           params: publicRecordParams,
-          body: publicWriteBody,
+          // A price check is read so that it is refused: it goes with the save, never with a quote.
+          body: publicUpdateBody,
           response: {
             200: publicChangeQuoteReply,
             400: publicErrorReply,
@@ -5127,7 +5131,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const values: Row = {};
         for (const column of forget.columns) {
           const resolved = found.table.columns.get(column);
-          values[column] = resolved?.logicalType === 'boolean' && resolved.nullable === false ? false : null;
+          // A yes/no goes to no: a boolean as false, one the database keeps as a number (a bool on SQLite) as 0.
+          const flag = resolved?.logicalType === 'boolean' || forget.flags?.includes(column) === true;
+          values[column] = flag && resolved?.nullable === false ? (resolved.logicalType === 'boolean' ? false : 0) : null;
         }
         if (forget.stamp !== undefined) values[forget.stamp] = new Date(now).toISOString();
         const pk = Object.fromEntries(found.table.primaryKey.map((column) => [column, row[column]]));
@@ -5214,7 +5220,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         context,
         announce: async ({ before, after }) => {
           // Named by the row, never by the code.
-          await auditWrite(request, ok, 'public.link.renewed', { table: target.table.id, column }, entity);
+          await auditWrite(request, ok, 'public.link.renewed', { table: target.table.id, column, key: `public:${ok.key.keyId}` }, entity, true);
           publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, { connectionId: ok.key.connectionId, table: target.table, action: 'update', pk, row: after });
           await emitRecordEvent(app, { connectionId: ok.key.connectionId, table: target.table, action: 'update', entity, before, after, origin: 'public' });
         },

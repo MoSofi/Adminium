@@ -132,6 +132,8 @@ function kitchen(perSlot = 20): Doc {
           ref: 'stays',
           columns: [id, { ref: 'arrive', type: 'date' }, { ref: 'depart', type: 'date' }, { ref: 'status', type: 'enum', enum: ['booked', 'in_house', 'departed'], default: 'booked' }],
         },
+        // The kitchen's own notes on an order: one written on a sample order keeps that order when the sample goes.
+        { ref: 'notes', columns: [id, { ref: 'order_id', type: 'fk', references: 'orders', nullable: true }, { ref: 'text', type: 'text', maxLength: 40 }] },
       ],
     },
     pages: [{ ref: 'overview', template: 'page-dashboard', title: { key: 't', fallback: 'Overview' }, nav: { group: 'kitchen', icon: 'home', order: 1 } }],
@@ -253,6 +255,32 @@ describe.each(LEGS)('the sample added for real — %s', (dialect, available) => 
     const at = (name: string) => rows.find((row) => row[0] === name)![1];
     expect(at('Soon')).toBe('2026-07-29T10:30:00.000Z');
     expect([at('Later'), at('Third')]).toEqual(['2026-07-29T10:45:00.000Z', '2026-07-29T10:45:00.000Z']);
+  }, 120_000);
+
+  it.runIf(available)('takes a kept order back at its own time, and times the next ones as if it held no second time', async () => {
+    const b = bundle(false);
+    const orders = (b['tables'] as Doc[])[2]!['rows'] as Doc[];
+    orders[0]!['@label'] = 'soon';
+    orders[1]!['@label'] = 'later';
+    // One order a time: Soon at the next morning's first time, Later at the next.
+    const now = '2026-07-28T20:10:00Z';
+    const harness = await add(b, now, 1);
+    expect((await pickups(harness)).map((row) => row[1])).toEqual(['2026-07-29T10:30:00.000Z', '2026-07-29T10:45:00.000Z']);
+    // The kitchen writes a note on Soon (kept as it is), and renames Later (kept, changed); the sample goes.
+    const [soon] = await harness.rows(`select id from ${harness.real('orders')} where name = 'Soon'`);
+    await harness.rows(`insert into ${harness.real('notes')} (order_id, text) values (${String(soon!['id'])}, 'no onions')`);
+    await harness.rows(`update ${harness.real('orders')} set name = 'Later, renamed' where name = 'Later'`);
+    const service = createSampleDataService({ meta: harness.meta, manager: harness.manager, store: createAppStore({ dataDir: harness.dataDir }), files: memoryFiles });
+    const app = (await findSampleApp(harness.meta, 'kitchen'))!;
+    const removed = await service.remove(app, { keepChanged: true, userId: null, userLabel: 'test' });
+    expect(removed.kept).toBeGreaterThanOrEqual(2);
+    // Added again: Soon is taken back at its own time and holds no other; Later's twin takes the first time left.
+    await service.add(app, { locale: 'en-US', userId: null, userLabel: 'test', now: Date.parse(now) });
+    expect(await pickups(harness)).toEqual([
+      ['Soon', '2026-07-29T10:30:00.000Z', 'placed'],
+      ['Later, renamed', '2026-07-29T10:45:00.000Z', 'placed'],
+      ['Later', '2026-07-29T11:00:00.000Z', 'placed'],
+    ]);
   }, 120_000);
 
   it.runIf(available)('lands a time already open today on the grid, at least that far ahead', async () => {

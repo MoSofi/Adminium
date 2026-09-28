@@ -272,6 +272,8 @@ export const publicCreateBody = publicWriteBody.extend({
 /** `POST /public/records/:ref/dry-run` — the same create, tried without writing. */
 export const publicDryRunBody = publicWriteBody.extend({
   children: publicTreeChildren.optional(),
+  /** Refused: a price check goes with the save, never with a quote (read so that it is refused, not dropped). */
+  expect: publicExpect.optional(),
   /** The page's own-link session for the hold the create would replace: judged as let go, never moved. */
   replaces: z.string().min(8).max(128).optional(),
 });

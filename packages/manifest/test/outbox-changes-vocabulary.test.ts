@@ -120,6 +120,29 @@ describe('an email of a change', () => {
     expect(issuesText(m)).toContain('which Adminium writes');
   });
 
+  it('never keeps a column the install takes for personal data by its name, unless the app says it is not', () => {
+    const guessed = () => {
+      const m = mailing();
+      (tableOf(m, 'orders')['columns'] as Doc[]).push(
+        { ref: 'guest_email', type: 'text', maxLength: 254, nullable: true },
+        { ref: 'guest_phone', type: 'text', maxLength: 30, nullable: true },
+        { ref: 'desk_phone', type: 'text', maxLength: 30, nullable: true, rules: { personal: false } },
+      );
+      return m;
+    };
+    for (const column of ['guest_email', 'guest_phone']) {
+      const m = guessed();
+      producers(m)[0]!['was'] = [column];
+      expect(issuesText(m)).toContain(`"orders.${column}" is personal data, which a message never keeps`);
+    }
+    // Marked not personal, or no personal name: kept.
+    for (const column of ['desk_phone', 'note']) {
+      const m = guessed();
+      producers(m)[0]!['was'] = [column];
+      expect(issuesText(m)).toBe('');
+    }
+  });
+
   it("takes a Reply-To only from a text column of the settings", () => {
     let m = mailing();
     (outbox(m)['settings'] as Doc)['replyTo'] = 'house_size';

@@ -443,6 +443,8 @@ export const publicEndpointDefinitionSchema = z
       .object({
         columns: z.array(columnSchema).min(1).max(16),
         stamp: columnSchema.optional(),
+        /** Of `columns`, the yes/no ones the database keeps as a number (SQLite): emptied to no, as a boolean column is. */
+        flags: z.array(columnSchema).min(1).max(16).optional(),
         /** Also stopped: the own links of the person's rows — each table, its code column, and the columns that point at the person. */
         links: z
           .array(z.object({ table: z.string().min(1).max(256), column: columnSchema, people: z.array(columnSchema).min(1).max(8) }).strict())
@@ -609,6 +611,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
     out['forget'] = {
       columns: [...def.forget.columns],
       ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }),
+      ...(def.forget.flags === undefined ? {} : { flags: [...def.forget.flags] }),
       ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ table: link.table, column: link.column, people: [...link.people] })) }),
     };
   }
@@ -927,6 +930,7 @@ export function definitionToResource(
     resource.forget = {
       columns: [...def.forget.columns],
       ...(def.forget.stamp === undefined ? {} : { stamp: def.forget.stamp }),
+      ...(def.forget.flags === undefined ? {} : { flags: [...def.forget.flags] }),
       ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
     };
   }
@@ -1128,6 +1132,10 @@ function pictureIssues(def: PublicEndpointDefinition, table: ResolvedTable): Sco
   }
   if (def.auth.role !== 'anon' || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined) {
     out.push({ code: 'ENDPOINT_PICTURES_CLAIMED', message: "pictures are for every visitor; a signed-in person's own files are `files`" });
+  }
+  // A picture is fetched by an <img>, which carries no session: rows only a code opens are no rows it can show.
+  if (def.unlock_by !== undefined) {
+    out.push({ code: 'ENDPOINT_PICTURES_CLAIMED', message: 'pictures are for every visitor; rows a code unlocks are read only by whoever gave the code' });
   }
   const visible = visibleColumns(table);
   const written = new Set([...(def.writable ?? []), ...Object.keys(def.defaults ?? {})]);
@@ -1636,9 +1644,14 @@ function treeAndPersonIssues(
   }
   if (def.forget !== undefined) {
     if (def.identity === undefined) push('SCOPE_FORGET_COLUMN', 'what a person forgets is declared on the identity they sign in with');
+    for (const flag of def.forget.flags ?? []) {
+      if (!def.forget.columns.includes(flag)) push('SCOPE_FORGET_COLUMN', `"${flag}" is not one of the columns forgotten`, flag);
+    }
     for (const name of def.forget.columns) {
       const column = table.table.columns.find((c) => c.name === name);
-      const emptied = column !== undefined && (column.nullable || column.logicalType === 'boolean');
+      // A yes/no kept as a number (a bool on SQLite) is emptied to no, as a boolean is.
+      const flag = def.forget.flags?.includes(name) === true && column !== undefined && ['boolean', 'integer', 'smallint', 'bigint'].includes(column.logicalType);
+      const emptied = column !== undefined && (column.nullable || column.logicalType === 'boolean' || flag);
       if (!emptied || table.primaryKey.includes(name) || name === def.identity?.column) push('SCOPE_FORGET_COLUMN', `"${name}" cannot be emptied when a person is forgotten`, name);
     }
     const stamp = def.forget.stamp;

@@ -85,6 +85,14 @@ export interface WriteContext {
    * held, is still due by it.
    */
   declared?: { from?: string | undefined; to: string; at?: Moment | undefined } | undefined;
+  /**
+   * A server action's new code for a row's own link ("make a new link", a
+   * forgotten person's links stopped): the code columns it renews. A write
+   * that changes nothing else is Adminium's, not content a lock keeps — no
+   * lock of the row, its parent or a row linking to it refuses it. Only an
+   * `action` write's code columns are heard.
+   */
+  renewing?: readonly string[] | undefined;
 }
 
 /** The table a write goes to, and the connection it goes through. */

@@ -28,7 +28,7 @@ import { z } from 'zod';
 
 import type { AddOnNeeds } from './add-ons.js';
 import { formulaColumns, type FormulaExpr } from './formula.js';
-import { unlistedColumn } from './public-access.js';
+import { personalColumn, unlistedColumn } from './public-access.js';
 import { reachedOnlyByUndo, type StateMove } from './states.js';
 import {
   bcp47TagSchema,
@@ -826,7 +826,10 @@ export function outboxIssues(
         producer.was.forEach((column, c) => {
           const found = col(table, column, null, here('was', c), '');
           if (producer.was!.indexOf(column) !== c) out.push({ path: here('was', c), message: `"${column}" is listed twice` });
-          const kept = found === undefined ? null : unlisted(table, column);
+          // Personal data as the install tells it too: by its mark, or guessed by its name — a message keeps it empty.
+          const tableDoc = m.requiredSchema.tables.find((candidate) => candidate.ref === table) as Parameters<typeof personalColumn>[0] | undefined;
+          const guessed = tableDoc !== undefined && personalColumn(tableDoc, column) === 'guessed' ? 'personal data' : null;
+          const kept = found === undefined ? null : (unlisted(table, column) ?? guessed);
           if (kept !== null) out.push({ path: here('was', c), message: `"${table}.${column}" is ${kept}, which a message never keeps` });
         });
       }

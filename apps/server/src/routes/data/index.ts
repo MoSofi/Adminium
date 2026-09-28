@@ -185,6 +185,11 @@ const UNDO_WRITE: Record<UndoAction, WriteAction> = { create: 'delete', update: 
  * The columns a bulk update changed. Hooks may add columns to some rows, and
  * the undo must put every one of them back.
  */
+/** A price check sent with a quote: it goes with the save, the quote checks none (422, naming the field). */
+function quoteChecksNoPrice(): ValidationFailedError {
+  return new ValidationFailedError('A quote shows the figures; a price check goes with the save.', { fields: { expect: { code: 'not-allowed' } } });
+}
+
 function changedColumns(values: Row, prepared: readonly PreparedRow[]): string[] {
   const columns = new Set(Object.keys(values));
   for (const row of prepared) for (const key of Object.keys(row.values)) columns.add(key);
@@ -419,7 +424,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (resolution.ok) table = resolution.child.child;
       }
       const scrubbed = scrubRefusal(error, ctx.readView, table);
-      if (scrubbed !== error) Object.defineProperty(error, 'details', { value: (scrubbed as AppError).details, configurable: true });
+      if (scrubbed !== error) {
+        Object.defineProperty(error, 'details', { value: (scrubbed as AppError).details, configurable: true });
+        Object.defineProperty(error, 'message', { value: (scrubbed as AppError).message, configurable: true, writable: true });
+      }
     });
     function principalId(request: FastifyRequest): string | null {
       const user = (request as unknown as { user?: { id?: string } }).user;
@@ -2779,6 +2787,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const ctx = await contextFor(request, 'create');
+        // A price check goes with a save: a quote shows the figures and checks none.
+        if (request.body.expect !== undefined) throw quoteChecksNoPrice();
         const values = allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
         const context = requestWriteContext(request, 'dashboard');
@@ -2822,6 +2832,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const ctx = await contextFor(request, 'update');
+        // A price check goes with a save: a quote shows the figures and checks none.
+        if (request.body.expect !== undefined) throw quoteChecksNoPrice();
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const values = withSeenState(ctx.table, Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values), request.body.from);
         await assertFileColumns(ctx, values);

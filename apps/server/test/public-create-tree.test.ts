@@ -190,6 +190,16 @@ describe.each(LEGS)('a guest order with its lines, over the public API — %s', 
     expect((await counts())['top']).toBe(before['top']! + 1);
   });
 
+  it.runIf(available)('a dry run checks no price: one sent with it is refused, the same quote without it answered', async () => {
+    const before = await counts();
+    const checked = await quote(body(SIXTY_TWO, undefined, { expect: { total: '67.12' } }));
+    expect(checked.statusCode, checked.body).toBe(400);
+    expect(refusal(checked).code).toBe('PUBLIC_WRITE_REFUSED');
+    const plain = await quote(body(SIXTY_TWO));
+    expect(plain.statusCode, plain.body).toBe(200);
+    expect(await counts()).toEqual(before);
+  });
+
   it.runIf(available)('a dry run prices before any details exist, and refuses what a save would', async () => {
     // No address and no name yet: the page shows a price in the cart.
     const bare = await quote(body(SIXTY_TWO, {}));
@@ -284,6 +294,10 @@ describe.each(LEGS)('a guest order with its lines, over the public API — %s', 
       expect([Number(data['qty']), cents(data['line_total'])]).toEqual([3, '6.00']);
       // The quote shows figures, not the row's key.
       expect(data['id']).toBeUndefined();
+      // A price check goes with the save, never with a quote: refused, as a new order's quote refuses one.
+      const checked = await patch('/dry-run', { values: { qty: 3 }, expect: { total: '6.00' } }, 'POST');
+      expect(checked.statusCode, checked.body).toBe(400);
+      expect(refusal(checked).code).toBe('PUBLIC_WRITE_REFUSED');
       expect([Number((await lineRow())['qty']), await orderTotal()]).toEqual([1, total]);
       // Saved at a price the guest was not shown: refused, with the price it would be.
       const changed = await patch('', { values: { qty: 3 }, expect: { total: '4.00' } });

@@ -14,9 +14,13 @@
  * The counts read the rows the pools are held on (the ticket types, the room
  * types and their rooms): the asker must be able to read those tables too,
  * and a column they are asked under must be one the asker sees unmasked.
+ * They are made of the rule's own columns (its dates, its state, a pool's
+ * size), so a role that may not read one of them is refused the counts, as a
+ * masked column is — here, where every door that answers them passes.
  */
 import type { ResolvedTable } from '../identifiers.js';
 import type { Row } from '../mask.js';
+import { refuseHiddenIn } from '../read-view.js';
 import type { WriteTarget } from '../write-context.js';
 import { addDays, outOfService, Reads } from './count.js';
 import { capacityState, rangeOf, tallyFor, widerKeysOf } from './judge.js';
@@ -47,6 +51,7 @@ const refused = (message: string): CountsAnswer => ({ ok: false, message });
 export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: Date, access: CountsAccess): Promise<CountsAnswer> {
   const rule = rulesFor(target.view, target.table)[ask.rule];
   if (rule === undefined) return refused('This table has no such limit.');
+  refuseHiddenIn(target.view, target.table.table?.capacityRules?.[ask.rule]);
   const db = target.db;
   const zone = target.timezone ?? 'UTC';
   const oneDay = ask.date !== undefined && ask.from === undefined && ask.days === undefined;

@@ -13,6 +13,10 @@
  * hash and is checked against the row on each request, so each stops at
  * once; nothing else needs ending. A new code that meets another row's (one
  * in 2^80) is made again.
+ *
+ * The code is Adminium's, not content a lock keeps: a collected order, a
+ * departed stay still get a new code — and nothing else of the row changes.
+ * It is written as the system's, on the person's asking.
  */
 import { generateCode, isUniqueViolation } from '../crud/decided-columns.js';
 import type { ResolvedTable } from '../crud/identifiers.js';
@@ -49,8 +53,8 @@ export async function renewOwnLink(input: {
         pk,
         values: { [input.column]: generateCode(rule.prefix, rule.length) },
         before: input.row,
-        // A server action: the one writer whose value for a code column is taken.
-        context: { ...input.context, origin: 'action' },
+        // A server action: the one writer whose value for a code column is taken, and the renewal no lock refuses.
+        context: { ...input.context, origin: 'action', actor: { kind: 'system', id: null, label: 'system' }, renewing: [input.column] },
         skipIfNone: true,
         announce: input.announce,
       });
