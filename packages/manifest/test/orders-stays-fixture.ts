@@ -288,7 +288,7 @@ export function guestHouse(): Doc {
         email(),
         text('first_name', 60),
         text('last_name', 60),
-        text('guest_name', 121, { nullable: true, rules: { formula: { join: ['first_name', ' ', 'last_name'] } } }),
+        text('guest_name', 121, { nullable: true, rules: { personal: true, formula: { join: ['first_name', ' ', 'last_name'] } } }),
         fk('room_type_id', 'room_types'),
         { ref: 'arrive', type: 'date' },
         { ref: 'depart', type: 'date' },

@@ -124,13 +124,13 @@ describe('a joined name', () => {
     expect(
       broken(guestHouse, (m) => {
         columnOf(m, 'stays', 'last_name')['rules'] = { personal: true };
+        delete rules(m, 'stays', 'guest_name')['personal'];
       }),
     ).toContain('"stays.last_name" is personal data, so no formula reads it');
     // Kept alike in the column it lands in, it may.
     expect(
       broken(guestHouse, (m) => {
         columnOf(m, 'stays', 'last_name')['rules'] = { personal: true };
-        rules(m, 'stays', 'guest_name')['personal'] = true;
       }),
     ).not.toContain('so no formula reads it');
   });

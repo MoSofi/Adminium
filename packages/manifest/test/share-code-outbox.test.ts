@@ -133,8 +133,10 @@ describe('a shared link’s code', () => {
     const personal = valid();
     (tableOf(personal, 'projects')['columns'] as Doc[]).push({ ref: 'contact_phone', type: 'text', maxLength: 40, nullable: true, rules: { personal: true } });
     (tableOf(personal, 'messages')['columns'] as Doc[]).push(
-      { ref: 'phone', type: 'text', maxLength: 40, nullable: true, rules: { copy: { via: 'project_id', from: 'contact_phone' } } },
+      { ref: 'callback', type: 'text', maxLength: 40, nullable: true, rules: { copy: { via: 'project_id', from: 'contact_phone' } } },
       { ref: 'kept_phone', type: 'text', maxLength: 40, nullable: true, rules: { copy: { via: 'project_id', from: 'contact_phone' }, personal: true } },
+      // Personal by its own name, as the install reads it: kept the same way with no mark.
+      { ref: 'phone', type: 'text', maxLength: 40, nullable: true, rules: { copy: { via: 'project_id', from: 'contact_phone' } } },
     );
     const text = issuesText(personal);
     expect(text).toContain('"projects.contact_phone" is personal data, so no column copies it');

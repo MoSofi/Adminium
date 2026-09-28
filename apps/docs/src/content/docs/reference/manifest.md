@@ -662,6 +662,11 @@ is the text between it and its neighbour, so a guest with no last name is "Mia",
 result is trimmed, and empty when every column is. A join is the whole formula of its column,
 never a part of a sum.
 
+A join that reads personal data lands it only in a personal column. A guest's first and last
+names beside their email read as personal by their names, so the joined name needs
+`"personal": true` too; without it the check refuses the manifest. The same holds for a `copy`
+and a stamp's copy.
+
 #### Numbers without gaps
 
 A tax office expects an unbroken series of invoice numbers: none twice, none skipped. A
