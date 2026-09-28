@@ -1172,6 +1172,9 @@ up. Availability counts the rows a code unlocks too. In the client, `list` and `
 `GET /public/availability/{ref}` answers an availability entry. `refs[ref].capacity` in the
 config says its kind, and the entry's `rule` says which of the table's limits it answers. A
 parameter the kind does not take is refused `400` `PUBLIC_QUERY_REFUSED`, never ignored.
+An app installed by an earlier Adminium answers its entries without `capacity` until the app is
+next updated (an update to the same version will do). Read such an entry over a limit as `slot`,
+the only kind there was.
 
 | Kind | Asks | Answers `data` as |
 |---|---|---|

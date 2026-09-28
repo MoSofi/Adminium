@@ -46,6 +46,14 @@ sqlite3 "$ADMINIUM_DATA_DIR/meta.db" ".backup 'meta-backup.db'"
 And back up `ADMINIUM_SECRET`, if it is not already somewhere safe. A meta-store
 backup without the secret is a file full of ciphertext.
 
+Adminium snapshots only the embedded SQLite meta store itself, to
+`ADMINIUM_DATA_DIR/backups`, before it migrates. A PostgreSQL or MySQL meta
+store gets no snapshot, so run `pg_dump` or `mysqldump` of the meta database
+**before** you start the new version. The reminder Adminium prints on that
+first start comes while the migrations are already running. Once they have
+run, the older version refuses to start on that store, and your dump is the
+only way back to it.
+
 ## Migrations apply on boot
 
 `adminium start` applies pending migrations before it listens. So does the
