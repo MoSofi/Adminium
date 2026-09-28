@@ -51,12 +51,16 @@
  * re-dated: its window is its day.
  *
  * ── WHAT NEVER PRODUCES ────────────────────────────────────────────────────
- * History: an import, sample data and an undo announce no record event, so
- * they never reach a producer. A row the app's sample ledger
- * lists (a sample visit a person marked no-show, a near-future sample visit
- * the reminder scan finds, a sample invoice the repair finds); an app that is
- * switched off; a producer gated by a settings switch that is off; a
- * recipient who opted out of reminders.
+ * History: an import and sample data announce no record event, so they
+ * never reach a producer. An undo is announced as the change it makes: a
+ * producer of "these columns changed" hears it (the columns move back), while
+ * a create's or a "changed to" producer does not, and an undo that puts one of
+ * the outbox's own messages back to queued waits for the next sweep. A
+ * person's details deleted at their asking reach no producer at all. Nor
+ * does a row the app's sample ledger lists (a sample visit a person marked
+ * no-show, a near-future sample visit the reminder scan finds, a sample
+ * invoice the repair finds); an app that is switched off; a producer gated
+ * by a settings switch that is off; a recipient who opted out of reminders.
  *
  * ── ONCE ───────────────────────────────────────────────────────────────────
  * The log is the dedupe: a producer adds nothing when a row of that kind is
