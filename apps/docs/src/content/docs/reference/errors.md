@@ -181,8 +181,8 @@ write works out another figure, nothing is written and the answer is `409`
   page can redraw the basket.
 
 A change answers `total` alone. An `expect` sent to an entry that checks no price is a bare
-`PUBLIC_WRITE_REFUSED`, and so is one sent with the quote of a change; the quote of a create
-leaves it unchecked.
+`PUBLIC_WRITE_REFUSED`, and so is one sent with any quote: a quote shows the figures and checks
+none.
 
 ### A refused write
 
