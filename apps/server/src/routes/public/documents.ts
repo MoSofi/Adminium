@@ -63,7 +63,7 @@ import { compileFilter } from '../../crud/filters.js';
 import { parentOf, readerFor, visibilityOf, visibleCondition, type VisibilityStep } from '../../public-api/visible-with.js';
 import { STATEMENT_PERIODS, type StatementSources } from '../../documents/statement.js';
 import { mappedTables, type ProfileMapping } from '../../documents/subject.js';
-import { WITHHELD_FOR, withheldReaderMark } from '../../documents/render.js';
+import { WITHHELD_FOR, nobodysDocumentShownOn, withheldReaderMark } from '../../documents/render.js';
 import { sessionReader } from '../../public-api/withhold.js';
 import { recentWithholdsOn } from '../../public-api/withholds-on.js';
 import { claimPredicateFor, combinePredicates, type PublicSessionContext } from '../../public-api/claim.js';
@@ -514,11 +514,14 @@ export function createDocumentAccess(deps: {
   async function drawnForSession(ok: PublicAccess & { session: PublicSessionContext }, profile: DocumentProfile, row: DocumentRow): Promise<boolean> {
     const view = await deps.viewFor(ok.key.connectionId);
     if (view === null) return false;
-    const mark = withheldReaderMark({ rules: await recentWithholdsOn(deps.meta, ok.key.connectionId), reader: sessionReader(ok.key.scope, ok.session, view) }, mappedTables(profile.mapping as ProfileMapping, profile.table));
+    const rules = await recentWithholdsOn(deps.meta, ok.key.connectionId);
+    const tables = mappedTables(profile.mapping as ProfileMapping, profile.table);
+    const mark = withheldReaderMark({ rules, reader: sessionReader(ok.key.scope, ok.session, view), readerKey: ok.key.purpose }, tables);
     if (mark === null) return true;
     const claim = row.claim;
     const drawnFor = claim?.withheldFor ?? (claim?.column === WITHHELD_FOR ? claim.value : undefined);
-    return drawnFor !== undefined && (drawnFor === '' || drawnFor === mark);
+    // Drawn for this reader on this key; or for nobody — never shown on a row's own link whose rule a document for nobody does not meet.
+    return drawnFor !== undefined && (drawnFor === mark || (drawnFor === '' && nobodysDocumentShownOn(rules, tables, ok.key.purpose)));
   }
 
   /** The register row, if this session may see it. Null is the 404 — for another's and for none alike. */

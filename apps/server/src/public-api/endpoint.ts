@@ -473,6 +473,8 @@ export const publicEndpointDefinitionSchema = z
           .optional(),
         /** The key (its purpose) the declaring entry is served through: its `when` is that key's readers' alone. */
         key: z.string().min(1).max(64).optional(),
+        /** That key opens a row by its own link: its `when` is about whoever holds the link. */
+        own_link: z.literal(true).optional(),
       })
       .strict()
       .refine((w) => w.unless_holder !== undefined || w.when !== undefined, { message: 'a withhold names its holder, a when, or both' })
@@ -617,6 +619,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       ...(def.withhold.unless_holder === undefined ? {} : { unless_holder: def.withhold.unless_holder }),
       ...(def.withhold.when === undefined ? {} : { when: structuredClone(def.withhold.when) }),
       ...(def.withhold.key === undefined ? {} : { key: def.withhold.key }),
+      ...(def.withhold.own_link === undefined ? {} : { own_link: true }),
     };
   }
   return out;
@@ -1400,7 +1403,12 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
       push('ENDPOINT_FILTER_NOT_A_DAY', `"${f.column}" is not a date or a time, so "${f.op}" cannot apply`, f.column);
     }
   }
+  // A create only (no change) is judged against its parent's window alone: a window keyed by anything but the link to it would be judged by nothing.
+  const createOnly = def.methods.includes('POST') && !def.methods.includes('PATCH') && !def.methods.includes('PUT');
   for (const [column, when] of Object.entries(def.writable_when ?? {})) {
+    if (createOnly && isMomentWindow(when) && def.visible_with?.localColumn !== column) {
+      push('SCOPE_WRITABLE_WHEN_MOMENT_INVALID', `a create is judged against its parent's window, keyed by the link to it — "${column}" is not`, column);
+    }
     const type = table.columns.get(column)?.logicalType;
     const timed = when === 'from-now' ? 'from-now' : isTimeWindow(when) ? 'within' : null;
     if (timed !== null && type !== undefined && type !== 'timestamp' && type !== 'timestamptz') {

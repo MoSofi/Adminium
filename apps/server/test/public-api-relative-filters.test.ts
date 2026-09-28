@@ -216,6 +216,11 @@ describe('the rules that come with them', () => {
     expect(rows(doc(caps), doc(perIp))).toEqual([]);
   });
 
+  it('refuses a window a create would never be judged by', () => {
+    const refused = codes({ methods: ['POST'], writable: ['status'], writable_when: { starts_at: { before: { time: '15:00' } } } });
+    expect(refused).toContain('SCOPE_WRITABLE_WHEN_MOMENT_INVALID:starts_at');
+  });
+
   it("refuses an entry's hour per visitor above the 60 every visitor is held to", () => {
     expect(codes({ methods: ['POST'], writable: ['status'], anonymous: { per_ip_hour: 10 } })).toEqual([]);
     for (const n of [0, 61, 1.5]) {

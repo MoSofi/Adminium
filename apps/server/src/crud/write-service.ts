@@ -1833,7 +1833,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
 
   /** The venue's zone for a table whose rules read a clock; undefined for every other. */
   async function zoneFor(rules: TableRules | null, target: WriteTarget): Promise<string | undefined> {
-    const readsDay = (rules?.stamps ?? []).some((stamp) => stamp.set === 'today') || (rules?.bounds ?? []).some((bound) => bound.notAfter !== undefined);
+    // A stamp of the venue's date: `today`, or `today` as one side's word of a `byOrigin` stamp (a client's approval day).
+    const saysToday = (set: unknown): boolean =>
+      set === 'today' || (typeof set === 'object' && set !== null && 'byOrigin' in set && Object.values((set as { byOrigin: Record<string, unknown> }).byOrigin).includes('today'));
+    const readsDay = (rules?.stamps ?? []).some((stamp) => saysToday(stamp.set)) || (rules?.bounds ?? []).some((bound) => bound.notAfter !== undefined);
     // A move waiting for a time, a late or timed move, a stamp worked out from a moment: all read the venue's clock.
     const readsClock = statesReadClock(rules?.states, rules?.stamps) || (rules?.codeLookups?.length ?? 0) > 0;
     if (rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay && !readsClock) return undefined;

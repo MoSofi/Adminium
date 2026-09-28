@@ -78,6 +78,9 @@ describe.each(LEGS)('a retry across the online-orders switch — %s', (dialect, 
     expect(retry.json()).toMatchObject({ data: { id }, replayed: true });
     expect(retry.body).not.toContain('"link"');
 
+    // A new key with a value that would be refused: told it is switched off, not what is wrong with the value.
+    const badValue = await g.request('POST', `/records/${orders}_verified_2`, { payload: { values: { email: 'not an address', name: 'Zed', client_key: key(4) } }, proof: 'write' });
+    expect(badValue.statusCode, badValue.body).toBe(403);
     for (const refused of [await create(key(2), 'Bea'), await create(undefined, 'Cy')]) {
       expect(refused.statusCode, refused.body).toBe(403);
       expect(refused.json()).toMatchObject({ error: { code: 'PUBLIC_SWITCHED_OFF' } });

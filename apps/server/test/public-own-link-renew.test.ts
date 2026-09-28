@@ -23,7 +23,7 @@ import { servePublic, type Served } from './public-lane.helpers.js';
 type Doc = Record<string, unknown>;
 
 /** The shop with "Make a new link" on a person's orders, and a forgetting that stops their links. */
-function linkShop(): Doc {
+function linkShop(addressColumn = 'email'): Doc {
   const manifest = shopManifest({
     entries: (entries) =>
       entries.map((entry) => {
@@ -38,7 +38,8 @@ function linkShop(): Doc {
   const columns = messages['columns'] as Doc[];
   columns.find((c) => c['ref'] === 'kind')!['enum'] = ['order-placed', 'order-new-link'];
   columns.push({ ref: 'repeat_key', type: 'text', maxLength: 64, nullable: true });
-  const outbox = manifest['outbox'] as { kinds: Record<string, string>; columns: Record<string, string> };
+  const outbox = manifest['outbox'] as { kinds: Record<string, string>; columns: Record<string, string>; recipient: Record<string, unknown> };
+  outbox.recipient['email'] = addressColumn;
   outbox.kinds['order-new-link'] = 'shop-order-new-link';
   outbox.columns['repeatKey'] = 'repeat_key';
   (manifest['emailTemplates'] as Doc[]).push({
@@ -208,5 +209,53 @@ describe.each(LEGS)("a person's own links, made again — %s", (dialect, availab
     // Nothing about a new link is emailed to an address that asked to be forgotten.
     await sendMail();
     expect((await mailOf(h.meta)).filter((m) => m.template === 'shop-order-new-link' && m.to === 'eve@fieldmail.io')).toEqual([]);
+  });
+
+  it.skipIf(!available)('stops every link of a person with more rows than one page holds', async () => {
+    const first = await order('hal@fieldmail.io', 'Hal');
+    const hal = Number((await h.rows(`select customer_id from ${orders} where id = ${String(first.data.id)}`))[0]!['customer_id']);
+    const values = Array.from({ length: 520 }, (_, i) => `(${String(hal)}, 'hal@fieldmail.io', 'Hal', 'HAL${String(i).padStart(13, '0')}')`);
+    for (let at = 0; at < values.length; at += 100) await h.rows(`insert into ${orders} (customer_id, email, name, link_token) values ${values.slice(at, at + 100).join(', ')}`);
+    const session = await g.signIn('hal@fieldmail.io');
+    const gone = await g.request('DELETE', '/account', { session });
+    expect(gone.statusCode, gone.body).toBe(200);
+    const kept = await h.rows(`select count(*) as n from ${orders} where customer_id = ${String(hal)} and (link_token like 'HAL%' or link_token = '${first.link.token}')`);
+    expect(Number(kept[0]!['n'])).toBe(0);
+  }, 180_000);
+});
+
+describe.each(LEGS)('a new link that could not be emailed — %s', (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let shop: Served;
+  let link: Served;
+  let g: ReturnType<typeof guest>;
+  beforeAll(async () => {
+    if (!available) return;
+    // The app mails its people at their phone column, which nobody has filled: no message about them can go.
+    h = await installInvoicing(dialect, linkShop('phone'));
+    await mailReady(h.meta);
+    const keys = (h.reply['publicAccess'] as { keys: Record<string, string> }).keys;
+    shop = await servePublic(h, keys['customer']!);
+    link = await servePublic(h, keys['link']!);
+    g = guest(shop, h);
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await shop.close();
+    await link.close();
+    await h.close();
+  });
+
+  it.skipIf(!available)('keeps the old link, and says so', async () => {
+    const orders = h.real('orders');
+    const made = await g.request('POST', `/records/${orders}_verified_2`, { payload: { values: { email: 'gil@fieldmail.io', name: 'Gil' }, children: { order_items: [{ values: { dish: 'Soup', qty: 1 } }] } }, proof: 'write' });
+    expect(made.statusCode, made.body).toBe(201);
+    const body = made.json() as { data: { id: number }; link: { token: string } };
+    const gil = await g.signIn('gil@fieldmail.io');
+    const res = await g.request('POST', `/records/shop_orders_verified/${String(body.data.id)}/new-link`, { session: gil });
+    expect(res.statusCode, res.body).toBe(503);
+    expect(res.json()).toMatchObject({ error: { code: 'PUBLIC_CODE_UNAVAILABLE' } });
+    expect(String((await h.rows(`select link_token from ${orders} where id = ${String(body.data.id)}`))[0]!['link_token'])).toBe(body.link.token);
+    expect((await guest(link, h, 50_000).request('POST', '/claim/token', { payload: { token: body.link.token } })).statusCode).toBe(200);
   });
 });

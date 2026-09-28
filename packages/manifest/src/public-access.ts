@@ -209,12 +209,13 @@ export function personalColumn(
   if (personal === true) return 'marked';
   if (personal === false || found.rules?.['secret'] === true) return null;
   const name = nameForm(column);
-  const text = found.type === 'text';
+  // Kept as text on every engine: an enum is a text column the install reads by its name as any other.
+  const text = found.type === 'text' || found.type === 'enum';
   if (text && PERSONAL_TEXT_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
   if (PERSONAL_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
   if (text && /^(first_name|last_name|full_name)$/.test(name)) {
     const names = table.columns.map((candidate) => nameForm(candidate.ref));
-    const hasEmail = table.columns.some((candidate, i) => candidate.type === 'text' && PERSONAL_TEXT_NAMES[0]!.test(names[i]!));
+    const hasEmail = table.columns.some((candidate, i) => (candidate.type === 'text' || candidate.type === 'enum') && PERSONAL_TEXT_NAMES[0]!.test(names[i]!));
     if (PEOPLE_TABLE.test(nameForm(table.ref)) || (hasEmail && names.some((n) => PERSON_NAME.test(n)))) return 'guessed';
   }
   return null;
@@ -651,7 +652,9 @@ interface PublicAccessContext {
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
   roles: readonly { key: string; screensOnly?: boolean | undefined; cloneFrom?: string | undefined; permissions?: readonly string[] | undefined }[];
   /** The app's outbox, for a new link it emails (absent: the app has none). */
-  outbox?: { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined } | undefined;
+  outbox?:
+    | { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined; recipient?: { table: string } | undefined }
+    | undefined;
 }
 
 /** A row's own link a person reaches: its table, the code column that opens it, and the columns that link its rows to the person. */
@@ -793,8 +796,13 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     // An entry anyone may call (no claim, no parent, no session asked) shows no personal data: the install refuses it too.
     const sessionOnly = entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
     const anyone = entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true) && !sessionOnly;
-    if (anyone) {
-      for (const ref of entry.select ?? []) {
+    // An availability entry shows no row, whatever it names.
+    if (anyone && entry.kind !== 'availability') {
+      // No select shows every column but a code Adminium makes and a secret, as the install reads it.
+      const shown =
+        entry.select ??
+        (table.columns as readonly { ref: string; rules?: Record<string, unknown> | undefined }[]).filter((c) => c.rules?.['code'] === undefined && c.rules?.['secret'] !== true).map((c) => c.ref);
+      for (const ref of shown) {
         const personal = personalColumn(table as Parameters<typeof personalColumn>[0], ref);
         if (personal !== null) {
           out.push({
@@ -1971,6 +1979,10 @@ function personIssues(
         if (box.columns.repeatKey === undefined) out.push({ path: here('kind'), message: 'each new link is its own message, so the outbox keeps a repeatKey column' });
         const linked = Object.values(box.links ?? {}).some((column) => index.column(box.table, column)?.references === entry.table);
         if (!linked) out.push({ path: here('kind'), message: `the outbox links no message to "${entry.table}", so the new link could not be sent about its row` });
+        // Sent to the person who asked for it: the outbox addresses the people this entry's rows are claimed by.
+        if (entry.claimedBy !== undefined && box.recipient !== undefined && box.recipient.table !== entry.claimedBy.table) {
+          out.push({ path: here('kind'), message: `the outbox writes to "${box.recipient.table}", not "${entry.claimedBy.table}" who asks for the new link` });
+        }
       }
     }
 
@@ -2130,7 +2142,9 @@ function ownAddressAndWithholdIssues(
           });
         });
         entries.forEach((other, j) => {
-          if (other.table === entry.table && writes(other, link.via)) {
+          // A child's create names the parent it is made under (one the guest reaches): that is no change of who reads it.
+          const createsUnder = other.visibleWith?.via === link.via && !other.methods.includes('PATCH');
+          if (other.table === entry.table && writes(other, link.via) && !createsUnder) {
             out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${link.via}" decides who reads the withheld columns, so no browser writes it` });
           }
         });

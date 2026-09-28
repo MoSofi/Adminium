@@ -33,18 +33,32 @@ const UNPAID = { linked: [{ via: 'order_id', where: [{ column: 'status', eq: 'he
 function boxOffice(): Doc {
   const manifest = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Doc;
   const tables = (manifest['requiredSchema'] as { tables: Doc[] }).tables;
-  (tables.find((table) => table['ref'] === 'orders')!['columns'] as Doc[]).push({ ref: 'status', type: 'enum', enum: ['held', 'paid'], default: 'held' });
+  (tables.find((table) => table['ref'] === 'orders')!['columns'] as Doc[]).push(
+    { ref: 'status', type: 'enum', enum: ['held', 'paid'], default: 'held' },
+    // A second address on the order no link goes to (an assistant's): read by no key.
+    { ref: 'copy_email', type: 'text', maxLength: 254, nullable: true, rules: { validation: { format: 'email' } } },
+  );
   for (const entry of manifest['publicAccess'] as Doc[]) {
     if (entry['table'] === 'tickets' && entry['visibleWith'] !== undefined) entry['withhold'] = { ...(entry['withhold'] as Doc), when: UNPAID };
   }
+  // A signed-in buyer adds a ticket to their order, one row at a time: a create of one, answered as it was made.
+  (manifest['publicAccess'] as Doc[]).push({ table: 'tickets', methods: ['POST'], level: 'verified', visibleWith: { table: 'orders', via: 'order_id' }, select: ['id', 'code'], writable: ['order_id', 'ticket_type_id'] });
   const messages = tables.find((table) => table['ref'] === 'messages')!;
   const columns = messages['columns'] as Doc[];
-  columns.find((column) => column['ref'] === 'kind')!['enum'] = ['ticket-offered', 'your-tickets', 'ticket-note'];
+  columns.find((column) => column['ref'] === 'kind')!['enum'] = ['ticket-offered', 'your-tickets', 'ticket-note', 'order-mail', 'friend-note', 'order-copy'];
   columns.push({ ref: 'order_id', type: 'fk', references: 'orders', nullable: true });
   const outbox = manifest['outbox'] as { kinds: Record<string, string>; links: Record<string, string> };
   outbox.links['order'] = 'order_id';
   outbox.kinds['your-tickets'] = 'boxoffice-your-tickets';
   outbox.kinds['ticket-note'] = 'boxoffice-ticket-note';
+  // The order's tickets, mailed to the address on the order: the address the order's own link goes to.
+  outbox.kinds['order-mail'] = 'boxoffice-your-tickets';
+  (manifest['outbox'] as { producers: Doc[] }).producers.push({ kind: 'order-mail', link: 'order_id', recipient: { column: 'email', name: 'name' }, onChange: { table: 'orders', column: 'status', to: 'paid' } });
+  outbox.kinds['order-copy'] = 'boxoffice-your-tickets';
+  (manifest['outbox'] as { producers: Doc[] }).producers.push({ kind: 'order-copy', link: 'order_id', recipient: { column: 'copy_email' }, onChange: { table: 'orders', column: 'status', to: 'paid' } });
+  // A note about a ticket, to the friend it is offered to: the address the ticket's own link goes to.
+  outbox.kinds['friend-note'] = 'boxoffice-ticket-note';
+  (manifest['outbox'] as { producers: Doc[] }).producers.push({ kind: 'friend-note', link: 'ticket_id', recipient: { column: 'pending_email', name: 'pending_name' }, onChange: { table: 'tickets', column: 'status', to: 'checked_in' } });
   (manifest['emailTemplates'] as Doc[]).push(
     {
       key: 'boxoffice-your-tickets',
@@ -94,6 +108,7 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
   let order: number;
   let linkSession: string;
   let tickets: { id: number }[];
+  let firstReply: string;
   const payload = {
     values: { event_id: 1, email: 'mia@buyers.org', name: 'Mia', client_key: 'ck-withhold-when-000000000000001' },
     children: { tickets: [1, 2].map(() => ({ values: { ticket_type_id: 1 } })) },
@@ -115,6 +130,7 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     byTicket = guest(ticket, h, 60_000);
     const made = await buyer.request('POST', `/records/${t('orders')}_verified_2`, { payload, proof: 'write' });
     expect(made.statusCode, made.body).toBe(201);
+    firstReply = made.body;
     const body = made.json() as { data: { id: number }; children: { tickets: { data: { id: number } }[] }; link: { session: string } };
     order = body.data.id;
     linkSession = body.link.session;
@@ -153,6 +169,20 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     return out;
   };
 
+  it.skipIf(!available)('answers a create of an order not paid yet without its codes, a tree or one row', async () => {
+    const codes = await Promise.all(tickets.map(({ id }) => codeOf(id)));
+    for (const code of codes) expect(firstReply).not.toContain(code);
+    expect((JSON.parse(firstReply) as { children: { tickets: { data: Doc }[] } }).children.tickets.map((c) => c.data['code'])).toEqual([null, null]);
+    const config = (await buyer.request('GET', '/config')).json() as { data: { refs: Record<string, { actions: string[] }> } };
+    const addRef = Object.entries(config.data.refs).find(([ref, r]) => ref.startsWith(t('tickets')) && r.actions.includes('create'))![0];
+    const added = await buyer.request('POST', `/records/${addRef}`, { payload: { values: { order_id: order, ticket_type_id: 1 } }, session: mia });
+    expect(added.statusCode, added.body).toBe(201);
+    const id = (added.json() as { data: { id: number; code: unknown } }).data;
+    expect(id.code).toBeNull();
+    expect(added.body).not.toContain(await codeOf(id.id));
+    tickets.push({ id: id.id });
+  });
+
   it.skipIf(!available)('shows the buyer no code of an order not paid yet, through any door, and every code once it is paid', async () => {
     const codes = await Promise.all(tickets.map(({ id }) => codeOf(id)));
     const unpaid = await everything();
@@ -165,13 +195,40 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     await h.rows(`update ${t('orders')} set status = 'paid' where id = ${String(order)}`);
     const paid = await everything();
     // Door by door: the list, each row, the order's link, the retry, each email.
-    const doors = ['list', 'row 1', 'row 2', "order's link", 'retry', 'email', 'email'];
+    const doors = ['list', 'row 1', 'row 2', 'row 3', "order's link", 'retry', 'email', 'email'];
     paid.forEach((door, i) => {
-      const shown = i === 1 ? [codes[0]!] : i === 2 ? [codes[1]!] : i === 6 ? [] : codes;
+      // The retry answers the rows the create made; the third was added after.
+      const shown = i === 1 ? [codes[0]!] : i === 2 ? [codes[1]!] : i === 3 ? [codes[2]!] : i === 5 ? codes.slice(0, 2) : i === 7 ? [] : codes;
       for (const code of shown) expect(door, doors[i]).toContain(code);
     });
     // The one-ticket note carries its ticket's code, as text and QR.
-    expect(paid.slice(5).join('\n')).toContain(codes[0]!);
+    expect(paid.slice(6).join('\n')).toContain(codes[0]!);
+  });
+
+  it.skipIf(!available)("mails the order's own address as its own link reads it: no code unpaid, every code paid", async () => {
+    const codes = await Promise.all(tickets.map(({ id }) => codeOf(id)));
+    await h.rows(`update ${t('orders')} set copy_email = 'desk@assist.org' where id = ${String(order)}`);
+    const mailed = async (kind = 'order-mail', to = 'mia@buyers.org') => {
+      const before = (await sealedOf(h)).length;
+      await queue(kind, { customer: 'null', order });
+      await shop.composed.app.outboxSender.sendApp('boxoffice');
+      const mail = (await sealedOf(h)).slice(before);
+      expect(mail.map((m) => m.to)).toEqual([to]);
+      return `${mail[0]!.text}\n${mail[0]!.qr.join('\n')}`;
+    };
+    await h.rows(`update ${t('orders')} set status = 'held' where id = ${String(order)}`);
+    const unpaid = await mailed();
+    for (const code of codes) expect(unpaid).not.toContain(code);
+    // An address no link goes to reads as nobody's key: the order's state holds there too.
+    const copyUnpaid = await mailed('order-copy', 'desk@assist.org');
+    for (const code of codes) expect(copyUnpaid).not.toContain(code);
+    // Paid, the buyer's tickets nobody holds are theirs: the pending-friend rule of a ticket's own link is not this mail's.
+    await h.rows(`update ${t('orders')} set status = 'paid' where id = ${String(order)}`);
+    const paid = await mailed();
+    for (const code of codes) expect(paid).toContain(code);
+    // …and no rule said of whoever holds a ticket's own link does.
+    const copyPaid = await mailed('order-copy', 'desk@assist.org');
+    for (const code of codes) expect(copyPaid).toContain(code);
   });
 
   it.skipIf(!available)('never filters or sorts by a column held back', async () => {
@@ -198,6 +255,14 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     const one = await byTicket.request('GET', `/records/${t('tickets')}_claimed/${String(first!.id)}`, { session: kai });
     expect(one.body).not.toContain(senderCode);
     // The buyer still reads it, pending, with the code that still works at the door.
+    // Mailed to the friend's address, as the ticket's own link reads it: no code while pending.
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const beforeNote = (await sealedOf(h)).length;
+    await queue('friend-note', { customer: 'null', ticket: first!.id });
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const note = (await sealedOf(h)).slice(beforeNote).filter((m) => m.to === 'kai@friends.org');
+    expect(note).toHaveLength(1);
+    expect(`${note[0]!.text}${note[0]!.qr.join('')}`).not.toContain(senderCode);
     const buyers = (await buyer.request('GET', `/records/${t('tickets')}_verified`, { session: mia })).json() as { data: Doc[] };
     expect(buyers.data.find((r) => r['id'] === first!.id)).toMatchObject({ code: senderCode });
     // Taken: the friend reads the new code; the buyer does not; the buyer's other ticket is theirs as ever.

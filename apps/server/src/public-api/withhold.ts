@@ -16,7 +16,6 @@
  * Every door that answers such rows applies it: a list, one row, and the row
  * a change answers with.
  */
-import type { StateCondition } from '@adminium/manifest';
 import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
@@ -129,15 +128,8 @@ export function withholding(
  * document is drawn for.
  */
 
-/**
- * When a rule withholds its columns whoever reads the row: while the row
- * holds a value (a ticket whose order is not paid yet), or the row one of its
- * links points at does. Every condition must hold.
- */
-export interface WithholdWhen {
-  where?: readonly StateCondition[] | undefined;
-  linked?: readonly { via: string; where: readonly StateCondition[] }[] | undefined;
-}
+export type { WithholdWhen } from './withhold-when.js';
+import type { WithholdWhen } from './withhold-when.js';
 
 /**
  * One `withhold` as declared: the columns; the link naming the row's holder
@@ -151,6 +143,12 @@ export interface WithholdRule {
   unlessHolder?: string | undefined;
   when?: WithholdWhen | undefined;
   key?: string | undefined;
+  /**
+   * Declared through a row's own link (a ticket's, offered to a friend): its
+   * `when` is about whoever holds that link, so a reader of no key (a message
+   * to an address, a document drawn for nobody) does not meet it.
+   */
+  ownLink?: true | undefined;
 }
 
 /** The rows linked conditions read, by the link column and then the linked key (as text). */
@@ -180,6 +178,13 @@ function whenHolds(rule: WithholdRule, row: Row, readerKey: string | undefined, 
   const when = rule.when;
   if (when === undefined) return false;
   if (rule.key !== undefined && readerKey !== undefined && rule.key !== readerKey) return false;
+  /*
+   * A reader of no key (a message to an address, a document drawn for
+   * nobody) meets every rule said of a row's state for its people (an order
+   * not paid) — never one a row's own link says of whoever holds that link
+   * (a pending friend): a paid buyer's own codes are theirs in the mail.
+   */
+  if (readerKey === undefined && rule.ownLink === true) return false;
   if (!(when.where ?? []).every((condition) => holds(condition, row))) return false;
   for (const link of when.linked ?? []) {
     const key = row[link.via];
@@ -295,12 +300,12 @@ export function blankWithheld(
 
 /**
  * What a document drawn for a session withholds: the rules, the person (a
- * signed-in person, else nobody), and — for a person — the key they read
- * through. Drawn for nobody, every rule's `when` applies, whichever key
- * declared it: such a document is anyone's who reaches its row.
+ * signed-in person, else nobody) and the key the session reads through — a
+ * row's own link reads what that link reads.
  */
 export function withholdFor(rules: TableWithholds, reader: WithholdReader | null, readerKey: string): { rules: TableWithholds; reader: WithholdReader | null; readerKey?: string } {
-  return reader === null ? { rules, reader } : { rules, reader, readerKey };
+  // The door's own key, whoever reads through it: a row's own link reads what that link reads.
+  return { rules, reader, readerKey };
 }
 
 /** The rules an entry list declares (endpoint definitions, a key's compiled resources, an app's manifest entries), by table name. */
@@ -319,7 +324,12 @@ export function collectWithholds(declared: Iterable<{ table: string; withhold: W
      */
     const keyed = withhold.when === undefined ? undefined : withhold.key;
     // Already said: by the same key, by no key (every reader's), or — said again with no key — by a key.
-    if (list.some((rule) => alike(rule, withhold) && (rule.key === keyed || rule.key === undefined || keyed === undefined))) {
+    const twin = list.findIndex((rule) => alike(rule, withhold) && (rule.key === keyed || rule.key === undefined || keyed === undefined));
+    if (twin >= 0) {
+      // Said through a row's own link wherever it was said so: kept so.
+      if (withhold.when !== undefined && withhold.ownLink === true && list[twin]!.ownLink !== true && (list[twin]!.key === undefined || list[twin]!.key === keyed)) {
+        list[twin] = { ...list[twin]!, ...(keyed === undefined ? {} : { key: keyed }), ownLink: true };
+      }
       out.set(name, list);
       continue;
     }
@@ -330,6 +340,7 @@ export function collectWithholds(declared: Iterable<{ table: string; withhold: W
         ...(withhold.when === undefined ? {} : { when: structuredClone(withhold.when) as WithholdWhen }),
         // Only a `when` is a key's own: a holder rule is every reader's.
         ...(withhold.when === undefined || withhold.key === undefined ? {} : { key: withhold.key }),
+        ...(withhold.when === undefined || withhold.ownLink !== true ? {} : { ownLink: true as const }),
       });
     }
     out.set(name, list);

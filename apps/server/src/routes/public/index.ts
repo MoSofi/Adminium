@@ -464,6 +464,8 @@ export const SESSION_ENDED_HEADER = 'x-adminium-session-ended';
 /** What "Make a new link" charges, and how many new links one row may have made online a day. */
 const NEW_LINK_PURPOSE = 'new-link';
 const NEW_LINKS_PER_DAY = 5;
+/** How many of a forgotten person's rows are read at a time when their own links are stopped. */
+const OWN_LINKS_PAGE = 500;
 /** A new link made this recently is the new link: a second press or a retry makes no other. */
 const NEW_LINK_QUIET_MS = 60_000;
 
@@ -2138,6 +2140,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        */
       const switchedOff = () => fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');
       if (found.switchedOff && (dry || (resource.clientKey ?? null) === null || blankValue(body.values[resource.clientKey!]))) return switchedOff();
+      // A key no create was made under: nothing to replay, so the switch answers before anything else is judged.
+      if (found.switchedOff) {
+        const sent = body.values[resource.clientKey!];
+        if (typeof sent !== 'string' || !CLIENT_KEY_FORMAT.test(sent)) return switchedOff();
+        const made = await found.db
+          .selectFrom(found.table.id)
+          .select(sql<number>`1`.as('one'))
+          .where(found.db.dynamic.ref(resource.clientKey!), '=', clientKeyHash(clientKeySecretBytes, ok.key.connectionId, found.table.id, sent) as never)
+          .limit(1)
+          .executeTakeFirst();
+        if (made === undefined) return switchedOff();
+      }
       // When this write began: a hold it lets go ends here, before anything of it is counted.
       const begun = new Date();
       const lists = resource.children ?? new Map<string, ScopeChild>();
@@ -2624,8 +2638,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const shown = await asMade(outcome.rows, outcome.root);
         return reply.code(200).send({ data: project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? outcome.root), children: projectChildren(shown), replayed: true as const });
       }
-      const data = project([], table, outcome.root);
-      const children = projectChildren(outcome.rows);
+      // The first answer shows what a read of the same rows would: a withhold (an unpaid order's codes) holds here too.
+      const shown = await asMade(outcome.rows, outcome.root);
+      const data = project([], table, shown.find((row) => row.node.at.length === 0)?.record ?? outcome.root);
+      const children = projectChildren(shown);
       if (dry) {
         // A table a before hook runs for: the save runs it, the quote does not — its figures may differ.
         let exact = true;
@@ -2712,6 +2728,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // many a day per phone number or address and an hour per key.
         const caps = found.resource.anonymous;
         let release: (() => Promise<void>) | null = null;
+        let releaseAllButVisitor: (() => Promise<void>) | null = null;
         if (caps !== null && (ok.session === null || found.resource.claim === null)) {
           const column = notPlain(caps, values);
           if (column !== null) {
@@ -2730,6 +2747,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
           if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
           release = charge.release;
+          releaseAllButVisitor = charge.releaseAllButVisitor ?? charge.release;
         }
 
         const target: WriteTarget = {
@@ -2890,8 +2908,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         } catch (error) {
           if (guessing) spendMiss(request, ok, error);
-          // Nothing was made: what the caps counted for it is taken back.
-          await release?.();
+          /*
+           * Nothing was made: what the caps counted for it goes back — but for
+           * the entry's own hour per visitor when the write reached a limit
+           * and was refused (a full slot), as on a create with rows below it,
+           * so one visitor cannot knock on a full slot without being counted.
+           */
+          if (error instanceof PublicSlotRefused && error.code !== 'PUBLIC_SLOT_BUSY') await releaseAllButVisitor?.();
+          else await release?.();
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
@@ -2922,8 +2946,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
         // Only the exposed columns come back — a create must not return more
         // than a read of the same row would.
+        // What a read of the same row withholds (while a condition holds, or from anyone but its holder), this answer withholds too.
+        const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource), ok.key.purpose);
+        await withheld.prepare(found.db, [inserted]);
+        const shownRow = withheld.apply({ ...inserted });
         const projected: Record<string, unknown> = {};
-        for (const column of found.resource.expose) projected[column] = inserted[column];
+        for (const column of found.resource.expose) projected[column] = shownRow[column];
         const rank = await rankOf(found, inserted);
         return reply
           .status(201)
@@ -3294,6 +3322,15 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   withholds: () => recentWithholdsOn(meta, ok.key.connectionId),
                   spell: (row, of) => wallTimesAsInstants(row, of.columns, found.dialect),
                   unmasked: (child) => readsOwnPii(child, ok.session),
+                  // As the child's own list reads it: reachable through its parents, at its level, by its filters and its claim; never one read only with a code.
+                  readable: (child, own) => {
+                    if (child.unlockBy !== null && child.unlockBy !== undefined) return null;
+                    if (child.level === 'verified' && ok.session?.level !== 'verified') return null;
+                    if (!visibilityOf({ scope: ok.key.scope, resource: child, session: ok.session, view: found.view }).reachable) return null;
+                    const claim = claimPredicateFor(child, ok.session);
+                    if (!claim.reachable) return null;
+                    return { predicate: combinePredicates(mandatoryAt(child.where, own, ok.key.scope.timezone), claim.predicate) };
+                  },
                 });
           return reply.send({ data, exact: !(await writes.wants('before', 'update', target, context)), ...(nights === undefined ? {} : { nights }), ...(children === undefined ? {} : { children }) });
         }
@@ -5208,18 +5245,19 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         const people = link.people.filter((column) => table.columns.has(column));
         if (people.length === 0 || !table.columns.has(link.column)) continue;
-        const rows = (await db
-          .selectFrom(table.id)
-          .selectAll()
-          .where((eb) => eb.or(people.map((column) => eb(db.dynamic.ref(column), '=', person as never))))
-          .limit(1000)
-          .execute()) as Row[];
         const target: WriteTarget = { connectionId: ok.key.connectionId, view, table, db, dialect, timezone: ok.key.scope.timezone };
-        for (const row of rows) {
-          if (row[link.column] === null || row[link.column] === undefined) continue;
-          await renewed(request, ok, target, row, link.column);
-          const key = table.primaryKey[0];
-          if (key !== undefined) await sessions.endBySubject(subjectOf(ok.key.connectionId, table.id, key, row[key]), 'forgotten', now);
+        // Every row of theirs, a page at a time in key order (a renewal changes no column a page is read by): none left out.
+        for (let offset = 0; ; offset += OWN_LINKS_PAGE) {
+          let page = db.selectFrom(table.id).selectAll().where((eb) => eb.or(people.map((column) => eb(db.dynamic.ref(column), '=', person as never))));
+          for (const column of table.primaryKey) page = page.orderBy(column as never);
+          const rows = (await page.limit(OWN_LINKS_PAGE).offset(offset).execute()) as Row[];
+          for (const row of rows) {
+            if (row[link.column] === null || row[link.column] === undefined) continue;
+            await renewed(request, ok, target, row, link.column);
+            const key = table.primaryKey[0];
+            if (key !== undefined) await sessions.endBySubject(subjectOf(ok.key.connectionId, table.id, key, row[key]), 'forgotten', now);
+          }
+          if (rows.length < OWN_LINKS_PAGE) break;
         }
       }
     };
@@ -5287,11 +5325,23 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
         }
         /*
+         * The email goes to the person who asked — the session's own, never a
+         * person the row happens to point at — and it must be able to go (an
+         * address on file, no sample row) before the old link is stopped:
+         * otherwise the guest keeps the link they have.
+         */
+        const person = session.grant.value;
+        const mail = { connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, repeatBy: newLink.column, person };
+        if (!(await producers!.queueKind!({ ...mail, row, dry: true }))) {
+          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
+        }
+        /*
          * One ask at a time for one row, holding its name: an ask that finds a
          * new link made moments ago (a second press, a retry) changes nothing
          * — that one's email carries the link — and so many a day at most.
          */
-        const subject = `new-link:${subjectOf(ok.key.connectionId, found.table.id, newLink.column, JSON.stringify(pk))}`;
+        // Counted by the row's key as the row holds it, however the id was spelled in the address.
+        const subject = `new-link:${subjectOf(ok.key.connectionId, found.table.id, newLink.column, JSON.stringify(found.table.primaryKey.map((column) => row![column])))}`;
         type Asked = { made: Row } | { recent: true } | { limit: true } | { gone: true };
         let asked: Asked;
         // The ask counted holding the row's name, nothing else: of asks at once, one finds none before it.
@@ -5331,8 +5381,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         if ('limit' in asked) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many new links as can be made online today have been made. Please get in touch instead.');
         if ('gone' in asked) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
-        if ('made' in asked) {
-          await producers!.queueKind!({ connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, row: asked.made, repeatBy: newLink.column });
+        if ('made' in asked && !(await producers!.queueKind!({ ...mail, row: asked.made }))) {
+          // Checked a moment ago and gone since (the address emptied meanwhile): said plainly, and the desk can send it.
+          request.log.warn({ ref: request.params.ref }, 'a new link was made and its email could not be queued');
+          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
         }
         return reply.code(202).send({ data: {} });
       },

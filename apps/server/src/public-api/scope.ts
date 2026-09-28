@@ -23,7 +23,7 @@
 
 import { linkedConditionSchema, stateConditionSchema } from '@adminium/manifest';
 import { ANONYMOUS_PER_IP_HOUR, type AnonymousCaps } from './anonymous-caps.js';
-import type { WithholdWhen } from './withhold.js';
+import type { WithholdWhen } from './withhold-when.js';
 import { z } from 'zod';
 
 import type { CodeUnlock } from '../crud/code-lookup.js';

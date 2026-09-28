@@ -88,7 +88,9 @@ function hotel(): Doc {
     // A note for the house, until the arrival day's check-in time.
     { table: 'stays', methods: ['PATCH'], ...mine, select: STAY_SELECT, writable: ['note'], writableWhen: { status: ['booked'], arrive: { before: { time: { table: 'settings', column: 'arrive_from' } } } } },
     // An extra added, until the arrival day's check-in time.
-    { table: 'stay_extras', methods: ['GET', 'POST'], level: 'verified', visibleWith: { table: 'stays', via: 'stay_id' }, select: EXTRA_SELECT, writable: ['stay_id', 'extra_id'], writableWhen: WINDOW_FROM_PARENT },
+    // The extras a guest sees: only those on the stay.
+    { table: 'stay_extras', methods: ['GET'], level: 'verified', visibleWith: { table: 'stays', via: 'stay_id' }, select: EXTRA_SELECT, filters: [{ column: 'state', op: 'eq', value: 'on' }] },
+    { table: 'stay_extras', methods: ['POST'], level: 'verified', visibleWith: { table: 'stays', via: 'stay_id' }, select: EXTRA_SELECT, writable: ['stay_id', 'extra_id'], writableWhen: WINDOW_FROM_PARENT },
     // Taken off and put back, until then too, agreeing with what the extra allows.
     {
       table: 'stay_extras',
@@ -162,6 +164,7 @@ describe.each(LEGS)("a guest's change of their own stay — %s", (dialect, avail
       ids[name] = Number(row['id']);
     };
     await extra('breakfast', 'quoted', 1);
+    await extra('offCot', 'quoted', 3, 'off');
     await extra('parking', 'anasParked', 2);
     await extra('bensParking', 'bensParked', 2, 'off');
     await extra('bensCot', 'bensParked', 3, 'off');
@@ -178,6 +181,7 @@ describe.each(LEGS)("a guest's change of their own stay — %s", (dialect, avail
       dates: find(t('stays'), (r) => r.actions.includes('update') && r.writable.includes('arrive')),
       note: find(t('stays'), (r) => r.actions.includes('update') && r.writable.includes('note')),
       addExtra: find(t('stay_extras'), (r) => r.actions.includes('create')),
+      extras: find(t('stay_extras'), (r) => r.actions.includes('read') && !r.actions.includes('update') && !r.actions.includes('create')),
       extra: find(t('stay_extras'), (r) => r.actions.includes('update') && r.writable.includes('state')),
     };
   }, 240_000);
@@ -264,7 +268,11 @@ describe.each(LEGS)("a guest's change of their own stay — %s", (dialect, avail
     const body = q.json() as { data: Doc; nights: { date: string; rate: string }[]; children: Record<string, { data: Doc }[]> };
     expect(instant(body.data['cancel_by'])).toBe('2026-08-18T14:00:00.000Z');
     expect(body.nights.map((n) => n.date)).toEqual(['2026-08-20', '2026-08-21', '2026-08-22']);
-    const extras = body.children[refs['addExtra']!] ?? body.children[refs['extra']!]!;
+    // Only what the guest's own list of the stay's extras shows: the cot taken off is no row of it.
+    const listed = ((await g.request('GET', `/records/${refs['extras']!}`, { session: ana })).json() as { data: Doc[] }).data.filter((row) => row['stay_id'] === ids['quoted']);
+    expect(listed.map((row) => row['id'])).toEqual([ids['breakfast']]);
+    for (const [ref, rows] of Object.entries(body.children)) expect(rows.map((row) => row.data['id']), ref).not.toContain(ids['offCot']);
+    const extras = body.children[refs['extras']!]!;
     expect(extras).toHaveLength(1);
     expect(extras[0]!.data).toMatchObject({ id: ids['breakfast'], nights: 3, guests: 2 });
     expect(Number(extras[0]!.data['amount'])).toBe(60);

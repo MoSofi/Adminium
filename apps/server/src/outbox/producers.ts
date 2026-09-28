@@ -299,7 +299,7 @@ export interface OutboxProducers {
    * was queued to go. Nothing when the app has no outbox, its kind or a link
    * to the row's table.
    */
-  queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string }): Promise<boolean>;
+  queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string; person?: unknown; dry?: boolean }): Promise<boolean>;
 }
 
 /** Whether a row is one the app added as sample data: its sample ledger lists it. */
@@ -401,7 +401,15 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     producer: OutboxProducer,
     source: ResolvedTable,
     row: Row,
-    opts: { at?: number | undefined; now: number; before?: Row | null | undefined },
+    opts: {
+      at?: number | undefined;
+      now: number;
+      before?: Row | null | undefined;
+      /** The person the message goes to, named by the caller rather than read from the row (a new link asked for by its person). */
+      person?: unknown;
+      /** Only ask whether it would be queued to go (an address on file, not sample data): nothing is written, and nothing deduped. */
+      dry?: boolean | undefined;
+    },
   ): Promise<boolean> {
     const view = await deps.viewFor(box.connectionId);
     if (view === null) return false;
@@ -451,13 +459,15 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       const repeat = repeatKeyOf(box.definition, producer, about.row);
       if (repeat !== undefined) seen = repeat.key === null ? seen.where(repeat.column as never, 'is', null) : seen.where(repeat.column as never, '=', repeat.key as never);
       // One per change heard of (`repeat`): each change is its own message, never one already there.
-      if (producer.repeat !== true && (await seen.executeTakeFirst()) !== undefined) return null;
+      if (producer.repeat !== true && opts.dry !== true && (await seen.executeTakeFirst()) !== undefined) return null;
 
       // The links the template reads through, and the recipient's.
       const recipient = box.definition.recipient;
       const values: Row = { [cols.kind]: producer.kind, [producer.link]: about.row[aboutKey] };
       if (repeat !== undefined) values[repeat.column] = repeat.key;
       await fillLinks(db, view, box.definition, outbox, about, values, producer.link);
+      // The person the caller names, never one the row happens to point at.
+      if (opts.person !== undefined) values[recipient.via] = opts.person;
       if (cols.due !== undefined) {
         let due: number | null | undefined;
         if (at !== undefined) due = at;
@@ -478,6 +488,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         { tableId: about.table.id, row: about.row },
       );
       if (addressed.person !== null && producer.optIn === true && recipient.optIn !== undefined && !sameValue(true, addressed.person[recipient.optIn])) return null;
+      // Asked only whether it would go: an address to send it to.
+      if (opts.dry === true) return addressed.address === null ? null : values;
       values[cols.to] = addressed.address;
       // The row the message is about may say its language (an order placed in German): it wins over the person's.
       const width = cols.language === undefined ? null : (outbox.table.columns.find((column) => column.name === cols.language)?.maxLength ?? null);
@@ -504,6 +516,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       });
     });
     if (written === null) return false;
+    if (opts.dry === true) return true;
     deps.announce?.(box.connectionId, outbox, written, 'create');
     return written[cols.status] === 'queued' || written[cols.status] === 'held';
   }
@@ -745,7 +758,7 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     );
   }
 
-  async function queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string }): Promise<boolean> {
+  async function queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string; person?: unknown; dry?: boolean }): Promise<boolean> {
     const box = (await live()).find((candidate) => candidate.connectionId === input.connectionId && candidate.appKey === input.appKey);
     if (box === undefined || box.definition.kinds[input.kind] === undefined) return false;
     const view = await deps.viewFor(box.connectionId);
@@ -755,8 +768,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     const link = Object.values(box.definition.links ?? {}).find((column) => referenced(view, outbox.id, column) === input.table.id);
     if (link === undefined) return false;
     const producer = { kind: input.kind, link, onCreate: { table: input.table.id }, repeatBy: input.repeatBy } as OutboxProducer;
-    const queued = await queue(box, producer, input.table, input.row, { now: Date.now() });
-    if (queued) deps.onQueued?.(box.appKey);
+    const queued = await queue(box, producer, input.table, input.row, { now: Date.now(), ...(input.person === undefined ? {} : { person: input.person }), ...(input.dry === true ? { dry: true } : {}) });
+    if (queued && input.dry !== true) deps.onQueued?.(box.appKey);
     return queued;
   }
 
