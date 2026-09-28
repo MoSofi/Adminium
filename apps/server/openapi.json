@@ -9917,6 +9917,29 @@
                     "type": "string",
                     "format": "date-time",
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "expect": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "string",
+                        "pattern": "^-?\\d{1,15}(?:\\.\\d{1,6})?$"
+                      },
+                      "column": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    },
+                    "required": [
+                      "total"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "clientKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [
@@ -9947,6 +9970,58 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "undoToken": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "created": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "replayed": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "undoToken"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           "201": {
             "description": "Default Response",
             "content": {
@@ -9982,6 +10057,12 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 9007199254740991
+                    },
+                    "replayed": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
                     }
                   },
                   "required": [
@@ -10511,6 +10592,12 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 9007199254740991
+                    },
+                    "replayed": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
                     }
                   },
                   "required": [
@@ -10781,6 +10868,24 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64
+                  },
+                  "expect": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "string",
+                        "pattern": "^-?\\d{1,15}(?:\\.\\d{1,6})?$"
+                      },
+                      "column": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    },
+                    "required": [
+                      "total"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -10855,6 +10960,12 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 9007199254740991
+                    },
+                    "replayed": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
                     }
                   },
                   "required": [
@@ -10960,6 +11071,12 @@
                           "type": "integer",
                           "minimum": 1,
                           "maximum": 9007199254740991
+                        },
+                        "replayed": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
                         }
                       },
                       "required": [
@@ -11818,6 +11935,29 @@
                     "type": "string",
                     "format": "date-time",
                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "expect": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "string",
+                        "pattern": "^-?\\d{1,15}(?:\\.\\d{1,6})?$"
+                      },
+                      "column": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    },
+                    "required": [
+                      "total"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "clientKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [
@@ -11930,6 +12070,9 @@
                           "rate": {
                             "type": "string"
                           },
+                          "base": {
+                            "type": "string"
+                          },
                           "tags": {
                             "type": "array",
                             "items": {
@@ -11940,6 +12083,225 @@
                         "required": [
                           "date",
                           "rate",
+                          "base",
+                          "tags"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "children"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data/{connectionId}/{table}/{recordId}/dry-run": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "values": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "children": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "additionalProperties": {
+                      "maxItems": 200,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "values": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "children": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "additionalProperties": {
+                              "maxItems": 200,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "values": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                },
+                                "required": [
+                                  "values"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "values"
+                        ]
+                      }
+                    }
+                  },
+                  "from": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "expect": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "string",
+                        "pattern": "^-?\\d{1,15}(?:\\.\\d{1,6})?$"
+                      },
+                      "column": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    },
+                    "required": [
+                      "total"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "values"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "recordId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "children": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            }
+                          },
+                          "required": [
+                            "data"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "nights": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string"
+                          },
+                          "rate": {
+                            "type": "string"
+                          },
+                          "base": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "rate",
+                          "base",
                           "tags"
                         ],
                         "additionalProperties": false
@@ -68586,36 +68948,370 @@
                         "maxItems": 16,
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "column": {
-                              "type": "string"
-                            },
-                            "op": {
-                              "type": "string",
-                              "enum": [
-                                "eq",
-                                "neq",
-                                "gt",
-                                "gte",
-                                "lt",
-                                "lte",
-                                "in",
-                                "like",
-                                "ilike",
-                                "is_null",
-                                "not_null",
-                                "between"
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "op": {
+                                  "type": "string",
+                                  "enum": [
+                                    "eq",
+                                    "neq",
+                                    "gt",
+                                    "gte",
+                                    "lt",
+                                    "lte",
+                                    "in",
+                                    "like",
+                                    "ilike",
+                                    "is_null",
+                                    "not_null",
+                                    "between"
+                                  ]
+                                },
+                                "value": {},
+                                "param": {
+                                  "type": "string"
+                                },
+                                "day": {
+                                  "type": "string",
+                                  "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "op"
                               ]
                             },
-                            "value": {},
-                            "param": {
-                              "type": "string"
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "and": {
+                                      "minItems": 1,
+                                      "maxItems": 16,
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "column": {
+                                                "type": "string"
+                                              },
+                                              "op": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "eq",
+                                                  "neq",
+                                                  "gt",
+                                                  "gte",
+                                                  "lt",
+                                                  "lte",
+                                                  "in",
+                                                  "like",
+                                                  "ilike",
+                                                  "is_null",
+                                                  "not_null",
+                                                  "between"
+                                                ]
+                                              },
+                                              "value": {},
+                                              "param": {
+                                                "type": "string"
+                                              },
+                                              "day": {
+                                                "type": "string",
+                                                "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                              }
+                                            },
+                                            "required": [
+                                              "column",
+                                              "op"
+                                            ]
+                                          },
+                                          {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "and": {
+                                                    "minItems": 1,
+                                                    "maxItems": 16,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "column": {
+                                                          "type": "string"
+                                                        },
+                                                        "op": {
+                                                          "type": "string",
+                                                          "enum": [
+                                                            "eq",
+                                                            "neq",
+                                                            "gt",
+                                                            "gte",
+                                                            "lt",
+                                                            "lte",
+                                                            "in",
+                                                            "like",
+                                                            "ilike",
+                                                            "is_null",
+                                                            "not_null",
+                                                            "between"
+                                                          ]
+                                                        },
+                                                        "value": {},
+                                                        "param": {
+                                                          "type": "string"
+                                                        },
+                                                        "day": {
+                                                          "type": "string",
+                                                          "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "column",
+                                                        "op"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "and"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "or": {
+                                                    "minItems": 1,
+                                                    "maxItems": 16,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "column": {
+                                                          "type": "string"
+                                                        },
+                                                        "op": {
+                                                          "type": "string",
+                                                          "enum": [
+                                                            "eq",
+                                                            "neq",
+                                                            "gt",
+                                                            "gte",
+                                                            "lt",
+                                                            "lte",
+                                                            "in",
+                                                            "like",
+                                                            "ilike",
+                                                            "is_null",
+                                                            "not_null",
+                                                            "between"
+                                                          ]
+                                                        },
+                                                        "value": {},
+                                                        "param": {
+                                                          "type": "string"
+                                                        },
+                                                        "day": {
+                                                          "type": "string",
+                                                          "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "column",
+                                                        "op"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "or"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "and"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "or": {
+                                      "minItems": 1,
+                                      "maxItems": 16,
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "column": {
+                                                "type": "string"
+                                              },
+                                              "op": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "eq",
+                                                  "neq",
+                                                  "gt",
+                                                  "gte",
+                                                  "lt",
+                                                  "lte",
+                                                  "in",
+                                                  "like",
+                                                  "ilike",
+                                                  "is_null",
+                                                  "not_null",
+                                                  "between"
+                                                ]
+                                              },
+                                              "value": {},
+                                              "param": {
+                                                "type": "string"
+                                              },
+                                              "day": {
+                                                "type": "string",
+                                                "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                              }
+                                            },
+                                            "required": [
+                                              "column",
+                                              "op"
+                                            ]
+                                          },
+                                          {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "and": {
+                                                    "minItems": 1,
+                                                    "maxItems": 16,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "column": {
+                                                          "type": "string"
+                                                        },
+                                                        "op": {
+                                                          "type": "string",
+                                                          "enum": [
+                                                            "eq",
+                                                            "neq",
+                                                            "gt",
+                                                            "gte",
+                                                            "lt",
+                                                            "lte",
+                                                            "in",
+                                                            "like",
+                                                            "ilike",
+                                                            "is_null",
+                                                            "not_null",
+                                                            "between"
+                                                          ]
+                                                        },
+                                                        "value": {},
+                                                        "param": {
+                                                          "type": "string"
+                                                        },
+                                                        "day": {
+                                                          "type": "string",
+                                                          "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "column",
+                                                        "op"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "and"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "or": {
+                                                    "minItems": 1,
+                                                    "maxItems": 16,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "column": {
+                                                          "type": "string"
+                                                        },
+                                                        "op": {
+                                                          "type": "string",
+                                                          "enum": [
+                                                            "eq",
+                                                            "neq",
+                                                            "gt",
+                                                            "gte",
+                                                            "lt",
+                                                            "lte",
+                                                            "in",
+                                                            "like",
+                                                            "ilike",
+                                                            "is_null",
+                                                            "not_null",
+                                                            "between"
+                                                          ]
+                                                        },
+                                                        "value": {},
+                                                        "param": {
+                                                          "type": "string"
+                                                        },
+                                                        "day": {
+                                                          "type": "string",
+                                                          "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "column",
+                                                        "op"
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "or"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "or"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
                             }
-                          },
-                          "required": [
-                            "column",
-                            "op"
                           ]
                         }
                       },
@@ -68741,8 +69437,52 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 128
+                          },
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "taken",
+                              "held",
+                              "left",
+                              "size",
+                              "occupancy",
+                              "earnings"
+                            ]
                           }
                         }
+                      },
+                      "counts": {
+                        "type": "object",
+                        "properties": {
+                          "table": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "rule": {
+                            "default": 0,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 2
+                          },
+                          "as": {
+                            "default": "counts",
+                            "type": "string",
+                            "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,62}$"
+                          },
+                          "date": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "param": {
+                            "default": "day",
+                            "type": "string",
+                            "pattern": "^[a-zA-Z][a-zA-Z0-9_.]{0,63}$"
+                          }
+                        },
+                        "required": [
+                          "table"
+                        ]
                       }
                     },
                     "required": [
@@ -69102,36 +69842,370 @@
                               "maxItems": 16,
                               "type": "array",
                               "items": {
-                                "type": "object",
-                                "properties": {
-                                  "column": {
-                                    "type": "string"
-                                  },
-                                  "op": {
-                                    "type": "string",
-                                    "enum": [
-                                      "eq",
-                                      "neq",
-                                      "gt",
-                                      "gte",
-                                      "lt",
-                                      "lte",
-                                      "in",
-                                      "like",
-                                      "ilike",
-                                      "is_null",
-                                      "not_null",
-                                      "between"
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string"
+                                      },
+                                      "op": {
+                                        "type": "string",
+                                        "enum": [
+                                          "eq",
+                                          "neq",
+                                          "gt",
+                                          "gte",
+                                          "lt",
+                                          "lte",
+                                          "in",
+                                          "like",
+                                          "ilike",
+                                          "is_null",
+                                          "not_null",
+                                          "between"
+                                        ]
+                                      },
+                                      "value": {},
+                                      "param": {
+                                        "type": "string"
+                                      },
+                                      "day": {
+                                        "type": "string",
+                                        "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "op"
                                     ]
                                   },
-                                  "value": {},
-                                  "param": {
-                                    "type": "string"
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "and": {
+                                            "minItems": 1,
+                                            "maxItems": 16,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "column": {
+                                                      "type": "string"
+                                                    },
+                                                    "op": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "eq",
+                                                        "neq",
+                                                        "gt",
+                                                        "gte",
+                                                        "lt",
+                                                        "lte",
+                                                        "in",
+                                                        "like",
+                                                        "ilike",
+                                                        "is_null",
+                                                        "not_null",
+                                                        "between"
+                                                      ]
+                                                    },
+                                                    "value": {},
+                                                    "param": {
+                                                      "type": "string"
+                                                    },
+                                                    "day": {
+                                                      "type": "string",
+                                                      "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "column",
+                                                    "op"
+                                                  ]
+                                                },
+                                                {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "and": {
+                                                          "minItems": 1,
+                                                          "maxItems": 16,
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "column": {
+                                                                "type": "string"
+                                                              },
+                                                              "op": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                  "eq",
+                                                                  "neq",
+                                                                  "gt",
+                                                                  "gte",
+                                                                  "lt",
+                                                                  "lte",
+                                                                  "in",
+                                                                  "like",
+                                                                  "ilike",
+                                                                  "is_null",
+                                                                  "not_null",
+                                                                  "between"
+                                                                ]
+                                                              },
+                                                              "value": {},
+                                                              "param": {
+                                                                "type": "string"
+                                                              },
+                                                              "day": {
+                                                                "type": "string",
+                                                                "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "column",
+                                                              "op"
+                                                            ]
+                                                          }
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "and"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "or": {
+                                                          "minItems": 1,
+                                                          "maxItems": 16,
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "column": {
+                                                                "type": "string"
+                                                              },
+                                                              "op": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                  "eq",
+                                                                  "neq",
+                                                                  "gt",
+                                                                  "gte",
+                                                                  "lt",
+                                                                  "lte",
+                                                                  "in",
+                                                                  "like",
+                                                                  "ilike",
+                                                                  "is_null",
+                                                                  "not_null",
+                                                                  "between"
+                                                                ]
+                                                              },
+                                                              "value": {},
+                                                              "param": {
+                                                                "type": "string"
+                                                              },
+                                                              "day": {
+                                                                "type": "string",
+                                                                "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "column",
+                                                              "op"
+                                                            ]
+                                                          }
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "or"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "and"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "or": {
+                                            "minItems": 1,
+                                            "maxItems": 16,
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "column": {
+                                                      "type": "string"
+                                                    },
+                                                    "op": {
+                                                      "type": "string",
+                                                      "enum": [
+                                                        "eq",
+                                                        "neq",
+                                                        "gt",
+                                                        "gte",
+                                                        "lt",
+                                                        "lte",
+                                                        "in",
+                                                        "like",
+                                                        "ilike",
+                                                        "is_null",
+                                                        "not_null",
+                                                        "between"
+                                                      ]
+                                                    },
+                                                    "value": {},
+                                                    "param": {
+                                                      "type": "string"
+                                                    },
+                                                    "day": {
+                                                      "type": "string",
+                                                      "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "column",
+                                                    "op"
+                                                  ]
+                                                },
+                                                {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "and": {
+                                                          "minItems": 1,
+                                                          "maxItems": 16,
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "column": {
+                                                                "type": "string"
+                                                              },
+                                                              "op": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                  "eq",
+                                                                  "neq",
+                                                                  "gt",
+                                                                  "gte",
+                                                                  "lt",
+                                                                  "lte",
+                                                                  "in",
+                                                                  "like",
+                                                                  "ilike",
+                                                                  "is_null",
+                                                                  "not_null",
+                                                                  "between"
+                                                                ]
+                                                              },
+                                                              "value": {},
+                                                              "param": {
+                                                                "type": "string"
+                                                              },
+                                                              "day": {
+                                                                "type": "string",
+                                                                "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "column",
+                                                              "op"
+                                                            ]
+                                                          }
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "and"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "or": {
+                                                          "minItems": 1,
+                                                          "maxItems": 16,
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "column": {
+                                                                "type": "string"
+                                                              },
+                                                              "op": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                  "eq",
+                                                                  "neq",
+                                                                  "gt",
+                                                                  "gte",
+                                                                  "lt",
+                                                                  "lte",
+                                                                  "in",
+                                                                  "like",
+                                                                  "ilike",
+                                                                  "is_null",
+                                                                  "not_null",
+                                                                  "between"
+                                                                ]
+                                                              },
+                                                              "value": {},
+                                                              "param": {
+                                                                "type": "string"
+                                                              },
+                                                              "day": {
+                                                                "type": "string",
+                                                                "pattern": "^(today([+-]\\d{1,4})?|\\d{4}-\\d{2}-\\d{2})$"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "column",
+                                                              "op"
+                                                            ]
+                                                          }
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "or"
+                                                      ],
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "or"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    ]
                                   }
-                                },
-                                "required": [
-                                  "column",
-                                  "op"
                                 ]
                               }
                             },
@@ -69257,8 +70331,52 @@
                                   "type": "string",
                                   "minLength": 1,
                                   "maxLength": 128
+                                },
+                                "metric": {
+                                  "type": "string",
+                                  "enum": [
+                                    "taken",
+                                    "held",
+                                    "left",
+                                    "size",
+                                    "occupancy",
+                                    "earnings"
+                                  ]
                                 }
                               }
+                            },
+                            "counts": {
+                              "type": "object",
+                              "properties": {
+                                "table": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200
+                                },
+                                "rule": {
+                                  "default": 0,
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 2
+                                },
+                                "as": {
+                                  "default": "counts",
+                                  "type": "string",
+                                  "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,62}$"
+                                },
+                                "date": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "param": {
+                                  "default": "day",
+                                  "type": "string",
+                                  "pattern": "^[a-zA-Z][a-zA-Z0-9_.]{0,63}$"
+                                }
+                              },
+                              "required": [
+                                "table"
+                              ]
                             }
                           },
                           "required": [
@@ -97733,6 +98851,9 @@
                         "timezone": {
                           "type": "string"
                         },
+                        "now": {
+                          "type": "string"
+                        },
                         "currency": {
                           "anyOf": [
                             {
@@ -97995,6 +99116,7 @@
                         "version",
                         "side",
                         "timezone",
+                        "now",
                         "currency",
                         "claim",
                         "documents",
@@ -100816,6 +101938,19 @@
                       }
                     }
                   },
+                  "expect": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "string",
+                        "pattern": "^-?\\d{1,15}(?:\\.\\d{1,6})?$"
+                      }
+                    },
+                    "required": [
+                      "total"
+                    ],
+                    "additionalProperties": false
+                  },
                   "replaces": {
                     "type": "string",
                     "minLength": 8,
@@ -100946,6 +102081,9 @@
                           "rate": {
                             "type": "string"
                           },
+                          "base": {
+                            "type": "string"
+                          },
                           "tags": {
                             "type": "array",
                             "items": {
@@ -100956,6 +102094,7 @@
                         "required": [
                           "date",
                           "rate",
+                          "base",
                           "tags"
                         ],
                         "additionalProperties": false
@@ -101263,6 +102402,19 @@
                       "type": "string"
                     },
                     "additionalProperties": {}
+                  },
+                  "expect": {
+                    "type": "object",
+                    "properties": {
+                      "total": {
+                        "type": "string",
+                        "pattern": "^-?\\d{1,15}(?:\\.\\d{1,6})?$"
+                      }
+                    },
+                    "required": [
+                      "total"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -101323,6 +102475,9 @@
                           "rate": {
                             "type": "string"
                           },
+                          "base": {
+                            "type": "string"
+                          },
                           "tags": {
                             "type": "array",
                             "items": {
@@ -101333,9 +102488,35 @@
                         "required": [
                           "date",
                           "rate",
+                          "base",
                           "tags"
                         ],
                         "additionalProperties": false
+                      }
+                    },
+                    "children": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            }
+                          },
+                          "required": [
+                            "data"
+                          ],
+                          "additionalProperties": false
+                        }
                       }
                     }
                   },
@@ -106692,6 +107873,296 @@
       "delete": {
         "responses": {
           "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "rank": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/records/{ref}/{id}/new-link": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "ref",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "202": {
             "description": "Default Response",
             "content": {
               "application/json": {
