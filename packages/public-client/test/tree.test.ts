@@ -51,7 +51,7 @@ describe('a create with its child rows', () => {
     expect(calls[0]!.url).toBe('https://x/api/v1/public/records/orders/dry-run');
     expect(quote).toEqual({ data: { total: '34.64' }, children: {}, capacity: [{ pool: '1', state: 'available' }], exact: true, nights: [] });
     // A change the app's own code runs for: the quote says the save may come out otherwise.
-    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false, nights: [] });
+    expect(await client.quoteChange('lines', '7', { qty: 3 })).toEqual({ data: { qty: 3, line_total: '6.00' }, exact: false, nights: [], children: {} });
     expect(calls[1]!.url).toBe('https://x/api/v1/public/records/lines/7/dry-run');
   });
 
@@ -63,6 +63,12 @@ describe('a create with its child rows', () => {
     const { client } = over((url) => (url.endsWith('/9/dry-run') ? { data: { room_total: '370.00' }, exact: true, nights } : { data: { room_total: '370.00' }, exact: true, nights }));
     expect((await client.quote('stays', { values: {} })).nights).toEqual(nights);
     expect((await client.quoteChange('stays', '9', { depart: '2026-08-02' })).nights).toEqual(nights);
+  });
+
+  it("hands on the rows a change moves below it, as the change would leave them", async () => {
+    const children = { stay_extras: [{ data: { id: 4, extra_id: 2, nights: 3, line_total: '45.00' } }] };
+    const { client } = over(() => ({ data: { room_total: '370.00' }, exact: true, children }));
+    expect((await client.quoteChange('stays', '9', { depart: '2026-08-02' })).children).toEqual(children);
   });
 
   it('sends the price shown with a change', async () => {
