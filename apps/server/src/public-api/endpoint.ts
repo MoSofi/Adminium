@@ -1403,7 +1403,12 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
       push('ENDPOINT_FILTER_NOT_A_DAY', `"${f.column}" is not a date or a time, so "${f.op}" cannot apply`, f.column);
     }
   }
+  // A create only (no change) is judged against its parent's window alone: a window keyed by anything but the link to it would be judged by nothing.
+  const createOnly = def.methods.includes('POST') && !def.methods.includes('PATCH') && !def.methods.includes('PUT');
   for (const [column, when] of Object.entries(def.writable_when ?? {})) {
+    if (createOnly && isMomentWindow(when) && def.visible_with?.localColumn !== column) {
+      push('SCOPE_WRITABLE_WHEN_MOMENT_INVALID', `a create is judged against its parent's window, keyed by the link to it — "${column}" is not`, column);
+    }
     const type = table.columns.get(column)?.logicalType;
     const timed = when === 'from-now' ? 'from-now' : isTimeWindow(when) ? 'within' : null;
     if (timed !== null && type !== undefined && type !== 'timestamp' && type !== 'timestamptz') {
