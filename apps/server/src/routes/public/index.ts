@@ -5302,11 +5302,23 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
         }
         /*
+         * The email goes to the person who asked — the session's own, never a
+         * person the row happens to point at — and it must be able to go (an
+         * address on file, no sample row) before the old link is stopped:
+         * otherwise the guest keeps the link they have.
+         */
+        const person = session.grant.value;
+        const mail = { connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, repeatBy: newLink.column, person };
+        if (!(await producers!.queueKind!({ ...mail, row, dry: true }))) {
+          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
+        }
+        /*
          * One ask at a time for one row, holding its name: an ask that finds a
          * new link made moments ago (a second press, a retry) changes nothing
          * — that one's email carries the link — and so many a day at most.
          */
-        const subject = `new-link:${subjectOf(ok.key.connectionId, found.table.id, newLink.column, JSON.stringify(pk))}`;
+        // Counted by the row's key as the row holds it, however the id was spelled in the address.
+        const subject = `new-link:${subjectOf(ok.key.connectionId, found.table.id, newLink.column, JSON.stringify(found.table.primaryKey.map((column) => row![column])))}`;
         type Asked = { made: Row } | { recent: true } | { limit: true } | { gone: true };
         let asked: Asked;
         // The ask counted holding the row's name, nothing else: of asks at once, one finds none before it.
@@ -5346,8 +5358,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         if ('limit' in asked) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many new links as can be made online today have been made. Please get in touch instead.');
         if ('gone' in asked) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
-        if ('made' in asked) {
-          await producers!.queueKind!({ connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, row: asked.made, repeatBy: newLink.column });
+        if ('made' in asked && !(await producers!.queueKind!({ ...mail, row: asked.made }))) {
+          // Checked a moment ago and gone since (the address emptied meanwhile): said plainly, and the desk can send it.
+          request.log.warn({ ref: request.params.ref }, 'a new link was made and its email could not be queued');
+          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
         }
         return reply.code(202).send({ data: {} });
       },

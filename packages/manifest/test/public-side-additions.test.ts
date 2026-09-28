@@ -200,3 +200,40 @@ describe('two changes of one row on one key', () => {
     expect(messages(m)).toEqual([]);
   });
 });
+
+describe('a new link made by the person who holds the row', () => {
+  const withNewLink = (recipientTable: string) => {
+    const m = kitchen();
+    (m['requiredSchema'] as { tables: Doc[] }).tables.push({
+      ref: 'messages',
+      columns: [
+        { ref: 'id', type: 'int', role: 'pk' },
+        { ref: 'kind', type: 'enum', enum: ['new-link'] },
+        { ref: 'status', type: 'enum', enum: ['queued', 'sent', 'failed', 'skipped'], default: 'queued' },
+        { ref: 'to', type: 'text', maxLength: 254, nullable: true },
+        { ref: 'repeat_key', type: 'text', maxLength: 64, nullable: true },
+        { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true },
+        { ref: 'order_id', type: 'fk', references: 'orders', nullable: true },
+      ],
+    });
+    m['outbox'] = {
+      table: 'messages',
+      columns: { kind: 'kind', status: 'status', to: 'to', repeatKey: 'repeat_key' },
+      links: { customer: 'customer_id', order: 'order_id' },
+      recipient: { via: 'customer_id', table: recipientTable, email: 'email' },
+      kinds: { 'new-link': 'kitchen-new-link' },
+    };
+    m['emailTemplates'] = [{ key: 'kitchen-new-link', name: 'New link', locales: { 'en-US': { subject: 'Your link', blocks: [{ block: 'email.text', data: { text: '{{manage_url}}#{{order.link_token}}' } }] } } }];
+    entryOf(m, 'orders', 'GET')['newLink'] = { column: 'link_token', kind: 'new-link' };
+    return m;
+  };
+
+  it('validates, mailed to the people its rows are claimed by', () => {
+    expect(messages(withNewLink('customers'))).toEqual([]);
+  });
+
+  it('is refused when the outbox writes to other people', () => {
+    const m = withNewLink('orders');
+    expect(issuesText(m)).toContain('the outbox writes to "orders", not "customers" who asks for the new link');
+  });
+});

@@ -652,7 +652,9 @@ interface PublicAccessContext {
   publicKeys: Readonly<Record<string, PublicKey>> | undefined;
   roles: readonly { key: string; screensOnly?: boolean | undefined; cloneFrom?: string | undefined; permissions?: readonly string[] | undefined }[];
   /** The app's outbox, for a new link it emails (absent: the app has none). */
-  outbox?: { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined } | undefined;
+  outbox?:
+    | { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined; recipient?: { table: string } | undefined }
+    | undefined;
 }
 
 /** A row's own link a person reaches: its table, the code column that opens it, and the columns that link its rows to the person. */
@@ -1977,6 +1979,10 @@ function personIssues(
         if (box.columns.repeatKey === undefined) out.push({ path: here('kind'), message: 'each new link is its own message, so the outbox keeps a repeatKey column' });
         const linked = Object.values(box.links ?? {}).some((column) => index.column(box.table, column)?.references === entry.table);
         if (!linked) out.push({ path: here('kind'), message: `the outbox links no message to "${entry.table}", so the new link could not be sent about its row` });
+        // Sent to the person who asked for it: the outbox addresses the people this entry's rows are claimed by.
+        if (entry.claimedBy !== undefined && box.recipient !== undefined && box.recipient.table !== entry.claimedBy.table) {
+          out.push({ path: here('kind'), message: `the outbox writes to "${box.recipient.table}", not "${entry.claimedBy.table}" who asks for the new link` });
+        }
       }
     }
 
