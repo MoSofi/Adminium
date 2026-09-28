@@ -51,6 +51,8 @@ import { coerceCell } from '../data-io/coerce.js';
 import { EXPORT_BOM, createCsvParser, serializeCsvRow } from '../data-io/csv.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
 import { assertImportReadable, readViewOf } from '../crud/read-view.js';
+import { AppError } from '../errors.js';
+import { scrubRefusal } from '../routes/data/refusal-scrub.js';
 import { resolvePermissionSet } from '../rbac/resolver.js';
 import { updateLimitOf } from '../rbac/update-limits.js';
 import type { FileStore } from '../files/store.js';
@@ -212,10 +214,23 @@ async function runImport(
   }
   const matchResolved = matchColumn === null ? null : view.column(table, matchColumn);
   // As the person who asked reads the table, again now: a role narrowed since the import was made is held to it.
+  let readView: SnapshotView | null = null;
   if (row.requestedBy !== null) {
     const permissions = await resolvePermissionSet(deps.meta, { kind: 'user', id: row.requestedBy, label: row.requestedBy });
-    assertImportReadable(readViewOf(view, permissions), table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
+    readView = readViewOf(view, permissions);
+    assertImportReadable(readView, table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
   }
+  /**
+   * A refused row's words, as the person who asked may read them: a role that
+   * reads the table only in part is told a refusal as the data routes tell it
+   * (no value of a column it may not read), and the database's own words
+   * (which may quote a stored value) not at all.
+   */
+  const toldOf = (error: unknown): string => {
+    if (readView === null || !readView.readLimited) return error instanceof Error ? error.message : String(error);
+    if (!(error instanceof AppError)) return 'the database refused the row';
+    return (scrubRefusal(error, readView, readView.table(table.id)) as AppError).message;
+  };
 
   // --- stream-parse the CSV ---------------------------------------------------
   const parser = createCsvParser();
@@ -421,7 +436,7 @@ async function runImport(
       inserted += 1;
       await writes.settle('create', writeTarget, [{ record: current, before: null }]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = toldOf(error);
       if (!skipInvalid) fail(`row ${item.rowNumber}: ${message}`);
       skipped += 1;
       const code =

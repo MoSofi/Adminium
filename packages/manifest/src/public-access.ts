@@ -978,6 +978,26 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
       if (entry.methods.includes('PATCH') && entry.writable === undefined) {
         out.push({ path: at('writable'), message: 'a change through an entry visible with a parent names what it may write' });
       }
+      // A child's create names the parent it is made under by its link, which the create proves the session reaches.
+      if (creates && pointsUp && !writable.has(v.via)) {
+        out.push({ path: at('writable'), message: `this entry creates rows under "${v.table}", so "${v.via}" is writable: the parent a create names` });
+      }
+      /*
+       * A column of the child pointing at the key's own person (a note's
+       * `client_id`) is a copy the desk keeps, filled from the parent, never
+       * written by a browser — unless it is the link a create-only entry names
+       * its parent by (an extra added to the stay the stay's own link opened).
+       */
+      const person = entries.find((other) => other.claim !== undefined && (other.key ?? CUSTOMER_KEY) === key)?.table;
+      if (person !== undefined) {
+        for (const ref of entry.writable ?? []) {
+          const found = column(ref);
+          const namesParent = ref === v.via && creates && !patches;
+          if (found?.type === 'fk' && found.references === person && !namesParent) {
+            out.push({ path: at('writable'), message: `"${entry.table}.${ref}" points at the signed-in person's own table, so it is filled from the parent and never written publicly` });
+          }
+        }
+      }
       if (hops(entries, i) > 2) out.push({ path: at('visibleWith'), message: 'an entry is at most two steps from the entry its person claims' });
       if (root === undefined) out.push({ path: at('visibleWith'), message: 'the entries it is visible with lead to no claimed person' });
     }

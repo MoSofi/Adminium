@@ -71,6 +71,7 @@ import { inTransaction } from './capacity-guard.js';
 import type { ResolvedTable } from './identifiers.js';
 import type { Row } from './mask.js';
 import { copiedOf } from './decided-columns.js';
+import { refusedOn } from './refusal-table.js';
 import { lateRuleFor, lateVerdict, refusedBy } from './late.js';
 import { momentOf, momentSettings, momentVias, type MomentContext } from './moments.js';
 import { columnsEmptiedByUndo } from './undo-moves.js';
@@ -112,6 +113,12 @@ export interface StateGuard {
   roles: ReadonlySet<string> | 'any';
   /** Columns this write's own rules decided — a stamp a move writes, a formula: the lock never refuses them. */
   decided: readonly string[];
+  /**
+   * The code columns a server action renews (a row's own link made again). A
+   * write that changes only these is judged by no lock: not the row's own, a
+   * parent's, nor a linking row's.
+   */
+  renewing?: readonly string[] | undefined;
   /** The write's clock: a condition on the time is judged at its locked instant (`write-clock.ts`). */
   clock?: WriteClock | undefined;
   /** A quote (a dry run of a change or a create): judged on rows read as they are, holding none it does not write. */
@@ -906,6 +913,9 @@ export async function guardedUpdate(
         }
         const changed = Object.keys(values).filter((column) => !sameValue(values[column], stored[column]));
         if (changed.length === 0) continue;
+        // A row's own link made again by a server action, and nothing else: no lock keeps that code.
+        const renewal = guard?.renewing !== undefined && changed.every((column) => guard.renewing!.includes(column));
+        if (renewal) continue;
         if (tied) refuseUnresolvedLink(table, values, changed);
         if (tied && states !== undefined) await judgeOwnUpdate(tx, hold, table, states, stored, values, changed, guard, judging);
         if (tied) await judgeParents(tx, hold, table, { now: { ...stored, ...values }, was: stored }, guard, changed);
@@ -978,17 +988,24 @@ async function runLinkEffects(db: Db, table: ResolvedTable, values: Row, relinke
         const [column, state] = Object.entries(set)[0]!;
         if (sameValue(target[column], state)) {
           if (side === 'old' || moved !== undefined) continue;
-          throw new StateMoveRefused(`The row ${table.name}.${via} now points at is ${state} already, so it cannot be moved to ${state}.`, {
-            column: via,
-            from: state,
-            to: state,
-            effect: side,
-          });
+          // About the linked row's state: told as its table is read.
+          throw refusedOn(
+            new StateMoveRefused(`The row ${table.name}.${via} now points at is ${state} already, so it cannot be moved to ${state}.`, {
+              column: via,
+              from: state,
+              to: state,
+              effect: side,
+            }),
+            link.table,
+          );
         }
         if (guard.effect === undefined) {
           throw new RecordLocked(`A change of ${table.name}.${via} moves another row too, and this write cannot make that move.`, { column: via });
         }
-        const written = await guard.effect(db, link, row[via], column, state, guard);
+        // The linked row's own rules may refuse its move: a refusal about that row.
+        const written = await guard.effect(db, link, row[via], column, state, guard).catch((error: unknown) => {
+          throw refusedOn(error, link.table);
+        });
         if (written !== null) (guard.effected ??= []).push(written);
       }
     }
@@ -1029,7 +1046,10 @@ async function runEffects(db: Db, table: ResolvedTable, values: Row, moved: read
       if (guard.effect === undefined) {
         throw new RecordLocked(`A move of ${table.name} moves another row too, and this write cannot make that move.`, { column: effect.via });
       }
-      const written = await guard.effect(db, link, next[effect.via], column, state, guard);
+      // The linked row's own rules may refuse its move: a refusal about that row.
+      const written = await guard.effect(db, link, next[effect.via], column, state, guard).catch((error: unknown) => {
+        throw refusedOn(error, link.table);
+      });
       if (written !== null) (guard.effected ??= []).push(written);
     }
   }

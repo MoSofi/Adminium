@@ -523,6 +523,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
 
   async function onRecordEvent(event: RecordWriteEvent): Promise<void> {
     if (event.after === null || event.action === 'delete') return;
+    // A person's details deleted at their asking is no change anyone is told of: no producer hears it, and no message keeps what it was.
+    if (event.cause === 'forget') return;
     try {
       for (const box of await live()) {
         if (box.connectionId !== event.connectionId) continue;

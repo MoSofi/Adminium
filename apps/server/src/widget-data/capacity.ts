@@ -37,6 +37,7 @@ import type { WriteTarget } from '../crud/write-context.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { labelColumnFor } from '../crud/labels.js';
 import { canReadPii, type Row } from '../crud/mask.js';
+import { refuseHiddenIn } from '../crud/read-view.js';
 import { venueClock } from '../crud/venue-time.js';
 import type { ColumnMeta } from './shapers.js';
 
@@ -331,6 +332,8 @@ async function assertEarningsReadable(
     reject(`Earnings add up one currency, and this table keeps each row's own ("${rules.currencyColumn}").`, { metric: 'earnings', column: rules.currencyColumn });
   }
   input.view.readableColumn(input.table, priced.column, await input.canReadPii(input.table.id));
+  // Each night's rate is read from the rule's columns: refused to a role that may not read one, as the desk's nightly lines are.
+  refuseHiddenIn(input.view, priced);
   await input.access.table(input.view.table(priced.rate.table).id);
   if (priced.adjust !== undefined) await input.access.table(input.view.table(priced.adjust.table).id);
 }

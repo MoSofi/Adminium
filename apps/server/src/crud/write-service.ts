@@ -1920,6 +1920,13 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     throw error;
   }
 
+  /** The code columns a server action's update renews (`context.renewing`), or undefined: only an `action` write's own code columns. */
+  function renewingCodes(action: WriteAction, target: WriteTarget, context: WriteContext): readonly string[] | undefined {
+    if (action !== 'update' || context.origin !== 'action' || context.renewing === undefined) return undefined;
+    const codes = context.renewing.filter((column) => target.table.table?.columns.some((candidate) => candidate.name === column && candidate.code !== undefined) === true);
+    return codes.length === 0 ? undefined : codes;
+  }
+
   /**
    * What a checked row carries to its statement: the guard a document's
    * states judge it by (whether it is history, the writer's roles, the
@@ -1940,8 +1947,10 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     if (rules === null || context.origin === 'undo') return values;
     const history = context.origin === 'import';
     let out: Row = values;
+    // A server action's new code for a row's own link: judged by no lock (the guard says which columns), on any table a lock reaches.
+    const renewing = renewingCodes(action, target, context);
     // The outbox's own writes keep their own moves — on the outbox's own table only.
-    if (tiedToStates(target.table) && !isOutboxWrite(context, target.table.id)) {
+    if ((tiedToStates(target.table) || renewing !== undefined) && !isOutboxWrite(context, target.table.id)) {
       const roleMoves = Object.values(rules.states?.moves ?? {}).some((moves) => moves.some((move) => typeof move === 'object' && move.roles !== undefined));
       // An import's move of a row already there is a move like anyone's: its roles too.
       const roles = action === 'update' && roleMoves ? ((await opts.rolesOf?.(context.actor ?? null)) ?? new Set<string>()) : new Set<string>();
@@ -1964,6 +1973,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         origin: context.origin,
         declared: context.declared,
         effect: action === 'update' && (rules.states?.effects?.length ?? 0) > 0 ? effectWriter(target, context, clock) : undefined,
+        ...(renewing === undefined ? {} : { renewing }),
       });
     }
     const seals = history || action === 'delete' ? [] : (rules.seals ?? []).filter((stamp) => stampFires(stamp, action, values, stored));

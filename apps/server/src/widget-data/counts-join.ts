@@ -15,8 +15,8 @@
  * today on the venue's clock — where the limit counts by day or night.
  *
  * Read rules: the counts route's. The reader must read the limited table and
- * every table its pools are kept in (403 `TABLE_FORBIDDEN`), as the route
- * asks. A row whose key the reader cannot see (masked) gets no counts.
+ * every table its pools are kept in (403 `TABLE_FORBIDDEN`), and every column
+ * the rule is made of (403, as a masked column), as the route asks. A row whose key the reader cannot see (masked) gets no counts.
  */
 import { type Kysely } from 'kysely';
 import type { Dialect } from '@adminium/engine';
@@ -30,6 +30,7 @@ import { capacityState, tallyFor } from '../crud/capacity/judge.js';
 import { rulesFor } from '../crud/capacity/rules.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
+import { refuseHiddenIn } from '../crud/read-view.js';
 import { venueClock } from '../crud/venue-time.js';
 import type { WriteTarget } from '../crud/write-context.js';
 import type { ColumnMeta } from './shapers.js';
@@ -132,6 +133,8 @@ export async function joinCounts(input: {
   if ((limited.table?.capacityRules?.length ?? 0) === 0) reject('This table keeps no limit.', { table: limited.id });
   const rule = rulesFor(view, limited)[counts.rule];
   if (rule === undefined) reject('This table has no such limit.', { rule: counts.rule });
+  // Made of the rule's own columns: refused to a role that may not read one, as the counts themselves are.
+  refuseHiddenIn(view, limited.table?.capacityRules?.[counts.rule]);
   if (rule.kind === 'slot') reject('A slot limit counts slots, not rows of a list: bind its counts to a strip instead.', { rule: counts.rule });
 
   // Which of the limit's pools the list's rows are.

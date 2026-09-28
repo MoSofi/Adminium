@@ -465,6 +465,8 @@ const resourceSchema = z
       .object({
         columns: z.array(columnSchema).min(1).max(16),
         stamp: columnSchema.optional(),
+        /** Of `columns`, the yes/no ones kept as a number: emptied to no. */
+        flags: z.array(columnSchema).min(1).max(16).optional(),
         /** Also stopped: the own links of the person's rows. */
         links: z
           .array(z.object({ table: z.string().min(1).max(256), column: columnSchema, people: z.array(columnSchema).min(1).max(8) }).strict())
@@ -722,7 +724,7 @@ export interface CompiledResource {
   findOrCreate?: { identityRef: string; email: string; link: string; fill: Readonly<Record<string, string>>; on?: { column: string; to: string } | undefined } | null | undefined;
   shareLink?: { column: string; key: string } | null | undefined;
   sessionOnly?: boolean | undefined;
-  forget?: { columns: readonly string[]; stamp?: string | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
+  forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
   /** "Make a new link" for a signed-in person's row: the own link's code column, and the outbox kind that emails it. */
   newLink?: { column: string; kind: string } | null | undefined;
   /** Columns left out of rows read through a parent unless the row's holder is the session's own person. */
@@ -1519,6 +1521,7 @@ export function compileScope(
           : {
               columns: [...r.forget.columns],
               ...(r.forget.stamp === undefined ? {} : { stamp: r.forget.stamp }),
+              ...(r.forget.flags === undefined ? {} : { flags: [...r.forget.flags] }),
               ...(r.forget.links === undefined ? {} : { links: r.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
             },
       newLink: r.newLink === undefined ? null : { ...r.newLink },

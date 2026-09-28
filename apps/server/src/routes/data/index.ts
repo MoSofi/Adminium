@@ -419,7 +419,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (resolution.ok) table = resolution.child.child;
       }
       const scrubbed = scrubRefusal(error, ctx.readView, table);
-      if (scrubbed !== error) Object.defineProperty(error, 'details', { value: (scrubbed as AppError).details, configurable: true });
+      if (scrubbed !== error) {
+        Object.defineProperty(error, 'details', { value: (scrubbed as AppError).details, configurable: true });
+        Object.defineProperty(error, 'message', { value: (scrubbed as AppError).message, configurable: true, writable: true });
+      }
     });
     function principalId(request: FastifyRequest): string | null {
       const user = (request as unknown as { user?: { id?: string } }).user;

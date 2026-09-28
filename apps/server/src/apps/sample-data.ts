@@ -980,8 +980,25 @@ export function createSampleDataService(deps: SampleDataDeps) {
               await writes.settle('create', parent, rows.map((row) => ({ record: row.record, before: null })));
             }
             // The first open times this table's rows are timed on, read with the rows written so far (hours, closures) in.
+            const own = safeTable(view, names[table.ref] ?? table.ref);
             for (const ask of slotAsks({ ...bundle, tables: [table] })) {
               const earliest = now + isoDurationMs(ask.duration);
+              /*
+               * A row the last removal kept, and that is taken back as it is:
+               * it already holds its time, and the placer counts it there. It
+               * takes no second time (its place kept in the queue, empty).
+               */
+              const label = typeof ask.row['@label'] === 'string' ? ask.row['@label'] : null;
+              const identity = own === null ? null : identityOf(table.ref, label, ask.row as Row, own);
+              const kept = identity === null ? undefined : keptBy.get(identity);
+              if (kept !== undefined && own !== null) {
+                const current = await fetchByPk(db, own, JSON.parse(kept.pk) as Row);
+                if (current !== undefined && unchangedSince(kept, current, own, handle.dialect)) {
+                  const key = slotKey(ask.table, earliest);
+                  slotTimes.set(key, [...(slotTimes.get(key) ?? []), null]);
+                  continue;
+                }
+              }
               let placer = placers.get(ask.table);
               if (placer === undefined) {
                 const on = safeTable(view, names[ask.table] ?? ask.table);
