@@ -1146,7 +1146,7 @@ function pictureIssues(def: PublicEndpointDefinition, table: ResolvedTable): Sco
   if (def.methods.some((m) => m !== 'GET') || def.kind === 'availability') {
     out.push({ code: 'ENDPOINT_PICTURES_READ_ONLY', message: 'pictures are shown through an endpoint that only reads rows' });
   }
-  if (def.auth.role !== 'anon' || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined) {
+  if (def.auth.role !== 'anon' || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined || def.session_only === true) {
     out.push({ code: 'ENDPOINT_PICTURES_CLAIMED', message: "pictures are for every visitor; a signed-in person's own files are `files`" });
   }
   // A picture is fetched by an <img>, which carries no session: rows only a code opens are no rows it can show.

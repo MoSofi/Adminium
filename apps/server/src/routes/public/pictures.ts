@@ -12,7 +12,7 @@
  *  - the key, by its id (one app may run as several instances, each with its
  *    own key): live, a customer key, and not bound to a staff screen;
  *  - the entry: one of the key's reads that shows this column as a picture,
- *    to every visitor (no claim, no parent, no code);
+ *    to every visitor (no claim, no parent, no code, no session's alone);
  *  - the row: read through that entry's own conditions (an unpublished show,
  *    a dish off the menu, are no rows at all), whose column names EXACTLY this
  *    file — an old address of a replaced picture answers nothing;
@@ -141,7 +141,9 @@ export function registerPictures(app: FastifyInstance, deps: PictureDeps): void 
       (resource.files ?? []).includes(column) ||
       resource.claim !== null ||
       (resource.visibleWith ?? null) !== null ||
-      (resource.unlockBy ?? null) !== null
+      (resource.unlockBy ?? null) !== null ||
+      // Rows a session's holder alone reads: an <img> carries no session, so there are none (as a read without one).
+      resource.sessionOnly === true
     ) {
       return none();
     }

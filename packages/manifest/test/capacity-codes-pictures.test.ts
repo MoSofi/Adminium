@@ -499,6 +499,7 @@ describe('pictures anyone may see', () => {
     ['are shown by an entry that only reads', (doc) => (entry(doc, 5)['methods'] = ['GET', 'POST']), 'pictures are shown through an entry that only reads rows'],
     ['are for every visitor', (doc) => (entry(doc, 5)['visibleWith'] = { table: 'orders', via: 'id' }), "pictures are for every visitor; a signed-in person's own files are `files`"],
     ['are not behind a code', (doc) => (entry(doc, 5)['unlockBy'] = entry(doc, 4)['unlockBy']), 'pictures are for every visitor; rows a code unlocks are read only by whoever gave the code'],
+    ['are not for a session alone', (doc) => (entry(doc, 5)['level'] = 'verified'), 'pictures are for every visitor; rows read by a signed-in session alone are no picture an <img> can show'],
     ['are not kept from readers', (doc) => (column(doc, 'menu_items', 'image')['rules'] = { secret: true }), '"menu_items.image" is kept from readers, so it is no picture for everyone'],
     ['are not personal', (doc) => (column(doc, 'menu_items', 'image')['rules'] = { personal: true }), '"menu_items.image" is personal data, so it is no picture for everyone'],
     ['are at most four', (doc) => (entry(doc, 5)['pictures'] = ['image', 'image', 'image', 'image', 'image']), 'Too big'],

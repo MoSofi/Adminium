@@ -128,7 +128,7 @@ describe('a picture, cleaned', () => {
     expect(matchesTag('"other"', out.etag)).toBe(false);
   });
 
-  it('is served for any page to show, cached a week, named by its column', () => {
+  it('is served for any page to show, kept a few minutes then asked again by its tag, named by its column', () => {
     expect(pictureHeaders({ mime: 'image/jpeg', etag: '"p1-x"' }, 'image', 10)).toEqual({
       'content-type': 'image/jpeg',
       'content-length': '10',
@@ -137,7 +137,7 @@ describe('a picture, cleaned', () => {
       'x-content-type-options': 'nosniff',
       'cross-origin-resource-policy': 'cross-origin',
       'access-control-allow-origin': '*',
-      'cache-control': 'public, max-age=604800, immutable',
+      'cache-control': 'public, max-age=300, must-revalidate',
       etag: '"p1-x"',
       'referrer-policy': 'no-referrer',
     });
