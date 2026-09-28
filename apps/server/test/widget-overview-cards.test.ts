@@ -523,7 +523,12 @@ for (const [dialect, available] of LEGS) {
       // What it shows still answers: ordered by the shows' names.
       expect(ok(await cards.desk(all, 'bookings', { ...money, orderBy: [{ column: 'event_id.name', dir: 'asc' }] }, undefined, limits))['items']).toHaveLength(4);
       expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'earnings' } }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
-      expect(ok(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy' } }, undefined, limits))['value']).toBe(1);
+      // The counts are made of the limit's own columns (a hold's end among them): refused while one is hidden, as the desk's counts route refuses them.
+      expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy' } }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
+      const counting = { ...limits, stays: [...limits.stays, 'held_until'] };
+      expect(ok(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy' } }, undefined, counting))['value']).toBe(1);
+      // Earnings stay refused: the price is still not shown.
+      expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'earnings' } }, undefined, counting))).toEqual([403, 'COLUMN_FORBIDDEN']);
     });
 
     it('lists the coming shows with their tickets sold and held of what each can sell', async () => {
