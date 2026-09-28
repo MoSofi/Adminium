@@ -172,7 +172,15 @@ export function notPlain(caps: AnonymousCaps, values: Record<string, unknown>): 
   return (caps.plainText ?? []).find((column) => !plainText(values[column])) ?? null;
 }
 
-export type CapCharge = { ok: true; release: () => Promise<void> } | { ok: false };
+export type CapCharge =
+  | {
+      ok: true;
+      /** Every marker taken back: a create refused for the guest's own value. */
+      release: () => Promise<void>;
+      /** Every marker but the entry's own hour per visitor: a create the whole write reached, then refused (a full slot). */
+      releaseAllButVisitor?: () => Promise<void>;
+    }
+  | { ok: false };
 
 /**
  * Charge a session-less create against its caps: every marker written, then
@@ -184,11 +192,11 @@ export async function chargeAnonymous(
   input: { caps: AnonymousCaps; key: Buffer; keyId: string; connectionId: string; table: string; ref: string; values: Record<string, unknown>; now: number; ip?: string | undefined },
 ): Promise<CapCharge> {
   const { caps } = input;
-  const charges: { subject: string; limit: number; since: number }[] = [];
+  const charges: { subject: string; limit: number; since: number; visitor?: true }[] = [];
   // One visitor first, then everyone through the key: a visitor over their own hour never counts as the key's.
   if (input.ip !== undefined) {
     if (caps.perIpHour !== undefined && caps.perIpHour < ANONYMOUS_PER_IP_HOUR) {
-      charges.push({ subject: entryIpSubject(input.key, input.keyId, input.ref, input.ip), limit: caps.perIpHour, since: input.now - HOUR_MS });
+      charges.push({ subject: entryIpSubject(input.key, input.keyId, input.ref, input.ip), limit: caps.perIpHour, since: input.now - HOUR_MS, visitor: true });
     }
     charges.push({ subject: ipSubject(input.key, input.keyId, input.ip), limit: ANONYMOUS_PER_IP_HOUR, since: input.now - HOUR_MS });
   }
@@ -201,11 +209,18 @@ export async function chargeAnonymous(
     }
   }
   const ids: string[] = [];
+  const visitorIds = new Set<string>();
   const release = async () => {
     if (ids.length > 0) await repo.unmark(ids);
   };
+  const releaseAllButVisitor = async () => {
+    const back = ids.filter((id) => !visitorIds.has(id));
+    if (back.length > 0) await repo.unmark(back);
+  };
   for (const charge of charges) {
-    ids.push(await repo.mark({ keyId: input.keyId, ref: input.ref, sessionId: null, subject: charge.subject, purpose: ANONYMOUS_PURPOSE }, input.now));
+    const id = await repo.mark({ keyId: input.keyId, ref: input.ref, sessionId: null, subject: charge.subject, purpose: ANONYMOUS_PURPOSE }, input.now);
+    ids.push(id);
+    if (charge.visitor === true) visitorIds.add(id);
   }
   for (const charge of charges) {
     if ((await repo.sentSince(charge.subject, charge.since, ANONYMOUS_PURPOSE)) > charge.limit) {
@@ -213,5 +228,5 @@ export async function chargeAnonymous(
       return { ok: false };
     }
   }
-  return { ok: true, release };
+  return { ok: true, release, releaseAllButVisitor };
 }

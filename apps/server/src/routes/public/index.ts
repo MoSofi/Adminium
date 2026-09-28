@@ -464,6 +464,8 @@ export const SESSION_ENDED_HEADER = 'x-adminium-session-ended';
 /** What "Make a new link" charges, and how many new links one row may have made online a day. */
 const NEW_LINK_PURPOSE = 'new-link';
 const NEW_LINKS_PER_DAY = 5;
+/** How many of a forgotten person's rows are read at a time when their own links are stopped. */
+const OWN_LINKS_PAGE = 500;
 /** A new link made this recently is the new link: a second press or a retry makes no other. */
 const NEW_LINK_QUIET_MS = 60_000;
 
@@ -2714,6 +2716,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         // many a day per phone number or address and an hour per key.
         const caps = found.resource.anonymous;
         let release: (() => Promise<void>) | null = null;
+        let releaseAllButVisitor: (() => Promise<void>) | null = null;
         if (caps !== null && (ok.session === null || found.resource.claim === null)) {
           const column = notPlain(caps, values);
           if (column !== null) {
@@ -2732,6 +2735,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           });
           if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be made online have been made. Please get in touch instead.');
           release = charge.release;
+          releaseAllButVisitor = charge.releaseAllButVisitor ?? charge.release;
         }
 
         const target: WriteTarget = {
@@ -2892,8 +2896,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
         } catch (error) {
           if (guessing) spendMiss(request, ok, error);
-          // Nothing was made: what the caps counted for it is taken back.
-          await release?.();
+          /*
+           * Nothing was made: what the caps counted for it goes back — but for
+           * the entry's own hour per visitor when the write reached a limit
+           * and was refused (a full slot), as on a create with rows below it,
+           * so one visitor cannot knock on a full slot without being counted.
+           */
+          if (error instanceof PublicSlotRefused && error.code !== 'PUBLIC_SLOT_BUSY') await releaseAllButVisitor?.();
+          else await release?.();
           if (error instanceof PublicWriteRefused) {
             return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.', error.params);
           }
@@ -5223,18 +5233,19 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         const people = link.people.filter((column) => table.columns.has(column));
         if (people.length === 0 || !table.columns.has(link.column)) continue;
-        const rows = (await db
-          .selectFrom(table.id)
-          .selectAll()
-          .where((eb) => eb.or(people.map((column) => eb(db.dynamic.ref(column), '=', person as never))))
-          .limit(1000)
-          .execute()) as Row[];
         const target: WriteTarget = { connectionId: ok.key.connectionId, view, table, db, dialect, timezone: ok.key.scope.timezone };
-        for (const row of rows) {
-          if (row[link.column] === null || row[link.column] === undefined) continue;
-          await renewed(request, ok, target, row, link.column);
-          const key = table.primaryKey[0];
-          if (key !== undefined) await sessions.endBySubject(subjectOf(ok.key.connectionId, table.id, key, row[key]), 'forgotten', now);
+        // Every row of theirs, a page at a time in key order (a renewal changes no column a page is read by): none left out.
+        for (let offset = 0; ; offset += OWN_LINKS_PAGE) {
+          let page = db.selectFrom(table.id).selectAll().where((eb) => eb.or(people.map((column) => eb(db.dynamic.ref(column), '=', person as never))));
+          for (const column of table.primaryKey) page = page.orderBy(column as never);
+          const rows = (await page.limit(OWN_LINKS_PAGE).offset(offset).execute()) as Row[];
+          for (const row of rows) {
+            if (row[link.column] === null || row[link.column] === undefined) continue;
+            await renewed(request, ok, target, row, link.column);
+            const key = table.primaryKey[0];
+            if (key !== undefined) await sessions.endBySubject(subjectOf(ok.key.connectionId, table.id, key, row[key]), 'forgotten', now);
+          }
+          if (rows.length < OWN_LINKS_PAGE) break;
         }
       }
     };

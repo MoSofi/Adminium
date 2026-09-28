@@ -16,7 +16,6 @@
  * Every door that answers such rows applies it: a list, one row, and the row
  * a change answers with.
  */
-import type { StateCondition } from '@adminium/manifest';
 import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
@@ -129,15 +128,8 @@ export function withholding(
  * document is drawn for.
  */
 
-/**
- * When a rule withholds its columns whoever reads the row: while the row
- * holds a value (a ticket whose order is not paid yet), or the row one of its
- * links points at does. Every condition must hold.
- */
-export interface WithholdWhen {
-  where?: readonly StateCondition[] | undefined;
-  linked?: readonly { via: string; where: readonly StateCondition[] }[] | undefined;
-}
+export type { WithholdWhen } from './withhold-when.js';
+import type { WithholdWhen } from './withhold-when.js';
 
 /**
  * One `withhold` as declared: the columns; the link naming the row's holder

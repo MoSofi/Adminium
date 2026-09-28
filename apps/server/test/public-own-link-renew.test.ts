@@ -210,6 +210,18 @@ describe.each(LEGS)("a person's own links, made again — %s", (dialect, availab
     await sendMail();
     expect((await mailOf(h.meta)).filter((m) => m.template === 'shop-order-new-link' && m.to === 'eve@fieldmail.io')).toEqual([]);
   });
+
+  it.skipIf(!available)('stops every link of a person with more rows than one page holds', async () => {
+    const first = await order('hal@fieldmail.io', 'Hal');
+    const hal = Number((await h.rows(`select customer_id from ${orders} where id = ${String(first.data.id)}`))[0]!['customer_id']);
+    const values = Array.from({ length: 520 }, (_, i) => `(${String(hal)}, 'hal@fieldmail.io', 'Hal', 'HAL${String(i).padStart(13, '0')}')`);
+    for (let at = 0; at < values.length; at += 100) await h.rows(`insert into ${orders} (customer_id, email, name, link_token) values ${values.slice(at, at + 100).join(', ')}`);
+    const session = await g.signIn('hal@fieldmail.io');
+    const gone = await g.request('DELETE', '/account', { session });
+    expect(gone.statusCode, gone.body).toBe(200);
+    const kept = await h.rows(`select count(*) as n from ${orders} where customer_id = ${String(hal)} and (link_token like 'HAL%' or link_token = '${first.link.token}')`);
+    expect(Number(kept[0]!['n'])).toBe(0);
+  }, 180_000);
 });
 
 describe.each(LEGS)('a new link that could not be emailed — %s', (dialect, available) => {

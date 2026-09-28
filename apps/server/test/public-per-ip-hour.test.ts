@@ -21,6 +21,8 @@ function cappedShop(): Doc {
   const manifest = shopManifest({
     entries: (entries) => [
       { table: 'dishes', methods: ['GET'], select: ['id', 'name'] },
+      // A tasting of a dish, booked one row at a time by anyone: its own hour per visitor.
+      { table: 'tastings', methods: ['POST'], select: ['id'], writable: ['dish_id', 'guest'], humanCheck: true, anonymous: { perIpHour: CAP } },
       ...entries.map((entry) => {
         if (!((entry['methods'] as string[]).includes('POST') && entry['table'] === 'orders')) return entry;
         const children = entry['children'] as { order_items: Doc };
@@ -37,6 +39,11 @@ function cappedShop(): Doc {
   const items = tables.find((t) => t['ref'] === 'order_items')!;
   (items['columns'] as Doc[]).push({ ref: 'dish_id', type: 'fk', references: 'dishes', nullable: true });
   items['capacity'] = { kind: 'parent', via: 'dish_id', size: { column: 'stock' }, amount: 'qty' };
+  tables.push({
+    ref: 'tastings',
+    columns: [{ ref: 'id', type: 'int', role: 'pk' }, { ref: 'dish_id', type: 'fk', references: 'dishes' }, { ref: 'guest', type: 'text', maxLength: 60 }],
+    capacity: { kind: 'parent', via: 'dish_id', size: { column: 'stock' } },
+  });
   return manifest;
 }
 
@@ -94,6 +101,24 @@ describe.each(LEGS)("an entry's own hour per visitor — %s", (dialect, availabl
     expect(over.json()).toMatchObject({ error: { code: 'PUBLIC_LIMIT_REACHED' } });
     expect((await create('203.0.113.22')).statusCode).toBe(201);
     expect(Number((await h.rows(`select count(*) as c from ${orders}`))[0]!['c'])).toBe(3);
+  });
+
+  it.skipIf(!available)('keeps the count of a one-row create refused for a full place, and hands back a refused value', async () => {
+    const taste = (address: string, guest: string, dish = 1) =>
+      g.request('POST', `/records/${h.real('tastings')}`, { payload: { values: { dish_id: dish, guest } }, proof: 'write', address });
+    const a = '203.0.113.31';
+    expect((await taste(a, 'Ann')).statusCode).toBe(201);
+    // The one place is taken: refused after the whole write ran, and counted.
+    const full = await taste(a, 'Ann');
+    expect(full.statusCode, full.body).toBe(409);
+    expect(full.json()).toMatchObject({ error: { code: 'PUBLIC_SOLD_OUT' } });
+    await h.rows(`update ${h.real('dishes')} set stock = 10`);
+    // A value refused for itself: handed back.
+    expect((await taste(a, 'Ann', 999)).statusCode).toBe(400);
+    expect((await taste(a, 'Ann')).statusCode).toBe(201);
+    const over = await taste(a, 'Ann');
+    expect(over.statusCode, over.body).toBe(409);
+    expect(over.json()).toMatchObject({ error: { code: 'PUBLIC_LIMIT_REACHED' } });
   });
 
   it.skipIf(!available)('holds an IPv6 subscriber to one cap across their /64', async () => {
