@@ -103,8 +103,10 @@ import {
   KIOSK_SESSION_TTL_MS,
   claimPredicateFor,
   combinePredicates,
+  findClaim,
   parseGrant,
   resolveClaim,
+  typedDigest,
   type PublicSessionContext,
 } from '../../public-api/claim.js';
 import { generatePublicSessionToken, hashPublishableKey, keyKindOf, openPublishableKey } from '../../public-api/keys.js';
@@ -400,7 +402,10 @@ function proofOwed(
  * ("my details"), read by the session its sign-in opened: where signing in
  * proved the mailbox (an emailed link, or the emailed code a found session
  * confirmed), or where every masked column it shows is one the person typed
- * to be found (their own address, as they gave it). Every other public read
+ * to be found (their own address, as they gave it) and the row still holds
+ * what they typed: the gate ends a found session whose row no longer does
+ * (`foundSessionStillTheirs`), and a session that kept no record of it
+ * unmasks nothing. Every other public read
  * keeps the mask: a found session that has not confirmed the code, a row's
  * own or shared link, and a caller with no session.
  */
@@ -420,7 +425,8 @@ function readsOwnPii(scope: CompiledScope, resource: CompiledResource, session: 
     resource.claim.optional !== true;
   if (!itself) return false;
   if (session.level === 'verified' && identity.verify !== undefined) return true;
-  // Nothing masked but what the person typed to be found: they read back what they gave.
+  // Nothing masked but what the person typed to be found: they read back what they gave, and nothing the desk wrote there since.
+  if (session.level !== 'lookup' || typeof session.grant.typed !== 'string') return false;
   return table !== undefined && resource.expose.every((column) => table.columns.get(column)?.masked !== true || identity.match.includes(column));
 }
 
@@ -1162,6 +1168,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       if (sessionToken !== null) await sessions.remove(hashPublishableKey(sessionToken));
       session = null;
     }
+    /*
+     * A session found by what its person typed is asked again on every
+     * request, whatever door it comes through: its row still holds what they
+     * typed (before a code) or the address the code went to (after one). The
+     * desk changing either ends it, as a changed address ends a link's.
+     */
+    if (session !== null && session.kind === 'claim' && !(await foundSessionStillTheirs(key, session))) {
+      if (sessionToken !== null) await sessions.remove(hashPublishableKey(sessionToken));
+      session = null;
+    }
 
     /*
      * The class limit, on the ladder in `limiter.ts`. Only NOW, with the key
@@ -1263,6 +1279,45 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const person = await personByKey({ db, view, table: view.table(identity.resource.table), identity, timezone: key.scope.timezone, dialect, value });
       const email = person?.[identity.email];
       return typeof email === 'string' && hashAddress(addressSecret, email) === addr;
+    } catch {
+      return false;
+    }
+  };
+
+  /**
+   * Whether a found session's row still holds what found it: the details its
+   * person typed (a keyed hash of them, `typedDigest`) while it is at `lookup`,
+   * the address its code went to once it is `verified`. A session from before
+   * either was kept has nothing to compare (its typed columns stay masked,
+   * `readsOwnPii`); anything unreadable, or a row gone, ends it.
+   */
+  const foundSessionStillTheirs = async (key: ResolvedKey, session: PublicSessionContext): Promise<boolean> => {
+    const { typed, addr } = session.grant;
+    const askTyped = session.level === 'lookup' && typeof typed === 'string';
+    const askAddr = session.level === 'verified' && typeof addr === 'string';
+    if (!askTyped && !askAddr) return true;
+    const claim = key.scope.claim;
+    if (claim === null || claim === undefined || claim.ref !== session.grant.ref) return false;
+    try {
+      const view = await viewFor(key.connectionId);
+      const resource = key.scope.byRef.get(claim.ref);
+      if (view === null || resource === undefined) return false;
+      const table = view.table(resource.table);
+      const { db } = await manager.data(key.connectionId);
+      const rows = (await db
+        .selectFrom(table.id)
+        .selectAll()
+        .where(db.dynamic.ref(session.grant.column), '=', session.grant.value as never)
+        .limit(2)
+        .execute()) as Row[];
+      if (rows.length !== 1) return false;
+      const row = rows[0] as Row;
+      if (askTyped && typedDigest(addressSecret, table, claim.match, row) !== typed) return false;
+      if (askAddr) {
+        const email = claim.email === undefined ? undefined : row[claim.email];
+        if (typeof email !== 'string' || hashAddress(addressSecret, email) !== addr) return false;
+      }
+      return true;
     } catch {
       return false;
     }
@@ -3960,7 +4015,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
         if (found === null) return reply;
 
-        const grant = await resolveClaim({
+        const claimed = await findClaim({
           db: found.db,
           table: found.table,
           resource: found.resource,
@@ -3971,9 +4026,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         });
         // ONE code for no match, several matches, a missing factor and an extra
         // one. Anything finer turns a two-factor check into two one-factor ones.
-        if (grant === null) {
+        if (claimed === null) {
           return fail(reply, 403, 'PUBLIC_CLAIM_NO_MATCH', 'That did not match.');
         }
+        // What it was found by, as a keyed hash: the session lasts while its row still holds it (`foundSessionStillTheirs`).
+        const grant = { ...claimed.grant, typed: typedDigest(addressSecret, found.table, claim.match, claimed.row) };
 
         const minted = generatePublicSessionToken();
         // At a kiosk, one patient after another: a found session lasts minutes, not half an hour.
@@ -4185,7 +4242,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
 
         if (purpose === 'verify') {
           const expiresAt = now + VERIFIED_TTL_MS;
-          if (!(await sessions.raise(session.id, 'verified', expiresAt, now))) {
+          // The address the code went to rides in the session, and is asked again as it is used (`foundSessionStillTheirs`).
+          const grants = JSON.stringify({ ...session.grant, addr: open.destinationHash });
+          if (!(await sessions.raise(session.id, 'verified', expiresAt, now, grants))) {
             return fail(reply, 410, 'PUBLIC_CODE_EXPIRED', 'This session has ended. Start again.');
           }
           await challenges.mark({ keyId: ok.key.keyId, ref: person.claim.ref, sessionId: session.id, subject, purpose: 'verified' }, now);

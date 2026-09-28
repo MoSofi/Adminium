@@ -675,12 +675,13 @@ export function publicSessionsRepo(meta: MetaDb) {
     /**
      * Raise a live session to `level`, and give it a fresh expiry. Only a
      * session that has not lapsed moves: a code confirmed a moment too late
-     * does not bring one back.
+     * does not bring one back. `grants`, when given, replaces what the
+     * session carries (the address the code proved, kept to be asked again).
      */
-    async raise(id: string, level: string, expiresAt: number, at: number = Date.now()): Promise<boolean> {
+    async raise(id: string, level: string, expiresAt: number, at: number = Date.now(), grants?: string): Promise<boolean> {
       const res = await db
         .updateTable('adminium_public_sessions')
-        .set({ level, expiresAt })
+        .set({ level, expiresAt, ...(grants === undefined ? {} : { grants }) })
         .where('id', '=', id)
         .where('expiresAt', '>', at)
         .where('endedAt', 'is', null)
