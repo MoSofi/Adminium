@@ -27,7 +27,7 @@
  * it.
  */
 import { addOnsSchema, type AddOnNeeds } from '@adminium/manifest';
-import { readJson } from '@adminium/meta';
+import { inIdOrder, readJson } from '@adminium/meta';
 import type { MetaDb } from '@adminium/meta';
 
 /** How an app names an add-on: required, needed only for a feature, or suggested. */
@@ -93,12 +93,17 @@ export function featuresNeeding(needs: AddOnNeeds | undefined, key: string): Fea
 export async function appNeedRows(
   meta: MetaDb,
 ): Promise<{ app: string; appName: string; appVersion: string; status: string; needs: AddOnNeeds | undefined }[]> {
-  const rows = await meta.db
-    .selectFrom('adminium_manifests')
-    .select(['manifestKey', 'version', 'status', 'manifest'])
-    .where('kind', '=', 'app')
-    .orderBy('manifestKey', 'asc')
-    .execute();
+  // Ids sorted, rows fetched after: a sort carrying the manifests fails on MySQL (`inIdOrder`).
+  const order = (
+    await meta.db.selectFrom('adminium_manifests').select('id').where('kind', '=', 'app').orderBy('manifestKey', 'asc').execute()
+  ).map((row) => row.id);
+  const rows =
+    order.length === 0
+      ? []
+      : inIdOrder(
+          order,
+          await meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'version', 'status', 'manifest']).where('id', 'in', order).execute(),
+        );
   return rows.map((row) => {
     const document = readJson<unknown>(row.manifest);
     const name = typeof document === 'object' && document !== null ? (document as { name?: unknown }).name : undefined;

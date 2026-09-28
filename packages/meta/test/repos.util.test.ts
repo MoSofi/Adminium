@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { MetaDb } from '../src/connect.js';
-import { packJson, readJson, readJsonFrom, readJsonOrNull } from '../src/repos/util.js';
+import { inIdOrder, packJson, readJson, readJsonFrom, readJsonOrNull } from '../src/repos/util.js';
 
 describe('readJson driver-shape handling', () => {
   it('parses serialized text (SQLite text columns) for every JSON type', () => {
@@ -63,5 +63,13 @@ describe('readJsonFrom reads by dialect, not by shape', () => {
       expect(readJsonFrom(on(dialect), 'null')).toBe('null');
       expect(readJsonFrom(on(dialect), { a: 1 })).toEqual({ a: 1 });
     }
+  });
+});
+
+describe('inIdOrder', () => {
+  it('puts rows back in the order of the ids and leaves out an id with no row', () => {
+    const rows = [{ id: 'b', n: 2 }, { id: 'c', n: 3 }, { id: 'a', n: 1 }];
+    expect(inIdOrder(['c', 'gone', 'a', 'b'], rows).map((row) => row.n)).toEqual([3, 1, 2]);
+    expect(inIdOrder([], rows)).toEqual([]);
   });
 });

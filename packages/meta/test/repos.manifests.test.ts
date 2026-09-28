@@ -8,6 +8,7 @@
  * the manifest and lets the FKs take the rest. Every step of that is checked
  * here by observing the other tables, not by trusting the method name.
  */
+import { sql } from 'kysely';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { manifestsRepo } from '../src/index.js';
@@ -183,6 +184,46 @@ for (const dialect of TEST_DIALECTS) {
       expect(after?.document).toMatchObject({ version: '1.1.0' });
       expect(after?.attachments).toHaveLength(1);
       expect(await repo.getCredential(installed.row.id)).not.toBeNull();
+    });
+
+    it('lists manifests larger than a MySQL sort buffer, newest first and by key', async () => {
+      // Client Portal 0.2.1 stores about 350 KB of manifest, and MySQL's
+      // default sort buffer is 256 KB: a list that sorted whole rows failed
+      // with "Out of sort memory" as soon as one such app was installed. Each
+      // document here is bigger than the buffer the server actually has.
+      let pad = 350_000;
+      if (dialect.name === 'mysql') {
+        const buffer = await sql<{ size: number | string }>`select @@sort_buffer_size as size`.execute(meta().db);
+        pad = Math.max(pad, Number(buffer.rows[0]?.size ?? 0) + 100_000);
+      }
+      const big = (key: string) => ({ key, version: '1.0.0', pad: 'x'.repeat(pad) });
+
+      for (const [i, key] of ['clients', 'pos', 'clinic'].entries()) {
+        await repo.install({ manifestKey: key, version: '1.0.0', kind: 'app', source: 'file', document: big(key) }, T0 + i);
+      }
+      for (const [i, key] of ['shipping-ups', 'barcode-labels', 'holiday-calendars'].entries()) {
+        await repo.install(
+          { manifestKey: key, version: '1.0.0', kind: 'add-on', source: 'file', document: big(key), attachTo: ['pos'] },
+          T0 + 10 + i,
+        );
+      }
+
+      const apps = await repo.list('app');
+      expect(apps.map((m) => m.row.manifestKey)).toEqual(['clinic', 'pos', 'clients']);
+      expect(apps[2]?.document).toEqual(big('clients'));
+      expect((await repo.list()).map((m) => m.row.manifestKey)).toEqual([
+        'holiday-calendars',
+        'barcode-labels',
+        'shipping-ups',
+        'clinic',
+        'pos',
+        'clients',
+      ]);
+      const byKey = ['barcode-labels', 'holiday-calendars', 'shipping-ups'];
+      const enabled = await repo.enabledForHost('pos');
+      expect(enabled.map((m) => m.row.manifestKey)).toEqual(byKey);
+      expect(enabled[0]?.attachments.map((a) => a.attachedTo)).toEqual(['pos']);
+      expect((await repo.attachedToHost('pos')).map((m) => m.row.manifestKey)).toEqual(byKey);
     });
 
     it('reports a missing manifest as null rather than throwing', async () => {

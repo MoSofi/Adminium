@@ -101,6 +101,25 @@ export function writeBool(meta: MetaDb, value: boolean): boolean | 0 | 1 {
   return meta.dialect === 'postgres' ? value : value ? 1 : 0;
 }
 
+/**
+ * Rows read by id, put back in the order of `ids`; an id with no row (gone
+ * between the two reads) is left out.
+ *
+ * The second half of a sorted read of a table whose rows carry a large JSON
+ * document, such as an app's manifest. Sort ids alone, then fetch the rows
+ * unsorted: a sort over whole rows makes MySQL carry each document through its
+ * sort buffer, and one document larger than that buffer (256 KB by default)
+ * fails the whole read with "Out of sort memory". The order is still the
+ * database's own, collation included, on every engine.
+ */
+export function inIdOrder<R extends { id: string }>(ids: readonly string[], rows: readonly R[]): R[] {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row === undefined ? [] : [row];
+  });
+}
+
 /** Affected-row count from Kysely's bigint result. */
 export function affected(count: bigint | undefined): number {
   return Number(count ?? 0n);

@@ -36,7 +36,7 @@ import type {
   AdminiumManifestAttachmentsTable,
   AdminiumManifestsTable,
 } from '../schema/tables.js';
-import { packJson, readJson, readJsonOrNull } from './util.js';
+import { inIdOrder, packJson, readJson, readJsonOrNull } from './util.js';
 
 export type ManifestRow = Selectable<AdminiumManifestsTable>;
 export type ManifestAttachmentRow = Selectable<AdminiumManifestAttachmentsTable>;
@@ -105,6 +105,21 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
 
   function hydrate(row: ManifestRow, attachments: ManifestAttachmentRow[]): InstalledManifest {
     return { row, document: readJson(row.manifest), attachments };
+  }
+
+  /**
+   * The rows of `ids`, in the order given, each with its attachments. A list
+   * sorts ids alone and fetches the rows after, unsorted: sorting whole rows
+   * made MySQL carry each manifest through its sort buffer, and Client
+   * Portal's (about 350 KB) did not fit the default 256 KB one. The apps and
+   * add-ons lists then answered 500, and a restart served no app at all.
+   */
+  async function inOrder(ids: readonly string[]): Promise<InstalledManifest[]> {
+    if (ids.length === 0) return [];
+    const rows = await db.selectFrom('adminium_manifests').selectAll().where('id', 'in', ids).execute();
+    const out: InstalledManifest[] = [];
+    for (const row of inIdOrder(ids, rows)) out.push(hydrate(row, await attachmentsFor(row.id)));
+    return out;
   }
 
   return {
@@ -179,12 +194,10 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
 
     /** Every installed manifest of `kind`, newest first. */
     async list(kind?: 'app' | 'add-on'): Promise<InstalledManifest[]> {
-      let q = db.selectFrom('adminium_manifests').selectAll();
+      let q = db.selectFrom('adminium_manifests').select('id');
       if (kind !== undefined) q = q.where('kind', '=', kind);
-      const rows = await q.orderBy('installedAt', 'desc').execute();
-      const out: InstalledManifest[] = [];
-      for (const row of rows) out.push(hydrate(row, await attachmentsFor(row.id)));
-      return out;
+      const ids = await q.orderBy('installedAt', 'desc').execute();
+      return inOrder(ids.map((row) => row.id));
     },
 
     /**
@@ -196,16 +209,14 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
       const rows = await db
         .selectFrom('adminium_manifest_attachments as a')
         .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
-        .selectAll('m')
+        .select('m.id')
         .where('a.attachedTo', '=', attachedTo)
         .where('a.disabledAt', 'is', null)
         .where('m.kind', '=', 'add-on')
         .where('m.status', '=', 'installed')
         .orderBy('m.manifestKey', 'asc')
         .execute();
-      const out: InstalledManifest[] = [];
-      for (const row of rows) out.push(hydrate(row, await attachmentsFor(row.id)));
-      return out;
+      return inOrder(rows.map((row) => row.id));
     },
 
     /** Upgrade in place: a new version and document over the same row. */
@@ -316,14 +327,12 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
       const rows = await db
         .selectFrom('adminium_manifest_attachments as a')
         .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
-        .selectAll('m')
+        .select('m.id')
         .where('a.attachedTo', '=', attachedTo)
         .where('m.kind', '=', 'add-on')
         .orderBy('m.manifestKey', 'asc')
         .execute();
-      const out: InstalledManifest[] = [];
-      for (const row of rows) out.push(hydrate(row, await attachmentsFor(row.id)));
-      return out;
+      return inOrder(rows.map((row) => row.id));
     },
 
     /**

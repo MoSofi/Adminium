@@ -57,6 +57,7 @@ import {
   addOnSettingsRepo,
   appTablesRepo,
   connectionTenantConfig,
+  inIdOrder,
   keyStaffBinding,
   publicKeysRepo,
   readJson,
@@ -826,16 +827,28 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
     async function addOnsOf(appKey: string, side: SurfaceSide): Promise<Record<string, unknown> | null> {
       const metaDb = opts.metaDb;
       if (metaDb === undefined) return null;
-      const rows = await metaDb.db
-        .selectFrom('adminium_manifest_attachments as a')
-        .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
-        .select(['m.manifestKey as key', 'm.version as version', 'm.manifest as manifest'])
-        .where('a.attachedTo', '=', appKey)
-        .where('a.disabledAt', 'is', null)
-        .where('m.kind', '=', 'add-on')
-        .where('m.status', '=', 'installed')
-        .orderBy('m.manifestKey', 'asc')
-        .execute();
+      // Ids sorted, rows fetched after: a sort carrying the manifests fails on MySQL (`inIdOrder`).
+      const order = (
+        await metaDb.db
+          .selectFrom('adminium_manifest_attachments as a')
+          .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
+          .select('m.id')
+          .where('a.attachedTo', '=', appKey)
+          .where('a.disabledAt', 'is', null)
+          .where('m.kind', '=', 'add-on')
+          .where('m.status', '=', 'installed')
+          .orderBy('m.manifestKey', 'asc')
+          .execute()
+      ).map((row) => row.id);
+      if (order.length === 0) return null;
+      const rows = inIdOrder(
+        order,
+        await metaDb.db
+          .selectFrom('adminium_manifests')
+          .select(['id', 'manifestKey as key', 'version', 'manifest'])
+          .where('id', 'in', order)
+          .execute(),
+      );
       if (rows.length === 0) return null;
       const out: Record<string, unknown> = {};
       for (const row of rows) {

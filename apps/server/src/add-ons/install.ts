@@ -37,7 +37,7 @@ import {
   type InstallPlan,
   type Manifest,
 } from '@adminium/manifest';
-import { auditRepo, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
+import { auditRepo, inIdOrder, manifestsRepo, readJson, type InstalledManifest, type MetaDb } from '@adminium/meta';
 
 import { AppError, ConflictError, NotFoundError, ValidationFailedError } from '../errors.js';
 import type { InstallPlanDto } from '../routes/add-ons/schema.js';
@@ -496,12 +496,14 @@ export async function upgradeRangeRefusal(
       typeof shape.name === 'string' && typeof shape.version === 'number' ? [`${manifest.key}/${shape.name}@${String(shape.version)}`] : [],
     ) ?? [],
   );
-  const apps = await deps.meta.db
-    .selectFrom('adminium_manifests')
-    .select(['manifestKey', 'manifest'])
-    .where('kind', '=', 'app')
-    .orderBy('manifestKey', 'asc')
-    .execute();
+  // Ids sorted, rows fetched after: a sort carrying the manifests fails on MySQL (`inIdOrder`).
+  const order = (
+    await deps.meta.db.selectFrom('adminium_manifests').select('id').where('kind', '=', 'app').orderBy('manifestKey', 'asc').execute()
+  ).map((row) => row.id);
+  const apps =
+    order.length === 0
+      ? []
+      : inIdOrder(order, await deps.meta.db.selectFrom('adminium_manifests').select(['id', 'manifestKey', 'manifest']).where('id', 'in', order).execute());
   for (const app of apps) {
     if (app.manifestKey === opts.except) continue;
     const document = readJson<{ name?: unknown; requiredSchema?: { tables?: { ref?: unknown; builtOn?: unknown }[] } } | null>(app.manifest);
