@@ -377,7 +377,10 @@ export function cleanPicture(bytes: Buffer, mime: string): CleanPicture {
   return { bytes: cleaned.bytes, mime: type as PictureMime, etag, width: cleaned.width, height: cleaned.height };
 }
 
-/** The headers a picture is served with: anyone may show it, from any page, and cache it for a week. */
+/** How long a picture is kept before it is asked again: an unpublished one stops showing within it. */
+export const PICTURE_MAX_AGE_SECONDS = 300;
+
+/** The headers a picture is served with: anyone may show it, from any page, and keep it a few minutes. */
 export function pictureHeaders(picture: Pick<CleanPicture, 'mime' | 'etag'>, column: string, length?: number): Record<string, string> {
   return {
     'content-type': picture.mime,
@@ -389,8 +392,14 @@ export function pictureHeaders(picture: Pick<CleanPicture, 'mime' | 'etag'>, col
     // Any page may show it: the server's default keeps a response to its own pages.
     'cross-origin-resource-policy': 'cross-origin',
     'access-control-allow-origin': '*',
-    // A new picture is a new file id, and so a new address: this one never changes.
-    'cache-control': 'public, max-age=604800, immutable',
+    /*
+     * A new picture is a new file id, and so a new address: its bytes never
+     * change. Whether it is shown does: a dish taken off the menu, an event
+     * moved back to draft. So it is kept minutes, not a week, and then asked
+     * again by its tag — a picture still shown answers 304 at no cost to the
+     * key, one taken down answers nothing.
+     */
+    'cache-control': `public, max-age=${String(PICTURE_MAX_AGE_SECONDS)}, must-revalidate`,
     etag: picture.etag,
     'referrer-policy': 'no-referrer',
   };

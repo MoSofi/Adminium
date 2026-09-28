@@ -183,5 +183,7 @@ describe('pictures anyone may see', () => {
     expect(issues(pictures({ auth: { role: 'authenticated' }, claim: { column: 'id' } }))).toContain('ENDPOINT_PICTURES_CLAIMED');
     // Rows a code unlocks: an <img> carries no code, so they hold no picture for everyone.
     expect(issues(pictures({ unlock_by: { table: 'public.codes', column: 'code', link: 'unlocks_type_id' } }))).toContain('ENDPOINT_PICTURES_CLAIMED');
+    // Nor rows a session's holder alone reads, however the endpoint says who may call it.
+    expect(issues(pictures({ session_only: true }))).toContain('ENDPOINT_PICTURES_CLAIMED');
   });
 });

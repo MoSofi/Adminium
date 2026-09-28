@@ -55,7 +55,7 @@ import type { Dialect } from '@adminium/engine';
 import type { SourceDatabase } from '../connections/manager.js';
 import { AppError } from '../errors.js';
 import { inTransaction, withNamedLock } from './capacity-guard.js';
-import { heldNames, withNamedLocks } from './capacity/locks.js';
+import { advisoryLocks, heldNames, withNamedLocks } from './capacity/locks.js';
 import type { GaplessSequence, TableRules } from './column-rules.js';
 import { isUniqueViolation } from './decided-columns.js';
 import type { ResolvedTable } from './identifiers.js';
@@ -319,9 +319,16 @@ async function take<T>(
   insert: (db: Db, row: Row) => Promise<T>,
 ): Promise<T> {
   if (dialect === 'postgres') {
-    for (const claim of claims) {
-      await sql`select pg_advisory_xact_lock(hashtextextended(${seriesName(table, claim.sequence, row)}, 0))`.execute(db);
-    }
+    /*
+     * Each series' own transaction lock, taken here by whoever opened the
+     * transaction — waited for as long as any named lock is, then NUMBER_BUSY:
+     * a writer holding the series (a long import) never parks this one, and
+     * its pooled connection, for as long as it takes. A name this transaction
+     * already holds is not asked again.
+     */
+    const named = heldNames(db);
+    const names = claims.map((claim) => seriesName(table, claim.sequence, row)).filter((name) => !named.has(name));
+    await advisoryLocks(db, [...new Set(names)].sort().map((name) => ({ name, busy: 'NUMBER_BUSY' as const })));
   }
   if (dialect !== 'mysql') {
     let out = row;

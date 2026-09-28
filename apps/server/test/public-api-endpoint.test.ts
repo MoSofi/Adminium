@@ -307,6 +307,29 @@ describe('every ENDPOINT_* refusal', () => {
     expect(codes({ ...withEmail, auth: { role: 'service_role' } })).toEqual([]);
   });
 
+  it('ENDPOINT_PII_NOT_PROVED — personal data only where every reader proved the mailbox', () => {
+    const withEmail = (over: Partial<PublicEndpointDefinition>) => codes(users({ select: ['id', 'display_name', 'email'], auth: { role: 'authenticated' }, methods: ['GET'], ...over }));
+    const shown = (over: Partial<PublicEndpointDefinition>) => expect(withEmail(over)).not.toContain('ENDPOINT_PII_NOT_PROVED');
+    // A person's own rows, their parent's, a row's own link: at the verified level only.
+    shown({ claim: { column: 'id' }, level: 'verified' });
+    expect(withEmail({ claim: { column: 'id' } })).toContain('ENDPOINT_PII_NOT_PROVED');
+    expect(withEmail({ claim: { column: 'id', optional: true }, level: 'verified' })).toContain('ENDPOINT_PII_NOT_PROVED');
+    shown({ identity: { strategy: 'token', match: ['role'], column: 'id', own: true }, level: 'verified' });
+    expect(withEmail({ identity: { strategy: 'token', match: ['role'], column: 'id' } })).toContain('ENDPOINT_PII_NOT_PROVED');
+    // The identity itself: a sign-in link always proves the mailbox; an emailed code only once it is confirmed.
+    shown({ identity: { strategy: 'email-link', match: ['email'], column: 'id', verify: 'email-link', email: 'email' } });
+    const byCode = { strategy: 'lookup' as const, match: ['display_name'], column: 'id', verify: 'email-code' as const, email: 'email' };
+    shown({ identity: byCode, level: 'verified' });
+    expect(withEmail({ identity: byCode })).toContain('ENDPOINT_PII_NOT_PROVED');
+    expect(withEmail({ identity: { strategy: 'lookup', match: ['display_name'], column: 'id' } })).toContain('ENDPOINT_PII_NOT_PROVED');
+    // What the person typed to be found is theirs to read back.
+    shown({ identity: { strategy: 'lookup', match: ['email'], column: 'id' } });
+    // A read for a session's holder alone proves nothing about the rows.
+    expect(withEmail({ session_only: true, level: 'verified' })).toContain('ENDPOINT_PII_NOT_PROVED');
+    // Without a masked column, nothing to say.
+    expect(codes(users({ auth: { role: 'authenticated' }, methods: ['GET'], claim: { column: 'id' } }))).not.toContain('ENDPOINT_PII_NOT_PROVED');
+  });
+
   it('ENDPOINT_AUTHENTICATED_WITHOUT_CLAIM, ENDPOINT_IDENTITY_NEEDS_GET, ENDPOINT_IDENTITY_WITH_CLAIM', () => {
     expect(codes(users({ auth: { role: 'authenticated' } }))).toEqual(['ENDPOINT_AUTHENTICATED_WITHOUT_CLAIM']);
     expect(codes(users({ auth: { role: 'authenticated' }, claim: { column: 'id' } }))).toEqual([]);

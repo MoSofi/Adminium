@@ -776,6 +776,22 @@ function visibleColumns(table: ResolvedTable): Set<string> {
   return out;
 }
 
+/**
+ * Whether every session that may read this endpoint proved the mailbox of
+ * the rows it reads — so a read unmasks personal data for each of them
+ * (`readsOwnPii` in `routes/public/index.ts`): a person's own rows (a
+ * claim, a parent, a row's own link) at the `verified` level, or the
+ * identity itself when signing in there proves the mailbox — a sign-in link
+ * always does; an emailed code does at the `verified` level, since a found
+ * session reads it before the code otherwise.
+ */
+function everyReaderProvesMailbox(def: PublicEndpointDefinition): boolean {
+  const verified = def.level === 'verified';
+  if (def.identity !== undefined) return verified || def.identity.strategy === 'email-link';
+  if (def.claim !== undefined) return verified && def.claim.optional !== true;
+  return verified && def.visible_with !== undefined;
+}
+
 /** PII-masked columns, as the operator last decided (an override beats the classifier). */
 function maskedColumns(table: ResolvedTable): ReadonlySet<string> {
   return columnPolicyFor(table.table).masked;
@@ -1130,7 +1146,7 @@ function pictureIssues(def: PublicEndpointDefinition, table: ResolvedTable): Sco
   if (def.methods.some((m) => m !== 'GET') || def.kind === 'availability') {
     out.push({ code: 'ENDPOINT_PICTURES_READ_ONLY', message: 'pictures are shown through an endpoint that only reads rows' });
   }
-  if (def.auth.role !== 'anon' || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined) {
+  if (def.auth.role !== 'anon' || def.claim !== undefined || def.identity !== undefined || def.visible_with !== undefined || def.session_only === true) {
     out.push({ code: 'ENDPOINT_PICTURES_CLAIMED', message: "pictures are for every visitor; a signed-in person's own files are `files`" });
   }
   // A picture is fetched by an <img>, which carries no session: rows only a code opens are no rows it can show.
@@ -1453,6 +1469,25 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
         push(
           'ENDPOINT_PII_ON_ANON',
           `"${column}" is marked personal data; an endpoint anyone can call may not select it`,
+          column,
+        );
+      }
+    }
+  } else if (def.auth.role === 'authenticated' && !everyReaderProvesMailbox(def)) {
+    /*
+     * A signed-in read shows personal data only to a person who proved the
+     * mailbox the rows are theirs by. Anywhere else the column is masked on
+     * every read — answered as a failure — so it is refused here, where the
+     * endpoint is written, rather than found by the first guest.
+     */
+    const masked = maskedColumns(table);
+    // What a person typed to be found (their own address, as they gave it) is theirs to read back.
+    const typed = def.identity?.strategy === 'lookup' ? def.identity.match : [];
+    for (const column of def.select) {
+      if (masked.has(column) && !typed.includes(column)) {
+        push(
+          'ENDPOINT_PII_NOT_PROVED',
+          `"${column}" is marked personal data; it is shown only to a person who proved their mailbox (a verified level, or a sign-in by an emailed link), which this endpoint does not ask`,
           column,
         );
       }

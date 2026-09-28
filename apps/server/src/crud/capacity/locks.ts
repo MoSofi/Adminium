@@ -160,6 +160,27 @@ function busyError(busy: LockBusy): AppError {
   return new ConflictError('That time is busy. Try again in a moment.', busy);
 }
 
+/**
+ * Postgres: take each name's transaction lock inside `trx`, in the order
+ * given. An advisory lock waits as long as it takes unless told otherwise: as
+ * long as a MySQL writer waits, then busy. Only for these locks — the rows
+ * the write holds after them wait as they always have.
+ */
+export async function advisoryLocks(trx: Db, names: readonly NamedLock[], waitSeconds: number = LOCK_WAIT_SECONDS): Promise<void> {
+  if (names.length === 0) return;
+  const was = (await sql<{ was: string }>`select current_setting('lock_timeout') as was`.execute(trx)).rows[0]?.was ?? '0';
+  await sql`select set_config('lock_timeout', ${`${String(waitSeconds * 1000)}ms`}, true)`.execute(trx);
+  for (const lock of names) {
+    try {
+      await sql`select pg_advisory_xact_lock(hashtextextended(${lock.name}, 0))`.execute(trx);
+    } catch (error) {
+      if (lockTimedOut(error)) throw busyError(lock.busy);
+      throw error;
+    }
+  }
+  await sql`select set_config('lock_timeout', ${was}, true)`.execute(trx);
+}
+
 /** The locks once each, in name order: the one order every writer takes them in. */
 function ordered(locks: readonly NamedLock[]): NamedLock[] {
   const byName = new Map<string, NamedLock>();
@@ -218,20 +239,7 @@ async function lockedIn<T>(
   const wait = opts.waitSeconds ?? LOCK_WAIT_SECONDS;
   if (dialect === 'postgres') {
     const locked = async (trx: Db) => {
-      // An advisory lock waits as long as it takes unless told otherwise: as
-      // long as a MySQL writer waits, then busy. Only for these locks — the
-      // rows the write holds after them wait as they always have.
-      const was = (await sql<{ was: string }>`select current_setting('lock_timeout') as was`.execute(trx)).rows[0]?.was ?? '0';
-      await sql`select set_config('lock_timeout', ${`${String(wait * 1000)}ms`}, true)`.execute(trx);
-      for (const lock of names) {
-        try {
-          await sql`select pg_advisory_xact_lock(hashtextextended(${lock.name}, 0))`.execute(trx);
-        } catch (error) {
-          if (lockTimedOut(error)) throw busyError(lock.busy);
-          throw error;
-        }
-      }
-      await sql`select set_config('lock_timeout', ${was}, true)`.execute(trx);
+      await advisoryLocks(trx, names, wait);
       hold(trx, names);
       return run(trx);
     };

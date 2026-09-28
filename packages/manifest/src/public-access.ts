@@ -1330,6 +1330,10 @@ function pictureIssues(
   }
   // A picture is fetched by an <img>, which carries no session: rows only a code opens are no rows it can show.
   if (entry.unlockBy !== undefined) out.push({ path: at('pictures'), message: 'pictures are for every visitor; rows a code unlocks are read only by whoever gave the code' });
+  // Nor rows read by a session's holder alone (an entry with a level and no claim of its own).
+  if (entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined) {
+    out.push({ path: at('pictures'), message: "pictures are for every visitor; rows read by a signed-in session alone are no picture an <img> can show" });
+  }
   if ((entry.key ?? CUSTOMER_KEY) !== CUSTOMER_KEY) out.push({ path: at('key'), message: "pictures are served through the app's customer key" });
   const writes = new Set([...(entry.writable ?? []), ...Object.keys(entry.defaults ?? {})]);
   const shareCodes = shareCodeColumns(entries, entry.table);

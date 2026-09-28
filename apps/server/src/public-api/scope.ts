@@ -1935,7 +1935,8 @@ function projectChildren(children: Readonly<Record<string, ScopeChild | Omit<Sco
 /**
  * An unlock only reads, of its own (checked for a scope written by hand as the
  * endpoint checks it). Pictures are held to their shape where they are served
- * (`routes/public/pictures.ts`).
+ * (`routes/public/pictures.ts`): never through a claim, a parent, a code or a
+ * session's holder alone.
  */
 function unlockShapeIssues(r: z.infer<typeof resourceSchema>): ScopeIssue[] {
   const out: ScopeIssue[] = [];

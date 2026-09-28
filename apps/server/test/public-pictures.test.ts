@@ -10,7 +10,7 @@
  * replaced since, a file no picture column names (a neighbour's id is easy to
  * guess), one that is not an image by its bytes, one too big to unpack.
  */
-import { filesRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
+import { filesRepo, publicApiStateRepo, publicKeysRepo, publicScopesRepo, rolesRepo, settingsRepo, usersRepo } from '@adminium/meta';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { rm } from 'node:fs/promises';
@@ -121,7 +121,8 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
       'x-content-type-options': 'nosniff',
       'cross-origin-resource-policy': 'cross-origin',
       'access-control-allow-origin': '*',
-      'cache-control': 'public, max-age=604800, immutable',
+      // Kept minutes, not a week: a dish taken off the menu stops showing once they are up.
+      'cache-control': 'public, max-age=300, must-revalidate',
       etag,
       'referrer-policy': 'no-referrer',
     });
@@ -246,6 +247,36 @@ describe.each(LEGS)('a picture anyone may see — %s', (dialect, available) => {
     // Another address is not held to it.
     expect((await picture(row, file.id)).statusCode).toBe(200);
   }, 120_000);
+
+  it.skipIf(!available)("shows nothing of rows a session's holder alone reads, whatever the key's scope says", { timeout: 60_000 }, async () => {
+    const file = await upload(png({ fill: 50 }).bytes, 'staff-meal.png');
+    const row = await dish('Staff meal', file.ref);
+    expect((await picture(row, file.id)).statusCode).toBe(200);
+    // A scope written by hand, where no check of the entry's shape runs: its rows for a session's holder alone.
+    const key = (await publicKeysRepo(h.meta).findById((h.reply['publicAccess'] as { keyId: string }).keyId))!;
+    const scopes = publicScopesRepo(h.meta);
+    const scope = (await scopes.findById(key.scopeId))!;
+    const doc = JSON.parse(scope.document) as { resources: { ref: string; sessionOnly?: boolean }[] };
+    doc.resources.find((resource) => resource.ref === 'kitchen_menu_items')!.sessionOnly = true;
+    // A save elsewhere reaches this server's keys when its switch is next read (a cache of a few seconds).
+    const settle = async () => {
+      await publicApiStateRepo(h.meta).bump();
+      await new Promise((resolve) => setTimeout(resolve, 5_200));
+    };
+    await scopes.update(scope.id, { document: JSON.stringify(doc) });
+    await settle();
+    try {
+      // An <img> carries no session: the picture is answered as the rows are, to a visitor with none.
+      const res = await picture(row, file.id);
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toMatchObject({ error: { code: 'PUBLIC_REF_NOT_FOUND' } });
+      expect((await served.get('/records/kitchen_menu_items')).statusCode).toBe(404);
+    } finally {
+      await scopes.update(scope.id, { document: scope.document });
+      await settle();
+    }
+    expect((await picture(row, file.id)).statusCode).toBe(200);
+  });
 
   // Last: a second server on the same stores closes the connections they share when it stops.
   it.skipIf(!available)('keeps a picture cleaned once beside its file, and serves it from there after a restart', async () => {
