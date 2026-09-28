@@ -330,6 +330,20 @@ for (const dialect of TEST_DIALECTS) {
       expect(stale.map((s) => s.id)).toEqual([abandoned.id]);
     });
 
+    it('leaves open a session used between the sweep listing it and closing it', async () => {
+      const repo = assistantSessionsRepo(t.meta);
+      const session = await repo.create({ context: 'email', host: { connectionIds: [] } }, T0);
+      const idleBefore = T0 + 86_400_000;
+      expect((await repo.listStaleOpen(idleBefore)).map((s) => s.id)).toEqual([session.id]);
+      // Its person comes back before the sweep reaches it.
+      await repo.addUsage(session.id, { tokensIn: 1 }, idleBefore + 1);
+      expect(await repo.close(session.id, idleBefore + 2, { idleBefore })).toBe(false);
+      expect((await repo.findSession(session.id))?.status).toBe('open');
+      // Still idle: closed.
+      const idle = await repo.create({ context: 'email', host: { connectionIds: [] } }, T0);
+      expect(await repo.close(idle.id, idleBefore + 2, { idleBefore })).toBe(true);
+    });
+
     it('lists a person`s sessions newest first', async () => {
       const repo = assistantSessionsRepo(t.meta);
       const user = await usersRepo(t.meta).create(

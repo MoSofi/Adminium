@@ -723,6 +723,8 @@ export async function writeManifestRules(input: {
 
     for (const rule of desired.filter((r) => r.ref === record.ref && !readsKept(r.op))) await place(record, kept, rule);
     keptOf.set(record, kept);
+    // Listed now, not only after the second pass: a failure there leaves no rule of this pass that no record lists.
+    await appTablesRepo(meta).setRules(record.id, kept);
   }
   // A copy, a stamp's copy and a formula are placed last, once every table's
   // own marks are in: whether a source is kept from readers, and whether the

@@ -7,4 +7,4 @@
 
 The dashboard itself had the same trouble: with one such app installed, every dashboard load answered 500 on a MySQL meta store. It now loads. So do the other lists that carry large records, which failed the same way once one record outgrew the buffer: the documents drawn for a record (a long statement), invoice and report templates with pictures in them, public access settings, workflow logs of a rule watching a table with large columns, the jobs list, and the job queue itself, which a single large email could stop.
 
-The assistant's sweep of sessions a browser left open had the same trouble on MySQL once a draft or conversation grew large, and now lists them the same way.
+The assistant's sweep of sessions a browser left open had the same trouble on MySQL once a draft or conversation grew large, and now lists them the same way. It also no longer closes a session its person came back to while the sweep was running.

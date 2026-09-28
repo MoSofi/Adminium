@@ -196,7 +196,8 @@ export function manifestsRepo(meta: MetaDb, crypto: CredentialCrypto) {
     async list(kind?: 'app' | 'add-on'): Promise<InstalledManifest[]> {
       let q = db.selectFrom('adminium_manifests').select('id');
       if (kind !== undefined) q = q.where('kind', '=', kind);
-      const ids = await q.orderBy('installedAt', 'desc').execute();
+      // The id breaks a tie between two installed in the same millisecond, the newer first.
+      const ids = await q.orderBy('installedAt', 'desc').orderBy('id', 'desc').execute();
       return inOrder(ids.map((row) => row.id));
     },
 
