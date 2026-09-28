@@ -199,7 +199,9 @@ describe('starters', () => {
       validateDocument(starter.document, ctx());
 
       const english = JSON.stringify({ name: starter.name, document: starter.document });
-      const hit = TRAP_RE.exec(english);
+      // Block ids are random (`b_` + 8 base64url characters) and can spell a
+      // sweep word by chance ("b_xFree…"): judge the copy, not the ids.
+      const hit = TRAP_RE.exec(english.replace(/"id":"b_[A-Za-z0-9_-]+"/g, '"id":""'));
       expect(hit, `${key} carries the sweep word "${hit?.[0] ?? ''}"`).toBeNull();
       expect(english).not.toContain('Adminium');
       expect(english).not.toContain('{{workspace}}');
