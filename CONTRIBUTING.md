@@ -149,9 +149,13 @@ Never copy comp markup verbatim (comps use inline styles, which are banned). Fol
 
 Run `pnpm preflight` before you push: it is the same list in the same order, minus the legs that structurally cannot run on a laptop, and it prints what it did **not** check so a green run is not mistaken for a green CI.
 
+## Translating
+
+Every non-English string is a machine draft waiting for a native speaker. [TRANSLATING.md](TRANSLATING.md) walks through reviewing a batch, and it makes a good first pull request.
+
 ## Code of conduct
 
-We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Be kind; reports go to conduct@adminium.dev.
+We follow the [Contributor Covenant](CODE_OF_CONDUCT.md). Be kind; reports go to conduct@adminium.dev.
 
 ## Security
 
