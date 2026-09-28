@@ -48,7 +48,7 @@ import {
   type AutomationTriggerEvent,
 } from '../schema/json-payloads.js';
 import type { AdminiumAutomationRunsTable } from '../schema/tables.js';
-import { affected, isDuplicateKeyError, packJson, readJson, readJsonOrNull } from './util.js';
+import { affected, inIdOrder, isDuplicateKeyError, packJson, readJson, readJsonOrNull } from './util.js';
 
 export interface AutomationRun {
   id: string;
@@ -148,6 +148,17 @@ function decode(row: Selectable<AdminiumAutomationRunsTable>): AutomationRun {
 
 export function automationRunsRepo(meta: MetaDb) {
   const { db } = meta;
+
+  /**
+   * Runs by ids a sorted read found, in its order. A run carries its trigger
+   * event (the whole row it fired on), and a sort carrying one past MySQL's
+   * sort buffer fails the whole read (`inIdOrder`).
+   */
+  async function runsByIds(found: readonly { id: string }[]): Promise<Selectable<AdminiumAutomationRunsTable>[]> {
+    const ids = found.map((row) => row.id);
+    if (ids.length === 0) return [];
+    return inIdOrder(ids, await db.selectFrom('adminium_automation_runs').selectAll().where('id', 'in', ids).execute());
+  }
 
   async function findById(id: string): Promise<AutomationRun | null> {
     const row = await db
@@ -276,13 +287,15 @@ export function automationRunsRepo(meta: MetaDb) {
      * reaching into a json column.
      */
     async listPending(origin: AutomationOrigin): Promise<AutomationRun[]> {
-      const rows = await db
-        .selectFrom('adminium_automation_runs')
-        .selectAll()
-        .where('status', '=', 'pending')
-        .where('origin', '=', origin)
-        .orderBy('startedAt', 'asc')
-        .execute();
+      const rows = await runsByIds(
+        await db
+          .selectFrom('adminium_automation_runs')
+          .select('id')
+          .where('status', '=', 'pending')
+          .where('origin', '=', origin)
+          .orderBy('startedAt', 'asc')
+          .execute(),
+      );
       return rows.map(decode);
     },
 
@@ -314,7 +327,7 @@ export function automationRunsRepo(meta: MetaDb) {
     async list(options: ListRunsOptions): Promise<AutomationRun[]> {
       let query = db
         .selectFrom('adminium_automation_runs')
-        .selectAll()
+        .select('id')
         .where('startedAt', '>=', options.since);
       if (options.filter) query = query.where('status', 'in', [...FILTER_STATUSES[options.filter]]);
       if (options.automationId !== undefined) {
@@ -329,11 +342,13 @@ export function automationRunsRepo(meta: MetaDb) {
           ]),
         );
       }
-      const rows = await query
-        .orderBy('startedAt', 'desc')
-        .orderBy('id', 'desc')
-        .limit(options.limit ?? 50)
-        .execute();
+      const rows = await runsByIds(
+        await query
+          .orderBy('startedAt', 'desc')
+          .orderBy('id', 'desc')
+          .limit(options.limit ?? 50)
+          .execute(),
+      );
       return rows.map(decode);
     },
 

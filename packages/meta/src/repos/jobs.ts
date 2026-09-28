@@ -129,9 +129,10 @@ export function jobsRepo(meta: MetaDb) {
       at: number = Date.now(),
       staleLockMs: number = JOB_STALE_LOCK_MS,
     ): Promise<Job | null> {
+      // What the guard needs, never the payload: a sort carrying one past MySQL's sort buffer would stop every job.
       const candidates = await db
         .selectFrom('adminium_jobs')
-        .selectAll()
+        .select(['id', 'status', 'attempts', 'lockedAt'])
         .where((eb) =>
           eb.or([
             eb.and([eb('status', '=', 'pending'), eb('runAt', '<=', at)]),

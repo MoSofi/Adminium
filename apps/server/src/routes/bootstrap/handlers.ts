@@ -19,6 +19,7 @@
 import { bcp47, pickLabel } from '../../i18n/bcp47.js';
 import type { FastifyRequest } from 'fastify';
 import {
+  inIdOrder,
   pagesRepo,
   readBool,
   readJson,
@@ -291,6 +292,54 @@ export async function unmetFeaturePages(
     if (slugs.size > 0) out.set(app.manifestKey, slugs);
   }
   return out;
+}
+
+/*
+ * The two manifest reads below sort ids alone and fetch the documents after:
+ * a sort that carries the manifests fails on MySQL once one document is
+ * larger than its sort buffer (`inIdOrder`), and this route runs on every
+ * dashboard load.
+ */
+
+/** The add-ons switched on for the dashboard, by key, with their manifests. */
+export async function dashboardAddOnManifests(meta: MetaDb): Promise<{ manifest: unknown }[]> {
+  const order = (
+    await meta.db
+      .selectFrom('adminium_manifest_attachments as a')
+      .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
+      .select(['m.id as id'])
+      .where('a.attachedTo', '=', 'dashboard')
+      .where('a.disabledAt', 'is', null)
+      .where('m.kind', '=', 'add-on')
+      .where('m.status', '=', 'installed')
+      .orderBy('m.manifestKey', 'asc')
+      .execute()
+  ).map((row) => row.id);
+  if (order.length === 0) return [];
+  const rows = await meta.db.selectFrom('adminium_manifests').select(['id', 'manifest']).where('id', 'in', order).execute();
+  return inIdOrder(order, rows).map((row) => ({ manifest: row.manifest }));
+}
+
+/** The installed apps, by key, with their manifests. */
+export async function installedAppManifests(
+  meta: MetaDb,
+): Promise<{ manifestKey: string; version: string; manifest: unknown }[]> {
+  const order = (
+    await meta.db
+      .selectFrom('adminium_manifests')
+      .select('id')
+      .where('kind', '=', 'app')
+      .where('status', '=', 'installed')
+      .orderBy('manifestKey', 'asc')
+      .execute()
+  ).map((row) => row.id);
+  if (order.length === 0) return [];
+  const rows = await meta.db
+    .selectFrom('adminium_manifests')
+    .select(['id', 'manifestKey', 'version', 'manifest'])
+    .where('id', 'in', order)
+    .execute();
+  return inIdOrder(order, rows).map(({ manifestKey, version, manifest }) => ({ manifestKey, version, manifest }));
 }
 
 /** An installed app, as its section needs it. */
@@ -610,24 +659,9 @@ export async function bootstrapHandler(
      * needs manifest DOCUMENTS, never a credential. `adminium_connections`
      * above is read the same way, for the same reason.
      */
-    ctx.meta.db
-      .selectFrom('adminium_manifest_attachments as a')
-      .innerJoin('adminium_manifests as m', 'm.id', 'a.manifestId')
-      .select(['m.manifest as manifest'])
-      .where('a.attachedTo', '=', 'dashboard')
-      .where('a.disabledAt', 'is', null)
-      .where('m.kind', '=', 'add-on')
-      .where('m.status', '=', 'installed')
-      .orderBy('m.manifestKey', 'asc')
-      .execute(),
+    dashboardAddOnManifests(ctx.meta),
     // The installed apps, switched on: each gets its own section.
-    ctx.meta.db
-      .selectFrom('adminium_manifests')
-      .select(['manifestKey', 'version', 'manifest'])
-      .where('kind', '=', 'app')
-      .where('status', '=', 'installed')
-      .orderBy('manifestKey', 'asc')
-      .execute(),
+    installedAppManifests(ctx.meta),
   ]);
 
   /*

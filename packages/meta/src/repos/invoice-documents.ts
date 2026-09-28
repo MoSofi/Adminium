@@ -54,7 +54,7 @@ import {
   type InvoiceTopic,
 } from '../schema/json-payloads.js';
 import type { AdminiumInvoiceDocumentsTable, MetaDB } from '../schema/tables.js';
-import { affected, packJson, readJson } from './util.js';
+import { affected, inIdOrder, packJson, readJson } from './util.js';
 
 export interface InvoiceDocument {
   id: string;
@@ -210,9 +210,12 @@ export function invoiceDocumentsRepo(meta: MetaDb) {
 
     /** The manager's list: one kind, or both, in the comp's array order. */
     async list(filter: ListInvoiceDocumentsFilter = {}): Promise<InvoiceDocument[]> {
-      let q = db.selectFrom('adminium_invoice_documents').selectAll();
+      // Ids sorted, rows fetched after: a body carries its pictures, and a sort carrying one past MySQL's sort buffer fails (`inIdOrder`).
+      let q = db.selectFrom('adminium_invoice_documents').select('id');
       if (filter.kind !== undefined) q = q.where('kind', '=', invoiceDocumentKindSchema.parse(filter.kind));
-      const rows = await q.orderBy('position', 'asc').orderBy('id', 'asc').execute();
+      const ids = (await q.orderBy('position', 'asc').orderBy('id', 'asc').execute()).map((row) => row.id);
+      if (ids.length === 0) return [];
+      const rows = inIdOrder(ids, await db.selectFrom('adminium_invoice_documents').selectAll().where('id', 'in', ids).execute());
       return rows.map(decode);
     },
 

@@ -226,6 +226,13 @@ for (const dialect of TEST_DIALECTS) {
       expect((await repo.attachedToHost('pos')).map((m) => m.row.manifestKey)).toEqual(byKey);
     });
 
+    it('lists two installed in the same millisecond newest first, by id', async () => {
+      const first = await repo.install({ ...DHL, manifestKey: 'aa-first' }, T0);
+      const second = await repo.install({ ...DHL, manifestKey: 'zz-second' }, T0);
+      const expected = [first.row.id, second.row.id].sort().reverse();
+      expect((await repo.list('add-on')).map((m) => m.row.id)).toEqual(expected);
+    });
+
     it('reports a missing manifest as null rather than throwing', async () => {
       expect(await repo.findByKey('never-installed')).toBeNull();
       expect(await repo.findById('mft_absent')).toBeNull();

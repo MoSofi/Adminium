@@ -252,13 +252,15 @@ export function assistantSessionsRepo(meta: MetaDb) {
     },
 
     /** Close a session. Idempotent: closing a closed session changes nothing and answers false. */
-    async close(sessionId: string, at: number = Date.now()): Promise<boolean> {
-      const res = await db
+    async close(sessionId: string, at: number = Date.now(), opts: { idleBefore?: number } = {}): Promise<boolean> {
+      let q = db
         .updateTable('adminium_assistant_sessions')
         .set({ status: 'closed', closedAt: at, updatedAt: at })
         .where('id', '=', sessionId)
-        .where('status', '=', 'open')
-        .executeTakeFirst();
+        .where('status', '=', 'open');
+      // The sweep's close: only while the session is still idle, so one used since it was listed stays open.
+      if (opts.idleBefore !== undefined) q = q.where('updatedAt', '<', opts.idleBefore);
+      const res = await q.executeTakeFirst();
       return Number(res.numUpdatedRows) === 1;
     },
 

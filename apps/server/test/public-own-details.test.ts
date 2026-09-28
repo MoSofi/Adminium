@@ -16,7 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { planPublicEndpoints } from '../src/apps/manifest-public.js';
 import { createPublicViews } from '../src/public-api/runtime.js';
-import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
+import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { guest, mailOf, mailReady, shopManifest } from './person-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
@@ -149,6 +149,11 @@ describe.each(LEGS)("a person's own details — %s", (dialect, available) => {
  * phone it typed to be found, and none of the person's own rows; after it,
  * those rows as they are. An address on the identity itself, which the found
  * session would read before any code, is refused where the app asks for it.
+ *
+ * What it reads back is what it typed, and nothing the desk writes there
+ * later: a found session whose row no longer holds the phone it typed ends,
+ * and so does a confirmed one whose row no longer holds the address its code
+ * went to. Asked on every request, whatever wrote the row.
  */
 describe.each(LEGS)('details found by a phone, confirmed by an emailed code — %s', (dialect, available) => {
   let h: InvoicingHarness & { reply: Record<string, unknown> };
@@ -205,6 +210,41 @@ describe.each(LEGS)('details found by a phone, confirmed by an emailed code — 
     const after = await g.request('GET', `/records/${t('orders')}_verified`, { session });
     expect(after.statusCode, after.body).toBe(200);
     expect(after.body).toContain('ana@example.com');
+    expect(after.body).not.toContain('ben@example.com');
+  });
+
+  it.skipIf(!available)('ends a found session once the desk changes the phone it typed', async () => {
+    const found = await g.request('POST', '/claim', { payload: { match: { phone: '07700900001' } } });
+    expect(found.statusCode, found.body).toBe(200);
+    const session = (found.json() as { data: { session: string } }).data.session;
+    const anaId = Number((await h.rows(`select id from ${t('customers')} where email = 'ana@example.com'`))[0]!['id']);
+    expect((await g.request('GET', `/records/${details}/${String(anaId)}`, { session })).statusCode).toBe(200);
+    // The desk takes a new number for Ana; the found session never typed it.
+    await (await writerFor(h)).update('customers', anaId, { phone: '07700900099' });
+    const list = await g.request('GET', `/records/${details}`, { session });
+    expect(list.statusCode, list.body).toBe(404);
+    expect(list.body).not.toContain('07700900099');
+    const byId = await g.request('GET', `/records/${details}/${String(anaId)}`, { session });
+    expect(byId.statusCode, byId.body).toBe(404);
+    expect(byId.body).not.toContain('07700900099');
+    // Ended, not paused: the number typed back does not bring it back.
+    await (await writerFor(h)).update('customers', anaId, { phone: '07700900001' });
+    expect((await g.request('GET', `/records/${details}`, { session })).statusCode).toBe(404);
+    expect((await g.request('POST', '/claim/code', { session, payload: { purpose: 'verify' } })).statusCode).toBe(404);
+  });
+
+  it.skipIf(!available)('ends a confirmed session once its row no longer holds the address its code went to', async () => {
+    const found = await g.request('POST', '/claim', { payload: { match: { phone: '07700900002' } } });
+    expect(found.statusCode, found.body).toBe(200);
+    const session = (found.json() as { data: { session: string } }).data.session;
+    expect((await g.request('POST', '/claim/code', { session, payload: { purpose: 'verify' } })).statusCode).toBe(200);
+    const code = /\b(\d{6})\b/.exec((await mailOf(h.meta)).filter((m) => m.template === 'sign-in-code' && m.to === 'ben@example.com').at(-1)!.subject)![1]!;
+    expect((await g.request('POST', '/claim/verify', { session, payload: { code } })).statusCode).toBe(200);
+    expect((await g.request('GET', `/records/${t('orders')}_verified`, { session })).statusCode).toBe(200);
+    // Moved straight in the database (an import, a script): no event, and still asked.
+    await h.rows(`update ${t('customers')} set email = 'ben.moved@example.com' where email = 'ben@example.com'`);
+    const after = await g.request('GET', `/records/${t('orders')}_verified`, { session });
+    expect(after.statusCode, after.body).toBe(404);
     expect(after.body).not.toContain('ben@example.com');
   });
 

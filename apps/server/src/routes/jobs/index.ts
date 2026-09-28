@@ -19,7 +19,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { ZodError } from 'zod';
 
-import { jobsRepo, type Job, type MetaDb } from '@adminium/meta';
+import { inIdOrder, jobsRepo, type Job, type MetaDb } from '@adminium/meta';
 
 import {
   ConflictError,
@@ -240,7 +240,8 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
         }
         const { kind, status, limit, cursor } = request.query;
 
-        let query = meta.db.selectFrom('adminium_jobs').selectAll();
+        // Ids sorted, rows fetched after: a job's payload can outgrow MySQL's sort buffer (`inIdOrder`).
+        let query = meta.db.selectFrom('adminium_jobs').select('id');
         if (kind !== undefined) query = query.where('kind', '=', kind);
         if (status !== undefined) query = query.where('status', '=', status);
         if (cursor !== undefined) {
@@ -253,11 +254,14 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
           );
         }
         // Keyset order: newest first, id as the tiebreaker (cursor lists).
-        const rows = await query
-          .orderBy('createdAt', 'desc')
-          .orderBy('id', 'desc')
-          .limit(limit + 1)
-          .execute();
+        const ids = (
+          await query
+            .orderBy('createdAt', 'desc')
+            .orderBy('id', 'desc')
+            .limit(limit + 1)
+            .execute()
+        ).map((row) => row.id);
+        const rows = ids.length === 0 ? [] : inIdOrder(ids, await meta.db.selectFrom('adminium_jobs').selectAll().where('id', 'in', ids).execute());
 
         const page = rows.slice(0, limit);
         const views = page.map((row) => toView(row));

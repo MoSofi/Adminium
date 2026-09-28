@@ -345,6 +345,12 @@ as a lapsed one is. The client drops the session, calls `onSessionEnded(reason)`
 `sessionEnded()` answers the reason, so the page can say "You were signed out on another device"
 rather than seem to forget them.
 
+A session found by details a person typed (a phone, an address) lasts only while their record
+still holds what they typed, and a session raised by an emailed code only while the record still
+holds the address the code went to. The record is asked again on every request, whatever changed
+it: when the desk changes one of those details, the session answers as no session (without the
+header), and the person finds themselves again.
+
 ## Make a new link
 
 A guest forwarded their confirmation to the wrong person. Signed in, they press **Make a new

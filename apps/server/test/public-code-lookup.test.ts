@@ -78,7 +78,11 @@ describe.each(LEGS)('codes a guest types, on the public API — %s', (dialect, a
 
     const unlocked = '/records/bloom_ticket_types_unlocked';
     expect(ids(await read(unlocked))).toEqual([]);
-    expect(ids(await read(unlocked, code('bloom-early')))).toEqual([3]);
+    const withCode = await read(unlocked, code('bloom-early'));
+    expect(ids(withCode)).toEqual([3]);
+    // What a code unlocks is its holder's: never kept by a browser. The plain list keeps its caching.
+    expect(withCode.headers['cache-control']).toBe('no-store');
+    expect(plain.headers['cache-control']).toBeUndefined();
     // A code switched off or past its day unlocks nothing; nor does one for the comps, which the entry never shows.
     expect(ids(await read(unlocked, code('switchedoff')))).toEqual([]);
     expect(ids(await read(unlocked, code('LASTYEAR')))).toEqual([]);

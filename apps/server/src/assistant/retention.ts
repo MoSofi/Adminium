@@ -36,8 +36,9 @@ export async function sweepAssistantSessions(
   const repo = assistantSessionsRepo(meta);
 
   let closed = 0;
-  for (const session of await repo.listStaleOpen(at - ABANDONED_SESSION_MS)) {
-    if (await repo.close(session.id, at)) closed += 1;
+  const idleBefore = at - ABANDONED_SESSION_MS;
+  for (const session of await repo.listStaleOpen(idleBefore)) {
+    if (await repo.close(session.id, at, { idleBefore })) closed += 1;
   }
 
   const days = await settingsRepo(meta).get('retention.assistantSessionsDays');

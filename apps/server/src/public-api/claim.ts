@@ -25,6 +25,8 @@
  * two-factor lookup into two one-factor lookups.
  */
 
+import { createHmac } from 'node:crypto';
+
 import type { Kysely } from 'kysely';
 
 import type { SourceDatabase } from '../connections/manager.js';
@@ -43,6 +45,15 @@ export interface ClaimGrant {
   column: string;
   /** The value it must equal. Never sent to the browser. */
   value: unknown;
+  /**
+   * A session found by what the person typed (`/claim`): a keyed hash of the
+   * values it was found by, as the row held them (`typedDigest`). The row is
+   * asked again on every request, and a session whose row no longer holds
+   * them ends: it reads back only what it typed.
+   */
+  typed?: string;
+  /** A session that proved a mailbox: a keyed hash of the address it proved, asked again as it is used. */
+  addr?: string;
 }
 
 export const CLAIM_SESSION_TTL_MS = 30 * 60_000;
@@ -149,7 +160,12 @@ export function normaliseCode(value: unknown, rule: { prefix?: string; length: n
  *
  * Returns the grant on exactly one match, and `null` on anything else.
  */
-export async function resolveClaim(opts: {
+export async function resolveClaim(opts: ClaimLookup): Promise<ClaimGrant | null> {
+  return (await findClaim(opts))?.grant ?? null;
+}
+
+/** What a claim is resolved with. */
+export interface ClaimLookup {
   db: Kysely<SourceDatabase>;
   table: ResolvedTable;
   resource: CompiledResource;
@@ -159,7 +175,10 @@ export async function resolveClaim(opts: {
   /** What the endpoint's mandatory filter is compiled against. */
   view: SnapshotView;
   dialect: Dialect;
-}): Promise<ClaimGrant | null> {
+}
+
+/** {@link resolveClaim}, with the one row it matched. */
+export async function findClaim(opts: ClaimLookup): Promise<{ grant: ClaimGrant; row: Record<string, unknown> } | null> {
   const { db, table, resource, scope, match } = opts;
   const claim = scope.claim;
   // `CompiledScope.claim` is `PublicScopeDocument['claim'] | null`, and that
@@ -216,7 +235,29 @@ export async function resolveClaim(opts: {
   const value = row[resource.claim.column];
   if (value === undefined || value === null) return null;
 
-  return { ref: claim.ref, column: resource.claim.column, value };
+  return { grant: { ref: claim.ref, column: resource.claim.column, value }, row };
+}
+
+/**
+ * A keyed hash of the values a row holds in `columns`: what a found session
+ * keeps of the details it was found by, never the details themselves. Each
+ * value is read as the claim compares it (a phone by its digits, a code as its
+ * rule writes it, text without case or surrounding spaces), so the same row
+ * hashes the same on every read, and any change to one of them does not.
+ */
+export function typedDigest(secret: Buffer, table: ResolvedTable, columns: readonly string[], row: Readonly<Record<string, unknown>>): string {
+  const ruleOf = (column: string) => table.table.columns.find((c) => c.name === column);
+  const parts = [...columns].sort().map((column) => {
+    const value = row[column];
+    if (value === null || value === undefined) return [column, null];
+    const rule = ruleOf(column);
+    if (rule?.validation?.format === 'phone') return [column, phoneDigits(value)];
+    if (rule?.code !== undefined) return [column, normaliseCode(value, rule.code)];
+    if (value instanceof Date) return [column, value.toISOString()];
+    if (typeof value === 'string') return [column, value.normalize('NFC').trim().toLowerCase()];
+    return [column, String(value)];
+  });
+  return createHmac('sha256', secret).update(`typed:${JSON.stringify(parts)}`).digest('hex');
 }
 
 /**
