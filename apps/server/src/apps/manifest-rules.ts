@@ -564,6 +564,129 @@ export async function writeManifestRules(input: {
   const released = new Set<string>();
   /** The codes shared links open rows with on the connection, read when a rule needs them. */
   let codes: ShareCodes | undefined;
+  /** The rules each table keeps, gathered over both passes below. */
+  const keptOf = new Map<(typeof records)[number], AppTableRule[]>();
+  /** The rules that land a column's value in another, checked against what is kept from readers. */
+  const readsKept = (op: string): boolean => op === 'column.copy' || op === 'column.stamp' || op === 'column.formula';
+  /** Place one wanted rule: written, or skipped with the reason. */
+  const place = async (record: (typeof records)[number], kept: AppTableRule[], rule: DesiredRule): Promise<void> => {
+    const target = targetOf(rule.op, rule.table, rule.column);
+    if (!wanted.has(target)) return;
+    wanted.delete(target);
+    const skip = (reason: string) => result.skipped.push({ table: rule.table, column: rule.column, op: rule.op, reason });
+    // The live-model check every nested ref gets: a table this install does
+    // not have is never stored, whatever op names it.
+    if ((rule.missing ?? []).length > 0) {
+      skip(`It names ${(rule.missing ?? []).map((ref) => `"${ref}"`).join(', ')}, which this app does not have here.`);
+      return;
+    }
+    const held = active.find((o) => targetOf(o.op, o.tableName, o.columnName) === target);
+    if (released.has(target)) {
+      skip(
+        held !== undefined
+          ? 'The operator already keeps a rule for this column.'
+          : all.some((o) => o.status === 'disabled' && targetOf(o.op, o.tableName, o.columnName) === target)
+            ? 'The operator switched off the rule for this column.'
+            : 'The operator removed the rule for this column.',
+      );
+      return;
+    }
+    if (held !== undefined && held.origin !== 'auto') {
+      const keeper = keptByOther.get(held.id);
+      skip(keeper === undefined ? 'The operator already keeps a rule for this column.' : `"${keeper}" already keeps this rule on the shared table.`);
+      return;
+    }
+    // One the operator switched off is still theirs: never a second row beside it.
+    if (all.some((o) => o.status === 'disabled' && o.origin !== 'auto' && targetOf(o.op, o.tableName, o.columnName) === target)) {
+      skip('The operator switched off the rule for this column.');
+      return;
+    }
+    // A table the app did not make keeps its secrets: only an operator shows one.
+    if (record.state !== 'created' && !NAMING_OPS.has(rule.op) && !TABLE_OPS.has(rule.op)) {
+      if (rule.ownTableOnly === true) return;
+      const shown = secretsShownBy(model, active, { connectionId, table: rule.table, column: rule.column, op: rule.op, value: rule.value, held });
+      if (shown.length > 0) {
+        skip(notOursToShow(record.tableName, shown));
+        return;
+      }
+    }
+    // Adminium's own guess (introspection masks a column named `phone`) is
+    // not the operator's word: the app knows its own column better.
+    if (held !== undefined) {
+      await overrides.delete(held.id);
+      active.splice(active.indexOf(held), 1);
+    }
+    const table = model.tables.find((t) => t.id === rule.table)!;
+    // The booking guard, the names and the key field are the table's, not a column's.
+    const tableLevel = TABLE_OPS.has(rule.op);
+    const column: ColumnModel | undefined = table.columns.find((c) => c.name === rule.column);
+    if (!tableLevel && column === undefined) {
+      skip(`"${table.name}" has no column "${rule.column}".`);
+      return;
+    }
+    const request = {
+      connectionId,
+      op: rule.op,
+      tableName: rule.table,
+      columnName: tableLevel ? null : rule.column,
+      value: rule.value,
+      origin: 'app' as const,
+      createdBy: input.createdBy,
+    };
+    try {
+      validateOverrideInput(request);
+    } catch (error) {
+      if (error instanceof MetaValidationError) {
+        skip(error.message);
+        return;
+      }
+      throw error;
+    }
+    if (rule.op === 'table.keyField' && !table.columns.some((c) => c.name === rule.value['column'])) {
+      skip(`"${table.name}" has no column "${String(rule.value['column'])}".`);
+      return;
+    }
+    if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states') {
+      const check = rule.op === 'table.capacity' ? capacityRuleIssue : rule.op === 'table.booking' ? bookingRuleIssue : statesRuleIssue;
+      const issue = check(rule.value, table, model);
+      if (issue !== null) {
+        skip(issue);
+        return;
+      }
+    } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
+      const issue = columnRuleIssue(
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.label' | 'table.keyField'>,
+        rule.value,
+        column,
+        model,
+        knownLists,
+      );
+      if (issue !== null) {
+        skip(issue);
+        return;
+      }
+    }
+    // A copy, a stamp's copy or a formula never lands a column kept from readers in one that is not.
+    if (rule.op === 'column.copy' || rule.op === 'column.stamp' || rule.op === 'column.formula') {
+      codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: manifest.kind === 'app' ? manifest : null });
+      const issue = keptColumnIssue(rule.op, rule.value, { table: rule.table, column: rule.column }, applyOverrides(model, active), codes);
+      if (issue !== null) {
+        skip(issue);
+        return;
+      }
+    }
+    const row = await overrides.create(request);
+    active.push(row);
+    kept.push({
+      op: rule.op,
+      table: rule.table,
+      column: rule.column,
+      valueHash: ruleHash(rule.value),
+      overrideId: row.id,
+      ...(rule.shape === undefined ? {} : { shape: rule.shape }),
+    });
+    result.written += 1;
+  };
   for (const record of records) {
     const kept: AppTableRule[] = [];
     // Rules an earlier version wrote: kept, replaced, or taken back — only
@@ -598,124 +721,17 @@ export async function writeManifestRules(input: {
       if (index !== -1) active.splice(index, 1);
     }
 
-    for (const rule of desired.filter((r) => r.ref === record.ref)) {
-      const target = targetOf(rule.op, rule.table, rule.column);
-      if (!wanted.has(target)) continue;
-      wanted.delete(target);
-      const skip = (reason: string) => result.skipped.push({ table: rule.table, column: rule.column, op: rule.op, reason });
-      // The live-model check every nested ref gets: a table this install does
-      // not have is never stored, whatever op names it.
-      if ((rule.missing ?? []).length > 0) {
-        skip(`It names ${(rule.missing ?? []).map((ref) => `"${ref}"`).join(', ')}, which this app does not have here.`);
-        continue;
-      }
-      const held = active.find((o) => targetOf(o.op, o.tableName, o.columnName) === target);
-      if (released.has(target)) {
-        skip(
-          held !== undefined
-            ? 'The operator already keeps a rule for this column.'
-            : all.some((o) => o.status === 'disabled' && targetOf(o.op, o.tableName, o.columnName) === target)
-              ? 'The operator switched off the rule for this column.'
-              : 'The operator removed the rule for this column.',
-        );
-        continue;
-      }
-      if (held !== undefined && held.origin !== 'auto') {
-        const keeper = keptByOther.get(held.id);
-        skip(keeper === undefined ? 'The operator already keeps a rule for this column.' : `"${keeper}" already keeps this rule on the shared table.`);
-        continue;
-      }
-      // One the operator switched off is still theirs: never a second row beside it.
-      if (all.some((o) => o.status === 'disabled' && o.origin !== 'auto' && targetOf(o.op, o.tableName, o.columnName) === target)) {
-        skip('The operator switched off the rule for this column.');
-        continue;
-      }
-      // A table the app did not make keeps its secrets: only an operator shows one.
-      if (record.state !== 'created' && !NAMING_OPS.has(rule.op) && !TABLE_OPS.has(rule.op)) {
-        if (rule.ownTableOnly === true) continue;
-        const shown = secretsShownBy(model, active, { connectionId, table: rule.table, column: rule.column, op: rule.op, value: rule.value, held });
-        if (shown.length > 0) {
-          skip(notOursToShow(record.tableName, shown));
-          continue;
-        }
-      }
-      // Adminium's own guess (introspection masks a column named `phone`) is
-      // not the operator's word: the app knows its own column better.
-      if (held !== undefined) {
-        await overrides.delete(held.id);
-        active.splice(active.indexOf(held), 1);
-      }
-      const table = model.tables.find((t) => t.id === rule.table)!;
-      // The booking guard, the names and the key field are the table's, not a column's.
-      const tableLevel = TABLE_OPS.has(rule.op);
-      const column: ColumnModel | undefined = table.columns.find((c) => c.name === rule.column);
-      if (!tableLevel && column === undefined) {
-        skip(`"${table.name}" has no column "${rule.column}".`);
-        continue;
-      }
-      const request = {
-        connectionId,
-        op: rule.op,
-        tableName: rule.table,
-        columnName: tableLevel ? null : rule.column,
-        value: rule.value,
-        origin: 'app' as const,
-        createdBy: input.createdBy,
-      };
-      try {
-        validateOverrideInput(request);
-      } catch (error) {
-        if (error instanceof MetaValidationError) {
-          skip(error.message);
-          continue;
-        }
-        throw error;
-      }
-      if (rule.op === 'table.keyField' && !table.columns.some((c) => c.name === rule.value['column'])) {
-        skip(`"${table.name}" has no column "${String(rule.value['column'])}".`);
-        continue;
-      }
-      if (rule.op === 'table.capacity' || rule.op === 'table.booking' || rule.op === 'table.states') {
-        const check = rule.op === 'table.capacity' ? capacityRuleIssue : rule.op === 'table.booking' ? bookingRuleIssue : statesRuleIssue;
-        const issue = check(rule.value, table, model);
-        if (issue !== null) {
-          skip(issue);
-          continue;
-        }
-      } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
-        const issue = columnRuleIssue(
-          rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.label' | 'table.keyField'>,
-          rule.value,
-          column,
-          model,
-          knownLists,
-        );
-        if (issue !== null) {
-          skip(issue);
-          continue;
-        }
-      }
-      // A copy, a stamp's copy or a formula never lands a column kept from readers in one that is not.
-      if (rule.op === 'column.copy' || rule.op === 'column.stamp' || rule.op === 'column.formula') {
-        codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: manifest.kind === 'app' ? manifest : null });
-        const issue = keptColumnIssue(rule.op, rule.value, { table: rule.table, column: rule.column }, applyOverrides(model, active), codes);
-        if (issue !== null) {
-          skip(issue);
-          continue;
-        }
-      }
-      const row = await overrides.create(request);
-      active.push(row);
-      kept.push({
-        op: rule.op,
-        table: rule.table,
-        column: rule.column,
-        valueHash: ruleHash(rule.value),
-        overrideId: row.id,
-        ...(rule.shape === undefined ? {} : { shape: rule.shape }),
-      });
-      result.written += 1;
-    }
+    for (const rule of desired.filter((r) => r.ref === record.ref && !readsKept(r.op))) await place(record, kept, rule);
+    keptOf.set(record, kept);
+  }
+  // A copy, a stamp's copy and a formula are placed last, once every table's
+  // own marks are in: whether a source is kept from readers, and whether the
+  // column it lands in is kept the same way, is read off the rules written so
+  // far. Placed in order, a formula checked before its own column's
+  // `personal`, or before a later table's, was refused as showing personal data.
+  for (const record of records) {
+    const kept = keptOf.get(record)!;
+    for (const rule of desired.filter((r) => r.ref === record.ref && readsKept(r.op))) await place(record, kept, rule);
     await appTablesRepo(meta).setRules(record.id, kept);
   }
   return result;

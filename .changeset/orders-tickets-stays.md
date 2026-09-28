@@ -49,6 +49,7 @@ Adminium now has the shared core that apps for online ordering, event tickets an
 - **Fixes.**
   - Installing an app that renames one of your tables out of its way no longer points the app's new links at your renamed table: Online Ordering over a Northwind-shaped database failed on Postgres and MySQL and was half-installed on SQLite.
   - A code rule on a column whose name reads as a secret (`link_token`) now makes its code. No released app is affected.
+  - A formula, a copy or a stamp's copy into a column marked personal, reading personal data, is now written on install and on update. It was skipped when the column's own mark came after it, so the column stayed empty (a joined guest name, say). No released app is affected.
   - On SQLite a total over child rows is added up exactly: 1.500 × 0.33 now totals 0.50, as on Postgres and MySQL. A stored total is set right the next time one of its rows changes.
   - On Postgres an empty figure ranks last in a chart, as on MySQL and SQLite; it used to rank first. A ranking's `orderBy` now sets the main order; before, it only broke ties.
   - On MySQL and SQLite, hour and day buckets on the venue's clock stay right across a daylight-saving change.
