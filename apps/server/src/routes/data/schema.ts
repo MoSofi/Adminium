@@ -241,6 +241,8 @@ export const recordChangeDryRunBody = z.object({
   values: rowValuesSchema,
   children: recordChildrenBody,
   from: z.string().min(1).max(64).optional(),
+  /** Refused: a quote shows the figures, and a price check goes with the save (as a new record's quote). */
+  expect: recordExpectBody,
 });
 
 /**

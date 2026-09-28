@@ -2161,7 +2161,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       // The request's lists against the entry's, before anything is read.
       const shape = treeShape(lists, body.children);
       if (shape !== null) return refused({ ...shape });
-      if (body.expect !== undefined && (resource.expect ?? null) === null) return refused();
+      // A price check goes with a save: a quote shows the figures and checks none, refused as a change's quote is.
+      if (body.expect !== undefined && ((resource.expect ?? null) === null || mode === 'dry')) return refused();
 
       /** A child list's entry by its place (`['order_items', 3]` or deeper); undefined for the root. */
       const entryAt = (at: TreePath): Omit<ScopeChild, 'children'> & { children?: ScopeChild['children'] } | undefined => {
@@ -3405,7 +3406,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         config: { rateLimitBucket: 'public', audit: audited('rbac') },
         schema: {
           params: publicRecordParams,
-          body: publicWriteBody,
+          // A price check is read so that it is refused: it goes with the save, never with a quote.
+          body: publicUpdateBody,
           response: {
             200: publicChangeQuoteReply,
             400: publicErrorReply,
