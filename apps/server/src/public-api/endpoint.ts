@@ -1481,8 +1481,10 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
      * endpoint is written, rather than found by the first guest.
      */
     const masked = maskedColumns(table);
+    // What a person typed to be found (their own address, as they gave it) is theirs to read back.
+    const typed = def.identity?.strategy === 'lookup' ? def.identity.match : [];
     for (const column of def.select) {
-      if (masked.has(column)) {
+      if (masked.has(column) && !typed.includes(column)) {
         push(
           'ENDPOINT_PII_NOT_PROVED',
           `"${column}" is marked personal data; it is shown only to a person who proved their mailbox (a verified level, or a sign-in by an emailed link), which this endpoint does not ask`,

@@ -322,6 +322,8 @@ describe('every ENDPOINT_* refusal', () => {
     shown({ identity: byCode, level: 'verified' });
     expect(withEmail({ identity: byCode })).toContain('ENDPOINT_PII_NOT_PROVED');
     expect(withEmail({ identity: { strategy: 'lookup', match: ['display_name'], column: 'id' } })).toContain('ENDPOINT_PII_NOT_PROVED');
+    // What the person typed to be found is theirs to read back.
+    shown({ identity: { strategy: 'lookup', match: ['email'], column: 'id' } });
     // A read for a session's holder alone proves nothing about the rows.
     expect(withEmail({ session_only: true, level: 'verified' })).toContain('ENDPOINT_PII_NOT_PROVED');
     // Without a masked column, nothing to say.

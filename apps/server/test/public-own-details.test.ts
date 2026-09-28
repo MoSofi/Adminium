@@ -145,10 +145,10 @@ describe.each(LEGS)("a person's own details — %s", (dialect, available) => {
 
 /**
  * An identity found by what a person knows (a phone), raised by an emailed
- * code: before the code, the found session reads the name its row shows and
- * none of the person's own rows; after it, those rows as they are. An
- * address on the identity itself, which the found session would read before
- * any code, is refused where the app asks for it.
+ * code: before the code, the found session reads its row's name and the
+ * phone it typed to be found, and none of the person's own rows; after it,
+ * those rows as they are. An address on the identity itself, which the found
+ * session would read before any code, is refused where the app asks for it.
  */
 describe.each(LEGS)('details found by a phone, confirmed by an emailed code — %s', (dialect, available) => {
   let h: InvoicingHarness & { reply: Record<string, unknown> };
@@ -157,7 +157,7 @@ describe.each(LEGS)('details found by a phone, confirmed by an emailed code — 
   const manifestFor = (select: string[]) => {
     const manifest = shopManifest({
       entries: () => [
-        { table: 'customers', methods: ['GET'], select, claim: { match: ['phone'], verify: 'email-code', email: 'email' } },
+        { table: 'customers', methods: ['GET'], select, writable: [], claim: { match: ['phone'], verify: 'email-code', email: 'email' } },
         { table: 'orders', methods: ['GET'], level: 'verified', claimedBy: { table: 'customers', column: 'customer_id' }, select: ['id', 'email', 'name', 'status'] },
       ],
     });
@@ -167,7 +167,7 @@ describe.each(LEGS)('details found by a phone, confirmed by an emailed code — 
 
   beforeAll(async () => {
     if (!available) return;
-    h = await installInvoicing(dialect, manifestFor(['name']));
+    h = await installInvoicing(dialect, manifestFor(['name', 'phone']));
     await mailReady(h.meta);
     await h.rows(`insert into ${t('customers')} (email, name, phone) values ('ana@example.com', 'Ana', '07700900001'), ('ben@example.com', 'Ben', '07700900002')`);
     const ids = await h.rows(`select id, email from ${t('customers')} order by id`);
@@ -184,13 +184,15 @@ describe.each(LEGS)('details found by a phone, confirmed by an emailed code — 
     await h?.close();
   });
 
-  it.skipIf(!available)('reads no address before the code, and their own rows as they are after it', async () => {
+  it.skipIf(!available)('reads back only what it typed before the code, and its own rows as they are after it', async () => {
     const found = await g.request('POST', '/claim', { payload: { match: { phone: '07700900001' } } });
     expect(found.statusCode, found.body).toBe(200);
     const session = (found.json() as { data: { session: string } }).data.session;
     const me = await g.request('GET', `/records/${details}`, { session });
     expect(me.statusCode, me.body).toBe(200);
-    expect((me.json() as { data: Doc[] }).data).toEqual([{ name: 'Ana' }]);
+    // The phone it typed to be found, read back as it gave it; nobody else's.
+    expect((me.json() as { data: Doc[] }).data).toEqual([{ name: 'Ana', phone: '07700900001' }]);
+    expect(me.body).not.toContain('07700900002');
     const before = await g.request('GET', `/records/${t('orders')}_verified`, { session });
     expect(before.statusCode, before.body).toBe(403);
     expect(before.body).not.toContain('ana@example.com');
