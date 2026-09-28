@@ -14,7 +14,7 @@
  */
 import { connectionTenantConfig, publicEndpointsRepo } from '@adminium/meta';
 import { sql } from 'kysely';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createEndpointService } from '../src/public-api/endpoint-service.js';
@@ -25,6 +25,15 @@ import { readerFor } from '../src/public-api/visible-with.js';
 import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 import { TEST_SECRET } from './helpers.js';
+
+/**
+ * The venue's clock, pinned: 08:06 on the 28th in Tokyo is still the 27th in
+ * UTC. "In date" and "before today" are the venue's calendar, so a proposal
+ * valid until the 27th is out of date there, whatever day the server's clock
+ * or UTC names.
+ */
+const VENUE = 'Asia/Tokyo';
+const AT = '2026-09-27T23:06:00.000Z';
 
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const text = (ref: string, nullable = false) => ({ ref, type: 'text', maxLength: 120, ...(nullable ? { nullable: true } : {}) });
@@ -107,12 +116,11 @@ async function seed(h: InvoicingHarness): Promise<void> {
   await run(`insert into ${t('clients')} (email, name) values ('ben@example.com', 'Ben')`);
   for (const title of ['T1 sent to Ada', 'T2 only in Ada draft', 'T3 sent to Ben']) await run(`insert into ${t('terms_versions')} (title) values ('${title}')`);
   for (const v of [1, 2, 3]) await run(`insert into ${t('terms_clauses')} (terms_version_id, body) values (${String(v)}, 'clause of ${String(v)}')`);
-  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-  await run(`insert into ${t('proposals')} (client_id, status, terms_version_id, valid_until) values (1, 'sent', 1, '${day(3)}')`);
+  await run(`insert into ${t('proposals')} (client_id, status, terms_version_id, valid_until) values (1, 'sent', 1, '2026-09-30')`);
   await run(`insert into ${t('proposals')} (client_id, status, terms_version_id) values (1, 'draft', 2)`);
   await run(`insert into ${t('proposals')} (client_id, status, terms_version_id) values (2, 'sent', 3)`);
-  // Ada's fourth: sent, and out of date since yesterday.
-  await run(`insert into ${t('proposals')} (client_id, status, valid_until) values (1, 'sent', '${day(-1)}')`);
+  // Ada's fourth: sent, and out of date since the venue's yesterday (UTC's today at `AT`).
+  await run(`insert into ${t('proposals')} (client_id, status, valid_until) values (1, 'sent', '2026-09-27')`);
   // Line 1: Ada's sent proposal. Line 2: her draft, marked hers. Line 3: Ben's. Line 4: Ada's sent proposal, wrongly marked Ben's.
   await run(`insert into ${t('proposal_lines')} (proposal_id, client_id, label) values (1, 1, 'design')`);
   await run(`insert into ${t('proposal_lines')} (proposal_id, client_id, label) values (2, 1, 'draft line')`);
@@ -140,6 +148,7 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
   beforeAll(async () => {
     if (!available) return;
     h = await installInvoicing(dialect, portalManifest());
+    await h.meta.db.updateTable('adminium_connections').set({ timezone: VENUE }).where('id', '=', h.connectionId).execute();
     const made = h.reply['publicAccess'] as { keyId: string; endpoints: string[] };
     expect(made.endpoints).toContain(ref('deliverable_notes'));
     await seed(h);
@@ -157,6 +166,9 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
     if (!available) return;
     await served.close();
     await h.close();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it.skipIf(!available)('stores the parent and the columns that link them, either way round', async () => {
@@ -323,6 +335,7 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
   });
 
   it.skipIf(!available)('signs a proposal once, while it is sent and in date, and only with a name', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(AT) });
     const sign = (id: number, values: Record<string, unknown>) =>
       served.composed.app.inject({ method: 'PATCH', url: `/api/v1/public/records/${ref('proposals')}/${String(id)}`, headers: served.headers(ada), payload: { values } });
     expect((await sign(1, {})).statusCode).toBe(400);
@@ -336,6 +349,7 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
   });
 
   it.skipIf(!available)('changes a proposal through a before-today door only once its date is past', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(AT) });
     const ask = (id: number) =>
       served.composed.app.inject({ method: 'PATCH', url: `/api/v1/public/records/${ref('proposals', 'claimed_2')}/${String(id)}`, headers: served.headers(ada), payload: { values: { signed_name: 'asked again' } } });
     // Sent with no date at all (id 5): neither in date nor out of it.
@@ -344,6 +358,9 @@ describe.each(LEGS)('rows visible with their parent — %s', (dialect, available
     expect((await ask(5)).statusCode).toBe(404); // no date
     expect((await ask(3)).statusCode).toBe(404); // Ben's, and none of hers
     expect((await ask(4)).statusCode).toBe(200); // out of date since yesterday
+    // In date through its last day, the venue's today.
+    await h.rows(`update ${h.real('proposals')} set valid_until = '2026-09-28' where id = 5`);
+    expect((await ask(5)).statusCode).toBe(404);
     if (dialect === 'sqlite') {
       // A day kept as a number (a tool that stores epochs) sorts below any text on SQLite: never "before today".
       await h.rows(`update ${h.real('proposals')} set valid_until = 4102444800000 where id = 5`);

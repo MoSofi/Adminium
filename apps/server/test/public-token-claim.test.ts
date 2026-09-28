@@ -8,7 +8,7 @@
  * an unknown code is the one 404, and guessing is held to a few a minute.
  */
 import { publicKeysRepo, rolesRepo, usersRepo } from '@adminium/meta';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createPublicViews } from '../src/public-api/runtime.js';
 import { compileScope, ScopeCompileError, type PublicScopeDocument } from '../src/public-api/scope.js';
@@ -17,6 +17,14 @@ import { installInvoicing, invoicingManifest, LEGS, type InvoicingHarness } from
 import { servePublic, type Served } from './public-lane.helpers.js';
 
 const TOKEN = 'ABCDEFGHJKMNPQRS';
+
+/**
+ * The venue's clock, pinned: 20:11 on the 27th in Los Angeles is already the
+ * 28th in UTC. A link runs through its last day on the venue's calendar, so
+ * the day the server's clock or UTC names would close it a day early here.
+ */
+const VENUE = 'America/Los_Angeles';
+const AT = '2026-09-28T03:11:00.000Z';
 const OTHER = 'ZZZZ1111ZZZZ1111';
 
 function manifest(): Record<string, unknown> {
@@ -82,6 +90,7 @@ describe.each(LEGS)('a row shared by link — %s', (dialect, available) => {
   beforeAll(async () => {
     if (!available) return;
     h = await installInvoicing(dialect, manifest());
+    await h.meta.db.updateTable('adminium_connections').set({ timezone: VENUE }).where('id', '=', h.connectionId).execute();
     const t = (short: string) => h.real(short);
     await h.rows(`insert into ${t('projects')} (name, share_token, ref_code, share_stopped) values ('Harbour rebrand', '${TOKEN}', 'ABC123', ${dialect === 'postgres' ? 'false' : '0'})`);
     await h.rows(`insert into ${t('projects')} (name, share_token, share_stopped) values ('Other studio job', '${OTHER}', ${dialect === 'postgres' ? 'false' : '0'})`);
@@ -98,6 +107,9 @@ describe.each(LEGS)('a row shared by link — %s', (dialect, available) => {
     if (!available) return;
     await served.close();
     await h.close();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it.skipIf(!available)('opens that one row and what its key declares with it, as the code is typed or pasted', async () => {
@@ -139,10 +151,14 @@ describe.each(LEGS)('a row shared by link — %s', (dialect, available) => {
   });
 
   it.skipIf(!available)('works through its last day, and not the day after', async () => {
-    const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-    await h.rows(`update ${h.real('projects')} set share_expires_on = '${day(1)}' where id = 1`);
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(AT) });
+    const expires = (day: string) => h.rows(`update ${h.real('projects')} set share_expires_on = '${day}' where id = 1`);
+    // Its last day is the venue's today (UTC's yesterday): it opens, and reads.
+    await expires('2026-09-27');
     const session = await sessionOf(TOKEN);
-    await h.rows(`update ${h.real('projects')} set share_expires_on = '${day(-1)}' where id = 1`);
+    expect(await titles(session)).toEqual(['Logo files']);
+    // The day after its last: the session closes at once, and no new one opens.
+    await expires('2026-09-26');
     expect(await titles(session)).toBe(404);
     expect((await open(TOKEN)).statusCode).toBe(410);
     await h.rows(`update ${h.real('projects')} set share_expires_on = null where id = 1`);
