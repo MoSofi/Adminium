@@ -1,5 +1,19 @@
 # @adminium/widgets
 
+## 0.3.5
+
+### Patch Changes
+
+- dd1c9c0: A Postgres table whose connection role is granted only some of its columns — `GRANT UPDATE (notes) ON tickets` — can now be edited. Forms show the columns the role may not set read-only and never send them: on an edit, the columns it may not update; on a new record, the columns it may not insert. A write that names such a column anyway is refused with 403 `READ_ONLY_MODE` listing the columns, before it reaches the database. A column Adminium fills on its own — an `updated_at` it stamps on every edit — is left out when the role may not write it, where it used to make the database refuse every save of the table. This holds for every write, not only the record form's: line items, imports, automation steps, the public API and project code. Line items send an existing row without the columns the role may not update, and a new one without those it may not insert.
+- d12f866: Saving a record's edit form sends only the fields that changed. It used to send every field the form showed, so saving one field wrote the whole row back as it stood when the form opened — a status another person changed meanwhile, a total a trigger updated, a column a job fills, all silently put back. A field left as it was is now neither sent nor checked, so a record kept from before a column became required can be saved without filling it; a field that a change on the form makes required (a person, once the event is marked away) is still checked. Values are compared as they would be sent, so a price the database returns as `12.50` is unchanged when it still reads `12.5`, and a date left alone can no longer shift by a day. An edit of a record's links or line items alone is saved without touching the record's own fields, and saving with nothing changed writes nothing: no `updated_at` stamp, no automations, no Undo. A new record still sends every field.
+- 045e3ab: A Postgres `text[]` or `varchar[]` column is edited as a list. The form showed it as a plain text box holding the array's text, and saving anything typed there failed, because Postgres reads `red,blue` as no array at all. Such a column is now marked a list when its page is generated or its table's facts are read, the form edits it as chips — one per item, duplicates refused, at most fifty — and it is saved as the database's own array. MySQL and SQLite have no array columns, so nothing changes there.
+- Updated dependencies [2dfe2f8]
+- Updated dependencies [625f9ab]
+  - @adminium/i18n@0.3.5
+  - @adminium/charts@0.3.5
+  - @adminium/tokens@0.3.5
+  - @adminium/ui@0.3.5
+
 ## 0.3.4
 
 ### Patch Changes
