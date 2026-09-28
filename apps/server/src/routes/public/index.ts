@@ -1228,8 +1228,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     }
     const rung = opts.keyWide === false ? null : KEY_RUNGS[limit] ?? null;
     if (key.kind === 'browser' && (rung === 'read' || rung === 'write')) {
-      // Reads and writes: within the visitor's share of the key, and handed back when the request is refused (`keyHolds`).
-      const held = limiter.holdKey(key.keyId, rung, { ip: request.ip, ...(counted.staffSessionId === undefined ? {} : { staffSessionId: counted.staffSessionId }) });
+      // Reads and writes: within the visitor's share of the key (a signed-in person's own, behind any address), and handed back when the request is refused (`keyHolds`).
+      const held = limiter.holdKey(key.keyId, rung, {
+        ip: request.ip,
+        ...(counted.staffSessionId === undefined ? {} : { staffSessionId: counted.staffSessionId }),
+        ...(session === null ? {} : { sessionId: session.id }),
+      });
       if ('refused' in held) {
         admit(reply, held.refused);
         return null;
@@ -1678,16 +1682,25 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   };
 
   return async (app) => {
+    /*
+     * The whole key is charged for work done: a request refused before it (an
+     * unknown ref, a missing row, a filter or a write the scope refuses) hands
+     * its place back. A 409 is a write that reached the database. Settled as
+     * the reply is sent, by the status it carries: a client that has gone by
+     * then is settled the same (a refusal hands back, a write that happened
+     * stays charged), where `onResponse` never runs for it at all.
+     */
+    const settleHold = (request: FastifyRequest, status: number): void => {
+      const held = keyHolds.get(request);
+      if (held === undefined) return;
+      keyHolds.delete(request);
+      if (status >= 400 && status < 500 && status !== 409) held.giveBack();
+    };
     // A guess held for a typed code is handed back once the reply has gone, unless it missed.
     app.addHook('onResponse', async (request, reply) => {
       guesses.settle(request, reply);
-      // The whole key is charged for work done: a request refused before it (an unknown ref, a missing row, a
-      // filter or a write the scope refuses) hands its place back. A 409 is a write that reached the database.
-      const held = keyHolds.get(request);
-      if (held !== undefined) {
-        keyHolds.delete(request);
-        if (reply.statusCode >= 400 && reply.statusCode < 500 && reply.statusCode !== 409) held.giveBack();
-      }
+      // A backstop: a hold that no reply settled (`settleHold` has already run for every one that was sent).
+      settleHold(request, reply.statusCode);
     });
     /*
      * A reply to a request made with a session — a signed-in person's, a
@@ -1698,6 +1711,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * an anonymous read of what everyone sees keeps its caching.
      */
     app.addHook('onSend', async (request, reply, payload) => {
+      settleHold(request, reply.statusCode);
       if (!reply.hasHeader('cache-control') && (personal.has(request) || !SAFE_METHODS.has(request.method))) reply.header('cache-control', 'no-store');
       return payload;
     });

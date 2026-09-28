@@ -166,9 +166,14 @@ Every code, with its `params`, is in [Error codes](/reference/errors/#public-api
 
 An endpoint's own limit applies per visitor for a browser key, and across the whole key
 for a server key. A batch counts one request per row. A browser key is also held as a
-whole, across every visitor together, to 600 reads and 60 writes a minute (a batch counts
+whole, across every visitor together, to 3,000 reads and 300 writes a minute (a batch counts
 once here); anyone can copy a browser key out of a page, so this is what stops many
-addresses together from using it up. Separately, every address is held
+addresses together from using it up. A request that is refused (an unknown endpoint, a
+missing record) does not count here, and no one visitor may use more than a twelfth of it:
+250 reads and 25 writes a minute. A signed-in person counts as a visitor of their own, so
+people signed in behind one shared network (a venue's Wi-Fi) each get their own share, while
+visitors who are not signed in share their address's; a staff screen counts by the staff
+member signed in on it. Separately, every address is held
 to 600 requests a minute across all endpoints. The counters live in each server process,
 so with several replicas each one counts on its own.
 

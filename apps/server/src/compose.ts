@@ -217,6 +217,7 @@ import { WidgetDataCache } from './widget-data/cache.js';
 import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
 import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
+import type { PublicRateLimiter } from './public-api/limiter.js';
 import { publicAdminRoutes } from './routes/public-admin/index.js';
 import { appRoutes } from './routes/apps/index.js';
 import { surfacesAdminRoutes } from './routes/surfaces-admin/index.js';
@@ -390,6 +391,8 @@ export interface ComposeServerOptions {
    * folder's page and schema files in step with this server.
    */
   project?: ProjectServerOptions | undefined;
+  /** The public API's limiter; a fresh one otherwise. Tests pass one to watch what it holds. */
+  publicLimiter?: PublicRateLimiter | undefined;
 }
 
 export interface ComposedServer {
@@ -1818,6 +1821,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         await api.register(publicRoutes({
         env,
         meta,
+        limiter: opts.publicLimiter,
         manager,
         isEnabled: publicGate.isEnabled,
         resolver: publicResolver,

@@ -41,6 +41,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { generatePublicSessionToken, generatePublishableKey } from '../src/public-api/keys.js';
 import {
+  HARD_CAP,
   PUBLIC_FAILED_RESOLUTION,
   PUBLIC_FLOOD_GUARD,
   KEY_SHARE_VISITORS,
@@ -382,6 +383,13 @@ describe("no one visitor spends the whole key", () => {
     expect('refused' in over && over.refused.retryAfterSeconds).toBeGreaterThan(0);
     // A staff screen counts by its sign-in, not the address every patient shares.
     expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7', staffSessionId: 'ses_1' })).toBe(false);
+    // So does a signed-in person: each session behind the address holds a share of its own.
+    for (const sessionId of ['pss_a', 'pss_b']) {
+      for (let i = 0; i < share; i += 1) expect('ticket' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7', sessionId }), `${sessionId} ${String(i)}`).toBe(true);
+      expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7', sessionId })).toBe(true);
+    }
+    // Anonymous traffic from the address still shares the one address share, spent above.
+    expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' })).toBe(true);
     // Another address, another key: their own.
     expect('ticket' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.8' })).toBe(true);
     expect('ticket' in limiter.holdKey('pbk_2', 'write', { ip: '198.51.100.7' })).toBe(true);
@@ -392,6 +400,18 @@ describe("no one visitor spends the whole key", () => {
     expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' })).toBe(true);
     at += PUBLIC_KEY_LIMITS.write.windowMs;
     expect('ticket' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' })).toBe(true);
+  });
+
+  it('keeps a spent key spent when a flood of visitors fills the limiter', () => {
+    const limiter = createPublicRateLimiter(() => 1_000);
+    const visitors = PUBLIC_KEY_LIMITS.write.max / PUBLIC_KEY_SHARES.write;
+    for (let n = 1; n <= visitors; n += 1) {
+      for (let i = 0; i < PUBLIC_KEY_SHARES.write; i += 1) limiter.holdKey('pbk_1', 'write', { ip: `198.51.100.${String(n)}` });
+    }
+    expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '203.0.113.50' })).toBe(true);
+    // More visitors than the limiter keeps: the oldest are dropped, and the key's own count is not among them.
+    for (let n = 0; n <= HARD_CAP; n += 1) limiter.hit('public-read', { keyId: 'pbk_2', ip: `10.${String((n >> 16) & 255)}.${String((n >> 8) & 255)}.${String(n & 255)}` });
+    expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '203.0.113.51' })).toBe(true);
   });
 
   it('spends the whole key across its visitors, each inside their share', () => {

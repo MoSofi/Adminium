@@ -215,8 +215,11 @@ export type PublicKeySide = keyof typeof PUBLIC_KEY_LIMITS;
 export const KEY_SHARE_VISITORS = 12;
 
 /**
- * What one address (a staff screen: its staff sign-in) may spend of the
- * reads and writes of a browser key, in the key's window: a
+ * What one visitor may spend of the reads and writes of a browser key: a
+ * signed-in person by their session, a staff screen by its staff sign-in,
+ * anyone else by their address. Signed-in people behind one shared address
+ * (a venue's Wi-Fi, a mobile carrier) each hold their own; anonymous traffic
+ * from it shares one. In the key's window, in the key's window: a
  * {@link KEY_SHARE_VISITORS}th of each, and above one visitor's class limit.
  */
 export const PUBLIC_KEY_SHARES = {
@@ -227,10 +230,12 @@ export const PUBLIC_KEY_SHARES = {
 /** The rungs a visitor holds a share of, charged for work done (`holdKey`). */
 export type PublicKeyShared = keyof typeof PUBLIC_KEY_SHARES;
 
-/** Who a share is held by: the address, or a staff screen's staff sign-in. */
+/** Who a share is held by: a staff screen's staff sign-in, else the verified session, else the address. */
 export interface KeyShareIdentity {
   ip: string;
   staffSessionId?: string | undefined;
+  /** The request's public session, once the gate has verified it. */
+  sessionId?: string | undefined;
 }
 
 /** A place held on the whole key: handed back when the request was refused. */
@@ -243,9 +248,14 @@ export function keyRateKeyFor(keyId: string, side: PublicKeySide): string {
   return `pubkey:${keyId}:${side}`;
 }
 
-/** One visitor's share of a whole-key rung: by address (IPv6 by its /64), or by a staff screen's sign-in. */
+/** One visitor's share of a whole-key rung: by a staff screen's sign-in, a session, or the address (IPv6 by its /64). */
 export function keyShareKeyFor(keyId: string, side: PublicKeyShared, visitor: KeyShareIdentity): string {
-  const who = visitor.staffSessionId !== undefined ? `staff:${visitor.staffSessionId}` : `ip:${rateAddress(visitor.ip)}`;
+  const who =
+    visitor.staffSessionId !== undefined
+      ? `staff:${visitor.staffSessionId}`
+      : visitor.sessionId !== undefined
+        ? `session:${visitor.sessionId}`
+        : `ip:${rateAddress(visitor.ip)}`;
   return `${keyRateKeyFor(keyId, side)}:${who}`;
 }
 
@@ -330,7 +340,9 @@ const SWEEP_EVERY_MS = 1_000;
  * resets somebody's allowance, which is the lesser harm: the alternative is a
  * map an attacker can grow without bound.
  */
-const HARD_CAP = 100_000;
+export const HARD_CAP = 100_000;
+/** A whole key's own counter (`keyRateKeyFor`, and its code guesses), never one visitor's share of it. */
+const WHOLE_KEY_COUNTER = /^(?:guess\|)?pubkey:[^:|]+(?::[A-Za-z]+)?$/;
 
 export interface PublicRateLimiter {
   /** Before resolution. Takes the address and nothing the caller chose. */
@@ -470,11 +482,14 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
       }
     }
     if (map.size >= HARD_CAP) {
-      // Insertion order is age order: drop the oldest tenth.
+      // Insertion order is age order: drop the oldest tenth. Never a whole key's own count, which
+      // lives longest and is few: dropped, a key spent by many would open again for everyone.
       let drop = Math.ceil(HARD_CAP / 10);
       for (const key of map.keys()) {
-        if (drop-- <= 0) break;
+        if (drop <= 0) break;
+        if (WHOLE_KEY_COUNTER.test(key)) continue;
         map.delete(key);
+        drop -= 1;
       }
     }
   };

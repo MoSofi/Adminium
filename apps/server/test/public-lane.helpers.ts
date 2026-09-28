@@ -12,6 +12,7 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import { openPublishableKey } from '../src/public-api/keys.js';
+import type { PublicRateLimiter } from '../src/public-api/limiter.js';
 import type { InvoicingHarness } from './invoicing-install.helpers.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
@@ -20,7 +21,7 @@ export const ORIGIN = 'https://studio.example.com';
 export type Served = Awaited<ReturnType<typeof servePublic>>;
 
 /** The composed server, and requests through one of its keys. */
-export async function servePublic(h: InvoicingHarness, keyId: string | null, env: Record<string, string> = {}) {
+export async function servePublic(h: InvoicingHarness, keyId: string | null, env: Record<string, string> = {}, opts: { limiter?: PublicRateLimiter } = {}) {
   await settingsRepo(h.meta).set('publicApi.enabled', true);
   const runService = createRunService({ meta: h.meta });
   const composed = await composeServer({
@@ -32,6 +33,7 @@ export async function servePublic(h: InvoicingHarness, keyId: string | null, env
     allowed: null,
     logger: false,
     telemetry: false,
+    publicLimiter: opts.limiter,
   });
   await composed.app.ready();
   // The test drives the jobs itself: no poll or tick may race it.
