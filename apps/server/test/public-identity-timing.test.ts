@@ -162,16 +162,21 @@ describe.each(LEGS)('a known address and an unknown one — %s', (dialect, avail
     const known: number[] = [];
     const unknown: number[] = [];
     for (let i = 0; i < TRIES; i += 1) {
-      const a = await ready(`known${String(i + 2)}@example.com`);
-      const b = await ready(`stranger${String(i)}@example.com`);
-      // Interleaved, so a slower moment of the machine lands on both alike.
-      let t = performance.now();
-      const x = await a();
-      known.push(performance.now() - t);
-      t = performance.now();
-      const y = await b();
-      unknown.push(performance.now() - t);
-      expect([x.statusCode, y.statusCode]).toEqual([201, 201]);
+      // Interleaved, so a slower moment of the machine lands on both alike; each one made ready right before it
+      // goes, and the two taking turns to go first — a request sent straight after another runs warm, one sent
+      // after a proof is solved runs cold, and a fixed order timed that, not the address (known vs known: ~1 ms).
+      const pair: [string, number[]][] = [
+        [`known${String(i + 2)}@example.com`, known],
+        [`stranger${String(i)}@example.com`, unknown],
+      ];
+      if (i % 2 === 1) pair.reverse();
+      for (const [email, times] of pair) {
+        const send = await ready(email);
+        const t = performance.now();
+        const res = await send();
+        times.push(performance.now() - t);
+        expect(res.statusCode).toBe(201);
+      }
     }
     const gap = Math.abs(median(known) - median(unknown));
     const noise = Math.max(deviation(known), deviation(unknown));
