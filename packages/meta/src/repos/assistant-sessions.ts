@@ -41,7 +41,7 @@ import {
   type AssistantTurnStatus,
 } from '../schema/json-payloads.js';
 import type { AdminiumAssistantSessionsTable, AdminiumAssistantTurnsTable } from '../schema/tables.js';
-import { MetaValidationError, packJson, readJson, readJsonOrNull } from './util.js';
+import { inIdOrder, MetaValidationError, packJson, readJson, readJsonOrNull } from './util.js';
 
 export type {
   AssistantContextKey,
@@ -264,15 +264,22 @@ export function assistantSessionsRepo(meta: MetaDb) {
 
     /** Sessions a browser left open, last touched before `before` — the sweep's first pass. */
     async listStaleOpen(before: number, limit = 500): Promise<AssistantSession[]> {
-      const rows = await db
-        .selectFrom('adminium_assistant_sessions')
-        .selectAll()
-        .where('status', '=', 'open')
-        .where('updatedAt', '<', before)
-        .orderBy('updatedAt', 'asc')
-        .limit(limit)
-        .execute();
-      return rows.map(decodeSession);
+      // Ids first, then the rows: MySQL sorts whole rows in a fixed buffer, and a
+      // long transcript is bigger than it ("Out of sort memory").
+      const ids = (
+        await db
+          .selectFrom('adminium_assistant_sessions')
+          .select('id')
+          .where('status', '=', 'open')
+          .where('updatedAt', '<', before)
+          .orderBy('updatedAt', 'asc')
+          .orderBy('id', 'asc')
+          .limit(limit)
+          .execute()
+      ).map((row) => row.id);
+      if (ids.length === 0) return [];
+      const rows = await db.selectFrom('adminium_assistant_sessions').selectAll().where('id', 'in', ids).execute();
+      return inIdOrder(ids, rows).map(decodeSession);
     },
 
     /**

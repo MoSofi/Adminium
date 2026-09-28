@@ -12,6 +12,7 @@
  * every `str(n)` is `text`, would never notice. The width cases below write
  * each string column at exactly its declared length for that reason.
  */
+import { sql } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ALL_MIGRATIONS, applyMigrations, assistantSessionsRepo, newId, usersRepo } from '../src/index.js';
@@ -292,6 +293,31 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.listTurns(recent.id)).toHaveLength(1);
       // Nothing to sweep is not an error.
       expect(await repo.purgeClosedBefore(T0)).toEqual({ sessions: 0, turns: 0 });
+    });
+
+    it('lists sessions and turns larger than a MySQL sort buffer', async () => {
+      // A long conversation's transcript, or a big draft, is more than MySQL's
+      // default 256 KB sort buffer: a list that sorted whole rows failed with
+      // "Out of sort memory". Each value here is bigger than the server's buffer.
+      let pad = 350_000;
+      if (dialect.name === 'mysql') {
+        const buffer = await sql<{ size: number | string }>`select @@sort_buffer_size as size`.execute(t.meta.db);
+        pad = Math.max(pad, Number(buffer.rows[0]?.size ?? 0) + 100_000);
+      }
+      const repo = assistantSessionsRepo(t.meta);
+      const user = await usersRepo(t.meta).create({ email: 'long@example.test', name: 'Long', passwordHash: 'h', status: 'active' }, T0);
+      const draft = { body: 'd'.repeat(pad) };
+      const first = await repo.create({ context: 'email', host: { connectionIds: [] }, draft, createdBy: user.id }, T0);
+      const second = await repo.create({ context: 'email', host: { connectionIds: [] }, draft, createdBy: user.id }, T0 + 1000);
+      for (let seq = 0; seq < 3; seq += 1) {
+        await repo.createTurn({ sessionId: first.id, askText: `ask ${String(seq)}`, transcript: [{ role: 'user', content: 't'.repeat(pad) }] }, T0 + seq);
+      }
+
+      expect((await repo.listStaleOpen(T0 + 86_400_000)).map((s) => s.id)).toEqual([first.id, second.id]);
+      expect((await repo.listForUser(user.id)).map((s) => s.id)).toEqual([second.id, first.id]);
+      const turns = await repo.listTurns(first.id);
+      expect(turns.map((turn) => turn.askText)).toEqual(['ask 0', 'ask 1', 'ask 2']);
+      expect(turns[2]?.transcript[0]?.content).toHaveLength(pad);
     });
 
     it('finds the sessions a browser left open', async () => {
