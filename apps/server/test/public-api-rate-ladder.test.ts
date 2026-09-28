@@ -43,10 +43,14 @@ import { generatePublicSessionToken, generatePublishableKey } from '../src/publi
 import {
   PUBLIC_FAILED_RESOLUTION,
   PUBLIC_FLOOD_GUARD,
+  KEY_SHARE_VISITORS,
+  PUBLIC_CODE_GUESSES,
   PUBLIC_KEY_LIMITS,
+  PUBLIC_KEY_SHARES,
   PUBLIC_LIMITS,
   createPublicRateLimiter,
   floodKeyFor,
+  type KeyTicket,
   rateAddress,
   rateKeyFor,
 } from '../src/public-api/limiter.js';
@@ -317,9 +321,9 @@ describe('the whole key', () => {
     expect(codeOf(limited)).toBe('PUBLIC_RATE_LIMITED');
   }, 120_000);
 
-  it('counts claims on the stricter write rung', async () => {
+  it('counts claims on a rung of their own', async () => {
     const { app, token } = await serving();
-    const addresses = PUBLIC_KEY_LIMITS.write.max / CLAIM_MAX;
+    const addresses = PUBLIC_KEY_LIMITS.claim.max / CLAIM_MAX;
     for (let n = 1; n <= addresses; n += 1) {
       for (let attempt = 1; attempt <= CLAIM_MAX; attempt += 1) {
         expect((await claim(app, { token, from: `198.51.100.${String(n)}` })).statusCode).toBe(403);
@@ -333,12 +337,71 @@ describe('the whole key', () => {
   it('adds nothing for a refused request, and reopens with its window', () => {
     let at = 1_000;
     const limiter = createPublicRateLimiter(() => at);
-    expect(limiter.hitKey('pbk_1', 'write', 59).allowed).toBe(true);
+    expect(limiter.hitKey('pbk_1', 'write', PUBLIC_KEY_LIMITS.write.max - 1).allowed).toBe(true);
     expect(limiter.hitKey('pbk_1', 'write', 2).allowed).toBe(false);
     expect(limiter.hitKey('pbk_1', 'write').allowed).toBe(true);
     expect(limiter.hitKey('pbk_1', 'write').allowed).toBe(false);
     expect(limiter.hitKey('pbk_2', 'write').allowed).toBe(true);
     at += PUBLIC_KEY_LIMITS.write.windowMs;
     expect(limiter.hitKey('pbk_1', 'write').allowed).toBe(true);
+  });
+});
+
+describe("no one visitor spends the whole key", () => {
+  it('takes at least a dozen visitors, each at their own limit, to spend any rung of a key', () => {
+    // What one visitor may spend of each rung: its share, or its own class limit (codes: its misses).
+    const perVisitor: Record<string, [number, number]> = {
+      read: [PUBLIC_KEY_LIMITS.read.max, PUBLIC_KEY_SHARES.read],
+      write: [PUBLIC_KEY_LIMITS.write.max, PUBLIC_KEY_SHARES.write],
+      claim: [PUBLIC_KEY_LIMITS.claim.max, PUBLIC_LIMITS['public-claim'].max],
+      link: [PUBLIC_KEY_LIMITS.link.max, PUBLIC_LIMITS['public-link'].max],
+      linkVerify: [PUBLIC_KEY_LIMITS.linkVerify.max, PUBLIC_LIMITS['public-link-verify'].max],
+      token: [PUBLIC_KEY_LIMITS.token.max, PUBLIC_LIMITS['public-token'].max],
+      codes: [PUBLIC_CODE_GUESSES.key.max, PUBLIC_CODE_GUESSES.visitor.max],
+    };
+    for (const [rung, [whole, one]] of Object.entries(perVisitor)) {
+      expect(whole / one, rung).toBeGreaterThanOrEqual(KEY_SHARE_VISITORS);
+    }
+    // And the share is never below what one visitor's class limit already allows them.
+    expect(PUBLIC_KEY_SHARES.read).toBeGreaterThanOrEqual(PUBLIC_LIMITS['public-read'].max);
+    expect(PUBLIC_KEY_SHARES.write).toBeGreaterThanOrEqual(PUBLIC_LIMITS['public-write'].max);
+  });
+
+  it("holds each address to its share, and hands a refused request's place back", () => {
+    let at = 1_000;
+    const limiter = createPublicRateLimiter(() => at);
+    const share = PUBLIC_KEY_SHARES.write;
+    const tickets: KeyTicket[] = [];
+    for (let i = 0; i < share; i += 1) {
+      const held = limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' });
+      expect('ticket' in held, `write ${String(i)}`).toBe(true);
+      if ('ticket' in held) tickets.push(held.ticket);
+    }
+    // Its share spent: refused, and nothing counted — on the key or anywhere else.
+    const over = limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' });
+    expect('refused' in over && over.refused.retryAfterSeconds).toBeGreaterThan(0);
+    // A staff screen counts by its sign-in, not the address every patient shares.
+    expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7', staffSessionId: 'ses_1' })).toBe(false);
+    // Another address, another key: their own.
+    expect('ticket' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.8' })).toBe(true);
+    expect('ticket' in limiter.holdKey('pbk_2', 'write', { ip: '198.51.100.7' })).toBe(true);
+    // A refused request hands its place back, once.
+    tickets[0]!.giveBack();
+    tickets[0]!.giveBack();
+    expect('ticket' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' })).toBe(true);
+    expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' })).toBe(true);
+    at += PUBLIC_KEY_LIMITS.write.windowMs;
+    expect('ticket' in limiter.holdKey('pbk_1', 'write', { ip: '198.51.100.7' })).toBe(true);
+  });
+
+  it('spends the whole key across its visitors, each inside their share', () => {
+    const limiter = createPublicRateLimiter(() => 1_000);
+    const visitors = PUBLIC_KEY_LIMITS.write.max / PUBLIC_KEY_SHARES.write;
+    for (let n = 1; n <= visitors; n += 1) {
+      for (let i = 0; i < PUBLIC_KEY_SHARES.write; i += 1) expect('ticket' in limiter.holdKey('pbk_1', 'write', { ip: `198.51.100.${String(n)}` })).toBe(true);
+    }
+    expect('refused' in limiter.holdKey('pbk_1', 'write', { ip: '203.0.113.50' })).toBe(true);
+    // Reads are their own rung.
+    expect('ticket' in limiter.holdKey('pbk_1', 'read', { ip: '203.0.113.50' })).toBe(true);
   });
 });

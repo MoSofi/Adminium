@@ -242,6 +242,7 @@ import {
 import type { PublicErrorCode } from './schema.js';
 import {
   createPublicRateLimiter,
+  type KeyTicket,
   type PublicKeySide,
   type PublicLimit,
   type PublicRateLimiter,
@@ -755,6 +756,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const limiter = deps.limiter ?? createPublicRateLimiter();
   /** Requests that got as far as a resolved key and a ref: what `stats` counts. */
   const chargeable = new WeakMap<FastifyRequest, { keyId: string; ref: string }>();
+  /** A read's or a write's place on the whole key, handed back once the request is answered as refused. */
+  const keyHolds = new WeakMap<FastifyRequest, KeyTicket>();
+  /** Requests made with a session: their replies are never kept (`Cache-Control: no-store`). */
+  const personal = new WeakSet<FastifyRequest>();
   const configured = env.ADMINIUM_PUBLIC_API_ORIGINS ?? [];
   /*
    * The sentinel is NOT in this set. It is not an origin, nothing is ever
@@ -1203,9 +1208,19 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       return null;
     }
     const rung = opts.keyWide === false ? null : KEY_RUNGS[limit] ?? null;
-    if (key.kind === 'browser' && rung !== null && !admit(reply, limiter.hitKey(key.keyId, rung))) {
+    if (key.kind === 'browser' && (rung === 'read' || rung === 'write')) {
+      // Reads and writes: within the visitor's share of the key, and handed back when the request is refused (`keyHolds`).
+      const held = limiter.holdKey(key.keyId, rung, { ip: request.ip, ...(counted.staffSessionId === undefined ? {} : { staffSessionId: counted.staffSessionId }) });
+      if ('refused' in held) {
+        admit(reply, held.refused);
+        return null;
+      }
+      keyHolds.set(request, held.ticket);
+    } else if (key.kind === 'browser' && rung !== null && !admit(reply, limiter.hitKey(key.keyId, rung))) {
       return null;
     }
+    // Replies with a session carry that person's rows: never kept by a browser or a cache.
+    if (session !== null) personal.add(request);
     // Spent once, on every instance: a replay finds the row already there.
     if (proved?.ok === true && !(await proofs.spend({ id: proved.spendId, keyId: key.keyId, purpose: owed!, expiresAt: proved.expiresAt }))) {
       fail(reply, 403, 'PUBLIC_PROOF_REQUIRED', 'Prove this is a person first.');
@@ -1608,6 +1623,25 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     // A guess held for a typed code is handed back once the reply has gone, unless it missed.
     app.addHook('onResponse', async (request, reply) => {
       guesses.settle(request, reply);
+      // The whole key is charged for work done: a request refused before it (an unknown ref, a missing row, a
+      // filter or a write the scope refuses) hands its place back. A 409 is a write that reached the database.
+      const held = keyHolds.get(request);
+      if (held !== undefined) {
+        keyHolds.delete(request);
+        if (reply.statusCode >= 400 && reply.statusCode < 500 && reply.statusCode !== 409) held.giveBack();
+      }
+    });
+    /*
+     * A reply to a request made with a session — a signed-in person's, a
+     * row's own link, a shared link — may carry that person's rows (a name,
+     * an address, a phone), and so may any write's: never kept by a browser's
+     * cache, a disk cache or a service worker on a shared machine. A reply
+     * that says how it is kept already (a file, a picture) is left as it is;
+     * an anonymous read of what everyone sees keeps its caching.
+     */
+    app.addHook('onSend', async (request, reply, payload) => {
+      if (!reply.hasHeader('cache-control') && (personal.has(request) || !SAFE_METHODS.has(request.method))) reply.header('cache-control', 'no-store');
+      return payload;
     });
     // A link's job on the shared queue, and the watch on a signed-in person's address.
     if (app.hasDecorator('jobs')) registerSignInLinkJob(app.jobs.registry, { ...linkDeps, logger: app.log, hostFor: hostForOf(app) });

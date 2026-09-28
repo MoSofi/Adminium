@@ -48,8 +48,8 @@
  * own allowance. After the per-visitor rung passes, a browser key's request
  * also counts on the key alone —
  *
- *     pubkey:<keyId>:read    600 a minute
- *     pubkey:<keyId>:write    60 a minute
+ *     pubkey:<keyId>:read   3000 a minute, at most 250 of them from one address
+ *     pubkey:<keyId>:write   300 a minute, at most  25 of them from one address
  *     pubkey:<keyId>:claim    60 a minute (each claim is a guess at a person)
  *     pubkey:<keyId>:link    120 a minute (sign-in links asked for)
  *     pubkey:<keyId>:linkVerify 300 a minute (links opened, codes typed)
@@ -59,6 +59,27 @@
  * than it writes. A server key is one backend, whose endpoint rate is already
  * key-wide. It counts requests, not rows: a batch's rows are its endpoint's
  * own limit to count. Like that limit, a refused request adds nothing.
+ *
+ * ── NO ONE ADDRESS SPENDS THE KEY ──────────────────────────────────────────
+ * A whole-key rung shared by everyone is a switch anyone can pull: spend it,
+ * and every other visitor of the venue is refused. So no rung may be spent
+ * by fewer than {@link KEY_SHARE_VISITORS} visitors. The claim, link, token
+ * and code-guess rungs already are, by the visitor's own class limit (5
+ * claims of 60, 5 links of 120, 10 tokens of 120, 5 code misses of 60). Reads
+ * and writes are not — an endpoint with its own `rate` counts per ref, so one
+ * address could spend the key through a few refs — and so each address (a
+ * staff screen: its staff sign-in) holds a share of them of its own
+ * ({@link PUBLIC_KEY_SHARES}), sized above what one visitor's class limit
+ * allows (120 reads, 20 writes), so nobody inside that limit is ever held by
+ * it.
+ *
+ * And they are charged for work done, never for a refusal. A read or a write
+ * holds its place on the key when it passes the gate, and is handed it back
+ * when it is answered as refused (any 4xx but a 409, which is a write that
+ * reached the database and lost): an unknown ref, a missing row, a filter the
+ * scope refuses, a write the rules refuse. Held before, handed back after, so
+ * requests arriving together are held to the count as surely as requests one
+ * after another. A refusal still costs the address its own rungs.
  *
  * ── AN ENDPOINT'S OWN LIMIT ────────────────────────────────────────────────
  * A resource that states a `rate` (every endpoint made in the builder does)
@@ -165,8 +186,10 @@ export const PUBLIC_FLOOD_GUARD = { max: 450, windowMs: 60_000 } as const;
 
 /** The whole-key rung for a browser key: every visitor together. */
 export const PUBLIC_KEY_LIMITS = {
-  read: { max: 600, windowMs: 60_000 },
-  write: { max: 60, windowMs: 60_000 },
+  /** A page load fans out across several refs, and an on-sale brings hundreds of visitors a minute. */
+  read: { max: 3000, windowMs: 60_000 },
+  /** An order, a booking, a ticket: an on-sale's peak minute, every buyer together. */
+  write: { max: 300, windowMs: 60_000 },
   /**
    * Claims on their own rung: each is a guess at a person's details, bounded
    * key-wide — and apart from writes, so a dozen addresses spending it cannot
@@ -188,9 +211,42 @@ export const PUBLIC_KEY_LIMITS = {
 
 export type PublicKeySide = keyof typeof PUBLIC_KEY_LIMITS;
 
+/** The fewest visitors that can spend any whole-key rung between them. */
+export const KEY_SHARE_VISITORS = 12;
+
+/**
+ * What one address (a staff screen: its staff sign-in) may spend of the
+ * reads and writes of a browser key, in the key's window: a
+ * {@link KEY_SHARE_VISITORS}th of each, and above one visitor's class limit.
+ */
+export const PUBLIC_KEY_SHARES = {
+  read: PUBLIC_KEY_LIMITS.read.max / KEY_SHARE_VISITORS,
+  write: PUBLIC_KEY_LIMITS.write.max / KEY_SHARE_VISITORS,
+} as const;
+
+/** The rungs a visitor holds a share of, charged for work done (`holdKey`). */
+export type PublicKeyShared = keyof typeof PUBLIC_KEY_SHARES;
+
+/** Who a share is held by: the address, or a staff screen's staff sign-in. */
+export interface KeyShareIdentity {
+  ip: string;
+  staffSessionId?: string | undefined;
+}
+
+/** A place held on the whole key: handed back when the request was refused. */
+export interface KeyTicket {
+  giveBack: () => void;
+}
+
 /** The whole-key counter identity. */
 export function keyRateKeyFor(keyId: string, side: PublicKeySide): string {
   return `pubkey:${keyId}:${side}`;
+}
+
+/** One visitor's share of a whole-key rung: by address (IPv6 by its /64), or by a staff screen's sign-in. */
+export function keyShareKeyFor(keyId: string, side: PublicKeyShared, visitor: KeyShareIdentity): string {
+  const who = visitor.staffSessionId !== undefined ? `staff:${visitor.staffSessionId}` : `ip:${rateAddress(visitor.ip)}`;
+  return `${keyRateKeyFor(keyId, side)}:${who}`;
 }
 
 /** Failed key resolutions one address may cause in a window. */
@@ -285,6 +341,12 @@ export interface PublicRateLimiter {
   hitEndpoint: (identity: EndpointRateIdentity, rate: { max: number; windowMs: number }, cost?: number) => RateDecision;
   /** A browser key's whole-key rung, after the per-visitor one. `cost` defaults to 1. */
   hitKey: (keyId: string, side: PublicKeySide, cost?: number) => RateDecision;
+  /**
+   * Hold one place on a browser key's read or write rung, within the
+   * visitor's share of it; refused (nothing counted) when either is spent.
+   * The ticket hands both back, once, for a request that was refused.
+   */
+  holdKey: (keyId: string, side: PublicKeyShared, visitor: KeyShareIdentity) => { refused: RateDecision } | { ticket: KeyTicket };
   /** Whether this address has used up its failed resolutions; counts nothing. */
   resolutionBlocked: (ip: string) => RateDecision | null;
   /** One more failed resolution from this address. */
@@ -486,6 +548,34 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     },
     hitKey(keyId, side, cost = 1) {
       return decide(windows, keyRateKeyFor(keyId, side), PUBLIC_KEY_LIMITS[side], cost, true);
+    },
+    holdKey(keyId, side, visitor) {
+      const spec = PUBLIC_KEY_LIMITS[side];
+      const counters: [string, { max: number; windowMs: number }][] = [
+        [keyShareKeyFor(keyId, side, visitor), { max: PUBLIC_KEY_SHARES[side], windowMs: spec.windowMs }],
+        [keyRateKeyFor(keyId, side), spec],
+      ];
+      // Both judged before either is added to: a visitor over their share never counts as the key's.
+      for (const [key, counter] of counters) {
+        const decision = decide(windows, key, counter, 1, false);
+        if (!decision.allowed) return { refused: decision };
+      }
+      const held: Window[] = [];
+      for (const [key, counter] of counters) {
+        decide(windows, key, counter, 1, true);
+        held.push(windows.get(key)!);
+      }
+      let given = false;
+      return {
+        ticket: {
+          giveBack: () => {
+            if (given) return;
+            given = true;
+            // The window it was counted in; one that has since closed has nothing to give back.
+            for (const window of held) window.count = Math.max(0, window.count - 1);
+          },
+        },
+      };
     },
     resolutionBlocked(ip) {
       const decision = decide(windows, failKey(ip), PUBLIC_FAILED_RESOLUTION, 1, false);

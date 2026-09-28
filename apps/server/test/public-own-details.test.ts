@@ -81,6 +81,9 @@ describe.each(LEGS)("a person's own details — %s", (dialect, available) => {
     expect(renamed.statusCode, renamed.body).toBe(200);
     expect((renamed.json() as { data: Doc }).data).toEqual({ name: 'Ana B', email: 'ana@example.com' });
 
+    // None of it is kept by a browser or a cache on a shared machine.
+    for (const res of [list, one, renamed]) expect(res.headers['cache-control']).toBe('no-store');
+
     // Ben reads his, and only his.
     const his = await g.request('GET', `/records/${details}`, { session: ben });
     expect(his.statusCode, his.body).toBe(200);
@@ -107,6 +110,23 @@ describe.each(LEGS)("a person's own details — %s", (dialect, available) => {
         expect(res.body).not.toContain('ana@example.com');
       }
     }
+  });
+
+  it.skipIf(!available)('keeps no reply made with a session, nor any write’s; a read of what everyone sees keeps its caching', async () => {
+    const order = await own.request('GET', `/records/${t('orders')}_claimed`, { session: anaLink });
+    expect(order.statusCode, order.body).toBe(200);
+    expect(order.body).toContain('ana@example.com');
+    expect(order.headers['cache-control']).toBe('no-store');
+    const bank = await g.request('GET', `/records/${t('settings')}_verified`, { session: ben });
+    expect(bank.statusCode, bank.body).toBe(200);
+    expect(bank.headers['cache-control']).toBe('no-store');
+    // A refusal to a session is kept by nobody either.
+    expect((await g.request('GET', `/records/${details}/${String(benId)}`, { session: ana })).headers['cache-control']).toBe('no-store');
+    // Everyone's: as it always was.
+    const open = await g.request('GET', `/records/${t('settings')}`);
+    expect(open.statusCode, open.body).toBe(200);
+    expect(open.body).toContain('Town Bank');
+    expect(open.headers['cache-control']).toBeUndefined();
   });
 
   it.skipIf(!available)('refuses, where it is written, an entry that could never show personal data to anyone', async () => {
