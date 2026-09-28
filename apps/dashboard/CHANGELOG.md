@@ -1,5 +1,27 @@
 # @adminium/dashboard
 
+## 0.3.5
+
+### Patch Changes
+
+- 2dfe2f8: An app's install check now says what its install will do. `POST /apps/plan` answered `installable: true` for an app whose required add-on this server cannot have, and the install that followed was refused with `ADD_ON_REQUIRED`; the plan now says `installable: false` and names the add-on in `problems` (`ADD_ON_REQUIRED`, or `ADD_ON_DOWNLOAD_REQUIRED` while a catalogue add-on is not downloaded yet). A choice the install makes, such as ticking "Update it too", still leaves the plan installable. In the install wizard, an add-on that cannot be had no longer says which roles will be able to change its settings, a public-access line for people who sign in by a link no longer ends in "by" with nothing after it, and the screen-reader status no longer says "Files unpacked: 0" for an app picked from the shelf or the catalogue. Preferences offers "Workspace default" in the language picker again once a language has been picked, and still says the language is your own when you come back to the page. The home page and the empty sidebar no longer ask you to connect a PostgreSQL database when a database is already connected and has no pages yet, or when pages exist that are not shared with your role; `GET /bootstrap` carries `hasConnections` for this.
+- dd1c9c0: A Postgres table whose connection role is granted only some of its columns — `GRANT UPDATE (notes) ON tickets` — can now be edited. Forms show the columns the role may not set read-only and never send them: on an edit, the columns it may not update; on a new record, the columns it may not insert. A write that names such a column anyway is refused with 403 `READ_ONLY_MODE` listing the columns, before it reaches the database. A column Adminium fills on its own — an `updated_at` it stamps on every edit — is left out when the role may not write it, where it used to make the database refuse every save of the table. This holds for every write, not only the record form's: line items, imports, automation steps, the public API and project code. Line items send an existing row without the columns the role may not update, and a new one without those it may not insert.
+- 625f9ab: The install wizard's Public access card now words both of a sign-in-link app's warnings in the studio's language. "This app has no public address, so no sign-in link can be sent" used to show in English in every locale. And with email not set up, a sign-in-link app was told its guests would get no confirmation, when what actually fails is that nobody can be sent a sign-in link. The server now sends that warning under its own code, `NO_EMAIL_SIGN_IN`, instead of `NO_EMAIL`.
+- e262b2b: A webhook step's header value — the token an `Authorization` header carries — is now kept secret. It was stored exactly as typed, in a field named `headerValueEncrypted`, and every read of the rule — the rule list and the editor — carried it back. It is now sealed with AES-256-GCM under a key derived from `ADMINIUM_SECRET` when the rule is saved, and opened only when the request goes out; replies say whether a value is set (`headerValueSet`) and never what it is. The step editor gains the value field it was missing: a password field that shows dots when a value is saved, keeps the saved one when left empty, and replaces it when typed in. Clearing the header name drops the value, and so does pointing the step at another host without typing the value again, so that editing a rule cannot send its token somewhere else. A step that sends a header value must name its host: one filled in from a record's data is refused when the step runs. An API client sends a new value as `headerValue`; plain text sent in `headerValueEncrypted` by a client written before that is sealed the same way. Values stored in plain text before this release are sealed once when the server starts.
+- Updated dependencies [2dfe2f8]
+- Updated dependencies [dd1c9c0]
+- Updated dependencies [d12f866]
+- Updated dependencies [77aba9a]
+- Updated dependencies [625f9ab]
+- Updated dependencies [045e3ab]
+  - @adminium/i18n@0.3.5
+  - @adminium/widgets@0.3.5
+  - @adminium/engine@0.3.5
+  - @adminium/charts@0.3.5
+  - @adminium/add-on-contracts@0.3.5
+  - @adminium/tokens@0.3.5
+  - @adminium/ui@0.3.5
+
 ## 0.3.4
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @adminium/engine
 
+## 0.3.5
+
+### Patch Changes
+
+- 77aba9a: A Postgres connection whose role may read and write rows but not create tables — the least-privilege role recommended for a production database — is no longer read-only. Adminium decided a connection was read-only when its role could not create a table in the default schema, so such a role could never save a row, even on tables it was granted `INSERT`, `UPDATE` and `DELETE` on. A connection is now read-only only when the role can write no table at all (and cannot create one), or when the server is a standby or the role's transactions are read-only by default. Where a role may write some tables and only read others, Adminium reads its grants per table: a table it may not change offers no New, Edit or Delete, a write to it is refused with 403 `READ_ONLY_MODE` before it reaches the database, and an import into it is refused before it starts. A write the database itself refuses for want of a right — a grant revoked in the last minute, a link row, a parent's total, an undo, or a MySQL table-access refusal — is the same 403 instead of a 500. Loading a page never waits on the source database to learn its grants. A connection added before this release keeps the read-only flag its last test gave it: press Test on the connection once to have it read again.
+- 045e3ab: A Postgres `text[]` or `varchar[]` column is edited as a list. The form showed it as a plain text box holding the array's text, and saving anything typed there failed, because Postgres reads `red,blue` as no array at all. Such a column is now marked a list when its page is generated or its table's facts are read, the form edits it as chips — one per item, duplicates refused, at most fifty — and it is saved as the database's own array. MySQL and SQLite have no array columns, so nothing changes there.
+- Updated dependencies [dd1c9c0]
+- Updated dependencies [d12f866]
+- Updated dependencies [045e3ab]
+  - @adminium/widgets@0.3.5
+
 ## 0.3.4
 
 ### Patch Changes
