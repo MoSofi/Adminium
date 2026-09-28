@@ -10,7 +10,7 @@
  * |----------|--------------|---------------|-----------|
  * | id       | varchar(36)  | char(36)      | char(36)  |
  * | str(n)   | varchar(n)   | varchar(n)    | text      |
- * | text     | text         | text          | text      |
+ * | text     | text         | longtext      | text      |
  * | json     | jsonb        | json          | text      |
  * | bool     | boolean      | tinyint(1)    | integer   |
  * | int      | integer      | integer       | integer   |
@@ -31,7 +31,10 @@ export interface ColumnHelpers {
   readonly id: PortableColumnType;
   /** Indexable/unique string, n ≤ 320. */
   str(n: number): PortableColumnType;
-  /** Unbounded text — never indexed. */
+  /**
+   * Unbounded text — never indexed. MySQL's own `text` stops at 65,535 bytes,
+   * so there it is `longtext`; migration 0047 widened every column made before.
+   */
   readonly text: PortableColumnType;
   /** Opaque JSON payload — serialized/parsed + Zod-validated in repos, never queried with JSON operators. */
   readonly json: PortableColumnType;
@@ -75,7 +78,14 @@ export function columnHelpers(dialect: MetaDialect): ColumnHelpers {
     // migration instead — never edit this helper's emitted types again.
     id: dialect === 'postgres' ? ('varchar(36)' as ColumnDataType) : sql`char(36)`,
     str,
-    text: 'text',
+    // MySQL `text` holds 65,535 bytes and refuses one more in strict mode (or
+    // cuts it off silently in non-strict mode): an enrichment prompt or a public
+    // endpoint's definition outgrew it. `longtext` is the MySQL type that
+    // matches the other two engines' unbounded `text`. Unlike the `id` decision
+    // above, this one ships with a compensating migration: 0047 converts the
+    // columns every earlier migration made, so an upgraded store and a fresh
+    // one end the same.
+    text: dialect === 'mysql' ? sql`longtext` : 'text',
     json: dialect === 'postgres' ? 'jsonb' : dialect === 'mysql' ? 'json' : 'text',
     bool: dialect === 'postgres' ? 'boolean' : dialect === 'mysql' ? sql`tinyint(1)` : 'integer',
     int: 'integer',

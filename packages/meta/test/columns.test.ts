@@ -94,7 +94,7 @@ describe('columnHelpers emits the type table', () => {
       'create table `probe` (' +
         '`id` char(36) primary key, ' +
         '`name` varchar(120), ' +
-        '`body` text, ' +
+        '`body` longtext, ' +
         '`payload` json, ' +
         '`flag` tinyint(1) default 1, ' +
         '`other_flag` tinyint(1) default 0, ' +
