@@ -9,4 +9,4 @@ A handful of strangers can no longer switch a venue's public pages off. A browse
 - A refused request counts the same when its visitor leaves before the answer, and a change that was made stays counted. A crowd of new visitors no longer makes the server forget how much of a key has been used.
 - The key's reads for every visitor together go from 600 to 3,000 a minute, and its writes from 60 to 300, so a busy on-sale or lunch rush is not refused.
 
-Replies to a request made with a sign-in, an order's own link or a shared link, and every reply to a change, now carry `Cache-Control: no-store`, so a browser on a shared machine (a kiosk, a hotel lobby) keeps no copy of a person's name, address or phone. Pages anyone may read are cached as before.
+Replies to a request made with a sign-in, an order's own link or a shared link, and every reply to a change, now carry `Cache-Control: no-store`, so a browser on a shared machine (a kiosk, a hotel lobby) keeps no copy of a person's name, address or phone. So do a file downloaded with a sign-in (a guest's own upload) and what a typed code unlocks. Pages anyone may read are cached as before.

@@ -767,7 +767,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const chargeable = new WeakMap<FastifyRequest, { keyId: string; ref: string }>();
   /** A read's or a write's place on the whole key, handed back once the request is answered as refused. */
   const keyHolds = new WeakMap<FastifyRequest, KeyTicket>();
-  /** Requests made with a session: their replies are never kept (`Cache-Control: no-store`). */
+  /** Requests made with a session, or with a code that unlocks rows: their replies are never kept (`Cache-Control: no-store`). */
   const personal = new WeakSet<FastifyRequest>();
   const configured = env.ADMINIUM_PUBLIC_API_ORIGINS ?? [];
   /*
@@ -1631,6 +1631,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     const none: RecordFilter = { column: table.primaryKey[0]!, op: 'is_null' };
     const typed = typedCodeOf(request);
     if (typed === null) return none;
+    // What a typed code unlocks is its holder's, not everyone's: never kept by a browser or a cache (`personal`).
+    personal.add(request);
     if (!admitGuess(request, reply, ok, [typed])) return false;
     const keys = await unlockedKeys(db, view, resource, typed, new Date(), ok.key.scope.timezone);
     if (keys.length === 0) {
@@ -4707,7 +4709,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return none();
         }
         await touchKey(ok.key.keyId);
-        reply.headers({ ...privateFileHeaders(file), 'content-length': String(opened.sizeBytes) });
+        reply.headers({
+          ...privateFileHeaders(file),
+          'content-length': String(opened.sizeBytes),
+          // A person's own file (an ID, a form they sent), read with their session: kept by no browser, as their rows are not.
+          ...(ok.session === null ? {} : { 'cache-control': 'no-store' }),
+        });
         // The typed reply describes the error shapes only; the bytes leave through the raw send.
         return reply.send(opened.stream as unknown as never);
       },

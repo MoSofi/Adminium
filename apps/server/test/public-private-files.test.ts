@@ -7,7 +7,8 @@
  * The row is read through the resource's whole scope (here a version, visible
  * only with a shared deliverable of theirs); the file is the one that column
  * names; an image or a PDF opens inline, an SVG or anything else downloads;
- * every response is sandboxed, unsniffed and privately cached. Another
+ * every response is sandboxed and unsniffed, and kept by no browser: it is
+ * a person's own upload, read with their session. Another
  * client's, an unshared one's, a column not offered, a URL in the column, a
  * file thrown away or of another connection: the one 404.
  */
@@ -117,7 +118,7 @@ describe.each(LEGS)('a private file, through the row that names it — %s', (dia
     await rm(dataDir, { recursive: true, force: true });
   });
 
-  it.skipIf(!available)('serves an image inline, sandboxed, unsniffed and privately cached', async () => {
+  it.skipIf(!available)('serves an image inline, sandboxed, unsniffed and kept by no browser', async () => {
     const res = await download(1, ada);
     expect(res.statusCode, res.body).toBe(200);
     expect(res.rawPayload.equals(PNG)).toBe(true);
@@ -125,7 +126,8 @@ describe.each(LEGS)('a private file, through the row that names it — %s', (dia
     expect(res.headers['content-disposition']).toMatch(/^inline; filename="logo\.png"/);
     expect(res.headers['content-security-policy']).toBe('sandbox');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
-    expect(res.headers['cache-control']).toBe('private, max-age=0, must-revalidate');
+    // A person's own file, read with their session: never stored on a shared machine.
+    expect(res.headers['cache-control']).toBe('no-store');
     expect(res.headers['referrer-policy']).toBe('no-referrer');
   });
 
