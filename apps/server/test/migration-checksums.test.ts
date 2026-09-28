@@ -29,6 +29,10 @@
  * while the tarballs were still fetchable, and once it is gone this table is
  * the only surviving record of them.
  *
+ * 0033–0044 shipped in 0.3.0–0.3.4 inside the flagship tarball (below), and
+ * were read out of `@adminiumjs/adminium@0.3.4` — cross-checked against 0.3.0
+ * for every migration both carry.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -185,6 +189,18 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0030_report_documents': 'ab513b132efda3e6b5b153ba10905b2e6b6ceeaff480da9139afbe262fa95767',
   '0031_documents': 'ab98dbb6ce73656a28d24ba15e95557a6287e77e5738ce77309badc9a46dc317',
   '0032_nav_group_width': '3683c74a1e66d7f46b16a872c80813fedac95e8a38bbe542ee0815dc10c086e4',
+  '0033_connection_project_key': '2bac7f13452d324e5038223bb3420c52e8969daa47ddacd0e8af021a4bdca42e',
+  '0034_project_files': '61bf94588c2b72e307107ac99ecc90d7576b5be92cac9a50e57665090eed6e8c',
+  '0035_option_lists': 'ed7c6f604389f8a1eb1d1824148860351199182dfafba221b46a9210b07f49a2',
+  '0036_assistant_sessions': 'dd1792636dd71bca985ff6bf4fe2d6f83406ab419ece5212e51329717f54c003',
+  '0037_manifest_package_integrity': '1e29763a5a0c2f7f0c3bb7b49bab71efffb281b904db3ec3a2716e43065fb2c6',
+  '0038_public_endpoints': 'cbd1ffe8f98c3bdeab6a356ef976d5929b21358a37995468c7f8ba2431e14ba0',
+  '0039_app_install_records': 'e52e248c9da6ec5e8c7cd65c08a27d7cd7cc118824a609c3abdc9017b754bec6',
+  '0040_app_staff_grant': 'fb0696c8fb2dfc57b170f755f9dd4c711c1e16d8dc87afa013068c608b0ecf5e',
+  '0041_session_persistent': '0874f32a6f00e7499199e8520bb95597e0e5d4703eb0d5e1e88fd8d771fd0a04',
+  '0042_clinic_platform': '178474e40b42ad2c3bec868ad47dd10b52441eac1af029b78d78b9271976b3fb',
+  '0043_roles_namespace': 'cc6ac3320e6d15ba8ee9173c2a88cabc738f09ae389335b67e2f871f04c08594',
+  '0044_invoicing_platform': '9b1e696ad188c23694c34dcfcd1d6661c3f872b67d0fa284e59647de25de598a',
 });
 
 describe('shipped migration checksums', () => {
