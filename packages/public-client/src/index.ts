@@ -355,6 +355,8 @@ export interface ChangeQuote<T = Row> {
   exact: boolean;
   /** A row priced by the night: the nights the change would leave it with. Empty otherwise. */
   nights: QuoteNight[];
+  /** The rows below it the change moves (extras that follow a stay's nights), as it would leave them, by the ref each is read through. Empty otherwise. */
+  children: Record<string, { data: Row }[]>;
 }
 
 /**
@@ -1384,11 +1386,11 @@ export function createPublicClient(
     },
 
     async quoteChange<T = Row>(ref: string, id: string, values: Row) {
-      const out = await request<{ data: T; exact?: boolean; nights?: QuoteNight[] }>(`/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`, {
-        method: 'POST',
-        body: JSON.stringify({ values }),
-      });
-      return { data: out.data, exact: out.exact !== false, nights: out.nights ?? [] };
+      const out = await request<{ data: T; exact?: boolean; nights?: QuoteNight[]; children?: Record<string, { data: Row }[]> }>(
+        `/api/v1/public/records/${ref}/${encodeURIComponent(id)}/dry-run`,
+        { method: 'POST', body: JSON.stringify({ values }) },
+      );
+      return { data: out.data, exact: out.exact !== false, nights: out.nights ?? [], children: out.children ?? {} };
     },
 
     async replace<T = Row>(ref: string, id: string, values: Row) {
