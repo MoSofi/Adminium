@@ -2140,6 +2140,18 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
        */
       const switchedOff = () => fail(reply, 403, 'PUBLIC_SWITCHED_OFF', 'This is not open online right now.');
       if (found.switchedOff && (dry || (resource.clientKey ?? null) === null || blankValue(body.values[resource.clientKey!]))) return switchedOff();
+      // A key no create was made under: nothing to replay, so the switch answers before anything else is judged.
+      if (found.switchedOff) {
+        const sent = body.values[resource.clientKey!];
+        if (typeof sent !== 'string' || !CLIENT_KEY_FORMAT.test(sent)) return switchedOff();
+        const made = await found.db
+          .selectFrom(found.table.id)
+          .select(sql<number>`1`.as('one'))
+          .where(found.db.dynamic.ref(resource.clientKey!), '=', clientKeyHash(clientKeySecretBytes, ok.key.connectionId, found.table.id, sent) as never)
+          .limit(1)
+          .executeTakeFirst();
+        if (made === undefined) return switchedOff();
+      }
       // When this write began: a hold it lets go ends here, before anything of it is counted.
       const begun = new Date();
       const lists = resource.children ?? new Map<string, ScopeChild>();
