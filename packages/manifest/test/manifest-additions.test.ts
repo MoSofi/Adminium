@@ -95,7 +95,7 @@ const tables = [
 const publicAccess = [
   { table: 'booking_rules', methods: ['GET'], select: ['slot_minutes'] },
   { table: 'reservations', kind: 'availability', methods: ['GET'] },
-  { table: 'reservations', methods: ['POST'], writable: ['mobile', 'party_size', 'starts_at'], defaults: { status: 'confirmed' } },
+  { table: 'reservations', methods: ['POST'], select: ['id', 'party_size', 'starts_at', 'status'], writable: ['mobile', 'party_size', 'starts_at'], defaults: { status: 'confirmed' } },
   { table: 'reservations', methods: ['GET', 'PATCH'], writable: ['party_size', 'starts_at'], claim: { match: ['code', 'mobile'] } },
 ];
 

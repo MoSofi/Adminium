@@ -38,6 +38,9 @@ const TABLES: Doc[] = [
       text('note'),
       text('venue_phone', { rules: { personal: false } }),
       text('allergies', { rules: { personal: true } }),
+      // Kept as text: an enum is read by its name as any text column.
+      { ref: 'home_city', type: 'enum', enum: ['Dublin', 'Cork'], nullable: true },
+      { ref: 'blood_group', type: 'enum', enum: ['A', 'B'], nullable: true },
     ],
   },
   {
@@ -78,7 +81,7 @@ describe.each(LEGS)("the validator's personal-data guess is the install's — %s
       seen[declared.ref] = masked;
     }
     // What that is, so the comparison is never two empty lists.
-    expect(seen['patients']).toEqual(['allergies', 'dob', 'email', 'first_name', 'home_address', 'iban', 'last_name', 'mobile_number', 'passport_no', 'photo_street']);
+    expect(seen['patients']).toEqual(['allergies', 'dob', 'email', 'first_name', 'home_address', 'home_city', 'iban', 'last_name', 'mobile_number', 'passport_no', 'photo_street']);
     expect(seen['bookings']).toEqual(['contact_email', 'full_name', 'last_ip']);
   });
 });

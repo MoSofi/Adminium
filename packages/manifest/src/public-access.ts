@@ -209,12 +209,13 @@ export function personalColumn(
   if (personal === true) return 'marked';
   if (personal === false || found.rules?.['secret'] === true) return null;
   const name = nameForm(column);
-  const text = found.type === 'text';
+  // Kept as text on every engine: an enum is a text column the install reads by its name as any other.
+  const text = found.type === 'text' || found.type === 'enum';
   if (text && PERSONAL_TEXT_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
   if (PERSONAL_NAMES.some((pattern) => pattern.test(name))) return 'guessed';
   if (text && /^(first_name|last_name|full_name)$/.test(name)) {
     const names = table.columns.map((candidate) => nameForm(candidate.ref));
-    const hasEmail = table.columns.some((candidate, i) => candidate.type === 'text' && PERSONAL_TEXT_NAMES[0]!.test(names[i]!));
+    const hasEmail = table.columns.some((candidate, i) => (candidate.type === 'text' || candidate.type === 'enum') && PERSONAL_TEXT_NAMES[0]!.test(names[i]!));
     if (PEOPLE_TABLE.test(nameForm(table.ref)) || (hasEmail && names.some((n) => PERSON_NAME.test(n)))) return 'guessed';
   }
   return null;
@@ -793,8 +794,13 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     // An entry anyone may call (no claim, no parent, no session asked) shows no personal data: the install refuses it too.
     const sessionOnly = entry.level !== undefined && entry.claim === undefined && entry.claimedBy === undefined && entry.visibleWith === undefined;
     const anyone = entry.claim === undefined && entry.visibleWith === undefined && (entry.claimedBy === undefined || entry.claimedBy.optional === true) && !sessionOnly;
-    if (anyone) {
-      for (const ref of entry.select ?? []) {
+    // An availability entry shows no row, whatever it names.
+    if (anyone && entry.kind !== 'availability') {
+      // No select shows every column but a code Adminium makes and a secret, as the install reads it.
+      const shown =
+        entry.select ??
+        (table.columns as readonly { ref: string; rules?: Record<string, unknown> | undefined }[]).filter((c) => c.rules?.['code'] === undefined && c.rules?.['secret'] !== true).map((c) => c.ref);
+      for (const ref of shown) {
         const personal = personalColumn(table as Parameters<typeof personalColumn>[0], ref);
         if (personal !== null) {
           out.push({

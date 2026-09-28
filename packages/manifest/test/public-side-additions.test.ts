@@ -67,6 +67,20 @@ describe('personal data on an entry anyone may call', () => {
     expect(messages(withMenuColumn({ ref: 'phone_count', type: 'int', default: 0 }, 'phone_count'))).toEqual([]);
   });
 
+  it('reads an entry with no select as the install does: every column but codes and secrets', () => {
+    const m = withMenuColumn({ ref: 'chef_email', type: 'text', maxLength: 254, nullable: true }, 'chef_email');
+    delete entryOf(m, 'menu_items', 'GET')['select'];
+    expect(issuesText(m)).toContain('"menu_items.chef_email" is read as personal data by its name');
+    // A secret and a code are never shown, so never refused.
+    const n = withMenuColumn({ ref: 'owner_email', type: 'text', maxLength: 254, nullable: true, rules: { secret: true } }, 'name');
+    delete entryOf(n, 'menu_items', 'GET')['select'];
+    expect(messages(n)).toEqual([]);
+  });
+
+  it('reads an enum by its name as any text column', () => {
+    expect(issuesText(withMenuColumn({ ref: 'city', type: 'enum', enum: ['Dublin', 'Cork'], nullable: true }, 'city'))).toContain('"menu_items.city" is read as personal data by its name');
+  });
+
   it('passes an entry a person signs in for, or one only a session reads', () => {
     const m = kitchen();
     const mine = entryOf(m, 'orders', 'GET');
