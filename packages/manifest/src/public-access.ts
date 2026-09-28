@@ -1328,6 +1328,8 @@ function pictureIssues(
   if (entry.claim !== undefined || entry.claimedBy !== undefined || entry.visibleWith !== undefined) {
     out.push({ path: at('pictures'), message: "pictures are for every visitor; a signed-in person's own files are `files`" });
   }
+  // A picture is fetched by an <img>, which carries no session: rows only a code opens are no rows it can show.
+  if (entry.unlockBy !== undefined) out.push({ path: at('pictures'), message: 'pictures are for every visitor; rows a code unlocks are read only by whoever gave the code' });
   if ((entry.key ?? CUSTOMER_KEY) !== CUSTOMER_KEY) out.push({ path: at('key'), message: "pictures are served through the app's customer key" });
   const writes = new Set([...(entry.writable ?? []), ...Object.keys(entry.defaults ?? {})]);
   const shareCodes = shareCodeColumns(entries, entry.table);

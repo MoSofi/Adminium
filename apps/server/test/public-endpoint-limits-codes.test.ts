@@ -181,5 +181,7 @@ describe('pictures anyone may see', () => {
     expect(issues(pictures({ pictures: ['photo'] }))).toEqual(['ENDPOINT_PICTURES_UNKNOWN_COLUMN']);
     expect(issues(pictures({ methods: ['GET', 'POST'], writable: ['image'] }))).toEqual(expect.arrayContaining(['ENDPOINT_PICTURES_READ_ONLY', 'ENDPOINT_PICTURES_WRITABLE']));
     expect(issues(pictures({ auth: { role: 'authenticated' }, claim: { column: 'id' } }))).toContain('ENDPOINT_PICTURES_CLAIMED');
+    // Rows a code unlocks: an <img> carries no code, so they hold no picture for everyone.
+    expect(issues(pictures({ unlock_by: { table: 'public.codes', column: 'code', link: 'unlocks_type_id' } }))).toContain('ENDPOINT_PICTURES_CLAIMED');
   });
 });
