@@ -452,6 +452,34 @@ export function buildSubject(input: SubjectInput): BuiltSubject {
 }
 
 /** Every table a profile's mapping reads — what the routes resolve grants over. */
+/**
+ * Every column a profile prints, by table: its own row's, a linked row's (by
+ * the table the profile names, else the foreign key's in `view`), its lines'
+ * and the names listed below them. A night's columns are worked out, not read
+ * from a person's row, and are left out. `linked` names a foreign key's table
+ * when the profile does not.
+ */
+export function mappedColumns(mapping: ProfileMapping, base: string, linked: (ref: string) => string | undefined): { table: string; column: string }[] {
+  const out: { table: string; column: string }[] = [];
+  const lists = (c: CollectionSource) => {
+    for (const column of Object.values(c.columns)) out.push({ table: c.table, column });
+    for (const list of Object.values(c.lists ?? {})) out.push({ table: list.table, column: list.column });
+  };
+  for (const mapped of Object.values(mapping)) {
+    if ('collection' in mapped) {
+      lists(mapped.collection);
+    } else if ('sources' in mapped) {
+      for (const source of mapped.sources) if ('collection' in source) lists(source.collection);
+    } else if ('ref' in mapped) {
+      const table = mapped.table ?? linked(mapped.ref);
+      if (table !== undefined) out.push({ table, column: mapped.column });
+    } else {
+      out.push({ table: base, column: mapped.column });
+    }
+  }
+  return out;
+}
+
 export function mappedTables(mapping: ProfileMapping, base: string): readonly string[] {
   const tables = new Set<string>([base]);
   for (const mapped of Object.values(mapping)) {

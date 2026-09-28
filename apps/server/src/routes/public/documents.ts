@@ -62,7 +62,7 @@ import { outboundKey, type ReadFilter } from '../../documents/compose.js';
 import { compileFilter } from '../../crud/filters.js';
 import { parentOf, readerFor, visibilityOf, visibleCondition, type VisibilityStep } from '../../public-api/visible-with.js';
 import { STATEMENT_PERIODS, type StatementSources } from '../../documents/statement.js';
-import { mappedTables, type ProfileMapping } from '../../documents/subject.js';
+import { mappedColumns, mappedTables, type ProfileMapping } from '../../documents/subject.js';
 import { WITHHELD_FOR, nobodysDocumentShownOn, withheldReaderMark } from '../../documents/render.js';
 import { sessionReader } from '../../public-api/withhold.js';
 import { recentWithholdsOn } from '../../public-api/withholds-on.js';
@@ -232,6 +232,12 @@ export function createDocumentAccess(deps: {
    * attached to the app and its feature on. Absent: not asked.
    */
   runtime?: (() => AddOnRuntimeState | null) | undefined;
+  /**
+   * Whether a session reads the columns masked as personal data on a
+   * resource's rows (`readsOwnPii`). Absent: never, and a document that
+   * prints one opens to nobody here.
+   */
+  unmasks?: ((key: ResolvedKey, resource: CompiledResource, session: PublicSessionContext) => boolean) | undefined;
 }) {
   const ttl = deps.ttlMs ?? 10_000;
   const declaredCache = new Map<string, { at: number; value: ReadonlyMap<string, ReadonlySet<string>> }>();
@@ -271,6 +277,43 @@ export function createDocumentAccess(deps: {
    * own claim, or through a parent that is (a payment is a client's because
    * its invoice is). Which of the rows are theirs is `open`'s to narrow.
    */
+  /**
+   * Whether a profile prints a column masked as personal data: of its own
+   * row, a linked row, its lines, or a statement's rows. A document prints
+   * what its author mapped, whoever asks, so it is held to the reader of its
+   * row as the row's read is: nothing masked to a session that does not read
+   * it (a found session before its code). Anything unreadable counts as
+   * masked.
+   */
+  async function printsMasked(key: ResolvedKey, profile: DocumentProfile): Promise<boolean> {
+    const view = await deps.viewFor(key.connectionId);
+    if (view === null) return true;
+    let base: ResolvedTable;
+    try {
+      base = view.table(profile.table);
+    } catch {
+      return true;
+    }
+    const columns = mappedColumns(profile.mapping as ProfileMapping, profile.table, (ref) => outboundKey(view, base, ref)?.tableId);
+    const statement = (profile.options as { statement?: StatementSources }).statement;
+    for (const source of statement === undefined ? [] : [statement.documents, statement.payments]) {
+      for (const column of [source.date, source.amount, ...(source.number === undefined ? [] : [source.number])]) columns.push({ table: source.table, column });
+    }
+    return columns.some(({ table, column }) => {
+      try {
+        return view.table(table).columns.get(column)?.masked === true;
+      } catch {
+        return true;
+      }
+    });
+  }
+
+  /** Whether a document of this profile, of a row this resource reaches, may open to this session: nothing it prints is kept from them. */
+  async function clearFor(key: ResolvedKey, resource: CompiledResource, session: PublicSessionContext, profile: DocumentProfile): Promise<boolean> {
+    if (deps.unmasks?.(key, resource, session) === true) return true;
+    return !(await printsMasked(key, profile));
+  }
+
   function personal(resource: CompiledResource, session: PublicSessionContext): boolean {
     if (resource.kind !== 'records' || !resource.actions.has('read')) return false;
     // A resource with no claim and no parent is everybody's: its rows' documents are nobody's to list.
@@ -550,6 +593,7 @@ export function createDocumentAccess(deps: {
       const kinds = declared.get(resource.ref);
       if (kinds === undefined || (kinds !== null && !kinds.has(row.kind))) continue;
       if (!personal(resource, session)) continue;
+      if (!(await clearFor(ok.key, resource, session, profile))) continue;
       if (await reaches(withSession, resource, row.entity.pk)) return row;
     }
     return null;
@@ -611,7 +655,7 @@ export function createDocumentAccess(deps: {
       const kinds = query.kind !== undefined ? [query.kind] : declaredHere === null ? undefined : [...declaredHere];
       const candidates = profiles.filter((p) => p.table === resource.table && (kinds === undefined || kinds.includes(p.kind)));
       const profileIds: string[] = [];
-      for (const profile of candidates) if (await mayRead(profile)) profileIds.push(profile.id);
+      for (const profile of candidates) if ((await mayRead(profile)) && (await clearFor(ok.key, resource, session, profile))) profileIds.push(profile.id);
       if (profileIds.length === 0) continue;
       const keys = await reachedKeys(withSession, resource, query.id);
       for (let at = 0; at < keys.length; at += IDS_CHUNK) {
@@ -691,7 +735,7 @@ export function createDocumentAccess(deps: {
     return profile;
   }
 
-  return { declaredKinds, visibleDocument, listVisible, profileForRender, personal, sourceAccess };
+  return { declaredKinds, visibleDocument, listVisible, profileForRender, personal, clearFor, sourceAccess };
 }
 
 export type DocumentAccess = ReturnType<typeof createDocumentAccess>;

@@ -4799,7 +4799,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * `./documents.ts`: the same connection, the key's own profiles, and a
      * resource that declares the kind and reaches the row.
      */
-    const documentAccess = createDocumentAccess({ meta, manager, viewFor, runtime: deps.documents?.runtime });
+    const documentAccess = createDocumentAccess({
+      meta,
+      manager,
+      viewFor,
+      runtime: deps.documents?.runtime,
+      unmasks: (key, resource, session) => readsOwnPii(key.scope, resource, session),
+    });
     const visibleDocument = documentAccess.visibleDocument;
 
     /**
@@ -4889,6 +4895,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           }
           const profile = await documentAccess.profileForRender(ok.key, found.resource, body);
           if (profile === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
+          // A document prints what its author mapped: one that prints a column this session's read masks waits for the code, as that read does.
+          if (!(await documentAccess.clearFor(ok.key, found.resource, ok.session, profile))) {
+            return fail(reply, 403, 'PUBLIC_CLAIM_LEVEL', 'Confirm the code we emailed you first.');
+          }
           // A key its column cannot hold is an unknown row, on every engine.
           const recordId = recordKeyOf(found.table, body.id);
           if (recordId === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
