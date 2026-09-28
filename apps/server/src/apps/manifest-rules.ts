@@ -731,6 +731,26 @@ export async function writeManifestRules(input: {
   // `personal`, or before a later table's, was refused as showing personal data.
   for (const record of records) {
     const kept = keptOf.get(record)!;
+    /*
+     * One an earlier version wrote and this one keeps as it was is judged
+     * again, as a fresh install judges it: the marks it was judged against may
+     * be gone (this version no longer marks its column personal) or new (the
+     * operator marked a source). One that would now land a column kept from
+     * readers in one that is not is taken back, and said, as a fresh install
+     * would skip it.
+     */
+    for (const rule of [...kept]) {
+      if (rule.released === true || !readsKept(rule.op)) continue;
+      const row = active.find((o) => o.id === rule.overrideId);
+      if (row === undefined || rule.column === null) continue;
+      codes ??= await shareCodesOn(meta, connectionId, { key: manifest.key, manifest: manifest.kind === 'app' ? manifest : null });
+      const issue = keptColumnIssue(rule.op, row.value, { table: rule.table, column: rule.column }, applyOverrides(model, active.filter((o) => o !== row)), codes);
+      if (issue === null) continue;
+      await overrides.delete(row.id);
+      active.splice(active.indexOf(row), 1);
+      kept.splice(kept.indexOf(rule), 1);
+      result.skipped.push({ table: rule.table, column: rule.column, op: rule.op, reason: issue });
+    }
     for (const rule of desired.filter((r) => r.ref === record.ref && readsKept(r.op))) await place(record, kept, rule);
     await appTablesRepo(meta).setRules(record.id, kept);
   }
