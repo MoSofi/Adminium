@@ -13,7 +13,8 @@
  * second tab's) starts with it (`createI18n` asks {@link loadedUiWords}),
  * so a widget never waits twice.
  */
-import type { I18nInstance } from './create-i18n.js';
+// The i18next instance type, from i18next itself: create-i18n.ts reads this module, so it may not read create-i18n.
+import type { i18n as I18nInstance } from 'i18next';
 import { UI_DEFERRED_GROUPS, type ResourceBundle } from './resources/namespaces.js';
 import { bumpI18nRevision } from './revision.js';
 
