@@ -18,7 +18,7 @@
  */
 
 import { Badge, EmptyState, cn } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import type { MouseEvent } from 'react';
 
 import { chromeIcon } from './chrome-icons.js';

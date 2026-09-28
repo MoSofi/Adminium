@@ -15,7 +15,7 @@
 
 import { DeltaPill, MonoText, ProgressBar } from '@adminium/ui';
 import { Sparkline, prefersReducedMotion } from '@adminium/charts';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useEffect, useRef, useState } from 'react';
 
 import { computeDelta, formatMetricValue, formatOptionsOf } from '../../lib/format.js';

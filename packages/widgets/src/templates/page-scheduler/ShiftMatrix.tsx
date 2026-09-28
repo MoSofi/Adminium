@@ -22,7 +22,7 @@
  * one just accepts clicks.
  */
 import { getFormatters } from '@adminium/i18n';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Avatar, MonoText } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { Plus } from 'lucide-react';

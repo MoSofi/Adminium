@@ -8,6 +8,7 @@
  */
 import {
   createContext,
+  use,
   useCallback,
   useContext,
   useEffect,
@@ -22,6 +23,7 @@ import { formatFallback } from './fallback.js';
 import { getFormatters, type Formatters } from './format/index.js';
 import { isRtlLocale, localeFromTag, tagForLocale, type LocaleId } from './locales.js';
 import { getI18nRevision, subscribeI18nRevision } from './revision.js';
+import { hasUiWords, uiWordsReady } from './ui-words.js';
 
 export interface I18nContextValue {
   i18n: I18nInstance;
@@ -136,3 +138,16 @@ export function useFmt(): Formatters {
 
 /** Alias per the M8 assignment naming. */
 export const useFormatters = useFmt;
+
+/**
+ * Waits (suspends) until the provider's instance carries the widget and
+ * template words (`ui.widgets.*`, `ui.templates.*`), which en-US loads on
+ * demand (`UI_DEFERRED_GROUPS`). Called by every widget before it renders, so
+ * none paints its inline English and then changes to the catalogue's words.
+ * Outside a provider, or once they are in, it returns at once.
+ */
+export function useUiWords(): void {
+  const context = useContext(I18nContext);
+  if (context === null || hasUiWords(context.i18n)) return;
+  use(uiWordsReady(context.i18n));
+}

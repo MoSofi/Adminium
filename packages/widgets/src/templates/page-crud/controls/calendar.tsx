@@ -30,7 +30,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MonthCalendar, SlotGrid, slotsBetween } from '@adminium/ui';
 
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../../lib/i18n.js';
 import type { ControlProps } from './types.js';
 
 /** The day and the time held in a stored value, as text. */

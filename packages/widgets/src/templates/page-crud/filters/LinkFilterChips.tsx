@@ -14,7 +14,7 @@
  * hands them here as it got them; this only puts them into words.
  */
 import { Tag } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../../lib/i18n.js';
 
 /** One piece of a link, as the server worked it out. */
 export type PageCrudLinkFilter =

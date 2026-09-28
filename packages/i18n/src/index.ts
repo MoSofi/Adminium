@@ -52,7 +52,10 @@ export {
   DEFERRED_NAMESPACES,
   EAGER_NAMESPACES,
   NAMESPACES,
+  UI_DEFERRED_GROUPS,
 } from './resources/namespaces.js';
+// The widget and template words: loaded on demand (a dynamic import — only the loader is in the entry).
+export { hasUiWords, uiWordsReady } from './ui-words.js';
 export type {
   DeferredNamespace,
   EagerNamespace,

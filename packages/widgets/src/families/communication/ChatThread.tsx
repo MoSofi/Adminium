@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Avatar, EmptyState, Input, Tag } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Paperclip, Send } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';

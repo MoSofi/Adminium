@@ -14,7 +14,7 @@ import { useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
 import { BoardCard } from './BoardCard.js';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import {
   BoardLiveRegion,
@@ -319,7 +319,7 @@ export function KanbanSwimlaneGridWidget({ config, data, onEvent }: WidgetProps<
       cards={cards}
       columns={columns}
       lanes={lanes}
-      {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
+      {...(config.format?.locale === undefined || config.format.locale.trim() === '' ? {} : { locale: config.format.locale })}
       labels={labels}
       // Return the host's result so a rejected `mutate` promise rolls the
       // optimistic move back and announces the failure (annex a11y).

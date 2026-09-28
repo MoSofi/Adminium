@@ -3,9 +3,11 @@ import { DropdownMenuItem } from '@adminium/ui';
 import { ImageDown } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
+import { useMaybeI18n, useMaybeT } from '../lib/i18n.js';
 
 import type { ChartTableOptions } from '../lib/chart-table.js';
+import { formatMetricValue, formatOptionsOf, type MetricFormat } from '../lib/format.js';
+import type { WidgetSharedConfig } from '../registry/shared-config.js';
 import { pickLocalized, type Localized } from '../lib/localized.js';
 import { isEmptyData } from '../registry/data-empty.js';
 import { logConfigWarnings, validateConfigAgainst, widgetRegistry } from '../registry/index.js';
@@ -189,8 +191,16 @@ export function WidgetHost({
     if (chartData === undefined) return undefined;
     const tag = locale?.replace(/_/g, '-');
     const unit = (cfg.binding as { bucket?: { unit?: string } } | undefined)?.bucket?.unit;
-    const dates = new Intl.DateTimeFormat(tag, unit === 'hour-of-day' ? { hour: 'numeric', timeZone: 'UTC' } : unit === 'hour' ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
-    const numbers = new Intl.NumberFormat(tag);
+    // Periods read as the chart's axis reads them: days and longer in UTC fields (the server cut them on the venue's
+    // calendar), the hours of a day as wall hours, and an hour bucket on this device's clock.
+    const dates = new Intl.DateTimeFormat(
+      tag,
+      unit === 'hour-of-day' ? { hour: 'numeric', timeZone: 'UTC' } : unit === 'hour' ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium', timeZone: 'UTC' },
+    );
+    // Figures as the card formats its own (a money card's in its currency), else as numbers.
+    const metricFormat = typeof cfg.metricFormat === 'string' ? (cfg.metricFormat as MetricFormat) : undefined;
+    const formatOptions = formatOptionsOf(cfg as Pick<WidgetSharedConfig, 'format'>);
+    const numbers = new Intl.NumberFormat(formatOptions.locale ?? tag);
     const shares = new Intl.NumberFormat(tag, { style: 'percent', maximumFractionDigits: 1 });
     const series = cfg.series as { label: string; labels?: Localized }[] | undefined;
     const options: ChartTableOptions = {
@@ -214,7 +224,7 @@ export function WidgetHost({
         close: t('ui:frame.data.close', 'Close'),
         place: t('ui:frame.data.place', 'Place'),
       },
-      number: (value) => numbers.format(value),
+      number: (value) => (metricFormat === undefined ? numbers.format(value) : formatMetricValue(value, metricFormat, formatOptions)),
       percent: (fraction) => shares.format(fraction),
       period: (iso) => {
         const at = new Date(iso);

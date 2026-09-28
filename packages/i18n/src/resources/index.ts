@@ -24,6 +24,7 @@ import project from './en-us/project.js';
 import reportBuilder from './en-us/reportBuilder.js';
 import roles from './en-us/roles.js';
 import studio from './en-us/studio.js';
+import uiDeferred from './en-us/ui-deferred.js';
 
 import { EN_US_EAGER } from './eager.js';
 import type { Namespace, ResourceBundle } from './namespaces.js';
@@ -32,6 +33,7 @@ export {
   DEFERRED_NAMESPACES,
   EAGER_NAMESPACES,
   NAMESPACES,
+  UI_DEFERRED_GROUPS,
   type DeferredNamespace,
   type EagerNamespace,
   type Namespace,
@@ -41,6 +43,8 @@ export { EN_US_EAGER } from './eager.js';
 
 export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   ...EN_US_EAGER,
+  // The whole `ui`: the eager part and the widget and template groups the runtime loads later.
+  ui: { ...EN_US_EAGER.ui, ...uiDeferred },
   assistant,
   addOns,
   apiDocs,

@@ -6,7 +6,7 @@
  * SVG aria-label). Components render only the loaded state — WidgetFrame owns
  * skeleton/empty/error.
  */
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import {
   BulletChart,
   MarimekkoChart,

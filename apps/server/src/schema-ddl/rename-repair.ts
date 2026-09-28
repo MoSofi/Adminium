@@ -327,6 +327,8 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
      * carry a table id. Rewritten as text between the two delimiters an id can
      * sit in, so a table whose name merely CONTAINS the old one is untouched.
      */
+    // A dashboard card's query names its table (`source.name`), and a list's counts the limited one (`counts.table`).
+    next = renamedCardQueries(next, byOldId, byOldName);
     const text = JSON.stringify(next);
     let relinked = text;
     for (const [from, to] of byOldId) {
@@ -429,4 +431,40 @@ async function repairIn(input: RenameRepairInput): Promise<RenameRepairResult> {
   }
 
   return result;
+}
+
+/**
+ * A page's dashboard card queries with a renamed table's new name: a query's
+ * `source` (its `name`, with its `schema`) and a list's `counts.table` (a
+ * name, or `schema.name`). The same object when no card names one.
+ */
+function renamedCardQueries(config: Record<string, unknown>, byOldId: ReadonlyMap<string, string>, byOldName: ReadonlyMap<string, string>): Record<string, unknown> {
+  let changed = false;
+  const rename = (spelled: string): string | undefined => {
+    const to = byOldId.get(spelled) ?? byOldName.get(spelled);
+    return to === undefined ? undefined : spelled.includes('.') ? to : bare(to);
+  };
+  const visit = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(visit);
+    if (typeof value !== 'object' || value === null) return value;
+    const node: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) node[key] = visit(child);
+    const source = node['source'] as { name?: unknown; schema?: unknown } | undefined;
+    if (node['shape'] !== undefined && typeof source?.name === 'string') {
+      const to = rename(typeof source.schema === 'string' ? `${source.schema}.${source.name}` : source.name);
+      if (to !== undefined) {
+        node['source'] = { ...source, name: bare(to) };
+        changed = true;
+      }
+      const counts = node['counts'] as { table?: unknown } | undefined;
+      const limited = typeof counts?.table === 'string' ? rename(counts.table) : undefined;
+      if (limited !== undefined) {
+        node['counts'] = { ...counts, table: limited };
+        changed = true;
+      }
+    }
+    return node;
+  };
+  const next = visit(config) as Record<string, unknown>;
+  return changed ? next : config;
 }

@@ -218,7 +218,8 @@ describe('widget-data compiler — SQL', () => {
     }).query.compile();
     expect(q.sql).toContain('"customer_id" as "__group"');
     expect(q.sql).toContain('group by "customer_id"');
-    expect(q.sql).toContain('order by "orders" desc');
+    // A group with no value last on every engine, then the biggest first.
+    expect(q.sql).toContain('order by case when count(*) is null then 1 else 0 end asc, "orders" desc');
     expect(q.parameters).toContain(1000);
   });
 

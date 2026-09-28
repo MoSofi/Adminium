@@ -352,6 +352,17 @@ describe('draftIsLossy', () => {
     expect(draftFromDescriptor(grouped).filters.map((filter) => filter.column)).toEqual(['active']);
   });
 
+  it.each([
+    ['a venue day', { filters: [{ column: 'to_date', op: 'gte', day: 'today' }] }],
+    ["a list's counts", { shape: 'record-list', aggregations: undefined, select: ['id'], counts: { table: 'tickets', rule: 0, as: 'counts', param: 'day' } }],
+    ["a limit's counts", { kind: 'capacity-counts', capacity: { rule: 0, param: 'day', metric: 'occupancy' } }],
+  ])('flags %s, which the form would drop or rewrite', (_label, extra) => {
+    const descriptor = { ...base, ...extra } as unknown as QueryDescriptor;
+    expect(draftIsLossy(descriptor)).toBe(true);
+    // And the round trip does lose it: the warning is not a false alarm.
+    expect(JSON.stringify(descriptorFromDraft(draftFromDescriptor(descriptor)))).not.toContain(Object.keys(extra).includes('filters') ? '"day"' : Object.keys(extra).includes('counts') ? '"counts"' : '"metric"');
+  });
+
   it('flags a filter bound to a page control', () => {
     expect(
       draftIsLossy({ ...base, filters: [{ column: 'created_at', op: 'gte', param: 'dateRange.start' }] }),

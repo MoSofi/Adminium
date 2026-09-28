@@ -46,6 +46,40 @@ afterEach(async () => {
   await meta.db.destroy();
 });
 
+describe('dashboard cards after a rename', () => {
+  it('follow the table in a query\'s source and a list\'s counts, and leave the others alone', async () => {
+    const card = (source: Record<string, unknown>, counts?: string) => ({ shape: 'record-list', connectionId, source, ...(counts === undefined ? {} : { counts: { table: counts, as: 'sold' } }) });
+    const page = await pagesRepo(meta).create({
+      connectionId,
+      slug: 'overview',
+      type: 'page-dashboard',
+      title: 'Overview',
+      config: {
+        source: { table: null },
+        config: {
+          layout: {
+            version: 1,
+            items: [
+              { i: 'a', widget: 'mini-table', config: { binding: card({ name: 'events', schema: 'public' }, 'public.tickets') } },
+              { i: 'b', widget: 'mini-table', config: { binding: card({ name: 'events' }, 'tickets') } },
+              { i: 'c', widget: 'mini-table', config: { binding: card({ name: 'venues', schema: 'public' }, 'public.ticketsx') } },
+            ],
+          },
+        },
+      },
+      origin: 'manifest',
+    } as never);
+    const result = await repairAfterRename({ meta, connectionId, renames: [{ from: 'public.tickets', to: 'public.seats' }, { from: 'public.events', to: 'public.shows' }], crypto });
+    expect(result.pages).toBe(1);
+    const items = ((await pagesRepo(meta).findById(page.id))?.config as { config: { layout: { items: { config: { binding: Record<string, unknown> } }[] } } }).config.layout.items;
+    expect(items.map((item) => [item.config.binding['source'], item.config.binding['counts']])).toEqual([
+      [{ name: 'shows', schema: 'public' }, { table: 'public.seats', as: 'sold' }],
+      [{ name: 'shows' }, { table: 'seats', as: 'sold' }],
+      [{ name: 'venues', schema: 'public' }, { table: 'public.ticketsx', as: 'sold' }],
+    ]);
+  });
+});
+
 describe('what a rename repairs (D33)', () => {
   it('follows the table through includedTables, overrides, pages, grants and the layout', async () => {
     const connections = connectionsRepo(meta, crypto);

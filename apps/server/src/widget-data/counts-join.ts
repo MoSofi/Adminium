@@ -58,7 +58,51 @@ function dayNamed(value: unknown, today: string): string | 'week' | null {
 /** The limited table a `counts` names, and the other tables whose writes move its answer. */
 export function countsTablesOf(view: SnapshotView, descriptor: QueryDescriptor): string[] {
   if (descriptor.counts === undefined) return [];
-  return [view.table(descriptor.counts.table).id];
+  return limitTablesOf(view, view.table(descriptor.counts.table));
+}
+
+/**
+ * Every table a write to which moves what a table's limits count: the table
+ * itself, the rows its pools are kept on (ticket types, events, room types),
+ * the rooms a night pool counts and their closures, the row a condition or a
+ * hold is read through (the order), a hold's end one link further (the
+ * waitlist offer), and a setting a size is read from. A cached answer over the
+ * counts is dropped by a write to any of them.
+ */
+export function limitTablesOf(view: SnapshotView, limited: ResolvedTable): string[] {
+  const out = new Set<string>([limited.id]);
+  const add = (id: string | undefined) => {
+    if (id === undefined) return;
+    const table = view.linkTable(id);
+    out.add(table?.id ?? id);
+  };
+  const size = (value: { kind: string; setting?: { table: string }; link?: { table: ResolvedTable } | null }) => {
+    if (value.kind === 'setting') add(value.setting?.table);
+    if (value.kind === 'hop') add(value.link?.table.id);
+  };
+  for (const rule of rulesFor(view, limited)) {
+    add(rule.owner?.table.id);
+    for (const end of rule.hold?.ends ?? []) add(end.link?.table.id);
+    if (rule.kind === 'slot') {
+      const perSlot = rule.rule.perSlot as unknown;
+      if (typeof perSlot === 'object' && perSlot !== null && 'table' in perSlot) add(String((perSlot as { table: unknown }).table));
+      continue;
+    }
+    add(rule.via?.table.id);
+    if (rule.kind === 'parent') {
+      size(rule.size);
+      for (const wider of rule.also) {
+        add(wider.via?.table.id);
+        size(wider.size);
+      }
+      continue;
+    }
+    if (rule.pool.kind === 'count') add(rule.pool.table);
+    else size(rule.pool.size);
+    add(rule.outOfService?.table);
+    add(rule.given?.via?.table.id);
+  }
+  return [...out];
 }
 
 export async function joinCounts(input: {

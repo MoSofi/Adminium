@@ -8,7 +8,7 @@
 
 import { BarChart, DonutChart, LineAreaChart, Sparkline, formatShortDate } from '@adminium/charts';
 import type { BarSeries, LineAreaPoint, SparklineTone } from '@adminium/charts';
-import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
+import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
 
 import { SlotStrip, asSlotStrip } from './SlotStrip.js';
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
@@ -132,14 +132,15 @@ export function seriesNamesOf(series: ChartBarConfig['series'], locale: string |
   return series?.map((entry) => pickLocalized(entry.label, entry.labels, locale));
 }
 
-/** The legend of a pair of series: a swatch in each series' colour, and its name. */
+/** The legend of a pair of series: a swatch in each series' colour — the bar chart's, series by series — and its name. */
 function PairLegend({ names }: { names: readonly string[] }) {
+  // `BarChart` fills grouped series viz-1, viz-2, viz-1, … (index % 2): the legend says the same.
   const fills = ['bg-[var(--viz-1)]', 'bg-[var(--viz-2)]'];
   return (
     <ul data-part="chart-legend" className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-caption text-fg-muted">
       {names.map((name, index) => (
         <li key={`${String(index)}-${name}`} className="inline-flex items-center gap-1.5">
-          <span aria-hidden="true" className={`size-2.5 rounded-sm ${fills[index] ?? 'bg-[var(--viz-3)]'}`} />
+          <span aria-hidden="true" data-fill={index % 2} className={`size-2.5 rounded-sm ${fills[index % 2]!}`} />
           {name}
         </li>
       ))}

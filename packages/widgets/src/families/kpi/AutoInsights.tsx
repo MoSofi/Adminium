@@ -21,7 +21,7 @@
 import { IconTile, MonoText, Tag } from '@adminium/ui';
 import { RotateCw } from 'lucide-react';
 import { Sparkline } from '@adminium/charts';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useState } from 'react';
 
 import { insightIcon } from './kpi-icons.js';

@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fnv1a } from '@adminium/charts';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import { widgetRegistry } from '../../registry/index.js';
 import { queryDescriptorSchema, type PageLayout, type QueryDescriptor } from '../../page-config/index.js';

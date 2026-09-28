@@ -15,7 +15,7 @@
  * selectable, marked as no longer offered.
  */
 import { ChoiceChips, RadioCard, RadioGroup, SegmentedControl, Select } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../../lib/i18n.js';
 
 import { uiToneOf } from '../../../families/tables/column-spec.js';
 import type { ControlOption, ControlProps } from './types.js';

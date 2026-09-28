@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { BulkActionBar, BulkActionButton } from '@adminium/ui';
 import type { ReactNode } from 'react';
 

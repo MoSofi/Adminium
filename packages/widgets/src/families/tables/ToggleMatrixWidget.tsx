@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { EmptyState, ToggleMatrix } from '@adminium/ui';
 import type { ToggleMatrixCellState, ToggleMatrixColumn, ToggleMatrixGroup } from '@adminium/ui';
 import { useMemo, useState } from 'react';

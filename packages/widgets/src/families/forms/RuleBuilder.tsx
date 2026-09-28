@@ -16,7 +16,7 @@
  */
 
 import { DateInput, IconButton, Input, Select, cn } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 

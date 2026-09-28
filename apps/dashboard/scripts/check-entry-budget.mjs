@@ -34,6 +34,21 @@ if (refs.length === 0) {
   process.exit(1);
 }
 
+/*
+ * The widget and template words (`ui.widgets.*`, `ui.templates.*`) are not in
+ * the entry: en-US loads them on demand and widgets wait for them
+ * (`UI_DEFERRED_GROUPS`, packages/i18n/src/resources/namespaces.ts). A module
+ * on the first paint that names one would render before they are in, so an
+ * entry that names one fails the build, whatever its size.
+ */
+const DEFERRED_KEY = /['"`]ui:(widgets|templates)\./;
+const namers = refs.filter((ref) => DEFERRED_KEY.test(readFileSync(join(root, 'dist', ref), 'utf8')));
+if (namers.length > 0) {
+  console.error(`check-entry-budget: FAIL — the entry names a ui:widgets / ui:templates key (${namers.join(', ')}).`);
+  console.error('Those words load after the first paint: read them in lazy code, or use a key the first paint has.');
+  process.exit(1);
+}
+
 let total = 0;
 for (const ref of refs) {
   const bytes = gzipSync(readFileSync(join(root, 'dist', ref))).byteLength;

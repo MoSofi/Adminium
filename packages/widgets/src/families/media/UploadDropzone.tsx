@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { IconTile } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { CloudUpload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { DragEvent } from 'react';

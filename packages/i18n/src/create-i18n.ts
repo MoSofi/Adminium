@@ -18,6 +18,7 @@ import { IcuFormat } from './icu-format.js';
 
 import { localeEntry, tagForLocale, type LocaleId } from './locales.js';
 import { bumpI18nRevision } from './revision.js';
+import { loadedUiWords } from './ui-words.js';
 import { EN_US_EAGER } from './resources/eager.js';
 import { EAGER_NAMESPACES, type Namespace, type ResourceBundle } from './resources/namespaces.js';
 
@@ -102,6 +103,9 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
   const resources: Resource = {
     'en-US': structuredClone(EN_US_EAGER) as Resource[string],
   };
+  // The widget and template words, once any instance in this process has read them (ui-words.ts).
+  const uiWords = loadedUiWords();
+  if (uiWords !== null) resources['en-US']!['ui'] = { ...(resources['en-US']!['ui'] as object), ...structuredClone(uiWords) };
   for (const [resourceTag, byNs] of Object.entries(opts.resources ?? {})) {
     if (byNs === undefined) continue;
     const target = (resources[resourceTag] ??= {});

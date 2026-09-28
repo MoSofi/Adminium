@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Avatar, AvatarStack, EmptyState, IconTile, MonoText, Switch, Tag } from '@adminium/ui';
 import { CalendarClock } from 'lucide-react';
 

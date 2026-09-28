@@ -18,7 +18,7 @@ import { lazy, Suspense, useCallback, useId, useState } from 'react';
 import type { ReactNode, Ref } from 'react';
 
 import { WidgetHeadingProvider } from './WidgetHeadingContext.js';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../lib/i18n.js';
 
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary.js';
@@ -264,11 +264,13 @@ export function WidgetFrame({
             <button
               type="button"
               data-part="show-data"
+              // A toggle keeps its name; pressed says which way it is. The card's heading says whose data.
               aria-pressed={showData}
+              aria-describedby={headingId}
               onClick={() => setShowData((shown) => !shown)}
-              className="shrink-0 rounded-sm px-1.5 py-0.5 text-caption font-semibold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="shrink-0 rounded-sm px-1.5 py-0.5 text-caption font-semibold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-pressed:bg-accent/10"
             >
-              {showData ? t('ui:frame.hideData', 'Hide data') : t('ui:frame.showData', 'Show data')}
+              {t('ui:frame.showData', 'Show data')}
             </button>
           ) : null}
           {info !== undefined && (

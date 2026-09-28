@@ -26,7 +26,7 @@
  *   the host binding re-windows the widget-data query, and filters the
  *   rendered panes client-side.
  */
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Button, Popover, PopoverContent, PopoverTrigger, Select } from '@adminium/ui';
 import { CalendarRange, Plus } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';

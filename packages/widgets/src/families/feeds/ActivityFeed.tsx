@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { EmptyState, IconTile } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { ArrowRight } from 'lucide-react';
 
 import { feedIcon } from './feed-icons.js';

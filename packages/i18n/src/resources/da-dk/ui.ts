@@ -677,7 +677,9 @@ export default {
         "takenOnly": "{taken} optaget",
         "label": "{taken} af {size} optaget, {left} tilbage",
         "labelHeld": "{taken} af {size} optaget, {held} holdt, {left} tilbage",
-        "ratio": "{taken} / {size}"
+        "ratio": "{taken} / {size}",
+        "labelOver": "{taken} af {size} optaget, {over} for mange",
+        "labelHeldOver": "{taken} af {size} optaget, {held} holdt, {over} for mange"
       }
     },
     "boards": {
@@ -1971,7 +1973,6 @@ export default {
     "infoLabel": "Widget-info",
     "menuLabel": "Widget-menu",
     "showData": "Vis data",
-    "hideData": "Skjul data",
     "data": {
       "period": "Periode",
       "value": "Værdi",

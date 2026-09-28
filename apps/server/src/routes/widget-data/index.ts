@@ -32,9 +32,10 @@ import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { Row } from '../../crud/mask.js';
 import { WidgetDataCache, cacheKeyOf } from '../../widget-data/cache.js';
 import { readViewFor } from '../../crud/read-view.js';
+import { venueClock } from '../../crud/venue-time.js';
 import { answerCapacityCounts, countsAccessFor, type ShapedCapacity } from '../../widget-data/capacity.js';
 import { compileWidgetQuery, resolveSource } from '../../widget-data/compiler.js';
-import { countsTablesOf, joinCounts } from '../../widget-data/counts-join.js';
+import { countsTablesOf, joinCounts, limitTablesOf } from '../../widget-data/counts-join.js';
 import { groupLabelSourceOf, groupLabelsFor } from '../../widget-data/group-labels.js';
 import { resolveLinkFilters } from '../../widget-data/link-filters.js';
 import { resolvePaths } from '../../widget-data/paths.js';
@@ -143,7 +144,9 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const reads = resolution.readLimits === undefined ? '' : `:${JSON.stringify(resolution.readLimits.limited.map((entry) => [entry.grant, [...entry.limit.readable].sort()]))}`;
       const roleScope = `${[...resolution.roleIds].sort().join(',')}${resolution.superAdmin ? '+sa' : ''}:${unmasked ? 'pii' : 'masked'}${reads}`;
       // The answer carries labels in the reader's language, so it is kept per language too.
-      const key = cacheKeyOf({ descriptor, params: params ?? null, connectionId, roleScope, locale: locale ?? null });
+      // And per venue day: "today" (a day filter, a calendar window, a limit's counts) moves at the venue's midnight.
+      const venueDay = venueClock(deps.now?.() ?? new Date(), (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC').day;
+      const key = cacheKeyOf({ descriptor, params: params ?? null, connectionId, roleScope, locale: locale ?? null, day: venueDay });
       const hit = cache.get(key);
       if (hit !== undefined) return { result: hit as ShapedPayload, cached: true };
 
@@ -169,7 +172,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
           access: countsAccessFor(request, connectionId, view),
           canReadPii: piiOf,
         });
-        cache.set(key, result, connectionId, table.id);
+        cache.set(key, result, connectionId, table.id, limitTablesOf(view, table));
         return { result, cached: false };
       }
 

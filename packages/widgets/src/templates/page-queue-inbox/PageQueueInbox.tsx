@@ -15,7 +15,7 @@ import {
   useToastQueue,
 } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useCallback, useMemo, useState } from 'react';
 
 import { WidgetHost } from '../../frame/WidgetHost.js';

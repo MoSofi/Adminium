@@ -67,6 +67,11 @@ const num = (value: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 const text = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
+/** A figure's key as a heading: `total_visits` → "Total visits". */
+const heading = (key: string): string => {
+  const words = key.replace(/[_-]+/g, ' ').trim();
+  return words === '' ? key : words.charAt(0).toUpperCase() + words.slice(1);
+};
 
 export function chartTableOf(data: unknown, opts: ChartTableOptions): ChartTable | null {
   const { words, number } = opts;
@@ -175,7 +180,7 @@ export function chartTableOf(data: unknown, opts: ChartTableOptions): ChartTable
     const keys = [...new Set(points.flatMap((p) => Object.keys(rec(p['values'])!)))];
     if (points.length > 0) {
       return table(
-        [words.place, ...keys],
+        [words.place, ...keys.map(heading)],
         points.map((p) => [text(p['name'] ?? p['code']), ...keys.map((k) => figure(rec(p['values'])![k]))]),
         [false, ...keys.map(() => true)],
       );

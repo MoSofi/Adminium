@@ -15,7 +15,7 @@
  */
 
 import { MonoText, ProgressBar } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import { computeDelta, formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asMetricDelta } from '../../lib/shapes.js';

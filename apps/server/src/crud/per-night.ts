@@ -75,7 +75,7 @@ export interface Priced {
  * adjustment of this rate that cannot be read: a price is refused, never
  * worked out without a rule the operator wrote.
  */
-export async function priceNights(db: Db, rule: ColumnPerNight, row: Row, places: number, extra: readonly string[] = []): Promise<Priced> {
+export async function priceNights(db: Db, rule: ColumnPerNight, row: Row, places: number, extra: readonly string[] = [], memo?: RateReads): Promise<Priced> {
   const none: Priced = { total: null, nights: [], rateRow: null, tooLong: false };
   const link = row[rule.rate.via];
   const first = dayNumberOf(row[rule.from]);
@@ -83,25 +83,15 @@ export async function priceNights(db: Db, rule: ColumnPerNight, row: Row, places
   if (first !== null && last !== null && last - first > PER_NIGHT_MAX) return { ...none, tooLong: true };
   if (empty(link) || first === null || last === null || last <= first) return none;
   const columns = [...new Set([rule.rate.key, rule.rate.column, ...extra])];
-  const rateRow = ((await db
-    .selectFrom(rule.rate.table)
-    .select(columns as never)
-    .where((eb) => eb(db.dynamic.ref(rule.rate.key), '=', link))
-    .executeTakeFirst()) ?? null) as Row | null;
+  const key = `${String(link)}\u0000${columns.join(',')}`;
+  let read = memo?.get(key);
+  if (read === undefined) {
+    read = readRate(db, rule, link, columns);
+    memo?.set(key, read);
+  }
+  const { rateRow, rows } = await read;
   if (rateRow === null) return none;
   const adjust = rule.adjust;
-  let rows: Row[] = [];
-  if (adjust !== undefined) {
-    const read = [adjust.key, adjust.add, adjust.name, adjust.via, adjust.weekdays, adjust.from, adjust.to, adjust.where?.column].filter(
-      (column): column is string => column !== undefined,
-    );
-    let query = db.selectFrom(adjust.table).select([...new Set(read)] as never);
-    // A rule of another rate is never read: only this rate's, and those for every rate.
-    if (adjust.via !== undefined) query = query.where((eb) => eb.or([eb(db.dynamic.ref(adjust.via!), 'is', null), eb(db.dynamic.ref(adjust.via!), '=', link)]));
-    rows = ((await query.orderBy(adjust.key as never).execute()) as Row[]).filter(
-      (candidate) => adjust.where === undefined || sameValue(candidate[adjust.where.column], adjust.where.eq),
-    );
-  }
   try {
     const priced = nightlyRates({
       from: row[rule.from],
@@ -128,6 +118,35 @@ export async function priceNights(db: Db, rule: ColumnPerNight, row: Row, places
       column,
     });
   }
+}
+
+/**
+ * The rate rows a price reads, kept per rate for one caller's many prices (a
+ * card over a week of stays): each rate row and its adjustment rows read
+ * once. Only for reads that price stored rows; a write reads them fresh.
+ */
+export type RateReads = Map<string, Promise<{ rateRow: Row | null; rows: Row[] }>>;
+
+/** One rate's row, and the adjustment rows that may apply to it. */
+async function readRate(db: Db, rule: ColumnPerNight, link: unknown, columns: readonly string[]): Promise<{ rateRow: Row | null; rows: Row[] }> {
+  const rateRow = ((await db
+    .selectFrom(rule.rate.table)
+    .select(columns as never)
+    .where((eb) => eb(db.dynamic.ref(rule.rate.key), '=', link))
+    .executeTakeFirst()) ?? null) as Row | null;
+  if (rateRow === null) return { rateRow, rows: [] };
+  const adjust = rule.adjust;
+  if (adjust === undefined) return { rateRow, rows: [] };
+  const read = [adjust.key, adjust.add, adjust.name, adjust.via, adjust.weekdays, adjust.from, adjust.to, adjust.where?.column].filter(
+    (column): column is string => column !== undefined,
+  );
+  let query = db.selectFrom(adjust.table).select([...new Set(read)] as never);
+  // A rule of another rate is never read: only this rate's, and those for every rate.
+  if (adjust.via !== undefined) query = query.where((eb) => eb.or([eb(db.dynamic.ref(adjust.via!), 'is', null), eb(db.dynamic.ref(adjust.via!), '=', link)]));
+  const rows = ((await query.orderBy(adjust.key as never).execute()) as Row[]).filter(
+    (candidate) => adjust.where === undefined || sameValue(candidate[adjust.where.column], adjust.where.eq),
+  );
+  return { rateRow, rows };
 }
 
 /**
@@ -196,11 +215,11 @@ export interface StoredNights {
  * its quantity, no rate, the stored figure as its amount — so no document
  * prints lines that disagree with its total.
  */
-export async function storedNights(db: Db, rules: TableRules, row: Row, currency: string | null, extra: readonly string[] = []): Promise<StoredNights> {
+export async function storedNights(db: Db, rules: TableRules, row: Row, currency: string | null, extra: readonly string[] = [], memo?: RateReads): Promise<StoredNights> {
   const rule = rules.perNight!;
   const places = placesFor(rule.scale, row, rules.currencyColumn, currency);
   const stored = row[rule.column];
-  const priced = await priceNights(db, rule, row, places, extra);
+  const priced = await priceNights(db, rule, row, places, extra, memo);
   const storedText = toRatio(stored) === null ? null : ratioText(toRatio(stored)!, places);
   const columns = (rateRow: Row | null) => Object.fromEntries(extra.map((column) => [column, rateRow?.[column] ?? null]));
   const same = priced.total !== null && storedText !== null && priced.total === storedText;

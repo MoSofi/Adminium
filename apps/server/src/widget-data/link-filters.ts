@@ -36,7 +36,7 @@ import type { Dialect } from '@adminium/engine';
 import type { FilterCondition, RecordFilter } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable } from '../crud/identifiers.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
-import { calendarBoundValue } from './compiler.js';
+import { calendarBoundValue } from './bound-values.js';
 
 /** How many pieces one link may carry; the rest are left out, and said to be. */
 export const LINK_FILTERS_MAX = 8;

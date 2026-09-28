@@ -15,7 +15,7 @@
  */
 
 import { Kbd } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useMemo } from 'react';
 
 import { DEFAULT_SHORTCUT_GROUPS, shortcutsPanelConfigSchema, shortcutsPanelDemoData } from './chrome-config.js';

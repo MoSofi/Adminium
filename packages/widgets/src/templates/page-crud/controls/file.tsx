@@ -8,7 +8,7 @@
  * wearing what the comp draws for the kind of file it holds. A second upload
  * path would be a second set of bugs about the same bytes.
  */
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../../lib/i18n.js';
 
 import { FileField } from '../FileField.js';
 import type { ControlProps } from './types.js';

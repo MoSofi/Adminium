@@ -677,7 +677,9 @@ export default {
         "takenOnly": "{taken} pris",
         "label": "{taken} sur {size} pris, {left} restant(s)",
         "labelHeld": "{taken} sur {size} pris, {held} en attente, {left} restant(s)",
-        "ratio": "{taken} / {size}"
+        "ratio": "{taken} / {size}",
+        "labelOver": "{taken} sur {size} pris, {over} en trop",
+        "labelHeldOver": "{taken} sur {size} pris, {held} en attente, {over} en trop"
       }
     },
     "boards": {
@@ -1971,7 +1973,6 @@ export default {
     "infoLabel": "Infos du widget",
     "menuLabel": "Menu du widget",
     "showData": "Afficher les données",
-    "hideData": "Masquer les données",
     "data": {
       "period": "Période",
       "value": "Valeur",

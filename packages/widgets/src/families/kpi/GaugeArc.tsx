@@ -27,7 +27,7 @@
 
 import { EmptyState, MonoText } from '@adminium/ui';
 import { useMountAnimation } from '@adminium/charts';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asCategorical, asSingleMetric } from '../../lib/shapes.js';

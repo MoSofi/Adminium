@@ -677,7 +677,9 @@ export default {
         "takenOnly": "{taken} belegt",
         "label": "{taken} von {size} belegt, {left} frei",
         "labelHeld": "{taken} von {size} belegt, {held} reserviert, {left} frei",
-        "ratio": "{taken} / {size}"
+        "ratio": "{taken} / {size}",
+        "labelOver": "{taken} von {size} belegt, {over} zu viel",
+        "labelHeldOver": "{taken} von {size} belegt, {held} reserviert, {over} zu viel"
       }
     },
     "boards": {
@@ -1971,7 +1973,6 @@ export default {
     "infoLabel": "Widget-Info",
     "menuLabel": "Widget-Menü",
     "showData": "Daten anzeigen",
-    "hideData": "Daten ausblenden",
     "data": {
       "period": "Zeitraum",
       "value": "Wert",

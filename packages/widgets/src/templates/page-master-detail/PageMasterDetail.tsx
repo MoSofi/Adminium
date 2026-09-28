@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { Button, EmptyState, Spinner, StatusPill } from '@adminium/ui';
 import { useCallback, useMemo, useState } from 'react';
 import type { KeyboardEvent } from 'react';

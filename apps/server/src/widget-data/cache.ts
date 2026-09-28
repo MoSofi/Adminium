@@ -37,6 +37,8 @@ export function cacheKeyOf(input: {
   roleScope: string;
   /** The reader's locale (`de_DE`); null when the labels are read in US English. */
   locale: string | null;
+  /** The venue's day the answer was made on: "today" is another day after its midnight. */
+  day?: string;
 }): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }

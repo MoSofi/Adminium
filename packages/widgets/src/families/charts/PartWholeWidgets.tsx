@@ -8,7 +8,7 @@
  * ChartDirectionContext the dashboard bridges from the i18n `dir`.
  */
 import { Chord, Funnel, Radar, RadialBar, Sunburst, Treemap, WordCloud } from '@adminium/charts';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import type { WidgetProps } from '../../registry/types.js';

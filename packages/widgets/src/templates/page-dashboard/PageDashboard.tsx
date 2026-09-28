@@ -16,7 +16,7 @@
  */
 
 import { useId, useMemo, useState, type ReactNode } from 'react';
-import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
+import { useMaybeI18n, useMaybeT } from '../../lib/i18n.js';
 import { ArrowRight, CalendarDays, ClipboardList, ExternalLink } from 'lucide-react';
 import { Button, cn, Input, Popover, PopoverContent, PopoverTrigger, SegmentedControl } from '@adminium/ui';
 

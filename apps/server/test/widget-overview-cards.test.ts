@@ -20,8 +20,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { overridesRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 
+import { SnapshotView } from '../src/crud/identifiers.js';
 import { wallTimeToInstant } from '../src/crud/venue-time.js';
+import { queryDescriptorSchema } from '@adminium/engine/config';
+
 import { WidgetDataCache } from '../src/widget-data/cache.js';
+import { answerCapacityCounts } from '../src/widget-data/capacity.js';
 import { adminPasswordHash, ADMIN_EMAIL, ADMIN_PASSWORD, login } from './auth-helpers.js';
 import { filled, LEGS, types, type Dialect, type World } from './capacity.helpers.js';
 
@@ -46,7 +50,7 @@ function venueDdl(dialect: Dialect): string[] {
     `create table ticket_types (id ${t.key}, event_id integer not null, name ${t.text(40)} not null, capacity integer not null, ${t.fk('event_id', 'events')})`,
     `create table orders (id ${t.key}, status ${t.text(16)} not null default 'held', held_until ${t.at} null)`,
     `create table tickets (id ${t.key}, order_id integer not null, ticket_type_id integer not null, event_id integer null, status ${t.text(16)} not null default 'valid', ${t.fk('order_id', 'orders')}, ${t.fk('ticket_type_id', 'ticket_types')}, ${t.fk('event_id', 'events')})`,
-    `create table bookings (id ${t.key}, event_id integer null, type_id integer null, received ${money} not null, owed ${money} not null, ${t.fk('event_id', 'events')}, ${t.fk('type_id', 'ticket_types')})`,
+    `create table bookings (id ${t.key}, event_id integer null, type_id integer null, received ${money} not null, owed ${money} null, ${t.fk('event_id', 'events')}, ${t.fk('type_id', 'ticket_types')})`,
   ];
 }
 
@@ -189,6 +193,9 @@ function reader(w: World) {
   };
   const card = (table: string, rest: Record<string, unknown>) => ({ connectionId: w.connectionId, source: source(table), ...rest });
   return {
+    /** A staff write through the data route, as the super admin (after a first `admin` read). */
+    write: async (table: string, values: Record<string, unknown>) =>
+      w.app.inject({ method: 'POST', url: `/api/v1/data/${w.connectionId}/${w.id(table)}`, headers: { cookie: cookies.get('*') ?? '' }, payload: { values } as never }),
     admin: async (table: string, rest: Record<string, unknown>, params?: Record<string, unknown>) => {
       let cookie = cookies.get('*');
       if (cookie === undefined) {
@@ -198,14 +205,24 @@ function reader(w: World) {
       }
       return post(cookie, card(table, rest), params);
     },
-    desk: async (tables: readonly string[], table: string, rest: Record<string, unknown>, params?: Record<string, unknown>) => {
-      const key = tables.join(',');
+    /** `limits`: a table this desk reads only some columns of (the key and links always). */
+    desk: async (tables: readonly string[], table: string, rest: Record<string, unknown>, params?: Record<string, unknown>, limits: Record<string, string[]> = {}) => {
+      const key = `${tables.join(',')}|${JSON.stringify(limits)}`;
       let cookie = cookies.get(key);
       if (cookie === undefined) {
         members += 1;
         const role = await rolesRepo(w.meta).create({ slug: `overview-desk-${String(members)}`, name: `Overview desk ${String(members)}` });
         for (const name of tables) {
-          await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${w.id(name)}`, { read: true, create: false, update: false, delete: false, export: false, import: false });
+          const limit = limits[name];
+          await permissionsRepo(w.meta).grant(role.id, 'table', `${w.connectionId}/${w.id(name)}`, {
+            read: true,
+            create: false,
+            update: false,
+            delete: false,
+            export: false,
+            import: false,
+            ...(limit === undefined ? {} : { readLimit: { readable: limit } }),
+          } as never);
         }
         const email = `overview${String(members)}@venue.example.com`;
         const user = await usersRepo(w.meta).create({ email, name: `Overview ${String(members)}`, passwordHash: await adminPasswordHash(), status: 'active' });
@@ -272,6 +289,18 @@ for (const [dialect, available] of LEGS) {
       expect(ids(ok(await list(both)))).toEqual([1, 2, 3, 5]);
       expect(ids(ok(await list(both, { reason: 'Carpet' })))).toEqual([]);
 
+      // A kept answer is for the venue's day it was made on: past midnight, "today" is tomorrow.
+      // Ten seconds before the venue's midnight, then five after: well inside the answer's 30 s.
+      const midnight = at('2026-07-28 00:00').getTime();
+      vi.setSystemTime(new Date(midnight - 10_000));
+      expect(ids(ok(await list(outOfService)))).toEqual([2, 3, 5]);
+      expect((await list(outOfService)).body['cached']).toBe(true);
+      vi.setSystemTime(new Date(midnight + 5_000));
+      const tomorrow = await list(outOfService);
+      expect(tomorrow.body['cached']).toBe(false);
+      expect(ids(ok(tomorrow))).toEqual([2, 5]);
+      vi.setSystemTime(NOW);
+
       // Counted like the list: a KPI of the same filters.
       const count = ok(await cards.admin('room_closures', { shape: 'single-metric', aggregations: [{ fn: 'count', alias: 'n' }], filters: outOfService }));
       expect(count['value']).toBe(3);
@@ -293,6 +322,10 @@ for (const [dialect, available] of LEGS) {
       expect(refused(await list([{ column: 'reason', op: 'eq', day: 'today' }]))).toEqual([422, 'VALIDATION_FAILED']);
       expect(refused(await list([{ column: 'to_date', op: 'eq', day: '2026-02-30' }]))).toEqual([422, 'VALIDATION_FAILED']);
       expect(refused(await list([{ column: 'to_date', op: 'in', day: 'today' }]))).toEqual([422, 'VALIDATION_FAILED']);
+      expect(refused(await list([{ column: 'to_date', op: 'gte', day: 'today+9999' }]))).toEqual([422, 'VALIDATION_FAILED']);
+      // `neq` a day: a date column only (on a time a day is a span).
+      expect(refused(await list([{ column: 'made_at', op: 'neq', day: 'today' }]))).toEqual([422, 'VALIDATION_FAILED']);
+      expect(ok(await list([{ column: 'to_date', op: 'neq', day: 'today' }]))['total']).toBe(2);
       // A link inside a group is read-checked as one outside it is.
       const linked = [{ or: [{ column: 'room_id.floor', op: 'eq', value: 2 }, { column: 'reason', op: 'is_null' }] }];
       expect(refused(await cards.desk(['room_closures'], 'room_closures', { shape: 'record-list', select: ['id'], filters: linked }))).toEqual([403, 'TABLE_FORBIDDEN']);
@@ -340,6 +373,18 @@ for (const [dialect, available] of LEGS) {
       const coming = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'sum', column: 'received', alias: 'received' }], filters: [{ column: 'event_id.doors_at', op: 'gte', day: 'today' }], orderBy: [{ column: 'event_id.doors_at', dir: 'asc' }] }));
       expect((coming['items'] as { key: string }[]).map((item) => item.key)).toEqual(['1', '2']);
 
+      // A figure over nothing but empty values (no owed amount on To be announced's bookings) is last, on every engine.
+      await w.query('update bookings set owed = null where event_id = 4');
+      for (const dir of ['asc', 'desc'] as const) {
+        const ranked = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'max', column: 'owed', alias: 'owed' }], orderBy: [{ column: 'owed', dir }] }));
+        expect((ranked['items'] as { key: string }[]).at(-1)?.key).toBe('4');
+      }
+      const unordered = ok(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'max', column: 'owed', alias: 'owed' }], limit: 3 }));
+      expect((unordered['items'] as { key: string }[]).map((item) => item.key)).toEqual(['1', '2', '3']);
+
+      // An alias that is not a plain name (it would read as a table and a column): refused by name, never run.
+      expect(refused(await cards.admin('bookings', { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'sum', column: 'received', alias: 'event_id.name' }], orderBy: [{ column: 'event_id.name', dir: 'asc' }] }))).toEqual([422, 'VALIDATION_FAILED']);
+
       // Through another link: no one value per show — refused.
       expect(refused(await money([{ column: 'type_id.name', dir: 'asc' }]))).toEqual([422, 'VALIDATION_FAILED']);
       // The shows' dates are read as a filter's are: a desk that may not read the shows may not order by them.
@@ -385,6 +430,62 @@ for (const [dialect, available] of LEGS) {
       expect(ok(await cards.admin('tickets', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy', ids: ['2'] } }))['value']).toBeCloseTo(2 / 114, 10);
     });
 
+    it('reads each rate once for an answer, however many stays it prices', async () => {
+      vi.setSystemTime(NOW);
+      w = await venue(dialect);
+      // Forty more stays this week, Lofts and Gardens.
+      await w.seed(
+        'stays',
+        Array.from({ length: 40 }, (_, i) => ({ arrive: `2026-07-${String(27 + (i % 4))}`, depart: `2026-07-${String(28 + (i % 4))}`, room_type_id: 1 + (i % 2), status: 'booked', room_total: i % 2 === 0 ? '100.00' : '150.00' })),
+      );
+      const target = await w.target('stays');
+      const statements = async (metric: 'earnings' | 'taken') => {
+        let count = 0;
+        const db = target.db.withPlugin({ transformQuery: (args) => ((count += 1), args.node), transformResult: async (args) => args.result });
+        const answer = await answerCapacityCounts({
+          descriptor: queryDescriptorSchema.parse({ kind: 'capacity-counts', connectionId: w!.connectionId, source: { name: 'stays' }, shape: 'metric+delta', capacity: { metric } }),
+          params: { day: 'week' },
+          connectionId: w!.connectionId,
+          view: target.view,
+          table: target.table,
+          db,
+          dialect: target.dialect,
+          timezone: ZONE,
+          now: NOW,
+          access: { table: async () => undefined, column: async () => undefined },
+          canReadPii: async () => true,
+          currency: 'USD',
+        });
+        return { count, value: (answer as { value: unknown }).value };
+      };
+      const taken = await statements('taken');
+      const earned = await statements('earnings');
+      // Two rates (Loft, Garden), each with its rules, read once each for the week and once for the week before.
+      expect(earned.count - taken.count).toBeLessThanOrEqual(2 * (2 + 2) + 2);
+      expect(earned.value).toBe(720 + 20 * 100 + 20 * 150);
+
+      // A table that keeps each row's currency: its prices do not add up to one amount — refused, never summed.
+      const model = structuredClone(target.view.model);
+      const stays = model.tables.find((table) => table.id === target.table.id)!;
+      (stays.columns as unknown[]).push({ ...stays.columns.find((column) => column.name === 'status')!, name: 'currency' });
+      const priced = new SnapshotView(w.connectionId, model);
+      await expect(
+        answerCapacityCounts({
+          descriptor: queryDescriptorSchema.parse({ kind: 'capacity-counts', connectionId: w.connectionId, source: { name: 'stays' }, shape: 'single-metric', capacity: { metric: 'earnings' } }),
+          params: {},
+          connectionId: w.connectionId,
+          view: priced,
+          table: priced.table(target.table.id),
+          db: target.db,
+          dialect: target.dialect,
+          timezone: ZONE,
+          now: NOW,
+          access: { table: async () => undefined, column: async () => undefined },
+          canReadPii: async () => true,
+        }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { metric: 'earnings', column: 'currency' } });
+    });
+
     it('says nothing is full where nothing can be sold, and refuses earnings to a reader who may not see them', async () => {
       vi.setSystemTime(NOW);
       w = await venue(dialect);
@@ -407,6 +508,22 @@ for (const [dialect, available] of LEGS) {
       expect(refused(await cards.desk([...all, 'events'], 'stays', earnings))).toEqual([403, 'COLUMN_FORBIDDEN']);
       // Occupancy reads no price: still answered (four rooms taken of the two left to sell: over-sold, and said so).
       expect(ok(await cards.desk([...all, 'events'], 'stays', { ...earnings, capacity: { metric: 'occupancy' } }))['value']).toBe(2);
+    });
+
+    it("reads through a role's column limits: an order, a filter one link away and earnings refuse a column it does not show", async () => {
+      vi.setSystemTime(NOW);
+      w = await venue(dialect);
+      const cards = reader(w);
+      // The desk reads the shows' names, never their dates; the stays' dates, never their price.
+      const limits = { events: ['name'], stays: ['arrive', 'depart', 'status'] };
+      const all = ['bookings', 'events', 'stays', 'rooms', 'room_closures', 'room_types', 'rate_rules'];
+      const money = { shape: 'categorical', groupBy: ['event_id'], aggregations: [{ fn: 'sum', column: 'received', alias: 'received' }] };
+      expect(refused(await cards.desk(all, 'bookings', { ...money, orderBy: [{ column: 'event_id.doors_at', dir: 'asc' }] }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
+      expect(refused(await cards.desk(all, 'bookings', { ...money, filters: [{ or: [{ column: 'event_id.doors_at', op: 'gte', day: 'today' }, { column: 'owed', op: 'gt', value: 0 }] }] }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
+      // What it shows still answers: ordered by the shows' names.
+      expect(ok(await cards.desk(all, 'bookings', { ...money, orderBy: [{ column: 'event_id.name', dir: 'asc' }] }, undefined, limits))['items']).toHaveLength(4);
+      expect(refused(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'earnings' } }, undefined, limits))).toEqual([403, 'COLUMN_FORBIDDEN']);
+      expect(ok(await cards.desk(all, 'stays', { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'occupancy' } }, undefined, limits))['value']).toBe(1);
     });
 
     it('lists the coming shows with their tickets sold and held of what each can sell', async () => {
@@ -435,11 +552,25 @@ for (const [dialect, available] of LEGS) {
         { taken: 2, held: 2, size: 114, left: 112 },
       ]);
       // A night limit's pools: the room types, tonight.
-      const rooms = ok(await cards.admin('room_types', { shape: 'record-list', select: ['id', 'name'], orderBy: [{ column: 'id', dir: 'asc' }], counts: { table: 'stays' } }));
+      const roomTypes = { shape: 'record-list', select: ['id', 'name'], orderBy: [{ column: 'id', dir: 'asc' }], counts: { table: 'stays' } };
+      const rooms = ok(await cards.admin('room_types', roomTypes));
       expect((rooms['rows'] as Record<string, unknown>[]).map((row) => row['counts'])).toEqual([
         { taken: 2, held: 0, size: 2, left: 0 },
         { taken: 2, held: 1, size: 2, left: 0 },
       ]);
+      // Kept for a while, and dropped by a write to any table the counts read: a Garden room closed tonight.
+      expect((await cards.admin('room_types', roomTypes)).body['cached']).toBe(true);
+      const closed = await cards.write('room_closures', { room_id: 4, reason: 'Flood', from_date: '2026-07-27', to_date: '2026-07-27', active: true });
+      expect(closed.statusCode, closed.body).toBe(201);
+      const after = await cards.admin('room_types', roomTypes);
+      expect(after.body['cached']).toBe(false);
+      expect(((ok(after)['rows'] as Record<string, unknown>[])[1]!['counts'] as { size: number }).size).toBe(1);
+      // The same for a KPI over the counts: a write to the ticket types' orders drops it.
+      const kpi = { kind: 'capacity-counts', shape: 'single-metric', capacity: { metric: 'taken', under: 'event_id', value: '1' } };
+      expect(ok(await cards.admin('tickets', kpi))['value']).toBe(7);
+      expect((await cards.admin('tickets', kpi)).body['cached']).toBe(true);
+      expect((await cards.write('orders', { status: 'paid' })).statusCode).toBe(201);
+      expect((await cards.admin('tickets', kpi)).body['cached']).toBe(false);
 
       // Refused, by name: beside anything but a list; rows that are not the limit's pools; a list without the key; a name the list has.
       expect(refused(await cards.admin('events', { ...coming, shape: 'categorical', groupBy: ['name'], aggregations: [{ fn: 'count', alias: 'n' }], select: undefined, window: undefined, orderBy: undefined }))).toEqual([422, 'VALIDATION_FAILED']);

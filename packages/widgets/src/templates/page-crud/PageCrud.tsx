@@ -16,7 +16,7 @@ import {
   useToastQueue,
 } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { ArrowUpRight, Eye, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 

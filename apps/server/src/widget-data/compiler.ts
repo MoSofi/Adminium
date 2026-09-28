@@ -55,13 +55,14 @@ import type { Dialect } from '@adminium/engine';
 
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
-import { compileFilter, MAX_FILTER_CONDITIONS, MAX_FILTER_GROUP_DEPTH, type CompileFilterContext, type FilterCondition, type RecordFilter } from '../crud/filters.js';
+import { compileFilter, type CompileFilterContext, type FilterCondition, type RecordFilter } from '../crud/filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import { lookupSelections, type ResolvedLookup } from '../crud/lookups.js';
 import { venueClock, wallTimeToInstant } from '../crud/venue-time.js';
 import { offsetSpans, stepsOf, wallText, type OffsetSpan } from './zone-offsets.js';
-import { normalizeWriteValue } from '../crud/write-values.js';
 import { choiceWordsOf } from './choice-words.js';
+import { calendarBoundValue, instantBoundValue, windowBoundValue } from './bound-values.js';
+import { filterProblem } from './filter-checks.js';
 import { venueDayConditions } from './link-filters.js';
 
 /** Hard row cap on any compiled query (guardrails). */
@@ -636,43 +637,6 @@ function sqliteBucketExpr(ref: Ref, unit: PeriodUnit): RawBuilder<unknown> {
 }
 
 /**
- * A window boundary as the source driver expects it for a column that keeps
- * an instant: Postgres binds the `Date` directly (timestamptz), but MySQL and
- * SQLite take a UTC `'YYYY-MM-DD HH:MM:SS'` string — a MySQL `TIMESTAMP` is
- * read on a UTC session, and better-sqlite3 refuses to bind a `Date` at all
- * (it accepts only numbers, strings, bigints, buffers and null).
- */
-function windowBoundValue(date: Date, dialect: Dialect): Date | string {
-  if (dialect === 'mysql' || dialect === 'sqlite') {
-    return date.toISOString().slice(0, 19).replace('T', ' ');
-  }
-  return date;
-}
-
-/**
- * A boundary instant spelled as the column keeps a time: a zone-less timestamp
- * takes this server's wall clock (what every write to it stores,
- * `crud/write-values.ts`), and a zoned one the instant. UTC's wall clock in a
- * zone-less column moved a rolling window by this server's offset on MySQL
- * and SQLite: "the last hour" at 23:00 UTC in Berlin counted 22:00–23:00 on
- * a clock that read 01:00.
- */
-function instantBoundValue(column: ResolvedColumn, instant: Date, dialect: Dialect): unknown {
-  if (column.logicalType === 'timestamp') return normalizeWriteValue(column, instant.toISOString());
-  return windowBoundValue(instant, dialect);
-}
-
-/**
- * A calendar boundary spelled as the column keeps a value: a date column takes
- * the venue's day, and a time column the instant as {@link instantBoundValue}
- * spells it.
- */
-export function calendarBoundValue(column: ResolvedColumn, instant: Date, dialect: Dialect, timezone: string): unknown {
-  if (column.logicalType === 'date') return venueClock(instant, timezone).day;
-  return instantBoundValue(column, instant, dialect);
-}
-
-/**
  * Does this engine have an ordered-set quantile aggregate? Postgres (and the
  * schema-only `generic`) do; MySQL 8 has no `percentile_cont` and SQLite has
  * no percentile function at all, so both take the in-process scan.
@@ -816,12 +780,8 @@ function resolveNode(node: FilterNode, params: Record<string, unknown>): Resolve
     const kept = resolved.filter((child): child is ResolvedFilterNode => child !== null);
     return kept.length === 0 ? null : { and: kept };
   }
-  if (node.day !== undefined) {
-    if (node.value !== undefined || node.param !== undefined) {
-      reject('A filter compares with a `day` or with a `value` (or a `param`), not both.', { column: node.column });
-    }
-    return { column: node.column, op: node.op, day: node.day };
-  }
+  // A day's rules are judged before (`assertDescriptorFilterLimits`).
+  if (node.day !== undefined) return { column: node.column, op: node.op, day: node.day };
   if (node.param !== undefined) {
     const value = params[node.param];
     if (value === undefined) return null; // control unset — filter inactive
@@ -845,23 +805,21 @@ export function filterConditionsOf(filters: QueryDescriptor['filters']): { colum
 }
 
 /**
- * The list grammar's limits, on a descriptor's filters: sixteen conditions in
- * all, groups two deep. The schema holds the depth already; this holds the
- * count, which a schema of nested lists cannot.
+ * The list grammar's limits and a day's rules, on a descriptor's filters
+ * (`filter-checks.ts`, the rules an app's install judges too): sixteen
+ * conditions in all, groups two deep, and a `day` that is one.
  */
-function assertDescriptorFilterLimits(filters: QueryDescriptor['filters']): void {
-  let conditions = 0;
-  const walk = (node: FilterNode, depth: number): void => {
-    if ('and' in node || 'or' in node) {
-      if (depth >= MAX_FILTER_GROUP_DEPTH) reject('Filter groups may nest at most 2 levels deep.', { maxDepth: MAX_FILTER_GROUP_DEPTH });
-      for (const child of ('and' in node ? node.and : node.or) as FilterNode[]) walk(child, depth + 1);
-      return;
-    }
-    conditions += 1;
-  };
-  for (const node of filters ?? []) walk(node, 0);
-  if (conditions > MAX_FILTER_CONDITIONS) reject('Filters are limited to 16 conditions.', { maxConditions: MAX_FILTER_CONDITIONS });
+function assertDescriptorFilterLimits(filters: QueryDescriptor['filters'], table: ResolvedTable): void {
+  const problem = filterProblem(filters, (name) => {
+    const column = table.columns.get(name);
+    if (column === undefined) return 'unknown';
+    return column.logicalType === 'date' ? 'date' : TIME_TYPES.has(column.logicalType) ? 'time' : 'other';
+  });
+  if (problem !== null) reject(problem.message, problem.details);
 }
+
+/** The column types that keep a time (a day on one is its whole span). */
+const TIME_TYPES = new Set(['timestamp', 'timestamptz']);
 
 /** Shape ⇄ descriptor structural rules (semantics). */
 function assertShapeRules(descriptor: QueryDescriptor): void {
@@ -1028,6 +986,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     reject('`lookups` is supported on "record-list" descriptors only.', { shape: descriptor.shape });
   }
   const table = resolveSource(view, descriptor);
+  assertDescriptorFilterLimits(descriptor.filters, table);
   const dynamic = db.dynamic;
   const filterCtx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
@@ -1049,7 +1008,6 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     qb.where((eb) => eb(dynamic.ref(path.fkColumn.name), 'in', where(db.selectFrom(path.parent.id).select(dynamic.ref(path.parentKey)) as unknown as Qb) as never));
 
   // --- WHERE: descriptor filters (CRUD DSL compiler) + rolling window -------
-  assertDescriptorFilterLimits(descriptor.filters);
   const conditions =
     descriptor.filters === undefined ? [] : resolveFilterParams(descriptor.filters, params);
   /*
@@ -1214,11 +1172,16 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   const aggregateAliases = new Set(aggregations.map((aggregation) => aggregation.alias));
   const rankingKey = (name: string): boolean =>
     aggregateAliases.has(name) || name === groupColumns[0] || isPath(name);
-  const rankingOrder = (groupColumn: ResolvedColumn): { expr: RawBuilder<unknown>; dir: 'asc' | 'desc'; nullable: boolean }[] =>
+  const rankingOrder = (groupColumn: ResolvedColumn): { expr: RawBuilder<unknown>; dir: 'asc' | 'desc'; nullable: boolean; isNull?: RawBuilder<unknown> }[] =>
     (descriptor.orderBy ?? [])
       .filter((key) => rankingKey(key.column))
       .map((key) => {
-        if (aggregateAliases.has(key.column)) return { expr: sql`${sql.ref(key.column)}`, dir: key.dir, nullable: false };
+        // An aggregate over nothing but empty values is null: last, on every engine. Inside an
+        // expression an ORDER BY cannot name the output alias (Postgres reads a column), so the aggregate is repeated.
+        if (aggregateAliases.has(key.column)) {
+          const compiled = compiledAggs.find((aggregation) => aggregation.alias === key.column);
+          return { expr: sql`${sql.ref(key.column)}`, dir: key.dir, nullable: compiled !== undefined, ...(compiled === undefined ? {} : { isNull: compiled.expr }) };
+        }
         if (key.column === groupColumn.name) return { expr: sql`${dynamic.ref(groupColumn.name)}`, dir: key.dir, nullable: true };
         const path = pathOf(key.column);
         if (path.fkColumn.name !== groupColumn.name) {
@@ -1314,12 +1277,12 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         const label = groupLabelExpr(db, table, groupColumn, opts.groupLabel, dialect);
         const ranking = rankingOrder(groupColumn);
         if (ranking.length === 0) {
-          // Deterministic fold order: biggest buckets first, by the first alias.
-          qb = qb.orderBy(sql.ref(first.alias), 'desc');
+          // Deterministic fold order: biggest buckets first, by the first alias; a group with no value last on every engine.
+          qb = qb.orderBy(sql`case when ${first.expr} is null then 1 else 0 end`, 'asc').orderBy(sql.ref(first.alias), 'desc');
         } else {
           // The order asked for: an aggregate, the group, or a column of the row it points at (no value last).
-          for (const { expr, dir, nullable } of ranking) {
-            if (nullable) qb = qb.orderBy(sql`case when ${expr} is null then 1 else 0 end`, 'asc');
+          for (const { expr, dir, nullable, isNull } of ranking) {
+            if (nullable) qb = qb.orderBy(sql`case when ${isNull ?? expr} is null then 1 else 0 end`, 'asc');
             qb = qb.orderBy(expr, dir);
           }
         }

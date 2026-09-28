@@ -22,7 +22,7 @@
  * - card click emits `record-open` — the host routes it to the record drawer;
  * - every non-board item (KPI cards, insights) renders through WidgetHost.
  */
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { useMemo } from 'react';
 
 import { KanbanBoard } from '../../families/boards/KanbanBoard.js';

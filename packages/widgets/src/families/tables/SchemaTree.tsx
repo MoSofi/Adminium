@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { getFormatters } from '@adminium/i18n';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 import { EmptyState, Tag } from '@adminium/ui';
 import { ChevronRight, Columns3, Database, Eye, Table2 } from 'lucide-react';
 import { useMemo, useState } from 'react';

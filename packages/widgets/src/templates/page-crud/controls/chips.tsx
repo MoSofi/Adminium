@@ -14,7 +14,7 @@
  * wrong (the comp's invite box, 485–488).
  */
 import { ChipInput } from '@adminium/ui';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../../lib/i18n.js';
 
 import type { ControlProps } from './types.js';
 

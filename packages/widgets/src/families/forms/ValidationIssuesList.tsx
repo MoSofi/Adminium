@@ -12,7 +12,7 @@
 import { Badge, EmptyState, IconTile } from '@adminium/ui';
 import { useScrollRegion } from '../../lib/useScrollRegion.js';
 import { useWidgetHeadingId } from '../../frame/WidgetHeadingContext.js';
-import { useMaybeT } from '@adminium/i18n/react';
+import { useMaybeT } from '../../lib/i18n.js';
 
 import { severityIcon } from './forms-icons.js';
 import { DEFAULT_SEVERITY_TONE, formatCount, numberField, oneOf, recordRowsOf, stringField } from './forms-lib.js';

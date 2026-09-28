@@ -42,13 +42,31 @@
  * that has never loaded it, and the console would render fallbacks for the
  * rest of the session.
  */
+import { uiWordsReady } from '@adminium/i18n';
+
 import { deferredMessagesReady } from '../i18n/deferredMessages.js';
+import { getI18nInstance, type I18nInstance } from '../i18n/t.js';
 
 /**
  * Resolves once `studio` is in the store for the active language and the
  * en-US fallback behind it, with any overrides applied — the shared deferred
  * loader (`i18n/deferredMessages.ts`), which `email` uses the same way.
  */
+/*
+ * And the widget and template words, which en-US loads on demand
+ * (`UI_DEFERRED_GROUPS`): the page editor names one outside a widget (the
+ * records page's "New row" placeholder), where nothing else waits for them.
+ * One promise per instance, so `use()` sees the same one on every render.
+ */
+const withUiWords = new WeakMap<I18nInstance, Promise<void>>();
+
 export function studioMessagesReady(): Promise<void> {
-  return deferredMessagesReady('studio');
+  const i18n = getI18nInstance();
+  if (i18n === null) return deferredMessagesReady('studio');
+  let ready = withUiWords.get(i18n);
+  if (ready === undefined) {
+    ready = Promise.all([deferredMessagesReady('studio'), uiWordsReady(i18n)]).then(() => undefined);
+    withUiWords.set(i18n, ready);
+  }
+  return ready;
 }
