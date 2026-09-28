@@ -60,7 +60,7 @@ import {
   createTouchThrottle,
   type PublicViews,
 } from '../../public-api/runtime.js';
-import { publicConfigOf, type CompiledResource, type PublicAction, type ScopeChild } from '../../public-api/scope.js';
+import { publicConfigOf, type CompiledResource, type CompiledScope, type PublicAction, type ScopeChild } from '../../public-api/scope.js';
 import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { isWriteConflict, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
@@ -395,13 +395,40 @@ function proofOwed(
 /**
  * Whether a read may show PII-masked columns: only a person's own rows (a
  * claim-gated resource), only at the `verified` level — they proved the
- * mailbox — and only to a verified session. Every other public read keeps
- * the mask.
+ * mailbox — and only to a verified session. Or the person's own row itself
+ * ("my details"), read by the session its sign-in opened, where signing in
+ * proved the mailbox: an emailed link, or the emailed code a found session
+ * confirmed. Every other public read keeps the mask: a session that found
+ * the person by what they know (never confirmed), a row's own or shared
+ * link, and a caller with no session.
  */
-function readsOwnPii(resource: CompiledResource, session: PublicSessionContext | null): boolean {
+function readsOwnPii(scope: CompiledScope, resource: CompiledResource, session: PublicSessionContext | null): boolean {
+  if (session?.level !== 'verified') return false;
   // A child's rows are theirs only through a parent they reach: the same rule, one step removed.
   const own = (resource.claim !== null && resource.claim.optional !== true) || parentOf(resource) !== null;
-  return own && resource.level === 'verified' && session?.level === 'verified';
+  if (own && resource.level === 'verified') return true;
+  // The identity's own row: its claim reads it by the session's own value (`claimPredicateFor`), never another's.
+  const identity = scope.claim ?? null;
+  return (
+    identity !== null &&
+    identity.ref === resource.ref &&
+    session.grant.ref === resource.ref &&
+    identity.strategy !== 'token' &&
+    identity.verify !== undefined &&
+    resource.claim?.column !== undefined &&
+    resource.claim.optional !== true
+  );
+}
+
+/**
+ * Of the columns a reply shows, those masked as personal data that this
+ * reader does not unmask: a reply to a write shows them empty, as a read of
+ * the same row would never show them — a change never answers more than a
+ * read (`readsOwnPii`).
+ */
+function maskedFrom(table: ResolvedTable, columns: readonly string[], unmasked: boolean): ReadonlySet<string> {
+  if (unmasked) return new Set();
+  return new Set(columns.filter((column) => table.columns.get(column)?.masked === true));
 }
 
 /**
@@ -1785,7 +1812,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           // Anonymous callers never see PII-masked columns, whatever the scope
           // says: masking is a second line and the allow-list is the boundary.
           // A person who proved their mailbox reads their OWN row as it is.
-          canReadPii: readsOwnPii(resource, ok.session),
+          canReadPii: readsOwnPii(ok.key.scope, resource, ok.session),
           dialect,
           // Scope predicate AND session predicate, both mandatory, neither
           // removable by any combination of query parameters.
@@ -2021,7 +2048,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           view: found.view,
           table: found.table,
           params: { limit: 1, count: 'none' },
-          canReadPii: readsOwnPii(found.resource, ok.session),
+          canReadPii: readsOwnPii(ok.key.scope, found.resource, ok.session),
           dialect: found.dialect,
           // Never null: the key condition is always there.
           mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
@@ -2302,16 +2329,20 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
       }
 
+      // Whether this caller's read of the row would show its personal data (a reply never shows more).
+      const unmasked = readsOwnPii(ok.key.scope, resource, ok.session);
       /** Each row as a reply shows it: the entry's columns — a quote's without keys, numbers, codes or what it filled in. */
       const project = (at: TreePath, of: ResolvedTable, record: Row): Record<string, unknown> => {
         const entry = entryAt(at);
         const columns = at.length === 0 ? resource.expose : (entry?.select ?? of.primaryKey);
         const hidden = dry ? hiddenInQuote(view, of, at.length === 0 ? [keyColumn] : []) : new Set<string>();
         const blank = filledIn.get(place(at)) ?? new Set<string>();
+        // Personal data this caller's read would never show: empty here too.
+        const masked = maskedFrom(of, columns, unmasked);
         const out: Record<string, unknown> = {};
         for (const column of columns) {
           if (hidden.has(column)) continue;
-          out[column] = blank.has(column) ? null : record[column];
+          out[column] = blank.has(column) || masked.has(column) ? null : record[column];
         }
         return wallTimesAsInstants(out, of.columns, dialect);
       };
@@ -2953,8 +2984,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource), ok.key.purpose);
         await withheld.prepare(found.db, [inserted]);
         const shownRow = withheld.apply({ ...inserted });
+        // Personal data this caller's read would never show: empty here too.
+        const masked = maskedFrom(found.table, found.resource.expose, readsOwnPii(ok.key.scope, found.resource, ok.session));
         const projected: Record<string, unknown> = {};
-        for (const column of found.resource.expose) projected[column] = shownRow[column];
+        for (const column of found.resource.expose) projected[column] = masked.has(column) ? null : shownRow[column];
         const rank = await rankOf(found, inserted);
         return reply
           .status(201)
@@ -3291,7 +3324,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const hidden = quote === 'dry' ? hiddenInQuote(found.view, found.table, [found.resource.clientKey]) : new Set<string>();
         // A code this change made (a ticket handed on) goes to the new holder, never back to the sender.
         for (const column of renewedBy(outcome, found.table.table.columns)) hidden.add(column);
-        for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = outcome.after?.[column];
+        // Personal data this caller's read would never show: empty in the answer to a change too.
+        const masked = maskedFrom(found.table, found.resource.expose, readsOwnPii(ok.key.scope, found.resource, ok.session));
+        for (const column of found.resource.expose) if (!hidden.has(column)) projected[column] = masked.has(column) ? null : outcome.after?.[column];
         // What the row's holder alone reads stays theirs in the answer to a change too.
         const after = outcome.after ?? null;
         const withheld = withholding(found.resource, ok.key.scope, ok.session, found.view, found.table, await declaredWithholds(ok.key.connectionId, found.resource), ok.key.purpose);
@@ -3324,7 +3359,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                   currency: async () => (await connectionTenantConfig(meta, ok.key.connectionId))?.currency ?? null,
                   withholds: () => recentWithholdsOn(meta, ok.key.connectionId),
                   spell: (row, of) => wallTimesAsInstants(row, of.columns, found.dialect),
-                  unmasked: (child) => readsOwnPii(child, ok.session),
+                  unmasked: (child) => readsOwnPii(ok.key.scope, child, ok.session),
                   // As the child's own list reads it: reachable through its parents, at its level, by its filters and its claim; never one read only with a code.
                   readable: (child, own) => {
                     if (child.unlockBy !== null && child.unlockBy !== undefined) return null;
@@ -4539,7 +4574,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             view: found.view,
             table: found.table,
             params: { limit: 1, count: 'none' },
-            canReadPii: readsOwnPii(found.resource, ok.session),
+            canReadPii: readsOwnPii(ok.key.scope, found.resource, ok.session),
             dialect: found.dialect,
             mandatory: combinePredicates(found.predicate, keyFilter) ?? keyFilter,
             // The holder columns a rule reads beside it; only the file column leaves.
