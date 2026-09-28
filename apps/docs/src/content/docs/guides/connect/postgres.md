@@ -164,6 +164,32 @@ read-only, so this recipe produced a read-only app; the workaround was
 connection added before 0.3.5 keeps the read-only flag its last test gave it:
 press **Test** on the connection once after upgrading.
 
+### Grants for an app's rules
+
+An installed app's rules read and write more than the row being saved. A role granted table by
+table or column by column needs these as well:
+
+- **`UPDATE` on the columns a total writes.** A new ticket moves its order's total, the formulas
+  that read that total and the balances beside it, and so on up the chain of
+  [totals that climb](/reference/manifest/#totals-that-count-and-climb). A copy that follows its
+  parent writes the child rows' columns too. Adminium checks these grants before the first
+  statement and refuses the write with `403` `READ_ONLY_MODE`, naming `details.table` and
+  `details.columns`, with `details.reason` `privileges`.
+- **`SELECT` on the whole settings table.** A [limit](/guides/apps/booking-rules/#limits) that
+  reads a number from the app's settings row reads that row as `SELECT *`. A grant on some of its
+  columns only makes that read fail.
+- **`SELECT` on the tables a limit counts from.** The rows a pool is held on (ticket types, room
+  types, the rooms and their closures), and a slot limit's hours, closures and pauses, are read on
+  every write the limit judges, by guests' availability, and by the desk's counts. The pool rows
+  and the hours are read whole, so grant the whole table.
+
+With the app's tables installed under its prefix, for example:
+
+```sql
+GRANT SELECT ON boxoffice_settings, boxoffice_ticket_types, boxoffice_events, boxoffice_halls TO adminium_rw;
+GRANT UPDATE (total, ticket_count) ON boxoffice_orders TO adminium_rw;
+```
+
 ## Hosting the meta store in the same database
 
 If — and only if — your role has DDL, Adminium can keep its own tables in a

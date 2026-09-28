@@ -62,6 +62,13 @@ Then one browser key per key the app declares, granting exactly its endpoints an
 
 Neither is narrowed to any origin.
 
+## Orders with their lines
+
+A create endpoint can carry the rows that belong to the new row, in one write: an order with its
+lines and each line's options, tickets for a show, a stay with its extras. The page can ask for a
+quote first, the save can be refused if the total is not the one the guest was shown, and a
+retried save answers the order already made. See [An order with its lines](/guides/apps/orders-with-lines/).
+
 ## Guests finding their own booking
 
 A claim lets a guest open their own row by proving they know its details, for example a booking
@@ -288,13 +295,23 @@ An app can limit a create that nobody signed in for, such as a first visit booke
   nine digits, so `+44 7700 900123` and `07700 900123` are one number; an address counts in lower
   case.
 - **Per key, an hour.** At most so many through the key in an hour, from everyone together.
+- **Per visitor, an hour.** At most so many (up to 60) through the entry in an hour from one
+  visitor, counting an IPv6 subscriber's whole /64 as one. Every visitor is held to 60 an hour on
+  any key anyway; this only lowers it for one entry.
 - **Names as plain text.** The columns the app names hold letters, spaces and ordinary
   punctuation only, up to 80 characters: no digits and no link. Anything else is refused `400`
   `PUBLIC_WRITE_REFUSED`, with `params.column` naming the column.
 
 Over a limit, the create is refused `409` `PUBLIC_LIMIT_REACHED` and the page offers the phone.
-A create refused for another reason, such as a time taken meanwhile, does not count. Values are
+A single create refused for another reason, such as a time taken meanwhile, does not count
+against the phone number, the address or the key. An order sent with its lines gives its charge
+back only when a value the guest typed was refused; see
+[An order with its lines](/guides/apps/orders-with-lines/). A quote never counts. Values are
 counted as keyed hashes, so the count is never a list of numbers.
+
+An entry anyone may call can never show a column that holds personal data: one the app marks
+personal, or one whose name reads as an address, a phone number, a birth date or a person's name.
+The manifest check refuses such an entry before anything is installed.
 
 ## A kiosk
 

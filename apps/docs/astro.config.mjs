@@ -135,7 +135,10 @@ export default defineConfig({
             },
             {
               label: 'Pages',
-              items: [{ label: 'Filters', link: '/guides/pages/filters/' }],
+              items: [
+                { label: 'Filters', link: '/guides/pages/filters/' },
+                { label: 'Cards for an overview page', link: '/guides/pages/overview-widgets/' },
+              ],
             },
             {
               label: 'Edit your schema',
@@ -192,8 +195,17 @@ export default defineConfig({
                 { label: 'Sample data', link: '/guides/apps/sample-data/' },
                 { label: 'App roles and staff access', link: '/guides/apps/roles-and-staff-access/' },
                 { label: 'An app’s public access', link: '/guides/apps/public-access/' },
-                { label: 'Booking rules', link: '/guides/apps/booking-rules/' },
+                { label: 'An order with its lines', link: '/guides/apps/orders-with-lines/' },
+                {
+                  label: 'Guests, their details and their own links',
+                  link: '/guides/apps/identity-and-own-links/',
+                },
+                { label: 'Pictures on public pages', link: '/guides/apps/public-pictures/' },
+                { label: 'Booking rules and limits', link: '/guides/apps/booking-rules/' },
+                { label: 'Timed moves', link: '/guides/apps/timed-moves/' },
+                { label: 'Undo a status move', link: '/guides/apps/undo-a-status-move/' },
                 { label: 'An app’s emails', link: '/guides/apps/emails/' },
+                { label: 'A menu two apps share', link: '/guides/apps/shared-menu/' },
                 { label: 'Building on an add-on', link: '/guides/building-on-an-add-on/' },
               ],
             },
@@ -277,6 +289,7 @@ export default defineConfig({
             { label: 'CLI', link: '/reference/cli/' },
             { label: 'REST API', link: '/reference/rest-api/' },
             { label: 'Manifest spec', link: '/reference/manifest/' },
+            { label: 'Error codes', link: '/reference/errors/' },
           ],
         },
         {

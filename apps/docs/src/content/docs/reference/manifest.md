@@ -216,12 +216,13 @@ the database.
 | `label` | no | A [label](#conventions) for one row ("Category"): form titles, buttons, empty states, link fields. Without it Adminium names the table from its real name. |
 | `labelPlural` | no | A label for the table ("Categories"). Needs `label`. |
 | `keyField` | no | The column that names a row wherever another table links to it (a category's `name`). Must be one of the table's columns. |
-| `shape` | no | `<name>@<version>`, such as `menu@1`. Two apps that declare the same shape on a table can use one table between them. |
+| `shape` | no | `<name>@<version>`, such as `menu@1`. Two apps that declare the same shape on a table can use one table between them. See [Shared tables](#shared-tables). |
 | `builtOn` | no | `<add-on key>/<shape name>@<version>`, such as `invoices/invoice@1`: the table is built on a shape an add-on defines. Needs `part`. See [Tables built on an add-on's shape](#tables-built-on-an-add-ons-shape). A table has `shape` or `builtOn`, not both. |
 | `part` | with `builtOn` | snake_case: which part of the shape the table is (`document`, `lines`, `payments`). Only a table with `builtOn` has one. |
-| `capacity` | no | A limit on how much of a time slot the table's rows may take; see [Capacity](#capacity). |
+| `capacity` | no | A limit on how much of a pool the table's rows may take (a time slot, a ticket type, a room type's nights), or a list of up to three; see [Capacity](#capacity). |
 | `booking` | no | Rows that book a person's time, never overlapping; see [Booking](#booking). A table has `capacity` or `booking`, not both. |
 | `states` | no | The states a row moves through, what is locked in each, and the child tables tied to them; see [States](#states). |
+| `unique` | no | 1–8 sets of 2–4 columns no two rows may hold the same values in together; see [Columns unique together](#columns-unique-together). |
 
 `label`, `labelPlural`, `keyField` and every column `label` are installed as the operator's own
 labels would be. The operator can rename anything; a name they changed is theirs, and a later
@@ -247,6 +248,7 @@ version of the app does not overwrite it.
 | `scale` | no | `decimal` and `money` only: the places kept after the point. See [Decimal places](#decimal-places). |
 | `default` | no | The value the database fills when an insert leaves the column out. See [Defaults](#defaults). |
 | `unique` | no | `true`: no two rows may hold the same value. Empty values do not count, so many rows may leave it empty. Not on the primary key, a `json` or a `blob` column; a `text` column needs `maxLength`, because MySQL cannot index unbounded text. |
+| `index` | no | `true`: a plain index on a foreign key a [limit](#capacity) or a [total](#totals-and-balances) counts by, so the count reads the rows it needs and not the whole table. Only on such a foreign key, and never on one that is `unique` already. |
 | `label` | no | A [label](#conventions) for the column: a form field, a list heading. |
 | `rules` | no | Rules Adminium keeps on the column; see [Column rules](#column-rules). |
 
@@ -262,6 +264,30 @@ the same value, and names the column if they do; nothing changes until they diff
 and a number without gaps are unique the same way, a number counted per parent row together with
 its parent. On MySQL a unique text column holds at most 768 characters (`maxLength`): MySQL
 indexes no longer key, so a longer one is refused on the check, at install and on update.
+
+#### Columns unique together
+
+A table's `unique` lists sets of columns that are unique together: one waitlist entry per show per
+address, one check-in per ticket per day.
+
+```json
+{ "ref": "check_ins", "columns": [ … ],
+  "unique": [["ticket_id", "day"]] }
+```
+
+Each set names 2–4 of the table's columns, each once; a table has up to 8 sets, and no set twice.
+A row with any of the set's columns empty never collides. The columns must be ones an index can
+hold: not `json` or `blob`, and a `text` column with `maxLength` (a `code` column counts). A set
+that a number counted per parent already keeps unique (a `gapless` sequence with a `scope`, and
+its scope) is refused as said twice, and so is a set on a table [built on an add-on's
+shape](#tables-built-on-an-add-ons-shape), whose own writes could break it.
+
+A set becomes a unique constraint when Adminium creates the table (a unique index on SQLite), and
+an update that adds a set to a table that already has rows first checks that no two rows repeat
+it: the check names the table and columns (`UNIQUE_DUPLICATES`), and nothing changes until they
+differ. A write that would repeat a set is refused `409` `UNIQUE_VIOLATION`, with
+`details.columns` naming the set. A plain [`index`](#columns) is added the same way, at install or
+by an update.
 
 #### Column types
 
@@ -339,27 +365,29 @@ change or delete is theirs from then on.
 | `required` | `true` | The server requires a value on every write. |
 | `requiredWhen` | `{ "column", "in" }` | The server requires a value only while another column of the same row holds one of the values in `in` (1–32): an away event names who is away, an event in the office names nobody. See [Required for some values](#required-for-some-values). |
 | `validation` | `{ "format"?, "min"?, "max"?, "minLength"?, "maxLength"? }` | `format` is `email`, `url` or `phone`. |
-| `copy` | `{ "via", "from", "mode"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. A column kept from readers is copied only into one kept the same way: a `secret` into a `secret`, a `personal` column into a `personal` one (or a `secret`), and a shared link's code never. The same holds for a stamp that copies a column of its row, and for a formula's inputs. |
+| `copy` | `{ "via", "from", "mode"?, "follow"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. With `"follow": true` it keeps in step when that row changes later; see [Copies that follow](#copies-that-follow). A column kept from readers is copied only into one kept the same way: a `secret` into a `secret`, a `personal` column into a `personal` one (or a `secret`), and a shared link's code never. The same holds for a stamp that copies a column of its row, and for a formula's inputs. |
 | `default` | `{ "from" }` | A value filled on a create that leaves the column empty, read when the row is made. See [Values from elsewhere](#values-from-elsewhere). |
 | `sequence` | `{ "start"?, "gapless"?, "startSetting"?, "scope"? }` | The next number in a running series. Without `gapless`, the column's own counter; `start` is at least 1. With `"gapless": true`, a number with no gaps and none repeated. See [Numbers without gaps](#numbers-without-gaps). |
 | `format` | `{ "from", "prefix"?, "prefixSetting"?, "pad"? }` | A `text` column written from a gapless number of the same row: the prefix, then the digits padded with zeros (`INV-0042`). See [Numbers without gaps](#numbers-without-gaps). |
-| `code` | `{ "length", "prefix"? }` | A short random code, unique in the column. `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). A create that leaves it out or empty gets one, a sample row or an import too; a code they bring is kept, but a sample's code for a shared link's `column` is always made anew. A code is no secret by its rule alone: a name that reads like one (`share_token`) keeps it one, unless `secret: false` says otherwise or it is the column a shared link opens a row by, on a table the install made, which staff who read the table see. The public sees a code only where an entry's `select` names it, and a shared link's never. The audit log and the automation logs say `[code]` in its place, and the assistant never reads it. |
+| `code` | `{ "length", "prefix"?, "renew"? }` | A short random code, unique in the column. `renew` makes a new one when the row changes hands; see [Codes that renew](#codes-that-renew). `length` is 4–16; `prefix` is upper case, up to 6 characters plus an optional `-` (`MR-`). A create that leaves it out or empty gets one, a sample row or an import too; a code they bring is kept, but a sample's code for a shared link's `column` is always made anew. A code is no secret by its rule alone: a name that reads like one (`share_token`) keeps it one, unless `secret: false` says otherwise or it is the column a shared link opens a row by, on a table the install made, which staff who read the table see. The public sees a code only where an entry's `select` names it, and a shared link's never. The audit log and the automation logs say `[code]` in its place, and the assistant never reads it. |
 | `formula` | an expression | A number worked out from the row's other columns on every write. See [Formulas](#formulas). |
-| `normalize` | `"trim"` or `"email"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case. |
+| `normalize` | `"trim"`, `"email"` or `"code"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case, `code` compared as a code (upper case, spaces and dashes left out) when a person types one; see [Typed codes](#typed-codes). |
+| `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
+| `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
 | `notAfter` | `"today"` | A `date` column is never later than today, in the venue's time zone. A later date is refused (`out-of-range`). |
 | `notBefore` | `{ "column", "via"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). |
-| `rollup` | `{ "from", "via", "sum", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up. `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
-| `stamp` | `{ "set", "on" }` | A value Adminium writes when something happens: the moment, or who did it. See [Stamps](#stamps). |
+| `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
+| `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
 | `personal` | `true` or `false` | Whether the column is personal data, overriding the guess Adminium makes from the column's name. |
 | `secret` | `true` or `false` | Whether the column is a secret no response carries, to anyone, overriding the guess Adminium makes from the column's name (`api_token`, `password_hash`). An entry in [public access](#public-access) that names no `select` leaves a `secret` column out, and a `code` column too. `false` is written only on a table the app's install made: on a table it reuses, a rule that would show a secret or take a personal column's mask off is skipped, the check step says so, and only an operator can show the column, in Studio, as Super Admin. A `secret` the operator set in Studio wins over the app's. On a column of an add-on's shape, only `true`. |
 
 Tones are the dashboard's badge colours: `neutral`, `accent`, `info`, `pos`, `warn` and `danger`.
 
-`copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula` and `stamp` are values
-**Adminium decides**: they are filled on the server, so a browser never picks a price, a number, a
-code or a time. So are a rollup's `balance` column and a booking's late-cancellation
-[`flag`](#booking). None of them can be listed as `writable` in [public access](#public-access), and
+`copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `stamp`, `lookup` and
+`perNight` are values **Adminium decides**: they are filled on the server, so a browser never
+picks a price, a number, a code or a time. So are a rollup's `balance` column, a booking's
+late-cancellation [`flag`](#booking) and a [late move's](#late-moves) flag. None of them can be listed as `writable` in [public access](#public-access), and
 a primary key cannot take `sequence` or `code`.
 
 One rule decides a column. The one pair allowed is a `copy` with a `default` behind it: the copy
@@ -475,6 +503,42 @@ settled but not capped: they record what already happened.
 A total or a balance a writer sends is dropped, not refused, so a form that sends the whole row
 still saves.
 
+#### Totals that count and climb
+
+A total may count its child rows instead of adding a column up: how many tickets an order holds,
+how many lines a kitchen ticket has.
+
+```json
+{ "ref": "ticket_count", "type": "int", "default": 0,
+  "rules": { "rollup": { "from": "tickets", "via": "order_id", "count": true,
+                         "unlessSet": "refunded_at" } } }
+```
+
+A rollup names `sum` or `"count": true`, never both. A count is kept in an `int` or `bigint`
+column, and takes no `times`, `balance` or `cap`; `where` and `unlessSet` leave rows out as they do
+for a sum.
+
+A total may also add up another table's totals: an option's price into its line, the line into
+its order, the order into the customer's lifetime total. Such totals **climb**, at most three
+tables high, and never in a circle (a table adding up its own rows, or two tables adding up each
+other). A write that moves a total at the bottom settles every total above it in the same
+transaction: each level adds up what the level below has just written, then works out its
+formulas and balances. Every door that moves a total does this: a create, a change, a delete, a
+create with child rows, a bulk edit, an import, an undo, a parent form and sample data. Two
+writers take the rows in one order (the highest parent first), so they never wait on each other
+crosswise; a line moved to another order while a write was reading it is refused `409`
+`WRITE_CONFLICT` with `details.retry: true`, and the same write a moment later goes through.
+
+Sums are exact on every engine, SQLite included: a total is added up from each row's decimal text,
+never through a floating-point number.
+
+A capped balance whose `of` is a [formula](#formulas) (a total of subtotal and tax) is judged
+against the cap one row at a time; a bulk edit or an import settles it afterwards, without the
+cap. So `validateManifest` [warns](#validation) when the formula reads a column that stays
+writable while the capped rows can exist: lock those columns with the table's
+[states](#states) (and the lines they add up with `lock: true`) in every state a capped row can be
+written in or reached from.
+
 #### Formulas
 
 A `formula` works a number out from the other columns of the same row: a line's amount, a
@@ -498,6 +562,8 @@ An expression is a number, a column of the same row by its ref (`"qty"`), or one
 | `{ "coalesce": [a, b] }` | `a`, or `b` when `a` is empty. |
 | `{ "if": [condition, a, b] }` | `a` when the condition holds, else `b`. |
 | `{ "hoursBetween": [start, stop] }` | The hours from the `start` column to the `stop` column, both `timestamptz` columns of the row. See [Hours between two moments](#hours-between-two-moments). |
+| `{ "daysBetween": [from, to] }` | The whole calendar days from the `from` date to the `to` date, two `date` columns of the row: a stay's nights. |
+| `{ "join": [part, part, …] }` | Text: 2–8 parts, each a column of the row or a piece of text, joined in order. The whole formula, of a `text` column; see [Joined text](#joined-text). |
 
 A condition is one of:
 
@@ -531,9 +597,11 @@ How a formula is worked out:
   formula column is worked out after it. A formula that reads a [rollup](#totals-and-balances)
   total is worked out again whenever the total moves.
 
-A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float`. It reads only
-columns of its own table, and every column it counts with holds a number; `eq`, `neq` and
-`isNull` may name any column, and `hoursBetween` names two different `timestamptz` columns. It
+A formula fills a `decimal`, `money`, `int` or `bigint` column, never a `float` (a
+[`join`](#joined-text) fills a `text` column). It reads only columns of its own table, and every
+column it counts with holds a number; `eq`, `neq` and `isNull` may name any column,
+`hoursBetween` names two different `timestamptz` columns and `daysBetween` two different `date`
+columns. It
 may not read itself, formulas may not read each other in a circle, and an expression nests at most
 8 deep. A value a writer sends to a formula column is dropped. Anything that reads another row is a
 `copy` or a `rollup`, which already keep in step when that other row changes.
@@ -572,6 +640,27 @@ update that moves only the stop works the hours out again from the start as stor
   `422` `VALIDATION_FAILED` with the code `out-of-range` on the moments they are counted from, on
   every engine — never left for the database to refuse or, on SQLite, to keep. Any formula whose
   result its column cannot hold is refused the same way.
+
+`daysBetween` counts calendar days the same way: two `date` columns of the row, the nights of a
+stay from its arrival to its departure. A night the clocks change is still one night. An empty
+date, or a `to` before its `from`, leaves the result empty.
+
+#### Joined text
+
+A `join` makes a `text` column from other columns and pieces of text: a guest's full name, a
+line's description.
+
+```json
+{ "ref": "full_name", "type": "text", "maxLength": 160, "nullable": true,
+  "rules": { "formula": { "join": ["first_name", " ", "last_name"] } } }
+```
+
+A part that reads as a snake_case name is a column of the row; any other part (a space, `" · "`)
+is text written as it is. A join reads `text`, `int` and `bigint` columns only: a decimal, a yes or
+no, or a time would be spelled differently by each database. An empty column is left out, and so
+is the text between it and its neighbour, so a guest with no last name is "Mia", not "Mia ". The
+result is trimmed, and empty when every column is. A join is the whole formula of its column,
+never a part of a sum.
 
 #### Numbers without gaps
 
@@ -646,6 +735,147 @@ The same three settings (the last two) are what `sequence.startSetting` and `for
 read. A column with a `default` rule is nullable: when there is nothing to read, it stays empty
 rather than taking a made-up value. An update never refills it.
 
+A `{ "table", "column" }` setting, wherever a rule reads one (a default, a limit's size, a move's
+condition, a moment's time), names a table that holds **one row**: the outbox's
+[`settings.table`](#outbox), or a table that stands alone, with no foreign key of its own, none
+pointing at it, and no states, limits or booking. Adminium reads that row when the rule runs. A
+moment, a state condition or a stamp's amount that finds two rows there reads nothing rather than
+guess which one is meant.
+
+#### Copies that follow
+
+A plain `copy` is taken when the row is written. With `"follow": true` it keeps in step: when the
+row it copies from changes, every row that copies it takes the new value in the same write. A
+hotel stay's extras copy the stay's nights and guests, so breakfast for two over three nights
+becomes breakfast for three over four the moment the stay changes.
+
+```json
+{ "ref": "nights", "type": "int", "nullable": true,
+  "rules": { "copy": { "via": "stay_id", "from": "nights", "mode": "always", "follow": true } } }
+```
+
+The copy is written, then every formula over it, then the totals it moves are settled into the
+row it follows (the stay's total, tax and balance), before the change commits; if any of that is
+refused, nothing is kept. A paid stay whose balance would fall below zero is refused
+`409` `BALANCE_EXCEEDED`.
+
+The rules that keep a follow sound:
+
+- it always wins (`mode: "always"`), and follows one level: the column it copies does not itself
+  follow another row;
+- it never follows a total, a balance or a stamp, nor a formula over one: those change without a
+  change of the row, so the copy would keep an old value;
+- the row it follows is not worked out from this table's own totals (a loop);
+- a total another table keeps of these rows reads none of what the follow writes, including the
+  link it groups by: a follow that moved rows between another table's totals would leave those
+  totals behind.
+
+More than 500 rows following one changed row refuse the whole write, `409` `FOLLOW_TOO_MANY`
+(`details.table`, `details.count`), rather than leave some behind. A bulk edit, an import or a
+public batch that would move a paid balance below zero through its followers, or could not write
+them under the caller's role, or would move more than 500, is refused before anything is written:
+`409` `BALANCE_ONE_AT_A_TIME`. Make such changes one row at a time.
+
+#### Prices by the night
+
+`perNight` works a price out night by night: for each night from `from` up to the day before `to`,
+the base rate read from the row `rate.via` points at, plus every adjustment row that matches that
+night (a weekend, a season). Each night is rounded to the column's [scale](#decimal-places), and
+the column holds their sum.
+
+```json
+{ "ref": "room_total", "type": "money", "scale": "currency", "nullable": true,
+  "rules": { "perNight": {
+    "from": "arrive", "to": "depart",
+    "rate": { "via": "room_type_id", "column": "base_rate" },
+    "adjust": { "table": "rate_rules",
+                "match": { "via": "room_type_id", "weekdays": "weekdays", "from": "from_date", "to": "to_date" },
+                "add": "amount", "name": "name", "where": { "column": "active", "eq": true } } } } }
+```
+
+| Field | Rule |
+|---|---|
+| `from`, `to` | Two different `date` columns of the row: the first night, and the day after the last. |
+| `rate` | `{ "via", "column" }`: a foreign key of the row, and the number column of the row it points at that holds the base rate. Never a secret or personal column. |
+| `adjust` | Optional. `table` holds the adjustments; `add` is the number added to a night (negative for a discount) and `name` the `text` a night's line is tagged with. |
+| `adjust.match` | Which adjustments apply to a night. `via`: a foreign key to what `rate.via` points at (empty on a row: every type). `weekdays`: a `text` column of at least 27 characters listing nights like `fri,sat` (empty: every night). `from`, `to`: `date` columns, the first and last night it applies on, both included (empty: open). |
+| `adjust.where` | `{ "column", "eq" }`: only adjustments whose column holds the value (`active` is `true`). The column may not be nullable. |
+
+The column is a `decimal`, `money`, `int` or `bigint`, and a table has one such price. A create
+always works it out. A change works it out again only when it writes the dates or the rate's link
+to something new, so rates edited later never re-price a stay already booked, and a form that
+sends the whole row back keeps the booked price. An import keeps a figure it brings and works out
+one it leaves out. Formulas read the price (a subtotal, the tax, the total), so they run after it.
+
+The nights themselves are worked out, never stored: a dry run answers them (`date`, `rate`,
+`base`, `tags`), staff read them at `GET /api/v1/data/<connection>/<table>/<id>/nightly`, and a
+[document](#documents) can list them. When the rates changed after the stay was priced, the lines
+come back as one line equal to the stored figure, so a folio never prints lines that disagree with
+its total. A rate rule that cannot be read refuses the write `409` `NIGHTLY_RATE_UNREADABLE`.
+
+#### Typed codes
+
+A `lookup` fills a foreign key from a code a person types: a discount code on an order, a presale
+code on a ticket. The browser never names the codes row itself; Adminium finds it.
+
+```json
+{ "ref": "promo_code", "type": "text", "maxLength": 32, "nullable": true },
+{ "ref": "promo_id", "type": "fk", "references": "promo_codes", "nullable": true,
+  "rules": { "lookup": { "from": "promo_code", "table": "promo_codes", "column": "code",
+                         "where": [{ "column": "active", "eq": true },
+                                   { "column": "valid_until", "notBefore": "today", "orEmpty": true }],
+                         "scope": [{ "column": "event_id", "equals": "event_id", "orEmpty": true }] } } }
+```
+
+| Field | Rule |
+|---|---|
+| `from` | The nullable `text` column of this row the code is typed into, up to 64 characters, with no rule of its own that decides it. |
+| `table`, `column` | The codes table, and its `text` column the code is found by. The rule's own column is a nullable foreign key to `table`. `column` finds one row: it is `unique`, a [`code`](#column-rules) column, or unique together with the `scope` columns in one of the table's [sets](#columns-unique-together). It is compared as a code, so it has `normalize: "code"` unless it is a `code` column. Never the code a shared link opens its row with. |
+| `where` | Up to 4 conditions on the codes row: `{ "column", "eq" }`; `{ "column", "notBefore": "now" or "today", "orEmpty"? }`, a date or time not yet past (`valid_until`); `{ "column", "notAfter": "now" or "today", "orEmpty"? }`, one already reached (`valid_from`). `orEmpty` lets an empty column pass. |
+| `scope` | 1–2 `{ "column", "equals", "orEmpty"? }`: the codes row's `column` equals this row's `equals` column (this show's codes). With `orEmpty`, a codes row whose `column` is empty matches any (a code good for every show). |
+
+A typed code is read the way codes are kept: upper case, spaces and dashes left out. A column
+Adminium [makes codes in](#column-rules) reads it as a claim does, its prefix put back, `O` as `0`,
+`I` and `L` as `1`. Two stored codes that fold alike are told apart by the exact spelling.
+
+Every miss is one answer: no such code, a code switched off, expired, another show's, or two that
+fold alike are all refused `422` `VALIDATION_FAILED` on the typed column with the code `unknown`
+(through the public API, `PUBLIC_WRITE_REFUSED` with `reason: "unknown"`), so a guesser learns no
+more from one miss than from another. A code whose uses are all taken, counted by a
+[parent limit](#parent-limits) through the link, is refused on the typed column as `used-up`.
+Emptying the typed column empties the link, and every copy made through it: a code taken off
+takes its discount with it. A bulk edit, a form's child rows and an import find each row's code
+the same way, and an unknown code refuses just that row. A table resolves at most two typed codes.
+
+A code typed to **read** rows rather than write one (a presale code that shows its ticket type) is
+a public entry's [`unlockBy`](#codes-that-unlock-rows).
+
+#### Codes that renew
+
+A ticket's code is the door's proof. When the ticket goes to somebody else, the old code must
+stop working at once, and the new holder gets one the old holder never saw. `code.renew` says
+what makes a new code:
+
+```json
+{ "ref": "code", "type": "text", "nullable": true,
+  "rules": { "code": { "length": 8, "renew": { "on": { "column": "holder_customer_id", "changed": true } } } } }
+```
+
+`on` is one trigger or a list of 2–3: `{ "column", "changed": true }`, any change of another
+column of the row, or `{ "column", "values" }`, that column moving to one of 1–16 values (a
+transfer accepted). The watched column is not a code itself, not `json` or `blob`, and a `changed`
+trigger watches a column a person changes or a stamp writes (a holder stamped in as an offer is
+taken renews too).
+
+The new code is written in the same statement as the change: the old one stops as the write
+commits, and every session a [token link](#a-persons-own-rows) on that column opened stops with
+it. What never renews: a create (it makes a code anyway), an import or other history, a change that
+sends back the value the row already holds, and a server action that writes the code itself (a
+[new link](#a-rows-own-link)). A [timed move's](#timed-moves) `set` renews like any other change.
+Undoing a change of hands renews once more, so neither the old code nor the one handed on works
+after it; see [Undo of a move](#undo-of-a-move). A renewed code is never shown to a public caller
+in the change's reply, and only to staff who may read the table.
+
 #### Stamps
 
 A stamp writes a value when a row is created, or when another column changes to one of a list of
@@ -659,7 +889,8 @@ values: the time a patient checked in, who took a payment.
 | Field | Rule |
 |---|---|
 | `set` | What is written; see the table below. |
-| `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; or a list of 2–3 of these, any of which writes the stamp. |
+| `on` | When: `"create"`; `{ "column", "values" }`, another column of the table and 1–16 values it must change to; `{ "column", "filled": true }`, the moment another column, a nullable one, is first filled; `{ "columns": [...] }`, whenever one of 1–8 other columns changes (a create sets them all); or a list of 2–3 of these, any of which writes the stamp. |
+| `clearOnBack` | `true`: emptied again when a move marked [`undo`](#undo-of-a-move) takes the row back out of a state the stamp watches (the time an order was marked ready, when the kitchen undoes the Ready). The column is nullable, the stamp watches the table's state column, and some `undo` move leaves one of the states it watches. |
 
 What a stamp writes:
 
@@ -673,6 +904,9 @@ What a stamp writes:
 | `{ "claim": column, "staff"? }` | A column of the signed-in person's own row (their email, their name), on a public write. `column` is a column of a table the app's people sign in as (an entry with a [`claim`](#a-persons-own-rows)). `staff` is `"user-name"` or `"user-id"`: what a staff write stamps instead. | `text` |
 | `{ "addDays": { "date", "days", "map"? } }` | A date so many days after `date`, a `date` or `timestamptz` column of the row: a due date from the issue date and the terms. `days` is a number (0–3650) or a column: an `int`, or an enum or text column with `map` giving each of its values its days. | `date` |
 | `{ "hashOf": { "columns", "children"?, "linked"? } }` | A fingerprint: SHA-256 over the named columns, child rows and linked rows, in a canonical form anyone can recompute. | `text` of at least 64 characters |
+| `{ "addMinutes": { "minutes" or "hours", "notAfter"? } }` | The moment so many minutes or hours from now: a hold for ten minutes, an offer open for a day. The amount is a number or a whole-number setting. `notAfter` is a [moment](#moments) it never passes (an offer ends at the doors at the latest); a missing moment caps nothing. | `timestamptz` |
+| `{ "deadline": { "days", "time", "notAfter"? } }` | `days` after today on the venue's calendar, at `time` (`"HH:MM"` or a text setting), but never later than `notAfter`: a transfer due in five days at 18:00, or three days before the show. | `timestamptz` |
+| `{ "moment": <moment> }` | A [moment](#moments) of the row or a linked row, worked out whenever the stamp fires: a stay's cancel-by, from its arrival. Read from other columns, never its own. A moment that cannot be found writes nothing. | `timestamptz` |
 
 `hashOf` takes 1–24 of the row's own `columns`; up to 4 `children`, each
 `{ "table", "via", "columns", "orderBy"? }`, a child table whose foreign key `via` points at this
@@ -701,26 +935,231 @@ nobody, so they write nothing. What it knows of the person is their own signed-i
 what `claim` reads. For an automation, `user-name` is the rule's name. Imports, sample data and
 undo stamp nothing, since a stamp of today's time over history would be false; an import keeps
 the stamped values it brings. A stamped column takes
-no `copy`, `default`, `sequence`, `format`, `code`, `rollup` or `formula` as well, and a stamp
-watches a column other than its own.
+no `copy`, `default`, `sequence`, `format`, `code`, `rollup`, `formula`, `lookup` or `perNight` as
+well, and a stamp watches a column other than its own.
+
+A stamp that works out a moment again whenever what it reads changes: a stay may be cancelled
+free until 48 hours before 15:00 on its arrival day, and moving the arrival moves the deadline.
+
+```json
+{ "ref": "cancel_by", "type": "timestamptz", "nullable": true,
+  "rules": { "stamp": {
+    "set": { "moment": { "column": "arrive", "time": { "table": "settings", "column": "arrive_from" },
+                         "minus": { "hours": { "table": "settings", "column": "cancel_hours" } } } },
+    "on": { "columns": ["arrive"] } } } }
+```
+
+An offer that lasts as many hours as the settings row says, but never past the show's doors:
+
+```json
+{ "ref": "offer_until", "type": "timestamptz", "nullable": true,
+  "rules": { "stamp": {
+    "set": { "addMinutes": { "hours": { "table": "settings", "column": "offer_hours" },
+                             "notAfter": { "column": "doors_at", "via": "event_id" } } },
+    "on": { "column": "status", "values": ["offered"] } } } }
+```
+
+### Moments
+
+Every rule that reads a point in time reads it as a **moment**: a move allowed only after or
+before a time, a move Adminium makes when a time passes, a deadline a stamp writes, a public change
+open only inside a window, a hold that lasts until a time. A moment is a date or time column of the
+row, or of the row one of its links points at, at a wall time of the venue's day, shifted by an
+amount, with fallbacks when its column is empty.
+
+```json
+{ "column": "starts_at", "via": "event_id", "minus": { "minutes": 30 } }
+```
+
+| Field | Rule |
+|---|---|
+| `column` | A `date` or `timestamptz` column: this row's own, or the linked row's with `via`. |
+| `via` | A foreign key of this row: the moment is read from the row it points at. One link, never two. |
+| `time` | The wall time on the column's day, on the venue's clock; a `date` column needs one. `"HH:MM"`; a `text` setting `{ "table", "column" }` holding one; the venue's opening or closing hour that weekday, `{ "hours": { "table", "weekday", "open"?, "opens"?, "closes" }, "edge": "opens" or "closes" }`; or a time kept on the row itself, `{ "column" }` (a guest's arrival time on their stay). |
+| `plus`, `minus` | A shift forward or back, not both: exactly one of `minutes` (up to 1,000,000), `hours` (up to 16,666) or `days` (up to 36,600), each a number or a whole-number setting. |
+| `or` | 1–3 fallback moments of the same shape (without their own `or`), read in turn when this one's column is empty: an event's own refund deadline, else seven days before it starts. |
+
+Minutes and hours are elapsed time: 48 hours before 15:00 is 48 real hours, whatever the clocks
+did. Days are calendar days at the same wall time: 7 days before 20:00 is 20:00. A day the hours
+table marks closed, or has no row for, ends at midnight. A moment whose column is empty, whose
+linked row is missing, or whose setting cannot be read, is no moment at all, and the rule reading
+it says what that means: a move waiting for it is refused, a deadline capped by it is not capped.
+
+A time kept on the row (`{ "column" }`) is a `text` column of at least 5 characters holding
+`HH:MM` (`H:MM` and the database's `HH:MM:SS` read too). Every column a moment reads that way is
+checked when it is written: a value that does not read as a time of day ("9pm") is refused `422`
+`VALIDATION_FAILED` with the code `format`, on every door. The moment is compared with the clock
+the write reads under its locks, or with the time a staff device says a scan was made (see
+`occurredAt` in the [REST API](/reference/rest-api/)).
 
 ### Capacity
 
-`capacity` limits how much of a time slot a table's rows may take: the guard behind a booking
-form. Numbers can be literal, or read from the app's one-row settings table as
-`{ "table": "<ref>", "column": "<ref>" }`, so a venue can change them without a new release.
+`capacity` limits how much of a pool a table's rows may take: the guard behind a booking form, a
+ticket shop and a hotel's rooms. A rule names its pool one of three ways:
+
+| Kind | The pool | Example |
+|---|---|---|
+| `slot` (the default) | Rows add up per start time. | Tables in a restaurant, orders in a pickup slot. |
+| `parent` | Rows take from a limit held on the row they point at. | Tickets of a type, today's portions of a dish, the uses of a code. |
+| `night` | A row takes one unit on every night of its stay, from a pool counted in another table. | Rooms of a type, a hotel's parking spaces. |
+
+`capacity` is one rule, or a list of up to three (a pool per room type and a pool per room on the
+same stays). A table has one slot rule at most. Numbers can be literal, or read from the app's
+[one-row settings table](#values-from-elsewhere) as `{ "table": "<ref>", "column": "<ref>" }`, so a
+venue can change them without a new release. Every table a rule names is one of the app's own, by
+its short ref; columns of a row reached through a foreign key (`via`) are named plainly.
+
+Which rows count is said by `countWhere`: `{ "column", "values", "via"? }`, only rows whose column
+holds one of the values (a cancelled order holds nothing), or a list of two, one on the row and one
+on the row it belongs to (a ticket's status and its order's), `via` being the foreign key to that
+owner. A rule reads through one owner only: every `via` of its conditions, hold and day names the
+same foreign key.
+
+Give the foreign keys a limit counts by [`index: true`](#columns), so the count under the limit's
+lock reads the rows it needs rather than the whole table.
+
+#### Slot limits
+
+```json
+"capacity": {
+  "slot": "pickup_at", "amount": 1, "perSlot": { "table": "settings", "column": "orders_per_slot" },
+  "slotMinutes": 15,
+  "countWhere": { "column": "status", "values": ["placed", "confirmed", "preparing", "ready"] },
+  "hours": { "table": "opening_hours", "weekday": "weekday", "open": "open", "opens": "opens", "closes": "closes" },
+  "closures": { "table": "closures", "from": "from_date", "to": "to_date", "active": "active" },
+  "pauses": { "table": "slot_pauses", "slot": "slot_at", "active": "active" },
+  "windowDays": 7, "noticeMinutes": 20
+}
+```
 
 | Field | Required | Rule |
 |---|---|---|
-| `slot` | yes | The column holding each row's time. |
-| `amount` | yes | The column holding how much a row takes (a party size). |
+| `kind` | no | `"slot"`, or left out. A rule with no `kind` is a slot rule, and reads exactly as it always has. |
+| `slot` | yes | The `timestamptz` column holding each row's time. |
+| `amount` | yes | How much a row takes: an `int` column (a party size), or a number from 1 to 1000. A column a guest asks [availability](#availability) about needs a largest value, `validation.max`. |
 | `perSlot` | yes | How much one slot holds. A non-negative integer, or a settings reference. |
-| `slotMinutes` | yes | Slot length in minutes, or a settings reference. |
-| `countWhere` | no | `{ "column", "values" }`: only rows whose column holds one of these values count (a cancelled booking holds no seats). |
+| `slotMinutes` | yes | Slot length in minutes, or a settings reference; at least 1. |
+| `countWhere` | no | Which rows count (above). |
 | `windowDays` | no | How many days ahead bookings are open. |
-| `opens`, `closes` | no | `"HH:MM"`, or a settings reference. |
+| `opens`, `closes` | no | `"HH:MM"`, or a settings reference. Not with `hours`. |
+| `hours` | no | Weekly hours in place of `opens` and `closes`: `{ "table", "weekday", "open"?, "opens", "closes" }`, one row per weekday. `weekday` is an enum of exactly `mon` … `sun`, `opens` and `closes` are `text` columns holding `HH:MM`, `open` a bool. |
+| `closures` | no | Days the venue is closed, `{ "table", "from", "to", "active"? }`, `from` to `to` included (`date` columns). |
+| `pauses` | no | Slots the venue has paused (a kitchen that is full): `{ "table", "slot", "active"? }`, `slot` a `timestamptz`. |
+| `noticeMinutes` | no | How many minutes ahead a guest's slot must be. Staff are never held to it. |
 | `resource` | no | A column (a table, a room): the limit applies per value of it too. |
 | `cancelHours` | no | Until how many hours before its time a guest may still cancel through the public API. Staff are never held to it. |
+| `hold` | no | Rows count only while their hold lasts; see [Holds](#holds). |
+
+The slots of a day run on the grid from opening. With an `hours` table the day is
+`[opens, closes)`: the last slot starts before closing. With plain `opens` and `closes`, a slot
+also ends by closing.
+
+#### Parent limits
+
+```json
+"capacity": {
+  "kind": "parent", "via": "ticket_type_id",
+  "size": { "column": "quantity" },
+  "countWhere": [{ "column": "status", "values": ["valid", "offered", "checked_in"] },
+                 { "column": "status", "values": ["held", "paid"], "via": "order_id" }],
+  "window": { "opens": "sales_open_at", "closes": "sales_close_at" },
+  "perWrite": { "max": 6, "within": "order_id" },
+  "also": [{ "via": "event_id", "size": { "column": "sell_limit" } }],
+  "hold": { "column": "held_until", "states": ["held"], "via": "order_id" }
+}
+```
+
+| Field | Required | Rule |
+|---|---|---|
+| `kind` | yes | `"parent"`. |
+| `via` | yes | The foreign key to the row holding the limit. A row with it empty is left out of this rule. |
+| `size` | yes | How many the pool holds: a number, a settings reference, or `{ "column" }`, a number column of the row `via` points at (empty there: no limit). With `{ "column", "onDay" }`, `onDay` a `date` column of that row, the number holds only on that venue day and any other day has no limit (today's portions); it needs `day`. |
+| `amount` | no | How much a row takes: an `int` column of the row, or a number. Absent: one. |
+| `countWhere` | no | Which rows count (above). |
+| `window` | no | `{ "opens"?, "closes"? }`: `timestamptz` columns of the parent a sale must fall between (empty: no bound). |
+| `perWrite` | no | `{ "max", "within" }`: at most `max` (a size, as above) per row of `within`, a foreign key of this row (up to six tickets an order). |
+| `also` | no | 1–2 wider pools the same rows also take from: `{ "via", "size" }`, where `via` is another foreign key of the row and `size` a size of the row it points at, or `{ "via", "column" }` one more hop away (a room's cap across its ticket types). |
+| `day` | no | Count only the rows of the same venue day as this time: a `timestamptz` column, or `{ "column", "via"? }` on the owner. |
+| `lockBy` | no | The column whose value names the lock: `via`, or a wider pool's `via` that is itself a `copy` through `via`. Absent: one lock for the whole table. |
+| `hold` | no | See [Holds](#holds). |
+| `reserved` | no | `{ "states", "via"? }`: counted states whose places are kept back from the public while staff decide what to do with them (a refunded ticket held for the waitlist). Not a held state. |
+
+#### Night limits
+
+```json
+"capacity": [{
+  "kind": "night", "from": "arrive", "to": "depart",
+  "countWhere": { "column": "status", "values": ["booked", "in_house"] },
+  "pool": { "via": "room_type_id",
+            "count": { "table": "rooms", "column": "room_type_id",
+                       "outOfService": { "table": "room_blocks", "room": "room_id", "from": "from_date", "to": "to_date", "active": "active" } },
+            "fits": { "column": "sleeps" },
+            "given": { "via": "room_id", "column": "room_type_id" } },
+  "nights": { "min": 1, "max": 28, "aheadDays": 365 },
+  "arrived": { "states": ["in_house"] }
+}]
+```
+
+A stay takes one unit on every night from its arrival to the day before it leaves.
+
+| Field | Required | Rule |
+|---|---|---|
+| `kind` | yes | `"night"`. |
+| `from`, `to` | yes | The arrival and the departure: `date` columns of the row, or `{ "via", "column" }` of the row it belongs to (an extra's nights are its stay's). |
+| `countWhere` | no | Which rows count (above). |
+| `pool` | yes | Either the rows of another table: `{ "via", "count": { "table", "column", "outOfService"? }, "fits"?, "given"? }`, the rows of `count.table` whose `column` points where the row's `via` points (the rooms of a type); or one unit per row pointed at, or a number of that row: `{ "via", "size": 1 or { "column" }, "outOfService"? }` (a room holds one stay a night; an extra's parking spaces). |
+| `pool.count.outOfService`, `pool.outOfService` | no | `{ "table", "room", "from", "to", "active"? }`: rooms out of service between two dates, `room` a foreign key to the counted rows. They are taken off the pool on those nights. |
+| `pool.fits` | no | `{ "column" }`: a number column of the pool's row a stay's guests must fit (how many a type sleeps). It filters what [availability](#availability) offers; to refuse a stay with too many guests, use the entry's [`agrees`](#a-create-with-its-child-rows). |
+| `pool.given` | no | `{ "via", "column" }`: when the row's `via` link is set (a room given), it counts against that row's `column` instead (the room's type, not the one booked). |
+| `nights` | no | `{ "min"?, "max"?, "minByArrival"?, "aheadDays"? }`: the shortest and longest stay (a stay is at least one night), a shortest stay per arrival weekday (`{ "fri": 2 }`, 1–60), and how many days ahead a stay may start. |
+| `hold` | no | See [Holds](#holds). |
+| `arrived` | no | `{ "states", "via"? }`: the counted states of a stay whose guest has arrived. A change of such a stay (another room, another type, other dates) is judged from the venue's today on; the nights already slept are never judged again, so a room closed last night takes nothing from a guest moved today. Extras whose nights come from the stay are judged the same way. |
+
+Parent and night availability for guests read the pool's rows, so the key also needs a plain
+read entry on the pool's table (the ticket types, the room types).
+
+#### Holds
+
+A **hold** makes a row count only for a while: an order a guest is paying for keeps its tickets
+for ten minutes, and gives them back when it lapses.
+
+```json
+"hold": { "column": "held_until", "states": ["held"] }
+```
+
+| Field | Rule |
+|---|---|
+| `column` | When the hold ends: a `timestamptz` column of the row (or of its owner, with `via`) that a [stamp](#stamps) writes, never one a guest writes. Or `{ "column", "via", "or"? }`: a moment of a linked row, `via` a foreign key of the row the hold reads, and `or` 1–2 fallbacks `{ "column", "via"? }` read when the link is empty (a waitlist offer's end, else the order's own). |
+| `states` | 1–8 counted states in which the row is held. A row in one of them counts only until its hold ends; a row in any other counted state counts whatever its old hold says (a paid order). |
+| `via` | The owner the states and the column are read on. |
+
+One live hold per buyer. A public create sends `replaces`, the page's own-link session for the
+hold it takes the place of (a checkout changed before it was confirmed): that hold is let go in the
+same write, and the session moves to the new hold. A verified signed-in person's other holds are
+let go the same way. A [dry run](#dry-runs-price-checks-and-retries) takes `replaces` too, and
+judges the places as if the old hold were gone, letting nothing go. Letting a hold go writes its
+end directly, with no rule run on that write, so nothing may watch a hold's end column: no stamp,
+code renewal or followed copy is set off by it.
+
+A row that leaves a hold state (a waitlist claim) counts the places kept back by `reserved` as
+staff do, so a returned place offered on is not counted twice.
+
+#### How a limit is judged
+
+A write that adds to what a pool counts is judged inside its transaction, under a named lock (a
+slot limit's per venue day, a parent limit's per `lockBy` value, a night limit's per table), so two
+writers never both take the last place. A writer waits at most 10 seconds for another's lock, then
+is answered `409` `CAPACITY_BUSY` (or `NUMBER_BUSY`) to try again. A bulk edit cannot move a row
+whose limit needs a lock (`409` `CONFLICT`, `details.reason: "CAPACITY_ONE_AT_A_TIME"`), nor can a
+public batch (`400` `PUBLIC_WRITE_REFUSED`); an import records history, and is not judged.
+
+Staff are refused `409` `CAPACITY_FULL`, with `details` naming the rule's kind, the column, the
+pool (`key`, `at`) and `left`, the places that were left before the write; a place the venue does
+not offer is refused with a reason (out of range, out of hours, closed, paused, not on sale, too
+many). A guest is told `PUBLIC_SLOT_FULL`, `PUBLIC_SOLD_OUT` or
+`PUBLIC_NO_ROOM` (with the `night`), never how full anything is; see
+[Error codes](/reference/errors/). Sample rows count against real availability like any other.
+For the whole picture, see [Booking rules and limits](/guides/apps/booking-rules/).
 
 ### Booking
 
@@ -816,12 +1255,17 @@ lines are locked and payments may be recorded against it.
 |---|---|---|
 | `column` | yes | The `enum` column that holds the state. Every state named below is one of its values. |
 | `initial` | yes | The state a new row starts in. |
-| `moves` | yes | From each state, up to 16 states a row may move to. A move is a state (`"void"`), or `{ "to", "requires"?, "roles"? }`. A move goes to another state. |
+| `moves` | yes | From each state, up to 16 states a row may move to. A move is a state (`"void"`), or `{ "to", "requires"?, "roles"?, "undo"? }`. A move goes to another state. `undo: true` marks a move that takes back the listed move the other way; see [Undo of a move](#undo-of-a-move). |
 | `lock` | no | `{ "when", "except"? }`. While a row is in one of `when` (1–16 states), only the columns in `except` (up to 32) may change, and the state itself through a move. The state column is never in `except`. |
 | `children` | no | Child tables tied to the row's state, keyed by table ref. See below. |
 | `lockedWhenReferencedBy` | no | 1–4 `{ "table", "via", "in" }`: the row is locked once a row of `table`, whose foreign key `via` points at it, is in one of the states `in` (a terms version, once a proposal naming it is sent). Needs `lock`, which says what stays open. |
 | `noDelete` | no | `{ "when" }`: rows that are never deleted, only voided. `when` is 1–16 states, or `"numbered"`: any row that holds a number from a [gapless sequence](#numbers-without-gaps). `"numbered"` needs such a column on the table. |
 | `onlyLater` | no | 1–8 `date` or `timestamptz` columns that may move later, never earlier (a quote's `valid_until`). |
+| `strict` | no | `true`, or `{ "show": [1–4 columns] }`: a write naming the state the row already holds is refused rather than passing silently (a ticket let in once). See [Once means once](#once-means-once). |
+| `late` | no | 1–4 moves judged late when made close to a moment; see [Late moves](#late-moves). |
+| `timed` | no | 1–8 moves Adminium makes by itself once a moment has passed; see [Timed moves](#timed-moves). |
+| `effects` | no | 1–4 moves of the row a link points at, set off by this row's move or by a change of the link; see [Effects](#effects). |
+| `create` | no | `{ "requires" }`: what a new row must meet to be created; see [Conditions on a new row](#conditions-on-a-new-row). |
 
 A move's `requires` says what must be true first:
 
@@ -829,6 +1273,9 @@ A move's `requires` says what must be true first:
 |---|---|
 | `children` | `{ "<table>": n }`: at least `n` (1–1000) rows of a child table. The table must be one of `children`. |
 | `where` | 1–8 conditions on the row itself: `{ "column", <one test> }`, where the test is `eq` or `in` (values that fit the column), `isNull` (`true` or `false`), or `gt`, `gte`, `lt` or `lte` (a number, on a number column). |
+| `linked` | 1–4 `{ "via", "where" }`: conditions (as `where`) on the row this row's foreign key `via` points at (the order a ticket belongs to is paid). |
+| `time` | `{ "after"?, "before"? }`: a window on the clock, each end a [moment](#moments) (from half an hour before the doors, until the ticket's day ends). |
+| `setting` | 1–4 `{ "table", "column", "eq" }`: a value of the settings row (door sales switched on). |
 
 A move's `roles` (1–8 of the app's [role](#roles) keys) keeps it for the people holding one of
 them: any role may void a draft, only a manager a sent invoice.
@@ -839,7 +1286,9 @@ least one of:
 | Field | Rule |
 |---|---|
 | `lock` | `true`: the child's rows are locked while this row is. Needs a `lock` on this table. |
-| `parentIn` | 1–16 states: the child's rows may be written only while this row is in one of them (payments on a sent invoice). Not with `lock`. |
+| `parentIn` | 1–16 states: the child's rows may be written only while this row is in one of them (payments on a sent invoice). Not with `lock`. It is `createIn` and `changeIn` at once. |
+| `createIn` | 1–16 states: a child row may be **added** only while this row is in one of them (a payment taken on a stay still booked or in house). Not with `lock` or `parentIn`. |
+| `changeIn` | 1–16 states: a child row may be **changed or deleted** only while this row is in one of them (a payment voided on a cancelled stay too). Not with `lock` or `parentIn`. |
 | `clearOnCreate` | 1–8 nullable columns of **this** row, emptied when a child row is created (a recorded payment clears the client's "I've sent it"). |
 | `lockLinked` | `{ "<link>": ["<column>", …] }`: for 1–8 of the child's foreign keys to other tables, 1–16 columns of the row the link points at that do not change while a child row points at it (the hours of time an invoice line bills). The key is never one. |
 
@@ -895,7 +1344,8 @@ locked row cannot be deleted either, with or without `noDelete`.
 The states hold on every write to the table: a form, a bulk edit, an automation, the public API,
 and an outbox's `onSent` change. A refusal is `409`: `STATE_MOVE_REFUSED` for a move the row may
 not make (or a new row that does not start in `initial`), `RECORD_LOCKED` for a change to a locked
-row or to a child row its parent's state does not allow, and `DELETE_REFUSED` for a delete. An
+row or to a child row its parent's state does not allow (`details.on` says `create` or `change`,
+beside the parent's `state` and the states that allow it), and `DELETE_REFUSED` for a delete. An
 `onlyLater` column moved earlier, or emptied, is refused `422` with the code `out-of-range`.
 Through the public API each of these is `PUBLIC_WRITE_REFUSED`.
 
@@ -904,9 +1354,195 @@ any state, and a child row may follow a parent the same import or sample brought
 row under a parent that was already there is judged as any other write. An import that updates
 a row already there is judged in full, and a history write empties no `clearOnCreate` column.
 An undo is never given for a write to a table with states, or to its child tables: a mistake is
-moved on (voided, sent back), never unwritten. A table whose columns a `lockLinked` keeps keeps its
-undo, and an undo is judged like any other change: an edit of the hours made before the time was
-billed is not taken back after.
+moved on (voided, sent back), never unwritten. The one exception is a status move the app lists an
+[undo move](#undo-of-a-move) for: its Undo is that move back, judged like any move. A table whose
+columns a `lockLinked` keeps keeps its undo, and an undo is judged like any other change: an edit
+of the hours made before the time was billed is not taken back after.
+
+#### Conditions a move waits for
+
+Beyond `children` and `where`, a move may wait for the row one of its links points at, for a window
+on the clock, and for the settings row:
+
+```json
+"moves": {
+  "valid": [{ "to": "checked_in",
+              "requires": { "linked": [{ "via": "order_id", "where": [{ "column": "status", "eq": "paid" }] }],
+                            "time": { "after": { "column": "doors_at", "via": "event_id", "minus": { "minutes": 30 } } },
+                            "setting": [{ "table": "settings", "column": "door_open", "eq": true }] } }]
+}
+```
+
+Everything is read inside the write's transaction, holding the linked row, so a ticket scanned
+while its order is being paid sees the order as it committed. A condition that cannot be read (an
+empty link, a linked row that is gone, a moment with no value) refuses: a move waiting for
+something is never let through on nothing. A link that another writer moved while the write was
+waiting refuses `409` `WRITE_CONFLICT` (`details.retry: true`). The window is judged by the
+write's own clock, or by the time a staff device says a scan was made (`occurredAt`). A refused
+move is `409` `STATE_MOVE_REFUSED`, its `details` naming what failed: `requires` (`linked`,
+`time` or `setting`), and `via`, `column`, `bound` (`after` or `before`) and `at` where they
+apply, so the door can say "Not paid yet", "Not today" or "Too early".
+
+#### Conditions on a new row
+
+`create` holds a new row to the same conditions before it is created at all: a check-in recorded
+only for a paid ticket, on its day, from half an hour before the doors.
+
+```json
+"create": { "requires": {
+  "linked": [{ "via": "ticket_id", "where": [{ "column": "status", "in": ["valid", "offered"] }] }],
+  "time": { "after": { "column": "doors_at", "via": "event_id", "minus": { "minutes": 30 } } } } }
+```
+
+`requires` takes `where`, `linked`, `time` and `setting`, at least one, in the shapes above (no
+`children`). They are judged inside the create's transaction on every door but an import, which
+is history; a staff device's `occurredAt` stands in for now. A refusal is `409`
+`STATE_MOVE_REFUSED` with `details.create: true` and `from: null`, beside `to`, `requires` and
+the parts above. The row's formulas are worked out before the conditions are judged.
+
+#### Once means once
+
+`strict` refuses a write that names the state the row already holds, rather than letting it pass:
+a ticket let in once is not let in again. The refusal is `409` `STATE_UNCHANGED`, with `details.at`
+and `details.by`, when and by whom the row got there. `{ "show": [...] }` repeats up to 4 more
+columns of the row in the refusal (the door it came in by); never a secret or personal one.
+Through the public API it is `PUBLIC_WRITE_REFUSED` with `reason: "unchanged"`. A parent form that
+sends a child row's unchanged state back is not refused.
+
+#### Late moves
+
+`late` judges a move made close to a moment: a cancellation inside the last 48 hours before a
+stay's arrival.
+
+```json
+"late": [{ "to": "cancelled", "from": ["booked"], "moment": { "column": "arrive", "time": "15:00" },
+           "within": { "hours": 48 }, "mode": "flag", "flag": "late_cancel" }]
+```
+
+| Field | Rule |
+|---|---|
+| `to` | The state moved to. Each late rule judges its own move; a move the [booking](#booking) rule's `cancel` already judges takes no second one. |
+| `from` | 1–16 states the move comes from, each a listed move to `to`. Absent: any. |
+| `moment` | The [moment](#moments) it is close to, read from the row as stored: a guest who types a later arrival in the same change does not move the window. |
+| `within` | How close: one of `minutes`, `hours` or `days`, a number or a setting. A moment already past is inside the window too. |
+| `mode` | `"flag"`: the move goes through and sets `flag`, a bool column of the table no other rule writes, whoever writes. `"refuse"`: the move is turned away, for a public writer, or with `"refuse": "everyone"` for every writer. |
+
+A refused late move is `409` `STATE_TOO_LATE` for staff, and `PUBLIC_TOO_LATE` through the public
+API.
+
+#### Timed moves
+
+`timed` lists moves Adminium makes by itself once a moment of the row has passed: an order still
+held when its hold ends is released, an order still placed at the kitchen's closing hour is
+cancelled.
+
+```json
+"timed": [{ "from": "placed", "to": "cancelled",
+            "at": { "column": "pickup_at", "time": { "hours": { "table": "opening_hours", "weekday": "weekday", "open": "open", "opens": "opens", "closes": "closes" }, "edge": "closes" } },
+            "set": { "cancel_code": "closed" } }]
+```
+
+| Field | Rule |
+|---|---|
+| `from`, `to` | A listed move, never one marked `undo`. One timed move leaves each state. |
+| `at` | A [moment](#moments) of the row's own columns (no `via`). A move whose `requires.time.after` is certainly later than `at` could never be made in time, and is refused by the validator. |
+| `set` | 1–8 other columns of the row and the fixed value (or `null` on a nullable column) the move writes with it: why an order still open at closing was cancelled. Never the state column, the key, or a column another rule writes. |
+
+A timed move is a write by Adminium like any other: it is judged as the declared move (its
+conditions, limits and totals), and sets off stamps, code renewals, effects and emails. See [Timed moves on the venue's clock](/guides/apps/timed-moves/).
+
+#### Effects
+
+An effect moves the row one of this row's links points at, in the same write: a guest checked out
+turns the room to cleaning.
+
+```json
+"effects": [
+  { "on": { "to": "in_house" }, "via": "room_id", "set": { "status": "occupied" } },
+  { "on": { "to": "departed" }, "via": "room_id", "set": { "status": "cleaning" } },
+  { "on": { "change": "room_id", "in": ["in_house"] },
+    "old": { "set": { "status": "cleaning" } }, "new": { "set": { "status": "occupied" } } }
+]
+```
+
+There are two kinds, up to 4 effects a table:
+
+- **On a move** (`on.to`): when this row moves to the state, the row `via` points at moves to the
+  state `set` names. At most one such effect per state and link.
+- **On a changed link** (`on.change`, a foreign key): when the link really changes while the row
+  is in one of `on.in` (before and after the write; absent: any state), the row it pointed at
+  moves by `old` and the row it now points at by `new`; either may be left out. A link first set
+  or emptied moves only the side there is. One such effect per link. Without `in`, a booked
+  guest's room assignment would flip rooms too; a hotel says `in: ["in_house"]`.
+
+`set` names one column, the linked table's state column, and a state one of its listed moves goes
+to. The linked row is moved by that declared move and judged as it: its conditions, the limits and
+totals it moves, its own states. A row already in the state an effect's `old` side names is left as
+it is; a new row already in the state `new` names refuses the whole write (`409`
+`STATE_MOVE_REFUSED` with `details.effect: "new"`: the new room is not ready). Any refusal refuses
+the whole write.
+
+An effect moves one row, one link away, never a chain. The linked table may not be one whose rows
+are lines of another table's states, one that books people by the day, the app's outbox, or one
+whose rows set off effects of their own; and the move it makes may not wait for another row, be an
+undo, or be judged late by another row's time. A table a project hook watches is refused at run
+time. History (an import, sample data) sets off no effect. A move that set off an effect offers no
+Undo.
+
+#### Undo of a move
+
+A move marked `"undo": true` takes back the listed move the other way: the kitchen marked an
+order ready by mistake, and moves it back to preparing.
+
+```json
+"moves": {
+  "preparing": ["ready"],
+  "ready": [{ "to": "preparing", "undo": true,
+              "requires": { "time": { "before": { "column": "ready_at", "plus": { "minutes": 1 } } } } }]
+}
+```
+
+An undo move is made only by a write that names the state it saw the row in (`from` on a staff
+change): a stale screen's tap never takes back another screen's move, and is refused `409`
+`STATE_MOVE_REFUSED` naming both states. What it waits for is judged on the row as it stands. The
+stamps written when the row entered the state it returns to keep what they had; the stamps marked
+[`clearOnBack`](#stamps) that watch the state it leaves are emptied. A state reached only by undo
+moves is never written by a door that names no state it saw: a timed move, an effect, an email's
+`onSent`, or a value a guest may write. An outbox producer with [`holdSeconds`](#outbox) waits long
+enough for an undo to drop its message.
+
+A code nothing renews is put back by an undo as it was. A code a change of hands renewed is never
+put back: undoing the hand-over makes a code neither holder had. See
+[Undo a status move](/guides/apps/undo-a-status-move/).
+
+### Shared tables
+
+Two apps may use one table between them: a restaurant's point of sale and its online ordering
+read and write the same menu. Each app declares the table with the same `shape`, a name and a
+version (`"shape": "menu@1"`); the second app's install plan finds the first app's table and
+offers to share it (the **Shared** case in [What the plan does with each
+table](#what-the-plan-does-with-each-table)), with the same safe changes it would make to a table
+it reuses.
+
+```json
+{ "ref": "menu_items", "shape": "menu@1", "columns": [ … ] }
+```
+
+While a table is shared:
+
+- Rules both apps keep on it (labels, choices, column rules) are kept once: the install skips a
+  rule the other app already keeps there, naming it.
+- Uninstalling either app names the other on the uninstall preview, keeps the table, and hands the
+  rules it kept there to the other app. Those rules survive the other app's updates, unless a
+  version of it declares its own value for the same column.
+- An app reinstalled beside a menu it used to share is offered it again. A table another app still
+  uses is never offered for renaming out of the way.
+- An app update that stops declaring a table's `shape` stops sharing it, but only while no other
+  app shares the table; while one does, the update is refused `409` `SHAPE_IN_USE`, naming it.
+
+A shared table's real rows are the venue's: the second app's [sample data](#sample-data) can leave
+its demo rows for it out (`skipWhenShared`). A table has `shape` or [`builtOn`](#tables-built-on-an-add-ons-shape),
+never both. See [A menu two apps share](/guides/apps/shared-menu/).
 
 ### Tables built on an add-on's shape
 
@@ -1142,7 +1778,7 @@ out a button whose write would be refused; the data API still checks every write
 | `permissions` | no | Grants, in the forms below. |
 | `cloneFrom` | no | The key of another of this app's roles, whose grants this role also gets, and its `limits`. |
 | `screensOnly` | no | `true`: people with this role open the app's own screens and never the dashboard. |
-| `limits` | no | Per table ref, what the role's `update` there may change. See below. |
+| `limits` | no | Per table ref, what the role's `update` there may change, and what its `read` there shows. See below. |
 
 A manifest cannot know the real table names or page ids, so it grants through placeholders:
 
@@ -1180,13 +1816,32 @@ values. The names are the ones [public access](#public-access) uses:
 
 | Field | Required | Rule |
 |---|---|---|
-| `writable` | yes | The columns the update may change, at least one. |
-| `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). |
+| `writable` | no | The columns the update may change, at least one. |
+| `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). Needs `writable`. |
+| `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key and the table's links to other rows are always read. Needs the role's `table:@<ref>:read`. |
+
+A limit names `writable`, `readable`, or both.
 
 The table must be one the app declares, and the role must grant `table:@<ref>:update` itself or
 through `cloneFrom`. Someone who also holds a role with an unlimited update on the table is not
-limited. Creating rows is not limited. Every install and update writes the manifest's current
-limits. See [Edits limited to some columns](/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
+limited. Creating rows is not limited by `writable`. Every install and update writes the
+manifest's current limits. See [Edits limited to some columns](/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
+
+`readable` limits what the role **reads** the same way: housekeeping reads a stay's room and dates,
+and none of its guest or its money.
+
+```json
+"limits": { "stays": { "readable": ["room_id", "arrive", "depart", "late_checkout", "status"] } }
+```
+
+Every staff read of the table holds to it: lists and records, links and lookups, search, exports,
+imports, dashboard cards and their live updates, documents, the audit log, files kept in a hidden
+column, and the page assistant. Selecting, filtering or sorting by a hidden column is refused `403`
+`COLUMN_FORBIDDEN` with `details.reason: "read-limit"`; a lookup into one reads as masked. A
+refusal never repeats a hidden value, and the desk's limit counts and nightly lines are refused
+when the rule reads a hidden column. A hidden column is not written through the role either,
+creates included, unless `writable` names it. Roles add up: two limited roles read the union of
+their columns, one unlimited read of the table reads it all, and a Super Admin is never limited.
 
 A role that signs in a staff-bound browser key (a check-in tablet; see [publicKeys](#publickeys))
 must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`.
@@ -1299,9 +1954,18 @@ add-on's manifest, show the ones it draws. Each slot reads one of:
 
 | Source | Reads |
 |---|---|
-| `{ "column" }` | A column of the row. |
-| `{ "via", "column" }` | A column of the row a foreign key `via` of this table points at: the client's name on an invoice. |
-| `{ "collection": { "table", "via", "orderBy"?, "columns" } }` | A list of child rows, whose foreign key `via` points at this table, in `orderBy` order. `columns` maps the add-on's names for a line's values to the child's columns. |
+| `{ "column", "form"? }` | A column of the row. |
+| `{ "via", "column", "form"? }` | A column of the row a foreign key `via` of this table points at: the client's name on an invoice. |
+| `{ "collection": { "table", "via", "orderBy"?, "columns", "where"?, "unless"? } }` | A list of child rows, whose foreign key `via` points at this table, in `orderBy` order. `columns` maps the add-on's names for a line's values to the child's columns. `where` (`{ "column", "in": [1–16 values] }`) keeps only the rows whose column holds one of the values; a row whose `unless` column is true or set is left out (a voided line). |
+| `{ "collection": { "nightly", "columns" } }` | The nights a [price by the night](#prices-by-the-night) of the row is made of, one line each, worked out when the document is drawn. `nightly` names the priced column; `columns` maps a line's values to a night's own `date`, `rate`, `base`, `qty` and `tags`, or to `<rate via>.<column>`, a column of the row the rate comes from (`room_type_id.name`). |
+| `{ "collections": [1–4 sources] }` | One list from several sources, in order, each a table source or a nightly source as above: a folio's nights, then its extras, then its charges. |
+
+A line's value in a table source may also be a list of names one level below the line, printed one
+after another (a dish's options, "Farro · Grilled chicken · Avocado"):
+`{ "list": { "table", "via", "column", "orderBy"? } }`, where `column` is a `text` or `enum` column
+of the rows whose `via` points at the line. Such a list never names a secret, personal, code or
+withheld column. `"form": "grouped"` prints a [code](#column-rules) column in groups of four
+(`K7QX-M2PD`), as a person reads it out; only on a code column.
 
 Some slots have a **default** in the add-on's outline, which fills the slot when nothing else
 does: when it is not mapped, and when the column it is mapped to is empty on this row (a draft
@@ -1409,10 +2073,10 @@ there for the same kind and source is what stops a second send.
 | Field | Required | Rule |
 |---|---|---|
 | `table` | yes | One of the app's tables: the outbox. |
-| `columns` | yes | The outbox's columns. `kind` is an enum of the kinds. `status` is an enum holding at least `queued`, `sent`, `failed` and `skipped`, and `held` when a producer holds. `to` is `text`, the address. Optional: `language` (`text`), `due` (`timestamptz`, required by a `before` producer and by one with `hold` or `due`), `sentAt` (`timestamptz`) and `error` (`text`), and the columns of [held messages](#held-messages): `skipReason` (`text` or `enum`), `subjectOverride`, `bodyOverride`, `approvedBy` and `effectError` (`text`), and `effectAt` (`timestamptz`). |
+| `columns` | yes | The outbox's columns. `kind` is an enum of the kinds. `status` is an enum holding at least `queued`, `sent`, `failed` and `skipped`, and `held` when a producer holds. `to` is `text`, the address. Optional: `language` (`text`), `due` (`timestamptz`, required by a `before` producer and by one with `hold` or `due`), `sentAt` (`timestamptz`) and `error` (`text`), and the columns of [held messages](#held-messages): `skipReason` (`text` or `enum`), `subjectOverride`, `bodyOverride`, `approvedBy` and `effectError` (`text`), and `effectAt` (`timestamptz`). `repeatKey` (`text` of at least 43 characters) keeps which value a `repeatBy` producer sent for; `was` (`text`, unbounded or at least 1000 characters) keeps a `was` producer's values from before the change. |
 | `links` | no | The outbox's foreign keys, by the name a template reads them under: `{ "appointment": "appointment_id" }` gives a template `appointment.*`. Names are snake_case. Every foreign key of the outbox table that the outbox names must be nullable: not every email is about one. |
 | `recipient` | yes | Who the email goes to. See below. |
-| `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"?, "phone"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the workspace's name is used. `phone` is a `text` column: when it holds a number, the notice sent to a person's old address after a change of email tells them to ring it; without one, the notice says to contact you. |
+| `settings` | no | The app's one-row settings table: `{ "table", "enabled"?, "name"?, "phone"? }`. Templates read it as `practice.*`. `enabled` is a bool that pauses producers with `gate: "enabled"`. `name` is a `text` column the app's emails are signed with, the [emailed code](#public-access) included; without it, the workspace's name is used. `phone` is a `text` column: when it holds a number, the notice sent to a person's old address after a change of email tells them to ring it; without one, the notice says to contact you. `replyTo` is a `text` column: when it holds one plain address, every message the app sends carries it as its Reply-To, so a guest's reply reaches the house rather than the no-reply sender; empty, or anything but one address, adds none. |
 | `pages` | no | `{ "manage"?, "booking"? }`: paths on the app's customer side (`/my-visits`) that a template's `manage_url` and `booking_url` lead to. Up to 120 characters. Default: the side's front page. |
 | `kinds` | yes | Each value of the kind column, and the key of the template it is sent with. Every value must be one of the enum's, and every template one of `emailTemplates`. |
 | `producers` | no | Up to 24 rules that queue rows by themselves. See below. |
@@ -1420,7 +2084,11 @@ there for the same kind and source is what stops a second send.
 **`recipient`** is `{ "via", "table", "email", "name"?, "language"?, "optIn"?, "fallback"? }`.
 `via` is the outbox's foreign key to the person, `table` the person's table, and the rest are its
 columns: `email`, `name` and `language` are `text`, and `optIn` is a bool the person sets (false
-means nothing from a producer that asks `optIn`). `fallback` is `{ "via", "email", "name"?, "language"? }`: where the address
+means nothing from a producer that asks `optIn`). `language` may instead be `{ "column" }`, a `text`
+column of the row the message is about: an order placed in German is written to in German, whatever
+the person's own row says. The row every producer's message is about must have that column. It is
+used only when it holds one usable language tag that fits the outbox's `language` column (which
+must be named); otherwise the person's language is. `fallback` is `{ "via", "email", "name"?, "language"? }`: where the address
 comes from when `via` is empty. Its `via` is another foreign key of the outbox, and its columns
 belong to the table that key points at; a first visit by someone not yet on file carries their
 details on the visit itself.
@@ -1430,13 +2098,16 @@ that points at the row the message is about and must be one of `links`. Optional
 `optIn: true` (needs `recipient.optIn`: a person who opted out gets nothing). `gate: "enabled"`
 pauses the producer while the settings row's `settings.enabled` bool is false;
 `gate: { "setting": { "table", "column" } }` pauses it while that bool of the settings row is false,
-so each notice can have its own switch. Then exactly one of:
+so each notice can have its own switch; `gate: { "feature": "<id>" }` sends only while one of the
+app's [`addOns.features`](#add-ons) is on (a receipt, while Invoices & Receipts is attached). Then
+exactly one of:
 
 | Producer | Shape | Queues a row |
 |---|---|---|
 | `onCreate` | `{ "table", "via"?, "where"? }` | When a row of the table is created. |
 | `onChange` | `{ "table", "via"?, "column", "to", "where"? }` | When the column changes to `to`, a value or a list of 1–16 values. |
-| `before` | `{ "table", "at", "lead", "where"? }` | A lead time before `at`, a `timestamptz` of the row: a reminder. |
+| `onChange` | `{ "table", "via"?, "columns", "changed": true, "where"? }` | When any of 1–8 columns changes, compared with the row as it was stored (a stay's dates, whatever they became). Numbers compare as numbers and dates by day. |
+| `before` | `{ "table", "at", "lead", "where"? }` | A lead time before `at`, a `timestamptz` of the row: a reminder. `lead.at` (`"HH:MM"`) sends it at that wall time on the venue's day the lead reaches: 24 hours before a 20:00 show, at 09:00, is 09:00 the day before. |
 
 With `via`, the source is a **child** row and the message is about the row its foreign key `via`
 points at: a version posted to a deliverable makes a message linked to the deliverable, and
@@ -1450,7 +2121,11 @@ A producer may also say:
 | `due` | `{ "date", "days", "at"? }`: when the message comes due, `days` after `date` (a `date` or `timestamptz` of the row it is about), at `at` (`"HH:MM"`, 09:00 by default) on the venue's clock. Not on a `before` producer, which is due by its lead. |
 | `supersede` | A group name (kebab-case, up to 40 characters). When a message of the group comes due for a row, the earlier ones not yet sent are skipped as overtaken, so an invoice never has two reminders ready at once. Needs `due`. |
 | `dropWhen` | 1–4 conditions on the row the message is about: `{ "column", <one test>, "reason" }`, the test being `eq`, `in`, `isNull`, `lte` or `gte`. While one holds, its waiting messages are skipped with the `reason`: `paid`, `void` or `no-longer-needed`. Only a message that waits (`hold`, or `due`) can be dropped. |
-| `recipient` | `{ "setting" }`: send to the address a setting holds (a studio's own `reply_to`), never to the person the row links. The setting is `{ "table", "column" }` of the settings row, or `{ "addOn", "setting" }` of a required add-on. |
+| `recipient` | `{ "setting" }`: send to the address a setting holds (a studio's own `reply_to`), never to the person the row links. The setting is `{ "table", "column" }` of the settings row, or `{ "addOn", "setting" }` of a required add-on. Or `{ "column", "name"?, "language"? }`: send to the address a `text` column of the producing row holds (the friend a ticket is offered to), with that row's `name` column as the name and its `language` column as the message's language. |
+| `holdSeconds` | 1–3600: the message waits this many seconds before it may go, so a move taken back at once (an order marked ready by mistake) drops it by `dropWhen` before anyone is told. A message dropped so does not stop the next one of its kind. Needs the outbox's `due` column; not on a `before` producer, nor with `hold`, `due` or `batchMinutes`. |
+| `repeatBy` | A column of the row the message is about: one message for each value it holds, not one for the row for ever (a ticket offered again, its link made afresh, is emailed again). A message for an earlier value not yet sent is skipped as overtaken. Needs the outbox's `repeatKey` column; not on a `before` producer, nor with `batchMinutes`. |
+| `repeat` | `true`: one message for each change it hears of, not one for the row for ever ("Resend tickets" twice is two messages). Only on an `onChange` producer, and not with `repeatBy` or `batchMinutes`. |
+| `was` | 1–8 columns of the changed row kept as they were before the change (a stay's old dates, its old total), read by the template as `{{was.<column>}}` in every form the column has. Only on an `onChange` producer; needs the outbox's `was` column. Never a secret, personal, code, share-code, withheld or typed-code column. |
 | `batchMinutes` | 1–240: one message per linked row in each window of this many minutes. The first event opens a message due at the window's end; every event while it still waits is taken in by it (five versions posted in ten minutes make one email). The window's end is its due, so it takes no `due`; it may still be dropped (`dropWhen`) or overtaken (`supersede`) while it waits. Not on a `before` producer. |
 | `onSent` | `{ "table", "via"?, "set" }`: a change made once the message has gone. Without `via`, `table` is the row the message is about; with it, `via` is that row's foreign key to `table`. `set` maps columns to values (`null` empties a nullable column). |
 
@@ -1474,9 +2149,11 @@ or `{ "column", "isNull": true|false }`, exactly one of the three. `before.lead`
 than `max` hours (1–336). `max` is also how far ahead Adminium looks. A reminder is queued with
 its moment in `columns.due`.
 
-A source row produces each kind once. A reminder is produced again only when its moment moves; a
-batched message, once its window has closed. Sample data, imports and undo fire no producer when
-they are written. A sample row never has a message at all. An imported row is a real one, so the
+A source row produces each kind once, unless its producer says `repeat` or `repeatBy`. A reminder
+is produced again only when its moment moves; a batched message, once its window has closed. An
+undo of a change is heard by the producers of `"changed": true` alone, so the dates it puts back are
+mailed; a `{ "column", "to" }` producer never fires on an undo. Sample data and imports fire no
+producer when they are written. A sample row never has a message at all. An imported row is a real one, so the
 minute's look-over still makes its `before` reminder when the moment comes, and a held producer's
 messages for it (an imported sent invoice gets its reminders).
 
@@ -1561,7 +2238,7 @@ removed if nobody edited it.
 | `name` | yes | A plain string or a keyed [label](#conventions). |
 | `vars` | no | Up to 60 variable names the template reads, for the editor's list. |
 | `locales` | yes | The template in each language it ships, keyed by BCP 47 tag. `en-US` is required. |
-| `attach` | no | `{ "kind", "link" }`: a document the email carries, drawn by an add-on for the row the outbox link `link` names (a receipt for a sale). `kind` is a document kind (see [Documents](#documents)); `link` is one of the outbox's `links`. A message whose document cannot be drawn fails rather than going without it. |
+| `attach` | no | `{ "kind", "link", "optional"? }`: a document the email carries, drawn by an add-on for the row the outbox link `link` names (a receipt for a sale). `kind` is a document kind (see [Documents](#documents)); `link` is one of the outbox's `links`. A message whose document cannot be drawn fails rather than going without it. With `"optional": true`, a message goes without the document while the add-on that draws its kind is not attached and switched on for the app, and every block marked `"data": { "withAttachment": true }` is left out with it ("Your receipt is attached"). Any other failure to draw it still fails the message. |
 
 Each language is `{ "subject", "preheader"?, "blocks", "footer"? }`: a subject and a preheader of
 up to 200 characters, 1–40 blocks, and a footer of up to 1000. A block is
@@ -1574,6 +2251,13 @@ A template reads variables as `{{name}}`: each link by its name (`appointment.*`
 key further, such as `appointment.clinician.*`), `recipient.name` and `recipient.first_name`,
 `practice.*`, `appName`, `manage_url` and `booking_url`. A time has the forms `.date`, `.time`,
 `.day_month` and `.relative_day` ("tomorrow"), in the recipient's language and the venue's zone. A
+number has `.number`, `.percent` and `.money`, written exactly as stored in the message's language
+(`{{order.tax_rate.percent}}` is "8.25%" on every engine, never "8.250"); a choice has `.label`,
+its label in the message's language (`{{order.paid_method.label}}` is "Card", not "card"); a `text`
+column of up to 8 characters holding a time of day has `.time`, in the reader's clock ("3:00 PM" in
+the US, "15:00" in Britain); a [code](#column-rules) column has `.grouped` (`K7QX-M2PD`) and `.qr`
+(see [Emails that list rows](#emails-that-list-rows)). A `{{was.<column>}}` reads a
+[`was`](#outbox) column as it was before a change, in the same forms. A
 date has `.day_month` and `.days_since` only: a template asking a column for a form its type does
 not have (`{{invoice.due_on.date}}` on a `date` column) is refused at install and on update with
 `EMAIL_TEMPLATE_INVALID`, naming the template and the variable.
@@ -1595,6 +2279,42 @@ rows they can read.
 
 Templates are sent through an outbox, so a manifest with `emailTemplates` and no `outbox` is
 refused. The install's check step warns when the server cannot send email.
+
+#### Emails that list rows
+
+An `email.rows` block lists the rows of a child table that link to the row an outbox link names,
+one line each: an order's dishes, an order's tickets with a QR code each.
+
+```json
+{ "block": "email.rows",
+  "data": {
+    "from": { "link": "order", "table": "order_items", "via": "order_id", "orderBy": "position",
+              "unless": "voided", "limit": 50 },
+    "joins": { "options": { "table": "order_item_options", "via": "order_item_id", "column": "name",
+                            "orderBy": "position", "separator": " · " } },
+    "row": { "title": "{{row.qty}} × {{row.name}}", "meta": "{{row.options}}",
+             "amount": "{{row.line_total.money}}" },
+    "empty": "Nothing on this order." } }
+```
+
+| Field | Rule |
+|---|---|
+| `from` | `link`, one of the outbox's `links`; `table`, the child table, and `via`, its foreign key back to the linked row; then `orderBy`, `where` (`{ "column", "in" }`), `unless` (a bool column that leaves a row out) and `limit`, at most 50 rows. |
+| `joins` | 1–2 lists one level further down, gathered into one text per row under their name (a dish's options): `{ "table", "via", "column", "orderBy"?, "separator"? }`. `column` is a `text` column, never a secret, personal, code, share-code or withheld one. |
+| `row` | The text of each line: `title`, `meta`, `amount`, `note`, reading `{{row.<column>}}` in every form the column has, `{{row.<link>.<column>}}` through one of the row's own links, and a join by its name. `image` is a QR code of a code column, `{{row.<column>.qr}}`, and nothing else; without it the line has no image cell. |
+| `empty` | Said when there are no rows. Without it, the block is left out. |
+
+`{{row.…}}` is read only inside an `email.rows` block, and every language of a template lists the
+same rows (`from` and `joins` are the same in each). A message that lists rows is never sent
+without its list: when its table or link can no longer be read (after a rename), the message is
+`failed` ("Not sent: the email lists rows from a table or link that is not there"). An empty list
+still sends.
+
+A QR code is the whole value of an image: an `email.image` block's `qr`, written
+`{{<link>.<column>.qr}}` (80–200 pixels across, `size`), or a row's `image`. It is drawn when the
+message is delivered, only of a code column, and only for a code of at most 64 bytes. A code the
+[withhold](#withheld-columns) or share-code rules keep from the message's recipient is printed
+empty, in every form, its QR code included.
 
 ## Public access
 
@@ -1638,7 +2358,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `select` | no | The columns a response carries. Default: every column the app declares for the table. An entry with `claimedBy` must list them. |
 | `writable` | no | The columns a create or change may set. Never a column whose value Adminium decides. |
 | `writableValues` | no | `{ "<column>": [1–32 values] }`: the only values a browser may write into a writable column, on a create or a change. Each value must fit the column. |
-| `writableWhen` | no | The state a row must be in to be changed, per column: `[1–32 values]`, where `null` stands for "still empty" (on a nullable column); `"from-now"`, a `timestamptz` still ahead; `{ "within": <minutes> }`, a `timestamptz` no more than that many minutes ahead (1–1440; a past time always passes; at most one per entry); `"from-today"`, a `date` of today or later on the venue's calendar; `"before-today"`, a `date` already past. Needs `PATCH`. |
+| `writableWhen` | no | The state a row must be in to be changed, per column: `[1–32 values]`, where `null` stands for "still empty" (on a nullable column); `"from-now"`, a `timestamptz` still ahead; `{ "within": <minutes> }`, a `timestamptz` no more than that many minutes ahead (1–1440; a past time always passes; at most one per entry); `"from-today"`, a `date` of today or later on the venue's calendar; `"before-today"`, a `date` already past; or a window on a moment, `{ "after"?, "before"?, "where"? }`, see [Windows on a moment](#windows-on-a-moment). Needs `PATCH`, except a window keyed by a `visibleWith` link on a create. |
 | `requires` | no | 1–8 `writable` columns every write through the entry must fill: accepting a proposal carries the name typed as its signature. |
 | `filters` | no | Rows the endpoint can reach at all. See [Filters](#filters). |
 | `defaults` | no | Values the server writes whatever the browser sends. |
@@ -1657,6 +2377,20 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `anonymous` | no | Limits on a create nobody signed in for. See [Limits on a stranger's create](#limits-on-a-strangers-create). |
 | `requireSetting` | no | Up to 4 `{ "table", "column", "when"? }`, each a bool of the settings table. While one is false, every write through the entry is refused. |
 | `confirm` | no | An email Adminium sends when a guest creates a row; needs `POST`. See below. |
+| `children` | no | The rows a create carries with it, by child table, two levels at most. See [A create with its child rows](#a-create-with-its-child-rows). |
+| `agrees` | no | 1–8 checks the created row's own values must pass (guests no more than a room sleeps). See [A create with its child rows](#a-create-with-its-child-rows). |
+| `dryRun` | no | `true`: the create or change may be tried without writing, to see every figure Adminium would work out. See [Dry runs, price checks and retries](#dry-runs-price-checks-and-retries). |
+| `expect` | no | A money column Adminium works out, which the write may send its expected value for; a different figure writes nothing. |
+| `clientKey` | no | A column holding a key the browser mints, so a retried create lands on the same row. |
+| `identity` | no | On a create, the person it is made for, found or made by the address typed. See [A person found by address](#a-person-found-by-address). |
+| `shareLink` | no | A share-code column: a create answers, once, the new row's own link. See [A row's own link](#a-rows-own-link). |
+| `newLink` | no | `{ "column", "kind" }`: "Make a new link" for a signed-in person's row. See [A row's own link](#a-rows-own-link). |
+| `forget` | no | On an identity entry: what "delete my details" empties. See [Delete my details](#delete-my-details). |
+| `withhold` | no | Columns left out of a row for some readers. See [Withheld columns](#withheld-columns). |
+| `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](#limits-on-a-guests-change). |
+| `unlockBy` | no | Rows readable only with a code that unlocks them. See [Codes that unlock rows](#codes-that-unlock-rows). |
+| `pictures` | no | 1–4 image columns any visitor may see. See [Pictures](#pictures). |
+| `rule`, `showLeft`, `under` | no | On an `availability` entry: which limit it answers, whether it says what is left, and the column a page asks by. See [Availability](#availability). |
 
 `writableValues` and `writableWhen` pin both ends of a change: `status` may become `cancelled`,
 and only while it is `booked`. `writableWhen` is part of the change itself, never of a read, so a
@@ -1691,9 +2425,10 @@ or a link to somewhere else serves nothing (`404`), and no other public route se
 
 An `availability` entry answers free or full and never returns a row. It is `GET` only, and the
 table must declare a [`capacity`](#capacity) or a [`booking`](#booking). On a capacity table it
-answers each slot of a day for a party size. On a booking table it answers the times of a day, or
-a strip of up to 31 days, for a kind and optionally a person; a guest is offered only people
-bookable online, and is never told who.
+answers by the limit's kind; see [Availability](#availability). On a booking table it answers the
+times of a day, or a strip of up to 31 days, for a kind and optionally a person; a guest is offered
+only people bookable online, and is never told who. An availability entry reads no rows, so it is
+never the parent another entry is [visible with](#rows-visible-with-their-parent).
 
 The install's check step lists every endpoint it will create, and warns about anything that would
 stop the key working, such as the public API being off or no time zone set on the database.
@@ -1712,6 +2447,41 @@ A filter limits every read and every write of the entry.
 request in the venue's time zone. A filtered column can be `writable` only when both
 `writableWhen` and `writableValues` pin it; otherwise a write could move the row out of the
 endpoint half-way.
+
+### Windows on a moment
+
+A `writableWhen` entry may open a change only inside a window read from [moments](#moments): a
+refund until seven days before the show, a guest's own change of their stay until the cancel-by
+time.
+
+```json
+"writableWhen": {
+  "status": ["booked"],
+  "cancel_by": { "before": {} },
+  "event_id": { "before": { "column": "starts_at", "minus": { "days": 7 } },
+                "where": [{ "column": "refunds_on", "eq": true }] }
+}
+```
+
+The key says what the window is read from:
+
+- **A date or time column of the row** (`cancel_by`): the window's moments are that column's,
+  so each end names no other `column`; it may add a `time`, a shift and `or` fallbacks.
+- **A foreign key of the row** (`event_id`): each end names a `column` of the linked row, and
+  `where` (1–8 conditions) must hold on that row too (refunds switched on for the event).
+
+`after` and `before` are the window's ends, either or both. The window is judged on the row as
+it is stored before the write, so a change that moves the time cannot reopen its own window, and a
+guest may never write a column that opens their own window, a time kept on the row included (an
+`arrival_time` a moment reads). A change asked for too early is refused `409` `PUBLIC_TOO_EARLY`
+with `params.at` (the row's time) and `from` (when the window opens); one too late, `409`
+`PUBLIC_TOO_LATE` with `at`. As with `within`, the refusal is said only for a row the caller's own
+read reaches.
+
+A create entry that is [visible with](#rows-visible-with-their-parent) its parent (`POST`, no
+`PATCH`) may carry a window keyed by its `visibleWith` link, with the parent's moments at each end:
+an extra may be added to a stay only until its cancel-by time. It is judged in the create's
+transaction, on the parent.
 
 ### A person's own rows
 
@@ -1748,7 +2518,8 @@ column opens that one row, with no email at all: a handover page shared by link.
 is a `date` or `timestamptz` after which the link opens nothing; `stopped` a `bool` that switches
 it off. A token opens its row to whoever holds the link, so it is served on a
 [key of its own](#publickeys) that no staff signs in, and every entry on that key only reads
-(`GET`).
+(`GET`) — unless the token is the row's **own link** (`"own": true`, with `address`), which opens a
+verified session that may change the row; see [A row's own link](#a-rows-own-link).
 
 A session opened by a token is checked against the row on every request: once the row is
 stopped, past `expires`, or given a new code, the link and every session it opened reach nothing,
@@ -1856,6 +2627,286 @@ it, choose its values or fill it by default (`writable`, `writableValues`, `defa
 that could would re-point its own row at another person's child and read it. An entry that only
 reads writes nothing, so it does not count.
 
+### A create with its child rows
+
+A create may carry the rows that belong to it, two levels at most, in one write: an order, its
+lines, and each line's options. `children` maps each child table to what the browser may send for
+its rows.
+
+```json
+{ "table": "orders", "methods": ["POST"],
+  "select": ["id", "number", "pickup_at", "subtotal", "tax", "total"],
+  "writable": ["name", "email", "pickup_at", "note", "client_key"],
+  "requires": ["name", "email"], "humanCheck": true,
+  "children": {
+    "order_items": {
+      "via": "order_id", "writable": ["menu_item_id", "qty", "note"],
+      "select": ["id", "qty", "unit_price", "line_total"],
+      "requires": ["menu_item_id"], "position": "position", "min": 1, "max": 40,
+      "plainText": ["note"],
+      "sumMax": { "column": "qty", "max": { "table": "settings", "column": "max_items" } },
+      "children": {
+        "order_item_modifiers": {
+          "via": "order_item_id", "writable": ["modifier_id"], "select": ["id", "name", "price"], "max": 20,
+          "agrees": [{ "column": "modifier_id", "path": ["group_id", "item_id"], "eq": { "parent": "menu_item_id" } }],
+          "counts": [{ "by": ["modifier_id", "group_id"],
+                       "every": { "column": "item_id", "eq": { "parent": "menu_item_id" } },
+                       "min": "min", "max": "max" }] } } } },
+  "dryRun": true, "expect": "total", "clientKey": "client_key" }
+```
+
+Each child table, 1–4 at each level, takes:
+
+| Field | Rule |
+|---|---|
+| `via` | The child's foreign key to the row it belongs to. |
+| `writable` | The columns a child row may set. Never a column Adminium decides, nor a link to the people who sign in (Adminium fills it). |
+| `select` | What the reply shows of each child row; without it, the child's key only. |
+| `defaults`, `writableValues`, `requires` | As on the entry itself, for the child's rows. |
+| `position` | A whole-number column Adminium numbers 1, 2, 3… in the order the rows were sent. |
+| `min`, `max` | Rows per parent row: `max` 1–200, `min` no more than `max`. |
+| `agrees` | 1–8 checks that tie a row's values to its parent or to what it points at (below). |
+| `counts` | 1–2 limits on how many sibling rows fall in one group (below). |
+| `plainText` | 1–8 writable `text` columns that hold plain text only, as a [guest's change](#limits-on-a-guests-change) does: no digits, no web address and no `@` handle. |
+| `sumMax` | `{ "column", "max" }`: the most a number column may add up to across the rows of one write (a dozen items to an order), `max` a number or a whole-number setting. |
+| `children` | One more level, the same shape without `children` of its own. |
+
+An **agreement** is `{ "column", "path"?, "when"?, <one of "eq", "lte", "gte">: target }`: the row's
+`column`, followed along `path` (1–3 foreign keys, the last naming the column compared), equals, is
+at most or is at least the target. The target is `{ "parent", "path"? }`, a column of the row it
+belongs to; `{ "via", "column" }`, a column of a row this row points at; or `{ "value" }`. `when`
+(`{ "path"?, "in" }`) applies it only to rows whose value is one of `in`. On the entry itself,
+`agrees` checks the created row's own values (guests no more than a room sleeps), with no `parent`
+target. A root `agrees` is held on staff writes to the table too: creates and changes at the desk,
+single, bulk or with links. An import is history, and is not held.
+
+A **count** is `{ "by", "every"?, "min", "max" }`: `by` follows the row's foreign keys to its group
+(an option's group), whose whole-number `min` and `max` columns bound how many sibling rows fall in
+it. `every` (`{ "column", "eq": { "parent" } }`) names the groups judged even when no row falls in
+them, those whose column equals the parent row's (a required size left out).
+
+A guest's number that feeds a price Adminium works out (a line's `qty`) declares
+`validation.min` (at least 0) and `validation.max`. A create anyone may make with child rows asks
+the human check once, for the whole write. Everything is checked by Adminium, never trusted from
+the browser, and the whole write is kept or nothing is. For the wire, see
+[An order with its lines](/guides/apps/orders-with-lines/).
+
+### Dry runs, price checks and retries
+
+`dryRun: true` lets a page ask for the same create or change without writing: the reply carries
+every figure Adminium would work out (the totals, a stay's nights, the stamps it would decide), and
+refuses what the save would refuse. A quote takes no locks, keeps nothing and is never charged
+against a stranger's limits. A row [visible with a parent](#rows-visible-with-their-parent) is
+created alone, so a quote there belongs to a change.
+
+`expect` names a money column Adminium works out (a `decimal` or `money` column that a rule decides),
+which the entry shows in `select`. A write may send the figure the guest was shown (`"expect":
+{ "total": "34.10" }`); when the save comes to another figure, nothing is written and the answer is
+`409` `PUBLIC_PRICE_CHANGED`, with `params.total` and, on a create, each line's figures
+(`params.lines`).
+
+`clientKey` names a `text` column, `unique` and `writable`, that holds a key the browser mints for
+the create and sends as that column's value: 22–64 letters, digits, `-` or `_`. A retry of a create that already landed (a reply lost to a dropped connection) answers
+the same row, marked `replayed`, even after the entry's switch was turned off; a new create with no
+matching key is refused as before. Adminium keeps only a keyed hash of the key, 43 characters: give
+the column room for it. No entry shows, filters or orders by a retry-key column. `clientKey` belongs
+to a create, and not to a row visible with a parent.
+
+### A person found by address
+
+A guest checking out types their address. `identity` finds the person it belongs to, or makes one,
+and links the new row to them; the guest is never told which happened.
+
+```json
+"identity": { "table": "customers", "email": "email", "link": "customer_id",
+              "fill": { "name": "name" } }
+```
+
+| Field | Rule |
+|---|---|
+| `table` | The people table: its identity entry signs people in by an [emailed link](#a-persons-own-rows). |
+| `email` | The `text` column of this entry's row the address is typed into: `writable`, in `requires`, with `validation.format: "email"`. The people table's address column is `unique`, nullable (it is emptied when a person is forgotten), kept `normalize: "email"`, and at least as wide. |
+| `link` | This row's nullable foreign key to the person. Adminium fills it; it is never shown, since it would tell whether the address was on file. |
+| `fill` | Up to 4 `{ "<people column>": "<this row's column>" }`: a new person's `text` columns, filled from what the guest typed. Never a column Adminium decides, a secret, or a unique one. |
+| `on` | `{ "to": "<state>" }`, on a change through a row's own link: find the person only on the save that moves the row to that state (a ticket accepted), not on every save made while it has no person. |
+
+A person is found by address whatever its case, and a second person is never made for an address
+stored in another case. The entry asks the human check and limits creates per address
+(`anonymous.perValue` counting `email`); a signed-in guest's create links them as it always has
+(`claimedBy` with `optional: true`). The people table may carry no running number, no limit and no
+message on create: each would tell a stranger's order apart from its owner's. Nothing on the row
+reads through `link`.
+
+### A row's own link
+
+A row's **own link** opens that one row to its owner: an order's confirmation link, a ticket sent
+to a friend. It is a [token claim](#a-persons-own-rows) with `"own": true`, served on a key of its
+own:
+
+```json
+"publicKeys": { "ticket": {} },
+"publicAccess": [
+  { "table": "tickets", "key": "ticket", "methods": ["GET", "PATCH"],
+    "claim": { "by": "token", "column": "link_token", "own": true, "address": ["pending_email", "holder_email"] },
+    "select": ["id", "status", "code", "pending_name", "offer_until"],
+    "withhold": { "columns": ["code"], "when": { "where": [{ "column": "holder_customer_id", "isNull": true }] } },
+    "writable": ["status"], "writableValues": { "status": ["valid"] },
+    "writableWhen": { "status": ["offered"] },
+    "identity": { "table": "customers", "email": "pending_email", "link": "holder_customer_id", "on": { "to": "valid" } } }
+]
+```
+
+- **Handed once.** A create entry's `shareLink` names the row's own-link column: the create answers
+  the new row's link, once, to whoever made it. Otherwise the link is only ever emailed, to the
+  row's own address: `address` names the 1–2 `text` columns it may go to (the holder's, and the
+  friend it is offered to).
+- **Verified.** The link opens a `verified` session, and the key's entries may change the row
+  within their `writable` list; every entry on the key is read at `level: "verified"`. A link that
+  opens nothing (stopped, expired, renewed) answers `410` `LINK_EXPIRED`.
+- **Bound to its address.** When the address it was sent to changes, the sessions it opened stop.
+  An entry whose change writes one of the `address` columns must [renew](#codes-that-renew) the
+  link's code on that change: `rules.code.renew.on` `{ "column": "<address>", "changed": true }`.
+  No browser writes the link's own column, its `expires` or its `stopped`.
+
+`newLink: { "column", "kind" }` on an entry that reads a signed-in person's rows (`claimedBy`) lets
+the person ask for a fresh link: `POST /api/v1/public/records/<ref>/<id>/new-link`. The row's own
+link gets a new code, which stops every session the old one opened, and the new link is emailed as
+the app's outbox message `kind`, sent once per code. The outbox needs a `repeatKey` column, a link
+to the table, and its recipient table must be the `claimedBy` table. Only a verified sign-in may
+ask, five times a day per row; a second ask within a minute changes nothing; when the email cannot
+go, the answer is `503` `PUBLIC_CODE_UNAVAILABLE`. See
+[Guests, their details and their own links](/guides/apps/identity-and-own-links/).
+
+### Delete my details
+
+`forget` on an identity entry that signs people in by email lets a person delete their details
+(`DELETE /api/v1/public/account`, with a code confirmed or a link pressed in the last ten minutes,
+else `403` `PUBLIC_CODE_STEP_UP`).
+
+```json
+"forget": { "columns": ["name", "email", "phone"], "stamp": "forgotten_at", "links": true }
+```
+
+`columns` lists 1–16 nullable columns of the person's row that are emptied, the address they sign
+in with among them; never the key, nor a column Adminium decides. `stamp` is a nullable
+`timestamptz` written with the time they were forgotten. With `"links": true`, every own link of the
+rows the person holds is renewed first and the sessions those links opened are ended (a device
+learns it by the `x-adminium-session-ended: forgotten` header, once); if that cannot be done,
+nothing is forgotten. A message about a forgotten person is not sent, even one queued before they
+asked. Every session the person holds can also be ended without forgetting anything:
+`POST /api/v1/public/session/revoke-all`.
+
+### Reads for a signed-in guest
+
+An entry with a `level` and no `claim`, `claimedBy` or `visibleWith` reads its table's rows (within
+its filters) for a signed-in session of its key alone, never for a stranger: a hotel's rate cards
+shown to a guest who has booked. It only reads, lists what it shows in `select`, and says the
+`level` its key's sessions are.
+
+### Withheld columns
+
+`withhold` leaves some columns out of a row for some readers: a ticket sent on to a friend keeps
+its code from the buyer who sent it, and tickets of an order not yet paid show no code at all.
+
+```json
+"withhold": { "columns": ["code", "holder_email"], "unlessHolder": "holder_customer_id",
+              "when": { "linked": [{ "via": "order_id",
+                                     "where": [{ "column": "status", "in": ["held", "awaiting_transfer"] }] }] } }
+```
+
+| Field | Rule |
+|---|---|
+| `columns` | 1–8 columns of the entry's `select`, each once. |
+| `unlessHolder` | On rows read through a parent (`visibleWith` or `claimedBy`): a foreign key to the person the key signs in. The columns are left out while it names someone other than the reader. |
+| `when` | `{ "where"?, "linked"? }`: the columns are left out while the row, or a row one of its links points at, meets the conditions. |
+
+A withhold names `unlessHolder`, `when`, or both; either one holding leaves the columns out. A
+`when` holds for readers of the key the declaring entry is served through; mail and documents drawn
+for a person read as the `customer` key, and a message to an address column as the row's own link
+whose `address` names that column. A reader of no key at all (a document drawn for nobody) meets
+every `when` about the row's state, and none declared through a row's own-link key. On a row's own
+link, which names nobody, a withhold says `when` alone. No browser writes a column a withhold's
+conditions read.
+
+The columns are left out of every public read of the table, whichever entry declared the rule:
+lists, one row, a change's reply, a replayed create, files, emails (values, rows and QR codes) and
+documents. Filtering, searching or sorting by one is refused `400` `PUBLIC_QUERY_REFUSED`; a file
+in one is served to its holder only; an email's `joins` and a document's lists never name one.
+
+### Limits on a guest's change
+
+`limits` holds a change a guest makes, signed in or not, on a `PATCH` entry: a ticket sent on to
+a friend's address.
+
+```json
+"limits": { "perValue": { "columns": ["pending_email"], "n": 5 }, "plainText": ["pending_name"] }
+```
+
+`perValue` (`{ "columns", "n" }`, 1–4 `text` columns, 1–20) allows each value at most `n` changes a
+day that write it: an address a ticket is sent on to. `plainText` lists 1–8 writable `text` columns
+that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, no digits,
+no web address (a known ending such as `.com`, or a `/`) and no `@` handle; "Mary.Ann",
+"J.R.R. Tolkien" and "St. John" pass. This is stricter than a stranger's create's
+[`plainText`](#limits-on-a-strangers-create), which refuses digits and links only. A limit names `perValue`, `plainText`, or both. Over a limit is `409`
+`PUBLIC_LIMIT_REACHED`; a value that is not plain text is `400` `PUBLIC_WRITE_REFUSED`.
+
+### Codes that unlock rows
+
+`unlockBy` makes an entry's rows readable only with a code that unlocks them: a presale code that
+reveals its hidden ticket type.
+
+```json
+{ "table": "ticket_types", "methods": ["GET"], "select": ["id", "name", "price"],
+  "unlockBy": { "table": "presale_codes", "column": "code", "link": "ticket_type_id",
+                "where": [{ "column": "active", "eq": true }] } }
+```
+
+A row of `table` whose `column` holds the typed code, and whose `link` points at the entry's row,
+unlocks it. `column` is compared as a [typed code](#typed-codes) (`normalize: "code"`, or a `code`
+column) and finds one row; `where` takes the same conditions as a lookup's. The entry only reads,
+and is its own entry: no claim, no parent, not an availability entry. The code travels in the
+`x-adminium-code` request header, never in the address: `?code=` is refused `400`
+`PUBLIC_QUERY_REFUSED`.
+
+### Pictures
+
+`pictures` lists 1–4 image columns any visitor may see through the rows an entry reads: a dish's
+photo on the menu, a room type's picture.
+
+```json
+{ "table": "menu_items", "methods": ["GET"], "select": ["id", "name", "price", "photo"], "pictures": ["photo"] }
+```
+
+Each is a `text` column with `semantic: "image"`, in `select`, never writable, never personal or
+kept from readers, and not one of the entry's `files`. The entry only reads rows, on the app's
+`customer` key. A picture is served at `GET /api/v1/public/pictures/…` only for the row it is
+attached to, cleaned once and kept beside its file. See
+[Pictures on public pages](/guides/apps/public-pictures/).
+
+### Availability
+
+An `availability` entry on a table with a [`capacity`](#capacity) answers by the limit's kind:
+
+| Kind | A page asks | The answer |
+|---|---|---|
+| `slot` | A day (or a run of days) and a party | Each slot, free or full. |
+| `parent` | The pools under a row (`under`: a column of the pool's rows, such as an event's ticket types) | Each pool, on sale or sold out. |
+| `night` | Arrival and departure, and the guests | Each pool that has a room on every night. |
+
+| Field | Rule |
+|---|---|
+| `rule` | Which of the table's limits it answers, 0–2 (absent: the first). |
+| `showLeft` | `{ "below": n }` or `{ "belowShare": 1–100 }`: say how many are left, but only when little is (below a number, or a share of the pool). A parent or night limit only. |
+| `under` | A parent limit only: the column of the pool's rows a page asks by. |
+
+A night rule counting one unit per row (`size: 1`) has no pool to answer. A slot rule whose
+`amount` is a column needs that column's `validation.max`: a party asked about is capped at it, or
+a page asking ever larger parties would learn how full each time is. Parent and night answers read
+the pool's rows, so the key also needs a plain read entry on the pool's table. Rows of the
+session's own open hold are left out of a count when asked (`exclude`); ids outside the session
+are ignored. A code that unlocks a hidden pool travels in the `x-adminium-code` header. For the
+query parameters, see the [REST API](/reference/rest-api/).
+
 ### Limits on a stranger's create
 
 `anonymous` limits a create that nobody signed in for: an entry with no claim at all, or an
@@ -1865,10 +2916,19 @@ optional `claimedBy` create made with no session. It needs `POST`.
 |---|---|
 | `perValue` | `{ "columns", "n" }`: at most `n` (1–20) creates a day for one phone number or address in any of these `text` columns (1–4), through any key or page. A phone number counts by its last nine digits, and an address in lower case, so two spellings of one number are one number. |
 | `perKeyHour` | At most this many (1–1000) such creates an hour through the key, from everyone. |
+| `perIpHour` | At most this many (1–60) such creates an hour through this entry from one visitor (an IPv6 subscriber's whole /64). Every visitor is held to 60 an hour on any key; this only lowers it. |
 | `plainText` | 1–8 `text` columns that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, with no digits and no link. |
 
 A create over a limit is refused with `PUBLIC_LIMIT_REACHED`, and one that breaks `plainText` with
-`PUBLIC_WRITE_REFUSED`. A create refused for another reason (the slot was taken) does not count.
+`PUBLIC_WRITE_REFUSED`. A single create refused for another reason (the slot was taken) does not
+count, except against the visitor's hour. A [create with child rows](#a-create-with-its-child-rows)
+gives its charge back only when a value the guest typed was refused; any other refusal of the whole
+write (sold out, busy, a changed price) keeps it. A [quote](#dry-runs-price-checks-and-retries) is
+never charged.
+
+An entry anyone may call (no claim, no parent, or a create a session is optional on) may not
+`select` a personal column: one marked `personal`, or one whose name the install reads as personal
+data (an address, a phone number, a birth date, a person's name on a table of people).
 See [Limits on a stranger's create](/guides/apps/public-access/#limits-on-a-strangers-create).
 
 `requireSetting` switches an entry off from the settings row: while one of its bools is false,
@@ -1940,8 +3000,12 @@ claims `by: "token"`, and every entry on it is `GET` only, reaching the rest thr
 "sampleData": { "file": "seeds/visits.sample.json" }
 ```
 
-The file must be in `seeds/` and end in `.json`. After installing, the operator can add the sample
-data in one step and later remove it. Removal shows a preview first. It keeps every sample row the
+The file must be in `seeds/` and end in `.json`. `skipWhenShared` (`{ "table", "skip": [1–50
+table refs] }`) leaves the listed tables' sample rows out when `table` is a [shared
+table](#shared-tables) another installed app uses and it already holds real rows (rows no app's
+sample added): a venue's real menu never gains sample dishes, nor sample orders of them. The list
+must include every table that links to a skipped one. After installing, the operator can add the
+sample data in one step and later remove it. Removal shows a preview first. It keeps every sample row the
 operator's own records still point at and, if they choose, the rows they have changed since.
 
 The file uses the `adminium.sample/1` format:
@@ -1966,6 +3030,7 @@ The file uses the `adminium.sample/1` format:
 | `app` | The app's `key`. |
 | `tables` | At least one `{ "ref", "rows" }`, each with 1–5000 rows, written in the order listed (parents first) and removed in reverse. Every `ref` and column must be declared in `requiredSchema`. |
 | `assets` | Optional files for `@asset`: an object from a label to `{ "file": "seeds/…", "sha256": "<64 hex>" }`. |
+| `weekAnchor` | Optional: the weekday (`mon` … `sun`) the sample was written for, which `@week` days count from. |
 
 A row may carry an `@label` (letters, digits and `: . _ -`, unique in the file) so a later row can
 point at it.
@@ -1983,9 +3048,11 @@ A value is plain JSON, or one of these directives:
 | `{ "@ref": "<label>" }` | The key of an earlier row with that label. |
 | `{ "@ago": "PT19M" }` | An ISO 8601 duration before now. |
 | `{ "@in": "PT20M", "@grid": 15 }` | An ISO 8601 duration after now. With `@grid`, rounded up to the next step of that many minutes on the venue's own clock, counted from its midnight (never past the next midnight): the first pickup slot at least 20 minutes away. |
+| `{ "@in": "PT20M", "@slot": "orders" }` | The first open time of that table's [slot limit](#slot-limits) at least that far ahead: its hours, closures and pauses, on its grid, with room left after the sample's own rows placed so far; on the next open day when today has none, looking two weeks ahead, else the plain `@in` time. Not with `@grid`. |
 | `{ "@day": -1, "@time": "09:30" }` | A wall time in the venue's time zone, a number of days from today (−366 to 366). |
 | `{ "@day": 3 }` | A date: that many days from today, as the venue's calendar has it. For a `date` column. |
 | `"@workdays": true` | Added to either `@day` form: the days count Monday to Friday only, and day 0 on a weekend is the Monday after. So the sample's busy day is never a Saturday. |
+| `"@week": true` | Added to either `@day` form instead: the days count from the bundle's `weekAnchor` in the week nearest today (three days either way), so every date keeps the weekday it was written for: a weekend stay stays on a weekend, whatever day the sample is added on. Needs `weekAnchor`. |
 | `{"@month": -2, "@dom": 14}` | A date in the venue's time zone: that day of the month, so many months back (`0` is this month). Add `"@time": "10:00"` for a time on that day. A day past the month's end is its last day, and a day that has not come yet is today (a time not yet come, now). Use it for history counted in calendar months: "this month" and "in May" read the same whether the sample is added on the 3rd or the 28th. |
 | `{ "@t": { "en-US": "…" } }` | Text in the language of the person adding the sample. Keys are `xx` or `xx-XX`. |
 | `{ "@asset": "<label>" }` | A file from `assets`, added to the Files library. |
@@ -2009,8 +3076,27 @@ statuses match the time it is added at:
 | `after` | Columns merged when its time is later. |
 
 Each set holds columns of the table, and may use directives. A set with `"@skip": true` leaves the
-row out altogether: a payment for a visit that has not happened yet. A later `@ref` to a row left
-out fails. Every table that keeps totals is settled once all the sample rows are in, so a sample
+row out altogether: a payment for a visit that has not happened yet.
+
+A row that lasts from one time to another (a stay) may carry `@byStay` instead, placing it by where
+the adding moment falls against its two times:
+
+```json
+{ "@label": "stay-4", "arrive": { "@day": -1, "@week": true }, "depart": { "@day": 2, "@week": true },
+  "status": "booked",
+  "@byStay": { "from": "arrive", "to": "depart", "times": { "from": "15:00", "to": "11:00" },
+               "during": { "status": "in_house" }, "after": { "status": "departed" } } }
+```
+
+| Field | Rule |
+|---|---|
+| `from`, `to` | The arrival and the departure: columns the row sets, or `@day`s. |
+| `times` | `{ "from"?, "to"? }`: the wall times a date is read at (arriving from 15:00, leaving by 11:00); else its midnight. |
+| `before`, `during`, `after` | Columns merged when the adding moment is before the stay, during it, or after it. |
+
+A row takes one of `@byClock` and `@byStay`. A later `@ref` to a row a `@skip` left out fails.
+
+Every table that keeps totals is settled once all the sample rows are in, so a sample
 visit's balance is right from the start. The totals so far are also settled before each table's
 rows go in, so a row that copies a total from an earlier table (a stage invoice copying its quote's
 subtotal) reads it worked out.
@@ -2112,10 +3198,21 @@ cross-reference and policy checks and returns every issue, so an app's own CI ca
 manifest before it is released.
 
 Beside `issues`, `validateManifest` returns `warnings`: advice that never refuses a manifest. A
-manifest with warnings validates. Today there is one: a column that is neither nullable nor given
-a `default`, a role or a rule that fills it will be `NOT NULL` once installed, so every new row
-must give it a value, and a draft saved half-filled is refused. Keep warnings apart from issues in
-your CI, so that new advice never fails a build.
+manifest with warnings validates. Today there are four:
+
+- a column that is neither nullable nor given a `default`, a role or a rule that fills it will be
+  `NOT NULL` once installed, so every new row must give it a value, and a draft saved half-filled
+  is refused;
+- a `text` column in a [unique set](#columns-unique-together) with no `normalize` (and no `code`
+  rule): MySQL compares text ignoring case and accents, Postgres and SQLite do not, so give it
+  `normalize: "email"` or `"trim"`;
+- a [setting](#settings) whose key reads like bank details and is not `secret`: a setting that is
+  not secret is published to the customer side;
+- a capped balance whose `of` is a formula reading a column that stays writable while the capped
+  rows can exist: a bulk edit or an import settles the balance without the cap (see [Totals that
+  count and climb](#totals-that-count-and-climb)).
+
+Keep warnings apart from issues in your CI, so that new advice never fails a build.
 
 ```json
 { "ok": true, "manifest": { … }, "warnings": [

@@ -815,6 +815,412 @@ POST /api/v1/widget-data/batch
 
 <!-- END GENERATED: operations -->
 
+## Records with their rows, quotes and retries
+
+The staff side of the API, under `/api/v1/data/{connectionId}/{table}`, answers a session cookie
+or an API key. What a desk needs to take a booking or an order in one save is below: a record with
+its child rows, a quote before the save, a check of the price shown, a retry that finds its first
+save, and the counts and nights a desk screen reads. Refusals use the envelope and codes in
+[Errors](/reference/errors/). The rules an app declares for these are in the manifest reference,
+under [Dry runs, price checks and retries](/reference/manifest/#dry-runs-price-checks-and-retries).
+
+### A record with its child rows
+
+`POST /api/v1/data/{connectionId}/{table}` takes `children` beside `values`: the rows below the
+record, keyed by relation id (`model.relations[].id` in `GET /api/v1/connections/{id}/schema`). Each
+row is `{ key?, values, children? }`, two levels at most and up to 200 rows per list. A row's own
+`children` hold `{ values }` rows only. Every row is written in one transaction, or none; totals
+are settled from the bottom up, and the reply is the record as stored.
+
+```json
+{
+  "values": { "customer_name": "Ada Park", "pickup_at": "2026-10-02T18:30:00Z" },
+  "children": {
+    "<order lines relation id>": [
+      {
+        "values": { "menu_item_id": 12, "qty": 2 },
+        "children": { "<line options relation id>": [{ "values": { "option_id": 4 } }] }
+      }
+    ]
+  }
+}
+```
+
+```json
+{ "data": { "id": 981, "customer_name": "Ada Park", "total": "31.50" }, "undoToken": "…" }
+```
+
+The rows are held to what the app's public create entries on the table declare: a row's values
+agree with its parent's (no more guests than the room sleeps), and each list stays within its least
+and most. A refusal about one row names it in `details`: `relation` and `row`, and `under` for a
+row one level further down. Rows below a child row are refused `422` when a table of the write
+runs a before hook. On `PATCH`, a row with a `key` is changed, a row without one is added, a
+row the list leaves out is removed, and `[]` empties the list; rows below a child row come with a
+new record only.
+
+### When the write happened
+
+`occurredAt` on a `POST` or a `PATCH` is the time the thing really happened, as a staff device
+says: a door scan made offline and sent later. It is an ISO instant with an offset, at most six
+hours in the past and at most 60 seconds ahead (a time ahead is taken as now). A signed-in user or
+an API key may send it. Anything else is refused `422` `VALIDATION_FAILED` with
+`fields.occurredAt` (`out-of-range`). The write judges its own rules by that time, so a stamp
+says when the scan was made and a window open then lets it through. Limits shared with other
+writers still count on the server's clock. The audit row keeps the time sent as
+`changes.occurredAt`, beside the time it arrived.
+
+```json
+{ "values": { "status": "admitted" }, "occurredAt": "2026-10-02T19:04:12+02:00" }
+```
+
+### Quotes of a create and a change
+
+`POST …/{table}/dry-run` tries a create with its child rows. `POST …/{table}/{recordId}/dry-run`
+tries a change of one record. Each works out every figure the save would, refuses what the save
+would refuse, and keeps nothing: the write is rolled back, nothing is announced, no number from a
+series is taken, and no code the save would make is shown. A create quote needs the table's create
+permission. A change quote needs update.
+
+The create quote takes the create's `values` and `children`. The change quote takes `values`,
+`children` (one level) and `from`. Its own places are left out of the limits it is judged
+against, so a full house still quotes a stay's own dates. It takes no named lock; like any
+update, it holds its own row until it rolls back.
+
+```json
+{ "values": { "depart": "2026-08-08" } }
+```
+
+```json
+{
+  "data": { "id": 412, "depart": "2026-08-08", "room_total": "875.00", "total": "953.75" },
+  "children": {},
+  "nights": [
+    { "date": "2026-08-03", "rate": "170.00", "base": "150.00", "tags": ["August"] },
+    { "date": "2026-08-07", "rate": "195.00", "base": "150.00", "tags": ["Weekend", "August"] }
+  ]
+}
+```
+
+`children` holds, per relation the request sent, each row as the save would leave it:
+`{ "<relation id>": [{ "data": {…} }] }`. A create quote's rows carry their own `children` one
+level down. `nights` is there only for a row
+[priced by the night](/reference/manifest/#prices-by-the-night): each night's `rate`, the `base`
+before what was added, and the `tags` naming what was added. It is left out for a caller who
+cannot read the priced column or a column the price rule reads (its dates, its rates). The change
+quote also refuses `404` for a record that is not there, `422` for rows below a child row, and
+`422` naming the relation for a list whose table runs a before hook, because a quote runs none.
+
+### Checking the price shown
+
+`expect: { total, column? }` on a create or a `PATCH` saves only at the price the desk showed.
+`total` is a decimal string. The figure is compared on the record as the save leaves it, totals
+settled, inside the transaction. A different figure refuses the save `409` `PRICE_CHANGED`,
+with `details.column` and `details.total` (the figure it would have saved), and nothing is kept.
+
+```json
+{ "values": { "depart": "2026-08-06" }, "expect": { "total": "495.95" } }
+```
+
+Without `column`, the figure is the one the app's public create or change entries on the table
+check. `column` may name another money column. The column must be one the caller may read (`403`
+otherwise) and must hold a number: a text column, an unknown one, or no column at all is refused
+`422` with `fields.expect`. A price check is also refused `422` with `repeat`, and on a create
+whose child or link table runs a before hook.
+
+### A retry that finds its first save
+
+`clientKey` on a create is a key the form mints for this save, 22 to 64 letters, digits, `-` or
+`_`. Sent again after a reply that never came, it answers the record the first save made, with
+`200` and no undo, instead of making a second one. The values of the retry are not applied. Two
+sent at once make one record.
+
+```json
+{ "data": { "id": 981, "first_name": "Zoe" }, "undoToken": null, "replayed": true }
+```
+
+The table must keep a retry key: the column the app's public create entries keep a guest's key
+in. The key is stored there as a keyed hash, never as sent, and per person: another user's same
+key makes another record, and a guest's key never finds a desk's. A key of the wrong form, a
+table that keeps none, or a key sent with `repeat` is refused `422` with `fields.clientKey`.
+
+### The state a form loaded, and undo
+
+On a table with [states](/reference/manifest/#states), `from` on a `PATCH` names the state the
+form loaded the row in. The change is made only while the row is still there. A row another screen
+moved on since is refused `409` `STATE_MOVE_REFUSED`, with `details.column`, `from` (where the
+row is now), `to` and `named`. `from` on a table without states is refused `422` with
+`fields.from`.
+
+```json
+{ "values": { "status": "preparing" }, "from": "ready" }
+```
+
+A change of a row that moves through states usually gets `undoToken: null`: an undo would put the
+state back with no rules. The exception is a change that was a status move alone (with the stamps
+the move wrote), on a table whose states list a move marked `undo` the other way. Its token is
+given, and `POST /api/v1/data/undo/{token}` makes that listed move, naming the state the change
+left, so it is judged, stamped and announced like any move. A move marked `undo` is made only
+by a write that names `from`; without it, it is refused `409` `STATE_MOVE_REFUSED` with
+`details.undo: true`. See [Undo of a move](/reference/manifest/#undo-of-a-move).
+
+### A limit's counts
+
+`GET …/{table}/capacity-counts` answers one of the table's
+[limits](/reference/manifest/#capacity) as a desk sees it: each pool's size, what is taken, what
+holds keep, and what is left. It is counted as the write path counts, with no lock, and with none
+of a guest's filters: no notice, pause or sales window hides a pool. A pool made smaller after it
+was sold can show less than nothing left.
+
+| Parameter | Rule |
+|---|---|
+| `rule` | Which limit, `0` to `2`. Default `0`. |
+| `date` | One day, `YYYY-MM-DD`: a slot limit's day, or a parent limit that counts by day. |
+| `from`, `days` | A strip: up to 31 days for a slot limit, up to 62 nights for a night limit. |
+| `under`, `value` | A parent limit: the pools' rows whose column `under` holds `value` (an event's ticket types). |
+| `ids` | A parent or night limit: pool row ids, comma-separated, up to 200. |
+
+A slot limit takes `date` or `from` and `days`. A parent limit takes `ids` or `under` and `value`,
+with `date` when it counts by day. A night limit takes `from` and `days`, and every pool when
+`ids` is absent. A form its kind does not take, or a `rule` the table does not have, is refused
+`422` `VALIDATION_FAILED`; a table with no limit is `404`.
+
+```http
+GET /api/v1/data/{connectionId}/{table}/capacity-counts?under=event_id&value=42
+```
+
+```json
+{
+  "data": {
+    "kind": "parent",
+    "rows": [{ "id": "7", "size": 200, "taken": 143, "held": 6, "left": 51, "also": [] }]
+  }
+}
+```
+
+A slot limit's rows are `{ time, size, taken, held }` for one day (`paused` or `closed` when so),
+or `{ date, size, taken, held }` per day of a strip. A parent limit's rows carry `kept` when it
+keeps places back for a waitlist, and `also`, the wider pools the row takes from. A night limit's
+rows are `{ pool, date, size, outOfService, taken, held, left }` per pool and night, where
+`size` already leaves out the rooms out of service. It needs the table's read grant, read access
+to the pools' tables (`403` `TABLE_FORBIDDEN`), and the rule's columns and any `under` column
+readable unmasked (`403`).
+
+### A row's nights
+
+`GET …/{table}/{recordId}/nightly` spells out a row priced by the night: each night with its
+rate, priced from the rates as they are now. `column` may name the priced column, and only that
+one.
+
+```json
+{
+  "data": {
+    "column": "room_total",
+    "nights": [
+      { "date": "2026-08-03", "rate": "170.00", "base": "150.00", "tags": ["August"], "qty": "1", "amount": "170.00" },
+      { "date": "2026-08-04", "rate": "170.00", "base": "150.00", "tags": ["August"], "qty": "1", "amount": "170.00" }
+    ],
+    "total": "340.00",
+    "stale": false
+  }
+}
+```
+
+When the rates changed after the row was priced, the nights no longer add up to the stored
+figure. The reply is then `stale: true` with one line for them all: the first night's date, the
+number of nights as `qty`, no rate, and the stored figure as `amount`. A table with no price by the
+night is `404`. A caller who may not read the priced column or a column the price rule reads is
+refused `403` `COLUMN_FORBIDDEN`.
+
+## The public API for app pages
+
+The routes under `/api/v1/public/*` answer a public key (`adm_pub_…`) and, for a guest who has
+found or signed in as themselves, a session sent in `x-adminium-public-session`. Errors here are
+`{ error: { code, params?, message } }`, and the `code` is the contract. What each entry allows is
+declared in the app's [public access](/reference/manifest/#public-access) and listed by
+`GET /public/config`. The client library's method is named where there is one.
+
+### A create with its rows
+
+`POST /public/records/{ref}` takes `children` beside `values`: the rows below the new one, by the
+names `refs[ref].children` lists in the config, two levels at most and 200 rows per list. It
+writes every row or none (`createTree` in the client).
+
+```json
+{
+  "values": { "name": "Ada Park", "email": "ada@example.com", "client_key": "V1StGXR8_Z5jdHi6B-myT3Kq9wLp0aZxQ" },
+  "children": {
+    "lines": [{ "values": { "item_id": 12, "qty": 2 }, "children": { "options": [{ "values": { "option_id": 4 } }] } }]
+  },
+  "expect": { "total": "31.50" }
+}
+```
+
+```json
+{
+  "data": { "id": 981, "total": "31.50" },
+  "children": { "lines": [{ "data": { "item_id": 12, "qty": 2 }, "children": { "options": [{ "data": { "option_id": 4 } }] } }] },
+  "rank": 3,
+  "link": { "key": "link", "token": "…", "session": "adm_pubs_…", "expiresAt": 1790000000000 }
+}
+```
+
+- **`expect`** is `{ total }`, the price the guest was shown. A different figure is refused `409`
+  `PUBLIC_PRICE_CHANGED`, with `params.total` and `params.lines`, and nothing is written. On an
+  entry that checks no price it is refused `400` `PUBLIC_WRITE_REFUSED`. `PATCH` takes it too.
+- **The retry key** travels in `values`, in the column the entry names as its `clientKey`: 22 to 64
+  letters, digits, `-` or `_` (`newClientKey()` mints one). Stored as a keyed hash, it makes a
+  second send of the same order answer `200` with `data`, `children` and `replayed: true`, and no
+  `link`. A key of the wrong form is refused `400` `PUBLIC_WRITE_REFUSED` with
+  `params.reason: "format"`. A retry replays even after the app's switch for the entry was turned
+  off. Any other create is then refused `403` `PUBLIC_SWITCHED_OFF`.
+- **`rank`** is there on an entry that ranks: how many matching rows come at or before the new one.
+- **`link`** is the new row's own link, answered once, on an entry that gives one: the key it opens
+  through, the code for the page's URL fragment, and a session already open on the row.
+- **`replaces`** is the own-link session of a hold this create lets go in the same write, so a
+  changed checkout does not hold its places twice.
+
+### Public quotes of a create and a change
+
+`POST /public/records/{ref}/dry-run` tries the same create and keeps nothing (`quote` in the
+client). It takes `values`, `children` and `replaces`, where the hold named is judged as let go.
+The entry must declare `dryRun: true`; otherwise the route answers `404` `PUBLIC_REF_NOT_FOUND`.
+A quote costs a read, not a write, and needs no proof of work. It may come before the guest has
+typed their details, and it shows figures only: no retry key, no running number, no code.
+
+```json
+{
+  "data": { "subtotal": "28.90", "tax": "2.60", "total": "31.50" },
+  "children": { "lines": [{ "data": { "unit_price": "12.50", "line_total": "25.00" } }] },
+  "capacity": [{ "pool": "12", "state": "available", "at": "2026-10-02" }],
+  "exact": true
+}
+```
+
+`exact` is `false` when a before hook runs on a table of the write. A quote runs none, so the
+save may come out otherwise. `nights` is added for a row priced by the night.
+
+`POST /public/records/{ref}/{id}/dry-run` tries a change of the guest's own row: `{ values }` in,
+`{ data, exact, nights?, children? }` out (`quoteChange` in the client, which answers
+`{ data, exact, nights }`). `data` is the row as the change would leave it, with the stamps and
+totals the change would decide. `children` holds the rows below it that the change moves (the
+extras that follow a stay's nights and guests), under each child entry on the key that is read
+with this row as its parent, shown as that entry shows them. The entry must declare `dryRun: true`
+and allow the change.
+
+### A row's own link, made again
+
+`POST /public/records/{ref}/{id}/new-link` makes a row's own link again for its signed-in person
+(`newLink` in the client). The old link stops opening the row, every session it opened ends, and
+the new link is emailed as the app's own message. The reply is `202` with `{ "data": {} }`; the
+new code never comes back here. The entry must declare `newLink`.
+
+It needs a verified session of a person signed in by email. A row's own link, a `lookup` session,
+another person's row and a row that is not there all get the same `404` `PUBLIC_REF_NOT_FOUND`.
+A second ask within 60 seconds changes nothing and answers `202`. Once five new links were made for
+one row in a day, the next ask is refused `409` `PUBLIC_LIMIT_REACHED`. When no email can be sent, it is refused `503`
+`PUBLIC_CODE_UNAVAILABLE` before the old link is stopped. See
+[Identity and own links](/guides/apps/identity-and-own-links/).
+
+### Signing out, and deleting details
+
+| Route | Client | What it does |
+|---|---|---|
+| `DELETE /public/session` | `signOut` | Ends this session. Always `200` `{ "data": {} }`. |
+| `POST /public/session/revoke-all` | `signOutEverywhere` | Ends every session of the person, this one too, and takes back every sign-in link still open to their address. |
+| `DELETE /public/account` | `forgetMe` | Deletes the person's details, then ends every session and sends the old address one last email. |
+
+The last two need a verified session of a person signed in by email: a row's own link is refused
+`403` `PUBLIC_CLAIM_UNAVAILABLE`, a `lookup` session `403` `PUBLIC_CLAIM_LEVEL`, and no session
+`404` `PUBLIC_REF_NOT_FOUND`. Both answer `200` `{ "data": {} }`.
+
+`DELETE /public/account` also needs a mailbox proved in the last ten minutes, by a link pressed or
+a code confirmed; otherwise it is refused `403` `PUBLIC_CODE_STEP_UP`. It empties the columns the
+identity's `forget` names and writes its stamp. The row keeps its key, so the bookings and tickets
+that point at it stay. With `forget.links`, every own link of the person's rows is made again
+first. If one cannot be, the call is refused `409` `PUBLIC_WRITE_REFUSED` and nothing is
+forgotten. See [Delete my details](/reference/manifest/#delete-my-details).
+
+A device whose session was ended this way is told why on its next request. That reply carries
+`x-adminium-session-ended: elsewhere` or `forgotten`, once, and the session is gone after it
+(`sessionEnded()` in the client). The header is exposed to cross-origin pages.
+
+### The level a shared link opens
+
+`POST /public/claim/token` takes `{ "token": "…" }`, the code from a shared link's fragment, and
+answers `{ "data": { "session", "expiresAt", "level"? } }`. On a key whose claim is a row's own
+link (`own: true`), the session is `verified` and the reply says `level: "verified"`. Any other
+shared link opens a `lookup` session, and the reply carries no `level`. An unknown code is `404`
+`PUBLIC_REF_NOT_FOUND`; a link stopped or expired is `410` `LINK_EXPIRED`.
+
+### Typed codes
+
+A code a guest types for a read travels in the `x-adminium-code` header (64 characters at most),
+never in a URL, where logs and proxies would keep it. `?code=` on a list or on availability is
+refused `400` `PUBLIC_QUERY_REFUSED`. A write carries its typed code in its values.
+
+An entry marked `unlock: true` in the config shows its rows only with the code that unlocks them.
+Without a code a list is empty, and a code that unlocks nothing is a spent guess. Once a visitor's
+guesses are spent, a typed code is refused `429` `PUBLIC_RATE_LIMITED` before anything is looked
+up. Availability counts the rows a code unlocks too. In the client, `list` and `get` take
+`{ code }`, and so does `parentAvailability`. See
+[Codes that unlock rows](/reference/manifest/#codes-that-unlock-rows).
+
+### Availability by kind
+
+`GET /public/availability/{ref}` answers an availability entry. `refs[ref].capacity` in the
+config says its kind, and the entry's `rule` says which of the table's limits it answers. A
+parameter the kind does not take is refused `400` `PUBLIC_QUERY_REFUSED`, never ignored.
+
+| Kind | Asks | Answers `data` as |
+|---|---|---|
+| `slot` | `date`, or `from` and `days` (up to 31); `party` | `[{ time, state }]`, `free`, `full` or `paused`; per day `[{ date, open, state }]`, `open`, `full` or `closed` |
+| `parent` | `under`, `date`, `qty` (1 to 50), `exclude`; a code in the header | `[{ id, state, left? }]`, `on`, `soon`, `ended` or `soldout` |
+| `night` | `from` and `to` (up to 31 nights), `guests` (1 to 50), `earliest` (1 to 90 days), `exclude` | `[{ pool, state, left?, earliest? }]`, `open`, `full` or `closed` |
+
+- **Slot.** `party` is never asked for more than one row may hold.
+- **Parent.** The rows the limit is held on (an event's ticket types) that a plain public read of
+  their table shows, at most 200. On an entry with `under`, only the rows under that value, and
+  none without it. `date` is a day for a limit that counts by day, today on the venue's clock when
+  absent. A row is `soldout` when fewer are left than `qty` (`parentAvailability` in the client).
+- **Night.** Each pool (a room type) over the nights `from` to `to`, leaving out the pools that
+  sleep fewer than `guests`. With `earliest`, each pool also gives its first arrival of the same
+  length with room, and the reply's top-level `earliest` gives the house's (`nightAvailability`
+  in the client).
+
+```http
+GET /api/v1/public/availability/room-types?from=2026-08-03&to=2026-08-06&guests=2&earliest=14
+```
+
+```json
+{
+  "data": [
+    { "pool": "2", "state": "full", "earliest": "2026-08-05" },
+    { "pool": "3", "state": "open", "left": 1, "earliest": null }
+  ],
+  "earliest": "2026-08-05"
+}
+```
+
+`left` is said only where the entry declares `showLeft` (`{ "below": n }` or
+`{ "belowShare": percent }`), and only when fewer are left than that. A page may ask a parent
+limit for a `qty` no higher than that count and one order's most; without `showLeft`, it asks for
+one. `exclude` names a row of the session's own, such as a booking being moved or the order a
+checkout already holds, and leaves its places out of the count. An id the session does not reach
+is ignored. See [Availability](/reference/manifest/#availability).
+
+### Pictures
+
+`GET /public/pictures/{keyId}/{ref}/{rowId}/{column}/{fileId}` serves an image column any visitor
+may see, with no key header, so an `<img>` can load it. The config's `pictures` gives the base. See
+[Pictures](/reference/manifest/#pictures).
+
+### The server's clock
+
+`GET /public/config` carries `now`, the server's time as an ISO instant, and answers with
+`cache-control: no-store`. The staff and customer `surface-config.json` carry `now` the same way.
+A page on a device whose clock is wrong still asks for the venue's today. The client's `now()`
+applies the difference the config showed.
+
 ## Realtime
 
 | | |
@@ -846,6 +1252,9 @@ by the write that would store them, `422` naming the column. A body nested more 
 64 levels deep is refused `400` `VALIDATION_FAILED` with the code `too-deep`,
 unread. A list's `cursor` that holds the character is the list's own `422`
 malformed cursor.
+
+Every write refusal, its status and what its `details` carry, and the public API's own codes, are
+listed in [Error codes](/reference/errors/).
 
 ## CORS
 
