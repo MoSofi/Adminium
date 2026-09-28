@@ -167,7 +167,7 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     icon: Inbox,
     tone: 'accent',
     title: { key: 'states.emptyNoSources.title', en: 'No data sources yet' },
-    body: { key: 'states.emptyNoSources.body', en: 'Connect a PostgreSQL database and Adminium will generate your first admin dashboard.' },
+    body: { key: 'states.emptyNoSources.body', en: 'Connect a database and Adminium will generate your first admin dashboard.' },
     primary: { label: { key: 'states.emptyNoSources.primary', en: 'Connect a database' }, icon: Plus },
     secondary: { key: 'states.emptyNoSources.secondary', en: 'Import sample data' },
   },

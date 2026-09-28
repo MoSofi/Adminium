@@ -214,6 +214,12 @@ export interface BootstrapData {
    * Optional for fixtures predating it; the server always sends it.
    */
   pagesWithheld?: boolean;
+  /**
+   * Any database is connected. An empty home says "no pages yet" then, not
+   * "connect a database". Optional for fixtures predating it; the server
+   * always sends it.
+   */
+  hasConnections?: boolean;
   prefs: ResolvedPrefs;
   nav: NavTree;
   version: string;

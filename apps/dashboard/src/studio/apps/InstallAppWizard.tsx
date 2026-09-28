@@ -999,10 +999,12 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
         </span>
       </footer>
 
-      {staged === null ? null : (
+      {/* Only an upload unpacks anything: a shelf or catalogue app was already
+          on disk, and its files were never counted here. */}
+      {upload.data === undefined ? null : (
         <p className="sr-only" role="status">
           {t('studio:hostedApps.install.staged', 'Files unpacked: {files}', {
-            files: staged.files,
+            files: upload.data.files,
           })}
         </p>
       )}
@@ -1012,7 +1014,8 @@ export function InstallAppWizard({ onClose, preselected }: InstallAppWizardProps
 
 /**
  * The plan's refusals and its page warnings. A taken table's own problem is
- * left to its card on the check step, where the answer to it is.
+ * left to its card on the check step, where the answer to it is — and so is a
+ * required add-on's, to the Add-ons card and the footer's hint.
  */
 function PlanAlerts({
   plan,
@@ -1023,7 +1026,7 @@ function PlanAlerts({
   appName: string;
   connections: readonly { id: string; name: string }[];
 }) {
-  const problems = plan.problems.filter((problem) => !isCardProblem(plan, problem));
+  const problems = plan.problems.filter((problem) => !isCardProblem(plan, problem) && !isAddOnCardProblem(plan, problem));
   // The one refusal about where the app already is, said in the reader's language with the connection's name.
   const said = (problem: AppInstallPlan['problems'][number]): string =>
     problem.code === 'APP_INSTALLED_ELSEWHERE' && problem.connectionId !== undefined
@@ -1094,6 +1097,11 @@ function PlanAlerts({
 
     </>
   );
+}
+
+/** A required add-on's refusal, said by the Add-ons card on the check step (the one with tables). */
+function isAddOnCardProblem(plan: AppInstallPlan, problem: AppInstallPlan['problems'][number]): boolean {
+  return hasTables(plan) && problem.code.startsWith('ADD_ON_') && (plan.addOns ?? []).some((row) => row.key === problem.table);
 }
 
 /**

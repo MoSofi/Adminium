@@ -146,14 +146,25 @@ export function LocaleControl(props: {
   value: LocaleId;
   onChange: (value: LocaleId) => void;
   label: string;
+  /**
+   * A first option that follows the workspace's language instead of naming
+   * one — what a person's own choice goes back to. `selected` while they
+   * follow it; `value` is then the language it resolves to.
+   */
+  inherit?: { label: string; selected: boolean; onSelect: () => void } | undefined;
 }): ReactNode {
+  const { inherit } = props;
   return (
     <div className="max-w-64">
       <Select
         aria-label={props.label}
-        value={props.value}
-        onChange={(event) => props.onChange(event.target.value as LocaleId)}
+        value={inherit?.selected === true ? '' : props.value}
+        onChange={(event) => {
+          if (event.target.value === '') inherit?.onSelect();
+          else props.onChange(event.target.value as LocaleId);
+        }}
       >
+        {inherit === undefined ? null : <option value="">{inherit.label}</option>}
         {pickerLocales(props.value).map((locale) => (
           <option key={locale.id} value={locale.id}>
             {locale.id === 'en_US' ? locale.native : `${locale.native} — ${locale.english}`}

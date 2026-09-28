@@ -46,6 +46,7 @@
     "i18n:meta": "node scripts/meta.mjs report",
     "i18n:check": "node scripts/meta.mjs check",
     "i18n:review": "node scripts/meta.mjs review",
+    "i18n:sheet": "node scripts/review-sheet.mjs",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -54,7 +55,7 @@
   },
   "dependencies": {
     "i18next": "^26.3.6",
-    "intl-messageformat": "^11.2.13"
+    "intl-messageformat": "^12.1.2"
   },
   "peerDependencies": {
     "react": "^19.1.0"

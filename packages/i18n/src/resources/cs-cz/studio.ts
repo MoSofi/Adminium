@@ -3059,6 +3059,7 @@ export default {
     "intro": "Zákaznické obrazovky aplikace potřebují:",
     "availability": "Číst volné nebo obsazené časy v {table}",
     "claim": "Vyhledat své vlastní {table} podle {fields}",
+    "claimByLink": "Vyhledat své vlastní {table} přes odkaz, který jim přijde",
     "create": "Přidávat do {table}",
     "update": "Měnit {table}",
     "read": "Číst {table}",
@@ -3071,7 +3072,9 @@ export default {
       "apiOff": "Veřejné API je vypnuté, takže nic z toho neodpoví, dokud nebude zapnuté.",
       "originSelf": "Povolené původy neobsahují „self“, takže vlastní stránky aplikace na tomto serveru je nemohou volat.",
       "timeZone": "Tato databáze nemá nastavené časové pásmo, které veřejné API potřebuje pro data a časy.",
-      "noEmail": "E-mail není nastaven, takže hosté nedostanou potvrzení."
+      "noEmail": "E-mail není nastaven, takže hosté nedostanou potvrzení.",
+      "noEmailSignIn": "E-mail není nastaven, takže nikomu nelze poslat přihlašovací odkaz.",
+      "noPublicAddress": "Tato aplikace nemá veřejnou adresu, takže nelze poslat přihlašovací odkaz. Přiřaďte doménu její zákaznické části, nebo nastavte veřejnou adresu serveru."
     },
     "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail"
   },

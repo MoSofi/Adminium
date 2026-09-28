@@ -77,6 +77,7 @@ import { AddOnCatalogError, lenientMinimum, pickLocalized, type CatalogClient } 
 import type { AddOnInstallerDeps } from '../../add-ons/install.js';
 import { builtOnTables, shapeProblems, shapeRecordsFor, shapesForPlan } from '../../apps/app-shapes.js';
 import {
+  addOnPlanProblems,
   addOnTablesByName,
   addOnsKeptBy,
   appHost,
@@ -2180,9 +2181,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           request,
           installed !== undefined && installed.row.connectionId === connectionId,
         );
+        // What the add-ons refuse whatever the install says, so `installable` is the install's answer too.
+        const addOnProblems = addOnPlanProblems(manifest.name, addOns);
         return {
           plan: {
             ...dto,
+            ...(addOnProblems.length === 0 ? {} : { installable: false, problems: [...dto.problems, ...addOnProblems] }),
             ...(publicAccess === undefined ? {} : { publicAccess }),
             ...(addOns.length === 0 ? {} : { addOns }),
           },

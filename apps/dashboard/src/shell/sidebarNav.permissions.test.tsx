@@ -143,6 +143,29 @@ describe('platform rail rows follow the session\'s system keys', () => {
     expect(empty?.textContent).toBe('Pages appear here once a database is connected.');
   });
 
+  it('says “no pages yet”, not “connect a database”, once a database is connected', async () => {
+    await renderRail({ roles: ['admin'], systemActions: ADMIN_KEYS, nav: { groups: [] }, hasConnections: true }, '/');
+    expect(await screen.findByRole('heading', { name: 'No pages yet' })).toBeTruthy();
+    expect(screen.queryByText('No data sources yet')).toBeNull();
+    expect(document.querySelector('[data-part="nav-empty"]')?.textContent).toBe(
+      'Pages appear here once they are made from the connected database.',
+    );
+  });
+
+  it('says “connect a database” on the home only when none is', async () => {
+    await renderRail({ roles: ['admin'], systemActions: ADMIN_KEYS, nav: { groups: [] }, hasConnections: false }, '/');
+    expect(await screen.findByRole('heading', { name: 'No data sources yet' })).toBeTruthy();
+    expect(screen.getByText('Connect a database and Adminium will generate your first admin dashboard.')).toBeTruthy();
+  });
+
+  it('tells a role with no shared pages so on the home too', async () => {
+    await renderRail(
+      { roles: ['admin'], systemActions: ADMIN_KEYS, nav: { groups: [] }, pagesWithheld: true, hasConnections: true },
+      '/',
+    );
+    expect(await screen.findByRole('heading', { name: 'No pages shared with you yet' })).toBeTruthy();
+  });
+
   it('answers a typed URL the rail no longer offers with the forbidden state', async () => {
     await renderRail({ roles: ['admin'], systemActions: ADMIN_KEYS }, '/settings/roles');
     expect(await screen.findByText('You don’t have access')).toBeTruthy();
