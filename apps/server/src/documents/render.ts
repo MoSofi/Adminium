@@ -75,6 +75,7 @@ import { currencyScale } from '@adminium/manifest';
 import { DOCUMENT_LOCALE_IDS } from '@adminium/add-on-contracts';
 import {
   ASKED_KEY_MARK,
+  CUSTOMER_KEY_PURPOSE,
   auditRepo,
   documentSequencesRepo,
   documentsRepo,
@@ -224,7 +225,20 @@ export const WITHHELD_FOR = '$withheld-for';
 export function withheldReaderMark(withhold: DocumentWithhold | undefined, tables: readonly string[]): string | null {
   if (withhold === undefined || !tables.some((table) => withholdRulesOf(withhold.rules, table).length > 0)) return null;
   const reader = withhold.reader;
-  return reader === null || reader.value === null || reader.value === undefined ? '' : `${reader.table}\u0000${String(reader.value)}`;
+  const person = reader === null || reader.value === null || reader.value === undefined ? '' : `${reader.table}\u0000${String(reader.value)}`;
+  // Drawn through a key other than the people's own (a row's own link): that key's too, so it is shown on that key alone.
+  const key = withhold.readerKey;
+  return key === undefined || key === CUSTOMER_KEY_PURPOSE ? person : `${person}\u0001${key}`;
+}
+
+/**
+ * Whether a document drawn for nobody (`''`) may be shown on a key: not on a
+ * row's own link that withholds, while a condition holds, a column of what it
+ * draws (a pending friend's ticket) — a document drawn for nobody does not
+ * meet that link's rule.
+ */
+export function nobodysDocumentShownOn(rules: TableWithholds, tables: readonly string[], key: string): boolean {
+  return !tables.some((table) => withholdRulesOf(rules, table).some((rule) => rule.ownLink === true && rule.key === key && rule.when !== undefined));
 }
 
 export interface RenderRequest {

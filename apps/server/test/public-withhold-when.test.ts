@@ -33,7 +33,11 @@ const UNPAID = { linked: [{ via: 'order_id', where: [{ column: 'status', eq: 'he
 function boxOffice(): Doc {
   const manifest = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Doc;
   const tables = (manifest['requiredSchema'] as { tables: Doc[] }).tables;
-  (tables.find((table) => table['ref'] === 'orders')!['columns'] as Doc[]).push({ ref: 'status', type: 'enum', enum: ['held', 'paid'], default: 'held' });
+  (tables.find((table) => table['ref'] === 'orders')!['columns'] as Doc[]).push(
+    { ref: 'status', type: 'enum', enum: ['held', 'paid'], default: 'held' },
+    // A second address on the order no link goes to (an assistant's): read by no key.
+    { ref: 'copy_email', type: 'text', maxLength: 254, nullable: true, rules: { validation: { format: 'email' } } },
+  );
   for (const entry of manifest['publicAccess'] as Doc[]) {
     if (entry['table'] === 'tickets' && entry['visibleWith'] !== undefined) entry['withhold'] = { ...(entry['withhold'] as Doc), when: UNPAID };
   }
@@ -41,12 +45,20 @@ function boxOffice(): Doc {
   (manifest['publicAccess'] as Doc[]).push({ table: 'tickets', methods: ['POST'], level: 'verified', visibleWith: { table: 'orders', via: 'order_id' }, select: ['id', 'code'], writable: ['order_id', 'ticket_type_id'] });
   const messages = tables.find((table) => table['ref'] === 'messages')!;
   const columns = messages['columns'] as Doc[];
-  columns.find((column) => column['ref'] === 'kind')!['enum'] = ['ticket-offered', 'your-tickets', 'ticket-note'];
+  columns.find((column) => column['ref'] === 'kind')!['enum'] = ['ticket-offered', 'your-tickets', 'ticket-note', 'order-mail', 'friend-note', 'order-copy'];
   columns.push({ ref: 'order_id', type: 'fk', references: 'orders', nullable: true });
   const outbox = manifest['outbox'] as { kinds: Record<string, string>; links: Record<string, string> };
   outbox.links['order'] = 'order_id';
   outbox.kinds['your-tickets'] = 'boxoffice-your-tickets';
   outbox.kinds['ticket-note'] = 'boxoffice-ticket-note';
+  // The order's tickets, mailed to the address on the order: the address the order's own link goes to.
+  outbox.kinds['order-mail'] = 'boxoffice-your-tickets';
+  (manifest['outbox'] as { producers: Doc[] }).producers.push({ kind: 'order-mail', link: 'order_id', recipient: { column: 'email', name: 'name' }, onChange: { table: 'orders', column: 'status', to: 'paid' } });
+  outbox.kinds['order-copy'] = 'boxoffice-your-tickets';
+  (manifest['outbox'] as { producers: Doc[] }).producers.push({ kind: 'order-copy', link: 'order_id', recipient: { column: 'copy_email' }, onChange: { table: 'orders', column: 'status', to: 'paid' } });
+  // A note about a ticket, to the friend it is offered to: the address the ticket's own link goes to.
+  outbox.kinds['friend-note'] = 'boxoffice-ticket-note';
+  (manifest['outbox'] as { producers: Doc[] }).producers.push({ kind: 'friend-note', link: 'ticket_id', recipient: { column: 'pending_email', name: 'pending_name' }, onChange: { table: 'tickets', column: 'status', to: 'checked_in' } });
   (manifest['emailTemplates'] as Doc[]).push(
     {
       key: 'boxoffice-your-tickets',
@@ -193,6 +205,32 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     expect(paid.slice(6).join('\n')).toContain(codes[0]!);
   });
 
+  it.skipIf(!available)("mails the order's own address as its own link reads it: no code unpaid, every code paid", async () => {
+    const codes = await Promise.all(tickets.map(({ id }) => codeOf(id)));
+    await h.rows(`update ${t('orders')} set copy_email = 'desk@assist.org' where id = ${String(order)}`);
+    const mailed = async (kind = 'order-mail', to = 'mia@buyers.org') => {
+      const before = (await sealedOf(h)).length;
+      await queue(kind, { customer: 'null', order });
+      await shop.composed.app.outboxSender.sendApp('boxoffice');
+      const mail = (await sealedOf(h)).slice(before);
+      expect(mail.map((m) => m.to)).toEqual([to]);
+      return `${mail[0]!.text}\n${mail[0]!.qr.join('\n')}`;
+    };
+    await h.rows(`update ${t('orders')} set status = 'held' where id = ${String(order)}`);
+    const unpaid = await mailed();
+    for (const code of codes) expect(unpaid).not.toContain(code);
+    // An address no link goes to reads as nobody's key: the order's state holds there too.
+    const copyUnpaid = await mailed('order-copy', 'desk@assist.org');
+    for (const code of codes) expect(copyUnpaid).not.toContain(code);
+    // Paid, the buyer's tickets nobody holds are theirs: the pending-friend rule of a ticket's own link is not this mail's.
+    await h.rows(`update ${t('orders')} set status = 'paid' where id = ${String(order)}`);
+    const paid = await mailed();
+    for (const code of codes) expect(paid).toContain(code);
+    // …and no rule said of whoever holds a ticket's own link does.
+    const copyPaid = await mailed('order-copy', 'desk@assist.org');
+    for (const code of codes) expect(copyPaid).toContain(code);
+  });
+
   it.skipIf(!available)('never filters or sorts by a column held back', async () => {
     const where = encodeURIComponent(JSON.stringify({ column: 'code', op: 'eq', value: 'X' }));
     const filtered = await buyer.request('GET', `/records/${t('tickets')}_verified?where=${where}`, { session: mia });
@@ -217,6 +255,14 @@ describe.each(LEGS)('columns held back while a condition holds — %s', (dialect
     const one = await byTicket.request('GET', `/records/${t('tickets')}_claimed/${String(first!.id)}`, { session: kai });
     expect(one.body).not.toContain(senderCode);
     // The buyer still reads it, pending, with the code that still works at the door.
+    // Mailed to the friend's address, as the ticket's own link reads it: no code while pending.
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const beforeNote = (await sealedOf(h)).length;
+    await queue('friend-note', { customer: 'null', ticket: first!.id });
+    await shop.composed.app.outboxSender.sendApp('boxoffice');
+    const note = (await sealedOf(h)).slice(beforeNote).filter((m) => m.to === 'kai@friends.org');
+    expect(note).toHaveLength(1);
+    expect(`${note[0]!.text}${note[0]!.qr.join('')}`).not.toContain(senderCode);
     const buyers = (await buyer.request('GET', `/records/${t('tickets')}_verified`, { session: mia })).json() as { data: Doc[] };
     expect(buyers.data.find((r) => r['id'] === first!.id)).toMatchObject({ code: senderCode });
     // Taken: the friend reads the new code; the buyer does not; the buyer's other ticket is theirs as ever.

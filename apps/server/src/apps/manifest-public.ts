@@ -357,9 +357,17 @@ function definitionOf(
             ...(entry.withhold.unlessHolder === undefined ? {} : { unless_holder: entry.withhold.unlessHolder }),
             // A condition holds for that key's readers alone: the key it is served through goes with it.
             ...(entry.withhold.when === undefined ? {} : { when: structuredClone(entry.withhold.when), key: entry.key ?? CUSTOMER_KEY_PURPOSE }),
+            // That key opens a row by its own link: its `when` is about whoever holds the link.
+            ...(entry.withhold.when !== undefined && ownLinkKeys(manifest).has(entry.key ?? CUSTOMER_KEY_PURPOSE) ? { own_link: true } : {}),
           },
         }),
   } as PublicEndpointDefinition;
+}
+
+/** The keys of an app that open a row by its own link (a token claim with `own`). */
+function ownLinkKeys(manifest: Manifest): Set<string> {
+  const entries = manifest.kind === 'app' ? (manifest.publicAccess ?? []) : [];
+  return new Set(entries.filter((e) => e.claim !== undefined && 'by' in e.claim && e.claim.own === true).map((e) => e.key ?? CUSTOMER_KEY_PURPOSE));
 }
 
 /** An entry read only by the holder of a live session: a level, and no claim of its own. */

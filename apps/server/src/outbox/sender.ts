@@ -256,6 +256,8 @@ interface Prepared {
   to: string;
   /** The person the message goes to, as a document it carries is drawn for (null: nobody's, every held row's columns empty). */
   reader: WithholdReader | null;
+  /** The key the message reads through: a person's sign-in key, the row's own link emailed to that address, or none. */
+  readerKey?: string | undefined;
   email: Omit<EnqueueEmailInput, 'report' | 'dedupeKey'>;
   recordTo?: string;
   language?: string;
@@ -879,17 +881,43 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
    * outbox does not address people in, prints them empty. A row nobody holds
    * prints as it always did. Held once per holder for the message.
    */
-  function heldElsewhere(box: LiveOutbox, ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; withholds: TableWithholds }, to: string, addressed: Addressed | null): BlankOf {
+  /**
+   * The key a message to an address the producing row holds reads through:
+   * the row's own link that is emailed to that column (an order's `email`,
+   * a ticket's `pending_email`), which reads what that link reads. None when
+   * no own link goes to it.
+   */
+  async function columnKeyOf(box: LiveOutbox, producer: OutboxProducer | undefined): Promise<string | undefined> {
+    const column = columnRecipientOf(producer)?.column;
+    if (column === undefined || producer === undefined) return undefined;
+    const manifest = (await appFacts(box.row.manifestId)).manifest;
+    const declared = (manifest?.outbox?.producers ?? []).find((candidate) => candidate.kind === producer.kind);
+    const source = declared === undefined ? undefined : 'onCreate' in declared ? declared.onCreate : 'onChange' in declared ? declared.onChange : declared.before;
+    if (source === undefined || ('via' in source && source.via !== undefined)) return undefined;
+    const opener = (manifest?.publicAccess ?? []).find((entry) => {
+      const claim = entry.claim;
+      if (entry.table !== source.table || claim === undefined || !('by' in claim) || claim.own !== true || claim.address === undefined) return false;
+      return (typeof claim.address === 'string' ? [claim.address] : claim.address).includes(column);
+    });
+    return opener === undefined ? undefined : (opener.key ?? CUSTOMER_KEY_PURPOSE);
+  }
+
+  function heldElsewhere(box: LiveOutbox, ctx: { db: Kysely<SourceDatabase>; view: SnapshotView; withholds: TableWithholds }, to: string, addressed: Addressed | null, columnKey?: string): BlankOf {
     const people = new Map<string, Promise<Row | null>>();
     const recipient = box.definition.recipient;
     return async (table, record) => {
       const rules = withholdRulesOf(ctx.withholds, table.id);
       if (rules.length === 0) return NOTHING_BLANK;
       const out = new Set<string>();
-      // A rule's `when` (a ticket of an order not paid yet): withheld from a person on the key they sign in on, from anyone else whatever key declared it.
+      /*
+       * A rule's `when` (a ticket of an order not paid yet): a person reads as
+       * on the key they sign in on; a message to the row's own address as the
+       * row's own link emailed there; any other address as nobody's key — every
+       * rule said of the row's state, none said of whoever holds a link.
+       */
       const person = addressed?.bySetting !== true && addressed?.byColumn === undefined;
       const linked = rules.some((rule) => (rule.when?.linked ?? []).length > 0) ? await linkedRowsOf(ctx.db, ctx.view, table, rules, [record]) : undefined;
-      for (const column of withheldColumns(ctx.view, table, rules.flatMap((rule) => (rule.when === undefined ? [] : [{ columns: rule.columns, when: rule.when, key: rule.key }])), record, null, { readerKey: person ? CUSTOMER_KEY_PURPOSE : undefined, linked })) out.add(column);
+      for (const column of withheldColumns(ctx.view, table, rules.flatMap((rule) => (rule.when === undefined ? [] : [{ columns: rule.columns, when: rule.when, key: rule.key, ownLink: rule.ownLink }])), record, null, { readerKey: person ? CUSTOMER_KEY_PURPOSE : addressed?.byColumn !== undefined ? columnKey : undefined, linked })) out.add(column);
       for (const rule of rules) {
         if (rule.unlessHolder === undefined) continue;
         const holder = record[rule.unlessHolder];
@@ -1240,7 +1268,8 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     const holder = await codeHolder(box, ctx, row, to, addressed);
     // A choice reads its label in the language the template is written in.
     const labels = ctx.labels?.(template.locale);
-    const blankOf = heldElsewhere(box, ctx, to, addressed);
+    const columnKey = await columnKeyOf(box, producer);
+    const blankOf = heldElsewhere(box, ctx, to, addressed, columnKey);
     const { vars, withheld } = await variables(box, { ...ctx, forms, labels, blankOf }, row, addressed, holder);
     vars['signInLink'] = '';
     if (reads.has('signInLink')) {
@@ -1283,6 +1312,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     return {
       to,
       reader: await messageReader(box, ctx, holder, addressed, to),
+      readerKey: addressed?.bySetting !== true && addressed?.byColumn === undefined ? CUSTOMER_KEY_PURPOSE : addressed?.byColumn !== undefined ? columnKey : undefined,
       // The template checked above is the one sent: never resolved again, as it may have been edited meanwhile.
       email: {
         to,
@@ -1448,7 +1478,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const wanted = (await appFacts(box.row.manifestId)).attach[ready.email.templateKey];
         let attachments: EmailSendAttachmentRef[] = [];
         if (wanted !== undefined) {
-          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader, ...(ready.reader === null ? {} : { readerKey: CUSTOMER_KEY_PURPOSE }) }).catch((error: unknown): { error: string; absent?: true } => {
+          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader, ...(ready.readerKey === undefined ? {} : { readerKey: ready.readerKey }) }).catch((error: unknown): { error: string; absent?: true } => {
             deps.logger?.warn({ err: error, appKey: box.appKey }, 'the document an app email carries could not be drawn');
             return { error: 'The document could not be drawn' };
           });

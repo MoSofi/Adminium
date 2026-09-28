@@ -51,6 +51,7 @@ export async function withholdsOn(
           ...(rule.unless_holder === undefined ? {} : { unlessHolder: rule.unless_holder }),
           ...(rule.when === undefined ? {} : { when: rule.when }),
           ...(rule.key === undefined ? {} : { key: rule.key }),
+          ...(rule.own_link === true ? { ownLink: true as const } : {}),
         },
       });
     }
@@ -65,8 +66,10 @@ export async function withholdsOn(
     const parsed = scopeSchema.safeParse(document);
     if (parsed.success) for (const resource of parsed.data.resources) declared.push({ table: resource.table, withhold: resource.withhold as WithholdRule | undefined });
   }
-  for (const { tableName, entry } of await appEntriesOn(meta, connectionId, app)) {
-    if (entry.withhold !== undefined) declared.push({ table: tableName, withhold: { ...entry.withhold, ...(entry.withhold.when === undefined ? {} : { key: entry.key ?? CUSTOMER_KEY_PURPOSE }) } });
+  for (const { tableName, entry, ownLink } of await appEntriesOn(meta, connectionId, app)) {
+    if (entry.withhold !== undefined) {
+      declared.push({ table: tableName, withhold: { ...entry.withhold, ...(entry.withhold.when === undefined ? {} : { key: entry.key ?? CUSTOMER_KEY_PURPOSE, ...(ownLink ? { ownLink: true as const } : {}) }) } });
+    }
   }
   return collectWithholds(declared);
 }
@@ -81,13 +84,18 @@ export async function appEntriesOn(
   meta: MetaDb,
   connectionId: string,
   app?: { key: string; manifest: AppManifest | null } | undefined,
-): Promise<{ tableName: string; entry: NonNullable<AppManifest['publicAccess']>[number] }[]> {
-  const out: { tableName: string; entry: NonNullable<AppManifest['publicAccess']>[number] }[] = [];
+): Promise<{ tableName: string; entry: NonNullable<AppManifest['publicAccess']>[number]; ownLink: boolean }[]> {
+  type Entry = NonNullable<AppManifest['publicAccess']>[number];
+  const out: { tableName: string; entry: Entry; ownLink: boolean }[] = [];
+  /** The keys of an app that open a row by its own link (a token claim with `own`). */
+  const ownKeysOf = (entries: readonly Entry[]) =>
+    new Set(entries.filter((e) => e.claim !== undefined && 'by' in e.claim && e.claim.own === true).map((e) => e.key ?? CUSTOMER_KEY_PURPOSE));
   if (app !== undefined) {
     const entries = app.manifest?.publicAccess ?? [];
     if (entries.length === 0) return out;
+    const own = ownKeysOf(entries);
     for (const record of await appTablesRepo(meta).forInstall(connectionId, app.key)) {
-      for (const entry of entries) if (entry.table === record.ref) out.push({ tableName: record.tableName, entry });
+      for (const entry of entries) if (entry.table === record.ref) out.push({ tableName: record.tableName, entry, ownLink: own.has(entry.key ?? CUSTOMER_KEY_PURPOSE) });
     }
     return out;
   }
@@ -106,7 +114,8 @@ export async function appEntriesOn(
   }
   for (const record of records) {
     const manifest = record.manifestId === null ? undefined : manifests.get(record.manifestId);
-    for (const entry of manifest?.publicAccess ?? []) if (entry.table === record.ref) out.push({ tableName: record.tableName, entry });
+    const own = ownKeysOf(manifest?.publicAccess ?? []);
+    for (const entry of manifest?.publicAccess ?? []) if (entry.table === record.ref) out.push({ tableName: record.tableName, entry, ownLink: own.has(entry.key ?? CUSTOMER_KEY_PURPOSE) });
   }
   return out;
 }

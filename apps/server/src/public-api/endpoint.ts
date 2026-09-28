@@ -473,6 +473,8 @@ export const publicEndpointDefinitionSchema = z
           .optional(),
         /** The key (its purpose) the declaring entry is served through: its `when` is that key's readers' alone. */
         key: z.string().min(1).max(64).optional(),
+        /** That key opens a row by its own link: its `when` is about whoever holds the link. */
+        own_link: z.literal(true).optional(),
       })
       .strict()
       .refine((w) => w.unless_holder !== undefined || w.when !== undefined, { message: 'a withhold names its holder, a when, or both' })
@@ -617,6 +619,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       ...(def.withhold.unless_holder === undefined ? {} : { unless_holder: def.withhold.unless_holder }),
       ...(def.withhold.when === undefined ? {} : { when: structuredClone(def.withhold.when) }),
       ...(def.withhold.key === undefined ? {} : { key: def.withhold.key }),
+      ...(def.withhold.own_link === undefined ? {} : { own_link: true }),
     };
   }
   return out;
