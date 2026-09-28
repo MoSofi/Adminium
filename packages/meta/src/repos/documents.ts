@@ -35,7 +35,7 @@ import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
 import { AUDIT_ENTITY_KEY_MAX, type RecordRef } from '../schema/json-payloads.js';
 import type { AdminiumDocumentsTable, MetaDB } from '../schema/tables.js';
-import { affected, packJson, readJson, readJsonOrNull } from './util.js';
+import { affected, inIdOrder, packJson, readJson, readJsonOrNull } from './util.js';
 
 export type DocumentStatus = 'rendered' | 'failed' | 'voided' | 'skipped';
 
@@ -199,11 +199,24 @@ export function documentsRepo(meta: MetaDb) {
     return row === undefined ? null : hydrate(row, opts.redacted ?? false);
   }
 
+  /**
+   * Whole rows for ids a sorted read found, in its order. Every sorted read
+   * here sorts ids alone and fetches the rows after: a document carries its
+   * whole subject (an invoice's lines, a statement's rows), and a sort that
+   * carries one larger than MySQL's sort buffer fails the whole read
+   * (`inIdOrder`).
+   */
+  async function byIds(found: readonly { id: string }[]): Promise<Selectable<AdminiumDocumentsTable>[]> {
+    const ids = found.map((row) => row.id);
+    if (ids.length === 0) return [];
+    return inIdOrder(ids, await db.selectFrom('adminium_documents').selectAll().where('id', 'in', ids).execute());
+  }
+
   async function list(
     filter: ListDocumentsFilter = {},
     opts: { redacted?: boolean } = {},
   ): Promise<DocumentRow[]> {
-    let query = db.selectFrom('adminium_documents').selectAll();
+    let query = db.selectFrom('adminium_documents').select('id');
     if (filter.entityTable !== undefined) {
       query = query.where('entityTable', '=', clampKey(filter.entityTable));
     }
@@ -212,10 +225,12 @@ export function documentsRepo(meta: MetaDb) {
     if (filter.addOnKey !== undefined) query = query.where('addOnKey', '=', filter.addOnKey);
     if (filter.requestedBy !== undefined) query = query.where('requestedBy', '=', filter.requestedBy);
 
-    const rows = await query
-      .orderBy('createdAt', 'desc')
-      .limit(Math.min(filter.limit ?? 100, 500))
-      .execute();
+    const rows = await byIds(
+      await query
+        .orderBy('createdAt', 'desc')
+        .limit(Math.min(filter.limit ?? 100, 500))
+        .execute(),
+    );
 
     const hydrated = rows.map((row) => hydrate(row, opts.redacted ?? false));
     if (filter.claim === undefined) return hydrated;
@@ -285,15 +300,18 @@ export function documentsRepo(meta: MetaDb) {
    * answers a second request as well as a new render would.
    */
   async function findReusable(connectionId: string, reuseKey: string): Promise<DocumentRow | null> {
-    const row = await db
-      .selectFrom('adminium_documents')
-      .selectAll()
-      .where('connectionId', '=', connectionId)
-      .where('reuseKey', '=', reuseKey)
-      .where('status', '=', 'rendered')
-      .orderBy('createdAt', 'desc')
-      .orderBy('id', 'desc')
-      .executeTakeFirst();
+    const [row] = await byIds(
+      await db
+        .selectFrom('adminium_documents')
+        .select('id')
+        .where('connectionId', '=', connectionId)
+        .where('reuseKey', '=', reuseKey)
+        .where('status', '=', 'rendered')
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(1)
+        .execute(),
+    );
     return row === undefined ? null : hydrate(row, false);
   }
 
@@ -334,17 +352,20 @@ export function documentsRepo(meta: MetaDb) {
     profileId: string,
     entity: { table: string; pk: Readonly<Record<string, unknown>> },
   ): Promise<DocumentRow | null> {
-    const row = await db
-      .selectFrom('adminium_documents')
-      .selectAll()
-      .where('profileId', '=', profileId)
-      .where('entityTable', '=', clampKey(entity.table))
-      .where('entityId', '=', entityKeyOf(entity.pk))
-      .where('status', '=', 'rendered')
-      .where((eb) => eb.or([eb('reuseKey', 'is', null), eb('reuseKey', 'not like', `%${ASKED_KEY_MARK}%`)]))
-      .orderBy('createdAt', 'desc')
-      .orderBy('id', 'desc')
-      .executeTakeFirst();
+    const [row] = await byIds(
+      await db
+        .selectFrom('adminium_documents')
+        .select('id')
+        .where('profileId', '=', profileId)
+        .where('entityTable', '=', clampKey(entity.table))
+        .where('entityId', '=', entityKeyOf(entity.pk))
+        .where('status', '=', 'rendered')
+        .where((eb) => eb.or([eb('reuseKey', 'is', null), eb('reuseKey', 'not like', `%${ASKED_KEY_MARK}%`)]))
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(1)
+        .execute(),
+    );
     return row === undefined ? null : hydrate(row, false);
   }
 
@@ -479,7 +500,7 @@ export function documentsRepo(meta: MetaDb) {
     if (filter.entityIds.length === 0 || filter.profileIds.length === 0) return [];
     let query = db
       .selectFrom('adminium_documents as d')
-      .selectAll('d')
+      .select('d.id as id')
       .where('d.connectionId', '=', filter.connectionId)
       .where('d.entityTable', '=', clampKey(filter.entityTable))
       .where('d.entityId', 'in', filter.entityIds.map(clampKey))
@@ -517,12 +538,14 @@ export function documentsRepo(meta: MetaDb) {
         ]),
       );
     }
-    const rows = await query
-      .orderBy('d.createdAt', 'desc')
-      .orderBy('d.id', 'desc')
-      .limit(Math.min(Math.max(filter.limit, 1), 500))
-      .execute();
-    return rows.map((row) => hydrate(row as Selectable<AdminiumDocumentsTable>, false));
+    const rows = await byIds(
+      await query
+        .orderBy('d.createdAt', 'desc')
+        .orderBy('d.id', 'desc')
+        .limit(Math.min(Math.max(filter.limit, 1), 500))
+        .execute(),
+    );
+    return rows.map((row) => hydrate(row, false));
   }
 
   /**
@@ -538,7 +561,7 @@ export function documentsRepo(meta: MetaDb) {
   }): Promise<DocumentRow[]> {
     let query = db
       .selectFrom('adminium_documents')
-      .selectAll()
+      .select('id')
       .where('connectionId', '=', filter.connectionId)
       .where('profileId', 'is', null)
       .where('claim', 'is not', null)
@@ -549,11 +572,13 @@ export function documentsRepo(meta: MetaDb) {
         eb.or([eb('createdAt', '<', after.createdAt), eb.and([eb('createdAt', '=', after.createdAt), eb('id', '<', after.id)])]),
       );
     }
-    const rows = await query
-      .orderBy('createdAt', 'desc')
-      .orderBy('id', 'desc')
-      .limit(Math.min(Math.max(filter.limit, 1), 500))
-      .execute();
+    const rows = await byIds(
+      await query
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'desc')
+        .limit(Math.min(Math.max(filter.limit, 1), 500))
+        .execute(),
+    );
     return rows.map((row) => hydrate(row, false));
   }
 
@@ -570,13 +595,9 @@ export function documentsRepo(meta: MetaDb) {
 
   /** Rows older than `before` whose bytes may be swept (`retention.documentsDays`). */
   async function listExpiredBefore(before: number, limit = 100): Promise<DocumentRow[]> {
-    const rows = await db
-      .selectFrom('adminium_documents')
-      .selectAll()
-      .where('createdAt', '<', before)
-      .orderBy('createdAt', 'asc')
-      .limit(limit)
-      .execute();
+    const rows = await byIds(
+      await db.selectFrom('adminium_documents').select('id').where('createdAt', '<', before).orderBy('createdAt', 'asc').limit(limit).execute(),
+    );
     return rows.map((row) => hydrate(row, false));
   }
 

@@ -15,6 +15,7 @@ import type { Kysely, Selectable, Transaction } from 'kysely';
 
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
+import { inIdOrder } from './util.js';
 import type {
   AdminiumPublicKeysTable,
   AdminiumPublicScopesTable,
@@ -200,6 +201,12 @@ export async function clearInertPublicKeys(
 
 export function publicScopesRepo(meta: MetaDb) {
   const { db } = meta;
+  /** Scopes by ids a sorted read found, in its order: a scope's document is sorted by no read (`inIdOrder`). */
+  const scopesByIds = async (found: readonly { id: string }[]): Promise<Selectable<AdminiumPublicScopesTable>[]> => {
+    const ids = found.map((row) => row.id);
+    if (ids.length === 0) return [];
+    return inIdOrder(ids, await db.selectFrom('adminium_public_scopes').selectAll().where('id', 'in', ids).execute());
+  };
   return {
     async create(input: CreatePublicScopeInput, at: number = Date.now(), on: Executor = db): Promise<PublicScope> {
       const row: PublicScope = {
@@ -229,22 +236,15 @@ export function publicScopesRepo(meta: MetaDb) {
     },
 
     async list(): Promise<PublicScope[]> {
-      const rows = await db
-        .selectFrom('adminium_public_scopes')
-        .selectAll()
-        .orderBy('createdAt', 'desc')
-        .execute();
-      return rows.map(scopeRow);
+      return (await scopesByIds(await db.selectFrom('adminium_public_scopes').select('id').orderBy('createdAt', 'desc').execute())).map(scopeRow);
     },
 
     async listByConnection(connectionId: string): Promise<PublicScope[]> {
-      const rows = await db
-        .selectFrom('adminium_public_scopes')
-        .selectAll()
-        .where('connectionId', '=', connectionId)
-        .orderBy('createdAt', 'desc')
-        .execute();
-      return rows.map(scopeRow);
+      return (
+        await scopesByIds(
+          await db.selectFrom('adminium_public_scopes').select('id').where('connectionId', '=', connectionId).orderBy('createdAt', 'desc').execute(),
+        )
+      ).map(scopeRow);
     },
 
     async update(
@@ -539,20 +539,33 @@ export function publicKeysRepo(meta: MetaDb) {
       connectionId: string,
       at: number = Date.now(),
     ): Promise<(PublicKey & { scopeDocument: string })[]> {
-      const rows = await db
-        .selectFrom('adminium_public_keys')
-        .innerJoin('adminium_public_scopes', 'adminium_public_scopes.id', 'adminium_public_keys.scopeId')
-        .selectAll('adminium_public_keys')
-        .select('adminium_public_scopes.document as scopeDocument')
-        .where('adminium_public_scopes.connectionId', '=', connectionId)
-        .where('adminium_public_scopes.derivedForKey', 'is not', null)
-        .where('adminium_public_keys.revokedAt', 'is', null)
-        .where((eb) =>
-          eb.or([eb('adminium_public_keys.expiresAt', 'is', null), eb('adminium_public_keys.expiresAt', '>', at)]),
-        )
-        .orderBy('adminium_public_keys.createdAt')
-        .orderBy('adminium_public_keys.id')
-        .execute();
+      // The keys sorted alone, their scopes' documents fetched after (`inIdOrder`).
+      const ids = (
+        await db
+          .selectFrom('adminium_public_keys')
+          .innerJoin('adminium_public_scopes', 'adminium_public_scopes.id', 'adminium_public_keys.scopeId')
+          .select('adminium_public_keys.id as id')
+          .where('adminium_public_scopes.connectionId', '=', connectionId)
+          .where('adminium_public_scopes.derivedForKey', 'is not', null)
+          .where('adminium_public_keys.revokedAt', 'is', null)
+          .where((eb) =>
+            eb.or([eb('adminium_public_keys.expiresAt', 'is', null), eb('adminium_public_keys.expiresAt', '>', at)]),
+          )
+          .orderBy('adminium_public_keys.createdAt')
+          .orderBy('adminium_public_keys.id')
+          .execute()
+      ).map((row) => row.id);
+      if (ids.length === 0) return [];
+      const rows = inIdOrder(
+        ids,
+        await db
+          .selectFrom('adminium_public_keys')
+          .innerJoin('adminium_public_scopes', 'adminium_public_scopes.id', 'adminium_public_keys.scopeId')
+          .selectAll('adminium_public_keys')
+          .select('adminium_public_scopes.document as scopeDocument')
+          .where('adminium_public_keys.id', 'in', ids)
+          .execute(),
+      );
       return rows.map((row) => ({ ...keyRow(row), scopeDocument: jsonText(row.scopeDocument) }));
     },
 
