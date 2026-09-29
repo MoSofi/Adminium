@@ -467,8 +467,12 @@ describe.each(LEGS)('"send it again" through an order\'s own link — %s', (dial
     const code = await confirmCode(made.id);
     await earlier();
     const counted = await asksCounted();
+    let told = 0;
     box.onRecordEvent = async (event) => {
-      if (event.table.id === orders) throw new Error('telling failed');
+      if (event.table.id.endsWith(orders)) {
+        told += 1;
+        throw new Error('telling failed');
+      }
       return real(event as never);
     };
     let res;
@@ -477,6 +481,7 @@ describe.each(LEGS)('"send it again" through an order\'s own link — %s', (dial
     } finally {
       box.onRecordEvent = real;
     }
+    expect(told).toBe(1);
     expect(res.statusCode, res.body).toBe(202);
     const fresh = await confirmCode(made.id);
     expect(fresh).not.toBe(code);
