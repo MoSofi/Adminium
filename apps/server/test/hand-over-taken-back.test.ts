@@ -544,5 +544,31 @@ for (const [dialect, reachable] of LEGS) {
       expect(await row(order)).toMatchObject({ status: 'ready', paid_method: null, note: null, picked_up_at: null });
     });
 
+
+    it('keeps accepting a states rule saved before these checks, until a save changes it', async () => {
+      const app = (await serve()).composed.app;
+      const cookie = await signedIn('Rae', 'super-admin');
+      const overridesUrl = `/api/v1/connections/${h.connectionId}/overrides`;
+      // A rule a save of an earlier version kept: a second move to ready beside the undo, legal then.
+      const stored = (await overridesRepo(meta).listForConnection(h.connectionId, { status: 'active' })).find((o) => o.op === 'table.states' && o.tableName === table('orders').id)!;
+      const legacy = JSON.parse(JSON.stringify(stored.value)) as { moves: Record<string, unknown[]> };
+      legacy.moves['picked_up'] = [{ to: 'ready', roles: ['studio-kitchen'] }, { to: 'ready', roles: ['studio-manager'], undo: true, clears: ['paid_method'] }];
+      await meta.db.updateTable('adminium_schema_overrides').set({ value: JSON.stringify(legacy) }).where('id', '=', stored.id).execute();
+      const got = await app.inject({ method: 'GET', url: overridesUrl, headers: { cookie } });
+      const listed = ((got.json() as { overrides?: Record<string, unknown>[]; data?: Record<string, unknown>[] }).overrides ?? (got.json() as { data: Record<string, unknown>[] }).data) as Record<string, unknown>[];
+      const items = listed.map((item) => ({ op: item['op'], tableName: item['tableName'], ...(item['columnName'] == null ? {} : { columnName: item['columnName'] }), value: item['value'], ...(item['status'] === 'disabled' ? { status: 'disabled' } : {}) }));
+      const statesItem = items.find((item) => item.op === 'table.states' && item.tableName === table('orders').id)!;
+      expect(statesItem.value).toEqual(legacy);
+      // An unrelated save beside it: kept.
+      const label = { op: 'column.label', tableName: table('orders').id, columnName: 'note', value: { label: 'Kitchen note' } };
+      const unrelated = await app.inject({ method: 'PUT', url: overridesUrl, headers: { cookie }, payload: { overrides: [...items, label] } });
+      expect(unrelated.statusCode, unrelated.body).toBe(200);
+      // A save that changes those states without mending them: refused.
+      const edited = JSON.parse(JSON.stringify(legacy)) as { moves: Record<string, Record<string, unknown>[]> };
+      edited.moves['picked_up']![1]!['clears'] = ['paid_method', 'note'];
+      const changed = await app.inject({ method: 'PUT', url: overridesUrl, headers: { cookie }, payload: { overrides: [...items.map((item) => (item === statesItem ? { ...item, value: edited } : item)), label] } });
+      expect(changed.statusCode, changed.body).toBe(422);
+      expect((changed.json() as { error: { message: string } }).error.message).toContain('comes first, so this one is never made');
+    });
   });
 }

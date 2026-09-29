@@ -264,6 +264,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError('A table has a capacity or a booking rule, not both.', { table: tableName });
         }
       }
+      let storedStates: Awaited<ReturnType<typeof overrides.listForConnection>> | undefined;
       for (const item of body.overrides) {
         try {
           validateOverrideInput({ connectionId, ...item, columnName: item.columnName ?? null });
@@ -335,7 +336,10 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         }
         if (item.op === 'table.states') {
           const beside = body.overrides.filter((other) => other !== item && other.tableName === item.tableName && other.status !== 'disabled');
-          const issue = statesRuleIssue(item.value, table, model, { rules: beside.map((other) => ({ op: other.op, columnName: other.columnName ?? null, value: other.value })) });
+          // A states rule saved again as it is stored is not judged by checks added since it was saved.
+          storedStates ??= (await overrides.listForConnection(connectionId)).filter((row) => row.op === 'table.states' && row.status === 'active');
+          const kept = storedStates.some((row) => row.tableName === item.tableName && isDeepStrictEqual(row.value, item.value));
+          const issue = statesRuleIssue(item.value, table, model, { rules: beside.map((other) => ({ op: other.op, columnName: other.columnName ?? null, value: other.value })), kept });
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'relation.add') {
