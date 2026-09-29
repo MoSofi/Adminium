@@ -1,5 +1,5 @@
 {
-  "entryJsGzBytes": 298471,
+  "entryJsGzBytes": 282002,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md. `history` is newest-first: it replaced a chain of loweredOn/previousLoweredOn/previouslyLoweredOn/priorLoweredOn keys that had run out of adjectives, and no key beyond the two numbers above is read by anything.",
   "loweredOn": {
@@ -22,6 +22,14 @@
     "whatIsStillThere": "zod is 74.2 KiB raw in the entry, reachable from the boot path through `api/pages.ts` and `api/widgetData.ts` -> @adminium/engine/config. Deferring it MEASURED 22,082 gz bytes — by far the largest remaining lever — and was deliberately not taken here: it makes `parsePageDocument` async and touches the page-document reader's never-crash rules, which is a correctness change, not a bundle change. Recorded so the next pass does not have to re-measure it."
   },
   "history": [
+    {
+      "when": "2026-09-29",
+      "by": "the ratchet catching up with the deferred `ui.widgets` / `ui.templates` chunk: en-US widget and page-template words load on demand from `en-us/ui-deferred` since 2026-09-28, not in the entry",
+      "from": 298471,
+      "measured": "280,002 bytes (273.4 KiB gz), on an uncached build of the 0.3.6 release tree. The ratchet is 280,002 plus the usual 2,000-byte margin.",
+      "why": "The move took about 18.5 KiB gz out of the entry (a probe of the same change measured 298,057 -> 279,561), and the ratchet had stayed at 298,471. That left 18,469 bytes of slack for the entry to grow back into unnoticed. Lowering it keeps this number what the note says it is: the current weight, which may only go down.",
+      "cost": "None at run time. The words themselves cost one chunk fetch (`ui-deferred`, 19,556 B gz) the first time a widget or template renders in en-US; every widget waits for it (`useUiWords`), and the entry check refuses a build whose entry names a `ui:widgets.` or `ui:templates.` key."
+    },
     {
       "when": "2026-09-25",
       "by": "loading the topbar bell's feed on first open, which takes the widgets' `column-spec` module and the i18n formatters out of the entry",
