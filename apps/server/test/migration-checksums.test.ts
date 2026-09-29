@@ -33,6 +33,11 @@
  * were read out of `@adminiumjs/adminium@0.3.4` — cross-checked against 0.3.0
  * for every migration both carry.
  *
+ * 0045–0047 ship in 0.3.6. They were read out of the 0.3.6 release tarball that
+ * `scripts/release/rehearse-npx.mjs` packed from the release commit, before
+ * publishing; cross-check them against the published `@adminiumjs/adminium@0.3.6`
+ * once it is on npm.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -201,6 +206,9 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0042_clinic_platform': '178474e40b42ad2c3bec868ad47dd10b52441eac1af029b78d78b9271976b3fb',
   '0043_roles_namespace': 'cc6ac3320e6d15ba8ee9173c2a88cabc738f09ae389335b67e2f871f04c08594',
   '0044_invoicing_platform': '9b1e696ad188c23694c34dcfcd1d6661c3f872b67d0fa284e59647de25de598a',
+  '0045_app_table_shapes': '61304d75199cde9af15d14fa42c2c5b9badd707aa72e3e76792351477cf6450b',
+  '0046_public_sessions_ended': 'f725264ae0658bf6f516b7c43f8448a1822a9a21ff23149e36a749783b790b3d',
+  '0047_mysql_longtext': 'd845af74582a085c7e7b78121265cff555084bbb5ce9cf96130c55603ad517f6',
 });
 
 describe('shipped migration checksums', () => {
