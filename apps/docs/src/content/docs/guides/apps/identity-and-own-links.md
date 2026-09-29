@@ -388,12 +388,53 @@ client. It answers `202` with `{ "data": {} }`: the new link is never in the ans
 - **5 a day per row.** The sixth is `409` `PUBLIC_LIMIT_REACHED`, and the page offers the phone.
 - **One at a time.** A second press, or a retry, within 60 seconds of a new link answers `202`
   and makes no other; that link's email is on its way.
+- **Only while it applies.** With `when`, the row must hold every condition, or the answer is a bare
+  `409` `PUBLIC_WRITE_REFUSED`: nothing is made, sent or counted.
+
+### Send it again, through the row's own link
+
+A buyer who paid by bank transfer gets a **Confirm your order** email, with a link of its own (a
+second own link of the order, opened by its own key). The email never came, so on the checkout's
+**One more step** screen they press **Send it again**. That screen has the order's own link, not a
+sign-in, so the order's own-link entry names the confirm link and when it may be sent again:
+
+```json
+{
+  "table": "orders",
+  "key": "link",
+  "methods": ["GET", "PATCH"],
+  "claim": { "by": "token", "column": "link_token", "own": true, "address": "email" },
+  "select": ["id", "status", "total"],
+  "writable": ["status"],
+  "newLink": {
+    "column": "confirm_token",
+    "kind": "transfer-confirm",
+    "when": { "where": [{ "column": "status", "eq": "confirming" }] }
+  }
+}
+```
+
+The page asks with the same `POST /api/v1/public/records/{ref}/{id}/new-link` (or `newLink(ref, id)`),
+with the session its own link opened. The confirm link gets a new code, so the first email's link
+stops opening anything, and the new one is emailed as the outbox message `kind`.
+
+- **To the row's own address.** It goes where the outbox sends its other messages about the row,
+  never to an address in the request.
+- **The asking link stays open.** Only the confirm link changes; the order's own link and its
+  session keep working.
+- **Only while `when` holds.** Asked when the order is not confirming (not yet, or confirmed
+  already), the answer is a bare `409` `PUBLIC_WRITE_REFUSED`, and nothing is made, sent or counted.
+  The condition is checked again in the same statement that makes the new code, so a confirm that
+  lands meanwhile wins.
+- The same limits as above: 5 a day per row (whichever session asks), one every 60 seconds, and
+  `503` `PUBLIC_CODE_UNAVAILABLE` with the old link kept when no email can go.
 
 | Field | Rule |
 |---|---|
-| `newLink` | On a `GET` entry with a `claimedBy` that is not optional, on a key that signs people in by email. |
-| `newLink.column` | The code of a row's own link: a token claim with `own: true` on this table, by this column. |
-| `newLink.kind` | One of the outbox's `kinds`. The outbox has a `repeatKey` column (text that holds at least 43 characters, a digest), a link to this table, and its recipient table is the `claimedBy` table. |
+| `newLink` | On a `GET` entry with a `claimedBy` that is not optional, on a key that signs people in by email; or on a row's own-link entry (a token claim with `own: true`) that reads the row. |
+| `newLink.column` | Signed in: the code of a row's own link, a token claim with `own: true` on this table, by this column. Through the row's own link: another key's own link on this table, never the code the entry opens the row by. |
+| `newLink.kind` | One of the outbox's `kinds`. The outbox has a `repeatKey` column (text that holds at least 43 characters, a digest) and a link to this table. Signed in, its recipient table is the `claimedBy` table; through the row's own link, the outbox finds an address from the row (a link to its recipient table, or a fallback through this table). |
+| `newLink.when` | Optional. `{ "where": [conditions] }`, 1 to 8 conditions on the row (`eq`, `in`, `isNull`, `gt`, `gte`, `lt`, `lte`), all of which must hold. |
 
 ## Withheld columns
 
@@ -540,7 +581,7 @@ A column whose name only looks personal says so with `personal: false`:
 | `PUBLIC_REF_NOT_FOUND` | 404 | A session-only read with no session; a new link asked for a row that is not the person's, or by a session that may not. |
 | `LINK_EXPIRED` | 410 | An own link stopped or past its end. |
 | `PUBLIC_LIMIT_REACHED` | 409 | Over `perValue`, `perIpHour`, or 5 new links a day for one row. |
-| `PUBLIC_WRITE_REFUSED` | 409 | A delete whose own links could not all be stopped; a new link for a row with no code. |
+| `PUBLIC_WRITE_REFUSED` | 409 | A delete whose own links could not all be stopped; a new link for a row with no code, or one that does not hold the entry's `newLink.when`. |
 | `PUBLIC_CODE_UNAVAILABLE` | 503 | A new link that cannot be emailed. It is checked first, so the old link is kept. |
 
 Every code is in the [errors reference](/reference/errors/), and every route in the

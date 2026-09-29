@@ -2389,7 +2389,7 @@ the update's check, which sends `"publicAccess": true` to `POST /api/v1/apps/{ke
 | `clientKey` | no | A column holding a key the browser mints, so a retried create lands on the same row. |
 | `identity` | no | On a create, the person it is made for, found or made by the address typed. See [A person found by address](#a-person-found-by-address). |
 | `shareLink` | no | A share-code column: a create answers, once, the new row's own link. See [A row's own link](#a-rows-own-link). |
-| `newLink` | no | `{ "column", "kind" }`: "Make a new link" for a signed-in person's row. See [A row's own link](#a-rows-own-link). |
+| `newLink` | no | `{ "column", "kind", "when"? }`: "Make a new link" for a signed-in person's row, or "Send it again" through a row's own link. See [A row's own link](#a-rows-own-link). |
 | `forget` | no | On an identity entry: what "delete my details" empties. See [Delete my details](#delete-my-details). |
 | `withhold` | no | Columns left out of a row for some readers. See [Withheld columns](#withheld-columns). |
 | `limits` | no | Limits on a change a guest makes. See [Limits on a guest's change](#limits-on-a-guests-change). |
@@ -2781,6 +2781,13 @@ to the table, and its recipient table must be the `claimedBy` table. Only a veri
 ask, five times a day per row; a second ask within a minute changes nothing; when the email cannot
 go, the answer is `503` `PUBLIC_CODE_UNAVAILABLE`. See
 [Guests, their details and their own links](/guides/apps/identity-and-own-links/).
+
+On a row's own-link entry, `newLink` makes another own link of the row again ("Send it again" for a
+confirmation email): `column` is a code another key opens this table by with `own: true`, never the
+entry's own. The email goes to the row's own address, as the outbox's other messages about the row,
+and the asking session stays open. `when: { "where": [conditions] }` (on either kind of entry) allows
+the ask only while the row holds every condition; otherwise it is refused `409`
+`PUBLIC_WRITE_REFUSED`, with nothing made, sent or counted.
 
 ### Delete my details
 
