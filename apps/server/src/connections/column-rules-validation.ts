@@ -672,8 +672,14 @@ export function statesRuleIssue(
   raw: unknown,
   table: TableModel,
   model: DatabaseModel,
-  /** The rules saved beside it on the same table: a column one of them decides is not an undo's to empty. */
-  related?: { rules: readonly { op: string; columnName: string | null; value: unknown }[] },
+  /**
+   * The rules saved beside it on the same table: a column one of them decides
+   * is not an undo's to empty. `kept`: the rule is the one already stored,
+   * saved again unchanged — what an undo empties and a second move to one
+   * state are judged only when a save changes the states, so a rule saved
+   * before those checks does not stop every later save.
+   */
+  related?: { rules: readonly { op: string; columnName: string | null; value: unknown }[]; kept?: boolean },
 ): string | null {
   // The shape was proved by the store's own schema (`validateOverrideInput`),
   // which knows a table here is its id in the snapshot (`main.studio_lines`).
@@ -734,7 +740,7 @@ export function statesRuleIssue(
   }
   // What an undo empties, and a move another to the same state hides: judged as an app's manifest is.
   const deciding = new Set((related?.rules ?? []).filter((rule) => rule.columnName !== null && DECIDING_OPS.has(rule.op)).map((rule) => rule.columnName!));
-  const [undo] = undoMoveIssues(states, table.name, {
+  const [undo] = related?.kept === true ? [] : undoMoveIssues(states, table.name, {
     column: (name) => {
       const found = table.columns.find((c) => c.name === name);
       return found === undefined ? undefined : { key: found.isPrimaryKey, nullable: found.nullable };
