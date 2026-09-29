@@ -29,7 +29,7 @@ import type { RecordWriteEvent } from '../src/crud/after-record-write.js';
 import type { ResolvedTable, SnapshotView } from '../src/crud/identifiers.js';
 import type { Row } from '../src/crud/mask.js';
 import { withSeenState } from '../src/crud/seen-state.js';
-import { NO_RECORD_HOOKS, createWriteService, type WriteContext } from '../src/crud/write-service.js';
+import { NO_RECORD_HOOKS, createWriteService, updateRows, type WriteContext } from '../src/crud/write-service.js';
 import { writeStores } from '../src/crud/write-stores.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { emailEnvelopeKey } from '../src/email/send.js';
@@ -86,7 +86,7 @@ export function kitchenManifest(): Record<string, unknown> {
       ref: 'messages',
       columns: [
         id,
-        { ref: 'kind', type: 'enum', enum: ['order-receipt'] },
+        { ref: 'kind', type: 'enum', enum: ['order-receipt', 'order-thanks'] },
         { ref: 'status', type: 'enum', enum: ['queued', 'sent', 'failed', 'skipped'], default: 'queued' },
         text('to_address', 254),
         { ref: 'order_id', type: 'fk', references: 'orders', nullable: true },
@@ -114,7 +114,7 @@ export function kitchenManifest(): Record<string, unknown> {
       links: { order: 'order_id' },
       recipient: { via: 'order_id', table: 'orders', email: 'email' },
       settings: { table: 'settings', name: 'name' },
-      kinds: { 'order-receipt': 'studio-receipt' },
+      kinds: { 'order-receipt': 'studio-receipt', 'order-thanks': 'studio-thanks' },
       producers: [
         {
           kind: 'order-receipt',
@@ -125,9 +125,14 @@ export function kitchenManifest(): Record<string, unknown> {
           holdSeconds: 20,
           dropWhen: [{ column: 'status', in: ['ready'], reason: 'no-longer-needed' }],
         },
+        // A gate of one key beside it: only while Invoices & Receipts is attached, whatever the switch says.
+        { kind: 'order-thanks', link: 'order_id', gate: { feature: 'receipts' }, onChange: { table: 'orders', column: 'status', to: 'picked_up' } },
       ],
     },
-    emailTemplates: [{ key: 'studio-receipt', name: 'Receipt', locales: { 'en-US': { subject: 'Your receipt', blocks: [{ block: 'email.text', data: { text: 'Paid.' } }] } } }],
+    emailTemplates: [
+      { key: 'studio-receipt', name: 'Receipt', locales: { 'en-US': { subject: 'Your receipt', blocks: [{ block: 'email.text', data: { text: 'Paid.' } }] } } },
+      { key: 'studio-thanks', name: 'Thanks', locales: { 'en-US': { subject: 'Thank you', blocks: [{ block: 'email.text', data: { text: 'Thanks.' } }] } } },
+    ],
   };
 }
 
@@ -176,6 +181,8 @@ for (const [dialect, reachable] of LEGS) {
         status: String(m['status']),
         skip: (m['skip_reason'] as string | null) ?? null,
       }));
+    const thanks = async (rowId: unknown) =>
+      Number((await h.rows(`SELECT count(*) AS n FROM ${h.real('messages')} WHERE order_id = ${String(rowId)} AND kind = 'order-thanks'`))[0]!['n']);
     const mailTo = async (address: string) =>
       (await meta.db.selectFrom('adminium_jobs').selectAll().where('kind', '=', 'email.send').execute())
         .map((job) => {
@@ -228,7 +235,26 @@ for (const [dialect, reachable] of LEGS) {
       cook = await person('Sam', 'kitchen');
     }, 180_000);
 
+    let served: Awaited<ReturnType<typeof servePublic>> | undefined;
+    /** The whole server over the same install, started once; closing it lets go of the install's pools, so it is closed last. */
+    const serve = async () => (served ??= await servePublic(h, null));
+    /** A person signed in to it, holding one role, and read and change on the orders for an app role. */
+    const signedIn = async (name: string, slug: string): Promise<string> => {
+      const app = (await serve()).composed.app;
+      const user = await usersRepo(meta).create({ email: `${name.toLowerCase()}-${dialect}@kitchen.dev`, name, passwordHash: await adminPasswordHash() });
+      const role = (await rolesRepo(meta).findBySlug(slug))!;
+      await rolesRepo(meta).assignToUser(user.id, role.id);
+      if (slug !== 'super-admin') {
+        await permissionsRepo(meta).grant(role.id, 'table', `${h.connectionId}/${table('orders').id}`, { read: true, create: false, update: true, delete: false, export: false, import: false, read_pii: false } as never);
+      }
+      const login = await app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: user.email, password: ADMIN_PASSWORD } });
+      expect(login.statusCode, login.body).toBe(200);
+      return sessionCookie(login.headers['set-cookie']);
+    };
+    const url = (rowId: unknown, suffix = '') => `/api/v1/data/${h.connectionId}/${encodeURIComponent(table('orders').id)}/${String(rowId)}${suffix}`;
+
     afterAll(async () => {
+      await served?.close();
       await h?.close();
     });
 
@@ -248,6 +274,7 @@ for (const [dialect, reachable] of LEGS) {
       const detached = await readyOrder('ada@kitchen.dev');
       await handOver(detached);
       expect(await receipts(detached)).toEqual([]);
+      expect(await thanks(detached)).toBe(0);
 
       await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).install({
         manifestKey: 'invoices',
@@ -262,12 +289,15 @@ for (const [dialect, reachable] of LEGS) {
       const off = await readyOrder('ben@kitchen.dev');
       await handOver(off);
       expect(await receipts(off)).toEqual([]);
+      // The gate of one key reads the feature alone.
+      expect(await thanks(off)).toBe(1);
 
       // Attached and switched on: one, held.
       await switchReceipts(true);
       const on = await readyOrder('cal@kitchen.dev');
       await handOver(on);
       expect(await receipts(on)).toEqual([{ status: 'queued', skip: null }]);
+      expect(await thanks(on)).toBe(1);
 
       // Switched off again, still attached: the next hand-over queues nothing.
       await switchReceipts(false);
@@ -292,7 +322,7 @@ for (const [dialect, reachable] of LEGS) {
       // Past the hold: dropped, never sent.
       await sender.sendApp('studio', Date.now() + 30_000);
       expect(await receipts(order)).toEqual([{ status: 'skipped', skip: 'no-longer-needed' }]);
-      expect(await mailTo('eve@kitchen.dev')).toEqual([]);
+      expect((await mailTo('eve@kitchen.dev')).filter((subject) => subject === 'Your receipt')).toEqual([]);
 
       // Handed over again (card this time): a fresh receipt, the dropped one does not stop it.
       await change(order, { status: 'picked_up', paid_method: 'card' }, 'ready');
@@ -346,21 +376,40 @@ for (const [dialect, reachable] of LEGS) {
       expect(await receipts(order)).toEqual([{ status: 'queued', skip: null }]);
     });
 
-    it('receipts follow the add-on: detached, nothing is queued', async () => {
-      expect(await manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v }).detachHost('studio')).toBe(1);
-      const order = await readyOrder('hal@kitchen.dev');
+    it('closes both gates while the add-on is switched off or detached, and opens them again with it', async () => {
+      const manifests = manifestsRepo(meta, { encrypt: (v) => v, decrypt: (v) => v });
+      const invoices = (await manifests.findByKey('invoices'))!;
+      const handedOver = async (email: string) => {
+        const order = await readyOrder(email);
+        await handOver(order);
+        return { receipts: (await receipts(order)).length, thanks: await thanks(order) };
+      };
+      // Switched off, by its row: neither gate is open.
+      await manifests.setStatus(invoices.row.id, 'disabled');
+      expect(await handedOver('hal@kitchen.dev')).toEqual({ receipts: 0, thanks: 0 });
+      // On again: both.
+      await manifests.setStatus(invoices.row.id, 'installed');
+      expect(await handedOver('ida@kitchen.dev')).toEqual({ receipts: 1, thanks: 1 });
+      // Detached: neither.
+      expect(await manifests.detachHost('studio')).toBe(1);
+      expect(await handedOver('jo@kitchen.dev')).toEqual({ receipts: 0, thanks: 0 });
+    });
+
+    it('starts a take-back again when the row moved between the read its rules were decided on and the write', async () => {
+      const order = await readyOrder('kim@kitchen.dev');
+      // Decided on the row as it stands, ready: nothing to empty.
+      const orders = await target('orders');
+      const [prepared] = await writes.beforeEach('update', orders, boss, [{ match: { id: order }, values: withSeenState(table('orders'), { status: 'ready' }, 'picked_up') }]);
+      // Meanwhile another screen hands it over.
       await handOver(order);
-      expect(await receipts(order)).toEqual([]);
+      expect(await refusal(updateRows(orders.db, orders.dialect, orders.table, prepared!.values, { id: order }))).toMatchObject({ code: 'WRITE_CONFLICT', details: { retry: true } });
+      expect(await row(order)).toMatchObject({ status: 'picked_up', paid_method: 'cash' });
     });
 
     it('through the data routes: the staff change, an API key, the dashboard’s Undo of the hand-over, a quote and a bulk change', async () => {
-      const served = await servePublic(h, null);
-      try {
-        const owner = await usersRepo(meta).create({ email: `owner-${dialect}@kitchen.dev`, name: 'Owner', passwordHash: await adminPasswordHash() });
-        await rolesRepo(meta).assignToUser(owner.id, (await rolesRepo(meta).findBySlug('super-admin'))!.id);
-        const login = await served.composed.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: owner.email, password: ADMIN_PASSWORD } });
-        const cookie = sessionCookie(login.headers['set-cookie']);
-        const url = (rowId: unknown, suffix = '') => `/api/v1/data/${h.connectionId}/${encodeURIComponent(table('orders').id)}/${String(rowId)}${suffix}`;
+      const served = await serve();
+      {
+        const cookie = await signedIn('Owner', 'super-admin');
         const patch = (rowId: unknown, payload: Record<string, unknown>, headers: Record<string, string> = { cookie }) =>
           served.composed.app.inject({ method: 'PATCH', url: url(rowId), headers, payload });
 
@@ -427,9 +476,72 @@ for (const [dialect, reachable] of LEGS) {
         await patch(order, { values: { paid_method: 'card' } });
         const kept = await patch(order, { values: { status: 'picked_up' }, from: 'ready' });
         expect((kept.json() as { undoToken: string | null }).undoToken).not.toBeNull();
-      } finally {
-        await served.close();
       }
+    });
+
+    it('offers the Undo of a hand-over only to a person who may make the move back', async () => {
+      const app = (await serve()).composed.app;
+      const patch = (rowId: unknown, payload: Record<string, unknown>, cookie: string) => app.inject({ method: 'PATCH', url: url(rowId), headers: { cookie }, payload });
+      const tokenOf = (reply: { json: () => unknown }) => (reply.json() as { undoToken: string | null }).undoToken;
+      // The kitchen hands over: no Undo, since only a manager takes a hand-over back.
+      const kitchen = await signedIn('Lee', 'studio-kitchen');
+      const byKitchen = await readyOrder('lee@kitchen.dev');
+      const handed = await patch(byKitchen, { values: { status: 'picked_up', paid_method: 'cash' }, from: 'ready' }, kitchen);
+      expect(handed.statusCode, handed.body).toBe(200);
+      expect(tokenOf(handed)).toBeNull();
+      // A manager's hand-over is offered one, and it is made.
+      const manager = await signedIn('Max', 'studio-manager');
+      const byManager = await readyOrder('max@kitchen.dev');
+      const offered = await patch(byManager, { values: { status: 'picked_up', paid_method: 'card' }, from: 'ready' }, manager);
+      expect(offered.statusCode, offered.body).toBe(200);
+      expect(tokenOf(offered)).not.toBeNull();
+      const undone = await app.inject({ method: 'POST', url: `/api/v1/data/undo/${tokenOf(offered)!}`, headers: { cookie: manager } });
+      expect(undone.statusCode, undone.body).toBe(200);
+      expect(await row(byManager)).toMatchObject({ status: 'ready', paid_method: null, picked_up_at: null, picked_up_by: null });
+    });
+
+    it('saves no states rule in Studio whose undo empties what the manifest would refuse, and the take-back works after one it keeps', async () => {
+      const app = (await serve()).composed.app;
+      const cookie = await signedIn('Pat', 'super-admin');
+      const overridesUrl = `/api/v1/connections/${h.connectionId}/overrides`;
+      const got = await app.inject({ method: 'GET', url: overridesUrl, headers: { cookie } });
+      expect(got.statusCode, got.body).toBe(200);
+      const listed = ((got.json() as { overrides?: Record<string, unknown>[]; data?: Record<string, unknown>[] }).overrides ?? (got.json() as { data: Record<string, unknown>[] }).data) as Record<string, unknown>[];
+      const items = listed.map((item) => ({ op: item['op'], tableName: item['tableName'], ...(item['columnName'] == null ? {} : { columnName: item['columnName'] }), value: item['value'], ...(item['status'] === 'disabled' ? { status: 'disabled' } : {}) }));
+      const statesItem = items.find((item) => item.op === 'table.states' && item.tableName === table('orders').id)!;
+      const put = (pickedUp: unknown[]) => {
+        const value = JSON.parse(JSON.stringify(statesItem.value)) as { moves: Record<string, unknown[]> };
+        value.moves['picked_up'] = pickedUp;
+        return app.inject({ method: 'PUT', url: overridesUrl, headers: { cookie }, payload: { overrides: items.map((item) => (item === statesItem ? { ...item, value } : item)) } });
+      };
+      const back = (clears: unknown[]) => [{ to: 'ready', roles: ['studio-manager'], undo: true, clears }];
+      const refused: [unknown[], string][] = [
+        [back(['nope']), 'has no column "nope"'],
+        [back(['picked_up_at']), 'is written by another rule already'],
+        [back(['note', 'note']), '"note" is named twice'],
+        [back(['status']), 'not by what it empties'],
+        [back(['id']), 'is the key, which never changes'],
+        [back(['link_stopped']), 'is not nullable, so an undo cannot empty it'],
+        [[{ to: 'ready', roles: ['studio-kitchen'] }, ...back(['paid_method'])], 'comes first, so this one is never made'],
+      ];
+      for (const [pickedUp, sentence] of refused) {
+        const reply = await put(pickedUp);
+        expect(reply.statusCode, `${JSON.stringify(pickedUp)} ${reply.body}`).toBe(422);
+        expect((reply.json() as { error: { message: string } }).error.message).toContain(sentence);
+      }
+      // Nothing of them was kept: the move back is the app's still.
+      expect(table('orders').table?.states?.moves['picked_up']).toEqual(back(['paid_method']));
+      // One it keeps: the note emptied beside the payment.
+      const kept = await put(back(['paid_method', 'note']));
+      expect(kept.statusCode, kept.body).toBe(200);
+      const order = await readyOrder('pat@kitchen.dev');
+      const noted = await app.inject({ method: 'PATCH', url: url(order), headers: { cookie }, payload: { values: { note: 'no onions' } } });
+      expect(noted.statusCode, noted.body).toBe(200);
+      const handed = await app.inject({ method: 'PATCH', url: url(order), headers: { cookie }, payload: { values: { status: 'picked_up', paid_method: 'cash' }, from: 'ready' } });
+      expect(handed.statusCode, handed.body).toBe(200);
+      const taken = await app.inject({ method: 'PATCH', url: url(order), headers: { cookie }, payload: { values: { status: 'ready' }, from: 'picked_up' } });
+      expect(taken.statusCode, taken.body).toBe(200);
+      expect(await row(order)).toMatchObject({ status: 'ready', paid_method: null, note: null, picked_up_at: null });
     });
 
   });
