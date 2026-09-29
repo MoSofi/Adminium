@@ -512,8 +512,10 @@ a list, so an address ending in one it does not know still passes.
 
 A column a create lists under `anonymous.plainText` is judged on every write of it: the create
 itself, signed in or not (a name the person's account fills in too), and every change of the row
-that writes it, through its own link, a signed-in person's rows or a batch. The refusal says
-`params.column`; its message names the rule.
+that writes it, through its own link, a signed-in person's rows or a batch. A person's own column
+that `identity.fill` fills such a column from (the account's `name` into an order's `buyer_name`)
+is judged the same way on the account's change. The refusal says `params.column`; its message
+names the rule.
 
 ### A visitor's hour
 

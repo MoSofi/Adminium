@@ -68,10 +68,14 @@ function shop(): Doc {
           return {
             ...entry,
             writable: [...(entry['writable'] as string[]), 'buyer_name'],
+            // As a box office fills the buyer's name from the account.
+            identity: { ...(entry['identity'] as Doc), fill: { name: 'buyer_name' } },
             anonymous: { perValue: { columns: ['email'], n: 20 }, plainText: ['name', 'buyer_name'] },
             children: { order_items: { ...children.order_items, plainText: ['dish'] } },
           };
         }
+        // The account's own details: its name, and a phone no create is filled from.
+        if (entry['table'] === 'customers' && entry['claim'] !== undefined) return { ...entry, writable: ['name', 'phone'] };
         if (entry['table'] === 'orders' && entry['key'] === 'link') return { ...entry, writable: ['note', 'buyer_name'], limits: { plainText: ['note'] } };
         if (entry['table'] === 'orders' && entry['claimedBy'] !== undefined && (entry['methods'] as string[]).includes('GET')) {
           return { ...entry, methods: ['GET', 'PATCH'], writable: ['buyer_name'] };
@@ -196,7 +200,7 @@ describe.each(LEGS)('a stranger\'s name is judged link-free on every public door
     expect(await stored()).toMatchObject({ buyer_name: NAMES.at(-1), note: NAMES.at(-1) });
   });
 
-  it.skipIf(!available)('a signed-in buyer: the create, a name the account fills in, and a change of their own order, all judged', async () => {
+  it.skipIf(!available)("a signed-in buyer: the create, a name the account fills in, the account's own name, and a change of their own order, all judged", async () => {
     const email = `signed${String(dialect)}@fieldmail.io`;
     const first = await place({ values: { email, name: 'Clean Name' }, children: { order_items: [{ values: { dish: 'Soup', qty: 1 } }] } });
     expect(first.statusCode, first.body).toBe(201);
@@ -212,8 +216,17 @@ describe.each(LEGS)('a stranger\'s name is judged link-free on every public door
     expect(mine.statusCode, mine.body).toBe(201);
     // An account's name, printed on the order where the buyer left it empty, is judged as a typed one.
     await h.rows(`update ${h.real('customers')} set name = 'refund-desk.com Smith' where email = '${email}'`);
-    refusedFor(await signed({ name: '' }), { column: 'name' });
-    expect((await signed({ name: 'Mia' })).statusCode).toBe(201);
+    refusedFor(await signed({ name: 'Mia', buyer_name: '' }), { column: 'buyer_name' });
+    expect((await signed({ name: 'Mia', buyer_name: 'Mia' })).statusCode).toBe(201);
+    // The account's own name, which the order's buyer's name is filled from, is judged where the person can fix it.
+    const me = Number((await h.rows(`select id from ${h.real('customers')} where email = '${email}'`))[0]!['id']);
+    const account = (values: Doc) => g.request('PATCH', `/records/${h.real('customers')}_claimed/${String(me)}`, { session, payload: { values } });
+    for (const name of [...LINKS, 'Wong.Ng']) refusedFor(await account({ name }), { column: 'name' });
+    for (const name of ['Ana López', ...NAMES]) expect((await account({ name })).statusCode, name).toBe(200);
+    // A column no create is filled from is not held to plain text.
+    expect((await account({ phone: '+44 7700 900123' })).statusCode).toBe(200);
+    expect((await h.rows(`select name, phone from ${h.real('customers')} where id = ${String(me)}`))[0]).toMatchObject({ name: NAMES.at(-1), phone: '+44 7700 900123' });
+    expect((await signed({ name: 'Mia', buyer_name: '' })).statusCode).toBe(201);
     // A single create, signed in: the same rule.
     const ask = (name: string) => g.request('POST', `/records/${h.real('enquiries')}_verified`, { session, payload: { values: { name, body: 'Hello' } } });
     for (const name of LINKS) refusedFor(await ask(name), { column: 'name' });
