@@ -212,3 +212,21 @@ describe('the further columns an undo empties', () => {
     expect(messages(empty)).not.toEqual([]);
   });
 });
+
+describe('a second move to the same state', () => {
+  it('refuses one that an undo or its clears would make, since the first to that state is the one made', () => {
+    const hidden = handedBack();
+    moves(hidden)['picked_up'] = [{ to: 'ready', roles: ['kitchen'] }, { to: 'ready', undo: true, clears: ['paid_method'] }];
+    expect(messages(hidden)).toContain('another move from "picked_up" to "ready" comes first, so this one is never made');
+
+    const hiding = handedBack();
+    moves(hiding)['picked_up'] = [{ to: 'ready', undo: true, clears: ['paid_method'] }, 'ready'];
+    expect(messages(hiding)).toContain('another move from "picked_up" to "ready" comes first, so this one is never made');
+  });
+
+  it('keeps a plain second move as it was', () => {
+    const plain = handedBack();
+    moves(plain)['ready'] = ['picked_up', 'picked_up', { to: 'preparing', undo: true, requires: { time: { before: { column: 'ready_at', plus: { minutes: 1 } } } } }];
+    expect(messages(plain)).toEqual([]);
+  });
+});

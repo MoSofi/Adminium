@@ -160,6 +160,7 @@ export {
 
 export {
   moveTarget,
+  undoMoveIssues,
   stateChildSchema,
   stateConditionSchema,
   stateMoveSchema,
@@ -168,6 +169,7 @@ export {
   type StateCondition,
   type StateMove,
   type States,
+  type UndoColumn,
 } from './states.js';
 export {
   createRequiresSchema,
