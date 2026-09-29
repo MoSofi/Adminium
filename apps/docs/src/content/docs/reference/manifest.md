@@ -1260,7 +1260,7 @@ lines are locked and payments may be recorded against it.
 |---|---|---|
 | `column` | yes | The `enum` column that holds the state. Every state named below is one of its values. |
 | `initial` | yes | The state a new row starts in. |
-| `moves` | yes | From each state, up to 16 states a row may move to. A move is a state (`"void"`), or `{ "to", "requires"?, "roles"?, "undo"? }`. A move goes to another state. `undo: true` marks a move that takes back the listed move the other way; see [Undo of a move](#undo-of-a-move). |
+| `moves` | yes | From each state, up to 16 states a row may move to. A move is a state (`"void"`), or `{ "to", "requires"?, "roles"?, "undo"?, "clears"? }`. A move goes to another state. `undo: true` marks a move that takes back the listed move the other way; `clears` (1–8 columns, on an undo only) names further columns it empties. See [Undo of a move](#undo-of-a-move). |
 | `lock` | no | `{ "when", "except"? }`. While a row is in one of `when` (1–16 states), only the columns in `except` (up to 32) may change, and the state itself through a move. The state column is never in `except`. |
 | `children` | no | Child tables tied to the row's state, keyed by table ref. See below. |
 | `lockedWhenReferencedBy` | no | 1–4 `{ "table", "via", "in" }`: the row is locked once a row of `table`, whose foreign key `via` points at it, is in one of the states `in` (a terms version, once a proposal naming it is sent). Needs `lock`, which says what stays open. |
@@ -1515,6 +1515,31 @@ stamps written when the row entered the state it returns to keep what they had; 
 moves is never written by a door that names no state it saw: a timed move, an effect, an email's
 `onSent`, or a value a guest may write. An outbox producer with [`holdSeconds`](#outbox) waits long
 enough for an undo to drop its message.
+
+An undo may empty further columns that the move it takes back filled, with `clears`: a hand-over
+taken back is unpaid again.
+
+```json
+"moves": {
+  "ready": [{ "to": "picked_up", "requires": { "where": [{ "column": "paid_method", "isNull": false }] } }],
+  "picked_up": [{ "to": "ready", "roles": ["manager"], "undo": true, "clears": ["paid_method"] }]
+},
+"lock": { "when": ["picked_up"], "except": ["link_stopped"] }
+```
+
+- The move empties each column it `clears`, whether or not the writer sends it. A writer may send
+  one empty (`null`); a value is refused `409` `STATE_MOVE_REFUSED`, with `details.clears` naming
+  the column, and nothing is written.
+- What an undo empties, its `clearOnBack` stamps and its `clears`, is open to the table's `lock`
+  for that move only, and only to be emptied. The same column changed by any other write, or given
+  a value, stays locked (`409` `RECORD_LOCKED`). The lock's other columns and the rows of
+  `children` tied to it stay as they are.
+- `clears` names 1–8 columns of the table, each once, that may be empty. It never names the state
+  column, the key, or a column another rule writes (a stamp is emptied by `clearOnBack` instead).
+  It is refused on a move not marked `undo`: `only a move marked undo empties columns as it goes`.
+- The dashboard's Undo of the forward move makes this move back when the forward change filled
+  a column the undo `clears` from empty. When the change overwrote a value already there, the move
+  back would lose it, so no Undo is offered.
 
 A code nothing renews is put back by an undo as it was. A code a change of hands renewed is never
 put back: undoing the hand-over makes a code neither holder had. See
@@ -2104,8 +2129,10 @@ that points at the row the message is about and must be one of `links`. Optional
 pauses the producer while the settings row's `settings.enabled` bool is false;
 `gate: { "setting": { "table", "column" } }` pauses it while that bool of the settings row is false,
 so each notice can have its own switch; `gate: { "feature": "<id>" }` sends only while one of the
-app's [`addOns.features`](#add-ons) is on (a receipt, while Invoices & Receipts is attached). Then
-exactly one of:
+app's [`addOns.features`](#add-ons) is on (a receipt, while Invoices & Receipts is attached);
+`gate: { "feature": "<id>", "setting": { "table", "column" } }` sends only while both hold: the
+feature is on AND that bool of the settings row is true (a receipt, while Invoices & Receipts is
+attached and the manager's switch is on). Each half is checked as it is alone. Then exactly one of:
 
 | Producer | Shape | Queues a row |
 |---|---|---|
