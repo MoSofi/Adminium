@@ -74,7 +74,7 @@ import { copiedOf } from './decided-columns.js';
 import { refusedOn } from './refusal-table.js';
 import { lateRuleFor, lateVerdict, refusedBy } from './late.js';
 import { momentOf, momentSettings, momentVias, type MomentContext } from './moments.js';
-import { columnsEmptiedByUndo } from './undo-moves.js';
+import { columnsEmptiedByUndo, emptyValue } from './undo-moves.js';
 import {
   HeldLinks,
   StateTooLate,
@@ -555,6 +555,8 @@ async function judgeOwnUpdate(
   judging: Judging,
 ): Promise<void> {
   const from = text(stored[states.column]) ?? states.initial;
+  // What an undo move empties (its stamps and its `clears`): open to the lock for that move only, to be emptied.
+  let emptiedByMove: readonly string[] = [];
   if (changed.includes(states.column)) {
     const to = text(values[states.column]);
     const move = (states.moves[from] ?? []).find((candidate) => targetOf(candidate) === to);
@@ -572,6 +574,9 @@ async function judgeOwnUpdate(
       }
       // An undo is made only by a write that names the state it takes the row back from.
       if (move.undo === true && named === undefined) refuse(`A ${table.name} row goes back from ${from} to ${String(to)} only when the change names the state it was in.`, { undo: true });
+      // A column the undo empties is emptied: a value sent for one is refused, never written.
+      const valued = (move.undo === true ? (move.clears ?? []) : []).find((column) => Object.prototype.hasOwnProperty.call(values, column) && !emptyValue(values[column]));
+      if (valued !== undefined) refuse(`A ${table.name} row goes back from ${from} to ${String(to)} with ${valued} emptied.`, { clears: valued });
       const key = table.primaryKey[0];
       for (const [child, min] of Object.entries(move.requires?.children ?? {})) {
         const via = states.children?.[child]?.via;
@@ -586,7 +591,11 @@ async function judgeOwnUpdate(
         if (found < min) refuse(`A ${table.name} row goes from ${from} to ${String(to)} only with at least ${String(min)} ${child} row(s).`, { requires: child, min });
       }
       // An undo is judged on the row as it stands: what it empties is read as it was.
-      const kept = move.undo === true ? columnsEmptiedByUndo(table.table?.columns ?? [], states.column, { from, to: to! }) : [];
+      const kept = move.undo === true ? [...columnsEmptiedByUndo(table.table?.columns ?? [], states.column, { from, to: to! }), ...(move.clears ?? [])] : [];
+      emptiedByMove = kept;
+      // DECIDE read the row before the locks: a take-back it did not see (the row was moved back and on again meanwhile) emptied nothing. Start again.
+      const missed = move.undo === true && !guard.history ? kept.find((column) => !Object.prototype.hasOwnProperty.call(values, column) && !emptyValue(stored[column])) : undefined;
+      if (missed !== undefined) throw new ConflictError('This row moved while the change was made. Try again.', 'WRITE_CONFLICT', { retry: true, column: missed });
       const next = { ...stored, ...values, ...Object.fromEntries(kept.map((column) => [column, stored[column]])) };
       // An import's move of a row already there is a move like anyone's: it waits for what the move waits for.
       const waits = move.requires;
@@ -605,7 +614,8 @@ async function judgeOwnUpdate(
     const timedSets = (states.timed ?? [])
       .filter((rule) => guard.declared !== undefined && rule.from === from && rule.to === to && guard.declared.to === to)
       .flatMap((rule) => Object.keys(rule.set ?? {}));
-    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided, ...lateFlags, ...timedSets]);
+    const emptied = emptiedByMove.filter((name) => emptyValue(values[name]));
+    const open = new Set([states.column, ...(states.lock?.except ?? []), ...guard.decided, ...lateFlags, ...timedSets, ...emptied]);
     const column = changed.find((name) => !open.has(name));
     if (column !== undefined) {
       throw new RecordLocked(`This ${table.name} row is ${from}: ${column} can no longer change.`, { column, state: from });

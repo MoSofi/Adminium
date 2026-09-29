@@ -116,7 +116,7 @@ import { clientKeySecret } from '../public/tree.js';
 const LINK_READ_CAP = 200;
 import { withOccurredAt } from '../../crud/occurred-at.js';
 import { withSeenState } from '../../crud/seen-state.js';
-import { moveBackOf } from '../../crud/undo-moves.js';
+import { moveBackOf, undoRolesOf } from '../../crud/undo-moves.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
 import { isStateRefusal } from '../../crud/state-conditions.js';
 import {
@@ -336,6 +336,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
   const { manager, meta } = deps;
   const undoStore = deps.undoStore ?? new UndoStore();
   const writes = deps.writes ?? createWriteService(writeStores(meta));
+  // The roles a person holds, as a move judges them: an Undo is offered only for a move back they may make.
+  const undoRoles = writeStores(meta).rolesOf;
   const snapshots = snapshotsRepo(meta);
   const overrides = overridesRepo(meta);
   const lists = optionListsRepo(meta);
@@ -1325,7 +1327,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return data;
     }
 
-    function issueUndo(
+    async function issueUndo(
       request: FastifyRequest,
       ctx: DataContext,
       action: UndoAction,
@@ -1340,7 +1342,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       children: UndoChildren[] = [],
       /** Rows of other tables the write's move moved too (a room set to cleaning): no move back would take them back. */
       effected: readonly unknown[] = [],
-    ): string | null {
+    ): Promise<string | null> {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
       // A code a change of hands made (a ticket handed on) is never taken back: the old secret stays dead, the rest is undone.
@@ -1352,6 +1354,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       // No undo that would delete a row numbered without gaps, or take a document's state back — but a status move the app lists an undo for.
       const moveBack = action === 'update' && children.length === 0 && links.length === 0 && effected.length === 0 ? moveBackOf(ctx.table.table, before, after, changedColumns) : null;
       if (takesNumberBack(ctx, action, children) || (takesStateBack(ctx, children, links) && moveBack === null)) return null;
+      // A move back kept for some roles is offered only to a person who holds one: an Undo that could never be made is none.
+      const backRoles = moveBack === null || ctx.table.table.states === undefined ? undefined : undoRolesOf(ctx.table.table.states, { from: moveBack.from, to: moveBack.to });
+      if (backRoles !== undefined) {
+        const held = (await undoRoles?.(requestWriteContext(request, 'dashboard').actor ?? null)) ?? new Set<string>();
+        if (held !== 'any' && !backRoles.some((role) => held.has(role))) return null;
+      }
       const { token } = undoStore.issue({
         ...(moveBack === null ? {} : { moveBack }),
         auditId: null,
@@ -1953,7 +1961,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const undoToken =
           okCount === 0
             ? null
-            : issueUndo(
+            : await issueUndo(
                 request,
                 ctx,
                 action,
@@ -2582,7 +2590,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           });
           // One token over every row: the create-undo path already deletes
           // each `after` it holds, in order.
-          undoToken = issueUndo(request, ctx, 'create', [], rows);
+          undoToken = await issueUndo(request, ctx, 'create', [], rows);
           for (const row of rows) {
             const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
             await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
@@ -2612,7 +2620,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const tree = await staffTree(request, ctx, context, values, [], [], {}, 'save', guards ?? {});
           const created = tree.outcome.root;
           if (tree.outcome.replayed) return reply.status(200).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
-          undoToken = issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
+          undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
           return reply.status(201).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken });
         }
         if (links.length === 0 && children.length === 0) {
@@ -2624,7 +2632,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             mapError: (error) => mapDbError(error, ctx.table),
             announce: async (row) => {
               const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, row[c]]));
-              undoToken = issueUndo(request, ctx, 'create', [], [row]);
+              undoToken = await issueUndo(request, ctx, 'create', [], [row]);
               await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
             },
           });
@@ -2652,7 +2660,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             const created = tree.outcome.root;
             if (tree.outcome.replayed) return reply.status(200).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
             const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, created[c]]));
-            undoToken = issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
+            undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
             await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
             return reply.status(201).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken });
@@ -2762,7 +2770,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }, numbered);
 
         const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, inserted[c]]));
-        undoToken = issueUndo(request, ctx, 'create', [], [inserted], [], [], written, childWrites);
+        undoToken = await issueUndo(request, ctx, 'create', [], [inserted], [], [], written, childWrites);
         await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, inserted);
         for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
@@ -2966,7 +2974,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             ...priced,
             announce: async (result) => {
               const after = result.after ?? before;
-              undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
+              undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], [], result.effects ?? []);
               await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
               // The rows this move moved too (a room turned to cleaning), as changes of their own.
               await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: result.effects, origin: 'dashboard', request });
@@ -3039,7 +3047,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               },
               announce: async (result) => {
                 const after = result.after ?? before;
-                undoToken = issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
+                undoToken = await issueUndo(request, ctx, 'update', [before], [after], Object.keys(result.values), [], [], childWrites, [...(result.effects ?? []), ...childEffects]);
                 await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, after);
                 for (const event of childEvents) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
                 // The rows the record's and its child rows' moves moved too, as changes of their own.
@@ -3107,7 +3115,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           return changed;
         }, numbered);
 
-        undoToken = issueUndo(
+        undoToken = await issueUndo(
           request,
           ctx,
           'update',
@@ -3180,7 +3188,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             // deleted, so the 60 s undo below can put them back and the
             // retention sweep owns the bytes.
             const trashedFileIds = await trashRecordFiles(ctx, entity, before);
-            undoToken = issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
+            undoToken = await issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
             await afterMutation(request, ctx, 'delete', entity, before, null);
           },
         });

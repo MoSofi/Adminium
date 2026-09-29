@@ -118,6 +118,14 @@ own language in place, and then the workspace's.
   receipts, with **Invoices & Receipts**. It is written `"gate": { "feature": "receipts" }`, naming
   one of the app's `addOns.features`. The feature is on while every add-on it needs is attached to
   the app and switched on. While it is off, the producer queues nothing.
+- **Both at once.** A receipt that goes only while Invoices & Receipts is attached AND the
+  manager's own switch is on is written
+  `"gate": { "feature": "receipts", "setting": { "table": "settings", "column": "receipt_email_on" } }`.
+  Both must hold: a feature that is off, or a switch that is off (or no settings row), queues
+  nothing. Each half is checked as it is alone.
+- **When a gate is judged.** Every gate is judged when the message is queued, not when it is sent.
+  A message already waiting (held, or due later) still goes if the feature or the switch is turned
+  off after it was queued. Only its producer's `dropWhen` drops a waiting message.
 
 ### What never queues an email
 

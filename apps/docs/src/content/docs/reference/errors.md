@@ -402,6 +402,7 @@ The original single slot rule answers `{ column }` alone.
 | `roles` | Only those roles may make this move. |
 | `named` | A stale `from`: the writer said the row was in `named`, and it has moved on to `from` since. Look again. |
 | `undo: true` | A move marked `undo` is made only by a change that sends `from`, the state it takes the row back from. See [undo of a move](/reference/manifest/#undo-of-a-move). |
+| `clears` | A move marked `undo` empties this column (`clears` on the move), and the change sent a value for it. Send it empty, or leave it out. |
 | `requires`, `min` | The move needs at least `min` rows of the child table `requires`. |
 | `requires` | The move [waits for](/reference/manifest/#conditions-a-move-waits-for) something: a column name (`requires: "paid"`), `linked` with `via` (and `column` for a condition on the linked row), `setting`, or `time` with `bound` (`after` or `before`) and `at`. A time with no value gives `reason: "no-moment"`; a link the database no longer has gives `unresolved: true`. |
 | `create: true` | A new row: `from` is `null`, and `to` is the state it would start in. A new row that names another state than the first has `from: null` without `create`. See [conditions on a new row](/reference/manifest/#conditions-on-a-new-row). |

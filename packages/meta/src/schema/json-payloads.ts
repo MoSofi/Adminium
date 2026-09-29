@@ -1106,6 +1106,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
                 roles: z.array(z.string().min(1).max(64)).min(1).max(8).optional(),
                 /** The move takes back the listed one the other way: made only naming the state it saw. */
                 undo: z.literal(true).optional(),
+                /** An undo's further columns it empties, open to the lock for that move only. */
+                clears: z.array(ruleColumn).min(1).max(8).optional(),
               }),
             ]),
           )

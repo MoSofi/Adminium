@@ -64,7 +64,7 @@ import { instantFor, renderNow } from './instants.js';
 import { lateRuleFor, lateVerdict, lateWindow, refusedBy } from './late.js';
 import { dayPlus, momentOf, momentSettings, momentVias, shifted, wallOn, type MomentContext } from './moments.js';
 import { StateTooLate } from './state-conditions.js';
-import { emptiedByUndo, keptByUndo, undoMoveOf } from './undo-moves.js';
+import { clearedByUndo, emptiedByUndo, keptByUndo, undoMoveOf } from './undo-moves.js';
 import { dayOf } from './states.js';
 import { venueClock } from './venue-time.js';
 import { sameValue } from './write-values.js';
@@ -145,7 +145,11 @@ export async function decideRow(
   const worked = await momentStamps(stamps, action, out, before, context);
   const stamped = stampRow(stamps, action, out, before, context, worked);
   const emptied = undo === null ? [] : (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
-  const moved = emptied.length === 0 ? stamped : { ...stamped, ...Object.fromEntries(emptied.map((stamp) => [stamp.column, null])) };
+  let moved = emptied.length === 0 ? stamped : { ...stamped, ...Object.fromEntries(emptied.map((stamp) => [stamp.column, null])) };
+  // And the further columns the move names (`clears`): a value the writer sent for one is left for the judge to refuse.
+  // (A name the table lacks, stored before it was judged, is passed over rather than sent to the database.)
+  const cleared = undo === null ? [] : clearedByUndo(rules.states!, undo).filter((column) => !has(moved, column) && context.table.columns.has(column));
+  if (cleared.length > 0) moved = { ...moved, ...Object.fromEntries(cleared.map((column) => [column, null])) };
   // A code renewed by this change — judged last, so a column a stamp just set (the holder copied in on accept) sets it off too — in the same statement, so the old one stops at the commit.
   return renewCodes(rules.codes, action, moved, before, context);
 }

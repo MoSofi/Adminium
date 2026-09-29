@@ -170,3 +170,63 @@ function withEmail(m: Doc): Doc {
   (m['outbox'] as Doc)['recipient'] = { via: 'order_id', table: 'orders', email: 'email' };
   return m;
 }
+
+/** The kitchen that takes a hand-over back: the way it was paid is emptied with it. */
+function handedBack(): Doc {
+  const m = withEmail(kitchen());
+  (orders(m)['columns'] as Doc[]).push(
+    { ref: 'paid_method', type: 'enum', enum: ['cash', 'card'], nullable: true },
+    { ref: 'channel', type: 'enum', enum: ['online', 'phone'], default: 'online' },
+  );
+  moves(m)['picked_up'] = [{ to: 'ready', undo: true, clears: ['paid_method'] }];
+  return m;
+}
+
+describe('the further columns an undo empties', () => {
+  it('validates a take-back that empties how the order was paid', () => {
+    expect(messages(handedBack())).toEqual([]);
+  });
+
+  it('refuses them on a move not marked undo', () => {
+    const m = handedBack();
+    moves(m)['ready'] = [{ to: 'picked_up', clears: ['paid_method'] }, { to: 'preparing', undo: true }];
+    expect(messages(m)).toContain('only a move marked undo empties columns as it goes');
+  });
+
+  it('refuses a column the row lacks, the state, the key, one that cannot be empty, one another rule writes, one named twice', () => {
+    const cases: [unknown[], string][] = [
+      [['nope'], '"orders" has no column "nope"'],
+      [['status'], 'the state moves by the move itself, not by what it empties'],
+      [['id'], '"orders.id" is the key, which never changes'],
+      [['channel'], '"orders.channel" is not nullable, so an undo cannot empty it'],
+      [['ready_at'], '"orders.ready_at" is written by another rule already'],
+      [['paid_method', 'paid_method'], '"paid_method" is named twice'],
+    ];
+    for (const [clears, sentence] of cases) {
+      const m = handedBack();
+      moves(m)['picked_up'] = [{ to: 'ready', undo: true, clears }];
+      expect(messages(m), sentence).toContain(sentence);
+    }
+    const empty = handedBack();
+    moves(empty)['picked_up'] = [{ to: 'ready', undo: true, clears: [] }];
+    expect(messages(empty)).not.toEqual([]);
+  });
+});
+
+describe('a second move to the same state', () => {
+  it('refuses one that an undo or its clears would make, since the first to that state is the one made', () => {
+    const hidden = handedBack();
+    moves(hidden)['picked_up'] = [{ to: 'ready', roles: ['kitchen'] }, { to: 'ready', undo: true, clears: ['paid_method'] }];
+    expect(messages(hidden)).toContain('another move from "picked_up" to "ready" comes first, so this one is never made');
+
+    const hiding = handedBack();
+    moves(hiding)['picked_up'] = [{ to: 'ready', undo: true, clears: ['paid_method'] }, 'ready'];
+    expect(messages(hiding)).toContain('another move from "picked_up" to "ready" comes first, so this one is never made');
+  });
+
+  it('keeps a plain second move as it was', () => {
+    const plain = handedBack();
+    moves(plain)['ready'] = ['picked_up', 'picked_up', { to: 'preparing', undo: true, requires: { time: { before: { column: 'ready_at', plus: { minutes: 1 } } } } }];
+    expect(messages(plain)).toEqual([]);
+  });
+});
