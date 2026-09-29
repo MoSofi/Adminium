@@ -2141,7 +2141,9 @@ app's [`addOns.features`](#add-ons) is on (a receipt, while Invoices & Receipts 
 feature is on AND that bool of the settings row is true (a receipt, while Invoices & Receipts is
 attached and the manager's switch is on). Each half is checked as it is alone. Every gate is judged
 when the message is queued: a message already waiting (held, or due later) still goes when the
-gate closes after it was queued, unless its `dropWhen` drops it. Then exactly one of:
+gate closes after it was queued, unless its `dropWhen` drops it. A message of the kind sent from a
+[new link](#a-rows-own-link) or a "Send it again" is judged by the same gate, and a kind held for
+approval (`hold: true`) cannot be sent from a link at all. Then exactly one of:
 
 | Producer | Shape | Queues a row |
 |---|---|---|

@@ -696,7 +696,9 @@ export function ownLinksOfPerson(entries: readonly PublicAccess[], identityTable
 export interface ResendOutbox {
   table: string;
   recipient: { table: string; via: string; email: string; fallback?: { via: string; email: string } | undefined };
-  producers?: readonly { kind: string; link: string; recipient?: { setting: unknown } | { column: string; name?: string | undefined; language?: string | undefined } | undefined }[] | undefined;
+  producers?:
+    | readonly { kind: string; link: string; hold?: boolean | undefined; repeatBy?: string | undefined; recipient?: { setting: unknown } | { column: string; name?: string | undefined; language?: string | undefined } | undefined }[]
+    | undefined;
 }
 
 /** Where a resend of a row's own link is read from: the kind's column recipient, or none (the outbox's own), and the columns the address comes from. */
@@ -2072,6 +2074,12 @@ function personIssues(
       else {
         if (box.kinds[entry.newLink.kind] === undefined) out.push({ path: here('kind'), message: `"${entry.newLink.kind}" is not one of the outbox's kinds` });
         if (box.columns.repeatKey === undefined) out.push({ path: here('kind'), message: 'each new link is its own message, so the outbox keeps a repeatKey column' });
+        // Sent by the kind's own rules: never past a person's approval, and never skipped at send as a message already sent.
+        const declared = (box.producers ?? []).find((producer) => producer.kind === entry.newLink!.kind);
+        if (declared?.hold === true) out.push({ path: here('kind'), message: `"${entry.newLink.kind}" waits for a person to approve it, so it is never sent again from a link` });
+        if (declared?.repeatBy !== undefined && declared.repeatBy !== entry.newLink.column) {
+          out.push({ path: here('kind'), message: `"${entry.newLink.kind}" is sent once per "${declared.repeatBy}", so one sent again for a new "${entry.newLink.column}" would be skipped: its producer repeats by "${entry.newLink.column}" or by nothing` });
+        }
         const linked = Object.values(box.links ?? {}).some((column) => index.column(box.table, column)?.references === entry.table);
         if (!linked) out.push({ path: here('kind'), message: `the outbox links no message to "${entry.table}", so the new link could not be sent about its row` });
         // Sent to the person who asked for it: the outbox addresses the people this entry's rows are claimed by.

@@ -120,6 +120,22 @@ describe('"send it again" through a row\'s own link', () => {
     expect(issuesText(elsewhere)).toContain('"transfer-confirm" is not addressed from a "orders" row');
   });
 
+  it("keeps the kind's own rules: never past an approval, never a repeat that would skip it", () => {
+    const withProducer = (producer: Doc) => {
+      const m = sendAgain();
+      (m['outbox'] as Doc)['producers'] = [{ kind: 'transfer-confirm', link: 'order_id', onChange: { table: 'orders', column: 'status', to: 'placed' }, ...producer }];
+      return m;
+    };
+    expect(issuesText(withProducer({ hold: true }))).toContain('"transfer-confirm" waits for a person to approve it, so it is never sent again from a link');
+    expect(issuesText(withProducer({ repeatBy: 'status' }))).toContain('"transfer-confirm" is sent once per "status", so one sent again for a new "confirm_token" would be skipped');
+    expect(messages(withProducer({ repeatBy: 'confirm_token' }))).toEqual([]);
+    // Signed in too: a held kind is never sent from a "Make a new link".
+    const m = withProducer({ hold: true });
+    delete linkEntry(m)['newLink'];
+    entryOf(m, 'orders', 'GET')['newLink'] = { column: 'link_token', kind: 'transfer-confirm' };
+    expect(issuesText(m)).toContain('"transfer-confirm" waits for a person to approve it');
+  });
+
   it('is refused while a guest can change where it goes', () => {
     // The order's own address, written through its own link.
     const m = sendAgain();
