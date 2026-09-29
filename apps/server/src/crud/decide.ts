@@ -147,7 +147,8 @@ export async function decideRow(
   const emptied = undo === null ? [] : (rules.stamps ?? []).filter((stamp) => emptiedByUndo(stamp, rules.states!.column, undo));
   let moved = emptied.length === 0 ? stamped : { ...stamped, ...Object.fromEntries(emptied.map((stamp) => [stamp.column, null])) };
   // And the further columns the move names (`clears`): a value the writer sent for one is left for the judge to refuse.
-  const cleared = undo === null ? [] : clearedByUndo(rules.states!, undo).filter((column) => !has(moved, column));
+  // (A name the table lacks, stored before it was judged, is passed over rather than sent to the database.)
+  const cleared = undo === null ? [] : clearedByUndo(rules.states!, undo).filter((column) => !has(moved, column) && context.table.columns.has(column));
   if (cleared.length > 0) moved = { ...moved, ...Object.fromEntries(cleared.map((column) => [column, null])) };
   // A code renewed by this change — judged last, so a column a stamp just set (the holder copied in on accept) sets it off too — in the same statement, so the old one stops at the commit.
   return renewCodes(rules.codes, action, moved, before, context);

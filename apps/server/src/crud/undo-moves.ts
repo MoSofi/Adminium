@@ -65,8 +65,15 @@ export function emptiedByUndo(stamp: Pick<ColumnStampRule, 'on' | 'clearOnBack'>
  * by DECIDE, and open to the lock for this move only.
  */
 export function clearedByUndo(states: TableStatesRule, move: UndoMove): string[] {
-  const listed = (states.moves[move.from] ?? []).find((candidate) => typeof candidate === 'object' && candidate.to === move.to && candidate.undo === true);
-  return typeof listed === 'object' ? (listed.clears ?? []) : [];
+  // The move as the judge takes it: the first listed to that state.
+  const listed = (states.moves[move.from] ?? []).find((candidate) => (typeof candidate === 'string' ? candidate : candidate.to) === move.to);
+  return typeof listed === 'object' && listed.undo === true ? (listed.clears ?? []) : [];
+}
+
+/** The roles that may make the move marked undo from one state to another, or undefined when anyone may. */
+export function undoRolesOf(states: TableStatesRule, move: UndoMove): readonly string[] | undefined {
+  const listed = (states.moves[move.from] ?? []).find((candidate) => (typeof candidate === 'string' ? candidate : candidate.to) === move.to);
+  return typeof listed === 'object' ? listed.roles : undefined;
 }
 
 /** The columns an undo empties, of a table's columns and their stamps. */

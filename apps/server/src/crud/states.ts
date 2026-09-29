@@ -593,6 +593,9 @@ async function judgeOwnUpdate(
       // An undo is judged on the row as it stands: what it empties is read as it was.
       const kept = move.undo === true ? [...columnsEmptiedByUndo(table.table?.columns ?? [], states.column, { from, to: to! }), ...(move.clears ?? [])] : [];
       emptiedByMove = kept;
+      // DECIDE read the row before the locks: a take-back it did not see (the row was moved back and on again meanwhile) emptied nothing. Start again.
+      const missed = move.undo === true && !guard.history ? kept.find((column) => !Object.prototype.hasOwnProperty.call(values, column) && !emptyValue(stored[column])) : undefined;
+      if (missed !== undefined) throw new ConflictError('This row moved while the change was made. Try again.', 'WRITE_CONFLICT', { retry: true, column: missed });
       const next = { ...stored, ...values, ...Object.fromEntries(kept.map((column) => [column, stored[column]])) };
       // An import's move of a row already there is a move like anyone's: it waits for what the move waits for.
       const waits = move.requires;
