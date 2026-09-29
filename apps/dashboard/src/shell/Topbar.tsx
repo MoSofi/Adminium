@@ -252,8 +252,10 @@ export function Topbar({
       /* The translucent base mixes --surface, not --bg: the sidebar beside it is
          --surface, so mixing page grey drew a visible seam along the shared edge.
          Height comes from padding rather than `h-14` — the title block is two
-         lines whenever a page publishes a subtitle. */
-      className="sticky top-0 z-30 flex shrink-0 items-center gap-4 border-b border-border bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] px-7 py-4 backdrop-blur-[8px]"
+         lines whenever a page publishes a subtitle. Below `sm` the padding and
+         gaps tighten: at 390 px the menu button, a page's actions and the avatar
+         ran 19 px past the window, and the whole shell scrolled sideways. */
+      className="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] px-4 py-4 backdrop-blur-[8px] sm:gap-4 sm:px-7"
     >
       {/* First in the bar at every width: the rail's own edge, whichever side
           reading order puts it on. A stable name plus `aria-expanded` rather
