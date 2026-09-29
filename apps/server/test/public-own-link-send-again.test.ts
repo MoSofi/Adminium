@@ -49,7 +49,7 @@ export function boxOffice(when: Doc | undefined = { where: [{ column: 'status', 
         table: 'orders',
         key: 'confirm',
         methods: ['GET', 'PATCH'],
-        claim: { by: 'token', column: 'confirm_token', own: true, address: 'email' },
+        claim: { by: 'token', column: 'confirm_token', stopped: 'confirm_stopped', own: true, address: 'email' },
         select: ['id', 'status'],
         writable: ['status'],
         writableValues: { status: ['awaiting_transfer'] },
@@ -62,7 +62,7 @@ export function boxOffice(when: Doc | undefined = { where: [{ column: 'status', 
   const orders = tables.find((t) => t['ref'] === 'orders')!['columns'] as Doc[];
   orders.find((c) => c['ref'] === 'status')!['enum'] = ['held', 'confirming', 'awaiting_transfer'];
   orders.find((c) => c['ref'] === 'status')!['default'] = 'held';
-  orders.push({ ref: 'confirm_token', type: 'text', maxLength: 16, nullable: true, rules: { code: { length: 16 } } });
+  orders.push({ ref: 'confirm_token', type: 'text', maxLength: 16, nullable: true, rules: { code: { length: 16 } } }, { ref: 'confirm_stopped', type: 'bool', default: false });
   const messages = tables.find((t) => t['ref'] === 'messages')!['columns'] as Doc[];
   messages.find((c) => c['ref'] === 'kind')!['enum'] = ['order-placed', 'transfer-confirm'];
   messages.push({ ref: 'repeat_key', type: 'text', maxLength: 64, nullable: true });
@@ -154,7 +154,7 @@ describe.each(LEGS)('"send it again" through an order\'s own link — %s', (dial
     const stored = rows.find((row) => row.ref === ref)!;
     const parsed = parseDefinition(stored.definition);
     if (!parsed.ok) throw new Error(stored.definition);
-    const expected = { column: 'confirm_token', kind: 'transfer-confirm', when: { where: [{ column: 'status', eq: 'confirming' }] } };
+    const expected = { column: 'confirm_token', kind: 'transfer-confirm', when: { where: [{ column: 'status', eq: 'confirming' }] }, stopped: 'confirm_stopped' };
     expect(parsed.definition.new_link).toEqual(expected);
     expect(printDefinition(parsed.definition)).toBe(stored.definition);
     expect(definitionToResource(ref, parsed.definition, parsed.definition.methods, null).newLink).toEqual(expected);
@@ -347,7 +347,7 @@ describe.each(LEGS)('"send it again" through an order\'s own link — %s', (dial
         await sql.raw(`select id from ${orders} where id = ${String(made.id)} for update`).execute(trx);
         ask = again(made.id, made.session);
         for (let i = 0; i < 400 && (await asksCounted()) === counted; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
-        expect(await asksCounted()).toBe(counted + 1);
+        expect(await asksCounted()).toBe(counted + 2);
         await new Promise((resolve) => setTimeout(resolve, 300));
         // The buyer's confirm lands first.
         await sql.raw(`update ${orders} set status = 'awaiting_transfer' where id = ${String(made.id)}`).execute(trx);
@@ -379,5 +379,290 @@ describe.each(LEGS)('"send it again" through an order\'s own link — %s', (dial
       expect(sent).toHaveLength(1);
       expect(sent[0]!.repeat).toBe(keyOf(live));
     }
+  });
+
+  it.skipIf(!available)('sends it again so many times a day to one mailbox, over every order: the sixth is refused and counts nothing', async () => {
+    // Three orders a stranger made for one address, spelled three ways.
+    const made = [await order('vic@fieldmail.io', 'Vic'), await order('Vic+a@fieldmail.io', 'Vic'), await order(' VIC@FieldMail.io', 'Vic')];
+    for (const m of made) await toConfirming(m.id, m.session);
+    const codes: number[] = [];
+    for (let round = 0; round < 2; round += 1) {
+      await earlier();
+      for (const m of made.slice(0, round === 0 ? 3 : 2)) codes.push((await again(m.id, m.session)).statusCode);
+    }
+    expect(codes).toEqual([202, 202, 202, 202, 202]);
+    await earlier();
+    const counted = await asksCounted();
+    const kept = await confirmCode(made[2]!.id);
+    const sixth = await again(made[2]!.id, made[2]!.session);
+    expect(sixth.statusCode, sixth.body).toBe(409);
+    expect(sixth.json()).toMatchObject({ error: { code: 'PUBLIC_LIMIT_REACHED' } });
+    expect(await confirmCode(made[2]!.id)).toBe(kept);
+    expect(await asksCounted()).toBe(counted);
+    const resent = (await Promise.all(made.map(async (m) => (await confirms(m.id)).filter((c) => c.repeat !== null).length))).reduce((a, b) => a + b, 0);
+    expect(resent).toBe(5);
+    // Another mailbox is its own count.
+    const other = await order('wes@fieldmail.io', 'Wes');
+    await toConfirming(other.id, other.session);
+    expect((await again(other.id, other.session)).statusCode).toBe(202);
+  });
+
+  it.skipIf(!available)('refuses a stopped confirm link: nothing made, nothing counted', async () => {
+    const made = await order('una@fieldmail.io', 'Una');
+    await toConfirming(made.id, made.session);
+    const code = await confirmCode(made.id);
+    await h.rows(`update ${orders} set confirm_stopped = ${dialect === 'postgres' ? 'true' : '1'} where id = ${String(made.id)}`);
+    const counted = await asksCounted();
+    const res = await again(made.id, made.session);
+    expect(res.statusCode, res.body).toBe(409);
+    expect(res.json()).toEqual({ error: { code: 'PUBLIC_WRITE_REFUSED', message: 'That write was refused.' } });
+    expect(await confirmCode(made.id)).toBe(code);
+    expect(await asksCounted()).toBe(counted);
+    expect((await confirms(made.id)).filter((m) => m.repeat !== null)).toEqual([]);
+  });
+
+  it.skipIf(!available)('keeps the old code and counts nothing when its email cannot be queued in the renewal', async () => {
+    const box = link.composed.app.outbox as unknown as { queueKindIn: (...args: unknown[]) => Promise<unknown> };
+    const real = box.queueKindIn;
+    for (const [how, fail] of [
+      ['throws', async (...args: unknown[]) => {
+        await real(...args);
+        throw new Error('the outbox write failed');
+      }],
+      ['queues nothing', async (...args: unknown[]) => {
+        await real(...args);
+        return null;
+      }],
+    ] as const) {
+      const made = await order(`xia-${how.replace(' ', '')}@fieldmail.io`, 'Xia');
+      await toConfirming(made.id, made.session);
+      const code = await confirmCode(made.id);
+      await earlier();
+      const counted = await asksCounted();
+      box.queueKindIn = fail;
+      let res;
+      try {
+        res = await again(made.id, made.session);
+      } finally {
+        box.queueKindIn = real;
+      }
+      expect(res.statusCode, `${how}: ${res.body}`).toBe(how === 'throws' ? 409 : 503);
+      expect(await confirmCode(made.id), how).toBe(code);
+      expect(await asksCounted(), how).toBe(counted);
+      // The message written in the renewal went with it.
+      expect((await confirms(made.id)).filter((m) => m.repeat !== null), how).toEqual([]);
+      expect((await openByCode(code)).statusCode, how).toBe(200);
+      // Nothing counted, so the next ask a moment later goes.
+      const next = await again(made.id, made.session);
+      expect(next.statusCode, next.body).toBe(202);
+      expect(await confirmCode(made.id)).not.toBe(code);
+    }
+  });
+
+  it.skipIf(!available)('answers what happened when telling of a kept new link fails: made, emailed and counted', async () => {
+    const box = link.composed.app.outbox as unknown as { onRecordEvent: (event: { table: { id: string } }) => Promise<void> };
+    const real = box.onRecordEvent;
+    const made = await order('yul@fieldmail.io', 'Yul');
+    await toConfirming(made.id, made.session);
+    const code = await confirmCode(made.id);
+    await earlier();
+    const counted = await asksCounted();
+    box.onRecordEvent = async (event) => {
+      if (event.table.id === orders) throw new Error('telling failed');
+      return real(event as never);
+    };
+    let res;
+    try {
+      res = await again(made.id, made.session);
+    } finally {
+      box.onRecordEvent = real;
+    }
+    expect(res.statusCode, res.body).toBe(202);
+    const fresh = await confirmCode(made.id);
+    expect(fresh).not.toBe(code);
+    expect((await confirms(made.id)).filter((m) => m.repeat !== null).map((m) => m.repeat)).toEqual([keyOf(fresh)]);
+    expect(await asksCounted()).toBe(counted + 2);
+  });
+
+  it.skipIf(!available || dialect === 'sqlite')('keeps the old code when the address empties while the renewal waits: nothing made, nothing counted', async () => {
+    const made = await order('zed@fieldmail.io', 'Zed');
+    await toConfirming(made.id, made.session);
+    const code = await confirmCode(made.id);
+    await earlier();
+    const counted = await asksCounted();
+    const customer = (await h.rows(`select customer_id from ${orders} where id = ${String(made.id)}`))[0]!['customer_id'];
+    const other = await h.twin();
+    const { db } = await other.manager.data(h.connectionId);
+    let ask: ReturnType<typeof again> | undefined;
+    try {
+      await db.transaction().execute(async (trx) => {
+        await sql.raw(`select id from ${orders} where id = ${String(made.id)} for update`).execute(trx);
+        ask = again(made.id, made.session);
+        for (let i = 0; i < 400 && (await asksCounted()) === counted; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
+        expect(await asksCounted()).toBe(counted + 2);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        // The desk empties the person's address meanwhile.
+        await h.rows(`update ${h.real('customers')} set email = null where id = ${String(customer)}`);
+      });
+    } finally {
+      await other.close();
+    }
+    const res = await ask!;
+    expect(res.statusCode, res.body).toBe(503);
+    expect(res.json()).toMatchObject({ error: { code: 'PUBLIC_CODE_UNAVAILABLE' } });
+    expect(await confirmCode(made.id)).toBe(code);
+    expect(await asksCounted()).toBe(counted);
+    expect((await confirms(made.id)).map((m) => m.repeat)).toEqual([null]);
+    expect((await openByCode(code)).statusCode).toBe(200);
+  });
+
+  it.skipIf(!available || dialect !== 'postgres')('keeps the old code when the outbox is held past the wait: busy, nothing counted, and the next ask goes', async () => {
+    const made = await order('abe@fieldmail.io', 'Abe');
+    await toConfirming(made.id, made.session);
+    const code = await confirmCode(made.id);
+    await earlier();
+    const counted = await asksCounted();
+    const other = await h.twin();
+    const { db } = await other.manager.data(h.connectionId);
+    const outboxHolder = await h.twin();
+    const db2 = (await outboxHolder.manager.data(h.connectionId)).db;
+    let ask: ReturnType<typeof again> | undefined;
+    let holder: Promise<unknown> | undefined;
+    try {
+      await db.transaction().execute(async (trx) => {
+        await sql.raw(`select id from ${orders} where id = ${String(made.id)} for update`).execute(trx);
+        ask = again(made.id, made.session);
+        for (let i = 0; i < 400 && (await asksCounted()) === counted; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
+        expect(await asksCounted()).toBe(counted + 2);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Something else holds the app's outbox past the wait.
+        holder = db2.transaction().execute(async (t2) => {
+          await sql`select pg_advisory_xact_lock(hashtextextended(${`outbox|${h.connectionId}|shop`}, 0))`.execute(t2);
+          await new Promise((resolve) => setTimeout(resolve, 12_000));
+        });
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      });
+      const res = await ask!;
+      expect(res.statusCode, res.body).toBe(409);
+      expect(res.json()).toMatchObject({ error: { code: 'PUBLIC_SLOT_BUSY' } });
+      expect(await confirmCode(made.id)).toBe(code);
+      expect(await asksCounted()).toBe(counted);
+      expect((await confirms(made.id)).map((m) => m.repeat)).toEqual([null]);
+      await holder;
+      // Nothing was counted: asked again at once, it goes.
+      const retry = await again(made.id, made.session);
+      expect(retry.statusCode, retry.body).toBe(202);
+      const fresh = await confirmCode(made.id);
+      expect(fresh).not.toBe(code);
+      expect((await confirms(made.id)).map((m) => m.repeat)).toEqual([null, keyOf(fresh)]);
+    } finally {
+      await holder?.catch(() => undefined);
+      await other.close();
+      await outboxHolder.close();
+    }
+  }, 60_000);
+});
+
+describe.each(LEGS)('"send it again" judges a text of its when exactly, read and written alike — %s', (dialect, available) => {
+  const run = available && dialect !== 'sqlite';
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let shop: Served;
+  let link: Served;
+  const ref = 'shop_orders_claimed';
+
+  beforeAll(async () => {
+    if (!run) return;
+    h = await installInvoicing(dialect, boxOffice({ where: [{ column: 'status', eq: 'confirming' }, { column: 'note', eq: 'Vip' }] }));
+    await mailReady(h.meta);
+    const keys = (h.reply['publicAccess'] as { keys: Record<string, string> }).keys;
+    shop = await servePublic(h, keys['customer']!);
+    link = await servePublic(h, keys['link']!);
+  }, 180_000);
+  afterAll(async () => {
+    if (!run) return;
+    await shop.close();
+    await link.close();
+    await h.close();
+  });
+
+  it.skipIf(!run)('refuses an ask whose text changed only in case while it waited for the row', async () => {
+    const g = guest(shop, h);
+    const own = guest(link, h, 40_000);
+    const orders = h.real('orders');
+    const res = await g.request('POST', `/records/${orders}_verified_2`, { payload: { values: { email: 'cas@fieldmail.io', name: 'Cas' }, children: { order_items: [{ values: { dish: 'Soup', qty: 1 } }] } }, proof: 'write' });
+    expect(res.statusCode, res.body).toBe(201);
+    const made = res.json() as { data: { id: number }; link: { session: string } };
+    const id = made.data.id;
+    const moved = await own.request('PATCH', `/records/${ref}/${String(id)}`, { session: made.link.session, payload: { values: { status: 'confirming', note: 'Vip' } } });
+    expect(moved.statusCode, moved.body).toBe(200);
+    const code = String((await h.rows(`select confirm_token from ${orders} where id = ${String(id)}`))[0]!['confirm_token']);
+    const counted = async () => (await h.meta.db.selectFrom('adminium_public_challenges').select('id').where('purpose', '=', 'new-link').execute()).length;
+    const before = await counted();
+    const other = await h.twin();
+    const { db } = await other.manager.data(h.connectionId);
+    let ask: Promise<{ statusCode: number; body: string }> | undefined;
+    try {
+      await db.transaction().execute(async (trx) => {
+        await sql.raw(`select id from ${orders} where id = ${String(id)} for update`).execute(trx);
+        ask = own.request('POST', `/records/${ref}/${String(id)}/new-link`, { session: made.link.session });
+        for (let i = 0; i < 400 && (await counted()) === before; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
+        expect(await counted()).toBe(before + 2);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        // The same letters in another case: no longer what the entry names.
+        await sql.raw(`update ${orders} set note = 'VIP' where id = ${String(id)}`).execute(trx);
+      });
+    } finally {
+      await other.close();
+    }
+    const answer = await ask!;
+    expect(answer.statusCode, answer.body).toBe(409);
+    expect(String((await h.rows(`select confirm_token from ${orders} where id = ${String(id)}`))[0]!['confirm_token'])).toBe(code);
+    expect(await counted()).toBe(before);
+    // Asked again now, it is refused as the row reads: the same answer.
+    const again = await own.request('POST', `/records/${ref}/${String(id)}/new-link`, { session: made.link.session });
+    expect(again.statusCode).toBe(409);
+  });
+});
+
+describe.each(LEGS)("\"send it again\" goes where the kind's own producer sends it — %s", (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let shop: Served;
+  let link: Served;
+  const ref = 'shop_orders_claimed';
+
+  beforeAll(async () => {
+    if (!available) return;
+    // The confirm email goes to the address the order itself holds, not to its person's.
+    const manifest = boxOffice();
+    const producers = (manifest['outbox'] as { producers: Doc[] }).producers;
+    producers.find((p) => p['kind'] === 'transfer-confirm')!['recipient'] = { column: 'email', name: 'name' };
+    h = await installInvoicing(dialect, manifest);
+    await mailReady(h.meta);
+    const keys = (h.reply['publicAccess'] as { keys: Record<string, string> }).keys;
+    shop = await servePublic(h, keys['customer']!);
+    link = await servePublic(h, keys['link']!);
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await shop.close();
+    await link.close();
+    await h.close();
+  });
+
+  it.skipIf(!available)("mails the order's own address, as its first email went, whatever its person's address is now", async () => {
+    const g = guest(shop, h);
+    const own = guest(link, h, 40_000);
+    const orders = h.real('orders');
+    const res = await g.request('POST', `/records/${orders}_verified_2`, { payload: { values: { email: 'ord@fieldmail.io', name: 'Ord' }, children: { order_items: [{ values: { dish: 'Soup', qty: 1 } }] } }, proof: 'write' });
+    expect(res.statusCode, res.body).toBe(201);
+    const made = res.json() as { data: { id: number }; link: { session: string } };
+    const customer = (await h.rows(`select customer_id from ${orders} where id = ${String(made.data.id)}`))[0]!['customer_id'];
+    await h.rows(`update ${h.real('customers')} set email = 'person@fieldmail.io' where id = ${String(customer)}`);
+    expect((await own.request('PATCH', `/records/${ref}/${String(made.data.id)}`, { session: made.link.session, payload: { values: { status: 'confirming' } } })).statusCode).toBe(200);
+    const asked = await own.request('POST', `/records/${ref}/${String(made.data.id)}/new-link`, { session: made.link.session });
+    expect(asked.statusCode, asked.body).toBe(202);
+    const to = dialect === 'mysql' ? '`to`' : '"to"';
+    const sent = await h.rows(`select ${to} as address from ${h.real('messages')} where kind = 'transfer-confirm' and order_id = ${String(made.data.id)} order by id`);
+    expect(sent.map((row) => row['address'])).toEqual(['ord@fieldmail.io', 'ord@fieldmail.io']);
   });
 });

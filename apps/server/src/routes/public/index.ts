@@ -187,7 +187,7 @@ import type { OutboxProducers } from '../../outbox/producers.js';
 import { quoteChildren } from '../../public-api/change-quote.js';
 import { judgeCreateWindows } from '../../public-api/create-windows.js';
 import { renewOwnLink } from '../../public-api/own-links.js';
-import { newLinkWhenFilter, newLinkWhenHolds } from '../../public-api/new-link-when.js';
+import { newLinkMailboxSubject, NewLinkUnsent, newLinkStillHolds, newLinkWhenHolds } from '../../public-api/new-link-when.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
 import {
@@ -625,6 +625,9 @@ const refuseWrite = (error?: unknown, told?: Told): never => {
 const blankValue = (value: unknown): boolean => value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
 
 const lostRace = (error: unknown): boolean => isWriteConflict(error) || (error instanceof AppError && error.code === 'WRITE_CONFLICT');
+
+/** A named lock another writer held past the wait (the outbox's, a new link's own). */
+const heldBusy = (error: unknown): boolean => error instanceof AppError && error.code === 'CAPACITY_BUSY';
 
 /** `refuseWrite` for a create or a change through an entry: a refused value of a column it writes is named. */
 const refuseWriteThrough =
@@ -5371,17 +5374,23 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       row: Row,
       column: string,
       refine?: (query: never) => never,
+      /** `inside`: run in the renewal's transaction (it rolls back with it); `committed`: told once the new code is kept, before anything is announced. */
+      also: { inside?: (db: Kysely<SourceDatabase>, after: Row) => Promise<void>; committed?: () => void } = {},
     ): Promise<Row | null> => {
       const pk = Object.fromEntries(target.table.primaryKey.map((c) => [c, row[c]]));
       const entity: RecordRef = { connectionId: ok.key.connectionId, table: target.table.id, pk, label: pkLabel(target.table, pk) };
       const context = await publicWriteContext(request, ok);
       return renewOwnLink({
-        writes: refine === undefined ? writes : { update: (input) => writes.update({ ...input, refine: refine as never }) },
+        writes:
+          refine === undefined && also.inside === undefined
+            ? writes
+            : { update: (input) => writes.update({ ...input, ...(refine === undefined ? {} : { refine: refine as never }), ...(also.inside === undefined ? {} : { inside: also.inside }) }) },
         target,
         row,
         column,
         context,
         announce: async ({ before, after }) => {
+          also.committed?.();
           // Named by the row, never by the code.
           await auditWrite(request, ok, 'public.link.renewed', { table: target.table.id, column, key: `public:${ok.key.keyId}` }, entity, true);
           publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, { connectionId: ok.key.connectionId, table: target.table, action: 'update', pk, row: after });
@@ -5488,84 +5497,119 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         // Another person's row and a row that is not there are one answer.
         if (row === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
-        // Only while the row holds what the entry names: a bare refusal otherwise, nothing spent, nothing made.
-        if (!newLinkWhenHolds(newLink.when?.where, row)) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+        // Only while the row holds what the entry names, and the link is not stopped: a bare refusal otherwise, nothing spent, nothing made.
+        if (!newLinkWhenHolds(newLink.when?.where, row, newLink.stopped)) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         const code = row[newLink.column];
         if (code === null || code === undefined || code === '') return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         // Nothing is made that could not be sent: mail set up, and the app's message there to carry it.
         const producers = app.hasDecorator('outbox') ? (app.outbox as Partial<OutboxProducers>) : undefined;
-        const box = ok.key.managedBy === null || producers?.live === undefined || producers.queueKind === undefined ? undefined : (await producers.live()).find((b) => b.appKey === ok.key.managedBy && b.connectionId === ok.key.connectionId);
+        const box =
+          ok.key.managedBy === null || producers?.live === undefined || producers.addressKind === undefined || producers.queueKindIn === undefined
+            ? undefined
+            : (await producers.live()).find((b) => b.appKey === ok.key.managedBy && b.connectionId === ok.key.connectionId);
         if (box === undefined || box.definition.kinds[newLink.kind] === undefined || !(await isEmailConfigured(meta, null))) {
           return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
         }
         /*
-         * The email goes to the person who asked — the session's own, never a
-         * person the row happens to point at — and it must be able to go (an
-         * address on file, no sample row) before the old link is stopped:
-         * otherwise the guest keeps the link they have.
+         * Signed in, the email goes to the person who asked — the session's
+         * own, never a person the row happens to point at. Through a row's own
+         * link nobody is named: it goes where the kind's own producer sends it,
+         * from the row alone (`resend`). Either way it must be able to go (an
+         * address on file, no sample row) before anything is counted or made.
          */
         const person = session.grant.value;
-        // Through a row's own link nobody is named: the outbox addresses the row's own person, as its first message did.
-        const mail = { connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, repeatBy: newLink.column, ...(ownLink ? {} : { person }) };
-        if (!(await producers!.queueKind!({ ...mail, row, dry: true }))) {
-          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
-        }
+        const mail = { connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, repeatBy: newLink.column, ...(ownLink ? { resend: true } : { person }) };
+        const address = await producers!.addressKind!({ ...mail, row });
+        if (address === null) return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
         /*
          * One ask at a time for one row, holding its name: an ask that finds a
          * new link made moments ago (a second press, a retry) changes nothing
          * — that one's email carries the link — and so many a day at most.
+         * Through a row's own link, whoever holds it typed the address: so many
+         * a day to one mailbox too, over every row of the table.
          */
         // Counted by the row's key as the row holds it, however the id was spelled in the address.
         const subject = `new-link:${subjectOf(ok.key.connectionId, found.table.id, newLink.column, JSON.stringify(found.table.primaryKey.map((column) => row![column])))}`;
-        type Asked = { made: Row } | { recent: true } | { limit: true } | { gone: true };
+        const mailbox = ownLink ? newLinkMailboxSubject(capSecret, ok.key.connectionId, found.table.id, address) : null;
+        type Asked = { made: Row } | { recent: true } | { limit: true } | { gone: true } | { unsent: true };
         let asked: Asked;
-        // The ask counted holding the row's name, nothing else: of asks at once, one finds none before it.
-        let charged: Asked | { mark: string };
+        // The ask counted holding the row's name (and the mailbox's), nothing else: of asks at once, one finds none before it.
+        let charged: Asked | { marks: string[] };
         try {
-          charged = await withNamedLocks({ db: found.db, dialect: found.dialect }, [{ name: `new-link|${subject}`, busy: 'CAPACITY_BUSY' }], async (): Promise<Asked | { mark: string }> => {
+          const names = [subject, ...(mailbox === null ? [] : [mailbox])].map((name) => ({ name: `new-link|${name}`, busy: 'CAPACITY_BUSY' as const }));
+          charged = await withNamedLocks({ db: found.db, dialect: found.dialect }, names, async (): Promise<Asked | { marks: string[] }> => {
             const now = Date.now();
             if ((await challenges.sentSince(subject, now - NEW_LINK_QUIET_MS, NEW_LINK_PURPOSE)) > 0) return { recent: true };
-            const mark = await challenges.mark({ keyId: ok.key.keyId, ref: request.params.ref, sessionId: session.id, subject, purpose: NEW_LINK_PURPOSE }, now);
-            if ((await challenges.sentSince(subject, now - DAY_MS, NEW_LINK_PURPOSE)) > NEW_LINKS_PER_DAY) {
-              await challenges.unmark([mark]);
+            const marks = [await challenges.mark({ keyId: ok.key.keyId, ref: request.params.ref, sessionId: session.id, subject, purpose: NEW_LINK_PURPOSE }, now)];
+            if (mailbox !== null) marks.push(await challenges.mark({ keyId: ok.key.keyId, ref: request.params.ref, sessionId: session.id, subject: mailbox, purpose: NEW_LINK_PURPOSE }, now));
+            const over = async (counted: string) => (await challenges.sentSince(counted, now - DAY_MS, NEW_LINK_PURPOSE)) > NEW_LINKS_PER_DAY;
+            if ((await over(subject)) || (mailbox !== null && (await over(mailbox)))) {
+              await challenges.unmark(marks);
               return { limit: true };
             }
-            return { mark };
+            return { marks };
           });
         } catch (error) {
-          if (lostRace(error)) return busy(reply);
+          if (lostRace(error) || heldBusy(error)) return busy(reply);
           throw error;
         }
-        if (!('mark' in charged)) asked = charged;
+        /** What the renewal's transaction queued, told once it commits. */
+        let settle: (() => void) | null = null;
+        if (!('marks' in charged)) asked = charged;
         else {
-          const mark = charged.mark;
+          const marks = charged.marks;
           const target: WriteTarget = { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone };
+          let committed = false;
           try {
             // Only while the code is still the one read, the row still this person's, and still holding what the entry names.
-            const still = newLinkWhenFilter(newLink.when?.where, found.table);
-            const made = await renewed(request, ok, target, row, newLink.column, ((query: { where: (...args: never[]) => unknown }) => {
-              const narrowed = (inScope(query as never) as { where: (...args: unknown[]) => unknown }).where(found.db.dynamic.ref(newLink.column), '=', code) as { where: (...args: unknown[]) => unknown };
-              return still === null
-                ? narrowed
-                : narrowed.where((eb: never) => compileFilter(eb, { view: found.view, table: found.table, canReadPii: true, dynamic: found.db.dynamic, dialect: found.dialect }, still));
-            }) as never);
-            if (made === null) await challenges.unmark([mark]);
+            const still = newLinkStillHolds({ view: found.view, table: found.table, canReadPii: true, dynamic: found.db.dynamic, dialect: found.dialect }, newLink.when?.where, newLink.stopped);
+            const made = await renewed(
+              request,
+              ok,
+              target,
+              row,
+              newLink.column,
+              ((query: { where: (...args: unknown[]) => unknown }) => {
+                const narrowed = (inScope(query as never) as { where: (...args: unknown[]) => unknown }).where(found.db.dynamic.ref(newLink.column), '=', code) as { where: (...args: unknown[]) => unknown };
+                return still === null ? narrowed : narrowed.where(still);
+              }) as never,
+              {
+                // The email is queued in the renewal's own transaction: the new code and its email are kept together, or neither is.
+                inside: async (db, after) => {
+                  settle = await producers!.queueKindIn!(db, { ...mail, row: after });
+                  if (settle === null) throw new NewLinkUnsent();
+                },
+                // Past this point the new code and its email are kept: what follows is told, never undone.
+                committed: () => {
+                  committed = true;
+                },
+              },
+            );
+            if (made === null) await challenges.unmark(marks);
             asked = made === null ? { gone: true } : { made };
           } catch (error) {
-            await challenges.unmark([mark]);
-            if (lostRace(error)) return busy(reply);
-            if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
-            request.log.warn({ err: error, ref: request.params.ref }, 'a new link could not be made');
-            return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+            if (committed) {
+              // Made and queued, and only what tells of it failed: the ask stands, counted.
+              request.log.warn({ err: error, ref: request.params.ref }, 'a new link was made and emailed, and telling of it failed');
+              asked = { made: row };
+            } else {
+              await challenges.unmark(marks);
+              if (error instanceof NewLinkUnsent) asked = { unsent: true };
+              // Two writers at once, or the outbox held past the wait: nothing kept, and a moment later it goes.
+              else if (lostRace(error) || heldBusy(error)) return busy(reply);
+              else if (error instanceof HookRejectedError) return fail(reply, 400, 'PUBLIC_WRITE_REJECTED', error.message);
+              else {
+                request.log.warn({ err: error, ref: request.params.ref }, 'a new link could not be made');
+                return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
+              }
+            }
           }
         }
         if ('limit' in asked) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many new links as can be made online today have been made. Please get in touch instead.');
         if ('gone' in asked) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
-        if ('made' in asked && !(await producers!.queueKind!({ ...mail, row: asked.made }))) {
-          // Checked a moment ago and gone since (the address emptied meanwhile): said plainly, and the desk can send it.
-          request.log.warn({ ref: request.params.ref }, 'a new link was made and its email could not be queued');
-          return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
-        }
+        // Its address gone meanwhile: nothing was made, and the old link still opens the row.
+        if ('unsent' in asked) return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
+        (settle as (() => void) | null)?.();
         return reply.code(202).send({ data: {} });
       },
     );

@@ -351,7 +351,15 @@ function definitionOf(
         }),
     ...(entry.newLink === undefined
       ? {}
-      : { new_link: { column: entry.newLink.column, kind: entry.newLink.kind, ...(entry.newLink.when === undefined ? {} : { when: structuredClone(entry.newLink.when) }) } }),
+      : {
+          new_link: {
+            column: entry.newLink.column,
+            kind: entry.newLink.kind,
+            ...(entry.newLink.when === undefined ? {} : { when: structuredClone(entry.newLink.when) }),
+            // Sent again through the row's own link: the yes/no that stops the link it makes again (a stopped one is never sent).
+            ...(resentStopped(manifest, entry) === undefined ? {} : { stopped: resentStopped(manifest, entry) }),
+          },
+        }),
     // Columns left out of rows read through a parent, unless the row's holder is the session's own person.
     ...(entry.withhold === undefined
       ? {}
@@ -366,6 +374,16 @@ function definitionOf(
           },
         }),
   } as PublicEndpointDefinition;
+}
+
+/** Through a row's own link, the `stopped` column of the other own link its new link makes again, if that link has one. */
+function resentStopped(manifest: Manifest, entry: PublicAccessEntry): string | undefined {
+  if (entry.newLink === undefined || entry.claim === undefined || !('by' in entry.claim) || entry.claim.own !== true) return undefined;
+  const key = entry.key ?? 'customer';
+  const other = (manifest.kind === 'app' ? (manifest.publicAccess ?? []) : []).find(
+    (candidate) => candidate.table === entry.table && (candidate.key ?? 'customer') !== key && candidate.claim !== undefined && 'by' in candidate.claim && candidate.claim.column === entry.newLink!.column,
+  );
+  return other?.claim !== undefined && 'by' in other.claim ? other.claim.stopped : undefined;
 }
 
 /** The keys of an app that open a row by its own link (a token claim with `own`). */
