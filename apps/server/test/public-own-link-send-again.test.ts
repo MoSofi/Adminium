@@ -506,8 +506,8 @@ describe.each(LEGS)('"send it again" through an order\'s own link — %s', (dial
         for (let i = 0; i < 400 && (await asksCounted()) === counted; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
         expect(await asksCounted()).toBe(counted + 2);
         await new Promise((resolve) => setTimeout(resolve, 300));
-        // The desk empties the person's address meanwhile (over the twin's own pool: the server's may be one connection, held by the waiting ask).
-        await other.rows(`update ${h.real('customers')} set email = null where id = ${String(customer)}`);
+        // The desk empties the person's address meanwhile, in the twin's own transaction: the server's pool may be one connection, held by the waiting ask, and so may the twin's.
+        await sql.raw(`update ${h.real('customers')} set email = null where id = ${String(customer)}`).execute(trx);
       });
     } finally {
       await other.close();
