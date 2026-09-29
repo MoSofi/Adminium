@@ -2785,9 +2785,11 @@ go, the answer is `503` `PUBLIC_CODE_UNAVAILABLE`. See
 On a row's own-link entry, `newLink` makes another own link of the row again ("Send it again" for a
 confirmation email): `column` is a code another key opens this table by with `own: true`, never the
 entry's own. The email goes to the row's own address, as the outbox's other messages about the row,
-and the asking session stays open. `when: { "where": [conditions] }` (on either kind of entry) allows
-the ask only while the row holds every condition; otherwise it is refused `409`
-`PUBLIC_WRITE_REFUSED`, with nothing made, sent or counted.
+and the asking session stays open. The address is the one the kind's own producer uses, read from
+the row, and no entry may let a guest change it. Here `when: { "where": [conditions] }` is required
+(it is optional on a signed-in entry): the ask goes only while the row holds every condition, and
+never while that link is stopped; otherwise it is refused `409` `PUBLIC_WRITE_REFUSED`, with nothing
+made, sent or counted. Besides 5 a day per row, it is 5 a day per mailbox over the whole table.
 
 ### Delete my details
 

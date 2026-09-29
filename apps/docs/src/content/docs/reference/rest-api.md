@@ -1125,8 +1125,10 @@ one row in a day, the next ask is refused `409` `PUBLIC_LIMIT_REACHED`. When no 
 On an entry opened by a row's own link, the same route makes another own link of that row again
 (the confirm link of a confirmation email, "Send it again"), with the session the row's own link
 opened. The email goes to the row's own address; the asking session stays open. When the entry's
-`newLink.when` does not hold for the row, the ask is refused `409` `PUBLIC_WRITE_REFUSED`, and nothing
-is made, sent or counted. See
+`newLink.when` does not hold for the row, or that link is stopped, the ask is refused `409`
+`PUBLIC_WRITE_REFUSED`, and nothing is made, sent or counted. Such asks are limited to 5 a day per row
+and 5 a day per mailbox over the table (`409` `PUBLIC_LIMIT_REACHED`). The email is queued in the same
+transaction as the new code: when it cannot be, nothing is made and nothing counted. See
 [Identity and own links](/guides/apps/identity-and-own-links/).
 
 ### Signing out, and deleting details

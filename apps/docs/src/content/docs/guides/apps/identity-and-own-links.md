@@ -418,23 +418,29 @@ The page asks with the same `POST /api/v1/public/records/{ref}/{id}/new-link` (o
 with the session its own link opened. The confirm link gets a new code, so the first email's link
 stops opening anything, and the new one is emailed as the outbox message `kind`.
 
-- **To the row's own address.** It goes where the outbox sends its other messages about the row,
-  never to an address in the request.
+- **To the row's own address.** It goes where the kind's own producer sends it (its
+  `recipient` column of the row, else the person the row links, else the outbox's fallback through
+  the row), never to an address in the request. No entry may let a guest change that address.
 - **The asking link stays open.** Only the confirm link changes; the order's own link and its
   session keep working.
-- **Only while `when` holds.** Asked when the order is not confirming (not yet, or confirmed
-  already), the answer is a bare `409` `PUBLIC_WRITE_REFUSED`, and nothing is made, sent or counted.
-  The condition is checked again in the same statement that makes the new code, so a confirm that
-  lands meanwhile wins.
-- The same limits as above: 5 a day per row (whichever session asks), one every 60 seconds, and
-  `503` `PUBLIC_CODE_UNAVAILABLE` with the old link kept when no email can go.
+- **Only while `when` holds.** `when` is required here. Asked when the order is not confirming
+  (not yet, or confirmed already), or while the confirm link is stopped, the answer is a bare `409`
+  `PUBLIC_WRITE_REFUSED`, and nothing is made, sent or counted. The condition is checked again in
+  the same statement that makes the new code, so a confirm that lands meanwhile wins.
+- **The new code and its email are kept together.** The email is queued in the same transaction
+  that makes the new code: when it cannot be queued, nothing is made, the old link keeps working,
+  and nothing is counted (`503` `PUBLIC_CODE_UNAVAILABLE`, or `409` `PUBLIC_SLOT_BUSY` while the
+  outbox is busy).
+- **Limits.** 5 a day per row (whichever session asks), and 5 a day per mailbox over every row of
+  the table (an address counted as the other public limits count it: lower case, without a `+tag`),
+  one every 60 seconds per row. Over either, `409` `PUBLIC_LIMIT_REACHED`, counting nothing.
 
 | Field | Rule |
 |---|---|
 | `newLink` | On a `GET` entry with a `claimedBy` that is not optional, on a key that signs people in by email; or on a row's own-link entry (a token claim with `own: true`) that reads the row. |
 | `newLink.column` | Signed in: the code of a row's own link, a token claim with `own: true` on this table, by this column. Through the row's own link: another key's own link on this table, never the code the entry opens the row by. |
-| `newLink.kind` | One of the outbox's `kinds`. The outbox has a `repeatKey` column (text that holds at least 43 characters, a digest) and a link to this table. Signed in, its recipient table is the `claimedBy` table; through the row's own link, the outbox finds an address from the row (a link to its recipient table, or a fallback through this table). |
-| `newLink.when` | Optional. `{ "where": [conditions] }`, 1 to 8 conditions on the row (`eq`, `in`, `isNull`, `gt`, `gte`, `lt`, `lte`), all of which must hold. |
+| `newLink.kind` | One of the outbox's `kinds`. The outbox has a `repeatKey` column (text that holds at least 43 characters, a digest) and a link to this table. Signed in, its recipient table is the `claimedBy` table. Through the row's own link, the kind's own producer addresses it from the row (a `recipient.column` of the row; with none, the person the row links or the outbox's fallback through this table), and no entry that changes rows may write the column that address is read from. |
+| `newLink.when` | `{ "where": [conditions] }`, 1 to 8 conditions on columns the entry shows (`eq`, `in`, `isNull`, `gt`, `gte`, `lt`, `lte`), all of which must hold; a text is compared exactly. Required through the row's own link, optional signed in. |
 
 ## Withheld columns
 
