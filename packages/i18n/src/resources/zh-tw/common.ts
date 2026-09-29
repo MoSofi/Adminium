@@ -136,7 +136,8 @@ export default {
     "app": {
       "openStaff": "開啟員工畫面",
       "openStaffInstance": "開啟員工畫面 · {instance}"
-    }
+    },
+    "drawerTitle": "導覽"
   },
   "apps": {
     "frame": {
@@ -158,7 +159,8 @@ export default {
     "workspaceSettings": "工作區設定",
     "help": "說明中心",
     "changelog": "新功能",
-    "signOut": "登出"
+    "signOut": "登出",
+    "toggleSidebar": "切換側邊欄"
   },
   "palette": {
     "dialog": "命令面板",

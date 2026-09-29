@@ -136,7 +136,8 @@ export default {
     "app": {
       "openStaff": "فتح شاشات الموظفين",
       "openStaffInstance": "فتح شاشات الموظفين · {instance}"
-    }
+    },
+    "drawerTitle": "التنقل"
   },
   "apps": {
     "frame": {
@@ -158,7 +159,8 @@ export default {
     "workspaceSettings": "إعدادات مساحة العمل",
     "help": "مركز المساعدة",
     "changelog": "ما الجديد",
-    "signOut": "تسجيل الخروج"
+    "signOut": "تسجيل الخروج",
+    "toggleSidebar": "إظهار/إخفاء الشريط الجانبي"
   },
   "palette": {
     "dialog": "لوحة الأوامر",

@@ -92,6 +92,8 @@ export interface SidebarNavProps {
    */
   onSignOut?: (() => void) | undefined;
   className?: string | undefined;
+  /** What the topbar's menu button names in `aria-controls`. */
+  id?: string | undefined;
 }
 
 /**
@@ -469,7 +471,7 @@ function AppSection({ section }: { section: AppSectionData }) {
   );
 }
 
-export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
+export function SidebarNav({ bootstrap, className, id }: SidebarNavProps) {
   const { nav, version } = bootstrap;
   const { showVersion } = useBranding();
   // 2+ sources → sub-label items per connection; else stay flat.
@@ -551,6 +553,7 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
 
   return (
     <aside
+      id={id}
       data-part="sidebar"
       className={cn(
         'sticky top-0 flex h-dvh w-sidebar shrink-0 flex-col border-e border-border bg-surface',

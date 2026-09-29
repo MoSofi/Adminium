@@ -136,7 +136,8 @@ export default {
     "app": {
       "openStaff": "Otevřít obrazovky pro personál",
       "openStaffInstance": "Otevřít obrazovky pro personál · {instance}"
-    }
+    },
+    "drawerTitle": "Navigace"
   },
   "apps": {
     "frame": {
@@ -158,7 +159,8 @@ export default {
     "workspaceSettings": "Nastavení workspace",
     "help": "Centrum nápovědy",
     "changelog": "Novinky",
-    "signOut": "Odhlásit se"
+    "signOut": "Odhlásit se",
+    "toggleSidebar": "Přepnout postranní panel"
   },
   "palette": {
     "dialog": "Paleta příkazů",
