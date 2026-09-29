@@ -12,7 +12,9 @@
  *  - the stamps written when the row entered the state it returns to keep
  *    what they had (the time it started preparing is still the first one),
  *    and the stamps marked `clearOnBack` that watch the state it leaves are
- *    emptied (DECIDE, `crud/decide.ts`);
+ *    emptied (DECIDE, `crud/decide.ts`), with the further columns the move
+ *    names (`clears`) — and what it empties is open to the table's lock for
+ *    this move only (the judge);
  *  - what it waits for is judged on the row as it stands, before anything is
  *    emptied — a move allowed a minute after `ready_at` reads `ready_at`.
  *
@@ -27,6 +29,9 @@ export interface UndoMove {
 }
 
 const stateOf = (value: unknown): string | null => (value === null || value === undefined ? null : String(value));
+
+/** Empty as an undo leaves a column: nothing, or empty text. */
+export const emptyValue = (value: unknown): boolean => value === null || value === undefined || value === '';
 
 /** The move a write makes when it is one marked `undo`, from the stored state to the one it names; else null. */
 export function undoMoveOf(states: TableStatesRule | undefined, stored: Row | null, values: Row): UndoMove | null {
@@ -52,6 +57,16 @@ export function keptByUndo(stamp: Pick<ColumnStampRule, 'on'>, column: string, m
 /** Whether an undo empties this stamp: marked `clearOnBack`, and written on entering the state the undo leaves. */
 export function emptiedByUndo(stamp: Pick<ColumnStampRule, 'on' | 'clearOnBack'>, column: string, move: UndoMove): boolean {
   return stamp.clearOnBack === true && !keptByUndo(stamp, column, move) && statesWatched(stamp, column).includes(move.from);
+}
+
+/**
+ * The further columns an undo empties besides its stamps, as the table lists
+ * them on the move (`clears`: how a hand-over taken back was paid). Emptied
+ * by DECIDE, and open to the lock for this move only.
+ */
+export function clearedByUndo(states: TableStatesRule, move: UndoMove): string[] {
+  const listed = (states.moves[move.from] ?? []).find((candidate) => typeof candidate === 'object' && candidate.to === move.to && candidate.undo === true);
+  return typeof listed === 'object' ? (listed.clears ?? []) : [];
 }
 
 /** The columns an undo empties, of a table's columns and their stamps. */
@@ -86,7 +101,10 @@ export function moveBackOf(
   const now = stateOf(after[0]![states.column]) ?? states.initial;
   if (was === now) return null;
   const stamped = new Set(table!.columns.flatMap((column) => (column.stamp === undefined ? [] : [column.name])));
-  if (changedColumns.some((column) => column !== states.column && !stamped.has(column))) return null;
   const back = undoMoveOf(states, { [states.column]: now }, { [states.column]: was });
-  return back === null ? null : { column: states.column, from: now, to: was };
+  if (back === null) return null;
+  // A column the move back empties (`clears`) is taken back by it too, when the change filled it from empty (paid on hand-over).
+  const cleared = new Set(clearedByUndo(states, back).filter((column) => emptyValue(before[0]![column])));
+  if (changedColumns.some((column) => column !== states.column && !stamped.has(column) && !cleared.has(column))) return null;
+  return { column: states.column, from: now, to: was };
 }

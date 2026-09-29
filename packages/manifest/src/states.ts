@@ -157,6 +157,12 @@ export const stateMoveSchema = z.union([
        * stamps of the state it returns to keep what they had.
        */
       undo: z.literal(true).optional(),
+      /**
+       * An undo's further columns it empties, beside its stamps (how a hand-over
+       * taken back was paid): emptied by the move, and open to the table's lock
+       * for that move only. Only on a move marked `undo`.
+       */
+      clears: z.array(refSchema).min(1).max(8).optional(),
     })
     .strict(),
 ]);
@@ -453,6 +459,20 @@ export function statesIssues<C extends ColumnShape>(
       if (move.undo === true && !(states.moves[to] ?? []).some((back) => moveTarget(back) === from)) {
         out.push({ path: at('moves', from, m, 'undo'), message: `no listed move goes from "${to}" to "${from}", so this move takes nothing back` });
       }
+      // What an undo empties besides its stamps: real columns of the row a writer could set, which may be empty.
+      if (move.clears !== undefined && move.undo !== true) {
+        out.push({ path: at('moves', from, m, 'clears'), message: 'only a move marked undo empties columns as it goes' });
+      }
+      (move.clears ?? []).forEach((ref, c) => {
+        const path = at('moves', from, m, 'clears', c);
+        const found = index.column(table, ref);
+        if (found === undefined) out.push({ path, message: `"${table}" has no column "${ref}"` });
+        else if (ref === states.column) out.push({ path, message: 'the state moves by the move itself, not by what it empties' });
+        else if (found.role === 'pk') out.push({ path, message: `"${table}.${ref}" is the key, which never changes` });
+        else if (found.nullable !== true) out.push({ path, message: `"${table}.${ref}" is not nullable, so an undo cannot empty it` });
+        else if (ctx.decided?.(ref) === true) out.push({ path, message: `"${table}.${ref}" is written by another rule already` });
+        if (move.clears!.indexOf(ref) !== c) out.push({ path, message: `"${ref}" is named twice` });
+      });
     });
   }
   if (states.lock !== undefined) {

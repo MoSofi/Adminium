@@ -276,6 +276,8 @@ export interface StateMoveRule {
   roles?: string[];
   /** The move takes back the listed one the other way: made only by a write naming the state it saw. */
   undo?: true;
+  /** An undo's further columns it empties: emptied by the move, and open to the lock for that move only. */
+  clears?: string[];
 }
 
 /**

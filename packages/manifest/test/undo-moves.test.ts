@@ -170,3 +170,45 @@ function withEmail(m: Doc): Doc {
   (m['outbox'] as Doc)['recipient'] = { via: 'order_id', table: 'orders', email: 'email' };
   return m;
 }
+
+/** The kitchen that takes a hand-over back: the way it was paid is emptied with it. */
+function handedBack(): Doc {
+  const m = withEmail(kitchen());
+  (orders(m)['columns'] as Doc[]).push(
+    { ref: 'paid_method', type: 'enum', enum: ['cash', 'card'], nullable: true },
+    { ref: 'channel', type: 'enum', enum: ['online', 'phone'], default: 'online' },
+  );
+  moves(m)['picked_up'] = [{ to: 'ready', undo: true, clears: ['paid_method'] }];
+  return m;
+}
+
+describe('the further columns an undo empties', () => {
+  it('validates a take-back that empties how the order was paid', () => {
+    expect(messages(handedBack())).toEqual([]);
+  });
+
+  it('refuses them on a move not marked undo', () => {
+    const m = handedBack();
+    moves(m)['ready'] = [{ to: 'picked_up', clears: ['paid_method'] }, { to: 'preparing', undo: true }];
+    expect(messages(m)).toContain('only a move marked undo empties columns as it goes');
+  });
+
+  it('refuses a column the row lacks, the state, the key, one that cannot be empty, one another rule writes, one named twice', () => {
+    const cases: [unknown[], string][] = [
+      [['nope'], '"orders" has no column "nope"'],
+      [['status'], 'the state moves by the move itself, not by what it empties'],
+      [['id'], '"orders.id" is the key, which never changes'],
+      [['channel'], '"orders.channel" is not nullable, so an undo cannot empty it'],
+      [['ready_at'], '"orders.ready_at" is written by another rule already'],
+      [['paid_method', 'paid_method'], '"paid_method" is named twice'],
+    ];
+    for (const [clears, sentence] of cases) {
+      const m = handedBack();
+      moves(m)['picked_up'] = [{ to: 'ready', undo: true, clears }];
+      expect(messages(m), sentence).toContain(sentence);
+    }
+    const empty = handedBack();
+    moves(empty)['picked_up'] = [{ to: 'ready', undo: true, clears: [] }];
+    expect(messages(empty)).not.toEqual([]);
+  });
+});
