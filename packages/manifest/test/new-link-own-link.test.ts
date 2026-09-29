@@ -64,8 +64,13 @@ describe('"send it again" through a row\'s own link', () => {
     expect(kept).toEqual({ column: 'confirm_token', kind: 'transfer-confirm', when: { where: [{ column: 'status', eq: 'placed' }] } });
   });
 
-  it('validates with no when', () => {
-    expect(messages(sendAgain({ column: 'confirm_token', kind: 'transfer-confirm' }))).toEqual([]);
+  it('says when, through a row\'s own link', () => {
+    expect(issuesText(sendAgain({ column: 'confirm_token', kind: 'transfer-confirm' }))).toContain("sent again through a row's own link only while the row holds a when (an order still to confirm)");
+  });
+
+  it('judges when by columns the entry shows alone', () => {
+    const hidden = sendAgain({ column: 'confirm_token', kind: 'transfer-confirm', when: { where: [{ column: 'phone', isNull: false }] } });
+    expect(issuesText(hidden)).toContain('"orders.phone" is not a column this entry shows, so a new link is never asked for by it');
   });
 
   it('never renews the code the asking link opens its row by', () => {
@@ -97,7 +102,39 @@ describe('"send it again" through a row\'s own link', () => {
     const box = nowhere['outbox'] as Doc;
     box['links'] = { ...(box['links'] as Doc), staff: 'staff_id' };
     box['recipient'] = { via: 'staff_id', table: 'staff', email: 'email' };
-    expect(issuesText(nowhere)).toContain('the outbox finds no address from a "orders" row (no link to "staff", no fallback through "orders")');
+    expect(issuesText(nowhere)).toContain('"transfer-confirm" is not addressed from a "orders" row');
+  });
+
+  it("sends it where the kind's own producer does, from the row alone", () => {
+    const withProducer = (producer: Doc) => {
+      const m = sendAgain();
+      (m['outbox'] as Doc)['producers'] = [{ kind: 'transfer-confirm', link: 'order_id', onChange: { table: 'orders', column: 'status', to: 'placed' }, ...producer }];
+      return m;
+    };
+    // A column of the row itself: sent there.
+    expect(messages(withProducer({ recipient: { column: 'email', name: 'name' } }))).toEqual([]);
+    // A setting's address, or a column of another row, is no address of the row.
+    const bySetting = withProducer({ recipient: { setting: { table: 'settings', column: 'bank_name' } } });
+    expect(issuesText(bySetting)).toContain('"transfer-confirm" is not addressed from a "orders" row');
+    const elsewhere = withProducer({ link: 'customer_id', recipient: { column: 'email' } });
+    expect(issuesText(elsewhere)).toContain('"transfer-confirm" is not addressed from a "orders" row');
+  });
+
+  it('is refused while a guest can change where it goes', () => {
+    // The order's own address, written through its own link.
+    const m = sendAgain();
+    linkEntry(m)['writable'] = ['note', 'email'];
+    expect(issuesText(m)).toContain('"orders.email" is where it is sent again, and an entry lets a guest change it: nothing a guest writes may say where it goes');
+    // The person the order links, their address written by the person.
+    const n = sendAgain();
+    const person = (n['publicAccess'] as Doc[]).find((e) => e['table'] === 'customers')!;
+    person['writable'] = ['name', 'email'];
+    expect(issuesText(n)).toContain('"customers.email" is where it is sent again');
+    // A column of the row the kind's producer mails.
+    const o = sendAgain();
+    (o['outbox'] as Doc)['producers'] = [{ kind: 'transfer-confirm', link: 'order_id', recipient: { column: 'phone' }, onChange: { table: 'orders', column: 'status', to: 'placed' } }];
+    linkEntry(o)['writable'] = ['note', 'phone'];
+    expect(issuesText(o)).toContain('"orders.phone" is where it is sent again');
   });
 
   it('judges its when as any condition on the row', () => {
