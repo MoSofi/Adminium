@@ -136,7 +136,8 @@ export default {
     "app": {
       "openStaff": "Open the staff screens",
       "openStaffInstance": "Open the staff screens · {instance}"
-    }
+    },
+    "drawerTitle": "Navigation"
   },
   "apps": {
     "frame": {
@@ -158,7 +159,8 @@ export default {
     "workspaceSettings": "Workspace settings",
     "help": "Help centre",
     "changelog": "What’s new",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "toggleSidebar": "Toggle sidebar"
   },
   "palette": {
     "dialog": "Command palette",

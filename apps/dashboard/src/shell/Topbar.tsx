@@ -24,6 +24,7 @@ import {
   Database,
   LogOut,
   Megaphone,
+  Menu,
   Moon,
   Settings,
   SlidersHorizontal,
@@ -87,6 +88,15 @@ export interface TopbarProps {
   /** Current page title for the breadcrumb slot. */
   title: string;
   onOpenPalette: () => void;
+  /**
+   * The menu button: the rail beside a wide page, or the drawer over a narrow
+   * one (shell/sidebarToggle.tsx). It is the only way back to the navigation
+   * on a narrow window, where the rail is not drawn at all.
+   */
+  onToggleSidebar: () => void;
+  sidebarExpanded: boolean;
+  /** The id the button controls; null while that element is not in the page. */
+  sidebarControls: string | null;
   onSignOut: () => void;
   onOpenAccount: () => void;
   /**
@@ -197,6 +207,9 @@ export function Topbar({
   bootstrap,
   title,
   onOpenPalette,
+  onToggleSidebar,
+  sidebarExpanded,
+  sidebarControls,
   onSignOut,
   onOpenAccount,
   onOpenPreferences,
@@ -242,6 +255,22 @@ export function Topbar({
          lines whenever a page publishes a subtitle. */
       className="sticky top-0 z-30 flex shrink-0 items-center gap-4 border-b border-border bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] px-7 py-4 backdrop-blur-[8px]"
     >
+      {/* First in the bar at every width: the rail's own edge, whichever side
+          reading order puts it on. A stable name plus `aria-expanded` rather
+          than a label that flips between "show" and "hide". */}
+      <IconButton
+        variant="ghost"
+        size="lg"
+        label={t('topbar.toggleSidebar', 'Toggle sidebar')}
+        tooltip
+        data-part="topbar-sidebar-toggle"
+        aria-expanded={sidebarExpanded}
+        {...(sidebarControls === null ? {} : { 'aria-controls': sidebarControls })}
+        onClick={onToggleSidebar}
+      >
+        <Menu />
+      </IconButton>
+
       {backTo === null ? null : (
         <IconButton
           variant="ghost"

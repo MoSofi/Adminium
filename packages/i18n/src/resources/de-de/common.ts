@@ -136,7 +136,8 @@ export default {
     "app": {
       "openStaff": "Mitarbeiterbildschirme öffnen",
       "openStaffInstance": "Mitarbeiterbildschirme öffnen · {instance}"
-    }
+    },
+    "drawerTitle": "Navigation"
   },
   "apps": {
     "frame": {
@@ -158,7 +159,8 @@ export default {
     "workspaceSettings": "Workspace-Einstellungen",
     "help": "Hilfe-Center",
     "changelog": "Neuerungen",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "toggleSidebar": "Seitenleiste umschalten"
   },
   "palette": {
     "dialog": "Befehlspalette",

@@ -5,6 +5,7 @@ export {
   DrawerClose,
   DrawerFooter,
   DrawerHeader,
+  DrawerTitle,
   DrawerTrigger,
 } from './Drawer.js';
 export type {
@@ -12,5 +13,6 @@ export type {
   DrawerFooterProps,
   DrawerHeaderProps,
   DrawerProps,
+  DrawerSide,
   DrawerSize,
 } from './Drawer.js';

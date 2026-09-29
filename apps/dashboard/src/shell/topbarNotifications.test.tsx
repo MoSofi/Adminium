@@ -101,6 +101,9 @@ function renderTopbar() {
               bootstrap={makeBootstrap()}
               title="Customers"
               onOpenPalette={() => {}}
+              onToggleSidebar={() => {}}
+              sidebarExpanded
+              sidebarControls={null}
               onSignOut={() => {}}
               onOpenAccount={() => {}}
               onOpenPreferences={() => {}}

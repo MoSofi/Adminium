@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { Button } from '../button/Button.js';
-import { Drawer, DrawerBody, DrawerClose, DrawerFooter, DrawerHeader, DrawerTrigger } from './Drawer.js';
+import { Drawer, DrawerBody, DrawerClose, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from './Drawer.js';
 
 afterEach(cleanup);
 
@@ -49,6 +49,21 @@ describe('Drawer', () => {
     await user.click(screen.getByRole('button', { name: 'Open row' }));
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('comes in from the inline-start edge as a navigation drawer, named and undescribed', () => {
+    render(
+      <Drawer open onOpenChange={() => undefined} side="start" aria-describedby={undefined}>
+        <DrawerTitle className="sr-only">Navigation</DrawerTitle>
+        <nav aria-label="Primary">Links</nav>
+      </Drawer>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Navigation' });
+    expect(dialog.getAttribute('data-side')).toBe('start');
+    expect(dialog.classList.contains('start-0')).toBe(true);
+    expect(dialog.classList.contains('inset-y-0')).toBe(true);
+    expect(dialog.classList.contains('end-0')).toBe(false);
+    expect(dialog.hasAttribute('aria-describedby')).toBe(false);
   });
 
   it('anchors to the inline-end edge', async () => {

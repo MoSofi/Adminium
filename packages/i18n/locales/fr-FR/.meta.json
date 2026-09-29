@@ -4871,6 +4871,10 @@
     "srcHash": "6512ee1541e9",
     "status": "mt"
   },
+  "common.nav.drawerTitle": {
+    "status": "src",
+    "srcHash": "cf03cf2e9cdf"
+  },
   "common.nav.emailTemplates": {
     "srcHash": "5cdc6a6d5345",
     "status": "mt"
@@ -7146,6 +7150,10 @@
   "common.topbar.theme": {
     "srcHash": "dcd2ecea1553",
     "status": "mt"
+  },
+  "common.topbar.toggleSidebar": {
+    "status": "mt",
+    "srcHash": "8b9b1bbd66e4"
   },
   "common.topbar.userMenu": {
     "srcHash": "60f5a30c306c",

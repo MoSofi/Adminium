@@ -47,6 +47,13 @@ const CommandPaletteHost = lazy(async () => ({
 }));
 import { useShortcut, useShortcutManager } from './ShortcutsProvider.js';
 import { SidebarNav } from './SidebarNav.js';
+import { SIDEBAR_DRAWER_ID, SIDEBAR_ID, useSidebarToggle } from './sidebarToggle.js';
+/* Lazy for the palette's reason: the drawer is Radix Dialog, and it opens only
+   on a narrow window, only when asked. Mounted while open; it has no exit
+   animation to wait for. */
+const SidebarDrawer = lazy(async () => ({
+  default: (await import('./SidebarDrawer.js')).SidebarDrawer,
+}));
 import { Topbar } from './Topbar.js';
 
 export function AppShell() {
@@ -62,10 +69,12 @@ export function AppShell() {
   // requested exactly once and never unmounted (see the effect below).
   const [paletteMounted, setPaletteMounted] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [offline, setOffline] = useState(false);
 
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  // The rail beside a wide page, or a drawer over a narrow one: one switch for
+  // both, behind the topbar's menu button and ⌘B.
+  const sidebar = useSidebarToggle(pathname);
   const title = useMemo(() => {
     const slugMatch = /^\/p\/([^/]+)/.exec(pathname);
     if (slugMatch !== null) {
@@ -215,7 +224,7 @@ export function AppShell() {
     group: 'View',
     label: t('shortcuts.sidebar', 'Toggle sidebar'),
     keys: ['⌘', 'B'],
-    handler: () => setSidebarOpen((open) => !open),
+    handler: sidebar.toggle,
   });
 
   // Data-driven G-chords: first ≤8 nav items with unique letters, plus
@@ -272,10 +281,20 @@ export function AppShell() {
       ) : null}
 
       <SidebarNav
+        id={SIDEBAR_ID}
         bootstrap={bootstrap}
         onSignOut={signOut}
-        className={sidebarOpen ? 'hidden lg:flex' : 'hidden'}
+        className={sidebar.railOpen ? 'hidden lg:flex' : 'hidden'}
       />
+      {sidebar.drawerOpen ? (
+        <Suspense fallback={null}>
+          <SidebarDrawer open onOpenChange={sidebar.setDrawerOpen}>
+            {/* `static h-full`: inside the drawer the rail fills the panel rather
+                than sticking to a viewport it no longer scrolls against. */}
+            <SidebarNav id={SIDEBAR_DRAWER_ID} bootstrap={bootstrap} className="static h-full" />
+          </SidebarDrawer>
+        </Suspense>
+      ) : null}
 
       {/* The provider has to span BOTH children: the topbar holds the slot, the
           outlet holds the pages that publish into it. */}
@@ -285,6 +304,9 @@ export function AppShell() {
             bootstrap={bootstrap}
             title={title}
             onOpenPalette={() => setPaletteOpen(true)}
+            sidebarExpanded={sidebar.expanded}
+            sidebarControls={sidebar.controls}
+            onToggleSidebar={sidebar.toggle}
             onSignOut={signOut}
             onOpenAccount={() => void navigate({ to: '/account' })}
             onOpenPreferences={() => void navigate({ to: '/account/preferences' })}

@@ -19,8 +19,14 @@ const drawerSizeClasses: Record<DrawerSize, string> = {
 export const DrawerTrigger = DialogPrimitive.Trigger;
 /** Close wrapper for footer buttons (`asChild` supported). */
 export const DrawerClose = DialogPrimitive.Close;
+/**
+ * The drawer's name, for a drawer with no `DrawerHeader` (which renders its
+ * own). Radix names the dialog from it; give it `className="sr-only"` when the
+ * content already says what it is to the eye.
+ */
+export const DrawerTitle = DialogPrimitive.Title;
 
-export type DrawerSide = 'end' | 'bottom';
+export type DrawerSide = 'start' | 'end' | 'bottom';
 
 export interface DrawerProps extends ComponentPropsWithRef<typeof DialogPrimitive.Root> {
   /** Inline size: sm 380 / md 480 / lg 640. Ignored for a bottom sheet, which is full-width. */
@@ -28,9 +34,16 @@ export interface DrawerProps extends ComponentPropsWithRef<typeof DialogPrimitiv
   /**
    * Where the sheet comes from. `end` (default) is the side drawer; `bottom`
    * is the phone-width sheet the Export Builder comp draws: full width, 84vh
-   * tall at most, 20px top radius, sliding up.
+   * tall at most, 20px top radius, sliding up. `start` is the navigation
+   * drawer: the app rail, brought in over a page too narrow to sit beside it.
    */
   side?: DrawerSide | undefined;
+  /**
+   * Hand-wired description id. Pass `undefined` explicitly for a drawer with
+   * no description (the navigation drawer), which is what stops Radix warning
+   * about a description it was never meant to have.
+   */
+  'aria-describedby'?: string | undefined;
   /** Extra classes for the sheet panel. */
   className?: string | undefined;
   /** Extra classes for the scrim overlay. */
@@ -50,8 +63,10 @@ export function Drawer({
   className,
   overlayClassName,
   children,
-  ...rootProps
+  ...props
 }: DrawerProps) {
+  const describes = 'aria-describedby' in props;
+  const { 'aria-describedby': describedBy, ...rootProps } = props;
   // Triggers must stay outside the Portal (unmounted while closed) — same
   // pattern as Modal.
   const childArray = Children.toArray(children);
@@ -70,8 +85,17 @@ export function Drawer({
         />
         <DialogPrimitive.Content
           data-side={side}
+          {...(describes ? { 'aria-describedby': describedBy } : {})}
           className={cn(
-            side === 'bottom'
+            side === 'start'
+              ? [
+                  'fixed inset-y-0 start-0 z-50 flex h-full max-w-[calc(100vw-32px)] flex-col',
+                  'border-e border-border bg-surface shadow-modal outline-none',
+                  // In from the start edge: the mirror of `end`'s nb-slide.
+                  'animate-[nb-slide_.22s_cubic-bezier(.2,.7,.3,1)] [--nb-slide-from:-24px] rtl:[--nb-slide-from:24px]',
+                  drawerSizeClasses[size],
+                ]
+              : side === 'bottom'
               ? [
                   'fixed inset-x-0 bottom-0 z-50 flex max-h-[84vh] w-full flex-col',
                   'rounded-t-[20px] border-t border-border bg-surface shadow-modal outline-none',

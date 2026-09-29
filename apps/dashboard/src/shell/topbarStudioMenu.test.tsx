@@ -69,6 +69,9 @@ function renderTopbar(roles: string[]) {
               bootstrap={makeBootstrap({ roles })}
               title="Customers"
               onOpenPalette={() => {}}
+              onToggleSidebar={() => {}}
+              sidebarExpanded
+              sidebarControls={null}
               onSignOut={() => {}}
               onOpenAccount={() => {}}
               onOpenPreferences={() => {}}

@@ -136,7 +136,8 @@ export default {
     "app": {
       "openStaff": "Ouvrir les écrans du personnel",
       "openStaffInstance": "Ouvrir les écrans du personnel · {instance}"
-    }
+    },
+    "drawerTitle": "Navigation"
   },
   "apps": {
     "frame": {
@@ -158,7 +159,8 @@ export default {
     "workspaceSettings": "Paramètres de l’espace de travail",
     "help": "Centre d’aide",
     "changelog": "Nouveautés",
-    "signOut": "Se déconnecter"
+    "signOut": "Se déconnecter",
+    "toggleSidebar": "Afficher/masquer la barre latérale"
   },
   "palette": {
     "dialog": "Palette de commandes",

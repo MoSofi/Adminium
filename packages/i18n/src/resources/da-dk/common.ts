@@ -136,7 +136,8 @@ export default {
     "app": {
       "openStaff": "Åbn personaleskærmene",
       "openStaffInstance": "Åbn personaleskærmene · {instance}"
-    }
+    },
+    "drawerTitle": "Navigation"
   },
   "apps": {
     "frame": {
@@ -158,7 +159,8 @@ export default {
     "workspaceSettings": "Arbejdsområdeindstillinger",
     "help": "Hjælpecenter",
     "changelog": "Nyheder",
-    "signOut": "Log ud"
+    "signOut": "Log ud",
+    "toggleSidebar": "Slå sidepanelet til/fra"
   },
   "palette": {
     "dialog": "Kommandopalet",
