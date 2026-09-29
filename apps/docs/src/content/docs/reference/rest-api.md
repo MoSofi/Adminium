@@ -1120,7 +1120,15 @@ It needs a verified session of a person signed in by email. A row's own link, a 
 another person's row and a row that is not there all get the same `404` `PUBLIC_REF_NOT_FOUND`.
 A second ask within 60 seconds changes nothing and answers `202`. Once five new links were made for
 one row in a day, the next ask is refused `409` `PUBLIC_LIMIT_REACHED`. When no email can be sent, it is refused `503`
-`PUBLIC_CODE_UNAVAILABLE` before the old link is stopped. See
+`PUBLIC_CODE_UNAVAILABLE` before the old link is stopped.
+
+On an entry opened by a row's own link, the same route makes another own link of that row again
+(the confirm link of a confirmation email, "Send it again"), with the session the row's own link
+opened. The email goes to the row's own address; the asking session stays open. When the entry's
+`newLink.when` does not hold for the row, or that link is stopped, the ask is refused `409`
+`PUBLIC_WRITE_REFUSED`, and nothing is made, sent or counted. Such asks are limited to 5 a day per row
+and 5 a day per mailbox over the table (`409` `PUBLIC_LIMIT_REACHED`). The email is queued in the same
+transaction as the new code: when it cannot be, nothing is made and nothing counted. See
 [Identity and own links](/guides/apps/identity-and-own-links/).
 
 ### Signing out, and deleting details

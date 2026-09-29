@@ -70,7 +70,7 @@
  * producer and the repair — cannot both add the row.
  */
 import type { Dialect } from '@adminium/engine';
-import { sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
+import { resendAddressOf, sameDecimal, type Outbox, type OutboxProducer, type SettingSource } from '@adminium/manifest';
 import { appOutboxesRepo, appTablesRepo, connectionTenantConfig, manifestsRepo, type AppOutboxRow, type MetaDb } from '@adminium/meta';
 import { sql, type Kysely } from 'kysely';
 
@@ -78,6 +78,7 @@ import type { ConnectionManager, SourceDatabase } from '../connections/manager.j
 import { canonicalJson } from '../apps/sample-data.js';
 import type { RecordWriteEvent } from '../crud/after-record-write.js';
 import { slotInstant, withNamedLock } from '../crud/capacity-guard.js';
+import { withNamedLocks } from '../crud/capacity/locks.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
 import type { Row } from '../crud/mask.js';
 import type { RecordWriteService } from '../crud/write-service.js';
@@ -304,6 +305,30 @@ export interface OutboxProducers {
    * to the row's table.
    */
   queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string; person?: unknown; dry?: boolean }): Promise<boolean>;
+  /**
+   * Where a message of `kind` about a row would go now: its address, or null
+   * (none on file, sample data, no such kind). `resend`: addressed as the
+   * kind's own producer declares it, from the row alone (`resendAddressOf`).
+   */
+  addressKind?(input: KindInput): Promise<string | null>;
+  /**
+   * The same message queued inside the caller's open transaction `db`, so it
+   * is kept or rolled back with the caller's write: what to call once that
+   * commits (the screens told, the sender woken), or null when nothing was queued.
+   */
+  queueKindIn?(db: Kysely<SourceDatabase>, input: KindInput): Promise<(() => void) | null>;
+}
+
+/** A message of one kind about one row, asked for by a caller rather than heard from a write. */
+export interface KindInput {
+  connectionId: string;
+  appKey: string;
+  kind: string;
+  table: ResolvedTable;
+  row: Row;
+  repeatBy: string;
+  person?: unknown;
+  resend?: boolean | undefined;
 }
 
 /** Whether a row is one the app added as sample data: its sample ledger lists it. */
@@ -415,6 +440,12 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       person?: unknown;
       /** Only ask whether it would be queued to go (an address on file, not sample data): nothing is written, and nothing deduped. */
       dry?: boolean | undefined;
+      /** Inside the caller's open transaction: written there, and nothing told until the caller says so (`written`). */
+      db?: Kysely<SourceDatabase> | undefined;
+      /** The address a dry ask found (null: none). */
+      onAddress?: ((address: string | null) => void) | undefined;
+      /** The row written inside the caller's transaction. */
+      written?: ((row: Row) => void) | undefined;
     },
   ): Promise<boolean> {
     const view = await deps.viewFor(box.connectionId);
@@ -439,7 +470,9 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     if (aboutKey === undefined) return false;
     const zone = await zoneOf(box.connectionId);
     const { at, now } = opts;
-    const written = await withNamedLock({ db: handle.db, dialect: handle.dialect }, `outbox|${box.connectionId}|${box.appKey}`, 'CAPACITY_BUSY', async (db): Promise<Row | null> => {
+    // Inside a caller's transaction the lock is taken in it; MySQL's cannot join one, and the repeat key (a new code) keeps it one message there.
+    const lockName = [{ name: `outbox|${box.connectionId}|${box.appKey}`, busy: 'CAPACITY_BUSY' as const }];
+    const written = await withNamedLocks({ db: opts.db ?? handle.db, dialect: handle.dialect }, lockName, async (db): Promise<Row | null> => {
       if (await isSample(db, box, source, sourceKey)) return null;
       if (about.row !== row && (await isSample(db, box, about.table, Object.fromEntries(about.table.primaryKey.map((c) => [c, about.row[c]]))))) return null;
       if (producer.gate !== undefined && !(await switchedOn(db, box, producer.gate))) return null;
@@ -495,7 +528,10 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       );
       if (addressed.person !== null && producer.optIn === true && recipient.optIn !== undefined && !sameValue(true, addressed.person[recipient.optIn])) return null;
       // Asked only whether it would go: an address to send it to.
-      if (opts.dry === true) return addressed.address === null ? null : values;
+      if (opts.dry === true) {
+        opts.onAddress?.(addressed.address);
+        return addressed.address === null ? null : values;
+      }
       values[cols.to] = addressed.address;
       // The row the message is about may say its language (an order placed in German): it wins over the person's.
       const width = cols.language === undefined ? null : (outbox.table.columns.find((column) => column.name === cols.language)?.maxLength ?? null);
@@ -520,9 +556,13 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
         context: outboxContext(box.appKey, outbox.id),
         announce: async () => {},
       });
-    });
+    }, opts.db === undefined ? {} : { openTransaction: 'run' });
     if (written === null) return false;
     if (opts.dry === true) return true;
+    if (opts.db !== undefined) {
+      opts.written?.(written);
+      return written[cols.status] === 'queued' || written[cols.status] === 'held';
+    }
     deps.announce?.(box.connectionId, outbox, written, 'create');
     return written[cols.status] === 'queued' || written[cols.status] === 'held';
   }
@@ -766,19 +806,79 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
     );
   }
 
-  async function queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string; person?: unknown; dry?: boolean }): Promise<boolean> {
+  /** The outbox of the app, and the message it would write about the row: its link to the row's table, and the recipient the kind declares when resent. */
+  async function kindProducer(input: KindInput): Promise<{ box: LiveOutbox; producer: OutboxProducer } | null> {
     const box = (await live()).find((candidate) => candidate.connectionId === input.connectionId && candidate.appKey === input.appKey);
-    if (box === undefined || box.definition.kinds[input.kind] === undefined) return false;
+    if (box === undefined || box.definition.kinds[input.kind] === undefined) return null;
     const view = await deps.viewFor(box.connectionId);
-    if (view === null) return false;
+    if (view === null) return null;
     const outbox = view.table(box.definition.table);
     // The outbox's own link to the row's table: the column its message is about.
     const link = Object.values(box.definition.links ?? {}).find((column) => referenced(view, outbox.id, column) === input.table.id);
-    if (link === undefined) return false;
-    const producer = { kind: input.kind, link, onCreate: { table: input.table.id }, repeatBy: input.repeatBy } as OutboxProducer;
-    const queued = await queue(box, producer, input.table, input.row, { now: Date.now(), ...(input.person === undefined ? {} : { person: input.person }), ...(input.dry === true ? { dry: true } : {}) });
-    if (queued && input.dry !== true) deps.onQueued?.(box.appKey);
+    if (link === undefined) return null;
+    let recipient: OutboxProducer['recipient'];
+    if (input.resend === true) {
+      // As the kind's own producer addresses it, from the row alone: the one answer the validator gave.
+      const columnsOf = (tableId: string) => {
+        try {
+          const table = view.table(tableId);
+          return [...table.columns.keys()].map((name) => ({ name, references: referenced(view, table.id, name) ?? null }));
+        } catch {
+          return undefined;
+        }
+      };
+      const address = resendAddressOf(box.definition as never, input.kind, input.table.id, columnsOf);
+      if (address === null) return null;
+      recipient = address.recipient;
+    }
+    const producer = { kind: input.kind, link, onCreate: { table: input.table.id }, repeatBy: input.repeatBy, ...(recipient === undefined ? {} : { recipient }) } as OutboxProducer;
+    return { box, producer };
+  }
+
+  async function queueKind(input: { connectionId: string; appKey: string; kind: string; table: ResolvedTable; row: Row; repeatBy: string; person?: unknown; dry?: boolean }): Promise<boolean> {
+    const found = await kindProducer(input);
+    if (found === null) return false;
+    const queued = await queue(found.box, found.producer, input.table, input.row, { now: Date.now(), ...(input.person === undefined ? {} : { person: input.person }), ...(input.dry === true ? { dry: true } : {}) });
+    if (queued && input.dry !== true) deps.onQueued?.(found.box.appKey);
     return queued;
+  }
+
+  async function addressKind(input: KindInput): Promise<string | null> {
+    const found = await kindProducer(input);
+    if (found === null) return null;
+    let address: string | null = null;
+    const would = await queue(found.box, found.producer, input.table, input.row, {
+      now: Date.now(),
+      dry: true,
+      ...(input.person === undefined ? {} : { person: input.person }),
+      onAddress: (value) => {
+        address = value;
+      },
+    });
+    return would ? address : null;
+  }
+
+  async function queueKindIn(db: Kysely<SourceDatabase>, input: KindInput): Promise<(() => void) | null> {
+    const found = await kindProducer(input);
+    if (found === null) return null;
+    let row: Row | null = null;
+    const queued = await queue(found.box, found.producer, input.table, input.row, {
+      now: Date.now(),
+      db,
+      ...(input.person === undefined ? {} : { person: input.person }),
+      written: (value) => {
+        row = value;
+      },
+    });
+    if (!queued || row === null) return null;
+    const made = row;
+    return () => {
+      void (async () => {
+        const view = await deps.viewFor(found.box.connectionId);
+        if (view !== null) deps.announce?.(found.box.connectionId, view.table(found.box.definition.table), made, 'create');
+        deps.onQueued?.(found.box.appKey);
+      })().catch(() => {});
+    };
   }
 
   return {
@@ -791,6 +891,8 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       cached = null;
     },
     queueKind,
+    addressKind,
+    queueKindIn,
   };
 }
 

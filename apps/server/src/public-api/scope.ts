@@ -21,7 +21,7 @@
  * here is in service of that sentence.
  */
 
-import { linkedConditionSchema, stateConditionSchema } from '@adminium/manifest';
+import { linkedConditionSchema, stateConditionSchema, type StateCondition } from '@adminium/manifest';
 import { ANONYMOUS_PER_IP_HOUR, type AnonymousCaps } from './anonymous-caps.js';
 import type { WithholdWhen } from './withhold-when.js';
 import { z } from 'zod';
@@ -477,7 +477,10 @@ const resourceSchema = z
       .strict()
       .optional(),
     /** On a signed-in person's rows: "Make a new link" for a row's own link, emailed as the outbox's `kind`. */
-    newLink: z.object({ column: columnSchema, kind: z.string().min(1).max(40) }).strict().optional(),
+    newLink: z
+      .object({ column: columnSchema, kind: z.string().min(1).max(40), when: z.object({ where: z.array(stateConditionSchema).min(1).max(8) }).strict().optional(), stopped: columnSchema.optional() })
+      .strict()
+      .optional(),
     /** On rows read through a parent: columns left out unless `unlessHolder` is empty or names the session's own person. */
     withhold: z
       .object({
@@ -726,7 +729,7 @@ export interface CompiledResource {
   sessionOnly?: boolean | undefined;
   forget?: { columns: readonly string[]; stamp?: string | undefined; flags?: readonly string[] | undefined; links?: readonly { table: string; column: string; people: readonly string[] }[] | undefined } | null | undefined;
   /** "Make a new link" for a signed-in person's row: the own link's code column, and the outbox kind that emails it. */
-  newLink?: { column: string; kind: string } | null | undefined;
+  newLink?: { column: string; kind: string; when?: { where: readonly StateCondition[] } | undefined; stopped?: string | undefined } | null | undefined;
   /** Columns left out of rows read through a parent unless the row's holder is the session's own person. */
   withhold?: { columns: readonly string[]; unlessHolder?: string | undefined; when?: WithholdWhen | undefined } | null | undefined;
   /** Rows read only with a code that unlocks them (`routes/public/code-guesses.ts`); null for none. */
@@ -960,6 +963,9 @@ export function compileScope(
     if (r.sessionOnly === true && r.actions.some((action) => action !== 'read')) {
       issues.push({ code: 'SCOPE_SESSION_ONLY_WRITES', message: `ref "${r.ref}" is read by a session's holder alone, so it only reads`, ref: r.ref });
     }
+    // A new link asked for only while the row holds these: columns of the table.
+    for (const condition of r.newLink?.when?.where ?? []) check(condition.column, 'SCOPE_COLUMN_UNKNOWN');
+    if (r.newLink?.stopped !== undefined) check(r.newLink.stopped, 'SCOPE_COLUMN_UNKNOWN');
     // Withheld columns: shown ones, on a signed-in person's rows reached through a parent (or another person's column).
     if (r.withhold !== undefined) {
       if (r.withhold.unlessHolder !== undefined) check(r.withhold.unlessHolder, 'SCOPE_COLUMN_UNKNOWN');
@@ -1524,7 +1530,7 @@ export function compileScope(
               ...(r.forget.flags === undefined ? {} : { flags: [...r.forget.flags] }),
               ...(r.forget.links === undefined ? {} : { links: r.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
             },
-      newLink: r.newLink === undefined ? null : { ...r.newLink },
+      newLink: r.newLink === undefined ? null : { column: r.newLink.column, kind: r.newLink.kind, ...(r.newLink.when === undefined ? {} : { when: structuredClone(r.newLink.when) as { where: StateCondition[] } }), ...(r.newLink.stopped === undefined ? {} : { stopped: r.newLink.stopped }) },
       withhold:
         r.withhold === undefined
           ? null

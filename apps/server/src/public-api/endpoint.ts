@@ -455,7 +455,10 @@ export const publicEndpointDefinitionSchema = z
       .strict()
       .optional(),
     /** On a signed-in person's rows: "Make a new link" renews `column` and emails the new link as the outbox's `kind`. */
-    new_link: z.object({ column: columnSchema, kind: z.string().min(1).max(40) }).strict().optional(),
+    new_link: z
+      .object({ column: columnSchema, kind: z.string().min(1).max(40), when: z.object({ where: z.array(stateConditionSchema).min(1).max(8) }).strict().optional(), stopped: columnSchema.optional() })
+      .strict()
+      .optional(),
     /**
      * On rows reached through a parent: these columns are left out unless
      * `unless_holder` is empty or names the session's own person.
@@ -615,7 +618,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
       ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ table: link.table, column: link.column, people: [...link.people] })) }),
     };
   }
-  if (def.new_link !== undefined) out['new_link'] = { column: def.new_link.column, kind: def.new_link.kind };
+  if (def.new_link !== undefined) out['new_link'] = { column: def.new_link.column, kind: def.new_link.kind, ...(def.new_link.when === undefined ? {} : { when: structuredClone(def.new_link.when) }), ...(def.new_link.stopped === undefined ? {} : { stopped: def.new_link.stopped }) };
   if (def.withhold !== undefined) {
     out['withhold'] = {
       columns: [...def.withhold.columns],
@@ -950,7 +953,7 @@ export function definitionToResource(
       ...(def.forget.links === undefined ? {} : { links: def.forget.links.map((link) => ({ ...link, people: [...link.people] })) }),
     };
   }
-  if (def.new_link !== undefined) resource.newLink = { ...def.new_link };
+  if (def.new_link !== undefined) resource.newLink = { column: def.new_link.column, kind: def.new_link.kind, ...(def.new_link.when === undefined ? {} : { when: structuredClone(def.new_link.when) }), ...(def.new_link.stopped === undefined ? {} : { stopped: def.new_link.stopped }) };
   if (def.withhold !== undefined) {
     resource.withhold = {
       columns: [...def.withhold.columns],
@@ -1708,8 +1711,20 @@ function treeAndPersonIssues(
   }
   if (def.new_link !== undefined) {
     const code = table.table.columns.find((c) => c.name === def.new_link!.column)?.code;
-    if (code === undefined || code.length < 16 || def.select.includes(def.new_link.column) || def.claim === undefined || def.claim.optional === true || !def.methods.includes('GET')) {
-      push('ENDPOINT_NEW_LINK_SHAPE', `a new link renews a row's own link code (16 characters or more, never shown) on a signed-in person's rows`, def.new_link.column);
+    // Through a row's own link: another link of the row, never the code the asking session opened it by, and only while `when` holds.
+    // (That another key opens the row by it is the manifest's check: an install saves its endpoints one by one.)
+    const ownLink = def.identity?.strategy === 'token' && def.identity.own === true;
+    const asker = ownLink ? !def.identity!.match.includes(def.new_link.column) && def.new_link.when !== undefined : def.claim !== undefined && def.claim.optional !== true && def.new_link.stopped === undefined;
+    if (code === undefined || code.length < 16 || def.select.includes(def.new_link.column) || !asker || !def.methods.includes('GET')) {
+      push('ENDPOINT_NEW_LINK_SHAPE', `a new link renews a row's own link code (16 characters or more, never shown) on a signed-in person's rows, or, while its when holds, another row's own link through its own link`, def.new_link.column);
+    }
+    for (const condition of def.new_link.when?.where ?? []) {
+      if (!table.columns.has(condition.column)) push('ENDPOINT_COLUMN_UNKNOWN', `"${condition.column}" (new_link.when) is not a column of ${def.source}`, condition.column);
+      // Only a column the endpoint shows: a refusal tells nothing about one it does not.
+      else if (!def.select.includes(condition.column)) push('ENDPOINT_NEW_LINK_SHAPE', `"${condition.column}" (new_link.when) is not a column this endpoint shows`, condition.column);
+    }
+    if (def.new_link.stopped !== undefined && !table.columns.has(def.new_link.stopped)) {
+      push('ENDPOINT_COLUMN_UNKNOWN', `"${def.new_link.stopped}" (new_link.stopped) is not a column of ${def.source}`, def.new_link.stopped);
     }
   }
 }
