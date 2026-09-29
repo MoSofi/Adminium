@@ -71,6 +71,19 @@ describe('FileField', () => {
     expect(screen.queryByRole('button', { name: /choose a file/i })).toBeNull();
   });
 
+  it('keeps a relative link the browser would refuse, when there is no upload adapter', () => {
+    render(
+      <form>
+        <FileField column={column({ file: { ref: 'url' } })} value="/covers/bookings.webp" onChange={() => undefined} />
+      </form>,
+    );
+    const input = document.querySelector('[data-part="file-field-fallback"]') as HTMLInputElement;
+    expect(input.type).toBe('text');
+    expect(input.inputMode).toBe('url');
+    expect(input.value).toBe('/covers/bookings.webp');
+    expect((document.querySelector('form') as HTMLFormElement).checkValidity()).toBe(true);
+  });
+
   it('uploads on selection, reports progress, and hands back the SERVER’s ref', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

@@ -83,11 +83,27 @@ export function MonoControl(props: ControlProps) {
   );
 }
 
+/**
+ * The keyboard for an address, NOT the browser's check of one.
+ *
+ * `type="email"` / `type="url"` make the browser refuse to submit the form
+ * while the field holds a value it does not like — and it does not like much:
+ * a root-relative link (`/covers/x.webp`), a scheme-less `example.com`, an
+ * address with a space in its display name. The column's semantic is a
+ * classifier's GUESS, and a guess must never refuse data the table has always
+ * held (the rule the server's own format check follows, column-rules.ts): a
+ * record whose seeded cover link is relative could not be saved at all, even
+ * with that field untouched. A format an admin typed is still enforced — by
+ * the server, which says so under the field.
+ */
+const ADDRESS_INPUT = { spellCheck: false, autoCapitalize: 'none', autoCorrect: 'off' } as const;
+
 export function EmailControl(props: ControlProps) {
   return (
     <Input
       {...inputProps(props)}
-      type="email"
+      {...ADDRESS_INPUT}
+      inputMode="email"
       value={asText(props.value)}
       onChange={(event) => props.onChange(event.target.value)}
     />
@@ -98,7 +114,8 @@ export function UrlControl(props: ControlProps) {
   return (
     <Input
       {...inputProps(props)}
-      type="url"
+      {...ADDRESS_INPUT}
+      inputMode="url"
       value={asText(props.value)}
       onChange={(event) => props.onChange(event.target.value)}
     />

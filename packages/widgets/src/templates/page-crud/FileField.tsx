@@ -129,12 +129,19 @@ export function FileField(props: FileFieldProps): ReactNode {
   const { upload, inputId, value, onChange, column } = props;
   if (upload === undefined) {
     // No transport: the honest fallback is the input this column had before a
-    // `file` block was configured.
+    // `file` block was configured. A text box with the address keyboard, not
+    // `type="url"`: the browser refuses a root-relative link like
+    // `/covers/x.webp` and would block saving a record whose link nobody
+    // touched (controls/text.tsx, `UrlControl`).
     return (
       <input
         id={inputId}
         data-part="file-field-fallback"
-        type="url"
+        type="text"
+        inputMode="url"
+        spellCheck={false}
+        autoCapitalize="none"
+        autoCorrect="off"
         value={stringValue(value)}
         onChange={(event) => onChange(event.target.value === '' ? null : event.target.value)}
         className="w-full rounded-md border border-border bg-surface px-3 py-2 text-body-sm"

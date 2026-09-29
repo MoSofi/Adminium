@@ -139,6 +139,29 @@ describe('the text family', () => {
     expect(onChange).toHaveBeenLastCalledWith('hunter2!');
   });
 
+  it('never lets the browser refuse an address the column already holds', () => {
+    // `type="url"` refused a seeded root-relative cover link and blocked the
+    // save of a record whose link nobody had touched. The semantic is a guess;
+    // only a format an admin typed is enforced, and the server does that.
+    for (const [control, value, mode] of [
+      ['url', '/covers/bookings.webp', 'url'],
+      ['url', 'example.com', 'url'],
+      ['email', 'n/a', 'email'],
+    ] as const) {
+      const Control = CONTROL_COMPONENTS[control].component;
+      render(
+        <form>
+          <Control column={spec({ name: 'value', label: 'Value' })} value={value} onChange={() => undefined} options={[]} mode="edit" />
+        </form>,
+      );
+      const input = document.querySelector('input') as HTMLInputElement;
+      expect(input.type, control).toBe('text');
+      expect(input.inputMode, control).toBe(mode);
+      expect((document.querySelector('form') as HTMLFormElement).checkValidity(), `${control} ${value}`).toBe(true);
+      cleanup();
+    }
+  });
+
   it('gives a title field its own size, and a mono field the mono face', () => {
     renderControl('title', { value: 'Follow-up' });
     expect((document.querySelector('input') as HTMLElement).className).toContain('font-semibold');
