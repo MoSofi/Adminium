@@ -97,9 +97,23 @@ describe('a message sent only while a feature is on', () => {
     expect(issuesText(m)).toContain('"loyalty" is not one of the app\'s addOns.features');
   });
 
-  it('refuses a gate that names both a feature and a setting', () => {
+  it('takes a feature and a setting together, each judged as it is alone', () => {
     const m = mailing();
+    (tableOf(m, 'settings')['columns'] as Doc[]).push({ ref: 'receipt_on', type: 'bool', default: false });
+    producers(m)[1]!['gate'] = { feature: 'receipts', setting: { table: 'settings', column: 'receipt_on' } };
+    expect(issuesText(m)).toBe('');
+    // The setting must be a bool; the feature one the app declares.
+    producers(m)[1]!['gate'] = { feature: 'receipts', setting: { table: 'settings', column: 'refund_days' } };
+    expect(issuesText(m)).toContain('"settings.refund_days" must be a bool');
+    producers(m)[1]!['gate'] = { feature: 'loyalty', setting: { table: 'settings', column: 'receipt_on' } };
+    expect(issuesText(m)).toContain('"loyalty" is not one of the app\'s addOns.features');
+    producers(m)[1]!['gate'] = { feature: 'receipts', setting: { table: 'settings', column: 'nope' } };
+    expect(issuesText(m)).toContain('"settings" has no column "nope"');
+    // A table of many rows is no setting, as for a setting alone.
     producers(m)[1]!['gate'] = { feature: 'receipts', setting: { table: 'orders', column: 'status' } };
+    expect(issuesText(m)).toContain('so "orders.status" is no setting');
+    // One strict object: nothing else beside the two.
+    producers(m)[1]!['gate'] = { feature: 'receipts', setting: { table: 'settings', column: 'receipt_on' }, enabled: true };
     expect(issuesText(m)).not.toBe('');
   });
 });

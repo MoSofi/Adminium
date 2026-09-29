@@ -194,7 +194,7 @@ export function withRealTables(definition: Outbox, realId: (name: string) => str
       const days = producer.due?.days;
       return {
         ...producer,
-        ...(typeof producer.gate === 'object' && 'setting' in producer.gate ? { gate: { setting: { ...producer.gate.setting, table: realId(producer.gate.setting.table) } } } : {}),
+        ...(typeof producer.gate === 'object' && 'setting' in producer.gate ? { gate: { ...producer.gate, setting: { ...producer.gate.setting, table: realId(producer.gate.setting.table) } } } : {}),
         ...(producer.onSent === undefined ? {} : { onSent: { ...producer.onSent, table: realId(producer.onSent.table) } }),
         ...(producer.recipient === undefined || !('setting' in producer.recipient) ? {} : { recipient: { setting: setting(producer.recipient.setting) } }),
         ...(producer.due !== undefined && typeof days === 'object' && 'setting' in days ? { due: { ...producer.due, days: { ...days, setting: setting(days.setting) } } } : {}),
@@ -374,7 +374,9 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
    */
   async function switchedOn(db: Kysely<SourceDatabase>, box: LiveOutbox, gate: OutboxProducer['gate']): Promise<boolean> {
     // A feature of the app: on while every add-on it needs is attached and switched on (a receipt, with Invoices & Receipts).
-    if (typeof gate === 'object' && 'feature' in gate) return await featureOn(deps.meta, box.appKey, gate.feature);
+    if (typeof gate === 'object' && 'feature' in gate && !(await featureOn(deps.meta, box.appKey, gate.feature))) return false;
+    // A feature alone is all it waits for; with a setting beside it, both must hold (a receipt the manager switched on).
+    if (typeof gate === 'object' && !('setting' in gate)) return true;
     // The outbox's own switch, or the producer's (each studio notice has one).
     const at = typeof gate === 'object' ? gate.setting : box.definition.settings?.enabled === undefined ? undefined : { table: box.definition.settings.table, column: box.definition.settings.enabled };
     if (at === undefined) return true;
