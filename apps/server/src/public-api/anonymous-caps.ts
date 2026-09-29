@@ -36,6 +36,9 @@ export const ANONYMOUS_PURPOSE = 'anonymous-create';
 /** The longest a plain-text value may be. */
 export const PLAIN_TEXT_MAX = 80;
 
+/** What a public caller is told when a plain-text column is refused: the rule, never which part of it. */
+export const PLAIN_TEXT_REFUSED = 'That can hold letters, spaces and ordinary punctuation only, and no web or email address.';
+
 /** Creates nobody signed in for, an hour, from one visitor's address, through one key. */
 export const ANONYMOUS_PER_IP_HOUR = 60;
 
@@ -129,8 +132,10 @@ export function plainText(value: unknown): boolean {
 
 /**
  * The endings a web address a stranger could be sent to ends in: the common
- * generic ones and the country ones a link is usually made with. Never a
- * short word a name is made of ("Mary.Ann", "J.R.R.", "Jo").
+ * generic ones (those a venue or a shop would pick first), the country ones a
+ * link is usually made with, and the common ones in other scripts. Never a
+ * short word a name is made of ("Mary.Ann", "J.R.R.", "Jo"). A closed list:
+ * an address ending in one it does not hold still passes.
  */
 const KNOWN_TLDS: ReadonlySet<string> = new Set([
   // generic
@@ -140,37 +145,78 @@ const KNOWN_TLDS: ReadonlySet<string> = new Set([
   'vip', 'win', 'bid', 'loan', 'work', 'review', 'download', 'racing', 'date', 'trade', 'science', 'party', 'stream', 'fun',
   'icu', 'buzz', 'cam', 'rest', 'bar', 'cyou', 'monster', 'sbs', 'cfd', 'ink', 'wiki', 'social', 'events', 'tickets',
   'finance', 'money', 'bank', 'pay', 'gift', 'gifts', 'deals', 'sale', 'promo', 'claims', 'refund',
+  // what a venue, a shop or a clinic is called online
+  'cafe', 'restaurant', 'pub', 'hotel', 'clinic', 'dental', 'health', 'care', 'company', 'menu', 'pizza', 'food', 'kitchen',
+  'delivery', 'booking', 'travel', 'ticket', 'services', 'center', 'agency', 'group', 'solutions', 'network', 'express',
+  'digital', 'market', 'shopping', 'global', 'plus', 'zone', 'one', 'best', 'free', 'new', 'studio', 'design', 'media',
+  'art', 'chat', 'cash', 'credit', 'loans', 'tax', 'legal', 'law', 'exchange', 'zip', 'mov',
   // countries a link is usually made with
   'uk', 'de', 'fr', 'nl', 'eu', 'us', 'ca', 'au', 'in', 'br', 'jp', 'cn', 'ru', 'it', 'es', 'pl', 'ch', 'se', 'dk', 'fi',
   'at', 'cz', 'pt', 'ie', 'nz', 'za', 'mx', 'tr', 'ua', 'kr', 'hk', 'sg', 'tw', 'vn', 'ng', 'ke', 'gr', 'ro', 'hu', 'su',
-  'рф', 'срб', 'укр', 'бел', 'қаз',
+  'be', 'to', 'li', 'im', 'nu', 'ee', 'lv', 'lt', 'sk', 'si', 'hr', 'bg', 'rs', 'il', 'ae', 'sa', 'qa', 'ph', 'th', 'pk',
+  'eg', 'kz', 'lu', 'cl', 'tk', 'ga', 'ml', 'cf', 'gy', 'ac', 'st', 'vc',
+  // other scripts
+  'рф', 'срб', 'укр', 'бел', 'қаз', 'москва', 'онлайн', 'сайт', '中国', '中國', '网址', '公司', '网络',
 ]);
+
+/**
+ * The endings an address is read in even after one capital letter: `X.Com`
+ * and `J.Co` are addresses, where `A.Page` and `W.Hu` are names.
+ */
+const ALWAYS_ADDRESS: ReadonlySet<string> = new Set(['com', 'net', 'org', 'info', 'biz', 'io', 'co', 'app', 'dev', 'shop', 'online', 'site']);
 
 /** A name with dots between its parts (`evil.com`, `claim.refund.net`, `J.R.R`); the last part is read as an ending. */
 const DOTTED = /[\p{L}\p{M}-]+(?:\.[\p{L}\p{M}-]+)+/gu;
 
 /**
+ * The text as a reader takes it in, for finding an ending only: fullwidth and
+ * other compatibility letters as their plain ones, every letter apart from
+ * its marks (the compatibility decomposition, NFKD), and the marks and
+ * invisible characters taken out (`co\u034Fm`, `com\uFE0F` and `coḿ` read
+ * `com`). Never what is stored.
+ */
+function asShown(value: string): string {
+  return value.normalize('NFKD').replace(/[\p{M}\p{Default_Ignorable_Code_Point}]/gu, '');
+}
+
+/** A dotted part with the hyphens or punctuation at either end taken off (`com-` reads `com`). */
+const trimmed = (part: string): string => part.replace(/^[-\p{P}]+|[-\p{P}]+$/gu, '');
+
+/** Initials before a surname (`W.Hu`, `K.Y.Ng`, `M.De`): single capitals, then one capitalised word. */
+function initialsName(parts: readonly string[]): boolean {
+  const last = parts[parts.length - 1]!;
+  return parts.slice(0, -1).every((part) => /^\p{Lu}$/u.test(part)) && /^\p{Lu}\p{Ll}+$/u.test(last);
+}
+
+/**
  * Plain text that names no place to go (`anonymous.plainText`,
  * `limits.plainText`, a child row's `plainText`): {@link plainText}, and no
  * `@` handle, no path and no web address ending in a known ending ("Claim
- * your refund at evil.com", "evil.co.uk/x", "@handle") — while "Mary.Ann",
- * "J.R.R. Tolkien" and "St. John" are names, and pass.
+ * your refund at evil.com", "evil.co.uk/x", "@handle"), however its letters
+ * are dressed ("refund-desk.com-", fullwidth letters, invisible marks) —
+ * while "Mary.Ann", "J.R.R. Tolkien", "St. John" and "K.Y.Ng" are names, and
+ * pass. It refuses web and email addresses in their common forms, not every
+ * way of writing one.
  */
 export function linkFreeText(value: unknown): boolean {
   if (!plainText(value)) return false;
   if (typeof value !== 'string') return true;
   if (value.includes('@') || value.includes('/')) return false;
-  for (const [dotted] of value.matchAll(DOTTED)) {
-    const ending = dotted.slice(dotted.lastIndexOf('.') + 1).toLowerCase();
-    if (KNOWN_TLDS.has(ending)) return false;
+  for (const [dotted] of asShown(value).matchAll(DOTTED)) {
+    const parts = dotted.split('.').map(trimmed).filter((part) => part !== '');
+    if (parts.length < 2) continue;
+    const ending = parts[parts.length - 1]!.toLowerCase();
+    if (!KNOWN_TLDS.has(ending)) continue;
+    if (initialsName(parts) && !ALWAYS_ADDRESS.has(ending)) continue;
+    return false;
   }
   return true;
 }
 
 /**
  * The first column whose value is not plain text, or null: judged as a child
- * row's note is, so a stranger's name never carries a web address into the
- * venue's own email.
+ * row's note is, so a name like "refund-desk.com Smith" is refused before the
+ * venue's own email could print it.
  */
 export function notPlain(caps: AnonymousCaps, values: Record<string, unknown>): string | null {
   return (caps.plainText ?? []).find((column) => !linkFreeText(values[column])) ?? null;

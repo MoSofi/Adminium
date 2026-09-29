@@ -146,7 +146,8 @@ import {
   subjectOf,
   tryCode,
 } from '../../public-api/claim-code.js';
-import { capKey, chargeAnonymous, linkFreeText, notPlain } from '../../public-api/anonymous-caps.js';
+import { capKey, chargeAnonymous, linkFreeText, notPlain, PLAIN_TEXT_REFUSED } from '../../public-api/anonymous-caps.js';
+import { notPlainOn, recentPlainTextOn } from '../../public-api/plain-text-on.js';
 import { appContact } from '../../outbox/sender.js';
 import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
@@ -2430,11 +2431,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       const guessing = typedCodes.length > 0;
       if (guessing && !admitGuess(request, reply, ok, typedCodes)) return reply;
 
-      // A create nobody signed in for: a name that is only a name, and so many a day per address and an hour per key.
+      // A name that is only a name, signed in or not: one an account fills in is printed as the typed one would be.
       const caps = resource.anonymous;
-      if (caps !== null && (ok.session === null || resource.claim === null)) {
+      if (caps !== null) {
         const column = notPlain(caps, values);
-        if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+        if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { column });
       }
 
       // Whether this caller's read of the row would show its personal data (a reply never shows more).
@@ -2871,11 +2872,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const caps = found.resource.anonymous;
         let release: (() => Promise<void>) | null = null;
         let releaseAllButVisitor: (() => Promise<void>) | null = null;
+        // A name that is only a name, signed in or not.
+        const unplain = caps === null ? null : notPlain(caps, values);
+        if (unplain !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { column: unplain });
         if (caps !== null && (ok.session === null || found.resource.claim === null)) {
-          const column = notPlain(caps, values);
-          if (column !== null) {
-            return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
-          }
           const charge = await chargeAnonymous(challenges, {
             caps,
             key: capSecret,
@@ -3227,8 +3227,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         let releaseLimits: (() => Promise<void>) | null = null;
         if (limits !== null) {
           const column = notPlainChange(limits, values);
-          if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { column });
+          if (column !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { column });
         }
+        // A column a create on this table holds to plain text (a buyer's name) is held to it on every change that writes it.
+        const unplain = notPlainOn(await recentPlainTextOn(meta, ok.key.connectionId), found.table.id, values);
+        if (unplain !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { column: unplain });
         if (limits !== null && quote === 'save') {
           const charge = await chargeChange(challenges, { limits, key: capSecret, keyId: ok.key.keyId, connectionId: ok.key.connectionId, ref: request.params.ref, values, now: Date.now() });
           if (!charge.ok) return fail(reply, 409, 'PUBLIC_LIMIT_REACHED', 'As many of these as can be sent online today have been sent.');
@@ -3796,9 +3799,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const values = prepareValues(resource, raw, ok.session, 'create', found.dialect, table.columns);
             if (values === null) return refuseRow(index, 'That column is not writable here.');
             if (unfilled(resource, values) !== null) return refuseRow(index, 'A value this write needs is missing.');
-            // A create nobody signed in for: a name that is only a name, as for one create.
-            const unplain = resource.anonymous !== null && (ok.session === null || resource.claim === null) ? notPlain(resource.anonymous, values) : null;
-            if (unplain !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { index, column: unplain });
+            // A name that is only a name, signed in or not, as for one create (a batch's creates pay no caps).
+            const unplain = resource.anonymous === null ? null : notPlain(resource.anonymous, values);
+            if (unplain !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { index, column: unplain });
             inserts.push({ index, values });
             continue;
           }
@@ -3816,6 +3819,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           if (badKey !== undefined) return refuseRow(index, 'A value was refused.', { column: badKey, reason: 'invalid-character' });
           const values = prepareValues(resource, rest, ok.session, 'update', found.dialect);
           if (values === null) return refuseRow(index, 'That column is not writable here.');
+          // A column a create on this table holds to plain text is held to it on every change that writes it.
+          const unplainChange = notPlainOn(await recentPlainTextOn(meta, ok.key.connectionId), table.id, values);
+          if (unplainChange !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', PLAIN_TEXT_REFUSED, { index, column: unplainChange });
           if (unfilled(resource, values) !== null) return refuseRow(index, 'A value this write needs is missing.');
           // Refused by the scope compiler already; stated here too, where the batch's rows are written.
           if (parentOf(resource) !== null) return refuseRow(index, 'A row may carry its whole key only to update it.');

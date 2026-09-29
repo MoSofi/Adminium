@@ -130,11 +130,11 @@ describe('anonymous caps', () => {
 
   it('holds a create nobody signed in for to the rule a child row\'s note is held to: a dotted name passes, a web address never', () => {
     const caps = { plainText: ['name'] };
-    for (const name of ['Mary.Ann', 'J.R.R. Tolkien', 'St. John', "Anna-Marie O'Brien", 'Zoë (table)', 'x dot com', 'Cara O’Neil', null]) {
+    for (const name of ['Mary.Ann', 'J.R.R. Tolkien', 'St. John', "Anna-Marie O'Brien", 'Zoë (table)', 'x dot com', 'Cara O’Neil', 'W.Hu', 'K.Y.Ng', 'A.Page', 'M.De Vries', 'H.-J.Schmidt', null]) {
       expect(notPlain(caps, { name }), String(name)).toBeNull();
       expect(linkFreeText(name), String(name)).toBe(true);
     }
-    for (const name of ['refund-desk.com Smith', 'Smith www.x.io', 'a@b.co', 'https://x', 'evil.com', 'EVIL.COM', 'Claim.Refund.net', 'пример.рф', 'shop.CO.UK', 'evil．com', 'evil․com', 'mail kai@friends.org', '@kai_tickets', 'evil.co.uk/x']) {
+    for (const name of ['refund-desk.com Smith', 'Smith www.x.io', 'a@b.co', 'https://x', 'evil.com', 'EVIL.COM', 'Claim.Refund.net', 'пример.рф', 'shop.CO.UK', 'evil．com', 'evil․com', 'mail kai@friends.org', '@kai_tickets', 'evil.co.uk/x', 'X.Com', 'J.Co']) {
       expect(notPlain(caps, { name }), name).toBe('name');
       // One rule: whatever the root refuses, a child row's note refuses too.
       expect(linkFreeText(name), name).toBe(false);
@@ -149,6 +149,27 @@ describe('anonymous caps', () => {
     }
     for (const name of ['Mary.Ann', 'J.R.R. Tolkien', 'St. John', 'J. R. R. Tolkien', 'Mrs. Kai Ng', 'Ana Lu.', 'Dr. J. (Jo) Park & co', 'Anne-Marie.Jo', null]) {
       expect(linkFreeText(name), String(name)).toBe(true);
+    }
+  });
+
+  it('reads an ending as a reader sees it: a trailing hyphen, an invisible mark, fullwidth letters and a combined accent are no disguise', () => {
+    for (const text of ['refund-desk.com- Smith', 'refund-desk.co\u034Fm Smith', 'refund-desk.com\uFE0F Smith', 'refund-desk.co\u200Bm', 'refund-desk.ｃｏｍ Smith', 'refund-desk.co\u1E3F Smith', '-refund-desk.-com Smith']) {
+      expect(linkFreeText(text), JSON.stringify(text)).toBe(false);
+    }
+    // Only for finding an ending: a name's own marks are kept and pass.
+    for (const text of ['Zoë Brontë', 'Nguyễn Văn An', 'Søren', 'José.María']) expect(linkFreeText(text), text).toBe(true);
+  });
+
+  it("knows the endings a venue or a shop is called by, and the common ones in other scripts", () => {
+    for (const ending of ['cafe', 'restaurant', 'pub', 'hotel', 'clinic', 'dental', 'health', 'company', 'menu', 'pizza', 'food', 'kitchen', 'delivery', 'events', 'tickets', 'be', 'to', 'fm', 'ai', '中国', 'москва', 'рф']) {
+      expect(linkFreeText(`refund-desk.${ending} Smith`), ending).toBe(false);
+    }
+  });
+
+  it('takes one capital and a dot before a capitalised surname as initials, unless the ending is always an address', () => {
+    for (const name of ['W.Hu', 'K.Y.Ng', 'A.Page', 'M.De Vries', 'T.Ly', 'L.Su']) expect(linkFreeText(name), name).toBe(true);
+    for (const name of ['X.Com', 'J.Co', 'A.Io', 'B.Net', 'C.Org', 'D.Info', 'E.Biz', 'F.App', 'G.Dev', 'H.Shop', 'I.Online', 'K.Site', 'a.page', 'A.PAGE', 'Wong.Ng', 'x.com', 't.co']) {
+      expect(linkFreeText(name), name).toBe(false);
     }
   });
 
