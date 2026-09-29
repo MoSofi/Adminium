@@ -90,6 +90,16 @@ Override the field type if so.
 **Zero dates.** `0000-00-00` is not a date any client can represent. If your
 schema still allows them, expect nulls where those values are.
 
+**Run the server in strict mode.** Adminium sets no `sql_mode` of its own, so it
+writes under the server's. Keep `STRICT_TRANS_TABLES` in it, as MySQL's and
+MariaDB's defaults do. On a server without it, a value too long for its column is
+cut short and saved with only a warning, instead of being refused. That goes for
+your own tables and for Adminium's. Check with:
+
+```sql
+SELECT @@GLOBAL.sql_mode;
+```
+
 **Case sensitivity depends on the host filesystem.** `lower_case_table_names`
 differs between a Linux server and a macOS one; a schema that introspects on one
 may not on the other. This bites during migrations more than during
