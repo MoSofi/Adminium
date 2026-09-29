@@ -276,14 +276,20 @@ for (const [dialect, available] of legs) {
       expect(res.statusCode, res.body).toBe(403);
       expect((res.json() as { error: { code: string; details: { reason?: string } } }).error).toMatchObject({ code: 'COLUMN_FORBIDDEN', details: { reason: 'read-limit' } });
     };
+    // The request id is random hex and may spell the price, so it is left out of what is searched.
+    const withoutRequestId = (res: { json: () => unknown }) => {
+      const { error } = res.json() as { error: Record<string, unknown> };
+      const { requestId: _requestId, ...rest } = error;
+      return JSON.stringify(rest);
+    };
 
     it('refuses a price check on a column the role does not read, with no values or with a change, and keeps nothing', async () => {
       const none = await s.app.inject({ method: 'PATCH', url: data(`${s.table.stays}/1`), headers: { cookie: desk.cookie }, payload: { values: {}, expect: { total: '0', column: 'total' } } });
       hiddenRefusal(none);
-      expect(none.body).not.toContain('480');
+      expect(withoutRequestId(none)).not.toContain('480');
       const change = await s.app.inject({ method: 'PATCH', url: data(`${s.table.stays}/1`), headers: { cookie: desk.cookie }, payload: { values: { late_until: '13:00' }, expect: { total: '1', column: 'total' } } });
       hiddenRefusal(change);
-      expect(change.body).not.toContain('480');
+      expect(withoutRequestId(change)).not.toContain('480');
       const created = await s.app.inject({
         method: 'POST',
         url: data(s.table.stays),
