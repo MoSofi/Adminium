@@ -429,8 +429,13 @@ const forgetSchema = z.object({ columns: z.array(refSchema).min(1).max(16), stam
  * "Make a new link" for a signed-in person's row: its own link (`column`)
  * gets a new code, which closes every session the old one opened, and the new
  * link is emailed as the app's outbox message `kind` (sent once per code).
+ * On a row's own link it is "send it again": another link of the row (the
+ * one a confirmation email carries) is made again and mailed to the row's own
+ * address, only while the row holds `when`.
  */
-const newLinkSchema = z.object({ column: refSchema, kind: z.string().min(1).max(40) }).strict();
+const newLinkSchema = z
+  .object({ column: refSchema, kind: z.string().min(1).max(40), when: z.object({ where: z.array(stateConditionSchema).min(1).max(8) }).strict().optional() })
+  .strict();
 
 export const publicAccessSchema = z
   .object({
@@ -653,7 +658,7 @@ interface PublicAccessContext {
   roles: readonly { key: string; screensOnly?: boolean | undefined; cloneFrom?: string | undefined; permissions?: readonly string[] | undefined }[];
   /** The app's outbox, for a new link it emails (absent: the app has none). */
   outbox?:
-    | { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined; recipient?: { table: string } | undefined }
+    | { table: string; kinds: Readonly<Record<string, string>>; columns: { repeatKey?: string | undefined }; links?: Readonly<Record<string, string>> | undefined; recipient?: { table: string; via?: string | undefined; fallback?: { via: string } | undefined } | undefined }
     | undefined;
 }
 
@@ -1993,8 +1998,18 @@ function personIssues(
       const here = (...rest: Path) => at('newLink', ...rest);
       const signIn = identities.get(key)?.entry;
       const verifies = signIn?.claim !== undefined && (claimKind(signIn.claim) === 'link' || ('verify' in signIn.claim && signIn.claim.verify === 'email-code'));
-      if (!entry.methods.includes('GET') || entry.claimedBy === undefined || entry.claimedBy.optional === true || !verifies) {
-        out.push({ path: at('newLink'), message: 'a new link is made for a row a person reads signed in by email (claimedBy), and nowhere else' });
+      // A row's own link asks for another link of its row again: never its own code, which the asking session opened by.
+      const ownLink = entry.claim !== undefined && 'by' in entry.claim && entry.claim.own === true ? entry.claim : undefined;
+      if (ownLink !== undefined) {
+        const others = entries.filter((other) => other.table === entry.table && (other.key ?? CUSTOMER_KEY) !== key && other.claim !== undefined && 'by' in other.claim && other.claim.own === true);
+        if (!entry.methods.includes('GET')) out.push({ path: at('newLink'), message: 'a new link is asked for through a row\'s own link that reads the row (GET)' });
+        if (entry.newLink.column === ownLink.column) {
+          out.push({ path: here('column'), message: `"${entry.table}.${ownLink.column}" is the code this link opens the row by: the session asking would be closed by its own new link` });
+        } else if (!others.some((other) => (other.claim as { column: string }).column === entry.newLink!.column)) {
+          out.push({ path: here('column'), message: `"${entry.table}.${entry.newLink.column}" is no own link another key opens "${entry.table}" by (a token claim with own: true)` });
+        }
+      } else if (!entry.methods.includes('GET') || entry.claimedBy === undefined || entry.claimedBy.optional === true || !verifies) {
+        out.push({ path: at('newLink'), message: 'a new link is made for a row a person reads signed in by email (claimedBy), or through a row\'s own link, and nowhere else' });
       } else if (!ownLinksOfPerson(entries, signIn!.table).some((link) => link.table === entry.table && link.column === entry.newLink!.column)) {
         out.push({ path: here('column'), message: `"${entry.table}.${entry.newLink.column}" is no own link of a row this person holds (a token claim with own: true)` });
       }
@@ -2009,7 +2024,17 @@ function personIssues(
         if (entry.claimedBy !== undefined && box.recipient !== undefined && box.recipient.table !== entry.claimedBy.table) {
           out.push({ path: here('kind'), message: `the outbox writes to "${box.recipient.table}", not "${entry.claimedBy.table}" who asks for the new link` });
         }
+        // Through a row's own link, sent to the row's own address: the outbox finds one from the row, as its other messages about it.
+        if (entry.claimedBy === undefined && entry.claim !== undefined && 'by' in entry.claim && box.recipient !== undefined) {
+          const recipient = box.recipient;
+          const direct = table.columns.some((c) => c.references === recipient.table);
+          const fallback = recipient.fallback !== undefined && index.column(box.table, recipient.fallback.via)?.references === entry.table;
+          if (!direct && !fallback) out.push({ path: here('kind'), message: `the outbox finds no address from a "${entry.table}" row (no link to "${recipient.table}", no fallback through "${entry.table}")` });
+        }
       }
+      (entry.newLink.when?.where ?? []).forEach((condition, w) => {
+        out.push(...conditionIssues(entry.table, condition, index, here('when', 'where', w)));
+      });
     }
 
     // A read for the holder of a session alone (no claim of its own): the settings a signed-in guest may see.
