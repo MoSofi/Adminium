@@ -3796,6 +3796,9 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const values = prepareValues(resource, raw, ok.session, 'create', found.dialect, table.columns);
             if (values === null) return refuseRow(index, 'That column is not writable here.');
             if (unfilled(resource, values) !== null) return refuseRow(index, 'A value this write needs is missing.');
+            // A create nobody signed in for: a name that is only a name, as for one create.
+            const unplain = resource.anonymous !== null && (ok.session === null || resource.claim === null) ? notPlain(resource.anonymous, values) : null;
+            if (unplain !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That can hold letters, spaces and ordinary punctuation only.', { index, column: unplain });
             inserts.push({ index, values });
             continue;
           }

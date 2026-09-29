@@ -128,10 +128,19 @@ describe('anonymous caps', () => {
     expect(notPlain({ plainText: ['name', 'note'] }, { name: 'Cara', note: 'x://y' })).toBe('note');
   });
 
-  it('holds a create nobody signed in for to the plain text it always has: a dotted name passes, as does a bare domain', () => {
-    for (const name of ['Mary.Ann', 'J.R.R. Tolkien', 'St. John', 'evil.com', 'Claim.Refund.net', 'пример.рф']) expect(plainText(name), name).toBe(true);
-    for (const name of ['mail kai@friends.org', '@kai_tickets', 'evil.co.uk/x', 'see www.x.io']) expect(plainText(name), name).toBe(false);
-    expect(notPlain({ plainText: ['name'] }, { name: 'Mary.Ann' })).toBeNull();
+  it('holds a create nobody signed in for to the rule a child row\'s note is held to: a dotted name passes, a web address never', () => {
+    const caps = { plainText: ['name'] };
+    for (const name of ['Mary.Ann', 'J.R.R. Tolkien', 'St. John', "Anna-Marie O'Brien", 'Zoë (table)', 'x dot com', 'Cara O’Neil', null]) {
+      expect(notPlain(caps, { name }), String(name)).toBeNull();
+      expect(linkFreeText(name), String(name)).toBe(true);
+    }
+    for (const name of ['refund-desk.com Smith', 'Smith www.x.io', 'a@b.co', 'https://x', 'evil.com', 'EVIL.COM', 'Claim.Refund.net', 'пример.рф', 'shop.CO.UK', 'evil．com', 'evil․com', 'mail kai@friends.org', '@kai_tickets', 'evil.co.uk/x']) {
+      expect(notPlain(caps, { name }), name).toBe('name');
+      // One rule: whatever the root refuses, a child row's note refuses too.
+      expect(linkFreeText(name), name).toBe(false);
+    }
+    // A bare domain is plain text by the shorter rule, which alone no column is judged by any more.
+    for (const name of ['evil.com', 'refund-desk.com Smith', 'пример.рф']) expect(plainText(name), name).toBe(true);
   });
 
   it('never takes a web address, a path or a handle where no link may go, and still takes a name with dots in it', () => {

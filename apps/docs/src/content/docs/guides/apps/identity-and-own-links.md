@@ -495,15 +495,17 @@ stranger's create is held to:
 ### Plain text
 
 Plain text is letters (of any alphabet), spaces and `. , ' ’ ( ) & -`, up to 80 characters: no
-digits, no `://` and no `www.`. `limits.plainText` and a child row's `plainText` also refuse:
+digits, no `://` and no `www.`. Every `plainText` list (`anonymous.plainText`, `limits.plainText`
+and a child row's `plainText`) also refuses:
 
 - an `@`, so no handle;
 - a `/`, so no path;
 - a dotted word whose last part is a known web ending, such as `evil.com`, `claim.refund.net` or
   `shop.co.uk`.
 
-"Mary.Ann", "J.R.R. Tolkien" and "St. John" are names, and pass. A create nobody signed in for
-(`anonymous.plainText`) keeps the shorter rule.
+"Mary.Ann", "J.R.R. Tolkien" and "St. John" are names, and pass; so is "x dot com", which names no
+address. A name like `refund-desk.com Smith` is refused, so a stranger's name never carries a web
+address into the venue's own email.
 
 ### A visitor's hour
 

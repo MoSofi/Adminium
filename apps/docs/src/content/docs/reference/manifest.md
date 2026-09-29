@@ -2851,8 +2851,8 @@ a friend's address.
 day that write it: an address a ticket is sent on to. `plainText` lists 1–8 writable `text` columns
 that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, no digits,
 no web address (a known ending such as `.com`, or a `/`) and no `@` handle; "Mary.Ann",
-"J.R.R. Tolkien" and "St. John" pass. This is stricter than a stranger's create's
-[`plainText`](#limits-on-a-strangers-create), which refuses digits and links only. A limit names `perValue`, `plainText`, or both. Over a limit is `409`
+"J.R.R. Tolkien" and "St. John" pass. A stranger's create's
+[`plainText`](#limits-on-a-strangers-create) is the same rule. A limit names `perValue`, `plainText`, or both. Over a limit is `409`
 `PUBLIC_LIMIT_REACHED`; a value that is not plain text is `400` `PUBLIC_WRITE_REFUSED`.
 
 ### Codes that unlock rows
@@ -2922,7 +2922,7 @@ optional `claimedBy` create made with no session. It needs `POST`.
 | `perValue` | `{ "columns", "n" }`: at most `n` (1–20) creates a day for one phone number or address in any of these `text` columns (1–4), through any key or page. A phone number counts by its last nine digits, and an address in lower case, so two spellings of one number are one number. |
 | `perKeyHour` | At most this many (1–1000) such creates an hour through the key, from everyone. |
 | `perIpHour` | At most this many (1–60) such creates an hour through this entry from one visitor (an IPv6 subscriber's whole /64). Every visitor is held to 60 an hour on any key; this only lowers it. |
-| `plainText` | 1–8 `text` columns that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, with no digits and no link. |
+| `plainText` | 1–8 `text` columns that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, with no digits, no link, no `@` handle and no web address (a known ending such as `.com`); "Mary.Ann" and "J.R.R. Tolkien" pass. The same rule as a [guest's change](#limits-on-a-guests-change). |
 
 A create over a limit is refused with `PUBLIC_LIMIT_REACHED`, and one that breaks `plainText` with
 `PUBLIC_WRITE_REFUSED`. A single create refused for another reason (the slot was taken) does not

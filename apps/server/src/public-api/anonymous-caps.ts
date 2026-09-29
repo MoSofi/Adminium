@@ -117,8 +117,8 @@ const PLAIN = /^[\p{L}\p{M} .,'’()&-]*$/u;
 
 /**
  * Whether a value is plain text: letters, spaces, ordinary punctuation, at
- * most 80 characters, and no link. A create nobody signed in for is held to
- * exactly this (`anonymous.plainText`), as it always has been.
+ * most 80 characters, and no `://` or `www.`. Every plain-text column is held
+ * to {@link linkFreeText}, which asks this first.
  */
 export function plainText(value: unknown): boolean {
   if (value === null || value === undefined) return true;
@@ -150,11 +150,11 @@ const KNOWN_TLDS: ReadonlySet<string> = new Set([
 const DOTTED = /[\p{L}\p{M}-]+(?:\.[\p{L}\p{M}-]+)+/gu;
 
 /**
- * Plain text that names no place to go (`limits.plainText`, a child row's
- * `plainText`): {@link plainText}, and no `@` handle, no path and no web
- * address ending in a known ending ("Claim your refund at evil.com",
- * "evil.co.uk/x", "@handle") — while "Mary.Ann", "J.R.R. Tolkien" and
- * "St. John" are names, and pass.
+ * Plain text that names no place to go (`anonymous.plainText`,
+ * `limits.plainText`, a child row's `plainText`): {@link plainText}, and no
+ * `@` handle, no path and no web address ending in a known ending ("Claim
+ * your refund at evil.com", "evil.co.uk/x", "@handle") — while "Mary.Ann",
+ * "J.R.R. Tolkien" and "St. John" are names, and pass.
  */
 export function linkFreeText(value: unknown): boolean {
   if (!plainText(value)) return false;
@@ -167,9 +167,13 @@ export function linkFreeText(value: unknown): boolean {
   return true;
 }
 
-/** The first column whose value is not plain text, or null. */
+/**
+ * The first column whose value is not plain text, or null: judged as a child
+ * row's note is, so a stranger's name never carries a web address into the
+ * venue's own email.
+ */
 export function notPlain(caps: AnonymousCaps, values: Record<string, unknown>): string | null {
-  return (caps.plainText ?? []).find((column) => !plainText(values[column])) ?? null;
+  return (caps.plainText ?? []).find((column) => !linkFreeText(values[column])) ?? null;
 }
 
 export type CapCharge =
