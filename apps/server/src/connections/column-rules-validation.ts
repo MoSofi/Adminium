@@ -18,7 +18,7 @@
  * contradicted by the database.
  */
 import { parseEnumCheck, type ColumnModel, type DatabaseModel, type LogicalType, type TableModel } from '@adminium/engine';
-import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, type States } from '@adminium/manifest';
+import { dayColumns, formulaColumns, formulaExprSchema, isChangeEffect, isJoinColumn, momentColumns, undoMoveIssues, type States } from '@adminium/manifest';
 
 import { columnPolicyFor, type EffectiveModel } from './effective-schema.js';
 
@@ -660,12 +660,21 @@ function settingIssue(setting: Value, model: DatabaseModel): string | null {
   return null;
 }
 
+/** The rules that write a column themselves, as the manifest counts them: an undo's `clears` never names such a column. */
+const DECIDING_OPS: ReadonlySet<string> = new Set(['copy', 'sequence', 'code', 'rollup', 'stamp', 'formula', 'format', 'default', 'lookup', 'perNight'].map((name) => `column.${name}`));
+
 /**
  * Why a table's states cannot be kept, or `null`: the state column, every
  * column a move or the lock names, and every child table it ties to the
  * state (by its id) with the foreign key back, must exist in the live snapshot.
  */
-export function statesRuleIssue(raw: unknown, table: TableModel, model: DatabaseModel): string | null {
+export function statesRuleIssue(
+  raw: unknown,
+  table: TableModel,
+  model: DatabaseModel,
+  /** The rules saved beside it on the same table: a column one of them decides is not an undo's to empty. */
+  related?: { rules: readonly { op: string; columnName: string | null; value: unknown }[] },
+): string | null {
   // The shape was proved by the store's own schema (`validateOverrideInput`),
   // which knows a table here is its id in the snapshot (`main.studio_lines`).
   const states = (raw ?? {}) as States;
@@ -723,6 +732,16 @@ export function statesRuleIssue(raw: unknown, table: TableModel, model: Database
     const issue = linked(ref.table, ref.via);
     if (issue !== null) return issue;
   }
+  // What an undo empties, and a move another to the same state hides: judged as an app's manifest is.
+  const deciding = new Set((related?.rules ?? []).filter((rule) => rule.columnName !== null && DECIDING_OPS.has(rule.op)).map((rule) => rule.columnName!));
+  const [undo] = undoMoveIssues(states, table.name, {
+    column: (name) => {
+      const found = table.columns.find((c) => c.name === name);
+      return found === undefined ? undefined : { key: found.isPrimaryKey, nullable: found.nullable };
+    },
+    decided: (name) => deciding.has(name) || table.columns.find((c) => c.name === name)?.isGenerated === true,
+  });
+  if (undo !== undefined) return `${undo.message.charAt(0).toUpperCase()}${undo.message.slice(1)}.`;
   return conditionedStatesIssue(states, table, model);
 }
 

@@ -334,7 +334,8 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'table.states') {
-          const issue = statesRuleIssue(item.value, table, model);
+          const beside = body.overrides.filter((other) => other !== item && other.tableName === item.tableName && other.status !== 'disabled');
+          const issue = statesRuleIssue(item.value, table, model, { rules: beside.map((other) => ({ op: other.op, columnName: other.columnName ?? null, value: other.value })) });
           if (issue !== null) throw new ValidationFailedError(issue, { table: item.tableName, op: item.op });
         }
         if (item.op === 'relation.add') {
