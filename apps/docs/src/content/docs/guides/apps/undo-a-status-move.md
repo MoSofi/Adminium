@@ -129,19 +129,23 @@ taken back should be unpaid again. The undo names such columns with `clears`:
 "picked_up": [{ "to": "ready", "roles": ["manager"], "undo": true, "clears": ["paid_method"] }]
 ```
 
-The move empties `paid_method` whether or not the writer sends it. A writer may send it empty;
-a value is refused `409` `STATE_MOVE_REFUSED` with `details.clears: "paid_method"`. `clears` is
-allowed only on a move marked `undo`, names 1–8 columns that may be empty, and never the state
-column, the key or a column another rule writes.
+The move empties `paid_method` whether or not the writer sends it. A writer may leave it out or
+send it as `null`; a value is refused `409` `STATE_MOVE_REFUSED` with `details.clears:
+"paid_method"`. `clears` is allowed only on a move marked `undo`, names 1–8 columns that may be
+empty, and never the state column, the key or a column another rule writes. A states rule saved in
+Studio is held to the same checks. A second move from `picked_up` to `ready` beside the undo is
+refused, since the first listed is the one made.
 
 **A locked state.** An order is often locked once it is picked up (`lock.when` includes
 `picked_up`). What the undo empties, its `clearOnBack` stamps and its `clears`, is open to the lock
-for that move only, and only to be emptied. The same columns changed alone, or given a value, stay
+for that move only, and only to be emptied. The same columns changed by any other write stay
 locked (`409` `RECORD_LOCKED`), and so does every other column the lock holds. The rows of
 `children` tied to the order stay locked while it is picked up.
 
 The dashboard's Undo of a hand-over that filled `paid_method` from empty makes this move back. A
 hand-over that changed a payment already there offers no Undo, since the move back would lose it.
+Nor is an Undo offered to a person who holds none of the move back's roles: the kitchen's own
+hand-over has none, since only a manager takes one back.
 
 ## An email that waits
 
@@ -226,6 +230,7 @@ An automation rule that writes such a state is refused when it is saved, for the
 | `VALIDATION_FAILED` | 422 | `from` sent for a table that keeps no states. |
 | `UNDO_EXPIRED` | 410 | The Undo button's 60 seconds are over. |
 | `CONFLICT` | 409 | Undo on a table that keeps states and lists no move back (`details.reason: "UNDO_STATES"`), or a row changed since the save (`details.code: "UNDO_CONFLICT"`). |
+| `WRITE_CONFLICT` | 409 | The row was moved back and on again by someone else while the undo was made (`details.retry: true`). Make it again. |
 
 The full list is in [Errors](/reference/errors/).
 
