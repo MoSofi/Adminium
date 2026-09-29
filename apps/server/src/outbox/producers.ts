@@ -829,7 +829,17 @@ export function createOutboxProducers(deps: OutboxDeps): OutboxProducers {
       if (address === null) return null;
       recipient = address.recipient;
     }
-    const producer = { kind: input.kind, link, onCreate: { table: input.table.id }, repeatBy: input.repeatBy, ...(recipient === undefined ? {} : { recipient }) } as OutboxProducer;
+    // Sent by the kind's own rules: its gate judged as any of its messages' (a switch off sends nothing), and a message a person approves never sent from a link.
+    const declared = producerOf(box.definition, input.kind);
+    if (declared?.hold === true) return null;
+    const producer = {
+      kind: input.kind,
+      link,
+      onCreate: { table: input.table.id },
+      repeatBy: input.repeatBy,
+      ...(recipient === undefined ? {} : { recipient }),
+      ...(declared?.gate === undefined ? {} : { gate: declared.gate }),
+    } as OutboxProducer;
     return { box, producer };
   }
 

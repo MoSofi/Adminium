@@ -433,7 +433,12 @@ stops opening anything, and the new one is emailed as the outbox message `kind`.
   outbox is busy).
 - **Limits.** 5 a day per row (whichever session asks), and 5 a day per mailbox over every row of
   the table (an address counted as the other public limits count it: lower case, without a `+tag`),
-  one every 60 seconds per row. Over either, `409` `PUBLIC_LIMIT_REACHED`, counting nothing.
+  and a second ask within 60 seconds for one row answers `202` and makes no other. Over either
+  daily limit, `409` `PUBLIC_LIMIT_REACHED`, counting nothing.
+- **The kind's own rules.** It is judged by the `gate` of the kind's own producer: while that
+  switch or feature is off, the answer is `503` `PUBLIC_CODE_UNAVAILABLE`, and nothing is made or
+  counted. A kind held for a person's approval (`hold: true`), or one whose producer repeats by
+  another column than the renewed link (`repeatBy`), is refused by the validator.
 
 | Field | Rule |
 |---|---|
@@ -586,7 +591,7 @@ A column whose name only looks personal says so with `personal: false`:
 | `PUBLIC_CODE_STEP_UP` | 403 | Delete my details without a mailbox proved in the last 10 minutes. |
 | `PUBLIC_REF_NOT_FOUND` | 404 | A session-only read with no session; a new link asked for a row that is not the person's, or by a session that may not. |
 | `LINK_EXPIRED` | 410 | An own link stopped or past its end. |
-| `PUBLIC_LIMIT_REACHED` | 409 | Over `perValue`, `perIpHour`, or 5 new links a day for one row. |
+| `PUBLIC_LIMIT_REACHED` | 409 | Over `perValue`, `perIpHour`, 5 new links a day for one row, or 5 resent links a day to one mailbox. |
 | `PUBLIC_WRITE_REFUSED` | 409 | A delete whose own links could not all be stopped; a new link for a row with no code, or one that does not hold the entry's `newLink.when`. |
 | `PUBLIC_CODE_UNAVAILABLE` | 503 | A new link that cannot be emailed. It is checked first, so the old link is kept. |
 

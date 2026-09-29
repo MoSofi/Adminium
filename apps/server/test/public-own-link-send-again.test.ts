@@ -506,8 +506,8 @@ describe.each(LEGS)('"send it again" through an order\'s own link — %s', (dial
         for (let i = 0; i < 400 && (await asksCounted()) === counted; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
         expect(await asksCounted()).toBe(counted + 2);
         await new Promise((resolve) => setTimeout(resolve, 300));
-        // The desk empties the person's address meanwhile.
-        await h.rows(`update ${h.real('customers')} set email = null where id = ${String(customer)}`);
+        // The desk empties the person's address meanwhile (over the twin's own pool: the server's may be one connection, held by the waiting ask).
+        await other.rows(`update ${h.real('customers')} set email = null where id = ${String(customer)}`);
       });
     } finally {
       await other.close();
@@ -669,5 +669,78 @@ describe.each(LEGS)("\"send it again\" goes where the kind's own producer sends 
     const to = dialect === 'mysql' ? '`to`' : '"to"';
     const sent = await h.rows(`select ${to} as address from ${h.real('messages')} where kind = 'transfer-confirm' and order_id = ${String(made.data.id)} order by id`);
     expect(sent.map((row) => row['address'])).toEqual(['ord@fieldmail.io', 'ord@fieldmail.io']);
+  });
+});
+
+describe.each(LEGS)('"send it again" keeps the kind\'s own rules — %s', (dialect, available) => {
+  let h: InvoicingHarness & { reply: Record<string, unknown> };
+  let shop: Served;
+  let link: Served;
+  let confirm: Served;
+  const ref = 'shop_orders_claimed';
+  const on = (value: boolean) => (dialect === 'postgres' ? String(value) : value ? '1' : '0');
+
+  beforeAll(async () => {
+    if (!available) return;
+    // The confirm email goes only while the venue's switch is on, and once per confirm code.
+    const manifest = boxOffice();
+    const settings = (manifest['requiredSchema'] as { tables: Doc[] }).tables.find((t) => t['ref'] === 'settings')!;
+    (settings['columns'] as Doc[]).push({ ref: 'confirm_emails', type: 'bool', default: true });
+    const producer = (manifest['outbox'] as { producers: Doc[] }).producers.find((p) => p['kind'] === 'transfer-confirm')!;
+    producer['gate'] = { setting: { table: 'settings', column: 'confirm_emails' } };
+    producer['repeatBy'] = 'confirm_token';
+    h = await installInvoicing(dialect, manifest);
+    await mailReady(h.meta);
+    const keys = (h.reply['publicAccess'] as { keys: Record<string, string> }).keys;
+    shop = await servePublic(h, keys['customer']!);
+    link = await servePublic(h, keys['link']!);
+    confirm = await servePublic(h, keys['confirm']!);
+    await h.rows(`insert into ${h.real('settings')} (confirm_emails) values (${on(false)})`);
+  }, 180_000);
+  afterAll(async () => {
+    if (!available) return;
+    await shop.close();
+    await link.close();
+    await confirm.close();
+    await h.close();
+  });
+
+  it.skipIf(!available)('sends nothing while its switch is off, counting and making nothing; sends the working code once it is on', async () => {
+    const g = guest(shop, h);
+    const own = guest(link, h, 40_000);
+    const orders = h.real('orders');
+    const messages = h.real('messages');
+    const res = await g.request('POST', `/records/${orders}_verified_2`, { payload: { values: { email: 'gat@fieldmail.io', name: 'Gat' }, children: { order_items: [{ values: { dish: 'Soup', qty: 1 } }] } }, proof: 'write' });
+    expect(res.statusCode, res.body).toBe(201);
+    const made = res.json() as { data: { id: number }; link: { session: string } };
+    const id = made.data.id;
+    expect((await own.request('PATCH', `/records/${ref}/${String(id)}`, { session: made.link.session, payload: { values: { status: 'confirming' } } })).statusCode).toBe(200);
+    const code = async () => String((await h.rows(`select confirm_token from ${orders} where id = ${String(id)}`))[0]!['confirm_token']);
+    const queued = async () => (await h.rows(`select status from ${messages} where kind = 'transfer-confirm' and order_id = ${String(id)}`)).length;
+    const counted = async () => (await h.meta.db.selectFrom('adminium_public_challenges').select('id').where('purpose', '=', 'new-link').execute()).length;
+    // Switched off: the move queued nothing, and the ask is refused before anything.
+    expect(await queued()).toBe(0);
+    const first = await code();
+    const before = await counted();
+    const off = await own.request('POST', `/records/${ref}/${String(id)}/new-link`, { session: made.link.session });
+    expect(off.statusCode, off.body).toBe(503);
+    expect(off.json()).toMatchObject({ error: { code: 'PUBLIC_CODE_UNAVAILABLE' } });
+    expect(await code()).toBe(first);
+    expect(await counted()).toBe(before);
+    expect(await queued()).toBe(0);
+    // Switched on: sent, and it carries the code that works (its producer repeats by that code).
+    await h.rows(`update ${h.real('settings')} set confirm_emails = ${on(true)}`);
+    const onAsk = await own.request('POST', `/records/${ref}/${String(id)}/new-link`, { session: made.link.session });
+    expect(onAsk.statusCode, onAsk.body).toBe(202);
+    const live = await code();
+    expect(live).not.toBe(first);
+    await shop.composed.app.outboxSender.sendApp('shop');
+    const sent = await h.rows(`select status from ${messages} where kind = 'transfer-confirm' and order_id = ${String(id)}`);
+    expect(sent.map((row) => row['status'])).toEqual(['sent']);
+    const mail = (await mailOf(h.meta)).filter((m) => m.template === 'shop-transfer-confirm' && m.to === 'gat@fieldmail.io');
+    expect(mail).toHaveLength(1);
+    expect(mail[0]!.text).toContain(`#${live}`);
+    const opened = await guest(confirm, h, 80_000).request('POST', '/claim/token', { payload: { token: live } });
+    expect(opened.statusCode, opened.body).toBe(200);
   });
 });

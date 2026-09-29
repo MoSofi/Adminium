@@ -2104,7 +2104,9 @@ that points at the row the message is about and must be one of `links`. Optional
 pauses the producer while the settings row's `settings.enabled` bool is false;
 `gate: { "setting": { "table", "column" } }` pauses it while that bool of the settings row is false,
 so each notice can have its own switch; `gate: { "feature": "<id>" }` sends only while one of the
-app's [`addOns.features`](#add-ons) is on (a receipt, while Invoices & Receipts is attached). Then
+app's [`addOns.features`](#add-ons) is on (a receipt, while Invoices & Receipts is attached). A
+message of the kind sent from a [new link](#a-rows-own-link) or a "Send it again" is judged by the
+same gate, and a kind held for approval (`hold: true`) cannot be sent from a link at all. Then
 exactly one of:
 
 | Producer | Shape | Queues a row |
