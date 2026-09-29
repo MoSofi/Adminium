@@ -349,7 +349,9 @@ function definitionOf(
               : {}),
           },
         }),
-    ...(entry.newLink === undefined ? {} : { new_link: { column: entry.newLink.column, kind: entry.newLink.kind } }),
+    ...(entry.newLink === undefined
+      ? {}
+      : { new_link: { column: entry.newLink.column, kind: entry.newLink.kind, ...(entry.newLink.when === undefined ? {} : { when: structuredClone(entry.newLink.when) }) } }),
     // Columns left out of rows read through a parent, unless the row's holder is the session's own person.
     ...(entry.withhold === undefined
       ? {}

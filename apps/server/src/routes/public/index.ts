@@ -187,6 +187,7 @@ import type { OutboxProducers } from '../../outbox/producers.js';
 import { quoteChildren } from '../../public-api/change-quote.js';
 import { judgeCreateWindows } from '../../public-api/create-windows.js';
 import { renewOwnLink } from '../../public-api/own-links.js';
+import { newLinkWhenFilter, newLinkWhenHolds } from '../../public-api/new-link-when.js';
 import { emailDocument } from '../../documents/deliver.js';
 import { renderDocument, renderIntent, type RenderDeps } from '../../documents/render.js';
 import {
@@ -5456,8 +5457,11 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         if (found === null) return reply;
         const newLink = found.resource.newLink ?? null;
         const session = ok.session;
+        // Or "send it again" through a row's own link: another link of that row, mailed to the row's own address.
+        const opener = ok.key.scope.claim;
+        const ownLink = newLink !== null && session?.kind === 'token' && opener?.strategy === 'token' && opener.own === true && opener.ref === found.resource.ref && !opener.match.includes(newLink.column);
         // Only a person's own rows, read signed in by email at the verified level: the one 404 for anything else.
-        if (newLink === null || session === null || session.kind === 'token' || session.level !== 'verified' || found.resource.claim === null) {
+        if (newLink === null || session === null || (session.kind === 'token' && !ownLink) || session.level !== 'verified' || found.resource.claim === null) {
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such resource.');
         }
         let pk;
@@ -5484,6 +5488,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
         // Another person's row and a row that is not there are one answer.
         if (row === null) return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
+        // Only while the row holds what the entry names: a bare refusal otherwise, nothing spent, nothing made.
+        if (!newLinkWhenHolds(newLink.when?.where, row)) return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         const code = row[newLink.column];
         if (code === null || code === undefined || code === '') return fail(reply, 409, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         // Nothing is made that could not be sent: mail set up, and the app's message there to carry it.
@@ -5499,7 +5505,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
          * otherwise the guest keeps the link they have.
          */
         const person = session.grant.value;
-        const mail = { connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, repeatBy: newLink.column, person };
+        // Through a row's own link nobody is named: the outbox addresses the row's own person, as its first message did.
+        const mail = { connectionId: ok.key.connectionId, appKey: ok.key.managedBy!, kind: newLink.kind, table: found.table, repeatBy: newLink.column, ...(ownLink ? {} : { person }) };
         if (!(await producers!.queueKind!({ ...mail, row, dry: true }))) {
           return fail(reply, 503, 'PUBLIC_CODE_UNAVAILABLE', 'A new link cannot be sent right now. Get in touch instead.');
         }
@@ -5534,9 +5541,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           const mark = charged.mark;
           const target: WriteTarget = { connectionId: ok.key.connectionId, view: found.view, table: found.table, db: found.db, dialect: found.dialect, timezone: ok.key.scope.timezone };
           try {
-            // Only while the code is still the one read, and the row still this person's.
-            const made = await renewed(request, ok, target, row, newLink.column, ((query: { where: (...args: never[]) => unknown }) =>
-              (inScope(query as never) as { where: (column: unknown, op: string, value: unknown) => unknown }).where(found.db.dynamic.ref(newLink.column), '=', code)) as never);
+            // Only while the code is still the one read, the row still this person's, and still holding what the entry names.
+            const still = newLinkWhenFilter(newLink.when?.where, found.table);
+            const made = await renewed(request, ok, target, row, newLink.column, ((query: { where: (...args: never[]) => unknown }) => {
+              const narrowed = (inScope(query as never) as { where: (...args: unknown[]) => unknown }).where(found.db.dynamic.ref(newLink.column), '=', code) as { where: (...args: unknown[]) => unknown };
+              return still === null
+                ? narrowed
+                : narrowed.where((eb: never) => compileFilter(eb, { view: found.view, table: found.table, canReadPii: true, dynamic: found.db.dynamic, dialect: found.dialect }, still));
+            }) as never);
             if (made === null) await challenges.unmark([mark]);
             asked = made === null ? { gone: true } : { made };
           } catch (error) {
