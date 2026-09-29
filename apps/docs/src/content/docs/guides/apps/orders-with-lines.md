@@ -396,7 +396,8 @@ rows made one at a time. See [booking rules](/guides/apps/booking-rules/) and th
 - **`perIpHour`**: at most so many an hour from one visitor through this entry, 1 to 60. A visitor
   is one address, or an IPv6 subscriber's whole /64. Every visitor is also held to 60 an hour on
   the key, so this only ever lowers it.
-- **`plainText`**: the order's own columns that hold plain text only.
+- **`plainText`**: the order's own columns that hold plain text only, judged as a line's
+  `plainText` is: no link, handle or web address.
 
 Every cap is charged just before the rows are written. An order
 refused for a guest's own value (a note too long, an address that is not one) gives the charge

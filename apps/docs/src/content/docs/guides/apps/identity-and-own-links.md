@@ -495,15 +495,25 @@ stranger's create is held to:
 ### Plain text
 
 Plain text is letters (of any alphabet), spaces and `. , ' ’ ( ) & -`, up to 80 characters: no
-digits, no `://` and no `www.`. `limits.plainText` and a child row's `plainText` also refuse:
+digits, no `://` and no `www.`. Every `plainText` list (`anonymous.plainText`, `limits.plainText`
+and a child row's `plainText`) also refuses:
 
 - an `@`, so no handle;
 - a `/`, so no path;
-- a dotted word whose last part is a known web ending, such as `evil.com`, `claim.refund.net` or
-  `shop.co.uk`.
+- a dotted word whose last part is a known web ending, such as `evil.com`, `claim.refund.net`,
+  `shop.co.uk` or `refund-desk.cafe`. The ending is read as a reader sees it: fullwidth letters,
+  an accent or an invisible mark on it, and a hyphen after it change nothing.
 
-"Mary.Ann", "J.R.R. Tolkien" and "St. John" are names, and pass. A create nobody signed in for
-(`anonymous.plainText`) keeps the shorter rule.
+"Mary.Ann", "J.R.R. Tolkien" and "St. John" are names, and pass; so is "x dot com", which names no
+address. Initials before a surname pass too ("W.Hu", "K.Y.Ng", "M.De Vries"), unless the surname is
+an ending an address is always read in (`X.Com`, `J.Co`). A name like `refund-desk.com Smith` is
+refused. The rule refuses web and email addresses in their common forms; the endings it knows are
+a list, so an address ending in one it does not know still passes.
+
+A column a create lists under `anonymous.plainText` is judged on every write of it: the create
+itself, signed in or not (a name the person's account fills in too), and every change of the row
+that writes it, through its own link, a signed-in person's rows or a batch. The refusal says
+`params.column`; its message names the rule.
 
 ### A visitor's hour
 

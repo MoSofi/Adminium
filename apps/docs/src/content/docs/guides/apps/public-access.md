@@ -303,8 +303,11 @@ An app can limit a create that nobody signed in for, such as a first visit booke
   visitor, counting an IPv6 subscriber's whole /64 as one. Every visitor is held to 60 an hour on
   any key anyway; this only lowers it for one entry.
 - **Names as plain text.** The columns the app names hold letters, spaces and ordinary
-  punctuation only, up to 80 characters: no digits and no link. Anything else is refused `400`
-  `PUBLIC_WRITE_REFUSED`, with `params.column` naming the column.
+  punctuation only, up to 80 characters: no digits, and no web or email address in its common
+  forms, such as `refund-desk.com`
+  ([Plain text](/guides/apps/identity-and-own-links/#plain-text)). Anything else is refused `400`
+  `PUBLIC_WRITE_REFUSED`, with `params.column` naming the column. Unlike the counts, this holds
+  for a signed-in person's create too, and for every change that writes the column.
 
 Over a limit, the create is refused `409` `PUBLIC_LIMIT_REACHED` and the page offers the phone.
 A single create refused for another reason, such as a time taken meanwhile, does not count
