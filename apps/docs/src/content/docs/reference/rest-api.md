@@ -957,6 +957,23 @@ row is now), `to` and `named`. `from` on a table without states is refused `422`
 { "values": { "status": "preparing" }, "from": "ready" }
 ```
 
+A bulk update (`POST …/{table}/bulk`) takes `from` too: every row must still be in that state, or
+the whole write is refused `409` `STATE_MOVE_REFUSED`, naming the row by `details.id`, and nothing
+is written. A show's live orders are cancelled in a few writes this way, one per state they were
+seen in, rather than one request per order.
+
+### The values a form loaded
+
+`seen` on a `PATCH` names up to 8 plain columns as the form loaded them. The change is made only
+while each still holds that value: two door phones ticking one party's arrivals, or two people
+editing one note, cannot both write over what they did not see. A row that moved is refused `409`
+`ROW_CHANGED`, with `details.column`, `expected` and `retry: true`; read the row again and decide.
+A column the caller may not read is refused as it would be in `values`.
+
+```json
+{ "values": { "arrived": 3 }, "seen": { "arrived": 2 } }
+```
+
 A change of a row that moves through states usually gets `undoToken: null`: an undo would put the
 state back with no rules. The exception is a change that was a status move alone (with the stamps
 the move wrote), on a table whose states list a move marked `undo` the other way. Its token is

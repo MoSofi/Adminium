@@ -151,6 +151,8 @@ export class ConflictError extends AppError {
     message = 'The resource changed since you loaded it.',
     code:
       | 'CONFLICT'
+      // A plain column the writer saw (`seen`) holds another value now.
+      | 'ROW_CHANGED'
       | 'UNIQUE_VIOLATION'
       | 'FK_VIOLATION'
       // The booking guard: the slot has no room for this row, or another

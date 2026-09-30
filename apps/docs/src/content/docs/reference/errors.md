@@ -335,6 +335,7 @@ role-bound key answers with the staff envelope:
 | `DELETE_REFUSED` | 409 | A row that is numbered, in a state that is never deleted, or locked. Void it instead. | `state`, `numbered` |
 | `FOLLOW_TOO_MANY` | 409 | More than 500 rows [follow](/reference/manifest/#copies-that-follow) the changed row. Change them in smaller steps. | `table`, `count` |
 | `PRICE_CHANGED` | 409 | The save came to another figure than the price the desk showed (`expect`). Nothing was kept. | `column`, `total` |
+| `ROW_CHANGED` | 409 | A column the form loaded (`seen`) holds another value now. Nothing was kept; read the row again. | `column`, `expected`, `retry` |
 | `DOCUMENT_NOT_FOR_ROW` | 409 | The app's document kind is only for some rows (its `where`), and this row is not one of them: money given back has no receipt. Nothing was drawn. | `kind` |
 | `NIGHTLY_RATE_UNREADABLE` | 409 | A [price by the night](/reference/manifest/#prices-by-the-night) reads a rate rule that cannot be read. Correct the rule. | `table`, `key`, `column` |
 | `COLUMN_FORBIDDEN` | 403 | A column the caller's role does not read, reads masked, or may not change. | `table`, `column`, `reason` |

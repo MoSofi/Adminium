@@ -91,6 +91,48 @@ describe.each(LEGS)('moves through the data routes — %s', (dialect, available)
     expect(row!['status']).toBe('valid');
   });
 
+  it.runIf(available)('cancels many orders in one write only from the state they were seen in, and names one that moved', async () => {
+    const event = await made('events', { name: `Gig ${String((n += 1))}`, starts_at: '2026-07-31T19:30:00Z', doors_at: '2026-07-31T19:00:00Z' });
+    const a = await made('orders', { event_id: event['id'], email: `a${String(n)}@example.com`, pay: 'paid' });
+    const b = await made('orders', { event_id: event['id'], email: `b${String(n)}@example.com`, pay: 'paid' });
+    expect((await routes.patch('orders', b['id'], { values: { status: 'paid' } })).statusCode).toBe(200);
+    const bulk = async (payload: Record<string, unknown>) =>
+      routes.t.app.inject({
+        method: 'POST',
+        url: `/api/v1/data/${routes.connectionId}/${routes.table('orders')}/bulk`,
+        headers: { ...(await import('./connections-helpers.js')).asUser(routes.t.users.admin) },
+        payload: { action: 'update', ids: [a['id'], b['id']], values: { status: 'cancelled' }, ...payload },
+      });
+    const seenHeld = await bulk({ from: 'held' });
+    expect(seenHeld.statusCode, seenHeld.body).toBe(409);
+    expect(seenHeld.json()).toMatchObject({ error: { code: 'STATE_MOVE_REFUSED', details: { id: b['id'] } } });
+    const rows = await h.rows(`select status from ${h.real('orders')} where id in (${String(a['id'])}, ${String(b['id'])}) order by id`);
+    expect(rows.map((r) => r['status'])).toEqual(['held', 'paid']);
+    // One write per state they were seen in.
+    for (const [id, from] of [[a['id'], 'held'], [b['id'], 'paid']] as const) {
+      const one = await routes.t.app.inject({
+        method: 'POST',
+        url: `/api/v1/data/${routes.connectionId}/${routes.table('orders')}/bulk`,
+        headers: { ...(await import('./connections-helpers.js')).asUser(routes.t.users.admin) },
+        payload: { action: 'update', ids: [id], values: { status: 'cancelled' }, from },
+      });
+      expect(one.statusCode, one.body).toBe(200);
+    }
+  });
+
+  it.runIf(available)('changes a plain column only while it holds the value the writer saw', async () => {
+    const event = await made('events', { name: `Gig ${String((n += 1))}`, starts_at: '2026-07-31T19:30:00Z', doors_at: '2026-07-31T19:00:00Z' });
+    const order = await made('orders', { event_id: event['id'], email: `s${String(n)}@example.com`, pay: 'paid' });
+    const first = await routes.patch('orders', order['id'], { values: { cancel_code: 'phone' }, seen: { cancel_code: null } });
+    expect(first.statusCode, first.body).toBe(200);
+    const second = await routes.patch('orders', order['id'], { values: { cancel_code: 'desk' }, seen: { cancel_code: null } });
+    expect(second.statusCode, second.body).toBe(409);
+    expect(second.json()).toMatchObject({ error: { code: 'ROW_CHANGED', details: { column: 'cancel_code', retry: true } } });
+    const [row] = await h.rows(`select cancel_code from ${h.real('orders')} where id = ${String(order['id'])}`);
+    expect(row!['cancel_code']).toBe('phone');
+    expect((await routes.patch('orders', order['id'], { values: { cancel_code: 'desk' }, seen: { cancel_code: 'phone' } })).statusCode).toBe(200);
+  });
+
   it.runIf(available)("turns the room occupied with the stay, audited as the same person's change", async () => {
     const room = await made('rooms', { number: `R${String((n += 1))}` });
     const stay = await made('stays', { room_id: room['id'], arrive: '2026-08-10' });

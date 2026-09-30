@@ -202,8 +202,15 @@ export function expectOf(row: Row): Row | undefined {
   return (row as Expecting)[EXPECT];
 }
 
-/** An update that matched nothing because the row moved since it was judged. */
-export function rowMoved(expect: Row): StateMoveRefused {
+/**
+ * An update that matched nothing because the row moved since it was judged:
+ * a state it was seen in is a refused move; a plain column seen with another
+ * value (`seen`) is `ROW_CHANGED`.
+ */
+export function rowMoved(expect: Row, stateColumn?: string): AppError {
+  if (Object.keys(expect).some((column) => column !== stateColumn)) {
+    return new ConflictError('The row changed while you were changing it; look again.', 'ROW_CHANGED', { expected: expect, retry: true });
+  }
   return new StateMoveRefused('The row changed while you were changing it; look again.', { expected: expect, retry: true });
 }
 

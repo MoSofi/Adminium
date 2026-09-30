@@ -578,7 +578,7 @@ export async function updateRows(
       const count = await statement(tx, set);
       // Another writer changed the row since it was judged: refused as the check would refuse it now.
       if (count === 0 && required !== undefined && (await present(tx)) && !(await answers(tx))) throw requiredRefusal(required);
-      if (count === 0 && expected !== undefined && (await present(tx))) throw rowMoved(expected);
+      if (count === 0 && expected !== undefined && (await present(tx))) throw rowMoved(expected, table.table?.states?.column);
       if (count > 0 && plan !== undefined) await sealRows(tx, table, match, plan, writeSeals);
       return count;
     },

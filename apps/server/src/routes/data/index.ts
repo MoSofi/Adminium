@@ -67,7 +67,7 @@ import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
 import { sealRows, sealsOf } from '../../crud/seal.js';
 import { batchNeedsGuard } from '../../crud/capacity/door.js';
 import type { JudgedRow, LockNameRow } from '../../crud/capacity/types.js';
-import { guardOf, tiedToStates, withoutRepeatedState, type EffectWritten } from '../../crud/states.js';
+import { attachExpect, guardOf, tiedToStates, withoutRepeatedState, type EffectWritten } from '../../crud/states.js';
 import {
   rowsEqual,
   UndoStore,
@@ -84,7 +84,7 @@ import {
   type RecordWriteAction,
 } from '../../crud/after-record-write.js';
 import type { FileReconciler } from '../../files/reconcile.js';
-import { normalizeWriteValue } from '../../crud/write-values.js';
+import { normalizeWriteValue, sameValue } from '../../crud/write-values.js';
 import { bookingDays, bookingSlots, kindMinutes } from '../../crud/booking-guard.js';
 import { capacityCounts } from '../../crud/capacity/counts.js';
 import { quoteNights, storedNights } from '../../crud/per-night.js';
@@ -519,6 +519,27 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
      * (rbac/update-limits.ts). Asked with what the caller SENT, before a rule
      * or a hook adds to it: a stamp a status change sets is not theirs.
      */
+    /**
+     * The values carrying the plain columns the writer saw (`seen`) as
+     * conditions of the change. A column the caller may not read is no
+     * condition (it would be a way to guess it); one that already moved is
+     * refused here, before anything runs.
+     */
+    function withSeenValues(ctx: DataContext, values: Row, before: Row, seen: Record<string, unknown> | undefined): Row {
+      if (seen === undefined) return values;
+      const expect: Row = {};
+      for (const [name, value] of Object.entries(seen)) {
+        const column = ctx.view.column(ctx.table, name);
+        ctx.readView.readableColumn(ctx.readTable, name, ctx.unmasked);
+        const normalized = value === null ? null : normalizeWriteValue(column, value);
+        if (!sameValue(normalized, before[name])) {
+          throw new ConflictError('The row changed while you were changing it; look again.', 'ROW_CHANGED', { column: name, expected: value, retry: true });
+        }
+        expect[name] = normalized;
+      }
+      return attachExpect(values, expect);
+    }
+
     async function updateLimitFor(request: FastifyRequest, connectionId: string, tableId: string): Promise<UpdateLimit | null> {
       return updateLimitOf(await app.rbac.resolve(request), connectionId, tableId);
     }
@@ -1883,7 +1904,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const action = request.body.action;
         const ctx = await contextFor(request, action);
-        const values = action === 'update' ? allowlistValues(ctx, request.body.values ?? {}) : null;
+        // The state every row was seen in, when it names one, travels as a condition of each row's change.
+        const values = action === 'update' ? withSeenState(ctx.table, allowlistValues(ctx, request.body.values ?? {}), request.body.from) : null;
+        if (action === 'delete' && request.body.from !== undefined) throw new ValidationFailedError('A state seen goes with a change, not a delete.', { fields: { from: { code: 'not-allowed' } } });
         // One `values` for every row, so every column sent counts as a change.
         if (values !== null) assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values);
         const context = requestWriteContext(request, 'bulk');
@@ -2946,11 +2969,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // An edit form sends only what changed, so an edit of links or line
         // items alone — or of nothing — arrives with no values at all.
         // The state the writer saw the row in, when it names one, travels as a condition of the change.
-        const values = withSeenState(ctx.table, Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values), request.body.from);
-        await assertFileColumns(ctx, values);
+        const sent = withSeenState(ctx.table, Object.keys(request.body.values).length === 0 ? {} : allowlistValues(ctx, request.body.values), request.body.from);
+        await assertFileColumns(ctx, sent);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
-        assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, values, before);
+        assertWithinLimit(await updateLimitFor(request, ctx.connectionId, ctx.table.id), ctx.table.id, sent, before);
+        // The plain columns the writer saw, as conditions of the change: refused now if the row already moved, and in the statement if it moves meanwhile.
+        const values = withSeenValues(ctx, sent, before, request.body.seen);
         const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, request.body.children);

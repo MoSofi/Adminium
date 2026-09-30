@@ -207,6 +207,16 @@ const recordExpectBody = z
   .strict()
   .optional();
 
+/**
+ * Plain columns as the writer saw them (two door phones ticking one party's
+ * arrivals): the change is made only while each still holds that value, or
+ * refused 409 `ROW_CHANGED`, naming the column. Up to 8.
+ */
+const recordSeenBody = z
+  .record(z.string().min(1).max(120), z.union([z.string().max(10_000), z.number(), z.boolean(), z.null()]))
+  .refine((seen) => Object.keys(seen).length >= 1 && Object.keys(seen).length <= 8, { message: '1 to 8 columns' })
+  .optional();
+
 export const recordCreateBody = z.object({
   values: rowValuesSchema,
   links: recordLinksBody,
@@ -234,6 +244,7 @@ export const recordUpdateBody = z.object({
    */
   from: z.string().min(1).max(64).optional(),
   expect: recordExpectBody,
+  seen: recordSeenBody,
 });
 
 /** A change tried and not kept (`POST …/:recordId/dry-run`): the record's values and its child rows, as a change sends them. */
@@ -406,6 +417,12 @@ export const recordBulkBody = z.object({
   action: z.enum(['update', 'delete']),
   ids: z.array(z.unknown()).min(1).max(1000),
   values: rowValuesSchema.optional(),
+  /**
+   * The state every row was seen in (a table that keeps states): a row moved
+   * on since is refused, naming it, and nothing is written — a show's live
+   * orders cancelled in a few writes, one per state they were seen in.
+   */
+  from: z.string().min(1).max(64).optional(),
 });
 
 export const recordBulkReply = z.object({
