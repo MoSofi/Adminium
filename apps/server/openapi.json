@@ -9838,7 +9838,7 @@
                       "minLength": 1
                     },
                     "additionalProperties": {
-                      "maxItems": 200,
+                      "maxItems": 1000,
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -9864,7 +9864,7 @@
                               "minLength": 1
                             },
                             "additionalProperties": {
-                              "maxItems": 200,
+                              "maxItems": 1000,
                               "type": "array",
                               "items": {
                                 "type": "object",
@@ -10142,6 +10142,11 @@
                       "type": "string"
                     },
                     "additionalProperties": {}
+                  },
+                  "from": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
                   }
                 },
                 "required": [
@@ -10292,6 +10297,135 @@
                   },
                   "required": [
                     "references"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/data/{connectionId}/{table}/{recordId}/history": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "query",
+            "name": "cursor",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "connectionId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "table",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "recordId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "number"
+                          },
+                          "actorKind": {
+                            "type": "string"
+                          },
+                          "actorLabel": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "changes": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "createdAt",
+                          "actorKind",
+                          "actorLabel",
+                          "action",
+                          "changes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "nextCursor"
                   ],
                   "additionalProperties": false
                 }
@@ -10807,7 +10941,7 @@
                       "minLength": 1
                     },
                     "additionalProperties": {
-                      "maxItems": 200,
+                      "maxItems": 1000,
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -10833,7 +10967,7 @@
                               "minLength": 1
                             },
                             "additionalProperties": {
-                              "maxItems": 200,
+                              "maxItems": 1000,
                               "type": "array",
                               "items": {
                                 "type": "object",
@@ -10886,6 +11020,31 @@
                       "total"
                     ],
                     "additionalProperties": false
+                  },
+                  "seen": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 10000
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
                   }
                 },
                 "required": [
@@ -11480,6 +11639,16 @@
               "maxLength": 4000
             },
             "in": "query",
+            "name": "values",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "in": "query",
             "name": "ids",
             "required": false
           },
@@ -11856,7 +12025,7 @@
                       "minLength": 1
                     },
                     "additionalProperties": {
-                      "maxItems": 200,
+                      "maxItems": 1000,
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -11882,7 +12051,7 @@
                               "minLength": 1
                             },
                             "additionalProperties": {
-                              "maxItems": 200,
+                              "maxItems": 1000,
                               "type": "array",
                               "items": {
                                 "type": "object",
@@ -12125,7 +12294,7 @@
                       "minLength": 1
                     },
                     "additionalProperties": {
-                      "maxItems": 200,
+                      "maxItems": 1000,
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -12151,7 +12320,7 @@
                               "minLength": 1
                             },
                             "additionalProperties": {
-                              "maxItems": 200,
+                              "maxItems": 1000,
                               "type": "array",
                               "items": {
                                 "type": "object",
@@ -80446,6 +80615,29 @@
                               }
                             ]
                           },
+                          "peak": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "reads": {
+                                    "type": "number"
+                                  },
+                                  "writes": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "reads",
+                                  "writes"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "origins": {
                             "type": "array",
                             "items": {
@@ -80512,6 +80704,7 @@
                           "appKey",
                           "purpose",
                           "requiresStaff",
+                          "peak",
                           "origins",
                           "expiresAt",
                           "revokedAt",
@@ -80799,6 +80992,29 @@
                             }
                           ]
                         },
+                        "peak": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reads": {
+                                  "type": "number"
+                                },
+                                "writes": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "reads",
+                                "writes"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "origins": {
                           "type": "array",
                           "items": {
@@ -80865,6 +81081,7 @@
                         "appKey",
                         "purpose",
                         "requiresStaff",
+                        "peak",
                         "origins",
                         "expiresAt",
                         "revokedAt",
@@ -81106,6 +81323,29 @@
                             }
                           ]
                         },
+                        "peak": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reads": {
+                                  "type": "number"
+                                },
+                                "writes": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "reads",
+                                "writes"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "origins": {
                           "type": "array",
                           "items": {
@@ -81172,6 +81412,7 @@
                         "appKey",
                         "purpose",
                         "requiresStaff",
+                        "peak",
                         "origins",
                         "expiresAt",
                         "revokedAt",
