@@ -374,6 +374,15 @@ const AROUND_MS = 30 * 60_000;
  * its `@byClock` set says to leave it out.
  */
 export function resolveSampleRow(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Row | null {
+  const chosen = chooseSampleRow(row, ctx);
+  return chosen === null ? null : resolveValues(chosen, ctx);
+}
+
+/**
+ * A row's columns with its `@byClock` / `@byStay` branch for the adding
+ * moment in, still unresolved; null when that branch leaves the row out.
+ */
+export function chooseSampleRow(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Readonly<Record<string, unknown>> | null {
   const clock = row['@byClock'] === undefined ? null : byClockSchema.parse(row['@byClock']);
   const stay = row['@byStay'] === undefined ? null : byStaySchema.parse(row['@byStay']);
   let values: Readonly<Record<string, unknown>> = row;
@@ -407,7 +416,19 @@ export function resolveSampleRow(row: Readonly<Record<string, unknown>>, ctx: Re
     const { ['@skip']: _skip, ...columns } = branch ?? {};
     values = { ...row, ...columns };
   }
-  return resolveValues(values, ctx);
+  return values;
+}
+
+/**
+ * A row left out still takes its place in the slot-time queues its `@in`
+ * times would have used, so the rows after it get the times meant for them.
+ */
+export function releaseSlots(values: Readonly<Record<string, unknown>>, ctx: ResolveContext): void {
+  for (const [column, value] of Object.entries(values)) {
+    if (ROW_DIRECTIVES.has(column)) continue;
+    const found = sampleDirective(value);
+    if (found?.kind === 'in' && found.slot !== null) ctx.slotTimes?.get(slotKey(found.slot, ctx.now + isoDurationMs(found.duration)))?.shift();
+  }
 }
 
 function resolveValues(row: Readonly<Record<string, unknown>>, ctx: ResolveContext): Row {
@@ -1114,18 +1135,27 @@ export function createSampleDataService(deps: SampleDataDeps) {
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
             const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0;
             for (const row of table.rows) {
-              // A row that points at one left out goes too: it hung off a line the record no longer has as the sample wrote it.
-              if (leftOut.size > 0 && Object.values(row).flatMap(refsIn).some((named) => leftOut.has(named))) {
+              const ctx: ResolveContext = { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes };
+              const chosen = chooseSampleRow(row, ctx);
+              // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
+              if (chosen === null) {
+                done += 1;
+                continue;
+              }
+              /*
+               * A row that points at one left out goes too: it hung off a line
+               * the record no longer has as the sample wrote it. Read from the
+               * columns it would be written with (a branch not chosen does not
+               * count), and it still takes its place in the slot-time queues.
+               */
+              const pointsAtLeftOut = Object.entries(chosen).some(([column, value]) => !ROW_DIRECTIVES.has(column) && refsIn(value).some((named) => leftOut.has(named)));
+              if (leftOut.size > 0 && pointsAtLeftOut) {
+                releaseSlots(chosen, ctx);
                 if (typeof row['@label'] === 'string') leftOut.add(row['@label']);
                 done += 1;
                 continue;
               }
-              const resolvedRow = resolveSampleRow(row, { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes });
-              // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
-              if (resolvedRow === null) {
-                done += 1;
-                continue;
-              }
+              const resolvedRow = resolveValues(chosen, ctx);
               const values = spellInstants(resolvedRow, resolved);
               const label = typeof row['@label'] === 'string' ? row['@label'] : null;
               // A part of a row this add took back: that row came back with the parts it has.

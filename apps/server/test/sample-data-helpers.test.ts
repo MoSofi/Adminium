@@ -12,7 +12,9 @@ import {
   normaliseValue,
   onVenueGrid,
   pickText,
+  releaseSlots,
   resolveSampleRow,
+  slotKey,
   sampleFileOf,
   zonedMonthDay,
   zonedWallTime,
@@ -150,5 +152,23 @@ describe('where an app’s sample data lives', () => {
       'seeds/pos.sample.json',
     );
     expect(sampleFileOf({ kind: 'add-on', key: 'x' } as unknown as Manifest)).toBeUndefined();
+  });
+});
+
+describe('a row left out of the sample, on a slot limit', () => {
+  it('still takes its place in the queue of slot times, so the row after it gets the time meant for it', () => {
+    const now = Date.parse('2026-09-30T08:00:00Z');
+    const first = new Date('2026-09-30T09:15:00Z');
+    const second = new Date('2026-09-30T09:30:00Z');
+    const slotTimes = new Map([[slotKey('pickups', now + 3_600_000), [first, second]]]);
+    const ctx = { now, timeZone: 'Europe/London', locale: 'en-US', labels: new Map(), assets: new Map(), slotTimes };
+    const asks = { ready_at: { '@in': 'PT1H', '@slot': 'pickups' } };
+    // The first row is left out; the second is written, at the second time.
+    releaseSlots(asks, ctx);
+    expect(resolveSampleRow(asks, ctx)!['ready_at']).toEqual(second);
+    // A column that asks no slot takes nothing from the queue.
+    slotTimes.set(slotKey('pickups', now + 3_600_000), [first]);
+    releaseSlots({ ready_at: { '@in': 'PT1H' }, '@byClock': { at: 'ready_at', after: { ready_at: { '@in': 'PT1H', '@slot': 'pickups' } } } }, ctx);
+    expect(slotTimes.get(slotKey('pickups', now + 3_600_000))).toEqual([first]);
   });
 });
