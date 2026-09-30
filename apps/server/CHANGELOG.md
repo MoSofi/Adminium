@@ -1,5 +1,77 @@
 # @adminium/server
 
+## 0.3.8
+
+### Patch Changes
+
+- 83bc23e: A bulk change or delete now reaches the screens watching the table: each row goes out as a row's own change does, on the channel a board or a kitchen's screen listens to. Before, a manager's bulk menu edit was announced on a channel no browser could subscribe to, so the kitchen's board never saw it; an undo is announced where screens listen too, and nothing is published on the unused `table:` channel any more.
+- c360314: Two closures of one room over the same night now take one room off its type, not two. A hotel that booked a repair twice for room 108 lost a second room of the type from sale for those nights; the counts a desk reads showed it too. A room out of service counts once a night, however many closures cover it.
+- 68fa21f: An app can keep a shared link's code from its staff: `code: { …, "hiddenFromStaff": true }`. A kitchen member could open any online order's link from the staff screens, read the diner's details until 30 days after pickup and cancel "as the diner". The code is now left out of every staff read — rows, exports, live updates and the history — for every role, Super Admin too, while the link still opens its order and the order's own emails still carry it to the diner.
+- 35a8ef1: A copy through a link that another copy fills is now made when the row is created. In Event Ticketing a ticket copies its show from its ticket type, and its doors time and reminder address through that show; on a real server those came out empty unless the writer sent the show itself, so the release of returned places at the doors and the evening-before reminder had nothing to read. The copies now run in the order their links need, and a copy reads a link filled earlier in the same write as if it had been sent.
+- 83bc23e: A desk asks for the limits of a page of shows at once: `capacity-counts?under=event_id&values=12,13,14` counts up to 50 values in one ask, each row naming the value it is under, instead of one request a show. A staff save may carry up to 1,000 rows below one record (was 200), so a message to a show's buyers goes out with an email each in one write; the public API's creates keep their 200.
+- 35a8ef1: A date column can now be kept on either side of another date. `notAfter` takes `{ "column", "via"? }` as `notBefore` does, besides `"today"`: a hotel's credit for nights not stayed ends by its stay's departure. Either side may say `when` it holds (conditions on the row, as the write leaves it) and whether the same day is `strict`ly out, always or under conditions: a guest who left early is credited from the day after the arrival, a guest who never came from the arrival itself. A bound is judged again when a column its conditions read changes.
+- 35a8ef1: An app's document can be for some rows only: `where: { "column": "kind", "in": ["taken"] }` on a `receipt` means money given back never prints as "Amount received". Another row has none: the render answers `409` `DOCUMENT_NOT_FOR_ROW`, and an email that would carry it goes without it rather than failing.
+- 717f9ff: A price by the night can be a part of another row's: `perNight.of: { "via": "stay_id", "column": "room_total" }`. A hotel's credit for the nights a guest did not stay was priced at today's rates, so after a rate change it credited nights at a price the stay never paid. It now comes to what those nights cost the guest: today's price while the stay's rates are unchanged, scaled to what the stay was charged after they changed, and never more than it.
+- b0dab38: Plain text a guest types now takes the punctuation a sentence is written with in their own script: `! ? : ; "`, `¿ ¡ « » „ “ ”`, the CJK `，。、！？：；「」『』・` and the Arabic `، ؛ ؟`. A diner's note like "少放辣，切六块" or "بدون بصل، من فضلك" was refused before. A column in a `plainText` list may now be given as `{ "column": "note", "digits": 4, "max": 140 }`: up to 4 digits in the whole value ("2 without onions", "table 12", never a phone number) and up to 200 characters instead of 80. A name keeps no digits. The link check reads the ideographic full stop as a dot (`evil。com`) and digits as part of an address (`shop1.com`), and `www.` is found in fullwidth letters too. The manifest validator now warns when a plain-text column's `maxLength` is longer than its plain text takes, since a guest who types to the end of the field is refused.
+- 717f9ff: An app can give its public keys a budget of their own for its peak: `publicKeys.<key>.peak: { "reads", "writes" }`, from Adminium's own 3,000 reads and 300 writes a minute up to five times that, and `customer` may be named here for its peak alone — the guests' key is the one a show going on sale meets. Each visitor still gets a twelfth of it. The install writes it on the key (a new meta migration, 0048, adds the two columns), an update brings it in step, and the API keys page shows it beside the key.
+- 79976c3: A record's history is now readable by whoever reads the record: `GET /api/v1/data/{connectionId}/{table}/{recordId}/history` answers its own changes from the audit log, newest first and in pages, without the columns the reader's role does not read and without the address, browser or request they came from. An app's roles can never be given the audit page's `system:audit:read`, so a box office's order timeline had to be pieced together from the row's own stamps.
+- 56c75af: An app's records page can open already filtered: `config.defaultFilters` lists up to six conditions (a column, an op and a value), used when nobody has chosen filters yet — a saved view, or the filters someone left the page in, still win. Online Ordering's Messages page can now hide the skipped rows every phone order without an email writes. An install refuses default filters it cannot read or that name a column the page's table does not have.
+- 0485530: An app's role can now limit what a new row it creates may be given, as it already could for a change: `limits.<table>.creatable` lists the columns, and `creatableValues` the values some of them may take. A kitchen tablet that may take phone orders could pick an order's channel, its customer, its link code and how it was paid; a door phone could give an order a code worth its whole price. Now a create outside the limit is refused `403` `COLUMN_FORBIDDEN` with `reason: "create-limit"` — on the create itself, each value of a repeat, a row added from a parent's form, the dry run, and an import (which may not bring in a column outside the limit). A value left empty, and the state column at its first state, always pass. The limit is kept through a save of the role in the permissions matrix.
+- f983d41: Adding an app's sample data again no longer leaves an empty order beside one
+  you changed. A sample order your own records use stays after a removal, with
+  its lines; once you change it, it is yours, and the next add writes the
+  sample's order again. But the lines of your order were taken back into the
+  sample by their names, still under your order, so the sample's fresh order
+  had no lines and totals of zero (in Online Ordering, a fresh #2107 with
+  nothing on it).
+  
+  A record's lines, and what those lines add up, now come back only with their
+  record. When the record stays yours, so do its lines, and the sample writes
+  its own record whole.
+- 28845af: Removing an app's sample data no longer strips the chosen options from the
+  lines of a sample order your own records use. A removal keeps a sample record
+  your records use, with its lines, but it deleted the rows those lines add up:
+  in Online Ordering, a kept order's lines lost the options their price counts
+  ("Oat milk", "Extra shot"), so the order no longer showed what was ordered,
+  and its line prices no longer matched what was left.
+  
+  A kept record now keeps the rows its lines add up, as well as the lines. When
+  the sample is added again they come back with it, as they are, and the sample
+  writes none beside them. An option you changed stays yours. This reaches only
+  a record's own parts: a kept customer still lets go of the sample orders its
+  count adds up.
+- 1fbbc25: Adding an app's sample data again leaves out only the rows that really hang off a line you changed. A sample row that points at a line the add leaves out (a line of your own record that you changed) goes too, but the add read every branch of a row's `@byClock` / `@byStay` choice, so a row whose chosen branch pointed elsewhere was left out as well. It now reads only the columns the row would be written with. A row left out this way also keeps its place among the slot times the sample places, so the rows after it get the times meant for them.
+- 7f396db: A sample-data table can be marked `"onlyIfEmpty": true`: its rows go in only when the table holds none. Online Ordering's opening hours (one row a weekday, each weekday unique) stopped "Add sample data" for a kitchen that had already set its hours; now the sample leaves the hours alone and adds the rest. No sample row may point at a row of such a table.
+- 83bc23e: Someone who opens only an app's own screens can now print that app's documents: a hotel's front desk drew a folio and was refused `APP_SCREENS_ONLY`, so the app offered printing to managers only. Drawing a document of their own app, and reading and printing it, now pass; a document still needs every table and column it prints to be one their roles read.
+- 1c08689: Two screens changing one row no longer overwrite each other unseen. A `PATCH` may send `seen`: up to 8 plain columns as the form loaded them, and the change is made only while each still holds that value, or refused `409` `ROW_CHANGED` naming the column (two door phones ticking one party's arrivals both wrote `arrived: 2`). A bulk update may send `from`, the state every row was seen in: a row that moved on is refused by id and nothing is written, so a box office cancels a show's live orders in a few writes, one per state, instead of one request per order against the per-person rate limit.
+- 243836d: An app's staff screens are now told which of their tables another installed app uses too: the staff `surface-config.json` carries `sharedTables`, each of the app's own table names with the other apps' keys. Online Ordering's menu screen can then say, only when its menu is Point of Sale's too, that switching a dish off hides it at the till as well.
+- 0bd3941: A table no guest creates rows of can now keep a desk's retry key: mark a unique, nullable text column `retryKey: true`. A payment or a refund saved again after a reply that never came answers the one the first save made (`clientKey`, `replayed`), instead of recording the money twice. Before, a staff retry key needed a public create entry on the table.
+- 56c75af: On a SQLite connection the staff API now answers a time as the instant it is (`2026-07-28T23:59:17.183Z`), as the public API and Postgres and MySQL already did. It answered the server's wall time with no zone (`2026-07-29 01:59:17.183` on a server in Berlin), so a desk in another zone read every time hours off. Rows, lists, saves and live updates all carry the instant; a venue's own local times are left as they are. A form that sends a time back as it was shown is not taken for a change.
+- 35a8ef1: An app's state rules say a few more things. A late move may carry a `where`: only a move whose row meets it is judged, so a hotel's cancellation by the house is never marked late, even inside the window, and a late flag sent for it is dropped. An `onlyLater` entry may be `{ "column": "depart", "in": ["in_house"] }`: the date moves only later while the row is in one of those states, so a stay in the house cannot be shortened by a change of its departure while a booked one still can. A table may set off up to 8 effects (was 4), and an app may list up to 64 public entries (was 32).
+- 5316108: A waitlist claim can release the places it took. With `reserved: { "states": ["returned"], "releaseTo": "released" }`, an offer claimed moves as many of its pool's returned tickets to `released` as places it takes, in the same write and under the same lock. Before, the returned tickets stayed kept after the claim: the public read the show as sold out while places were free, and the box office's count of places "back for the waitlist" was too high.
+- Updated dependencies [68fa21f]
+- Updated dependencies [35a8ef1]
+- Updated dependencies [35a8ef1]
+- Updated dependencies [717f9ff]
+- Updated dependencies [b0dab38]
+- Updated dependencies [717f9ff]
+- Updated dependencies [56c75af]
+- Updated dependencies [0485530]
+- Updated dependencies [7f396db]
+- Updated dependencies [0bd3941]
+- Updated dependencies [35a8ef1]
+- Updated dependencies [5316108]
+  - @adminium/manifest@0.3.8
+  - @adminium/meta@0.3.8
+  - @adminium/i18n@0.3.8
+  - @adminium/engine@0.3.8
+  - @adminium/llm@0.3.8
+  - @adminium/adapter-mysql@0.3.8
+  - @adminium/adapter-postgres@0.3.8
+  - @adminium/adapter-sqlite@0.3.8
+  - @adminium/schema-import@0.3.8
+  - @adminium/add-on-contracts@0.3.8
+
 ## 0.3.7
 
 ### Patch Changes

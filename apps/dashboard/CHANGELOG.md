@@ -1,5 +1,22 @@
 # @adminium/dashboard
 
+## 0.3.8
+
+### Patch Changes
+
+- 717f9ff: An app can give its public keys a budget of their own for its peak: `publicKeys.<key>.peak: { "reads", "writes" }`, from Adminium's own 3,000 reads and 300 writes a minute up to five times that, and `customer` may be named here for its peak alone — the guests' key is the one a show going on sale meets. Each visitor still gets a twelfth of it. The install writes it on the key (a new meta migration, 0048, adds the two columns), an update brings it in step, and the API keys page shows it beside the key.
+- 56c75af: An app's records page can open already filtered: `config.defaultFilters` lists up to six conditions (a column, an op and a value), used when nobody has chosen filters yet — a saved view, or the filters someone left the page in, still win. Online Ordering's Messages page can now hide the skipped rows every phone order without an email writes. An install refuses default filters it cannot read or that name a column the page's table does not have.
+- Updated dependencies [83bc23e]
+- Updated dependencies [717f9ff]
+- Updated dependencies [56c75af]
+  - @adminium/widgets@0.3.8
+  - @adminium/i18n@0.3.8
+  - @adminium/engine@0.3.8
+  - @adminium/charts@0.3.8
+  - @adminium/add-on-contracts@0.3.8
+  - @adminium/tokens@0.3.8
+  - @adminium/ui@0.3.8
+
 ## 0.3.7
 
 ### Patch Changes

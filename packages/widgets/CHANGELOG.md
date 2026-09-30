@@ -1,5 +1,17 @@
 # @adminium/widgets
 
+## 0.3.8
+
+### Patch Changes
+
+- 83bc23e: A desk asks for the limits of a page of shows at once: `capacity-counts?under=event_id&values=12,13,14` counts up to 50 values in one ask, each row naming the value it is under, instead of one request a show. A staff save may carry up to 1,000 rows below one record (was 200), so a message to a show's buyers goes out with an email each in one write; the public API's creates keep their 200.
+- 56c75af: An app's records page can open already filtered: `config.defaultFilters` lists up to six conditions (a column, an op and a value), used when nobody has chosen filters yet — a saved view, or the filters someone left the page in, still win. Online Ordering's Messages page can now hide the skipped rows every phone order without an email writes. An install refuses default filters it cannot read or that name a column the page's table does not have.
+- Updated dependencies [717f9ff]
+  - @adminium/i18n@0.3.8
+  - @adminium/charts@0.3.8
+  - @adminium/tokens@0.3.8
+  - @adminium/ui@0.3.8
+
 ## 0.3.7
 
 ### Patch Changes
