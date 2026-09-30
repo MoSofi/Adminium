@@ -652,6 +652,20 @@ function lockTied(table: ResolvedTable, row: Row): boolean {
   return (table.table.stateParents ?? []).some((parent) => parent.lock === true && row[parent.via] !== null && row[parent.via] !== undefined);
 }
 
+/**
+ * Whether a row is a part of a record (`partLinks`): a document's line, or
+ * what a line adds up (a rollup into a table whose rows are lines). A part
+ * comes back only with its record: taken back on its own, it would name the
+ * record the operator kept and leave the sample's fresh copy of it empty.
+ */
+function isPart(view: SnapshotView, table: ResolvedTable, row: Row): boolean {
+  return partLinks(view, table).some((link) => {
+    if (row[link.via] === null || row[link.via] === undefined) return false;
+    if (!link.ofParts) return true;
+    return (safeTable(view, link.parent)?.table.stateParents ?? []).some((parent) => parent.lock === true);
+  });
+}
+
 /** Every label a bundle value points at (`{"@ref": label}`), in a column or a `@byClock` / `@byStay` branch. */
 function refsIn(value: unknown): string[] {
   const found = sampleDirective(value);
@@ -1095,7 +1109,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
               const kept = identity === null ? undefined : keptBy.get(identity);
               if (kept !== undefined && own !== null) {
                 const current = await fetchByPk(db, own, JSON.parse(kept.pk) as Row);
-                if (current !== undefined && unchangedSince(kept, current, own, handle.dialect)) {
+                if (current !== undefined && unchangedSince(kept, current, own, handle.dialect) && !isPart(view, own, current)) {
                   const key = slotKey(ask.table, earliest);
                   slotTimes.set(key, [...(slotTimes.get(key) ?? []), null]);
                   continue;
@@ -1146,14 +1160,18 @@ export function createSampleDataService(deps: SampleDataDeps) {
                * names that parent, not the fresh copy. What the hash cannot
                * tell apart is a row of the operator's that is identical in
                * every column AND took the kept row's key after it was deleted
-               * (SQLite reuses the highest rowid).
+               * (SQLite reuses the highest rowid). A part (a line, its options)
+               * is not taken back on its own: its record did not come back (it
+               * would have brought the part with it), so the part stays with
+               * the record the operator kept, and the sample writes its own
+               * under the fresh copy.
                */
               const identity = identityOf(table.ref, label, values, resolved);
               const keptEntry = identity === null ? undefined : keptBy.get(identity);
               if (keptEntry !== undefined && !adopted.has(keptEntry.seq)) {
                 keptBy.delete(identity!);
                 const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
-                if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect)) {
+                if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect) && !isPart(view, resolved, current)) {
                   await takeBack(keptEntry, current, table.ref, resolved, label);
                   done += 1;
                   continue;
