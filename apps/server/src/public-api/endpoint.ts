@@ -34,7 +34,7 @@ import type { EffectiveColumn } from '../connections/effective-schema.js';
 import { columnPolicyFor } from '../connections/effective-schema.js';
 import { FILTER_OPS } from '../crud/filters.js';
 import type { ResolvedTable, SnapshotView } from '../crud/identifiers.js';
-import { ANONYMOUS_PER_IP_HOUR } from './anonymous-caps.js';
+import { ANONYMOUS_PER_IP_HOUR, copyPlainText, plainColumns, plainTextListSchema } from './anonymous-caps.js';
 import { readGenerator } from './generate.js';
 import { DAY_TYPES, isMomentWindow, isTimeWindow } from './relative-filters.js';
 import {
@@ -214,7 +214,7 @@ const childShape = {
   max: z.number().int().min(1).max(200),
   agrees: z.array(endpointAgreeSchema).min(1).max(8).optional(),
   counts: z.array(endpointCountsSchema).min(1).max(2).optional(),
-  plain_text: z.array(columnSchema).min(1).max(8).optional(),
+  plain_text: plainTextListSchema(columnSchema).optional(),
   /** The most `column` may add up to across one write: a number, or a column of a one-row table (its real id). */
   sum_max: z
     .object({ column: columnSchema, max: z.union([z.number().int().min(1), z.object({ table: z.string().min(1).max(256), column: columnSchema }).strict()]) })
@@ -371,7 +371,7 @@ export const publicEndpointDefinitionSchema = z
     limits: z
       .object({
         per_value: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
-        plain_text: z.array(columnSchema).min(1).max(8).optional(),
+        plain_text: plainTextListSchema(columnSchema).optional(),
       })
       .strict()
       .optional(),
@@ -381,7 +381,7 @@ export const publicEndpointDefinitionSchema = z
         per_value: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
         per_key_hour: z.number().int().min(1).max(1000).optional(),
         per_ip_hour: z.number().int().min(1).max(ANONYMOUS_PER_IP_HOUR).optional(),
-        plain_text: z.array(columnSchema).min(1).max(8).optional(),
+        plain_text: plainTextListSchema(columnSchema).optional(),
       })
       .strict()
       .optional(),
@@ -577,7 +577,7 @@ function ordered(def: PublicEndpointDefinition): Record<string, unknown> {
   if (def.limits !== undefined) {
     out['limits'] = {
       ...(def.limits.per_value === undefined ? {} : { per_value: { columns: [...def.limits.per_value.columns], n: def.limits.per_value.n } }),
-      ...(def.limits.plain_text === undefined ? {} : { plain_text: [...def.limits.plain_text] }),
+      ...(def.limits.plain_text === undefined ? {} : { plain_text: copyPlainText(def.limits.plain_text) }),
     };
   }
   if (def.require_setting !== undefined) out['require_setting'] = def.require_setting.map((setting) => ({ ...setting }));
@@ -671,7 +671,7 @@ function orderedChildren(children: Readonly<Record<string, z.infer<typeof grandc
               max: k.max,
             })),
           }),
-      ...(c.plain_text === undefined ? {} : { plain_text: [...c.plain_text] }),
+      ...(c.plain_text === undefined ? {} : { plain_text: copyPlainText(c.plain_text) }),
       ...(c.sum_max === undefined ? {} : { sum_max: { column: c.sum_max.column, max: typeof c.sum_max.max === 'number' ? c.sum_max.max : { ...c.sum_max.max } } }),
       ...(c.children === undefined ? {} : { children: orderedChildren(c.children) }),
     };
@@ -924,14 +924,14 @@ export function definitionToResource(
       ...(caps.per_value === undefined ? {} : { perValue: { columns: [...caps.per_value.columns], n: caps.per_value.n } }),
       ...(caps.per_key_hour === undefined ? {} : { perKeyHour: caps.per_key_hour }),
       ...(caps.per_ip_hour === undefined ? {} : { perIpHour: caps.per_ip_hour }),
-      ...(caps.plain_text === undefined ? {} : { plainText: [...caps.plain_text] }),
+      ...(caps.plain_text === undefined ? {} : { plainText: copyPlainText(caps.plain_text) }),
     };
   }
   if (def.limits !== undefined) {
     const limits = def.limits;
     resource.limits = {
       ...(limits.per_value === undefined ? {} : { perValue: { columns: [...limits.per_value.columns], n: limits.per_value.n } }),
-      ...(limits.plain_text === undefined ? {} : { plainText: [...limits.plain_text] }),
+      ...(limits.plain_text === undefined ? {} : { plainText: copyPlainText(limits.plain_text) }),
     };
   }
   if (def.children !== undefined) resource.children = childResources(def.children);
@@ -1001,7 +1001,7 @@ function childResources(children: Readonly<Record<string, EndpointChild>>): Reco
       max: c.max,
       ...(c.agrees === undefined ? {} : { agrees: c.agrees.map((agree) => structuredClone(agree)) }),
       ...(c.counts === undefined ? {} : { counts: c.counts.map((counts) => structuredClone(counts)) }),
-      ...(c.plain_text === undefined ? {} : { plainText: [...c.plain_text] }),
+      ...(c.plain_text === undefined ? {} : { plainText: copyPlainText(c.plain_text) }),
       ...(c.sum_max === undefined ? {} : { sumMax: structuredClone(c.sum_max) }),
       ...(c.children === undefined ? {} : { children: childResources(c.children) }),
     };
@@ -1398,8 +1398,8 @@ export function endpointIssues(input: unknown, ctx: EndpointCompileContext): Sco
     ...(def.max_open === undefined ? [] : [['max_open', def.max_open.column] as const, ...(def.max_open.upcoming === undefined ? [] : [['max_open', def.max_open.upcoming] as const])]),
     ...(def.rank === undefined ? [] : [['rank', def.rank.order_by] as const, ...(def.rank.where === undefined ? [] : [['rank', def.rank.where.column] as const])]),
     ...(def.identity?.email === undefined ? [] : [['identity', def.identity.email] as const]),
-    ...[...(def.anonymous?.per_value?.columns ?? []), ...(def.anonymous?.plain_text ?? [])].map((column) => ['anonymous', column] as const),
-    ...[...(def.limits?.per_value?.columns ?? []), ...(def.limits?.plain_text ?? [])].map((column) => ['limits', column] as const),
+    ...[...(def.anonymous?.per_value?.columns ?? []), ...plainColumns(def.anonymous?.plain_text)].map((column) => ['anonymous', column] as const),
+    ...[...(def.limits?.per_value?.columns ?? []), ...plainColumns(def.limits?.plain_text)].map((column) => ['limits', column] as const),
   ];
   for (const [key, column] of named) {
     if (!table.columns.has(column)) push('ENDPOINT_COLUMN_UNKNOWN', `"${column}" (${key}) is not a column of ${def.source}`, column);
@@ -1615,7 +1615,7 @@ function treeAndPersonIssues(
       if (pointsAt(view, own, child.via)?.id !== parent.id) push('ENDPOINT_CHILD_VIA_NOT_PARENT', `"${child.via}" of ${child.source} does not point at ${parent.table.name}`, child.via);
       if (child.min !== undefined && child.min > child.max) push('ENDPOINT_CHILD_ROWS', `${name} asks for no more rows than it allows`);
       if (level > 2) push('ENDPOINT_CHILD_DEPTH', 'child rows go two levels below the create at most');
-      const named = [child.via, ...child.writable, ...(child.select ?? []), ...(child.requires ?? []), ...(child.plain_text ?? []), ...Object.keys(child.writable_values ?? {}), ...(child.position === undefined ? [] : [child.position])];
+      const named = [child.via, ...child.writable, ...(child.select ?? []), ...(child.requires ?? []), ...plainColumns(child.plain_text), ...Object.keys(child.writable_values ?? {}), ...(child.position === undefined ? [] : [child.position])];
       const visible = visibleColumns(own);
       for (const column of named) if (!visible.has(column)) push('ENDPOINT_CHILD_SELECT_UNKNOWN', `"${column}" is not a column of ${child.source} (${name})`, column);
       const codes = ctx.shareCodes?.get(child.source) ?? new Set<string>();

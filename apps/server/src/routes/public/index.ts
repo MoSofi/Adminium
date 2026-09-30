@@ -146,7 +146,7 @@ import {
   subjectOf,
   tryCode,
 } from '../../public-api/claim-code.js';
-import { capKey, chargeAnonymous, linkFreeText, notPlain, PLAIN_TEXT_REFUSED } from '../../public-api/anonymous-caps.js';
+import { capKey, chargeAnonymous, linkFreeText, notPlain, PLAIN_TEXT_REFUSED, plainColumn, plainRule } from '../../public-api/anonymous-caps.js';
 import { notPlainOn, recentPlainTextOn } from '../../public-api/plain-text-on.js';
 import { appContact } from '../../outbox/sender.js';
 import { createSwitches } from '../../public-api/switches.js';
@@ -2407,8 +2407,8 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             const need = (child.requires ?? []).find((column) => own[column] === null || own[column] === undefined || (typeof own[column] === 'string' && own[column].trim() === ''));
             if (need !== undefined) return { ...where, column: need, reason: 'required' };
             // Text a guest types that reaches a kitchen screen or someone's inbox: plain, no links.
-            const unplain = (child.plainText ?? []).find((column) => !linkFreeText(own[column]));
-            if (unplain !== undefined) return { ...where, column: unplain };
+            const unplain = (child.plainText ?? []).find((entry) => !linkFreeText(own[plainColumn(entry)], plainRule(entry)));
+            if (unplain !== undefined) return { ...where, column: plainColumn(unplain) };
             const grandchildren = (row as { children?: Record<string, { values: Record<string, unknown> }[]> }).children;
             const below = grandchildren === undefined ? [] : nodesOf(child.children ?? {}, grandchildren, childTable, at);
             if (!Array.isArray(below)) return below;

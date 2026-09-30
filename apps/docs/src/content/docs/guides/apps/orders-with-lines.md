@@ -131,7 +131,7 @@ tables.
 | `requires` | Columns each row must fill. They must be writable. A line with no dish is refused with `reason: "required"`. |
 | `position` | A whole-number column Adminium numbers 1, 2, 3 in the order the rows were sent, so the kitchen's ticket lists the lines as the guest built them. |
 | `min`, `max` | How many rows per row above. `max` is 1 to 200. A cart with no lines is refused with `min: 1`. |
-| `plainText` | Text columns that hold plain text only: letters, spaces, ordinary punctuation, at most 80 characters, and no link, handle or web address. A note to the kitchen reaches a screen the staff read. |
+| `plainText` | Text columns that hold plain text only: letters, spaces, sentence punctuation (Latin, CJK and Arabic), at most 80 characters, and no link, handle or web address. A note to the kitchen reaches a screen the staff read. A note may take a few digits and more characters: `{ "column": "note", "digits": 4, "max": 140 }` ([Plain text](/guides/apps/identity-and-own-links/#plain-text)). |
 | `sumMax` | The most one column may add up to across the rows of one write: no more than twelve items in an order. `max` is a number or a whole-number column of the settings row, so the venue changes it without an update. |
 | `agrees`, `counts` | Checks that tie rows to each other ([below](#checks-that-tie-the-rows-together)). |
 

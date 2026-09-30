@@ -45,6 +45,37 @@ import { conditionIssues, linkedConditionSchema, reachedOnlyByUndo, stateConditi
 /** The key every entry uses unless it names another. */
 export const CUSTOMER_KEY = 'customer';
 
+/** The longest a plain-text value may be unless its column says longer: a name. */
+export const PLAIN_TEXT_MAX = 80;
+/** The most digits a plain-text column may take in all: "table 12", "2 without onions", never a phone number. */
+export const PLAIN_TEXT_DIGITS_MOST = 4;
+/** The longest a plain-text column may say it runs: a note to the kitchen. */
+export const PLAIN_TEXT_LONGEST = 200;
+
+/**
+ * A column held to plain text: its ref (a name: no digits, 80 characters), or
+ * its ref with the digits it may hold in all and how long it may run (a note).
+ */
+const plainTextColumnSchema = z.union([
+  refSchema,
+  z
+    .object({
+      column: refSchema,
+      digits: z.number().int().min(1).max(PLAIN_TEXT_DIGITS_MOST).optional(),
+      max: z.number().int().min(1).max(PLAIN_TEXT_LONGEST).optional(),
+    })
+    .strict(),
+]);
+const plainTextSchema = z.array(plainTextColumnSchema).min(1).max(8);
+
+export type PlainTextColumnRef = z.infer<typeof plainTextColumnSchema>;
+
+/** The column a plain-text entry names. */
+export const plainTextRef = (entry: PlainTextColumnRef): string => (typeof entry === 'string' ? entry : entry.column);
+
+/** The longest a plain-text entry takes. */
+export const plainTextMax = (entry: PlainTextColumnRef): number => (typeof entry === 'string' ? PLAIN_TEXT_MAX : (entry.max ?? PLAIN_TEXT_MAX));
+
 const keyNameSchema = z.string().regex(/^[a-z][a-z0-9-]{0,31}$/, 'a key name is kebab-case');
 
 const valueFilterSchema = z
@@ -356,7 +387,7 @@ const childEntryShape = {
   agrees: z.array(agreeSchema).min(1).max(8).optional(),
   counts: z.array(countsSchema).min(1).max(2).optional(),
   /** Columns that hold plain text only (no links), as on a create nobody signed in for. */
-  plainText: z.array(refSchema).min(1).max(8).optional(),
+  plainText: plainTextSchema.optional(),
   /** The most a column may add up to across the rows of one write (a dozen items to an order). */
   sumMax: sumMaxSchema.optional(),
 };
@@ -542,7 +573,7 @@ export const publicAccessSchema = z
          * visitor is held to on any key, only fewer.
          */
         perIpHour: z.number().int().min(1).max(60).optional(),
-        plainText: z.array(refSchema).min(1).max(8).optional(),
+        plainText: plainTextSchema.optional(),
       })
       .strict()
       .optional(),
@@ -555,7 +586,7 @@ export const publicAccessSchema = z
     limits: z
       .object({
         perValue: z.object({ columns: z.array(refSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
-        plainText: z.array(refSchema).min(1).max(8).optional(),
+        plainText: plainTextSchema.optional(),
       })
       .strict()
       .refine((l) => l.perValue !== undefined || l.plainText !== undefined, { message: 'limits name a per-value cap, plain-text columns, or both' })
@@ -1219,7 +1250,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (entry.anonymous !== undefined) {
       const caps = entry.anonymous;
       if (!creates) out.push({ path: at('anonymous'), message: 'anonymous limits a create' });
-      for (const [name, columns] of [['perValue', caps.perValue?.columns ?? []], ['plainText', caps.plainText ?? []]] as const) {
+      for (const [name, columns] of [['perValue', caps.perValue?.columns ?? []], ['plainText', (caps.plainText ?? []).map(plainTextRef)]] as const) {
         for (const ref of columns) {
           const found = column(ref);
           if (found === undefined) out.push({ path: at('anonymous', name), message: `"${entry.table}" has no column "${ref}"` });
@@ -1230,7 +1261,7 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
     if (entry.limits !== undefined) {
       const limits = entry.limits;
       if (!patches) out.push({ path: at('limits'), message: 'limits apply to a change (PATCH); a create has anonymous' });
-      for (const [name, columns] of [['perValue', limits.perValue?.columns ?? []], ['plainText', limits.plainText ?? []]] as const) {
+      for (const [name, columns] of [['perValue', limits.perValue?.columns ?? []], ['plainText', (limits.plainText ?? []).map(plainTextRef)]] as const) {
         for (const ref of columns) {
           const found = column(ref);
           if (found === undefined) out.push({ path: at('limits', name), message: `"${entry.table}" has no column "${ref}"` });
@@ -1771,7 +1802,7 @@ function treeIssues(
           ['writable', child.writable],
           ['select', child.select ?? []],
           ['requires', child.requires ?? []],
-          ['plainText', child.plainText ?? []],
+          ['plainText', (child.plainText ?? []).map(plainTextRef)],
           ['defaults', Object.keys(child.defaults ?? {})],
           ['writableValues', Object.keys(child.writableValues ?? {})],
           ['position', child.position === undefined ? [] : [child.position]],
@@ -1799,7 +1830,7 @@ function treeIssues(
             if (!valueFits(column, value)) out.push({ path: here('writableValues', ref), message: `${JSON.stringify(value)} is not a value of "${name}.${ref}"` });
           }
         }
-        for (const ref of child.plainText ?? []) {
+        for (const ref of (child.plainText ?? []).map(plainTextRef)) {
           const column = index.column(name, ref);
           if (column !== undefined && column.type !== 'text') out.push({ path: here('plainText'), message: `"${name}.${ref}" is not a text column` });
           else if (!child.writable.includes(ref)) out.push({ path: here('plainText'), message: `"${ref}" is not writable, so a guest never types it` });
@@ -2304,6 +2335,46 @@ function ownAddressAndWithholdIssues(
         out.push({ path: ['publicAccess', j, 'writable'], message: `"${entry.table}.${holder}" decides who reads the withheld columns, so no browser writes it` });
       }
     });
+  });
+  return out;
+}
+
+/**
+ * Advice about a plain-text column that holds more than its plain text takes:
+ * a guest who types to the column's `maxLength` is refused at the end of the
+ * form ("orders.note" holds 140, its plain text takes 80).
+ */
+export function plainTextLengthWarnings(
+  publicAccess: readonly PublicAccess[],
+  tables: readonly { ref: string; columns: readonly { ref: string; type: string; maxLength?: number | undefined }[] }[],
+): { path: string; message: string }[] {
+  const out: { path: string; message: string }[] = [];
+  const check = (table: string, list: readonly PlainTextColumnRef[] | undefined, path: string) => {
+    (list ?? []).forEach((entry, k) => {
+      const ref = plainTextRef(entry);
+      const holds = tables.find((t) => t.ref === table)?.columns.find((c) => c.ref === ref)?.maxLength;
+      const takes = plainTextMax(entry);
+      if (holds === undefined || holds <= takes) return;
+      out.push({
+        path: `${path}.${String(k)}`,
+        message:
+          `"${table}.${ref}" holds ${String(holds)} characters but its plain text takes ${String(takes)}, so a guest who types more is refused: ` +
+          `lower its maxLength to ${String(takes)}, or give it { "column": "${ref}", "max": ${String(Math.min(holds, PLAIN_TEXT_LONGEST))} }` +
+          (holds > PLAIN_TEXT_LONGEST ? ` and a maxLength of ${String(PLAIN_TEXT_LONGEST)}` : ''),
+      });
+    });
+  };
+  const walk = (children: Readonly<Record<string, ChildEntry>> | undefined, base: string) => {
+    for (const [name, child] of Object.entries(children ?? {})) {
+      check(name, child.plainText, `${base}.children.${name}.plainText`);
+      walk(child.children, `${base}.children.${name}`);
+    }
+  };
+  publicAccess.forEach((entry, e) => {
+    const base = `publicAccess.${String(e)}`;
+    check(entry.table, entry.anonymous?.plainText, `${base}.anonymous.plainText`);
+    check(entry.table, entry.limits?.plainText, `${base}.limits.plainText`);
+    walk(entry.children, base);
   });
   return out;
 }

@@ -11,8 +11,10 @@
  *  - per visitor: at most {@link ANONYMOUS_PER_IP_HOUR} an hour from one
  *    address (an IPv6 subscriber's whole /64), so one visitor cannot spend
  *    the key's hour for everyone;
- *  - plain text: a name holds letters, spaces and ordinary punctuation, at
- *    most 80 characters, and never a link.
+ *  - plain text: a name holds letters, spaces and ordinary punctuation (a
+ *    diner's own script's too: `，。` or `،`), at most 80 characters, and
+ *    never a link; a column the app marks for it (a note to the kitchen)
+ *    may also hold a few digits and run longer.
  *
  * Counted where every instance reads them — markers in the public challenges
  * table, by an HMAC of the value, so the table is never a list of numbers —
@@ -23,7 +25,9 @@
  */
 import { createHmac, hkdfSync } from 'node:crypto';
 
+import { PLAIN_TEXT_DIGITS_MOST, PLAIN_TEXT_LONGEST, PLAIN_TEXT_MAX } from '@adminium/manifest';
 import type { PublicChallengesRepo } from '@adminium/meta';
+import { z } from 'zod';
 
 import { DAY_MS } from './claim-code.js';
 import { rateAddress } from './limiter.js';
@@ -33,8 +37,70 @@ export const HOUR_MS = 60 * 60_000;
 /** The markers' purpose: what the cap counts. */
 export const ANONYMOUS_PURPOSE = 'anonymous-create';
 
-/** The longest a plain-text value may be. */
-export const PLAIN_TEXT_MAX = 80;
+/** The longest a plain-text value may be, unless its column says longer. */
+export { PLAIN_TEXT_MAX };
+
+/**
+ * A column held to plain text: its name, or its name with what else it may
+ * hold — at most `digits` digits in all ("2 without onions", "table 12", never
+ * a phone number) and up to `max` characters.
+ */
+export type PlainTextColumn = string | { column: string; digits?: number | undefined; max?: number | undefined };
+
+/** What one plain-text column may hold beyond letters, spaces and punctuation. */
+export interface PlainTextRule {
+  digits: number;
+  max: number;
+}
+
+/** A name's rule: no digits, 80 characters. */
+export const NAME_RULE: PlainTextRule = { digits: 0, max: PLAIN_TEXT_MAX };
+
+/** A list of plain-text columns, as an entry, an endpoint or a scope declares it (`column` spelled as each does). */
+export const plainTextListSchema = (column: z.ZodType<string>) =>
+  z
+    .array(
+      z.union([
+        column,
+        z
+          .object({
+            column,
+            digits: z.number().int().min(1).max(PLAIN_TEXT_DIGITS_MOST).optional(),
+            max: z.number().int().min(1).max(PLAIN_TEXT_LONGEST).optional(),
+          })
+          .strict(),
+      ]),
+    )
+    .min(1)
+    .max(8);
+
+export const plainColumn = (entry: PlainTextColumn): string => (typeof entry === 'string' ? entry : entry.column);
+
+export const plainRule = (entry: PlainTextColumn): PlainTextRule =>
+  typeof entry === 'string' ? NAME_RULE : { digits: entry.digits ?? 0, max: entry.max ?? PLAIN_TEXT_MAX };
+
+/** The column names of a plain-text list. */
+export const plainColumns = (list: readonly PlainTextColumn[] | undefined): string[] => (list ?? []).map(plainColumn);
+
+/** A plain-text list copied, so a definition never shares its entries. */
+export const copyPlainText = (list: readonly PlainTextColumn[]): PlainTextColumn[] => list.map((entry) => (typeof entry === 'string' ? entry : { ...entry }));
+
+/** The rule that refuses the most of two: one column declared twice holds to both. */
+export const stricterRule = (a: PlainTextRule, b: PlainTextRule): PlainTextRule => ({ digits: Math.min(a.digits, b.digits), max: Math.min(a.max, b.max) });
+
+/** Whether a save lets a column hold more than it did: dropped, or more digits or characters allowed. */
+export function plainTextLoosened(before: readonly PlainTextColumn[] | undefined, after: readonly PlainTextColumn[] | undefined): boolean {
+  const now = new Map<string, PlainTextRule>();
+  for (const entry of after ?? []) {
+    const was = now.get(plainColumn(entry));
+    now.set(plainColumn(entry), was === undefined ? plainRule(entry) : stricterRule(was, plainRule(entry)));
+  }
+  return (before ?? []).some((entry) => {
+    const was = plainRule(entry);
+    const rule = now.get(plainColumn(entry));
+    return rule === undefined || rule.digits > was.digits || rule.max > was.max;
+  });
+}
 
 /** What a public caller is told when a plain-text column is refused: the rule, never which part of it. */
 export const PLAIN_TEXT_REFUSED = 'That can hold letters, spaces and ordinary punctuation only, and no web or email address.';
@@ -50,7 +116,7 @@ export interface AnonymousCaps {
   /** At most this many an hour from one visitor through this entry (never above {@link ANONYMOUS_PER_IP_HOUR}). */
   perIpHour?: number | undefined;
   /** Columns that hold plain text only. */
-  plainText?: string[] | undefined;
+  plainText?: PlainTextColumn[] | undefined;
 }
 
 /** The key a capped value is hashed under: its own derivation from the secret. */
@@ -116,18 +182,29 @@ export function entryIpSubject(key: Buffer, keyId: string, ref: string, ip: stri
   return `anon-ip:${createHmac('sha256', key).update(JSON.stringify([keyId, ref, rateAddress(ip)])).digest('hex')}`;
 }
 
-const PLAIN = /^[\p{L}\p{M} .,'’()&-]*$/u;
+/**
+ * Letters, marks, spaces, digits (counted apart) and the punctuation a
+ * sentence is written with: the Latin marks (`. , ' ’ ( ) & - ! ? : ; "` and
+ * `¿ ¡ « » „ “ ”`), the CJK ones (`，。、！？：；「」『』・`) and the Arabic ones
+ * (`، ؛ ؟`). Never `/`, `@`, `<`, `>`, `#`, `=` or `%`: no path, handle, tag
+ * or query.
+ */
+const PLAIN = /^[\p{L}\p{M}\p{Nd} .,'’()&\-!?:;"¿¡«»„“”，。、！？：；「」『』・،؛؟]*$/u;
+const DIGIT = /\p{Nd}/gu;
 
 /**
- * Whether a value is plain text: letters, spaces, ordinary punctuation, at
- * most 80 characters, and no `://` or `www.`. Every plain-text column is held
- * to {@link linkFreeText}, which asks this first.
+ * Whether a value is plain text: letters, spaces, sentence punctuation, no
+ * more digits than its rule allows (a name: none), no longer than its rule
+ * (a name: 80 characters), and no `://` or `www.`. Every plain-text column is
+ * held to {@link linkFreeText}, which asks this first.
  */
-export function plainText(value: unknown): boolean {
+export function plainText(value: unknown, rule: PlainTextRule = NAME_RULE): boolean {
   if (value === null || value === undefined) return true;
   if (typeof value !== 'string') return false;
-  const lower = value.toLowerCase();
-  return value.length <= PLAIN_TEXT_MAX && PLAIN.test(value) && !lower.includes('://') && !lower.includes('www.');
+  if (value.length > rule.max || !PLAIN.test(value)) return false;
+  if ((value.match(DIGIT)?.length ?? 0) > rule.digits) return false;
+  const lower = asShown(value).toLowerCase();
+  return !lower.includes('://') && !lower.includes('www.');
 }
 
 /**
@@ -165,18 +242,23 @@ const KNOWN_TLDS: ReadonlySet<string> = new Set([
  */
 const ALWAYS_ADDRESS: ReadonlySet<string> = new Set(['com', 'net', 'org', 'info', 'biz', 'io', 'co', 'app', 'dev', 'shop', 'online', 'site']);
 
-/** A name with dots between its parts (`evil.com`, `claim.refund.net`, `J.R.R`); the last part is read as an ending. */
-const DOTTED = /[\p{L}\p{M}-]+(?:\.[\p{L}\p{M}-]+)+/gu;
+/**
+ * A name with dots between its parts (`evil.com`, `claim.refund.net`, `J.R.R`,
+ * and with digits where a note may hold them: `shop1.com`); the last part is
+ * read as an ending.
+ */
+const DOTTED = /[\p{L}\p{M}\p{Nd}-]+(?:\.[\p{L}\p{M}\p{Nd}-]+)+/gu;
 
 /**
- * The text as a reader takes it in, for finding an ending only: fullwidth and
- * other compatibility letters as their plain ones, every letter apart from
- * its marks (the compatibility decomposition, NFKD), and the marks and
- * invisible characters taken out (`co\u034Fm`, `com\uFE0F` and `coḿ` read
- * `com`). Never what is stored.
+ * The text as a reader takes it in, for finding an ending or a `www.` only:
+ * fullwidth and other compatibility letters as their plain ones, every letter
+ * apart from its marks (the compatibility decomposition, NFKD), and the marks
+ * and invisible characters taken out (`co\u034Fm`, `com\uFE0F` and `coḿ`
+ * read `com`). The ideographic full stop is read as the dot a browser takes it
+ * for (`evil。com` opens `evil.com`). Never what is stored.
  */
 function asShown(value: string): string {
-  return value.normalize('NFKD').replace(/[\p{M}\p{Default_Ignorable_Code_Point}]/gu, '');
+  return value.normalize('NFKD').replace(/[\p{M}\p{Default_Ignorable_Code_Point}]/gu, '').replace(/\u3002/g, '.');
 }
 
 /** A dotted part with the hyphens or punctuation at either end taken off (`com-` reads `com`). */
@@ -198,8 +280,8 @@ function initialsName(parts: readonly string[]): boolean {
  * pass. It refuses web and email addresses in their common forms, not every
  * way of writing one.
  */
-export function linkFreeText(value: unknown): boolean {
-  if (!plainText(value)) return false;
+export function linkFreeText(value: unknown, rule: PlainTextRule = NAME_RULE): boolean {
+  if (!plainText(value, rule)) return false;
   if (typeof value !== 'string') return true;
   if (value.includes('@') || value.includes('/')) return false;
   for (const [dotted] of asShown(value).matchAll(DOTTED)) {
@@ -219,7 +301,8 @@ export function linkFreeText(value: unknown): boolean {
  * venue's own email could print it.
  */
 export function notPlain(caps: AnonymousCaps, values: Record<string, unknown>): string | null {
-  return (caps.plainText ?? []).find((column) => !linkFreeText(values[column])) ?? null;
+  const entry = (caps.plainText ?? []).find((e) => !linkFreeText(values[plainColumn(e)], plainRule(e)));
+  return entry === undefined ? null : plainColumn(entry);
 }
 
 export type CapCharge =

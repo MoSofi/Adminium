@@ -6,7 +6,22 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { ANONYMOUS_PER_IP_HOUR, ANONYMOUS_PURPOSE, capKey, capValue, chargeAnonymous, linkFreeText, mailboxOf, notPlain, plainText, valueSubject, type AnonymousCaps } from '../src/public-api/anonymous-caps.js';
+import {
+  ANONYMOUS_PER_IP_HOUR,
+  ANONYMOUS_PURPOSE,
+  capKey,
+  capValue,
+  chargeAnonymous,
+  linkFreeText,
+  mailboxOf,
+  notPlain,
+  plainRule,
+  plainText,
+  plainTextLoosened,
+  valueSubject,
+  type AnonymousCaps,
+} from '../src/public-api/anonymous-caps.js';
+import { notPlainChange } from '../src/public-api/change-limits.js';
 
 /** The markers as the repo keeps them, each call a turn of the event loop — as a database round trip is. */
 function memoryRepo() {
@@ -202,5 +217,73 @@ describe('anonymous caps', () => {
     for (let i = 0; i < 10; i += 1) expect((await chargeAnonymous(busy, input({ mobile: `0770090${String(1000 + i)}` }))).ok).toBe(true);
     expect((await chargeAnonymous(busy, input({ mobile: '07700 902000' }))).ok).toBe(false);
     expect(busy.rows.every((row) => row.purpose === ANONYMOUS_PURPOSE)).toBe(true);
+  });
+});
+
+describe("plain text in a diner's own script, and a note's few digits", () => {
+  const NOTE = plainRule({ column: 'note', digits: 4, max: 140 });
+
+  it('takes the punctuation a sentence is written with, in Latin, CJK and Arabic script', () => {
+    for (const text of ['少放辣，切六块', '少放辣，切六块。', '不要香菜、谢谢！', '「辣」少一点？', '『特辣』：不要', 'ラーメン・大盛り', 'بدون بصل، من فضلك', 'حار؛ قليلا؟', 'No onions!', 'Extra hot?', 'Note: no nuts; thanks', '¿Sin cebolla? ¡Gracias!', '« sans oignons »', '„ohne Zwiebeln“', 'Robert "Bob" Smith']) {
+      expect(linkFreeText(text), text).toBe(true);
+    }
+  });
+
+  it('still refuses what is no sentence: a tag, a query, a path, a percent', () => {
+    for (const text of ['<b>hi</b>', '#tag', 'a=b', '50% off', 'a/b', 'x\\y', 'a*b', 'a+b', 'a_b', 'a|b', 'a~b', 'a$b', 'a{b}', 'a[b]']) expect(linkFreeText(text), text).toBe(false);
+  });
+
+  it('keeps a name free of digits, in any script', () => {
+    for (const name of ['Ana 2', 'Table 12', 'Kai ２', 'محمد ٢', 'Call 0800']) expect(linkFreeText(name), name).toBe(false);
+  });
+
+  it("takes up to a note's digits in all, never a number to call", () => {
+    for (const note of ['2 without onions', 'table 12', 'Ring flat 3B: door 12', '２個、辛さ控えめ', '٢ بدون بصل', '1 2 3 4']) expect(linkFreeText(note, NOTE), note).toBe(true);
+    for (const note of ['12345', '1 2 3 4 5', 'Call 0800 123', '+44 7700 900123', '０８００ １２３']) expect(linkFreeText(note, NOTE), note).toBe(false);
+  });
+
+  it("holds a note to its own length, and a name to 80", () => {
+    expect(linkFreeText('x'.repeat(140), NOTE)).toBe(true);
+    expect(linkFreeText('x'.repeat(141), NOTE)).toBe(false);
+    expect(linkFreeText('x'.repeat(80))).toBe(true);
+    expect(linkFreeText('x'.repeat(81))).toBe(false);
+  });
+
+  it('reads the ideographic full stop as the dot a browser takes it for, and digits as part of an address', () => {
+    for (const text of ['evil。com', 'EVIL。COM', 'refund-desk。cafe now', 'evil｡com', 'claim。refund。net']) {
+      expect(linkFreeText(text), text).toBe(false);
+      expect(linkFreeText(text, NOTE), text).toBe(false);
+    }
+    for (const text of ['shop1.com', 'go2.xyz today', 'evil.com!', 'evil.xyz?', 'see: evil.io']) expect(linkFreeText(text, NOTE), text).toBe(false);
+    // A sentence that ends in a full stop is a sentence.
+    for (const text of ['我要辣。谢谢', '少放辣。切六块。', '2.5 portions']) expect(linkFreeText(text, NOTE), text).toBe(true);
+  });
+
+  it('never takes www or a scheme, however the letters are dressed', () => {
+    for (const text of ['ｗｗｗ．x', 'w\u200Bww.x', 'see www。x']) expect(linkFreeText(text), JSON.stringify(text)).toBe(false);
+    expect(plainText('a://b')).toBe(false);
+  });
+
+  it('judges each column by its own rule, on a create and on a change, and names the one refused', () => {
+    const caps: AnonymousCaps = { plainText: ['name', { column: 'note', digits: 4, max: 140 }] };
+    expect(notPlain(caps, { name: 'Lea', note: '2 without onions' })).toBeNull();
+    expect(notPlain(caps, { name: 'Lea 2', note: 'x' })).toBe('name');
+    expect(notPlain(caps, { name: 'Lea', note: '12345' })).toBe('note');
+    expect(notPlainChange(caps, { note: 'table 12' })).toBeNull();
+    expect(notPlainChange(caps, { note: 'Call 0800 123' })).toBe('note');
+    // A change that does not write a column is not judged on it.
+    expect(notPlainChange(caps, { other: 'Call 0800 123' })).toBeNull();
+  });
+
+  it('counts a column dropped, or given more digits or length, as a loosening; a stricter one is not', () => {
+    expect(plainTextLoosened(['name'], [])).toBe(true);
+    expect(plainTextLoosened(['note'], [{ column: 'note', digits: 2 }])).toBe(true);
+    expect(plainTextLoosened([{ column: 'note', digits: 2 }], [{ column: 'note', digits: 4 }])).toBe(true);
+    expect(plainTextLoosened([{ column: 'note', max: 100 }], [{ column: 'note', max: 140 }])).toBe(true);
+    expect(plainTextLoosened([{ column: 'note', digits: 4, max: 140 }], [{ column: 'note', digits: 2, max: 100 }])).toBe(false);
+    expect(plainTextLoosened([{ column: 'note', digits: 4 }], ['note'])).toBe(false);
+    expect(plainTextLoosened(['name'], ['name', 'note'])).toBe(false);
+    // A column listed twice holds to the stricter of the two.
+    expect(plainTextLoosened([{ column: 'note', digits: 2 }], [{ column: 'note', digits: 4 }, { column: 'note', digits: 2 }])).toBe(false);
   });
 });

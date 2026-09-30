@@ -2710,7 +2710,7 @@ Each child table, 1–4 at each level, takes:
 | `min`, `max` | Rows per parent row: `max` 1–200, `min` no more than `max`. |
 | `agrees` | 1–8 checks that tie a row's values to its parent or to what it points at (below). |
 | `counts` | 1–2 limits on how many sibling rows fall in one group (below). |
-| `plainText` | 1–8 writable `text` columns that hold plain text only, as a [guest's change](#limits-on-a-guests-change) does: no digits, no web address and no `@` handle. |
+| `plainText` | 1–8 writable `text` columns that hold plain text only, as a [guest's change](#limits-on-a-guests-change) does: no digits, no web address and no `@` handle. A column may be `{ "column": "note", "digits": 4, "max": 140 }` instead: up to 4 digits in all, up to 200 characters. |
 | `sumMax` | `{ "column", "max" }`: the most a number column may add up to across the rows of one write (a dozen items to an order), `max` a number or a whole-number setting. |
 | `children` | One more level, the same shape without `children` of its own. |
 
@@ -2896,9 +2896,11 @@ a friend's address.
 
 `perValue` (`{ "columns", "n" }`, 1–4 `text` columns, 1–20) allows each value at most `n` changes a
 day that write it: an address a ticket is sent on to. `plainText` lists 1–8 writable `text` columns
-that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, no digits,
-no web address (a known ending such as `.com`, or a `/`) and no `@` handle; "Mary.Ann",
-"J.R.R. Tolkien" and "St. John" pass. A stranger's create's
+that hold plain text only: letters, spaces and sentence punctuation (Latin, CJK and Arabic), up to
+80 characters, no digits, no web address (a known ending such as `.com`, or a `/`) and no `@`
+handle; "Mary.Ann", "J.R.R. Tolkien" and "St. John" pass. A column given as
+`{ "column", "digits", "max" }` takes up to `digits` (1–4) digits and `max` (at most 200)
+characters. A stranger's create's
 [`plainText`](#limits-on-a-strangers-create) is the same rule. A limit names `perValue`, `plainText`, or both. Over a limit is `409`
 `PUBLIC_LIMIT_REACHED`; a value that is not plain text is `400` `PUBLIC_WRITE_REFUSED`.
 
@@ -2969,7 +2971,7 @@ optional `claimedBy` create made with no session. It needs `POST`.
 | `perValue` | `{ "columns", "n" }`: at most `n` (1–20) creates a day for one phone number or address in any of these `text` columns (1–4), through any key or page. A phone number counts by its last nine digits, and an address in lower case, so two spellings of one number are one number. |
 | `perKeyHour` | At most this many (1–1000) such creates an hour through the key, from everyone. |
 | `perIpHour` | At most this many (1–60) such creates an hour through this entry from one visitor (an IPv6 subscriber's whole /64). Every visitor is held to 60 an hour on any key; this only lowers it. |
-| `plainText` | 1–8 `text` columns that hold plain text only: letters, spaces and ordinary punctuation, up to 80 characters, with no digits and no web or email address in its common forms (a known ending such as `.com`); "Mary.Ann", "J.R.R. Tolkien" and "K.Y.Ng" pass. The same rule as a [guest's change](#limits-on-a-guests-change), held on every create (signed in or not) and on every change that writes the column. |
+| `plainText` | 1–8 `text` columns that hold plain text only: letters, spaces and sentence punctuation (Latin, CJK such as `，。` and Arabic such as `،`), up to 80 characters, with no digits and no web or email address in its common forms (a known ending such as `.com`); "Mary.Ann", "J.R.R. Tolkien" and "K.Y.Ng" pass. A column given as `{ "column": "note", "digits": 4, "max": 140 }` takes up to `digits` (1–4) digits in all and up to `max` (at most 200) characters ([Plain text](/guides/apps/identity-and-own-links/#plain-text)). The same rule as a [guest's change](#limits-on-a-guests-change), held on every create (signed in or not) and on every change that writes the column. |
 
 A create over a limit is refused with `PUBLIC_LIMIT_REACHED`, and one that breaks `plainText` with
 `PUBLIC_WRITE_REFUSED`. A single create refused for another reason (the slot was taken) does not
