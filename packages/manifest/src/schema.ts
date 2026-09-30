@@ -28,7 +28,7 @@ import { pageCalendarIssues } from './page-calendar.js';
 import { emailTemplateSchema, outboxIssues, outboxProducerSchema, outboxSchema } from './outbox.js';
 import { codeWhereSchema, personalColumn, publicAccessIssues, publicAccessSchema, publicKeysSchema, shareCodeColumns, unlistedColumn, type PublicAccess } from './public-access.js';
 import { roleLimitIssues, roleLimitsSchema, type RoleShape } from './roles.js';
-import { statesIssues, statesSchema, type States } from './states.js';
+import { conditionIssues, stateConditionSchema, statesIssues, statesSchema, type States } from './states.js';
 import { MOMENT_LIMITS, clockTimeSchema, momentIssues, momentSchema, settingRefSchema } from './refs.js';
 import {
   NUMERIC_TYPES,
@@ -410,6 +410,24 @@ export const perNightSchema = z
   })
   .strict();
 
+/**
+ * A date kept on one side of another date: a column of the same row, or —
+ * with `via`, a foreign key of this row — a column of the row it points at.
+ * `when`: held only while the row, as the write leaves it, meets these (a
+ * credit bounded by its stay's departure only once it is for nights not
+ * stayed). `strict`: the dates may not be the same day — always, or only
+ * while the row meets these (a guest who left early is credited from the day
+ * after the arrival; a guest who never came, from the arrival itself).
+ */
+const dateBoundSchema = z
+  .object({
+    column: refSchema,
+    via: refSchema.optional(),
+    when: z.array(stateConditionSchema).min(1).max(8).optional(),
+    strict: z.union([z.literal(true), z.array(stateConditionSchema).min(1).max(8)]).optional(),
+  })
+  .strict();
+
 export const columnRulesSchema = z
   .object({
     options: z
@@ -610,15 +628,16 @@ export const columnRulesSchema = z
     secret: z.boolean().optional(),
     /**
      * A date that may never be later than today, on the venue's calendar — a
-     * payment is recorded when it came in, not when it might.
+     * payment is recorded when it came in, not when it might — or than another
+     * date, as `notBefore` says it (a credit's nights end by the stay's departure).
      */
-    notAfter: z.literal('today').optional(),
+    notAfter: z.union([z.literal('today'), dateBoundSchema]).optional(),
     /**
      * A date that may never be earlier than another: a column of the same row,
      * or — with `via`, a foreign key of this row — a column of the row it
      * points at (a payment is never dated before its invoice was issued).
      */
-    notBefore: z.object({ column: refSchema, via: refSchema.optional() }).strict().optional(),
+    notBefore: dateBoundSchema.optional(),
   })
   .strict();
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
@@ -1724,13 +1743,14 @@ export function appReferenceIssues(
       if ((rules.notAfter !== undefined || rules.notBefore !== undefined) && !dated(column.type)) {
         out.push({ path: here(rules.notAfter !== undefined ? 'notAfter' : 'notBefore'), message: 'only a date is kept within dates' });
       }
-      if (rules.notBefore !== undefined) {
-        const bound = rules.notBefore;
+      for (const side of ['notBefore', 'notAfter'] as const) {
+        const bound = rules[side];
+        if (bound === undefined || bound === 'today') continue;
         let owner = table.ref;
         if (bound.via !== undefined) {
           const via = index.column(table.ref, bound.via);
           if (via?.type !== 'fk' || via.references === undefined) {
-            out.push({ path: here('notBefore', 'via'), message: `"${table.ref}.${bound.via}" is not a foreign key` });
+            out.push({ path: here(side, 'via'), message: `"${table.ref}.${bound.via}" is not a foreign key` });
             owner = '';
           } else {
             owner = via.references;
@@ -1738,10 +1758,13 @@ export function appReferenceIssues(
         }
         if (owner !== '') {
           const other = index.column(owner, bound.column);
-          if (other === undefined) out.push({ path: here('notBefore', 'column'), message: `"${owner}" has no column "${bound.column}"` });
-          else if (!dated(other.type)) out.push({ path: here('notBefore', 'column'), message: `"${owner}.${bound.column}" is not a date` });
-          else if (bound.via === undefined && other.ref === column.ref) out.push({ path: here('notBefore', 'column'), message: 'a date is bounded by another column' });
+          if (other === undefined) out.push({ path: here(side, 'column'), message: `"${owner}" has no column "${bound.column}"` });
+          else if (!dated(other.type)) out.push({ path: here(side, 'column'), message: `"${owner}.${bound.column}" is not a date` });
+          else if (bound.via === undefined && other.ref === column.ref) out.push({ path: here(side, 'column'), message: 'a date is bounded by another column' });
         }
+        // The conditions read this row, as the write leaves it.
+        (bound.when ?? []).forEach((condition, w) => out.push(...conditionIssues(table.ref, condition, index, here(side, 'when', w))));
+        if (Array.isArray(bound.strict)) bound.strict.forEach((condition, w) => out.push(...conditionIssues(table.ref, condition, index, here(side, 'strict', w))));
       }
       if (rules.requiredWhen !== undefined) {
         const when = rules.requiredWhen;
@@ -1816,6 +1839,15 @@ export function appReferenceIssues(
           if (kept !== null) out.push({ path: here('copy', 'from'), message: `"${via.references}.${rules.copy.from}" is ${kept}, so no column copies it` });
         }
         if (rules.copy.follow === true) out.push(...followIssues(m.requiredSchema.tables, table, column.ref, rules.copy, here));
+        // A copy may read through a link another copy fills, never round in a loop.
+        const seen = new Set([column.ref]);
+        for (let via: string | undefined = rules.copy.via; via !== undefined; via = table.columns.find((x) => x.ref === via)?.rules?.copy?.via) {
+          if (seen.has(via)) {
+            out.push({ path: here('copy', 'via'), message: `"${column.ref}" is copied through a loop of copies: "${via}" comes round again` });
+            break;
+          }
+          seen.add(via);
+        }
       }
       if (rules.perNight !== undefined) {
         if (shapeOf !== undefined) out.push({ path: here('perNight'), message: 'a shape does not price by the night' });
@@ -2485,7 +2517,7 @@ export const appManifestSchema = z
     navGroups: z.array(navGroupSchema).max(12).optional(),
     /** Keyed by a kebab-case name; a column names one with `options: {list: name}`. */
     optionLists: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/, 'a list name is kebab-case'), optionListSchema).optional(),
-    publicAccess: z.array(publicAccessSchema).max(32).optional(),
+    publicAccess: z.array(publicAccessSchema).max(64).optional(),
     /** Browser keys besides the app's own `customer` key (see `public-access.ts`). */
     publicKeys: publicKeysSchema.optional(),
     /** The app's emails: its outbox table and what queues rows in it (see `outbox.ts`). */

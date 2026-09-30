@@ -25,7 +25,9 @@
 import type { LateMove } from '@adminium/manifest';
 
 import type { TableStatesRule } from '../connections/effective-schema.js';
+import type { Row } from './mask.js';
 import { momentOf, shifted, type MomentContext } from './moments.js';
+import { holds } from './state-conditions.js';
 
 /**
  * Whether `now` is inside the window before `moment`: less than `within`
@@ -36,9 +38,15 @@ export function lateWindow(input: { moment: Date | null; withinMs: number; now: 
   return input.moment.getTime() - input.now.getTime() < input.withinMs ? 'inside' : 'outside';
 }
 
-/** The late rule a move from `from` to `to` is judged by, or undefined. */
-export function lateRuleFor(states: TableStatesRule | undefined, from: string, to: string): LateMove | undefined {
-  return (states?.late ?? []).find((rule) => rule.to === to && (rule.from === undefined || rule.from.includes(from)));
+/**
+ * The late rule a move from `from` to `to` is judged by, or undefined. A rule
+ * with a `where` judges only a move whose row, as the write leaves it, meets
+ * it (a cancellation by the house is never late).
+ */
+export function lateRuleFor(states: TableStatesRule | undefined, from: string, to: string, row: Row): LateMove | undefined {
+  return (states?.late ?? []).find(
+    (rule) => rule.to === to && (rule.from === undefined || rule.from.includes(from)) && (rule.where ?? []).every((condition) => holds(condition, row)),
+  );
 }
 
 /**

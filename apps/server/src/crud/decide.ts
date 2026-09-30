@@ -241,8 +241,15 @@ async function decideStatesLate(rules: TableRules, values: Row, before: Row, con
   const from = before[states.column] === null || before[states.column] === undefined ? states.initial : String(before[states.column]);
   const to = values[states.column] === null || values[states.column] === undefined ? null : String(values[states.column]);
   if (to === null || to === from) return values;
-  const rule = lateRuleFor(states, from, to);
-  if (rule === undefined) return values;
+  const rule = lateRuleFor(states, from, to, { ...before, ...values });
+  if (rule === undefined) {
+    // A flag a rule sets is Adminium's: a move its `where` leaves out is not late, whatever was sent.
+    const flags = (states.late ?? []).filter((late) => late.to === to && late.flag !== undefined && has(values, late.flag));
+    if (flags.length === 0) return values;
+    const out = { ...values };
+    for (const late of flags) delete out[late.flag!];
+    return out;
+  }
   const verdict = await lateVerdict(rule, await momentsFor(before, momentVias(rule.moment), context), context.now);
   if (verdict.inside && refusedBy(rule, context.origin)) {
     throw new StateTooLate('It is too late to make this change.', { column: states.column, at: verdict.at?.toISOString() ?? null });

@@ -172,6 +172,26 @@ describe.each(LEGS)('moves that wait for things — %s', (dialect, available) =>
     expect(rows.map((r) => Boolean(Number(r['late_cancel'])))).toEqual([true, false]);
   });
 
+  it.runIf(available)('never flags a cancellation by the house, inside the window or not', async () => {
+    const house = await w.create('stays', { arrive: '2026-08-10' });
+    const guestCancel = await w.create('stays', { arrive: '2026-08-10' });
+    clock('2026-08-09T09:00:00Z');
+    // A flag sent for a move the rule's where leaves out is Adminium's to drop.
+    await w.update('stays', house['id'], { status: 'cancelled', cancel_code: 'house', late_cancel: true });
+    await w.update('stays', guestCancel['id'], { status: 'cancelled', cancel_code: 'no_card' });
+    const rows = await h.rows(`select id, late_cancel from ${h.real('stays')} where id in (${String(house['id'])}, ${String(guestCancel['id'])}) order by id`);
+    expect(rows.map((r) => Boolean(Number(r['late_cancel'])))).toEqual([false, true]);
+  });
+
+  it.runIf(available)('lets a booked stay leave earlier, and refuses it once the stay is in the house', async () => {
+    const room = await w.create('rooms', { number: `R${String((n += 1))}` });
+    const stay = await w.create('stays', { arrive: '2026-08-10', depart: '2026-08-14', room_id: room['id'] });
+    await expect(w.update('stays', stay['id'], { depart: '2026-08-13' })).resolves.toMatchObject({ count: 1 });
+    await w.update('stays', stay['id'], { status: 'in_house' });
+    await expect(w.update('stays', stay['id'], { depart: '2026-08-12' })).rejects.toMatchObject({ details: { reason: 'ONLY_LATER' } });
+    await expect(w.update('stays', stay['id'], { depart: '2026-08-15' })).resolves.toMatchObject({ count: 1 });
+  });
+
   it.runIf(available)('turns a guest away inside the window in refuse mode, and lets staff through', async () => {
     const a = await w.create('bookings', { arrive: '2026-08-10', email: 'a@example.com' });
     const b = await w.create('bookings', { arrive: '2026-08-10', email: 'b@example.com' });

@@ -109,6 +109,8 @@ export interface PlannedProfile {
   feature?: string | undefined;
   /** The slots the app's own screen may fill when it asks for the document (`requestValues`). */
   requestValues?: string[] | undefined;
+  /** Only rows whose column holds one of the values have this document. */
+  where?: { column: string; in: (string | number | boolean)[] } | undefined;
   /** Where it came from: the shape the table is built on, the app's own entry, or both. */
   from: 'shape' | 'app' | 'shape+app';
 }
@@ -199,6 +201,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       if (entry.statement !== undefined) extended.statement = entry.statement;
       if (entry.feature !== undefined) extended.feature = entry.feature;
       if (entry.requestValues !== undefined) extended.requestValues = [...entry.requestValues];
+      if (entry.where !== undefined) extended.where = { column: entry.where.column, in: [...entry.where.in] };
       extended.from = 'shape+app';
       continue;
     }
@@ -215,6 +218,7 @@ export function planAppProfiles(manifest: AppManifest, shapes: InstalledShapes):
       ...(entry.statement === undefined ? {} : { statement: entry.statement }),
       ...(entry.feature === undefined ? {} : { feature: entry.feature }),
       ...(entry.requestValues === undefined ? {} : { requestValues: [...entry.requestValues] }),
+      ...(entry.where === undefined ? {} : { where: { column: entry.where.column, in: [...entry.where.in] } }),
       from: 'app',
     });
   }
@@ -256,7 +260,7 @@ export interface StoredProfile {
   name: string;
   table: string;
   mapping: ProfileMapping;
-  options: { numberColumn?: string; statement?: StatementSources; balanceAfter?: BalanceAfter; requestValues?: string[] };
+  options: { numberColumn?: string; statement?: StatementSources; balanceAfter?: BalanceAfter; requestValues?: string[]; where?: { column: string; in: (string | number | boolean)[] } };
   orderBy: string | null;
 }
 
@@ -337,6 +341,8 @@ export function storedProfile(
   if (balanceAfter !== undefined) options.balanceAfter = balanceAfter;
   // The only slots a request for this document may fill; the draw refuses any other.
   if (plan.requestValues !== undefined) options.requestValues = [...plan.requestValues];
+  // The rows this document is for; any other is drawn none (`documents/render.ts`).
+  if (plan.where !== undefined) options.where = { column: plan.where.column, in: [...plan.where.in] };
   // A row numbered when it was made (a formatted number) carries the document's number.
   const numbered = own.columns.find((column) => (column.rules as { format?: unknown } | undefined)?.format !== undefined);
   if (numbered !== undefined) options.numberColumn = numbered.ref;
@@ -484,7 +490,7 @@ export function availabilityOf(
 }
 
 /** Options the app decides; an operator's own (locale, paper, formats…) are kept across an update. */
-const APP_OPTIONS = ['numberColumn', 'statement', 'balanceAfter', 'requestValues'] as const;
+const APP_OPTIONS = ['numberColumn', 'statement', 'balanceAfter', 'requestValues', 'where'] as const;
 
 /**
  * Make (install) or bring up to date (update) an app's document profiles on

@@ -19,7 +19,7 @@ import type {
   TableModel,
 } from '@adminium/engine';
 import { isLegacyCapacity, type CapacityKind, type CapacityRule, type FormulaExpr } from '@adminium/manifest';
-import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type TimeCondition } from '@adminium/manifest';
+import { isChangeEffect, type CreateRequires, type LateMove, type Moment, type StateEffect, type TimedMove, type LinkedCondition, type SettingCondition, type StateCondition, type TimeCondition } from '@adminium/manifest';
 import type { SchemaOverride } from '@adminium/meta';
 
 /** One answer a choice column accepts. */
@@ -236,7 +236,8 @@ export interface TableStatesRule {
   >;
   lockedWhenReferencedBy?: { table: string; via: string; in: string[] }[];
   noDelete?: { when: 'numbered' | string[] };
-  onlyLater?: string[];
+  /** Dates that only move later: always, or only while the row is in one of `in`. */
+  onlyLater?: (string | { column: string; in: string[] })[];
   /** A write naming the state the row already holds is refused; `show` columns are repeated in the refusal. */
   strict?: true | { show: string[] };
   /** Moves made close to a moment: a flag set, or the move refused. */
@@ -247,6 +248,14 @@ export interface TableStatesRule {
   effects?: StateEffect[];
   /** What a new row must meet to be created. */
   create?: CreateRequires;
+}
+
+/** One side of `column.bounds`: another date, held `when` the row meets conditions, `strict` for the same day. */
+export interface EffectiveDateBound {
+  column: string;
+  via?: string;
+  when?: StateCondition[];
+  strict?: true | StateCondition[];
 }
 
 /**
@@ -486,7 +495,7 @@ export interface EffectiveColumn extends ColumnModel {
   /** `column.lookup`: filled from a code a person types. */
   lookup?: ColumnLookupRule;
   /** `column.bounds`: a date never later than today, never earlier than another date. */
-  bounds?: { notAfter?: 'today'; notBefore?: { column: string; via?: string } };
+  bounds?: { notAfter?: 'today' | EffectiveDateBound; notBefore?: EffectiveDateBound };
 }
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {

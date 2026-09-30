@@ -117,10 +117,14 @@ export async function resolveRow(
   // A link a typed code filled, emptied by this write: what was copied through it goes with it.
   const cleared = new Set(clearedLinks(looked));
   for (const copy of rules.copies ?? []) {
+    // The values so far: a link an earlier copy filled (a ticket's show, from
+    // its type) is read here like one the writer sent — the copies run in
+    // that order (`column-rules.ts`).
+    const current = out ?? looked;
     // On an update, only a change of the link copies again.
-    if (!has(looked, copy.via)) continue;
-    if (copy.mode === 'default' && has(looked, copy.column)) continue;
-    const link = looked[copy.via];
+    if (!has(current, copy.via)) continue;
+    if (copy.mode === 'default' && has(current, copy.column)) continue;
+    const link = current[copy.via];
     if ((link === null || link === undefined) && cleared.has(copy.via)) {
       out ??= { ...looked };
       out[copy.column] = null;

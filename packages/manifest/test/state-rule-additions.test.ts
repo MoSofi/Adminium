@@ -89,9 +89,12 @@ describe('an effect of a changed link', () => {
     expect(issuesText(m)).toContain('waits for another row, so an effect cannot make it');
   });
 
-  it('keeps at most four effects on a table, whatever sets them off', () => {
+  it('keeps at most eight effects on a table, whatever sets them off', () => {
     const m = venue();
-    statesOf(m, 'stays')['effects'] = [...(statesOf(m, 'stays')['effects'] as Doc[]), roomMove, { on: { to: 'cancelled' }, via: 'room_id', set: { status: 'cleaning' } }, { on: { to: 'no_show' }, via: 'room_id', set: { status: 'cleaning' } }];
+    const more = [roomMove, { on: { to: 'cancelled' }, via: 'room_id', set: { status: 'cleaning' } }, { on: { to: 'no_show' }, via: 'room_id', set: { status: 'cleaning' } }];
+    statesOf(m, 'stays')['effects'] = [...(statesOf(m, 'stays')['effects'] as Doc[]), ...more];
+    expect(issuesText(m)).not.toContain('at most 8');
+    statesOf(m, 'stays')['effects'] = [...(statesOf(m, 'stays')['effects'] as Doc[]), ...more, ...more];
     expect(issuesText(m)).not.toBe('');
   });
 });

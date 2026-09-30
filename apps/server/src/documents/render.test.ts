@@ -210,6 +210,27 @@ describe('the render pipeline', () => {
     expect(file?.kind).toBe('document');
   });
 
+  it('draws none for a row its kind is not for, and claims no number (a receipt for money given back)', async () => {
+    const provider = makeProvider('invoices');
+    const profile = await profiles.create(
+      {
+        addOnKey: 'invoices',
+        kind: 'invoice',
+        name: 'Receipt',
+        connectionId,
+        table: 'public.orders',
+        mapping: { customerName: { column: 'customer' }, total: { column: 'amount' } },
+        options: { prefix: 'R-', formats: ['html'], paper: 'a4', where: { column: 'kind', in: ['taken'] } },
+      },
+      T0,
+    );
+    const back = await renderDocument(deps({ runtime: () => runtimeWith(provider), readSource: () => Promise.resolve({ ...SOURCE, row: { ...SOURCE.row, kind: 'given_back' } }) }), { profileId: profile.id, pk: { id: 1 } });
+    expect(back).toEqual({ status: 'skipped', reason: 'not-for-row' });
+    expect(provider.calls).toHaveLength(0);
+    const taken = await renderDocument(deps({ runtime: () => runtimeWith(provider), readSource: () => Promise.resolve({ ...SOURCE, row: { ...SOURCE.row, kind: 'taken' } }) }), { profileId: profile.id, pk: { id: 2 } });
+    expect(taken.status).toBe('rendered');
+  });
+
   it('PRINTS the number: the provider draws the number the register then claims', async () => {
     const provider = makeProvider('invoices');
     const profile = await makeProfile();

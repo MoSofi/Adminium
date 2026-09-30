@@ -621,8 +621,11 @@ async function judgeOwnUpdate(
       throw new RecordLocked(`This ${table.name} row is ${from}: ${column} can no longer change.`, { column, state: from });
     }
   }
-  for (const column of states.onlyLater ?? []) {
+  for (const entry of states.onlyLater ?? []) {
+    const column = typeof entry === 'string' ? entry : entry.column;
     if (!changed.includes(column)) continue;
+    // Held only while the row is in one of `in` (a stay in the house departs no earlier).
+    if (typeof entry !== 'string' && !entry.in.includes(from)) continue;
     // A moment is compared as a moment, a date as a day.
     const moment = ['timestamp', 'timestamptz'].includes(table.columns.get(column)?.logicalType ?? '');
     const was = moment ? instantOf(stored[column]) : dayOf(stored[column]);
@@ -640,7 +643,7 @@ async function judgeOwnUpdate(
  * not, that the window now says otherwise makes the write start again.
  */
 async function judgeLate(db: Db, table: ResolvedTable, states: TableStatesRule, stored: Row, values: Row, from: string, to: string, guard: StateGuard, judging: Judging): Promise<void> {
-  const rule = lateRuleFor(states, from, to);
+  const rule = lateRuleFor(states, from, to, { ...stored, ...values });
   if (rule === undefined) return;
   const verdict = await lateVerdict(rule, momentsOver(db, table, stored, guard, judging), nowOf(db, guard));
   if (verdict.inside && refusedBy(rule, guard.origin)) {

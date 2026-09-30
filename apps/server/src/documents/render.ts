@@ -104,6 +104,7 @@ import {
 } from './provider.js';
 import type { StatementPeriod, StatementRead } from './statement.js';
 import { buildSubject, coerceSlot, mappedTables, type ProfileMapping, type SubjectSlot } from './subject.js';
+import { sameValue } from '../crud/write-values.js';
 
 /**
  * What a public reader may read of one table: a filter, nothing (the table
@@ -559,6 +560,11 @@ export async function renderDocument(
       at,
     );
     return { status: 'skipped', reason: 'row-gone' };
+  }
+  // A document for some rows only (a receipt for money taken): any other row has none, through every door.
+  const forRows = (profile.options as { where?: { column: string; in: unknown[] } }).where;
+  if (forRows !== undefined && !forRows.in.some((value) => sameValue(value, source!.row[forRows.column]))) {
+    return { status: 'skipped', reason: 'not-for-row' };
   }
 
   // 4 — the subject, frozen into a row that exists before the bytes do.

@@ -468,6 +468,16 @@ const moveConditions = {
     .optional(),
 };
 /** Once means once, late moves, timed moves and the moves of a linked row a move sets off. */
+/** A date kept on one side of another: `when` it holds, and whether the same day is `strict`ly out (see the manifest). */
+const storedDateBound = z
+  .object({
+    column: ruleColumn,
+    via: ruleColumn.optional(),
+    when: z.array(stateCondition.strict()).min(1).max(8).optional(),
+    strict: z.union([z.literal(true), z.array(stateCondition.strict()).min(1).max(8)]).optional(),
+  })
+  .strict();
+
 const statesTiming = {
   strict: z.union([z.literal(true), z.object({ show: z.array(ruleColumn).min(1).max(4) }).strict()]).optional(),
   late: z
@@ -481,6 +491,7 @@ const statesTiming = {
           mode: z.enum(['flag', 'refuse']),
           flag: ruleColumn.optional(),
           refuse: z.enum(['public', 'everyone']).optional(),
+          where: z.array(stateCondition.strict()).min(1).max(8).optional(),
         })
         .strict(),
     )
@@ -517,7 +528,7 @@ const statesTiming = {
       ]),
     )
     .min(1)
-    .max(4)
+    .max(8)
     .optional(),
   /** What a new row must meet to be created: the conditions a move waits for. */
   create: z
@@ -909,8 +920,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
     op: z.literal('column.bounds'),
     value: z
       .object({
-        notAfter: z.literal('today').optional(),
-        notBefore: z.object({ column: ruleColumn, via: ruleColumn.optional() }).optional(),
+        notAfter: z.union([z.literal('today'), storedDateBound]).optional(),
+        notBefore: storedDateBound.optional(),
       })
       .refine((v) => v.notAfter !== undefined || v.notBefore !== undefined, { message: 'a bound says notAfter or notBefore' }),
   }),
@@ -1136,7 +1147,11 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
         .max(4)
         .optional(),
       noDelete: z.object({ when: z.union([z.literal('numbered'), z.array(stateName).min(1).max(16)]) }).optional(),
-      onlyLater: z.array(ruleColumn).min(1).max(8).optional(),
+      onlyLater: z
+        .array(z.union([ruleColumn, z.object({ column: ruleColumn, in: z.array(stateName).min(1).max(16) }).strict()]))
+        .min(1)
+        .max(8)
+        .optional(),
       ...statesTiming,
     }),
   }),

@@ -753,6 +753,9 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
         });
         if (outcome.status === 'skipped') {
           if (outcome.reason === 'row-gone') notFound();
+          if (outcome.reason === 'not-for-row') {
+            throw new AppError(409, 'DOCUMENT_NOT_FOR_ROW', `This row has no ${profile.kind} document.`, { kind: profile.kind });
+          }
           throw new AppError(409, 'FEATURE_OFF', `This document is not available for ${manifest.name} right now: its add-on draws nothing.`, { addOn: profile.addOnKey, feature: null });
         }
         if (outcome.status === 'failed') {

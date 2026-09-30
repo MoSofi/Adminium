@@ -107,6 +107,8 @@ import {
   withoutReadOnly,
   withoutRequiredWhen,
   type ColumnCode,
+  type DateBound,
+  type DateBoundSide,
   type RequiredGuard,
   type FieldIssues,
   type RollupInto,
@@ -120,7 +122,7 @@ import { claimsNumbers, insertNumbered, numberLockName, prepareNumbers, seriesOf
 import { fillFromElsewhere, type RuleSettingsReader } from './rule-settings.js';
 import { attachSeals, sealRows, sealsOf, type WriteSeals } from './seal.js';
 import { attachExpect, attachGuard, createdBy, dayOf, deleteRefusal, expectOf, guardOf, guardedDelete, holdLinkedFirst, holdParentsFirst, instantOf, guardedInsert, guardedUpdate, rowMoved, StateMoveRefused, tiedToStates, type ClearColumns, type EffectWriter, type EffectWritten } from './states.js';
-import { attachWindows, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
+import { attachWindows, holds, statesReadClock, waitVias, type StateWindow } from './state-conditions.js';
 import { momentVias } from './moments.js';
 import { refuseUnbuiltTable } from './unbuilt-rules.js';
 import { venueClock } from './venue-time.js';
@@ -1836,7 +1838,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
     // A stamp of the venue's date: `today`, or `today` as one side's word of a `byOrigin` stamp (a client's approval day).
     const saysToday = (set: unknown): boolean =>
       set === 'today' || (typeof set === 'object' && set !== null && 'byOrigin' in set && Object.values((set as { byOrigin: Record<string, unknown> }).byOrigin).includes('today'));
-    const readsDay = (rules?.stamps ?? []).some((stamp) => saysToday(stamp.set)) || (rules?.bounds ?? []).some((bound) => bound.notAfter !== undefined);
+    const readsDay = (rules?.stamps ?? []).some((stamp) => saysToday(stamp.set)) || (rules?.bounds ?? []).some((bound) => bound.notAfter === 'today');
     // A move waiting for a time, a late or timed move, a stamp worked out from a moment: all read the venue's clock.
     const readsClock = statesReadClock(rules?.states, rules?.stamps) || (rules?.codeLookups?.length ?? 0) > 0;
     if (rules?.capacity === undefined && rules?.capacityRules === undefined && rules?.capacityOwners === undefined && rules?.booking === undefined && (rules?.venueLocal?.length ?? 0) === 0 && !readsDay && !readsClock) return undefined;
@@ -1868,33 +1870,39 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       const at = instantOf(value);
       return at === null ? null : venueClock(new Date(at), zone).day;
     };
+    /** The other side's day: this row's date, or the one the link points at, read through the write's own handle. */
+    const otherDay = async (side: DateBoundSide): Promise<string | null> => {
+      if (side.through === undefined) return dayOf(row[side.column]);
+      const key = row[side.through.via];
+      if (key === null || key === undefined) return null;
+      const found = (await target.db
+        .selectFrom(side.through.table)
+        .select(sql<unknown>`${sql.ref(side.column)}`.as('value'))
+        .where((eb) => eb(target.db.dynamic.ref(side.through!.key), '=', key))
+        .executeTakeFirst()) as { value?: unknown } | undefined;
+      return dayOf(found?.value);
+    };
+    const sent = (column: string) => Object.prototype.hasOwnProperty.call(values, column);
+    const sides = (bound: DateBound) => [bound.notBefore, bound.notAfter === 'today' ? undefined : bound.notAfter].filter((side): side is DateBoundSide => side !== undefined);
+    /** The columns of this row a side reads: its link, and what its conditions look at. */
+    const reads = (side: DateBoundSide) => [
+      ...(side.through === undefined ? [side.column] : [side.through.via]),
+      ...(side.when ?? []).map((c) => c.column),
+      ...(Array.isArray(side.strict) ? side.strict.map((c) => c.column) : []),
+    ];
     for (const bound of rules!.bounds!) {
-      // Judged when the date is written, and when the row it is bounded by changes (a payment moved to another invoice).
-      const via = bound.notBefore?.through?.via;
-      const written = Object.prototype.hasOwnProperty.call(values, bound.column) || (via !== undefined && Object.prototype.hasOwnProperty.call(values, via));
-      if (!written) continue;
+      // Judged when the date is written, and when what it is bounded by changes (a payment moved to another invoice, a credit's kind).
+      if (!sent(bound.column) && !sides(bound).some((side) => reads(side).some(sent))) continue;
       const day = venueDay(bound.column, row[bound.column]);
       if (day === null) continue;
-      let refused = false;
-      if (bound.notAfter === 'today') refused = day > venueClock(new Date(), zone).day;
-      const before = bound.notBefore;
-      if (!refused && before !== undefined) {
-        let other: unknown = row[before.column];
-        if (before.through !== undefined) {
-          const key = row[before.through.via];
-          other =
-            key === null || key === undefined
-              ? null
-              : (
-                  (await target.db
-                    .selectFrom(before.through.table)
-                    .select(sql<unknown>`${sql.ref(before.column)}`.as('value'))
-                    .where((eb) => eb(target.db.dynamic.ref(before.through!.key), '=', key))
-                    .executeTakeFirst()) as { value?: unknown } | undefined
-                )?.value;
-        }
-        const floor = dayOf(other);
-        refused = floor !== null && day < floor;
+      let refused = bound.notAfter === 'today' && day > venueClock(new Date(), zone).day;
+      for (const [side, below] of [[bound.notBefore, true] as const, [bound.notAfter === 'today' ? undefined : bound.notAfter, false] as const]) {
+        if (refused || side === undefined) continue;
+        if (!(side.when ?? []).every((condition) => holds(condition, row))) continue;
+        const other = await otherDay(side);
+        if (other === null) continue;
+        const strict = side.strict === true || (Array.isArray(side.strict) && side.strict.every((condition) => holds(condition, row)));
+        refused = below ? (strict ? day <= other : day < other) : strict ? day >= other : day > other;
       }
       if (refused) (issues ??= {})[bound.column] = { code: 'out-of-range' };
     }
@@ -2787,16 +2795,24 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
    * A tree row's values as sent, with each link a copy fills (a ticket's
    * event, copied through its type) read through its source without a lock —
    * what its locks and the rows it is tied to are named from. A copy through
-   * the row's own parent in the tree reads the parent's values.
+   * the row's own parent in the tree reads the parent's values. A link filled
+   * by a copy through another copied link is read after it: the copies come in
+   * that order (`column-rules.ts`).
    */
   async function peekLinks(row: TreeRow, values: Row, parent: Row | null): Promise<Row> {
     const rules = rulesOf(row.target);
+    const copies = rules?.copies ?? [];
     const links = new Set([
       ...(rules?.rollupsInto ?? []).map((rollup) => rollup.via),
       ...(row.target.table.table?.stateParents ?? []).flatMap((p) => [p.via, ...(p.links ?? []).map((link) => link.via)]),
     ]);
+    // The copied links those links are copied through, all the way down.
+    for (let i = copies.length - 1; i >= 0; i -= 1) {
+      const copy = copies[i]!;
+      if (links.has(copy.column) && copies.some((other) => other.column === copy.via)) links.add(copy.via);
+    }
     let out: Row | null = null;
-    for (const copy of rules?.copies ?? []) {
+    for (const copy of copies) {
       if (!links.has(copy.column)) continue;
       const sent = values[copy.column];
       if (copy.mode === 'default' && sent !== null && sent !== undefined) continue;
@@ -2805,7 +2821,7 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
         out[copy.column] = parent?.[copy.from] ?? null;
         continue;
       }
-      const link = values[copy.via];
+      const link = (out ?? values)[copy.via];
       if (link === null || link === undefined) continue;
       const db = row.target.db;
       const found = (await db

@@ -151,10 +151,20 @@ export function renamedInRule(op: string, value: unknown, from: string, to: stri
       };
     }
     case 'column.bounds': {
-      const before = rule['notBefore'] as Record<string, unknown> | undefined;
-      if (before === undefined) return value;
-      if (before['via'] !== undefined) return same(before['via']) ? { ...rule, notBefore: { ...before, via: to } } : value;
-      return same(before['column']) ? { ...rule, notBefore: { ...before, column: to } } : value;
+      // Each side names a column of this row as its link or its date, and its conditions read this row.
+      const renamed = (bound: unknown): unknown => {
+        if (typeof bound !== 'object' || bound === null) return bound;
+        const b = bound as Record<string, unknown>;
+        const conditions = (list: unknown) => (Array.isArray(list) ? list.map((c: Record<string, unknown>) => (same(c['column']) ? { ...c, column: to } : c)) : list);
+        return {
+          ...b,
+          ...(b['via'] !== undefined ? (same(b['via']) ? { via: to } : {}) : same(b['column']) ? { column: to } : {}),
+          ...(b['when'] === undefined ? {} : { when: conditions(b['when']) }),
+          ...(Array.isArray(b['strict']) ? { strict: conditions(b['strict']) } : {}),
+        };
+      };
+      const next = { ...rule, ...(rule['notBefore'] === undefined ? {} : { notBefore: renamed(rule['notBefore']) }), ...(rule['notAfter'] === undefined ? {} : { notAfter: renamed(rule['notAfter']) }) };
+      return JSON.stringify(next) === JSON.stringify(rule) ? value : next;
     }
     case 'column.formula': {
       const next = renamedInFormula(rule['formula'], from, to);

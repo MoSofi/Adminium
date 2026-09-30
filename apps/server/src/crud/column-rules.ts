@@ -50,7 +50,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Dialect, EnumDef, LogicalType } from '@adminium/engine';
-import { formulaColumns, weekdaysOf, type FormulaExpr, type Moment } from '@adminium/manifest';
+import { formulaColumns, weekdaysOf, type FormulaExpr, type Moment, type StateCondition } from '@adminium/manifest';
 
 import type {
   ColumnCodeRule,
@@ -58,6 +58,7 @@ import type {
   ColumnStampRule,
   ColumnValidation,
   EffectiveColumn,
+  EffectiveDateBound,
   EffectiveTable,
   LockedByReference,
   RuleSetting,
@@ -230,11 +231,21 @@ export interface ColumnFormula {
   maxLength?: number;
 }
 
-/** `column.bounds`, resolved: the other date is this row's, or read through a foreign key. */
+/** One side of a date bound, resolved: the other date is this row's, or read through a foreign key. */
+export interface DateBoundSide {
+  column: string;
+  through?: { via: string; table: string; key: string };
+  /** Held only while the row, as the write leaves it, meets these. */
+  when?: StateCondition[];
+  /** The same day is out: always, or while the row meets these. */
+  strict?: true | StateCondition[];
+}
+
+/** `column.bounds`, resolved. */
 export interface DateBound {
   column: string;
-  notAfter?: 'today';
-  notBefore?: { column: string; through?: { via: string; table: string; key: string } };
+  notAfter?: 'today' | DateBoundSide;
+  notBefore?: DateBoundSide;
 }
 
 /** `column.default { kind: 'from' }`: a create's empty value, filled from elsewhere. */
@@ -600,16 +611,25 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
     }
     if (column.normalize !== undefined) normalizes.push({ column: column.name, how: column.normalize });
     if (column.bounds !== undefined) {
-      const bound: DateBound = { column: column.name, ...(column.bounds.notAfter === undefined ? {} : { notAfter: column.bounds.notAfter }) };
-      const before = column.bounds.notBefore;
-      if (before !== undefined && before.via === undefined) bound.notBefore = { column: before.column };
-      if (before?.via !== undefined) {
+      const bound: DateBound = { column: column.name };
+      /** A side through a relation the snapshot still has; one it lost bounds nothing. */
+      const sideOf = (side: EffectiveDateBound): DateBoundSide | undefined => {
+        const extra = { ...(side.when === undefined ? {} : { when: side.when }), ...(side.strict === undefined ? {} : { strict: side.strict }) };
+        if (side.via === undefined) return { column: side.column, ...extra };
         const relation = target.view?.model?.relations.find(
-          (r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === before.via,
+          (r) => r.through === null && r.from.tableId === target.table.id && r.from.columns.length === 1 && r.from.columns[0] === side.via,
         );
-        if (relation !== undefined) {
-          bound.notBefore = { column: before.column, through: { via: before.via, table: relation.to.tableId, key: relation.to.columns[0] as string } };
-        }
+        return relation === undefined ? undefined : { column: side.column, through: { via: side.via, table: relation.to.tableId, key: relation.to.columns[0] as string }, ...extra };
+      };
+      const after = column.bounds.notAfter;
+      if (after === 'today') bound.notAfter = 'today';
+      else if (after !== undefined) {
+        const side = sideOf(after);
+        if (side !== undefined) bound.notAfter = side;
+      }
+      if (column.bounds.notBefore !== undefined) {
+        const side = sideOf(column.bounds.notBefore);
+        if (side !== undefined) bound.notBefore = side;
       }
       if (bound.notAfter !== undefined || bound.notBefore !== undefined) bounds.push(bound);
     }
@@ -699,6 +719,8 @@ export function tableRulesFor(target: { view: SnapshotView; table: ResolvedTable
   // A hand-built target may carry no model: nothing belongs to its rows.
   const capacityOwners = target.view?.model === undefined || target.table.table === undefined ? [] : ownedRules(target.view, target.table);
   const booking = target.table.table?.booking;
+  // A copy through a link another copy fills runs after that copy.
+  orderCopies(copies);
   const decided = copies.length + sequences.length + codes.length + stamps.length > 0;
   const codeLookups = codeLookupsOf(target.view, target.table.table);
   const rules =
@@ -1357,6 +1379,27 @@ export function checkRow(
     }
   }
   return issues;
+}
+
+/**
+ * Puts each copy after the copies that fill its link, in place (a ticket's
+ * show copied from its type, then the show's doors through it). Otherwise
+ * the manifest's order. Two copies each read through the other's column (a
+ * loop the validator refuses) keep the order they reached first.
+ */
+function orderCopies(copies: ColumnCopy[]): void {
+  if (!copies.some((copy) => copies.some((other) => other.column === copy.via))) return;
+  const ordered: ColumnCopy[] = [];
+  const placed = new Set<ColumnCopy>();
+  const place = (copy: ColumnCopy, seen: Set<ColumnCopy>) => {
+    if (placed.has(copy) || seen.has(copy)) return;
+    seen.add(copy);
+    for (const filler of copies) if (filler.column === copy.via) place(filler, seen);
+    placed.add(copy);
+    ordered.push(copy);
+  };
+  for (const copy of copies) place(copy, new Set());
+  copies.splice(0, copies.length, ...ordered);
 }
 
 // --- prices by the night, and copies that follow ------------------------------

@@ -365,7 +365,7 @@ change or delete is theirs from then on.
 | `required` | `true` | The server requires a value on every write. |
 | `requiredWhen` | `{ "column", "in" }` | The server requires a value only while another column of the same row holds one of the values in `in` (1–32): an away event names who is away, an event in the office names nobody. See [Required for some values](#required-for-some-values). |
 | `validation` | `{ "format"?, "min"?, "max"?, "minLength"?, "maxLength"? }` | `format` is `email`, `url` or `phone`. |
-| `copy` | `{ "via", "from", "mode"?, "follow"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. With `"follow": true` it keeps in step when that row changes later; see [Copies that follow](#copies-that-follow). A column kept from readers is copied only into one kept the same way: a `secret` into a `secret`, a `personal` column into a `personal` one (or a `secret`), and a shared link's code never. The same holds for a stamp that copies a column of its row, and for a formula's inputs. |
+| `copy` | `{ "via", "from", "mode"?, "follow"? }` | Copies a value from a linked row. `via` is a foreign-key column of this table, `from` a column of the table it points at. With `mode: "default"` (the default) the copy fills only a value the write leaves out; with `"always"` it always wins. With `"follow": true` it keeps in step when that row changes later; see [Copies that follow](#copies-that-follow). `via` may itself be a copied column (a ticket's show, copied from its type): that copy runs first, in the same write. A column kept from readers is copied only into one kept the same way: a `secret` into a `secret`, a `personal` column into a `personal` one (or a `secret`), and a shared link's code never. The same holds for a stamp that copies a column of its row, and for a formula's inputs. |
 | `default` | `{ "from" }` | A value filled on a create that leaves the column empty, read when the row is made. See [Values from elsewhere](#values-from-elsewhere). |
 | `sequence` | `{ "start"?, "gapless"?, "startSetting"?, "scope"? }` | The next number in a running series. Without `gapless`, the column's own counter; `start` is at least 1. With `"gapless": true`, a number with no gaps and none repeated. See [Numbers without gaps](#numbers-without-gaps). |
 | `format` | `{ "from", "prefix"?, "prefixSetting"?, "pad"? }` | A `text` column written from a gapless number of the same row: the prefix, then the digits padded with zeros (`INV-0042`). See [Numbers without gaps](#numbers-without-gaps). |
@@ -374,8 +374,8 @@ change or delete is theirs from then on.
 | `normalize` | `"trim"`, `"email"` or `"code"` | How a `text` value is kept: `trim` without spaces at either end, `email` trimmed and in lower case, `code` compared as a code (upper case, spaces and dashes left out) when a person types one; see [Typed codes](#typed-codes). |
 | `lookup` | `{ "from", "table", "column", "where"?, "scope"? }` | A foreign key filled from a code a person types into another column: a discount code, a presale code. See [Typed codes](#typed-codes). |
 | `perNight` | `{ "from", "to", "rate", "adjust"? }` | A price worked out night by night: a stay's room total. See [Prices by the night](#prices-by-the-night). |
-| `notAfter` | `"today"` | A `date` column is never later than today, in the venue's time zone. A later date is refused (`out-of-range`). |
-| `notBefore` | `{ "column", "via"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). |
+| `notAfter` | `"today"` or `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never later than today, in the venue's time zone; or than another date, read as `notBefore` reads it (a credit's nights end by its stay's `depart`). A later date is refused (`out-of-range`). |
+| `notBefore` | `{ "column", "via"?, "when"?, "strict"? }` | A `date` column is never earlier than another date column: of the same row, or, with `via`, of the row its foreign key `via` points at (a payment never before its invoice's `issued_on`). `when`: 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it; the bound holds only while they are met. `strict`: the same day is out too — `true`, or 1–8 conditions it is out under (a guest who left early is credited from the day after the arrival, one who never came from the arrival itself). |
 | `rollup` | `{ "from", "via", "sum" or "count", "times"?, "unlessSet"?, "where"?, "balance"?, "cap"? }` | A total over child rows, kept up to date as they change. `from` is the child table, `via` its foreign key back to this table, `sum` the column to add up, or `"count": true` to count the rows instead; see [Totals that count and climb](#totals-that-count-and-climb). `times` multiplies each row (a quantity); a child row with a value in `unlessSet` is left out (a voided line). See [Totals and balances](#totals-and-balances) for `where`, `balance` and `cap`. |
 | `stamp` | `{ "set", "on", "clearOnBack"? }` | A value Adminium writes when something happens: the moment, who did it, or a deadline. See [Stamps](#stamps). |
 | `venueLocal` | `true` | A wall time given with no zone is read in the venue's time zone. |
@@ -416,7 +416,7 @@ rounding to a `scale` apply on each of them. History keeps what it brings: an im
 data are not [stamped](#stamps), not [capped](#totals-and-balances), and not held to `notAfter` or
 `notBefore`; an undo puts a row back exactly as it was, with no rule at all. A date refused by
 `notAfter` or `notBefore` answers `422` `VALIDATION_FAILED`, the field's code `out-of-range`.
-`notBefore` is judged when the date is written, and when its `via` link changes. `required` and
+A bound is judged when the date is written, and when its `via` link or a column its conditions read changes. `required` and
 `requiredWhen` hold on an import and on sample data too; a value they refuse answers `422`
 `VALIDATION_FAILED`, the field's code `required`. On every table, with a rule or without one, text
 holding the character U+0000 (anywhere in a JSON value too) is refused the same way, the field's
@@ -1265,11 +1265,11 @@ lines are locked and payments may be recorded against it.
 | `children` | no | Child tables tied to the row's state, keyed by table ref. See below. |
 | `lockedWhenReferencedBy` | no | 1–4 `{ "table", "via", "in" }`: the row is locked once a row of `table`, whose foreign key `via` points at it, is in one of the states `in` (a terms version, once a proposal naming it is sent). Needs `lock`, which says what stays open. |
 | `noDelete` | no | `{ "when" }`: rows that are never deleted, only voided. `when` is 1–16 states, or `"numbered"`: any row that holds a number from a [gapless sequence](#numbers-without-gaps). `"numbered"` needs such a column on the table. |
-| `onlyLater` | no | 1–8 `date` or `timestamptz` columns that may move later, never earlier (a quote's `valid_until`). |
+| `onlyLater` | no | 1–8 `date` or `timestamptz` columns that may move later, never earlier (a quote's `valid_until`). An entry `{ "column": "depart", "in": ["in_house"] }` holds only while the row is in one of `in` (a stay in the house leaves no earlier by a change of its date). |
 | `strict` | no | `true`, or `{ "show": [1–4 columns] }`: a write naming the state the row already holds is refused rather than passing silently (a ticket let in once). See [Once means once](#once-means-once). |
 | `late` | no | 1–4 moves judged late when made close to a moment; see [Late moves](#late-moves). |
 | `timed` | no | 1–8 moves Adminium makes by itself once a moment has passed; see [Timed moves](#timed-moves). |
-| `effects` | no | 1–4 moves of the row a link points at, set off by this row's move or by a change of the link; see [Effects](#effects). |
+| `effects` | no | 1–8 moves of the row a link points at, set off by this row's move or by a change of the link; see [Effects](#effects). |
 | `create` | no | `{ "requires" }`: what a new row must meet to be created; see [Conditions on a new row](#conditions-on-a-new-row). |
 
 A move's `requires` says what must be true first:
@@ -1431,6 +1431,7 @@ stay's arrival.
 | `moment` | The [moment](#moments) it is close to, read from the row as stored: a guest who types a later arrival in the same change does not move the window. |
 | `within` | How close: one of `minutes`, `hours` or `days`, a number or a setting. A moment already past is inside the window too. |
 | `mode` | `"flag"`: the move goes through and sets `flag`, a bool column of the table no other rule writes, whoever writes. `"refuse"`: the move is turned away, for a public writer, or with `"refuse": "everyone"` for every writer. |
+| `where` | 1–8 [conditions](#conditions-a-move-waits-for) on the row as the write leaves it. Only a move that meets them is judged: `[{ "column": "cancel_code", "in": ["guest", "no_card"] }]` leaves a cancellation by the house out, even inside the window. A flag sent for a move the `where` leaves out is dropped. |
 
 A refused late move is `409` `STATE_TOO_LATE` for staff, and `PUBLIC_TOO_LATE` through the public
 API.
@@ -1470,7 +1471,7 @@ turns the room to cleaning.
 ]
 ```
 
-There are two kinds, up to 4 effects a table:
+There are two kinds, up to 8 effects a table:
 
 - **On a move** (`on.to`): when this row moves to the state, the row `via` points at moves to the
   state `set` names. At most one such effect per state and link.
@@ -1985,6 +1986,7 @@ invoice, receipt or statement, drawn by an add-on that renders documents. Up to 
 | `statement` | no | Makes the document a statement. See below. |
 | `feature` | no | One of the app's [`addOns.features`](#add-ons). |
 | `requestValues` | no | 1–8 slots the app's own screen may fill when it asks for the document (a label sheet's `count`). Each must be a slot the entry does not map; when the add-on is attached, its outline must have the slot, with no default, holding a number or a text. See below. |
+| `where` | no | `{ "column", "in": [...] }`: only rows whose column holds one of 1–16 values have this document (a `receipt` for `payments.kind` `taken`, not for money given back). Asked for another row, the render answers `409` `DOCUMENT_NOT_FOR_ROW`; an email that would carry it goes without it. |
 
 The slots are the add-on's words (`number`, `issuedAt`, `items`): a shape's own profiles, in the
 add-on's manifest, show the ones it draws. Each slot reads one of:
@@ -2364,7 +2366,7 @@ empty, in every form, its QR code included.
 `publicAccess` says what the app's public screens may do. Each entry becomes an endpoint of the
 [public API](/guides/public-api/endpoints-and-keys/) on the real table, served through one of the
 app's browser keys and marked as the app's: switching the app off stops it and uninstalling
-removes it. Up to 32 entries.
+removes it. Up to 64 entries.
 
 An entry is served through the app's `customer` key unless it names another in `key`. The install
 creates one key for `customer` and one for each name in [`publicKeys`](#publickeys). A key the

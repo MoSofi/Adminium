@@ -1486,12 +1486,13 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
         const wanted = (await appFacts(box.row.manifestId)).attach[ready.email.templateKey];
         let attachments: EmailSendAttachmentRef[] = [];
         if (wanted !== undefined) {
-          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader, ...(ready.readerKey === undefined ? {} : { readerKey: ready.readerKey }) }).catch((error: unknown): { error: string; absent?: true } => {
+          const drawn = await documentFor(box, view, claimed, wanted, ready.email.locale, { rules: withholds ?? new Map(), reader: ready.reader, ...(ready.readerKey === undefined ? {} : { readerKey: ready.readerKey }) }).catch((error: unknown): { error: string; absent?: true; notForRow?: true } => {
             deps.logger?.warn({ err: error, appKey: box.appKey }, 'the document an app email carries could not be drawn');
             return { error: 'The document could not be drawn' };
           });
-          // No add-on the app has draws the kind, and the template may go without it: sent without the part and its marked blocks.
-          if ('error' in drawn && drawn.absent === true && wanted.optional === true) {
+          // No add-on the app has draws the kind, and the template may go without it — or the row has no such
+          // document (money given back has no receipt): sent without the part and its marked blocks.
+          if ('error' in drawn && drawn.absent === true && (wanted.optional === true || drawn.notForRow === true)) {
             ready.email = { ...ready.email, template: withoutAttachmentBlocks(ready.email.template) };
           } else if ('error' in drawn) {
             const values: Row = { [cols.status]: 'failed' };
@@ -1589,7 +1590,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     locale: string | undefined,
     /** Drawn for the person the message goes to: what a row's other holder keeps is left out. */
     withhold: DocumentWithhold,
-  ): Promise<{ attachment: EmailSendAttachmentRef } | { error: string; absent?: true }> {
+  ): Promise<{ attachment: EmailSendAttachmentRef } | { error: string; absent?: true; notForRow?: true }> {
     const pipeline = deps.documents?.();
     // `absent`: no add-on that draws the kind is attached to the app and on — never an attached one that is late or failing.
     if (pipeline === undefined) return { error: 'Documents cannot be drawn on this server' };
@@ -1621,6 +1622,7 @@ export function createOutboxSender(deps: OutboxSenderDeps): OutboxSender {
     });
     if (outcome.status === 'skipped') {
       if (outcome.reason === 'row-gone') return { error: `The ${wanted.kind} could not be drawn: its row is gone` };
+      if (outcome.reason === 'not-for-row') return { error: `This row has no ${wanted.kind}`, absent: true, notForRow: true };
       return { error: `The ${wanted.kind} is not available: its add-on draws nothing`, ...((await detached(profile.addOnKey)) ? { absent: true as const } : {}) };
     }
     if (outcome.status === 'failed') return { error: `The ${wanted.kind} could not be drawn: ${outcome.error}` };

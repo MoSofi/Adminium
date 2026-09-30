@@ -187,8 +187,11 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
         { ref: 'event_id', type: 'fk', references: 'events', nullable: true },
         { ref: 'arrive', type: 'date' },
         { ref: 'arrival_time', type: 'text', maxLength: 5, nullable: true },
+        { ref: 'depart', type: 'date', nullable: true },
         { ref: 'status', type: 'enum', enum: ['booked', 'in_house', 'departed', 'cancelled', 'no_show'], default: 'booked' },
         { ref: 'late_cancel', type: 'bool', default: false },
+        // Who cancelled: a cancellation by the house is never late.
+        { ref: 'cancel_code', type: 'enum', enum: ['guest', 'no_card', 'house'], default: 'guest' },
         {
           ref: 'cancel_by',
           type: 'timestamptz',
@@ -211,8 +214,11 @@ export function venueTables(opts: VenueOptions = {}): Doc[] {
             within: { hours: setting('cancel_hours') },
             mode: 'flag',
             flag: 'late_cancel',
+            where: [{ column: 'cancel_code', in: ['guest', 'no_card'] }],
           },
         ],
+        // A stay in the house leaves no earlier by a change of its date; a booked one may.
+        onlyLater: [{ column: 'depart', in: ['in_house'] }],
         ...(timed ? { timed: [{ from: 'booked', to: 'no_show', at: { column: 'arrive', plus: { days: 1 }, time: setting('no_show_at') } }] } : {}),
         effects: [
           { on: { to: 'in_house' }, via: 'room_id', set: { status: 'occupied' } },

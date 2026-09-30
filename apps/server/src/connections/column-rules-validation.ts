@@ -402,18 +402,24 @@ export function columnRuleIssue(
       // SQLite keeps a date as text, and says so.
       const dated = (c: ColumnModel) => ['date', 'timestamp', 'timestamptz'].includes(c.logicalType) || (model.dialect === 'sqlite' && TEXTUAL_TYPES.has(c.logicalType));
       if (!dated(column)) return `Only a date is kept within dates; ${name} is ${column.logicalType}.`;
-      const bound = value['notBefore'] as { column?: unknown; via?: unknown } | undefined;
-      if (bound === undefined) return null;
       const table = model.tables.find((candidate) => candidate.columns.includes(column));
-      let owner = table;
-      if (typeof bound.via === 'string') {
-        const relation = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === bound.via);
-        if (relation === undefined) return `${JSON.stringify(bound.via)} is not a foreign key of ${table?.name ?? 'this table'}.`;
-        owner = model.tables.find((candidate) => candidate.id === relation.to.tableId);
+      for (const side of ['notBefore', 'notAfter']) {
+        const bound = value[side] as { column?: unknown; via?: unknown; when?: { column?: unknown }[]; strict?: unknown } | 'today' | undefined;
+        if (bound === undefined || bound === 'today') continue;
+        let owner = table;
+        if (typeof bound.via === 'string') {
+          const relation = model.relations.find((r) => r.through === null && r.from.tableId === table?.id && r.from.columns.length === 1 && r.from.columns[0] === bound.via);
+          if (relation === undefined) return `${JSON.stringify(bound.via)} is not a foreign key of ${table?.name ?? 'this table'}.`;
+          owner = model.tables.find((candidate) => candidate.id === relation.to.tableId);
+        }
+        const other = owner?.columns.find((c) => c.name === bound.column);
+        if (other === undefined) return `${owner?.name ?? 'That table'} has no column ${JSON.stringify(bound.column)}.`;
+        if (!dated(other)) return `${owner?.name ?? 'That table'}.${String(bound.column)} is not a date.`;
+        const conditions = [...(bound.when ?? []), ...(Array.isArray(bound.strict) ? (bound.strict as { column?: unknown }[]) : [])];
+        const missing = conditions.find((condition) => !table?.columns.some((c) => c.name === condition.column));
+        if (missing !== undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(missing.column)}.`;
       }
-      const other = owner?.columns.find((c) => c.name === bound.column);
-      if (other === undefined) return `${owner?.name ?? 'That table'} has no column ${JSON.stringify(bound.column)}.`;
-      return dated(other) ? null : `${owner?.name ?? 'That table'}.${String(bound.column)} is not a date.`;
+      return null;
     }
 
     case 'column.normalize': {
@@ -689,7 +695,7 @@ export function statesRuleIssue(
   }
   const own = (name: string) => table.columns.some((c) => c.name === name);
   const conditions = Object.values(states.moves).flatMap((moves) => moves.flatMap((move) => (typeof move === 'string' ? [] : (move.requires?.where ?? []))));
-  for (const name of [states.column, ...(states.lock?.except ?? []), ...(states.onlyLater ?? []), ...conditions.map((c) => c.column)]) {
+  for (const name of [states.column, ...(states.lock?.except ?? []), ...(states.onlyLater ?? []).map((entry) => (typeof entry === 'string' ? entry : entry.column)), ...conditions.map((c) => c.column), ...(states.late ?? []).flatMap((late) => (late.where ?? []).map((c) => c.column))]) {
     if (!own(name)) return `${table.name} has no column ${JSON.stringify(name)}.`;
   }
   const linked = (id: string, via: string) => {
