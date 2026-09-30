@@ -2,8 +2,7 @@
 /**
  * Manifest spec v1, frozen at `manifestVersion: 1` for all of Adminium 1.x.
  * Pure Zod v4 + types — no `node:` imports — so the storefront and the
- * Electron shell can validate a manifest in the browser (the
- * `@adminium/manifest` package row).
+ * Electron shell can validate a manifest in the browser.
  *
  * This module is the envelope: every block's shape and the cross-block rules.
  * The install PLANNER (planInstall / requiredSchema → create-or-map diff) and
@@ -104,7 +103,7 @@ export type Publisher = z.infer<typeof publisherSchema>;
 
 /**
  * Everything both kinds share. `categories` is deliberately NOT here: it splits
- * by kind (an add-on is not a vertical — D2), so each branch adds its own.
+ * by kind (an add-on is not a vertical), so each branch adds its own.
  */
 export const identityShape = {
   key: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'key must be ^[a-z][a-z0-9-]{1,79}$'),
@@ -125,7 +124,7 @@ export const identitySchema = z
 
 /**
  * Keys no app or add-on may ever take, because they would shadow a storefront
- * route or a data file (D17). Apps and add-ons share one key namespace.
+ * route or a data file. Apps and add-ons share one key namespace.
  *
  * `dashboard` joined them for a different reason: it is the HOST KEY a stock
  * Adminium deployment attaches an add-on under, so an add-on `attaches:
@@ -210,7 +209,7 @@ export const compatibilitySchema = z
 
 // ── requiredSchema (create-or-map) ───────────────────────────────────────────
 
-/** Abstract column types the introspection engine emits (research). */
+/** Abstract column types the introspection engine emits. */
 export const COLUMN_TYPES = [
   'id',
   'text',
@@ -1137,7 +1136,7 @@ export const frontendSchema = z
   .object({
     /**
      * REQUIRED, and the whole point of the array form. Without it the split
-     * lives only in prose and nothing can enforce rule.
+     * lives only in prose and nothing can enforce it.
      */
     side: z.enum(FRONTEND_SIDES),
     kind: z.enum(FRONTEND_KINDS),
@@ -1150,7 +1149,7 @@ export const frontendSchema = z
      * this key and the `.strict()` schema rejected every one of them — while
      * being, per the fleet audit, "the only machine-readable record of the
      * staff/customer split anywhere in the fleet". Deleting it during
-     * normalization was the tempting move and would have made rule
+     * normalization was the tempting move and would have made the split
      * permanently uncheckable.
      */
     routes: z.record(z.string(), z.string()).optional(),
@@ -1223,8 +1222,8 @@ export const sampleDataSchema = z
  * The two envelope-wide rules, as plain predicates over the shape both branches
  * share. They are attached to EACH BRANCH below rather than to the union: a
  * `.refine()` on a `z.discriminatedUnion` would run against the union type and
- * lose the narrowing, and moving them up there is how they get silently dropped
- * (first implementer note).
+ * lose the narrowing, and moving them up there is how they get silently
+ * dropped.
  */
 interface SharedEnvelope {
   capabilities?: Capability[] | undefined;
@@ -2537,7 +2536,7 @@ export const addOnManifestSchema = z
     categories: z.array(addOnCategorySchema).min(1),
     compatibility: compatibilitySchema,
     addOn: addOnBlockSchema,
-    // An add-on may bring its own tables — kept on disconnect (D16).
+    // An add-on may bring its own tables — kept on disconnect.
     requiredSchema: requiredSchemaSchema.optional(),
     settings: z.array(settingSchema).optional(),
     capabilities: z.array(capabilitySchema).optional(),

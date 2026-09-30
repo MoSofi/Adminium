@@ -136,7 +136,7 @@ export function validateManifest(
     });
   }
 
-  // D17 — apps and add-ons share one key namespace, and these keys shadow a
+  // Apps and add-ons share one key namespace, and these keys shadow a
   // storefront route or a data file.
   if ((RESERVED_KEYS as readonly string[]).includes(manifest.key)) {
     issues.push({
