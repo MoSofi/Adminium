@@ -327,7 +327,11 @@ export async function poolRow(rule: Extract<Rule, { kind: 'parent' }>, part: str
   return reads.linked(link, key);
 }
 
-/** Rooms of a type out of service, per night of `nights`: counted from the closures that cover it. */
+/**
+ * Rooms of a type out of service, per night of `nights`: each ROOM a closure
+ * covers counts once a night, however many closures of it overlap (a repair
+ * booked twice takes one room off the type, not two).
+ */
 export async function outOfService(
   rule: Extract<Rule, { kind: 'night' }>,
   keys: readonly string[],
@@ -342,32 +346,41 @@ export async function outOfService(
   const db = reads.db;
   const pool = rule.pool;
   // The pool a closure's room is in: the room's type (a count pool), or the room itself (a pool of one).
-  let rows: { k: unknown; f: unknown; t: unknown }[];
+  let rows: { k: unknown; r: unknown; f: unknown; t: unknown }[];
   if (pool.kind === 'count') {
     rows = (
-      await sql<{ k: unknown; f: unknown; t: unknown }>`select ${sql.ref(`adm_r.${pool.column}`)} as k, ${sql.ref(`adm_c.${oos.from}`)} as f, ${sql.ref(`adm_c.${oos.to}`)} as t
+      await sql<{ k: unknown; r: unknown; f: unknown; t: unknown }>`select ${sql.ref(`adm_r.${pool.column}`)} as k, ${sql.ref(`adm_c.${oos.room}`)} as r, ${sql.ref(`adm_c.${oos.from}`)} as f, ${sql.ref(`adm_c.${oos.to}`)} as t
         from ${sql.table(oos.table)} as adm_c join ${sql.table(pool.table)} as adm_r on ${sql.ref(`adm_r.${roomKey(rule)}`)} = ${sql.ref(`adm_c.${oos.room}`)}
         where ${sql.ref(`adm_r.${pool.column}`)} in (${sql.join(keys)}) and ${sql.ref(`adm_c.${oos.from}`)} <= ${last}
           and (${sql.ref(`adm_c.${oos.to}`)} is null or ${sql.ref(`adm_c.${oos.to}`)} >= ${first})${activeOnly(oos.active)}`.execute(db)
     ).rows;
   } else {
     rows = (
-      await sql<{ k: unknown; f: unknown; t: unknown }>`select ${sql.ref(`adm_c.${oos.room}`)} as k, ${sql.ref(`adm_c.${oos.from}`)} as f, ${sql.ref(`adm_c.${oos.to}`)} as t
+      await sql<{ k: unknown; r: unknown; f: unknown; t: unknown }>`select ${sql.ref(`adm_c.${oos.room}`)} as k, ${sql.ref(`adm_c.${oos.room}`)} as r, ${sql.ref(`adm_c.${oos.from}`)} as f, ${sql.ref(`adm_c.${oos.to}`)} as t
         from ${sql.table(oos.table)} as adm_c
         where ${sql.ref(`adm_c.${oos.room}`)} in (${sql.join(keys)}) and ${sql.ref(`adm_c.${oos.from}`)} <= ${last}
           and (${sql.ref(`adm_c.${oos.to}`)} is null or ${sql.ref(`adm_c.${oos.to}`)} >= ${first})${activeOnly(oos.active)}`.execute(db)
     ).rows;
   }
+  // The rooms closed each night, per pool: a room two closures cover is one room.
+  const closed = new Map<string, Map<string, Set<string>>>();
   for (const row of rows) {
     const key = keyText(row.k);
     const from = readDay(row.f);
     const to = readDay(row.t);
     if (key === null || from === null) continue;
-    let per = out.get(key);
-    if (per === undefined) out.set(key, (per = new Map()));
+    const room = keyText(row.r) ?? '';
+    let per = closed.get(key);
+    if (per === undefined) closed.set(key, (per = new Map()));
     // Closure dates are inclusive; an open-ended one closes every night from its first.
-    for (const night of nights) if (night >= from && (to === null || night <= to)) per.set(night, (per.get(night) ?? 0) + 1);
+    for (const night of nights) {
+      if (night < from || (to !== null && night > to)) continue;
+      let rooms = per.get(night);
+      if (rooms === undefined) per.set(night, (rooms = new Set()));
+      rooms.add(room);
+    }
   }
+  for (const [key, per] of closed) out.set(key, new Map([...per].map(([night, rooms]) => [night, rooms.size])));
   return out;
 }
 

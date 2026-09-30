@@ -361,7 +361,7 @@ On the extras a stay books, the nights come from the stay:
 | `from`, `to` | The arrival and the departure: `date` columns of the row, or `{ "via", "column" }` of the row it belongs to. |
 | `pool.count` | The pool is the number of rows of `table` whose `column` points at the same row as `via`: the rooms of a type. |
 | `pool.size` | Instead of `count`: `1` (one stay a night on each row pointed at, such as a room) or `{ "column" }` of that row (spaces of an extra). |
-| `outOfService` | Dated closures of single rooms, `from` to `to` inclusive, an empty `to` open-ended. Each takes one unit from the pool on the nights it covers. |
+| `outOfService` | Dated closures of single rooms, `from` to `to` inclusive, an empty `to` open-ended. Each room closed takes one unit from the pool on the nights its closures cover, however many of them overlap. |
 | `fits` | A column of the pool's row a guest count must fit, such as how many a room type sleeps. Availability lists only the types that fit the guests asked. |
 | `given` | When the row's `via` link is set (a room given), it counts against that room's type, not the one booked. |
 | `nights` | `min` and `max` nights, `minByArrival` per weekday of arrival, and `aheadDays`, how far ahead a guest may arrive. |

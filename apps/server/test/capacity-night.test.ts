@@ -58,6 +58,9 @@ for (const [dialect, available] of LEGS) {
       });
       await w.seed('room_closures', [{ room_id: await roomId(w, '109'), from_date: '2026-08-05', to_date: null }]);
       expect(await nights('2', '2026-08-04', '2026-08-07')).toEqual({ '2026-08-04': '0/13', '2026-08-05': '0/13', '2026-08-06': '0/13' });
+      // A second closure of 108 over nights it already covers takes no second room off the type.
+      await w.seed('room_closures', [{ room_id: await roomId(w, '108'), from_date: '2026-07-30', to_date: '2026-08-01' }]);
+      expect(await nights('2', '2026-07-30', '2026-08-01')).toEqual({ '2026-07-30': '0/13', '2026-07-31': '0/13' });
     });
 
     it('refuses a one-night stay arriving on a Saturday, a stay past fourteen nights, and a guest arriving past a year ahead', async () => {
