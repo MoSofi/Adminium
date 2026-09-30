@@ -38,6 +38,9 @@
  * publishing; cross-check them against the published `@adminiumjs/adminium@0.3.6`
  * once it is on npm.
  *
+ * 0048 ships in 0.3.8, read out of the published `@adminiumjs/adminium@0.3.8`;
+ * 0045–0047 read the same out of it.
+ *
  * WHERE THE NEXT ROW COMES FROM. That package stops being published once the
  * CLI bundles its internal packages, so 0033 onwards cannot be pinned by the
  * command above — it will simply 404. The successor source is the flagship
@@ -209,6 +212,7 @@ const SHIPPED_CHECKSUMS: Readonly<Record<string, string>> = Object.freeze({
   '0045_app_table_shapes': '61304d75199cde9af15d14fa42c2c5b9badd707aa72e3e76792351477cf6450b',
   '0046_public_sessions_ended': 'f725264ae0658bf6f516b7c43f8448a1822a9a21ff23149e36a749783b790b3d',
   '0047_mysql_longtext': 'd845af74582a085c7e7b78121265cff555084bbb5ce9cf96130c55603ad517f6',
+  '0048_public_key_peak': 'aa404a282003fe5b810d3a80cb5ce0ad6ed2b785f237d542e2669f52e8f2b112',
 });
 
 describe('shipped migration checksums', () => {
