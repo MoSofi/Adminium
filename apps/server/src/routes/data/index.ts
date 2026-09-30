@@ -8,13 +8,14 @@
  * own; RBAC (`table:<conn>:<schema.table>:<action>`) runs after identifier
  * resolution; PII columns mask for callers without the unmask grant; every
  * mutation is audited with a RecordRef and fans out on
- * `table:<connectionId>:<schema.table>` when the realtime hub is wired.
+ * `widget-data:<connectionId>:<schema.table>` when the realtime hub is wired.
  */
 
 import type { FastifyRequest } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   connectionTenantConfig,
+  auditEntityKeyOf,
   optionListsRepo,
   overridesRepo,
   publicChallengesRepo,
@@ -53,7 +54,7 @@ import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, renewingCodeColumnsOf,
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertWithinCreateLimit, assertWithinLimit, createLimitOf, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import { readLimitsOn } from '../../rbac/read-limits.js';
-import { readsHidden, refuseHiddenIn } from '../../crud/read-view.js';
+import { readableImage, readsHidden, refuseHiddenIn } from '../../crud/read-view.js';
 import {
   fetchByPk,
   parseRecordId,
@@ -118,6 +119,8 @@ import { withOccurredAt } from '../../crud/occurred-at.js';
 import { withSeenState } from '../../crud/seen-state.js';
 import { moveBackOf, undoRolesOf } from '../../crud/undo-moves.js';
 import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
+import { parseJsonColumn } from '../audit/index.js';
+import { cursorText } from '../../security/nul-bytes.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
 import { isStateRefusal } from '../../crud/state-conditions.js';
 import {
@@ -167,6 +170,8 @@ import {
   recordUpdateBody,
   recordChangeDryRunBody,
   recordChangeDryRunReply,
+  recordHistoryQuery,
+  recordHistoryReply,
   referencesReply,
   claimLockClearedReply,
   claimLockReply,
@@ -2069,6 +2074,62 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const row = await fetchByPk(ctx.db, ctx.table, pk);
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         return { references: await referenceCounts(ctx.db, ctx.view, ctx.table, pk) };
+      },
+    );
+
+    /*
+     * A RECORD'S HISTORY, for whoever reads the record: its own changes from
+     * the audit log, newest first, without the columns the reader's role
+     * does not read (nor a code no desk hands out), and without where they
+     * came from (address, browser, request). The audit page stays Studio's;
+     * this is what an app's own screens show beside a record (a box office's
+     * order timeline).
+     */
+    app.get(
+      '/data/:connectionId/:table/:recordId/history',
+      { schema: { params: dataRecordParams, querystring: recordHistoryQuery, response: { 200: recordHistoryReply } } },
+      async (request) => {
+        const ctx = asReader(await contextFor(request, 'read'));
+        const pk = parseRecordId(ctx.table, request.params.recordId);
+        if ((await fetchByPk(ctx.db, ctx.table, pk)) === undefined) throw new NotFoundError('Record not found.', { pk });
+        const keys = auditEntityKeyOf(recordRef(ctx, pk));
+        let q = meta.db
+          .selectFrom('adminium_audit_log')
+          .select(['id', 'createdAt', 'actorKind', 'actorLabel', 'action', 'changes'])
+          .where('category', '=', 'data')
+          .where('connectionId', '=', ctx.connectionId)
+          .where('entityTable', '=', keys.entityTable)
+          .where('entityId', '=', keys.entityId);
+        const { limit, cursor } = request.query;
+        if (cursor !== undefined) {
+          const decoded = cursorText(Buffer.from(cursor, 'base64url').toString('utf8')) ?? '';
+          const at = Number(decoded.slice(0, decoded.indexOf(':')));
+          const id = decoded.slice(decoded.indexOf(':') + 1);
+          if (!Number.isFinite(at) || id === '') throw new ValidationFailedError('Malformed pagination cursor.', { cursor });
+          q = q.where((eb) => eb.or([eb('createdAt', '<', at), eb.and([eb('createdAt', '=', at), eb('id', '<', id)])]));
+        }
+        const rows = await q.orderBy('createdAt', 'desc').orderBy('id', 'desc').limit(limit + 1).execute();
+        const page = rows.slice(0, limit);
+        const last = page.at(-1);
+        const image = (value: unknown) =>
+          typeof value === 'object' && value !== null && !Array.isArray(value) ? readableImage(ctx.readView, ctx.table.id, value as Row) : value;
+        return {
+          entries: page.map((row) => {
+            const changes = parseJsonColumn(row.changes) as Record<string, unknown> | null;
+            return {
+              id: row.id,
+              createdAt: Number(row.createdAt),
+              actorKind: row.actorKind,
+              actorLabel: row.actorLabel,
+              action: row.action,
+              changes:
+                changes === null
+                  ? null
+                  : { ...changes, ...('before' in changes ? { before: image(changes['before']) } : {}), ...('after' in changes ? { after: image(changes['after']) } : {}) },
+            };
+          }),
+          nextCursor: rows.length > limit && last !== undefined ? Buffer.from(`${String(last.createdAt)}:${last.id}`, 'utf8').toString('base64url') : null,
+        };
       },
     );
 

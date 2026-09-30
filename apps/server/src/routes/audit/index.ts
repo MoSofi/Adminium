@@ -41,7 +41,7 @@ interface AuditRow {
   requestId: string | null;
 }
 
-function parseJsonColumn(value: unknown): Record<string, unknown> | null {
+export function parseJsonColumn(value: unknown): Record<string, unknown> | null {
   if (value === null || value === undefined) return null;
   if (typeof value === 'object') return value as Record<string, unknown>;
   if (typeof value === 'string') {

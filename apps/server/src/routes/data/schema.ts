@@ -111,6 +111,28 @@ export const recordReply = z.object({
   inboundCounts: z.array(referenceCountSchema).optional(),
 });
 
+/** `GET …/:recordId/history`: the record's own changes, newest first, as the reader may read them. */
+export const recordHistoryQuery = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    cursor: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const recordHistoryReply = z.object({
+  entries: z.array(
+    z.object({
+      id: z.string(),
+      createdAt: z.number(),
+      actorKind: z.string(),
+      actorLabel: z.string(),
+      action: z.string(),
+      changes: z.record(z.string(), z.unknown()).nullable(),
+    }),
+  ),
+  nextCursor: z.string().nullable(),
+});
+
 export const referencesReply = z.object({
   references: z.array(referenceCountSchema),
 });

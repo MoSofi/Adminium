@@ -368,6 +368,21 @@ const PATHS: [string, (c: Ctx) => Promise<void>][] = [
     },
   ],
   [
+    "a stay's own history, to a role that reads only part of it and never the audit log",
+    async (c) => {
+      const res = await get(c, c.hk.cookie, data(c, `${c.s.table.stays}/1/history`));
+      expect(res.statusCode, res.body).toBe(200);
+      const entry = res.json().entries.find((one: { action: string }) => one.action === 'record.update');
+      expect(entry).toBeDefined();
+      withoutHidden(entry.changes.after);
+      withoutHidden(entry.changes.before);
+      expect(entry.changes.after).toMatchObject({ late_until: '14:00' });
+      // Where the change came from is the audit page's, not the record's.
+      expect(Object.keys(entry)).not.toContain('ip');
+      expect((await get(c, c.hk.cookie, data(c, `${c.s.table.stays}/999/history`))).statusCode).toBe(404);
+    },
+  ],
+  [
     "the audit log's before and after of a stay",
     async (c) => {
       const res = await get(c, c.auditor.cookie, `/api/v1/audit?entityTable=${encodeURIComponent(c.s.table.stays)}`);
