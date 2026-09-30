@@ -288,3 +288,141 @@ for (const [dialect, reachable] of LEGS) {
     }, 120_000);
   });
 }
+
+/** An order locks its lines; a line's price counts its chosen options; a customer counts its orders. */
+const money = (ref: string, rules?: Record<string, unknown>) => ({ ref, type: 'decimal', scale: 'currency', nullable: true, ...(rules === undefined ? {} : { rules }) });
+const ORDER_TABLES = [
+  { ref: 'customers', columns: [id, { ref: 'name', type: 'text', maxLength: 80 }, { ref: 'order_count', type: 'int', nullable: true, rules: { rollup: { from: 'orders', via: 'customer_id', count: true } } }] },
+  {
+    ref: 'orders',
+    columns: [
+      id,
+      { ref: 'customer_id', type: 'fk', references: 'customers', nullable: true },
+      { ref: 'code', type: 'text', maxLength: 20 },
+      { ref: 'status', type: 'enum', enum: ['placed', 'picked_up'], default: 'placed' },
+    ],
+    states: { column: 'status', initial: 'placed', moves: { placed: ['picked_up'] }, lock: { when: ['picked_up'] }, children: { order_items: { via: 'order_id', lock: true } } },
+  },
+  {
+    ref: 'order_items',
+    columns: [
+      id,
+      { ref: 'order_id', type: 'fk', references: 'orders' },
+      { ref: 'name', type: 'text', maxLength: 80 },
+      money('options_total', { rollup: { from: 'order_item_modifiers', via: 'order_item_id', sum: 'price_delta' } }),
+    ],
+  },
+  {
+    ref: 'order_item_modifiers',
+    unique: [['order_item_id', 'name']],
+    columns: [id, { ref: 'order_item_id', type: 'fk', references: 'order_items' }, { ref: 'name', type: 'text', maxLength: 80 }, money('price_delta')],
+  },
+  // The operator's own record: a pickup of an order.
+  { ref: 'pickups', columns: [id, { ref: 'order_id', type: 'fk', references: 'orders' }] },
+];
+const ORDER_BUNDLE = {
+  format: 'adminium.sample/1',
+  app: 'studio',
+  tables: [
+    { ref: 'customers', rows: [{ '@label': 'customer:ann', name: 'Ann' }] },
+    {
+      ref: 'orders',
+      rows: [
+        { '@label': 'order:2107', customer_id: { '@ref': 'customer:ann' }, code: '#2107' },
+        { '@label': 'order:2108', customer_id: { '@ref': 'customer:ann' }, code: '#2108' },
+      ],
+    },
+    {
+      ref: 'order_items',
+      rows: [
+        { '@label': 'line:flat-white', order_id: { '@ref': 'order:2107' }, name: 'Flat white' },
+        { '@label': 'line:croissant', order_id: { '@ref': 'order:2107' }, name: 'Croissant' },
+        { '@label': 'line:tea', order_id: { '@ref': 'order:2108' }, name: 'Tea' },
+      ],
+    },
+    {
+      ref: 'order_item_modifiers',
+      rows: [
+        { order_item_id: { '@ref': 'line:flat-white' }, name: { '@t': { 'en-US': 'Oat milk', 'de-DE': 'Hafermilch' } }, price_delta: '0.50' },
+        { order_item_id: { '@ref': 'line:flat-white' }, name: { '@t': { 'en-US': 'Extra shot', 'de-DE': 'Extra Espresso' } }, price_delta: '0.80' },
+        { order_item_id: { '@ref': 'line:tea' }, name: { '@t': { 'en-US': 'Honey', 'de-DE': 'Honig' } }, price_delta: '0.30' },
+      ],
+    },
+  ],
+};
+
+for (const [dialect, reachable] of LEGS) {
+  describe.skipIf(!reachable)(`sample orders whose lines count their options, on ${dialect}`, () => {
+    let h: InvoicingHarness;
+    let w: Awaited<ReturnType<typeof writerFor>>;
+    let service: ReturnType<typeof createSampleDataService>;
+    let app: SampleApp;
+    const user = { locale: 'en-US', userId: null, userLabel: 'test' };
+    const german = { ...user, locale: 'de-DE' };
+    const who = { keepChanged: true, userId: null, userLabel: 'test' };
+    const rows = (ref: string, columns = 'id') => h.rows(`SELECT ${columns} FROM ${h.real(ref)} ORDER BY id`);
+    const options = async (): Promise<Record<string, unknown>[]> =>
+      (await rows('order_item_modifiers', 'id, order_item_id, name, price_delta')).map((r) => ({ ...r, price_delta: Number(r['price_delta']) }));
+
+    /** The sample added, your own pickup of order #2107, then the sample removed. */
+    async function removedAroundYourPickup(beforeRemoval?: () => Promise<void>) {
+      await service.add(app, user);
+      const [order] = await rows('orders');
+      await w.create('pickups', { order_id: order!['id'] });
+      await beforeRemoval?.();
+      const lines = await rows('order_items', 'id, name, options_total');
+      const chosen = await options();
+      return { order: order!, lines, chosen, removal: await service.remove(app, who) };
+    }
+
+    beforeAll(async () => {
+      h = await installInvoicing(dialect, manifest(ORDER_TABLES), undefined, { 'seeds/studio.sample.json': JSON.stringify(ORDER_BUNDLE) });
+      w = await writerFor(h);
+      service = createSampleDataService({ meta: h.meta, manager: h.manager, store: createAppStore({ dataDir: h.dataDir }), files: memoryFiles });
+      app = (await findSampleApp(h.meta, 'studio'))!;
+    }, 120_000);
+
+    beforeEach(async () => {
+      for (const ref of ['pickups', 'order_item_modifiers', 'order_items', 'orders', 'customers']) await h.rows(`DELETE FROM ${h.real(ref)}`);
+      await h.rows(`DELETE FROM ${h.real('sample_data')}`).catch(() => undefined);
+    });
+
+    afterAll(async () => {
+      await h?.close();
+    });
+
+    it('keeps the options of a kept order’s lines, and takes all of it back as it is', async () => {
+      const { order, lines, chosen, removal } = await removedAroundYourPickup();
+      // #2108, its line and its option go; #2107 stays whole (its lines and their options), and so does Ann, whom it names.
+      expect(removal).toMatchObject({ removed: 3, kept: 6 });
+      expect(await rows('orders', 'id')).toEqual([{ id: order['id'] }]);
+      expect(await rows('order_items', 'id, name, options_total')).toEqual(lines.slice(0, 2));
+      expect(await options()).toEqual(chosen.slice(0, 2));
+
+      // Added again in another language: #2107 comes back with the lines and options it has; #2108 is written again.
+      expect((await service.add(app, german)).counts).toEqual({ customers: 1, orders: 2, order_items: 3, order_item_modifiers: 3 });
+      expect((await rows('order_items', 'name')).map((r) => r['name'])).toEqual(['Flat white', 'Croissant', 'Tea']);
+      expect((await options()).map((r) => r['name'])).toEqual(['Oat milk', 'Extra shot', 'Honig']);
+      expect((await rows('order_items', 'id, name, options_total')).slice(0, 2)).toEqual(lines.slice(0, 2));
+      expect(await service.status(app)).toMatchObject({ loaded: true, total: 9 });
+    }, 120_000);
+
+    it('keeps Ann but not the other orders she has: a customer is no order’s part', async () => {
+      const { removal } = await removedAroundYourPickup();
+      expect(removal).toMatchObject({ removed: 3, kept: 6 });
+      expect((await rows('customers', 'name')).map((r) => r['name'])).toEqual(['Ann']);
+      expect((await rows('orders', 'code')).map((r) => r['code'])).toEqual(['#2107']);
+    }, 120_000);
+
+    it('leaves an option you changed as yours, and writes none beside it', async () => {
+      const { chosen } = await removedAroundYourPickup(async () => {
+        const [, shot] = await rows('order_item_modifiers');
+        await h.rows(`UPDATE ${h.real('order_item_modifiers')} SET price_delta = 1.00 WHERE id = ${String(shot!['id'])}`);
+      });
+      // The line keeps its two options, one of them yours now; the sample writes no second "Extra shot" (a line holds each option once).
+      expect((await service.add(app, user)).counts).toEqual({ customers: 1, orders: 2, order_items: 3, order_item_modifiers: 2 });
+      expect((await options()).slice(0, 2)).toEqual(chosen.slice(0, 2));
+      expect((await options()).map((r) => r['name'])).toEqual(['Oat milk', 'Extra shot', 'Honey']);
+    }, 120_000);
+  });
+}

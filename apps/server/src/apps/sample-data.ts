@@ -633,6 +633,25 @@ function identityOf(ref: string, label: string | null, key: Row | null, table: R
   return `${ref}\u0000key\u0000${canonicalJson(normal)}`;
 }
 
+/**
+ * How a row of `table` is part of a row of another: a document's lines are
+ * part of it (its lock ties them to it), and the rows a part's own totals add
+ * up are part of that part (an order line's chosen options, which make its
+ * price). `ofParts` links count only under a row that is itself a part, so a
+ * customer never takes in the orders its totals count.
+ */
+function partLinks(view: SnapshotView, table: ResolvedTable): { parent: string; via: string; ofParts: boolean }[] {
+  return [
+    ...(table.table.stateParents ?? []).filter((parent) => parent.lock === true).map((parent) => ({ parent: parent.table, via: parent.via, ofParts: false })),
+    ...(tableRulesFor({ view, table })?.rollupsInto ?? []).map((rollup) => ({ parent: rollup.parent, via: rollup.via, ofParts: true })),
+  ];
+}
+
+/** Whether a row is a document's line: its lock ties it to a parent it names. */
+function lockTied(table: ResolvedTable, row: Row): boolean {
+  return (table.table.stateParents ?? []).some((parent) => parent.lock === true && row[parent.via] !== null && row[parent.via] !== undefined);
+}
+
 /** Every label a bundle value points at (`{"@ref": label}`), in a column or a `@byClock` / `@byStay` branch. */
 function refsIn(value: unknown): string[] {
   const found = sampleDirective(value);
@@ -976,28 +995,28 @@ export function createSampleDataService(deps: SampleDataDeps) {
           const adopted = new Set<number>();
           /** Files a row taken back still names: the sample's again, binned with it on the next removal. */
           const adoptedFiles = new Set<string>();
-          /** The parents this add took back (`<table id>\u0000<key>`): no row their lock ties to them is written. */
-          const takenBack = new Set<string>();
+          /** The rows this add took back (`<table id>\u0000<key>`), each marked when it came back as a part: none of their parts is written. */
+          const takenBack = new Map<string, boolean>();
           /** The labels of rows left out under a parent taken back that were not taken back themselves (changed, or gone). */
           const leftOut = new Set<string>();
-          /** The kept rows a lock ties to a parent, by `<parent table id>\u0000<key>`: read once, on the first take-back. */
-          const tied = new Map<string, { entry: LedgerRow; ref: string; table: ResolvedTable; row: Row }[]>();
+          /** The kept rows that are part of a row (`partLinks`), by `<parent table id>\u0000<key>`: read once, on the first take-back. */
+          const tied = new Map<string, { entry: LedgerRow; ref: string; table: ResolvedTable; row: Row; ofParts: boolean }[]>();
           let tiedRead = false;
           const tiedTo = async (parent: string, key: unknown) => {
             if (!tiedRead) {
               tiedRead = true;
               for (const [ref, kept] of keptByTable) {
                 const table = safeTable(view, names[ref] ?? ref);
-                const ties = (table?.table.stateParents ?? []).filter((tie) => tie.lock === true);
-                if (table === null || ties.length === 0) continue;
+                const links = table === null ? [] : partLinks(view, table);
+                if (table === null || links.length === 0) continue;
                 for (const entry of kept) {
                   const row = await fetchByPk(db, table, JSON.parse(entry.pk) as Row);
                   if (row === undefined) continue;
-                  for (const tie of ties) {
-                    const via = row[tie.via];
+                  for (const link of links) {
+                    const via = row[link.via];
                     if (via === null || via === undefined) continue;
-                    const at = `${tie.table}\u0000${String(via)}`;
-                    tied.set(at, [...(tied.get(at) ?? []), { entry, ref, table, row }]);
+                    const at = `${link.parent}\u0000${String(via)}`;
+                    tied.set(at, [...(tied.get(at) ?? []), { entry, ref, table, row, ofParts: link.ofParts }]);
                   }
                 }
               }
@@ -1007,13 +1026,13 @@ export function createSampleDataService(deps: SampleDataDeps) {
           /*
            * A kept row, taken back as it reads now: its entry is re-hashed
            * (the same over the columns it had) and the rows after it point at
-           * it by its label. The rows its lock ties to it (a document's lines,
-           * a terms version's clauses) come back with it, each while it reads
-           * as the sample wrote it: a document keeps the lines it has, and the
-           * sample writes none under it (below), whatever its own lines read
-           * as today — in another locale, on another day.
+           * it by its label. Its parts (a document's lines, a terms version's
+           * clauses, a line's chosen options) come back with it, each while it
+           * reads as the sample wrote it: a document keeps the lines it has,
+           * and the sample writes none under it (below), whatever its own lines
+           * read as today — in another locale, on another day.
            */
-          const takeBack = async (entry: LedgerRow, current: Row, ref: string, resolved: ResolvedTable, label: string | null): Promise<void> => {
+          const takeBack = async (entry: LedgerRow, current: Row, ref: string, resolved: ResolvedTable, label: string | null, asPart = false): Promise<void> => {
             adopted.add(entry.seq);
             const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
             const single = resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : undefined;
@@ -1038,10 +1057,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
             for (const value of Object.values(current)) if (isId(value, 'file')) adoptedFiles.add(value as string);
             counts[ref] = (counts[ref] ?? 0) + 1;
             if (single === undefined || single === null) return;
-            takenBack.add(`${resolved.id}\u0000${String(single)}`);
+            const part = asPart || lockTied(resolved, current);
+            takenBack.set(`${resolved.id}\u0000${String(single)}`, part);
             for (const child of await tiedTo(resolved.id, single)) {
+              if (child.ofParts && !part) continue;
               if (!adopted.has(child.entry.seq) && unchangedSince(child.entry, child.row, child.table, handle.dialect)) {
-                await takeBack(child.entry, child.row, child.ref, child.table, child.entry.label);
+                await takeBack(child.entry, child.row, child.ref, child.table, child.entry.label, true);
               }
             }
           };
@@ -1107,10 +1128,11 @@ export function createSampleDataService(deps: SampleDataDeps) {
               }
               const values = spellInstants(resolvedRow, resolved);
               const label = typeof row['@label'] === 'string' ? row['@label'] : null;
-              // A row whose locked parent this add took back: the parent came back with the rows it has.
-              const underTakenBack = (resolved.table.stateParents ?? []).some((parent) => {
-                const key = values[parent.via];
-                return parent.lock === true && key !== null && key !== undefined && takenBack.has(`${parent.table}\u0000${String(key)}`);
+              // A part of a row this add took back: that row came back with the parts it has.
+              const underTakenBack = partLinks(view, resolved).some((link) => {
+                const key = values[link.via];
+                const parentIsPart = key === null || key === undefined ? undefined : takenBack.get(`${link.parent}\u0000${String(key)}`);
+                return parentIsPart !== undefined && (!link.ofParts || parentIsPart);
               });
               if (underTakenBack) {
                 if (label !== null && !labels.has(label)) leftOut.add(label);
@@ -1584,31 +1606,39 @@ async function analyse(
   }
 
   /*
-   * The sample rows a parent's lock ties to it (`children: {…: {lock: true}}`):
-   * a document's lines, a terms version's clauses. They are part of the parent,
-   * so a kept parent keeps them. Deleted, they went from a record the operator
-   * uses (the terms their sent proposal prints lost their clauses), and the
-   * next add wrote them again under the locked parent, which the lock refused.
+   * The sample rows that are part of another (`partLinks`): a document's lines,
+   * a terms version's clauses, a line's chosen options. A kept row keeps its
+   * parts. Deleted, they went from a record the operator uses (the terms their
+   * sent proposal prints lost their clauses; a kept order's lines lost the
+   * options their price counts), and the next add wrote them again under it.
    */
-  const tiedTo = new Map<string, number[]>();
+  const partsOf = new Map<string, { seq: number; ofParts: boolean }[]>();
   for (const row of rows) {
     const values = current.get(row.seq);
     if (values === null || values === undefined) continue;
-    for (const parent of tableOf(row).table.stateParents ?? []) {
-      const key = values[parent.via];
-      if (parent.lock !== true || key === null || key === undefined) continue;
-      const at = `${parent.table}\u0000${String(key)}`;
-      tiedTo.set(at, [...(tiedTo.get(at) ?? []), row.seq]);
+    for (const link of partLinks(view, tableOf(row))) {
+      const key = values[link.via];
+      if (key === null || key === undefined) continue;
+      const at = `${link.parent}\u0000${String(key)}`;
+      partsOf.set(at, [...(partsOf.get(at) ?? []), { seq: row.seq, ofParts: link.ofParts }]);
     }
   }
 
-  // Kept: used ones, changed ones when asked, then what those point at and the rows their lock ties to them.
+  // Kept: used ones, changed ones when asked, then what those point at and their parts.
   const keep = new Set<number>(used.keys());
   if (keepChanged) for (const seq of changed.keys()) keep.add(seq);
   const queue = [...keep];
   const bySeq = new Map(rows.map((row) => [row.seq, row]));
   const keepToo = (seq: number) => {
     if (keep.has(seq)) return;
+    keep.add(seq);
+    queue.push(seq);
+  };
+  /** The kept rows that are a part: their own totals' rows are parts too. Seen again when a row first becomes one. */
+  const parts = new Set<number>();
+  const keepAsPart = (seq: number) => {
+    if (parts.has(seq)) return;
+    parts.add(seq);
     keep.add(seq);
     queue.push(seq);
   };
@@ -1624,7 +1654,10 @@ async function analyse(
       const parent = byTable.get(ref.tableId)?.get(String(values[column.name]));
       if (parent !== undefined) keepToo(parent.seq);
     }
-    if (table.primaryKey.length === 1) for (const child of tiedTo.get(`${table.id}\u0000${String(values[table.primaryKey[0]!])}`) ?? []) keepToo(child);
+    if (table.primaryKey.length !== 1) continue;
+    for (const part of partsOf.get(`${table.id}\u0000${String(values[table.primaryKey[0]!])}`) ?? []) {
+      if (!part.ofParts || parts.has(seq) || lockTied(table, values)) keepAsPart(part.seq);
+    }
   }
   const keptValues: string[] = [];
   for (const seq of keep) {
