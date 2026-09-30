@@ -350,7 +350,9 @@ export function publicKeysRepo(meta: MetaDb) {
         peakReads: input.peak?.reads ?? null,
         peakWrites: input.peak?.writes ?? null,
       };
-      await on.insertInto('adminium_public_keys').values(row).execute();
+      // The peak's columns only when there is one: a key made against a store not yet migrated past 0048 writes none.
+      const { peakReads, peakWrites, ...rest } = row;
+      await on.insertInto('adminium_public_keys').values(input.peak == null ? rest : { ...rest, peakReads, peakWrites }).execute();
       return row;
     },
 
