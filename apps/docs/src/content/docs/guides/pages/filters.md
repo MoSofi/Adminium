@@ -56,6 +56,20 @@ A grid shows eight columns; a filter is not bound by that. A page listing
 customers by name can perfectly well be filtered by country without printing
 country in a column.
 
+## Filters a page opens with
+
+An app's records page can open already filtered: a Messages page that hides the emails it skipped.
+The page's `config.defaultFilters` lists up to six conditions, each a column of the page's table, an
+op and a value, in the same grammar as the REST API's `where`:
+
+```json
+"defaultFilters": [{ "column": "status", "op": "in", "value": ["queued", "held", "sent", "failed"] }]
+```
+
+They apply when nobody has chosen filters yet. A saved view, or the filters someone left the page
+in, wins. Clearing the filters shows every row. An install refuses a list it cannot read, or one
+that names a column the table does not have.
+
 ## Clearing
 
 Each chip has its own ×, and **Clear filters** removes them all. It also appears

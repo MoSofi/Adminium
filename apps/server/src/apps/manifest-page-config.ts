@@ -24,7 +24,7 @@
  */
 import { pageSourceTable, type CalendarColumns, type DatabaseModel } from '@adminium/engine';
 import { z } from 'zod';
-import { capacityCountsSchema, countsJoinSchema, filterNodeSchema, pageLayoutSchema, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
+import { capacityCountsSchema, countsJoinSchema, filterNodeSchema, pageLayoutSchema, parseCrudDefaultFilters, parseCrudForm, type CrudFormConfig, type PageLayout } from '@adminium/engine/config';
 import type { Manifest } from '@adminium/manifest';
 
 import { childRelations } from '../crud/child-rows.js';
@@ -45,6 +45,22 @@ function splitRelation(short: string): { ref: string; column: string | null } {
  * empty list. Pure: the plan runs it before any table exists.
  */
 export function formIssues(manifest: Manifest, page: ManifestPage): string[] {
+  return [...ownFormIssues(manifest, page), ...defaultFilterIssues(manifest, page)];
+}
+
+/** A records page's default filters: a readable list, over columns of its own table. */
+function defaultFilterIssues(manifest: Manifest, page: ManifestPage): string[] {
+  const raw = page.config?.['defaultFilters'];
+  if (raw === undefined || manifest.kind !== 'app') return [];
+  const parsed = parseCrudDefaultFilters({ defaultFilters: raw });
+  if (parsed === null) return ['its default filters are not valid filters (1–6, each a column, an op and a value)'];
+  const own = pageSourceTable(page);
+  const table = own === null ? undefined : (manifest.requiredSchema?.tables ?? []).find((t) => t.ref === own);
+  if (table === undefined) return ['it has default filters but no table of the app to filter'];
+  return parsed.filter((filter) => !table.columns.some((c) => c.ref === filter.column)).map((filter) => `"${table.ref}" has no column "${filter.column}"`);
+}
+
+function ownFormIssues(manifest: Manifest, page: ManifestPage): string[] {
   const raw = page.config?.['form'];
   if (raw === undefined || manifest.kind !== 'app') return [];
   const form = parseCrudForm({ form: raw });

@@ -17,6 +17,7 @@
  */
 
 import type { ResolvedTable } from '../crud/identifiers.js';
+import { staffInstants } from '../crud/instants.js';
 import { maskRow, type Row } from '../crud/mask.js';
 import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
 
@@ -44,10 +45,11 @@ export interface WidgetStreamMutation {
  */
 export function publishWidgetDataStream(hub: RealtimeHub, mutation: WidgetStreamMutation): void {
   const channel = widgetDataChannel(mutation.connectionId, mutation.table.id);
+  // A SQLite source's wall-time text as the instant it is (Postgres and MySQL hand over moments already).
   const row =
     mutation.row === null || mutation.row === undefined
       ? null
-      : maskRow(mutation.row, mutation.table, false);
+      : staffInstants(maskRow(mutation.row, mutation.table, false), mutation.table, 'sqlite');
   const pk =
     mutation.pk === null || mutation.pk === undefined
       ? null

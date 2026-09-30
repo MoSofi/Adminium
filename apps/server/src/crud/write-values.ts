@@ -192,5 +192,18 @@ export function sameValue(a: unknown, b: unknown): boolean {
     const [x, y] = [Number(a), Number(b)];
     return Number.isFinite(x) && x === y;
   }
+  // Two spellings of one moment: a wall time as SQLite keeps it and the instant a reader was shown.
+  if (typeof a === 'string' && typeof b === 'string' && a !== b && DATE_TIME.test(a) && DATE_TIME.test(b)) {
+    const [x, y] = [momentMs(a), momentMs(b)];
+    return x !== null && x === y;
+  }
   return String(a) === String(b);
+}
+
+const DATE_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
+
+/** A date-time as epoch ms: with a zone as it says, without one on this server's clock (how SQLite keeps it). */
+function momentMs(text: string): number | null {
+  const at = new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) ? text.replace(' ', 'T') : text).getTime();
+  return Number.isNaN(at) ? null : at;
 }

@@ -51,6 +51,7 @@ import {
   type Projections,
 } from '../../crud/projections.js';
 import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, renewingCodeColumnsOf, type Row } from '../../crud/mask.js';
+import { staffInstants } from '../../crud/instants.js';
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
 import { assertWithinCreateLimit, assertWithinLimit, createLimitOf, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import { readLimitsOn } from '../../rbac/read-limits.js';
@@ -68,7 +69,7 @@ import { numbersWithoutGaps, tableRulesFor } from '../../crud/column-rules.js';
 import { sealRows, sealsOf } from '../../crud/seal.js';
 import { batchNeedsGuard } from '../../crud/capacity/door.js';
 import type { JudgedRow, LockNameRow } from '../../crud/capacity/types.js';
-import { attachExpect, guardOf, tiedToStates, withoutRepeatedState, type EffectWritten } from '../../crud/states.js';
+import { attachSeen, guardOf, tiedToStates, withoutRepeatedState, type EffectWritten } from '../../crud/states.js';
 import {
   rowsEqual,
   UndoStore,
@@ -543,7 +544,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         expect[name] = normalized;
       }
-      return attachExpect(values, expect);
+      return attachSeen(values, expect);
+    }
+
+    /** A row as a staff reader gets it: masked for them, a SQLite source's times as instants. */
+    function staffRow(dialect: Dialect, row: Row, table: ResolvedTable, unmasked: boolean): Row {
+      return staffInstants(maskRow(row, table, unmasked), table, dialect);
     }
 
     async function updateLimitFor(request: FastifyRequest, connectionId: string, tableId: string): Promise<UpdateLimit | null> {
@@ -1507,7 +1513,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           ctx,
           request.query,
         );
-        return runList({
+        const listed = await runList({
           db: ctx.db,
           view: ctx.view,
           table: ctx.table,
@@ -1519,6 +1525,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           requiredColumns,
           derivedFields: fields,
         });
+        // A SQLite source's times as instants, as every reader elsewhere gets them.
+        return ctx.dialect === 'sqlite' ? { ...listed, data: listed.data.map((row) => staffInstants(row, ctx.readTable, ctx.dialect)) } : listed;
       },
     );
 
@@ -2330,7 +2338,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 await afterMutation(request, ctx, 'update', recordRef(ctx, pk), before, result.after ?? before);
               },
             });
-            const data = maskRow(outcome.after ?? before, ctx.readTable, ctx.unmasked);
+            const data = staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked);
             // The new code goes back only to a caller who may read the table: one who may only
             // change it made a new link, and is not handed it (nor any other code of the row).
             if (!(await request.can(`table:${ctx.connectionId}:${ctx.table.id}:read`))) {
@@ -2357,7 +2365,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const row = await fetchByPk(ctx.db, ctx.table, pk);
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
-        let data = maskRow(row, ctx.readTable, ctx.unmasked);
+        let data = staffRow(ctx.dialect, row, ctx.readTable, ctx.unmasked);
         const { lookups, measures, fields } = await projectionsFor(request, ctx, request.query);
         if (lookups.length > 0) {
           const values = await fetchLookupValues(ctx.db, ctx.table, pk, lookups);
@@ -2714,7 +2722,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const [first] = (await writes.stored(ctx.target, rows.slice(0, 1))) as [Row];
           return reply
             .status(201)
-            .send({ data: maskRow(first, ctx.readTable, ctx.unmasked), undoToken, created: rows.length });
+            .send({ data: staffRow(ctx.dialect, first, ctx.readTable, ctx.unmasked), undoToken, created: rows.length });
         }
 
         /*
@@ -2728,9 +2736,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (agreed || (guards !== null && links.length === 0 && children.length === 0)) {
           const tree = await staffTree(request, ctx, context, values, [], [], {}, 'save', guards ?? {});
           const created = tree.outcome.root;
-          if (tree.outcome.replayed) return reply.status(200).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
+          if (tree.outcome.replayed) return reply.status(200).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
           undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], [], []);
-          return reply.status(201).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken });
+          return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken });
         }
         if (links.length === 0 && children.length === 0) {
           const inserted = await writes.create({
@@ -2745,7 +2753,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               await afterMutation(request, ctx, 'create', recordRef(ctx, pk), null, row);
             },
           });
-          return reply.status(201).send({ data: maskRow(inserted, ctx.readTable, ctx.unmasked), undoToken });
+          return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken });
         }
 
         /*
@@ -2767,12 +2775,12 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           if (hookedLink === undefined) {
             const tree = await staffTree(request, ctx, context, values, links, children, request.body.children ?? {}, 'save', guards ?? {});
             const created = tree.outcome.root;
-            if (tree.outcome.replayed) return reply.status(200).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
+            if (tree.outcome.replayed) return reply.status(200).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken: null, replayed: true as const });
             const pk = Object.fromEntries(ctx.table.primaryKey.map((c) => [c, created[c]]));
             undoToken = await issueUndo(request, ctx, 'create', [], [created], [], [], tree.links, tree.children);
             for (const event of tree.events) publishChildWrite(app, { connectionId: ctx.connectionId, ...event });
             await auditLinks(request, ctx, recordRef(ctx, pk), tree.links);
-            return reply.status(201).send({ data: maskRow(created, ctx.readTable, ctx.unmasked), undoToken });
+            return reply.status(201).send({ data: staffRow(ctx.dialect, created, ctx.readTable, ctx.unmasked), undoToken });
           }
         }
         if (rowsBelow) {
@@ -2886,7 +2894,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await writes.afterEach('create', ctx.target, context, [{ record: inserted, before: null }]);
         // The reply is the row as stored, its own totals settled after the commit.
         inserted = (await writes.stored(ctx.target, [inserted]))[0] ?? inserted;
-        return reply.status(201).send({ data: maskRow(inserted, ctx.readTable, ctx.unmasked), undoToken });
+        return reply.status(201).send({ data: staffRow(ctx.dialect, inserted, ctx.readTable, ctx.unmasked), undoToken });
       },
     );
 
@@ -2918,7 +2926,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           const at = row.node.at;
           if (at.length === 0) continue;
           // A child table's own columns are shown as a read of it would show them.
-          const data = maskRow(row.record, ctx.readView.linkTable(row.node.target.table.id) ?? row.node.target.table, false);
+          const data = staffRow(ctx.dialect, row.record, ctx.readView.linkTable(row.node.target.table.id) ?? row.node.target.table, false);
           if (at.length === 2) {
             const entry = { data };
             (shown[String(at[0])] ??= [])[Number(at[1])] = entry;
@@ -2930,7 +2938,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         // The desk's booking summary: the nights a price by the night is made of.
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), tree.outcome.root, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, (column) => ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight));
-        return { data: maskRow(tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
+        return { data: staffRow(ctx.dialect, tree.outcome.root, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
       },
     );
 
@@ -2992,7 +3000,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             for (const requested of children) {
               const rows = await currentChildren(db, requested.child, after[requested.child.parentKeyColumn]);
               const read = ctx.readView.linkTable(requested.child.child.id) ?? requested.child.child;
-              shown[requested.child.relationId] = rows.map((row) => ({ data: maskRow(row, read, false) }));
+              shown[requested.child.relationId] = rows.map((row) => ({ data: staffRow(ctx.dialect, row, read, false) }));
             }
           },
           ...(children.length === 0
@@ -3022,7 +3030,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const readable = (column: string) =>
           ctx.readTable.columns.get(column)?.secret === false && (ctx.readTable.columns.get(column)?.masked !== true || ctx.unmasked) && !readsHidden(ctx.readView, tableRulesFor({ view: ctx.view, table: ctx.table })?.perNight);
         const nights = await quoteNights(ctx.db, tableRulesFor({ view: ctx.view, table: ctx.table }), outcome.after, async () => (await connectionTenantConfig(meta, ctx.connectionId))?.currency ?? null, readable);
-        return { data: maskRow(after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
+        return { data: staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), children: shown, ...(nights === undefined ? {} : { nights }) };
       },
     );
 
@@ -3072,7 +3080,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
            */
           if (Object.keys(values).length === 0) {
             check?.(before);
-            return { data: maskRow(before, ctx.readTable, ctx.unmasked), undoToken: null };
+            return { data: staffRow(ctx.dialect, before, ctx.readTable, ctx.unmasked), undoToken: null };
           }
           const outcome = await writes.update({
             target: ctx.target,
@@ -3093,7 +3101,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             },
           });
           // Masked columns may be written but are never echoed back.
-          return { data: await unreadCodesOut(request, ctx, maskRow(outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken };
+          return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, outcome.after ?? before, ctx.readTable, ctx.unmasked), before, outcome.after), undoToken };
         }
 
         /*
@@ -3167,7 +3175,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
               },
             });
             const stored = (await writes.stored(ctx.target, [outcome.after ?? before]))[0] ?? before;
-            return { data: await unreadCodesOut(request, ctx, maskRow(stored, ctx.readTable, ctx.unmasked), before, stored), undoToken };
+            return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, stored, ctx.readTable, ctx.unmasked), before, stored), undoToken };
           }
         }
 
@@ -3246,7 +3254,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         await auditLinks(request, ctx, recordRef(ctx, pk), written);
         await writes.afterEach('update', ctx.target, context, [{ record: after, before }]);
         after = (await writes.stored(ctx.target, [after]))[0] ?? after;
-        return { data: await unreadCodesOut(request, ctx, maskRow(after, ctx.readTable, ctx.unmasked), before, after), undoToken };
+        return { data: await unreadCodesOut(request, ctx, staffRow(ctx.dialect, after, ctx.readTable, ctx.unmasked), before, after), undoToken };
       },
     );
 
@@ -3304,7 +3312,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             await afterMutation(request, ctx, 'delete', entity, before, null);
           },
         });
-        return { data: maskRow(before, ctx.readTable, ctx.unmasked), undoToken };
+        return { data: staffRow(ctx.dialect, before, ctx.readTable, ctx.unmasked), undoToken };
       },
     );
   };

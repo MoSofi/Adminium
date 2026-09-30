@@ -80,6 +80,7 @@ export {
   filterControlFor,
   filtersFor,
   legalFilterControls,
+  parseCrudDefaultFilters,
   parseCrudFilters,
   FILTER_CONTROLS,
   MAX_DERIVED_FILTERS,

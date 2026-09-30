@@ -150,6 +150,7 @@ export {
   legalFilterControls,
   MAX_DERIVED_FILTERS,
   MAX_FILTERS,
+  parseCrudDefaultFilters,
   parseCrudFilters,
   type CrudFilterField,
   type FilterColumnFact,

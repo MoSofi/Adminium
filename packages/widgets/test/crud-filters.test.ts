@@ -14,6 +14,7 @@ import {
   filterControlFor,
   filtersFor,
   legalFilterControls,
+  parseCrudDefaultFilters,
   parseCrudFilters,
   type FilterColumnFact,
 } from '../src/page-config/index.js';
@@ -110,5 +111,20 @@ describe('the stored block', () => {
     ).toEqual([{ column: 'status', control: 'one-of' }]);
     // No block at all ⇒ the derived set, not an empty bar.
     expect(filtersFor(null, facts)).toEqual([{ column: 'status', control: 'one-of' }]);
+  });
+});
+
+describe('a records page\'s default filters', () => {
+  it('reads a list of conditions, and none when the page carries none', () => {
+    expect(parseCrudDefaultFilters({ defaultFilters: [{ column: 'status', op: 'in', value: ['queued', 'held', 'sent', 'failed'] }] })).toEqual([
+      { column: 'status', op: 'in', value: ['queued', 'held', 'sent', 'failed'] },
+    ]);
+    expect(parseCrudDefaultFilters({ defaultFilters: [{ column: 'sent_at', op: 'is_null' }] })).toEqual([{ column: 'sent_at', op: 'is_null' }]);
+    expect(parseCrudDefaultFilters({})).toBeNull();
+  });
+  it('reads a list it cannot use as none: an unknown op, a missing value, too many', () => {
+    expect(parseCrudDefaultFilters({ defaultFilters: [{ column: 'status', op: 'nope', value: 1 }] })).toBeNull();
+    expect(parseCrudDefaultFilters({ defaultFilters: [{ column: 'status', op: 'eq' }] })).toBeNull();
+    expect(parseCrudDefaultFilters({ defaultFilters: Array.from({ length: 7 }, () => ({ column: 'a', op: 'eq', value: 1 })) })).toBeNull();
   });
 });

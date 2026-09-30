@@ -40,7 +40,7 @@ import {
   type PageCrudFiles,
   type PageCrudGridState,
 } from '@adminium/widgets';
-import { filtersFor, parseCrudFilters, parseCrudForm, parseCrudLabels } from '@adminium/engine/config';
+import { filtersFor, parseCrudDefaultFilters, parseCrudFilters, parseCrudForm, parseCrudLabels } from '@adminium/engine/config';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { resolveFiles, uploadFile } from '../files/api.js';
@@ -332,9 +332,13 @@ export function PageCrudBinding({
   }
 
   // Initial grid state: an explicitly applied view wins; otherwise the state
-  // the user left this page in (list → record → back, T12); otherwise base.
+  // the user left this page in (list → record → back, T12); otherwise the
+  // page's own default filters (a Messages page without its skipped rows);
+  // otherwise base.
+  const defaultFilters = parseCrudDefaultFilters(page.config);
   const viewProps = configToProps(
-    appliedView?.config ?? (restoredState === null ? null : gridStateToConfig(restoredState)),
+    appliedView?.config ??
+      (restoredState !== null ? gridStateToConfig(restoredState) : defaultFilters === null ? null : { v: 1, filters: defaultFilters }),
   );
   const sourceTable = page.source.table ?? crud.table;
 

@@ -99,6 +99,22 @@ export function renderNow(column: { readonly logicalType: LogicalType }, now: Da
   }
 }
 
+/**
+ * A row a staff reader gets from a SQLite source, each naive timestamp as the
+ * instant it denotes — as Postgres and MySQL already answer — but for the
+ * venue's own wall times (`venueLocal`), which are no server's clock.
+ */
+export function staffInstants<T extends Record<string, unknown>>(
+  row: T,
+  table: { readonly columns: ReadonlyMap<string, { readonly logicalType: LogicalType }>; readonly table?: { readonly columns: readonly { readonly name: string; readonly venueLocal?: boolean | undefined }[] } | undefined },
+  dialect: Dialect,
+): T {
+  if (dialect !== 'sqlite') return row;
+  const local = (table.table?.columns ?? []).filter((column) => column.venueLocal === true).map((column) => column.name);
+  const columns = local.length === 0 ? table.columns : new Map([...table.columns].filter(([name]) => !local.includes(name)));
+  return wallTimesAsInstants(row, columns, dialect);
+}
+
 /** A wall time as SQLite hands one back: `2026-09-24 19:00:00`, maybe with milliseconds. */
 const WALL = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3})\d*)?)?$/;
 

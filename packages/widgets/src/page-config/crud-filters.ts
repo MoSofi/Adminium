@@ -69,6 +69,29 @@ export function parseCrudFilters(config: Record<string, unknown>): CrudFilterFie
   return parsed.data;
 }
 
+/** The ops a default filter may say: the filter grammar's (apps/server/src/crud/filters.ts). */
+const DEFAULT_FILTER_OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'like', 'ilike', 'is_null', 'not_null', 'between'] as const;
+
+const defaultFilterSchema = z
+  .object({ column: z.string().min(1), op: z.enum(DEFAULT_FILTER_OPS), value: z.unknown().optional() })
+  .strict()
+  .refine((f) => f.op === 'is_null' || f.op === 'not_null' || f.value !== undefined, { message: 'a filter other than is_null / not_null has a value' });
+
+/** A records page's filters when nobody chose any yet (a Messages page without its skipped rows). */
+export const crudDefaultFiltersSchema = z.array(defaultFilterSchema).min(1).max(MAX_FILTERS);
+export type CrudDefaultFilter = z.infer<typeof defaultFilterSchema>;
+
+/**
+ * The page's `config.defaultFilters`, or `null` when it carries none or one
+ * this build cannot read: the grid then starts unfiltered, as it always has.
+ */
+export function parseCrudDefaultFilters(config: Record<string, unknown>): CrudDefaultFilter[] | null {
+  const raw = config['defaultFilters'];
+  if (raw === undefined || raw === null) return null;
+  const parsed = crudDefaultFiltersSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
 const NUMERIC = new Set(['integer', 'bigint', 'decimal', 'float']);
 const TEMPORAL = new Set(['date', 'timestamp', 'timestamptz']);
 

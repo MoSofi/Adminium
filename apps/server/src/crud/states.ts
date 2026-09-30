@@ -202,15 +202,23 @@ export function expectOf(row: Row): Row | undefined {
   return (row as Expecting)[EXPECT];
 }
 
+const SEEN = Symbol('adminium.seen');
+
+/** The values with plain columns the writer saw (`seen`) as conditions too, told apart from what a rule judged. */
+export function attachSeen<T extends Row>(row: T, seen: Row): T {
+  const out = attachExpect(row, seen) as T & { [SEEN]?: string[] };
+  out[SEEN] = [...new Set([...(out[SEEN] ?? []), ...Object.keys(seen)])];
+  return out;
+}
+
 /**
  * An update that matched nothing because the row moved since it was judged:
- * a state it was seen in is a refused move; a plain column seen with another
- * value (`seen`) is `ROW_CHANGED`.
+ * a refused move — or, when a column the writer saw (`seen`) holds another
+ * value now, `ROW_CHANGED`.
  */
-export function rowMoved(expect: Row, stateColumn?: string): AppError {
-  if (Object.keys(expect).some((column) => column !== stateColumn)) {
-    return new ConflictError('The row changed while you were changing it; look again.', 'ROW_CHANGED', { expected: expect, retry: true });
-  }
+export function rowMoved(expect: Row, values?: Row): AppError {
+  const seen = values === undefined ? [] : ((values as { [SEEN]?: string[] })[SEEN] ?? []);
+  if (seen.length > 0) return new ConflictError('The row changed while you were changing it; look again.', 'ROW_CHANGED', { expected: expect, retry: true });
   return new StateMoveRefused('The row changed while you were changing it; look again.', { expected: expect, retry: true });
 }
 

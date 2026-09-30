@@ -173,6 +173,11 @@ function sameValue(sent: unknown, stored: unknown): boolean {
   if (sent === null || sent === undefined) return stored === null || stored === undefined;
   if (stored === null || stored === undefined) return false;
   if (stored instanceof Date && typeof sent === 'string') return Date.parse(sent) === stored.getTime();
+  // A wall time as SQLite keeps it, sent back as the instant the reader was shown: one moment.
+  if (typeof sent === 'string' && typeof stored === 'string' && sent !== stored && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(sent) && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(stored)) {
+    const ms = (text: string) => new Date(/^\d{4}-\d{2}-\d{2} \d/.test(text) ? text.replace(' ', 'T') : text).getTime();
+    return !Number.isNaN(ms(sent)) && ms(sent) === ms(stored);
+  }
   const text = (value: unknown): string => {
     if (value instanceof Date) return value.toISOString();
     if (typeof value === 'boolean') return value ? '1' : '0';
