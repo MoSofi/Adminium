@@ -490,6 +490,11 @@ that would take the balance below zero: what a visit's fee, its payments and its
                          "cap": true } } }
 ```
 
+`of` may be another total of the row, so money given back is capped by money taken: two totals
+over the same payments, `taken` (`where` `kind` `taken`) and `given_back` (`where` `kind`
+`given_back`, `balance: { "column": "refundable", "of": "taken" }`, `cap: true`). A refund past what
+was taken is refused, and so is lowering a payment taken below what already went back.
+
 A capped write is refused with `BALANCE_EXCEEDED` and the balance it would have gone below. So is a
 change to the parent that lowers `of` under what is already paid. Only a write that takes the
 balance below zero, or further below it, is refused: a row already negative from older data can
@@ -3160,6 +3165,11 @@ subtotal) reads it worked out.
 A row may also carry `"@onlyIfEmpty": true`, for a table that holds one row, such as the app's own
 settings. The row is added only when the table is empty. When the operator already has a row there,
 the sample leaves theirs alone, and a `@ref` to the sample row's label points at theirs.
+
+A table of many rows the operator sets up themselves (a kitchen's opening hours, one row a
+weekday) takes `"onlyIfEmpty": true` on the table instead: its rows go in only when the table holds
+none, and otherwise all of them stay out. No row may `@ref` a row of such a table, since it may not
+be written.
 
 Adminium keeps track of the rows it added in a ledger table named `<key>_sample_data` (with `-` in
 the key written as `_`), so avoid a table of that name.

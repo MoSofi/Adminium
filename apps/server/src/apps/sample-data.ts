@@ -886,6 +886,20 @@ export function createSampleDataService(deps: SampleDataDeps) {
     return keys.some((key) => !sample.has(keyOf(key))) ? new Set(rule.skip) : new Set();
   }
 
+  /**
+   * The tables a bundle marks `onlyIfEmpty` that already hold a row: the
+   * operator set them (their opening hours), so the sample's rows stay out.
+   */
+  async function skippedWhenFilled(bundle: SampleBundle, handle: DataHandle, names: Readonly<Record<string, string>>): Promise<ReadonlySet<string>> {
+    const out = new Set<string>();
+    for (const table of bundle.tables) {
+      const real = names[table.ref];
+      if (table.onlyIfEmpty !== true || real === undefined) continue;
+      if ((await asDb(handle.db).selectFrom(real as never).select(sql<number>`1`.as('one')).limit(1).executeTakeFirst()) !== undefined) out.add(table.ref);
+    }
+    return out;
+  }
+
   return {
     /** What is loaded now: counts per table and when it was added. */
     async status(app: SampleApp) {
@@ -914,10 +928,13 @@ export function createSampleDataService(deps: SampleDataDeps) {
     async addPreview(app: SampleApp) {
       const bundle = await loadBundle(app);
       // The tables a shared table's real rows keep the sample out of are not written: not listed.
-      const skipped =
-        app.connectionId === null || app.manifest.kind !== 'app' || app.manifest.sampleData?.skipWhenShared === undefined
-          ? new Set<string>()
-          : await skippedWhenShared(app, app.connectionId, await deps.manager.data(app.connectionId), await records.realNames(app.connectionId, app.key));
+      const skipped = new Set<string>();
+      if (app.connectionId !== null) {
+        const handle = await deps.manager.data(app.connectionId);
+        const names = await records.realNames(app.connectionId, app.key);
+        if (app.manifest.kind === 'app' && app.manifest.sampleData?.skipWhenShared !== undefined) for (const ref of await skippedWhenShared(app, app.connectionId, handle, names)) skipped.add(ref);
+        for (const ref of await skippedWhenFilled(bundle, handle, names)) skipped.add(ref);
+      }
       const tables = bundle.tables.filter((table) => !skipped.has(table.ref));
       return {
         tables: tables.map((table) => ({ ref: table.ref, count: table.rows.length })),
@@ -946,7 +963,7 @@ export function createSampleDataService(deps: SampleDataDeps) {
       const handle = await deps.manager.data(connectionId);
       const names = await records.realNames(connectionId, app.key);
       const timeZone = (await connectionTenantConfig(deps.meta, connectionId))?.timezone ?? 'UTC';
-      const skipped = await skippedWhenShared(app, connectionId, handle, names);
+      const skipped = new Set([...(await skippedWhenShared(app, connectionId, handle, names)), ...(await skippedWhenFilled(bundle, handle, names))]);
       opts.progress?.(5, 'Checked the sample data');
 
       // Images first, into the Files library; to the bin if anything later fails.
