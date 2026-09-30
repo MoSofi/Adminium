@@ -33,7 +33,8 @@
  *
  * ── REMOVE ─────────────────────────────────────────────────────────────────
  * A preview first: how many per table; which sample rows the operator's own
- * records still point at (kept, with the rows they point at in turn); which
+ * records still point at (kept, with the rows they point at in turn and the
+ * rows their lock ties to them — a document's lines stay with it); which
  * the operator changed since (kept when they ask). Then, in ONE transaction,
  * the rest are deleted in reverse order, then their ledger entries: a row
  * that stays is the operator's from then on — their records use it, or they
@@ -632,6 +633,14 @@ function identityOf(ref: string, label: string | null, key: Row | null, table: R
   return `${ref}\u0000key\u0000${canonicalJson(normal)}`;
 }
 
+/** Every label a bundle value points at (`{"@ref": label}`), in a column or a `@byClock` / `@byStay` branch. */
+function refsIn(value: unknown): string[] {
+  const found = sampleDirective(value);
+  if (found !== null) return found.kind === 'ref' ? [found.label] : [];
+  if (typeof value !== 'object' || value === null) return [];
+  return Object.values(value).flatMap(refsIn);
+}
+
 /**
  * Whether a kept row still reads as the sample wrote it, over every column its
  * entry hashed (a column an app update added since does not count). Anything
@@ -947,6 +956,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
           }));
           /** The rows the last removal kept, by identity; each is taken back once at most. */
           const keptBy = new Map<string, LedgerRow>();
+          /** Every kept row, by table: a parent taken back takes the rows its lock ties to it from here. */
+          const keptByTable = new Map<string, LedgerRow[]>();
           for (const entry of entries) {
             if (!entry.table_ref.startsWith(KEPT_PREFIX)) continue;
             const ref = entry.table_ref.slice(KEPT_PREFIX.length);
@@ -960,10 +971,80 @@ export function createSampleDataService(deps: SampleDataDeps) {
             }
             const identity = identityOf(ref, entry.label, key, table);
             if (identity !== null && !keptBy.has(identity)) keptBy.set(identity, entry);
+            keptByTable.set(ref, [...(keptByTable.get(ref) ?? []), entry]);
           }
           const adopted = new Set<number>();
           /** Files a row taken back still names: the sample's again, binned with it on the next removal. */
           const adoptedFiles = new Set<string>();
+          /** The parents this add took back (`<table id>\u0000<key>`): no row their lock ties to them is written. */
+          const takenBack = new Set<string>();
+          /** The labels of rows left out under a parent taken back that were not taken back themselves (changed, or gone). */
+          const leftOut = new Set<string>();
+          /** The kept rows a lock ties to a parent, by `<parent table id>\u0000<key>`: read once, on the first take-back. */
+          const tied = new Map<string, { entry: LedgerRow; ref: string; table: ResolvedTable; row: Row }[]>();
+          let tiedRead = false;
+          const tiedTo = async (parent: string, key: unknown) => {
+            if (!tiedRead) {
+              tiedRead = true;
+              for (const [ref, kept] of keptByTable) {
+                const table = safeTable(view, names[ref] ?? ref);
+                const ties = (table?.table.stateParents ?? []).filter((tie) => tie.lock === true);
+                if (table === null || ties.length === 0) continue;
+                for (const entry of kept) {
+                  const row = await fetchByPk(db, table, JSON.parse(entry.pk) as Row);
+                  if (row === undefined) continue;
+                  for (const tie of ties) {
+                    const via = row[tie.via];
+                    if (via === null || via === undefined) continue;
+                    const at = `${tie.table}\u0000${String(via)}`;
+                    tied.set(at, [...(tied.get(at) ?? []), { entry, ref, table, row }]);
+                  }
+                }
+              }
+            }
+            return tied.get(`${parent}\u0000${String(key)}`) ?? [];
+          };
+          /*
+           * A kept row, taken back as it reads now: its entry is re-hashed
+           * (the same over the columns it had) and the rows after it point at
+           * it by its label. The rows its lock ties to it (a document's lines,
+           * a terms version's clauses) come back with it, each while it reads
+           * as the sample wrote it: a document keeps the lines it has, and the
+           * sample writes none under it (below), whatever its own lines read
+           * as today — in another locale, on another day.
+           */
+          const takeBack = async (entry: LedgerRow, current: Row, ref: string, resolved: ResolvedTable, label: string | null): Promise<void> => {
+            adopted.add(entry.seq);
+            const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
+            const single = resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : undefined;
+            if (label !== null) labels.set(label, single ?? key);
+            // Hashed as it reads now, so recorded as every entry this add writes: dates as days.
+            const { rowHash, colHashes } = hashRow(current, resolved);
+            await db
+              .updateTable(ledger as never)
+              .set({
+                table_ref: ref,
+                row_hash: rowHash,
+                col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
+                created_at: now,
+              } as never)
+              .where('seq' as never, '=', entry.seq as never)
+              .execute();
+            if ((tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0) {
+              const bucket = totals.get(ref) ?? { target: { connectionId, view, table: resolved, db, dialect: handle.dialect }, rows: [] as { seq: number; key: Row; record: Row }[] };
+              bucket.rows.push({ seq: entry.seq, key, record: current });
+              totals.set(ref, bucket);
+            }
+            for (const value of Object.values(current)) if (isId(value, 'file')) adoptedFiles.add(value as string);
+            counts[ref] = (counts[ref] ?? 0) + 1;
+            if (single === undefined || single === null) return;
+            takenBack.add(`${resolved.id}\u0000${String(single)}`);
+            for (const child of await tiedTo(resolved.id, single)) {
+              if (!adopted.has(child.entry.seq) && unchangedSince(child.entry, child.row, child.table, handle.dialect)) {
+                await takeBack(child.entry, child.row, child.ref, child.table, child.entry.label);
+              }
+            }
+          };
           // Kept entries hold their seq; new ones count on from the last.
           let seq = entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
           let done = 0;
@@ -1012,6 +1093,12 @@ export function createSampleDataService(deps: SampleDataDeps) {
             const target = { connectionId, view, table: resolved, db, dialect: handle.dialect };
             const keepsTotals = (tableRulesFor({ view, table: resolved })?.ownRollups?.length ?? 0) > 0;
             for (const row of table.rows) {
+              // A row that points at one left out goes too: it hung off a line the record no longer has as the sample wrote it.
+              if (leftOut.size > 0 && Object.values(row).flatMap(refsIn).some((named) => leftOut.has(named))) {
+                if (typeof row['@label'] === 'string') leftOut.add(row['@label']);
+                done += 1;
+                continue;
+              }
               const resolvedRow = resolveSampleRow(row, { now, timeZone, locale: opts.locale, labels, assets: fileIds, weekAnchor: bundle.weekAnchor, slotTimes });
               // Its `@byClock` set left it out: a payment for a visit that has not happened yet.
               if (resolvedRow === null) {
@@ -1020,11 +1107,19 @@ export function createSampleDataService(deps: SampleDataDeps) {
               }
               const values = spellInstants(resolvedRow, resolved);
               const label = typeof row['@label'] === 'string' ? row['@label'] : null;
+              // A row whose locked parent this add took back: the parent came back with the rows it has.
+              const underTakenBack = (resolved.table.stateParents ?? []).some((parent) => {
+                const key = values[parent.via];
+                return parent.lock === true && key !== null && key !== undefined && takenBack.has(`${parent.table}\u0000${String(key)}`);
+              });
+              if (underTakenBack) {
+                if (label !== null && !labels.has(label)) leftOut.add(label);
+                done += 1;
+                continue;
+              }
               /*
                * The row the last removal kept, taken back rather than written
-               * again — only while it reads as the sample wrote it. Its entry
-               * is re-hashed as it reads now (the same over the columns it
-               * had), and the rows after it point at it by its label. It keeps
+               * again — only while it reads as the sample wrote it. It keeps
                * its own links: one to a kept parent the operator changed still
                * names that parent, not the fresh copy. What the hash cannot
                * tell apart is a row of the operator's that is identical in
@@ -1033,32 +1128,11 @@ export function createSampleDataService(deps: SampleDataDeps) {
                */
               const identity = identityOf(table.ref, label, values, resolved);
               const keptEntry = identity === null ? undefined : keptBy.get(identity);
-              if (keptEntry !== undefined) {
+              if (keptEntry !== undefined && !adopted.has(keptEntry.seq)) {
                 keptBy.delete(identity!);
                 const current = await fetchByPk(db, resolved, JSON.parse(keptEntry.pk) as Row);
                 if (current !== undefined && unchangedSince(keptEntry, current, resolved, handle.dialect)) {
-                  const key = Object.fromEntries(resolved.primaryKey.map((column) => [column, current[column]]));
-                  if (label !== null) labels.set(label, resolved.primaryKey.length === 1 ? current[resolved.primaryKey[0]!] : key);
-                  // Hashed as it reads now, so recorded as every entry this add writes: dates as days.
-                  const { rowHash, colHashes } = hashRow(current, resolved);
-                  await db
-                    .updateTable(ledger as never)
-                    .set({
-                      table_ref: table.ref,
-                      row_hash: rowHash,
-                      col_hashes: JSON.stringify({ ...colHashes, [LEDGER_DATES_AS_DAYS]: '1' }),
-                      created_at: now,
-                    } as never)
-                    .where('seq' as never, '=', keptEntry.seq as never)
-                    .execute();
-                  if (keepsTotals) {
-                    const bucket = totals.get(table.ref) ?? { target, rows: [] as { seq: number; key: Row; record: Row }[] };
-                    bucket.rows.push({ seq: keptEntry.seq, key, record: current });
-                    totals.set(table.ref, bucket);
-                  }
-                  adopted.add(keptEntry.seq);
-                  for (const value of Object.values(current)) if (isId(value, 'file')) adoptedFiles.add(value as string);
-                  counts[table.ref] = (counts[table.ref] ?? 0) + 1;
+                  await takeBack(keptEntry, current, table.ref, resolved, label);
                   done += 1;
                   continue;
                 }
@@ -1412,7 +1486,8 @@ export function createSampleDataService(deps: SampleDataDeps) {
 /**
  * Which sample rows the operator's own records use, which they changed, and
  * which are already gone — and so which must stay: the used ones, the changed
- * ones when asked, and every sample row those point at in turn.
+ * ones when asked, every sample row those point at in turn, and the rows a
+ * kept row's lock ties to it.
  */
 async function analyse(
   handle: DataHandle,
@@ -1508,11 +1583,35 @@ async function analyse(
     }
   }
 
-  // Kept: used ones, changed ones when asked, then what those point at.
+  /*
+   * The sample rows a parent's lock ties to it (`children: {…: {lock: true}}`):
+   * a document's lines, a terms version's clauses. They are part of the parent,
+   * so a kept parent keeps them. Deleted, they went from a record the operator
+   * uses (the terms their sent proposal prints lost their clauses), and the
+   * next add wrote them again under the locked parent, which the lock refused.
+   */
+  const tiedTo = new Map<string, number[]>();
+  for (const row of rows) {
+    const values = current.get(row.seq);
+    if (values === null || values === undefined) continue;
+    for (const parent of tableOf(row).table.stateParents ?? []) {
+      const key = values[parent.via];
+      if (parent.lock !== true || key === null || key === undefined) continue;
+      const at = `${parent.table}\u0000${String(key)}`;
+      tiedTo.set(at, [...(tiedTo.get(at) ?? []), row.seq]);
+    }
+  }
+
+  // Kept: used ones, changed ones when asked, then what those point at and the rows their lock ties to them.
   const keep = new Set<number>(used.keys());
   if (keepChanged) for (const seq of changed.keys()) keep.add(seq);
   const queue = [...keep];
   const bySeq = new Map(rows.map((row) => [row.seq, row]));
+  const keepToo = (seq: number) => {
+    if (keep.has(seq)) return;
+    keep.add(seq);
+    queue.push(seq);
+  };
   while (queue.length > 0) {
     const seq = queue.pop()!;
     const row = bySeq.get(seq);
@@ -1523,11 +1622,9 @@ async function analyse(
       const ref = column.references;
       if (ref === null) continue;
       const parent = byTable.get(ref.tableId)?.get(String(values[column.name]));
-      if (parent !== undefined && !keep.has(parent.seq)) {
-        keep.add(parent.seq);
-        queue.push(parent.seq);
-      }
+      if (parent !== undefined) keepToo(parent.seq);
     }
+    if (table.primaryKey.length === 1) for (const child of tiedTo.get(`${table.id}\u0000${String(values[table.primaryKey[0]!])}`) ?? []) keepToo(child);
   }
   const keptValues: string[] = [];
   for (const seq of keep) {
