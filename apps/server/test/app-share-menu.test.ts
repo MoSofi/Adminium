@@ -26,6 +26,7 @@ import { appTablesRepo, overridesRepo, pagesRepo, publicKeysRepo, rolesRepo, sna
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { findSampleApp } from '../src/apps/sample-data.js';
+import { sharedTablesOf } from '../src/apps/shared-tables.js';
 import { resolveForRoles } from '../src/rbac/resolver.js';
 import { buildNavTree } from '../src/routes/bootstrap/handlers.js';
 import { ENGINES, installHarness, type Harness } from './app-install-harness.js';
@@ -178,6 +179,10 @@ for (const [dialect, available] of ENGINES) {
         }
         expect(tillRecords['tickets']?.shape).toBeNull();
         expect(await appTablesRepo(h.meta).realNames(h.connectionId, 'ordering')).toMatchObject({ menu_items: 'pos_menu_items', orders: 'ordering_orders' });
+        // Each app's staff screens are told which of their tables the other app uses too, and nothing more.
+        const shared = await sharedTablesOf(h.meta, h.connectionId, 'ordering', await appTablesRepo(h.meta).realNames(h.connectionId, 'ordering'));
+        expect(shared).toEqual(Object.fromEntries(MENU.map((ref) => [ref, ['pos']])));
+        expect(await sharedTablesOf(h.meta, h.connectionId, 'pos', await appTablesRepo(h.meta).realNames(h.connectionId, 'pos'))).toEqual(Object.fromEntries(MENU.map((ref) => [ref, ['ordering']])));
         expect(await columnsOf(h, 'pos_menu_items')).toEqual(expect.arrayContaining(['stock_today', 'hue']));
         expect((await columnsOf(h, 'ordering_menu_items')).length).toBe(0);
         expect(await linkTarget(h, 'ordering_order_items', 'menu_item_id')).toBe('pos_menu_items');

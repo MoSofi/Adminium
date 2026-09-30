@@ -71,6 +71,7 @@ import {
 
 import type { Manifest } from '@adminium/manifest';
 
+import { sharedTablesOf } from '../apps/shared-tables.js';
 import type { InstalledApps } from '../apps/installed.js';
 import { settingValuesWithDefaults } from '../apps/settings-values.js';
 import { auditAuth } from '../auth/audit.js';
@@ -646,10 +647,12 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
         const staffKeys = user === null || bound === null ? {} : await staffKeysFor(appKey, bound, user.id);
         const access = user === null || bound === null ? null : await accessOf(request, appKey, bound, tables, user.id);
         const addOns = await addOnsOf(appKey, 'staff');
+        const sharedTables = bound === null || tables === null || opts.metaDb === undefined ? null : await sharedTablesOf(opts.metaDb, bound, appKey, tables);
         return {
           connectionId: bound,
           appName,
           ...(addOns === null ? {} : { addOns }),
+          ...(sharedTables === null ? {} : { sharedTables }),
           ...(Object.keys(staffKeys).length === 0 ? {} : { publicKeys: staffKeys }),
           ...(access === null ? {} : { access }),
           ...(tables === null ? {} : { tables }),
@@ -882,6 +885,7 @@ export const surfacesPlugin = fp<SurfacesPluginOptions>(
       const names = await appTablesRepo(opts.metaDb).realNames(connectionId, appKey);
       return Object.keys(names).length === 0 ? null : names;
     }
+
 
     /*
      * THE MAPPED-HOST LOCKDOWN, for every method and ahead of
