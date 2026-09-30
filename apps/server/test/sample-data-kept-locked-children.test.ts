@@ -414,6 +414,26 @@ for (const [dialect, reachable] of LEGS) {
       expect((await rows('orders', 'code')).map((r) => r['code'])).toEqual(['#2107']);
     }, 120_000);
 
+    it('writes a whole fresh order beside one you changed, and leaves yours its lines', async () => {
+      const { order, lines, chosen } = await removedAroundYourPickup(async () => {
+        const [first] = await rows('orders');
+        await h.rows(`UPDATE ${h.real('orders')} SET code = '#2107 (Ivy)' WHERE id = ${String(first!['id'])}`);
+      });
+      // Your order is yours now: it keeps its lines and their options. The sample's #2107 is written again, whole.
+      expect((await service.add(app, user)).counts).toEqual({ customers: 1, orders: 2, order_items: 3, order_item_modifiers: 3 });
+      expect((await rows('orders', 'code')).map((r) => r['code'])).toEqual(['#2107 (Ivy)', '#2107', '#2108']);
+      expect((await rows('order_items', 'id, name, options_total')).slice(0, 2)).toEqual(lines.slice(0, 2));
+      expect((await options()).slice(0, 2)).toEqual(chosen.slice(0, 2));
+      const [, fresh] = await rows('orders');
+      const freshLines = await h.rows(`SELECT name, options_total FROM ${h.real('order_items')} WHERE order_id = ${String(fresh!['id'])} ORDER BY id`);
+      expect(freshLines.map((r) => [r['name'], Number(r['options_total'])])).toEqual([['Flat white', 1.3], ['Croissant', 0]]);
+      expect(fresh!['id']).not.toEqual(order['id']);
+      // The next removal leaves your order and its lines alone, and takes the sample's copy.
+      expect(await service.remove(app, who)).toMatchObject({ kept: 1 });
+      expect((await rows('orders', 'code')).map((r) => r['code'])).toEqual(['#2107 (Ivy)']);
+      expect((await rows('order_items', 'id, name, options_total')).slice(0, 2)).toEqual(lines.slice(0, 2));
+    }, 120_000);
+
     it('leaves an option you changed as yours, and writes none beside it', async () => {
       const { chosen } = await removedAroundYourPickup(async () => {
         const [, shot] = await rows('order_item_modifiers');
