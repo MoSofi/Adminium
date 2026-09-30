@@ -10,7 +10,7 @@ import { permissionsRepo, rolesRepo, type MetaDb, type Role } from '@adminium/me
 
 import { grantsFromMatrixRows, isGranted } from './permissions.js';
 import type { RbacPrincipal } from './principal.js';
-import { limitOfRow, type LimitedUpdate, type UpdateLimits } from './update-limits.js';
+import { createLimitOfRow, limitOfRow, type LimitedUpdate, type UpdateLimits } from './update-limits.js';
 import { readLimitOfRow, type LimitedRead, type ReadLimits } from './read-limits.js';
 
 /** Built-in slug whose members bypass every check. */
@@ -31,6 +31,8 @@ export interface PermissionSet {
    * Absent means none: a set built without it limits nothing.
    */
   updateLimits?: UpdateLimits | undefined;
+  /** The create grants a role narrows (`creatable`), and every other grant: see `rbac/update-limits.ts`. */
+  createLimits?: UpdateLimits | undefined;
   /**
    * The read grants that show only some columns (rbac/read-limits.ts).
    * Absent means none: a set built without it limits nothing.
@@ -77,6 +79,9 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
   // The same for reads: the read grants a limit narrows, and every other grant.
   const readUnlimited = new Set<string>();
   const readLimited: LimitedRead[] = [];
+  // …and for creates: the create grants a limit narrows, and every other grant.
+  const createUnlimited = new Set<string>();
+  const createLimited: LimitedUpdate[] = [];
   if (!superAdmin) {
     const suspended = await suspendedApps(meta, roles);
     for (const role of roles) {
@@ -84,10 +89,13 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
       for (const row of await permissions.listForRole(role.id)) {
         const limit = limitOfRow(row);
         const read = readLimitOfRow(row);
+        const create = createLimitOfRow(row);
         for (const grant of grantsFromMatrixRows([row])) {
           grants.add(grant);
           if (limit !== null && grant.endsWith(':update')) limited.push({ grant, limit });
           else unlimited.add(grant);
+          if (create !== null && grant.endsWith(':create')) createLimited.push({ grant, limit: create });
+          else createUnlimited.add(grant);
           if (read !== null && grant.endsWith(':read')) readLimited.push({ grant, limit: read });
           else readUnlimited.add(grant);
         }
@@ -101,6 +109,7 @@ export async function resolveForRoles(meta: MetaDb, roles: readonly Role[]): Pro
     screensOnly: screensOnlyApps(roles),
     ...(limited.length === 0 ? {} : { updateLimits: { limited, unlimited } }),
     ...(readLimited.length === 0 ? {} : { readLimits: { limited: readLimited, unlimited: readUnlimited } }),
+    ...(createLimited.length === 0 ? {} : { createLimits: { limited: createLimited, unlimited: createUnlimited } }),
   };
 }
 

@@ -51,7 +51,7 @@ import {
 } from '../../crud/projections.js';
 import { canReadPii, codeColumnsOf, maskRow, piiCheckFor, renewingCodeColumnsOf, type Row } from '../../crud/mask.js';
 import { renewedBy, renewForUndo, withRenewRetry } from '../../crud/code-renew.js';
-import { assertWithinLimit, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
+import { assertWithinCreateLimit, assertWithinLimit, createLimitOf, updateLimitOf, type UpdateLimit } from '../../rbac/update-limits.js';
 import { readLimitsOn } from '../../rbac/read-limits.js';
 import { readsHidden, refuseHiddenIn } from '../../crud/read-view.js';
 import {
@@ -524,6 +524,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
     }
 
     /**
+     * Refuse a NEW row the caller's create on its table may not make
+     * (`creatable`, rbac/update-limits.ts): judged on what was sent, the state
+     * column at its first state and empty values being no choice of theirs.
+     */
+    async function assertCreatable(request: FastifyRequest, connectionId: string, table: ResolvedTable, values: Row): Promise<void> {
+      const limit = createLimitOf(await app.rbac.resolve(request), connectionId, table.id);
+      if (limit === null) return;
+      const states = table.table?.states;
+      assertWithinCreateLimit(limit, table.id, values, states === undefined ? undefined : { column: states.column, state: states.initial });
+    }
+
+    /**
      * Refuse a write whose file columns do not hold what they are configured
      * to hold — a `multiple` column handed a non-array, or a list past the
      * column's `maxCount`.
@@ -759,6 +771,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         }
         const { child } = resolution;
         const id = child.child.id;
+        // A row the form adds (no key) is a create of the child table, held to that create's limit.
+        for (const row of rows) if (row.key === undefined) await assertCreatable(request, ctx.connectionId, child.child, row.values);
         out.push({
           child,
           rows: rows.map((row) => ({
@@ -2083,6 +2097,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           throw new ValidationFailedError('Only the details a new person is made with may be filled.', { fields: Object.fromEntries(refusedFill.map((column) => [column, { code: 'not-fillable' }])) });
         }
         const fill = Object.keys(asked).length === 0 ? {} : allowlistValues(ctx, asked);
+        await assertCreatable(request, ctx.connectionId, ctx.table, fill);
         const context = requestWriteContext(request, 'dashboard');
         const rights = privilegesOf(await manager.tablePrivilegesById(ctx.connectionId), ctx.table.id);
         // On MySQL the address's lock is taken before the transaction, as a guest's create takes it.
@@ -2522,6 +2537,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const ctx = await contextFor(request, 'create');
         const values = allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
+        // What the caller chose for the new row, before a rule or the retry key adds to it; each value of a repeat too.
+        await assertCreatable(request, ctx.connectionId, ctx.table, values);
+        for (const value of request.body.repeat?.values ?? []) await assertCreatable(request, ctx.connectionId, ctx.table, { [request.body.repeat!.column]: value });
         const context = withOccurredAt(requestWriteContext(request, 'dashboard'), request.body.occurredAt);
         const links = await requestedLinks(request, ctx, context, request.body.links);
         const children = await requestedChildren(request, ctx, context, request.body.children);
@@ -2799,6 +2817,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         if (request.body.expect !== undefined) throw quoteChecksNoPrice();
         const values = allowlistValues(ctx, request.body.values);
         await assertFileColumns(ctx, values);
+        await assertCreatable(request, ctx.connectionId, ctx.table, values);
         const context = requestWriteContext(request, 'dashboard');
         const children = await requestedChildren(request, ctx, context, request.body.children);
         const tree = await staffTree(request, ctx, context, values, [], children, request.body.children ?? {}, 'dry');

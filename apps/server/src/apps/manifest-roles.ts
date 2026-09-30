@@ -217,12 +217,19 @@ export async function writeManifestRoles(input: {
       if (row.resourceKind !== 'table' || !row.resourceRef.startsWith(`${connectionId}/`)) continue;
       const actions = row.actions as TableActions;
       const limit = wanted.get(row.resourceRef);
-      if (limit === undefined && actions.updateLimit === undefined && actions.readLimit === undefined) continue;
-      const { updateLimit: _previous, readLimit: _read, ...rest } = actions;
+      if (limit === undefined && actions.updateLimit === undefined && actions.readLimit === undefined && actions.createLimit === undefined) continue;
+      const { updateLimit: _previous, readLimit: _read, createLimit: _create, ...rest } = actions;
       const update: UpdateLimit | undefined =
         limit?.writable === undefined ? undefined : { writable: [...limit.writable], ...(limit.writableValues === undefined ? {} : { writableValues: limit.writableValues }) };
       const read: ReadLimit | undefined = limit?.readable === undefined ? undefined : { readable: [...limit.readable] };
-      await permissions.grant(roleId, 'table', row.resourceRef, { ...rest, ...(update === undefined ? {} : { updateLimit: update }), ...(read === undefined ? {} : { readLimit: read }) });
+      const create: UpdateLimit | undefined =
+        limit?.creatable === undefined ? undefined : { writable: [...limit.creatable], ...(limit.creatableValues === undefined ? {} : { writableValues: limit.creatableValues }) };
+      await permissions.grant(roleId, 'table', row.resourceRef, {
+        ...rest,
+        ...(update === undefined ? {} : { updateLimit: update }),
+        ...(read === undefined ? {} : { readLimit: read }),
+        ...(create === undefined ? {} : { createLimit: create }),
+      });
     }
   };
   const before = seeded.size;
@@ -236,7 +243,7 @@ export async function writeManifestRoles(input: {
       const existing = await permissions.find(roleId, kind, ref);
       if (existing === null) return;
       const actions = { ...(existing.actions as Record<string, unknown>), [action]: false };
-      const anyLeft = Object.entries(actions).some(([name, value]) => name !== 'updateLimit' && name !== 'readLimit' && value === true);
+      const anyLeft = Object.entries(actions).some(([name, value]) => name !== 'updateLimit' && name !== 'readLimit' && name !== 'createLimit' && value === true);
       if (anyLeft) await permissions.grant(roleId, kind, ref, actions as never);
       else await permissions.revoke(roleId, kind, ref);
     };

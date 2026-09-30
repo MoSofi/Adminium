@@ -54,7 +54,7 @@ import { assertImportReadable, readViewOf } from '../crud/read-view.js';
 import { AppError } from '../errors.js';
 import { scrubRefusal } from '../routes/data/refusal-scrub.js';
 import { resolvePermissionSet } from '../rbac/resolver.js';
-import { updateLimitOf } from '../rbac/update-limits.js';
+import { assertImportCreatable, createLimitOf, updateLimitOf } from '../rbac/update-limits.js';
 import type { FileStore } from '../files/store.js';
 import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
 import type { WidgetDataCache } from '../widget-data/cache.js';
@@ -219,6 +219,7 @@ async function runImport(
     const permissions = await resolvePermissionSet(deps.meta, { kind: 'user', id: row.requestedBy, label: row.requestedBy });
     readView = readViewOf(view, permissions);
     assertImportReadable(readView, table.id, row.mapping.columns, matchColumn, updateLimitOf(permissions, row.connectionId, table.id)?.writable ?? null);
+    assertImportCreatable(createLimitOf(permissions, row.connectionId, table.id), table.id, row.mapping.columns);
   }
   /**
    * A refused row's words, as the person who asked may read them: a role that

@@ -104,8 +104,21 @@ describe('a role’s read of a table limited to some columns', () => {
     expect(messages([{ ...housekeeping, permissions: ['table:@patients:read'] }]).join('\n')).toContain('does not grant table:@appointments:read');
     expect(messages([{ ...housekeeping, limits: { appointments: { readable: ['nope'] } } }]).join('\n')).toContain('"appointments" has no column "nope"');
     expect(messages([{ ...housekeeping, limits: { appointments: { readable: ['status', 'status'] } } }]).join('\n')).toContain('"status" is listed twice');
-    expect(messages([{ ...housekeeping, limits: { appointments: {} } }]).join('\n')).toContain('writable) or read (readable)');
+    expect(messages([{ ...housekeeping, limits: { appointments: {} } }]).join('\n')).toContain('(writable), read (readable) or create with (creatable)');
     expect(messages([{ ...housekeeping, limits: { appointments: { readable: [] } } }])).not.toEqual([]);
     expect(messages([{ ...housekeeping, limits: { appointments: { readable: ['status'], writableValues: { status: ['ready'] } } } }]).join('\n')).toContain('name them (writable)');
+  });
+});
+
+describe('a role’s create on a table limited to some columns', () => {
+  const kiosk = { key: 'kiosk', name: 'Kiosk', permissions: ['table:@appointments:create'], limits: { appointments: { creatable: ['note'], creatableValues: { note: ['walk-in'] } } } };
+  it('takes the columns and values a new row may be given', () => {
+    expect(messages([kiosk])).toEqual([]);
+  });
+  it('refuses a create the role does not grant, a column the table lacks, and values for a column not creatable', () => {
+    expect(messages([{ ...kiosk, permissions: ['table:@appointments:read'] }]).join('\n')).toContain('does not grant table:@appointments:create');
+    expect(messages([{ ...kiosk, limits: { appointments: { creatable: ['nope'] } } }]).join('\n')).toContain('"appointments" has no column "nope"');
+    expect(messages([{ ...kiosk, limits: { appointments: { creatable: ['note'], creatableValues: { status: ['ready'] } } } }]).join('\n')).toContain('"status" is not creatable');
+    expect(messages([{ ...kiosk, limits: { appointments: { creatableValues: { note: ['x'] } } } }]).join('\n')).toContain('name them (creatable)');
   });
 });

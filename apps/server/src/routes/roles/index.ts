@@ -266,20 +266,30 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
       const limits = new Map<string, UpdateLimit>();
       // …and so does a limit on a read (housekeeping reads a stay's room, not its guest): dropped, the role would read every column.
       const reads = new Map<string, ReadLimit>();
+      // …and a limit on a create (a kitchen tablet never picks an order's channel or its link code).
+      const creates = new Map<string, UpdateLimit>();
       for (const row of held) {
         const limit = row.resourceKind === 'table' ? (row.actions as TableActions).updateLimit : undefined;
         if (limit !== undefined) limits.set(row.resourceRef, limit);
         const read = row.resourceKind === 'table' ? (row.actions as TableActions).readLimit : undefined;
         if (read !== undefined) reads.set(row.resourceRef, read);
+        const create = row.resourceKind === 'table' ? (row.actions as TableActions).createLimit : undefined;
+        if (create !== undefined) creates.set(row.resourceRef, create);
       }
       await meta.db.deleteFrom('adminium_role_permissions').where('roleId', '=', role.id).execute();
       for (const row of rows) {
         const limit = row.resourceKind === 'table' ? limits.get(row.resourceRef) : undefined;
         const read = row.resourceKind === 'table' ? reads.get(row.resourceRef) : undefined;
+        const create = row.resourceKind === 'table' ? creates.get(row.resourceRef) : undefined;
         const actions =
-          limit === undefined && read === undefined
+          limit === undefined && read === undefined && create === undefined
             ? row.actions
-            : { ...(row.actions as TableActions), ...(limit === undefined ? {} : { updateLimit: limit }), ...(read === undefined ? {} : { readLimit: read }) };
+            : {
+                ...(row.actions as TableActions),
+                ...(limit === undefined ? {} : { updateLimit: limit }),
+                ...(read === undefined ? {} : { readLimit: read }),
+                ...(create === undefined ? {} : { createLimit: create }),
+              };
         await permissions.grant(role.id, row.resourceKind, row.resourceRef, actions);
       }
       const after = grantsFromMatrixRows(await permissions.listForRole(role.id));

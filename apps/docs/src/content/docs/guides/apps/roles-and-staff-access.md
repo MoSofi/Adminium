@@ -77,7 +77,11 @@ Roles add up. Someone who also holds a role that may edit the table without a li
 manager, an Admin or Super Admin, is not limited. A role an app copies from a limited role
 (`cloneFrom`) is limited the same way.
 
-The limit applies to edits only. Creating records is its own permission, and deleting one too. Undo
+The limit applies to edits only. Creating records is its own permission, and an app can limit it the
+same way (`creatable`): a kitchen tablet may start an order with its name, pickup time and note, and
+never choose its channel, its customer or its link. A new record given a column outside that limit
+is refused with the same code and `reason: "create-limit"`, whether it is made on its own, added from
+another record's form, or imported. Deleting is its own permission too. Undo
 puts back what the same person changed a moment ago, and is not limited. Files attached beside a
 record are not columns of it, so the limit does not cover them.
 

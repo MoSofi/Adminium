@@ -140,6 +140,8 @@ export const tableActionsSchema = z.object({
   read_pii: z.boolean().optional(),
   /** Narrows `update` on this row; absent, the grant writes every column. */
   updateLimit: updateLimitSchema.optional(),
+  /** Narrows `create` on this row: the columns a new row may be given, and their values. Absent: any. */
+  createLimit: updateLimitSchema.optional(),
   /** Narrows `read` on this row; absent, the grant reads every column. */
   readLimit: readLimitSchema.optional(),
 });

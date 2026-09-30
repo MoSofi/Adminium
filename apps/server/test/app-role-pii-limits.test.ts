@@ -129,6 +129,13 @@ const MANIFEST = {
       permissions: ['table:@patients:read', 'table:@patients:update', 'table:@appointments:read', 'table:@appointments:update'],
       limits: { appointments: { writable: ['status'], writableValues: { status: ['roomed', 'with_clinician', 'ready'] } } },
     },
+    // Books a visit for a patient, and chooses nothing else about it: its note, never its status or copay.
+    {
+      key: 'kiosk',
+      name: 'Kiosk',
+      permissions: ['table:@patients:read', 'table:@appointments:read', 'table:@appointments:create'],
+      limits: { appointments: { creatable: ['patient_id', 'note'] } },
+    },
     // Personal columns of the visits table only: a lookup into patients stays masked.
     {
       key: 'scheduler',
@@ -508,6 +515,30 @@ for (const [dialect, available] of legs) {
         expect(res.statusCode, res.body).toBe(200);
         expect(await status()).toBe(value);
       }
+    });
+
+    it('hold a limited create to the columns a new row may be given, through a save of the role too', async () => {
+      const s = (open = await stack(dialect));
+      await seed(s);
+      const base = `/api/v1/data/${s.connectionId}/${s.table.appointments}`;
+      const kiosk = await person(s, 'kim@example.com', ['kiosk']);
+      const create = (values: Record<string, unknown>) => s.app.inject({ method: 'POST', url: base, headers: { cookie: kiosk }, payload: { values } });
+      // Its own columns, and an empty one, which is no choice of the kiosk's.
+      const made = await create({ patient_id: 1, note: 'walk-in', copay: null });
+      expect(made.statusCode, made.body).toBe(201);
+      const priced = await create({ patient_id: 1, copay: 0 });
+      expect(priced.statusCode).toBe(403);
+      expect(priced.json().error).toMatchObject({ code: 'COLUMN_FORBIDDEN', details: { table: s.table.appointments, column: 'copay', reason: 'create-limit' } });
+      expect((await create({ patient_id: 1, status: 'roomed' })).statusCode).toBe(403);
+      const owner = await signIn(s.app, 'owner@example.com');
+      const role = (await rolesRepo(s.meta).findBySlug('desk-kiosk'))!;
+      const grants = (await s.app.inject({ method: 'GET', url: `/api/v1/roles/${role.id}/permissions`, headers: { cookie: owner } })).json().grants as string[];
+      const saved = await s.app.inject({ method: 'PUT', url: `/api/v1/roles/${role.id}/permissions`, headers: { cookie: owner }, payload: { grants } });
+      expect(saved.statusCode, saved.body).toBe(200);
+      expect((await create({ patient_id: 1, copay: 0 })).statusCode).toBe(403);
+      // An admin creates whole.
+      const admin = await person(s, 'ada@example.com', ['admin']);
+      expect((await s.app.inject({ method: 'POST', url: base, headers: { cookie: admin }, payload: { values: { patient_id: 1, copay: 20 } } })).statusCode).toBe(201);
     });
 
     it('keep the limit through a save of the role in the permissions matrix', async () => {

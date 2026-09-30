@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Update grants that may not write everything.
+ * Update and create grants that may not write everything.
  *
  * An app's role can say its `update` on a table reaches only some columns,
  * and some of those only to some values: a clinician moves a visit along
@@ -32,7 +32,7 @@ import { grantMatches, isGranted } from './permissions.js';
 
 export type { UpdateLimit };
 
-/** One limited update grant, as the resolver collected it. */
+/** One limited update (or create) grant, as the resolver collected it. */
 export interface LimitedUpdate {
   /** The grant it narrows, `table:<connectionId>:<table>:update`. */
   grant: string;
@@ -98,6 +98,74 @@ export function updateLimitOf(
 }
 
 /**
+ * CREATE LIMITS. The same narrowing on a role's `create` (`creatable`,
+ * `creatableValues`, stored as `TableActions.createLimit`): a kitchen tablet
+ * may start an order with its name, pickup time and note, never its channel,
+ * its customer or its link code; a door phone may not give an order a code
+ * worth its price. Judged on what the caller sent for a NEW row — the create,
+ * each value of a `repeat`, a child row a form adds, an import's new row —
+ * where an empty value and the state column at its first state are no choice.
+ */
+export function createLimitOfRow(row: RolePermission): UpdateLimit | null {
+  if (row.resourceKind !== 'table') return null;
+  const actions = row.actions as TableActions;
+  return actions.create === true && actions.createLimit !== undefined ? actions.createLimit : null;
+}
+
+/** The limit this person's create on one table is held to, or null (as {@link updateLimitOf}). */
+export function createLimitOf(
+  set: { superAdmin?: boolean; createLimits?: UpdateLimits | undefined },
+  connectionId: string,
+  tableId: string,
+): UpdateLimit | null {
+  if (set.superAdmin === true || set.createLimits === undefined) return null;
+  const permission = `table:${connectionId}:${tableId}:create`;
+  const matching = set.createLimits.limited.filter((entry) => grantMatches(entry.grant, permission));
+  if (matching.length === 0) return null;
+  if (isGranted(set.createLimits.unlimited, permission)) return null;
+  return mergeLimits(matching.map((entry) => entry.limit));
+}
+
+/**
+ * Refuse a new row the create limit does not allow: 403 `COLUMN_FORBIDDEN`
+ * with `reason: 'create-limit'`. `initial` is the table's state column at its
+ * first state, which every new row starts in anyway.
+ */
+export function assertWithinCreateLimit(
+  limit: UpdateLimit | null,
+  table: string,
+  values: Readonly<Record<string, unknown>>,
+  initial?: { column: string; state: string } | undefined,
+): void {
+  if (limit === null) return;
+  const chosen = Object.entries(values).filter(
+    ([column, value]) => value !== null && value !== undefined && value !== '' && !(initial !== undefined && column === initial.column && sameValue(value, initial.state)),
+  );
+  assertWithinLimit(limit, table, Object.fromEntries(chosen), null, 'create-limit');
+}
+
+/**
+ * An import brings new rows: every column it maps is held to the create
+ * limit, and one whose values are limited is not brought in at all (each
+ * file row would be a choice the role may not make).
+ */
+export function assertImportCreatable(limit: UpdateLimit | null, table: string, mapping: readonly { to: string | null }[]): void {
+  if (limit === null) return;
+  const writable = new Set(limit.writable);
+  for (const entry of mapping) {
+    if (entry.to === null) continue;
+    if (!writable.has(entry.to) || limit.writableValues?.[entry.to] !== undefined) {
+      throw new ForbiddenError(`Your role may not give a new row ${entry.to} on this table, so it is not imported.`, 'COLUMN_FORBIDDEN', {
+        table,
+        column: entry.to,
+        reason: 'create-limit',
+        writable: limit.writable,
+      });
+    }
+  }
+}
+
+/**
  * Loose equality between a value sent and the value stored, across drivers.
  * When in doubt it answers "changed", which only ever refuses more.
  */
@@ -132,16 +200,17 @@ export function assertWithinLimit(
   table: string,
   values: Readonly<Record<string, unknown>>,
   before?: Readonly<Record<string, unknown>> | null,
+  reason: 'update-limit' | 'create-limit' = 'update-limit',
 ): void {
   if (limit === null) return;
   const writable = new Set(limit.writable);
   for (const [column, value] of Object.entries(values)) {
     if (before != null && column in before && sameValue(value, before[column])) continue;
     if (!writable.has(column)) {
-      throw new ForbiddenError(`Your role may not change ${column} on this table.`, 'COLUMN_FORBIDDEN', {
+      throw new ForbiddenError(reason === 'create-limit' ? `Your role may not give a new row ${column} on this table.` : `Your role may not change ${column} on this table.`, 'COLUMN_FORBIDDEN', {
         table,
         column,
-        reason: 'update-limit',
+        reason,
         writable: limit.writable,
       });
     }
@@ -150,7 +219,7 @@ export function assertWithinLimit(
       throw new ForbiddenError(
         `Your role may not set ${column} to ${JSON.stringify(value)} on this table.`,
         'COLUMN_FORBIDDEN',
-        { table, column, value, reason: 'update-limit', writableValues: allowed },
+        { table, column, value, reason, writableValues: allowed },
       );
     }
   }

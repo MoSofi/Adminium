@@ -1862,12 +1862,17 @@ values. The names are the ones [public access](#public-access) uses:
 | `writable` | no | The columns the update may change, at least one. |
 | `writableValues` | no | For a column in `writable`, the only values it may set (1–32, each a value of the column). Needs `writable`. |
 | `readable` | no | The only columns the role's read of the table shows, 1–200, each once. The key and the table's links to other rows are always read. Needs the role's `table:@<ref>:read`. |
+| `creatable` | no | The only columns a new row the role creates may be given; the rest take their defaults or what Adminium decides. Needs the role's `table:@<ref>:create`. |
+| `creatableValues` | no | For a column in `creatable`, the only values a new row may be given (1–32). Needs `creatable`. |
 
-A limit names `writable`, `readable`, or both.
+A limit names `writable`, `readable`, `creatable`, or any of them.
 
 The table must be one the app declares, and the role must grant `table:@<ref>:update` itself or
 through `cloneFrom`. Someone who also holds a role with an unlimited update on the table is not
-limited. Creating rows is not limited by `writable`. Every install and update writes the
+limited. Creating rows is not limited by `writable`; `creatable` limits it the same way, on the
+create itself, a row added from a parent's form, and an import (which may not bring in a column
+outside `creatable`, nor one whose values are limited). A value left empty, and the state column at
+its first state, are no choice and always pass. Every install and update writes the
 manifest's current limits. See [Edits limited to some columns](/guides/apps/roles-and-staff-access/#edits-limited-to-some-columns).
 
 `readable` limits what the role **reads** the same way: housekeeping reads a stay's room and dates,

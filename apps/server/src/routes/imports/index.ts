@@ -35,7 +35,7 @@ import { coerceCell } from '../../data-io/coerce.js';
 import { parseCsv } from '../../data-io/csv.js';
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { assertImportReadable, readViewOf } from '../../crud/read-view.js';
-import { updateLimitOf } from '../../rbac/update-limits.js';
+import { assertImportCreatable, createLimitOf, updateLimitOf } from '../../rbac/update-limits.js';
 import {
   ConflictError,
   ForbiddenError,
@@ -293,6 +293,8 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           (options.mode ?? 'insert') === 'upsert' ? (options.matchColumn ?? null) : null,
           updateLimitOf(permissions, connectionId, table.id)?.writable ?? null,
         );
+        // An import makes new rows: held to what the role's create may give one.
+        assertImportCreatable(createLimitOf(permissions, connectionId, table.id), table.id, mapping.columns);
         if ((options.mode ?? 'insert') === 'upsert') {
           const match = options.matchColumn ?? null;
           if (match === null) {
