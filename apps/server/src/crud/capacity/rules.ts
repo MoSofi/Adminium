@@ -54,6 +54,8 @@ export interface Hold {
 export interface Kept {
   level: Level;
   states: readonly string[];
+  /** The state a claim moves the kept rows it takes to (the pool's own rows). */
+  releaseTo?: string;
 }
 
 /** A size: a number, a setting, or a column of the row a pool is keyed by (with the day it holds for). */
@@ -202,7 +204,8 @@ function compile(view: SnapshotView, table: ResolvedTable, rule: EffectiveCapaci
     hold = { level, states: [...rule.hold.states], ends };
   }
   const reserved = rule.kind === 'parent' ? rule.reserved : undefined;
-  const kept: Kept | null = reserved === undefined ? null : { level: levelOf(reserved.via), states: [...reserved.states] };
+  const kept: Kept | null =
+    reserved === undefined ? null : { level: levelOf(reserved.via), states: [...reserved.states], ...(reserved.releaseTo === undefined ? {} : { releaseTo: reserved.releaseTo }) };
   const amountOf = (value: unknown): Common['amount'] => (typeof value === 'string' ? { column: value } : { value: typeof value === 'number' ? value : 1 });
   const common = { index, table, owner, ownerColumn, conditions, hold, kept };
 

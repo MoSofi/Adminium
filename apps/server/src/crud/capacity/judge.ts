@@ -650,8 +650,45 @@ export async function judgeCapacity(db: Db, rows: readonly JudgedRow[], opts: Ca
       const culprit = list.find((j) => j.need !== 'none' && j.units.some((u) => poolId(rule, u) === poolId(rule, t.ask)))!;
       throw fullRefusal(rule, t, culprit);
     }
+    // A claim took the places kept for it: as many kept rows of each pool move on, so the public counts what is left.
+    if (leavingOnly && opts.mode === 'save') await releaseKept(db, rule, list);
   }
   return states;
+}
+
+/**
+ * The kept rows (a returned ticket held for the waitlist) a claim took the
+ * places of, moved to `releaseTo`: per pool, as many as the rows leaving
+ * their hold there, oldest first, under the pool's lock the judge holds.
+ */
+async function releaseKept(db: Db, rule: Rule, list: readonly Judged[]): Promise<void> {
+  const kept = rule.kept;
+  if (rule.kind !== 'parent' || kept === null || kept.releaseTo === undefined || kept.level !== 'own') return;
+  const column = stateColumn(rule, 'own') ?? null;
+  const key = rule.table.primaryKey.length === 1 ? rule.table.primaryKey[0]! : null;
+  if (column === null || key === null) return;
+  const taken = new Map<string, number>();
+  for (const j of list) {
+    if (j.leaving !== true) continue;
+    for (const unit of j.units) if (unit.part === 'p') taken.set(unit.key, (taken.get(unit.key) ?? 0) + 1);
+  }
+  for (const [pool, count] of taken) {
+    const ids = (
+      (await db
+        .selectFrom(rule.table.id)
+        .select(db.dynamic.ref(key) as never)
+        .where((eb) => eb.and([eb(db.dynamic.ref(rule.viaColumn), '=', pool), eb(db.dynamic.ref(column), 'in', [...kept.states])]))
+        .orderBy(db.dynamic.ref(key))
+        .limit(count)
+        .execute()) as Row[]
+    ).map((row) => row[key]);
+    if (ids.length === 0) continue;
+    await db
+      .updateTable(rule.table.id)
+      .set({ [column]: kept.releaseTo } as never)
+      .where((eb) => eb(db.dynamic.ref(key), 'in', ids as never))
+      .execute();
+  }
 }
 
 function fullRefusal(rule: Rule, t: Tally, culprit: Judged): ConflictError {

@@ -633,7 +633,7 @@ const storedCapacityRule = z.discriminatedUnion('kind', [
       day: z.union([ruleColumn, z.object({ column: ruleColumn, via: ruleColumn.optional() }).strict()]).optional(),
       lockBy: ruleColumn.optional(),
       hold: capacityHold.optional(),
-      reserved: z.object({ states: z.array(stateName).min(1).max(8), via: ruleColumn.optional() }).strict().optional(),
+      reserved: z.object({ states: z.array(stateName).min(1).max(8), via: ruleColumn.optional(), releaseTo: stateName.optional() }).strict().optional(),
     })
     .strict(),
   z

@@ -465,6 +465,15 @@ Its states must be counted ones and not also held. It belongs to parent limits.
 An order that leaves its hold for a paid state takes no new place. It is counted as staff count,
 so the places kept back for the waitlist it was offered are not counted against it twice.
 
+Those kept places are the ones the claim took, so with `releaseTo` they move on in the same write:
+as many kept rows of the pool as places the claim takes, oldest first, move to that state (one of
+the pool row's own states, not kept). The public then counts what is truly left, and the box
+office's "back for the waitlist" count says only what is still to offer.
+
+```json
+"reserved": { "states": ["returned"], "releaseTo": "released" }
+```
+
 ### One live hold per guest
 
 A guest who goes back and changes their tickets makes a new hold. The old one is let go in the same

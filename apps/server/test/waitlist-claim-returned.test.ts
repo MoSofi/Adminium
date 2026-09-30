@@ -21,7 +21,7 @@ import { installInvoicing, LEGS, writerFor, type InvoicingHarness } from './invo
 const id = { ref: 'id', type: 'int', role: 'pk' };
 const offerUntil = (on: unknown) => ({ ref: 'offer_until', type: 'timestamptz', nullable: true, rules: { stamp: { set: { addMinutes: { hours: 12 } }, on } } });
 
-function velvet(): Record<string, unknown> {
+function velvet(release = false): Record<string, unknown> {
   return {
     kind: 'app',
     manifestVersion: 1,
@@ -69,7 +69,7 @@ function velvet(): Record<string, unknown> {
               { via: 'order_id', column: 'status', values: ['held', 'offered', 'door', 'paid'] },
             ],
             hold: { via: 'order_id', states: ['held', 'offered'], column: { column: 'offer_until', via: 'waitlist_id', or: [{ column: 'held_until' }] } },
-            reserved: { states: ['returned'] },
+            reserved: { states: ['returned'], ...(release ? { releaseTo: 'released' } : {}) },
           },
           states: { column: 'status', initial: 'valid', moves: { valid: ['returned'], returned: ['released'] } },
         },
@@ -188,5 +188,44 @@ describe.each(LEGS)('a waitlist offer claimed over places kept for the waitlist 
     await expect(w.create('tickets', { order_id: order['id'], ticket_type_id: type['id'] }, guest)).rejects.toMatchObject({ code: 'CAPACITY_FULL' });
     const desk = await w.create('orders', {});
     expect(await w.create('tickets', { order_id: desk['id'], ticket_type_id: type['id'] })).toMatchObject({ order_id: desk['id'] });
+  });
+});
+
+describe.each(LEGS)('a waitlist claim releases the places given back it took — %s', (dialect, available) => {
+  let h: InvoicingHarness;
+  let w: Awaited<ReturnType<typeof writerFor>>;
+  let guest: WriteContext;
+  beforeAll(async () => {
+    if (!available) return;
+    h = await installInvoicing(dialect, velvet(true));
+    w = await writerFor(h, 'Europe/London');
+    guest = { ...w.desk, origin: 'public', actor: { kind: 'system', id: null, label: 'Guest' } };
+  }, 180_000);
+  afterAll(async () => {
+    if (available) await h.close();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it.runIf(available)('moves two of three returned places to released when a claim of two passes, and the public counts one left', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-07-28T15:30:00Z'));
+    const type = await w.create('ticket_types', { name: 'Velvet Hour', capacity: 120 });
+    await h.rows(`insert into ${h.real('orders')} (status) values ('paid')`);
+    const paid = (await h.rows(`select max(id) as id from ${h.real('orders')}`))[0]!['id'];
+    // 120 sold, 3 given back; an offer of 2 to the first on the list.
+    const sold = Array.from({ length: 120 }, (_, i) => `(${String(paid)}, ${String(type['id'])}, '${i < 3 ? 'returned' : 'valid'}')`).join(', ');
+    await h.rows(`insert into ${h.real('tickets')} (order_id, ticket_type_id, status) values ${sold}`);
+    const entry = await w.create('waitlist', { email: 'mia@example.com' });
+    await w.update('waitlist', entry['id'], { status: 'offered' });
+    const offer = await w.create('orders', { waitlist_id: entry['id'] });
+    await w.update('orders', offer['id'], { status: 'offered' });
+    await h.rows(`insert into ${h.real('tickets')} (order_id, ticket_type_id, status) values (${String(offer['id'])}, ${String(type['id'])}, 'valid'), (${String(offer['id'])}, ${String(type['id'])}, 'valid')`);
+    vi.setSystemTime(new Date('2026-07-28T16:00:00Z'));
+    expect((await w.update('orders', offer['id'], { status: 'door' }, guest)).count).toBe(1);
+    const statuses = await h.rows(`select status, count(*) as n from ${h.real('tickets')} where ticket_type_id = ${String(type['id'])} group by status order by status`);
+    expect(Object.fromEntries(statuses.map((row) => [row['status'], Number(row['n'])]))).toEqual({ released: 2, returned: 1, valid: 119 });
+    // The one place still given back is the public's to be kept from: sold out for a guest, one for the box office.
+    const order = await w.create('orders', {}, guest);
+    await expect(w.create('tickets', { order_id: order['id'], ticket_type_id: type['id'] }, guest)).rejects.toMatchObject({ code: 'CAPACITY_FULL' });
   });
 });
