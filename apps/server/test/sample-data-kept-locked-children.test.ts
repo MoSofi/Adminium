@@ -97,15 +97,30 @@ const manifest = (tables: Record<string, unknown>[] = TABLES) => ({
 /** The same terms, with a note on the first clause: a row pointing at a clause by its label. */
 const NOTED_TABLES = [
   ...TABLES.slice(0, 2),
-  { ref: 'clause_notes', columns: [id, { ref: 'clause_id', type: 'fk', references: 'clauses' }, { ref: 'note', type: 'text', maxLength: 80 }] },
+  {
+    ref: 'clause_notes',
+    columns: [id, { ref: 'clause_id', type: 'fk', references: 'clauses' }, { ref: 'note', type: 'text', maxLength: 80 }, { ref: 'noted_at', type: 'timestamptz', nullable: true }],
+  },
   TABLES[2]!,
 ];
 const NOTED_BUNDLE = {
   ...BUNDLE,
   tables: [
     BUNDLE.tables[0]!,
-    { ref: 'clauses', rows: BUNDLE.tables[1]!.rows.map((row, i) => (i === 0 ? { '@label': 'clause:payment', ...row } : row)) },
-    { ref: 'clause_notes', rows: [{ clause_id: { '@ref': 'clause:payment' }, note: 'See the schedule' }] },
+    { ref: 'clauses', rows: BUNDLE.tables[1]!.rows.map((row, i) => (i === 0 ? { '@label': 'clause:payment', ...row } : i === 1 ? { '@label': 'clause:delivery', ...row } : row)) },
+    {
+      ref: 'clause_notes',
+      rows: [
+        { clause_id: { '@ref': 'clause:payment' }, note: 'See the schedule' },
+        // Written a day ago, on the delivery clause; only a branch never chosen for it names the payment clause.
+        {
+          clause_id: { '@ref': 'clause:delivery' },
+          note: 'Agreed on the call',
+          noted_at: { '@ago': 'P1D' },
+          '@byClock': { at: 'noted_at', after: { clause_id: { '@ref': 'clause:payment' } } },
+        },
+      ],
+    },
     BUNDLE.tables[2]!,
   ],
 };
@@ -264,17 +279,18 @@ for (const [dialect, reachable] of LEGS) {
     it('points the sample note at the clause it takes back', async () => {
       const { clauses } = await removedAroundYourDraft(false);
       expect(await rows('clause_notes')).toEqual([]);
-      expect((await service.add(app, user)).counts).toEqual({ terms: 1, clauses: 3, clause_notes: 1, proposals: 1 });
+      expect((await service.add(app, user)).counts).toEqual({ terms: 1, clauses: 3, clause_notes: 2, proposals: 1 });
       expect(await rows('clauses')).toEqual(clauses);
-      expect(await rows('clause_notes', 'clause_id')).toEqual([{ clause_id: clauses[0]!['id'] }]);
+      expect(await rows('clause_notes', 'clause_id')).toEqual([{ clause_id: clauses[0]!['id'] }, { clause_id: clauses[1]!['id'] }]);
     }, 120_000);
 
     it('leaves out the note of a clause you changed, and adds the rest', async () => {
-      await removedAroundYourDraft(true);
-      // The clause is yours now: the sample writes no second one beside it, and no note on either.
-      expect((await service.add(app, user)).counts).toEqual({ terms: 1, clauses: 2, proposals: 1 });
+      const { clauses } = await removedAroundYourDraft(true);
+      // The clause is yours now: the sample writes no second one beside it, and no note on it. The note on the
+      // delivery clause is written: only a branch never chosen for it names the payment clause.
+      expect((await service.add(app, user)).counts).toEqual({ terms: 1, clauses: 2, clause_notes: 1, proposals: 1 });
       expect((await rows('clauses', 'title')).map((r) => r['title'])).toEqual(['Payment within 14 days', 'Delivery', 'Cancellation']);
-      expect(await rows('clause_notes')).toEqual([]);
+      expect(await rows('clause_notes', 'clause_id, note')).toEqual([{ clause_id: clauses[1]!['id'], note: 'Agreed on the call' }]);
       expect(await service.status(app)).toMatchObject({ loaded: true });
     }, 120_000);
 
