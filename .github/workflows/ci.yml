@@ -426,9 +426,10 @@ jobs:
   suite:
     name: suite (${{ matrix.package }})
     runs-on: ubuntu-latest
-    # Well under verify's 40: the longest leg here is dashboard at ~8 minutes
-    # plus install and the dependency builds.
-    timeout-minutes: 25
+    # Under verify's 40: the longest leg here is server, at ~25 minutes on
+    # 2026-09-30 (its three-engine tests grow with every rule), plus install
+    # and the dependency builds.
+    timeout-minutes: 35
     strategy:
       # One red suite must not hide the state of the other two.
       fail-fast: false
