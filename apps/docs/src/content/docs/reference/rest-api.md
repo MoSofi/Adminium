@@ -830,7 +830,8 @@ under [Dry runs, price checks and retries](/reference/manifest/#dry-runs-price-c
 
 `POST /api/v1/data/{connectionId}/{table}` takes `children` beside `values`: the rows below the
 record, keyed by relation id (`model.relations[].id` in `GET /api/v1/connections/{id}/schema`). Each
-row is `{ key?, values, children? }`, two levels at most and up to 200 rows per list. A row's own
+row is `{ key?, values, children? }`, two levels at most and up to 1,000 rows per list, and 1,000
+below one create in all (the public API's creates take 200). A row's own
 `children` hold `{ values }` rows only. Every row is written in one transaction, or none; totals
 are settled from the bottom up, and the reply is the record as stored.
 
@@ -997,7 +998,8 @@ was sold can show less than nothing left.
 | `date` | One day, `YYYY-MM-DD`: a slot limit's day, or a parent limit that counts by day. |
 | `from`, `days` | A strip: up to 31 days for a slot limit, up to 62 nights for a night limit. |
 | `under`, `value` | A parent limit: the pools' rows whose column `under` holds `value` (an event's ticket types). |
-| `ids` | A parent or night limit: pool row ids, comma-separated, up to 200. |
+| `values` | With `under`: up to 50 values, comma-separated (a page of events), in one ask. Each row then says the value it is under (`under`). |
+| `ids` | A parent or night limit: pool row ids, comma-separated. Up to 500 pool rows are counted in one ask. |
 
 A slot limit takes `date` or `from` and `days`. A parent limit takes `ids` or `under` and `value`,
 with `date` when it counts by day. A night limit takes `from` and `days`, and every pool when

@@ -98,7 +98,7 @@ import {
   type ResolvedChild,
 } from '../../crud/child-rows.js';
 import { availabilityColumns, readAvailability } from '../../crud/availability.js';
-import type { TreeNode, TreeOutcome, TreePath } from '../../crud/write-tree.js';
+import { STAFF_TREE_MAX_ROWS, type TreeNode, type TreeOutcome, type TreePath } from '../../crud/write-tree.js';
 import { TreeCheckRefused } from '../../public-api/tree-checks.js';
 import { staffTreeRules } from './tree.js';
 import { declaredColumns, expectColumnOf, priceCheck, staffRetryKey } from './staff-quote.js';
@@ -117,6 +117,7 @@ const LINK_READ_CAP = 200;
 import { withOccurredAt } from '../../crud/occurred-at.js';
 import { withSeenState } from '../../crud/seen-state.js';
 import { moveBackOf, undoRolesOf } from '../../crud/undo-moves.js';
+import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import { announceEffects, effectsOf } from '../../states/effects.js';
 import { isStateRefusal } from '../../crud/state-conditions.js';
 import {
@@ -1074,6 +1075,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const written: { relationId: string; before: string[]; after: string[] }[] = [];
       const events: ChildEvent[] = [];
       const outcome = await writes.createTree({
+        maxRows: STAFF_TREE_MAX_ROWS,
         root,
         context,
         mode,
@@ -1599,11 +1601,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           connectionId: entry.connectionId,
           changes: { after: { table: entry.tableId, action: entry.action, restored: restoredIds.length } },
         });
-        if (app.hasDecorator('realtime')) {
-          app.realtime.publish(`table:${entry.connectionId}:${entry.tableId}`, 'record.undo', {
-            action: entry.action,
-          });
-        }
+        // Screens watching the table (a board, a kitchen) look again: the rows are back as they were.
+        if (app.hasDecorator('realtime')) publishWidgetDataStream(app.realtime, { connectionId: entry.connectionId, table, type: 'record.undo', pk: null, row: null });
         /*
          * D7 — the undo window is the reason a dashboard-origin rule waits 60 s
          * before it runs. Now that the write is taken back, the runs it queued
@@ -1654,7 +1653,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         connectionId: entry.connectionId,
         changes: { after: { table: entry.tableId, action: entry.action, restored: outcome.count, moveBack: back } },
       });
-      if (app.hasDecorator('realtime')) app.realtime.publish(`table:${entry.connectionId}:${entry.tableId}`, 'record.undo', { action: entry.action });
+      if (app.hasDecorator('realtime')) publishWidgetDataStream(app.realtime, { connectionId: entry.connectionId, table: ctx.table, type: 'record.undo', pk: null, row: null });
       return { restoredIds: outcome.count > 0 ? [pkLabel(ctx.table, pk)] : [] };
     }
 
@@ -2019,10 +2018,17 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           },
         });
         invalidateWidgetData(app, ctx.connectionId, ctx.table.id);
+        // Each row changed, as a row's own write announces it: a kitchen's board sees a bulk menu edit as it sees one dish's.
         if (app.hasDecorator('realtime')) {
-          app.realtime.publish(`table:${ctx.connectionId}:${ctx.table.id}`, `record.bulk-${action}`, {
-            count: okCount,
-          });
+          for (const event of events) {
+            publishWidgetDataStream(app.realtime, {
+              connectionId: ctx.connectionId,
+              table: ctx.table,
+              type: action === 'delete' ? 'record.delete' : 'record.update',
+              pk: event.pk,
+              row: action === 'delete' ? event.before : event.after,
+            });
+          }
         }
         await announceEffects(app, { connectionId: ctx.connectionId, view: ctx.view, effects: effected, origin: 'bulk', request });
         // Events, not the full helper: one operator action stays ONE audit row
@@ -2409,7 +2415,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         // Counts are made of the rule's columns (its dates, its states, its pools' sizes): refused, as a masked column, to a role that may not read one.
         refuseHiddenIn(ctx.view, ctx.table.table?.capacityRules?.[Number(request.query.rule ?? 0)] ?? ctx.table.table?.capacityRules);
         const timezone = (await connectionTenantConfig(meta, ctx.connectionId))?.timezone ?? 'UTC';
-        const { ids, ...rest } = request.query;
+        const { ids, values, ...rest } = request.query;
+        const list = (text: string) => text.split(',').map((item) => item.trim()).filter((item) => item !== '');
         // The tables the counts read beyond this one (the pools' rows), and a column asked under, as the asker may read them.
         const access = {
           table: async (tableId: string) => {
@@ -2422,7 +2429,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         };
         const answer = await capacityCounts(
           { connectionId: ctx.connectionId, view: ctx.view, table: ctx.table, db: ctx.db, dialect: ctx.dialect, timezone },
-          { ...rest, ...(ids === undefined ? {} : { ids: ids.split(',').map((id) => id.trim()).filter((id) => id !== '') }) },
+          { ...rest, ...(ids === undefined ? {} : { ids: list(ids) }), ...(values === undefined ? {} : { values: list(values) }) },
           new Date(),
           access,
         );

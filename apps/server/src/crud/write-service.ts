@@ -3078,8 +3078,9 @@ export function createWriteService(opts: WriteServiceOptions = {}): RecordWriteS
       }
       const everyRow = levels.flat();
       // So many rows below one create and no more, whichever door sent them.
-      if (everyRow.length - 1 > TREE_MAX_ROWS) {
-        await at(rootRow.node, () => Promise.reject(new ValidationFailedError(`A create carries ${String(TREE_MAX_ROWS)} rows below it at most.`, { child: levels[1]![0]!.node.name, reason: 'too-many' })));
+      const most = input.maxRows ?? TREE_MAX_ROWS;
+      if (everyRow.length - 1 > most) {
+        await at(rootRow.node, () => Promise.reject(new ValidationFailedError(`A create carries ${String(most)} rows below it at most.`, { child: levels[1]![0]!.node.name, reason: 'too-many' })));
       }
       // A child table a before hook runs for cannot take rows here: a hook may write through its own connection, which waits on this transaction.
       for (const row of everyRow.slice(1)) {

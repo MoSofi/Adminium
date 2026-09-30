@@ -541,7 +541,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     if (set.screensOnly === null) return;
     const settings = app.surfaceSettings === null ? NO_SURFACE_SETTINGS : await app.surfaceSettings.read();
     const connections = await appConnections(meta, settings, set.screensOnly);
-    if (allowedForScreensOnly(request.method, route, request.params, connections)) return;
+    if (allowedForScreensOnly(request.method, route, request.params, connections, set.screensOnly)) return;
     throw screensOnlyError(settings, set.screensOnly, request);
   });
 

@@ -136,7 +136,8 @@ tables.
 | `agrees`, `counts` | Checks that tie rows to each other ([below](#checks-that-tie-the-rows-together)). |
 
 No table appears twice in one write, and the table of the people who sign in is never a child
-row. Below one create, 200 rows in all are the most, whatever each list allows.
+row. Below one create, 200 rows in all are the most through the public API, whatever each list
+allows; a staff save takes up to 1,000 (a message with an email for each of a show's buyers).
 
 A child create that anyone may make without signing in asks for the [human check](#the-human-check),
 once for the whole write. The manifest check refuses an entry with `children` that anyone may use

@@ -51,10 +51,15 @@ export async function appConnections(meta: MetaDb, settings: SurfaceSettings, ap
  * (`/%61pi/v1/roles`, or the absolute form `GET http://host/api/v1/roles`)
  * and would then match no pattern here while still reaching the route.
  */
-export function allowedForScreensOnly(method: string, route: string, params: unknown, connections: ReadonlySet<string>): boolean {
+export function allowedForScreensOnly(method: string, route: string, params: unknown, connections: ReadonlySet<string>, appKeys: readonly string[] = []): boolean {
   if (!route.startsWith(`${API}/`)) return true;
   const rest = route.slice(API.length);
   if (/^\/(auth|data|i18n)(\/|$)/.test(rest)) return true;
+  // Their app's own documents (a folio printed at the desk): drawn, then read and printed. Each route
+  // checks the reads a document needs, and a screens-only person holds only their app's grants.
+  const key = (params as { key?: unknown } | null)?.key;
+  if (method === 'POST' && rest === '/apps/:key/documents/render' && typeof key === 'string' && appKeys.includes(key)) return true;
+  if (method === 'GET' && (rest === '/documents/:id/content' || rest === '/documents/:id/print')) return true;
   // The public API has its own gate, and a kiosk's staff-bound key rides it.
   if (rest.startsWith('/public/')) return true;
   if (rest === '/me' || rest.startsWith('/me/')) return true;

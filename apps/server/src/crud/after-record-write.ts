@@ -26,8 +26,9 @@
  * websocket frames — an audit log nobody can read is not a better audit log.
  * What a rule needs from a bulk write is the EVENTS (O7: bulk route writes
  * fire record triggers, per row), so bulk calls `emitRecordEvent` per
- * succeeded row and keeps its single `record.bulk-<action>` entry and its
- * one counted publish.
+ * succeeded row and keeps its single `record.bulk-<action>` entry. Its live
+ * frames go per row, as a row's own write sends them: a screen that listens
+ * for a row's change (a kitchen's board) cannot tell a bulk edit apart.
  *
  * ─── `origin` and `hops` travel with the event ─────────────────────────────
  *
@@ -189,7 +190,6 @@ export function publishChildWrite(
 ): void {
   invalidateWidgetData(app, input.connectionId, input.table.id);
   if (!app.hasDecorator('realtime')) return;
-  app.realtime.publish(`table:${input.connectionId}:${input.table.id}`, `record.${input.action}`, { pk: input.pk });
   publishWidgetDataStream(app.realtime, {
     connectionId: input.connectionId,
     table: input.table,
@@ -250,19 +250,13 @@ export async function afterRecordWrite(
       : await input.files.reconcile({ connectionId, table: table.id, entity, before, after });
 
   if (app.hasDecorator('realtime')) {
-    // Cache-invalidation fan-out — carries only the pk.
-    app.realtime.publish(`table:${connectionId}:${table.id}`, `record.${action}`, { pk: entity.pk });
-    // An open record page refetches its Attachments panel. No new channel —
-    // it rides the same table's WIDGET-DATA channel, not the `table:` one
-    // above, because `table:*` is publish-only: `parseChannel`
-    // (realtime/hub.ts) has no case for it, so `authorizeChannel` denies
-    // every subscription to it (realtime-hub.test.ts pins that as the
-    // deny-by-default example) and an event published there reaches no
-    // browser on either transport. `widget-data:<conn>:<table>` is the same
-    // table gated by exactly `table:<conn>:<table>:read` — the grant that
-    // lets a caller see this record and its files — and going through the
-    // shared publisher masks the pk the way every other frame on that
-    // channel is masked, since a natural key can itself be a PII column.
+    // An open record page refetches its Attachments panel. Every frame rides
+    // the table's WIDGET-DATA channel: `widget-data:<conn>:<table>` is gated
+    // by exactly `table:<conn>:<table>:read` — the grant that lets a caller
+    // see this record and its files — and the shared publisher masks the pk
+    // the way every other frame on that channel is masked, since a natural
+    // key can itself be a PII column. (A `table:` channel no browser can
+    // subscribe to is published on no more.)
     if (reconciled !== null && (reconciled.attached.length > 0 || reconciled.trashed.length > 0)) {
       publishWidgetDataStream(app.realtime, {
         connectionId,

@@ -123,7 +123,9 @@ is sent to the app instead of the dashboard:
   attached, otherwise at `/apps/<key>/staff/`;
 - the dashboard's API refuses them with `403` and the code `APP_SCREENS_ONLY`, except for what the
   app's screens need: signing in and out, their own account, the records their roles grant, live
-  updates and translations.
+  updates, translations, and their own app's documents (drawn for a record, then shown and printed,
+  as a front desk prints a folio). A document still needs every table and column it prints to be
+  one their roles read.
 
 Give that person any ordinary role as well, or make them Super Admin, and the dashboard opens for
 them again.

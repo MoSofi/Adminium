@@ -161,7 +161,7 @@ export interface ChildFacts {
 }
 
 /** Most lines one field reads or writes — the server's own cap. */
-export const MAX_CHILD_ROWS = 200;
+export const MAX_CHILD_ROWS = 1000;
 
 /** One child row as a form holds it: its key when it already exists. */
 export interface ChildRow {

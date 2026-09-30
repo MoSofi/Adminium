@@ -31,8 +31,8 @@ import type { Row } from './mask.js';
 /** The same bar link fields use: a guess nothing else trusts is not a field. */
 export const CHILD_CONFIDENCE = 0.8;
 
-/** Most child rows one parent's field may carry in a request. */
-export const MAX_CHILD_ROWS = 200;
+/** Most child rows one parent's field may carry in a request, and a change reads back (the desk's door: `STAFF_TREE_MAX_ROWS`). */
+export const MAX_CHILD_ROWS = 1000;
 
 export interface ResolvedChild {
   relationId: string;

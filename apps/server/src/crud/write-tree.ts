@@ -46,8 +46,11 @@ import type { WriteContext, WriteTarget } from './write-context.js';
 
 type Db = Kysely<SourceDatabase>;
 
-/** The most rows one create may carry below it, in all, through any door. */
+/** The most rows one create may carry below it, in all, through any door but the desk's. */
 export const TREE_MAX_ROWS = 200;
+
+/** …and through the desk's own (a message to a show's 382 buyers, with its emails): what a bulk write takes. */
+export const STAFF_TREE_MAX_ROWS = 1000;
 
 /** Where a row sits in the request: `['order_items', 3, 'order_item_modifiers', 1]`; `[]` for the root. */
 export type TreePath = readonly (string | number)[];
@@ -88,6 +91,8 @@ export interface TreeReplay {
 export interface CreateTreeInput {
   root: TreeNode;
   context: WriteContext;
+  /** The most rows it may carry below the root (the public door's {@link TREE_MAX_ROWS} when absent). */
+  maxRows?: number | undefined;
   /** `dry`: a quote — no named locks, no numbers, no person, nothing announced, always rolled back. */
   mode: 'save' | 'dry';
   /**

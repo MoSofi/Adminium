@@ -233,6 +233,22 @@ function suite(label: string, ready: boolean, setUp: () => Promise<Engine>, tear
       expect(await totalOf(id)).toBe(2);
     });
 
+    it('announces each row a bulk change or delete changed, where a screen listens', async () => {
+      const invoiceTable = `${e.invoices.includes('.') ? '' : 'main.'}${e.invoices}`;
+      const frames = () => published.filter((frame) => frame.channel === `widget-data:${e.connId}:${invoiceTable}`);
+      const made = await Promise.all(['Bulk A', 'Bulk B'].map((who) => post({ values: { who } })));
+      const ids = made.map((reply) => reply.json<Mutation>().data['id']);
+      const seen = frames().length;
+      const bulk = (action: string, values?: Record<string, unknown>) =>
+        e.t.app.inject({ method: 'POST', url: `/api/v1/data/${e.connId}/${e.invoices}/bulk`, headers: asUser(e.t.users.admin), payload: { action, ids, ...(values === undefined ? {} : { values }) } });
+      expect((await bulk('update', { who: 'Bulk C' })).statusCode).toBe(200);
+      expect(frames().slice(seen).map((frame) => [frame.type, String(frame.payload.pk?.['id'])])).toEqual(ids.map((id) => ['record.update', String(id)]));
+      expect((await bulk('delete')).statusCode).toBe(200);
+      expect(frames().slice(seen + 2).map((frame) => frame.type)).toEqual(['record.delete', 'record.delete']);
+      // Nothing goes to a channel no browser can listen on.
+      expect(published.some((frame) => frame.channel.startsWith('table:'))).toBe(false);
+    });
+
     it('fills a child column from its own default, not from the field', async () => {
       const reply = await post({
         values: { who: 'Umbrella' },

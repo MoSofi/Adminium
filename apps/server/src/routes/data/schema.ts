@@ -345,6 +345,8 @@ export const capacityCountsQuery = z
     /** A parent limit: the pools' rows sharing `value` in this column, or these ids (comma-separated). */
     under: z.string().min(1).max(128).optional(),
     value: z.string().min(1).max(200).optional(),
+    /** Several values under the same column at once, comma-separated (the shows of a page): each row says its own (`under`). */
+    values: z.string().min(1).max(4000).optional(),
     ids: z.string().min(1).max(4000).optional(),
   })
   .strict();

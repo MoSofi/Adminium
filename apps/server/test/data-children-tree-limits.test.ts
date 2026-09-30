@@ -104,13 +104,13 @@ describe.each(LEGS)("a desk's create with rows two levels down — %s", (dialect
     await h?.close();
   });
 
-  it.runIf(available)('carries two hundred rows below it at most, however they are spread', async () => {
+  it.runIf(available)('carries a thousand rows below it at most at the desk, however they are spread', async () => {
     const lines = `fk:${r.table('order_items')}(order_id)->${r.table('orders')}(id)`;
     const options = `fk:${r.table('order_item_modifiers')}(order_item_id)->${r.table('order_items')}(id)`;
     const before = Number((await h!.rows(`select count(*) as n from ${h!.real('orders')}`))[0]!['n']);
     const res = await r.post('orders', {
       values: { email: 'desk@example.com', name: 'Big table' },
-      children: { [lines]: [0, 1].map(() => ({ values: { menu_item_id: 1 }, children: { [options]: Array.from({ length: 100 }, () => ({ values: { modifier_id: 1 } })) } })) },
+      children: { [lines]: [0, 1].map(() => ({ values: { menu_item_id: 1 }, children: { [options]: Array.from({ length: 500 }, () => ({ values: { modifier_id: 1 } })) } })) },
     });
     expect(res.statusCode, res.body).toBe(422);
     expect(res.json<{ error: { details: Record<string, unknown> } }>().error.details).toMatchObject({ reason: 'too-many' });

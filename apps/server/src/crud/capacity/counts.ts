@@ -18,6 +18,8 @@
  * size), so a role that may not read one of them is refused the counts, as a
  * masked column is — here, where every door that answers them passes.
  */
+import { sql } from 'kysely';
+
 import type { ResolvedTable } from '../identifiers.js';
 import type { Row } from '../mask.js';
 import { refuseHiddenIn } from '../read-view.js';
@@ -35,8 +37,14 @@ export interface CountsAsk {
   /** A column of the pools' rows, and the value they share. */
   under?: string | undefined;
   value?: string | undefined;
+  /** Several values at once (the shows of a page): each row then says which it is under. */
+  values?: readonly string[] | undefined;
   ids?: readonly string[] | undefined;
 }
+
+/** The most pool rows one ask counts, and the most values it asks under. */
+const MOST_ROWS = 500;
+const MOST_VALUES = 50;
 
 /** What the asker may read, beyond the limited table: each refuses (403) what they may not. */
 export interface CountsAccess {
@@ -108,21 +116,29 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
     await access.table(rule.via.table.id);
     for (const wider of rule.also) if (wider.via !== null) await access.table(wider.via.table.id);
     let ids = [...(ask.ids ?? [])];
+    // Which value each row was found under, when asked under several.
+    const underOf = new Map<string, string>();
     if (ask.under !== undefined) {
-      // The rows sharing a value of one of their columns (the ticket types of an event).
-      if (ask.value === undefined || !rule.via.table.columns.has(ask.under)) return refused('Ask under a column of the pools\' rows, with its value.');
+      // The rows sharing a value of one of their columns (the ticket types of an event), or one of several (a page of events).
+      const wanted = [...(ask.value === undefined ? [] : [ask.value]), ...(ask.values ?? [])];
+      if (wanted.length === 0 || !rule.via.table.columns.has(ask.under)) return refused('Ask under a column of the pools\' rows, with its value.');
+      if (wanted.length > MOST_VALUES) return refused(`Ask under at most ${String(MOST_VALUES)} values at once.`);
       await access.column(rule.via.table, ask.under);
       const found = (await db
         .selectFrom(rule.via.table.id)
-        .select(db.dynamic.ref(rule.via.key) as never)
-        .where((eb) => eb(db.dynamic.ref(ask.under!), '=', ask.value!))
+        .select([db.dynamic.ref(rule.via.key) as never, sql.ref(ask.under).as('adm_under') as never])
+        .where((eb) => eb(db.dynamic.ref(ask.under!), 'in', wanted))
         .orderBy(db.dynamic.ref(rule.via.key))
-        .limit(200)
+        .limit(MOST_ROWS)
         .execute()) as Row[];
-      ids = [...ids, ...found.map((row) => String(row[rule.via!.key]))];
+      for (const row of found) {
+        const id = String(row[rule.via.key]);
+        ids.push(id);
+        if (ask.values !== undefined) underOf.set(id, String(row['adm_under']));
+      }
     }
     if (ids.length === 0) return refused('Ask for rows by ids, or by the column they share (under).');
-    ids = ids.slice(0, 200);
+    ids = ids.slice(0, MOST_ROWS);
     const day = rule.day === null ? undefined : (ask.date ?? undefined);
     if (rule.day !== null && day === undefined) return refused('This limit counts by day: ask for a date.');
     const own = new Map((await capacityState(db, target, { rule: rule.index, keys: ids, ...(day === undefined ? {} : { day }) }, now)).map((s) => [s.key, s]));
@@ -144,6 +160,7 @@ export async function capacityCounts(target: WriteTarget, ask: CountsAsk, now: D
           const state = own.get(id);
           return {
             id,
+            ...(underOf.has(id) ? { under: underOf.get(id) } : {}),
             size: state?.size ?? null,
             taken: state?.taken ?? 0,
             held: state?.held ?? 0,

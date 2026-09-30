@@ -223,6 +223,14 @@ for (const [dialect, available] of LEGS) {
         { id: '2', size: 40, taken: 0, held: 0, kept: 0, left: 40, also: [{ key: '1', size: 300, taken: 246, held: 3 }] },
         { id: '3', size: 20, taken: 0, held: 0, kept: 0, left: 20, also: [{ key: '1', size: 300, taken: 246, held: 3 }] },
       ]);
+      // A page of shows in one ask: each row says which show it is under; an unknown show adds none.
+      const page = await w.staff('tickets/capacity-counts?under=event_id&values=1,999');
+      expect(page.status, JSON.stringify(page.body)).toBe(200);
+      expect((page.body['data'] as { rows: { id: string; under?: string }[] }).rows.map((row) => [row.id, row.under])).toEqual([
+        ['1', '1'],
+        ['2', '1'],
+        ['3', '1'],
+      ]);
       await w.close();
 
       vi.setSystemTime(new Date('2026-07-20T09:00:00.000Z'));

@@ -622,7 +622,7 @@ made smaller after it sold, such as a room out of service, can show less than no
 | Kind | Ask | Each row |
 |---|---|---|
 | `slot` | `date`, or `from` and `days` (up to 31) | `time` or `date`, `size`, `taken`, `held`, and `paused` or `closed` |
-| `parent` | `ids`, or `under` with `value` (up to 200), and `date` for a limit that counts by day | `id`, `size`, `taken`, `held`, `kept`, `left`, and `also` for the wider pools |
+| `parent` | `ids`, or `under` with `value` or up to 50 `values` (up to 500 rows, each naming its `under` when asked by `values`), and `date` for a limit that counts by day | `id`, `size`, `taken`, `held`, `kept`, `left`, and `also` for the wider pools |
 | `night` | `from` and `days` (up to 62), optionally `ids` | `pool`, `date`, `size`, `outOfService`, `taken`, `held`, `left` |
 
 `rule` picks the limit, `0` by default. The asker needs read access to the table, to the pools'

@@ -103,6 +103,13 @@ describe('someone who opens only an app’s own screens', () => {
     expect((await get('/%61pi/v1/me', cookie)).statusCode).toBe(200);
     expect((await get('/api/v1/i18n/bundles/en_US/common', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
     expect((await get('/api/v1/data/conn_x/main.items', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
+    // Their own app's documents are drawn and printed at the desk; another app's are not theirs.
+    const render = (key: string) => app.inject({ method: 'POST', url: `/api/v1/apps/${key}/documents/render`, headers: { cookie }, payload: { kind: 'folio', ref: 'stays', pk: { id: 1 } } });
+    expect((await render('clients')).json().error?.code).not.toBe('APP_SCREENS_ONLY');
+    expect((await render('other')).json().error?.code).toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/documents/doc_1/print', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/documents/doc_1/content', cookie)).json().error?.code).not.toBe('APP_SCREENS_ONLY');
+    expect((await get('/api/v1/documents', cookie)).json().error?.code).toBe('APP_SCREENS_ONLY');
   });
 
   it('finds who they are, and their token, in the staff config', async () => {
