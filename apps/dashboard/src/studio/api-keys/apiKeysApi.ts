@@ -62,6 +62,8 @@ export interface KeyDto {
   purpose?: string;
   /** Answers only alongside a signed-in staff member holding this app role. */
   requiresStaff?: { appKey: string; roleSlug: string } | null;
+  /** Its own reads and writes a minute at its app's peak; absent from an older server, null for Adminium's own. */
+  peak?: { reads: number; writes: number } | null;
   origins: string[];
   expiresAt: number | null;
   revokedAt: number | null;

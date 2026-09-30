@@ -9,7 +9,7 @@
  * store did not know would be dropped on the way in, and the app would
  * install cleanly with a rule that never runs.
  */
-import { emailTemplatesRepo, overridesRepo, publicEndpointsRepo, type SchemaOverride } from '@adminium/meta';
+import { emailTemplatesRepo, overridesRepo, publicEndpointsRepo, publicKeysRepo, type SchemaOverride } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { applyOverrides } from '../src/connections/effective-schema.js';
@@ -208,6 +208,8 @@ function venueManifest(): Doc {
     },
     pages: [{ ref: 'overview', template: 'page-dashboard', title: { key: 't', fallback: 'Overview' }, nav: { group: 'venue', icon: 'home', order: 1 } }],
     frontends: [{ side: 'staff', kind: 'spa' }, { side: 'customer', kind: 'spa' }],
+    // The guests' key meets its on-sale peak with a budget of its own.
+    publicKeys: { customer: { peak: { reads: 9000, writes: 600 } } },
     publicAccess: [
       {
         table: 'orders',
@@ -361,6 +363,13 @@ for (const [dialect, available] of LEGS) {
       expect(columnRuleIssue('column.stamp', { ...rule('column.stamp', 'stays', 'cancel_by').value, on: { columns: ['departs'] } }, cancelBy, live, new Set())).toMatch(
         /has no column "departs" to watch/,
       );
+    });
+
+    it("keep the guests' key's own budget at the app's peak", async () => {
+      const h = await installInvoicing(dialect, venueManifest());
+      open = h;
+      const keys = (await publicKeysRepo(h.meta).listManagedBy('venue')).filter((key) => key.purpose === 'customer');
+      expect(keys.map((key) => [Number(key.peakReads), Number(key.peakWrites)])).toEqual([[9000, 600]]);
     });
 
     it('keep a public window read from moments, through the endpoint store and its printed text', async () => {

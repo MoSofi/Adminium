@@ -358,7 +358,8 @@ export interface PublicRateLimiter {
    * visitor's share of it; refused (nothing counted) when either is spent.
    * The ticket hands both back, once, for a request that was refused.
    */
-  holdKey: (keyId: string, side: PublicKeyShared, visitor: KeyShareIdentity) => { refused: RateDecision } | { ticket: KeyTicket };
+  /** `max`: the key's own budget a minute at its app's peak (`publicKeys.<key>.peak`); absent, Adminium's. */
+  holdKey: (keyId: string, side: PublicKeyShared, visitor: KeyShareIdentity, max?: number) => { refused: RateDecision } | { ticket: KeyTicket };
   /** Whether this address has used up its failed resolutions; counts nothing. */
   resolutionBlocked: (ip: string) => RateDecision | null;
   /** One more failed resolution from this address. */
@@ -564,10 +565,11 @@ export function createPublicRateLimiter(now: () => number = Date.now): PublicRat
     hitKey(keyId, side, cost = 1) {
       return decide(windows, keyRateKeyFor(keyId, side), PUBLIC_KEY_LIMITS[side], cost, true);
     },
-    holdKey(keyId, side, visitor) {
-      const spec = PUBLIC_KEY_LIMITS[side];
+    holdKey(keyId, side, visitor, max) {
+      // An app's own peak raises the key's budget, and each visitor's twelfth of it with it.
+      const spec = max === undefined ? PUBLIC_KEY_LIMITS[side] : { max, windowMs: PUBLIC_KEY_LIMITS[side].windowMs };
       const counters: [string, { max: number; windowMs: number }][] = [
-        [keyShareKeyFor(keyId, side, visitor), { max: PUBLIC_KEY_SHARES[side], windowMs: spec.windowMs }],
+        [keyShareKeyFor(keyId, side, visitor), { max: max === undefined ? PUBLIC_KEY_SHARES[side] : max / KEY_SHARE_VISITORS, windowMs: spec.windowMs }],
         [keyRateKeyFor(keyId, side), spec],
       ];
       // Both judged before either is added to: a visitor over their share never counts as the key's.

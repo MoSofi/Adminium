@@ -113,6 +113,8 @@ export const publicKeyDto = z.object({
   purpose: z.string(),
   /** A second key answers only alongside a signed-in staff member holding this app role. */
   requiresStaff: z.object({ appKey: z.string(), roleSlug: z.string() }).nullable(),
+  /** The key's own reads and writes a minute at its app's peak; null for Adminium's own. */
+  peak: z.object({ reads: z.number(), writes: z.number() }).nullable(),
   origins: z.array(z.string()),
   expiresAt: z.number().nullable(),
   revokedAt: z.number().nullable(),

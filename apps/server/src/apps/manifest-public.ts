@@ -782,6 +782,9 @@ export async function installPublicAccess(input: {
       throw error instanceof KeyCreateRefused ? refusedInPlainWords(error.issues) : error;
     }
     keys[purpose] = made.key.id;
+    // The key's own budget at the app's peak, when the manifest says one.
+    const peak = manifest.kind === 'app' ? manifest.publicKeys?.[purpose]?.peak : undefined;
+    if (peak !== undefined) await publicKeysRepo(input.meta).setPeak(made.key.id, peak);
     await input.onCommitted?.({ kind: 'key', purpose, keyId: made.key.id, access: [...saved] });
   }
   const granted: Record<string, string[]> = {};
@@ -855,6 +858,9 @@ export async function takeBackPublicAccess(input: {
       await input.onCommitted({ kind: 'revoke', keyId: key.id, purpose });
       continue;
     }
+    // The peak this version says for the key (or Adminium's own, when it says none).
+    const peak = manifest.publicKeys?.[purpose]?.peak ?? null;
+    if ((key.peakReads ?? null) !== (peak?.reads ?? null) || (key.peakWrites ?? null) !== (peak?.writes ?? null)) await keysRepo.setPeak(key.id, peak);
     const declared = new Map(planned.filter((entry) => entry.key === purpose).map((entry) => [entry.ref, entry.methods] as const));
     const { lost } = await input.service.narrowManagedAccess({ connectionId, keyId: key.id, declared });
     if (lost.length > 0) await input.onCommitted({ kind: 'withdraw', keyId: key.id, purpose, lost });

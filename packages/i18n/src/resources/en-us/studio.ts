@@ -2835,7 +2835,9 @@ export default {
       "title": "Active keys",
       "untitled": "Untitled key",
       "staffOnly": "Staff screen only",
-      "staffOnlyHint": "Answers only on a screen where a staff member holding {role} is signed in."
+      "staffOnlyHint": "Answers only on a screen where a staff member holding {role} is signed in.",
+      "peak": "Peak {reads}/{writes}",
+      "peakHint": "At its app's peak this key reads up to {reads} and writes up to {writes} a minute; each visitor gets a twelfth."
     },
     "method": {
       "BATCH": {

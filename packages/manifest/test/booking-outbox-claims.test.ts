@@ -521,6 +521,10 @@ describe('claims, levels and keys', () => {
       '"customer" is the app\'s own key',
     );
     expect(issuesOf(changed((d) => d.publicAccess.splice(6, 2)))).toContain('no entry is served through "kiosk"');
+    // The app's own key is named only for its peak, within five times Adminium's own budget.
+    expect(issuesOf(changed((d) => ((d.publicKeys as Record<string, unknown>)['customer'] = { peak: { reads: 12_000, writes: 900 } })))).toBe('');
+    expect(issuesOf(changed((d) => ((d.publicKeys as Record<string, unknown>)['customer'] = { peak: { reads: 20_000, writes: 900 } })))).not.toBe('');
+    expect(issuesOf(changed((d) => ((d.publicKeys.kiosk as Record<string, unknown>)['peak'] = { reads: 3000, writes: 300 })))).toBe('');
   });
 
   it('checks caps, settings switches and ranks against the table', () => {

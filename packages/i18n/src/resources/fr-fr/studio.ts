@@ -2835,7 +2835,9 @@ export default {
       "title": "Clés actives",
       "untitled": "Clé sans nom",
       "staffOnly": "Écran du personnel uniquement",
-      "staffOnlyHint": "Ne répond que sur un écran où un membre du personnel ayant le rôle {role} est connecté."
+      "staffOnlyHint": "Ne répond que sur un écran où un membre du personnel ayant le rôle {role} est connecté.",
+      "peak": "Pic {reads}/{writes}",
+      "peakHint": "Au pic de son app, cette clé lit jusqu’à {reads} et écrit jusqu’à {writes} par minute ; chaque visiteur en reçoit un douzième."
     },
     "method": {
       "BATCH": {

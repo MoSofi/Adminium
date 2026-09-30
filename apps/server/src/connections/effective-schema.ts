@@ -140,6 +140,8 @@ export interface ColumnPerNightRule {
   from: string;
   to: string;
   rate: { via: string; column: string };
+  /** A part of another row's price by the night: this row's link to it, and its priced column. */
+  of?: { via: string; column: string };
   adjust?: {
     table: string;
     match: { via?: string; weekdays?: string; from?: string; to?: string };

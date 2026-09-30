@@ -809,6 +809,7 @@ the column holds their sum.
 | `from`, `to` | Two different `date` columns of the row: the first night, and the day after the last. |
 | `rate` | `{ "via", "column" }`: a foreign key of the row, and the number column of the row it points at that holds the base rate. Never a secret or personal column. |
 | `adjust` | Optional. `table` holds the adjustments; `add` is the number added to a night (negative for a discount) and `name` the `text` a night's line is tagged with. |
+| `of` | Optional. `{ "via", "column" }`: this row's nights are a part of another row's price by the night (a credit for the nights a stay did not use): `via` a foreign key of this row, `column` that row's priced column. While that row's rates are the ones it was priced at, the part is today's price exactly; after they changed, it is scaled to what the row was charged, and never more than it. That column may not itself be a part. |
 | `adjust.match` | Which adjustments apply to a night. `via`: a foreign key to what `rate.via` points at (empty on a row: every type). `weekdays`: a `text` column of at least 27 characters listing nights like `fri,sat` (empty: every night). `from`, `to`: `date` columns, the first and last night it applies on, both included (empty: open). |
 | `adjust.where` | `{ "column", "eq" }`: only adjustments whose column holds the value (`active` is `true`). The column may not be nullable. |
 
@@ -3037,8 +3038,10 @@ CSRF token on a write. A token copied out of the page opens nothing on its own.
 |---|---|---|
 | `requiresStaff` | yes, but see below | `{ "role" }`: one of the app's roles. It must be `screensOnly`, with no `cloneFrom` and no grant but `app:@:staff`, because the screen stands where anyone can walk up to it. |
 | `enabledBy` | no | `{ "table", "column" }`: a bool of the settings table. While it is false the key answers `PUBLIC_KEY_OFF`. Read as `requireSetting` is, and trusted for 15 seconds. |
+| `peak` | no | `{ "reads", "writes" }`: the key's own budget a minute at the app's peak (a show going on sale), from Adminium's own 3,000 reads and 300 writes up to five times that. Each visitor still gets a twelfth. Written at install, and changed by an update. |
 
-`customer` cannot be declared here, and at least one entry must name each key. A request without
+`customer` is declared here only for its `peak`: `"customer": { "peak": { "reads": 9000, "writes":
+600 } }`. At least one entry must name every other key. A request without
 the right staff sign-in is refused with `PUBLIC_STAFF_REQUIRED`; a super-admin is refused too.
 Claims through a staff-bound key ask no proof, and their sessions last 3 minutes. See
 [A kiosk](/guides/apps/public-access/#a-kiosk).

@@ -334,6 +334,14 @@ export function ApiKeysPage() {
                           {t('studio:apiKeys.keys.staffOnly', 'Staff screen only')}
                         </span>
                       ) : null}
+                      {key.peak != null ? (
+                        <span
+                          className="shrink-0 rounded-[5px] bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold text-fg-muted"
+                          title={t('studio:apiKeys.keys.peakHint', "At its app's peak this key reads up to {reads} and writes up to {writes} a minute; each visitor gets a twelfth.", { reads: key.peak.reads, writes: key.peak.writes })}
+                        >
+                          {t('studio:apiKeys.keys.peak', 'Peak {reads}/{writes}', { reads: key.peak.reads, writes: key.peak.writes })}
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                   <div role="cell" className={CELL}>

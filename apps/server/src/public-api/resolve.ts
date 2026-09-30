@@ -49,6 +49,8 @@ export interface ResolvedKey {
   requiresStaff: KeyStaffBinding | null;
   /** A yes/no in the app's settings row that switches the key off. */
   enabledBy: KeyEnabledBy | null;
+  /** The key's own reads and writes a minute at its app's peak; null for Adminium's own budget. */
+  peak: { reads: number; writes: number } | null;
 }
 
 export interface PublicKeyRow {
@@ -68,6 +70,9 @@ export interface PublicKeyRow {
   purpose?: string;
   requiresStaff?: string | null;
   enabledBy?: string | null;
+  /** Absent on rows written before a key could have its own peak (wave 0048). */
+  peakReads?: number | null;
+  peakWrites?: number | null;
 }
 
 export interface PublicScopeRow {
@@ -242,6 +247,11 @@ export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
         matched.enabledBy === null || matched.enabledBy === undefined
           ? null
           : (keyEnabledBy({ enabledBy: matched.enabledBy }) ?? { table: '', column: '' }),
+      // Both, as numbers, or Adminium's own: a peak half written is none.
+      peak:
+        typeof matched.peakReads === 'number' && typeof matched.peakWrites === 'number' && matched.peakReads > 0 && matched.peakWrites > 0
+          ? { reads: Number(matched.peakReads), writes: Number(matched.peakWrites) }
+          : null,
     };
     if (started === generation) {
       // Never cached past the key's own expiry: a key must stop at

@@ -2835,7 +2835,9 @@ export default {
       "title": "Aktive Schlüssel",
       "untitled": "Unbenannter Schlüssel",
       "staffOnly": "Nur Mitarbeiterbildschirm",
-      "staffOnlyHint": "Antwortet nur auf einem Bildschirm, an dem ein Mitarbeiter mit {role} angemeldet ist."
+      "staffOnlyHint": "Antwortet nur auf einem Bildschirm, an dem ein Mitarbeiter mit {role} angemeldet ist.",
+      "peak": "Spitze {reads}/{writes}",
+      "peakHint": "Zur Spitzenzeit ihrer App liest dieser Schlüssel bis zu {reads} und schreibt bis zu {writes} pro Minute; jeder Besucher erhält ein Zwölftel."
     },
     "method": {
       "BATCH": {

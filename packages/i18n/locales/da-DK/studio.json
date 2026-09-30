@@ -2825,7 +2825,9 @@
       "title": "Aktive nøgler",
       "untitled": "Unavngivet nøgle",
       "staffOnly": "Kun personaleskærm",
-      "staffOnlyHint": "Svarer kun på en skærm, hvor en medarbejder med {role} er logget ind."
+      "staffOnlyHint": "Svarer kun på en skærm, hvor en medarbejder med {role} er logget ind.",
+      "peak": "Spids {reads}/{writes}",
+      "peakHint": "Når appen topper, læser denne nøgle op til {reads} og skriver op til {writes} i minuttet; hver besøgende får en tolvtedel."
     },
     "method": {
       "BATCH": {

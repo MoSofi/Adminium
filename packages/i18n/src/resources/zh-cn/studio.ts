@@ -2835,7 +2835,9 @@ export default {
       "title": "有效密钥",
       "untitled": "未命名密钥",
       "staffOnly": "仅限员工屏幕",
-      "staffOnlyHint": "仅在拥有 {role} 角色的员工已登录的屏幕上响应。"
+      "staffOnlyHint": "仅在拥有 {role} 角色的员工已登录的屏幕上响应。",
+      "peak": "峰值 {reads}/{writes}",
+      "peakHint": "在应用高峰期，此密钥每分钟最多读取 {reads} 次、写入 {writes} 次；每位访客获得其中的十二分之一。"
     },
     "method": {
       "BATCH": {

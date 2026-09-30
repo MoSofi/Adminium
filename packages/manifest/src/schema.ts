@@ -383,6 +383,14 @@ export const perNightSchema = z
     to: refSchema,
     /** A foreign key of this row, and the number column of the row it points at. */
     rate: z.object({ via: refSchema, column: refSchema }).strict(),
+    /**
+     * A part of another row's price by the night (a credit for the nights a
+     * stay did not use): `via` a foreign key of this row, `column` that row's
+     * price by the night. The nights are priced as that row's are; when its
+     * stored price no longer matches today's rates (they changed since it was
+     * priced), the part is scaled to what it was charged, and never more.
+     */
+    of: z.object({ via: refSchema, column: refSchema }).strict().optional(),
     adjust: z
       .object({
         /** The table of adjustments. */
@@ -1577,6 +1585,17 @@ function perNightIssues(
     else if (found.type !== 'date') out.push({ path: at(name), message: `"${table.ref}.${rule[name]}" is not a date` });
   }
   if (rule.from === rule.to) out.push({ path: at('to'), message: 'the nights run between two different dates' });
+  if (rule.of !== undefined) {
+    const link = index.column(table.ref, rule.of.via);
+    const parent = link?.type === 'fk' ? link.references : undefined;
+    if (parent === undefined) out.push({ path: at('of', 'via'), message: `"${rule.of.via}" is not a foreign key of "${table.ref}"` });
+    else {
+      const priced = index.table(parent)?.columns.find((c) => c.ref === rule.of!.column);
+      if (priced === undefined) out.push({ path: at('of', 'column'), message: `"${parent}" has no column "${rule.of.column}"` });
+      else if (priced.rules?.perNight === undefined) out.push({ path: at('of', 'column'), message: `"${parent}.${rule.of.column}" is not priced by the night` });
+      else if (priced.rules.perNight.of !== undefined) out.push({ path: at('of', 'column'), message: `"${parent}.${rule.of.column}" is itself a part of another price; a part is of a whole` });
+    }
+  }
   const via = index.column(table.ref, rule.rate.via);
   const target = via?.type === 'fk' ? via.references : undefined;
   if (target === undefined) {

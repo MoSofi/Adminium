@@ -2835,7 +2835,9 @@ export default {
       "title": "Aktivní klíče",
       "untitled": "Klíč bez názvu",
       "staffOnly": "Jen obrazovka personálu",
-      "staffOnlyHint": "Odpovídá jen na obrazovce, kde je přihlášen zaměstnanec s rolí {role}."
+      "staffOnlyHint": "Odpovídá jen na obrazovce, kde je přihlášen zaměstnanec s rolí {role}.",
+      "peak": "Špička {reads}/{writes}",
+      "peakHint": "Ve špičce své aplikace tento klíč čte až {reads} a zapisuje až {writes} za minutu; každý návštěvník dostane dvanáctinu."
     },
     "method": {
       "BATCH": {

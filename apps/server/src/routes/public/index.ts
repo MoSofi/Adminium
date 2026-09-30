@@ -1234,11 +1234,16 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     const rung = opts.keyWide === false ? null : KEY_RUNGS[limit] ?? null;
     if (key.kind === 'browser' && (rung === 'read' || rung === 'write')) {
       // Reads and writes: within the visitor's share of the key (a signed-in person's own, behind any address), and handed back when the request is refused (`keyHolds`).
-      const held = limiter.holdKey(key.keyId, rung, {
-        ip: request.ip,
-        ...(counted.staffSessionId === undefined ? {} : { staffSessionId: counted.staffSessionId }),
-        ...(session === null ? {} : { sessionId: session.id }),
-      });
+      const held = limiter.holdKey(
+        key.keyId,
+        rung,
+        {
+          ip: request.ip,
+          ...(counted.staffSessionId === undefined ? {} : { staffSessionId: counted.staffSessionId }),
+          ...(session === null ? {} : { sessionId: session.id }),
+        },
+        key.peak === null ? undefined : rung === 'read' ? key.peak.reads : key.peak.writes,
+      );
       if ('refused' in held) {
         admit(reply, held.refused);
         return null;

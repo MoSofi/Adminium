@@ -309,8 +309,16 @@ export interface CreatePublicKeyInput {
   requiresStaff?: KeyStaffBinding | null;
   /** A bool in the app's settings row that switches the key off. */
   enabledBy?: KeyEnabledBy | null;
+  /** The key's budget a minute at its app's peak; absent for Adminium's own. */
+  peak?: KeyPeak | null;
   createdBy?: string | null;
   expiresAt?: number | null;
+}
+
+/** A key's budget a minute at its app's peak (`publicKeys.<key>.peak`). */
+export interface KeyPeak {
+  reads: number;
+  writes: number;
 }
 
 export function publicKeysRepo(meta: MetaDb) {
@@ -339,6 +347,8 @@ export function publicKeysRepo(meta: MetaDb) {
         purpose: input.purpose ?? CUSTOMER_KEY_PURPOSE,
         requiresStaff: input.requiresStaff === undefined || input.requiresStaff === null ? null : JSON.stringify(input.requiresStaff),
         enabledBy: input.enabledBy === undefined || input.enabledBy === null ? null : JSON.stringify(input.enabledBy),
+        peakReads: input.peak?.reads ?? null,
+        peakWrites: input.peak?.writes ?? null,
       };
       await on.insertInto('adminium_public_keys').values(row).execute();
       return row;
@@ -517,6 +527,15 @@ export function publicKeysRepo(meta: MetaDb) {
           requiresStaff: input.requiresStaff === null ? null : JSON.stringify(input.requiresStaff),
           enabledBy: input.enabledBy === null ? null : JSON.stringify(input.enabledBy),
         })
+        .where('id', '=', id)
+        .execute();
+    },
+
+    /** An app's key's budget at its peak, as its manifest says it now (an update may change it). */
+    async setPeak(id: string, peak: KeyPeak | null): Promise<void> {
+      await db
+        .updateTable('adminium_public_keys')
+        .set({ peakReads: peak?.reads ?? null, peakWrites: peak?.writes ?? null })
         .where('id', '=', id)
         .execute();
     },

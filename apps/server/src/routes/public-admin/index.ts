@@ -161,6 +161,7 @@ function keyToDto(row: PublicKey, extras: KeyExtras = NO_EXTRAS): PublicKeyDto {
     purpose: row.purpose,
     // Stored but unreadable reads as bound to nobody, as the gate treats it.
     requiresStaff: row.requiresStaff === null ? null : (keyStaffBinding(row) ?? { appKey: '', roleSlug: '' }),
+    peak: row.peakReads === null || row.peakWrites === null ? null : { reads: Number(row.peakReads), writes: Number(row.peakWrites) },
     origins,
     expiresAt: row.expiresAt,
     revokedAt: row.revokedAt,

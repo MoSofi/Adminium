@@ -1031,6 +1031,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       from: ruleColumn,
       to: ruleColumn,
       rate: z.object({ via: ruleColumn, column: ruleColumn }),
+      /** A part of another row's price by the night: its link, and that row's priced column. */
+      of: z.object({ via: ruleColumn, column: ruleColumn }).optional(),
       adjust: z
         .object({
           table: ruleTable,

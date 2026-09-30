@@ -666,11 +666,22 @@ export const publicKeySchema = z
      */
     requiresStaff: z.object({ role: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a role key') }).strict().optional(),
     enabledBy: settingRefSchema.optional(),
+    /**
+     * The key's budget a minute when its app meets its peak (a show going on
+     * sale): from Adminium's own (3,000 reads, 300 writes) up to five times
+     * that. Each visitor still gets a twelfth of it. Read at install.
+     */
+    peak: z
+      .object({ reads: z.number().int().min(3000).max(15_000), writes: z.number().int().min(300).max(1500) })
+      .strict()
+      .optional(),
   })
   .strict();
 export const publicKeysSchema = z
   .record(keyNameSchema, publicKeySchema)
-  .refine((keys) => !(CUSTOMER_KEY in keys), { message: '"customer" is the app\'s own key and is not declared here' });
+  .refine((keys) => !(CUSTOMER_KEY in keys) || Object.keys(keys[CUSTOMER_KEY] ?? {}).every((field) => field === 'peak'), {
+    message: '"customer" is the app\'s own key: only its peak is said here',
+  });
 export type PublicKey = z.infer<typeof publicKeySchema>;
 
 interface PublicAccessContext {
@@ -787,6 +798,8 @@ export function publicAccessIssues(entries: readonly PublicAccess[], ctx: Public
 
   for (const [name, key] of Object.entries(ctx.publicKeys ?? {})) {
     const at = ['publicKeys', name];
+    // The app's own key, named only for its peak: nothing more to check.
+    if (name === CUSTOMER_KEY) continue;
     if (key.requiresStaff === undefined) {
       // No one signs this key in: it may only open one row by its token, and read.
       const identity = entries.find((entry) => (entry.key ?? CUSTOMER_KEY) === name && entry.claim !== undefined);

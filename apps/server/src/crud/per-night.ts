@@ -53,7 +53,7 @@ const sameDay = (a: unknown, b: unknown): boolean => {
  */
 export function repricedBy(rule: ColumnPerNight, values: Row, stored?: Row | null): boolean {
   const moves = (column: string, same: (a: unknown, b: unknown) => boolean) => has(values, column) && (stored === undefined || stored === null || !same(values[column], stored[column]));
-  return moves(rule.from, sameDay) || moves(rule.to, sameDay) || moves(rule.rate.via, sameValue);
+  return moves(rule.from, sameDay) || moves(rule.to, sameDay) || moves(rule.rate.via, sameValue) || (rule.of !== undefined && moves(rule.of.via, sameValue));
 }
 
 /** A price's nights as read: the rate row it read (with the columns asked for), the nights, and their total. */
@@ -181,9 +181,32 @@ export async function priceValues(
   const row = { ...(stored ?? {}), ...values };
   const places = placesFor(rule.scale, row, rules?.currencyColumn, rule.scale === 'currency' ? await opts.currency() : null);
   const priced = await priceNights(db, rule, row, places);
-  const out: Row = { ...values, [rule.column]: priced.total };
+  const total = rule.of === undefined || priced.total === null ? priced.total : await partOfStored(db, rule.of, row, priced.total, places);
+  const out: Row = { ...values, [rule.column]: total };
   if (priced.tooLong) attachPriceIssues(out, { [rule.to]: { code: 'out-of-range' } });
   return out;
+}
+
+/**
+ * A part of another row's price (a credit for the nights a stay did not use),
+ * as that row was charged: its nights priced today, scaled by what the row
+ * was charged over what its own nights come to today — exact while its rates
+ * are the ones it was priced at — and never more than the row was charged.
+ */
+async function partOfStored(db: Db, of: NonNullable<ColumnPerNight['of']>, row: Row, today: string, places: number): Promise<string> {
+  const link = row[of.via];
+  if (empty(link)) return today;
+  const whole = ((await db.selectFrom(of.table).selectAll().where((eb) => eb(db.dynamic.ref(of.key), '=', link)).executeTakeFirst()) ?? null) as Row | null;
+  if (whole === null) return today;
+  const charged = toRatio(whole[of.parent.column]);
+  const now = toRatio((await priceNights(db, of.parent, whole, places)).total);
+  const part = toRatio(today);
+  if (charged === null || now === null || part === null || now.n === 0n) return today;
+  // part × charged / now, exactly, then once to the column's places; never above what the row was charged.
+  const scaled = { n: part.n * charged.n * now.d, d: part.d * charged.d * now.n };
+  const normal = scaled.d < 0n ? { n: -scaled.n, d: -scaled.d } : scaled;
+  const over = normal.n * charged.d > charged.n * normal.d;
+  return ratioText(over ? charged : normal, places);
 }
 
 /** One line of a stay's nights as the desk and a document show them: a night (qty 1), or the one stale line. */

@@ -2835,7 +2835,9 @@ export default {
       "title": "有效金鑰",
       "untitled": "未命名金鑰",
       "staffOnly": "僅限員工螢幕",
-      "staffOnlyHint": "僅在擁有 {role} 角色的員工已登入的螢幕上回應。"
+      "staffOnlyHint": "僅在擁有 {role} 角色的員工已登入的螢幕上回應。",
+      "peak": "峰值 {reads}/{writes}",
+      "peakHint": "在應用程式尖峰時，此金鑰每分鐘最多讀取 {reads} 次、寫入 {writes} 次；每位訪客獲得其中的十二分之一。"
     },
     "method": {
       "BATCH": {

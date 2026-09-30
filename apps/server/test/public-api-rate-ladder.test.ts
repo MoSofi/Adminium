@@ -368,6 +368,16 @@ describe("no one visitor spends the whole key", () => {
     expect(PUBLIC_KEY_SHARES.write).toBeGreaterThanOrEqual(PUBLIC_LIMITS['public-write'].max);
   });
 
+  it("raises a key's budget to its app's peak, and each address's share with it", () => {
+    const limiter = createPublicRateLimiter(() => 1_000);
+    // A peak of 900 writes a minute: each address a twelfth, 75, where Adminium's own gives 25.
+    for (let i = 0; i < 75; i += 1) expect('ticket' in limiter.holdKey('pbk_peak', 'write', { ip: '198.51.100.9' }, 900), `write ${String(i)}`).toBe(true);
+    expect('refused' in limiter.holdKey('pbk_peak', 'write', { ip: '198.51.100.9' }, 900)).toBe(true);
+    // Twelve addresses spend the whole peak together, and no more.
+    for (let a = 10; a < 21; a += 1) for (let i = 0; i < 75; i += 1) limiter.holdKey('pbk_peak', 'write', { ip: `198.51.100.${String(a)}` }, 900);
+    expect('refused' in limiter.holdKey('pbk_peak', 'write', { ip: '198.51.100.99' }, 900)).toBe(true);
+  });
+
   it("holds each address to its share, and hands a refused request's place back", () => {
     let at = 1_000;
     const limiter = createPublicRateLimiter(() => at);

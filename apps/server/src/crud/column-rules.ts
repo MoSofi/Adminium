@@ -1426,6 +1426,8 @@ export interface ColumnPerNight {
   };
   scale: Scale;
   limit?: ColumnFormula['limit'];
+  /** A part of another row's price by the night: the link to it, and that row's own rule (`perNight.of`). */
+  of?: { via: string; table: string; key: string; parent: ColumnPerNight };
 }
 
 /** A copy in another table's rows that follows a column of this table (`copy.follow`). */
@@ -1478,6 +1480,13 @@ function perNightOf(target: { view: SnapshotView; table: ResolvedTable }): Colum
     scale: column.scale ?? column.numericScale ?? 2,
     ...(limit === undefined ? {} : { limit }),
   };
+  // A part of another row's price: that row's own rule, read through the link (never a part of a part).
+  if (rule.of !== undefined) {
+    const link = linkOf(target.view, target.table.id, rule.of.via);
+    const whole = link === undefined ? null : target.view.linkTable(link.table);
+    const parent = whole === null || whole.table?.columns.find((c) => c.name === rule.of!.column)?.perNight?.of !== undefined ? undefined : perNightOf({ view: target.view, table: whole });
+    if (link !== undefined && parent !== undefined && parent.column === rule.of.column) out.of = { via: rule.of.via, table: link.table, key: link.key, parent };
+  }
   const adjust = rule.adjust;
   if (adjust !== undefined) {
     const table = target.view?.model?.tables.find((t) => t.id === adjust.table);

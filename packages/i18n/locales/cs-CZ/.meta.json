@@ -13883,6 +13883,14 @@
     "status": "mt",
     "srcHash": "80c3052d33cc"
   },
+  "studio.apiKeys.keys.peak": {
+    "status": "mt",
+    "srcHash": "7e39b5a712e5"
+  },
+  "studio.apiKeys.keys.peakHint": {
+    "status": "mt",
+    "srcHash": "f116e4425534"
+  },
   "studio.apiKeys.keys.reveal": {
     "status": "mt",
     "srcHash": "9bfba731c61b"

@@ -1152,6 +1152,9 @@ export interface AdminiumPublicKeysTable {
   requiresStaff: string | null;
   /** JSON `{table, column}`: a bool in the app's settings row that switches the key off. */
   enabledBy: string | null;
+  /** The key's budget a minute at its app's peak (wave 0048); null for Adminium's own. */
+  peakReads: number | null;
+  peakWrites: number | null;
   expiresAt: Ts | null;
   revokedAt: Ts | null;
   lastUsedAt: Ts | null;

@@ -170,7 +170,9 @@ whole, across every visitor together, to 3,000 reads and 300 writes a minute (a 
 once here); anyone can copy a browser key out of a page, so this is what stops many
 addresses together from using it up. A request that is refused (an unknown endpoint, a
 missing record) does not count here, and no one visitor may use more than a twelfth of it:
-250 reads and 25 writes a minute. A signed-in person counts as a visitor of their own, so
+250 reads and 25 writes a minute. An app whose guests arrive all at once can give its key a
+budget of its own, up to five times that, with the key's `peak` in its manifest; each visitor
+still gets a twelfth of it, and the API keys page shows it beside the key. A signed-in person counts as a visitor of their own, so
 people signed in behind one shared network (a venue's Wi-Fi) each get their own share, while
 visitors who are not signed in share their address's; a staff screen counts by the staff
 member signed in on it. Separately, every address is held
