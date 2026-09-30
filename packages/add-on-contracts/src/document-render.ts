@@ -40,13 +40,13 @@
  * This module ships verbatim into eighteen repos before the first
  * provider exists, so a field added later is a second eighteen-repo ceremony
  * plus a second contract release. {@link RenderInput.body} is therefore here in
- * the first release. Its shape is O28(a2) — ruled 2026-09-07 as **D54**: an
- * opaque `Readonly<Record<string, unknown>>` whose schema the PROVIDER owns. A
+ * the first release. Its shape was ruled on 2026-09-07: an opaque
+ * `Readonly<Record<string, unknown>>` whose schema the PROVIDER owns. A
  * typed union would have frozen the redesigned comp's 27 block kinds
  * (`Invoice Builder.dc.html` blockOrder:1114, custom:1266-1272) into a
  * contract eighteen repos vendor, making every later block a contract release.
  *
- * A starter is a TEMPLATE PRESET, not a kind (O28(b), D54) — which is why
+ * A starter is a TEMPLATE PRESET, not a kind (the same ruling) — which is why
  * `kinds()` stays at three for the invoices provider while the surface offers
  * twelve starters over eight titles.
  */
@@ -363,7 +363,7 @@ export interface RenderInput {
    * `custom[]` entries and ~70 authored fields), and none of that can be drawn
    * from `subject`, which is a slot map.
    *
-   * OPAQUE BY RULING (O28(a2) → D54): the provider owns the schema and
+   * OPAQUE BY RULING (2026-09-07): the provider owns the schema and
    * validates it. Absent for a purely mapped render.
    */
   body?: Readonly<Record<string, unknown>>;
