@@ -52,6 +52,8 @@ export async function declaredColumns(meta: MetaDb, connectionId: string, view: 
     if (expect === null && (creates || changes) && typeof resource.expect === 'string' && table.columns.has(resource.expect)) expect = resource.expect;
     if (clientKey === null && creates && typeof resource.clientKey === 'string' && table.columns.has(resource.clientKey)) clientKey = resource.clientKey;
   }
+  // A table no public entry creates rows of names its own (`retryKey`): a desk's payments and refunds.
+  clientKey ??= table.table?.columns.find((column) => column.retryKey === true && table.columns.has(column.name))?.name ?? null;
   return { expect, clientKey };
 }
 

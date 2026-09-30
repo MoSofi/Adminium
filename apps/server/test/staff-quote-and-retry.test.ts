@@ -28,6 +28,9 @@ function pricedWren(): Record<string, unknown> {
   const tables = wrenTables();
   const stays = tables.find((table) => table['ref'] === 'stays')!;
   (stays['columns'] as Record<string, unknown>[]).push({ ref: 'client_key', type: 'text', maxLength: 64, nullable: true, unique: true });
+  // A desk's payment keeps its own retry key: no guest ever creates one.
+  const payments = tables.find((table) => table['ref'] === 'payments')!;
+  (payments['columns'] as Record<string, unknown>[]).push({ ref: 'client_key', type: 'text', maxLength: 64, nullable: true, unique: true, rules: { retryKey: true } });
   const manifest = wrenManifest(tables);
   manifest['frontends'] = [
     { side: 'staff', kind: 'spa', entry: 'index.html' },
@@ -214,6 +217,17 @@ describe.each(LEGS)("the desk's change quote, price check and retry key — %s",
     expect((await send('POST', url('stays'), { values, clientKey: 'short' })).statusCode).toBe(422);
     // A table that keeps no retry key refuses one.
     expect((await send('POST', url('charges'), { values: { stay_id: made['id'], label: 'x', amount: '1.00' }, clientKey: key })).statusCode).toBe(422);
+  });
+
+  it.runIf(available)('answers a payment sent again under its retry key, on a table no guest creates rows of', async () => {
+    const stay = (await send('POST', url('stays'), { values: { first_name: 'Ivo', room_type_id: seed.garden['id'], arrive: '2026-09-10', depart: '2026-09-11', guests: 1 } })).json() as { data: Record<string, unknown> };
+    const key = 'desk-payment-key-00000000001';
+    const first = await send('POST', url('payments'), { values: { stay_id: stay.data['id'], amount: '40.00' }, clientKey: key });
+    expect(first.statusCode, first.body).toBe(201);
+    const again = await send('POST', url('payments'), { values: { stay_id: stay.data['id'], amount: '40.00' }, clientKey: key });
+    expect(again.statusCode, again.body).toBe(200);
+    expect(again.json()).toMatchObject({ replayed: true, data: { id: (first.json() as { data: Record<string, unknown> }).data['id'] } });
+    expect(await count('payments', `stay_id = ${String(stay.data['id'])}`)).toBe(1);
   });
 
   it.runIf(available)("shows no night to a role that may not read a stay's dates: not its nights, nor a change quote's", async () => {

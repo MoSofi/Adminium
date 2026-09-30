@@ -492,6 +492,8 @@ export interface EffectiveColumn extends ColumnModel {
   venueLocal?: boolean;
   /** `column.normalize`: text stored trimmed (`trim`), or trimmed and in lower case (`email`), or as a code (`code`). */
   normalize?: 'trim' | 'email' | 'code';
+  /** `column.retryKey`: where a staff create keeps its retry key (`clientKey`), as a hash. */
+  retryKey?: true;
   /** `column.lookup`: filled from a code a person types. */
   lookup?: ColumnLookupRule;
   /** `column.bounds`: a date never later than today, never earlier than another date. */
@@ -1244,6 +1246,11 @@ export function applyOverrides(
       case 'column.normalize': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.normalize = value.normalize as 'trim' | 'email' | 'code';
+        break;
+      }
+      case 'column.retryKey': {
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined) column.retryKey = true;
         break;
       }
       case 'column.bounds': {

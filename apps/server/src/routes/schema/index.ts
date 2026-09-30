@@ -302,6 +302,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           item.op === 'column.formula' ||
           item.op === 'column.scale' ||
           item.op === 'column.normalize' ||
+          item.op === 'column.retryKey' ||
           item.op === 'column.bounds' ||
           item.op === 'column.lookup' ||
           item.op === 'column.perNight'

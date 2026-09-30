@@ -125,6 +125,7 @@ export type RemapOverride =
   | { op: 'column.perNight'; tableName: string; columnName: string; value: Record<string, unknown> }
   /** A text value stored trimmed, or trimmed and in lower case. */
   | { op: 'column.normalize'; tableName: string; columnName: string; value: { normalize: 'trim' | 'email' | 'code' } }
+  | { op: 'column.retryKey'; tableName: string; columnName: string; value: { retryKey: true } }
   /** A date kept within bounds: never after today, never before another date (its own, or a linked row's). */
   | {
       op: 'column.bounds';
@@ -193,6 +194,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.formula',
   'column.scale',
   'column.normalize',
+  'column.retryKey',
   'column.bounds',
   'column.lookup',
   // Kept by an app's install; a Studio save carries it back with its column.

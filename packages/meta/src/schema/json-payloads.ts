@@ -892,6 +892,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
   }),
   /** A text value stored trimmed (`trim`), or trimmed and in lower case (`email`), whoever writes it. */
   z.object({ op: z.literal('column.normalize'), value: z.object({ normalize: z.enum(['trim', 'email', 'code']) }) }),
+  /** The column a staff create keeps its retry key in (a hash): the retry answers the row the first save made. */
+  z.object({ op: z.literal('column.retryKey'), value: z.object({ retryKey: z.literal(true) }).strict() }),
   /**
    * A foreign key filled from a code a person types into `from`: the one row
    * of `table` (its id in the snapshot) whose `column` holds it, among the

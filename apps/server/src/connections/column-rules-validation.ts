@@ -140,6 +140,7 @@ export function columnRuleIssue(
     | 'column.formula'
     | 'column.scale'
     | 'column.normalize'
+    | 'column.retryKey'
     | 'column.bounds'
     | 'column.lookup'
     | 'column.perNight',
@@ -419,6 +420,12 @@ export function columnRuleIssue(
         const missing = conditions.find((condition) => !table?.columns.some((c) => c.name === condition.column));
         if (missing !== undefined) return `${table?.name ?? 'This table'} has no column ${JSON.stringify(missing.column)}.`;
       }
+      return null;
+    }
+
+    case 'column.retryKey': {
+      // A 43-letter hash, found by its one row.
+      if (!TEXTUAL_TYPES.has(column.logicalType)) return `A retry key is kept in text; ${name} is ${column.logicalType}.`;
       return null;
     }
 

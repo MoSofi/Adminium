@@ -95,6 +95,7 @@ export type RuleOp =
   | 'column.formula'
   | 'column.scale'
   | 'column.normalize'
+  | 'column.retryKey'
   | 'column.bounds'
   | 'column.perNight'
   | 'column.pii'
@@ -214,6 +215,7 @@ export function opsForRules(appKey: string, rules: ColumnRules): { op: RuleOp; v
   // `adjust.table` names a table by its short ref; the installer swaps in its real id (a `table` at any depth).
   if (rules.perNight !== undefined) out.push({ op: 'column.perNight', value: { ...rules.perNight } });
   if (rules.normalize !== undefined) out.push({ op: 'column.normalize', value: { normalize: rules.normalize } });
+  if (rules.retryKey === true) out.push({ op: 'column.retryKey', value: { retryKey: true } });
   if (rules.notAfter !== undefined || rules.notBefore !== undefined) {
     out.push({
       op: 'column.bounds',

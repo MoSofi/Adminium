@@ -638,6 +638,12 @@ export const columnRulesSchema = z
      * points at (a payment is never dated before its invoice was issued).
      */
     notBefore: dateBoundSchema.optional(),
+    /**
+     * The column a staff create keeps its retry key in, as a hash: a desk's
+     * save sent again after a lost reply answers the row the first one made
+     * (`clientKey`), on a table no public entry creates rows of.
+     */
+    retryKey: z.literal(true).optional(),
   })
   .strict();
 export type ColumnRules = z.infer<typeof columnRulesSchema>;
@@ -1735,6 +1741,14 @@ export function appReferenceIssues(
       const racing = deciders.filter((name) => !(name === 'default' && rules.copy !== undefined) && !(name === 'copy' && rules.default !== undefined));
       if (racing.length > 1 && rules.stamp === undefined) {
         out.push({ path: here(), message: `a column is decided by one rule, and this one has ${racing.join(', ')}` });
+      }
+      if (rules.retryKey === true) {
+        // A 43-letter hash that finds its one row, sent by nobody but the save it keeps.
+        if (column.type !== 'text') out.push({ path: here('retryKey'), message: 'a retry key is kept in text' });
+        if (column.unique !== true) out.push({ path: here('retryKey'), message: 'a retry key finds one row by its key, so it is unique' });
+        if (column.nullable !== true) out.push({ path: here('retryKey'), message: 'a save sent without a retry key keeps none, so the column is nullable' });
+        if (typeof column.maxLength === 'number' && column.maxLength < 43) out.push({ path: here('retryKey'), message: 'a retry key is kept as 43 letters, so maxLength is at least 43' });
+        if (table.columns.some((other) => other !== column && other.rules?.retryKey === true)) out.push({ path: here('retryKey'), message: `"${table.ref}" keeps its retry key in one column` });
       }
       if (rules.normalize !== undefined && column.type !== 'text') {
         out.push({ path: here('normalize'), message: 'only text is stored trimmed or in lower case' });

@@ -941,7 +941,8 @@ sent at once make one record.
 ```
 
 The table must keep a retry key: the column the app's public create entries keep a guest's key
-in. The key is stored there as a keyed hash, never as sent, and per person: another user's same
+in, or, on a table no guest creates rows of (a desk's payments), a column the app marks
+[`retryKey`](/reference/manifest/#column-rules). The key is stored there as a keyed hash, never as sent, and per person: another user's same
 key makes another record, and a guest's key never finds a desk's. A key of the wrong form, a
 table that keeps none, or a key sent with `repeat` is refused `422` with `fields.clientKey`.
 

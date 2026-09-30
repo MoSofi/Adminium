@@ -48,6 +48,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.formula',
   'column.scale',
   'column.normalize',
+  'column.retryKey',
   'column.bounds',
   'column.lookup',
   'column.perNight',
