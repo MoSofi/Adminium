@@ -23,11 +23,15 @@
 import { publicEndpointsRepo, publicScopesRepo, type MetaDb } from '@adminium/meta';
 import { z } from 'zod';
 
-import { linkFreeText } from './anonymous-caps.js';
+import { linkFreeText, plainColumn, plainRule, stricterRule, type PlainTextColumn, type PlainTextRule } from './anonymous-caps.js';
 import { parseDefinition } from './endpoint.js';
 
-/** Plain-text columns by table, under the table's own name (a schema before it or not). */
-export type PlainTextOn = ReadonlyMap<string, ReadonlySet<string>>;
+/**
+ * Plain-text columns by table, under the table's own name (a schema before it
+ * or not), each with its rule: a column two creates declare holds to the
+ * stricter of the two.
+ */
+export type PlainTextOn = ReadonlyMap<string, ReadonlyMap<string, PlainTextRule>>;
 
 const bareName = (table: string): string => table.slice(table.lastIndexOf('.') + 1);
 
@@ -39,7 +43,10 @@ const scopeSchema = z.object({
         .object({
           ref: z.string().optional(),
           table: z.string(),
-          anonymous: z.object({ plainText: z.array(z.string()).optional() }).passthrough().optional(),
+          anonymous: z
+            .object({ plainText: z.array(z.union([z.string(), z.object({ column: z.string(), digits: z.number().optional(), max: z.number().optional() })])).optional() })
+            .passthrough()
+            .optional(),
           findOrCreate: z.object({ identityRef: z.string(), fill: z.record(z.string(), z.string()).optional() }).passthrough().optional(),
         })
         .passthrough(),
@@ -50,18 +57,21 @@ const scopeSchema = z.object({
 /** One create as read here: its table, its plain-text columns, and the person it fills from. */
 interface Declared {
   table: string;
-  plainText: readonly string[];
+  plainText: readonly PlainTextColumn[];
   person: { ref: string; fill: Readonly<Record<string, string>> } | null;
 }
 
 export async function plainTextOn(meta: MetaDb, connectionId: string): Promise<PlainTextOn> {
-  const out = new Map<string, Set<string>>();
-  const add = (table: string, columns: readonly string[] | undefined) => {
-    if (columns === undefined || columns.length === 0) return;
+  const out = new Map<string, Map<string, PlainTextRule>>();
+  const add = (table: string, columns: readonly (readonly [string, PlainTextRule])[]) => {
+    if (columns.length === 0) return;
     const name = bareName(table);
-    const set = out.get(name) ?? new Set<string>();
-    for (const column of columns) set.add(column);
-    out.set(name, set);
+    const rules = out.get(name) ?? new Map<string, PlainTextRule>();
+    for (const [column, rule] of columns) {
+      const was = rules.get(column);
+      rules.set(column, was === undefined ? rule : stricterRule(was, rule));
+    }
+    out.set(name, rules);
   };
   /** Each set of creates with the tables their refs name: an identity's ref is read in the set that declares it. */
   const sets: { tableOf: Map<string, string>; creates: Declared[] }[] = [];
@@ -97,11 +107,18 @@ export async function plainTextOn(meta: MetaDb, connectionId: string): Promise<P
   }
   for (const { tableOf, creates } of sets) {
     for (const create of creates) {
-      add(create.table, create.plainText);
-      // The person's column a judged column is filled from (a person's column → the create's column).
+      const judged = new Map(create.plainText.map((entry) => [plainColumn(entry), plainRule(entry)] as const));
+      add(create.table, [...judged]);
+      // The person's column a judged column is filled from (a person's column → the create's column), under its rule.
       const people = create.person === null ? undefined : (tableOf.get(create.person.ref) ?? endpointTables.get(create.person.ref));
       if (people === undefined || create.person === null) continue;
-      add(people, Object.entries(create.person.fill).flatMap(([personColumn, rowColumn]) => (create.plainText.includes(rowColumn) ? [personColumn] : [])));
+      add(
+        people,
+        Object.entries(create.person.fill).flatMap(([personColumn, rowColumn]) => {
+          const rule = judged.get(rowColumn);
+          return rule === undefined ? [] : [[personColumn, rule] as const];
+        }),
+      );
     }
   }
   return out;
@@ -131,8 +148,8 @@ export function recentPlainTextOn(meta: MetaDb, connectionId: string, now = Date
 export function notPlainOn(declared: PlainTextOn, table: string, values: Readonly<Record<string, unknown>>): string | null {
   const columns = declared.get(bareName(table));
   if (columns === undefined) return null;
-  for (const column of columns) {
-    if (Object.prototype.hasOwnProperty.call(values, column) && !linkFreeText(values[column])) return column;
+  for (const [column, rule] of columns) {
+    if (Object.prototype.hasOwnProperty.call(values, column) && !linkFreeText(values[column], rule)) return column;
   }
   return null;
 }

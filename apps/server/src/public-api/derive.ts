@@ -19,6 +19,7 @@
 import type { PublicEndpoint } from '@adminium/meta';
 
 import type { SnapshotView } from '../crud/identifiers.js';
+import { plainTextLoosened } from './anonymous-caps.js';
 import {
   canonicalMethods,
   parseDefinition,
@@ -288,7 +289,7 @@ function capsLoosened(before: PublicScopeResource['anonymous'], after: PublicSco
   const was = before.perValue;
   const now = after.perValue;
   if (was !== undefined && (now === undefined || now.n > was.n || was.columns.some((column) => !now.columns.includes(column)))) return true;
-  return (before.plainText ?? []).some((column) => !(after.plainText ?? []).includes(column));
+  return plainTextLoosened(before.plainText, after.plainText);
 }
 
 /**

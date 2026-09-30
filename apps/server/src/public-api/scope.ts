@@ -22,7 +22,7 @@
  */
 
 import { linkedConditionSchema, stateConditionSchema, type StateCondition } from '@adminium/manifest';
-import { ANONYMOUS_PER_IP_HOUR, type AnonymousCaps } from './anonymous-caps.js';
+import { ANONYMOUS_PER_IP_HOUR, plainColumns, plainTextListSchema, type AnonymousCaps } from './anonymous-caps.js';
 import type { WithholdWhen } from './withhold-when.js';
 import { z } from 'zod';
 
@@ -290,7 +290,7 @@ const scopeChildShape = {
   max: z.number().int().min(1).max(200),
   agrees: z.array(scopeAgreeSchema).min(1).max(8).optional(),
   counts: z.array(scopeCountsSchema).min(1).max(2).optional(),
-  plainText: z.array(columnSchema).min(1).max(8).optional(),
+  plainText: plainTextListSchema(columnSchema).optional(),
   sumMax: z
     .object({ column: columnSchema, max: z.union([z.number().int().min(1), z.object({ table: z.string().min(1).max(256), column: columnSchema }).strict()]) })
     .strict()
@@ -422,7 +422,7 @@ const resourceSchema = z
         perKeyHour: z.number().int().min(1).max(1000).optional(),
         /** At most this many an hour from one visitor through this entry: only ever fewer than the 60 any visitor may make. */
         perIpHour: z.number().int().min(1).max(ANONYMOUS_PER_IP_HOUR).optional(),
-        plainText: z.array(columnSchema).min(1).max(8).optional(),
+        plainText: plainTextListSchema(columnSchema).optional(),
       })
       .strict()
       .optional(),
@@ -430,7 +430,7 @@ const resourceSchema = z
     limits: z
       .object({
         perValue: z.object({ columns: z.array(columnSchema).min(1).max(4), n: z.number().int().min(1).max(20) }).strict().optional(),
-        plainText: z.array(columnSchema).min(1).max(8).optional(),
+        plainText: plainTextListSchema(columnSchema).optional(),
       })
       .strict()
       .optional(),
@@ -946,13 +946,13 @@ export function compileScope(
     for (const c of r.writable) check(c, 'SCOPE_WRITABLE_UNKNOWN_COLUMN');
     for (const c of Object.keys(r.writableWhen ?? {})) check(c, 'SCOPE_WRITABLE_WHEN_UNKNOWN_COLUMN');
     // The columns a create with children, a found person and a row's own link name: this table's, and each child's.
-    for (const c of [r.expect, r.clientKey, r.findOrCreate?.email, r.findOrCreate?.link, r.shareLink?.column, ...(r.forget?.columns ?? []), r.forget?.stamp, ...(r.limits?.perValue?.columns ?? []), ...(r.limits?.plainText ?? [])]) {
+    for (const c of [r.expect, r.clientKey, r.findOrCreate?.email, r.findOrCreate?.link, r.shareLink?.column, ...(r.forget?.columns ?? []), r.forget?.stamp, ...(r.limits?.perValue?.columns ?? []), ...plainColumns(r.limits?.plainText)]) {
       if (c !== undefined) check(c, 'SCOPE_COLUMN_UNKNOWN');
     }
     const childColumns = (children: Readonly<Record<string, ScopeChild | z.infer<typeof scopeGrandchildSchema>>>): void => {
       for (const [name, child] of Object.entries(children)) {
         const own = columnsOf?.(child.table) ?? null;
-        const named = [child.via, ...child.writable, ...(child.select ?? []), ...(child.requires ?? []), ...(child.plainText ?? []), ...(child.position === undefined ? [] : [child.position])];
+        const named = [child.via, ...child.writable, ...(child.select ?? []), ...(child.requires ?? []), ...plainColumns(child.plainText), ...(child.position === undefined ? [] : [child.position])];
         for (const c of named) {
           if (own !== null && !own.has(c)) issues.push({ code: 'SCOPE_CHILD_UNKNOWN_COLUMN', message: `"${c}" is not a column of ${child.table} (${name})`, ref: r.ref, column: c });
         }

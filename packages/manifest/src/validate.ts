@@ -14,6 +14,7 @@ import {
   manifestSchema,
   type Manifest,
 } from './schema.js';
+import { plainTextLengthWarnings } from './public-access.js';
 import { tableShapeIssues } from './table-shapes.js';
 
 export interface ManifestIssue {
@@ -86,6 +87,8 @@ export function manifestWarnings(manifest: Manifest): ManifestIssue[] {
       }
     });
   });
+  // A plain-text column longer than its plain text takes: the end of what a guest types is refused.
+  out.push(...plainTextLengthWarnings(manifest.publicAccess ?? [], manifest.requiredSchema?.tables ?? []));
   // A capped balance worked out from a formula whose columns stay open while the capped rows exist.
   for (const warning of cappedFormulaWarnings(manifest.requiredSchema?.tables ?? [])) out.push({ path: warning.path.map(String).join('.'), message: warning.message });
   /*

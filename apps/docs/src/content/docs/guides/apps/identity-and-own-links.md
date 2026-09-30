@@ -546,15 +546,37 @@ stranger's create is held to:
 
 ### Plain text
 
-Plain text is letters (of any alphabet), spaces and `. , ' ’ ( ) & -`, up to 80 characters: no
-digits, no `://` and no `www.`. Every `plainText` list (`anonymous.plainText`, `limits.plainText`
-and a child row's `plainText`) also refuses:
+Plain text is letters (of any alphabet), spaces and the punctuation a sentence is written with,
+up to 80 characters: no digits, no `://` and no `www.`. The punctuation is
+
+- Latin: `. , ' ’ ( ) & - ! ? : ; "` and `¿ ¡ « » „ “ ”`;
+- CJK: `，。、！？：；「」『』・`, so "少放辣，切六块。" passes;
+- Arabic: `، ؛ ؟`.
+
+Every `plainText` list (`anonymous.plainText`, `limits.plainText` and a child row's `plainText`)
+also refuses:
 
 - an `@`, so no handle;
 - a `/`, so no path;
 - a dotted word whose last part is a known web ending, such as `evil.com`, `claim.refund.net`,
   `shop.co.uk` or `refund-desk.cafe`. The ending is read as a reader sees it: fullwidth letters,
-  an accent or an invisible mark on it, and a hyphen after it change nothing.
+  an accent or an invisible mark on it, and a hyphen after it change nothing, and the ideographic
+  full stop `。` is a dot, as a browser reads it (`evil。com`).
+
+A column in a `plainText` list is a name by default. A note that may hold a few digits and run
+longer names them:
+
+```json
+"plainText": ["name", { "column": "note", "digits": 4, "max": 140 }]
+```
+
+- **`digits`**: 1–4 digits in the whole value, in any script ("2 without onions", "table 12",
+  "flat 3B, door 12"), so never a phone number. A digit is part of a dotted word too: `shop1.com`
+  is refused.
+- **`max`**: up to 200 characters, instead of 80.
+
+The validator warns when a column's `maxLength` is longer than its plain text takes: a guest who
+types to the end of the field would be refused.
 
 "Mary.Ann", "J.R.R. Tolkien" and "St. John" are names, and pass; so is "x dot com", which names no
 address. Initials before a surname pass too ("W.Hu", "K.Y.Ng", "M.De Vries"), unless the surname is

@@ -302,9 +302,10 @@ An app can limit a create that nobody signed in for, such as a first visit booke
 - **Per visitor, an hour.** At most so many (up to 60) through the entry in an hour from one
   visitor, counting an IPv6 subscriber's whole /64 as one. Every visitor is held to 60 an hour on
   any key anyway; this only lowers it for one entry.
-- **Names as plain text.** The columns the app names hold letters, spaces and ordinary
-  punctuation only, up to 80 characters: no digits, and no web or email address in its common
-  forms, such as `refund-desk.com`
+- **Names as plain text.** The columns the app names hold letters, spaces and sentence
+  punctuation only (Latin, CJK and Arabic), up to 80 characters: no digits, and no web or email
+  address in its common forms, such as `refund-desk.com`. A note may take up to four digits and
+  up to 200 characters, when the app says so
   ([Plain text](/guides/apps/identity-and-own-links/#plain-text)). Anything else is refused `400`
   `PUBLIC_WRITE_REFUSED`, with `params.column` naming the column. Unlike the counts, this holds
   for a signed-in person's create too, and for every change that writes the column.

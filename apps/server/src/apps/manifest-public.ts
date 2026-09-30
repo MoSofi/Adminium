@@ -42,6 +42,7 @@ import {
 import { SELF_ORIGIN_SENTINEL } from '../config/env.js';
 import { isEmailConfigured } from '../email/send.js';
 import type { SnapshotView } from '../crud/identifiers.js';
+import { copyPlainText } from '../public-api/anonymous-caps.js';
 import { endpointIssues, type PublicEndpointDefinition, type PublicMethod } from '../public-api/endpoint.js';
 import { EndpointSaveRefused, KeyCreateRefused, type EndpointService } from '../public-api/endpoint-service.js';
 import { generatePublishableKey, sealPublishableKey } from '../public-api/keys.js';
@@ -133,7 +134,7 @@ function childDefinitions(children: Readonly<Record<string, ChildEntry>>, idOf: 
       max: child.max,
       ...(child.agrees === undefined ? {} : { agrees: structuredClone(child.agrees) }),
       ...(child.counts === undefined ? {} : { counts: structuredClone(child.counts) }),
-      ...(child.plainText === undefined ? {} : { plain_text: [...child.plainText] }),
+      ...(child.plainText === undefined ? {} : { plain_text: copyPlainText(child.plainText) }),
       ...(child.sumMax === undefined
         ? {}
         : { sum_max: { column: child.sumMax.column, max: typeof child.sumMax.max === 'number' ? child.sumMax.max : { table: idOf(child.sumMax.max.table), column: child.sumMax.max.column } } }),
@@ -270,7 +271,7 @@ function definitionOf(
             ...(entry.anonymous.perValue === undefined ? {} : { per_value: { columns: [...entry.anonymous.perValue.columns], n: entry.anonymous.perValue.n } }),
             ...(entry.anonymous.perKeyHour === undefined ? {} : { per_key_hour: entry.anonymous.perKeyHour }),
             ...(entry.anonymous.perIpHour === undefined ? {} : { per_ip_hour: entry.anonymous.perIpHour }),
-            ...(entry.anonymous.plainText === undefined ? {} : { plain_text: [...entry.anonymous.plainText] }),
+            ...(entry.anonymous.plainText === undefined ? {} : { plain_text: copyPlainText(entry.anonymous.plainText) }),
           },
         }),
     ...(entry.limits === undefined
@@ -278,7 +279,7 @@ function definitionOf(
       : {
           limits: {
             ...(entry.limits.perValue === undefined ? {} : { per_value: { columns: [...entry.limits.perValue.columns], n: entry.limits.perValue.n } }),
-            ...(entry.limits.plainText === undefined ? {} : { plain_text: [...entry.limits.plainText] }),
+            ...(entry.limits.plainText === undefined ? {} : { plain_text: copyPlainText(entry.limits.plainText) }),
           },
         }),
     ...(entry.rank === undefined
