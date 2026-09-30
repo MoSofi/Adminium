@@ -530,6 +530,13 @@ export const columnRulesSchema = z
          * accepted): the old code stops working as the write commits.
          */
         renew: z.object({ on: z.union([codeRenewTriggerSchema, z.array(codeRenewTriggerSchema).min(2).max(3)]) }).strict().optional(),
+        /**
+         * A code no desk hands out (an online order's own link): left out of
+         * every staff read — rows, exports, live frames, the audit — for
+         * every role, Super Admin too. The link it opens and the emails
+         * that carry it to the row's holder still use it.
+         */
+        hiddenFromStaff: z.literal(true).optional(),
       })
       .strict()
       .optional(),

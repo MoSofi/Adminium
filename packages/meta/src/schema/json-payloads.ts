@@ -869,6 +869,8 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
       length: z.number().int().min(4).max(16),
       /** A new code in the same write when a column changes, or moves to one of `values`. */
       renew: z.object({ on: z.union([codeRenewTrigger, z.array(codeRenewTrigger).min(2).max(3)]) }).strict().optional(),
+      /** A code no desk hands out: left out of every staff read. */
+      hiddenFromStaff: z.literal(true).optional(),
     }),
   }),
   /** A text column written from a running number of the row: prefix + padded digits (`INV-2042`). */

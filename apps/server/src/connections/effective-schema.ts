@@ -90,6 +90,8 @@ export interface ColumnCodeRule {
   length: number;
   /** A new code in the same write when a trigger fires (carried; not acted on yet). */
   renew?: { on: CodeRenewTrigger | CodeRenewTrigger[] };
+  /** A code no desk hands out: left out of every staff read (`crud/read-view.ts`). */
+  hiddenFromStaff?: true;
 }
 
 /** A condition a looked-up code's row must meet (see `column.lookup`). */

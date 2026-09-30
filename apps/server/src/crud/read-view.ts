@@ -20,10 +20,21 @@ import { resolvePermissionSet } from '../rbac/resolver.js';
 import type { ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
 
-/** The view as a caller with these permissions reads it; the same view when nothing they read is limited. */
+/**
+ * The view as a caller with these permissions reads it; the same view when
+ * nothing they read is limited. A code no desk hands out (`code.hiddenFromStaff`,
+ * an online order's own link) is left out for every staff reader, Super Admin
+ * too: the link and the emails that carry it read the connection whole.
+ */
 export function readViewOf(view: SnapshotView, permissions: { superAdmin?: boolean; readLimits?: ReadLimits | undefined }): SnapshotView {
-  if (permissions.superAdmin === true || permissions.readLimits === undefined) return view;
-  return view.readAs(readLimitsOn(permissions, view.connectionId, view.model.tables.map((table) => table.id)));
+  const limits = new Map(permissions.superAdmin === true || permissions.readLimits === undefined ? [] : readLimitsOn(permissions, view.connectionId, view.model.tables.map((table) => table.id)));
+  for (const table of view.model.tables) {
+    const hidden = new Set(table.columns.filter((column) => column.code?.hiddenFromStaff === true).map((column) => column.name));
+    if (hidden.size === 0) continue;
+    const readable = limits.get(table.id) ?? new Set(table.columns.map((column) => column.name));
+    limits.set(table.id, new Set([...readable].filter((name) => !hidden.has(name))));
+  }
+  return view.readAs(limits);
 }
 
 /** The view as the signed-in caller of a request reads it. */
