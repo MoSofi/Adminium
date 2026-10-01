@@ -162,6 +162,7 @@ import {
 } from '../../apps/manifest-public.js';
 import { installOutbox, removeOutbox, templateProblems, type OutboxResult } from '../../apps/manifest-outbox.js';
 import { installAppDocuments, uninstallAppDocuments } from '../../documents/app-documents.js';
+import { liveRowCounts } from '../../apps/table-counts.js';
 import type { AddOnRuntimeState } from '../../add-ons/runtime.js';
 import type { EndpointService } from '../../public-api/endpoint-service.js';
 import type { SnapshotView } from '../../crud/identifiers.js';
@@ -3493,6 +3494,12 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
           connectionId === null ? [] : await appTablesRepo(deps.meta).forInstall(connectionId, key);
         const snapshot = connectionId === null ? null : await snapshotsRepo(deps.meta).latest(connectionId);
         const model = (snapshot?.schema ?? null) as DatabaseModel | null;
+        // Counted now: the snapshot's estimate is what the install saw, before any row.
+        const manager = deps.sampleData?.manager;
+        const live =
+          manager === undefined || connectionId === null || model === null
+            ? new Map<string, number>()
+            : await liveRowCounts(manager, connectionId, model, records.map((record) => record.tableName));
         const tables = records
           .filter(
             (record) =>
@@ -3508,7 +3515,9 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             state: record.state,
             role: record.role === 'sample-ledger' ? ('sample-ledger' as const) : ('app' as const),
             rows:
-              model?.tables.find((table) => table.name === record.tableName)?.rowCountEstimate ?? null,
+              live.get(record.tableName) ??
+              model?.tables.find((table) => table.name === record.tableName)?.rowCountEstimate ??
+              null,
           }));
         // This app's own lines, newest first. The key is in the row's JSON, so
         // the filter is here; a busy instance's app log is small.

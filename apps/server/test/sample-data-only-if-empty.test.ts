@@ -8,6 +8,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createAppStore } from '../src/apps/store.js';
 import { createSampleDataService, findSampleApp } from '../src/apps/sample-data.js';
+import { liveRowCounts } from '../src/apps/table-counts.js';
+import { loadSnapshotView } from '../src/data-io/snapshot-view.js';
 import type { FileStore } from '../src/files/store.js';
 import { LEGS, installInvoicing, invoicingManifest, type InvoicingHarness } from './invoicing-install.helpers.js';
 
@@ -67,6 +69,16 @@ for (const [dialect, reachable] of LEGS) {
     it('adds the sample studio’s settings when the operator has none', async () => {
       expect(await empty.h.rows(`SELECT invoice_prefix FROM ${empty.h.real('settings')}`)).toEqual([{ invoice_prefix: 'SMP-' }]);
       expect(empty.added.counts).toEqual({ settings: 1, clients: 1 });
+    });
+
+    it('counts the rows the tables hold now, which the install’s snapshot never saw', async () => {
+      const { h } = empty;
+      const view = await loadSnapshotView(h.meta, h.connectionId);
+      const names = [h.real('settings'), h.real('clients')];
+      // The estimate the app page used to print: taken at install, before any row.
+      for (const name of names) expect(view.model.tables.find((table) => table.name === name)?.rowCountEstimate ?? 0).toBe(0);
+      const counts = await liveRowCounts(h.manager, h.connectionId, view.model, names);
+      expect(Object.fromEntries(counts)).toEqual({ [h.real('settings')]: 1, [h.real('clients')]: 1 });
     });
 
     it('keeps the operator’s own settings, adds the rest, and does not count theirs as sample data', async () => {

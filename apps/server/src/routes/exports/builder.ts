@@ -31,6 +31,7 @@ import type { Kysely } from 'kysely';
 import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
+import { countWithin } from '../../crud/count-within.js';
 import { LIST_LIMIT_MAX, runList } from '../../crud/list.js';
 import { canReadPii, piiCheckFor } from '../../crud/mask.js';
 import type { ResolvedTable, SnapshotView } from '../../crud/identifiers.js';
@@ -79,20 +80,6 @@ function pageColumnsOf(page: Page): Record<string, unknown>[] | null {
   const columns = body?.columns;
   if (!Array.isArray(columns)) return null;
   return columns.filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null);
-}
-
-/** `COUNT(*)` within a time budget, or null — a missing number is honest, a slow page is not. */
-async function countWithin(db: Kysely<SourceDatabase>, table: ResolvedTable, budgetMs: number): Promise<number | null> {
-  const query = (db as unknown as Kysely<Record<string, Record<string, unknown>>>)
-    .selectFrom(table.id)
-    .select((eb) => eb.fn.countAll<number | string | bigint>().as('n'))
-    .executeTakeFirst()
-    .then((row) => (row === undefined ? null : Number(row.n)))
-    .catch(() => null);
-  const budget = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), budgetMs).unref?.();
-  });
-  return Promise.race([query, budget]);
 }
 
 export async function registerBuilderRoutes(
@@ -166,7 +153,7 @@ export async function registerBuilderRoutes(
         let rowCountEstimate = modelTable.rowCountEstimate ?? null;
         if (rowCountEstimate === null && canExport) {
           handle ??= await manager.data(connection);
-          rowCountEstimate = await countWithin(handle.db, table, COUNT_BUDGET_MS);
+          rowCountEstimate = await countWithin(handle.db, table.id, COUNT_BUDGET_MS);
         }
         const bound = pagesByTable.get(table.id) ?? [];
         tables.push({
@@ -336,7 +323,7 @@ export async function registerBuilderRoutes(
         rowCount = modelTable?.rowCountEstimate ?? null;
         rowCountKind = 'estimate';
         if (rowCount === null) {
-          rowCount = await countWithin(db, table, COUNT_BUDGET_MS);
+          rowCount = await countWithin(db, table.id, COUNT_BUDGET_MS);
           rowCountKind = rowCount === null ? 'unknown' : 'exact';
         }
       }
