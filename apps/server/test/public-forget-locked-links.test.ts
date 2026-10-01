@@ -20,7 +20,7 @@ import { rolesRepo, snapshotsRepo, usersRepo } from '@adminium/meta';
 
 import { adminPasswordHash, ADMIN_PASSWORD, login } from './auth-helpers.js';
 import { installInvoicing, LEGS, type InvoicingHarness } from './invoicing-install.helpers.js';
-import { guest, mailReady, shopManifest } from './person-fixture.js';
+import { guest, mailOf, mailReady, shopManifest } from './person-fixture.js';
 import { servePublic, type Served } from './public-lane.helpers.js';
 
 type Doc = Record<string, unknown>;
@@ -154,6 +154,11 @@ for (const { shape, lock } of CASES) {
       expect(withoutCode(after)).toEqual(withoutCode(before));
       expect((await own.request('POST', '/claim/token', { payload: { token: past.link.token } })).statusCode).toBe(404);
       expect(await h.rows(`select email, name from ${h.real('customers')} where email = 'ivy@fieldmail.io'`)).toEqual([]);
+      // The last email says what the app did: the links she holds stopped. It used to promise they still opened.
+      const notice = (await mailOf(h.meta)).filter((m) => m.template === 'details-deleted' && m.to === 'ivy@fieldmail.io').at(-1)!;
+      expect(notice.text).toContain('no longer work');
+      expect(notice.text).not.toContain('still open');
+      expect(notice.text).not.toMatch(/tickets|bookings|\{\{/);
       // The system's own write, on the person's asking.
       const audits = await renewalAudits();
       expect(audits.length).toBeGreaterThan(0);

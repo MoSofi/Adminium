@@ -172,7 +172,8 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    */
   'email-changed': ['appName', 'name', 'newEmail', 'phoneLine', 'contactLine'],
   'sign-in-link': ['appName', 'link', 'code', 'minutes'],
-  'details-deleted': ['appName', 'name'],
+  // One of `keptLine` and `stoppedLine` holds a sentence (`detailsDeletedLines`), as above.
+  'details-deleted': ['appName', 'name', 'keptLine', 'stoppedLine'],
 };
 
 /**
@@ -209,6 +210,8 @@ const VAR = {
   phoneLine: '{{phoneLine}}',
   contactLine: '{{contactLine}}',
   link: '{{link}}',
+  keptLine: '{{keptLine}}',
+  stoppedLine: '{{stoppedLine}}',
 } as const;
 
 function heading(text: string): EmailTemplateBlock {
@@ -553,6 +556,35 @@ function emailChangedTemplate(t: Translate): BuiltinEmailTemplate {
  * and what stays (their tickets and bookings, which the emails they already
  * have still open), so "delete" never reads as "cancel".
  */
+/**
+ * What the `details-deleted` notice says about the emails a person already
+ * has, as the two variables its template reads — exactly one holds a
+ * sentence, and the renderer drops the paragraph that fills to nothing.
+ *
+ * It is the APP that decides whether a forgotten person's own links stop
+ * (`forget.links`), and one stored row serves every app on the install: the
+ * notice used to promise "the emails you already have still open them" to
+ * somebody whose links had just been stopped, in the same minute the app's
+ * own dialog told them the opposite. Neither sentence names tickets or
+ * bookings — an app may have neither.
+ */
+export function detailsDeletedLines(t: Translate, linksStopped: boolean): { keptLine: string; stoppedLine: string } {
+  if (linksStopped) {
+    return {
+      keptLine: '',
+      stoppedLine: t('email:detailsDeleted.stopped', {
+        defaultValue: 'The links in the emails you already have no longer work. You won’t hear from us again unless you come back.',
+      }),
+    };
+  }
+  return {
+    keptLine: t('email:detailsDeleted.kept', {
+      defaultValue: 'What you already have with us stays valid, and the emails you already have still open it. You won’t hear from us again unless you come back.',
+    }),
+    stoppedLine: '',
+  };
+}
+
 function detailsDeletedTemplate(t: Translate): BuiltinEmailTemplate {
   return {
     key: 'details-deleted',
@@ -569,12 +601,9 @@ function detailsDeletedTemplate(t: Translate): BuiltinEmailTemplate {
           defaultValue: 'Hi {name}, as you asked, the details {appName} kept about you are deleted, and you are signed out everywhere.',
         }),
       ),
-      paragraph(
-        'kept',
-        t('email:detailsDeleted.kept', {
-          defaultValue: 'Your tickets and bookings stay valid, and the emails you already have still open them. You won’t hear from us again unless you book again.',
-        }),
-      ),
+      // One of the two, never both: see `detailsDeletedLines`.
+      paragraph('kept', VAR.keptLine),
+      paragraph('stopped', VAR.stoppedLine),
     ],
     footer: t('email:detailsDeleted.footer', { appName: VAR.appName, defaultValue: '{appName}' }),
   };

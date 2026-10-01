@@ -8875,6 +8875,10 @@
     "status": "mt",
     "srcHash": "ac38c398bab6"
   },
+  "email.detailsDeleted.stopped": {
+    "status": "mt",
+    "srcHash": "01627765e4f1"
+  },
   "email.detailsDeleted.subject": {
     "status": "mt",
     "srcHash": "fd64f36556ab"

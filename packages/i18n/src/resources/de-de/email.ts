@@ -876,7 +876,8 @@ export default {
     "subject": "Ihre Daten bei {appName} wurden gelöscht",
     "heading": "Ihre Daten wurden gelöscht",
     "intro": "Hallo {name}, wie gewünscht wurden die Daten, die {appName} über Sie gespeichert hatte, gelöscht, und Sie wurden überall abgemeldet.",
-    "kept": "Ihre Tickets und Buchungen bleiben gültig, und die E-Mails, die Sie bereits haben, öffnen sie weiterhin. Sie hören nicht mehr von uns, außer Sie buchen erneut.",
-    "footer": "{appName}"
+    "kept": "Was Sie bereits bei uns haben, bleibt gültig, und die E-Mails, die Sie bereits haben, öffnen es weiterhin. Sie hören nicht mehr von uns, außer Sie kommen wieder.",
+    "footer": "{appName}",
+    "stopped": "Die Links in den E-Mails, die Sie bereits haben, funktionieren nicht mehr. Sie hören nicht mehr von uns, außer Sie kommen wieder."
   }
 } as const;

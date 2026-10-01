@@ -866,7 +866,8 @@
     "subject": "Vos données chez {appName} ont été supprimées",
     "heading": "Vos données ont été supprimées",
     "intro": "Bonjour {name}, comme vous l’avez demandé, les données que {appName} conservait à votre sujet sont supprimées et vous êtes déconnecté partout.",
-    "kept": "Vos billets et réservations restent valables, et les e-mails que vous avez déjà reçus les ouvrent toujours. Vous n’aurez plus de nouvelles de nous, sauf si vous réservez à nouveau.",
-    "footer": "{appName}"
+    "kept": "Ce que vous avez déjà chez nous reste valable, et les e-mails que vous avez déjà reçus l’ouvrent toujours. Vous n’aurez plus de nouvelles de nous, sauf si vous revenez.",
+    "footer": "{appName}",
+    "stopped": "Les liens des e-mails que vous avez déjà reçus ne fonctionnent plus. Vous n’aurez plus de nouvelles de nous, sauf si vous revenez."
   }
 }

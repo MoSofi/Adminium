@@ -212,6 +212,9 @@ describe.each(LEGS)("a guest's own account — %s", (dialect, available) => {
     const sent = (await mailOf(h.meta)).slice(mailBefore);
     expect(sent.map((m) => [m.template, m.to])).toEqual([['details-deleted', 'mia@okada.io']]);
     expect(sent[0]!.text).toContain('Mia');
+    // This shop leaves a person's links alone, and the notice says so — of no tickets or bookings, which it has none of.
+    expect(sent[0]!.text).toContain('still open');
+    expect(sent[0]!.text).not.toMatch(/no longer work|tickets|bookings|\{\{/);
     // The rules hear it as a forgetting.
     expect(heard.filter((e) => e.table.id.endsWith(customers)).map((e) => e.cause)).toContain('forget');
     // The audit names the row, never what it held.

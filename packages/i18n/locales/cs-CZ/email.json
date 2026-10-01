@@ -866,7 +866,8 @@
     "subject": "Vaše údaje u {appName} byly smazány",
     "heading": "Vaše údaje byly smazány",
     "intro": "Dobrý den, {name}, jak jste požádali, údaje, které o vás {appName} uchovával, jsou smazány a byli jste všude odhlášeni.",
-    "kept": "Vaše vstupenky a rezervace zůstávají platné a e-maily, které už máte, je stále otevřou. Už se vám neozveme, pokud znovu nezarezervujete.",
-    "footer": "{appName}"
+    "kept": "To, co u nás už máte, zůstává platné a e-maily, které už máte, to stále otevřou. Už se vám neozveme, pokud se nevrátíte.",
+    "footer": "{appName}",
+    "stopped": "Odkazy v e-mailech, které už máte, přestaly fungovat. Už se vám neozveme, pokud se nevrátíte."
   }
 }

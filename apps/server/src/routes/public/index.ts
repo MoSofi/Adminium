@@ -152,7 +152,7 @@ import { appContact } from '../../outbox/sender.js';
 import { createSwitches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
-import { emailChangedLines, translatorForLocale } from '../../email/builtins.js';
+import { detailsDeletedLines, emailChangedLines, translatorForLocale } from '../../email/builtins.js';
 import { DETAILS_DELETED_TEMPLATE_KEY, EMAIL_CHANGED_TEMPLATE_KEY, SIGN_IN_CODE_TEMPLATE_KEY, enqueueEmail, isEmailConfigured } from '../../email/send.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { negotiateLocale } from '../../plugins/surfaces.js';
@@ -5371,7 +5371,12 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
                 templateKey: DETAILS_DELETED_TEMPLATE_KEY,
                 locale,
                 always: true,
-                vars: { appName: (await senderOf(ok.key)).appName, name: name === undefined ? '' : String(row[name] ?? '') },
+                vars: {
+                  appName: (await senderOf(ok.key)).appName,
+                  name: name === undefined ? '' : String(row[name] ?? ''),
+                  // What became of the links they hold, as this app declared it.
+                  ...detailsDeletedLines((await translatorForLocale(meta, locale)).t, (forget.links ?? []).length > 0),
+                },
               },
             );
           }
