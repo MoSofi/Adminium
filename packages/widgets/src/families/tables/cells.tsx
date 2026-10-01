@@ -470,12 +470,20 @@ function CellContent({
     );
   }
 
+  /*
+   * A moment, told as how long ago — never a DATE. A date-only column that
+   * carries a timestamp's meaning (`order_date`, tagged `event-timestamp`) is
+   * still a calendar day: read as a moment it is that day's midnight, and an
+   * order dated today read "17h ago" all afternoon. It falls to the date
+   * branch below, which prints the day.
+   */
   if (
-    column.semantic === 'created-at' ||
-    column.semantic === 'updated-at' ||
-    column.semantic === 'event-timestamp' ||
-    column.logicalType === 'timestamp' ||
-    column.logicalType === 'timestamptz'
+    column.logicalType !== 'date' &&
+    (column.semantic === 'created-at' ||
+      column.semantic === 'updated-at' ||
+      column.semantic === 'event-timestamp' ||
+      column.logicalType === 'timestamp' ||
+      column.logicalType === 'timestamptz')
   ) {
     return (
       <span data-part="cell-timestamp" title={formatAbsoluteTime(value, context.locale)} className="truncate whitespace-nowrap text-fg-muted">

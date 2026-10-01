@@ -274,6 +274,15 @@ describe('CellValue — type-aware cell renderers', () => {
     expect(cell?.getAttribute('title')).toMatch(/\d{4}|20\d\d|,/);
   });
 
+  it('date tagged as a moment → still its calendar day, never "17h ago"', () => {
+    // `order_date` is a DATE the engine tags `event-timestamp`. Read as a
+    // moment it is that day's midnight, so an order dated today read "17h ago".
+    const column = spec({ name: 'order_date', label: 'Order Date', logicalType: 'date', semantic: 'event-timestamp' });
+    const { container } = render(<CellValue column={column} row={{ order_date: '2026-09-30' }} />);
+    expect(container.querySelector('[data-part="cell-timestamp"]')).toBeNull();
+    expect(container.querySelector('[data-part="cell-date"]')?.textContent).toBe('Sep 30, 2026');
+  });
+
   it('date → the writer calendar day, never the raw wire instant (UTC+2 audit repro)', () => {
     const column = spec({ name: 'issued_on', label: 'Issued on', logicalType: 'date' });
     // pg wire shape for `date '2026-05-29'` read on a UTC+2 host.
