@@ -824,7 +824,8 @@ export default {
     "body": "{business} pro vás nakreslil {kind} {number}. Je přiložen k tomuto e-mailu.",
     "button": "Otevřít online",
     "footer": "Tento e-mail dostáváte, protože {business} pro vás nakreslil tento doklad.",
-    "attachment": "Doklad"
+    "attachment": "Doklad",
+    "revised": "Tato verze nahrazuje tu, kterou jsme vám dříve poslali pod stejným číslem."
   },
   "bookingConfirmation": {
     "name": "Potvrzení rezervace",

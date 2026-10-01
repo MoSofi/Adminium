@@ -814,7 +814,8 @@
     "body": "{business} har tegnet {kind} {number} til dig. Det er vedhæftet denne e-mail.",
     "button": "Åbn online",
     "footer": "Du modtager denne e-mail, fordi {business} tegnede dette bilag til dig.",
-    "attachment": "Bilaget"
+    "attachment": "Bilaget",
+    "revised": "Denne udgave erstatter den, vi tidligere sendte dig under samme nummer."
   },
   "bookingConfirmation": {
     "name": "Bookingbekræftelse",

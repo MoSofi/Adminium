@@ -410,7 +410,12 @@ export default {
       "manualShort": "auf Anforderung",
       "note": "Zeilen aus einem Import oder direkt in die Datenbank geschriebene Zeilen lösen nichts aus — nur Schreibvorgänge über Adminium.",
       "noteTitle": "Was als Änderung zählt",
-      "updated": "Wenn sich eine Zeile ändert"
+      "updated": "Wenn sich eine Zeile ändert",
+      "whenColumn": "Nur wenn sich diese Spalte ändert",
+      "anyColumn": "Beliebige Spalte",
+      "whenValue": "…und diesen Wert annimmt",
+      "whenValuePlaceholder": "Beliebiger Wert",
+      "whenHelp": "Mit „Beliebige Spalte“ erstellt jede Änderung der Zeile das Dokument erneut – und versendet es erneut, falls es per E-Mail verschickt wird. Wählen Sie eine Spalte und einen Wert, etwa Status und bezahlt, um es nur einmal zu erstellen."
     },
     "unbound": "Noch auszufüllen: {slots}",
     "deleteConfirm": {

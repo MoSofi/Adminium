@@ -814,7 +814,8 @@
     "body": "{business} 为你绘制了{kind} {number}，已作为附件随本邮件发送。",
     "button": "在线打开",
     "footer": "你收到这封邮件，是因为 {business} 为你绘制了这份单据。",
-    "attachment": "单据"
+    "attachment": "单据",
+    "revised": "此版本取代我们之前以相同编号发送给您的版本。"
   },
   "bookingConfirmation": {
     "name": "预订确认",

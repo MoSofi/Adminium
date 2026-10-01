@@ -400,7 +400,12 @@
       "manualShort": "à la demande",
       "note": "Les lignes venues d’un import ou écrites directement dans la base ne déclenchent rien — seules les écritures passant par Adminium le font.",
       "noteTitle": "Ce qui compte comme changement",
-      "updated": "Quand une ligne change"
+      "updated": "Quand une ligne change",
+      "whenColumn": "Seulement quand cette colonne change",
+      "anyColumn": "N’importe quelle colonne",
+      "whenValue": "…et prend cette valeur",
+      "whenValuePlaceholder": "N’importe quelle valeur",
+      "whenHelp": "Laissez « N’importe quelle colonne » et chaque modification de la ligne génère de nouveau le document — et le renvoie par e-mail s’il est envoyé. Choisissez une colonne et une valeur, par exemple le statut et « payé », pour ne le générer qu’une fois."
     },
     "unbound": "Reste à remplir : {slots}",
     "deleteConfirm": {

@@ -278,8 +278,9 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
     return { ok: true };
   }
 
-  function toReply(row: DocumentRow) {
+  function toReply(row: DocumentRow, replaced = false) {
     return {
+      replaced,
       id: row.id,
       profileId: row.profileId,
       addOnKey: row.addOnKey,
@@ -533,13 +534,15 @@ export function documentRoutes(deps: DocumentRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         const rows = await documents.list(request.query);
+        // Which of them a later draw of the same row replaced: the register says which one stands.
+        const replaced = await documents.replacedAmong(rows.map((row) => row.id));
         const out = [];
         for (const row of rows) {
           const verdict = await readable(request, row);
           // A refusal REDACTS rather than removes: the row's existence is a
           // fact the record page must not lie about.
           out.push(
-            toReply(verdict.ok ? row : (await documents.findById(row.id, { redacted: true }))!),
+            toReply(verdict.ok ? row : (await documents.findById(row.id, { redacted: true }))!, replaced.has(row.id)),
           );
         }
         return { documents: out };

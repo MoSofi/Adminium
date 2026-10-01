@@ -334,6 +334,13 @@ function ProfileEditor({
         ? 'updated'
         : 'manual',
   );
+  // "When a row changes", narrowed: one column, and the value it becomes.
+  const [whenColumn, setWhenColumn] = useState(profile?.trigger?.when?.column ?? '');
+  const [whenValue, setWhenValue] = useState(
+    profile?.trigger?.when?.value === undefined || profile.trigger.when.value === null
+      ? ''
+      : String(profile.trigger.when.value),
+  );
   const [prefix, setPrefix] = useState(stored?.prefix ?? '');
   const [emailSlot, setEmailSlot] = useState(
     (profile?.deliver as { emailSlot?: string | null } | undefined)?.emailSlot ?? '',
@@ -397,7 +404,7 @@ function ProfileEditor({
         trigger:
           trigger === 'manual'
             ? null
-            : { event: trigger === 'created' ? 'record.created' : 'record.updated' },
+            : triggerDraft(trigger, whenColumn, whenValue),
         deliver: {
           store: true,
           // Absent rather than '' — `emailDocument` reads "no slot named" as
@@ -523,6 +530,55 @@ function ProfileEditor({
               {studioT('studio:documents.trigger.updated', 'When a row changes')}
             </option>
           </Select>
+          {trigger === 'updated' && (
+            /*
+             * Without this every edit of the row draws the document again, and
+             * a mapping that emails re-sends it: fixing a paid order's due
+             * date mailed the customer a second invoice. A column and a value
+             * make it "when status becomes paid", once.
+             */
+            <div className="flex flex-col gap-2">
+              <label className="grid gap-1 md:grid-cols-[14rem_1fr] md:items-center">
+                <span className="text-sm">
+                  {studioT('studio:documents.trigger.whenColumn', 'Only when this column changes')}
+                </span>
+                <Select
+                  value={whenColumn}
+                  aria-label={studioT('studio:documents.trigger.whenColumn', 'Only when this column changes')}
+                  onChange={(event) => {
+                    setWhenColumn(event.currentTarget.value);
+                    if (event.currentTarget.value === '') setWhenValue('');
+                  }}
+                >
+                  <option value="">{studioT('studio:documents.trigger.anyColumn', 'Any column')}</option>
+                  {(header?.columns ?? []).map((column) => (
+                    <option key={column.name} value={column.name}>
+                      {column.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              {whenColumn !== '' && (
+                <label className="grid gap-1 md:grid-cols-[14rem_1fr] md:items-center">
+                  <span className="text-sm">
+                    {studioT('studio:documents.trigger.whenValue', '…and becomes this value')}
+                  </span>
+                  <Input
+                    value={whenValue}
+                    aria-label={studioT('studio:documents.trigger.whenValue', '…and becomes this value')}
+                    placeholder={studioT('studio:documents.trigger.whenValuePlaceholder', 'Any value')}
+                    onChange={(event) => setWhenValue(event.currentTarget.value)}
+                  />
+                </label>
+              )}
+              <p className="text-xs text-fg-muted">
+                {studioT(
+                  'studio:documents.trigger.whenHelp',
+                  'Leave it on “Any column” and every edit of the row draws the document again — and emails it again, if it is emailed. Choose a column and a value, such as status and paid, to draw it once.',
+                )}
+              </p>
+            </div>
+          )}
           {trigger !== 'manual' && (
             <Alert
               tone="info"
@@ -656,6 +712,21 @@ function ProfileEditor({
       </div>
     </div>
   );
+}
+
+/** The trigger a draft stores: the event, and for a change the column (and value) it waits for. */
+export function triggerDraft(
+  trigger: 'created' | 'updated',
+  whenColumn: string,
+  whenValue: string,
+): { event: string; when?: { column: string; op: string; value?: string } } {
+  if (trigger === 'created') return { event: 'record.created' };
+  if (whenColumn === '') return { event: 'record.updated' };
+  const value = whenValue.trim();
+  return {
+    event: 'record.updated',
+    when: { column: whenColumn, op: 'is', ...(value === '' ? {} : { value }) },
+  };
 }
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {

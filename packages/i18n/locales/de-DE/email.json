@@ -814,7 +814,8 @@
     "body": "{business} hat {kind} {number} für Sie gezeichnet. Er hängt dieser E-Mail an.",
     "button": "Online öffnen",
     "footer": "Sie erhalten diese E-Mail, weil {business} diesen Beleg für Sie gezeichnet hat.",
-    "attachment": "Der Beleg"
+    "attachment": "Der Beleg",
+    "revised": "Diese Fassung ersetzt die, die wir Ihnen zuvor unter derselben Nummer gesendet haben."
   },
   "bookingConfirmation": {
     "name": "Buchungsbestätigung",

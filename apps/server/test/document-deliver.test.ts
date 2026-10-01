@@ -13,6 +13,8 @@
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { documentRevisedLine, translatorForLocale } from '../src/email/builtins.js';
+
 import {
   connectionsRepo,
   createSqliteMetaDb,
@@ -180,6 +182,45 @@ describe('emailing a drawn document', () => {
     };
     expect(payload.templateKey).toBe('document-ready');
     expect(payload.attachments).toEqual([{ fileId, filename: 'INV-1042.pdf' }]);
+  });
+
+  it('says a redrawn document replaces the copy already sent, and the register says which one stands', async () => {
+    /*
+     * A row drawn again is the same document under the same number. The
+     * second email used to read exactly like the first, and the register
+     * listed two lines "INV-1 · sent" with nothing to tell them apart.
+     */
+    await configureSmtp(meta);
+    const profile = await seedProfile(meta, { store: true, emailSlot: 'customerEmail' });
+    const entity = { connectionId: profile.connectionId, table: 'public.orders', pk: { id: 2 }, label: '2' };
+    const draw = async (fileId: string, at: number) =>
+      (await documentsRepo(meta).markRendered(
+        (await seedDocument(meta, { profileId: profile.id, connectionId: profile.connectionId, entity })).id,
+        { number: 'INV-1', fileId: await seedFile(meta, fileId), htmlFileId: null, format: 'pdf' },
+        at,
+      ))!;
+    const repo = documentsRepo(meta);
+
+    const first = await draw('file_a', Date.now());
+    // Nothing went out before it: an ordinary first copy.
+    expect(await repo.sentBefore(first)).toBe(false);
+    expect(await emailDocument({ meta, secret: TEST_SECRET }, { document: first, profile })).toBe('sent');
+    expect([...(await repo.replacedAmong([first.id]))]).toEqual([]);
+
+    const second = await draw('file_b', Date.now() + 1000);
+    // The sentence the second email carries (its variables are sealed in the job): filled only for a copy that replaces one.
+    expect(await repo.sentBefore(second)).toBe(true);
+    const { t } = await translatorForLocale(meta, 'en_US');
+    expect(documentRevisedLine(t, true)).toBe('This copy replaces the one we sent you earlier under the same number.');
+    expect(documentRevisedLine(t, false)).toBe('');
+    expect(await emailDocument({ meta, secret: TEST_SECRET }, { document: second, profile })).toBe('sent');
+    // The first is replaced; the second stands. Another row's document is neither's business.
+    const other = (await documentsRepo(meta).markRendered(
+      (await seedDocument(meta, { profileId: profile.id, connectionId: profile.connectionId, entity: { ...entity, pk: { id: 3 }, label: '3' } })).id,
+      { number: 'INV-2', fileId: await seedFile(meta, 'file_c'), htmlFileId: null, format: 'pdf' },
+      Date.now() + 2000,
+    ))!;
+    expect([...(await documentsRepo(meta).replacedAmong([first.id, second.id, other.id]))]).toEqual([first.id]);
   });
 
   it('renders the template in the DOCUMENT’s language', async () => {

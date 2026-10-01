@@ -513,3 +513,18 @@ describe('drawing one from a row', () => {
     expect((renderForRow.mock.calls.at(-1)![0] as { profileId: string | null }).profileId).toBeNull();
   });
 });
+
+describe('what a mapping waits for', () => {
+  it('stores a column and the value it becomes only for "when a row changes"', async () => {
+    const { triggerDraft } = await import('./DocumentProfilesPage.js');
+    expect(triggerDraft('created', 'status', 'paid')).toEqual({ event: 'record.created' });
+    // No column: every change of the row, as before.
+    expect(triggerDraft('updated', '', 'paid')).toEqual({ event: 'record.updated' });
+    expect(triggerDraft('updated', 'status', ' paid ')).toEqual({
+      event: 'record.updated',
+      when: { column: 'status', op: 'is', value: 'paid' },
+    });
+    // A column with no value: any change of that column.
+    expect(triggerDraft('updated', 'due_on', '')).toEqual({ event: 'record.updated', when: { column: 'due_on', op: 'is' } });
+  });
+});

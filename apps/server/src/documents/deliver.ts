@@ -35,6 +35,8 @@ import {
   enqueueEmail,
   type EmailLogger,
 } from '../email/send.js';
+import { documentRevisedLine, translatorForLocale } from '../email/builtins.js';
+import { recipientLocale } from '../i18n/server-i18n.js';
 import {
   DOCUMENT_RENDER_CONTRACT,
   DOCUMENT_RENDER_VERSION,
@@ -223,6 +225,11 @@ export async function emailDocument(
         documentUrl: input.url ?? '',
         // The `generated` attachment's token — this is the document itself.
         documentFileId: fileId,
+        // Drawn again after an earlier copy went out: the email says it replaces that one.
+        revisedLine: documentRevisedLine(
+          (await translatorForLocale(deps.meta, localeIdFor(document.locale) ?? (await recipientLocale(deps.meta, null)))).t,
+          await documents.sentBefore(document),
+        ),
       },
     },
   );

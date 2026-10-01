@@ -824,7 +824,8 @@ export default {
     "body": "{business} a dessiné {kind} {number} pour vous. Il est joint à cet e-mail.",
     "button": "Ouvrir en ligne",
     "footer": "Vous recevez cet e-mail parce que {business} a dessiné ce document pour vous.",
-    "attachment": "Le document"
+    "attachment": "Le document",
+    "revised": "Cet exemplaire remplace celui que nous vous avons envoyé précédemment sous le même numéro."
   },
   "bookingConfirmation": {
     "name": "Confirmation de réservation",

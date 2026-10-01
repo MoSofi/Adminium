@@ -410,7 +410,12 @@ export default {
       "manualShort": "按请求",
       "note": "通过导入添加的行、或直接写入数据库的行不会触发任何绘制——只有经由 Adminium 的写入才会。",
       "noteTitle": "什么算作变更",
-      "updated": "某行变更时"
+      "updated": "某行变更时",
+      "whenColumn": "仅当此列变化时",
+      "anyColumn": "任意列",
+      "whenValue": "…并变为此值",
+      "whenValuePlaceholder": "任意值",
+      "whenHelp": "保留“任意列”时，每次编辑该行都会重新生成文档——如果文档通过邮件发送，还会再次发送。选择一个列和一个值（例如状态和已付款），即可只生成一次。"
     },
     "unbound": "仍需填写：{slots}",
     "deleteConfirm": {

@@ -162,7 +162,8 @@ export const BUILTIN_EMAIL_TEMPLATE_VARS: Readonly<
    * know what to pass, and omitting it would send an email about a document
    * with no document on it.
    */
-  'document-ready': ['appName', 'kind', 'number', 'business', 'documentUrl', 'documentFileId'],
+  // `revisedLine` is a whole sentence or nothing (`documentRevisedLine`): nothing drops its paragraph.
+  'document-ready': ['appName', 'kind', 'number', 'business', 'documentUrl', 'documentFileId', 'revisedLine'],
   'booking-confirmation': ['appName', 'venue', 'name', 'code', 'when', 'party', 'manageUrl', 'cancelHours', 'address', 'phone'],
   'sign-in-code': ['appName', 'code', 'minutes'],
   /*
@@ -210,6 +211,7 @@ const VAR = {
   phoneLine: '{{phoneLine}}',
   contactLine: '{{contactLine}}',
   link: '{{link}}',
+  revisedLine: '{{revisedLine}}',
   keptLine: '{{keptLine}}',
   stoppedLine: '{{stoppedLine}}',
 } as const;
@@ -369,6 +371,20 @@ function notificationTemplate(t: Translate): BuiltinEmailTemplate {
  * claim-bound link exists only for a document a customer asked for, and an
  * operator emailing from the record page has nothing the recipient could open.
  */
+/**
+ * What a `document-ready` email says when the document was sent before.
+ *
+ * A row drawn again is the same document under the same number, so a second
+ * email reads exactly like the first — and somebody holding two invoices
+ * numbered INV-1 cannot tell which to pay. The sentence is filled per send
+ * (one stored row serves every document), and is nothing for a first copy.
+ */
+export function documentRevisedLine(t: Translate, revised: boolean): string {
+  return revised
+    ? t('email:documentReady.revised', { defaultValue: 'This copy replaces the one we sent you earlier under the same number.' })
+    : '';
+}
+
 function documentReadyTemplate(t: Translate): BuiltinEmailTemplate {
   return {
     key: 'document-ready',
@@ -391,6 +407,8 @@ function documentReadyTemplate(t: Translate): BuiltinEmailTemplate {
           defaultValue: '{business} has drawn {kind} {number} for you. It is attached to this email.',
         }),
       ),
+      // Only when this copy replaces one already sent: see `documentRevisedLine`.
+      paragraph('revised', VAR.revisedLine),
       button(t('email:documentReady.button', { defaultValue: 'Open it online' }), VAR.documentUrl),
     ],
     // NOT an unsubscribe line: this is a document somebody asked for or is

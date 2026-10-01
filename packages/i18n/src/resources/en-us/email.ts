@@ -824,7 +824,8 @@ export default {
     "body": "{business} has drawn {kind} {number} for you. It is attached to this email.",
     "button": "Open it online",
     "footer": "You are receiving this because {business} drew this document for you.",
-    "attachment": "The document"
+    "attachment": "The document",
+    "revised": "This copy replaces the one we sent you earlier under the same number."
   },
   "bookingConfirmation": {
     "name": "Booking confirmation",

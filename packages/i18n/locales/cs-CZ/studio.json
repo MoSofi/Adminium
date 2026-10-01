@@ -400,7 +400,12 @@
       "manualShort": "na vyžádání",
       "note": "Řádky z importu nebo zapsané rovnou do databáze nic nevyvolají — jen zápisy přes Adminium.",
       "noteTitle": "Co se počítá jako změna",
-      "updated": "Když se řádek změní"
+      "updated": "Když se řádek změní",
+      "whenColumn": "Jen když se změní tento sloupec",
+      "anyColumn": "Kterýkoli sloupec",
+      "whenValue": "…a nabude této hodnoty",
+      "whenValuePlaceholder": "Jakákoli hodnota",
+      "whenHelp": "Při volbě „Kterýkoli sloupec“ každá úprava řádku vytvoří dokument znovu – a znovu ho odešle e-mailem, pokud se odesílá. Zvolte sloupec a hodnotu, například stav a zaplaceno, aby se vytvořil jen jednou."
     },
     "unbound": "Ještě vyplnit: {slots}",
     "deleteConfirm": {

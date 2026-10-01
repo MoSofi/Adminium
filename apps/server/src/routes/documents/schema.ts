@@ -57,6 +57,12 @@ export const documentReply = z.object({
   redacted: z.boolean(),
   /** Whether bytes exist to download. */
   hasContent: z.boolean(),
+  /**
+   * A later draw of the same row stands in its place: the row was drawn
+   * again under the same number (an edit, another language). Said only by
+   * the register's list; a single document's own reply says false.
+   */
+  replaced: z.boolean(),
 });
 
 export const documentsListReply = z.object({ documents: z.array(documentReply) });
@@ -184,8 +190,9 @@ export const documentProfileCreateBody = z
     trigger: z
       .object({
         event: z.enum(['record.created', 'record.updated', 'record.deleted']),
+        // "Only when this column changes" — and, with a value, "…to this": see `trigger-sync.ts`.
         when: z
-          .object({ column: z.string().max(128), op: z.string().max(20), value: z.unknown() })
+          .object({ column: z.string().min(1).max(128), op: z.string().max(20), value: z.unknown().optional() })
           .nullable()
           .optional(),
       })

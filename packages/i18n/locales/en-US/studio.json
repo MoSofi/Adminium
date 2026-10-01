@@ -400,7 +400,12 @@
       "manualShort": "on request",
       "note": "Rows added by an import or written straight into the database do not draw anything — only writes through Adminium do.",
       "noteTitle": "What counts as a change",
-      "updated": "When a row changes"
+      "updated": "When a row changes",
+      "whenColumn": "Only when this column changes",
+      "anyColumn": "Any column",
+      "whenValue": "…and becomes this value",
+      "whenValuePlaceholder": "Any value",
+      "whenHelp": "Leave it on “Any column” and every edit of the row draws the document again — and emails it again, if it is emailed. Choose a column and a value, such as status and paid, to draw it once."
     },
     "unbound": "Still to fill: {slots}",
     "deleteConfirm": {

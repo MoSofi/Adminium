@@ -370,6 +370,62 @@ export function documentsRepo(meta: MetaDb) {
   }
 
   /**
+   * Of `ids`, the documents a later draw has REPLACED: a newer rendered
+   * document of the same mapping for the same row exists. A row drawn again
+   * is the same document under the same number, so a register that lists
+   * both needs to say which one stands — two lines reading "INV-1 · sent"
+   * were what a reader saw.
+   */
+  async function replacedAmong(ids: readonly string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const rows = await db
+      .selectFrom('adminium_documents as d')
+      .select('d.id as id')
+      .where('d.id', 'in', [...ids])
+      .where('d.status', '=', 'rendered')
+      .where('d.profileId', 'is not', null)
+      .where('d.entityId', 'is not', null)
+      .where(({ exists, selectFrom, eb }) =>
+        exists(
+          selectFrom('adminium_documents as n')
+            .select('n.id')
+            .whereRef('n.profileId', '=', 'd.profileId')
+            .whereRef('n.entityTable', '=', 'd.entityTable')
+            .whereRef('n.entityId', '=', 'd.entityId')
+            .where('n.status', '=', 'rendered')
+            .where((inner) =>
+              inner.or([
+                inner('n.createdAt', '>', eb.ref('d.createdAt')),
+                inner.and([inner('n.createdAt', '=', eb.ref('d.createdAt')), inner('n.id', '>', eb.ref('d.id'))]),
+              ]),
+            ),
+        ),
+      )
+      .execute();
+    return new Set(rows.map((row) => row.id));
+  }
+
+  /**
+   * Whether an earlier draw of this same document was already emailed: this
+   * one then replaces a copy somebody holds, and its email says so.
+   */
+  async function sentBefore(document: Pick<DocumentRow, 'id' | 'profileId' | 'entityTable' | 'entityId' | 'createdAt'>): Promise<boolean> {
+    if (document.profileId === null || document.entityTable === null || document.entityId === null) return false;
+    const row = await db
+      .selectFrom('adminium_documents')
+      .select('id')
+      .where('profileId', '=', document.profileId)
+      .where('entityTable', '=', document.entityTable)
+      .where('entityId', '=', document.entityId)
+      .where('id', '!=', document.id)
+      .where('createdAt', '<=', document.createdAt)
+      .where('delivery', '=', 'sent')
+      .limit(1)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
+  /**
    * Mark a render successful and attach its bytes.
    *
    * `number` is passed in rather than claimed here: the sequence is claimed
@@ -612,6 +668,8 @@ export function documentsRepo(meta: MetaDb) {
     findReusable,
     numberFor,
     drawnFor,
+    replacedAmong,
+    sentBefore,
     markRendered,
     markFailed,
     markVoided,

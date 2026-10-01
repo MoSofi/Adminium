@@ -63,6 +63,27 @@ function describeFor(profile: DocumentProfile): string {
   );
 }
 
+/**
+ * "When a row changes" narrowed to ONE column — and, with a value, to the
+ * moment it becomes that value ("when `status` becomes `paid`").
+ *
+ * Without it every edit of the row draws the document again, and a mapping
+ * that emails re-sends it: correcting a paid order's due date mailed the
+ * customer a second copy of the invoice. `changedColumn` is the rule's own
+ * "only when this column changed"; the condition is judged on the row as it
+ * is after the write, so the two together are "it became this", and a later
+ * edit of anything else draws nothing.
+ */
+function whenOf(when: NonNullable<DocumentProfile['trigger']>['when']): Record<string, unknown> {
+  if (when === null || when === undefined || when.column === '') return {};
+  const value = when.value;
+  const said = value !== undefined && value !== null && String(value) !== '';
+  return {
+    changedColumn: when.column,
+    ...(said ? { when: [{ left: { field: when.column }, op: 'is', right: String(value) }] } : {}),
+  };
+}
+
 function triggerFor(profile: DocumentProfile): AutomationTrigger | null {
   const chosen = profile.trigger;
   if (chosen === null || chosen === undefined) return null;
@@ -83,7 +104,7 @@ function triggerFor(profile: DocumentProfile): AutomationTrigger | null {
     table: profile.table,
     // See the header. The UI promises this in eight languages.
     watch: false,
-    ...(chosen.when == null ? {} : { changedColumn: chosen.when.column }),
+    ...(chosen.event === 'record.updated' ? whenOf(chosen.when) : {}),
   } as AutomationTrigger;
 }
 

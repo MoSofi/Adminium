@@ -410,7 +410,12 @@ export default {
       "manualShort": "på anmodning",
       "note": "Rækker fra en import eller skrevet direkte i databasen tegner intet — kun skrivninger gennem Adminium gør.",
       "noteTitle": "Hvad der tæller som en ændring",
-      "updated": "Når en række ændres"
+      "updated": "Når en række ændres",
+      "whenColumn": "Kun når denne kolonne ændres",
+      "anyColumn": "En hvilken som helst kolonne",
+      "whenValue": "…og får denne værdi",
+      "whenValuePlaceholder": "En hvilken som helst værdi",
+      "whenHelp": "Med “En hvilken som helst kolonne” opretter hver ændring af rækken dokumentet igen – og sender det igen, hvis det sendes pr. e-mail. Vælg en kolonne og en værdi, f.eks. status og betalt, for kun at oprette det én gang."
     },
     "unbound": "Mangler stadig: {slots}",
     "deleteConfirm": {

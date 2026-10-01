@@ -400,7 +400,12 @@
       "manualShort": "依要求",
       "note": "透過匯入新增的列、或直接寫入資料庫的列不會觸發任何繪製——只有經由 Adminium 的寫入才會。",
       "noteTitle": "什麼算作變更",
-      "updated": "某列變更時"
+      "updated": "某列變更時",
+      "whenColumn": "僅當此欄變更時",
+      "anyColumn": "任何欄位",
+      "whenValue": "…並變為此值",
+      "whenValuePlaceholder": "任何值",
+      "whenHelp": "保留「任何欄位」時，每次編輯該列都會重新產生文件——如果文件以郵件寄送，也會再寄一次。選擇一個欄位和一個值（例如狀態和已付款），即可只產生一次。"
     },
     "unbound": "仍需填寫：{slots}",
     "deleteConfirm": {

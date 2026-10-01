@@ -824,7 +824,8 @@ export default {
     "body": "{business} 為你繪製了{kind} {number}，已作為附件隨本郵件寄出。",
     "button": "線上開啟",
     "footer": "你收到這封郵件，是因為 {business} 為你繪製了這份單據。",
-    "attachment": "單據"
+    "attachment": "單據",
+    "revised": "此版本取代我們先前以相同編號寄給您的版本。"
   },
   "bookingConfirmation": {
     "name": "訂位確認",

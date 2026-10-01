@@ -8907,6 +8907,10 @@
     "status": "mt",
     "srcHash": "7b2174f316df"
   },
+  "email.documentReady.revised": {
+    "status": "mt",
+    "srcHash": "c895d6bba6c8"
+  },
   "email.documentReady.subject": {
     "status": "mt",
     "srcHash": "cfe708491ced"
@@ -15651,6 +15655,10 @@
     "status": "mt",
     "srcHash": "1a89d453211c"
   },
+  "studio.documents.trigger.anyColumn": {
+    "status": "mt",
+    "srcHash": "f52c6183079b"
+  },
   "studio.documents.trigger.created": {
     "status": "mt",
     "srcHash": "1e893155db51"
@@ -15674,6 +15682,22 @@
   "studio.documents.trigger.updated": {
     "status": "mt",
     "srcHash": "c85384abfedb"
+  },
+  "studio.documents.trigger.whenColumn": {
+    "status": "mt",
+    "srcHash": "aa903ce8a617"
+  },
+  "studio.documents.trigger.whenHelp": {
+    "status": "mt",
+    "srcHash": "a44b52e3f0f5"
+  },
+  "studio.documents.trigger.whenValue": {
+    "status": "mt",
+    "srcHash": "f4820b929ba9"
+  },
+  "studio.documents.trigger.whenValuePlaceholder": {
+    "status": "mt",
+    "srcHash": "b74960e7fcfc"
   },
   "studio.documents.unbound": {
     "status": "mt",

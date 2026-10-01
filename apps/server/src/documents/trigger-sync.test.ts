@@ -122,6 +122,35 @@ describe('a mapping’s trigger becomes a rule', () => {
     expect(rule.trigger).toMatchObject({ kind: 'record', watch: false });
   });
 
+  it('waits for one column to become one value, when the mapping says so', async () => {
+    /*
+     * "When a row changes" alone redraws on every edit — and re-sends, for a
+     * mapping that emails: fixing a paid order's due date mailed a second
+     * invoice. With a column and a value the rule fires on the write that
+     * makes it so, and on no other.
+     */
+    const named = async (name: string, trigger: NonNullable<DocumentProfile['trigger']>) =>
+      (await rules.findById(
+        (await reconcile(await profiles.create({ addOnKey: 'invoices', kind: 'invoice', name, connectionId, table: 'public.orders', mapping: {}, trigger }))).result.automationId!,
+      ))!;
+    const paid = await named('When paid', { event: 'record.updated', when: { column: 'status', op: 'is', value: 'paid' } });
+    expect(paid.trigger).toMatchObject({
+      kind: 'record',
+      event: 'updated',
+      changedColumn: 'status',
+      when: [{ left: { field: 'status' }, op: 'is', right: 'paid' }],
+    });
+    // A column alone: any change of it. No column: any change of the row, as before.
+    const moved = await named('When the due date moves', { event: 'record.updated', when: { column: 'due_on', op: 'is' } });
+    expect(moved.trigger).toMatchObject({ changedColumn: 'due_on' });
+    expect((moved.trigger as { when?: unknown }).when ?? []).toEqual([]);
+    const any = await named('On any change', { event: 'record.updated' });
+    expect((any.trigger as { changedColumn?: unknown }).changedColumn ?? null).toBeNull();
+    // "When a row is added" has nothing to become.
+    const added = await named('When added', { event: 'record.created', when: { column: 'status', op: 'is', value: 'paid' } });
+    expect((added.trigger as { changedColumn?: unknown }).changedColumn ?? null).toBeNull();
+  });
+
   it('says what owns it, so a reader in Workflow Logs is not guessing', async () => {
     // The cost D55 accepted: the rule is visible where somebody could edit it.
     // Naming its owner is the mitigation that costs nothing.
