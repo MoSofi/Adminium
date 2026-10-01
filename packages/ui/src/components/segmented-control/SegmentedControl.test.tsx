@@ -18,6 +18,21 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'Day' }).getAttribute('aria-checked')).toBe('true');
   });
 
+  it('draws nothing selected for a value that is none of the options, and stays reachable', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(<SegmentedControl aria-label="Period" options={options} value="" onValueChange={onValueChange} />);
+    for (const radio of screen.getAllByRole('radio')) expect(radio.getAttribute('aria-checked')).toBe('false');
+    // One tab stop still: the first segment.
+    expect(screen.getByRole('radio', { name: 'Day' }).tabIndex).toBe(0);
+    expect(screen.getByRole('radio', { name: 'Week' }).tabIndex).toBe(-1);
+    await user.tab();
+    await user.keyboard('{ArrowLeft}');
+    expect(onValueChange).toHaveBeenLastCalledWith('month');
+    await user.keyboard('{ArrowRight}');
+    expect(onValueChange).toHaveBeenLastCalledWith('day');
+  });
+
   it('lets a caller set every segment at other values, after the defaults', () => {
     render(<SegmentedControl aria-label="Period" options={options} itemClassName="h-auto py-[7px] font-bold" />);
     for (const radio of screen.getAllByRole('radio')) {

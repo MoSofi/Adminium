@@ -33,7 +33,11 @@ const dotToneClasses: Record<Tone, string> = {
 export interface SegmentedControlProps
   extends Omit<React.ComponentPropsWithRef<'div'>, 'style' | 'defaultValue' | 'onChange'> {
   options: readonly SegmentedControlOption[];
-  /** Controlled selected value. */
+  /**
+   * Controlled selected value. A value that is none of the options — `''`,
+   * a form's "not answered yet" — draws the tray with nothing selected. Left
+   * out, the control keeps its own state and starts on the first option.
+   */
   value?: string | undefined;
   /** Uncontrolled initial value (defaults to the first enabled option). */
   defaultValue?: string | undefined;
@@ -70,6 +74,8 @@ export function SegmentedControl({
   const [internal, setInternal] = useState<string | undefined>(defaultValue ?? firstEnabled);
   const current = value !== undefined ? value : internal;
 
+  const anySelected = options.some((option) => option.value === current);
+
   const select = (nextValue: string, focus = false) => {
     if (value === undefined) setInternal(nextValue);
     onValueChange?.(nextValue);
@@ -94,7 +100,11 @@ export function SegmentedControl({
       const delta = forwardKeys.includes(event.key) ? 1 : backwardKeys.includes(event.key) ? -1 : 0;
       if (delta === 0) return;
       const fromIndex = enabled.findIndex((option) => option.value === current);
-      next = enabled[(fromIndex + delta + enabled.length) % enabled.length];
+      // Nothing chosen yet: forward lands on the first segment, backward on the last.
+      next =
+        fromIndex === -1
+          ? enabled[delta > 0 ? 0 : enabled.length - 1]
+          : enabled[(fromIndex + delta + enabled.length) % enabled.length];
     }
     if (!next) return;
     event.preventDefault();
@@ -111,7 +121,9 @@ export function SegmentedControl({
     >
       {options.map((option) => {
         const selected = option.value === current;
-        const tabbable = selected || (current === undefined && option.value === firstEnabled);
+        // A value that is no option (a form's empty answer) selects nothing,
+        // and the tray still needs its one tab stop.
+        const tabbable = selected || (!anySelected && option.value === firstEnabled);
         return (
           <button
             key={option.value}

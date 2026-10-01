@@ -82,7 +82,13 @@ export function SegmentedChoiceControl(props: ControlProps) {
           ...(tone === undefined || !TONES.has(tone) ? {} : { dot: uiToneOf(tone as never) }),
         };
       })}
-      {...(asText(props.value) === '' ? {} : { value: asText(props.value) })}
+      /*
+       * ALWAYS controlled. Left without a value the tray keeps its own state
+       * and starts on the first option — drawn as chosen while the form holds
+       * nothing, so a required field looked answered and refused the save.
+       * An empty answer is passed as it is and selects no segment.
+       */
+      value={asText(props.value)}
       {...(props.disabled === true ? { disabled: true } : {})}
       onValueChange={(next) => props.onChange(next)}
     />

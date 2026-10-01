@@ -254,6 +254,24 @@ describe('the choice family', () => {
     expect(screen.getByRole('radio', { name: 'new' })).toBeDefined();
   });
 
+  it('segments with nothing chosen while the form holds no answer', async () => {
+    /*
+     * A required enum used to draw its first value as chosen while the form
+     * held nothing: the person saw "pending" picked, pressed save, and was
+     * told the field was required.
+     */
+    const user = userEvent.setup();
+    const { onChange } = renderControl('segmented', {
+      column: spec({ name: 'status', label: 'Status', logicalType: 'enum', enumValues: ['pending', 'paid'] }),
+      options: [{ value: 'pending' }, { value: 'paid' }],
+      value: null,
+    });
+    for (const radio of screen.getAllByRole('radio')) expect(radio.getAttribute('aria-checked')).toBe('false');
+    // Choosing the one that looked chosen is a real answer, and reaches the form.
+    await user.click(screen.getByRole('radio', { name: 'pending' }));
+    expect(onChange).toHaveBeenCalledWith('pending');
+  });
+
   it('draws choice cards as one radio group', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
