@@ -819,7 +819,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   const widgetDataCache = new WidgetDataCache();
   app.decorate('widgetDataCache', widgetDataCache);
   // Made further down, once the queue exists; the write service asks it only when a write arrives.
-  let automationsMatcher: { watchesChange(connectionId: string, tableId: string): Promise<boolean> } | undefined;
+  const automationsMatcher: { current?: { watchesChange(connectionId: string, tableId: string): Promise<boolean> } } = {};
   const recordWrites = createWriteService({
     // An app's outbox table takes only the moves a person may make: a sent message is never queued again.
     hooks: () => withOutboxMoves(hookRunner ?? NO_RECORD_HOOKS, { meta, outboxes: () => outboxProducers.all() }),
@@ -828,7 +828,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // An update of a table an app's email watches for a change reads the row first.
     // …and so does one of a table a rule watches for one column's change ("status became paid").
     watched: async (connectionId, tableId) =>
-      (await outboxProducers.watches(connectionId, tableId)) || (await automationsMatcher?.watchesChange(connectionId, tableId)) === true,
+      (await outboxProducers.watches(connectionId, tableId)) || (await automationsMatcher.current?.watchesChange(connectionId, tableId)) === true,
     // What the connection's role may write, whichever door the write came through.
     rights: async (connectionId, tableId) => privilegesOf(await manager.tablePrivilegesById(connectionId), tableId),
   });
@@ -1153,7 +1153,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     log: app.log,
   });
   decorateAutomations(app, automations);
-  automationsMatcher = automations.matcher;
+  automationsMatcher.current = automations.matcher;
   // A document mapping writes a rule of its own; the matcher hears of it here.
   onMappingRulesChanged(meta, () => automations.matcher.onRulesChanged());
   registerAutomationRunHandler(jobs.registry, {
