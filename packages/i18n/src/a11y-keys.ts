@@ -11,7 +11,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 2541 entries. */
+/** `namespace:key` — 2545 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'addOns:failed.title',
   'addOns:noBundle.title',
@@ -637,6 +637,7 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:team.filterStatus',
   'common:team.invite.copied',
   'common:team.invite.copyLink',
+  'common:team.invite.emailed.title',
   'common:team.invite.noEmail.title',
   'common:team.inviteDialog.description',
   'common:team.inviteDialog.email',
@@ -1389,6 +1390,9 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'studio:documents.tableLabel',
   'studio:documents.title',
   'studio:documents.trigger.noteTitle',
+  'studio:documents.trigger.whenColumn',
+  'studio:documents.trigger.whenValue',
+  'studio:documents.trigger.whenValuePlaceholder',
   'studio:enrich.byo.cardTitle',
   'studio:enrich.byo.cardTitleRecommended',
   'studio:enrich.byo.chunkTabs',

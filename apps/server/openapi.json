@@ -74062,6 +74062,7 @@
                                 "properties": {
                                   "column": {
                                     "type": "string",
+                                    "minLength": 1,
                                     "maxLength": 128
                                   },
                                   "op": {
@@ -74072,8 +74073,7 @@
                                 },
                                 "required": [
                                   "column",
-                                  "op",
-                                  "value"
+                                  "op"
                                 ]
                               },
                               {
@@ -74251,6 +74251,7 @@
                                 "properties": {
                                   "column": {
                                     "type": "string",
+                                    "minLength": 1,
                                     "maxLength": 128
                                   },
                                   "op": {
@@ -74261,8 +74262,7 @@
                                 },
                                 "required": [
                                   "column",
-                                  "op",
-                                  "value"
+                                  "op"
                                 ]
                               },
                               {
@@ -74603,6 +74603,9 @@
                           },
                           "hasContent": {
                             "type": "boolean"
+                          },
+                          "replaced": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -74625,7 +74628,8 @@
                           "voidReason",
                           "createdAt",
                           "redacted",
-                          "hasContent"
+                          "hasContent",
+                          "replaced"
                         ],
                         "additionalProperties": false
                       }
@@ -74798,6 +74802,9 @@
                     },
                     "hasContent": {
                       "type": "boolean"
+                    },
+                    "replaced": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -74820,7 +74827,8 @@
                     "voidReason",
                     "createdAt",
                     "redacted",
-                    "hasContent"
+                    "hasContent",
+                    "replaced"
                   ],
                   "additionalProperties": false
                 }
@@ -75189,6 +75197,9 @@
                         },
                         "hasContent": {
                           "type": "boolean"
+                        },
+                        "replaced": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -75211,7 +75222,8 @@
                         "voidReason",
                         "createdAt",
                         "redacted",
-                        "hasContent"
+                        "hasContent",
+                        "replaced"
                       ],
                       "additionalProperties": false
                     }
@@ -75384,6 +75396,9 @@
                         },
                         "hasContent": {
                           "type": "boolean"
+                        },
+                        "replaced": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -75406,7 +75421,8 @@
                         "voidReason",
                         "createdAt",
                         "redacted",
-                        "hasContent"
+                        "hasContent",
+                        "replaced"
                       ],
                       "additionalProperties": false
                     }
@@ -75601,6 +75617,9 @@
                     },
                     "hasContent": {
                       "type": "boolean"
+                    },
+                    "replaced": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -75623,7 +75642,8 @@
                     "voidReason",
                     "createdAt",
                     "redacted",
-                    "hasContent"
+                    "hasContent",
+                    "replaced"
                   ],
                   "additionalProperties": false
                 }
@@ -88095,6 +88115,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "apiOn": {
+                          "type": "boolean"
+                        },
+                        "granted": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "apiOn",
+                        "granted"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -88713,6 +88749,22 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "publicAccess": {
+                      "type": "object",
+                      "properties": {
+                        "apiOn": {
+                          "type": "boolean"
+                        },
+                        "granted": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "apiOn",
+                        "granted"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -88839,6 +88891,9 @@
                             "type": "number"
                           },
                           "actor": {
+                            "type": "string"
+                          },
+                          "subject": {
                             "type": "string"
                           }
                         },
@@ -100585,7 +100640,7 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 200
+              "maxLength": 2000
             },
             "in": "query",
             "name": "under",

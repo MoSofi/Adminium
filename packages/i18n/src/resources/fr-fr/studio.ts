@@ -2379,6 +2379,11 @@ export default {
       "body": "Les réponses qu’accepte une colonne — pays, étapes, services — nommées une fois et utilisables partout.",
       "cta": "Ouvrir les listes",
       "heading": "Listes"
+    },
+    "documentsCard": {
+      "heading": "Mappages de documents",
+      "body": "Indiquez de quelle table une facture, un reçu ou un relevé est généré, ce qui le déclenche et à qui il est envoyé par e-mail.",
+      "cta": "Ouvrir les mappages de documents"
     }
   },
   "source": {
@@ -3030,7 +3035,9 @@ export default {
     "disableLine2": "Ses écrans et ses propres points de terminaison cessent de répondre.",
     "disableLine3": "Les tables, enregistrements et paramètres restent tels quels.",
     "crumb": "Apps",
-    "sampleLedger": "La liste des enregistrements d’exemple d’Adminium"
+    "sampleLedger": "La liste des enregistrements d’exemple d’Adminium",
+    "customerApiOff": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’API publique est désactivée. Activez-la dans Studio › Clés API.",
+    "customerNoAccess": "Ces pages s’ouvrent, mais elles ne peuvent rien lire ni enregistrer : l’application a été installée sans son accès public. Mettez-la à jour et autorisez-le."
   },
   "uninstall": {
     "files": "Les fichiers de l’app",

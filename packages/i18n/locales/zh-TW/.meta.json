@@ -14631,6 +14631,14 @@
     "status": "mt",
     "srcHash": "d9a36850b7f3"
   },
+  "studio.appSettings.customerApiOff": {
+    "status": "mt",
+    "srcHash": "913b4cd389b0"
+  },
+  "studio.appSettings.customerNoAccess": {
+    "status": "mt",
+    "srcHash": "96e3ef78a6d5"
+  },
   "studio.appSettings.customerOffHelp": {
     "status": "mt",
     "srcHash": "1dc08a3664cc"
@@ -21642,6 +21650,18 @@
   "studio.settingsHub.defaultsCard.heading": {
     "srcHash": "1fcdd80c7dbe",
     "status": "mt"
+  },
+  "studio.settingsHub.documentsCard.body": {
+    "status": "mt",
+    "srcHash": "477bd8e27818"
+  },
+  "studio.settingsHub.documentsCard.cta": {
+    "status": "mt",
+    "srcHash": "2c48f6adfff2"
+  },
+  "studio.settingsHub.documentsCard.heading": {
+    "status": "mt",
+    "srcHash": "1a89d453211c"
   },
   "studio.settingsHub.email.attachmentCap.error": {
     "status": "mt",

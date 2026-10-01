@@ -2379,6 +2379,11 @@ export default {
       "body": "一列所接受的答案——国家和地区、阶段、部门——命名一次，随处使用。",
       "cta": "打开列表",
       "heading": "列表"
+    },
+    "documentsCard": {
+      "heading": "文档映射",
+      "body": "指定发票、收据或对账单从哪个表生成、由什么触发，以及通过邮件发送给谁。",
+      "cta": "打开文档映射"
     }
   },
   "source": {
@@ -3030,7 +3035,9 @@ export default {
     "disableLine2": "其界面和自有端点停止响应。",
     "disableLine3": "数据表、记录和设置保持不变。",
     "crumb": "应用",
-    "sampleLedger": "Adminium 的示例记录清单"
+    "sampleLedger": "Adminium 的示例记录清单",
+    "customerApiOff": "这些页面可以打开，但无法读取或保存任何内容：公共 API 已关闭。请在 Studio › API 密钥中开启。",
+    "customerNoAccess": "这些页面可以打开，但无法读取或保存任何内容：安装应用时未启用其公共访问。请更新应用并允许它。"
   },
   "uninstall": {
     "files": "应用的文件",

@@ -2379,6 +2379,11 @@ export default {
       "body": "一個欄位所接受的答案——國家和地區、階段、部門——命名一次，處處可用。",
       "cta": "開啟清單",
       "heading": "清單"
+    },
+    "documentsCard": {
+      "heading": "文件對應",
+      "body": "指定發票、收據或對帳單從哪個資料表產生、由什麼觸發，以及以郵件寄給誰。",
+      "cta": "開啟文件對應"
     }
   },
   "source": {
@@ -3030,7 +3035,9 @@ export default {
     "disableLine2": "其畫面和自有端點停止回應。",
     "disableLine3": "資料表、記錄和設定保持不變。",
     "crumb": "應用程式",
-    "sampleLedger": "Adminium 的範例記錄清單"
+    "sampleLedger": "Adminium 的範例記錄清單",
+    "customerApiOff": "這些頁面可以開啟，但無法讀取或儲存任何內容：公開 API 已關閉。請在 Studio › API 金鑰中開啟。",
+    "customerNoAccess": "這些頁面可以開啟，但無法讀取或儲存任何內容：安裝應用程式時未啟用其公開存取。請更新應用程式並允許它。"
   },
   "uninstall": {
     "files": "應用程式的檔案",

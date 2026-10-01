@@ -2379,6 +2379,11 @@ export default {
       "body": "De svar, en kolonne accepterer — lande, stadier, afdelinger — navngivet én gang og brugt overalt.",
       "cta": "Åbn lister",
       "heading": "Lister"
+    },
+    "documentsCard": {
+      "heading": "Dokumenttilknytninger",
+      "body": "Angiv, hvilken tabel en faktura, en kvittering eller en kontooversigt oprettes fra, hvad der udløser den, og hvem den sendes til pr. e-mail.",
+      "cta": "Åbn dokumenttilknytninger"
     }
   },
   "source": {
@@ -3030,7 +3035,9 @@ export default {
     "disableLine2": "Dens skærme og egne endpoints holder op med at svare.",
     "disableLine3": "Tabellerne, posterne og indstillingerne forbliver, som de er.",
     "crumb": "Apps",
-    "sampleLedger": "Adminiums liste over eksempelposter"
+    "sampleLedger": "Adminiums liste over eksempelposter",
+    "customerApiOff": "Siderne åbner, men de kan hverken læse eller gemme noget: den offentlige API er slået fra. Slå den til under Studio › API-nøgler.",
+    "customerNoAccess": "Siderne åbner, men de kan hverken læse eller gemme noget: appen blev installeret uden sin offentlige adgang. Opdater appen, og tillad den."
   },
   "uninstall": {
     "files": "Appens filer",

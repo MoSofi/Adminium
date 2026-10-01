@@ -2379,6 +2379,11 @@ export default {
       "body": "Odpovědi, které sloupec přijímá — země, fáze, oddělení — pojmenované jednou a použitelné odkudkoli.",
       "cta": "Otevřít seznamy",
       "heading": "Seznamy"
+    },
+    "documentsCard": {
+      "heading": "Mapování dokumentů",
+      "body": "Určete, ze které tabulky se vytváří faktura, stvrzenka nebo výpis, co je spouští a komu se posílají e-mailem.",
+      "cta": "Otevřít mapování dokumentů"
     }
   },
   "source": {
@@ -3030,7 +3035,9 @@ export default {
     "disableLine2": "Její obrazovky a vlastní koncové body přestanou odpovídat.",
     "disableLine3": "Tabulky, záznamy a nastavení zůstanou, jak jsou.",
     "crumb": "Aplikace",
-    "sampleLedger": "Seznam ukázkových záznamů Adminia"
+    "sampleLedger": "Seznam ukázkových záznamů Adminia",
+    "customerApiOff": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: veřejné API je vypnuté. Zapněte ho ve Studiu › Klíče API.",
+    "customerNoAccess": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: aplikace byla nainstalována bez veřejného přístupu. Aktualizujte ji a přístup povolte."
   },
   "uninstall": {
     "files": "Soubory aplikace",

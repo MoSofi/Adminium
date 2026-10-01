@@ -2379,6 +2379,11 @@ export default {
       "body": "Die Antworten, die eine Spalte annimmt — Länder, Phasen, Abteilungen — einmal benannt und überall verwendbar.",
       "cta": "Listen öffnen",
       "heading": "Listen"
+    },
+    "documentsCard": {
+      "heading": "Dokumentzuordnungen",
+      "body": "Legen Sie fest, aus welcher Tabelle eine Rechnung, eine Quittung oder ein Kontoauszug erstellt wird, was die Erstellung auslöst und an wen sie per E-Mail geht.",
+      "cta": "Dokumentzuordnungen öffnen"
     }
   },
   "source": {
@@ -3030,7 +3035,9 @@ export default {
     "disableLine2": "Ihre Bildschirme und eigenen Endpunkte antworten nicht mehr.",
     "disableLine3": "Tabellen, Datensätze und Einstellungen bleiben, wie sie sind.",
     "crumb": "Apps",
-    "sampleLedger": "Adminiums Liste der Beispieldatensätze"
+    "sampleLedger": "Adminiums Liste der Beispieldatensätze",
+    "customerApiOff": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die öffentliche API ist ausgeschaltet. Schalten Sie sie unter Studio › API-Schlüssel ein.",
+    "customerNoAccess": "Diese Seiten öffnen sich, können aber nichts lesen oder speichern: Die App wurde ohne ihren öffentlichen Zugriff installiert. Aktualisieren Sie die App und erlauben Sie ihn."
   },
   "uninstall": {
     "files": "Die Dateien der App",

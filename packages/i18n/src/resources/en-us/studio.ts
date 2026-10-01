@@ -2379,6 +2379,11 @@ export default {
       "body": "The answers a column accepts — countries, stages, departments — named once and used from anywhere.",
       "cta": "Open lists",
       "heading": "Lists"
+    },
+    "documentsCard": {
+      "heading": "Document mappings",
+      "body": "Say which table an invoice, a receipt or a statement is drawn from, what draws it, and who it is emailed to.",
+      "cta": "Open document mappings"
     }
   },
   "source": {
@@ -3030,7 +3035,9 @@ export default {
     "disableLine2": "Its screens and its own endpoints stop answering.",
     "disableLine3": "The tables, records and settings stay as they are.",
     "crumb": "Apps",
-    "sampleLedger": "Adminium’s list of sample records"
+    "sampleLedger": "Adminium’s list of sample records",
+    "customerApiOff": "These pages open, but they cannot read or save anything: the public API is switched off. Switch it on under Studio › API keys.",
+    "customerNoAccess": "These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it."
   },
   "uninstall": {
     "files": "The app’s files",
