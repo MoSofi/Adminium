@@ -130,12 +130,20 @@ export function hiddenInQuote(view: SnapshotView, table: ResolvedTable, also: re
  * What a quote fills in for a guest's text the price does not read — a name,
  * an address, a note not typed yet — so a page can price before any details
  * exist. Only a column the entry requires, or the table cannot store empty,
- * that no formula, total or copy reads; the reply shows it empty.
+ * that no figure is worked out from — a formula of numbers, a total or a
+ * copy; the reply shows it empty.
+ *
+ * A formula that JOINS text is no figure: a stay's `guest_name`, joined from
+ * a first name and a surname, prices nothing. Counting its reads as priced
+ * left both names unfilled, so a guest site could not show a price until
+ * the guest had typed who they were — every quote answered 400. Its reads
+ * take the placeholder like any other name, and the joined column is shown
+ * empty beside them (`placeheldTexts`).
  */
 export function quotePlaceholders(view: SnapshotView, table: ResolvedTable, writable: Iterable<string>, requires: readonly string[], values: Row): Row {
   const rules = tableRulesFor({ view, table });
   const priced = new Set<string>([
-    ...(rules?.formulas ?? []).flatMap((formula) => formula.reads),
+    ...(rules?.formulas ?? []).filter((formula) => !joinsText(formula.expr)).flatMap((formula) => formula.reads),
     ...(rules?.rollupsInto ?? []).flatMap((rollup) => [rollup.via, rollup.sum, rollup.times, rollup.unlessSet, rollup.where?.column].filter((c): c is string => typeof c === 'string')),
     ...(rules?.copies ?? []).map((copy) => copy.via),
   ]);
@@ -153,6 +161,24 @@ export function quotePlaceholders(view: SnapshotView, table: ResolvedTable, writ
     out[column] = most !== undefined && text.length > most ? text.slice(0, Math.max(1, most)) : text;
   }
   return out;
+}
+
+/** A formula that puts text together, and so works out no figure. */
+function joinsText(expr: unknown): boolean {
+  return typeof expr === 'object' && expr !== null && 'join' in expr;
+}
+
+/**
+ * The joined-text columns made from a quote's placeholders: shown empty in the
+ * reply, as the placeholders are — never "Quote Quote" where a name will be.
+ */
+export function placeheldTexts(view: SnapshotView, table: ResolvedTable, filled: Iterable<string>): string[] {
+  const placeheld = new Set(filled);
+  if (placeheld.size === 0) return [];
+  const rules = tableRulesFor({ view, table });
+  return (rules?.formulas ?? [])
+    .filter((formula) => joinsText(formula.expr) && formula.reads.some((column) => placeheld.has(column)))
+    .map((formula) => formula.column);
 }
 
 /** The places a money column keeps: its own scale, a formula's, else two (a currency's). */

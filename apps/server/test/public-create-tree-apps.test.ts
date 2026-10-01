@@ -105,6 +105,8 @@ function inn(): Record<string, unknown> {
           { ref: 'room_type_id', type: 'fk', references: 'room_types' },
           text('email', 254, { rules: { validation: { format: 'email' } } }),
           text('name', 80),
+          // Text joined from the guest's own details, as a hotel's `guest_name` is: it prices nothing.
+          text('booked_as', 100, { nullable: true, rules: { formula: { join: ['name', ' (guest)'] } } }),
           { ref: 'guests', type: 'int', default: 1, rules: { validation: { min: 1, max: 6 } } },
           money('extras_total', { rollup: { from: 'stay_extras', via: 'stay_id', sum: 'price' } }),
           { ref: 'extra_count', type: 'int', nullable: true, rules: { rollup: { from: 'stay_extras', via: 'stay_id', count: true } } },
@@ -126,7 +128,7 @@ function inn(): Record<string, unknown> {
         humanCheck: true,
         writable: ['room_type_id', 'email', 'name', 'guests'],
         requires: ['email', 'name'],
-        select: ['id', 'extras_total', 'extra_count', 'total'],
+        select: ['id', 'extras_total', 'extra_count', 'total', 'booked_as'],
         agrees: [{ column: 'guests', lte: { via: 'room_type_id', column: 'sleeps' } }],
         children: { stay_extras: { via: 'stay_id', writable: ['extra_id'], select: ['id', 'price'], max: 10 } },
         dryRun: true,
@@ -223,6 +225,29 @@ describe.each(LEGS)('a ticket order and a stay, over the public API — %s', (di
     expect(res.statusCode, res.body).toBe(201);
     const data = (res.json() as { data: Record<string, unknown> }).data;
     expect([cents(data['extras_total']), Number(data['extra_count']), cents(data['total'])]).toEqual(['47.00', 2, '197.00']);
+  });
+
+  it.runIf(available)('a stay is priced before the guest has typed who they are', async () => {
+    /*
+     * The guest site asks for a price with the room, the guests and the
+     * extras only. `name` is required AND read by a formula that joins it
+     * into text: that used to leave it without a placeholder, so
+     * every such quote was refused for a missing name and the page showed
+     * "…" where the price goes.
+     */
+    const before = await count(stays!, 'stays');
+    const res = await post(desk, 'inn_stays/dry-run', { values: { room_type_id: 2, guests: 2 }, children: { stay_extras: [{ values: { extra_id: 1 } }, { values: { extra_id: 2 } }] } }, false);
+    expect(res.statusCode, res.body).toBe(200);
+    const data = (res.json() as { data: Record<string, unknown> }).data;
+    expect([cents(data['extras_total']), cents(data['total'])]).toEqual(['47.00', '197.00']);
+    // What was filled in to price it is shown empty, and so is the text joined from it.
+    expect(data['booked_as']).toBeNull();
+    expect(JSON.stringify(res.json())).not.toMatch(/Quote|quote@example/);
+    expect(await count(stays!, 'stays')).toBe(before);
+    // The save itself still needs the name.
+    const save = await post(desk, 'inn_stays', { values: { room_type_id: 2, guests: 2, email: 'leo@example.com' } });
+    expect(save.statusCode, save.body).toBe(400);
+    expect(save.json()).toMatchObject({ error: { code: 'PUBLIC_WRITE_REFUSED', params: { column: 'name' } } });
   });
 
   it.runIf(available)('three guests in a Snug that sleeps one are refused; so is a minus guest', async () => {

@@ -65,7 +65,7 @@ import { foreignKeyOf, judgeAgrees, judgeCounts, judgeReadable, judgeSumMax, Tre
 import { isWriteConflict, writeConflict } from '../../crud/db-errors.js';
 import type { TreeNode, TreeOutcome, TreePath, TreeReplay, TreeWritten } from '../../crud/write-tree.js';
 import { ratioText, sameDecimal, toRatio } from '@adminium/manifest';
-import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
+import { CLIENT_KEY_FORMAT, childValues, clientKeyHash, clientKeySecret, hiddenInQuote, placeOf, placeheldTexts, placesOfColumn, quotePlaceholders, treeShape } from './tree.js';
 import { afterNow, aheadWithin, beforeToday, fromToday, isMomentWindow, isTimeWindow, mandatoryAt } from '../../public-api/relative-filters.js';
 import { publicWindows, withPublicWindows } from '../../public-api/moment-windows.js';
 import { timedRefusal } from '../../public-api/timed-refusals.js';
@@ -2367,7 +2367,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       if (dry) {
         const shown = quotePlaceholders(view, table, resource.writable, resource.requires ?? [], values);
         Object.assign(values, shown);
-        filledIn.set('', new Set(Object.keys(shown)));
+        filledIn.set('', new Set([...Object.keys(shown), ...placeheldTexts(view, table, Object.keys(shown))]));
       }
       const missing = unfilled(resource, values);
       if (missing !== null) return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'A value this write needs is missing.', { column: missing });
@@ -2407,7 +2407,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
             if (dry) {
               const shown = quotePlaceholders(view, childTable, child.writable, child.requires ?? [], own);
               Object.assign(own, shown);
-              filledIn.set(place(at), new Set(Object.keys(shown)));
+              filledIn.set(place(at), new Set([...Object.keys(shown), ...placeheldTexts(view, childTable, Object.keys(shown))]));
             }
             const need = (child.requires ?? []).find((column) => own[column] === null || own[column] === undefined || (typeof own[column] === 'string' && own[column].trim() === ''));
             if (need !== undefined) return { ...where, column: need, reason: 'required' };
