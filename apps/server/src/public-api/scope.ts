@@ -1863,7 +1863,9 @@ function projectResource(r: CompiledResource): {
     filterable: [...r.filterable],
     searchable: [...r.searchable],
     orderable: [...r.orderable],
-    writable: [...r.writable],
+    // Said only of a door that takes a write: a scope derived before this was
+    // fixed still lists columns on its read-only resources.
+    writable: [...r.actions].some((action) => WRITING_ACTIONS.has(action)) ? [...r.writable] : [],
     limit: r.limit,
     response: { shape: r.response.shape },
     ...(r.kind === 'availability' ? { kind: 'availability' as const } : {}),

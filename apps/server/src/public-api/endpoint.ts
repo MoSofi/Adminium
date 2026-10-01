@@ -69,6 +69,9 @@ export const METHOD_ACTION: Readonly<Record<PublicMethod, PublicAction>> = {
   BATCH: 'batch',
 };
 
+/** The actions that send column values: the only ones `writable` means anything to. */
+const SENDS_VALUES: ReadonlySet<PublicAction> = new Set(['create', 'update', 'replace', 'batch']);
+
 /** The methods that address one row by its primary key. */
 const KEYED_METHODS: ReadonlySet<PublicMethod> = new Set(['PATCH', 'PUT', 'DELETE']);
 /** The methods that send column values. */
@@ -887,7 +890,15 @@ export function definitionToResource(
     searchable: [...(def.searchable ?? [])],
     orderable: [...(def.orderable ?? [])],
     where: def.filters.map(filterOf) as PublicScopeResource['where'],
-    writable: def.writable === undefined ? defaultWritable(def, table) : [...def.writable],
+    /*
+     * Nothing is writable through a door that takes no write. The default —
+     * "what is selected, minus what a caller must not choose" — is for an
+     * endpoint that writes and names no columns; given to a read-only one it
+     * published a list of columns nobody could send. A page that finds its
+     * door by what it may write (a client's "I've sent a payment") then chose
+     * the read-only door of the same table, and every such write answered 404.
+     */
+    writable: def.writable !== undefined ? [...def.writable] : actions.some((action) => SENDS_VALUES.has(action)) ? defaultWritable(def, table) : [],
     defaults: { ...(def.defaults ?? {}) },
     sensitive: def.sensitive ?? false,
     limit: def.pagination.max_limit,

@@ -396,8 +396,23 @@ describe('definitionToResource', () => {
       filters: [{ column: 'role', op: 'eq', value: 'member' }],
     });
     expect(definitionToResource('users', def, ['POST'], table).writable).toEqual(['display_name']);
-    const claimed = users({ select: ['id', 'display_name', 'role'], filters: [], claim: { column: 'display_name' } });
+    const claimed = users({ methods: ['GET', 'PATCH'], select: ['id', 'display_name', 'role'], filters: [], claim: { column: 'display_name' } });
     expect(definitionToResource('users', claimed, ['PATCH'], table).writable).toEqual(['role']);
+  });
+
+  it('lists nothing writable on a door that takes no write', () => {
+    /*
+     * Two entries on one table — one to read, one to write a few columns —
+     * are two refs, and a page finds the one to write by what it may write.
+     * The read-only ref used to carry the default list too, so the page sent
+     * its write there and was told the row did not exist.
+     */
+    const read = users({ methods: ['GET'], select: ['id', 'display_name', 'role'], filters: [] });
+    expect(definitionToResource('users', read, ['GET'], table).writable).toEqual([]);
+    // Offered but not granted to this key: the same.
+    const offered = users({ methods: ['GET', 'PATCH'], select: ['id', 'display_name', 'role'], filters: [] });
+    expect(definitionToResource('users', offered, ['GET'], table).writable).toEqual([]);
+    expect(definitionToResource('users', offered, ['GET', 'PATCH'], table).writable).toEqual(['display_name', 'role']);
   });
 
   it('carries pagination, rate and response into the resource', () => {
