@@ -3102,7 +3102,8 @@ export default {
       "timeZone": "Tato databáze nemá nastavené časové pásmo, které veřejné API potřebuje pro data a časy.",
       "noEmail": "E-mail není nastaven, takže hosté nedostanou potvrzení.",
       "noEmailSignIn": "E-mail není nastaven, takže nikomu nelze poslat přihlašovací odkaz.",
-      "noPublicAddress": "Tato aplikace nemá veřejnou adresu, takže nelze poslat přihlašovací odkaz. Přiřaďte doménu její zákaznické části, nebo nastavte veřejnou adresu serveru."
+      "noPublicAddress": "Tato aplikace nemá veřejnou adresu, takže nelze poslat přihlašovací odkaz. Přiřaďte doménu její zákaznické části, nebo nastavte veřejnou adresu serveru.",
+      "currency": "Tato databáze nemá nastavenou měnu, takže částky aplikace se v přehledu zobrazují v amerických dolarech a v jejích e-mailech bez měny. Nastavte ji ve Studiu › Připojení › Regionální nastavení."
     },
     "createConfirmed": "Přidávat do {table} a dostat potvrzovací e-mail"
   },

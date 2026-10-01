@@ -3092,7 +3092,8 @@
       "timeZone": "Denne database har ingen tidszone, som den offentlige API skal bruge til datoer og tidspunkter.",
       "noEmail": "E-mail er ikke sat op, så gæster får ingen bekræftelse.",
       "noEmailSignIn": "E-mail er ikke sat op, så ingen kan få tilsendt et loginlink.",
-      "noPublicAddress": "Denne app har ingen offentlig adresse, så der kan ikke sendes et loginlink. Knyt et domæne til dens kundeside, eller angiv serverens offentlige adresse."
+      "noPublicAddress": "Denne app har ingen offentlig adresse, så der kan ikke sendes et loginlink. Knyt et domæne til dens kundeside, eller angiv serverens offentlige adresse.",
+      "currency": "Denne database har ingen valuta, så appens beløb vises i amerikanske dollar på dashboardet og uden valuta i dens e-mails. Vælg en under Studio › Forbindelser › Regionale indstillinger."
     },
     "createConfirmed": "Tilføje til {table} og få en bekræftelsesmail"
   },

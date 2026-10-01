@@ -14495,6 +14495,10 @@
     "status": "mt",
     "srcHash": "89d7375150e9"
   },
+  "studio.appPublicAccess.warning.currency": {
+    "status": "mt",
+    "srcHash": "47ab49609a2f"
+  },
   "studio.appPublicAccess.warning.noEmail": {
     "status": "mt",
     "srcHash": "a227535f74ba"

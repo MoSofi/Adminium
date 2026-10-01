@@ -3102,7 +3102,8 @@ export default {
       "timeZone": "This database has no time zone set, which the public API needs for dates and times.",
       "noEmail": "Email is not set up, so guests will not be sent a confirmation.",
       "noEmailSignIn": "Email is not set up, so nobody can be sent a sign-in link.",
-      "noPublicAddress": "This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address."
+      "noPublicAddress": "This app has no public address, so no sign-in link can be sent. Map a domain to its customer side, or set the server’s public address.",
+      "currency": "This database has no currency set, so the app’s money shows in US dollars on the dashboard and with no currency in its emails. Set one under Studio › Connections › Regional settings."
     },
     "createConfirmed": "Add to {table}, and get a confirmation email"
   },

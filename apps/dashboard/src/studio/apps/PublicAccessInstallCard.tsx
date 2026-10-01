@@ -79,6 +79,11 @@ function warningText(code: string, message: string): string {
         'studio:appPublicAccess.warning.timeZone',
         'This database has no time zone set, which the public API needs for dates and times.',
       );
+    case 'NO_CURRENCY':
+      return t(
+        'studio:appPublicAccess.warning.currency',
+        'This database has no currency set, so the app’s money shows in US dollars on the dashboard and with no currency in its emails. Set one under Studio › Connections › Regional settings.',
+      );
     default:
       return message;
   }

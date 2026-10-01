@@ -155,6 +155,7 @@ import {
   installPublicAccess,
   keysOpenedWithoutStaff,
   planPublicEndpoints,
+  keepsMoney,
   publicAccessWarnings,
   signsInByLink,
   takeBackPublicAccess,
@@ -1104,6 +1105,7 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         deps.publicAccess?.origins ?? [],
         (manifest.publicAccess ?? []).some((entry) => entry.confirm !== undefined) || manifest.outbox !== undefined,
         { appKey: manifest.key, byLink: signsInByLink(manifest) },
+        keepsMoney(manifest),
       ),
       canGrant: typeof request.can !== 'function' || (await request.can(PERMISSIONS.apiKeysManage)),
     };

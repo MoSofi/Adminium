@@ -79,7 +79,7 @@ export interface PublicAccessPlan {
   endpoints: PlannedPublicEndpoint[];
   /** What would stop the key working, though the install goes ahead. */
   warnings: {
-    code: 'PUBLIC_API_OFF' | 'ORIGIN_SELF_MISSING' | 'NO_TIME_ZONE' | 'NO_EMAIL' | 'NO_EMAIL_SIGN_IN' | 'NO_PUBLIC_ADDRESS';
+    code: 'PUBLIC_API_OFF' | 'ORIGIN_SELF_MISSING' | 'NO_TIME_ZONE' | 'NO_CURRENCY' | 'NO_EMAIL' | 'NO_EMAIL_SIGN_IN' | 'NO_PUBLIC_ADDRESS';
     message: string;
   }[];
 }
@@ -577,6 +577,11 @@ export function signsInByLink(manifest: Manifest): boolean {
   return manifest.kind === 'app' && (manifest.publicAccess ?? []).some((entry) => entry.claim !== undefined && 'verify' in entry.claim && entry.claim.verify === 'email-link');
 }
 
+/** Whether an app declares a column of money on any of its tables. */
+export function keepsMoney(manifest: Manifest): boolean {
+  return manifest.kind === 'app' && (manifest.requiredSchema?.tables ?? []).some((table) => table.columns.some((column) => column.type === 'money'));
+}
+
 /** What would stop an app's key working on this instance, said before install. */
 export async function publicAccessWarnings(
   meta: MetaDb,
@@ -586,6 +591,8 @@ export async function publicAccessWarnings(
   sendsEmail = false,
   /** The app (by key) signs its people in by an emailed link: the link needs mail and an address to point at. */
   signIn?: { appKey: string; byLink: boolean },
+  /** The app keeps money: its amounts are shown in the connection's currency. */
+  keepsMoney = false,
 ): Promise<PublicAccessPlan['warnings']> {
   const out: PublicAccessPlan['warnings'] = [];
   const byLink = signIn?.byLink === true;
@@ -616,6 +623,19 @@ export async function publicAccessWarnings(
   const tenant = await connectionTenantConfig(meta, connectionId);
   if (tenant?.timezone == null) {
     out.push({ code: 'NO_TIME_ZONE', message: 'This database has no time zone set, which the public API needs for dates and times.' });
+  }
+  /*
+   * Nothing else ever asks. With no currency the dashboard's widgets fall back
+   * to US dollars and an email prints a bare number, so a practice that bills
+   * in pounds read "Taken $146.00" on its own Overview. Said here, before the
+   * install, beside the time zone it is set next to.
+   */
+  if (keepsMoney && (tenant?.currency ?? null) === null) {
+    out.push({
+      code: 'NO_CURRENCY',
+      message:
+        'This database has no currency set, so the app’s money shows in US dollars on the dashboard and with no currency in its emails. Set one under Studio › Connections › Regional settings.',
+    });
   }
   return out;
 }

@@ -4518,7 +4518,10 @@ for (const [dialect, available] of legs) {
       await h.meta.db.updateTable('adminium_connections').set({ timezone: null }).where('id', '=', h.connectionId).execute();
       const planned = await post(h, '/apps/plan');
       expect(planned.json().plan.publicAccess.canGrant).toBe(false);
-      expect(planned.json().plan.publicAccess.warnings.map((w: { code: string }) => w.code)).toEqual(['PUBLIC_API_OFF', 'NO_TIME_ZONE']);
+      // The app keeps money and the connection names no currency: said before the install, beside the time zone.
+      expect(planned.json().plan.publicAccess.warnings.map((w: { code: string }) => w.code)).toEqual(['PUBLIC_API_OFF', 'NO_TIME_ZONE', 'NO_CURRENCY']);
+      await h.meta.db.updateTable('adminium_connections').set({ currency: 'GBP' }).where('id', '=', h.connectionId).execute();
+      expect((await post(h, '/apps/plan')).json().plan.publicAccess.warnings.map((w: { code: string }) => w.code)).toEqual(['PUBLIC_API_OFF', 'NO_TIME_ZONE']);
 
       const refused = await post(h, '/apps/install');
       expect(refused.statusCode, refused.body).toBe(403);

@@ -3092,7 +3092,8 @@
       "timeZone": "Für diese Datenbank ist keine Zeitzone festgelegt, die die öffentliche API für Datums- und Zeitangaben braucht.",
       "noEmail": "E-Mail ist nicht eingerichtet, daher erhalten Gäste keine Bestätigung.",
       "noEmailSignIn": "E-Mail ist nicht eingerichtet, daher kann niemandem ein Anmeldelink gesendet werden.",
-      "noPublicAddress": "Diese App hat keine öffentliche Adresse, daher kann kein Anmeldelink gesendet werden. Ordnen Sie ihrer Kundenseite eine Domain zu oder legen Sie die öffentliche Adresse des Servers fest."
+      "noPublicAddress": "Diese App hat keine öffentliche Adresse, daher kann kein Anmeldelink gesendet werden. Ordnen Sie ihrer Kundenseite eine Domain zu oder legen Sie die öffentliche Adresse des Servers fest.",
+      "currency": "Für diese Datenbank ist keine Währung festgelegt. Beträge der App erscheinen daher im Dashboard in US-Dollar und in ihren E-Mails ohne Währung. Legen Sie eine unter Studio › Verbindungen › Regionale Einstellungen fest."
     },
     "createConfirmed": "Zu {table} hinzufügen und eine Bestätigungs-E-Mail erhalten"
   },
