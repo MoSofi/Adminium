@@ -1,5 +1,11 @@
 # @adminium/adapter-sqlite
 
+## 0.3.10
+
+### Patch Changes
+
+- @adminium/engine@0.3.10
+
 ## 0.3.9
 
 ### Patch Changes
