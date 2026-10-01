@@ -1677,7 +1677,8 @@
       "copyLink": "Copy link",
       "created": {
         "body": "Send this link to {email} yourself. It is shown once — Adminium stores only a hash of it, so if you lose it you will have to delete the invitation and issue a new one.",
-        "title": "Invitation created"
+        "title": "Invitation created",
+        "bodyEmailed": "Adminium emailed this link to {email}. It is here too in case the email does not arrive, and it is shown once — Adminium stores only a hash of it."
       },
       "emailIt": "Email the invitation",
       "expiresRelative": "The link expires {at} ({relative}).",
@@ -1686,6 +1687,10 @@
         "smtp": "No SMTP server is configured on this instance, so there is nothing to send mail with. Share the link over a channel you already trust.",
         "title": "Adminium did not email this link",
         "unknown": "Adminium could not check whether this instance can send mail. Share the link over a channel you already trust."
+      },
+      "emailed": {
+        "title": "Adminium emailed this link",
+        "body": "The invitation is on its way to {email}. If it has not arrived in a few minutes, share the link above over a channel you already trust."
       }
     },
     "inviteButton": "Invite teammate",

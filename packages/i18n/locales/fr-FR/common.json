@@ -1677,7 +1677,8 @@
       "copyLink": "Copier le lien",
       "created": {
         "body": "Envoyez vous-même ce lien à {email}. Il n’est affiché qu’une seule fois — Adminium n’en stocke qu’une empreinte, donc si vous le perdez, vous devrez supprimer l’invitation et en créer une nouvelle.",
-        "title": "Invitation créée"
+        "title": "Invitation créée",
+        "bodyEmailed": "Adminium a envoyé ce lien à {email} par e-mail. Il figure aussi ici au cas où l’e-mail n’arriverait pas, et il n’est affiché qu’une fois — Adminium n’en conserve qu’une empreinte."
       },
       "emailIt": "Envoyer l’invitation par e-mail",
       "expiresRelative": "Le lien expire {at} ({relative}).",
@@ -1686,6 +1687,10 @@
         "smtp": "Aucun serveur SMTP n’est configuré sur cette instance : il n’y a donc rien pour envoyer le courrier. Partagez le lien par un canal auquel vous faites déjà confiance.",
         "title": "Adminium n’a pas envoyé ce lien par e-mail",
         "unknown": "Adminium n’a pas pu vérifier si cette instance est capable d’envoyer des e-mails. Partagez le lien par un canal auquel vous faites déjà confiance."
+      },
+      "emailed": {
+        "title": "Adminium a envoyé ce lien par e-mail",
+        "body": "L’invitation est en route vers {email}. Si elle n’est pas arrivée d’ici quelques minutes, partagez le lien ci-dessus par un canal de confiance."
       }
     },
     "inviteButton": "Inviter un coéquipier",

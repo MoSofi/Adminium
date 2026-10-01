@@ -197,3 +197,56 @@ describe('TeamPage row actions', () => {
     expect(alert.textContent).toContain('Only a Super Admin can change a Super Admin account.');
   });
 });
+
+describe('the invitation banner says what the server did', () => {
+  /*
+   * The banner used to read "Adminium did not email this link" whatever had
+   * happened — beside an invitation that arrived in the inbox seconds later.
+   * The reply's own `emailSent` decides the sentence now.
+   */
+  const invited = user({ id: 'usr_new', name: 'Noor New', email: 'noor@example.test', status: 'invited' });
+  const withInvite = (emailSent: boolean) => ({
+    'GET /api/v1/users?limit=50': () =>
+      jsonResponse(200, { users: [me, invited], nextCursor: null, counts: { active: 1, invited: 1, suspended: 0 } }),
+    [`POST /api/v1/users/${invited.id}/invite/resend`]: () =>
+      jsonResponse(200, {
+        user: invited,
+        invite: { token: 'adm_reset_x', expiresAt: Date.now() + 86_400_000, activationPath: '/reset/adm_reset_x' },
+        emailSent,
+      }),
+  });
+
+  async function resend(emailSent: boolean) {
+    const routes = withInvite(emailSent);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? 'GET';
+        if (method === 'POST' && url.endsWith('/invite/resend')) return Promise.resolve(routes[`POST /api/v1/users/${invited.id}/invite/resend`]!());
+        if (method === 'GET' && url.startsWith('/api/v1/users')) return Promise.resolve(routes['GET /api/v1/users?limit=50']());
+        if (url === '/api/v1/roles') return Promise.resolve(jsonResponse(200, { roles: [] }));
+        return Promise.resolve(jsonResponse(404, { error: { code: 'NOT_FOUND', message: url } }));
+      }),
+    );
+    renderTeam(adminBootstrap);
+    const row = await rowOf('Noor New');
+    await userEvent.click(within(row).getByRole('button', { name: 'New link' }));
+    return await screen.findByTestId('team-invite-banner');
+  }
+
+  it('says it emailed the link when the server queued the mail', async () => {
+    const banner = await resend(true);
+    expect(banner.textContent).toContain('Adminium emailed this link');
+    expect(banner.textContent).toContain('noor@example.test');
+    expect(banner.textContent).not.toContain('did not email');
+    // The link is still there: an email can fail to arrive.
+    expect(within(banner).getByTestId('team-invite-link').textContent).toContain('/reset/adm_reset_x');
+  });
+
+  it('says it did not, and why, when nothing was sent', async () => {
+    const banner = await resend(false);
+    expect(banner.textContent).toContain('Adminium did not email this link');
+    expect(within(banner).queryByTestId('team-invite-emailed')).toBeNull();
+  });
+});

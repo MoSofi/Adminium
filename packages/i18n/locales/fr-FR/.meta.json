@@ -6663,6 +6663,10 @@
     "status": "mt",
     "srcHash": "23d43eb2fd16"
   },
+  "common.team.invite.created.bodyEmailed": {
+    "status": "mt",
+    "srcHash": "59a8da58c9b6"
+  },
   "common.team.invite.created.title": {
     "status": "mt",
     "srcHash": "0002eafb56fd"
@@ -6670,6 +6674,14 @@
   "common.team.invite.emailIt": {
     "status": "mt",
     "srcHash": "12ffa51852bc"
+  },
+  "common.team.invite.emailed.body": {
+    "status": "mt",
+    "srcHash": "4133614569e8"
+  },
+  "common.team.invite.emailed.title": {
+    "status": "mt",
+    "srcHash": "17d0fcfffdcd"
   },
   "common.team.invite.expires": {
     "status": "mt",

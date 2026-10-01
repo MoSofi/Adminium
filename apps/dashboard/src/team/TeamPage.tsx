@@ -26,7 +26,7 @@
  * possible response to a network blip.
  */
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MailWarning, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { MailCheck, MailWarning, ShieldCheck, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -100,6 +100,8 @@ function statusLabel(status: UserStatus): string {
 interface InviteResult {
   invite: UserInvite;
   email: string;
+  /** Whether the server queued the invitation mail — its own report, not a guess from this instance's settings. */
+  emailSent: boolean;
 }
 
 /**
@@ -127,11 +129,17 @@ function InviteBanner({ result, onDismiss }: { result: InviteResult; onDismiss: 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="text-section text-fg">{t('team.invite.created.title', 'Invitation created')}</h2>
           <p className="text-body-sm text-fg-muted">
-            {t(
-              'team.invite.created.body',
-              'Send this link to {email} yourself. It is shown once — Adminium stores only a hash of it, so if you lose it you will have to delete the invitation and issue a new one.',
-              { email: result.email },
-            )}
+            {result.emailSent
+              ? t(
+                  'team.invite.created.bodyEmailed',
+                  'Adminium emailed this link to {email}. It is here too in case the email does not arrive, and it is shown once — Adminium stores only a hash of it.',
+                  { email: result.email },
+                )
+              : t(
+                  'team.invite.created.body',
+                  'Send this link to {email} yourself. It is shown once — Adminium stores only a hash of it, so if you lose it you will have to delete the invitation and issue a new one.',
+                  { email: result.email },
+                )}
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={onDismiss}>
@@ -167,6 +175,24 @@ function InviteBanner({ result, onDismiss }: { result: InviteResult; onDismiss: 
           it; `resolved` guards the CLAIM — a failed /system/info probe must not
           tell an operator with a working relay that they have no mail server.
         */}
+        {/*
+          What the SERVER did with this invitation, said first. The page used to
+          print "did not email" whatever happened — a guess from the instance's
+          capabilities, shown beside an invitation that had just arrived.
+        */}
+        {result.emailSent ? (
+          <Alert
+            tone="pos"
+            icon={<MailCheck />}
+            data-testid="team-invite-emailed"
+            title={t('team.invite.emailed.title', 'Adminium emailed this link')}
+            body={t(
+              'team.invite.emailed.body',
+              'The invitation is on its way to {email}. If it has not arrived in a few minutes, share the link above over a channel you already trust.',
+              { email: result.email },
+            )}
+          />
+        ) : (
         <Alert
           tone="warn"
           icon={<MailWarning />}
@@ -188,6 +214,7 @@ function InviteBanner({ result, onDismiss }: { result: InviteResult; onDismiss: 
             </Button>
           }
         />
+        )}
       </CardBody>
     </Card>
   );
@@ -463,7 +490,7 @@ export function TeamPage(): ReactNode {
       roleIds?: string[];
     }): Promise<{ id: string }> => {
       const reply = await createUser(body);
-      setInvite({ invite: reply.invite, email: reply.user.email });
+      setInvite({ invite: reply.invite, email: reply.user.email, emailSent: reply.emailSent });
       return { id: reply.user.id };
     },
     onSuccess: async () => {
@@ -475,7 +502,7 @@ export function TeamPage(): ReactNode {
   const resend = useMutation({
     mutationFn: async (user: UserDto): Promise<{ id: string }> => {
       const reply = await resendInvite(user.id);
-      setInvite({ invite: reply.invite, email: user.email });
+      setInvite({ invite: reply.invite, email: user.email, emailSent: reply.emailSent });
       return { id: user.id };
     },
     onSuccess: async () => {

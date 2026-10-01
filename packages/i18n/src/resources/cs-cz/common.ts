@@ -1687,7 +1687,8 @@ export default {
       "copyLink": "Kopírovat odkaz",
       "created": {
         "body": "Tento odkaz pošlete na adresu {email} sami. Zobrazí se jen jednou — Adminium si ukládá pouze jeho otisk (hash), takže pokud o něj přijdete, budete muset pozvánku smazat a vystavit novou.",
-        "title": "Pozvánka vytvořena"
+        "title": "Pozvánka vytvořena",
+        "bodyEmailed": "Adminium tento odkaz poslal e-mailem na adresu {email}. Je i zde pro případ, že e-mail nedorazí, a zobrazuje se jen jednou – Adminium uchovává pouze jeho otisk."
       },
       "emailIt": "Poslat pozvánku e-mailem",
       "expiresRelative": "Platnost odkazu vyprší {at} ({relative}).",
@@ -1696,6 +1697,10 @@ export default {
         "smtp": "Tato instance nemá nastavený server SMTP, takže není čím odeslat e-mail. Sdílejte odkaz kanálem, kterému už důvěřujete.",
         "title": "Adminium tento odkaz neposlalo e-mailem",
         "unknown": "Adminium nemohlo zjistit, zda tato instance umí odesílat e-maily. Sdílejte odkaz kanálem, kterému už důvěřujete."
+      },
+      "emailed": {
+        "title": "Adminium tento odkaz poslal e-mailem",
+        "body": "Pozvánka je na cestě na adresu {email}. Pokud do několika minut nedorazí, sdílejte odkaz výše kanálem, kterému už důvěřujete."
       }
     },
     "inviteButton": "Pozvat kolegu",

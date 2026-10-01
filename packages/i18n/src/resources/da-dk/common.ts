@@ -1687,7 +1687,8 @@ export default {
       "copyLink": "Kopiér link",
       "created": {
         "body": "Send selv dette link til {email}. Det vises kun én gang — Adminium gemmer kun en hash af det, så hvis du mister det, bliver du nødt til at slette invitationen og udstede en ny.",
-        "title": "Invitationen er oprettet"
+        "title": "Invitationen er oprettet",
+        "bodyEmailed": "Adminium har sendt dette link til {email} pr. e-mail. Det står også her, hvis e-mailen ikke kommer frem, og det vises kun én gang – Adminium gemmer kun en hash af det."
       },
       "emailIt": "Send invitationen på e-mail",
       "expiresRelative": "Linket udløber {at} ({relative}).",
@@ -1696,6 +1697,10 @@ export default {
         "smtp": "Der er ingen SMTP-server konfigureret på denne instans, så der er intet at sende mail med. Del linket via en kanal, du allerede har tillid til.",
         "title": "Adminium sendte ikke dette link på e-mail",
         "unknown": "Adminium kunne ikke tjekke, om denne instans kan sende mail. Del linket via en kanal, du allerede har tillid til."
+      },
+      "emailed": {
+        "title": "Adminium har sendt dette link pr. e-mail",
+        "body": "Invitationen er på vej til {email}. Er den ikke kommet frem om et par minutter, så del linket ovenfor via en kanal, du allerede har tillid til."
       }
     },
     "inviteButton": "Inviter holdkammerat",

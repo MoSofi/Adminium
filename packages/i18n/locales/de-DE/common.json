@@ -1677,7 +1677,8 @@
       "copyLink": "Link kopieren",
       "created": {
         "body": "Senden Sie diesen Link selbst an {email}. Er wird nur ein einziges Mal angezeigt — Adminium speichert davon nur einen Hash, und wenn Sie ihn verlieren, müssen Sie die Einladung löschen und eine neue ausstellen.",
-        "title": "Einladung erstellt"
+        "title": "Einladung erstellt",
+        "bodyEmailed": "Adminium hat diesen Link per E-Mail an {email} gesendet. Er steht auch hier, falls die E-Mail nicht ankommt, und wird nur einmal angezeigt – Adminium speichert nur einen Hash davon."
       },
       "emailIt": "Einladung per E-Mail senden",
       "expiresRelative": "Der Link läuft {at} ab ({relative}).",
@@ -1686,6 +1687,10 @@
         "smtp": "Für diese Instanz ist kein SMTP-Server konfiguriert, es gibt also nichts, womit E-Mails versendet werden könnten. Teilen Sie den Link über einen Kanal, dem Sie bereits vertrauen.",
         "title": "Adminium hat diesen Link nicht per E-Mail versendet",
         "unknown": "Adminium konnte nicht prüfen, ob diese Instanz E-Mails versenden kann. Teilen Sie den Link über einen Kanal, dem Sie bereits vertrauen."
+      },
+      "emailed": {
+        "title": "Adminium hat diesen Link per E-Mail gesendet",
+        "body": "Die Einladung ist unterwegs an {email}. Ist sie in ein paar Minuten nicht angekommen, geben Sie den Link oben über einen Kanal weiter, dem Sie bereits vertrauen."
       }
     },
     "inviteButton": "Teammitglied einladen",

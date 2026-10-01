@@ -1677,7 +1677,8 @@
       "copyLink": "复制链接",
       "created": {
         "body": "请你自己把这个链接发送给 {email}。它只显示这一次——Adminium 只保存它的哈希值，所以一旦丢失，你就必须删除这条邀请并重新签发一条新的。",
-        "title": "邀请已创建"
+        "title": "邀请已创建",
+        "bodyEmailed": "Adminium 已通过电子邮件将此链接发送给 {email}。链接也显示在这里，以防邮件未送达；它只显示一次——Adminium 只保存其哈希值。"
       },
       "emailIt": "通过邮件发送邀请",
       "expiresRelative": "该链接将于 {at}（{relative}）过期。",
@@ -1686,6 +1687,10 @@
         "smtp": "此实例未配置 SMTP 服务器，因此没有任何可用于发送邮件的途径。请通过你已经信任的渠道分享该链接。",
         "title": "Adminium 没有通过邮件发送这个链接",
         "unknown": "Adminium 无法确认此实例是否能够发送邮件。请通过你已经信任的渠道分享该链接。"
+      },
+      "emailed": {
+        "title": "Adminium 已通过电子邮件发送此链接",
+        "body": "邀请正在发送给 {email}。如果几分钟后仍未收到，请通过您信任的渠道分享上面的链接。"
       }
     },
     "inviteButton": "邀请同事",
