@@ -603,6 +603,10 @@ export function AddOnsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ADD_ONS_QUERY_KEY }),
       queryClient.invalidateQueries({ queryKey: ADD_ON_CATALOG_QUERY_KEY }),
+      // The sidebar's add-on pages ride the bootstrap: an add-on installed,
+      // switched or removed here changes them, and without this its page
+      // was missing from the sidebar until somebody reloaded.
+      queryClient.invalidateQueries({ queryKey: ['bootstrap'] }),
     ]);
   };
 

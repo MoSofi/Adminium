@@ -333,6 +333,23 @@ describe('AddOnsPage', () => {
     });
   });
 
+  it('reads the sidebar’s pages again once an add-on changed', async () => {
+    /*
+     * An add-on's own page rides the bootstrap. The page used to refresh its
+     * two lists and nothing else, so a newly installed add-on was "on" with no
+     * link to it in the sidebar until the page was reloaded.
+     */
+    const user = userEvent.setup();
+    const { calls } = await renderPage({ installed: [makeAddOn()] });
+    await user.click(await screen.findByRole('button', { name: 'Uninstall' }));
+    const before = calls.filter((c) => c.url.startsWith('/api/v1/bootstrap')).length;
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Uninstall' }));
+    await waitFor(() => {
+      expect(calls.filter((c) => c.url.startsWith('/api/v1/bootstrap')).length).toBeGreaterThan(before);
+    });
+  });
+
   describe('The acquisition story', () => {
     it('follows a download to completion instead of calling it done when enqueued', async () => {
       /*
