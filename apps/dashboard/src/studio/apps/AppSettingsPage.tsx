@@ -425,6 +425,12 @@ function SideRow({
                   ? t('studio:appSettings.staffOffHelp', 'These screens are not served. Nothing was deleted.')
                   : t('studio:appSettings.customerOffHelp', 'Customers see “not available”. Nothing was deleted.')}
           </p>
+          {/* On, and unable to answer: the switch serves the pages; the public API is what they call. */}
+          {!staff && on && !disabled && customerTrouble(settings.publicAccess) !== null ? (
+            <p className="mt-[5px] text-xs leading-[1.5] text-warn" data-testid="app-side-customer-trouble">
+              {customerTrouble(settings.publicAccess)}
+            </p>
+          ) : null}
         </div>
         <Switch
           checked={on}
@@ -657,6 +663,24 @@ function DataCard({ app }: { app: InstalledApp }) {
       ) : null}
     </section>
   );
+}
+
+/** Why a customer side that is on cannot answer, or null when it can (or the app asks for no public access). */
+export function customerTrouble(access: { apiOn: boolean; granted: boolean } | undefined): string | null {
+  if (access === undefined) return null;
+  if (!access.granted) {
+    return t(
+      'studio:appSettings.customerNoAccess',
+      'These pages open, but they cannot read or save anything: the app was installed without its public access. Update the app and allow it.',
+    );
+  }
+  if (!access.apiOn) {
+    return t(
+      'studio:appSettings.customerApiOff',
+      'These pages open, but they cannot read or save anything: the public API is switched off. Switch it on under Studio › API keys.',
+    );
+  }
+  return null;
 }
 
 export function activityText(action: string, actor: string, subject?: string): string {

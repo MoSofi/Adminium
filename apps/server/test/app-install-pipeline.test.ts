@@ -4536,6 +4536,10 @@ for (const [dialect, available] of legs) {
       expect(declined.json().publicAccess).toBeUndefined();
       expect(await publicEndpointsRepo(h.meta).listByConnection(h.connectionId)).toEqual([]);
       expect((await publicKeysRepo(h.meta).list()).filter((k) => k.appKey === 'pos')).toEqual([]);
+      // The app's page says so: its customer side is served, and can read nothing.
+      const settings = await h.app.inject({ method: 'GET', url: '/apps/pos/settings' });
+      expect(settings.statusCode, settings.body).toBe(200);
+      expect(settings.json().publicAccess).toEqual({ apiOn: false, granted: false });
     }, 60_000);
 
     it('gives an app’s key what an update adds only when allowed, by someone who may manage keys, and takes back what it drops', async () => {

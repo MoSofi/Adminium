@@ -3349,7 +3349,24 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
         settingsRepo(deps.meta).get('surfaces.domains'),
       ]);
       const entry = apps[key] ?? {};
+      /*
+       * Whether the customer side can actually answer. Its switch says the
+       * PAGES are served; what they read and save goes through the public
+       * API, by the access the install made. With the API off, or the app
+       * installed without its access, the page read "Customer screens · On"
+       * over pages that open and can do nothing.
+       */
+      const asks = document !== null && document.kind === 'app' && (document.publicAccess ?? []).length > 0;
+      const publicAccess = !asks
+        ? undefined
+        : {
+            apiOn: (await settingsRepo(deps.meta).get('publicApi.enabled')) === true,
+            granted:
+              row.row.connectionId !== null &&
+              (await publicEndpointsRepo(deps.meta).listByConnection(row.row.connectionId)).some((endpoint) => endpoint.managedBy === key),
+          };
       return {
+        ...(publicAccess === undefined ? {} : { publicAccess }),
         domains: Object.fromEntries(
           Object.entries(domains)
             .filter(([, target]) => target.appKey === key)

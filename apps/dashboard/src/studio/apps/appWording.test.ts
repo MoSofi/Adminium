@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AppInstallPlan } from './appsApi.js';
-import { activityText } from './AppSettingsPage.js';
+import { activityText, customerTrouble } from './AppSettingsPage.js';
 import { accessLines } from './PublicAccessInstallCard.js';
 
 type Endpoint = NonNullable<AppInstallPlan['publicAccess']>['endpoints'][number];
@@ -46,5 +46,16 @@ describe('the install check’s public access lines', () => {
       endpoint({ ref: 'b', table: 'slots', kind: 'availability', pending: true }),
     ]);
     expect(lines.map((entry) => entry.pending)).toEqual([false, true]);
+  });
+});
+
+describe('a customer side that is on', () => {
+  it('says when its pages cannot read or save anything, and why', () => {
+    // The page read "Customer screens · On" over pages that opened and could do nothing.
+    expect(customerTrouble({ apiOn: false, granted: true })).toContain('the public API is switched off');
+    expect(customerTrouble({ apiOn: true, granted: false })).toContain('installed without its public access');
+    // Nothing to say when it can answer, or when the app asks for no public access.
+    expect(customerTrouble({ apiOn: true, granted: true })).toBeNull();
+    expect(customerTrouble(undefined)).toBeNull();
   });
 });

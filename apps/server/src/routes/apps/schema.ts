@@ -824,6 +824,12 @@ export const appSettingsReply = z.object({
   ),
   /** The add-ons the app names, each with its state and source. Absent for an app that names none. */
   addOns: z.array(appAddOnRow).optional(),
+  /**
+   * For an app whose customer side calls the public API: whether that API is
+   * switched on, and whether the install made the app's access. Absent for an
+   * app that asks for none.
+   */
+  publicAccess: z.object({ apiOn: z.boolean(), granted: z.boolean() }).optional(),
 });
 
 /**

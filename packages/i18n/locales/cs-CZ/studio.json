@@ -3025,7 +3025,9 @@
     "disableLine2": "Její obrazovky a vlastní koncové body přestanou odpovídat.",
     "disableLine3": "Tabulky, záznamy a nastavení zůstanou, jak jsou.",
     "crumb": "Aplikace",
-    "sampleLedger": "Seznam ukázkových záznamů Adminia"
+    "sampleLedger": "Seznam ukázkových záznamů Adminia",
+    "customerApiOff": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: veřejné API je vypnuté. Zapněte ho ve Studiu › Klíče API.",
+    "customerNoAccess": "Tyto stránky se otevřou, ale nemohou nic číst ani ukládat: aplikace byla nainstalována bez veřejného přístupu. Aktualizujte ji a přístup povolte."
   },
   "uninstall": {
     "files": "Soubory aplikace",

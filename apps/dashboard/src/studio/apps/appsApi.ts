@@ -216,6 +216,8 @@ export interface AppSettingsView {
   }[];
   /** The add-ons the app names, each with its state and source. Absent for an app that names none. */
   addOns?: AppAddOnRow[];
+  /** For an app whose customer side calls the public API: whether it is on, and whether the install made the app's access. */
+  publicAccess?: { apiOn: boolean; granted: boolean };
 }
 
 // ── The add-ons an app names ────────────────────────────────────────────────

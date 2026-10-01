@@ -3025,7 +3025,9 @@
     "disableLine2": "Dens skærme og egne endpoints holder op med at svare.",
     "disableLine3": "Tabellerne, posterne og indstillingerne forbliver, som de er.",
     "crumb": "Apps",
-    "sampleLedger": "Adminiums liste over eksempelposter"
+    "sampleLedger": "Adminiums liste over eksempelposter",
+    "customerApiOff": "Siderne åbner, men de kan hverken læse eller gemme noget: den offentlige API er slået fra. Slå den til under Studio › API-nøgler.",
+    "customerNoAccess": "Siderne åbner, men de kan hverken læse eller gemme noget: appen blev installeret uden sin offentlige adgang. Opdater appen, og tillad den."
   },
   "uninstall": {
     "files": "Appens filer",
