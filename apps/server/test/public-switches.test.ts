@@ -48,4 +48,28 @@ describe('settings switches', () => {
     expect(await switches.isOn('c1', 'settings', 'online_on')).toBe(false);
     await db.destroy();
   });
+  it('read a written table again at once, by its id or its bare name, and no other', async () => {
+    /*
+     * A switch thrown at the desk goes through Adminium, which knows the
+     * table was written: the kiosk used to go on checking patients in, and
+     * the order page taking orders, until the fifteen seconds ran out.
+     */
+    const db = source();
+    await db.schema.createTable('settings').addColumn('online_on', 'integer').execute();
+    await db.schema.createTable('hours').addColumn('open', 'integer').execute();
+    await db.insertInto('settings' as never).values({ online_on: 1 } as never).execute();
+    await db.insertInto('hours' as never).values({ open: 1 } as never).execute();
+    const switches = createSwitches(async () => db, () => 1_000_000);
+    expect([await switches.isOn('c1', 'settings', 'online_on'), await switches.isOn('c1', 'hours', 'open')]).toEqual([true, true]);
+    await db.updateTable('settings' as never).set({ online_on: 0 } as never).execute();
+    await db.updateTable('hours' as never).set({ open: 0 } as never).execute();
+    // Another connection's write, or another table's, leaves it trusted.
+    switches.forget('c2', 'main.settings');
+    expect(await switches.isOn('c1', 'settings', 'online_on')).toBe(true);
+    // The write names the table by its id; the switch was asked by its bare name.
+    switches.forget('c1', 'main.settings');
+    expect(await switches.isOn('c1', 'settings', 'online_on')).toBe(false);
+    expect(await switches.isOn('c1', 'hours', 'open')).toBe(true);
+    await db.destroy();
+  });
 });

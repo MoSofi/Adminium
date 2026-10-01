@@ -149,7 +149,7 @@ import {
 import { capKey, chargeAnonymous, linkFreeText, notPlain, PLAIN_TEXT_REFUSED, plainColumn, plainRule } from '../../public-api/anonymous-caps.js';
 import { notPlainOn, recentPlainTextOn } from '../../public-api/plain-text-on.js';
 import { appContact } from '../../outbox/sender.js';
-import { createSwitches } from '../../public-api/switches.js';
+import { createSwitches, type Switches } from '../../public-api/switches.js';
 import { dsnCryptoFromSecret } from '../../connections/crypto.js';
 import { checkProof, issueChallenge, proofKey, type ProofPurpose } from '../../public-api/proof.js';
 import { detailsDeletedLines, emailChangedLines, translatorForLocale } from '../../email/builtins.js';
@@ -260,6 +260,8 @@ export interface PublicRoutesDeps {
   manager: ConnectionManager;
   /** Reads `publicApi.enabled` through a short-TTL cache — see `enabled.ts`. */
   isEnabled: () => Promise<boolean>;
+  /** The settings switches, shared with the writes that change them (compose); the routes' own otherwise. */
+  switches?: Switches | undefined;
   /** Injectable for tests; a fresh limiter otherwise. */
   limiter?: PublicRateLimiter | undefined;
   /**
@@ -795,7 +797,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   // A retry key is kept only as a hash under this key.
   const clientKeySecretBytes = clientKeySecret(env.ADMINIUM_SECRET);
   // An app's settings switches, trusted for fifteen seconds.
-  const switches = createSwitches(async (connectionId) => (await manager.data(connectionId)).db);
+  const switches = deps.switches ?? createSwitches(async (connectionId) => (await manager.data(connectionId)).db);
   const csrfKey = csrfSigningKey(env.ADMINIUM_SECRET);
   const SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS']);
   /**

@@ -116,6 +116,8 @@ declare module 'fastify' {
     automations: AutomationDispatcher;
     outbox: OutboxDispatcher;
     publicIdentities: PublicIdentityListener;
+    /** The public side's settings switches (`public-api/switches.ts`): a written table's are read again. */
+    publicSwitches: { forget(connectionId: string, table: string): void };
     /** The ONE widget-data result cache `routes/widget-data` serves from (compose). */
     widgetDataCache: WidgetDataCache;
   }
@@ -138,6 +140,9 @@ declare module 'fastify' {
  * dependency index yet.
  */
 export function invalidateWidgetData(app: FastifyInstance, connectionId: string, tableId: string): void {
+  // The same moment for the public side's settings switches: one thrown at
+  // the desk is thrown at once, not when its fifteen seconds run out.
+  if (app.hasDecorator('publicSwitches')) app.publicSwitches.forget(connectionId, tableId);
   if (!app.hasDecorator('widgetDataCache')) return;
   app.widgetDataCache.invalidateTable(connectionId, tableId);
 }

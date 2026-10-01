@@ -138,6 +138,7 @@ import { emitRecordEvent, publishChildWrite } from './crud/after-record-write.js
 import { createSignInLinkMinter } from './public-api/sign-in-link-minter.js';
 import { addressKey } from './public-api/claim-code.js';
 import { createIdentityEmailWatch } from './public-api/identity-email-watch.js';
+import { createSwitches } from './public-api/switches.js';
 import { withOutboxMoves } from './outbox/moves.js';
 import {
   AUTOMATION_POLL_CRON,
@@ -853,6 +854,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     outboxProducers.reset();
   };
   app.decorate('outbox', outboxProducers);
+  // An app's settings switches, shared by the public routes that ask them and every write that changes them.
+  const publicSwitches = createSwitches(async (connectionId) => (await manager.data(connectionId)).db);
+  app.decorate('publicSwitches', publicSwitches);
   /*
    * A signed-in person's address changed through any write that announces
    * itself: their sessions end, their open sign-in links are taken back and
@@ -1826,6 +1830,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         limiter: opts.publicLimiter,
         manager,
         isEnabled: publicGate.isEnabled,
+        switches: publicSwitches,
         resolver: publicResolver,
         views: publicViews,
         stats: publicStats,

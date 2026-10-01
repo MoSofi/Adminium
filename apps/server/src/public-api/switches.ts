@@ -5,6 +5,12 @@
  * database and trusted for fifteen seconds, so the key gate does not add a
  * source read to every request.
  *
+ * A write through Adminium to the settings table drops what is trusted
+ * (`forget`), so a switch thrown at the desk is thrown at once: before, a
+ * kiosk switched off went on checking patients in for up to fifteen seconds,
+ * and an order was taken ten seconds after "Taking online orders" went off.
+ * The fifteen seconds remain for a row changed straight in the database.
+ *
  * Fail-safe: no row, no column, a row that is off, or a read that fails
  * reads as OFF.
  */
@@ -18,6 +24,8 @@ export const SWITCH_TTL_MS = 15_000;
 
 export interface Switches {
   isOn(connectionId: string, table: string, column: string): Promise<boolean>;
+  /** A row of `table` was written: its switches are read again on the next ask. A table is named by its id or its bare name. */
+  forget(connectionId: string, table: string): void;
 }
 
 export function createSwitches(dbFor: (connectionId: string) => Promise<Kysely<SourceDatabase>>, now: () => number = () => Date.now()): Switches {
@@ -39,6 +47,13 @@ export function createSwitches(dbFor: (connectionId: string) => Promise<Kysely<S
       }
       cache.set(key, { at: now(), on });
       return on;
+    },
+    forget(connectionId, table) {
+      const bare = (name: string) => name.slice(name.lastIndexOf('.') + 1);
+      for (const key of [...cache.keys()]) {
+        const [owner, kept] = JSON.parse(key) as [string, string, string];
+        if (owner === connectionId && (kept === table || bare(kept) === bare(table))) cache.delete(key);
+      }
     },
   };
 }
