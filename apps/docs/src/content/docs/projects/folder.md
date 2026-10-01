@@ -143,7 +143,7 @@ Dockerfile does.
     "check": "adminium check",
     "pull": "adminium pull"
   },
-  "dependencies": { "@adminiumjs/adminium": "0.3.8" },
+  "dependencies": { "@adminiumjs/adminium": "0.3.9" },
   "devDependencies": { "esbuild": "^0.28.0", "@types/react": "^19.2.0" }
 }
 ```
