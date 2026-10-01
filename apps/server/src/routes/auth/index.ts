@@ -73,7 +73,7 @@ declare module 'fastify' {
      * process and whose substitute gate is a loopback socket peer plus
      * `system:settings:manage`.
      */
-    csrf?: 'exempt' | 'form';
+    csrf?: 'exempt' | 'form' | 'origin';
   }
 }
 
@@ -90,7 +90,8 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     '/auth/login',
     {
       preHandler: [app.requireMeta],
-      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.login },
+      // Its authority is the password in the body, never a session already in the browser.
+      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.login, csrf: 'origin' },
       schema: {
         body: authLoginBody,
         response: { 200: authLoginReply, 202: authLoginChallengeReply },
@@ -167,7 +168,7 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     '/auth/password/forgot',
     {
       preHandler: [app.requireMeta],
-      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.forgot },
+      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.forgot, csrf: 'origin' },
       schema: { body: authForgotBody, response: { 200: okReply } },
     },
     async (request) => forgotPasswordHandler(ctx(), request, request.body),
@@ -179,7 +180,9 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
       preHandler: [app.requireMeta],
       // The token CONSUME side: single-use + 30-min TTL bounds a
       // token's lifetime, this bounds how fast one can be guessed within it.
-      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.reset },
+      // The token is the authority: an invitation opened where somebody else
+      // is signed in sets the invitee's password, and asks that session nothing.
+      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.reset, csrf: 'origin' },
       schema: { body: authResetBody, response: { 200: okReply } },
     },
     async (request) => resetPasswordHandler(ctx(), request, request.body),

@@ -265,6 +265,42 @@ describe('CSRF — the exemptions (breaking these breaks the product)', () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it('lets an invitation be opened where somebody else is signed in', async () => {
+    /*
+     * An admin clicks the invitee's link to check it, or two people share a
+     * computer: the reset page is shown before any bootstrap, so it has no
+     * token, and the browser still carries the other person's session. The
+     * reset token in the body is the authority — the cookie is asked nothing.
+     * (401 = the made-up token was judged; 403 CSRF_FAILED was the bug.)
+     */
+    const { cookie } = await browserSession();
+    for (const [url, payload] of [
+      ['/api/v1/auth/password/reset', { token: 'adm_reset_not-a-real-one', newPassword: 'a-long-enough-password-1' }],
+      ['/api/v1/auth/login', { email: 'nobody@example.com', password: 'wrong-password' }],
+    ] as const) {
+      const res = await fixture!.app.inject({
+        method: 'POST',
+        url,
+        headers: { cookie, origin: SAME_ORIGIN, 'sec-fetch-site': 'same-origin' },
+        payload,
+      });
+      expect(res.statusCode, url).toBe(401);
+      expect(res.json().error.code, url).not.toBe('CSRF_FAILED');
+    }
+  });
+
+  it('still refuses those routes from another site while a session rides along', async () => {
+    const { cookie } = await browserSession();
+    const res = await fixture!.app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/password/reset',
+      headers: { cookie, origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' },
+      payload: { token: 'adm_reset_not-a-real-one', newPassword: 'a-long-enough-password-1' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('CSRF_FAILED');
+  });
+
   it('lets a caller with NO browser provenance through (the documented carve-out)', async () => {
     const { cookie } = await browserSession();
     // The Electron main process, curl, a fleet script: cookie, no Origin, no

@@ -85,6 +85,16 @@
  * token anyway — the route requires a LOOPBACK SOCKET PEER plus
  * `system:settings:manage` (routes/desktop/index.ts gates 2 and 3).
  *
+ * `config.csrf: 'origin'` is leg A alone, for the three routes whose authority
+ * is IN THE BODY and never the cookie: sign-in (a password), forgot-password
+ * (an address) and reset (a single-use token). None of them reads the session,
+ * so there is nothing for a forged request to ride — and the page that posts
+ * them is shown before any bootstrap, so it holds no token to echo. Demanding
+ * leg B there refused an invitation opened in a browser where somebody else
+ * was still signed in (an admin checking the link, a shared computer) with
+ * `CSRF_FAILED`. The Origin leg stays: another site's page still cannot post
+ * them.
+ *
  * `config.csrf: 'form'` is NOT an exemption: both legs still run, and only
  * where leg B's token is read from changes — the body's `csrf` field instead
  * of the header. It is for the script-free pages the server renders itself
@@ -323,6 +333,8 @@ export function checkCsrf(request: FastifyRequest, deps: CsrfDeps): CsrfFailure 
   const verdict = classifyOrigin(request, deps.allowedOrigins);
   if (verdict === 'foreign') return 'foreign-origin';
   if (!hasBrowserProvenance(request)) return null;
+  // Acts on what its body carries, not on this session: no token to demand.
+  if (request.routeOptions.config?.csrf === 'origin') return null;
 
   const presented =
     request.routeOptions.config?.csrf === 'form' ? formToken(request.body) : request.headers[CSRF_HEADER];
