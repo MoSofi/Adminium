@@ -2369,6 +2369,11 @@
       "body": "Die Antworten, die eine Spalte annimmt — Länder, Phasen, Abteilungen — einmal benannt und überall verwendbar.",
       "cta": "Listen öffnen",
       "heading": "Listen"
+    },
+    "documentsCard": {
+      "heading": "Dokumentzuordnungen",
+      "body": "Legen Sie fest, aus welcher Tabelle eine Rechnung, eine Quittung oder ein Kontoauszug erstellt wird, was die Erstellung auslöst und an wen sie per E-Mail geht.",
+      "cta": "Dokumentzuordnungen öffnen"
     }
   },
   "source": {

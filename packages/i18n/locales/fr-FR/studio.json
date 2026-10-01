@@ -2369,6 +2369,11 @@
       "body": "Les réponses qu’accepte une colonne — pays, étapes, services — nommées une fois et utilisables partout.",
       "cta": "Ouvrir les listes",
       "heading": "Listes"
+    },
+    "documentsCard": {
+      "heading": "Mappages de documents",
+      "body": "Indiquez de quelle table une facture, un reçu ou un relevé est généré, ce qui le déclenche et à qui il est envoyé par e-mail.",
+      "cta": "Ouvrir les mappages de documents"
     }
   },
   "source": {

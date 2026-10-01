@@ -310,6 +310,7 @@ function SettingsRouteComponent() {
           onOpenStorage={() => void navigate({ to: '/studio/storage' })}
           onOpenLists={() => void navigate({ to: '/studio/lists' })}
           onOpenAddOns={() => void navigate({ to: '/studio/add-ons' })}
+          onOpenDocuments={() => void navigate({ to: '/studio/documents' })}
           onOpenPublicApi={() => void navigate({ to: '/studio/public-api' })}
           onOpenProject={() => void navigate({ to: '/studio/settings/project' })}
         />

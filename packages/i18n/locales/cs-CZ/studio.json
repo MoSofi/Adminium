@@ -2369,6 +2369,11 @@
       "body": "Odpovědi, které sloupec přijímá — země, fáze, oddělení — pojmenované jednou a použitelné odkudkoli.",
       "cta": "Otevřít seznamy",
       "heading": "Seznamy"
+    },
+    "documentsCard": {
+      "heading": "Mapování dokumentů",
+      "body": "Určete, ze které tabulky se vytváří faktura, stvrzenka nebo výpis, co je spouští a komu se posílají e-mailem.",
+      "cta": "Otevřít mapování dokumentů"
     }
   },
   "source": {

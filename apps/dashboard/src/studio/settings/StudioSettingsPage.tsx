@@ -25,6 +25,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Blocks,
   Building2,
+  FileText,
   Files,
   FolderCode,
   Globe2,
@@ -1518,6 +1519,8 @@ export interface StudioSettingsPageProps {
   onOpenLists: () => void;
   /** `/studio/add-ons`. */
   onOpenAddOns: () => void;
+  /** `/studio/documents`: which table a document is drawn from. */
+  onOpenDocuments?: (() => void) | undefined;
   /** `/studio/public-api`. */
   onOpenPublicApi: () => void;
   /** `/studio/settings/project`: the project folder this server runs (super admins). */
@@ -1532,6 +1535,7 @@ export function StudioSettingsPage({
   onOpenStorage,
   onOpenLists,
   onOpenAddOns,
+  onOpenDocuments,
   onOpenPublicApi,
   onOpenProject,
 }: StudioSettingsPageProps): ReactNode {
@@ -1660,6 +1664,23 @@ export function StudioSettingsPage({
             )}
             cta={t('studio:settingsHub.addOnsCard.cta', 'Open add-ons')}
             onOpen={onOpenAddOns}
+          />
+        ) : null}
+
+        {/* Document mappings (/studio/documents). The page had a route and no
+            inbound link anywhere: an operator with the invoices add-on
+            installed had to be told the address to map a table to it. Its
+            writes check `system:manifests:manage`, as the add-ons' do. */}
+        {holds('manifests.manage') && onOpenDocuments !== undefined ? (
+          <LinkRow
+            icon={<FileText />}
+            heading={t('studio:settingsHub.documentsCard.heading', 'Document mappings')}
+            body={t(
+              'studio:settingsHub.documentsCard.body',
+              'Say which table an invoice, a receipt or a statement is drawn from, what draws it, and who it is emailed to.',
+            )}
+            cta={t('studio:settingsHub.documentsCard.cta', 'Open document mappings')}
+            onOpen={onOpenDocuments}
           />
         ) : null}
 

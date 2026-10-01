@@ -576,7 +576,7 @@ describe('StudioSettingsPage', () => {
     await renderPage(['admin']);
     expect(await screen.findByRole('button', { name: 'Open AI settings' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Open lists' })).toBeDefined();
-    for (const refused of ['Manage pages', 'Open storage', 'Open add-ons', 'Open API keys']) {
+    for (const refused of ['Manage pages', 'Open storage', 'Open add-ons', 'Open document mappings', 'Open API keys']) {
       expect(screen.queryByRole('button', { name: refused }), refused).toBeNull();
     }
     expect(screen.queryByRole('heading', { name: 'Danger zone' })).toBeNull();
@@ -756,6 +756,15 @@ describe('StudioSettingsPage', () => {
     const { router } = await renderPage(['admin']);
     await user.click(await screen.findByRole('button', { name: 'Open add-ons' }));
     expect(router.state.location.pathname).toBe('/studio/add-ons');
+  });
+
+  it('routes a plain admin to the document mappings', async () => {
+    // `/studio/documents` had a route and no inbound link at all: with the
+    // invoices add-on installed, mapping a table to it meant knowing the address.
+    const user = userEvent.setup();
+    const { router } = await renderPage(['admin']);
+    await user.click(await screen.findByRole('button', { name: 'Open document mappings' }));
+    expect(router.state.location.pathname).toBe('/studio/documents');
   });
 
   it('routes a plain admin to the public API surface', async () => {

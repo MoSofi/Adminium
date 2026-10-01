@@ -2369,6 +2369,11 @@
       "body": "The answers a column accepts — countries, stages, departments — named once and used from anywhere.",
       "cta": "Open lists",
       "heading": "Lists"
+    },
+    "documentsCard": {
+      "heading": "Document mappings",
+      "body": "Say which table an invoice, a receipt or a statement is drawn from, what draws it, and who it is emailed to.",
+      "cta": "Open document mappings"
     }
   },
   "source": {

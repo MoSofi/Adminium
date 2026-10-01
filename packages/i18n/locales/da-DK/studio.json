@@ -2369,6 +2369,11 @@
       "body": "De svar, en kolonne accepterer — lande, stadier, afdelinger — navngivet én gang og brugt overalt.",
       "cta": "Åbn lister",
       "heading": "Lister"
+    },
+    "documentsCard": {
+      "heading": "Dokumenttilknytninger",
+      "body": "Angiv, hvilken tabel en faktura, en kvittering eller en kontooversigt oprettes fra, hvad der udløser den, og hvem den sendes til pr. e-mail.",
+      "cta": "Åbn dokumenttilknytninger"
     }
   },
   "source": {
