@@ -86,6 +86,9 @@ describe('first-run super-admin bootstrap', () => {
     // Really a super admin, not just a user.
     const user = await usersRepo(t.meta).findByEmail('ada@adminium.test');
     expect(user).not.toBeNull();
+    // The wizard's session is their first sign-in: the Team page must not
+    // list the person using Adminium as "Never signed in".
+    expect(user?.lastLoginAt).toEqual(expect.any(Number));
     const roles = await rolesRepo(t.meta).rolesForUser(user?.id ?? '');
     expect(roles.map((r) => r.slug)).toEqual(['super-admin']);
 

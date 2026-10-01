@@ -38,6 +38,7 @@
  * created.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
+import { usersRepo } from '@adminium/meta';
 
 import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, ValidationFailedError } from '../../errors.js';
@@ -151,6 +152,9 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
           userAgent: typeof userAgent === 'string' ? userAgent.slice(0, 300) : null,
         });
         setSessionCookie(reply, minted, request);
+        // That session IS their first sign-in. Without this the Team page
+        // listed the owner as "Never signed in" while they were using it.
+        await usersRepo(ctx().meta).recordLogin(user.id);
 
         // The first moment this instance can learn where links in email should
         // point (security/public-origin.ts). Unauthenticated, but whoever
