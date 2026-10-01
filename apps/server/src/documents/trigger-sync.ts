@@ -124,10 +124,43 @@ export interface SyncResult {
  * trigger IS what the rule is, and a column would be a second place to keep
  * them in step.
  */
+/**
+ * Who is told that a mapping's rule was written.
+ *
+ * The matcher answers every record write from an index it keeps in memory,
+ * and the automations routes refresh it after each save. A mapping's rule is
+ * written from HERE — by the documents routes, an app's uninstall, an add-on
+ * switched off — and none of those passed the news on: a new mapping drew
+ * nothing until the process restarted. So the news leaves from the one place
+ * every such write goes through, and no caller can forget it.
+ *
+ * Keyed by the store, so two servers in one process (the tests) do not hear
+ * each other.
+ */
+const rulesListeners = new WeakMap<MetaDb, () => Promise<void> | void>();
+
+export function onMappingRulesChanged(meta: MetaDb, listener: () => Promise<void> | void): void {
+  rulesListeners.set(meta, listener);
+}
+
+async function rulesChanged(meta: MetaDb): Promise<void> {
+  await rulesListeners.get(meta)?.();
+}
+
 export async function syncProfileTrigger(
   meta: MetaDb,
   profile: DocumentProfile | null,
   opts: { previous?: DocumentProfile | null; userId?: string | null } = {},
+): Promise<SyncResult> {
+  const result = await reconcileProfileTrigger(meta, profile, opts);
+  if (result.action !== 'none') await rulesChanged(meta);
+  return result;
+}
+
+async function reconcileProfileTrigger(
+  meta: MetaDb,
+  profile: DocumentProfile | null,
+  opts: { previous?: DocumentProfile | null; userId?: string | null },
 ): Promise<SyncResult> {
   const rules = automationsRepo(meta);
   const existingId =
@@ -201,5 +234,6 @@ export async function syncTriggersForAddOn(
     await rules.update(id, { enabled });
     touched += 1;
   }
+  if (touched > 0) await rulesChanged(meta);
   return touched;
 }

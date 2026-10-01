@@ -84,7 +84,7 @@ import {
   type AddOnRuntimeState,
 } from './add-ons/runtime.js';
 import { createDocumentPipeline } from './documents/compose.js';
-import { syncTriggersForAddOn } from './documents/trigger-sync.js';
+import { onMappingRulesChanged, syncTriggersForAddOn } from './documents/trigger-sync.js';
 import { documentRoutes } from './routes/documents/index.js';
 import { adoptInvoicesAddOn } from './add-ons/adopt-invoices.js';
 import {
@@ -1145,6 +1145,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     log: app.log,
   });
   decorateAutomations(app, automations);
+  // A document mapping writes a rule of its own; the matcher hears of it here.
+  onMappingRulesChanged(meta, () => automations.matcher.onRulesChanged());
   registerAutomationRunHandler(jobs.registry, {
     meta,
     manager,

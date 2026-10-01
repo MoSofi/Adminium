@@ -29,7 +29,8 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
-import { MANAGED_PREFIX, syncProfileTrigger, syncTriggersForAddOn } from './trigger-sync.js';
+import { AutomationMatcher } from '../automations/matcher.js';
+import { MANAGED_PREFIX, onMappingRulesChanged, syncProfileTrigger, syncTriggersForAddOn } from './trigger-sync.js';
 
 const crypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:${plaintext}`,
@@ -278,5 +279,65 @@ describe('uninstalling an add-on stops its rules', () => {
     await profiles.patch(refused.id, { trigger: { event: 'record.deleted', automationId: null } });
 
     expect(await syncTriggersForAddOn(meta, 'invoices', false)).toBe(0);
+  });
+});
+
+describe('the matcher hears of a mapping’s rule', () => {
+  /*
+   * The matcher answers from an index in memory. A mapping saved in the
+   * dashboard wrote its rule and told nobody, so the first paid order after
+   * it drew nothing — and the one after a restart did. The index is asked
+   * here exactly as a record write asks it, with no refresh in between.
+   */
+  async function setup() {
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await initMetaDb(meta);
+    await applyMigrations(meta.db, { dialect: meta.dialect });
+    const connectionId = (
+      await connectionsRepo(meta, crypto).create({
+        name: 'main',
+        engine: 'postgres',
+        introspectDsn: 'postgres://ro@localhost/app',
+      })
+    ).id;
+    const matcher = new AutomationMatcher({ meta, enqueue: () => Promise.reject(new Error('not run here')) });
+    onMappingRulesChanged(meta, () => matcher.onRulesChanged());
+    const created = { connectionId, table: { id: 'public.orders' }, action: 'create' } as never;
+    // Loaded once, empty: this is the index a running server holds.
+    expect(await matcher.rulesFor(created)).toHaveLength(0);
+    return { meta, connectionId, matcher, created };
+  }
+
+  const mapping = (connectionId: string) => ({
+    addOnKey: 'invoices',
+    kind: 'invoice',
+    name: 'Invoice',
+    connectionId,
+    table: 'public.orders',
+    mapping: {},
+    trigger: { event: 'record.created' as const },
+  });
+
+  it('matches the next write after a mapping is saved, with no restart', async () => {
+    const { meta, connectionId, matcher, created } = await setup();
+    const profile = await documentProfilesRepo(meta).create(mapping(connectionId));
+    const result = await syncProfileTrigger(meta, profile);
+    expect((await matcher.rulesFor(created)).map((rule) => rule.id)).toEqual([result.automationId]);
+  });
+
+  it('stops matching when the mapping is removed, or its add-on is switched off', async () => {
+    const { meta, connectionId, matcher, created } = await setup();
+    const profiles = documentProfilesRepo(meta);
+    const first = await profiles.create(mapping(connectionId));
+    const made = await syncProfileTrigger(meta, first);
+    await profiles.patch(first.id, { trigger: { event: 'record.created', automationId: made.automationId } });
+
+    await syncTriggersForAddOn(meta, 'invoices', false);
+    expect(await matcher.rulesFor(created)).toHaveLength(0);
+    await syncTriggersForAddOn(meta, 'invoices', true);
+    expect(await matcher.rulesFor(created)).toHaveLength(1);
+
+    await syncProfileTrigger(meta, null, { previous: (await profiles.findById(first.id))! });
+    expect(await matcher.rulesFor(created)).toHaveLength(0);
   });
 });
