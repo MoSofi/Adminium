@@ -16,6 +16,7 @@ import {
   useToastQueue,
 } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
+import { entityFromTable, plainTableName } from '../../lib/names.js';
 import { useMaybeT } from '../../lib/i18n.js';
 import { ArrowUpRight, Eye, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -295,11 +296,6 @@ interface DeleteTarget {
   loaded: boolean;
 }
 
-function entityFromTable(table: string): string {
-  const name = table.split('.').pop() ?? table;
-  return name.endsWith('s') ? name.slice(0, -1) : name;
-}
-
 export function PageCrud({
   api,
   columns,
@@ -337,7 +333,7 @@ export function PageCrud({
   onClearLinkFilters,
 }: PageCrudProps) {
   const entity = entityName ?? entityFromTable(source.table);
-  const tableName = tableLabel ?? source.table;
+  const tableName = tableLabel ?? plainTableName(source.table);
   // A link's filter narrows the list as much as the toolbar's own do.
   const linkNarrowed = linkFilters.some((filter) => filter.status === 'applied');
   /** A column's name and value words, for the link's chips. */

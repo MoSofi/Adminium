@@ -49,9 +49,9 @@
       "resendHint": "Vous ne l’avez pas reçu ?"
     },
     "reset": {
-      "title": "Définir un nouveau mot de passe",
+      "title": "Choisissez un mot de passe",
       "subtitle": "8 caractères minimum.",
-      "password": "Nouveau mot de passe",
+      "password": "Mot de passe",
       "confirm": "Confirmer le mot de passe",
       "showPassword": "Afficher le mot de passe",
       "hidePassword": "Masquer le mot de passe",
@@ -61,8 +61,8 @@
       "good": "Bon",
       "strong": "Fort",
       "tooShort": "Utilisez au moins 8 caractères.",
-      "submit": "Réinitialiser le mot de passe",
-      "failed": "Échec de la réinitialisation. Réessayez.",
+      "submit": "Enregistrer le mot de passe",
+      "failed": "L’enregistrement a échoué. Réessayez.",
       "mismatch": "Les mots de passe ne correspondent pas."
     },
     "otp": {

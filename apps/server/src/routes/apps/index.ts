@@ -3530,7 +3530,16 @@ export function appRoutes(deps: AppRoutesDeps): FastifyPluginAsyncZod {
             return after?.key === key;
           })
           .slice(0, 8)
-          .map((entry) => ({ action: entry.action, at: entry.createdAt, actor: entry.actorLabel }));
+          .map((entry) => {
+            // What the line is about, where the action alone does not say: the add-on a step set up.
+            const name = (entry.changes as { after?: { name?: unknown } } | null)?.after?.name;
+            return {
+              action: entry.action,
+              at: entry.createdAt,
+              actor: entry.actorLabel,
+              ...(entry.action === 'app.add-on-step' && typeof name === 'string' && name !== '' ? { subject: name } : {}),
+            };
+          });
         return {
           key,
           connection: connection === undefined ? null : connection,

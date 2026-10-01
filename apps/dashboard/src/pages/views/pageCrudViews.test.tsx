@@ -99,7 +99,7 @@ describe('page-crud saved views', () => {
     renderBinding(crud);
 
     // Set a non-default query: type into the toolbar search.
-    const search = await screen.findByPlaceholderText(/Search public\.customers/);
+    const search = await screen.findByPlaceholderText(/Search customers/);
     await userEvent.type(search, 'acme');
 
     // Open the switcher and save the current grid as a view.

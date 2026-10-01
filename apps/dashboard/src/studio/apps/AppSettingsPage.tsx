@@ -659,7 +659,7 @@ function DataCard({ app }: { app: InstalledApp }) {
   );
 }
 
-function activityText(action: string, actor: string): string {
+export function activityText(action: string, actor: string, subject?: string): string {
   switch (action) {
     case 'app.staged':
       return t('studio:appSettings.activity.staged', 'Uploaded by {actor}', { actor });
@@ -683,8 +683,17 @@ function activityText(action: string, actor: string): string {
       return t('studio:appSettings.activity.sampleAdded', 'Sample data added by {actor}', { actor });
     case 'app.sample-data.remove':
       return t('studio:appSettings.activity.sampleRemoved', 'Sample data removed by {actor}', { actor });
+    case 'app.add-on-step':
+      return subject === undefined
+        ? t('studio:appSettings.activity.addOnUnnamed', 'An add-on set up by {actor}', { actor })
+        : t('studio:appSettings.activity.addOn', '{name} set up by {actor}', { name: subject, actor });
+    case 'app.install-failed':
+      return t('studio:appSettings.activity.installFailed', 'An install by {actor} did not finish', { actor });
+    case 'app.update-failed':
+      return t('studio:appSettings.activity.updateFailed', 'An update by {actor} did not finish', { actor });
     default:
-      return `${action} · ${actor}`;
+      // Never the raw key: `app.add-on-step · owner@…` is the server's word, not a sentence.
+      return t('studio:appSettings.activity.other', 'Changed by {actor}', { actor });
   }
 }
 
@@ -704,7 +713,7 @@ function ActivityCard({ appKey }: { appKey: string }) {
             <li key={`${entry.action}:${String(entry.at)}`} className="flex items-start gap-2.5">
               <span aria-hidden className="mt-1.5 size-[7px] shrink-0 rounded-full bg-border-strong" />
               <span className="text-[12.5px] leading-[1.5] text-fg-muted">
-                {activityText(entry.action, entry.actor)}{' '}
+                {activityText(entry.action, entry.actor, entry.subject)}{' '}
                 <span className="text-fg-subtle">· {formatters.relative(entry.at)}</span>
               </span>
             </li>

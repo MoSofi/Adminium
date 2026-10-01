@@ -135,7 +135,7 @@ function AddOnCard({
               <Badge tone="neutral">{entry.version}</Badge>
             )}
             {entry.source === 'bundled' && (
-              <Badge tone="neutral">{t('studio:addOns.browse.bundled', 'Included')}</Badge>
+              <Badge tone="neutral">{t('studio:addOns.browse.bundled', 'On this server')}</Badge>
             )}
             {entry.upgradeTo !== null && (
               <Badge tone="accent">
@@ -311,7 +311,7 @@ export function AddOnBrowser({
                   )
                 : t(
                     'studio:addOns.browse.offline',
-                    'Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.',
+                    'Showing the add-ons already on this server. Browsing online is switched off, and nothing here has contacted the internet.',
                   )}
             </span>
           </span>

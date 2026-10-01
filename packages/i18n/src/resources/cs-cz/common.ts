@@ -59,9 +59,9 @@ export default {
       "smtpUnconfigured": "Toto Adminium nemá nastavený e-mailový server, takže nemůže odeslat odkaz pro obnovení hesla. Požádejte správce, aby vám heslo obnovil."
     },
     "reset": {
-      "title": "Nastavte si nové heslo",
+      "title": "Zvolte si heslo",
       "subtitle": "Musí mít alespoň 8 znaků.",
-      "password": "Nové heslo",
+      "password": "Heslo",
       "confirm": "Potvrzení hesla",
       "showPassword": "Zobrazit heslo",
       "hidePassword": "Skrýt heslo",
@@ -72,8 +72,8 @@ export default {
       "strong": "Silné",
       "tooShort": "Použijte alespoň 8 znaků.",
       "mismatch": "Hesla se neshodují.",
-      "submit": "Obnovit heslo",
-      "failed": "Obnovení se nezdařilo. Zkuste to znovu."
+      "submit": "Uložit heslo",
+      "failed": "Nepodařilo se uložit. Zkuste to znovu."
     },
     "otp": {
       "title": "Dvoufázové ověření",

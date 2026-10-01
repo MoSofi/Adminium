@@ -480,10 +480,10 @@ describe('the record route renders the record PAGE', () => {
     const user = userEvent.setup();
     const { router } = await renderAt('/p/customers');
     // Narrow the list, then walk into a record and back.
-    const search = await screen.findByPlaceholderText(/Search public\.customers/);
+    const search = await screen.findByPlaceholderText(/Search customers/);
     await user.type(search, 'north');
     await waitFor(() => {
-      expect((screen.getByPlaceholderText(/Search public\.customers/) as HTMLInputElement).value).toBe('north');
+      expect((screen.getByPlaceholderText(/Search customers/) as HTMLInputElement).value).toBe('north');
     });
     await user.click(await screen.findByText('Northwind'));
     await waitFor(() => {
@@ -496,7 +496,7 @@ describe('the record route renders the record PAGE', () => {
       expect(router.state.location.pathname).toBe('/p/customers');
     });
     // The remount restores the query the user left (search survives).
-    const restored = (await screen.findByPlaceholderText(/Search public\.customers/)) as HTMLInputElement;
+    const restored = (await screen.findByPlaceholderText(/Search customers/)) as HTMLInputElement;
     expect(restored.value).toBe('north');
   });
 

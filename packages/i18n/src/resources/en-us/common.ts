@@ -59,9 +59,9 @@ export default {
       "resendHint": "Didn't get it?"
     },
     "reset": {
-      "title": "Set a new password",
+      "title": "Choose a password",
       "subtitle": "Must be at least 8 characters.",
-      "password": "New password",
+      "password": "Password",
       "confirm": "Confirm password",
       "showPassword": "Show password",
       "hidePassword": "Hide password",
@@ -71,8 +71,8 @@ export default {
       "good": "Good",
       "strong": "Strong",
       "tooShort": "Use at least 8 characters.",
-      "submit": "Reset password",
-      "failed": "Reset failed. Try again.",
+      "submit": "Save password",
+      "failed": "That did not save. Try again.",
       "mismatch": "Passwords don't match."
     },
     "otp": {

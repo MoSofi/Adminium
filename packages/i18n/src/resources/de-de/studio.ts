@@ -12,7 +12,7 @@ export default {
   "addOns": {
     "browse": {
       "all": "Alle",
-      "bundled": "Enthalten",
+      "bundled": "Auf diesem Server",
       "categories": "Kategorien",
       "discard": "Verwerfen",
       "download": "Herunterladen",
@@ -25,7 +25,7 @@ export default {
       "needsNewer": "Benötigt Adminium {version} oder neuer",
       "noMatchBody": "Kein Add-on hier passt zu dieser Suche und Kategorie.",
       "noMatchTitle": "Keine Treffer",
-      "offline": "Zeigt die mit dieser Version gelieferten Add-ons. Das Online-Stöbern ist ausgeschaltet, und nichts hier hat das Internet kontaktiert.",
+      "offline": "Zeigt die Add-ons, die bereits auf diesem Server liegen. Die Online-Suche ist ausgeschaltet, und nichts hier hat das Internet kontaktiert.",
       "online": "Enthält Add-ons aus dem Online-Katalog. Die Suche nach neueren Versionen ist eine eigene Aktion.",
       "refresh": "Nach Neuerem suchen",
       "search": "Add-ons suchen",
@@ -3002,7 +3002,12 @@ export default {
       "title": "Aktivität",
       "none": "Noch nichts.",
       "sampleAdded": "Beispieldaten hinzugefügt von {actor}",
-      "sampleRemoved": "Beispieldaten entfernt von {actor}"
+      "sampleRemoved": "Beispieldaten entfernt von {actor}",
+      "addOn": "{name} eingerichtet von {actor}",
+      "addOnUnnamed": "Ein Add-on eingerichtet von {actor}",
+      "installFailed": "Eine Installation von {actor} wurde nicht abgeschlossen",
+      "updateFailed": "Eine Aktualisierung von {actor} wurde nicht abgeschlossen",
+      "other": "Geändert von {actor}"
     },
     "danger": "Gefahrenzone",
     "disabledNote": "Die App ist ausgeschaltet. Aktivieren stellt genau das wieder her, was da war.",

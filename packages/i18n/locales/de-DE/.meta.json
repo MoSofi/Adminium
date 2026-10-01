@@ -14519,6 +14519,14 @@
     "status": "mt",
     "srcHash": "c4e269560695"
   },
+  "studio.appSettings.activity.addOn": {
+    "status": "mt",
+    "srcHash": "0a8813dfc7ee"
+  },
+  "studio.appSettings.activity.addOnUnnamed": {
+    "status": "mt",
+    "srcHash": "8237721cf71b"
+  },
   "studio.appSettings.activity.disabled": {
     "status": "mt",
     "srcHash": "db4c91a9c2ff"
@@ -14531,6 +14539,10 @@
     "status": "mt",
     "srcHash": "7ca3e76db6cb"
   },
+  "studio.appSettings.activity.installFailed": {
+    "status": "mt",
+    "srcHash": "db199cf7357c"
+  },
   "studio.appSettings.activity.installed": {
     "status": "mt",
     "srcHash": "9f164bb5405a"
@@ -14542,6 +14554,10 @@
   "studio.appSettings.activity.none": {
     "status": "mt",
     "srcHash": "dbf1d192c8ea"
+  },
+  "studio.appSettings.activity.other": {
+    "status": "mt",
+    "srcHash": "794cf85cd06d"
   },
   "studio.appSettings.activity.renamed": {
     "status": "mt",
@@ -14566,6 +14582,10 @@
   "studio.appSettings.activity.title": {
     "status": "mt",
     "srcHash": "81c0d915fa6d"
+  },
+  "studio.appSettings.activity.updateFailed": {
+    "status": "mt",
+    "srcHash": "d60c26d81f9c"
   },
   "studio.appSettings.activity.updated": {
     "status": "mt",

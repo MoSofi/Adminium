@@ -2,6 +2,7 @@
 import { dateOnlyValue } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import { withChoices, type ChoiceWords } from '../../families/tables/choices.js';
+import { plainTableName } from '../../lib/names.js';
 import { controlFor, legalControls, type FormControl } from '../../page-config/index.js';
 import type { ControlOption } from './controls/types.js';
 
@@ -291,7 +292,7 @@ function requiredNow(
 
 /** Mono type tag next to the label (`varchar`, `enum`, `→ team_members`). */
 export function fieldTypeTag(column: GridColumnSpec): string {
-  if (column.fk !== undefined) return `→ ${column.fk.label ?? column.fk.table}`;
+  if (column.fk !== undefined) return `→ ${column.fk.label ?? plainTableName(column.fk.table)}`;
   if (column.logicalType === 'enum' || (column.enumValues?.length ?? 0) > 0) return 'enum';
   return column.logicalType;
 }

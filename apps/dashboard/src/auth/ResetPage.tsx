@@ -19,14 +19,14 @@ export function ResetPage() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <AuthScreenLayout documentTitle={t('auth.reset.title', 'Set a new password')}>
+    <AuthScreenLayout documentTitle={t('auth.reset.title', 'Choose a password')}>
       <ResetPasswordForm
         labels={{
-          title: t('auth.reset.title', 'Set a new password'),
+          title: t('auth.reset.title', 'Choose a password'),
           subtitle: t('auth.reset.subtitle', 'Must be at least 8 characters.'),
-          password: t('auth.reset.password', 'New password'),
+          password: t('auth.reset.password', 'Password'),
           confirmPassword: t('auth.reset.confirm', 'Confirm password'),
-          submit: t('auth.reset.submit', 'Reset password'),
+          submit: t('auth.reset.submit', 'Save password'),
           tooShort: t('auth.reset.tooShort', 'Use at least 8 characters.'),
           mismatch: t('auth.reset.mismatch', "Passwords don't match."),
           strength: t('auth.reset.strength', 'Password strength'),
@@ -52,7 +52,7 @@ export function ResetPage() {
                 // Consumed/expired token → the dedicated system state.
                 void router.navigate({ to: '/state/$stateId', params: { stateId: 'expired-link' } });
               } else {
-                setError(t('auth.reset.failed', 'Reset failed. Try again.'));
+                setError(t('auth.reset.failed', 'That did not save. Try again.'));
               }
             });
         }}

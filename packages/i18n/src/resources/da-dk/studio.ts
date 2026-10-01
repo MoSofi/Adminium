@@ -12,7 +12,7 @@ export default {
   "addOns": {
     "browse": {
       "all": "Alle",
-      "bundled": "Included",
+      "bundled": "På denne server",
       "categories": "Kategorier",
       "discard": "Discard",
       "download": "Download",
@@ -25,7 +25,7 @@ export default {
       "needsNewer": "Kræver Adminium {version} eller nyere",
       "noMatchBody": "Ingen tilføjelse her matcher den søgning og kategori.",
       "noMatchTitle": "Ingen match",
-      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
+      "offline": "Viser de tilføjelser, der allerede ligger på denne server. Onlinesøgning er slået fra, og intet her har kontaktet internettet.",
       "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
       "refresh": "Check for newer",
       "search": "Søg efter tilføjelser",
@@ -3002,7 +3002,12 @@ export default {
       "title": "Aktivitet",
       "none": "Intet endnu.",
       "sampleAdded": "Eksempeldata tilføjet af {actor}",
-      "sampleRemoved": "Eksempeldata fjernet af {actor}"
+      "sampleRemoved": "Eksempeldata fjernet af {actor}",
+      "addOn": "{name} sat op af {actor}",
+      "addOnUnnamed": "En tilføjelse sat op af {actor}",
+      "installFailed": "En installation af {actor} blev ikke færdig",
+      "updateFailed": "En opdatering af {actor} blev ikke færdig",
+      "other": "Ændret af {actor}"
     },
     "danger": "Farezone",
     "disabledNote": "Appen er slået fra. Aktivér bringer præcis det tilbage, der var.",

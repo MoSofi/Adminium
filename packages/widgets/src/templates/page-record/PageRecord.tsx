@@ -16,6 +16,7 @@ import {
   ToastStack,
   useToastQueue,
 } from '@adminium/ui';
+import { entityFromTable, plainTableName } from '../../lib/names.js';
 import { useMaybeT } from '../../lib/i18n.js';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -509,7 +510,7 @@ function RelatedRecordsTab({
       onOpenChange={(open) => !open && setCreateOpen(false)}
       mode="create"
       entity={childEntity}
-      tableName={tab.table}
+      tableName={plainTableName(tab.table)}
       formId={`page-record-add-${tab.table}`}
       columns={createColumns}
       errors={createErrors}
@@ -1368,7 +1369,7 @@ export function PageRecord({
           onOpenChange={(open) => !open && setEditOpen(false)}
           mode="edit"
           entity={entity}
-          tableName={source.table}
+          tableName={plainTableName(source.table)}
           formId="page-record-edit-form"
           columns={columns}
           {...(relations === undefined ? {} : { relations, initialLinks: links })}
@@ -1430,11 +1431,6 @@ export function PageRecord({
       )}
     </div>
   );
-}
-
-function entityFromTable(table: string): string {
-  const name = table.split('.').pop() ?? table;
-  return name.endsWith('s') ? name.slice(0, -1) : name;
 }
 
 function pkValueOf(columns: readonly GridColumnSpec[], record: CrudRow): unknown {

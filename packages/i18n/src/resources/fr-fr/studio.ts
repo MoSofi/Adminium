@@ -12,7 +12,7 @@ export default {
   "addOns": {
     "browse": {
       "all": "Tout",
-      "bundled": "Inclus",
+      "bundled": "Sur ce serveur",
       "categories": "Catégories",
       "discard": "Supprimer",
       "download": "Télécharger",
@@ -25,7 +25,7 @@ export default {
       "needsNewer": "Nécessite Adminium {version} ou plus récent",
       "noMatchBody": "Aucun module ne correspond à cette recherche et à cette catégorie.",
       "noMatchTitle": "Aucun résultat",
-      "offline": "Affiche les modules livrés avec cette version. La navigation en ligne est désactivée et rien ici n’a contacté Internet.",
+      "offline": "Affiche les modules déjà présents sur ce serveur. La navigation en ligne est désactivée et rien ici n’a contacté Internet.",
       "online": "Inclut les modules du catalogue en ligne. Rechercher des versions plus récentes est une action distincte.",
       "refresh": "Rechercher des nouveautés",
       "search": "Rechercher des modules",
@@ -3002,7 +3002,12 @@ export default {
       "title": "Activité",
       "none": "Rien pour l’instant.",
       "sampleAdded": "Données d’exemple ajoutées par {actor}",
-      "sampleRemoved": "Données d’exemple retirées par {actor}"
+      "sampleRemoved": "Données d’exemple retirées par {actor}",
+      "addOn": "{name} configuré par {actor}",
+      "addOnUnnamed": "Un module configuré par {actor}",
+      "installFailed": "Une installation par {actor} n’a pas abouti",
+      "updateFailed": "Une mise à jour par {actor} n’a pas abouti",
+      "other": "Modifié par {actor}"
     },
     "danger": "Zone de danger",
     "disabledNote": "L’app est désactivée. Activer rétablit exactement ce qui existait.",

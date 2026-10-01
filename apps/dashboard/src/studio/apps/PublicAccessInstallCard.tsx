@@ -50,6 +50,29 @@ function linesOf(endpoint: PlannedEndpoint): string[] {
   });
 }
 
+/**
+ * Every line the card lists, once.
+ *
+ * An app may declare several entries on one table — a column each, a state
+ * each — and each reads as the same sentence here: the install check listed
+ * "Change proposals" four times for one app. What a person is agreeing to is
+ * the sentence, so it is said once; "arrives in a later release" stays apart
+ * from the same sentence that is already here.
+ */
+export function accessLines(endpoints: readonly PlannedEndpoint[]): { key: string; line: string; pending: boolean }[] {
+  const seen = new Set<string>();
+  const out: { key: string; line: string; pending: boolean }[] = [];
+  for (const endpoint of endpoints) {
+    for (const line of linesOf(endpoint)) {
+      const key = `${line}|${endpoint.pending ? 'later' : 'now'}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ key, line, pending: endpoint.pending === true });
+    }
+  }
+  return out;
+}
+
 function warningText(code: string, message: string): string {
   switch (code) {
     case 'PUBLIC_API_OFF':
@@ -117,22 +140,20 @@ export function PublicAccessInstallCard({
         {t('studio:appPublicAccess.intro', 'The app’s customer screens need to:')}
       </p>
       <ul className="mb-[13px] flex flex-col gap-[7px]">
-        {access.endpoints.flatMap((endpoint) =>
-          linesOf(endpoint).map((line) => (
-            <li key={`${endpoint.ref}:${line}`} className="flex items-start gap-2 text-[12.5px] leading-[1.45] text-fg">
-              <Dot aria-hidden className="mt-px size-3.5 shrink-0 text-accent" />
-              <span>
-                {line}
-                {endpoint.pending ? (
-                  <span className="text-fg-subtle">
-                    {' · '}
-                    {t('studio:appPublicAccess.later', 'arrives in a later release')}
-                  </span>
-                ) : null}
-              </span>
-            </li>
-          )),
-        )}
+        {accessLines(access.endpoints).map(({ key, line, pending }) => (
+          <li key={key} className="flex items-start gap-2 text-[12.5px] leading-[1.45] text-fg">
+            <Dot aria-hidden className="mt-px size-3.5 shrink-0 text-accent" />
+            <span>
+              {line}
+              {pending ? (
+                <span className="text-fg-subtle">
+                  {' · '}
+                  {t('studio:appPublicAccess.later', 'arrives in a later release')}
+                </span>
+              ) : null}
+            </span>
+          </li>
+        ))}
       </ul>
       {(access.opensWithoutStaff ?? []).length > 0 ? (
         <ul className="mb-[13px] flex flex-col gap-1.5" data-role="public-access-opens-without-staff">

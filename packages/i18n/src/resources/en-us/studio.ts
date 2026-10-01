@@ -12,7 +12,7 @@ export default {
   "addOns": {
     "browse": {
       "all": "All",
-      "bundled": "Included",
+      "bundled": "On this server",
       "categories": "Categories",
       "discard": "Discard",
       "download": "Download",
@@ -25,7 +25,7 @@ export default {
       "needsNewer": "Needs Adminium {version} or later",
       "noMatchBody": "No add-on here matches that search and category.",
       "noMatchTitle": "Nothing matches",
-      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
+      "offline": "Showing the add-ons already on this server. Browsing online is switched off, and nothing here has contacted the internet.",
       "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
       "refresh": "Check for newer",
       "search": "Search add-ons",
@@ -3002,7 +3002,12 @@ export default {
       "title": "Activity",
       "none": "Nothing yet.",
       "sampleAdded": "Sample data added by {actor}",
-      "sampleRemoved": "Sample data removed by {actor}"
+      "sampleRemoved": "Sample data removed by {actor}",
+      "addOn": "{name} set up by {actor}",
+      "addOnUnnamed": "An add-on set up by {actor}",
+      "installFailed": "An install by {actor} did not finish",
+      "updateFailed": "An update by {actor} did not finish",
+      "other": "Changed by {actor}"
     },
     "danger": "Danger zone",
     "disabledNote": "The app is switched off. Enable brings back exactly what was there.",

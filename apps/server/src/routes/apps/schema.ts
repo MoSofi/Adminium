@@ -846,7 +846,13 @@ export const appOverviewReply = z.object({
     }),
   ),
   activity: z.array(
-    z.object({ action: z.string(), at: z.number(), actor: z.string() }),
+    z.object({
+      action: z.string(),
+      at: z.number(),
+      actor: z.string(),
+      /** What the action was done to, when the action alone does not name it (an add-on's name). */
+      subject: z.string().optional(),
+    }),
   ),
 });
 

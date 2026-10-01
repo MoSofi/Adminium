@@ -59,9 +59,9 @@ export default {
       "resendHint": "Fik du det ikke?"
     },
     "reset": {
-      "title": "Vælg en ny adgangskode",
+      "title": "Vælg en adgangskode",
       "subtitle": "Skal være på mindst 8 tegn.",
-      "password": "Ny adgangskode",
+      "password": "Adgangskode",
       "confirm": "Bekræft adgangskode",
       "showPassword": "Vis adgangskode",
       "hidePassword": "Skjul adgangskode",
@@ -71,8 +71,8 @@ export default {
       "good": "God",
       "strong": "Stærk",
       "tooShort": "Brug mindst 8 tegn.",
-      "submit": "Nulstil adgangskode",
-      "failed": "Nulstilling mislykkedes. Prøv igen.",
+      "submit": "Gem adgangskode",
+      "failed": "Det blev ikke gemt. Prøv igen.",
       "mismatch": "Adgangskoderne er ikke ens."
     },
     "otp": {

@@ -12,7 +12,7 @@ export default {
   "addOns": {
     "browse": {
       "all": "Vše",
-      "bundled": "Included",
+      "bundled": "Na tomto serveru",
       "categories": "Kategorie",
       "discard": "Discard",
       "download": "Download",
@@ -25,7 +25,7 @@ export default {
       "needsNewer": "Vyžaduje Adminium {version} nebo novější",
       "noMatchBody": "Tomuto hledání a kategorii neodpovídá žádný doplněk.",
       "noMatchTitle": "Žádná shoda",
-      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
+      "offline": "Zobrazují se doplňky, které už jsou na tomto serveru. Procházení online je vypnuté a nic zde nekontaktovalo internet.",
       "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
       "refresh": "Check for newer",
       "search": "Hledat doplňky",
@@ -3002,7 +3002,12 @@ export default {
       "title": "Aktivita",
       "none": "Zatím nic.",
       "sampleAdded": "Ukázková data přidal(a) {actor}",
-      "sampleRemoved": "Ukázková data odstranil(a) {actor}"
+      "sampleRemoved": "Ukázková data odstranil(a) {actor}",
+      "addOn": "{name} – nastavil(a) {actor}",
+      "addOnUnnamed": "Doplněk – nastavil(a) {actor}",
+      "installFailed": "Instalace od {actor} se nedokončila",
+      "updateFailed": "Aktualizace od {actor} se nedokončila",
+      "other": "Změnil(a) {actor}"
     },
     "danger": "Nebezpečná zóna",
     "disabledNote": "Aplikace je vypnutá. Zapnutí vrátí přesně to, co tam bylo.",

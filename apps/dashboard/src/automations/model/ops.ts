@@ -67,7 +67,14 @@ export function insert(graph: Graph, target: InsertTarget, def: StepDefinition):
 } {
   const next = cloneGraph(graph);
   const id = newId(next);
-  const base = { id, title: def.label, sub: def.sub };
+  /*
+   * The description starts EMPTY, not as the tile's hint. A step's second
+   * line is generated from what the step does (`summaries.ts`) until somebody
+   * types one — and a typed one always wins. Copying "Table · pick one" in
+   * as if a person had typed it froze that sentence on the card: it still
+   * read "pick one" after a table was picked.
+   */
+  const base = { id, title: def.label, sub: '' };
 
   let node: FlowNode;
   switch (def.kind) {

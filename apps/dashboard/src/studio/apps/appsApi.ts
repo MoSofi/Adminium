@@ -298,7 +298,7 @@ export interface AppOverview {
   connection: { id: string; name: string; engine: string } | null;
   /** `sample-ledger`: Adminium's list of the sample rows it added (listed last). */
   tables: { ref: string; table: string; state: string; role?: 'app' | 'sample-ledger'; rows: number | null }[];
-  activity: { action: string; at: number; actor: string }[];
+  activity: { action: string; at: number; actor: string; subject?: string }[];
 }
 
 export const appSettingsKey = (key: string) => ['app-settings', key] as const;

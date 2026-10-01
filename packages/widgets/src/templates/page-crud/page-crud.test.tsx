@@ -235,7 +235,7 @@ describe('PageCrud template', () => {
     const api = makeApi(rows);
     renderPage(api);
     await screen.findByText('Initech');
-    expect(screen.getByPlaceholderText(/Search public\.customers/)).toBeDefined();
+    expect(screen.getByPlaceholderText(/Search customers/)).toBeDefined();
     expect(screen.getByRole('button', { name: /New row/ })).toBeDefined();
 
     const bodyRows = screen.getAllByRole('row').slice(1);
@@ -245,7 +245,7 @@ describe('PageCrud template', () => {
     // that slot. Search and the filter chips survive the selection: they are
     // how the user built the set they are now acting on, so hiding them mid-
     // task was the defect this asserts against.
-    expect(screen.getByPlaceholderText(/Search public\.customers/)).toBeDefined();
+    expect(screen.getByPlaceholderText(/Search customers/)).toBeDefined();
     expect(screen.queryByRole('button', { name: /New row/ })).toBeNull();
     const toolbar = screen.getByRole('toolbar', { name: 'Bulk actions' });
     expect(within(toolbar).getByText('1')).toBeDefined();

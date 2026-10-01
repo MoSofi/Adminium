@@ -12,7 +12,7 @@ export default {
   "addOns": {
     "browse": {
       "all": "全部",
-      "bundled": "Included",
+      "bundled": "在此伺服器上",
       "categories": "分類",
       "discard": "Discard",
       "download": "Download",
@@ -25,7 +25,7 @@ export default {
       "needsNewer": "需要 Adminium {version} 或更新版本",
       "noMatchBody": "沒有外掛符合該搜尋與分類。",
       "noMatchTitle": "沒有相符項目",
-      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
+      "offline": "顯示此伺服器上已有的擴充功能。線上瀏覽已關閉，這裡沒有任何內容連線過網際網路。",
       "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
       "refresh": "Check for newer",
       "search": "搜尋外掛",
@@ -3002,7 +3002,12 @@ export default {
       "title": "動態",
       "none": "目前沒有。",
       "sampleAdded": "由 {actor} 新增範例資料",
-      "sampleRemoved": "由 {actor} 移除範例資料"
+      "sampleRemoved": "由 {actor} 移除範例資料",
+      "addOn": "{actor} 設定了 {name}",
+      "addOnUnnamed": "{actor} 設定了一個擴充功能",
+      "installFailed": "{actor} 的安裝未完成",
+      "updateFailed": "{actor} 的更新未完成",
+      "other": "由 {actor} 變更"
     },
     "danger": "危險操作",
     "disabledNote": "應用程式已關閉。啟用後將完全恢復原樣。",

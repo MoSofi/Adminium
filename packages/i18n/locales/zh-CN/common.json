@@ -49,9 +49,9 @@
       "resendHint": "没有收到？"
     },
     "reset": {
-      "title": "设置新密码",
+      "title": "设置密码",
       "subtitle": "至少 8 个字符。",
-      "password": "新密码",
+      "password": "密码",
       "confirm": "确认密码",
       "showPassword": "显示密码",
       "hidePassword": "隐藏密码",
@@ -61,8 +61,8 @@
       "good": "良好",
       "strong": "强",
       "tooShort": "请至少使用 8 个字符。",
-      "submit": "重置密码",
-      "failed": "重置失败。请重试。",
+      "submit": "保存密码",
+      "failed": "未能保存，请重试。",
       "mismatch": "两次输入的密码不一致。"
     },
     "otp": {

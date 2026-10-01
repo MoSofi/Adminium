@@ -123,7 +123,7 @@ describe('form helpers', () => {
     expect(fieldTypeTag(spec({ name: 'n', label: 'N', logicalType: 'varchar' }))).toBe('varchar');
     expect(fieldTypeTag(spec({ name: 's', label: 'S', logicalType: 'enum', enumValues: ['a'] }))).toBe('enum');
     expect(fieldTypeTag(spec({ name: 'o', label: 'O', fk: { table: 'public.team_members', column: 'id' } }))).toBe(
-      '→ public.team_members',
+      '→ team members',
     );
     // A table with a name for a person is tagged by it, not its identifier.
     expect(fieldTypeTag(spec({ name: 'c', label: 'Category', fk: { table: 'main.pos_menu_categories', column: 'id', label: 'Categories' } }))).toBe(

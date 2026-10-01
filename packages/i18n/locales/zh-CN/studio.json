@@ -2,7 +2,7 @@
   "addOns": {
     "browse": {
       "all": "全部",
-      "bundled": "Included",
+      "bundled": "在此服务器上",
       "categories": "分类",
       "discard": "Discard",
       "download": "Download",
@@ -15,7 +15,7 @@
       "needsNewer": "需要 Adminium {version} 或更高版本",
       "noMatchBody": "没有插件符合该搜索和分类。",
       "noMatchTitle": "没有匹配项",
-      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
+      "offline": "显示此服务器上已有的扩展。在线浏览已关闭，这里没有任何内容联系过互联网。",
       "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
       "refresh": "Check for newer",
       "search": "搜索插件",
@@ -2992,7 +2992,12 @@
       "title": "动态",
       "none": "暂无。",
       "sampleAdded": "由 {actor} 添加示例数据",
-      "sampleRemoved": "由 {actor} 删除示例数据"
+      "sampleRemoved": "由 {actor} 删除示例数据",
+      "addOn": "{actor} 设置了 {name}",
+      "addOnUnnamed": "{actor} 设置了一个扩展",
+      "installFailed": "{actor} 的安装未完成",
+      "updateFailed": "{actor} 的更新未完成",
+      "other": "由 {actor} 更改"
     },
     "danger": "危险操作",
     "disabledNote": "应用已关闭。启用后将完全恢复原样。",

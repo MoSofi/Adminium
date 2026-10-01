@@ -13,9 +13,10 @@ import { describe, expect, it } from 'vitest';
 
 import { automationIcon } from '../icons.js';
 import type { Action, ActionNode } from './graph.js';
+import { insert } from './ops.js';
 import { subLineFor } from './summaries.js';
 import { isActionComplete, isNodeComplete } from './validate.js';
-import { iconForNode } from './vocabulary.js';
+import { ACTION_STEPS, iconForNode } from './vocabulary.js';
 
 const draw: ActionNode = {
   id: 'draw',
@@ -51,5 +52,18 @@ describe('a step this build does not know', () => {
   it('has an empty sentence and is left to the server to judge', () => {
     expect(subLineFor({ ...draw, action: unknown }, null)).toBe('');
     expect(isActionComplete(unknown)).toBe(true);
+  });
+});
+
+describe('a new step’s second line', () => {
+  it('follows what the step does, instead of keeping the picker’s hint', () => {
+    const create = ACTION_STEPS.find((step) => step.action?.kind === 'record.create')!;
+    const { graph, nodeId } = insert({ nodes: [{ id: 'trigger', kind: 'trigger', title: 'When' }] } as never, { index: 1 }, create);
+    const node = graph.nodes.find((candidate) => candidate.id === nodeId) as ActionNode;
+    expect(subLineFor(node, null)).toBe('Table · pick one');
+    // A table and a value are picked: the card says so.
+    const filled: ActionNode = { ...node, action: { kind: 'record.create', table: 'main.orders', values: { status: 'paid' } } };
+    expect(subLineFor(filled, null)).not.toContain('pick one');
+    expect(subLineFor(filled, null)).toContain('1 values');
   });
 });

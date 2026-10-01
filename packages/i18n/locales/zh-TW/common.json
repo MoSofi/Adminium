@@ -49,9 +49,9 @@
       "resendHint": "沒有收到嗎？"
     },
     "reset": {
-      "title": "設定新密碼",
+      "title": "設定密碼",
       "subtitle": "至少 8 個字元。",
-      "password": "新密碼",
+      "password": "密碼",
       "confirm": "確認密碼",
       "showPassword": "顯示密碼",
       "hidePassword": "隱藏密碼",
@@ -61,8 +61,8 @@
       "good": "良好",
       "strong": "強",
       "tooShort": "請至少使用 8 個字元。",
-      "submit": "重設密碼",
-      "failed": "重設失敗。請再試一次。",
+      "submit": "儲存密碼",
+      "failed": "未能儲存，請再試一次。",
       "mismatch": "兩次輸入的密碼不一致。"
     },
     "otp": {

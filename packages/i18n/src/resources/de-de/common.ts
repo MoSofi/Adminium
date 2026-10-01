@@ -59,9 +59,9 @@ export default {
       "resendHint": "Nicht erhalten?"
     },
     "reset": {
-      "title": "Neues Passwort festlegen",
+      "title": "Passwort wählen",
       "subtitle": "Mindestens 8 Zeichen.",
-      "password": "Neues Passwort",
+      "password": "Passwort",
       "confirm": "Passwort bestätigen",
       "showPassword": "Passwort anzeigen",
       "hidePassword": "Passwort verbergen",
@@ -71,8 +71,8 @@ export default {
       "good": "Gut",
       "strong": "Stark",
       "tooShort": "Verwenden Sie mindestens 8 Zeichen.",
-      "submit": "Passwort zurücksetzen",
-      "failed": "Zurücksetzen fehlgeschlagen. Versuchen Sie es erneut.",
+      "submit": "Passwort speichern",
+      "failed": "Das wurde nicht gespeichert. Versuchen Sie es erneut.",
       "mismatch": "Die Passwörter stimmen nicht überein."
     },
     "otp": {

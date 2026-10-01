@@ -12,7 +12,7 @@ export default {
   "addOns": {
     "browse": {
       "all": "الكل",
-      "bundled": "Included",
+      "bundled": "على هذا الخادم",
       "categories": "الفئات",
       "discard": "Discard",
       "download": "Download",
@@ -25,7 +25,7 @@ export default {
       "needsNewer": "يتطلب Adminium {version} أو أحدث",
       "noMatchBody": "لا توجد إضافة تطابق هذا البحث وهذه الفئة.",
       "noMatchTitle": "لا توجد نتائج",
-      "offline": "Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.",
+      "offline": "تُعرض الإضافات الموجودة بالفعل على هذا الخادم. التصفح عبر الإنترنت متوقف، ولم يتصل أي شيء هنا بالإنترنت.",
       "online": "Includes add-ons from the online catalogue. Checking for newer versions is a separate action.",
       "refresh": "Check for newer",
       "search": "ابحث في الإضافات",
@@ -3002,7 +3002,12 @@ export default {
       "title": "النشاط",
       "none": "لا شيء بعد.",
       "sampleAdded": "أضاف البيانات التجريبية {actor}",
-      "sampleRemoved": "أزال البيانات التجريبية {actor}"
+      "sampleRemoved": "أزال البيانات التجريبية {actor}",
+      "addOn": "تم إعداد {name} بواسطة {actor}",
+      "addOnUnnamed": "تم إعداد إضافة بواسطة {actor}",
+      "installFailed": "لم يكتمل تثبيت بدأه {actor}",
+      "updateFailed": "لم يكتمل تحديث بدأه {actor}",
+      "other": "تم التغيير بواسطة {actor}"
     },
     "danger": "منطقة الخطر",
     "disabledNote": "التطبيق متوقف. التفعيل يعيد ما كان موجودًا تمامًا.",
