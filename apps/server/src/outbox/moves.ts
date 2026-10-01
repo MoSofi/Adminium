@@ -9,8 +9,13 @@
  *    once (its due moves to now);
  *  - reword a held message of a producer that holds (`subject_override`,
  *    `body_override`) — before or as it is approved, and at no other time:
- *    never on a new row, a queued one, or one addressed by hand, so a
- *    person's wording only ever goes where Adminium addresses it;
+ *    never on a queued one, or one addressed by hand, so a person's wording
+ *    only ever goes where Adminium addresses it;
+ *  - write a message of their own (a reply to an enquiry): a NEW row of a
+ *    kind no producer makes may carry its wording, and for the same reason
+ *    it is Adminium that addresses it — to the address on file of who the
+ *    row is about. A typed address that is another is refused, and so is a
+ *    row about nobody with an address; its address never changes afterwards;
  *  - skip a held or queued one: → skipped, the reason `by-hand`;
  *  - queue a failed one again: failed → queued.
  * Only Adminium marks a message sent or failed — when it sends it — and a
@@ -239,13 +244,48 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
       if (!empty(values[column])) byAdminium(column);
       delete values[column];
     }
+    const producer = producerOf(definition, values[cols.kind]);
+    let worded: string | undefined;
     for (const column of overrides) {
       if (!has(column)) continue;
-      if (!empty(values[column])) refuse(column, 'A message is reworded only while it waits for approval, not when it is made.');
-      delete values[column];
+      if (empty(values[column])) {
+        delete values[column];
+        continue;
+      }
+      // What a producer makes is worded by its template, and reworded only while it waits for approval.
+      if (producer !== undefined) refuse(column, 'A message is reworded only while it waits for approval, not when it is made.');
+      worded ??= column;
+    }
+    /*
+     * A person's own message, with their own words (a reply to an enquiry).
+     * The words are theirs, so the address is not: it goes to the address on
+     * file of who the row is about — the person its link names, else the
+     * fallback holder (the enquiry) — exactly as a producer's message would
+     * be addressed. Refusing every wording on a new row, as this did, left
+     * such a message nowhere to get its text: it has no producer to hold it,
+     * so it could never be reworded afterwards either.
+     */
+    if (worded !== undefined) {
+      const addressed = await addressFor(
+        { db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db) },
+        definition,
+        undefined,
+        values,
+      );
+      const onFile = addressed.address;
+      if (onFile === null) {
+        refuse(worded, 'A message a person words goes to the address on file of who it is about, and this one is about nobody with an address.');
+      } else {
+        const typed = values[cols.to];
+        if (!empty(typed) && String(typed).trim().toLowerCase() !== onFile.toLowerCase()) {
+          refuse(cols.to, 'A message a person words goes to the address on file, never to one typed with it.');
+        }
+        values[cols.to] = onFile;
+        if (cols.language !== undefined && empty(values[cols.language]) && addressed.language !== null) values[cols.language] = addressed.language;
+      }
     }
     // A reminder a producer holds waits for a person, whoever makes it.
-    if (producerOf(definition, values[cols.kind])?.hold === true) values[cols.status] = 'held';
+    if (producer?.hold === true) values[cols.status] = 'held';
     return;
   }
 
@@ -282,6 +322,10 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   }
   // A held reminder goes where Adminium addresses it, never where a person types.
   if (held && changed(cols.to)) refuse(cols.to, 'This message goes to the address on file, looked up when it is sent.');
+  // Nor does one a person worded: it was addressed when it was made, and its words go nowhere else.
+  if (changed(cols.to) && overrides.some((column) => !empty(record[column]))) {
+    refuse(cols.to, 'This message carries words a person wrote, so it goes to the address it was made for.');
+  }
   if (to !== from && !(PERSON_MOVES[from] ?? []).includes(to)) {
     const message =
       to === 'sent' || to === 'failed'

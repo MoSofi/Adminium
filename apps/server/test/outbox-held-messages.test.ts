@@ -41,7 +41,7 @@ const fk = (ref: string, references: string, nullable = true) => ({ ref, type: '
 const money = (ref: string, rules?: Record<string, unknown>) => ({ ref, type: 'decimal', scale: 2, nullable: true, ...(rules === undefined ? {} : { rules }) });
 const instant = (ref: string) => ({ ref, type: 'timestamptz', nullable: true });
 
-const KINDS = ['invoice-sent', 'invoice-rung-1', 'invoice-rung-2', 'invoice-rung-3', 'client-says-paid', 'new-work', 'payment-receipt', 'transfer-note', 'late-note'];
+const KINDS = ['invoice-sent', 'invoice-rung-1', 'invoice-rung-2', 'invoice-rung-3', 'client-says-paid', 'new-work', 'payment-receipt', 'transfer-note', 'late-note', 'desk-reply'];
 
 function studioTables(): Record<string, unknown>[] {
   return [
@@ -195,6 +195,8 @@ export function studioManifest(): Record<string, unknown> {
       template('payment-receipt', 'Payment received', 'We received {{settlement.amount}} for invoice {{invoice.id}}.'),
       template('transfer-note', 'A transfer', 'A transfer between invoices.'),
       template('late-note', 'Your invoice is late', 'Invoice {{invoice.id}} is late.'),
+      // A kind no producer makes: a person writes it, as a studio answers an enquiry.
+      template('desk-reply', 'A note from the studio', 'Hello {{client.name}}.'),
     ],
   };
 }
@@ -844,6 +846,37 @@ for (const [dialect, reachable] of LEGS) {
         error: 'Not sent: nothing fills {{client.email}}, {{addOn.invoices.bank_note}}, {{addOn.shipping.carrier}}',
       });
       for (const m of await mail()) for (const hidden of ['hush-note', 'Parcel Co']) expect(m.text).not.toContain(hidden);
+    });
+
+    it('sends a person’s own message with their words, to the address on file and nowhere else', async () => {
+      /*
+       * A reply to an enquiry is a new row of a kind no producer makes, with
+       * its text in `body_override`. Every wording on a new row used to be
+       * refused, so the reply could never be saved — and with no producer to
+       * hold it, never reworded afterwards either.
+       */
+      // Somebody else's address typed beside the words: refused. So is a message about nobody.
+      expect((await refused(create('messages', { kind: 'desk-reply', status: 'queued', client_id: ann['id'], to_address: 'mallory@evil-probe.dev', body_override: 'Hi' }))).code).toBe(
+        'STATE_MOVE_REFUSED',
+      );
+      expect((await refused(create('messages', { kind: 'desk-reply', status: 'queued', body_override: 'Hi' }))).code).toBe('STATE_MOVE_REFUSED');
+
+      const before = (await mail()).length;
+      // With no address, or the one on file however it is spelled: addressed by Adminium.
+      const reply = await create('messages', { kind: 'desk-reply', status: 'queued', client_id: ann['id'], body_override: 'Thanks {{client.name}} — Monday suits us. ({{client.email}})' });
+      const spelled = await create('messages', { kind: 'desk-reply', status: 'queued', client_id: ann['id'], to_address: ' ANN@client.studio.dev ', subject_override: 'Re: Monday', body_override: 'See you then.' });
+      expect([(await msg(reply['id']))['to_address'], (await msg(spelled['id']))['to_address']]).toEqual(['ann@client.studio.dev', 'ann@client.studio.dev']);
+      // Its address is fixed with its words; its words are fixed once made.
+      expect((await refused(update('messages', reply['id'], { to_address: 'mallory@evil-probe.dev' }))).code).toBe('STATE_MOVE_REFUSED');
+      expect((await refused(update('messages', reply['id'], { body_override: 'changed' }))).code).toBe('STATE_MOVE_REFUSED');
+
+      await sender.sendApp('studio', clock);
+      const sent = (await mail()).slice(before).filter((m) => m.to === 'ann@client.studio.dev');
+      expect(sent.map((m) => m.subject).sort()).toEqual(['A note from the studio', 'Re: Monday']);
+      const first = sent.find((m) => m.subject === 'A note from the studio')!;
+      // The words read what the template reads (a name), never another column of the linked row.
+      expect(first.text).toContain('Thanks Ann Lee — Monday suits us. ()');
+      expect((await msg(reply['id']))['status']).toBe('sent');
     });
 
     it('lets a message sent meanwhile stay sent: a stale second try or a skip during the send sends nothing twice', async () => {
