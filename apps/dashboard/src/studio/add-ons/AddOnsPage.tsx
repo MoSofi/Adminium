@@ -223,7 +223,7 @@ function ConsentDialog({
  * v1 the field is a textarea that refuses to save unparseable text, and the
  * help line says so.
  */
-function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }) {
+export function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }) {
   const queryClient = useQueryClient();
   const editable = addOn.settings.filter((setting) => !setting.secret);
   const [draft, setDraft] = useState<Record<string, unknown>>(addOn.settingValues);
@@ -276,10 +276,23 @@ function SettingsForm({ addOn, busy }: { addOn: AddOnDto; busy: boolean }) {
               <textarea
                 className="min-h-20 rounded border border-border bg-bg p-2 font-mono text-xs"
                 aria-label={label}
-                defaultValue={JSON.stringify(value ?? null, null, 2)}
+                /*
+                 * A setting nobody has filled is an EMPTY box, never the word
+                 * `null`: that reads as a value somebody typed, and the first
+                 * thing a person does with it is type after it. Emptying the
+                 * box again takes the value back to unset.
+                 */
+                defaultValue={value === null || value === undefined ? '' : JSON.stringify(value, null, 2)}
+                placeholder="{ }"
                 onChange={(event) => {
+                  const text = event.currentTarget.value;
+                  if (text.trim() === '') {
+                    set(setting.key, null);
+                    setInvalid(null);
+                    return;
+                  }
                   try {
-                    set(setting.key, JSON.parse(event.currentTarget.value));
+                    set(setting.key, JSON.parse(text));
                     setInvalid(null);
                   } catch {
                     // Refused rather than saved as a string: a `json` setting
