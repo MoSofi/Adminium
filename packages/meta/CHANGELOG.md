@@ -1,5 +1,12 @@
 # @adminium/meta
 
+## 0.3.9
+
+### Patch Changes
+
+- Document mappings: a lines table can no longer be saved with none of its required columns chosen (the columns the table names outright are filled in for you; the rest read "Not filled" and are listed under "Still to fill"). "When a row changes" can now wait for one column, and for the value it becomes — "when status becomes paid" — so a later edit of the row no longer draws and emails the document a second time. A document that is drawn again keeps its number, as before; its email now says it replaces the copy sent earlier, and `GET /api/v1/documents` marks the earlier one `replaced: true`. Workspace settings links to Document mappings, which had no link anywhere.
+- A yes/no column is read as `true` or `false` on every engine, on the staff API and the public API. MySQL and SQLite answered `1` and `0`, so a page that tested `=== true` read every yes as a no. On SQLite, where a yes/no is kept as a whole number, Adminium now knows which columns are answers: an app's `bool` columns are marked when it is installed or updated (a new column rule, `column.yesNo`), and so is a Yes / No column made in the table designer, which used to come back as a number box. An installed app gets the rule at its next update; until then its SQLite columns answer as before. If your own code compares such a value with `1` or `0`, compare it with `true` or `false`.
+
 ## 0.3.8
 
 ### Patch Changes

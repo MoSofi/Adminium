@@ -1,5 +1,11 @@
 # @adminium/public-client
 
+## 0.3.9
+
+### Patch Changes
+
+- A parent limit's availability answers several parents in one request: `?under=12,15,19`, or `parentAvailability(ref, { under: ['12', '15', '19'] })` in the public client. A page that lists many shows read their tickets one request each, and one visitor's page load used a large share of an address's read budget.
+
 ## 0.3.8
 
 ## 0.3.7

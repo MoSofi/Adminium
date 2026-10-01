@@ -1,5 +1,13 @@
 # @adminium/i18n
 
+## 0.3.9
+
+### Patch Changes
+
+- A document mapping that draws by itself now works from the moment it is saved. Its rule was written but the running server never heard of it, so the first matching row drew nothing until Adminium restarted; and once such a rule existed the Automations page showed "You're offline" and no rule could be opened, because the page had no way to draw a "Draw document" step. The step now has its own card (shown, not edited there), a step this build does not know draws with a plain icon instead of taking the page down, and a page that fails to draw is no longer reported as a lost connection.
+- Document mappings: a lines table can no longer be saved with none of its required columns chosen (the columns the table names outright are filled in for you; the rest read "Not filled" and are listed under "Still to fill"). "When a row changes" can now wait for one column, and for the value it becomes — "when status becomes paid" — so a later edit of the row no longer draws and emails the document a second time. A document that is drawn again keeps its number, as before; its email now says it replaces the copy sent earlier, and `GET /api/v1/documents` marks the earlier one `replaced: true`. Workspace settings links to Document mappings, which had no link anywhere.
+- Fixes found while recording the walkthroughs. An invitation opened in a browser where somebody else is signed in no longer fails with `CSRF_FAILED`: sign-in, forgot-password and reset act on what their body carries, so they are checked by origin alone. The Team page says whether an invitation was emailed (it always said it was not), and no longer lists the owner as "Never signed in". The app page counts each table's rows as they are now (it showed 0 after sample data), names the add-on a step set up, and says when its customer side is on but cannot answer because the public API is off or the app was installed without its public access. The install check warns when an app keeps money and the database has no currency (amounts then show in dollars on the dashboard and bare in emails). A required choice drawn as a row of segments shows nothing chosen until one is (it looked answered and then refused the save). An add-on's unset JSON setting opens empty instead of reading `null`, and a newly installed add-on's page appears in the sidebar without a reload. The "details deleted" email says what became of the links the person holds, as the app declares it, and no longer speaks of tickets and bookings. A date-only column shows its day in a list, never "17h ago". Generated forms say "New order item" and "→ clients" instead of raw table names, and a new automation step's description follows what the step does.
+
 ## 0.3.8
 
 ### Patch Changes

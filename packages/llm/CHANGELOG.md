@@ -1,5 +1,13 @@
 # @adminium/llm
 
+## 0.3.9
+
+### Patch Changes
+
+- Updated dependencies
+  - @adminium/widgets@0.3.9
+  - @adminium/engine@0.3.9
+
 ## 0.3.8
 
 ### Patch Changes
