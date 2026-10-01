@@ -47,6 +47,7 @@ import {
 } from './api.js';
 import {
   columnsForSlot,
+  suggestedLineColumns,
   fromMapping,
   mayTypeValue,
   rankChildTables,
@@ -736,13 +737,20 @@ function CollectionRow({
           }
           const [table, fkColumn] = choice.split('|');
           /*
-           * The column map starts EMPTY on every change of table. Carrying it
+           * The column map starts over on every change of table. Carrying it
            * over would leave a mapping naming columns of the table somebody
            * just moved away from, which passes every check here and fails at
            * render — or worse, matches a same-named column and draws the wrong
-           * field.
+           * field. It starts with the columns the new table names outright;
+           * the rest read "Not filled" and hold the save until they are chosen.
            */
-          onChange({ kind: 'collection', table: table!, fkColumn: fkColumn!, columns: {} });
+          const picked = tables.find((row) => row.id === table);
+          onChange({
+            kind: 'collection',
+            table: table!,
+            fkColumn: fkColumn!,
+            columns: suggestedLineColumns(slot.columns ?? [], picked?.columns ?? []),
+          });
         }}
       >
         <option value="">

@@ -381,16 +381,23 @@ describe('the child-table picker for a collection', () => {
     const user = await openEditorOnOrders();
     const lines = await screen.findByRole('combobox', { name: 'Lines' });
     await user.selectOptions(lines, 'public.order_lines|order_id');
+    // A choice no table would suggest: the quantity read from `description`.
     await user.selectOptions(
-      await screen.findByRole('combobox', { name: 'Description of each line' }),
+      await screen.findByRole('combobox', { name: 'Quantity of each line' }),
       'description',
     );
     await user.selectOptions(lines, 'public.invoice_items|invoice_id');
 
+    const qty = (await screen.findByRole('combobox', {
+      name: 'Quantity of each line',
+    })) as HTMLSelectElement;
+    expect(qty.value).toBe('');
+    // What the new table names outright is offered as chosen — its own
+    // `description`, picked for this table and not carried from the last.
     const desc = (await screen.findByRole('combobox', {
       name: 'Description of each line',
     })) as HTMLSelectElement;
-    expect(desc.value).toBe('');
+    expect(desc.value).toBe('description');
   });
 
   it('says why there is no picker when nothing points at the table', async () => {

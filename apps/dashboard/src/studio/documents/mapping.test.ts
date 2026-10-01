@@ -19,6 +19,7 @@ import {
   tablesRead,
   toLiterals,
   toMapping,
+  suggestedLineColumns,
   unboundRequiredSlots,
   type Bindings,
   type ColumnFacts,
@@ -250,5 +251,41 @@ describe('which slots may be given a typed value', () => {
 
   it('does NOT offer it on a collection — a typed value is not a list', () => {
     expect(mayTypeValue({ type: 'collection', required: false })).toBe(false);
+  });
+});
+
+describe('a document’s lines', () => {
+  const lines = {
+    id: 'lines',
+    label: {},
+    type: 'collection' as const,
+    required: true,
+    columns: [
+      { id: 'desc', label: {}, type: 'text' as const, required: true },
+      { id: 'quantity', label: {}, type: 'number' as const, required: true },
+      { id: 'unitPrice', label: {}, type: 'money' as const, required: true },
+      { id: 'note', label: {}, type: 'text' as const, required: false },
+    ],
+  };
+  const bound = (columns: Record<string, string>) => ({
+    lines: { kind: 'collection' as const, table: 'main.order_items', fkColumn: 'order_id', columns },
+  });
+
+  it('are still to fill while a required line column has no source', () => {
+    // The table alone used to pass: a mapping saved with `"columns": {}`.
+    expect(unboundRequiredSlots([lines], bound({}))).toEqual(['lines.desc', 'lines.quantity', 'lines.unitPrice']);
+    expect(unboundRequiredSlots([lines], bound({ desc: 'name', quantity: 'qty' }))).toEqual(['lines.unitPrice']);
+    // An optional column never holds the save.
+    expect(unboundRequiredSlots([lines], bound({ desc: 'name', quantity: 'qty', unitPrice: 'price' }))).toEqual([]);
+  });
+
+  it('start with the columns the table names outright, and no guesses', () => {
+    const column = (name: string) => ({ name, label: name, logicalType: 'text', nullable: true });
+    expect(
+      suggestedLineColumns(lines.columns, ['id', 'order_id', 'description', 'quantity', 'unit_price'].map(column)),
+    ).toEqual({ desc: 'description', quantity: 'quantity', unitPrice: 'unit_price' });
+    // Two columns that could be the note: neither is taken.
+    expect(suggestedLineColumns(lines.columns, ['note', 'kitchen_note', 'notes'].map(column))).toEqual({ note: 'note' });
+    expect(suggestedLineColumns(lines.columns, ['kitchen_note', 'notes'].map(column))).toEqual({});
   });
 });

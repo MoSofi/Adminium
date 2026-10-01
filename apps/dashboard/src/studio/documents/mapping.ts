@@ -206,10 +206,55 @@ export function unboundRequiredSlots(
   slots: readonly OutlineSlot[],
   bindings: Bindings,
 ): string[] {
-  return slots
+  const headers = slots
     .filter((slot) => slot.required && slot.default === undefined)
     .filter((slot) => (bindings[slot.id] ?? { kind: 'unmapped' }).kind === 'unmapped')
     .map((slot) => slot.id);
+  /*
+   * A LINES TABLE IS NOT THE LINES. Choosing which table the lines come from
+   * binds the slot, and until each required column of a line is pointed at a
+   * column of that table the document draws rows of nothing: a saved mapping
+   * with `"columns": {}` and an invoice whose every line is blank. So a
+   * required line column with no source is as unfilled as a required header
+   * field, and is named the same way, under its slot.
+   */
+  const lines = slots.flatMap((slot) => {
+    const binding = bindings[slot.id];
+    if (binding === undefined || binding.kind !== 'collection') return [];
+    return (slot.columns ?? [])
+      .filter((column) => column.required && column.default === undefined)
+      .filter((column) => (binding.columns[column.id] ?? '') === '')
+      .map((column) => `${slot.id}.${column.id}`);
+  });
+  return [...headers, ...lines];
+}
+
+const plainName = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/**
+ * What a line's columns start as when its table is picked.
+ *
+ * ONLY the certain ones: a column of the table whose name IS the slot's
+ * (`quantity` for `quantity`, `unit_price` for `unitPrice`), or the single
+ * column that contains it (`description` for `desc`). Two candidates are no
+ * suggestion at all — a guess between `price` and `list_price` would draw a
+ * believable invoice with the wrong figures, which is worse than a field
+ * the editor says is still to fill.
+ */
+export function suggestedLineColumns(
+  slotColumns: readonly Pick<OutlineSlot, 'id'>[],
+  columns: readonly ColumnFacts[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const slot of slotColumns) {
+    const want = plainName(slot.id);
+    if (want === '') continue;
+    const exact = columns.filter((column) => plainName(column.name) === want);
+    const near = columns.filter((column) => plainName(column.name).includes(want));
+    const found = exact.length === 1 ? exact : exact.length === 0 && near.length === 1 ? near : [];
+    if (found[0] !== undefined) out[slot.id] = found[0].name;
+  }
+  return out;
 }
 
 /** The wire shape the profile stores — only BOUND slots appear. */
