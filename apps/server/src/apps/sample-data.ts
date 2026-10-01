@@ -186,6 +186,16 @@ function safeJson(text: string): unknown {
   }
 }
 
+const yesNoAsStored = (column: { logicalType: string; storedAsNumber?: true }): boolean =>
+  column.logicalType === 'boolean' && column.storedAsNumber === true;
+
+/** A SQLite yes/no as its row keeps it — `1` or `0` — whichever way it was read. */
+function storedYesNo(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'boolean') return value ? '1' : '0';
+  return normaliseValue(value, 'integer');
+}
+
 const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 
 /**
@@ -222,7 +232,9 @@ export function hashRow(
   const normal: Record<string, string | null> = {};
   for (const column of table.table.columns) {
     if (!(column.name in row)) continue;
-    const value = normaliseValue(row[column.name], column.logicalType);
+    // A SQLite yes/no is hashed as the number it is stored as: the rows recorded
+    // before the column was marked a yes/no hashed `1`, and must not read as changed.
+    const value = yesNoAsStored(column) ? storedYesNo(row[column.name]) : normaliseValue(row[column.name], column.logicalType);
     normal[column.name] = datesAtLocalMidnight && column.logicalType === 'date' ? localMidnightDay(value) : value;
   }
   const colHashes: Record<string, string> = {};

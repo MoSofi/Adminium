@@ -494,6 +494,8 @@ export interface EffectiveColumn extends ColumnModel {
   scale?: number | 'currency';
   /** `column.venueLocal`: a wall time with no zone is read on the venue's clock. */
   venueLocal?: boolean;
+  /** `column.yesNo` applied: a yes/no the source keeps as a whole number (SQLite's 0 and 1). */
+  storedAsNumber?: true;
   /** `column.normalize`: text stored trimmed (`trim`), or trimmed and in lower case (`email`), or as a code (`code`). */
   normalize?: 'trim' | 'email' | 'code';
   /** `column.retryKey`: where a staff create keeps its retry key (`clientKey`), as a hash. */
@@ -1279,6 +1281,7 @@ export function applyOverrides(
         const column = columnOf(table, row.columnName);
         if (model.dialect === 'sqlite' && column !== undefined && value.yesNo === true && (column.logicalType === 'integer' || column.logicalType === 'bigint')) {
           column.logicalType = 'boolean';
+          column.storedAsNumber = true;
         }
         break;
       }
