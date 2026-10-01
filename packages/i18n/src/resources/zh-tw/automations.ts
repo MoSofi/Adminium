@@ -127,7 +127,8 @@ export default {
     "wait": "等待 / 延遲",
     "waitDesc": "在下一步之前暫停",
     "stop": "停止流程",
-    "stopDesc": "在此結束這次執行"
+    "stopDesc": "在此結束這次執行",
+    "document": "產生文件"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "每週{day} {time}",
       "monthly": "每月 {day} 日 {time}",
       "sub": "觸發器 · {event}"
+    },
+    "document": {
+      "summary": "產生文件"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "複製",
     "delete": "刪除",
     "close": "關閉",
-    "settings": "設定"
+    "settings": "設定",
+    "documentNote": "此步驟屬於某個文件對應。要變更它產生的內容和寄送對象，請前往 Studio › 文件對應。"
   },
   "op": {
     "is": "等於",

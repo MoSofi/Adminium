@@ -55,6 +55,20 @@ export function ActionSettings(props: ActionSettingsProps): ReactNode {
       return <RecordSettings {...props} action={props.action} />;
     case 'webhook':
       return <WebhookSettings {...props} action={props.action} />;
+    case 'document.render':
+      // Shown, never edited: the mapping owns what is drawn and who gets it.
+      return (
+        <Card title={t('automations:pick.document', 'Draw document')}>
+          <p className="text-xs text-fg-muted">
+            {t(
+              'automations:insp.documentNote',
+              'This step belongs to a document mapping. Change what it draws, and who it is emailed to, in Studio › Document mappings.',
+            )}
+          </p>
+        </Card>
+      );
+    default:
+      return null;
   }
 }
 

@@ -26,6 +26,7 @@ import {
   CircleX,
   Clock,
   Copy,
+  FileText,
   Filter,
   GitBranch,
   Hash,
@@ -65,6 +66,7 @@ export const AUTOMATION_ICONS: Readonly<Record<string, LucideIcon>> = {
   pencil: Pencil,
   webhook: Webhook,
   hash: Hash,
+  'file-text': FileText,
   // the two KPI strips (comp 199-200; Workflow Logs 189-195)
   workflow: Workflow,
   'circle-check-big': CircleCheckBig,

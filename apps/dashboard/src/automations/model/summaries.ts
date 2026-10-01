@@ -138,6 +138,11 @@ function actionSentence(action: Action, table: SourceTable | null): string {
         ? t('automations:node.slack.summary', 'Slack · {host}', { host })
         : t('automations:node.webhook.summary', '{method} {host}', { method: action.method, host });
     }
+    case 'document.render':
+      return t('automations:node.document.summary', 'Draws a document');
+    default:
+      // A step a newer server wrote: no sentence beats a crash.
+      return '';
   }
 }
 

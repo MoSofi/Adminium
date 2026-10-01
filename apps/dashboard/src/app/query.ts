@@ -52,6 +52,17 @@ export function isSystemStateId(value: string): value is SystemStateId {
  * (trigger column). Detection order: browser offline signal, canonical API
  * codes, then network-level failures (fetch rejects with TypeError).
  */
+/**
+ * A `fetch` that never reached the server rejects with a `TypeError` — and so
+ * does `undefined.split(...)` in a render. Only the first is "offline": the
+ * three engines word it "Failed to fetch", "NetworkError when attempting to
+ * fetch resource." and "Load failed". Anything else is a fault of ours and
+ * says so, instead of blaming the network for a page that cannot draw.
+ */
+export function isNetworkFailure(error: unknown): boolean {
+  return error instanceof TypeError && /fetch|network|load failed/i.test(error.message);
+}
+
 export function stateIdForError(error: unknown): SystemStateId {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'offline';
 
@@ -85,7 +96,7 @@ export function stateIdForError(error: unknown): SystemStateId {
     }
   }
 
-  if (error instanceof TypeError) return 'offline';
+  if (isNetworkFailure(error)) return 'offline';
   return 'error';
 }
 

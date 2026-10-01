@@ -127,7 +127,8 @@ export default {
     "wait": "Attendre / temporiser",
     "waitDesc": "Patienter avant l'étape suivante",
     "stop": "Arrêter le flux",
-    "stopDesc": "Interrompre cette exécution ici"
+    "stopDesc": "Interrompre cette exécution ici",
+    "document": "Générer un document"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "Chaque semaine le {day} à {time}",
       "monthly": "Chaque mois le {day} à {time}",
       "sub": "Déclencheur · {event}"
+    },
+    "document": {
+      "summary": "Génère un document"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "Dupliquer",
     "delete": "Supprimer",
     "close": "Fermer",
-    "settings": "Réglages"
+    "settings": "Réglages",
+    "documentNote": "Cette étape appartient à un mappage de document. Modifiez ce qu’elle génère, et à qui elle l’envoie, dans Studio › Mappages de documents."
   },
   "op": {
     "is": "est",

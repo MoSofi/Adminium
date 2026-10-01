@@ -127,7 +127,8 @@ export default {
     "wait": "等待 / 延迟",
     "waitDesc": "在下一步之前暂停",
     "stop": "停止流程",
-    "stopDesc": "在此结束本次运行"
+    "stopDesc": "在此结束本次运行",
+    "document": "生成文档"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "每周{day} {time}",
       "monthly": "每月 {day} 日 {time}",
       "sub": "触发器 · {event}"
+    },
+    "document": {
+      "summary": "生成文档"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "复制",
     "delete": "删除",
     "close": "关闭",
-    "settings": "设置"
+    "settings": "设置",
+    "documentNote": "此步骤属于某个文档映射。要更改它生成的内容和发送对象，请前往 Studio › 文档映射。"
   },
   "op": {
     "is": "等于",

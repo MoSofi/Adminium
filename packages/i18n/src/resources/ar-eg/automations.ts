@@ -127,7 +127,8 @@ export default {
     "wait": "انتظار / تأخير",
     "waitDesc": "التوقف قبل الخطوة التالية",
     "stop": "إيقاف سير العمل",
-    "stopDesc": "إنهاء هذا التشغيل هنا"
+    "stopDesc": "إنهاء هذا التشغيل هنا",
+    "document": "إنشاء مستند"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "أسبوعيًا يوم {day} في {time}",
       "monthly": "شهريًا في اليوم {day} الساعة {time}",
       "sub": "المُشغِّل · {event}"
+    },
+    "document": {
+      "summary": "ينشئ مستندًا"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "تكرار",
     "delete": "حذف",
     "close": "إغلاق",
-    "settings": "الإعدادات"
+    "settings": "الإعدادات",
+    "documentNote": "هذه الخطوة تتبع ربط مستند. غيّر ما تنشئه ومن يُرسَل إليه من الاستوديو › ربط المستندات."
   },
   "op": {
     "is": "يساوي",

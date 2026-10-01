@@ -127,7 +127,8 @@ export default {
     "wait": "Wait / delay",
     "waitDesc": "Hold before next step",
     "stop": "Stop workflow",
-    "stopDesc": "Halt this run here"
+    "stopDesc": "Halt this run here",
+    "document": "Draw document"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "Weekly on {day} at {time}",
       "monthly": "Monthly on day {day} at {time}",
       "sub": "Trigger · {event}"
+    },
+    "document": {
+      "summary": "Draws a document"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "Duplicate",
     "delete": "Delete",
     "close": "Close",
-    "settings": "Settings"
+    "settings": "Settings",
+    "documentNote": "This step belongs to a document mapping. Change what it draws, and who it is emailed to, in Studio › Document mappings."
   },
   "op": {
     "is": "is",

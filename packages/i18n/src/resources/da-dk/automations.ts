@@ -127,7 +127,8 @@ export default {
     "wait": "Vent / forsink",
     "waitDesc": "Hold pause før næste trin",
     "stop": "Stop arbejdsgangen",
-    "stopDesc": "Afslut denne kørsel her"
+    "stopDesc": "Afslut denne kørsel her",
+    "document": "Opret dokument"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "Ugentligt om {day} kl. {time}",
       "monthly": "Månedligt den {day}. kl. {time}",
       "sub": "Udløser · {event}"
+    },
+    "document": {
+      "summary": "Opretter et dokument"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "Dupliker",
     "delete": "Slet",
     "close": "Luk",
-    "settings": "Indstillinger"
+    "settings": "Indstillinger",
+    "documentNote": "Dette trin hører til en dokumenttilknytning. Ret, hvad det opretter, og hvem det sendes til, i Studio › Dokumenttilknytninger."
   },
   "op": {
     "is": "er",

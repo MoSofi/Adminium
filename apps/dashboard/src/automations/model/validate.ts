@@ -42,6 +42,11 @@ export function isActionComplete(action: Action): boolean {
       return Object.keys(action.values).length > 0;
     case 'webhook':
       return action.url !== null && action.url.trim() !== '';
+    case 'document.render':
+      return action.profileId !== '';
+    default:
+      // A step this build does not know is the server's to judge.
+      return true;
   }
 }
 

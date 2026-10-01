@@ -194,6 +194,15 @@ describe('stateIdForError mapping (errorComponent)', () => {
 
   it('maps network failures to offline', () => {
     expect(stateIdForError(new TypeError('fetch failed'))).toBe('offline');
+    expect(stateIdForError(new TypeError('Failed to fetch'))).toBe('offline');
+    expect(stateIdForError(new TypeError('Load failed'))).toBe('offline');
+    expect(stateIdForError(new TypeError('NetworkError when attempting to fetch resource.'))).toBe('offline');
+  });
+
+  it('does not blame the network for a page that failed to draw', () => {
+    expect(
+      stateIdForError(new TypeError("Cannot read properties of undefined (reading 'split')")),
+    ).toBe('error');
   });
 });
 

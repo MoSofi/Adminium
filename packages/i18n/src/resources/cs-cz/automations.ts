@@ -127,7 +127,8 @@ export default {
     "wait": "Počkat / prodleva",
     "waitDesc": "Pozastavit před dalším krokem",
     "stop": "Zastavit postup",
-    "stopDesc": "Ukončit tento běh zde"
+    "stopDesc": "Ukončit tento běh zde",
+    "document": "Vytvořit dokument"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "Týdně v {day} v {time}",
       "monthly": "Měsíčně {day}. dne v {time}",
       "sub": "Spouštěč · {event}"
+    },
+    "document": {
+      "summary": "Vytvoří dokument"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "Duplikovat",
     "delete": "Smazat",
     "close": "Zavřít",
-    "settings": "Nastavení"
+    "settings": "Nastavení",
+    "documentNote": "Tento krok patří k mapování dokumentu. Co vytváří a komu se posílá, změníte ve Studiu › Mapování dokumentů."
   },
   "op": {
     "is": "je",

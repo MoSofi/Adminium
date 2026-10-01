@@ -76,6 +76,12 @@ export type Action =
     }
   | { kind: 'record.create'; table: string | null; values: Record<string, WriteValue> }
   | { kind: 'record.update'; values: Record<string, WriteValue> }
+  /**
+   * Draws a document. Written by a document mapping's own trigger, never by
+   * the picker: the mapping decides what is drawn and where it is sent, so
+   * this step is shown and not edited here.
+   */
+  | { kind: 'document.render'; profileId: string }
   | {
       kind: 'webhook';
       url: string | null;

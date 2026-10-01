@@ -127,7 +127,8 @@ export default {
     "wait": "Warten / Verzögern",
     "waitDesc": "Vor dem nächsten Schritt pausieren",
     "stop": "Ablauf stoppen",
-    "stopDesc": "Diesen Lauf hier beenden"
+    "stopDesc": "Diesen Lauf hier beenden",
+    "document": "Dokument erstellen"
   },
   "node": {
     "email": {
@@ -172,6 +173,9 @@ export default {
       "weekly": "Wöchentlich am {day} um {time}",
       "monthly": "Monatlich am {day}. um {time}",
       "sub": "Auslöser · {event}"
+    },
+    "document": {
+      "summary": "Erstellt ein Dokument"
     }
   },
   "event": {
@@ -200,7 +204,8 @@ export default {
     "duplicate": "Duplizieren",
     "delete": "Löschen",
     "close": "Schließen",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "documentNote": "Dieser Schritt gehört zu einer Dokumentzuordnung. Was er erstellt und an wen es gesendet wird, ändern Sie unter Studio › Dokumentzuordnungen."
   },
   "op": {
     "is": "ist",

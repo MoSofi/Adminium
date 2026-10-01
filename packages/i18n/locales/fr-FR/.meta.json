@@ -1187,6 +1187,10 @@
     "status": "src",
     "srcHash": "55f8ebc805e6"
   },
+  "automations.insp.documentNote": {
+    "status": "mt",
+    "srcHash": "76d3fd9e4f7b"
+  },
   "automations.insp.duplicate": {
     "status": "mt",
     "srcHash": "972d57379db3"
@@ -1499,6 +1503,10 @@
     "status": "mt",
     "srcHash": "7c24d7dca708"
   },
+  "automations.node.document.summary": {
+    "status": "mt",
+    "srcHash": "6c0c11284068"
+  },
   "automations.node.email.sub": {
     "status": "mt",
     "srcHash": "4941d8ace3f4"
@@ -1658,6 +1666,10 @@
   "automations.pick.createDesc": {
     "status": "mt",
     "srcHash": "2d88d902977c"
+  },
+  "automations.pick.document": {
+    "status": "mt",
+    "srcHash": "964e6d431084"
   },
   "automations.pick.email": {
     "status": "mt",

@@ -93,6 +93,11 @@ export function iconForNode(kind: NodeKind, action: Action | null): string {
       return 'pencil';
     case 'webhook':
       return action.bodyKind === 'slack' ? 'hash' : 'webhook';
+    case 'document.render':
+      return 'file-text';
+    default:
+      // A step a newer server wrote: its kind's own icon, never a crash.
+      return KIND_META[kind].icon;
   }
 }
 
