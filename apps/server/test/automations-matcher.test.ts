@@ -215,6 +215,43 @@ describe('42 — the event seam and the matcher', () => {
     expect(runs[0]?.dedupeKey).toContain('2026-09-08T12:00:00.000Z');
   });
 
+  it('does not fire a "this column changed" rule for an update announced with no row as it was', async () => {
+    /*
+     * A door that read nothing first (a public write on a table with no hook
+     * and no stored rule) announces `before: null`. With nothing to compare,
+     * the rule used to take the column as changed — so "when status becomes
+     * paid" fired again on every later edit of a paid row.
+     */
+    await makeRule({
+      trigger: {
+        kind: 'record',
+        event: 'updated',
+        connectionId,
+        table: 'main.users',
+        watch: true,
+        changedColumn: 'status',
+        when: [{ left: { field: 'status' }, op: 'is', right: 'paid' }],
+      },
+    });
+    await matcher.onRulesChanged();
+    // The write service is told to read the row first for such a table, and for no other.
+    expect([await matcher.watchesChange(connectionId, 'main.users'), await matcher.watchesChange(connectionId, 'main.orders')]).toEqual([true, false]);
+    const table = (await loadSnapshotView(t.meta, connectionId)).table('main.users');
+    const event = {
+      connectionId,
+      table,
+      action: 'update' as const,
+      entity: { connectionId, table: 'main.users', pk: { id: 1 }, label: '1' },
+      after: { id: 1, email: 'a@acme.io', status: 'paid', updated_at: '2026-09-08T13:00:00.000Z' },
+      origin: 'public' as const,
+    };
+    await matcher.onRecordEvent({ ...event, before: null } as never);
+    expect(await automationRunsRepo(t.meta).list({ since: T0 - 1000 })).toHaveLength(0);
+    // The same write, with the row as it was: it became paid, and the rule fires.
+    await matcher.onRecordEvent({ ...event, before: { ...event.after, status: 'new' } } as never);
+    expect(await automationRunsRepo(t.meta).list({ since: T0 - 1000 })).toHaveLength(1);
+  });
+
   it('an undo inside the window skips the run it queued (D7)', async () => {
     await makeRule();
     const { undoToken } = await createUser({ id: 1, email: 'a@acme.io' });

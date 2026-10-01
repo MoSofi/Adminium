@@ -419,6 +419,8 @@ export function documentsRepo(meta: MetaDb) {
       .where('entityId', '=', document.entityId)
       .where('id', '!=', document.id)
       .where('createdAt', '<=', document.createdAt)
+      // A voided copy is replaced by a NEW number: nothing "under the same number" went before.
+      .where('status', '=', 'rendered')
       .where('delivery', '=', 'sent')
       .limit(1)
       .executeTakeFirst();

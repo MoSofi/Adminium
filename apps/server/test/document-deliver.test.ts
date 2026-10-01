@@ -221,6 +221,11 @@ describe('emailing a drawn document', () => {
       Date.now() + 2000,
     ))!;
     expect([...(await documentsRepo(meta).replacedAmong([first.id, second.id, other.id]))]).toEqual([first.id]);
+    // Voided, it is replaced by a NEW number: a later draw replaces nothing "under the same number".
+    await repo.markVoided(first.id, 'operator');
+    await repo.markVoided(second.id, 'operator');
+    const fresh = await draw('file_d', Date.now() + 3000);
+    expect(await repo.sentBefore(fresh)).toBe(false);
   });
 
   it('renders the template in the DOCUMENT’s language', async () => {

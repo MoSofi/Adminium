@@ -870,8 +870,21 @@ for (const [dialect, reachable] of LEGS) {
       expect((await refused(update('messages', reply['id'], { to_address: 'mallory@evil-probe.dev' }))).code).toBe('STATE_MOVE_REFUSED');
       expect((await refused(update('messages', reply['id'], { body_override: 'changed' }))).code).toBe('STATE_MOVE_REFUSED');
 
+      // An import brings a worded message addressed elsewhere: it waits, and cannot be sent on its way there.
+      const importer = await usersRepo(meta).create({ email: 'importer2@north-studio.dev', name: 'Importer' });
+      await rolesRepo(meta).assignToUser(importer.id, (await rolesRepo(meta).findBySlug('super-admin'))!.id);
+      const brought = await writes.create({
+        target: await target('messages'),
+        values: { kind: 'desk-reply', status: 'queued', client_id: ann['id'], to_address: 'mallory@evil-probe.dev', body_override: 'Hi' },
+        context: { origin: 'import', hops: 0, actor: { kind: 'user', id: importer.id, label: 'Importer' }, request: null },
+        announce: async () => {},
+      });
+      expect((await msg(brought['id']))['status']).not.toBe('queued');
+      expect((await refused(update('messages', brought['id'], { status: 'queued' }))).code).toBe('STATE_MOVE_REFUSED');
+
       await sender.sendApp('studio', clock);
       const sent = (await mail()).slice(before).filter((m) => m.to === 'ann@client.studio.dev');
+      expect((await mail()).slice(before).filter((m) => m.to === 'mallory@evil-probe.dev')).toEqual([]);
       expect(sent.map((m) => m.subject).sort()).toEqual(['A note from the studio', 'Re: Monday']);
       const first = sent.find((m) => m.subject === 'A note from the studio')!;
       // The words read what the template reads (a name), never another column of the linked row.

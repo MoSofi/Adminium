@@ -185,7 +185,12 @@ export class AutomationMatcher {
     if (event.action === 'update') {
       const changed = rule.trigger.changedColumn;
       if (changed !== null && changed !== undefined && changed !== '') {
-        if (sameValue(event.before?.[changed], event.after?.[changed])) return;
+        // No row as it was: nothing shows the column changed, so the rule does
+        // not fire — a rule that waits for "status became paid" must not go
+        // again on every later edit of a paid row. (The write service reads
+        // the row first for a table such a rule watches: `watchesChange`.)
+        if (event.before === null || event.before === undefined) return;
+        if (sameValue(event.before[changed], event.after?.[changed])) return;
       }
     }
 
@@ -255,6 +260,17 @@ export class AutomationMatcher {
         error: 'undone',
       });
     }
+  }
+
+  /**
+   * Whether an enabled rule on this table waits for ONE column to change: an
+   * update of it is then announced with the row as it was, read first.
+   */
+  async watchesChange(connectionId: string, tableId: string): Promise<boolean> {
+    if (!this.#loaded) await this.refresh();
+    return (this.#index.get(indexKey(connectionId, tableId, 'updated')) ?? []).some(
+      (rule) => rule.trigger.kind === 'record' && typeof rule.trigger.changedColumn === 'string' && rule.trigger.changedColumn !== '',
+    );
   }
 
   async onRulesChanged(): Promise<void> {

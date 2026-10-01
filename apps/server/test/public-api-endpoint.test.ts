@@ -415,6 +415,22 @@ describe('definitionToResource', () => {
     expect(definitionToResource('users', offered, ['GET', 'PATCH'], table).writable).toEqual(['display_name', 'role']);
   });
 
+  it('names what a write must and may send only on a resource that takes one', () => {
+    // A key granted the read alone of an endpoint that also writes: its resource would be
+    // refused for requiring columns it lists nothing writable for.
+    const def = users({
+      methods: ['GET', 'PATCH'],
+      select: ['id', 'display_name', 'role'],
+      filters: [],
+      requires: ['display_name'],
+      writable_values: { role: ['member'] },
+    });
+    const read = definitionToResource('users', def, ['GET'], table);
+    expect([read.writable, read.requires, read.writableValues]).toEqual([[], undefined, undefined]);
+    const write = definitionToResource('users', def, ['GET', 'PATCH'], table);
+    expect([write.requires, write.writableValues]).toEqual([['display_name'], { role: ['member'] }]);
+  });
+
   it('carries pagination, rate and response into the resource', () => {
     const r = definitionToResource(
       'users',

@@ -1272,11 +1272,12 @@ export function applyOverrides(
          * SQLite keeps a yes/no as `integer`, so the snapshot calls it a
          * number: the form drew a number box and every read answered `0` or
          * `1`, which a page testing `=== true` read as "no" for ever. Only a
-         * whole-number column takes it — on the engines that have a yes/no
-         * type the column already is one, and anything else is not an answer.
+         * whole-number column of a SQLite source takes it — on the engines
+         * that have a yes/no type the column already is one, and a number
+         * column there is a number whatever a rule says.
          */
         const column = columnOf(table, row.columnName);
-        if (column !== undefined && value.yesNo === true && (column.logicalType === 'integer' || column.logicalType === 'bigint')) {
+        if (model.dialect === 'sqlite' && column !== undefined && value.yesNo === true && (column.logicalType === 'integer' || column.logicalType === 'bigint')) {
           column.logicalType = 'boolean';
         }
         break;

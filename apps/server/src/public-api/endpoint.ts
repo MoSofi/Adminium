@@ -919,8 +919,11 @@ export function definitionToResource(
     if (def.under !== undefined) resource.under = def.under;
   }
   if (def.confirm !== undefined) resource.confirm = { ...def.confirm };
-  if (def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };
-  if (def.requires !== undefined) resource.requires = [...def.requires];
+  // What a write must send and may send: said only of a resource that takes one, or a key
+  // granted the read alone would be refused for naming columns that are not writable.
+  const writes = actions.some((action) => SENDS_VALUES.has(action));
+  if (writes && def.writable_values !== undefined) resource.writableValues = { ...def.writable_values };
+  if (writes && def.requires !== undefined) resource.requires = [...def.requires];
   if (def.files !== undefined) resource.files = [...def.files];
   if (def.writable_when !== undefined) resource.writableWhen = { ...def.writable_when };
   if (def.level !== undefined) resource.level = def.level;

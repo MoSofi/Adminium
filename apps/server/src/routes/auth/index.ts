@@ -104,7 +104,8 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     '/auth/2fa/verify',
     {
       preHandler: [app.requireMeta],
-      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.login },
+      // The second half of a sign-in: its authority is the challenge in the body.
+      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.login, csrf: 'origin' },
       schema: { body: auth2faVerifyBody, response: { 200: authLoginReply } },
     },
     async (request, reply) => verify2faHandler(ctx(), request, reply, request.body),

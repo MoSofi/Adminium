@@ -345,6 +345,23 @@ export async function judgeMove(box: LiveOutbox, event: BeforeWriteEvent, deps: 
   // sends it on its way may read every row it links, as whoever makes one must.
   await refuseUnreadableLinks(box, event, deps.meta, { ...record, ...values });
   if (cols.skipReason !== undefined && !empty(record[cols.skipReason])) values[cols.skipReason] = null;
+  /*
+   * A person's own words, on their way out. A row made here was addressed on
+   * file when it was made; one that history brought in (an import) was not
+   * judged at all, and waits held or failed — so it is judged now, as it is
+   * queued: its words go to the address on file of who it is about, or nowhere.
+   */
+  if (producer === undefined && overrides.some((column) => !empty(record[column]))) {
+    const merged: Row = { ...record, ...values };
+    const onFile = (
+      await addressFor({ db: target.db, view: target.view, outboxId: target.table.id, read: settingReader(deps.meta, target.db) }, definition, undefined, merged)
+    ).address;
+    const typed = merged[cols.to];
+    if (onFile === null || (!empty(typed) && String(typed).trim().toLowerCase() !== onFile.toLowerCase())) {
+      refuse(cols.to, 'This message carries words a person wrote, so it goes only to the address on file of who it is about.');
+    }
+    values[cols.to] = onFile;
+  }
   if (from !== 'held') return;
   if (cols.approvedBy !== undefined) values[cols.approvedBy] = context.actor?.label ?? null;
   const now = deps.now?.() ?? Date.now();
