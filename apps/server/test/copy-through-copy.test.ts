@@ -86,4 +86,15 @@ describe.each(LEGS)('a copy through a link another copy fills — %s', (dialect,
     expect(row['show_name']).toBe('Weekender');
     expect(instant(row['doors_at'])).toBe(instant((await show(weekender['id']))['doors_at']));
   });
+
+  it.runIf(available)('copies nothing again when a change sends the link as it already is', async () => {
+    const velvet = await w.create('events', { name: 'Velvet Hour', doors_at: '2026-10-02T19:00:00Z' });
+    const standing = await w.create('ticket_types', { event_id: velvet['id'], label: 'Standing' });
+    const made = await w.create('tickets', { ticket_type_id: standing['id'] });
+    // The copy is the ticket's own now: what it holds differs from where it came from.
+    await h.rows(`UPDATE ${h.real('tickets')} SET show_name = 'Kept as it was' WHERE id = ${String(made['id'])}`);
+    // A link SENT, unchanged — a person's own write through the public API carries the one that makes the row theirs.
+    await w.update('tickets', made['id'], { ticket_type_id: standing['id'], event_id: velvet['id'] });
+    expect((await ticket(made['id']))['show_name']).toBe('Kept as it was');
+  });
 });

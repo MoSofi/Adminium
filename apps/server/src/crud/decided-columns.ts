@@ -96,6 +96,10 @@ interface ResolveTarget {
 /** What finding a typed code needs of the write (`crud/code-lookup.ts`); absent: a write that finds none. */
 export type ResolveOptions = LookupOptions;
 
+/** Whether two values of a link name the same row: a key reads as a number from one door and as text from another. */
+const sameLink = (a: unknown, b: unknown): boolean =>
+  a === null || a === undefined || b === null || b === undefined ? (a ?? null) === (b ?? null) : String(a) === String(b);
+
 /**
  * The values with every copy and code resolved. Returns the SAME OBJECT when
  * nothing was added, like `fillRow`.
@@ -116,6 +120,8 @@ export async function resolveRow(
   let out: Row | null = looked === values ? null : looked;
   // A link a typed code filled, emptied by this write: what was copied through it goes with it.
   const cleared = new Set(clearedLinks(looked));
+  let storedOnce: Promise<Row | null> | null = null;
+  const storedRow = () => (storedOnce ??= lookups?.stored?.() ?? Promise.resolve(null));
   for (const copy of rules.copies ?? []) {
     // The values so far: a link an earlier copy filled (a ticket's show, from
     // its type) is read here like one the writer sent — the copies run in
@@ -123,6 +129,18 @@ export async function resolveRow(
     const current = out ?? looked;
     // On an update, only a change of the link copies again.
     if (!has(current, copy.via)) continue;
+    /*
+     * A link SENT is not a link CHANGED. A person's own write through the
+     * public API carries the link that makes the row theirs (an invoice's
+     * client), unchanged; copied again, the client's tax rate — empty on a
+     * new client, where the invoice holds 0 — read as a change of a sent
+     * invoice, and the lock refused "I've sent a payment" for a column the
+     * write never named.
+     */
+    if (action === 'update' && lookups?.stored !== undefined) {
+      const before = await storedRow();
+      if (before !== null && sameLink(before[copy.via], current[copy.via])) continue;
+    }
     if (copy.mode === 'default' && has(current, copy.column)) continue;
     const link = current[copy.via];
     if ((link === null || link === undefined) && cleared.has(copy.via)) {
