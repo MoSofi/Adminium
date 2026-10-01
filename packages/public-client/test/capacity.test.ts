@@ -31,6 +31,9 @@ describe("a limit's questions", () => {
       { id: '2', state: 'soon' },
     ]);
     expect(types.asked[0]).toBe('https://x/api/v1/public/availability/tickets_availability?under=7&qty=2');
+    // A page of shows in one ask: the parents travel as one comma-separated value.
+    await types.client.parentAvailability('tickets_availability', { under: ['7', '8', '11'] });
+    expect(types.asked[1]).toBe('https://x/api/v1/public/availability/tickets_availability?under=7%2C8%2C11');
 
     const nights = over(() => ({ data: [{ pool: '1', state: 'full', earliest: '2026-08-03' }], earliest: '2026-08-03' }));
     expect(await nights.client.nightAvailability('stays_availability', { from: '2026-07-31', to: '2026-08-02', guests: 2, earliest: 10 })).toEqual({

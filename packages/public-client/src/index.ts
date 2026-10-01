@@ -750,8 +750,12 @@ export interface ParentAvailability {
 
 /** What a parent limit's availability asks. */
 export interface ParentQuery {
-  /** The value of the ref's `under` column the rows share (an event's id). */
-  under?: string;
+  /**
+   * The value of the ref's `under` column the rows share (an event's id) — or
+   * several, to read a page of events' rows in one request (a server from
+   * 0.3.9; an older one answers an empty list for more than one).
+   */
+  under?: string | readonly string[];
   /** `YYYY-MM-DD`: the venue day asked (a dish's portions); today when absent. */
   date?: string;
   /** How many the page wants; answered sold out when fewer are left. */
@@ -1321,7 +1325,7 @@ export function createPublicClient(
 
     parentAvailability(ref, query = {}, signal) {
       const { under, date, qty, exclude, code } = query;
-      return booking<ParentAvailability>(ref, { under, date, qty, exclude }, signal, code);
+      return booking<ParentAvailability>(ref, { under: typeof under === 'string' || under === undefined ? under : under.join(','), date, qty, exclude }, signal, code);
     },
 
     async nightAvailability(ref, query, signal) {

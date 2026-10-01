@@ -105,6 +105,9 @@ for (const [dialect, available] of LEGS) {
       expect(errorOf((await w.get('availability/tickets_availability?under=1&code=BLOOMEARLY')).body).code).toBe('PUBLIC_QUERY_REFUSED');
       // No event asked: nothing listed.
       expect((await w.get('availability/tickets_availability')).body['data']).toEqual([]);
+      // Several events in one ask (a page of shows): each one's rows, in one list — a show nobody has adds none.
+      expect((await w.get('availability/tickets_availability?under=999,1')).body['data']).toEqual(answer.body['data']);
+      expect((await w.get('availability/tickets_availability?under=999,998')).body['data']).toEqual([]);
       // Eleven minutes on, the hold is over: 17 left, still under 15 %.
       vi.setSystemTime(new Date(NEON_NOW.getTime() + 11 * 60_000));
       expect((await w.get('availability/tickets_availability?under=1')).body['data']).toEqual([

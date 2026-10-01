@@ -150,13 +150,28 @@ async function excluded(q: CapacityQuestion, rule: Rule): Promise<Row[]> {
  * the rows the guest's code unlocks — under the entry's `under` column when
  * asked, at most 200.
  */
+/** How many parents one ask may name. */
+export const MAX_PARENTS = 60;
+
 async function readableIds(q: CapacityQuestion, target: ResolvedTable, key: string): Promise<string[]> {
   const readers = [...q.byRef.values()].filter(
     (r) => r.table === target.id && r.kind === 'records' && r.actions.has('read') && r.claim === null && parentOf(r) === null,
   );
+  /*
+   * One parent, or several in one ask (`under=12,15,19`): a page that lists
+   * twenty shows read their tickets in twenty requests, and spent a fifth of
+   * an address's read budget on one page load. The rows come back as one
+   * list either way — each is a row of the limit, whichever parent it is
+   * under — and still two hundred at most.
+   */
+  const parents = q.query.under === undefined ? [] : [...new Set(q.query.under.split(',').map((value) => value.trim()).filter((value) => value !== ''))].slice(0, MAX_PARENTS);
   const under: RecordFilter | null =
-    q.resource.under === undefined || q.query.under === undefined ? null : { column: q.resource.under, op: 'eq', value: q.query.under };
-  if (q.resource.under !== undefined && q.query.under === undefined) return [];
+    q.resource.under === undefined || parents.length === 0
+      ? null
+      : parents.length === 1
+        ? { column: q.resource.under, op: 'eq', value: parents[0]! }
+        : { column: q.resource.under, op: 'in', value: parents };
+  if (q.resource.under !== undefined && parents.length === 0) return [];
   const out = new Set<string>();
   for (const reader of readers) {
     let mandatory = combinePredicates(mandatoryAt(reader.where, target, q.timezone, q.now), under);
