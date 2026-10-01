@@ -48,6 +48,7 @@
               "column.bounds",
               "column.scale",
               "column.venueLocal",
+              "column.yesNo",
               "column.stamp",
               "column.rollup",
               "column.perNight",

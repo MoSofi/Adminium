@@ -89,6 +89,7 @@ export type RuleOp =
   | 'column.code'
   | 'column.rollup'
   | 'column.venueLocal'
+  | 'column.yesNo'
   | 'column.stamp'
   | 'column.default'
   | 'column.format'
@@ -109,7 +110,7 @@ export type RuleOp =
   | 'table.keyField';
 
 /** Ops that name things rather than rule a write: no column-rule check applies. */
-const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'table.label', 'table.keyField']);
+const NAMING_OPS: ReadonlySet<RuleOp> = new Set(['column.label', 'column.yesNo', 'table.label', 'table.keyField']);
 /** Ops that belong to the table, not one of its columns. */
 const TABLE_OPS: ReadonlySet<RuleOp> = new Set(['table.capacity', 'table.booking', 'table.states', 'table.label', 'table.keyField']);
 
@@ -512,6 +513,10 @@ export async function writeManifestRules(input: {
       if (column.default === 'now' && column.type === 'timestamptz' && column.rules?.default === undefined) {
         desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.default', value: { kind: 'now' } });
       }
+      // What the column IS, which SQLite's `integer` does not say: a yes or a no, on every engine.
+      if (column.type === 'bool') {
+        desired.push({ ref: table.ref, table: real.id, column: column.ref, op: 'column.yesNo', value: { yesNo: true } });
+      }
       if (column.rules === undefined) continue;
       for (const rule of opsForRules(manifest.key, column.rules)) {
         const mapped = realRuleRefs(rule.op, rule.value, realId);
@@ -657,7 +662,7 @@ export async function writeManifestRules(input: {
       }
     } else if (!NAMING_OPS.has(rule.op) && rule.op !== 'column.enumLabels' && rule.op !== 'column.pii' && rule.op !== 'column.secret' && column !== undefined) {
       const issue = columnRuleIssue(
-        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.label' | 'table.keyField'>,
+        rule.op as Exclude<RuleOp, 'column.enumLabels' | 'column.pii' | 'column.secret' | 'column.label' | 'column.yesNo' | 'table.capacity' | 'table.booking' | 'table.states' | 'table.label' | 'table.keyField'>,
         rule.value,
         column,
         model,

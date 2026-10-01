@@ -3365,7 +3365,9 @@ for (const [dialect, available] of legs) {
       await stageManifest(h, { ...MANIFEST, requiredSchema: { prefixed: true, tables } });
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);
-      expect(installed.json().rules).toMatchObject({ written: 1 + nowFill, skipped: [] });
+      // The booking rule, the `now` fill, and one "this is a yes/no" for each bool column.
+      const yesNo = tables.flatMap((table) => table.columns as { type?: string }[]).filter((column) => column.type === 'bool').length;
+      expect(installed.json().rules).toMatchObject({ written: 1 + nowFill + yesNo, skipped: [] });
 
       const snapshot = (await snapshotsRepo(h.meta).latest(h.connectionId))!;
       const model = parseDatabaseModel(snapshot.schema);
@@ -3834,8 +3836,8 @@ for (const [dialect, available] of legs) {
         ['pos_menu_items', false],
         ['pos_payments_claimed', false],
       ]);
-      // `self` is an allowed origin and the database has a time zone: only the switch is said.
-      expect(access.warnings.map((w: { code: string }) => w.code)).toEqual(['PUBLIC_API_OFF']);
+      // `self` is an allowed origin and the database has a time zone: the switch is said, and that a till's money has no currency.
+      expect(access.warnings.map((w: { code: string }) => w.code)).toEqual(['PUBLIC_API_OFF', 'NO_CURRENCY']);
 
       const installed = await post(h, '/apps/install');
       expect(installed.statusCode, installed.body).toBe(200);

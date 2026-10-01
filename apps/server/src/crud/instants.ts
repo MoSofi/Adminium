@@ -39,6 +39,8 @@
 
 import type { Dialect, LogicalType } from '@adminium/engine';
 
+import { yesNoAsBooleans } from './yes-no.js';
+
 /**
  * The instant a `timestamptz` column is written with while the write is in
  * progress: the ISO text, with its zone, on every engine (see the header).
@@ -134,6 +136,8 @@ export function wallTimesAsInstants<T extends Record<string, unknown>>(
   columns: ReadonlyMap<string, { readonly logicalType: LogicalType }>,
   dialect: Dialect,
 ): T {
+  // On every engine: a yes/no column's 1 and 0 as true and false (`yes-no.ts`).
+  row = yesNoAsBooleans(row, columns);
   if (dialect !== 'sqlite') return row;
   let out: Record<string, unknown> | null = null;
   for (const [name, value] of Object.entries(row)) {

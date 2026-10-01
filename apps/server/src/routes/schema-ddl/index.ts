@@ -121,6 +121,44 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
       };
     }
 
+    /**
+     * A yes/no column the designer just made, on an engine with no yes/no type.
+     *
+     * SQLite keeps it as `integer`, so the next introspection calls it a
+     * number: the column somebody added as "Yes / No" came back as a number
+     * box in every form, answering 0 and 1. The designer knows what was asked
+     * for, so it says so once, as the rule an app's install writes
+     * (`column.yesNo`) — only where the snapshot does not already read the
+     * column as a yes/no, and never twice.
+     */
+    async function rememberYesNo(
+      connectionId: string,
+      edit: {
+        upsertTables?: { name: string; schema?: string | null; columns: { name: string; logicalType: string }[] }[];
+        addColumns?: { table: string; column: { name: string; logicalType: string } }[];
+      },
+      model: DatabaseModel,
+    ): Promise<void> {
+      const asked: { table: (typeof model.tables)[number] | undefined; column: string }[] = [];
+      for (const table of edit.upsertTables ?? []) {
+        const found = model.tables.find((t) => t.name === table.name && (table.schema === null || table.schema === undefined || t.schema === table.schema));
+        for (const column of table.columns) if (column.logicalType === 'boolean') asked.push({ table: found, column: column.name });
+      }
+      for (const added of edit.addColumns ?? []) {
+        if (added.column.logicalType !== 'boolean') continue;
+        asked.push({ table: model.tables.find((t) => t.id === added.table || t.name === added.table), column: added.column.name });
+      }
+      if (asked.length === 0) return;
+      const held = await overrides.listForConnection(connectionId);
+      for (const { table, column } of asked) {
+        const read = table?.columns.find((c) => c.name === column);
+        if (table === undefined || read === undefined || read.logicalType === 'boolean') continue;
+        if (read.logicalType !== 'integer' && read.logicalType !== 'bigint') continue;
+        if (held.some((o) => (o.op as string) === 'column.yesNo' && o.tableName === table.id && o.columnName === column)) continue;
+        await overrides.create({ connectionId, op: 'column.yesNo', tableName: table.id, columnName: column, value: { yesNo: true }, origin: 'user' });
+      }
+    }
+
     async function planInput(
       request: FastifyRequest,
       connection: Connection,
@@ -311,6 +349,7 @@ export function schemaDdlRoutes(deps: SchemaDdlRoutesDeps): FastifyPluginAsyncZo
               createdBy: actorId,
             });
             snapshotId = fresh.snapshot.id;
+            await rememberYesNo(connection.id, edit as never, fresh.snapshot.schema as DatabaseModel);
             await ledger.finish(result.changeId, {
               status: result.status,
               steps: result.steps,

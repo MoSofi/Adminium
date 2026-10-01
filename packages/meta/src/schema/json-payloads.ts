@@ -946,6 +946,14 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
    */
   z.object({ op: z.literal('column.venueLocal'), value: z.object({ venueLocal: z.literal(true) }) }),
   /*
+   * A whole-number column that holds a yes or a no. Postgres has a boolean
+   * type and MySQL's `tinyint(1)` is read as one; SQLite keeps a yes/no as
+   * `integer`, and nothing in the database says which integers are answers.
+   * An app's manifest does (`type: "bool"`), and this is how that is kept: the
+   * column is read, written and shown as a yes/no on every engine.
+   */
+  z.object({ op: z.literal('column.yesNo'), value: z.object({ yesNo: z.literal(true) }) }),
+  /*
    * A value written when something happens: the moment, or who did it, on a
    * create or when another column of the row changes to one of `values`
    * (`checked_in_at` when `status` becomes `checked_in`). `byOrigin` writes

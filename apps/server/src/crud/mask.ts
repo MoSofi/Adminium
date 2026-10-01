@@ -20,6 +20,7 @@
 import type { FastifyRequest } from 'fastify';
 
 import { SnapshotView, type ResolvedTable } from './identifiers.js';
+import { yesNoAsBoolean } from './yes-no.js';
 
 export const UNMASK_PERMISSION = 'system:connections:manage';
 
@@ -76,7 +77,8 @@ export function maskRow(row: Row, table: ResolvedTable, unmasked: boolean): Row 
       maskedHere.push(key);
       continue;
     }
-    out[key] = value;
+    // A yes/no column answers yes or no: MySQL and SQLite hand back 1 and 0.
+    out[key] = column?.logicalType === 'boolean' ? yesNoAsBoolean(value) : value;
   }
   if (maskedHere.length > 0) out._masked = maskedHere;
   return out;

@@ -43,6 +43,7 @@ const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.code',
   'column.rollup',
   'column.venueLocal',
+  'column.yesNo',
   'column.stamp',
   'column.format',
   'column.formula',

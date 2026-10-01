@@ -482,6 +482,10 @@
       {
         "code": "PUBLIC_API_OFF",
         "message": "The public API is switched off, so these endpoints will not answer until it is on."
+      },
+      {
+        "code": "NO_CURRENCY",
+        "message": "This database has no currency set, so the app’s money shows in US dollars on the dashboard and with no currency in its emails. Set one under Studio › Connections › Regional settings."
       }
     ],
     "canGrant": true

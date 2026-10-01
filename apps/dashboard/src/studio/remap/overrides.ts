@@ -141,6 +141,8 @@ export type RemapOverride =
     }
   /** A zone-less wall time is the venue's. */
   | { op: 'column.venueLocal'; tableName: string; columnName: string; value: { venueLocal: true } }
+  /** A whole-number column that holds a yes or a no (SQLite keeps one as `integer`). Kept by an app's install. */
+  | { op: 'column.yesNo'; tableName: string; columnName: string; value: { yesNo: true } }
   | { op: 'column.stamp'; tableName: string; columnName: string; value: StampRule }
   /** The booking guard, one per table. Kept whole through a save; not edited here. */
   | { op: 'table.capacity'; tableName: string; value: Record<string, unknown> }
@@ -199,6 +201,7 @@ export const COLUMN_OPS: ReadonlySet<string> = new Set([
   'column.lookup',
   // Kept by an app's install; a Studio save carries it back with its column.
   'column.perNight',
+  'column.yesNo',
 ]);
 
 /** One staged op + its persistence status (`disabled` rows survive a PUT). */

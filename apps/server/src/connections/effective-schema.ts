@@ -1267,6 +1267,20 @@ export function applyOverrides(
         if (column !== undefined) column.venueLocal = value.venueLocal === true;
         break;
       }
+      case 'column.yesNo': {
+        /*
+         * SQLite keeps a yes/no as `integer`, so the snapshot calls it a
+         * number: the form drew a number box and every read answered `0` or
+         * `1`, which a page testing `=== true` read as "no" for ever. Only a
+         * whole-number column takes it — on the engines that have a yes/no
+         * type the column already is one, and anything else is not an answer.
+         */
+        const column = columnOf(table, row.columnName);
+        if (column !== undefined && value.yesNo === true && (column.logicalType === 'integer' || column.logicalType === 'bigint')) {
+          column.logicalType = 'boolean';
+        }
+        break;
+      }
       case 'column.rollup': {
         const column = columnOf(table, row.columnName);
         if (column !== undefined) column.rollup = value as unknown as ColumnRollupRule;

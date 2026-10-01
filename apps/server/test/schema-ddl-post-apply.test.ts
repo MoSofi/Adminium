@@ -578,3 +578,41 @@ describe('an authored timestamp survives the round trip', () => {
     expect(['date', 'timestamp', 'timestamptz']).toContain(column?.logicalType);
   });
 });
+
+describe('a yes/no column made here is one, on an engine with no yes/no type', () => {
+  /*
+   * SQLite keeps it as `integer`, so the snapshot called the column the
+   * designer had just made as "Yes / No" a number: a number box in every form.
+   * The designer says what it made, once, and the schema reads it back.
+   */
+  it('reads back as a yes/no, in a new table and as an added column', async () => {
+    const made = await planAndApply({
+      upsertTables: [
+        {
+          name: 'visits',
+          columns: [
+            { name: 'id', logicalType: 'integer', nullable: false, default: { kind: 'autoincrement' } },
+            { name: 'arrived', logicalType: 'boolean' },
+            { name: 'party', logicalType: 'integer' },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    expect(made.body.status, JSON.stringify(made.body)).toBe('applied');
+    const added = await planAndApply({ addColumns: [{ table: 'main.clients', column: { name: 'newsletter', logicalType: 'boolean' } }] });
+    expect(added.body.status, JSON.stringify(added.body)).toBe('applied');
+
+    const schema = await t.app.inject({ method: 'GET', url: `/api/v1/connections/${connectionId}/schema`, headers: asUser(t.users.admin) });
+    const tables = (schema.json() as { model: { tables: { name: string; columns: { name: string; logicalType: string }[] }[] } }).model.tables;
+    const typeOf = (table: string, column: string) => tables.find((x) => x.name === table)?.columns.find((c) => c.name === column)?.logicalType;
+    expect([typeOf('visits', 'arrived'), typeOf('clients', 'newsletter')]).toEqual(['boolean', 'boolean']);
+    // A whole number that was asked for as one stays one.
+    expect(typeOf('visits', 'party')).toBe('integer');
+
+    // Said once: applying another edit to the same table does not say it again.
+    await planAndApply({ addColumns: [{ table: 'main.visits', column: { name: 'note', logicalType: 'text' } }] });
+    const rules = (await overridesRepo(t.meta).listForConnection(connectionId)).filter((rule) => (rule.op as string) === 'column.yesNo');
+    expect(rules.map((rule) => `${rule.tableName}.${String(rule.columnName)}`).sort()).toEqual(['main.clients.newsletter', 'main.visits.arrived']);
+  });
+});
