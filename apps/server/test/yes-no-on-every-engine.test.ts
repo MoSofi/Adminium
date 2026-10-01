@@ -48,7 +48,7 @@ describe.each(LEGS)('a yes/no column over the staff and public APIs — %s', (di
     h = await installInvoicing(dialect, cafe());
     const no = dialect === 'postgres' ? 'false' : '0';
     const yes = dialect === 'postgres' ? 'true' : '1';
-    await h.rows(`INSERT INTO ${h.real('days')} (id, name, open, tables_free) VALUES (1, 'Monday', ${no}, 0), (2, 'Tuesday', ${yes}, 1)`);
+    await h.rows(`INSERT INTO ${h.real('days')} (name, open, tables_free) VALUES ('Monday', ${no}, 0), ('Tuesday', ${yes}, 1)`);
     shop = await servePublic(h, (h.reply['publicAccess'] as { keyId: string }).keyId);
   }, 240_000);
   afterAll(async () => {
