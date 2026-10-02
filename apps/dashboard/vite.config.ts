@@ -27,6 +27,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: `http://${API_HOST}`, changeOrigin: false },
       '/ws': { target: `ws://${API_HOST}`, ws: true },
+      // Installed apps' own screens are served by the server, not by this SPA.
+      '/apps': { target: `http://${API_HOST}`, changeOrigin: false },
     },
   },
   build: {

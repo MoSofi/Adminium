@@ -49,6 +49,7 @@ export interface AssistantFactValues {
   campaigns?: number;
   invoices?: number;
   reports?: number;
+  rules?: number;
   tables?: number;
   connection?: string;
   /** The shape a template's number takes before one is minted. */
@@ -212,6 +213,39 @@ export function contextCopy(
           { id: 'save', label: t('assistant:report.action3', 'Save report'), icon: 'save', primary: true, writes: true },
         ],
       };
+    // PROTOTYPE — English fallbacks only; none of these keys is in a bundle yet.
+    case 'automation':
+      return {
+        page: t('assistant:automation.page', 'Automation rules'),
+        pageIcon: 'workflow',
+        blurb: t(
+          'assistant:automation.blurb',
+          'Knows this page: {rules, plural, one {# rule} other {# rules}} · {templates, plural, one {# live email template} other {# live email templates}} · {tables, plural, one {# readable table} other {# readable tables}}',
+          args,
+        ),
+        greeting: t(
+          'assistant:automation.greeting',
+          'I can see your automation rules, your live email templates and the tables your role can read.',
+          args,
+        ),
+        greetingSub: t(
+          'assistant:automation.greetingSub',
+          'Describe what should happen and when, and I will draft the rule. It is saved switched off until you turn it on.',
+          args,
+        ),
+        placeholder: t('assistant:automation.placeholder', 'Describe the rule you need…'),
+        suggestions: [
+          { icon: 'mail', label: t('assistant:automation.chip1', 'Email the customer a thank-you when their order ships') },
+          { icon: 'bell', label: t('assistant:automation.chip2', 'Notify admins when a new customer is added') },
+          { icon: 'clock', label: t('assistant:automation.chip3', 'Every morning, flag orders that are past their required date') },
+        ],
+        workTitle: t('assistant:automation.workTitle', 'Drafted a new rule'),
+        scopePrimary: t('assistant:automation.scopePrimary', 'automations'),
+        actions: [
+          { id: 'editor', label: t('assistant:automation.action1', 'Open in builder'), icon: 'pen-tool', primary: false, writes: true },
+          { id: 'save', label: t('assistant:automation.action2', 'Save rule (switched off)'), icon: 'save', primary: true, writes: true },
+        ],
+      };
   }
 }
 
@@ -309,6 +343,16 @@ export function confirmCopy(
               args,
             ),
         button: t('assistant:report.confirm.button', 'Save report'),
+        auditKey,
+        icon: 'save',
+      };
+    case 'automation':
+      return {
+        title: t('assistant:automation.confirm.title', 'Save this rule?'),
+        body: options.open
+          ? t('assistant:automation.confirm.bodyOpen', '{name} will add “{title}” to Automation rules, switched off, and open it in the builder.', args)
+          : t('assistant:automation.confirm.body', '{name} will add “{title}” to Automation rules, switched off. Nothing runs until you switch it on.', args),
+        button: t('assistant:automation.confirm.button', 'Save switched off'),
         auditKey,
         icon: 'save',
       };
@@ -433,6 +477,15 @@ export function echoText(
           return t('assistant:report.echo.sample', 'Ran the full query for {record}.', { record: label });
       }
       break;
+    case 'automation':
+      switch (kind) {
+        case 'saved':
+          return t('assistant:automation.echo.saved', 'Saved to Automation rules, switched off.');
+        case 'saved-open':
+          return t('assistant:automation.echo.editor', 'Saved switched off. Opening it in the builder.');
+        default:
+          return null;
+      }
   }
   return null;
 }
@@ -486,6 +539,15 @@ export function pageReadStep(
         detail: t(
           'assistant:report.readPage',
           'Report builder · {reports, plural, one {# report} other {# reports}} · {tables, plural, one {# readable table} other {# readable tables}}',
+          args,
+        ),
+      };
+    case 'automation':
+      return {
+        label,
+        detail: t(
+          'assistant:automation.readPage',
+          'Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}',
           args,
         ),
       };

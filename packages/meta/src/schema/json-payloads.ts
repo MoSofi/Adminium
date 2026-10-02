@@ -2291,7 +2291,7 @@ export const manifestDocSchema = z
  * depend on that package, and the value here is a stored enum whose job is to
  * keep round-tripping whatever an older server wrote.
  */
-export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report']);
+export const assistantContextSchema = z.enum(['email', 'invoice-template', 'invoices', 'report', 'automation']);
 export type AssistantContextKey = z.infer<typeof assistantContextSchema>;
 
 /** `open` while a modal holds it; `closed` once the operator leaves or the sweep gives up. */

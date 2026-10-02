@@ -130,7 +130,7 @@ if (!existsSync(join(dashboardDist, 'index.html'))) {
 
 const distUrl = (rel) => pathToFileURL(join(serverRoot, 'dist', rel)).href;
 
-const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun, createFirstSuperAdmin, rolesRepo, usersRepo }, { default: BetterSqlite3 }] =
+const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun, createFirstSuperAdmin, rolesRepo, settingsRepo, usersRepo }, { default: BetterSqlite3 }] =
   await Promise.all([
     import('@adminium/server'),
     import(distUrl('auth/passwords.js')),
@@ -317,6 +317,18 @@ try {
       name: ADMIN_NAME,
       passwordHash: await hashPassword(ADMIN_PASSWORD),
     });
+  }
+
+  // LOCAL SANDBOX ONLY: an AI provider from the environment, so a restart (which
+  // reseeds) does not lose it. Unset in every test run — the specs configure
+  // and clear the scripted provider themselves.
+  if (!FIRST_RUN && process.env.E2E_LLM_PROVIDER) {
+    const settings = settingsRepo(runtime.metaStore.meta);
+    const opts = { updatedBy: null, at: Date.now() };
+    await settings.set('llm.provider', process.env.E2E_LLM_PROVIDER, opts);
+    if (process.env.E2E_LLM_MODEL) await settings.set('llm.model', process.env.E2E_LLM_MODEL, opts);
+    if (process.env.E2E_LLM_BASE_URL) await settings.set('llm.baseUrl', process.env.E2E_LLM_BASE_URL, opts);
+    log(`AI provider from the environment: ${process.env.E2E_LLM_PROVIDER} ${process.env.E2E_LLM_MODEL ?? ''} ${process.env.E2E_LLM_BASE_URL ?? ''}`);
   }
 
   // A SECOND super admin, for the files specs alone. The `api` rate bucket is

@@ -22,6 +22,31 @@ export default {
   "audit": {
     "note": "每一次操作都会记入审计日志"
   },
+  "automation": {
+    "action1": "在构建器中打开",
+    "action2": "保存规则（关闭状态）",
+    "blurb": "了解本页：{rules, plural, other {# 条规则}} · {templates, plural, other {# 个已启用的邮件模板}} · {tables, plural, other {# 张可读表}}",
+    "chip1": "订单发货时给客户发一封感谢邮件",
+    "chip2": "新增客户时通知管理员",
+    "chip3": "每天早上标记已超过要求日期的订单",
+    "confirm": {
+      "body": "{name} 会把“{title}”以关闭状态加入自动化规则。在你开启之前不会运行任何内容。",
+      "bodyOpen": "{name} 会把“{title}”以关闭状态加入自动化规则，并在构建器中打开。",
+      "button": "以关闭状态保存",
+      "title": "保存这条规则？"
+    },
+    "echo": {
+      "editor": "已以关闭状态保存，正在构建器中打开。",
+      "saved": "已保存到自动化规则，处于关闭状态。"
+    },
+    "greeting": "我能看到你的自动化规则、已启用的邮件模板，以及你的角色可读取的表。",
+    "greetingSub": "说明什么时候该发生什么，我来起草规则。保存后它处于关闭状态，直到你将它开启。",
+    "page": "自动化规则",
+    "placeholder": "描述你需要的规则…",
+    "readPage": "自动化规则 · {rules, plural, other {# 条规则}} · {tables, plural, other {# 张可读表}}",
+    "scopePrimary": "automations",
+    "workTitle": "已起草新规则"
+  },
   "button": "询问 {name}",
   "buttonTitle": "就此页面询问 {name}",
   "close": "关闭",

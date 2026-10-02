@@ -96049,7 +96049,8 @@
                 "email",
                 "invoice-template",
                 "invoices",
-                "report"
+                "report",
+                "automation"
               ]
             },
             "in": "query",
@@ -96149,7 +96150,8 @@
                       "email",
                       "invoice-template",
                       "invoices",
-                      "report"
+                      "report",
+                      "automation"
                     ]
                   },
                   "host": {
@@ -96210,7 +96212,8 @@
                             "email",
                             "invoice-template",
                             "invoices",
-                            "report"
+                            "report",
+                            "automation"
                           ]
                         },
                         "status": {
@@ -96278,6 +96281,9 @@
                               "type": "number"
                             },
                             "reports": {
+                              "type": "number"
+                            },
+                            "rules": {
                               "type": "number"
                             },
                             "tables": {

@@ -22,6 +22,31 @@ export default {
   "audit": {
     "note": "Hver handling logges i auditloggen"
   },
+  "automation": {
+    "action1": "Åbn i bygger",
+    "action2": "Gem regel (slået fra)",
+    "blurb": "Kender denne side: {rules, plural, one {# regel} other {# regler}} · {templates, plural, one {# aktiv e-mailskabelon} other {# aktive e-mailskabeloner}} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "chip1": "Send kunden en tak på e-mail, når ordren er afsendt",
+    "chip2": "Giv administratorer besked, når en ny kunde tilføjes",
+    "chip3": "Markér hver morgen ordrer, der er over deres ønskede dato",
+    "confirm": {
+      "body": "{name} føjer „{title}“ til Automatiseringsregler, slået fra. Intet kører, før du slår den til.",
+      "bodyOpen": "{name} føjer „{title}“ til Automatiseringsregler, slået fra, og åbner den i byggeren.",
+      "button": "Gem slået fra",
+      "title": "Gem denne regel?"
+    },
+    "echo": {
+      "editor": "Gemt slået fra. Åbner den i byggeren.",
+      "saved": "Gemt i Automatiseringsregler, slået fra."
+    },
+    "greeting": "Jeg kan se dine automatiseringsregler, dine aktive e-mailskabeloner og de tabeller, din rolle må læse.",
+    "greetingSub": "Beskriv, hvad der skal ske og hvornår, så laver jeg et udkast til reglen. Den gemmes slået fra, indtil du slår den til.",
+    "page": "Automatiseringsregler",
+    "placeholder": "Beskriv den regel, du har brug for …",
+    "readPage": "Automatiseringsregler · {rules, plural, one {# regel} other {# regler}} · {tables, plural, one {# læsbar tabel} other {# læsbare tabeller}}",
+    "scopePrimary": "automations",
+    "workTitle": "Udkast til ny regel"
+  },
   "button": "Spørg {name}",
   "buttonTitle": "Spørg {name} om denne side",
   "close": "Luk",

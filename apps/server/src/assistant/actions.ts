@@ -29,6 +29,9 @@
 import {
   assistantSessionsRepo,
   auditRepo,
+  automationGraphSchema,
+  automationTriggerSchema,
+  automationsRepo,
   emailTemplatesRepo,
   invoiceLangSchema,
   invoiceTopicSchema,
@@ -40,6 +43,10 @@ import {
 } from '@adminium/meta';
 
 import { ConflictError, ForbiddenError, ValidationFailedError } from '../errors.js';
+import { requiredGrants, resolveRule } from '../automations/validate.js';
+import { sealWebhookSecrets } from '../automations/webhook-secrets.js';
+import { loadSnapshotView } from '../data-io/snapshot-view.js';
+import { liveTemplateKeys } from './contexts/automation.js';
 import { documentColumns, mintKey, normalizeDocument, slugKey, type EmailDocument } from '../email/document.js';
 import { renderEmail } from '../email/render.js';
 import {
@@ -192,7 +199,12 @@ export async function runAssistantAction(input: AssistantActionInput): Promise<A
  * remembered against them: the draft saves again.
  */
 async function saveDraft(input: AssistantActionInput, at: number): Promise<AssistantActionResult> {
-  await requireSettingsManage(input, 'save documents');
+  // PROTOTYPE: a rule rides the automations page's own grant, not the documents'.
+  if (input.context === 'automation') {
+    if (!(await input.can(PERMISSIONS.automationsManage))) {
+      throw new ForbiddenError('Your role cannot save rules here.', 'FORBIDDEN', { permission: PERMISSIONS.automationsManage });
+    }
+  } else await requireSettingsManage(input, 'save documents');
   const sessions = assistantSessionsRepo(input.meta);
   const earlier = savedOf((await sessions.findTurn(input.turnId))?.result ?? null);
   if (earlier !== null && (await documentExists(input, earlier.id))) {
@@ -216,6 +228,7 @@ function savedOf(result: Record<string, unknown> | null): { id: string; kind: st
 async function documentExists(input: AssistantActionInput, id: string): Promise<boolean> {
   if (input.context === 'email') return (await emailTemplatesRepo(input.meta).findById(id)) !== null;
   if (input.context === 'report') return (await reportDocumentsRepo(input.meta).findById(id)) !== null;
+  if (input.context === 'automation') return (await automationsRepo(input.meta).findById(id)) !== null;
   return (await invoiceDocumentsRepo(input.meta).findById(id)) !== null;
 }
 
@@ -278,6 +291,40 @@ async function createDraft(input: AssistantActionInput, at: number): Promise<Ass
     );
     await writeAudit(input, 'create', { id: row.id, kind: 'template', name }, at);
     return { echo: { kind: 'saved', open, name }, created: { id: row.id, kind: 'template', name } };
+  }
+
+  if (input.context === 'automation') {
+    // PROTOTYPE. The same checks the page's own POST runs — the schemas, the
+    // schema-aware resolve, the author's grants — and then ALWAYS switched off.
+    const trigger = automationTriggerSchema.parse(artefact.trigger);
+    const graph = automationGraphSchema.parse(artefact.graph);
+    const connectionId = trigger.connectionId;
+    resolveRule(trigger, graph, {
+      view: connectionId === null ? null : await loadSnapshotView(input.meta, connectionId),
+      templateKeys: new Set((await liveTemplateKeys({ meta: input.meta })).map((row) => row.key)),
+      blockLoopback: process.env['NODE_ENV'] === 'production',
+    });
+    for (const { permission, table } of requiredGrants(trigger, graph, connectionId)) {
+      if (await input.can(permission)) continue;
+      throw new ForbiddenError(`You do not have access to ${table}, so this rule cannot use it.`, 'TABLE_FORBIDDEN', { permission, table });
+    }
+    const name = text(input.name, text(artefact.name, 'Untitled rule'));
+    const rule = await automationsRepo(input.meta).create(
+      {
+        connectionId,
+        name,
+        description: typeof artefact.description === 'string' ? artefact.description : null,
+        trigger,
+        graph: typeof input.secret === 'string' ? sealWebhookSecrets(graph, null, input.secret) : graph,
+        enabled: false,
+        timeSavedMinutes: null,
+        nextRunAt: null,
+        createdBy: input.actor.id,
+      },
+      at,
+    );
+    await writeAudit(input, 'create', { id: rule.id, kind: 'rule', name, enabled: false }, at);
+    return { echo: { kind: 'saved', open, name }, created: { id: rule.id, kind: 'rule', name } };
   }
 
   const repo = invoiceDocumentsRepo(input.meta);

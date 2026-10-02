@@ -12,6 +12,31 @@
   "audit": {
     "note": "Chaque action est consignée dans le journal d’audit"
   },
+  "automation": {
+    "action1": "Ouvrir dans le générateur",
+    "action2": "Enregistrer la règle (désactivée)",
+    "blurb": "Connaît cette page : {rules, plural, one {# règle} other {# règles}} · {templates, plural, one {# modèle d’e-mail actif} other {# modèles d’e-mail actifs}} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "chip1": "Envoyer un e-mail de remerciement au client quand sa commande est expédiée",
+    "chip2": "Prévenir les administrateurs quand un nouveau client est ajouté",
+    "chip3": "Chaque matin, signaler les commandes dont la date requise est dépassée",
+    "confirm": {
+      "body": "{name} va ajouter « {title} » aux Règles d’automatisation, désactivée. Rien ne s’exécute tant que vous ne l’activez pas.",
+      "bodyOpen": "{name} va ajouter « {title} » aux Règles d’automatisation, désactivée, et l’ouvrir dans le générateur.",
+      "button": "Enregistrer désactivée",
+      "title": "Enregistrer cette règle ?"
+    },
+    "echo": {
+      "editor": "Enregistrée désactivée. Ouverture dans le générateur.",
+      "saved": "Enregistrée dans les Règles d’automatisation, désactivée."
+    },
+    "greeting": "Je vois vos règles d’automatisation, vos modèles d’e-mail actifs et les tables que votre rôle peut lire.",
+    "greetingSub": "Décrivez ce qui doit se passer et quand, et je rédigerai la règle. Elle est enregistrée désactivée jusqu’à ce que vous l’activiez.",
+    "page": "Règles d'automatisation",
+    "placeholder": "Décrivez la règle dont vous avez besoin…",
+    "readPage": "Règles d’automatisation · {rules, plural, one {# règle} other {# règles}} · {tables, plural, one {# table lisible} other {# tables lisibles}}",
+    "scopePrimary": "automations",
+    "workTitle": "Nouvelle règle rédigée"
+  },
   "button": "Demander à {name}",
   "buttonTitle": "Interroger {name} sur cette page",
   "close": "Fermer",

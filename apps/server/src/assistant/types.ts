@@ -120,6 +120,7 @@ export interface AssistantFactValues {
   campaigns?: number;
   invoices?: number;
   reports?: number;
+  rules?: number;
   /** Tables the acting person may read across every connection. */
   tables?: number;
   /** The one connection worth naming, when there is one. */

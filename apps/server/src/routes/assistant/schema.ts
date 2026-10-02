@@ -74,6 +74,7 @@ export const assistantFactsView = z.object({
     campaigns: z.number().optional(),
     invoices: z.number().optional(),
     reports: z.number().optional(),
+    rules: z.number().optional(),
     tables: z.number().optional(),
     connection: z.string().optional(),
     pattern: z.string().optional(),

@@ -33,10 +33,12 @@ import { useBlocker, useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Button, ConfirmModal } from '@adminium/ui';
 
+import { AskAssistant } from '../assistant/AskAssistant.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { useAppToasts } from '../pages/toasts.js';
+import { useAutomationAssistant } from './assistant.js';
 import { automationIcon } from './icons.js';
 import { automationsApi, tableForTrigger, type RuleView, type SourceTable } from './api.js';
 import { invalidateRules, rulesQuery, rulesStatsQuery, sourcesQuery } from './queries.js';
@@ -120,6 +122,14 @@ export function AutomationRulesPage(): ReactNode {
   const [confirmDelete, setConfirmDelete] = useState<RuleView | null>(null);
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const test = useTestRun();
+  // PROTOTYPE: the assistant drafts a NEW rule; a save lands it switched off and selects it.
+  const assistantHost = useAutomationAssistant({
+    sources: sources.data ?? null,
+    onOpen: (id, incompleteNodeId) => {
+      setDraft(null);
+      setInspectId(incompleteNodeId);
+    },
+  });
 
   const all = rules.data?.rules ?? [];
   const selected = all.find((rule) => rule.id === search.rule) ?? all[0] ?? null;
@@ -314,6 +324,7 @@ export function AutomationRulesPage(): ReactNode {
         title={t('automations:rules.title', 'Automation rules')}
         subtitle={t('automations:rules.subtitle', 'Trigger workflows automatically when things happen.')}
       >
+        <AskAssistant host={assistantHost} slot="manager" />
         <Button
           onClick={() => {
             setNewOpen(true);

@@ -22,6 +22,31 @@ export default {
   "audit": {
     "note": "Jede Aktion wird im Audit-Log protokolliert"
   },
+  "automation": {
+    "action1": "Im Builder öffnen",
+    "action2": "Regel speichern (ausgeschaltet)",
+    "blurb": "Kennt diese Seite: {rules, plural, one {# Regel} other {# Regeln}} · {templates, plural, one {# aktive E-Mail-Vorlage} other {# aktive E-Mail-Vorlagen}} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "chip1": "Dem Kunden per E-Mail danken, wenn seine Bestellung versendet wird",
+    "chip2": "Admins benachrichtigen, wenn ein neuer Kunde angelegt wird",
+    "chip3": "Jeden Morgen Bestellungen markieren, deren Wunschtermin überschritten ist",
+    "confirm": {
+      "body": "{name} fügt „{title}“ ausgeschaltet zu den Automatisierungsregeln hinzu. Nichts läuft, bis du sie einschaltest.",
+      "bodyOpen": "{name} fügt „{title}“ ausgeschaltet zu den Automatisierungsregeln hinzu und öffnet sie im Builder.",
+      "button": "Ausgeschaltet speichern",
+      "title": "Diese Regel speichern?"
+    },
+    "echo": {
+      "editor": "Ausgeschaltet gespeichert. Wird im Builder geöffnet.",
+      "saved": "In den Automatisierungsregeln gespeichert, ausgeschaltet."
+    },
+    "greeting": "Ich sehe deine Automatisierungsregeln, deine aktiven E-Mail-Vorlagen und die Tabellen, die deine Rolle lesen darf.",
+    "greetingSub": "Beschreibe, was wann passieren soll, und ich entwerfe die Regel. Sie wird ausgeschaltet gespeichert, bis du sie einschaltest.",
+    "page": "Automatisierungsregeln",
+    "placeholder": "Beschreibe die Regel, die du brauchst …",
+    "readPage": "Automatisierungsregeln · {rules, plural, one {# Regel} other {# Regeln}} · {tables, plural, one {# lesbare Tabelle} other {# lesbare Tabellen}}",
+    "scopePrimary": "automations",
+    "workTitle": "Neue Regel entworfen"
+  },
   "button": "{name} fragen",
   "buttonTitle": "{name} zu dieser Seite fragen",
   "close": "Schließen",

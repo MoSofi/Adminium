@@ -19,7 +19,7 @@ import { api } from '../app/api.js';
 const BASE = '/api/v1/assistant';
 
 /** The four pages the assistant can be opened from. */
-export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report';
+export type AssistantContext = 'email' | 'invoice-template' | 'invoices' | 'report' | 'automation';
 
 /** Why the modal cannot work, when it cannot. */
 export type AssistantUnavailableReason = 'no-provider' | 'network-disabled' | 'forbidden';
@@ -69,6 +69,7 @@ export interface AssistantFacts {
     campaigns?: number;
     invoices?: number;
     reports?: number;
+    rules?: number;
     tables?: number;
     connection?: string;
     pattern?: string;

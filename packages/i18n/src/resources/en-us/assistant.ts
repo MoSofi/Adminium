@@ -22,6 +22,31 @@ export default {
   "audit": {
     "note": "Every action is logged to Audit Log"
   },
+  "automation": {
+    "action1": "Open in builder",
+    "action2": "Save rule (switched off)",
+    "blurb": "Knows this page: {rules, plural, one {# rule} other {# rules}} · {templates, plural, one {# live email template} other {# live email templates}} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "chip1": "Email the customer a thank-you when their order ships",
+    "chip2": "Notify admins when a new customer is added",
+    "chip3": "Every morning, flag orders that are past their required date",
+    "confirm": {
+      "body": "{name} will add “{title}” to Automation rules, switched off. Nothing runs until you switch it on.",
+      "bodyOpen": "{name} will add “{title}” to Automation rules, switched off, and open it in the builder.",
+      "button": "Save switched off",
+      "title": "Save this rule?"
+    },
+    "echo": {
+      "editor": "Saved switched off. Opening it in the builder.",
+      "saved": "Saved to Automation rules, switched off."
+    },
+    "greeting": "I can see your automation rules, your live email templates and the tables your role can read.",
+    "greetingSub": "Describe what should happen and when, and I will draft the rule. It is saved switched off until you turn it on.",
+    "page": "Automation rules",
+    "placeholder": "Describe the rule you need…",
+    "readPage": "Automation rules · {rules, plural, one {# rule} other {# rules}} · {tables, plural, one {# readable table} other {# readable tables}}",
+    "scopePrimary": "automations",
+    "workTitle": "Drafted a new rule"
+  },
   "button": "Ask {name}",
   "buttonTitle": "Ask {name} about this page",
   "close": "Close",

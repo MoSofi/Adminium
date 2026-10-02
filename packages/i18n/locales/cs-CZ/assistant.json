@@ -12,6 +12,31 @@
   "audit": {
     "note": "Každá akce se zapisuje do auditního logu"
   },
+  "automation": {
+    "action1": "Otevřít v nástroji",
+    "action2": "Uložit pravidlo (vypnuté)",
+    "blurb": "Zná tuhle stránku: {rules, plural, one {# pravidlo} few {# pravidla} other {# pravidel}} · {templates, plural, one {# aktivní e-mailová šablona} few {# aktivní e-mailové šablony} other {# aktivních e-mailových šablon}} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} other {# čitelných tabulek}}",
+    "chip1": "Poslat zákazníkovi poděkování e-mailem, když je objednávka odeslána",
+    "chip2": "Upozornit administrátory, když přibude nový zákazník",
+    "chip3": "Každé ráno označit objednávky po požadovaném termínu",
+    "confirm": {
+      "body": "{name} přidá „{title}“ do Pravidel automatizace, vypnuté. Nic neběží, dokud ho nezapneš.",
+      "bodyOpen": "{name} přidá „{title}“ do Pravidel automatizace, vypnuté, a otevře ho v nástroji.",
+      "button": "Uložit vypnuté",
+      "title": "Uložit tohle pravidlo?"
+    },
+    "echo": {
+      "editor": "Uloženo vypnuté. Otevírá se v nástroji.",
+      "saved": "Uloženo do Pravidel automatizace, vypnuté."
+    },
+    "greeting": "Vidím tvoje pravidla automatizace, tvoje aktivní e-mailové šablony a tabulky, které tvoje role může číst.",
+    "greetingSub": "Popiš, co se má stát a kdy, a já pravidlo navrhnu. Uloží se vypnuté, dokud ho nezapneš.",
+    "page": "Pravidla automatizace",
+    "placeholder": "Popiš pravidlo, které potřebuješ…",
+    "readPage": "Pravidla automatizace · {rules, plural, one {# pravidlo} few {# pravidla} other {# pravidel}} · {tables, plural, one {# čitelná tabulka} few {# čitelné tabulky} other {# čitelných tabulek}}",
+    "scopePrimary": "automations",
+    "workTitle": "Navrženo nové pravidlo"
+  },
   "button": "Zeptat se {name}",
   "buttonTitle": "Zeptat se {name} na tuto stránku",
   "close": "Zavřít",

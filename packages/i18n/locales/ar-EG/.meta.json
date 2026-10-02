@@ -283,6 +283,82 @@
     "status": "mt",
     "srcHash": "95a6e2add4d6"
   },
+  "assistant.automation.action1": {
+    "status": "mt",
+    "srcHash": "fbbebdd9c6bb"
+  },
+  "assistant.automation.action2": {
+    "status": "mt",
+    "srcHash": "ae9ae0852690"
+  },
+  "assistant.automation.blurb": {
+    "status": "mt",
+    "srcHash": "3bae85feaf60"
+  },
+  "assistant.automation.chip1": {
+    "status": "mt",
+    "srcHash": "783deb2dc3f9"
+  },
+  "assistant.automation.chip2": {
+    "status": "mt",
+    "srcHash": "55e1f011d62b"
+  },
+  "assistant.automation.chip3": {
+    "status": "mt",
+    "srcHash": "907dcac34a72"
+  },
+  "assistant.automation.confirm.body": {
+    "status": "mt",
+    "srcHash": "e05f6f78de7f"
+  },
+  "assistant.automation.confirm.bodyOpen": {
+    "status": "mt",
+    "srcHash": "e1e939a1bf3b"
+  },
+  "assistant.automation.confirm.button": {
+    "status": "mt",
+    "srcHash": "dc5b7a930f32"
+  },
+  "assistant.automation.confirm.title": {
+    "status": "mt",
+    "srcHash": "be4a503f546a"
+  },
+  "assistant.automation.echo.editor": {
+    "status": "mt",
+    "srcHash": "c451b7d15017"
+  },
+  "assistant.automation.echo.saved": {
+    "status": "mt",
+    "srcHash": "0e305d84b520"
+  },
+  "assistant.automation.greeting": {
+    "status": "mt",
+    "srcHash": "7bca3b667762"
+  },
+  "assistant.automation.greetingSub": {
+    "status": "mt",
+    "srcHash": "4e2d345acd3e"
+  },
+  "assistant.automation.page": {
+    "status": "mt",
+    "srcHash": "9dae5e98ba24"
+  },
+  "assistant.automation.placeholder": {
+    "status": "mt",
+    "srcHash": "fbb4ae78b0c4"
+  },
+  "assistant.automation.readPage": {
+    "status": "mt",
+    "srcHash": "4897ffcf4a27"
+  },
+  "assistant.automation.scopePrimary": {
+    "status": "src",
+    "srcHash": "e75653813e85"
+  },
+  "assistant.automation.workTitle": {
+    "status": "mt",
+    "srcHash": "13895d6d39b7"
+  },
   "assistant.button": {
     "status": "mt",
     "srcHash": "23b48bef02ad"

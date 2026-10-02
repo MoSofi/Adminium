@@ -22,6 +22,31 @@ export default {
   "audit": {
     "note": "每一次操作都會記入稽核紀錄"
   },
+  "automation": {
+    "action1": "在建構器中開啟",
+    "action2": "儲存規則（關閉狀態）",
+    "blurb": "了解本頁：{rules, plural, other {# 條規則}} · {templates, plural, other {# 個已啟用的郵件範本}} · {tables, plural, other {# 個可讀資料表}}",
+    "chip1": "訂單出貨時寄一封感謝信給客戶",
+    "chip2": "新增客戶時通知管理員",
+    "chip3": "每天早上標記已超過要求日期的訂單",
+    "confirm": {
+      "body": "{name} 會把「{title}」以關閉狀態加入自動化規則。在你開啟之前不會執行任何內容。",
+      "bodyOpen": "{name} 會把「{title}」以關閉狀態加入自動化規則，並在建構器中開啟。",
+      "button": "以關閉狀態儲存",
+      "title": "儲存這條規則？"
+    },
+    "echo": {
+      "editor": "已以關閉狀態儲存，正在建構器中開啟。",
+      "saved": "已儲存到自動化規則，處於關閉狀態。"
+    },
+    "greeting": "我看得到你的自動化規則、已啟用的郵件範本，以及你的角色可讀取的資料表。",
+    "greetingSub": "說明什麼時候該發生什麼，我來起草規則。儲存後它是關閉的，直到你將它開啟。",
+    "page": "自動化規則",
+    "placeholder": "描述你需要的規則…",
+    "readPage": "自動化規則 · {rules, plural, other {# 條規則}} · {tables, plural, other {# 個可讀資料表}}",
+    "scopePrimary": "automations",
+    "workTitle": "已起草新規則"
+  },
   "button": "詢問 {name}",
   "buttonTitle": "就此頁面詢問 {name}",
   "close": "關閉",

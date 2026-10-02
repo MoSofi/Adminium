@@ -761,7 +761,9 @@ function AutomationRulesRouteComponent() {
     <StudioGuard requires="automations.manage">
       <Suspense fallback={null}>
         <AutomationsMessages>
-          <AutomationRulesPageLazy />
+          <AssistantMessages>
+            <AutomationRulesPageLazy />
+          </AssistantMessages>
         </AutomationsMessages>
       </Suspense>
     </StudioGuard>
