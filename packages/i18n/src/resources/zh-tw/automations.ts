@@ -80,7 +80,8 @@ export default {
     "incomplete": "先完成「{step}」，再啟用這條規則",
     "duplicated": "已複製 {name}",
     "deleted": "已刪除 {name}",
-    "failed": "未能儲存 — {reason}"
+    "failed": "未能儲存 — {reason}",
+    "unfilled": "「{step}」會原樣傳送 {names} — 沒有內容填入它"
   },
   "canvas": {
     "insert": "在此插入步驟",
@@ -265,7 +266,19 @@ export default {
     "toField": "這筆記錄的電子郵件",
     "toFixed": "地址",
     "column": "欄位",
-    "addresses": "新增地址…"
+    "addresses": "新增地址…",
+    "placeholders": "預留位置",
+    "ph": {
+      "appOwned": "此範本屬於某個應用程式，傳送時由該應用程式自行填入。規則只會填入此處標示的內容。",
+      "hint": "範本讀取的內容，以及每一項由什麼填入。",
+      "record": "來自此記錄",
+      "rule": "由規則填入",
+      "mapped": "由此步驟填入",
+      "unfilled": "未填入",
+      "fillWith": "{token} 的填入內容",
+      "text": "一段文字",
+      "textFor": "{token} 的文字"
+    }
   },
   "notif": {
     "to": "傳送給",
@@ -378,7 +391,8 @@ export default {
       "fail": "錯誤 · {reason}",
       "would": "將把「{subject}」傳送至 {to}",
       "noSmtp": "未設定 SMTP — 設定 → 郵件",
-      "noRecipient": "沒有收件者：{column} 為空"
+      "noRecipient": "沒有收件者：{column} 為空",
+      "unfilled": "沒有內容填入 {names}"
     },
     "notif": {
       "ok": "已通知 {count, plural, other {# 人}}"

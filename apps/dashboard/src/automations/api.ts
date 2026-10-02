@@ -109,9 +109,18 @@ export interface SourceConnection {
   tables: SourceTable[];
 }
 
+export interface SourceTemplate {
+  key: string;
+  name: string;
+  /** Every `{{name}}` the template reads, in reading order. */
+  placeholders: string[];
+  /** An app shipped it, and that app's own sender is what fills it. */
+  ownedByApp: boolean;
+}
+
 export interface Sources {
   connections: SourceConnection[];
-  templates: { key: string; name: string }[];
+  templates: SourceTemplate[];
   roles: { id: string; name: string }[];
 }
 

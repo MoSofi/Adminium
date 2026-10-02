@@ -80,7 +80,8 @@ export default {
     "incomplete": "أكمل «{step}» قبل تفعيل هذه القاعدة",
     "duplicated": "تم تكرار {name}",
     "deleted": "تم حذف {name}",
-    "failed": "لم يتم الحفظ — {reason}"
+    "failed": "لم يتم الحفظ — {reason}",
+    "unfilled": "«{step}» سترسل {names} كما هي مكتوبة — لا شيء يملؤها"
   },
   "canvas": {
     "insert": "أدرج خطوة هنا",
@@ -265,7 +266,19 @@ export default {
     "toField": "البريد الإلكتروني لهذا السجل",
     "toFixed": "العناوين",
     "column": "العمود",
-    "addresses": "أضف عنوانًا…"
+    "addresses": "أضف عنوانًا…",
+    "placeholders": "المتغيرات",
+    "ph": {
+      "appOwned": "هذا القالب يخص تطبيقًا يملأ هذه المتغيرات بنفسه عند الإرسال. القاعدة تملأ فقط ما هو محدد هنا.",
+      "hint": "ما يقرؤه القالب، وما يملأ كل متغير.",
+      "record": "من هذا السجل",
+      "rule": "تملؤه القاعدة",
+      "mapped": "تملؤه هذه الخطوة",
+      "unfilled": "غير مملوء",
+      "fillWith": "املأ {token} بـ",
+      "text": "نص",
+      "textFor": "نص {token}"
+    }
   },
   "notif": {
     "to": "إرسال إلى",
@@ -378,7 +391,8 @@ export default {
       "fail": "خطأ · {reason}",
       "would": "سيرسل «{subject}» إلى {to}",
       "noSmtp": "لم يتم إعداد SMTP — الإعدادات ← البريد الإلكتروني",
-      "noRecipient": "لا يوجد مستلم: {column} فارغ"
+      "noRecipient": "لا يوجد مستلم: {column} فارغ",
+      "unfilled": "لم يملأ شيء {names}"
     },
     "notif": {
       "ok": "تم إشعار {count, plural, zero {# شخص} one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}"

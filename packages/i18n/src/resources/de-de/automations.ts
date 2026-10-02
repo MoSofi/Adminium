@@ -80,7 +80,8 @@ export default {
     "incomplete": "Schließen Sie „{step}“ ab, bevor Sie die Regel einschalten",
     "duplicated": "{name} dupliziert",
     "deleted": "{name} gelöscht",
-    "failed": "Das wurde nicht gespeichert – {reason}"
+    "failed": "Das wurde nicht gespeichert – {reason}",
+    "unfilled": "„{step}“ sendet {names} unverändert – nichts füllt es"
   },
   "canvas": {
     "insert": "Hier Schritt einfügen",
@@ -265,7 +266,19 @@ export default {
     "toField": "E-Mail dieses Datensatzes",
     "toFixed": "Adressen",
     "column": "Spalte",
-    "addresses": "Adresse hinzufügen…"
+    "addresses": "Adresse hinzufügen…",
+    "placeholders": "Platzhalter",
+    "ph": {
+      "appOwned": "Diese Vorlage gehört zu einer App, die diese Werte beim Senden selbst einsetzt. Eine Regel füllt nur, was hier markiert ist.",
+      "hint": "Was die Vorlage liest und was jeden Platzhalter füllt.",
+      "record": "Aus diesem Datensatz",
+      "rule": "Von der Regel gefüllt",
+      "mapped": "Von diesem Schritt gefüllt",
+      "unfilled": "Nicht gefüllt",
+      "fillWith": "{token} füllen mit",
+      "text": "Ein Text",
+      "textFor": "Text für {token}"
+    }
   },
   "notif": {
     "to": "Senden an",
@@ -378,7 +391,8 @@ export default {
       "fail": "FEHLER · {reason}",
       "would": "Würde „{subject}“ an {to} senden",
       "noSmtp": "SMTP ist nicht eingerichtet – Einstellungen → E-Mail",
-      "noRecipient": "Kein Empfänger: {column} ist leer"
+      "noRecipient": "Kein Empfänger: {column} ist leer",
+      "unfilled": "nichts füllte {names}"
     },
     "notif": {
       "ok": "{count, plural, one {# Person} other {# Personen}} benachrichtigt"

@@ -50,7 +50,7 @@ function welcomeGraph(): AutomationGraph {
         kind: 'action',
         title: 'Send welcome email',
         onError: false,
-        action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' } },
+        action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' }, vars: {} },
       },
       { id: 'n3', kind: 'wait', title: 'Wait 2 days', amount: 2, unit: 'minutes' },
       {
@@ -62,6 +62,7 @@ function welcomeGraph(): AutomationGraph {
           kind: 'email',
           templateKey: 'special-offer',
           to: { kind: 'field', column: 'email' },
+          vars: {},
         },
       },
       { id: 'n5', kind: 'wait', title: 'Wait a week', amount: 7, unit: 'minutes' },
@@ -107,6 +108,7 @@ function welcomeGraph(): AutomationGraph {
                   kind: 'email',
                   templateKey: 'offer-final-reminder',
                   to: { kind: 'field', column: 'email' },
+                  vars: {},
                 },
               },
             ],
@@ -302,7 +304,7 @@ describe('42 — the runner walks the owner’s first example', () => {
           version: 1,
           nodes: [
             { id: 'n1', kind: 'trigger', title: 'Trigger' },
-            { id: 'n2', kind: 'action', title: 'Say goodbye', onError: false, action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' } } },
+            { id: 'n2', kind: 'action', title: 'Say goodbye', onError: false, action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' }, vars: {} } },
           ],
         },
       },
@@ -357,7 +359,7 @@ describe('42 — the runner walks the owner’s first example', () => {
               kind: 'action',
               title: 'Send a missing template',
               onError: false,
-              action: { kind: 'email', templateKey: 'no-such-template', to: { kind: 'field', column: 'email' } },
+              action: { kind: 'email', templateKey: 'no-such-template', to: { kind: 'field', column: 'email' }, vars: {} },
             },
             {
               id: 'n3',
@@ -479,7 +481,7 @@ describe('42 — the runner walks the owner’s first example', () => {
               kind: 'action',
               title: 'Send welcome email',
               onError: false,
-              action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' } },
+              action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' }, vars: {} },
             },
           ],
         },
@@ -513,5 +515,84 @@ describe('42 — the runner walks the owner’s first example', () => {
       n: number;
     };
     expect(rows.n).toBe(0);
+  });
+
+  describe('an email step and the placeholders of its template', () => {
+    async function thanksRule(vars: Record<string, string>): Promise<Automation> {
+      await emailTemplatesRepo(t.meta).upsert('thanks', 'en_US', {
+        name: 'Thanks',
+        subject: 'Thanks, {{first_name}}!',
+        enabled: true,
+        blocks: [
+          { id: 'b1', block: 'email.text', data: { text: 'Order #{{order.number}} joined {{created_at}} via {{ruleName}}.' } },
+        ],
+      } as never);
+      return automationsRepo(t.meta).create(
+        {
+          connectionId,
+          name: 'Say thanks',
+          enabled: true,
+          trigger: { kind: 'record', event: 'created', connectionId, table: 'main.users', watch: true },
+          graph: {
+            version: 1,
+            nodes: [
+              { id: 'n1', kind: 'trigger', title: 'A user is created' },
+              {
+                id: 'n2',
+                kind: 'action',
+                title: 'Say thanks',
+                onError: false,
+                action: { kind: 'email', templateKey: 'thanks', to: { kind: 'field', column: 'email' }, vars },
+              },
+            ],
+          },
+        },
+        now,
+      );
+    }
+
+    it('fills a placeholder the step maps, and names in the trace the one nothing fills', async () => {
+      const outcome = await walk(await thanksRule({ first_name: '{{record.full_name}}' }), null);
+      if (outcome.kind !== 'finished') throw new Error('expected a finished run');
+      // Sent, not refused: the line under the step is the warning.
+      expect(outcome.status).toBe('succeeded');
+      expect(sent.map((m) => m.subject)).toEqual(['Thanks, Jordan Ellis!']);
+      expect(sent[0]?.text).toContain('Order #{{order.number}}');
+      expect(sent[0]?.text).toContain('via Say thanks.');
+      expect(outcome.trace.steps[1]?.log).toBe(
+        '250 2.0.0 Ok: queued as 4B1C2 · delivered to jordan@acme.io · nothing filled {{order.number}}',
+      );
+    });
+
+    it('a fixed text fills one too, and a step that maps nothing leaves it as written', async () => {
+      await walk(await thanksRule({ first_name: 'friend', 'order.number': '10042' }), null);
+      expect(sent[0]?.subject).toBe('Thanks, friend!');
+      expect(sent[0]?.text).toContain('Order #10042');
+
+      sent.length = 0;
+      await automationsRepo(t.meta).remove((await automationsRepo(t.meta).list())[0]!.id);
+      const outcome = await walk(await thanksRule({}), null);
+      expect(sent[0]?.subject).toBe('Thanks, {{first_name}}!');
+      expect(outcome.kind === 'finished' ? outcome.trace.steps[1]?.log : '').toContain(
+        'nothing filled {{first_name}}, {{order.number}}',
+      );
+    });
+
+    it('a dry run names the unfilled placeholder before anything is sent', async () => {
+      const outcome = await walkRule(deps(), { rule: await thanksRule({}), runId: 'arun_test', event: event(), dryRun: true });
+      if (outcome.kind !== 'finished') throw new Error('expected a finished run');
+      expect(sent).toHaveLength(0);
+      expect(outcome.trace.steps[1]?.log).toBe(
+        'Would send “Thanks, {{first_name}}!” to jordan@acme.io · nothing filled {{first_name}}, {{order.number}}',
+      );
+    });
+
+    it('a date of the record reads as a date in the mail, not as the stored text', async () => {
+      const outcome = await walk(await thanksRule({ first_name: 'x', 'order.number': '1' }), null);
+      const day = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(T0));
+      expect(sent[0]?.text).toContain(`joined ${day} at `);
+      expect(sent[0]?.text).not.toContain(iso(T0));
+      expect(outcome.kind === 'finished' ? outcome.trace.steps[1]?.log : '').not.toContain('nothing filled');
+    });
   });
 });

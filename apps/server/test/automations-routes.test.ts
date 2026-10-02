@@ -64,7 +64,7 @@ function completeGraph(): AutomationGraph {
         kind: 'action',
         title: 'Send welcome email',
         onError: false,
-        action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' } },
+        action: { kind: 'email', templateKey: 'welcome', to: { kind: 'field', column: 'email' }, vars: {} },
       },
     ],
   };
@@ -81,7 +81,7 @@ function draftGraph(): AutomationGraph {
         kind: 'action',
         title: 'Send email',
         onError: false,
-        action: { kind: 'email', templateKey: null, to: null },
+        action: { kind: 'email', templateKey: null, to: null, vars: {} },
       },
     ],
   };
@@ -139,7 +139,8 @@ describe('42 — the automations routes', () => {
       name: 'Welcome',
       subject: 'Welcome',
       enabled: true,
-      blocks: [{ id: 'b1', block: 'email.text', data: { text: 'Hi.' } }],
+      blocks: [{ id: 'b1', block: 'email.text', data: { text: 'Hi {{ first_name }}, {{record.full_name}}.' } }],
+      footer: 'Sent by {{appName}} · {{first_name}}',
     } as never);
 
     sqlite
@@ -325,7 +326,7 @@ describe('42 — the automations routes', () => {
               kind: 'action',
               title: 'Send email',
               onError: false,
-              action: { kind: 'email', templateKey: 'ghost', to: { kind: 'field', column: 'email' } },
+              action: { kind: 'email', templateKey: 'ghost', to: { kind: 'field', column: 'email' }, vars: {} },
             },
           ],
         },
@@ -518,7 +519,7 @@ describe('42 — the automations routes', () => {
           columns: { name: string; pii: boolean; dateLike: boolean }[];
         }[];
       }[];
-      templates: { key: string }[];
+      templates: { key: string; placeholders: string[]; ownedByApp: boolean }[];
     };
     const users = body.connections[0]?.tables.find((table) => table.id === 'main.users');
     expect(users?.watch).toEqual({ created: 'created_at', updated: 'updated_at' });
@@ -526,6 +527,11 @@ describe('42 — the automations routes', () => {
     expect(users?.columns.find((c) => c.name === 'email')?.pii).toBe(true);
     expect(users?.columns.find((c) => c.name === 'created_at')?.dateLike).toBe(true);
     expect(body.templates.map((row) => row.key)).toContain('welcome');
+    // Each placeholder once, in reading order, so the step can say which it fills.
+    expect(body.templates.find((row) => row.key === 'welcome')).toMatchObject({
+      placeholders: ['first_name', 'record.full_name', 'appName'],
+      ownedByApp: false,
+    });
 
     // The editor sees the same tables with `canUpdate` false — the select can
     // grey the option rather than letting a save 403 later.

@@ -80,7 +80,8 @@ export default {
     "incomplete": "Nejdřív dokončete „{step}“, pak pravidlo zapněte",
     "duplicated": "{name} duplikováno",
     "deleted": "{name} smazáno",
-    "failed": "Neuložilo se — {reason}"
+    "failed": "Neuložilo se — {reason}",
+    "unfilled": "„{step}“ odešle {names} tak, jak je napsáno — nic to nevyplní"
   },
   "canvas": {
     "insert": "Vložit krok sem",
@@ -265,7 +266,19 @@ export default {
     "toField": "E-mail tohoto záznamu",
     "toFixed": "Adresy",
     "column": "Sloupec",
-    "addresses": "Přidat adresu…"
+    "addresses": "Přidat adresu…",
+    "placeholders": "Zástupné symboly",
+    "ph": {
+      "appOwned": "Tato šablona patří aplikaci, která je při odesílání vyplňuje sama. Pravidlo vyplní jen to, co je zde označeno.",
+      "hint": "Co šablona čte a co každý symbol vyplní.",
+      "record": "Z tohoto záznamu",
+      "rule": "Vyplní pravidlo",
+      "mapped": "Vyplní tento krok",
+      "unfilled": "Nevyplněno",
+      "fillWith": "Vyplnit {token} hodnotou",
+      "text": "Text",
+      "textFor": "Text pro {token}"
+    }
   },
   "notif": {
     "to": "Odeslat komu",
@@ -378,7 +391,8 @@ export default {
       "fail": "CHYBA · {reason}",
       "would": "Odeslalo by „{subject}“ na {to}",
       "noSmtp": "SMTP není nastaveno — Nastavení → E-mail",
-      "noRecipient": "Bez příjemce: {column} je prázdné"
+      "noRecipient": "Bez příjemce: {column} je prázdné",
+      "unfilled": "nic nevyplnilo {names}"
     },
     "notif": {
       "ok": "upozorněno {count, plural, one {# člověk} few {# lidé} many {# lidí} other {# lidí}}"

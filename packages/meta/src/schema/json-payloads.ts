@@ -1533,6 +1533,16 @@ export const automationActionSchema = z.discriminatedUnion('kind', [
      * falling back. */
     templateKey: z.string().max(120).nullable().default(null),
     to: automationEmailRecipientSchema.nullable().default(null),
+    /**
+     * What fills a placeholder of the template that the record does not:
+     * the placeholder's name → a text, which may carry `{{record.x}}` tokens
+     * like every other field of a rule. A name the record already fills is
+     * overridden by its entry here.
+     */
+    vars: z
+      .record(z.string().regex(/^[A-Za-z0-9_.-]{1,120}$/), z.string().max(2000))
+      .refine((value) => Object.keys(value).length <= 60, 'At most 60 placeholders')
+      .default({}),
   }),
   z.object({
     kind: z.literal('notification'),

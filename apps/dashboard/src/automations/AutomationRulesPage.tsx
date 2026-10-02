@@ -64,6 +64,7 @@ import {
   type InsertTarget,
   type StepDefinition,
 } from './model/ops.js';
+import { firstUnfilledEmail, listPlaceholders } from './model/placeholders.js';
 import { firstIncompleteNode } from './model/validate.js';
 import { subLineFor, triggerSentence } from './model/summaries.js';
 
@@ -147,14 +148,34 @@ export function AutomationRulesPage(): ReactNode {
     [selected],
   );
 
+  /**
+   * Saved or switched on, and said: an email step whose template reads a
+   * placeholder nothing fills still sends — with the braces in it. A warning
+   * rather than a refusal, so the toast names the step and the inspector
+   * opens on it, where each one can be filled.
+   */
+  const warnUnfilled = (rule: RuleView): void => {
+    const found = firstUnfilledEmail(rule.graph, sources.data ?? null, tableForTrigger(sources.data ?? null, rule.trigger));
+    if (found === null) return;
+    toasts.push({
+      variant: 'warning',
+      title: t('automations:toast.unfilled', '“{step}” will send {names} as written — nothing fills it', {
+        step: found.node.title,
+        names: listPlaceholders(found.names),
+      }),
+    });
+    setInspectId(found.node.id);
+  };
+
   const save = useMutation({
     mutationFn: async () => {
       if (draft === null) throw new Error('nothing to save');
       return automationsApi.patch(draft.id, { graph: draft.graph, trigger: draft.trigger });
     },
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
       setDraft(null);
       toastSuccess(t('automations:toast.saved', 'Rule saved'));
+      warnUnfilled(updated);
       await invalidateRules(queryClient);
     },
     onError: (error: Error) => {
@@ -176,6 +197,7 @@ export function AutomationRulesPage(): ReactNode {
           ? t('automations:toast.enabled', '{name} is on', { name: updated.name })
           : t('automations:toast.paused', '{name} is paused', { name: updated.name }),
       );
+      if (updated.enabled) warnUnfilled(updated);
       await invalidateRules(queryClient);
     },
     onError: (error: Error & { details?: { nodeId?: string; nodeTitle?: string } }) => {

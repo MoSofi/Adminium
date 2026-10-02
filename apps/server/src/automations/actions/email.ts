@@ -32,9 +32,11 @@
  */
 
 import {
+  connectionTenantConfig,
   emailTemplatesRepo,
   settingsRepo,
   type AutomationAction,
+  type EmailTemplate,
   type MetaDb,
 } from '@adminium/meta';
 
@@ -43,9 +45,11 @@ import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../../em
 import { deliverPrepared } from '../../email/deliver.js';
 import { renderEmail } from '../../email/render.js';
 import { inlineRefs, prepareEmail } from '../../email/send.js';
+import { formatTag } from '../../i18n/bcp47.js';
 import { recipientLocale } from '../../i18n/server-i18n.js';
 import { resolveEmailParts } from '../../jobs/email-send.js';
-import { tokensFor } from '../templating.js';
+import { placeholders, valueForms } from '../../outbox/sender.js';
+import { substitute, tokensFor, type TokenMap } from '../templating.js';
 import { ActionFailure, type ActionContext, type ActionResult } from './types.js';
 
 type EmailAction = Extract<AutomationAction, { kind: 'email' }>;
@@ -95,12 +99,72 @@ async function existsInAnyLocale(meta: MetaDb, key: string, locale: string): Pro
 }
 
 /**
+ * Every placeholder a template reads, in the order it reads them. A
+ * `{{row.*}}` is left out: it belongs to the rows a list block draws, and a
+ * rule's email draws none.
+ */
+export function templatePlaceholders(
+  template: Pick<EmailTemplate, 'subject' | 'preheader' | 'blocks' | 'footer'>,
+): string[] {
+  return [...placeholders([template.subject, template.preheader, template.blocks, template.footer])].filter(
+    (name) => !name.startsWith('row.'),
+  );
+}
+
+/** What every rule's email can read whatever its record is. */
+export const RULE_EMAIL_VARS = ['now', 'ruleName', 'recordLabel', 'appName'] as const;
+
+/**
+ * A record's dates and money as a person reads them — "Friday, October 2,
+ * 2026 at 3:00 PM" and "$23.82", in the template's language, on the
+ * connection's clock and in its currency — where the stored value is an
+ * ISO stamp and a bare `23.82`. Only a MAIL reads these: a rule's own fields
+ * (a webhook body, a written column) keep the stored value, which is what a
+ * machine on the other end expects.
+ */
+async function formattedValues(ctx: ActionContext, locale: string): Promise<TokenMap> {
+  const source = ctx.source;
+  if (source === null) return {};
+  const tenant = await connectionTenantConfig(ctx.meta, source.connectionId);
+  const forms = valueForms({
+    locale: formatTag(null, locale),
+    zone: tenant?.timezone ?? 'UTC',
+    currency: tenant?.currency ?? null,
+    now: ctx.now,
+  });
+  // A row that keeps its own currency prints its money in it.
+  const own = source.table.columns.has('currency') ? source.row['currency'] : null;
+  const currency = typeof own === 'string' && /^[A-Za-z]{3}$/.test(own.trim()) ? own.trim().toUpperCase() : null;
+  const out: TokenMap = {};
+  for (const [name, column] of source.table.columns) {
+    const value = source.row[name];
+    if (value === null || value === undefined || value === '') continue;
+    let text: string | undefined;
+    if (column.logicalType === 'timestamp' || column.logicalType === 'timestamptz') {
+      text = forms.instant(name, value)[name];
+    } else if (column.logicalType === 'date') {
+      text = forms.day(name, value)[name];
+    } else if (source.table.table.columns.find((c) => c.name === name)?.semantics?.primary === 'money') {
+      text = forms.money(value, currency);
+    }
+    if (text === undefined) continue;
+    out[`record.${name}`] = text;
+    out[name] = text;
+  }
+  return out;
+}
+
+/**
  * The template's `vars`: every token the rule's fields see (D16's one
  * grammar) plus the record's masked-column values, which a TEMPLATE may show
  * even though a rule FIELD may not — the mail goes to the person the data is
  * about, and "Hi {{full_name}}" is the whole point of a welcome email.
+ *
+ * Then the step's own `vars`, last, so they win: a template is written once
+ * and sent about many tables, and `{{first_name}}` on a table whose column
+ * is `name` is filled by the step saying so, not by renaming a column.
  */
-async function varsFor(ctx: ActionContext): Promise<Record<string, string>> {
+async function varsFor(action: EmailAction, ctx: ActionContext, locale: string): Promise<Record<string, string>> {
   const appName = await settingsRepo(ctx.meta).get('branding.appName');
   const unmasked =
     ctx.source === null
@@ -113,7 +177,21 @@ async function varsFor(ctx: ActionContext): Promise<Record<string, string>> {
           now: ctx.now,
           includeMasked: true,
         });
-  return { ...ctx.tokens, ...unmasked, appName };
+  const read: Record<string, string> = { ...ctx.tokens, ...unmasked, ...(await formattedValues(ctx, locale)), appName };
+  const mapped: Record<string, string> = {};
+  for (const [name, text] of Object.entries(action.vars)) mapped[name] = substitute(text, read);
+  return { ...read, ...mapped };
+}
+
+/** The placeholders of the template that this send leaves as written. */
+function unfilledIn(template: EmailTemplate, vars: Record<string, string>): string[] {
+  return templatePlaceholders(template).filter((name) => !Object.hasOwn(vars, name));
+}
+
+/** `{{a}}, {{b}}` — at most five named, the rest counted. */
+function listed(names: readonly string[]): string {
+  const shown = names.slice(0, 5).map((name) => `{{${name}}}`).join(', ');
+  return names.length > 5 ? `${shown} +${String(names.length - 5)}` : shown;
 }
 
 export async function runEmailAction(
@@ -126,7 +204,7 @@ export async function runEmailAction(
   if (config === null) throw new ActionFailure(ctx.text.emailNoSmtp());
 
   const prepared = await prepareEmail(ctx.meta, template);
-  const vars = await varsFor(ctx);
+  const vars = await varsFor(action, ctx, template.locale);
   const probe = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
   const parts = await resolveEmailParts(
     { meta: ctx.meta, secret: ctx.secret, ...(ctx.storage === undefined ? {} : { storage: ctx.storage }) },
@@ -145,6 +223,10 @@ export async function runEmailAction(
       );
     }
   }
+  // Sent, and said: a placeholder nothing fills goes out as written, so the
+  // line under the step is where an operator learns which one.
+  const unfilled = unfilledIn(template, vars);
+  if (unfilled.length > 0) replies.push(ctx.text.emailUnfilled(listed(unfilled)));
   return { log: replies.join(' · ') };
 }
 
@@ -156,11 +238,9 @@ export async function dryRunEmailAction(
   // Everything the real send does except the last line: the document is
   // resolved and RENDERED, so a broken template fails the test too.
   const prepared = await prepareEmail(ctx.meta, template);
-  const rendered = renderEmail({
-    ...prepared.render,
-    locale: template.locale,
-    vars: await varsFor(ctx),
-    dir: 'ltr',
-  });
-  return { log: ctx.text.emailWould(rendered.subject, recipients.join(', ')) };
+  const vars = await varsFor(action, ctx, template.locale);
+  const rendered = renderEmail({ ...prepared.render, locale: template.locale, vars, dir: 'ltr' });
+  const would = ctx.text.emailWould(rendered.subject, recipients.join(', '));
+  const unfilled = unfilledIn(template, vars);
+  return { log: unfilled.length === 0 ? would : `${would} · ${ctx.text.emailUnfilled(listed(unfilled))}` };
 }

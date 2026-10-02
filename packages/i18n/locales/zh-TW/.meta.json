@@ -1035,6 +1035,46 @@
     "status": "mt",
     "srcHash": "65ba00e95e60"
   },
+  "automations.email.ph.appOwned": {
+    "status": "mt",
+    "srcHash": "c7acf6051823"
+  },
+  "automations.email.ph.fillWith": {
+    "status": "mt",
+    "srcHash": "34730473ca55"
+  },
+  "automations.email.ph.hint": {
+    "status": "mt",
+    "srcHash": "e35597bd238d"
+  },
+  "automations.email.ph.mapped": {
+    "status": "mt",
+    "srcHash": "3ea111e99309"
+  },
+  "automations.email.ph.record": {
+    "status": "mt",
+    "srcHash": "c1ba2f1e8048"
+  },
+  "automations.email.ph.rule": {
+    "status": "mt",
+    "srcHash": "b42d06bdcf80"
+  },
+  "automations.email.ph.text": {
+    "status": "mt",
+    "srcHash": "d7a39fea42fa"
+  },
+  "automations.email.ph.textFor": {
+    "status": "mt",
+    "srcHash": "6e56720e13eb"
+  },
+  "automations.email.ph.unfilled": {
+    "status": "mt",
+    "srcHash": "a1c37be84362"
+  },
+  "automations.email.placeholders": {
+    "status": "mt",
+    "srcHash": "b62930d0710d"
+  },
   "automations.email.template": {
     "status": "mt",
     "srcHash": "3ec1ae061c27"
@@ -1899,6 +1939,10 @@
     "status": "mt",
     "srcHash": "d5142c46ae93"
   },
+  "automations.toast.unfilled": {
+    "status": "mt",
+    "srcHash": "a218c51d191e"
+  },
   "automations.trace.branch": {
     "status": "mt",
     "srcHash": "2b3802383278"
@@ -1938,6 +1982,10 @@
   "automations.trace.email.ok": {
     "status": "mt",
     "srcHash": "0f66631a00b7"
+  },
+  "automations.trace.email.unfilled": {
+    "status": "mt",
+    "srcHash": "0612a69bbace"
   },
   "automations.trace.email.would": {
     "status": "mt",

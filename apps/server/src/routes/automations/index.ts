@@ -50,6 +50,7 @@ import type { ResolvedTable } from '../../crud/identifiers.js';
 import { pkLabel } from '../../crud/records.js';
 import type { Row } from '../../crud/mask.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
+import { templatePlaceholders } from '../../automations/actions/email.js';
 import { nextTickFor } from '../../automations/schedule.js';
 import { walkRule, type RunnerDeps } from '../../automations/runner.js';
 import { firstIncompleteNode, requiredGrants, resolveRule } from '../../automations/validate.js';
@@ -271,7 +272,12 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           connections: out,
           templates: templates
             .filter((row) => row.enabled && row.locale === 'en_US')
-            .map((row) => ({ key: row.key, name: row.name })),
+            .map((row) => ({
+              key: row.key,
+              name: row.name,
+              placeholders: templatePlaceholders(row),
+              ownedByApp: row.managedBy !== null,
+            })),
           roles: roles.map((role) => ({ id: role.id, name: role.name })),
         };
       },

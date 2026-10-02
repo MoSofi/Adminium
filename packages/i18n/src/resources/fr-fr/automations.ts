@@ -80,7 +80,8 @@ export default {
     "incomplete": "Terminez « {step} » avant d'activer cette règle",
     "duplicated": "{name} dupliquée",
     "deleted": "{name} supprimée",
-    "failed": "Cela n'a pas été enregistré — {reason}"
+    "failed": "Cela n'a pas été enregistré — {reason}",
+    "unfilled": "« {step} » enverra {names} tel quel — rien ne le remplit"
   },
   "canvas": {
     "insert": "Insérer une étape ici",
@@ -265,7 +266,19 @@ export default {
     "toField": "L'e-mail de cet enregistrement",
     "toFixed": "Adresses",
     "column": "Colonne",
-    "addresses": "Ajouter une adresse…"
+    "addresses": "Ajouter une adresse…",
+    "placeholders": "Variables",
+    "ph": {
+      "appOwned": "Ce modèle appartient à une application, qui remplit elle-même ces variables à l’envoi. Une règle ne remplit que ce qui est indiqué ici.",
+      "hint": "Ce que lit le modèle, et ce qui remplit chaque variable.",
+      "record": "Depuis cet enregistrement",
+      "rule": "Remplie par la règle",
+      "mapped": "Remplie par cette étape",
+      "unfilled": "Non remplie",
+      "fillWith": "Remplir {token} avec",
+      "text": "Un texte",
+      "textFor": "Texte pour {token}"
+    }
   },
   "notif": {
     "to": "Envoyer à",
@@ -378,7 +391,8 @@ export default {
       "fail": "ERREUR · {reason}",
       "would": "Enverrait « {subject} » à {to}",
       "noSmtp": "SMTP n'est pas configuré — Réglages → E-mail",
-      "noRecipient": "Aucun destinataire : {column} est vide"
+      "noRecipient": "Aucun destinataire : {column} est vide",
+      "unfilled": "rien n’a rempli {names}"
     },
     "notif": {
       "ok": "{count, plural, one {# personne} other {# personnes}} prévenue(s)"

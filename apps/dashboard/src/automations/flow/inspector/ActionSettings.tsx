@@ -26,6 +26,7 @@ import { useId, type ReactNode } from 'react';
 import { t } from '../../../i18n/t.js';
 import type { SourceTable, Sources } from '../../api.js';
 import type { Action, WriteValue } from '../../model/graph.js';
+import { columnOfValue, placeholderRows, templateOf, varsFor, type PlaceholderRow } from '../../model/placeholders.js';
 import { Card, Field } from './primitives.js';
 
 export interface ActionSettingsProps {
@@ -82,13 +83,24 @@ function EmailSettings({
 }: ActionSettingsProps & { action: Extract<Action, { kind: 'email' }> }): ReactNode {
   const to = action.to;
   const columns = table?.columns ?? [];
+  const template = templateOf(sources, action);
+  const rows = placeholderRows(action, template, table);
+  const setVar = (name: string, value: string | null): void => {
+    const next = { ...(action.vars ?? {}) };
+    if (value === null) delete next[name];
+    else next[name] = value;
+    onChange({ vars: next } as Partial<Action>);
+  };
   return (
     <Card title={t('automations:pick.email', 'Send email')}>
       <Field label={t('automations:email.template', 'Template')}>
         <Select
           value={action.templateKey ?? ''}
           onChange={(event) => {
-            onChange({ templateKey: event.target.value === '' ? null : event.target.value });
+            const templateKey = event.target.value === '' ? null : event.target.value;
+            // What the step fills belongs to the template it was filled for.
+            const picked = sources?.templates.find((row) => row.key === templateKey) ?? null;
+            onChange({ templateKey, vars: varsFor(action, picked) } as Partial<Action>);
           }}
           data-testid="email-template"
         >
@@ -152,7 +164,99 @@ function EmailSettings({
           />
         </Field>
       ) : null}
+
+      {rows.length > 0 ? (
+        <div className="flex flex-col gap-2" data-testid="email-placeholders">
+          <div className="text-[11.5px] font-bold">{t('automations:email.placeholders', 'Placeholders')}</div>
+          <div className="text-[11px] text-fg-subtle">
+            {template?.ownedByApp === true
+              ? t(
+                  'automations:email.ph.appOwned',
+                  'This template belongs to an app, which fills these itself when it sends. A rule fills only what is marked here.',
+                )
+              : t('automations:email.ph.hint', 'What the template reads, and what fills each one.')}
+          </div>
+          {rows.map((row) => (
+            <PlaceholderLine key={row.name} row={row} value={action.vars?.[row.name]} table={table} onChange={setVar} />
+          ))}
+        </div>
+      ) : null}
     </Card>
+  );
+}
+
+/**
+ * One placeholder: its name, what fills it, and — where the record does not —
+ * the choice of a column or a text. The choice is ONE select, because "which
+ * column" and "no column, this text" are the same question to the person
+ * answering it; the text box appears only for the answer that needs it.
+ */
+function PlaceholderLine({
+  row,
+  value,
+  table,
+  onChange,
+}: {
+  row: PlaceholderRow;
+  value: string | undefined;
+  table: SourceTable | null;
+  onChange: (name: string, value: string | null) => void;
+}): ReactNode {
+  const token = `{{${row.name}}}`;
+  const filled = row.state === 'record' || row.state === 'rule';
+  const column = value === undefined ? null : columnOfValue(value, table);
+  const mode = value === undefined ? '' : column === null ? 'text' : `column:${column}`;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-surface px-2.5 py-2" data-testid={`email-ph-${row.name}`}>
+      <div className="flex items-center justify-between gap-2">
+        <code className="min-w-0 truncate font-mono text-[11.5px]">{token}</code>
+        <span
+          className={`shrink-0 text-[11px] font-bold ${row.state === 'unfilled' ? 'text-warn' : 'text-fg-muted'}`}
+          data-testid={`email-ph-state-${row.name}`}
+        >
+          {row.state === 'record'
+            ? t('automations:email.ph.record', 'From this record')
+            : row.state === 'rule'
+              ? t('automations:email.ph.rule', 'Filled by the rule')
+              : row.state === 'mapped'
+                ? t('automations:email.ph.mapped', 'Filled by this step')
+                : t('automations:email.ph.unfilled', 'Not filled')}
+        </span>
+      </div>
+      {filled ? null : (
+        <>
+          <Select
+            value={mode}
+            aria-label={t('automations:email.ph.fillWith', 'Fill {token} with', { token })}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === '') onChange(row.name, null);
+              else if (next === 'text') onChange(row.name, column === null ? (value ?? '') : '');
+              else onChange(row.name, `{{record.${next.slice('column:'.length)}}}`);
+            }}
+            data-testid={`email-ph-fill-${row.name}`}
+          >
+            <option value="">{t('automations:email.ph.unfilled', 'Not filled')}</option>
+            <option value="text">{t('automations:email.ph.text', 'A text')}</option>
+            {(table?.columns ?? []).map((candidate) => (
+              <option key={candidate.name} value={`column:${candidate.name}`}>
+                {candidate.label}
+              </option>
+            ))}
+          </Select>
+          {mode === 'text' ? (
+            <Input
+              value={value ?? ''}
+              aria-label={t('automations:email.ph.textFor', 'Text for {token}', { token })}
+              onChange={(event) => {
+                onChange(row.name, event.target.value);
+              }}
+              data-testid={`email-ph-text-${row.name}`}
+            />
+          ) : null}
+        </>
+      )}
+    </div>
   );
 }
 

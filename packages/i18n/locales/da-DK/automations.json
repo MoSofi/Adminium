@@ -70,7 +70,8 @@
     "incomplete": "Færdiggør “{step}”, før du slår reglen til",
     "duplicated": "{name} duplikeret",
     "deleted": "{name} slettet",
-    "failed": "Det blev ikke gemt — {reason}"
+    "failed": "Det blev ikke gemt — {reason}",
+    "unfilled": "“{step}” sender {names} som skrevet — intet udfylder det"
   },
   "canvas": {
     "insert": "Indsæt trin her",
@@ -255,7 +256,19 @@
     "toField": "Denne posts e-mail",
     "toFixed": "Adresser",
     "column": "Kolonne",
-    "addresses": "Tilføj en adresse…"
+    "addresses": "Tilføj en adresse…",
+    "placeholders": "Pladsholdere",
+    "ph": {
+      "appOwned": "Denne skabelon tilhører en app, som selv udfylder dem, når den sender. En regel udfylder kun det, der er markeret her.",
+      "hint": "Hvad skabelonen læser, og hvad der udfylder hver enkelt.",
+      "record": "Fra denne post",
+      "rule": "Udfyldt af reglen",
+      "mapped": "Udfyldt af dette trin",
+      "unfilled": "Ikke udfyldt",
+      "fillWith": "Udfyld {token} med",
+      "text": "En tekst",
+      "textFor": "Tekst til {token}"
+    }
   },
   "notif": {
     "to": "Send til",
@@ -368,7 +381,8 @@
       "fail": "FEJL · {reason}",
       "would": "Ville sende “{subject}” til {to}",
       "noSmtp": "SMTP er ikke sat op — Indstillinger → E-mail",
-      "noRecipient": "Ingen modtager: {column} er tom"
+      "noRecipient": "Ingen modtager: {column} er tom",
+      "unfilled": "intet udfyldte {names}"
     },
     "notif": {
       "ok": "gav besked til {count, plural, one {# person} other {# personer}}"

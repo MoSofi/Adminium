@@ -67,7 +67,17 @@ export type NotificationAudience = { roles: string[] } | { users: string[] };
 export type WriteValue = string | { now: true };
 
 export type Action =
-  | { kind: 'email'; templateKey: string | null; to: EmailRecipient | null }
+  | {
+      kind: 'email';
+      templateKey: string | null;
+      to: EmailRecipient | null;
+      /**
+       * What fills a placeholder the record does not: its name → a text,
+       * which may carry `{{record.column}}`. Absent on a step written before
+       * a step could say.
+       */
+      vars?: Record<string, string> | undefined;
+    }
   | {
       kind: 'notification';
       to: NotificationAudience | null;

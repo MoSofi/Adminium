@@ -171,3 +171,67 @@ describe('ActionSettings — a webhook header value', () => {
     expect(valueBox().disabled).toBe(true);
   });
 });
+
+describe('ActionSettings — an email step’s placeholders', () => {
+  const ORDERS = table('main.orders', 'orders', { columns: [column('name'), column('total')] });
+  const WITH_TEMPLATES: Sources = {
+    ...SOURCES,
+    templates: [
+      { key: 'thanks', name: 'Thanks', placeholders: ['first_name', 'total', 'appName'], ownedByApp: false },
+      { key: 'ready', name: 'Order ready', placeholders: ['order.number'], ownedByApp: true },
+      { key: 'plain', name: 'Plain', placeholders: [], ownedByApp: false },
+    ],
+  };
+
+  function renderEmail(action: Extract<Action, { kind: 'email' }>) {
+    const onChange = vi.fn();
+    render(<ActionSettings action={action} sources={WITH_TEMPLATES} table={ORDERS} connectionId="cnx_1" onChange={onChange} />);
+    return { onChange, user: userEvent.setup() };
+  }
+
+  const state = (name: string): string | null => screen.getByTestId(`email-ph-state-${name}`).textContent;
+
+  it('lists what the template reads and says what fills each one', () => {
+    renderEmail({ kind: 'email', templateKey: 'thanks', to: null });
+    expect(state('first_name')).toBe('Not filled');
+    expect(state('total')).toBe('From this record');
+    expect(state('appName')).toBe('Filled by the rule');
+    // Only the one the record does not fill asks what should.
+    expect(screen.getAllByRole('combobox', { name: /^Fill / }).map((box) => box.getAttribute('aria-label'))).toEqual([
+      'Fill {{first_name}} with',
+    ]);
+  });
+
+  it('fills one from a column, or from a text typed for it', async () => {
+    const { user, onChange } = renderEmail({ kind: 'email', templateKey: 'thanks', to: null });
+    await user.selectOptions(screen.getByTestId('email-ph-fill-first_name'), 'name');
+    expect(onChange).toHaveBeenLastCalledWith({ vars: { first_name: '{{record.name}}' } });
+    await user.selectOptions(screen.getByTestId('email-ph-fill-first_name'), 'A text');
+    expect(onChange).toHaveBeenLastCalledWith({ vars: { first_name: '' } });
+  });
+
+  it('shows a mapped one as filled by the step, with its text to edit, and un-fills it', async () => {
+    const { user, onChange } = renderEmail({ kind: 'email', templateKey: 'thanks', to: null, vars: { first_name: 'friend' } });
+    expect(state('first_name')).toBe('Filled by this step');
+    expect((screen.getByRole('textbox', { name: 'Text for {{first_name}}' }) as HTMLInputElement).value).toBe('friend');
+    await user.selectOptions(screen.getByTestId('email-ph-fill-first_name'), 'Not filled');
+    expect(onChange).toHaveBeenLastCalledWith({ vars: {} });
+  });
+
+  it('says so when the template is an app’s own, and shows nothing for a template that reads nothing', () => {
+    const { unmount } = render(
+      <ActionSettings action={{ kind: 'email', templateKey: 'ready', to: null }} sources={WITH_TEMPLATES} table={ORDERS} connectionId="cnx_1" onChange={vi.fn()} />,
+    );
+    expect(screen.getByTestId('email-placeholders').textContent).toContain('This template belongs to an app');
+    expect(state('order.number')).toBe('Not filled');
+    unmount();
+    renderEmail({ kind: 'email', templateKey: 'plain', to: null });
+    expect(screen.queryByTestId('email-placeholders')).toBeNull();
+  });
+
+  it('picking another template keeps only the entries it reads', async () => {
+    const { user, onChange } = renderEmail({ kind: 'email', templateKey: 'thanks', to: null, vars: { first_name: 'friend' } });
+    await user.selectOptions(screen.getByTestId('email-template'), 'Order ready');
+    expect(onChange).toHaveBeenLastCalledWith({ templateKey: 'ready', vars: {} });
+  });
+});

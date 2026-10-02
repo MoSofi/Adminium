@@ -80,7 +80,8 @@ export default {
     "incomplete": "先完成“{step}”，再启用这条规则",
     "duplicated": "已复制 {name}",
     "deleted": "已删除 {name}",
-    "failed": "未能保存 — {reason}"
+    "failed": "未能保存 — {reason}",
+    "unfilled": "“{step}”将原样发送 {names} — 没有内容填充它"
   },
   "canvas": {
     "insert": "在此插入步骤",
@@ -265,7 +266,19 @@ export default {
     "toField": "本记录的邮箱",
     "toFixed": "地址",
     "column": "列",
-    "addresses": "添加地址…"
+    "addresses": "添加地址…",
+    "placeholders": "占位符",
+    "ph": {
+      "appOwned": "此模板属于某个应用，发送时由该应用自行填充。规则只填充此处标明的内容。",
+      "hint": "模板读取的内容，以及每一项由什么填充。",
+      "record": "来自此记录",
+      "rule": "由规则填充",
+      "mapped": "由此步骤填充",
+      "unfilled": "未填充",
+      "fillWith": "{token} 的填充内容",
+      "text": "一段文字",
+      "textFor": "{token} 的文字"
+    }
   },
   "notif": {
     "to": "发送给",
@@ -378,7 +391,8 @@ export default {
       "fail": "错误 · {reason}",
       "would": "将把“{subject}”发送至 {to}",
       "noSmtp": "未配置 SMTP — 设置 → 邮件",
-      "noRecipient": "没有收件人：{column} 为空"
+      "noRecipient": "没有收件人：{column} 为空",
+      "unfilled": "没有内容填充 {names}"
     },
     "notif": {
       "ok": "已通知 {count, plural, other {# 人}}"

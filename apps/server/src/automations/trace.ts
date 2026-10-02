@@ -56,6 +56,8 @@ export interface TraceText {
   emailWould(subject: string, to: string): string;
   emailNoSmtp(): string;
   emailNoRecipient(column: string): string;
+  /** `names` is the placeholders as written, already listed: `{{a}}, {{b}}`. */
+  emailUnfilled(names: string): string;
   notifOk(n: number): string;
   createOk(label: string): string;
   updateOk(pairs: string): string;
@@ -88,6 +90,7 @@ export const TRACE_EN: TraceText = {
   emailWould: (subject, to) => `Would send “${subject}” to ${to}`,
   emailNoSmtp: () => 'SMTP is not configured — Settings → Email',
   emailNoRecipient: (column) => `No recipient: ${column} is empty`,
+  emailUnfilled: (names) => `nothing filled ${names}`,
   notifOk: (n) => `notified ${String(n)} ${n === 1 ? 'person' : 'people'}`,
   createOk: (label) => `created ${label}`,
   updateOk: (pairs) => `set ${pairs}`,

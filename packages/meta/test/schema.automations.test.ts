@@ -178,7 +178,25 @@ describe('automation stored shapes — the owner’s examples', () => {
     if (node?.kind !== 'action' || node.action.kind !== 'email') throw new Error('expected email');
     expect(node.action.templateKey).toBeNull();
     expect(node.action.to).toBeNull();
+    // A step stored before a step could say what fills a placeholder reads as one that says nothing.
+    expect(node.action.vars).toEqual({});
     expect(node.onError).toBe(false);
+  });
+
+  it('an email step keeps what fills a placeholder, by the placeholder\'s own name', () => {
+    const email = (vars: unknown) =>
+      automationGraphSchema.safeParse({
+        version: 1,
+        nodes: [
+          { id: 'n1', kind: 'trigger', title: 'T' },
+          { id: 'n2', kind: 'action', title: 'Send email', action: { kind: 'email', vars } },
+        ],
+      });
+    expect(email({ first_name: '{{record.name}}', 'order.number': '' }).success).toBe(true);
+    // A name is what a template can write between its braces, and nothing else.
+    expect(email({ 'first name': 'x' }).success).toBe(false);
+    expect(email({ first_name: 'x'.repeat(2001) }).success).toBe(false);
+    expect(email(Object.fromEntries(Array.from({ length: 61 }, (_, i) => [`p${String(i)}`, 'x']))).success).toBe(false);
   });
 });
 

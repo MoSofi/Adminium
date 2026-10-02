@@ -147,7 +147,16 @@ export const automationSourcesReply = z.object({
     }),
   ),
   /** Live template keys for the email step's select. */
-  templates: z.array(z.object({ key: z.string(), name: z.string() })),
+  templates: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      /** Every `{{name}}` the template reads, in reading order. */
+      placeholders: z.array(z.string()),
+      /** An app shipped it, and that app's own sender is what fills it. */
+      ownedByApp: z.boolean(),
+    }),
+  ),
   /** Roles a notification can address. */
   roles: z.array(z.object({ id: z.string(), name: z.string() })),
 });

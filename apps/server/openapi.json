@@ -17292,12 +17292,25 @@
                                                           "type": "null"
                                                         }
                                                       ]
+                                                    },
+                                                    "vars": {
+                                                      "default": {},
+                                                      "type": "object",
+                                                      "propertyNames": {
+                                                        "type": "string",
+                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                      },
+                                                      "additionalProperties": {
+                                                        "type": "string",
+                                                        "maxLength": 2000
+                                                      }
                                                     }
                                                   },
                                                   "required": [
                                                     "kind",
                                                     "templateKey",
-                                                    "to"
+                                                    "to",
+                                                    "vars"
                                                   ],
                                                   "additionalProperties": false
                                                 },
@@ -18226,12 +18239,25 @@
                                                                                 "type": "null"
                                                                               }
                                                                             ]
+                                                                          },
+                                                                          "vars": {
+                                                                            "default": {},
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            }
                                                                           }
                                                                         },
                                                                         "required": [
                                                                           "kind",
                                                                           "templateKey",
-                                                                          "to"
+                                                                          "to",
+                                                                          "vars"
                                                                         ],
                                                                         "additionalProperties": false
                                                                       },
@@ -19011,12 +19037,25 @@
                                                                                 "type": "null"
                                                                               }
                                                                             ]
+                                                                          },
+                                                                          "vars": {
+                                                                            "default": {},
+                                                                            "type": "object",
+                                                                            "propertyNames": {
+                                                                              "type": "string",
+                                                                              "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                            },
+                                                                            "additionalProperties": {
+                                                                              "type": "string",
+                                                                              "maxLength": 2000
+                                                                            }
                                                                           }
                                                                         },
                                                                         "required": [
                                                                           "kind",
                                                                           "templateKey",
-                                                                          "to"
+                                                                          "to",
+                                                                          "vars"
                                                                         ],
                                                                         "additionalProperties": false
                                                                       },
@@ -20572,6 +20611,18 @@
                                                   "type": "null"
                                                 }
                                               ]
+                                            },
+                                            "vars": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
                                             }
                                           },
                                           "required": [
@@ -21458,6 +21509,18 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
@@ -22201,6 +22264,18 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
@@ -23680,12 +23755,25 @@
                                                     "type": "null"
                                                   }
                                                 ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
                                               }
                                             },
                                             "required": [
                                               "kind",
                                               "templateKey",
-                                              "to"
+                                              "to",
+                                              "vars"
                                             ],
                                             "additionalProperties": false
                                           },
@@ -24614,12 +24702,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -25399,12 +25500,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -26425,11 +26539,22 @@
                           },
                           "name": {
                             "type": "string"
+                          },
+                          "placeholders": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "ownedByApp": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
                           "key",
-                          "name"
+                          "name",
+                          "placeholders",
+                          "ownedByApp"
                         ],
                         "additionalProperties": false
                       }
@@ -27324,12 +27449,25 @@
                                                     "type": "null"
                                                   }
                                                 ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
                                               }
                                             },
                                             "required": [
                                               "kind",
                                               "templateKey",
-                                              "to"
+                                              "to",
+                                              "vars"
                                             ],
                                             "additionalProperties": false
                                           },
@@ -28258,12 +28396,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -29043,12 +29194,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -30587,6 +30751,18 @@
                                                   "type": "null"
                                                 }
                                               ]
+                                            },
+                                            "vars": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
                                             }
                                           },
                                           "required": [
@@ -31473,6 +31649,18 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
@@ -32216,6 +32404,18 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
@@ -33700,12 +33900,25 @@
                                                     "type": "null"
                                                   }
                                                 ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
                                               }
                                             },
                                             "required": [
                                               "kind",
                                               "templateKey",
-                                              "to"
+                                              "to",
+                                              "vars"
                                             ],
                                             "additionalProperties": false
                                           },
@@ -34634,12 +34847,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -35419,12 +35645,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -37065,12 +37304,25 @@
                                                     "type": "null"
                                                   }
                                                 ]
+                                              },
+                                              "vars": {
+                                                "default": {},
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string",
+                                                  "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                },
+                                                "additionalProperties": {
+                                                  "type": "string",
+                                                  "maxLength": 2000
+                                                }
                                               }
                                             },
                                             "required": [
                                               "kind",
                                               "templateKey",
-                                              "to"
+                                              "to",
+                                              "vars"
                                             ],
                                             "additionalProperties": false
                                           },
@@ -37999,12 +38251,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -38784,12 +39049,25 @@
                                                                           "type": "null"
                                                                         }
                                                                       ]
+                                                                    },
+                                                                    "vars": {
+                                                                      "default": {},
+                                                                      "type": "object",
+                                                                      "propertyNames": {
+                                                                        "type": "string",
+                                                                        "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                      },
+                                                                      "additionalProperties": {
+                                                                        "type": "string",
+                                                                        "maxLength": 2000
+                                                                      }
                                                                     }
                                                                   },
                                                                   "required": [
                                                                     "kind",
                                                                     "templateKey",
-                                                                    "to"
+                                                                    "to",
+                                                                    "vars"
                                                                   ],
                                                                   "additionalProperties": false
                                                                 },
@@ -40325,6 +40603,18 @@
                                                   "type": "null"
                                                 }
                                               ]
+                                            },
+                                            "vars": {
+                                              "default": {},
+                                              "type": "object",
+                                              "propertyNames": {
+                                                "type": "string",
+                                                "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                              },
+                                              "additionalProperties": {
+                                                "type": "string",
+                                                "maxLength": 2000
+                                              }
                                             }
                                           },
                                           "required": [
@@ -41211,6 +41501,18 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [
@@ -41954,6 +42256,18 @@
                                                                         "type": "null"
                                                                       }
                                                                     ]
+                                                                  },
+                                                                  "vars": {
+                                                                    "default": {},
+                                                                    "type": "object",
+                                                                    "propertyNames": {
+                                                                      "type": "string",
+                                                                      "pattern": "^[A-Za-z0-9_.-]{1,120}$"
+                                                                    },
+                                                                    "additionalProperties": {
+                                                                      "type": "string",
+                                                                      "maxLength": 2000
+                                                                    }
                                                                   }
                                                                 },
                                                                 "required": [

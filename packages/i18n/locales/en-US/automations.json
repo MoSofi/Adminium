@@ -70,7 +70,8 @@
     "incomplete": "Finish “{step}” before switching this rule on",
     "duplicated": "{name} duplicated",
     "deleted": "{name} deleted",
-    "failed": "That did not save — {reason}"
+    "failed": "That did not save — {reason}",
+    "unfilled": "“{step}” will send {names} as written — nothing fills it"
   },
   "canvas": {
     "insert": "Insert step here",
@@ -255,7 +256,19 @@
     "toField": "This record's email",
     "toFixed": "Addresses",
     "column": "Column",
-    "addresses": "Add an address…"
+    "addresses": "Add an address…",
+    "placeholders": "Placeholders",
+    "ph": {
+      "appOwned": "This template belongs to an app, which fills these itself when it sends. A rule fills only what is marked here.",
+      "hint": "What the template reads, and what fills each one.",
+      "record": "From this record",
+      "rule": "Filled by the rule",
+      "mapped": "Filled by this step",
+      "unfilled": "Not filled",
+      "fillWith": "Fill {token} with",
+      "text": "A text",
+      "textFor": "Text for {token}"
+    }
   },
   "notif": {
     "to": "Send to",
@@ -368,7 +381,8 @@
       "fail": "ERROR · {reason}",
       "would": "Would send “{subject}” to {to}",
       "noSmtp": "SMTP is not configured — Settings → Email",
-      "noRecipient": "No recipient: {column} is empty"
+      "noRecipient": "No recipient: {column} is empty",
+      "unfilled": "nothing filled {names}"
     },
     "notif": {
       "ok": "notified {count, plural, one {# person} other {# people}}"
