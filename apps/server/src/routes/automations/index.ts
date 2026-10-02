@@ -221,8 +221,12 @@ export function automationsRoutes(deps: AutomationsRoutesDeps): FastifyPluginAsy
           const offered = addressableTables(view.model);
           const tables = [];
           for (const table of view.model.tables) {
+            // The view indexes neither a system table nor an excluded one, so
+            // both are skipped BEFORE they are resolved: an app installed with
+            // sample data leaves an excluded ledger table behind, and
+            // resolving it answered this whole request with a 422.
+            if (table.system || table.excluded === true) continue;
             const resolved = view.table(`${table.schema}.${table.name}`);
-            if (resolved.table.system === true) continue;
             const permission = (action: string): string =>
               `table:${connection.id}:${resolved.id}:${action}`;
             const page = pages.find((row) => sourceTableOf(row) === resolved.id);

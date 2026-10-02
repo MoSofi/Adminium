@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { jobsRepo, newId, pagesRepo, viewsRepo, type JobsRepo } from '@adminium/meta';
+import { jobsRepo, newId, overridesRepo, pagesRepo, viewsRepo, type JobsRepo } from '@adminium/meta';
 
 import { type FileStore } from '../src/files/store.js';
 import { createTestFileStore } from './helpers/file-store.js';
@@ -173,6 +173,27 @@ describe('export builder reads', () => {
       expect(invoices?.usedBy).toBe(2);
       expect(invoices?.pages).toEqual([{ id: invoicesPageId, title: 'Invoices', columns: 3, linked: 0, totals: 2 }]);
       expect(items?.pages).toEqual([expect.objectContaining({ title: 'Invoice items', columns: 2, linked: 1, totals: 0 })]);
+    });
+
+    it('still lists the sources when a table is hidden — an installed app’s sample ledger is', async () => {
+      // The view does not index an excluded table, so resolving every model
+      // table by id answered the whole request with a 422.
+      const hidden = await overridesRepo(t.meta).create({
+        connectionId: connId,
+        op: 'table.exclude',
+        tableName: 'main.invoice_items',
+        value: { excluded: true },
+        origin: 'app',
+      });
+      try {
+        const { status, body } = await get('editor', `/api/v1/exports/sources?connectionId=${connId}`);
+        expect(status).toBe(200);
+        const ids = (body.data as { tables: { id: string }[] }).tables.map((table) => table.id);
+        expect(ids).toContain('main.invoices');
+        expect(ids).not.toContain('main.invoice_items');
+      } finally {
+        await overridesRepo(t.meta).delete(hidden.id);
+      }
     });
 
     it('answers a caller with no export grant with every table locked, not with a 403', async () => {

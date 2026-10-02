@@ -147,7 +147,9 @@ export async function registerBuilderRoutes(
       const tables = [];
       let handle: { db: Kysely<SourceDatabase> } | null = null;
       for (const modelTable of view.model.tables) {
-        if (modelTable.system) continue;
+        // An excluded table is not in the view either (an installed app's
+        // sample ledger is one), and resolving it would refuse the whole list.
+        if (modelTable.system || modelTable.excluded === true) continue;
         const table = view.table(modelTable.id);
         const canExport = await request.can(`table:${connectionId}:${table.id}:export`);
         let rowCountEstimate = modelTable.rowCountEstimate ?? null;

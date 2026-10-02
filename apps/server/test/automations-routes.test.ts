@@ -27,6 +27,7 @@ import {
   type Job,
   jobsRepo,
   permissionsRepo,
+  overridesRepo,
 } from '@adminium/meta';
 
 import { automationsRoutes } from '../src/routes/automations/index.js';
@@ -533,6 +534,31 @@ describe('42 — the automations routes', () => {
       (table) => table.id === 'main.users',
     );
     expect(editorUsers?.canUpdate).toBe(false);
+  });
+
+  it('still offers sources when a table is hidden — an installed app’s sample ledger is', async () => {
+    /*
+     * Every app installed with sample data leaves one EXCLUDED table behind
+     * (its ledger). The view does not index an excluded table, so resolving
+     * each model table by name threw `UNKNOWN_IDENTIFIER` and the whole reply
+     * was a 422 — the step inspector then drew an email step with no template
+     * and no column to choose.
+     */
+    await overridesRepo(t.meta).create({
+      connectionId,
+      op: 'table.exclude',
+      tableName: 'main.offer_claims',
+      value: { excluded: true },
+      origin: 'app',
+    });
+    const res = await get('/automations/sources');
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { connections: { tables: { id: string }[] }[]; templates: { key: string }[] };
+    const ids = body.connections[0]?.tables.map((table) => table.id) ?? [];
+    expect(ids).toContain('main.users');
+    // A hidden table is not offered: a rule could not address it anyway.
+    expect(ids).not.toContain('main.offer_claims');
+    expect(body.templates.map((row) => row.key)).toContain('welcome');
   });
 
   it('names the child tables a document mapping could read, and only joinable ones', async () => {
